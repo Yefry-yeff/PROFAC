@@ -33,6 +33,7 @@ use App\Http\Livewire\Ventas\DetalleVentaVendedor;
 use App\Http\Livewire\VentasEstatal\LitsadoFacturasEstatalVendedor;
 use App\Http\Livewire\VentasExoneradas\VentasExoneradas;
 use App\Http\Livewire\VentasExoneradas\ListadoFacturasExonerads;
+use App\Http\Livewire\Cotizaciones\Cotizacion;
 
 
 
@@ -263,6 +264,12 @@ Route::get('/exonerado/listas/facturas',[ListadoFacturasExonerads::class,'listar
 Route::get('/ventas/seleccionar', SeleccionarFactura::class); 
 Route::get('/ventas/lista/seleccionar', [SeleccionarFactura::class,'listadoFacturas']); 
 Route::post('/ventas/cambio', [SeleccionarFactura::class,'cambioEstado']); 
+
+
+//---------------------------------------Proforma y Cotizaciones--------------------------------//
+Route::get('/proforma/cotizacion/{id}',Cotizacion::class);
+Route::get('/cotizacion/clientes',[Cotizacion::class,'listarClientes']);
+Route::post('/guardar/cotizacion',[Cotizacion::class,'guardarCotizacion']);
 
 //------------------------------------------establecer links de storage---------------------------//
 Route::get('/linkstorage', function () {

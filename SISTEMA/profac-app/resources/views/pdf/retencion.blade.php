@@ -48,7 +48,7 @@
                 <p class="card-text" style="position:absolute;left:20px;  top:10px;"><b>Proveedor:</b> {{$data->nombre}}</p>
                 <p class="card-text" style="position:absolute;left:350px;  top:10px;"><b>Fecha:</b> {{$data->fecha}}</p>
                 <p class="card-text" style="position:absolute;left:550px;  top:10px;"><b>Porcentaje:</b> 1%</p>
-                <p class="card-text" style="position:absolute;left:20px;  top:35px;"><b>CAI:</b> 08011988937783VG35V53Y53B3588GH52837</p>
+                <p class="card-text" style="position:absolute;left:20px;  top:35px;"><b>CAI:</b> {{$data->cai_compra}}</p>
                 <p class="card-text" style="position:absolute;left:550px;  top:35px;"><b>RTN:</b> {{$data->rtn}}</p>
                 <p class="card-text" style="position:absolute;left:20px;  top:60px;"><b>Comentarios:</b> RETENCION DEL 1%</p>
             </div>

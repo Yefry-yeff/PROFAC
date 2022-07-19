@@ -367,7 +367,8 @@ class PagosCompra extends Component
 
     public function retencionDocumentoPDF($idCompra){
         $data = DB::SELECTONE("
-        select 
+        select
+        compra.cai_retencion as cai_compra,
         compra.numero_orden,
         compra.cai_retencion,
         DATE_FORMAT(cai.fecha_limite_emision, '%d/%m/%Y') as fecha_limite,

@@ -66,8 +66,10 @@
     <div class="pruebaFondo">
         <div class="card border border-dark" style="margin-left:44px;  margin-top:150px; width:45rem; height:5.5rem;">
             <div class="card-header">
-                <b>Factura No. {{$cai->numero_factura}}</b>
-            </div>
+                <b>Factura No. {{$cai->numero_factura}} </b>
+                <b style="position:absolute;right: 10px" >Factura de: {{$cai->descripcion}}</b>
+            </div> 
+
             <div class="card-body">
                 <p class="card-text" style="position:absolute;left:20px;  top:50px;"><b>Reistro tributario:
                         08011986138652</b></p>
