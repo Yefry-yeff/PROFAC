@@ -51,6 +51,7 @@ use App\Http\Livewire\VentasEstatal\LitsadoFacturasEstatalVendedor;
 use App\Http\Livewire\VentasExoneradas\VentasExoneradas;
 use App\Http\Livewire\VentasExoneradas\ListadoFacturasExonerads;
 use App\Http\Livewire\Cotizaciones\Cotizacion;
+use App\Http\Livewire\Cotizaciones\Editarcotizacion;
 use App\Http\Livewire\Cotizaciones\ListarCotizaciones;
 use App\Http\Livewire\Cotizaciones\FacturarCotizacion;
 use App\Http\Livewire\Cotizaciones\FacturarCotizacionGobierno;
@@ -379,12 +380,18 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('/proforma/cotizacion/{id}', Cotizacion::class);
     Route::get('/cotizacion/clientes', [Cotizacion::class, 'listarClientes']);
     Route::post('/guardar/cotizacion', [Cotizacion::class, 'guardarCotizacion']);
+    
+    Route::post('/editar/cotizacion', [Editarcotizacion::class, 'guardarCotizacion']);
     Route::get('/cotizacion/listado/{id}', ListarCotizaciones::class);
     Route::post('/cotizacion/obtener/listado', [ListarCotizaciones::class, 'listarCotizaciones']);
     Route::get('/cotizacion/imprimir/{id}', [Cotizacion::class, 'imprimirCotizacion']);
     Route::get('/proforma/imprimir/{id}', [Cotizacion::class, 'imprimirProforma']);
     Route::get('/cotizacion/facturar/{id}', FacturarCotizacion::class);
     Route::get('/cotizacion/facturar/gobierno/{id}', FacturarCotizacionGobierno::class);
+
+
+    
+    Route::get('/cotizacion/edicion/{id}', Editarcotizacion::class);
     Route::get('/cotizacion/listar/bodegas/{idProducto}', [Cotizacion::class, 'listarBodegas']);
 
 
