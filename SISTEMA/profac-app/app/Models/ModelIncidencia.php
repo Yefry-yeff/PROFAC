@@ -13,6 +13,7 @@ class ModelIncidencia extends Model
     protected $fillable = [
         'descripcion',
         'url_img',
-        'recibido_bodega_id'       
+        'recibido_bodega_id',
+        'users_id'       
     ];
 }

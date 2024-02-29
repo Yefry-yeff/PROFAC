@@ -19,6 +19,8 @@ class ModelRecibirBodega extends Model
         'fecha_recibido',
         'fecha_expiracion',
         'estado_recibido',
-        'recibido_por',       
+        'recibido_por', 
+        'unidad_compra_id',
+        'unidades_compra'      
     ];
 }
