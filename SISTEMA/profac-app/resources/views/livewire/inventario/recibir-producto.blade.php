@@ -564,7 +564,7 @@
             }
 
             function listarBodegas() {
-                console.log("entro")
+                
                 document.getElementById('segmento').innerHTML =   '<option value="" selected disabled>---Seleccione un segmento---</option>';
                 document.getElementById('seccion').innerHTML =    '<option value="" selected disabled>---Seleccione una sección---</option>';
 
@@ -836,13 +836,14 @@
 
                     })
                     .catch(err => {
-                        $('#modalRecibirProducto').modal('hide');
+                        document.getElementById("btn_recibir_excedente").disabled = false;
+                        $('#modalRecibirExcedente').modal('hide');
                         //console.log(err.response.data);
                         let data = err.response.data;
                         Swal.fire({
-                            icon: data.icon,
-                            title: data.title,
-                            text: data.text,
+                            icon: "error",
+                            title: "Error",
+                            text: "Ha ocurrido un error al intentar ingresar el producto excedente.",
                         })
                     })
 
