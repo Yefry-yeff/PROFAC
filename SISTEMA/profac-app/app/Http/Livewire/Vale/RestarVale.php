@@ -556,12 +556,12 @@ class RestarVale extends Component
 
         $importesConCentavos= DB::SELECTONE("
         select
-        FORMAT(total,2) as total,
-        FORMAT(isv,2) as isv,
-        FORMAT(sub_total,2) as sub_total,
-        FORMAT(sub_total_grabado,2) as sub_total_grabado,
-        FORMAT(sub_total_excento,2) as sub_total_excento,
-        FORMAT(monto_descuento,2) as monto_descuento, 
+        total as total,
+        isv as isv,
+        sub_total as sub_total,
+        sub_total_grabado as sub_total_grabado,
+        sub_total_excento as sub_total_excento,
+        monto_descuento as monto_descuento,
         porc_descuento
         from vale where id = ".$idVale);
 
@@ -571,9 +571,9 @@ class RestarVale extends Component
             B.id as codigo,
             B.nombre as descripcion,
             D.nombre as medida,
-            FORMAT(TRUNCATE(A.precio,2),2) as precio,
+            A.precio as precio,
             A.cantidad,
-            FORMAT(TRUNCATE(A.sub_total,2),2) as importe
+            A.sub_total as importe
             from espera_has_producto A
             inner join producto B
             on A.producto_id = B.id
@@ -675,12 +675,12 @@ class RestarVale extends Component
 
         $importesConCentavos= DB::SELECTONE("
         select
-        FORMAT(total,2) as total,
-        FORMAT(isv,2) as isv,
-        FORMAT(sub_total,2) as sub_total,
-        FORMAT(sub_total_grabado,2) as sub_total_grabado,
-        FORMAT(sub_total_excento,2) as sub_total_excento,
-        FORMAT(monto_descuento,2) as monto_descuento, 
+        total as total,
+        isv as isv,
+        sub_total as sub_total,
+        sub_total_grabado as sub_total_grabado,
+        sub_total_excento as sub_total_excento,
+        monto_descuento as monto_descuento,
         porc_descuento
         from vale where id = ".$idVale);
 
@@ -690,9 +690,9 @@ class RestarVale extends Component
             B.id as codigo,
             B.nombre as descripcion,
             D.nombre as medida,
-            FORMAT(TRUNCATE(A.precio,2),2) as precio,
+            A.precio as precio,
             A.cantidad,
-            FORMAT(TRUNCATE(A.sub_total,2),2) as importe
+            A.sub_total as importe
             from espera_has_producto A
             inner join producto B
             on A.producto_id = B.id

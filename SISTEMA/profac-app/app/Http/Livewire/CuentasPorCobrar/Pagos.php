@@ -165,7 +165,7 @@ class Pagos extends Component
                 where
                 cliente_id = ".$id."
                 and
-                estado = 1;"
+                estado = 1 and estado_cerrado <> 2;"
             );
 
 
@@ -771,6 +771,23 @@ class Pagos extends Component
 
     public function cerrarFactura(Request $request){
         try {
+
+            $revision = DB::SELECTONE("
+            select aplicacion_pagos.saldo as saldo
+            from aplicacion_pagos
+            where aplicacion_pagos.estado <> 1
+            and aplicacion_pagos.id =
+            ".$request->codAplicCierre);
+            if ( !is_null($revision)) {
+                if ($revision->saldo > 0 ) {
+                    return response()->json([
+                        "text" => "No es posible cerrar la factura, Saldo del estado de cuenta, no es 0.",
+                        "icon" => "error",
+                        "title"=>"Error!"
+                    ],402);
+                }
+            }
+
 
             $cuentas2 = DB::select("
 

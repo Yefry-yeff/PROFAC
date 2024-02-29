@@ -51,6 +51,7 @@ use App\Http\Livewire\VentasEstatal\LitsadoFacturasEstatalVendedor;
 use App\Http\Livewire\VentasExoneradas\VentasExoneradas;
 use App\Http\Livewire\VentasExoneradas\ListadoFacturasExonerads;
 use App\Http\Livewire\Cotizaciones\Cotizacion;
+use App\Http\Livewire\Cotizaciones\Editarcotizacion;
 use App\Http\Livewire\Cotizaciones\ListarCotizaciones;
 use App\Http\Livewire\Cotizaciones\FacturarCotizacion;
 use App\Http\Livewire\Cotizaciones\FacturarCotizacionGobierno;
@@ -379,12 +380,18 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('/proforma/cotizacion/{id}', Cotizacion::class);
     Route::get('/cotizacion/clientes', [Cotizacion::class, 'listarClientes']);
     Route::post('/guardar/cotizacion', [Cotizacion::class, 'guardarCotizacion']);
+    
+    Route::post('/editar/cotizacion', [Editarcotizacion::class, 'guardarCotizacion']);
     Route::get('/cotizacion/listado/{id}', ListarCotizaciones::class);
     Route::post('/cotizacion/obtener/listado', [ListarCotizaciones::class, 'listarCotizaciones']);
     Route::get('/cotizacion/imprimir/{id}', [Cotizacion::class, 'imprimirCotizacion']);
     Route::get('/proforma/imprimir/{id}', [Cotizacion::class, 'imprimirProforma']);
     Route::get('/cotizacion/facturar/{id}', FacturarCotizacion::class);
     Route::get('/cotizacion/facturar/gobierno/{id}', FacturarCotizacionGobierno::class);
+
+
+    
+    Route::get('/cotizacion/edicion/{id}', Editarcotizacion::class);
     Route::get('/cotizacion/listar/bodegas/{idProducto}', [Cotizacion::class, 'listarBodegas']);
 
 
@@ -502,6 +509,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::post('/nota/credito/listar', [ListadoNotaCredito::class, 'listadoNotaCredito']);
     Route::get('/nota/credito/imprimir/{idNota}', [ListadoNotaCredito::class, 'imprimirnotaCreditoOriginal']);
     Route::get('/nota/credito/imprimir/copia/{idNota}', [ListadoNotaCredito::class, 'imprimirnotaCreditoCopia']);
+    Route::post('/nota/credito/anular', [CrearNotaCredito::class, 'anularNotaCredito']);
 
 
 
@@ -746,7 +754,11 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('/facturaDia', FacturaDia::class);
     Route::get('/reporte/comision', Prodmes::class);
     Route::get('/reporte/reporteria', Reporteria::class);
+
     Route::get('/reporte/reporteria/consulta/{fecha_inicio}/{fecha_final}', [Reporteria::class,'consulta']);
+    Route::get('/reporte/reporteria/productos', [Reporteria::class,'catalogoProductos']);
+    Route::get('/reporte/reporteria/clientes', [Reporteria::class,'consultaClientes']);
+
 
     Route::get('/consulta/{fecha_inicio}/{fecha_final}', [facturaDia::class,'consulta']);
 

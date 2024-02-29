@@ -43,7 +43,7 @@ class LitsadoFacturasVendedor extends Component
             (select if(sum(monto) is null,0,sum(monto)) from pago_venta where estado_venta_id = 1   and factura_id = factura.id ) as monto_pagado,
             factura.estado_venta_id,
             factura.created_at as fecha_registro
-        
+
         from factura
             inner join cliente
             on factura.cliente_id = cliente.id
@@ -52,7 +52,7 @@ class LitsadoFacturasVendedor extends Component
             inner join users
             on factura.vendedor = users.id
             cross join (select @i := 0) r
-        where ( YEAR(factura.created_at) >= (YEAR(NOW())-2) ) and factura.estado_venta_id<>2 and (factura.tipo_venta_id = 1) and factura.vendedor = ".Auth::user()->id."        
+        where ( YEAR(factura.created_at) >= (YEAR(NOW())-2) ) and factura.estado_venta_id<>2 and (factura.tipo_venta_id = 1) and factura.vendedor = ".Auth::user()->id."
         order by factura.created_at desc
             ");
 
@@ -66,18 +66,18 @@ class LitsadoFacturasVendedor extends Component
                         <button data-toggle="dropdown" class="btn btn-warning dropdown-toggle" aria-expanded="false">Ver
                             más</button>
                         <ul class="dropdown-menu" x-placement="bottom-start" style="position: absolute; top: 33px; left: 0px; will-change: top, left;">
-    
+
                             <li>
                                 <a class="dropdown-item" href="/detalle/venta/'.$listaFacturas->id.'" > <i class="fa-solid fa-arrows-to-eye text-info"></i> Detalle de venta </a>
                             </li>
-                            
+
                             <li>
                             <a class="dropdown-item" target="_blank"  href="/factura/cooporativo/'.$listaFacturas->id.'"> <i class="fa-solid fa-print text-info"></i> Imprimir Factura </a>
-                            </li>    
-    
+                            </li>
 
-    
-                            
+
+
+
                         </ul>
                     </div>';
                 }else{
@@ -87,25 +87,25 @@ class LitsadoFacturasVendedor extends Component
                         <button data-toggle="dropdown" class="btn btn-warning dropdown-toggle" aria-expanded="false">Ver
                             más</button>
                         <ul class="dropdown-menu" x-placement="bottom-start" style="position: absolute; top: 33px; left: 0px; will-change: top, left;">
-    
+
                             <li>
                                 <a class="dropdown-item" href="/detalle/venta/'.$listaFacturas->id.'" > <i class="fa-solid fa-arrows-to-eye text-info"></i> Detalle de venta </a>
                             </li>
-    
 
-                            
+
+
                             <li>
                             <a class="dropdown-item" target="_blank"  href="/factura/cooporativo/'.$listaFacturas->id.'"> <i class="fa-solid fa-print text-info"></i> Imprimir Factura </a>
-                            </li>    
-    
+                            </li>
 
-                            
+
+
                         </ul>
                     </div>';
                 }
             })
             ->addColumn('estado_cobro', function ($listaFacturas) {
-                if($listaFacturas->estado_venta_id==2){
+                /* if($listaFacturas->estado_venta_id==2){
 
                     return
                     '
@@ -125,18 +125,42 @@ class LitsadoFacturasVendedor extends Component
                     '
                     <p class="text-center"><span class="badge badge-danger p-2" style="font-size:0.75rem">Pendiente</span></p>
                     ';
-                }
+                } */
 
+
+                $revision = DB::SELECTONE("
+                    select count(*) as valida
+                    from aplicacion_pagos
+                    where aplicacion_pagos.estado = 1
+                    and aplicacion_pagos.estado_cerrado = 2
+                    and aplicacion_pagos.factura_id =
+                    ".$listaFacturas->id);
+
+
+                    if(  $revision->valida == 1){
+
+                        return
+                        '
+
+                        <p class="text-center" ><span class="badge badge-primary p-2" style="font-size:0.75rem">Cerrada</span></p>
+                        ';
+
+                    }else{
+                        return
+                        '
+                        <p class="text-center"><span class="badge badge-danger p-2" style="font-size:0.75rem">Pendiente</span></p>
+                        ';
+                    }
            })
             ->rawColumns(['opciones','estado_cobro'])
             ->make(true);
-           
+
         } catch (QueryException $e) {
             return response()->json([
                 'message' => 'Ha ocurrido un error al listar las compras.',
                 'errorTh' => $e,
             ], 402);
-           
+
         }
 
     }

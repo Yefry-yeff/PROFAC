@@ -205,7 +205,40 @@
             }
 
 
+            function anularNota(idNotaCredito, idFactura){
+                axios.post('/nota/credito/anular', {
+                                    idFactura: idFactura,
+                                    idNotaCredito: idNotaCredito
+                                })
+                                .then(response => {
 
+                                    let data = response.data;
+
+                                    Swal.fire({
+                                        icon: data.icon,
+                                        title: data.title,
+                                        html: data.text,
+
+                                    })
+
+                                    location.reload()
+
+
+                                    return;
+
+
+                                })
+                                .catch(err => {
+
+
+                                    Swal.fire({
+                                        icon: "error",
+                                        title: "Error",
+                                        text: "Ha ocurrido un error al anular nota de credito.",
+                                    })
+
+                                })
+            }
 
         </script>
     @endpush

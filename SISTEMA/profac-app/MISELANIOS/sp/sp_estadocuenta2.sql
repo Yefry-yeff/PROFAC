@@ -36,6 +36,7 @@ CREATE PROCEDURE `estadoCuenta_sp` (IN `idcliente` INT)   BEGIN
     where factura.estado_venta_id = 1
     and aplicacion_pagos.estado = 1
     and aplicacion_pagos.cliente_id = idcliente
+    and aplicacion_pagos.saldo > 0
     order by factura.fecha_emision ASC;
 
 END$$

@@ -78,17 +78,17 @@ class CrearVale extends Component
             $listaProductos = DB::SELECT("
             select
             concat(A.producto_id,'-',A.seccion_id  ) as id,
-            concat('cod ',B.id ,' - ',B.nombre,' => Cantidad Disponible ',sum(A.cantidad_para_entregar)/C.unidad_venta ) as text       
-            
+            concat('cod ',B.id ,' - ',B.nombre,' => Cantidad Disponible ',sum(A.cantidad_para_entregar)/C.unidad_venta ) as text
+
             from venta_has_producto A
               inner join producto B
-              on A.producto_id = B.id 
+              on A.producto_id = B.id
               inner join unidad_medida_venta C
               on A.unidad_medida_venta_id = C.id
-              where A.cantidad_para_entregar <>0 and A.factura_id = ".$request->idFactura."    
+              where A.cantidad_para_entregar <>0 and A.factura_id = ".$request->idFactura."
               and (B.id like '%".$request->search."%' or B.nombre like '%".$request->search."%' )
               group by A.producto_id, A.seccion_id, A.factura_id, A.cantidad, C.unidad_venta
-          
+
         "); //agregar group by por producto factura y seccion, agregar un and para omitir lote con 0 producto para entrega
 
 
@@ -114,13 +114,13 @@ class CrearVale extends Component
 
             $producto = DB::SELECTONE(
                 "
-        select 
+        select
         B.id,
         concat(B.id,'-',B.nombre) as nombre,
         B.isv,
         ultimo_costo_compra as ultimo_costo_compra,
         A.precio_unidad as precio_base
-      
+
         from venta_has_producto A
         inner join producto B
         on A.producto_id = B.id
@@ -132,7 +132,7 @@ class CrearVale extends Component
             sum(A.cantidad_para_entregar)/B.unidad_venta as cantidad
         from venta_has_producto A
             inner join unidad_medida_venta B
-            on A.unidad_medida_venta_id = B.id 
+            on A.unidad_medida_venta_id = B.id
             where A.factura_id = " . $request->idFactura . " and A.producto_id = " . $request->idProducto . " and A.seccion_id=" . $request->idSeccion . "
             group by A.factura_id, A.producto_id, A.seccion_id, B.unidad_venta
 
@@ -146,7 +146,7 @@ class CrearVale extends Component
         C.unidad_venta as id,
         CONCAT(D.nombre,'-',C.unidad_venta) as nombre,
         C.id as idUnidadVenta
-    from venta_has_producto A        
+    from venta_has_producto A
         inner join unidad_medida_venta C
         on A.unidad_medida_venta_id = C.id
         inner join unidad_medida D
@@ -156,10 +156,10 @@ class CrearVale extends Component
 
             $bodega = DB::SELECTONE(
                 "
-        select 
+        select
             B.id as idSeccion,
-            concat(D.nombre,'-',B.descripcion ) as bodega,        
-            D.id as idBodega         
+            concat(D.nombre,'-',B.descripcion ) as bodega,
+            D.id as idBodega
         from venta_has_producto A
             inner join seccion B
             on A.seccion_id = B.id
@@ -240,7 +240,7 @@ class CrearVale extends Component
         //        $keyNombre = "nombre" . $arrayInputs[$j];
         //        $keyBodega = "bodega" . $arrayInputs[$j];
 
-        //        $resultado = DB::selectONE("select 
+        //        $resultado = DB::selectONE("select
         //    if(sum(cantidad_disponible) is null,0,sum(cantidad_disponible)) as cantidad_disponoble
         //    from recibido_bodega
         //    where cantidad_disponible <> 0
@@ -263,9 +263,9 @@ class CrearVale extends Component
         //        ], 200);
         //    }
         //    //comprobar existencia de producto en bodega
-           
+
         //    $flagEstado = DB::SELECTONE("select estado_encendido from parametro where id = 1");
-          
+
         //    if ($flagEstado->estado_encendido == 1) {
         //        $estado = 1;
         //    } else {
@@ -399,7 +399,7 @@ class CrearVale extends Component
         while (!($unidadesRestar <= 0)) {
 
             $unidadesDisponibles = DB::SELECTONE("
-                select 
+                select
                     factura_id,
                     producto_id,
                     lote as lote_id,
@@ -407,7 +407,7 @@ class CrearVale extends Component
                     A.unidad_medida_venta_id,
                     A.numero_unidades_resta_inventario as cantidad
                 from venta_has_producto A
-                where 
+                where
                     A.factura_id = " . $idFactura . " and
                     A.producto_id = " . $idProducto . " and
                     A.seccion_id = " . $idSeccion . " and
@@ -560,7 +560,7 @@ class CrearVale extends Component
 
             $lotes = DB::SELECT(
                 "
-        select 
+        select
             factura_id,
             vale_id,
             lote_id,
@@ -568,7 +568,7 @@ class CrearVale extends Component
             resta_inventario_unidades,
             estado_id
 
-        from vale_has_producto 
+        from vale_has_producto
             inner join vale on
             vale.id = vale_has_producto.vale_id
             where vale_id = " . $idVale
@@ -647,15 +647,15 @@ class CrearVale extends Component
 
             $lotes = DB::SELECT(
                 "
-         select 
+         select
              factura_id,
              vale_id,
              lote_id,
              unidad_medida_venta_id,
              resta_inventario_unidades,
              estado_id
- 
-         from vale_has_producto 
+
+         from vale_has_producto
              inner join vale on
              vale.id = vale_has_producto.vale_id
              where vale_id = " . $idVale
@@ -726,7 +726,7 @@ class CrearVale extends Component
     public function imprimirEntregaProgramada($idEntrega){
 
         $datosEntrega = DB::SELECTONE("
-        select 
+        select
             A.numero_factura,
             A.cai,
             A.estado_factura_id,
@@ -740,7 +740,7 @@ class CrearVale extends Component
             TIME(B.created_at) as hora,
             D.name as vendedor,
             B.estado_id as estadoVale
-        FROM factura A 
+        FROM factura A
             inner join vale B
             on A.id = B.factura_id
             inner join cliente C
@@ -751,17 +751,17 @@ class CrearVale extends Component
         );
 
         $productos = DB::SELECT("
-        select 
+        select
             A.producto_id,
             B.nombre,
             D.nombre as unidad,
             A.cantidad_para_entregar as cantidad,
-            FORMAT(sum(A.sub_total/A.cantidad_para_entregar),2) as precio,
-            FORMAT(sum(A.sub_total),2) sub_total
+            sum(A.sub_total/A.cantidad_para_entregar) as precio,
+            sum(A.sub_total) sub_total
         from vale_has_producto A
             inner join producto B
             on A.producto_id = B.id
-            inner join unidad_medida_venta C 
+            inner join unidad_medida_venta C
             on A.unidad_medida_venta_id = C.id
             inner join unidad_medida D
             on C.unidad_medida_id = D.id
@@ -771,13 +771,13 @@ class CrearVale extends Component
 
         $importes = DB::SELECTONE("
         select
-        format(sub_total_grabado,2) as sub_total_grabado,
-        format(sub_total_excento,2) as sub_total_excento,
-        format(sub_total,2) as sub_total,
-        format(isv,2) as isv,
-        format(total,2) as total        
+        sub_total_grabado as sub_total_grabado,
+        sub_total_excento as sub_total_excento,
+        sub_total as sub_total,
+        isv as isv,
+        total as total
         from vale
-        where id =".$idEntrega 
+        where id =".$idEntrega
     );
 
     $importesSinCentavos = DB::SELECTONE("
@@ -786,15 +786,15 @@ class CrearVale extends Component
         sub_total_grabado,
         sub_total_excento,
         isv,
-        total 
+        total
     from vale
-    where id =".$idEntrega 
+    where id =".$idEntrega
 );
 
 
 
         if( fmod($importesSinCentavos->total, 1) == 0.0 ){
-            $flagCentavos = false;          
+            $flagCentavos = false;
         }else{
             $flagCentavos = true;
         }
@@ -804,7 +804,7 @@ class CrearVale extends Component
         $numeroLetras = $formatter->toMoney($importesSinCentavos->total, 2, 'LEMPIRAS', 'CENTAVOS');
 
         $pdf = PDF::loadView('/pdf/entrega-programada',compact('datosEntrega','productos','importes','flagCentavos','numeroLetras'))->setPaper('letter');
-       
+
         return $pdf->stream("Entrega Programada No. 1.pdf");
     }
 }

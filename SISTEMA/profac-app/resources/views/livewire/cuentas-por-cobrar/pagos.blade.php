@@ -172,6 +172,9 @@
                                                 <label for="exampleFormControlTextarea1"> <b>Selección Acción para Nota de crédito</b></label>
 
                                                  <select required id="selectAplicado" name="selectAplicado" class="form-control form-select form-select-lg">
+                                                    <option  class="form-control" selected>--------------SELECCIONE-----------------</option>
+                                                    <option  class="form-control" value="1">SE APLICA</option>
+                                                    <option  class="form-control" value="2">NO SE APLICA</option>
                                                  </select>
                                             </div>
 
@@ -260,6 +263,9 @@
                                                 <label for="exampleFormControlTextarea1"> <b>Selección Acción para Nota de dédito</b></label>
 
                                                  <select required id="selectAplicadond" name="selectAplicadond" class="form-control form-select form-select-lg">
+                                                    <option  class="form-control" selected>--------------SELECCIONE-----------------</option>
+                                                    <option  class="form-control" value="1">SE APLICA</option>
+                                                    <option  class="form-control" value="2">NO SE APLICA</option>
                                                  </select>
                                             </div>
 
@@ -791,13 +797,13 @@
 
             console.log(nota[0].estado_rebajado);
             /*LLENANDO EL SELECT DE LA APLICACION DEL PAGO*/
-            if(nota[0].estado_rebajado == 1){
+            /*if(nota[0].estado_rebajado == 1){
                 document.getElementById("selectAplicado").innerHTML += '<option selected class="form-control" value="1">SE APLICA REBAJA DE NOTA DE CRÉDITO - <span class="badge badge-success">ACTUÁL</span></option>';
                 document.getElementById("selectAplicado").innerHTML += '<option class="form-control" value="2">NO SE APLICA REBAJA DE NOTA DE CRÉDITO</option>';
             }else{
                 document.getElementById("selectAplicado").innerHTML += '<option  class="form-control" value="1">SE APLICA REBAJA DE NOTA DE CRÉDITO</option>';
                 document.getElementById("selectAplicado").innerHTML += '<option selected class="form-control" value="2">NO SE APLICA REBAJA DE NOTA DE CRÉDITO - <span class="badge badge-success">ACTUÁL</span></option>';
-            }
+            }*/
 
 
             $('#totalNotaCredito').val(nota[0].total);
@@ -876,13 +882,13 @@
 
             console.log(nota[0]);
             /*LLENANDO EL SELECT DE LA APLICACION DEL PAGO*/
-            if(nota[0].estado_sumado == 1){
+            /*if(nota[0].estado_sumado == 1){
                 document.getElementById("selectAplicadond").innerHTML += '<option selected class="form-control" value="1">SE APLICA SUMA DE NOTA DE CRÉDITO - <span class="badge badge-success">ACTUÁL</span></option>';
                 document.getElementById("selectAplicadond").innerHTML += '<option class="form-control" value="2">NO SE APLICA SUMA DE NOTA DE CRÉDITO</option>';
             }else{
                 document.getElementById("selectAplicadond").innerHTML += '<option  class="form-control" value="1">SE APLICA SUMA DE NOTA DE CRÉDITO</option>';
                 document.getElementById("selectAplicadond").innerHTML += '<option selected class="form-control" value="2">NO SE APLICA SUMA DE NOTA DE CRÉDITO - <span class="badge badge-success">ACTUÁL</span></option>';
-            }
+            }*/
 
 
             $('#totalNotaDebito').val(nota[0].total);
