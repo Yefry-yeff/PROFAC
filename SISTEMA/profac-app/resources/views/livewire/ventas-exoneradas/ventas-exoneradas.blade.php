@@ -1,32 +1,30 @@
 <div>
     @push('styles')
         <style>
-
-                /* Chrome, Safari, Edge, Opera */
-                input::-webkit-outer-spin-button,
-                input::-webkit-inner-spin-button {
+            /* Chrome, Safari, Edge, Opera */
+            input::-webkit-outer-spin-button,
+            input::-webkit-inner-spin-button {
                 -webkit-appearance: none;
                 margin: 0;
-                }
+            }
 
-                /* Firefox */
-                input[type=number] {
+            /* Firefox */
+            input[type=number] {
                 -moz-appearance: textfield;
-                }
+            }
 
 
 
-                @media (max-width: 767.5px) {
+            @media (max-width: 767.5px) {
                 .hide-container {
                     display: none;
                 }
 
             }
 
-            .center-div{
+            .center-div {
                 text-align: center
             }
-
         </style>
     @endpush
 
@@ -65,56 +63,60 @@
                         <h3>Datos de compra <i class="fa-solid fa-cart-shopping"></i></h3>
                     </div>
                     <div class="ibox-content">
-                        <form onkeydown="return event.key != 'Enter';" autocomplete="off" id="crear_venta" name="crear_venta" data-parsley-validate>
+                        <form onkeydown="return event.key != 'Enter';" autocomplete="off" id="crear_venta"
+                            name="crear_venta" data-parsley-validate>
                             <input type="hidden" id="restriccion" name="restriccion" value="1">
                             <input name="idComprobante" id="idComprobante" type="hidden" value="">
                             <input type="hidden" id="tipo_venta_id" name="tipo_venta_id" value="3">
 
-                                <div class="row">
-                                    <div class="col-6 col-sm-6 col-md-2 col-lg-2 col-xl-2">
-                                        <label class="col-form-label text-danger" for="numero_venta"
-                                            style="font-size: 1.5rem; font-weight:600;">Numero de Venta</label>
-                                    </div>
-
-                                    <div class="col-6 col-sm-6 col-md-2 col-lg-2 col-xl-2">
-                                        <input class="form-control" style="font-size: 1.5rem; font-weight:600; text-align:center" type="text" id="numero_venta" name="numero_venta"
-                                        value="" data-parsley-required readonly>
-                                    </div>
-
-
-
-
-
+                            <div class="row">
+                                <div class="col-6 col-sm-6 col-md-2 col-lg-2 col-xl-2">
+                                    <label class="col-form-label text-danger" for="numero_venta"
+                                        style="font-size: 1.5rem; font-weight:600;">Numero de Venta</label>
                                 </div>
 
-                                <div class="row  mt-4 mb-4">
-
-                                    <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6">
-                                        <label for="seleccionarCliente" class="col-form-label focus-label">Seleccionar
-                                            Cliente:<span class="text-danger">*</span> </label>
-                                        <select id="seleccionarCliente" name="seleccionarCliente" class="form-group form-control"
-                                            data-parsley-required onchange="obtenerDatosCliente()">
-                                            <option value="" selected disabled>--Seleccionar un cliente--</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4">
-                                        <label for="ordenCompra" class="col-form-label focus-label">Seleccionar un número de
-                                            orden de compra:</label>
-                                        <select class="form-group form-control " name="ordenCompra" id="ordenCompra">
-                                            <option value="" selected disabled>--Seleccionar un número de compra--
-                                            </option>
-
-                                        </select>
-                                    </div>
-
-                                    <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6">
-                                        <label for="seleccionarCliente" class="col-form-label focus-label">Seleccionar
-                                            Código de exoneracion:<span class="text-danger">*</span> </label>
-                                            <select name="codigo" id="codigo" class="form-group form-control">
-                                                <option value="" selected disabled >--Seleccione un codigo--</option>
-                                            </select>
-                                    </div>
+                                <div class="col-6 col-sm-6 col-md-2 col-lg-2 col-xl-2">
+                                    <input class="form-control"
+                                        style="font-size: 1.5rem; font-weight:600; text-align:center" type="text"
+                                        id="numero_venta" name="numero_venta" value="" data-parsley-required
+                                        readonly>
                                 </div>
+
+
+
+
+
+                            </div>
+
+                            <div class="row  mt-4 mb-4">
+
+                                <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6">
+                                    <label for="seleccionarCliente" class="col-form-label focus-label">Seleccionar
+                                        Cliente:<span class="text-danger">*</span> </label>
+                                    <select id="seleccionarCliente" name="seleccionarCliente"
+                                        class="form-group form-control" data-parsley-required
+                                        onchange="obtenerDatosCliente()">
+                                        <option value="" selected disabled>--Seleccionar un cliente--</option>
+                                    </select>
+                                </div>
+                                <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4">
+                                    <label for="ordenCompra" class="col-form-label focus-label">Seleccionar un número de
+                                        orden de compra:</label>
+                                    <select class="form-group form-control " name="ordenCompra" id="ordenCompra">
+                                        <option value="" selected disabled>--Seleccionar un número de compra--
+                                        </option>
+
+                                    </select>
+                                </div>
+
+                                <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6">
+                                    <label for="seleccionarCliente" class="col-form-label focus-label">Seleccionar
+                                        Código de exoneracion:<span class="text-danger">*</span> </label>
+                                    <select name="codigo" id="codigo" class="form-group form-control">
+                                        <option value="" selected disabled>--Seleccione un codigo--</option>
+                                    </select>
+                                </div>
+                            </div>
 
 
 
@@ -123,24 +125,25 @@
 
 
                                 <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4">
-                                    <label class="col-form-label focus-label" for="vendedor">Seleccionar Vendedor:<span class="text-danger">*</span> </label>
+                                    <label class="col-form-label focus-label" for="vendedor">Seleccionar Vendedor:<span
+                                            class="text-danger">*</span> </label>
                                     <select name="vendedor" id="vendedor" class="form-group form-control" required>
-                                      <option value="" selected disabled>--Seleccionar un vendedor--</option>
+                                        <option value="" selected disabled>--Seleccionar un vendedor--</option>
                                     </select>
 
-                              </div>
+                                </div>
 
                                 <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4">
                                     <label class="col-form-label focus-label">Nombre del cliente</label>
-                                    <input class="form-control" required type="text" id="nombre_cliente_ventas" name="nombre_cliente_ventas"
-                                        data-parsley-required readonly>
+                                    <input class="form-control" required type="text" id="nombre_cliente_ventas"
+                                        name="nombre_cliente_ventas" data-parsley-required readonly>
 
                                 </div>
 
                                 <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4">
                                     <label class="col-form-label focus-label">RTN</label>
-                                    <input class="form-control"  type="text" id="rtn_ventas" name="rtn_ventas"
-                                    readonly>
+                                    <input class="form-control" type="text" id="rtn_ventas" name="rtn_ventas"
+                                        readonly>
 
                                 </div>
 
@@ -164,8 +167,9 @@
 
                                         <label for="fecha_emision" class="col-form-label focus-label">Fecha de emisión
                                             :</label>
-                                        <input class="form-control" type="date" id="fecha_emision" onchange="sumarDiasCredito()"
-                                            name="fecha_emision" value="{{ date('Y-m-d') }}" data-parsley-required>
+                                        <input class="form-control" type="date" id="fecha_emision"
+                                            onchange="sumarDiasCredito()" name="fecha_emision"
+                                            value="{{ date('Y-m-d') }}" data-parsley-required>
 
                                     </div>
                                 </div>
@@ -181,7 +185,8 @@
                                             min="{{ date('Y-m-d') }}" readonly>
                                     </div>
                                     <input type="hidden" id="porDescuento" name="porDescuento" value="0">
-                                    <input type="hidden" id="porDescuentoCalculado" name="porDescuentoCalculado" value="0">
+                                    <input type="hidden" id="porDescuentoCalculado" name="porDescuentoCalculado"
+                                        value="0">
                                 </div>
 
 
@@ -195,10 +200,9 @@
                             <div class="row">
                                 <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
                                     <div class="form-group">
-                                        <label for="nota"
-                                            class="col-form-label focus-label">Nota:
+                                        <label for="nota" class="col-form-label focus-label">Nota:
                                         </label>
-                                        <textarea class="form-control"  id="nota_comen" name="nota_comen" cols="30" rows="3" maxlength="250" ></textarea>
+                                        <textarea class="form-control" id="nota_comen" name="nota_comen" cols="30" rows="3" maxlength="250"></textarea>
                                     </div>
 
                                 </div>
@@ -208,13 +212,16 @@
                             <div class="row mt-4">
                                 <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6 ">
 
-                                        <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                            <label for="seleccionarProducto" class="col-form-label focus-label">Seleccionar Producto:</label>
-                                            <select id="seleccionarProducto" name="seleccionarProducto" class="form-group form-control" style=""
-                                                 onchange="obtenerImagenes()">
-                                                <option value="" selected disabled>--Seleccione un producto--</option>
-                                            </select>
-                                        </div>
+                                    <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
+                                        <label for="seleccionarProducto"
+                                            class="col-form-label focus-label">Seleccionar Producto:</label>
+                                        <select id="seleccionarProducto" name="seleccionarProducto"
+                                            class="form-group form-control" style=""
+                                            onchange="obtenerImagenes()">
+                                            <option value="" selected disabled>--Seleccione un producto--
+                                            </option>
+                                        </select>
+                                    </div>
 
 
 
@@ -222,11 +229,12 @@
 
                                 <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6 ">
                                     <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                        <label for="bodega" class="col-form-label focus-label">Seleccionar bodega:</label>
-                                        <select id="bodega" name="bodega" class="form-group form-control" style=""
-                                            onchange="prueba()"  disabled
-                                        >
-                                            <option value="" selected disabled>--Seleccione un producto--</option>
+                                        <label for="bodega" class="col-form-label focus-label">Seleccionar
+                                            bodega:</label>
+                                        <select id="bodega" name="bodega" class="form-group form-control"
+                                            style="" onchange="prueba()" disabled>
+                                            <option value="" selected disabled>--Seleccione un producto--
+                                            </option>
                                         </select>
                                     </div>
 
@@ -238,9 +246,11 @@
                             <div class="row">
 
 
-                                <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6 mt-4" >
+                                <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6 mt-4">
                                     <div class="text-center">
-                                        <a id="detalleProducto" href="" class="font-bold h3  d-none text-success" style="" target="_blank"> <i class="fa-solid fa-circle-info"></i> Ver Detalles De Producto </a>
+                                        <a id="detalleProducto" href=""
+                                            class="font-bold h3  d-none text-success" style="" target="_blank">
+                                            <i class="fa-solid fa-circle-info"></i> Ver Detalles De Producto </a>
                                     </div>
 
 
@@ -254,7 +264,7 @@
 
 
                                         </ol> --}}
-                                        <div id="bloqueImagenes" class="carousel-inner " >
+                                        <div id="bloqueImagenes" class="carousel-inner ">
 
 
 
@@ -277,23 +287,24 @@
 
                                 </div>
 
-                                <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6 " >
+                                <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6 ">
                                     <div id="botonAdd"
-                                    class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12 my-4 text-center d-none">
-                                    <button type="button" class="btn-rounded btn btn-success p-3"
-                                        style="font-weight: 900; " onclick="agregarProductoCarrito()">Añadir
-                                        Producto a venta <i class="fa-solid fa-cart-plus"></i> </button>
+                                        class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12 my-4 text-center d-none">
+                                        <button type="button" class="btn-rounded btn btn-success p-3"
+                                            style="font-weight: 900; " onclick="agregarProductoCarrito()">Añadir
+                                            Producto a venta <i class="fa-solid fa-cart-plus"></i> </button>
+
+                                    </div>
 
                                 </div>
-
-                            </div>
 
                             </div>
 
                             <hr>
 
                             <div class="hide-container">
-                                <p>Nota:El campo "Unidad" describe la unidad de medida para la venta del producto - seguido del numero de unidades a restar del inventario</p>
+                                <p>Nota:El campo "Unidad" describe la unidad de medida para la venta del producto -
+                                    seguido del numero de unidades a restar del inventario</p>
                                 <div class="row no-gutters ">
 
                                     <div class="form-group col-12 col-sm-12 col-md-2 col-lg-2 col-xl-2">
@@ -305,8 +316,7 @@
                                                 <label class="sr-only">Nombre del
                                                     producto</label>
                                                 <input type="text" placeholder="Nombre del producto"
-                                                    class="form-control" pattern="[A-Z]{1}"
-                                                   disabled>
+                                                    class="form-control" pattern="[A-Z]{1}" disabled>
                                             </div>
                                         </div>
                                     </div>
@@ -325,8 +335,8 @@
 
                                     <div class="form-group col-12 col-sm-12 col-md-1 col-lg-1 col-xl-1">
                                         <label class="sr-only">cantidad</label>
-                                        <input type="text" placeholder="Cantidad" class="form-control" min="1"
-                                            autocomplete="off" disabled>
+                                        <input type="text" placeholder="Cantidad" class="form-control"
+                                            min="1" autocomplete="off" disabled>
                                     </div>
 
                                     <div class="form-group col-12 col-sm-12 col-md-1 col-lg-1 col-xl-1 ">
@@ -339,7 +349,7 @@
 
 
                                     </div>
-{{--
+                                    {{--
                                     <div class="form-group col-12 col-sm-12 col-md-1 col-lg-1 col-xl-1">
                                         <label class="sr-only">Seccion</label>
                                         <input type="text" placeholder="Seccion" class="form-control"
@@ -348,8 +358,8 @@
 
                                     <div class="form-group col-12 col-sm-12 col-md-2 col-lg-2 col-xl-2">
                                         <label class="sr-only">Sub Total</label>
-                                        <input type="number" placeholder="Sub total del producto" class="form-control"
-                                            min="1" autocomplete="off" disabled>
+                                        <input type="number" placeholder="Sub total del producto"
+                                            class="form-control" min="1" autocomplete="off" disabled>
                                     </div>
 
                                     <div class="form-group col-12 col-sm-12 col-md-2 col-lg-2 col-xl-2">
@@ -370,7 +380,7 @@
 
                             </div>
 
-                            <div id="divProductos" >
+                            <div id="divProductos">
 
                             </div>
                             {{-- <div class="table-responsive">
@@ -411,51 +421,57 @@
                             <div class="row">
 
                                 <div class="form-group col-12 col-sm-12 col-md-2 col-lg-1 col-xl-1">
-                                    <label class="col-form-label" for="subTotalGeneralMostrar">Sub Total L.<span class="text-danger">*</span></label>
+                                    <label class="col-form-label" for="subTotalGeneralMostrar">Sub Total L.<span
+                                            class="text-danger">*</span></label>
                                 </div>
 
                                 <div class="form-group col-12 col-sm-12 col-md-3 col-lg-2 col-xl-2">
-                                    <input type="text"  placeholder="Sub total " id="subTotalGeneralMostrar"
-                                        name="subTotalGeneralMostrar" class="form-control"  data-parsley-required
+                                    <input type="text" placeholder="Sub total " id="subTotalGeneralMostrar"
+                                        name="subTotalGeneralMostrar" class="form-control" data-parsley-required
                                         autocomplete="off" readonly>
 
-                                        <input id="subTotalGeneral" name="subTotalGeneral" type="hidden" value="" required>
+                                    <input id="subTotalGeneral" name="subTotalGeneral" type="hidden" value=""
+                                        required>
                                 </div>
                             </div>
 
                             <div class="row">
 
                                 <div class="form-group col-12 col-sm-12 col-md-2 col-lg-1 col-xl-1">
-                                    <label class="col-form-label" for="isvGeneralMostrar">ISV L.<span class="text-danger">*</span></label>
+                                    <label class="col-form-label" for="isvGeneralMostrar">ISV L.<span
+                                            class="text-danger">*</span></label>
                                 </div>
 
                                 <div class="form-group col-12 col-sm-12 col-md-3 col-lg-2 col-xl-2">
-                                    <input type="text"  placeholder="ISV " id="isvGeneralMostrar" name="isvGeneralMostrar"
-                                        class="form-control" data-parsley-required autocomplete="off"
-                                        readonly>
-                                        <input id="isvGeneral" name="isvGeneral" type="hidden" value="" required>
+                                    <input type="text" placeholder="ISV " id="isvGeneralMostrar"
+                                        name="isvGeneralMostrar" class="form-control" data-parsley-required
+                                        autocomplete="off" readonly>
+                                    <input id="isvGeneral" name="isvGeneral" type="hidden" value="" required>
                                 </div>
                             </div>
 
                             <div class="row">
 
                                 <div class="form-group col-12 col-sm-12 col-md-2 col-lg-1 col-xl-1">
-                                    <label class="col-form-label" for="totalGeneralMostrar">Total L.<span class="text-danger">*</span></label>
+                                    <label class="col-form-label" for="totalGeneralMostrar">Total L.<span
+                                            class="text-danger">*</span></label>
                                 </div>
 
                                 <div class="form-group col-12 col-sm-12 col-md-3 col-lg-2 col-xl-2">
-                                    <input type="text"  placeholder="Total  " id="totalGeneralMostrar"
+                                    <input type="text" placeholder="Total  " id="totalGeneralMostrar"
                                         name="totalGeneralMostrar" class="form-control" data-parsley-required
                                         autocomplete="off" readonly>
 
-                                        <input id="totalGeneral" name="totalGeneral" type="hidden" value="" required>
+                                    <input id="totalGeneral" name="totalGeneral" type="hidden" value=""
+                                        required>
                                 </div>
                             </div>
 
 
                             <div class="row">
                                 <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                    <button id="btn_venta_coorporativa" class="btn btn-sm btn-primary float-left m-t-n-xs"><strong>
+                                    <button id="btn_venta_coorporativa"
+                                        class="btn btn-sm btn-primary float-left m-t-n-xs"><strong>
                                             Realizar Venta</strong></button>
                                 </div>
                             </div>
@@ -474,15 +490,15 @@
             var numeroInputs = 0;
             var arregloIdInputs = [];
             var retencionEstado = false; // true  aplica retencion, false no aplica retencion;
-            var diasCredito=0;
+            var diasCredito = 0;
 
             window.onload = obtenerTipoPago;
             var public_path = "{{ asset('catalogo/') }}";
 
 
             $('#vendedor').select2({
-                ajax:{
-                    url:'/ventas/corporativo/vendedores',
+                ajax: {
+                    url: '/ventas/corporativo/vendedores',
                     data: function(params) {
                         var query = {
                             search: params.term,
@@ -519,50 +535,50 @@
 
 
 
-                $('#seleccionarProducto').select2({
-                    ajax: {
-                        url: '/ventas/listar',
-                        data: function(params) {
-                            var query = {
-                                search: params.term,
-                                type: 'public',
-                                page: params.page || 1
-                            }
-
-                            // Query parameters will be ?search=[term]&type=public
-
-                            return query;
+            $('#seleccionarProducto').select2({
+                ajax: {
+                    url: '/ventas/listar',
+                    data: function(params) {
+                        var query = {
+                            search: params.term,
+                            type: 'public',
+                            page: params.page || 1
                         }
-                    }
-                });
 
-            function prueba(){
+                        // Query parameters will be ?search=[term]&type=public
+
+                        return query;
+                    }
+                }
+            });
+
+            function prueba() {
 
                 var element = document.getElementById('botonAdd');
                 element.classList.remove("d-none");
 
             }
 
-            function obtenerBodegas(id){
+            function obtenerBodegas(id) {
 
-                document.getElementById('bodega').innerHTML="<option  selected disabled>--Seleccione una bodega--</option>";
+                document.getElementById('bodega').innerHTML = "<option  selected disabled>--Seleccione una bodega--</option>";
                 let idProducto = id;
                 $('#bodega').select2({
-                ajax: {
-                    url: '/estatal/listar/bodegas/'+idProducto,
-                    data: function(params) {
-                        var query = {
-                            search: params.term,
-                            type: 'public',
-                            page: params.page || 1,
-                            idProducto: idProducto
-                        }
+                    ajax: {
+                        url: '/estatal/listar/bodegas/' + idProducto,
+                        data: function(params) {
+                            var query = {
+                                search: params.term,
+                                type: 'public',
+                                page: params.page || 1,
+                                idProducto: idProducto
+                            }
 
-                        // Query parameters will be ?search=[term]&type=public
-                        return query;
+                            // Query parameters will be ?search=[term]&type=public
+                            return query;
+                        }
                     }
-                }
-            });
+                });
 
             }
 
@@ -654,7 +670,7 @@
                         element.classList.add("d-none");
 
                         let a = document.getElementById("detalleProducto");
-                        let url = "/producto/detalle/"+id;
+                        let url = "/producto/detalle/" + id;
                         a.href = url;
                         a.classList.remove("d-none");
 
@@ -669,7 +685,7 @@
 
                     })
 
-                    obtenerBodegas(id);
+                obtenerBodegas(id);
             }
 
             function agregarProductoCarrito() {
@@ -682,36 +698,36 @@
 
 
                 axios.post('/estatal/datos/producto', {
-                        idProducto : idProducto,
+                        idProducto: idProducto,
 
                     })
                     .then(response => {
 
                         let flag = false;
-                        arregloIdInputs.forEach( idInpunt =>{
-                            let idProductoFila = document.getElementById("idProducto"+idInpunt).value;
-                            let idSeccionFila = document.getElementById("idSeccion"+idInpunt).value;
+                        arregloIdInputs.forEach(idInpunt => {
+                            let idProductoFila = document.getElementById("idProducto" + idInpunt).value;
+                            let idSeccionFila = document.getElementById("idSeccion" + idInpunt).value;
 
-                            if( idProducto==idProductoFila && idSeccion==idSeccionFila && !flag){
+                            if (idProducto == idProductoFila && idSeccion == idSeccionFila && !flag) {
                                 flag = true;
                             }
 
                         })
 
-                        if(flag){
+                        if (flag) {
                             Swal.fire({
 
-                            icon: 'warning',
-                            title: 'Advertencia!',
-                            html: `
+                                icon: 'warning',
+                                title: 'Advertencia!',
+                                html: `
                             <p class="text-left">
                                 La sección de bodega y producto ha sido agregada anteriormente.<br><br>
                                 Por favor verificar la sección de bodega y producto sea distinto a los ya existentes en la lista de venta.<br><br>
                                 De ser necesario aumentar la cantidad de producto en la lista de productos seleccionados para la venta.
                             </p>`
-                        })
+                            })
 
-                        return;
+                            return;
                         }
 
                         let producto = response.data.producto;
@@ -730,10 +746,12 @@
 
                         htmlSelectUnidades = ""
                         arrayUnidades.forEach(unidad => {
-                            if(unidad.valor_defecto == 1){
-                                htmlSelectUnidades += `<option selected value="${unidad.id}" data-id="${unidad.idUnidadVenta}">${unidad.nombre}</option>`;
-                            }else{
-                                htmlSelectUnidades += `<option  value="${unidad.id}" data-id="${unidad.idUnidadVenta}">${unidad.nombre}</option>`;
+                            if (unidad.valor_defecto == 1) {
+                                htmlSelectUnidades +=
+                                    `<option selected value="${unidad.id}" data-id="${unidad.idUnidadVenta}">${unidad.nombre}</option>`;
+                            } else {
+                                htmlSelectUnidades +=
+                                    `<option  value="${unidad.id}" data-id="${unidad.idUnidadVenta}">${unidad.nombre}</option>`;
                             }
 
                         });
@@ -871,82 +889,106 @@
 
             }
 
-            function calcularTotales(idPrecio, idCantidad, isvProducto, idUnidad,id ,idRestaInventario) {
-
-
-valorInputPrecio = idPrecio.value;
-valorInputCantidad = idCantidad.value;
-valorSelectUnidad = idUnidad.value;
-
-if (valorInputPrecio && valorInputCantidad) {
-
-    let subTotal = valorInputPrecio * (valorInputCantidad*valorSelectUnidad);
-    let isv = subTotal * (isvProducto / 100);
-    let total = subTotal;
-
-    document.getElementById('total' + id).value = total.toFixed(4);
-    document.getElementById('totalMostrar' + id).value = new Intl.NumberFormat('es-HN',{style: 'currency', currency: 'HNL', minimumFractionDigits: 4,}).format(total)
-
-    document.getElementById('subTotal' + id).value = subTotal.toFixed(4);
-    document.getElementById('subTotalMostrar' + id).value = new Intl.NumberFormat('es-HN',{style: 'currency', currency: 'HNL', minimumFractionDigits: 4,}).format(subTotal)
-
-
-    document.getElementById('isvProducto' + id).value = isv.toFixed(4);
-    document.getElementById('isvProductoMostrar' + id).value = new Intl.NumberFormat('es-HN',{style: 'currency', currency: 'HNL', minimumFractionDigits: 4,}).format(isv)
-
-
-    idRestaInventario.value = valorInputCantidad*valorSelectUnidad;
-    this.totalesGenerales();
+            function calcularTotales(idPrecio, idCantidad, isvProducto, idUnidad, id, idRestaInventario) {
+                let valorInputPrecio = Number(idPrecio.value).toFixed(2);
+                let valorInputCantidad = idCantidad.value;
+                let valorSelectUnidad = idUnidad.value;
 
 
 
-}
+                if (valorInputPrecio && valorInputCantidad) {
+
+                    let subTotal = valorInputPrecio * (valorInputCantidad * valorSelectUnidad);
+                    let isv = subTotal * (isvProducto / 100);
+                    let total = subTotal;
+
+                    document.getElementById('total' + id).value = total.toFixed(2);
+                    document.getElementById('totalMostrar' + id).value = new Intl.NumberFormat('es-HN', {
+                        style: 'currency',
+                        currency: 'HNL',
+                        minimumFractionDigits: 2,
+                    }).format(total)
+
+                    document.getElementById('subTotal' + id).value = subTotal.toFixed(2);
+                    document.getElementById('subTotalMostrar' + id).value = new Intl.NumberFormat('es-HN', {
+                        style: 'currency',
+                        currency: 'HNL',
+                        minimumFractionDigits: 2,
+                    }).format(subTotal)
 
 
-return 0;
+                    document.getElementById('isvProducto' + id).value = isv.toFixed(2);
+                    document.getElementById('isvProductoMostrar' + id).value = new Intl.NumberFormat('es-HN', {
+                        style: 'currency',
+                        currency: 'HNL',
+                        minimumFractionDigits: 2,
+                    }).format(isv)
 
 
-}
-
-function totalesGenerales() {
-
-//console.log(arregloIdInputs);
-
-if (numeroInputs == 0) {
-    return;
-}
-
-
-
-let totalGeneralValor = new Number(0);
-let totalISV = new Number(0);
-let subTotalGeneralValor = new Number(0);
-
-
-for (let i = 0; i < arregloIdInputs.length; i++) {
-    subTotalGeneralValor += new Number(document.getElementById('subTotal' + arregloIdInputs[i]).value);
-    totalISV += new Number(document.getElementById('isvProducto' + arregloIdInputs[i]).value);
-    totalGeneralValor += new Number(document.getElementById('total' + arregloIdInputs[i]).value);
-
-}
-
-document.getElementById('subTotalGeneral').value = subTotalGeneralValor.toFixed(4);
-document.getElementById('subTotalGeneralMostrar').value = new Intl.NumberFormat('es-HN',{style: 'currency', currency: 'HNL', minimumFractionDigits: 4,}).format(subTotalGeneralValor)
-
-document.getElementById('isvGeneral').value = totalISV.toFixed(4);
-document.getElementById('isvGeneralMostrar').value = new Intl.NumberFormat('es-HN',{style: 'currency', currency: 'HNL', minimumFractionDigits: 4,}).format(totalISV)
-
-document.getElementById('totalGeneral').value = totalGeneralValor.toFixed(4);
-document.getElementById('totalGeneralMostrar').value =  new Intl.NumberFormat('es-HN',{style: 'currency', currency: 'HNL', minimumFractionDigits: 4,}).format(totalGeneralValor)
+                    idRestaInventario.value = valorInputCantidad * valorSelectUnidad;
+                    this.totalesGenerales();
 
 
 
+                }
+
+                idPrecio.value = valorInputPrecio;
+                return 0;
 
 
-return 0;
+            }
+
+            function totalesGenerales() {
+
+                //console.log(arregloIdInputs);
+
+                if (numeroInputs == 0) {
+                    return;
+                }
 
 
-}
+
+                let totalGeneralValor = new Number(0);
+                let totalISV = new Number(0);
+                let subTotalGeneralValor = new Number(0);
+
+
+                for (let i = 0; i < arregloIdInputs.length; i++) {
+                    subTotalGeneralValor += new Number(document.getElementById('subTotal' + arregloIdInputs[i]).value);
+                    totalISV += new Number(document.getElementById('isvProducto' + arregloIdInputs[i]).value);
+                    totalGeneralValor += new Number(document.getElementById('total' + arregloIdInputs[i]).value);
+
+                }
+
+                document.getElementById('subTotalGeneral').value = subTotalGeneralValor.toFixed(2);
+                document.getElementById('subTotalGeneralMostrar').value = new Intl.NumberFormat('es-HN', {
+                    style: 'currency',
+                    currency: 'HNL',
+                    minimumFractionDigits: 2,
+                }).format(subTotalGeneralValor)
+
+                document.getElementById('isvGeneral').value = totalISV.toFixed(2);
+                document.getElementById('isvGeneralMostrar').value = new Intl.NumberFormat('es-HN', {
+                    style: 'currency',
+                    currency: 'HNL',
+                    minimumFractionDigits: 2,
+                }).format(totalISV)
+
+                document.getElementById('totalGeneral').value = totalGeneralValor.toFixed(2);
+                document.getElementById('totalGeneralMostrar').value = new Intl.NumberFormat('es-HN', {
+                    style: 'currency',
+                    currency: 'HNL',
+                    minimumFractionDigits: 2,
+                }).format(totalGeneralValor)
+
+
+
+
+
+                return 0;
+
+
+            }
 
             function validarFechaPago() {
 
@@ -974,52 +1016,54 @@ return 0;
 
             }
 
-            function obtenerDatosCliente(){
+            function obtenerDatosCliente() {
                 let idCliente = document.getElementById("seleccionarCliente").value;
-                axios.post("/estatal/datos/cliente",{id:idCliente})
-                .then(
-                    response =>{
+                axios.post("/estatal/datos/cliente", {
+                        id: idCliente
+                    })
+                    .then(
+                        response => {
 
-                        let data = response.data.datos;
+                            let data = response.data.datos;
 
-                        if(data.id==1){
-                            document.getElementById("nombre_cliente_ventas").readOnly=false;
-                            document.getElementById("rtn_ventas").readOnly=false;
+                            if (data.id == 1) {
+                                document.getElementById("nombre_cliente_ventas").readOnly = false;
+                                document.getElementById("rtn_ventas").readOnly = false;
 
-                            let selectBox = document.getElementById("tipoPagoVenta");
-                            selectBox.remove(2);
+                                let selectBox = document.getElementById("tipoPagoVenta");
+                                selectBox.remove(2);
 
-                        }else{
-                            document.getElementById("nombre_cliente_ventas").readOnly=true;
-                            document.getElementById("rtn_ventas").readOnly=true;
-                            document.getElementById("nombre_cliente_ventas").value=data.nombre;
-                            document.getElementById("rtn_ventas").value=data.rtn;
+                            } else {
+                                document.getElementById("nombre_cliente_ventas").readOnly = true;
+                                document.getElementById("rtn_ventas").readOnly = true;
+                                document.getElementById("nombre_cliente_ventas").value = data.nombre;
+                                document.getElementById("rtn_ventas").value = data.rtn;
 
-                            diasCredito = data.dias_credito;
-                            obtenerTipoPago();
-                            obtenerCodigosExoneracion();
+                                diasCredito = data.dias_credito;
+                                obtenerTipoPago();
+                                obtenerCodigosExoneracion();
 
-                            obtenerOrdenesCompra();
+                                obtenerOrdenesCompra();
+                            }
+
+                            // document.getElementById('fecha_vencimiento').value = "";
+                            // document.getElementById('fecha_emision').value="";
+
+
+
                         }
+                    )
+                    .catch(err => {
 
-                        // document.getElementById('fecha_vencimiento').value = "";
-                        // document.getElementById('fecha_emision').value="";
-
-
-
-                    }
-                )
-                .catch(err=>{
-
-                          console.log(err);
-                            Swal.fire({
+                        console.log(err);
+                        Swal.fire({
                             icon: 'error',
                             title: 'Error...',
                             text: "Ha ocurrido un error al obtener los datos del cliente"
                         })
 
 
-                })
+                    })
 
             }
 
@@ -1030,9 +1074,9 @@ return 0;
                     guardarVenta();
                 });
 
-            function guardarVenta(){
+            function guardarVenta() {
 
-                document.getElementById("btn_venta_coorporativa").disabled=true;
+                document.getElementById("btn_venta_coorporativa").disabled = true;
 
                 var data = new FormData($('#crear_venta').get(0));
 
@@ -1040,14 +1084,14 @@ return 0;
                 for (var i = 0; i < longitudArreglo; i++) {
 
 
-                    let name = "unidad"+arregloIdInputs[i];
-                    let nameForm = "idUnidadVenta"+arregloIdInputs[i];
+                    let name = "unidad" + arregloIdInputs[i];
+                    let nameForm = "idUnidadVenta" + arregloIdInputs[i];
 
                     let e = document.getElementById(name);
                     let idUnidadVenta = e.options[e.selectedIndex].getAttribute("data-id");
 
 
-                    data.append(nameForm,idUnidadVenta)
+                    data.append(nameForm, idUnidadVenta)
                 }
 
                 data.append("numeroInputs", numeroInputs);
@@ -1058,30 +1102,32 @@ return 0;
 
                 const formDataObj = {};
 
-                    data.forEach((value, key) => (formDataObj[key] = value));
+                data.forEach((value, key) => (formDataObj[key] = value));
 
 
-                    const options = {
-                        headers: {"content-type": "application/json"}
+                const options = {
+                    headers: {
+                        "content-type": "application/json"
                     }
+                }
 
-                axios.post('/exonerado/venta/guardar', formDataObj,options)
+                axios.post('/exonerado/venta/guardar', formDataObj, options)
                     .then(response => {
                         let data = response.data;
 
 
 
-                        if(data.idFactura ==0 ){
+                        if (data.idFactura == 0) {
                             console.log("entro")
 
                             Swal.fire({
-                            icon: data.icon,
-                            title: data.title,
-                            html: data.text,
-                             })
+                                icon: data.icon,
+                                title: data.title,
+                                html: data.text,
+                            })
 
-                             document.getElementById("btn_venta_coorporativa").disabled=false;
-                        return;
+                            document.getElementById("btn_venta_coorporativa").disabled = false;
+                            return;
 
                         }
 
@@ -1093,37 +1139,40 @@ return 0;
 
 
                         document.getElementById('bloqueImagenes').innerHTML = '';
-                        document.getElementById('divProductos').innerHTML='';
+                        document.getElementById('divProductos').innerHTML = '';
 
                         document.getElementById("crear_venta").reset();
                         $('#crear_venta').parsley().reset();
 
                         var element = document.getElementById('detalleProducto');
-                            element.classList.add("d-none");
-                            element.href="";
+                        element.classList.add("d-none");
+                        element.href = "";
 
-                        document.getElementById("seleccionarCliente").innerHTML='<option value="" selected disabled>--Seleccionar un cliente--</option>';
+                        document.getElementById("seleccionarCliente").innerHTML =
+                            '<option value="" selected disabled>--Seleccionar un cliente--</option>';
 
-                        document.getElementById('seleccionarProducto').innerHTML='<option value="" selected disabled>--Seleccione un producto--</option>';
-                        document.getElementById('bodega').innerHTML='<option value="" selected disabled>--Seleccione un producto--</option>';
+                        document.getElementById('seleccionarProducto').innerHTML =
+                            '<option value="" selected disabled>--Seleccione un producto--</option>';
+                        document.getElementById('bodega').innerHTML =
+                            '<option value="" selected disabled>--Seleccione un producto--</option>';
                         document.getElementById("bodega").disabled = true;
 
 
 
                         let element2 = document.getElementById('detalleProducto');
-                            element2.classList.add("d-none");
+                        element2.classList.add("d-none");
 
 
                         arregloIdInputs = [];
                         numeroInputs = 0;
-                        retencionEstado=false;
+                        retencionEstado = false;
 
-                        document.getElementById('numero_venta').value=data.numeroVenta;
-                        document.getElementById("btn_venta_coorporativa").disabled=false;
+                        document.getElementById('numero_venta').value = data.numeroVenta;
+                        document.getElementById("btn_venta_coorporativa").disabled = false;
 
                     })
                     .catch(err => {
-                        document.getElementById("btn_venta_coorporativa").disabled=false;
+                        document.getElementById("btn_venta_coorporativa").disabled = false;
                         let data = err.response.data;
                         console.log(err);
                         Swal.fire({
@@ -1135,46 +1184,47 @@ return 0;
             }
 
 
-            function sumarDiasCredito(){
+            function sumarDiasCredito() {
                 tipoPago = document.getElementById('tipoPagoVenta').value;
 
-                if(tipoPago==2){
+                if (tipoPago == 2) {
 
                     let fechaEmision = document.getElementById("fecha_emision").value;
                     let date = new Date(fechaEmision);
-                   date.setDate(date.getDate() + diasCredito);
-                   let suma=date.toISOString().split('T')[0];
-                   //console.log( diasCredito);
+                    date.setDate(date.getDate() + diasCredito);
+                    let suma = date.toISOString().split('T')[0];
+                    //console.log( diasCredito);
 
-                    document.getElementById("fecha_vencimiento").value= suma;
+                    document.getElementById("fecha_vencimiento").value = suma;
 
                 }
             }
 
-            function obtenerCodigosExoneracion(){
+            function obtenerCodigosExoneracion() {
 
                 let idCliente = document.getElementById('seleccionarCliente').value;
 
-                document.getElementById('codigo').innerHTML =  '<option value="" selected disabled >--Seleccione un codigo--</option>';
+                document.getElementById('codigo').innerHTML =
+                    '<option value="" selected disabled >--Seleccione un codigo--</option>';
 
-            $('#codigo').select2({
-                minimumResultsForSearch: -1,
-                ajax: {
-                    url: '/exonerado/listar/codigos',
+                $('#codigo').select2({
+                    minimumResultsForSearch: -1,
+                    ajax: {
+                        url: '/exonerado/listar/codigos',
 
-                    data: function(params) {
-                        var query = {
-                            search: params.term,
-                            type: 'public',
-                            idCliente: idCliente,
-                            page: params.page || 1
+                        data: function(params) {
+                            var query = {
+                                search: params.term,
+                                type: 'public',
+                                idCliente: idCliente,
+                                page: params.page || 1
+                            }
+
+                            // Query parameters will be ?search=[term]&type=public
+                            return query;
                         }
-
-                        // Query parameters will be ?search=[term]&type=public
-                        return query;
                     }
-                }
-            });
+                });
 
             }
 
@@ -1200,17 +1250,16 @@ return 0;
                     }
                 });
             }
-
         </script>
     @endpush
 </div>
 <?php
-    date_default_timezone_set('America/Tegucigalpa');
-    $act_fecha=date("Y-m-d");
-    $act_hora=date("H:i:s");
-    $mes=date("m");
-    $year=date("Y");
-    $datetim=$act_fecha." ".$act_hora;
+date_default_timezone_set('America/Tegucigalpa');
+$act_fecha = date('Y-m-d');
+$act_hora = date('H:i:s');
+$mes = date('m');
+$year = date('Y');
+$datetim = $act_fecha . ' ' . $act_hora;
 ?>
 <script>
     function mostrarHora() {
@@ -1230,9 +1279,9 @@ return 0;
     setInterval(mostrarHora, 1000);
 </script>
 <div class="float-right">
-    <?php echo "$act_fecha";  ?> <strong id="reloj"></strong>
+    <?php echo "$act_fecha"; ?> <strong id="reloj"></strong>
 </div>
 <div>
-    <strong>Copyright</strong> Distribuciones Valencia &copy; <?php echo "$year";  ?>
+    <strong>Copyright</strong> Distribuciones Valencia &copy; <?php echo "$year"; ?>
 </div>
 <p id="reloj"></p>

@@ -15,6 +15,7 @@ use App\Http\Livewire\Comisiones\ComisionesHistorico;
 use App\Http\Livewire\FacturaDia\FacturaDia;
 
 use App\Http\Livewire\Reportes\Prodmes;
+use App\Http\Livewire\Reportes\Reporteria;
 use Illuminate\Support\Facades\Route;
 use App\Http\Livewire\Bodega;
 use App\Http\Livewire\BodegaComponent\BodegaEditar;
@@ -50,6 +51,7 @@ use App\Http\Livewire\VentasEstatal\LitsadoFacturasEstatalVendedor;
 use App\Http\Livewire\VentasExoneradas\VentasExoneradas;
 use App\Http\Livewire\VentasExoneradas\ListadoFacturasExonerads;
 use App\Http\Livewire\Cotizaciones\Cotizacion;
+use App\Http\Livewire\Cotizaciones\Editarcotizacion;
 use App\Http\Livewire\Cotizaciones\ListarCotizaciones;
 use App\Http\Livewire\Cotizaciones\FacturarCotizacion;
 use App\Http\Livewire\Cotizaciones\FacturarCotizacionGobierno;
@@ -77,6 +79,9 @@ use App\Http\Livewire\ComprovanteEntrega\ListarComprovantes;
 use App\Http\Livewire\ComprovanteEntrega\ListarComprovantesAnulados;
 use App\Http\Livewire\ComprovanteEntrega\FacturarComprobante;
 use App\Http\Livewire\VentasEstatal\SinRestriccionGobierno;
+
+
+use App\Http\Livewire\CuentasPorCobrar\Pagos;
 
 
 use App\Http\Livewire\Vale\CrearVale;
@@ -375,12 +380,18 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('/proforma/cotizacion/{id}', Cotizacion::class);
     Route::get('/cotizacion/clientes', [Cotizacion::class, 'listarClientes']);
     Route::post('/guardar/cotizacion', [Cotizacion::class, 'guardarCotizacion']);
+    
+    Route::post('/editar/cotizacion', [Editarcotizacion::class, 'guardarCotizacion']);
     Route::get('/cotizacion/listado/{id}', ListarCotizaciones::class);
     Route::post('/cotizacion/obtener/listado', [ListarCotizaciones::class, 'listarCotizaciones']);
     Route::get('/cotizacion/imprimir/{id}', [Cotizacion::class, 'imprimirCotizacion']);
     Route::get('/proforma/imprimir/{id}', [Cotizacion::class, 'imprimirProforma']);
     Route::get('/cotizacion/facturar/{id}', FacturarCotizacion::class);
     Route::get('/cotizacion/facturar/gobierno/{id}', FacturarCotizacionGobierno::class);
+
+
+    
+    Route::get('/cotizacion/edicion/{id}', Editarcotizacion::class);
     Route::get('/cotizacion/listar/bodegas/{idProducto}', [Cotizacion::class, 'listarBodegas']);
 
 
@@ -404,6 +415,8 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('/ajuste/ingreso/productos', [AjusteIngresoProducto::class, 'obtenerProducto']);
     Route::post('/ajuste/ingreso/datos/producto', [AjusteIngresoProducto::class, 'datosProducto']);
     Route::post('/ajuste/ingreso/guardar', [AjusteIngresoProducto::class, 'realizarAjuste']);
+    Route::get('/ajustes/ingreso/listar/bodegas', [AjusteIngresoProducto::class, 'listarBodegas']);
+    Route::get('/ajuste/ingreso/listar/secciones', [AjusteIngresoProducto::class, 'seccionesLista']);
 
     //------------------------------------------------------Facturas Nulas---------------------------------------------//
 
@@ -496,6 +509,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::post('/nota/credito/listar', [ListadoNotaCredito::class, 'listadoNotaCredito']);
     Route::get('/nota/credito/imprimir/{idNota}', [ListadoNotaCredito::class, 'imprimirnotaCreditoOriginal']);
     Route::get('/nota/credito/imprimir/copia/{idNota}', [ListadoNotaCredito::class, 'imprimirnotaCreditoCopia']);
+    Route::post('/nota/credito/anular', [CrearNotaCredito::class, 'anularNotaCredito']);
 
 
 
@@ -552,6 +566,52 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 
     Route::get('/ventas/cuentas_por_cobrar/excel_cuentas/{cliente}', [CuentasPorCobrar::class, 'exportCuentasPorCobrar']);
     Route::get('/ventas/cuentas_por_cobrar/excel_intereses/{cliente}', [CuentasPorCobrar::class, 'exportCuentasPorCobrarInteres']);
+
+
+
+
+
+
+    /////////////////////////////APLICACION DE PAGOS/////////////////////////////////
+    Route::get('/cuentas_por_cobrar/pagos', Pagos::class);
+    Route::get('/aplicacion/pagos/clientes', [Pagos::class, 'listarClientes']);
+    Route::get('/aplicacion/pagos/listar/{id}', [Pagos::class, 'listarCuentasPorCobrar']);
+    Route::get('/aplicacion/pagos/listar/movimientos/{id}', [Pagos::class, 'listarMovimientos']);
+    Route::get('/aplicacion/pagos/listar/abonos/{id}', [Pagos::class, 'listarAbonos']);
+
+    Route::post('/pagos/retencion/guardar', [Pagos::class, 'gestionRetencion']);
+    Route::post('/pagos/notacredito/guardar', [Pagos::class, 'gestionNC']);
+    Route::post('/pagos/notadebito/guardar', [Pagos::class, 'gestionND']);
+    Route::post('/pagos/otrosmov/guardar', [Pagos::class, 'guardarOtroMov']);
+    Route::post('/pagos/creditos/guardar', [Pagos::class, 'guardarCreditos']);
+    Route::post('/pagos/cerrar/factura', [Pagos::class, 'cerrarFactura']);
+
+
+    Route::get('/listar/aplicacion/bancos', [Pagos::class, 'datosBanco']);
+
+
+    Route::get('/estadoCuenta/imprimir/aplicpagos/{idClientepdf}', [Pagos::class, 'imprimirEstadoCuenta']);
+
+
+
+
+
+
+
+
+
+    Route::get('/listar/nc/aplicacion/{idFactura}', [Pagos::class, 'listarNotasCredito']);
+    Route::get('/listar/nc/aplicacion/datos/{idNotaCredito}', [Pagos::class, 'datosNotasCredito']);
+
+
+    Route::get('/listar/nd/aplicacion/{idFactura}', [Pagos::class, 'listarNotasDebito']);
+    Route::get('/listar/nd/aplicacion/datos/{idNotaDebito}', [Pagos::class, 'datosNotasDebito']);
+
+
+
+    Route::get('/cuentas_por_cobrar/pagos/excel_cuentas/{cliente}', [Pagos::class, 'exportCuentasPorCobrar']);
+    Route::get('/cuentas_por_cobrar/pagos/excel_intereses/{cliente}', [Pagos::class, 'exportCuentasPorCobrarInteres']);
+    /////////////////////////////////////////////////////////////////////////////////
 
     /////////////////////////////////////////HISTORICO DE PRECIOS//////////////////////////////////////////
 
@@ -693,6 +753,13 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 
     Route::get('/facturaDia', FacturaDia::class);
     Route::get('/reporte/comision', Prodmes::class);
+    Route::get('/reporte/reporteria', Reporteria::class);
+
+    Route::get('/reporte/reporteria/consulta/{fecha_inicio}/{fecha_final}', [Reporteria::class,'consulta']);
+    Route::get('/reporte/reporteria/productos', [Reporteria::class,'catalogoProductos']);
+    Route::get('/reporte/reporteria/clientes', [Reporteria::class,'consultaClientes']);
+
+
     Route::get('/consulta/{fecha_inicio}/{fecha_final}', [facturaDia::class,'consulta']);
 
     Route::get('/consultaComision/{fecha_inicio}/{fecha_final}', [Prodmes::class,'consultaComision']);

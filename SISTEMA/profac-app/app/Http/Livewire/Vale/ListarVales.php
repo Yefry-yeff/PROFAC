@@ -41,10 +41,11 @@ class ListarVales extends Component
        inner join users
        on vale.users_id = users.id
 
-       cross join (select @i := 0) r
-       where  YEAR(vale.created_at) = YEAR(NOW())
-        ");
 
+       cross join (select @i := 0) r
+
+        ");
+     /*where  YEAR(vale.created_at) = 2023*/
         return Datatables::of($listaVales)
         ->addColumn('opciones', function ($vale) {
 

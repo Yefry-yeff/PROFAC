@@ -496,29 +496,29 @@ class Ajustes extends Component
             );
 
             $productos = DB::SELECT("
-            select 
-            ajuste_has_producto.producto_id, 
-            producto.nombre as 'producto', 
-            unidad_medida.nombre as 'medida', 
-            ajuste_has_producto.cantidad, 
-            ajuste_has_producto.precio_producto, 
-            bodega.nombre as 'bodega', 
-            seccion.descripcion as 'seccion', 
+            select
+            ajuste_has_producto.producto_id,
+            producto.nombre as 'producto',
+            unidad_medida.nombre as 'medida',
+            ajuste_has_producto.cantidad,
+            ajuste_has_producto.precio_producto,
+            bodega.nombre as 'bodega',
+            seccion.descripcion as 'seccion',
             (
               ajuste_has_producto.precio_producto * ajuste_has_producto.cantidad
             ) as 'total',
             if(ajuste_has_producto.tipo_aritmetica = 1,'+','-') as aritmetica
-          from 
-            bodega 
-            inner join segmento on (segmento.bodega_id = bodega.id) 
-            inner join seccion on ( seccion.segmento_id = segmento.id ) 
-            inner join recibido_bodega on ( recibido_bodega.seccion_id = seccion.id ) 
-            inner join ajuste_has_producto on (ajuste_has_producto.recibido_bodega_id = recibido_bodega.id ) 
-            inner join producto on (producto.id = ajuste_has_producto.producto_id) 
-            inner join unidad_medida_venta on (unidad_medida_venta.id = ajuste_has_producto.unidad_medida_venta_id) 
-            inner join unidad_medida on (unidad_medida.id = unidad_medida_venta.unidad_medida_id  ) 
-          
-          where 
+          from
+            bodega
+            inner join segmento on (segmento.bodega_id = bodega.id)
+            inner join seccion on ( seccion.segmento_id = segmento.id )
+            inner join recibido_bodega on ( recibido_bodega.seccion_id = seccion.id )
+            inner join ajuste_has_producto on (ajuste_has_producto.recibido_bodega_id = recibido_bodega.id )
+            inner join producto on (producto.id = ajuste_has_producto.producto_id)
+            inner join unidad_medida_venta on (unidad_medida_venta.id = ajuste_has_producto.unidad_medida_venta_id)
+            inner join unidad_medida on (unidad_medida.id = unidad_medida_venta.unidad_medida_id  )
+
+          where
             ajuste_has_producto.ajuste_id = ".$idAjuste
             );
 
@@ -529,7 +529,7 @@ class Ajustes extends Component
             cantidad_inicial,
             cantidad_total,
             tipo_aritmetica,
-            FORMAT(precio_producto*cantidad_total,2) as costo,
+            (precio_producto*cantidad_total) as costo,
              ajuste_id as numero_ajuste
             from ajuste_has_producto where ajuste_id = ".$idAjuste
             );

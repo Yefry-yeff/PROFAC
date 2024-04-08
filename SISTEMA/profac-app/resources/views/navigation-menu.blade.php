@@ -442,6 +442,7 @@
                         <ul class="nav nav-second-level">
                             <li><a href="/cuentas/por/cobrar/listado" style="color:#ffffff;">Listado de Facturas</a></li>
                             <li><a href="/ventas/cuentas_por_cobrar" style="color:#ffffff;">Cuentas Por Cobrar</a></li>
+                            <li><a href="/cuentas_por_cobrar/pagos" style="color:#ffffff;">Aplicacion de Pagos</a></li>
                         </ul>
                     </li>
                     <li>
@@ -455,6 +456,7 @@
                         <a><i class="fa-solid fa-user" style="color:#ffffff;"></i> <span class="nav-label" style="color:#ffffff;">Reportes</span><span class="fa arrow"></span></a>
                         <ul class="nav nav-second-level">
                             <li><a href="/facturaDia" style="color:#ffffff;">Reporte de ventas</a>
+                            <li><a href="/reporte/reporteria" style="color:#ffffff;">Reportes Varios</a>
                         </ul>
                     </li>
                 @endif

@@ -39,7 +39,7 @@ class ListadoFacturasExonerads extends Component
                     numero_factura,
                     cai,
                     fecha_emision,
-                    cliente.nombre,
+                    factura.nombre_cliente as nombre,
                     tipo_pago_venta.descripcion,
                     fecha_vencimiento,
                     format(sub_total,2) as sub_total,
@@ -110,11 +110,6 @@ class ListadoFacturasExonerads extends Component
                             <li>
                                 <a class="dropdown-item" href="/detalle/venta/'.$listaFacturas->id.'" > <i class="fa-solid fa-arrows-to-eye text-info"></i> Detalle de venta </a>
                             </li>
-
-                            <li>
-                                <a class="dropdown-item" href="/venta/cobro/'.$listaFacturas->id.'"> <i class="fa-solid fa-cash-register text-success"></i> Pagos </a>
-                            </li>
-
                             <li>
                             <a class="dropdown-item" target="_blank"  href="/factura/cooporativo/'.$listaFacturas->id.'"> <i class="fa-solid fa-print text-info"></i> Imprimir Factura Original </a>
                             </li>
@@ -170,7 +165,7 @@ class ListadoFacturasExonerads extends Component
                 }
             })
             ->addColumn('estado_cobro', function ($listaFacturas) {
-                if($listaFacturas->estado_venta_id==2){
+                /* if($listaFacturas->estado_venta_id==2){
 
                     return
                     '
@@ -190,7 +185,31 @@ class ListadoFacturasExonerads extends Component
                     '
                     <p class="text-center"><span class="badge badge-danger p-2" style="font-size:0.75rem">Pendiente</span></p>
                     ';
-                }
+                } */
+
+                $revision = DB::SELECTONE("
+                    select count(*) as valida
+                    from aplicacion_pagos
+                    where aplicacion_pagos.estado = 1
+                    and aplicacion_pagos.estado_cerrado = 2
+                    and aplicacion_pagos.factura_id =
+                    ".$listaFacturas->id);
+
+
+                    if(  $revision->valida == 1){
+
+                        return
+                        '
+
+                        <p class="text-center" ><span class="badge badge-primary p-2" style="font-size:0.75rem">Cerrada</span></p>
+                        ';
+
+                    }else{
+                        return
+                        '
+                        <p class="text-center"><span class="badge badge-danger p-2" style="font-size:0.75rem">Pendiente</span></p>
+                        ';
+                    }
 
            })
             ->rawColumns(['opciones','estado_cobro'])
@@ -261,6 +280,11 @@ class ListadoFacturasExonerads extends Component
 
             ModelLogTranslados::insert($arrayLog);
 
+            DB::SELECT(
+                "
+                    UPDATE aplicacion_pagos
+                    SET aplicacion_pagos.estado = 2
+                    WHERE aplicacion_pagos.factura_id = ".$request->idFactura);
 
 
 

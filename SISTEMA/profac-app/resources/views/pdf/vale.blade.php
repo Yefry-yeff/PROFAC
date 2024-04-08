@@ -18,7 +18,7 @@
         body {
             margin: -45px;
             padding: 0px;
-           /*  background-image: url('img/membrete/membrete2.jpg'); */
+            /*  background-image: url('img/membrete/membrete2.jpg'); */
 
             background-size: 200% 200%;
             background-size: cover;
@@ -28,14 +28,16 @@
         }
 
         table {
-        border-collapse: collapse;
-        border-spacing: 0;
-        width: 100%;
-        border: 1px solid #ddd;
+            border-collapse: collapse;
+            border-spacing: 0;
+            width: 100%;
+            border: 1px solid #ddd;
         }
-        th, td {
-        text-align: left;
-        padding: 2px;
+
+        th,
+        td {
+            text-align: left;
+            padding: 2px;
 
         }
 
@@ -58,21 +60,20 @@
 
 <body>
 
-@php
-    $altura =20;
-    $altura2 = 320;
-    $contadorFilas = 0;
-@endphp
+    @php
+        $altura = 20;
+        $altura2 = 320;
+        $contadorFilas = 0;
+    @endphp
 
 
     <div class="pruebaFondo">
-        <img src="img/membrete/Logo3.png" width="800rem"
-        style="margin-left:3%; margin-top:25px; position:absolute;"
-         alt="">
-         <b style="position:absolute;right: 100px; top:50px;" >*Original*</b>
+        <img src="img/membrete/Logo3.png" width="800rem" style="margin-left:3%; margin-top:25px; position:absolute;"
+            alt="">
+        <b style="position:absolute;right: 100px; top:50px;">*Original*</b>
         <div class="card border border-dark" style="margin-left:44px;  margin-top:150px; width:45rem; height:5.5rem;">
             <div class="card-header">
-                <b>Vale No. {{$vale->numero_vale}}</b>
+                <b>Vale No. {{ $vale->numero_vale }}</b>
 
             </div>
 
@@ -80,22 +81,26 @@
                 <p class="card-text" style="position:absolute;left:20px;  top:50px;"><b>Registro Tributario:
                         08011986138652</b></p>
                 <p class="card-text" style="position:absolute;left:420px;  top:50px;"><b>Factura N°:
-                       {{$vale->cai}}</b></p>
+                        {{ $vale->cai }}</b></p>
 
             </div>
         </div>
 
-        <div class="card border border-dark"   style="margin-left:44px; margin-top:10px; width:45rem; height:10.5rem;">
+        <div class="card border border-dark" style="margin-left:44px; margin-top:10px; width:45rem; height:10.5rem;">
             <div class="card-body">
-                <p class="card-text" style="position:absolute;left:20px;  top:10px;"><b>Cliente: </b>{{$cliente->nombre}}</p>
-                <p class="card-text" style="position:absolute;left:20px;  top:29px; max-width:500px"><b>Dirección:</b> {{$cliente->direccion}}</p>
+                <p class="card-text" style="position:absolute;left:20px;  top:10px;"><b>Cliente:
+                    </b>{{ $cliente->nombre }}</p>
+                <p class="card-text" style="position:absolute;left:20px;  top:29px; font-size: 11px; max-width:500px">
+                    <b>Dirección:</b> {{ $cliente->direccion }}</p>
+                    <br>
 
-                <p class="card-text" style="position:absolute;left:20px;  top:47px;"><b>Correo:</b> {{$cliente->correo}}
+                <p class="card-text" style="position:absolute;left:20px;  top:60px;"><b>Correo:</b>
+                    {{ $cliente->correo }}
                 </p>
-                <p class="card-text" style="position:absolute;left:20px;  top:70px;"><b>Notas:</b>Entrega Pendiente</p>
+                <p class="card-text" style="position:absolute;left:20px;  top:80px; max-width:680px"><b>Notas:</b>Entrega Pendiente</p>
 
 
-                <p class="card-text "  style="position:absolute;left:20px;  top:120px;"><b>Correlativo de Ord. exenta</b>
+                <p class="card-text " style="position:absolute;left:20px;  top:120px;"><b>Correlativo de Ord. exenta</b>
                 </p>
                 <p class="card-text" style="position:absolute;left:250px;  top:120px;"><b>Constancia de registro
                         exonerado</b></p>
@@ -103,83 +108,87 @@
                         la SAG</b></p>
 
 
-                <p class="card-text" style="position:absolute;left:520px;  top:10px;"><b>Fecha:</b> {{$vale->fecha_emision}}</p>
-                <p class="card-text" style="position:absolute;left:520px;  top:25px;"><b>Hora:</b> {{$vale->hora}}</p>
+                <p class="card-text" style="position:absolute;left:520px;  top:10px;"><b>Fecha:</b>
+                    {{ $vale->fecha_emision }}</p>
+                <p class="card-text" style="position:absolute;left:520px;  top:25px;"><b>Hora:</b> {{ $vale->hora }}
+                </p>
 
-                <p class="card-text" style="position:absolute;left:520px;  top:57px;"><b>RTN:</b> {{$cliente->rtn}}</p>
+                <p class="card-text" style="position:absolute;left:520px;  top:57px;"><b>RTN:</b> {{ $cliente->rtn }}
+                </p>
 
                 </p>
 
 
 
-                <p class="card-text" style="position:absolute;left:270px;  top:45px;"><b>Teléfono:</b> {{$cliente->telefono_empresa}}
+                <p class="card-text" style="position:absolute;left:270px;  top:60px;"><b>Teléfono:</b>
+                    {{ $cliente->telefono_empresa }}
                 </p>
             </div>
         </div>
 
-        <div class="card border border-dark" style="position: relative; margin-left:44px; margin-top:10px; width:45rem; page-break-inside: auto;">
-            <div >
+        <div class="card border border-dark"
+            style="position: relative; margin-left:44px; margin-top:10px; width:45rem; page-break-inside: auto;">
+            <div>
 
 
-                <table  class="" style="font-size: 11px; ">
+                <table class="" style="font-size: 11px; ">
                     <thead>
-                    <tr>
-                      <th>Código</th>
-                      <th>Descripción</th>
-                      <th>Medida</th>
-                      <th>Precio </th>
-                      <th>Cantidad</th>
-                      <th>Importe</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach ($productos as $producto)
-                    <tr>
-                        <td>{{$producto->codigo}}</td>
-                        <td>{{$producto->descripcion}}</td>
-                        <td>{{$producto->medida}}</td>
-                        <td>{{$producto->precio}}</td>
-                        <td>{{$producto->cantidad}}</td>
-                        <td>{{$producto->importe}}</td>
-                    </tr>
-                    @php
-                    $contadorFilas++;
-                    @endphp
-
-                    @endforeach
-
+                        <tr>
+                            <th>Código</th>
+                            <th>Descripción</th>
+                            <th>Medida</th>
+                            <th>Precio </th>
+                            <th>Cantidad</th>
+                            <th>Importe</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($productos as $producto)
+                            <tr>
+                                <td>{{ $producto->codigo }}</td>
+                                <td>{{ $producto->descripcion }}</td>
+                                <td>{{ $producto->medida }}</td>
+                                <td>{{ $producto->precio }}</td>
+                                <td>{{ $producto->cantidad }}</td>
+                                <td>{{ $producto->importe }}</td>
+                            </tr>
+                            @php
+                                $contadorFilas++;
+                            @endphp
+                        @endforeach
 
 
 
-                </tbody>
-                  </table>
+
+                    </tbody>
+                </table>
             </div>
         </div>
 
-        @if($contadorFilas>4 and $contadorFilas<24)
-           @php
-                 $altura = 170;
-                 $altura2 = 530;
+        @if ($contadorFilas > 4 and $contadorFilas < 24)
+            @php
+                $altura = 170;
+                $altura2 = 530;
             @endphp
-           <div style="page-break-after: always"></div>
-
-       @else
-       @php
-       $altura = 20;
-       @endphp
-
-       @endif
+            <div style="page-break-after: always"></div>
+        @else
+            @php
+                $altura = 20;
+            @endphp
+        @endif
 
 
 
 
 
         <div style=" position: relative; margin-left:44px;">
-            <div class="card border border-dark" style="position:absolute;left:0px; margin-top:{{$altura}}px;   width:26rem; height:15rem;">
+            <div class="card border border-dark"
+                style="position:absolute;left:0px; margin-top:{{ $altura }}px;   width:26rem; height:15rem;">
                 <div class="card-body">
 
-                    <p class="card-text" style="position:absolute;left:10px;  top:2px; font-size:14px;"><b>Vendedor: </b>
-                        {{$vale->name}} </p>
+                    <p class="card-text" style="position:absolute;left:10px;  top:2px; font-size:14px;"><b>Vendedor:
+                        </b>
+                        {{ $vale->name }} </p>
 
                     {{-- <p class="card-text" style="position:absolute;left:10px;  top:18px; font-size:14px"><b>Repartidor: </b>
                         NULL</p> --}}
@@ -190,37 +199,45 @@
                         ____________________________________________________________________</p>
 
 
-                        @if($vale->estado_factura==1)
-                        <span style = "position:absolute; left:10px; font-size: 10px">N{{$vale->numero_factura}}-CF11</span></p>
-                        @else
-                        <span style = "position:absolute; left:10px; font-size: 10px">N{{$vale->numero_factura}}-CF12</span></p>
-                        @endif
-
-                    @if($flagCentavos == false)
-                    <p class="card-text" style="position:absolute;left:35px;  top:240px; font-size:12px;">"{{$numeroLetras." CON CERO CENTAVOS"}}"</p>
-
+                    @if ($vale->estado_factura == 1)
+                        <span
+                            style = "position:absolute; left:10px; font-size: 10px">N{{ $vale->numero_factura }}-CF11</span>
+                        </p>
                     @else
-                    <p class="card-text" style="position:absolute;left:35px;  top:240px; font-size:12px;">"{{$numeroLetras }}"</p>
+                        <span
+                            style = "position:absolute; left:10px; font-size: 10px">N{{ $vale->numero_factura }}-CF12</span>
+                        </p>
+                    @endif
+
+                    @if ($flagCentavos == false)
+                        <p class="card-text" style="position:absolute;left:35px;  top:240px; font-size:12px;">
+                            "{{ $numeroLetras . ' CON CERO CENTAVOS' }}"</p>
+                    @else
+                        <p class="card-text" style="position:absolute;left:35px;  top:240px; font-size:12px;">
+                            "{{ $numeroLetras }}"</p>
                     @endif
 
                 </div>
             </div>
 
             <div class="card border border-dark"
-                style="position:absolute;left:430px; margin-top:{{$altura}}px;   width:18rem; height:15rem;">
+                style="position:absolute;left:430px; margin-top:{{ $altura }}px;   width:18rem; height:15rem;">
                 <div class="card-body">
+
                     <div>
                         <p class="card-text " style="position:absolute; left:10px;  top:10px; font-size:14px;">Importe
                             exonerado:</p>
                         <p class="card-text" style="position:absolute;  right:10px;  top:10px; font-size:14px;">L.
                             0.00</p>
                     </div>
+
                     <div>
                         <p class="card-text" style="position:absolute; left:10px;  top:28px; font-size:14px;">Importe
                             Gravado 15%: </p>
                         <p class="card-text" style="position:absolute; right:10px;  top:28px; font-size:14px;">L.
                             {{ $importesConCentavos->sub_total_grabado }}</p>
                     </div>
+
                     <div>
                         <p class="card-text" style="position:absolute; left:10px;  top:46px; font-size:14px;">Importe
                             Gravado 18%: </p>
@@ -229,9 +246,10 @@
                     </div>
 
                     <div>
-                        <p class="card-text" style="position:absolute; left:10px;  top:46px; font-size:14px;">Importe
+                        <p class="card-text" style="position:absolute; left:10px;  top:64px; font-size:14px;">Importe
                             Exento: </p>
-                        <p class="card-text" style="position:absolute; right:10px;  top:46px; font-size:14px;">L. {{ $importesConCentavos->sub_total_excento }}
+                        <p class="card-text" style="position:absolute; right:10px;  top:64px; font-size:14px;">L.
+                            {{ $importesConCentavos->sub_total_excento }}
                         </p>
                     </div>
 
@@ -241,9 +259,10 @@
                     <p class="card-text" style="position:absolute; left:200px;  top:65px; font-size:16px;">1200.00</p> --}}
 
                     <p class="card-text" style="position:absolute; left:10px;  top:85px; font-size:14px;">Desc. y
-                        Rebajas:
+                        Rebajas {{ $importesConCentavos->porc_descuento }}%:
                     </p>
-                    <p class="card-text" style="position:absolute; right:10px;  top:85px; font-size:14px;">L. 0.00</p>
+                    <p class="card-text" style="position:absolute; right:10px;  top:85px; font-size:14px;">L.
+                        {{ $importesConCentavos->monto_descuento }}</p>
 
                     <p class="card-text" style="position:absolute; left:10px;  top:105px; font-size:14px;">Sub Total:
                     </p>
@@ -270,17 +289,18 @@
                 </div>
             </div>
 
-            <div style="position:absolute;left:0px;  margin-top:{{$altura2}}px;  width:45rem;">
+            <div style="position:absolute;left:0px;  margin-top:{{ $altura2 }}px;  width:45rem;">
                 <p class="card-text" style="position:absolute;left:20px;  top:10px;">
                     _______________________________________</p>
                 <p class="card-text" style="position:absolute;left:450px;  top:10px;">
                     _______________________________________</p>
-                <p class="card-text" style="position:absolute;left:80px;  top:25px; ">{{ strtoupper($cliente->nombre) }}</p>
+                <p class="card-text" style="position:absolute;left:80px;  top:25px; ">
+                    {{ strtoupper($cliente->nombre) }}</p>
                 <p class="card-text" style="position:absolute;left:495px;  top:25px;">DISTRIBUCIONES VALENCIA</p>
             </div>
 
 
-            <div style="position:absolute;left:0px;  margin-top:{{$altura2 + 50}}px;  width:45rem;">
+            <div style="position:absolute;left:0px;  margin-top:{{ $altura2 + 50 }}px;  width:45rem;">
                 <p class="card-text" style="position:absolute;left:20px;  top:10px;">
                     _______________________________________</p>
 
@@ -291,16 +311,18 @@
 
         </div>
 
-        @if($vale->estado_id_vale==2)
-        <div>
-            <p class="" style="position:absolute; margin-top:{{$altura2 + 67}}px;  left:120px;   font-size:50px;">--VALE ANULADO--</p>
-        </div>
-        @elseif($vale->estado_id_vale==5)
-        <div>
-            <p class="" style="position:absolute; margin-top:{{$altura2 + 67}}px;  left:120px;   font-size:50px;">--VALE ELIMINADO--</p>
-        </div>
-
-
+        @if ($vale->estado_id_vale == 2)
+            <div>
+                <p class=""
+                    style="position:absolute; margin-top:{{ $altura2 + 67 }}px;  left:120px;   font-size:50px;">--VALE
+                    ANULADO--</p>
+            </div>
+        @elseif($vale->estado_id_vale == 5)
+            <div>
+                <p class=""
+                    style="position:absolute; margin-top:{{ $altura2 + 67 }}px;  left:120px;   font-size:50px;">--VALE
+                    ELIMINADO--</p>
+            </div>
         @endif
 
 

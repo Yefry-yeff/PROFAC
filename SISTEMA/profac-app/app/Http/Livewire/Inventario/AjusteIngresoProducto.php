@@ -193,4 +193,51 @@ class AjusteIngresoProducto extends Component
        ],402);
        }
      }
+
+     public function listarBodegas(Request $request){
+        try {
+
+         $listaBodegas = DB::SELECT("
+             select id ,nombre as 'text' from bodega  where estado_id = 1 and (nombre like '%".$request->search."%' or id like '%".$request->search."%') limit 15
+         ");
+
+
+        return response()->json([
+            "results" => $listaBodegas
+
+        ],200);
+        } catch (QueryException $e) {
+        return response()->json([
+            'message' => 'Ha ocurrido un error',
+            'error' => $e
+        ],402);
+        }
+     }
+
+     public function seccionesLista(Request $request){
+        try {
+
+            $listaSecciones = DB::SELECT("
+                select
+                A.id,
+                UPPER(A.descripcion) as text
+                from seccion A
+                inner join segmento B
+                on A.segmento_id = B.id                
+                where B.bodega_id = ".$request->bodegaId." and A.descripcion like  '%".$request->search."%'
+                group by A.id, text
+                "
+            );
+
+            return response()->json([
+                "results" => $listaSecciones
+            ],200);
+
+        } catch (QueryException $e) {
+        return response()->json([
+            'message' => 'Ha ocurrido un error',
+            'error' => $e
+        ],402);
+        }
+     }
 }

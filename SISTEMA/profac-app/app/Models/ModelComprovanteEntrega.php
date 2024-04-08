@@ -11,4 +11,8 @@ class ModelComprovanteEntrega extends Model
     protected $table = 'comprovante_entrega';
 
     protected $primaryKey = 'id';
+    protected $fillable = [
+        'porc_descuento',
+        'monto_descuento'
+    ];     
 }

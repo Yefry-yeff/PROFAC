@@ -54,7 +54,7 @@
 
                                         <div class="col-md-12">
                                             <label for="monto" class="col-form-label focus-label">Ingrese Monto de Nota de Débito:<span class="text-danger">*</span></label>
-                                            <input class="form-control" required type="number" id="monto" name="monto" data-parsley-required>
+                                            <input class="form-control" required type="number" step="0.01" id="monto" name="monto" data-parsley-required>
                                         </div>
 
                                         <div class="col-md-12">

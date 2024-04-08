@@ -155,7 +155,7 @@
 
                                     <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4">
                                         <div class="form-group">
-                                            <label for="fecha_emision" class="col-form-label focus-label">Descuento aplicado
+                                            <label for="porDescuento" class="col-form-label focus-label">Descuento aplicado
                                                 %
                                                 :<span class="text-danger">*</span></label>
                                             <input class="form-control" type="number" min="0" max="15"
@@ -164,8 +164,6 @@
                                                 onchange="calcularTotalesInicioPagina()">
 
                                             <p id="mensajeError" style="color: red;"></p>
-
-
                                         </div>
                                     </div>
 
@@ -526,7 +524,7 @@
 
             window.onload = obtenerTipoPago;
             var public_path = "{{ asset('catalogo/') }}";
-            var diasCredito = 0;
+            var diasCredito = {{$cotizacion->dias_credito}};
 
 
 
@@ -817,6 +815,7 @@ function validarDescuento(){
 
                         });
 
+                        /*SE QUITO min="${producto.precio_base}" DE LA LINEA 856*/
 
                         html = `
                         <div id='${numeroInputs}' class="row no-gutters">
@@ -985,7 +984,7 @@ function validarDescuento(){
                         let descuento = document.getElementById('porDescuento').value;
 
 
-                        if (descuento >= 0) {
+                        if (descuento > 0) {
                             subTotal = valorInputPrecio * (valorInputCantidad * valorSelectUnidad);
                             descuentoCalculado = subTotal * (descuento / 100);
                             subTotal = subTotal - descuentoCalculado;
@@ -1001,29 +1000,29 @@ function validarDescuento(){
 
 
 
-                        document.getElementById('acumuladoDescuento' + id).value = descuentoCalculado;
+                        document.getElementById('acumuladoDescuento' + id).value = descuentoCalculado.toFixed(2);
 
-                        document.getElementById('total' + id).value = total.toFixed(4);
+                        document.getElementById('total' + id).value = total.toFixed(2);
                         document.getElementById('totalMostrar' + id).value = new Intl.NumberFormat('es-HN', {
                             style: 'currency',
                             currency: 'HNL',
-                            minimumFractionDigits: 4,
+                            minimumFractionDigits: 2,
                         }).format(total)
 
-                        document.getElementById('subTotal' + id).value = subTotal.toFixed(4);
+                        document.getElementById('subTotal' + id).value = subTotal.toFixed(2);
                         document.getElementById('subTotalMostrar' + id).value = new Intl.NumberFormat('es-HN', {
                             style: 'currency',
                             currency: 'HNL',
-                            minimumFractionDigits: 4,
+                            minimumFractionDigits: 2,
                         }).format(subTotal)
 
 
-                        document.getElementById('isvProducto' + id).value = isv.toFixed(4);
+                        document.getElementById('isvProducto' + id).value = isv.toFixed(2);
                         document.getElementById('isvProductoMostrar' + id).value = new Intl.NumberFormat(
                             'es-HN', {
                                 style: 'currency',
                                 currency: 'HNL',
-                                minimumFractionDigits: 4,
+                                minimumFractionDigits: 2,
                             }).format(isv)
 
                     }
@@ -1040,11 +1039,9 @@ function validarDescuento(){
 
             function calcularTotales(idPrecio, idCantidad, isvProducto, idUnidad, id, idRestaInventario) {
 
-
-
-                valorInputPrecio = idPrecio.value;
-                valorInputCantidad = idCantidad.value;
-                valorSelectUnidad = idUnidad.value;
+                let valorInputPrecio = Number(idPrecio.value).toFixed(2);
+                let valorInputCantidad = idCantidad.value;
+                let valorSelectUnidad = idUnidad.value;
 
                 let subTotal = 0;
                 let isv = 0;
@@ -1071,28 +1068,28 @@ function validarDescuento(){
                         total = subTotal + subTotal * (isvProducto / 100);
                     }
 
-                    document.getElementById('acumuladoDescuento' + id).value = descuentoCalculado
+                    document.getElementById('acumuladoDescuento' + id).value = descuentoCalculado.toFixed(2);
 
-                    document.getElementById('total' + id).value = total.toFixed(4);
+                    document.getElementById('total' + id).value = total.toFixed(2);
                     document.getElementById('totalMostrar' + id).value = new Intl.NumberFormat('es-HN', {
                         style: 'currency',
                         currency: 'HNL',
-                        minimumFractionDigits: 4,
+                        minimumFractionDigits: 2,
                     }).format(total)
 
-                    document.getElementById('subTotal' + id).value = subTotal.toFixed(4);
+                    document.getElementById('subTotal' + id).value = subTotal.toFixed(2);
                     document.getElementById('subTotalMostrar' + id).value = new Intl.NumberFormat('es-HN', {
                         style: 'currency',
                         currency: 'HNL',
-                        minimumFractionDigits: 4,
+                        minimumFractionDigits: 2,
                     }).format(subTotal)
 
 
-                    document.getElementById('isvProducto' + id).value = isv.toFixed(4);
+                    document.getElementById('isvProducto' + id).value = isv.toFixed(2);
                     document.getElementById('isvProductoMostrar' + id).value = new Intl.NumberFormat('es-HN', {
                         style: 'currency',
                         currency: 'HNL',
-                        minimumFractionDigits: 4,
+                        minimumFractionDigits: 2,
                     }).format(isv)
 
 
@@ -1104,7 +1101,7 @@ function validarDescuento(){
 
                 }
 
-
+                idPrecio.value = valorInputPrecio;
                 return 0;
 
 
@@ -1155,47 +1152,47 @@ function validarDescuento(){
 
 
 
-                document.getElementById('porDescuentoCalculado').value = acumularDescuento
+                document.getElementById('porDescuentoCalculado').value = acumularDescuento.toFixed(2);
 
                 document.getElementById('descuentoMostrar').value = new Intl.NumberFormat('es-HN', {
                     style: 'currency',
                     currency: 'HNL',
-                    minimumFractionDigits: 4,
+                    minimumFractionDigits: 2,
                 }).format(acumularDescuento)
 
-                document.getElementById('subTotalGeneral').value = subTotalGeneral.toFixed(4);
+                document.getElementById('subTotalGeneral').value = subTotalGeneral.toFixed(2);
                 document.getElementById('subTotalGeneralMostrar').value = new Intl.NumberFormat('es-HN', {
                     style: 'currency',
                     currency: 'HNL',
-                    minimumFractionDigits: 4,
+                    minimumFractionDigits: 2,
                 }).format(subTotalGeneral)
 
-                document.getElementById('subTotalGeneralGrabado').value = subTotalGeneralGrabadoValor.toFixed(4);
+                document.getElementById('subTotalGeneralGrabado').value = subTotalGeneralGrabadoValor.toFixed(2);
                 document.getElementById('subTotalGeneralGrabadoMostrar').value = new Intl.NumberFormat('es-HN', {
                     style: 'currency',
                     currency: 'HNL',
-                    minimumFractionDigits: 4,
+                    minimumFractionDigits: 2,
                 }).format(subTotalGeneralGrabadoValor)
 
-                document.getElementById('subTotalGeneralExcento').value = subTotalGeneralExcentoValor.toFixed(4);
+                document.getElementById('subTotalGeneralExcento').value = subTotalGeneralExcentoValor.toFixed(2);
                 document.getElementById('subTotalGeneralExcentoMostrar').value = new Intl.NumberFormat('es-HN', {
                     style: 'currency',
                     currency: 'HNL',
-                    minimumFractionDigits: 4,
+                    minimumFractionDigits: 2,
                 }).format(subTotalGeneralExcentoValor)
 
-                document.getElementById('isvGeneral').value = totalISV.toFixed(4);
+                document.getElementById('isvGeneral').value = totalISV.toFixed(2);
                 document.getElementById('isvGeneralMostrar').value = new Intl.NumberFormat('es-HN', {
                     style: 'currency',
                     currency: 'HNL',
-                    minimumFractionDigits: 4,
+                    minimumFractionDigits: 2,
                 }).format(totalISV)
 
-                document.getElementById('totalGeneral').value = totalGeneralValor.toFixed(4);
+                document.getElementById('totalGeneral').value = totalGeneralValor.toFixed(2);
                 document.getElementById('totalGeneralMostrar').value = new Intl.NumberFormat('es-HN', {
                     style: 'currency',
                     currency: 'HNL',
-                    minimumFractionDigits: 4,
+                    minimumFractionDigits: 2,
                 }).format(totalGeneralValor)
 
 
@@ -1414,7 +1411,7 @@ function validarDescuento(){
                     let date = new Date(fechaEmision);
                     date.setDate(date.getDate() + diasCredito);
                     let suma = date.toISOString().split('T')[0];
-                    //console.log( diasCredito);
+                    // console.log( diasCredito);
 
                     document.getElementById("fecha_vencimiento").value = suma;
 

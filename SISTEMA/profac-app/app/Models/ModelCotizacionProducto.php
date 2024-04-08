@@ -21,6 +21,5 @@ class ModelCotizacionProducto extends Model
     'total',
     'seccion_id',
     'unidad_medida_venta_id',
-
     ];
 }

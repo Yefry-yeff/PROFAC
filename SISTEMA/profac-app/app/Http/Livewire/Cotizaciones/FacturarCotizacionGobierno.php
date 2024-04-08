@@ -14,6 +14,7 @@ use Validator;
 use PDF;
 use Luecano\NumeroALetras\NumeroALetras;
 
+
 class FacturarCotizacionGobierno extends Component
 {
     public $idCotizacion;
@@ -34,34 +35,37 @@ class FacturarCotizacionGobierno extends Component
 
         $cotizacion = DB::SELECTONE('
         select
-        id,
-        nombre_cliente,
-        RTN,
-        fecha_emision,
-        fecha_vencimiento,
-        sub_total,
-        sub_total_grabado,
-        sub_total_excento,
-        isv,
-        total,
-        cliente_id,
-        tipo_venta_id,
-        users_id,
-        numeroInputs,
-        porc_descuento,
-        monto_descuento,
-        created_at,
-        updated_at,
-        REPLACE(arregloIdInputs,' . $char2 . $char . $char2 . ',' . $char2 . $char . $char2 . ')  as "arregloIdInputs"
-        from cotizacion
-        where id =' . $idCotizacion);
+        A.id,
+        A.nombre_cliente,
+        A.RTN,
+        A.fecha_emision,
+        A.fecha_vencimiento,
+        A.sub_total,
+        A.sub_total_grabado,
+        A.sub_total_excento,
+        A.isv,
+        A.total,
+        A.cliente_id,
+        A.tipo_venta_id,
+        A.users_id,
+        A.numeroInputs,
+        A.porc_descuento,
+        A.monto_descuento,
+        A.created_at,
+        A.updated_at,
+        B.dias_credito,
+        REPLACE(A.arregloIdInputs,' . $char2 . $char . $char2 . ',' . $char2 . $char . $char2 . ')  as "arregloIdInputs"
+        from cotizacion A
+        inner join cliente B
+        on A.cliente_id = B.id
+        where A.id =' . $idCotizacion);
 
 
 
 
         $htmlProductos =  $this->generarHTML($idCotizacion);
-
         $urlGuardarVenta = $this->obtenerURL($cotizacion->tipo_venta_id);
+
         return view('livewire.cotizaciones.facturar-cotizacion-gobierno', compact('cotizacion', 'htmlProductos', 'urlGuardarVenta'));
     }
 

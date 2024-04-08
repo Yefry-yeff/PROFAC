@@ -65,6 +65,7 @@ class NotaDebito extends Component
             on factura.vendedor = users.id
 
             cross join (select @i := 0) r
+            where factura.fecha_emision > DATE_SUB(CURDATE(), INTERVAL 3 MONTH)
             order by factura.created_at desc
             ");
 
@@ -243,6 +244,20 @@ class NotaDebito extends Component
     public function guardarNotaDebito(Request $request){
 
        try {
+        $estadoCuenta = DB::selectone('select estado_cerrado from aplicacion_pagos where estado = 1 and factura_id = '.$request->factura_id);
+        // dd($saldoActual->saldo);
+        if($estadoCuenta != null){
+            if($estadoCuenta->estado_cerrado == 2){
+                return response()->json([
+                    "icon" => "warning",
+                    "text"=>"Esta factura esta cerrada, no se puede crear nota.",
+                    "title"=>"Advertencia!"
+
+                ],400);
+
+            }
+
+         }
 
             // dd($request);
 
@@ -319,6 +334,14 @@ class NotaDebito extends Component
         $NotaDebito->estado_id = 1;
         $NotaDebito->estado_nota_dec = $estado;
         $NotaDebito->users_registra_id = Auth::user()->id;
+
+
+
+        $NotaDebito->estado_sumado =2;
+        $NotaDebito->user_registra_sumado = 0;
+        $NotaDebito->comentario_sumado = 'N/A';
+        $NotaDebito->fecha_sumado = NULL;
+
         $NotaDebito->save();
 
         /* SE AGREGA LA FUNCION DE SUMAR EL MONTO DE NOTA DE DEBITO A LA FACTURA */
@@ -515,7 +538,7 @@ class NotaDebito extends Component
                 update
                 notadebito
                 set estado_id = 2
-                where id ='.$idNota);
+                where estado_sumado = 2 id ='.$idNota);
 
             DB::commit();
             return response()->json([

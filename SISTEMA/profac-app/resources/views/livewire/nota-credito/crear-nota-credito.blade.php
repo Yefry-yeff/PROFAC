@@ -1172,20 +1172,20 @@
 
                         //Eliminar DIVS y que muestre alert para imprimir
                         //Agregar funcion para anular
-
-                        setTimeout(function(){
-                            location.reload()
-                        }, 40000)
-
                         Swal.fire({
                             icon: data.icon,
                             title: data.title,
                             html: data.text,
 
                         })
+                        {{--  setTimeout(function(){
+                            location.reload()
+                        }, 40000)  --}}
 
 
 
+
+                        location.reload()
 
 
                         return;

@@ -50,6 +50,7 @@
 
         /* tr:nth-child(even) {
             background-color: #f2f2f2
+
         } */
 
         .letra {
@@ -76,6 +77,7 @@
 
     <div class="pruebaFondo">
         <img src="img/membrete/Logo3.png" width="800rem" style="margin-left:3%; margin-top:-25px; position:absolute;"alt="">
+
         <div class="card border border-dark" style="margin-left:44px;  margin-top:105px; width:45rem; height:5.5rem;">
             <div class="card-header">
                 <b>Factura No. {{ $cai->numero_factura }} </b>
@@ -110,12 +112,12 @@
                 <p class="card-text" style="position:absolute;left:20px;  top:80px; max-width:680px"><b>Notas:</b>{{ $cai->comentario }} </p>
 
 
-                <p class="card-text " style="position:absolute;left:20px;  top:120px;"><b>Correlativo de Ord.
+                <p class="card-text " style="position:absolute;left:20px;  top:125px;"><b>Correlativo de Ord.
                         exenta</b>
                 </p>
-                <p class="card-text" style="position:absolute;left:250px;  top:120px;"><b>Constancia de registro
+                <p class="card-text" style="position:absolute;left:250px;  top:125px;"><b>Constancia de registro
                         exonerado</b></p>
-                <p class="card-text" style="position:absolute;left:500px;  top:120px;"><b>Identificativo del registro de
+                <p class="card-text" style="position:absolute;left:500px;  top:125px;"><b>Identificativo del registro de
                         la SAG</b></p>
 
 
@@ -136,6 +138,8 @@
                 <p class="card-text" style="position:absolute;left:270px;  top:60px;"><b>Teléfono:</b>
                     {{ $cliente->telefono_empresa }}
                 </p>
+
+
             </div>
         </div>
 
@@ -188,27 +192,13 @@
 
                         </table>
 
-
-
                     </div>
-
-
-
-
 
                 </div>
 
 
 
-
-
-
-
-
-
-
-
-                <div style=" position: relative; margin-left:44px; margin-top:30px; width:26rem; height:15rem;">
+                <div style="position: relative; margin-left:44px; margin-top:30px; width:26rem; height:20rem;">
 
 
                     <div class="card border border-dark" style="position:absolute;left:0px;  width:26rem; height:15rem;">
@@ -264,8 +254,7 @@
                         </div>
                     </div>
 
-                    <div class="card border border-dark"
-                        style="position:absolute;left:430px;   width:18rem; height:15rem;">
+                    <div class="card border border-dark" style="position:absolute;left:430px;   width:18rem; height:15rem;">
                         <div class="card-body">
                             <div>
                                 <p class="card-text " style="position:absolute; left:10px;  top:10px; font-size:14px;">Importe
@@ -279,10 +268,11 @@
                                 <p class="card-text" style="position:absolute; right:10px;  top:28px; font-size:14px;">L.
                                     {{ $importesConCentavos->sub_total_grabado }}</p>
                             </div>
+
                             <div>
                                 <p class="card-text" style="position:absolute; left:10px;  top:46px; font-size:14px;">Importe
                                     Gravado 18%: </p>
-                                <p class="card-text" style="position:absolute; right:10px;  top:46px; font-size:14px;">L.
+                                <p class="card-text" style="position:absolute; right:10px;  top:46px; font-size:14px;"> L.
                                     0.00</p>
                             </div>
 
@@ -297,30 +287,31 @@
                             {{-- <p class="card-text" style="position:absolute; left:10px;  top:65px; font-size:16px;">Total Importe:
                             </p>
                             <p class="card-text" style="position:absolute; left:200px;  top:65px; font-size:16px;">1200.00</p> --}}
+
                             <p class="card-text" style="position:absolute; left:10px;  top:85px; font-size:14px;">Desc. y Rebajas {{$importes->porc_descuento}}%:
                             </p>
                             <p class="card-text" style="position:absolute; right:10px;  top:85px; font-size:14px;">L. {{$importesConCentavos->monto_descuento}}</p>
 
-                            <p class="card-text" style="position:absolute; left:10px;  top:105px; font-size:14px;">Sub Total:
+                            <p class="card-text" style="position:absolute; left:10px;  top:110px; font-size:14px;">Sub Total:
                             </p>
-                            <p class="card-text" style="position:absolute; right:10px;  top:105px; font-size:14px;">L.
+                            <p class="card-text" style="position:absolute; right:10px;  top:110px; font-size:14px;">L.
                                 {{ $importesConCentavos->sub_total }}</p>
 
-                            <p class="card-text" style="position:absolute; left:10px;  top:130px; font-size:14px;">Impuesto
+                            <p class="card-text" style="position:absolute; left:10px;  top:135px; font-size:14px;">Impuesto
                                 sobre
                                 venta 15%: </p>
-                            <p class="card-text" style="position:absolute; right:10px;  top:130px; font-size:14px;">L.
+                            <p class="card-text" style="position:absolute; right:10px;  top:135px; font-size:14px;"> L.
                                 {{ $importesConCentavos->isv }}</p>
 
-                            <p class="card-text" style="position:absolute; left:10px;  top:148px; font-size:14px;">Impuesto
+                            <p class="card-text" style="position:absolute; left:10px;  top:153px; font-size:14px;">Impuesto
                                 sobre
-                                venta 18%:</p>
-                            <p class="card-text" style="position:absolute; right:10px;  top:148px; font-size:14px;">L. 0.00
+                                venta 18%: </p>
+                            <p class="card-text" style="position:absolute; right:10px;  top:153px; font-size:14px;"> L. 0.00
                             </p>
 
-                            <p class="card-text" style="position:absolute; left:10px;  top:185px; font-size:16px;"><b>Total a
+                            <p class="card-text" style="position:absolute; left:10px;  top:190px; font-size:16px;"><b>Total a
                                     Pagar: </b></p>
-                            <p class="card-text" style="position:absolute; right:10px;  top:185px; font-size:16px;">
+                            <p class="card-text" style="position:absolute; right:10px;  top:190px; font-size:16px;">
                                 <b>L. {{ $importesConCentavos->total }}</b>
                             </p>
                         </div>
@@ -345,6 +336,7 @@
                     @endif
 
                 </div>
+
 
 
 

@@ -650,9 +650,9 @@
 
             function calcularTotales(idPrecio, idCantidad, isvProducto, id, unidadad_compra) {
 
-
-                valorInputPrecio = idPrecio.value;
-                valirInputCantidad = idCantidad.value;
+                let valorInputPrecio = Number(idPrecio.value).toFixed(2);
+                let valirInputCantidad = idCantidad.value;
+   
 
                 if (valorInputPrecio && valirInputCantidad) {
 
@@ -660,9 +660,9 @@
                     let isv = subTotal * (isvProducto / 100);
                     let total = subTotal + subTotal * (isvProducto / 100);
 
-                    document.getElementById('subTotal' + id).value = subTotal.toFixed(3);
-                    document.getElementById('total' + id).value = total.toFixed(3);
-                    document.getElementById('isvProducto' + id).value = isv.toFixed(3);
+                    document.getElementById('subTotal' + id).value = subTotal.toFixed(2);
+                    document.getElementById('total' + id).value = total.toFixed(2);
+                    document.getElementById('isvProducto' + id).value = isv.toFixed(2);
 
                     this.totalesGenerales();
 
@@ -670,7 +670,7 @@
 
                 }
 
-
+                idPrecio.value = valorInputPrecio;
                 return 0;
 
 
@@ -698,9 +698,9 @@
 
                 }
 
-                document.getElementById('subTotalGeneral').value = subTotalGeneralValor.toFixed(3);
-                document.getElementById('isvGeneral').value = totalISV.toFixed(3);
-                document.getElementById('totalGeneral').value = totalGeneralValor.toFixed(3);
+                document.getElementById('subTotalGeneral').value = subTotalGeneralValor.toFixed(2);
+                document.getElementById('isvGeneral').value = totalISV.toFixed(2);
+                document.getElementById('totalGeneral').value = totalGeneralValor.toFixed(2);
 
 
 

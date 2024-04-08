@@ -25,6 +25,12 @@ class ModelNotaCredito extends Model
         'motivo_nota_credito_id',
         'users_id',
         'estado_nota_id',
-        'estado_nota_dec'
+        'estado_nota_dec',
+        'estado_rebajado',
+        'user_registra_rebaja',
+        'comentario_rebajado',
+        'fecha_rebajado'
     ];
 }
+
+

@@ -62,7 +62,7 @@
                 "language": {
                     "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
                 },
-                "order": [3, 'desc'],
+                "order": [9, 'desc'],
                 pageLength: 10,
                 responsive: true,
 

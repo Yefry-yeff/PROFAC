@@ -10,5 +10,5 @@ class ModelVale extends Model
     use HasFactory;
     protected $table = 'vale';
     protected $primaryKey = 'id';
-    protected $fillable = ['id', 'numero_vale','sub_total', 'isv','total', 'factura_id','users_id', 'notas','estado_id'];
+    protected $fillable = ['id', 'numero_vale','sub_total', 'isv','total', 'factura_id','users_id', 'notas','estado_id','porc_descuento','monto_descuento'];
 }

@@ -126,14 +126,14 @@
                                 </div>
 
                                 <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4">
-                                    <label class="col-form-label focus-label">Nombre del cliente</label>
+                                    <label class="col-form-label focus-label">Nombre del cliente: <span class="text-danger">*</span></label>
                                     <input class="form-control" required type="text" id="nombre_cliente_ventas"
                                         name="nombre_cliente_ventas" data-parsley-required readonly>
 
                                 </div>
 
                                 <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4">
-                                    <label class="col-form-label focus-label">RTN</label>
+                                    <label class="col-form-label focus-label">RTN: <span class="text-danger">*</span></label>
                                     <input class="form-control" type="text" id="rtn_ventas" name="rtn_ventas"
                                         readonly>
 
@@ -148,7 +148,7 @@
                             <div class="row mt-4">
                                 <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4">
                                     <label for="tipoPagoVenta" class="col-form-label focus-label">Seleccionar tipo de
-                                        pago:</label>
+                                        pago:<span class="text-danger">*</span></label>
                                     <select class="form-group form-control " name="tipoPagoVenta" id="tipoPagoVenta"
                                         data-parsley-required onchange="validarFechaPago()">
                                     </select>
@@ -158,7 +158,7 @@
                                     <div class="form-group">
 
                                         <label for="fecha_emision" class="col-form-label focus-label">Fecha de emisión
-                                            :</label>
+                                            :<span class="text-danger">*</span></label>
                                         <input class="form-control" type="date" id="fecha_emision"
                                             onchange="sumarDiasCredito()" name="fecha_emision"
                                             value="{{ date('Y-m-d') }}" data-parsley-required>
@@ -176,25 +176,30 @@
                                             name="fecha_vencimiento" value="" data-parsley-required
                                             min="{{ date('Y-m-d') }}" readonly>
                                     </div>
-                                    <input type="hidden" id="porDescuento" name="porDescuento" value="0">
-                                    <input type="hidden" id="porDescuentoCalculado" name="porDescuentoCalculado" value="0">
+
                                 </div>
 
 
                             </div>
-
                             <div class="row">
+                                <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4">
+                                    <div class="form-group">
 
-
-
+                                        <label for="porDescuento" class="col-form-label focus-label">Descuento
+                                            aplicado %
+                                            :<span class="text-danger">*</span></label>
+                                        <input class="form-control" type="number" min="0" max="15"
+                                            value="0" id="porDescuento" name="porDescuento"
+                                            onchange="calcularTotalesInicioPagina()" data-parsley-required>
+                                    </div>
+                                </div>
                             </div>
                             <div class="row">
                                 <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
                                     <div class="form-group">
-                                        <label for="nota"
-                                            class="col-form-label focus-label">Nota:
+                                        <label for="nota" class="col-form-label focus-label">Nota:
                                         </label>
-                                        <textarea class="form-control"  id="nota_comen" name="nota_comen" cols="30" rows="3" maxlength="250" ></textarea>
+                                        <textarea class="form-control" id="nota_comen" name="nota_comen" cols="30" rows="3" maxlength="250"></textarea>
                                     </div>
 
                                 </div>
@@ -207,7 +212,7 @@
 
                                     <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
                                         <label for="seleccionarProducto"
-                                            class="col-form-label focus-label">Seleccionar Producto:</label>
+                                            class="col-form-label focus-label">Seleccionar Producto:<span class="text-danger">*</span></label>
                                         <select id="seleccionarProducto" name="seleccionarProducto"
                                             class="form-group form-control" style=""
                                             onchange="obtenerImagenes()">
@@ -223,7 +228,7 @@
                                 <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6 ">
                                     <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
                                         <label for="bodega" class="col-form-label focus-label">Seleccionar
-                                            bodega:</label>
+                                            bodega:<span class="text-danger">*</span></label>
                                         <select id="bodega" name="bodega" class="form-group form-control"
                                             style="" onchange="prueba()" disabled>
                                             <option value="" selected disabled>--Seleccione un producto--
@@ -413,6 +418,22 @@
                             <div class="row">
 
                                 <div class="form-group col-12 col-sm-12 col-md-2 col-lg-1 col-xl-1">
+                                    <label class="col-form-label" for="descuentoMostrar">Descuento L.<span
+                                            class="text-danger">*</span></label>
+                                </div>
+                                <div class="form-group col-12 col-sm-12 col-md-3 col-lg-2 col-xl-2">
+                                    <input type="text" placeholder="Descuento aplicado" id="descuentoMostrar"
+                                        name="descuentoMostrar" class="form-control" value="Descuento Aplicado"
+                                        data-parsley-required autocomplete="off" readonly>
+
+                                    <input type="hidden" value="0" id="porDescuentoCalculado"
+                                        name="porDescuentoCalculado">
+                                </div>
+                            </div>
+
+                            <div class="row">
+
+                                <div class="form-group col-12 col-sm-12 col-md-2 col-lg-1 col-xl-1">
                                     <label class="col-form-label" for="subTotalGeneralMostrar">Sub Total L.<span
                                             class="text-danger">*</span></label>
                                 </div>
@@ -581,6 +602,80 @@
                 var element = document.getElementById('botonAdd');
                 element.classList.remove("d-none");
 
+            }
+
+            function calcularTotalesInicioPagina() {
+
+                let arrayInputs = this.arregloIdInputs;
+
+
+                let valorInputPrecio = 0;
+                let valorInputCantidad = 0;
+                let valorSelectUnidad = 0;
+                let isvProducto = 0;
+
+                let subTotal = 0;
+                let isv = 0;
+                let total = 0;
+                let descuento = 0;
+                let descuentoCalculado = 0
+
+                arrayInputs.forEach(id => {
+                    // calcularTotales(idPrecio, idCantidad, isvProducto, idUnidad, id)
+                    valorInputPrecio = document.getElementById('precio' + id).value;
+                    valorInputCantidad = document.getElementById('cantidad' + id).value;
+                    valorSelectUnidad = document.getElementById('unidad' + id).value;
+                    isvProducto = document.getElementById("isv" + id).value;
+
+                    if (valorInputPrecio && valorInputCantidad) {
+
+                        descuento = document.getElementById("porDescuento").value;
+
+                        if (descuento > 0) {
+                            subTotal = valorInputPrecio * (valorInputCantidad * valorSelectUnidad);
+                            descuentoCalculado = subTotal * (descuento / 100);
+                            subTotal = subTotal - descuentoCalculado;
+                            isv = subTotal * (isvProducto / 100);
+                            total = subTotal + (subTotal * (isvProducto / 100));
+                        } else {
+                            descuentoCalculado = 0;
+                            subTotal = valorInputPrecio * (valorInputCantidad * valorSelectUnidad);
+                            isv = subTotal * (isvProducto / 100);
+                            total = subTotal + subTotal * (isvProducto / 100);
+                        }
+
+                        document.getElementById("acumuladoDescuento" + id).value = descuentoCalculado.toFixed(2);
+
+                        document.getElementById('total' + id).value = total.toFixed(2);
+                        document.getElementById('totalMostrar' + id).value = new Intl.NumberFormat('es-HN', {
+                            style: 'currency',
+                            currency: 'HNL',
+                            minimumFractionDigits: 2,
+                        }).format(total)
+
+                        document.getElementById('subTotal' + id).value = subTotal.toFixed(2);
+                        document.getElementById('subTotalMostrar' + id).value = new Intl.NumberFormat('es-HN', {
+                            style: 'currency',
+                            currency: 'HNL',
+                            minimumFractionDigits: 2,
+                        }).format(subTotal)
+
+
+                        document.getElementById('isvProducto' + id).value = isv.toFixed(2);
+                        document.getElementById('isvProductoMostrar' + id).value = new Intl.NumberFormat(
+                            'es-HN', {
+                                style: 'currency',
+                                currency: 'HNL',
+                                minimumFractionDigits: 2,
+                            }).format(isv)
+                     
+
+                    }
+
+                });
+
+                this.totalesGenerales();
+                return 0;
             }
 
             function obtenerBodegas(id) {
@@ -858,6 +953,7 @@
                                                     readonly >
 
                                                     <input id="isvProducto${numeroInputs}" name="isvProducto${numeroInputs}" type="hidden" value="" required>
+                                                    <input type="hidden" id="acumuladoDescuento${numeroInputs}" name="acumuladoDescuento${numeroInputs}" >
                                             </div>
 
                                             <div class="form-group col-12 col-sm-12 col-md-2 col-lg-2 col-xl-2">
@@ -916,47 +1012,62 @@
             function calcularTotales(idPrecio, idCantidad, isvProducto, idUnidad, id, idRestaInventario) {
 
 
-                valorInputPrecio = idPrecio.value;
-                valorInputCantidad = idCantidad.value;
-                valorSelectUnidad = idUnidad.value;
+                let valorInputPrecio = Number(idPrecio.value).toFixed(2);
+                let valorInputCantidad = idCantidad.value;
+                let valorSelectUnidad = idUnidad.value;
 
                 if (valorInputPrecio && valorInputCantidad) {
 
-                    let subTotal = valorInputPrecio * (valorInputCantidad * valorSelectUnidad);
-                    let isv = subTotal * (isvProducto / 100);
-                    let total = subTotal + subTotal * (isvProducto / 100);
+                    let descuento = document.getElementById('porDescuento').value;
+                    let subTotal = 0;
+                    let isv = 0;
+                    let total = 0;
 
-                    document.getElementById('total' + id).value = total.toFixed(4);
+
+                    if (descuento > 0) {
+                        subTotal = valorInputPrecio * (valorInputCantidad * valorSelectUnidad);
+                        descuentoCalculado = subTotal * (descuento / 100);
+                        subTotal = subTotal - descuentoCalculado;
+                        isv = subTotal * (isvProducto / 100);
+                        total = subTotal + (subTotal * (isvProducto / 100));
+                    } else {
+                        descuentoCalculado = 0
+                        subTotal = valorInputPrecio * (valorInputCantidad * valorSelectUnidad);
+                        isv = subTotal * (isvProducto / 100);
+                        total = subTotal + subTotal * (isvProducto / 100);
+                    }
+
+                    document.getElementById('acumuladoDescuento' + id).value = descuentoCalculado.toFixed(2);
+
+                    document.getElementById('total' + id).value = total.toFixed(2);
                     document.getElementById('totalMostrar' + id).value = new Intl.NumberFormat('es-HN', {
                         style: 'currency',
                         currency: 'HNL',
-                        minimumFractionDigits: 4,
+                        minimumFractionDigits: 2,
                     }).format(total)
 
-                    document.getElementById('subTotal' + id).value = subTotal.toFixed(4);
+                    document.getElementById('subTotal' + id).value = subTotal.toFixed(2);
                     document.getElementById('subTotalMostrar' + id).value = new Intl.NumberFormat('es-HN', {
                         style: 'currency',
                         currency: 'HNL',
-                        minimumFractionDigits: 4,
+                        minimumFractionDigits: 2,
                     }).format(subTotal)
 
 
-                    document.getElementById('isvProducto' + id).value = isv.toFixed(4);
+                    document.getElementById('isvProducto' + id).value = isv.toFixed(2);
                     document.getElementById('isvProductoMostrar' + id).value = new Intl.NumberFormat('es-HN', {
                         style: 'currency',
                         currency: 'HNL',
-                        minimumFractionDigits: 4,
+                        minimumFractionDigits: 2,
                     }).format(isv)
 
 
                     idRestaInventario.value = valorInputCantidad * valorSelectUnidad;
                     this.totalesGenerales();
 
-
-
                 }
 
-
+                idPrecio.value = valorInputPrecio;
                 return 0;
 
 
@@ -979,13 +1090,14 @@
                 let subTotalGeneral = new Number(0);
                 let subTotalFila = 0;
                 let isvFila = 0;
+                let acumularDescuento = new Number(0);
 
                 for (let i = 0; i < arregloIdInputs.length; i++) {
 
                     subTotalFila = new Number(document.getElementById('subTotal' + arregloIdInputs[i]).value);
                     isvFila = new Number(document.getElementById('isvProducto' + arregloIdInputs[i]).value);
 
-                    ;
+                    
 
                     if (isvFila == 0) {
                         subTotalGeneralExcentoValor += new Number(document.getElementById('subTotal' + arregloIdInputs[i])
@@ -1001,52 +1113,54 @@
                     totalISV += new Number(document.getElementById('isvProducto' + arregloIdInputs[i]).value);
                     totalGeneralValor += new Number(document.getElementById('total' + arregloIdInputs[i]).value);
 
+                    acumularDescuento += new Number(document.getElementById('acumuladoDescuento' + arregloIdInputs[i]).value);
                 }
 
+                document.getElementById('porDescuentoCalculado').value = acumularDescuento.toFixed(2);
+
+                document.getElementById('descuentoMostrar').value = new Intl.NumberFormat('es-HN', {
+                    style: 'currency',
+                    currency: 'HNL',
+                    minimumFractionDigits: 2,
+                }).format(acumularDescuento)
 
 
-                document.getElementById('subTotalGeneral').value = subTotalGeneral.toFixed(4);
+                document.getElementById('subTotalGeneral').value = subTotalGeneral.toFixed(2);
                 document.getElementById('subTotalGeneralMostrar').value = new Intl.NumberFormat('es-HN', {
                     style: 'currency',
                     currency: 'HNL',
-                    minimumFractionDigits: 4,
+                    minimumFractionDigits: 2,
                 }).format(subTotalGeneral)
 
-                document.getElementById('subTotalGeneralGrabado').value = subTotalGeneralGrabadoValor.toFixed(4);
+                document.getElementById('subTotalGeneralGrabado').value = subTotalGeneralGrabadoValor.toFixed(2);
                 document.getElementById('subTotalGeneralGrabadoMostrar').value = new Intl.NumberFormat('es-HN', {
                     style: 'currency',
                     currency: 'HNL',
-                    minimumFractionDigits: 4,
+                    minimumFractionDigits: 2,
                 }).format(subTotalGeneralGrabadoValor)
 
-                document.getElementById('subTotalGeneralExcento').value = subTotalGeneralExcentoValor.toFixed(4);
+                document.getElementById('subTotalGeneralExcento').value = subTotalGeneralExcentoValor.toFixed(2);
                 document.getElementById('subTotalGeneralExcentoMostrar').value = new Intl.NumberFormat('es-HN', {
                     style: 'currency',
                     currency: 'HNL',
-                    minimumFractionDigits: 4,
+                    minimumFractionDigits: 2,
                 }).format(subTotalGeneralExcentoValor)
 
-                document.getElementById('isvGeneral').value = totalISV.toFixed(4);
+                document.getElementById('isvGeneral').value = totalISV.toFixed(2);
                 document.getElementById('isvGeneralMostrar').value = new Intl.NumberFormat('es-HN', {
                     style: 'currency',
                     currency: 'HNL',
-                    minimumFractionDigits: 4,
+                    minimumFractionDigits: 2,
                 }).format(totalISV)
 
-                document.getElementById('totalGeneral').value = totalGeneralValor.toFixed(4);
+                document.getElementById('totalGeneral').value = totalGeneralValor.toFixed(2);
                 document.getElementById('totalGeneralMostrar').value = new Intl.NumberFormat('es-HN', {
                     style: 'currency',
                     currency: 'HNL',
-                    minimumFractionDigits: 4,
+                    minimumFractionDigits: 2,
                 }).format(totalGeneralValor)
-
-
-
-
-
+                
                 return 0;
-
-
             }
 
             function validarFechaPago() {
@@ -1284,12 +1398,12 @@
     @endpush
 </div>
 <?php
-    date_default_timezone_set('America/Tegucigalpa');
-    $act_fecha=date("Y-m-d");
-    $act_hora=date("H:i:s");
-    $mes=date("m");
-    $year=date("Y");
-    $datetim=$act_fecha." ".$act_hora;
+date_default_timezone_set('America/Tegucigalpa');
+$act_fecha = date('Y-m-d');
+$act_hora = date('H:i:s');
+$mes = date('m');
+$year = date('Y');
+$datetim = $act_fecha . ' ' . $act_hora;
 ?>
 <script>
     function mostrarHora() {
@@ -1309,9 +1423,9 @@
     setInterval(mostrarHora, 1000);
 </script>
 <div class="float-right">
-    <?php echo "$act_fecha";  ?> <strong id="reloj"></strong>
+    <?php echo "$act_fecha"; ?> <strong id="reloj"></strong>
 </div>
 <div>
-    <strong>Copyright</strong> Distribuciones Valencia &copy; <?php echo "$year";  ?>
+    <strong>Copyright</strong> Distribuciones Valencia &copy; <?php echo "$year"; ?>
 </div>
 <p id="reloj"></p>

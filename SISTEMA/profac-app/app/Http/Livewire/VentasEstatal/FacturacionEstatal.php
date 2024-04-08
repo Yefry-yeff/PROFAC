@@ -457,25 +457,46 @@ class FacturacionEstatal extends Component
             $factura->monto_descuento=$request->porDescuentoCalculado;
             $factura->save();
 
+
+
+
             $caiUpdated =  ModelCAI::find($cai->id);
             $caiUpdated->numero_actual = $numeroSecuencia + 1;
             $caiUpdated->cantidad_no_utilizada = $cai->cantidad_otorgada - $numeroSecuencia;
             $caiUpdated->save();
 
-            //Tabla de listado
 
+            /* $aplicacionPagos = DB::select("
+
+            CALL sp_aplicacion_pagos('2','".$factura->cliente_id."', '".Auth::user()->id."', '".$factura->id."','na','0','0','0', @estado, @msjResultado);");
+
+
+            if ($aplicacionPagos[0]->estado == -1) {
+                return response()->json([
+                    "text" => "Ha ocurrido un error al insertar factura ".$factura->id."en aplicacion de pagos.",
+                    "icon" => "error",
+                    "title"=>"Error!"
+                ],400);
+            } */
+            //Tabla de listado
             // DB::INSERT("INSERT INTO listado(
             //          numero, secuencia, numero_inicial, numero_final, cantidad_otorgada, cai_id, created_at, updated_at, eliminado) VALUES
             //         ('" . $numeroCAI . "','" . $numeroSecuencia . "','" . $cai->numero_inicial . "','" . $cai->numero_final . "','" . $cai->cantidad_otorgada . "','" . $cai->id . "','" . NOW() . "','" . NOW() . "',0)");
 
 
 
-            $ordeCompra = ModelNumOrdenCompra::find($request->ordenCompra);
-            $ordeCompra->estado_id =2;
-            $ordeCompra->save();
+
+            if(!empty($request->ordenCompra))
+            {
+                $ordeCompra = ModelNumOrdenCompra::find($request->ordenCompra);
+                $ordeCompra->estado_id =2;
+                $ordeCompra->save();
+            }
+
 
 
             // //dd( $guardarCompra);
+
 
 
 
@@ -703,7 +724,7 @@ class FacturacionEstatal extends Component
 
     public function comprobarFacturaVencida($idCliente)
     {
-        $facturasVencidas = DB::SELECT(
+        /* $facturasVencidas = DB::SELECT(
             "
             select
             id
@@ -713,6 +734,21 @@ class FacturacionEstatal extends Component
             and fecha_vencimiento < curdate()
             and estado_venta_id = 1
             and tipo_pago_id = 2 and cliente_id=" . $idCliente
+        ); */
+
+        $facturasVencidas = DB::SELECT(
+            "
+            select
+            fa.id
+            from factura fa
+            inner join aplicacion_pagos ap on ap.factura_id = fa.id
+            where
+            ap.estado_cerrado <> 2
+            and ap.saldo <> 0
+            and ap.estado = 1
+            and fa.fecha_vencimiento < curdate()
+            and fa.estado_venta_id = 1
+            and fa.tipo_pago_id = 2 and fa.cliente_id=" . $idCliente
         );
 
         if (!empty($facturasVencidas)) {

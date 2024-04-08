@@ -68,7 +68,7 @@ class ListadoNotasDebitoND extends Component
             return Datatables::of($listanotaDebito)
             ->addColumn('estado', function ($listanotaDebito) {
                 $ESTADO = DB::SELECTONE("select estado_id from notadebito where id = ".$listanotaDebito->id);
-                if( $ESTADO->estado_id == 1){
+                if( $ESTADO->estado_id == 1 ){
 
                     return
                     '
@@ -103,8 +103,8 @@ class ListadoNotasDebitoND extends Component
 
             })
             ->addColumn('acciones', function ($listanotaDebito) {
-                $ESTADO = DB::SELECTONE("select estado_id from notadebito where id = ".$listanotaDebito->id);
-                if( $ESTADO->estado_id == 1){
+                $ESTADO = DB::SELECTONE("select estado_id, estado_sumado from notadebito where id = ".$listanotaDebito->id);
+                if( $ESTADO->estado_id == 1 && $ESTADO->estado_sumado == 2){
 
                     return '
                     <div class="btn-group">
@@ -120,7 +120,7 @@ class ListadoNotasDebitoND extends Component
                 </div>
                     ';
 
-                }else if($ESTADO->estado_id == 2) {
+                }else if($ESTADO->estado_id == 2 || $ESTADO->estado_sumado == 1) {
                     return
                     '
                     <p class="text-center"><span class="badge badge-danger p-2" style="font-size:0.75rem">Sin Acciones</span></p>

@@ -72,8 +72,9 @@
 
                             </div>
                         </form>
-                        <button type="submit" form="selec_data_form" class="btn btn-primary btn-lg mb-4 mt-3">Crear Ingreso
-                            </button>
+                        <button type="submit" form="selec_data_form" class="btn btn-primary btn-lg mb-4 mt-3">Crear
+                            Ingreso
+                        </button>
 
 
 
@@ -98,7 +99,7 @@
                                     data-parsley-validate>
                                     <div class="form-group">
                                         <label for="tipo_ajuste_id">Motivo de ajuste<span
-                                            class="text-danger">*</span></label>
+                                                class="text-danger">*</span></label>
                                         <select class="form-control m-b" name="tipo_ajuste_id" id="tipo_ajuste_id"
                                             required data-parsley-required>
                                             <option value="" selected disabled>---Seleccione una bodega de
@@ -118,7 +119,7 @@
                                         <div class="col-6">
                                             <div class="form-group">
                                                 <label for="solicitado_por">Solicitado por:<span
-                                                    class="text-danger">*</span></label>
+                                                        class="text-danger">*</span></label>
                                                 <select class="form-control " name="solicitado_por" id="solicitado_por"
                                                     required data-parsley-required>
                                                     <option value="" selected disabled>---Seleccionar una
@@ -135,7 +136,7 @@
                                             <div class="form-group">
 
                                                 <label for="fecha">Fecha de solicitud:<span
-                                                    class="text-danger">*</span></label>
+                                                        class="text-danger">*</span></label>
                                                 <input class="form-control" required data-parsley-required
                                                     type="date" name="fecha" id="fecha">
                                             </div>
@@ -295,7 +296,7 @@
 
             $('#selectBodega').select2({
                 ajax: {
-                    url: '/ajustes/listar/bodegas',
+                    url: '/ajustes/ingreso/listar/bodegas',
                     data: function(params) {
                         var query = {
                             search: params.term,
@@ -335,7 +336,7 @@
 
                 $('#selectSeccion').select2({
                     ajax: {
-                        url: '/ajuste/listar/secciones',
+                        url: '/ajuste/ingreso/listar/secciones',
                         data: function(params) {
 
                             var query = {
@@ -423,8 +424,8 @@
                 let idSeccion = document.getElementById("selectSeccion").value;
                 let idProducto = document.getElementById("selectProducto").value;
                 axios.post('/ajuste/ingreso/datos/producto', {
-                        id:idProducto,
-                        idSeccion:idSeccion
+                        id: idProducto,
+                        idSeccion: idSeccion
                     })
                     .then(response => {
 
@@ -451,8 +452,8 @@
 
                         unidades.forEach(unidad => {
 
-                                htmlUnidades += "<option value=" + unidad.unidad_venta + " data-id=" + unidad.id +
-                                    "  >" + unidad.nombre + "</option>";
+                            htmlUnidades += "<option value=" + unidad.unidad_venta + " data-id=" + unidad.id +
+                                "  >" + unidad.nombre + "</option>";
 
                         });
 
@@ -516,7 +517,7 @@
                 //------------------------------------------------------------------//
 
                 //-----------------------------Comprobar existencia de lote en arreglo------------------------//
-                let comprobarIdRecibido = idProductoSeccionArray.find(element => element == (''+idProducto+idSeccion));
+                let comprobarIdRecibido = idProductoSeccionArray.find(element => element == ('' + idProducto + idSeccion));
 
                 if (comprobarIdRecibido) {
                     Swal.fire({
@@ -532,7 +533,7 @@
 
 
 
-                idProductoSeccionArray.push(''+idProducto+idSeccion);
+                idProductoSeccionArray.push('' + idProducto + idSeccion);
 
 
                 let html = `
@@ -595,6 +596,7 @@
             }
 
             function realizarAjuste() {
+                document.getElementById('btn_realizar_ajuste').disabled = false;
                 //document.getElementById('btn_realizar_ajuste').disabled = true;
 
                 let dataForm = new FormData($('#ajustar_producto_form').get(0));
@@ -630,7 +632,6 @@
 
                         })
 
-                        document.getElementById('btn_realizar_ajuste').disabled = false;
                         document.getElementById("ajustar_producto_form").reset();
                         $('#ajustar_producto_form').parsley().reset();
 
@@ -668,7 +669,7 @@
                 const element = document.getElementById("tr" + idInput);
                 element.remove();
 
-                console.log(arrayInputs,idProductoSeccionArray)
+                console.log(arrayInputs, idProductoSeccionArray)
 
                 let myIndex = arrayInputs.indexOf(idInput);
                 if (myIndex !== -1) {
@@ -676,13 +677,13 @@
 
                 }
 
-                let myIndex2 = idProductoSeccionArray.indexOf(''+idProductoSeccion);
+                let myIndex2 = idProductoSeccionArray.indexOf('' + idProductoSeccion);
                 console.log(myIndex2);
                 if (myIndex2 !== -1) {
                     idProductoSeccionArray.splice(myIndex2, 1);
                 }
 
-                console.log(arrayInputs,idProductoSeccionArray)
+                console.log(arrayInputs, idProductoSeccionArray)
 
 
             }
@@ -691,12 +692,12 @@
 
 </div>
 <?php
-    date_default_timezone_set('America/Tegucigalpa');
-    $act_fecha=date("Y-m-d");
-    $act_hora=date("H:i:s");
-    $mes=date("m");
-    $year=date("Y");
-    $datetim=$act_fecha." ".$act_hora;
+date_default_timezone_set('America/Tegucigalpa');
+$act_fecha = date('Y-m-d');
+$act_hora = date('H:i:s');
+$mes = date('m');
+$year = date('Y');
+$datetim = $act_fecha . ' ' . $act_hora;
 ?>
 <script>
     function mostrarHora() {
@@ -716,9 +717,9 @@
     setInterval(mostrarHora, 1000);
 </script>
 <div class="float-right">
-    <?php echo "$act_fecha";  ?> <strong id="reloj"></strong>
+    <?php echo "$act_fecha"; ?> <strong id="reloj"></strong>
 </div>
 <div>
-    <strong>Copyright</strong> Distribuciones Valencia &copy; <?php echo "$year";  ?>
+    <strong>Copyright</strong> Distribuciones Valencia &copy; <?php echo "$year"; ?>
 </div>
 <p id="reloj"></p>
