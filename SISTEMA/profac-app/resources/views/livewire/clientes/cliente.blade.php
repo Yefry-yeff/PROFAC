@@ -990,8 +990,10 @@ $(document).ready(function() {
 
             document.getElementById('nombre_cliente_editar').value =datosCliente.nombre;
             document.getElementById('direccion_cliente_editar').value =datosCliente.direccion;
-            document.getElementById('credito_inicial_editar').value = datosCliente.credito_inicial.toFixed(2);
-            document.getElementById('credito_editar').value = datosCliente.credito.toFixed(2);
+            document.getElementById('credito_inicial_editar').value = datosCliente.credito_inicial;
+           // document.getElementById('credito_inicial_editar').value = datosCliente.credito_inicial.toFixed(2);
+            document.getElementById('credito_editar').value = datosCliente.credito;
+           // document.getElementById('credito_editar').value = datosCliente.credito.toFixed(2);
             document.getElementById('dias_credito_editar').value = datosCliente.dias_credito;
             document.getElementById('rtn_cliente_editar').value = datosCliente.rtn;
             document.getElementById("correo_cliente_editar").value = datosCliente.correo;
