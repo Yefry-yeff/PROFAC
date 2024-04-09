@@ -440,8 +440,8 @@
                         <a><i class="fa-solid fa-magnifying-glass-dollar" style="color:#ffffff;"></i><span class="nav-label" style="color:#ffffff;">Cuentas por cobrar</span><span class="fa arrow"></span></a>
 
                         <ul class="nav nav-second-level">
-                            <li><a href="/cuentas/por/cobrar/listado" style="color:#ffffff;">Listado de Facturas</a></li>
-                            <li><a href="/ventas/cuentas_por_cobrar" style="color:#ffffff;">Cuentas Por Cobrar</a></li>
+                            {{--  <li><a href="/cuentas/por/cobrar/listado" style="color:#ffffff;">Listado de Facturas</a></li>
+                            <li><a href="/ventas/cuentas_por_cobrar" style="color:#ffffff;">Cuentas Por Cobrar</a></li>  --}}
                             <li><a href="/cuentas_por_cobrar/pagos" style="color:#ffffff;">Aplicacion de Pagos</a></li>
                         </ul>
                     </li>
