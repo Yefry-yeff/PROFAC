@@ -103,8 +103,7 @@
                                 <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6">
                                     <label for="ordenCompra" class="col-form-label focus-label">Seleccionar un número de
                                         orden de compra:<span class="text-danger">*</span> </label>
-                                    <select class="form-group form-control " name="ordenCompra" id="ordenCompra"
-                                        required>
+                                    <select class="form-group form-control " name="ordenCompra" id="ordenCompra">
                                         <option value="" selected disabled>--Seleccionar un número de compra--
                                         </option>
 
@@ -668,7 +667,7 @@
                                 currency: 'HNL',
                                 minimumFractionDigits: 2,
                             }).format(isv)
-                     
+
 
                     }
 
@@ -1097,7 +1096,7 @@
                     subTotalFila = new Number(document.getElementById('subTotal' + arregloIdInputs[i]).value);
                     isvFila = new Number(document.getElementById('isvProducto' + arregloIdInputs[i]).value);
 
-                    
+
 
                     if (isvFila == 0) {
                         subTotalGeneralExcentoValor += new Number(document.getElementById('subTotal' + arregloIdInputs[i])
@@ -1159,7 +1158,7 @@
                     currency: 'HNL',
                     minimumFractionDigits: 2,
                 }).format(totalGeneralValor)
-                
+
                 return 0;
             }
 
