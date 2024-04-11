@@ -165,7 +165,7 @@ class Pagos extends Component
                 where
                 cliente_id = ".$id."
                 and
-                estado = 1 and estado_cerrado <> 2;"
+                estado = 1 and estado_cerrado <> 2 and saldo <> 0;"
             );
 
 
@@ -214,9 +214,6 @@ class Pagos extends Component
                                             </li>
 
 
-                                            <li>
-                                                <a class="dropdown-item" onclick="modalcerrarFactura('.$cuenta->codigoPago.' , '."'".$cuenta->codigoFactura."'".', '.$cuenta->idFactura.')"> <i class="fa-solid fa-shield text-success"></i> Cerrar Factura </a>
-                                            </li>
 
                                         </ul>
                                     </div>
@@ -255,9 +252,6 @@ class Pagos extends Component
                                                 <a class="dropdown-item" onclick="modalAbonos('.$cuenta->codigoPago.' , '."'".$cuenta->codigoFactura."'".', '.$cuenta->idFactura.')"> <i class="fa-solid fa-cash-register text-success"></i> Creditos/Pago </a>
                                             </li>
 
-                                            <li>
-                                                <a class="dropdown-item" onclick="modalcerrarFactura('.$cuenta->codigoPago.' , '."'".$cuenta->codigoFactura."'".', '.$cuenta->idFactura.')"> <i class="fa-solid fa-shield text-success"></i> Cerrar Factura </a>
-                                            </li>
 
 
                                         </ul>
@@ -647,6 +641,34 @@ class Pagos extends Component
                             ],402);
                         }
 
+                       $saldoActual2 = DB::selectone('select saldo from aplicacion_pagos where id = '.$request->codAplicPagoAbono);
+
+                       if($saldoActual2->saldo == 0){
+
+                           $cuentas22 = DB::select("
+
+                               CALL sp_aplicacion_pagos(
+                                   '9',
+                                   '0',
+                                   '".Auth::user()->id."',
+                                   '0',
+                                   'CIERRE POR SALDO 0',
+                                   '".$request->codAplicPagoAbono."',
+                                   '0',
+                                   '0',
+                                   @estado,
+                                   @msjResultado);");
+
+                           if ($cuentas22[0]->estado == -1) {
+                               return response()->json([
+                                   "text" => "Ha ocurrido un error en el procedimiento almacenado.",
+                                   "icon" => "error",
+                                   "title"=>"Error!"
+                               ],402);
+                           }
+
+                       }
+
             }catch (QueryException $e) {
             return response()->json([
                 "icon" => "error",
@@ -673,16 +695,6 @@ class Pagos extends Component
 
 
             $saldoActual = DB::selectone('select saldo from aplicacion_pagos where id = '.$request->codAplicPagoAbono);
-            // dd($saldoActual->saldo);
-            if($saldoActual->saldo == 0){
-                return response()->json([
-                    "icon" => "warning",
-                    "text"=>"El Saldo de esta factura ya esta cobrado.",
-                    "title"=>"Advertencia!"
-
-                ],400);
-
-            }
 
             if($request->montoAbono > $saldoActual->saldo){
                 return response()->json([
@@ -740,6 +752,36 @@ class Pagos extends Component
                                "title"=>"Error!"
                            ],402);
                        }
+
+
+                       $saldoActual2 = DB::selectone('select saldo from aplicacion_pagos where id = '.$request->codAplicPagoAbono);
+
+                       if($saldoActual2->saldo == 0){
+
+                           $cuentas22 = DB::select("
+
+                               CALL sp_aplicacion_pagos(
+                                   '9',
+                                   '0',
+                                   '".Auth::user()->id."',
+                                   '0',
+                                   'CIERRE POR SALDO 0',
+                                   '".$request->codAplicPagoAbono."',
+                                   '0',
+                                   '0',
+                                   @estado,
+                                   @msjResultado);");
+
+                           if ($cuentas22[0]->estado == -1) {
+                               return response()->json([
+                                   "text" => "Ha ocurrido un error en el procedimiento almacenado.",
+                                   "icon" => "error",
+                                   "title"=>"Error!"
+                               ],402);
+                           }
+
+                       }
+
 
            }catch (QueryException $e) {
            return response()->json([
