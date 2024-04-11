@@ -1058,7 +1058,7 @@
             function calcularTotales(idPrecio, idCantidad, isvProducto, idUnidad, id, idRestaInventario) {
 
 
-                let valorInputPrecio = Number(idPrecio.value).toFixed(2);                              
+                let valorInputPrecio = Number(idPrecio.value).toFixed(2);
                 let valorInputCantidad = idCantidad.value;
                 let valorSelectUnidad = idUnidad.value;
 
@@ -1109,7 +1109,7 @@
                     }).format(isv)
 
 
-                    idRestaInventario.value = valorInputCantidad * valorSelectUnidad;               
+                    idRestaInventario.value = valorInputCantidad * valorSelectUnidad;
                     this.totalesGenerales();
 
 
