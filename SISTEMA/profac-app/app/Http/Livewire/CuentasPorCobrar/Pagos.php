@@ -641,6 +641,34 @@ class Pagos extends Component
                             ],402);
                         }
 
+                       $saldoActual2 = DB::selectone('select saldo from aplicacion_pagos where id = '.$request->codAplicPagoAbono);
+
+                       if($saldoActual2->saldo == 0){
+
+                           $cuentas22 = DB::select("
+
+                               CALL sp_aplicacion_pagos(
+                                   '9',
+                                   '0',
+                                   '".Auth::user()->id."',
+                                   '0',
+                                   'CIERRE POR SALDO 0',
+                                   '".$request->codAplicPagoAbono."',
+                                   '0',
+                                   '0',
+                                   @estado,
+                                   @msjResultado);");
+
+                           if ($cuentas22[0]->estado == -1) {
+                               return response()->json([
+                                   "text" => "Ha ocurrido un error en el procedimiento almacenado.",
+                                   "icon" => "error",
+                                   "title"=>"Error!"
+                               ],402);
+                           }
+
+                       }
+
             }catch (QueryException $e) {
             return response()->json([
                 "icon" => "error",
