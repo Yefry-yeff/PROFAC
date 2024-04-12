@@ -522,34 +522,34 @@
                     <div class="modal-content">
                         <div class="modal-header">
                             <h3 class="modal-title" id="exampleModalLabel">Solicitar código</h3>
-    
+
                         </div>
-    
+
                         <div class="modal-body">
                             <div class="text-center">
                                 <button class="btn btn-primary  btn-large-dim" type="button"
                                     onclick="solicitarCodigo()"><i class="fa-solid fa-paper-plane"></i></button>
                             </div>
-    
+
                             <div id="div_imprimir" class="text-center mt-2 d-none">
                                 <a id="btn_imprimir" target="_blank" class="btn add-btn btn-success text-white"><i
                                         class="fa-solid fa-file-invoice"></i> Imprimir Factura</a>
-    
+
                             </div>
-    
+
                         </div>
-    
+
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" onclick="history.back()">Salir</button>
-    
+
                         </div>
-    
-    
+
+
                     </div>
                 </div>
             </div>
-    
-    
+
+
             <!-- Modal Ingresar codigo -->
             <div class="modal fade" id="modalPermiso" data-backdrop="static" tabindex="1" role="dialog"
                 aria-labelledby="modalPermisoTitle">
@@ -557,17 +557,17 @@
                     <div class="modal-content">
                         <div class="modal-header">
                             <h3 class="modal-title" id="1">Ingresar código</h3>
-    
+
                         </div>
                         <div class="modal-body">
                             <form id="verificarCodigoForm" autocomplete="off" data-parsley-validate>
 
-    
+
                                 <label for="codigo" class="col-form-label focus-label">Código de autorización:<span
                                         class="text-danger">*</span></label>
                                 <input class="form-control" required type="text" id="codigo" name="codigo"
                                     data-parsley-required>
-    
+
                             </form>
                             <span id="mensajeCodigo" class="text-danger d-none">Código incorrecto</span>
                         </div>
@@ -594,7 +594,7 @@
             window.onload = obtenerTipoPago;
             var public_path = "{{ asset('catalogo/') }}";
             var diasCredito = {{$cotizacion->dias_credito}};
-  
+
 
 
             const searchRegExp = /\"/g;
@@ -770,7 +770,7 @@
                             $("#modalPermiso").removeClass("fade").modal("hide");
                             document.getElementById('mensajeCodigo').classList.add('d-none')
                             document.getElementById('codigo_autorizacion').value = data.idAutorizacion;
-                            
+
                         } else {
                             document.getElementById('mensajeCodigo').classList.remove('d-none')
                             document.getElementById('codigo_autorizacion').value = '';
@@ -1093,7 +1093,7 @@
                         let descuento = document.getElementById('porDescuento').value;
 
 
-                        if (descuento > 0) {
+                        /*if (descuento > 0) {
                             subTotal = valorInputPrecio * (valorInputCantidad * valorSelectUnidad);
                             descuentoCalculado = subTotal * (descuento / 100);
                             subTotal = subTotal - descuentoCalculado;
@@ -1105,9 +1105,7 @@
                             isv = subTotal * (isvProducto / 100);
                             total = subTotal + subTotal * (isvProducto / 100);
 
-                        }
-
-
+                        }*/
 
                         document.getElementById('acumuladoDescuento' + id).value = descuentoCalculado.toFixed(2);
 
@@ -1164,7 +1162,7 @@
                     let descuento = document.getElementById('porDescuento').value;
 
 
-                    if (descuento >= 0) {
+                    /*if (descuento >= 0) {
                         subTotal = valorInputPrecio * (valorInputCantidad * valorSelectUnidad);
                         descuentoCalculado = subTotal * (descuento / 100);
                         subTotal = subTotal - descuentoCalculado;
@@ -1174,6 +1172,24 @@
                         descuentoCalculado = 0
                         subTotal = valorInputPrecio * (valorInputCantidad * valorSelectUnidad);
                         isv = subTotal * (isvProducto / 100);
+                        total = subTotal + subTotal * (isvProducto / 100);
+                    }*/
+
+
+                    if (descuento > 0) {
+                        subTotal = valorInputPrecio * (valorInputCantidad * valorSelectUnidad);
+                        descuentoCalculado = subTotal * (descuento / 100);
+                        subTotal = subTotal - descuentoCalculado;
+                        let isv1 = subTotal * (isvProducto / 100);
+                        let isvSinRedondeo1 = parseFloat(isv1.toFixed(2));
+                        isv = isvSinRedondeo1 ;
+                        total = subTotal + (subTotal * (isvProducto / 100));
+                    } else {
+                        descuentoCalculado = 0
+                        subTotal = valorInputPrecio * (valorInputCantidad * valorSelectUnidad);
+                        let isv2 = subTotal * (isvProducto / 100);
+                        let isvSinRedondeo2 = parseFloat(isv2.toFixed(2));
+                        isv = isvSinRedondeo2;
                         total = subTotal + subTotal * (isvProducto / 100);
                     }
 
@@ -1519,7 +1535,7 @@
                     })
                     .then(response => {
 
-                       
+
                         return;
                     })
                     .catch(err => {
@@ -1535,14 +1551,14 @@
 
             function sumarDiasCredito() {
                 tipoPago = document.getElementById('tipoPagoVenta').value;
-               
+
                 if (tipoPago == 2) {
 
                     let fechaEmision = document.getElementById("fecha_emision").value;
                     let date = new Date(fechaEmision);
                     date.setDate(date.getDate() + diasCredito);
                     let suma = date.toISOString().split('T')[0];
-                   
+
 
                     document.getElementById("fecha_vencimiento").value = suma;
 

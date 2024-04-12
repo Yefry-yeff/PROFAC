@@ -630,7 +630,7 @@
 
                         descuento = document.getElementById("porDescuento").value;
 
-                        if (descuento > 0) {
+                        /*if (descuento > 0) {
                             subTotal = valorInputPrecio * (valorInputCantidad * valorSelectUnidad);
                             descuentoCalculado = subTotal * (descuento / 100);
                             subTotal = subTotal - descuentoCalculado;
@@ -640,6 +640,25 @@
                             descuentoCalculado = 0;
                             subTotal = valorInputPrecio * (valorInputCantidad * valorSelectUnidad);
                             isv = subTotal * (isvProducto / 100);
+                            total = subTotal + subTotal * (isvProducto / 100);
+                        }*/
+                        if (descuento > 0) {
+                            subTotal = valorInputPrecio * (valorInputCantidad * valorSelectUnidad);
+                            descuentoCalculado = subTotal * (descuento / 100);
+                            subTotal = subTotal - descuentoCalculado;
+
+                            let isv1 = subTotal * (isvProducto / 100);
+                            let isvSinRedondeo1 = parseFloat(isv1.toFixed(2));
+                            isv = isvSinRedondeo1 ;
+                            total = subTotal + (subTotal * (isvProducto / 100));
+                        } else {
+                            descuentoCalculado = 0
+                            subTotal = valorInputPrecio * (valorInputCantidad * valorSelectUnidad);
+
+
+                            let isv2 = subTotal * (isvProducto / 100);
+                            let isvSinRedondeo2 = parseFloat(isv2.toFixed(2));
+                            isv = isvSinRedondeo2;
                             total = subTotal + subTotal * (isvProducto / 100);
                         }
 
