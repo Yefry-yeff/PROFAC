@@ -899,8 +899,13 @@
                 if (valorInputPrecio && valorInputCantidad) {
 
                     let subTotal = valorInputPrecio * (valorInputCantidad * valorSelectUnidad);
-                    let isv = subTotal * (isvProducto / 100);
+
+                    let isv1 = subTotal * (isvProducto / 100);
+                    let isvSinRedondeo1 = parseFloat(isv1.toFixed(2));
+                    let isv = isvSinRedondeo1 ;
+                    //let isv = subTotal * (isvProducto / 100);
                     let total = subTotal;
+
 
                     document.getElementById('total' + id).value = total.toFixed(2);
                     document.getElementById('totalMostrar' + id).value = new Intl.NumberFormat('es-HN', {
