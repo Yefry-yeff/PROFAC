@@ -91,34 +91,20 @@ class ListadoFacturasVale extends Component
                     </div>';
 
             })
+
             ->addColumn('estado_cobro', function ($listaFacturas) {
 
 
-                /*   if(round($listaFacturas->monto_pagado,2) >= str_replace(",","",$listaFacturas->total)){
-
-                    return
-                    '
-
-                    <p class="text-center" ><span class="badge badge-primary p-2" style="font-size:0.75rem">Completo</span></p>
-                    ';
-
-                }else{
-                    return
-                    '
-                    <p class="text-center"><span class="badge badge-danger p-2" style="font-size:0.75rem">Pendiente</span></p>
-                    ';
-                } */
-
                 $revision = DB::SELECTONE("
-                    select count(*) as valida
+                    select aplicacion_pagos.estado_cerrado AS 'cerrado'
                     from aplicacion_pagos
                     where aplicacion_pagos.estado = 1
-                    and aplicacion_pagos.estado_cerrado = 2
+                    and = 2
                     and aplicacion_pagos.factura_id =
                     ".$listaFacturas->id);
 
 
-                    if(  $revision->valida == 1){
+                    if(  $revision->cerrado == 2){
 
                         return
                         '
@@ -132,7 +118,6 @@ class ListadoFacturasVale extends Component
                         <p class="text-center"><span class="badge badge-danger p-2" style="font-size:0.75rem">Pendiente</span></p>
                         ';
                     }
-
            })
             ->rawColumns(['opciones','estado_cobro'])
             ->make(true);
