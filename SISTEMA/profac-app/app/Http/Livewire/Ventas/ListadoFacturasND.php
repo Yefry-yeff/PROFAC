@@ -108,7 +108,7 @@ class ListadoFacturasND extends Component
 
 
                 $revision = DB::SELECTONE("
-                    select aplicacion_pagos.estado_cerrado AS 'cerrado'
+                SELECT IF(COUNT(*), aplicacion_pagos.estado_cerrado, 0) AS 'cerrado'
                     from aplicacion_pagos
                     where aplicacion_pagos.estado = 1
                     and = 2
