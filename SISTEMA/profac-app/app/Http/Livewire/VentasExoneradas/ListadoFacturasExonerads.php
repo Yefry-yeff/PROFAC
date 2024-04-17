@@ -137,10 +137,6 @@ class ListadoFacturasExonerads extends Component
                             </li>
 
                             <li>
-                                <a class="dropdown-item" href="/venta/cobro/'.$listaFacturas->id.'"> <i class="fa-solid fa-cash-register text-success"></i> Pagos </a>
-                            </li>
-
-                            <li>
                             <a class="dropdown-item" target="_blank"  href="/exonerado/factura/'.$listaFacturas->id.'"> <i class="fa-solid fa-print text-info"></i> Imprimir Factura Original</a>
                             </li>
 
