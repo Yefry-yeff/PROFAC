@@ -184,7 +184,8 @@ class FacturacionCorporativa extends Component
          (B.nombre LIKE '%" . $request->search . "%' or B.id LIKE '%" . $request->search . "%' or B.codigo_barra Like '%" . $request->search . "%')
 
          and B.id not in (
-
+            4088,
+            4036,
             1157,
             1321,
             2665,
