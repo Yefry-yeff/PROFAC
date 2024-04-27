@@ -602,7 +602,6 @@ class Pagos extends Component
 
     public function guardarOtroMov( Request $request){
 
-         //dd($request);
 
         try {
             $cm = "'";
@@ -633,6 +632,7 @@ class Pagos extends Component
 
                         //dd($cuentas2[0]->estado);
 
+
                         if ($cuentas2[0]->estado == -1) {
                             return response()->json([
                                 "text" => "Ha ocurrido un error en el procedimiento almacenado.",
@@ -641,8 +641,9 @@ class Pagos extends Component
                             ],402);
                         }
 
-                       $saldoActual2 = DB::selectone('select saldo from aplicacion_pagos where id = '.$request->codAplicPagoAbono);
+                       $saldoActual2 = DB::selectone("select saldo from aplicacion_pagos where id = ".$request->codAplicPagoom);
 
+                      // dd($request);
                        if($saldoActual2->saldo == 0){
 
                            $cuentas22 = DB::select("

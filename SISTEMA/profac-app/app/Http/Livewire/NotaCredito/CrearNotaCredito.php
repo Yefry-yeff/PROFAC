@@ -164,7 +164,9 @@ class CrearNotaCredito extends Component
             H.nombre as unidad_medida,
             B.unidad_medida_venta_id as idUnidadVenta ,
             G.unidad_venta,
-            C.isv as porcentajeISV
+            C.isv as porcentajeISV,
+            B.isv as isVenta,
+            B.total AS totalVenta
 
         from factura A
         inner join venta_has_producto B
@@ -621,7 +623,7 @@ class CrearNotaCredito extends Component
 
             $factura = DB::SELECTONE("select factura_id from nota_credito where id =".$idNotaCredito );
 
-            
+
 
 
          $estadoVenta = DB::SELECTONE("select estado_nota_id from nota_credito where id =".$idNotaCredito );
@@ -645,7 +647,7 @@ class CrearNotaCredito extends Component
 
 
 
-          DB::commit();     
+          DB::commit();
           return response()->json(
             [         "text" =>"Factura anulada con exito",         "icon" => "success",         "title" => "Exito",     ],200);
              } catch (QueryException $e) {
@@ -675,7 +677,7 @@ class CrearNotaCredito extends Component
 
 
          $lotes = DB::SELECT("
-         select 
+         select
            (select lote from venta_has_producto where factura_id = A.factura_id  and producto_id = B.producto_id AND seccion_id = B.seccion_id AND precio_unidad = B.precio_unidad AND unidad_medida_venta_id = B.unidad_medida_venta_id limit 1) as lote,
            (B.cantidad * C.unidad_venta ) as numero_unidades_resta_inventario,
             B.unidad_medida_venta_id
@@ -750,7 +752,7 @@ class CrearNotaCredito extends Component
 
 
          $lotes = DB::SELECT("
-         select 
+         select
            (select lote from venta_has_producto where factura_id = A.factura_id  and producto_id = B.producto_id AND seccion_id = B.seccion_id AND precio_unidad = B.precio_unidad AND unidad_medida_venta_id = B.unidad_medida_venta_id limit 1) as lote,
            (B.cantidad * C.unidad_venta ) as numero_unidades_resta_inventario,
             B.unidad_medida_venta_id
