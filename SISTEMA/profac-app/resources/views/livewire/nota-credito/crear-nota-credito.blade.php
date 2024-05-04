@@ -910,7 +910,7 @@
 
                 let subTotal = precio * cantidad * unidad_venta;
 
-                let isv = isvVenta ;
+                let isv = 0 ;
                 if (isvVenta != 0){
 
                      isv = subTotal * (isvPorcentaje / 100);
