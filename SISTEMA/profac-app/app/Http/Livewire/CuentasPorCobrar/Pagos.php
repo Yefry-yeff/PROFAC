@@ -610,7 +610,7 @@ class Pagos extends Component
                             $otrosMovimientos->aplicacion_pagos_id = $request->codAplicPagoom;
                             $otrosMovimientos->factura_id = $request->idFacturaom;
                             $otrosMovimientos->monto = $request->montoTM;
-                            $otrosMovimientos->comentario = $cm.$request->motivoMovimiento.$cm;
+                            $otrosMovimientos->comentario = $request->motivoMovimiento;
                             $otrosMovimientos->usr_registro = Auth::user()->id;
                             $otrosMovimientos->estado = 1;
                             $otrosMovimientos->tipo_movimiento = $request->selecttipoMovimiento;
