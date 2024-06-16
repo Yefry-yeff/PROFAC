@@ -240,6 +240,7 @@ class CrearNotaCredito extends Component
         $text1 ="<p>Los siguientes productos exceden la cantidad disponible para realizar la nota de credito: <p><ul>";
         $nombreProducto ="";
 
+
         $arregloIdInputs = $request->arregloIdInputs;
 
 
@@ -314,7 +315,7 @@ class CrearNotaCredito extends Component
                             from cai
                             where tipo_documento_fiscal_id = 3 and estado_id = 1");
         }
-
+       // dd($cai);
         if(empty($cai)){
 
             return response()->json([
@@ -333,10 +334,13 @@ class CrearNotaCredito extends Component
             ], 200);
         }
 
-        $limite = explode('-',$cai->numero_final);
-        $limite = ltrim($limite[3],"0");
 
-        if($cai->numero_actual > $limite){
+        $limite = explode('-',$cai->numero_final);
+
+       // dd($limite[0]);
+        $limite2 = preg_replace('/^0+/', '', $limite[0]);
+        $num_1 = intval($limite2);
+        if($cai->numero_actual > $num_1){
 
             return response()->json([
                 "title" => "Advertencia",
@@ -347,13 +351,19 @@ class CrearNotaCredito extends Component
         }
 
 
+
         DB::beginTransaction();
            //SE CREA LA NOTA DE CREDITO
 
         $numeroSecuencia = $cai->numero_actual;
-        $arrayCai = explode('-',$cai->numero_final);
+
+        $arrayCai = explode('-',$cai->numero_inicial);
         $cuartoSegmentoCAI = sprintf("%'.08d", $numeroSecuencia);
+
+       // dd($arrayCai[1]);
         $numeroCAI = $arrayCai[0].'-'.$arrayCai[1].'-'.$arrayCai[2].'-'.$cuartoSegmentoCAI;
+
+
 
         $validarCAI = new Notificaciones();
         $validarCAI->validarAlertaCAI(ltrim($arrayCai[3],"0"),$numeroSecuencia, 4);

@@ -721,7 +721,7 @@
             }
 
             function calcularTotalesInicioPagina() {
-              
+
                 let arrayInputs = this.arregloIdInputs;
 
 
@@ -744,7 +744,7 @@
                     isvProducto = document.getElementById("isv" + id).value;
 
                     if (valorInputPrecio && valorInputCantidad) {
-                    
+
                         descuento = document.getElementById("porDescuento").value;
 
                         if (descuento > 0) {
@@ -870,7 +870,7 @@
 
                         if (imagenes.length == 0) {
 
-                           
+
                             htmlImagenes += `
                             <div class="carousel-item active " >
                                 <img class="d-block  " src="${public_path+'/'+'noimage.png'}" alt="noimage.png" style="width: 100%; height:20rem" >
@@ -1136,7 +1136,7 @@
 
 
                 if (valorInputPrecio && valorInputCantidad) {
-                    
+
                     let descuento = document.getElementById('porDescuento').value;
                     let subTotal = 0;
                     let isv = 0;
@@ -1474,7 +1474,10 @@
 
                         document.getElementById('numero_venta').value = data.numeroVenta;
                         document.getElementById("btn_venta_coorporativa").disabled = false;
-                        desactivarCodigo()
+                        setTimeout(function(){
+                            desactivarCodigo()
+                        }, 30000);
+
 
                     })
                     .catch(err => {
