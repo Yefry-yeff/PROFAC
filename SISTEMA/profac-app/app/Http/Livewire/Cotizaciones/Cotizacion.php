@@ -415,7 +415,7 @@ class Cotizacion extends Component
                     B.cantidad as cantidad,
                     FORMAT(B.sub_total,2) as importe,
                     J.nombre as medida,
-                    c.codigo_barra,
+                    C.codigo_barra,
                     E.descripcion as 'subcategoria',
                     F.descripcion as 'categoria',
                     G.nombre as 'marca',
