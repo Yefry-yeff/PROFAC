@@ -402,6 +402,15 @@ class Cotizacion extends Component
 
     }
 
+    public function imprimirCatalogo($idCotizacion)
+    {
+
+        $pdf = PDF::loadView('/pdf/catalogo')->setPaper('letter');
+
+        return $pdf->stream("catalogo.pdf");
+
+    }
+
     public function imprimirProforma($idFactura)
     {
 
