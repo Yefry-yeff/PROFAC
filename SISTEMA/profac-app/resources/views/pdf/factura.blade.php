@@ -201,7 +201,7 @@
                 <div style="position: relative; margin-left:44px; margin-top:30px; width:26rem; height:20rem;">
 
 
-                    <div class="card border border-dark" style="position:absolute;left:0px;  width:26rem; height:15rem;">
+                    <div class="card border border-dark" style="position:absolute;left:0px;  width:26rem; height:18rem;">
                         <div class="card-body">
 
                             <p class="card-text" style="position:absolute;left:10px;  top:2px; font-size:14px;"><b>Vendedor:
@@ -254,7 +254,7 @@
                         </div>
                     </div>
 
-                    <div class="card border border-dark" style="position:absolute;left:430px;   width:18rem; height:15rem;">
+                    <div class="card border border-dark" style="position:absolute;left:430px;   width:18rem; height:18rem;">
                         <div class="card-body">
                             <div>
                                 <p class="card-text " style="position:absolute; left:10px;  top:10px; font-size:14px;">Importe

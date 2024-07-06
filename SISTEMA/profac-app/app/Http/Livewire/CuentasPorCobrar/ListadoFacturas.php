@@ -94,18 +94,16 @@ class ListadoFacturas extends Component
 
 
                 $revision = DB::SELECTONE("
-                    SELECT IF(COUNT(*), aplicacion_pagos.estado_cerrado, 0) AS 'cerrado'
+                    SELECT IF(COUNT(*), aplicacion_pagos.saldo, -1) AS 'cerrado'
                     from aplicacion_pagos
-                    where aplicacion_pagos.estado = 1
-                    and aplicacion_pagos.factura_id =
+                    where aplicacion_pagos.estado = 1 and aplicacion_pagos.factura_id =
                     ".$listaFacturas->id);
 
 
-                    if( $revision->cerrado == 2){
+                    if( $revision->cerrado == 0){
 
                         return
                         '
-
                         <p class="text-center" ><span class="badge badge-primary p-2" style="font-size:0.75rem">Cerrada</span></p>
                         ';
 

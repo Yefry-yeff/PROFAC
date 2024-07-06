@@ -402,6 +402,44 @@ class Cotizacion extends Component
 
     }
 
+    public function imprimirCatalogo($idCotizacion)
+    {
+        $datos = DB::SELECT(
+            "
+                select
+                    C.id as codigo,
+                    C.nombre,
+                    C.descripcion,
+                    if(C.isv = 0, 'SI' , 'NO' ) as excento,
+                    FORMAT(B.precio_unidad,2) as precio,
+                    B.cantidad as cantidad,
+                    FORMAT(B.sub_total,2) as importe,
+                    J.nombre as medida,
+                    c.codigo_barra,
+                    E.descripcion as 'subcategoria',
+                    F.descripcion as 'categoria',
+                    G.nombre as 'marca',
+                    imagen.url_img as 'imagen'
+
+                from cotizacion A
+                    inner join cotizacion_has_producto B on A.id=B.cotizacion_id
+                    inner join producto C on B.producto_id = C.id
+                    inner join unidad_medida_venta D on B.unidad_medida_venta_id = D.id
+                    inner join unidad_medida J on J.id = D.unidad_medida_id
+                    inner join sub_categoria E on E.id = C.sub_categoria_id
+                    inner join categoria_producto F on F.id = E.categoria_producto_id
+                    inner join marca G on G.id = C.marca_id
+                    inner join img_producto imagen on imagen.producto_id = C.id
+                where A.id = ".$idCotizacion."
+                order by B.indice asc
+            "
+        );
+        $pdf = PDF::loadView('/pdf/catalogo',compact('datos'))->setPaper("A4", "portrait");
+
+        return $pdf->stream("catalogo.pdf");
+
+    }
+
     public function imprimirProforma($idFactura)
     {
 

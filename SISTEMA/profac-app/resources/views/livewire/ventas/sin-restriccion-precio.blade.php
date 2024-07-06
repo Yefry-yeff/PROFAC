@@ -712,7 +712,7 @@
             }
 
             function calcularTotalesInicioPagina() {
-               
+
                 let arrayInputs = this.arregloIdInputs;
 
 
@@ -1466,7 +1466,10 @@
                         document.getElementById('numero_venta').value = data.numeroVenta;
                         document.getElementById("btn_venta_coorporativa").disabled = false;
 
-                        desactivarCodigo();
+
+                        setTimeout(function(){
+                            desactivarCodigo()
+                        }, 30000);
 
                     })
                     .catch(err => {

@@ -457,6 +457,7 @@
                         <a><i class="fa-solid fa-user" style="color:#ffffff;"></i> <span class="nav-label" style="color:#ffffff;">Reportes</span><span class="fa arrow"></span></a>
                         <ul class="nav nav-second-level">
                             <li><a href="/facturaDia" style="color:#ffffff;">Reporte de ventas</a>
+                            <li ><a href="/reporte/comision" style="color:#ffffff;">Reporte comisiones</a></li>
                             <li><a href="/reporte/reporteria" style="color:#ffffff;">Reportes Varios</a>
                         </ul>
                     </li>
@@ -466,6 +467,13 @@
                     <a><i  style="color:#ffffff;"></i><span style="color:#ffffff;">Auxiliar Administrativo</span></a>
                     <li>
                         <a href="{{ route('dashboard') }}"><i class="fa fa-area-chart" style="color:#ffffff;" aria-hidden="true"></i> <span class="nav-label" style="color:#ffffff;">Dashboard</span></a>
+                    </li>
+
+                    <li>
+                        <a><i class="fa-solid fa-users" style="color:#ffffff;"></i> <span class="nav-label" style="color:#ffffff;">Clientes</span><span class="fa arrow"></span></a>
+                        <ul class="nav nav-second-level">
+                            <li><a href="/clientes" style="color:#ffffff;">Registrar cliente</a></li>
+                        </ul>
                     </li>
                     <li>
                         <a><i class="fa-solid fa-warehouse" style="color:#ffffff;"></i> <span class="nav-label" style="color:#ffffff;">Bodega</span><span class="fa arrow"></span></a>
@@ -620,7 +628,9 @@
                     <li>
                         <a><i class="fa-solid fa-user" style="color:#ffffff;"></i> <span class="nav-label" style="color:#ffffff;">Reportes</span><span class="fa arrow"></span></a>
                         <ul class="nav nav-second-level">
-                            <li><a href="/facturaDia" style="color:#ffffff;">Reporte de ventas</a>
+                                <li><a href="/facturaDia" style="color:#ffffff;">Reporte de ventas</a>
+                                <li ><a href="/reporte/comision" style="color:#ffffff;">Reporte comisiones</a></li>
+                                <li><a href="/reporte/reporteria" style="color:#ffffff;">Reportes Varios</a>
                         </ul>
                     </li>
                 @endif
@@ -752,11 +762,19 @@
                     <li>
                         <a href="{{ route('dashboard') }}"><i class="fa fa-area-chart" style="color:#ffffff;" aria-hidden="true"></i> <span class="nav-label" style="color:#ffffff;">Dashboard</span></a>
                     </li>
+
+                    <li>
+                        <a><i class="fa-solid fa-users" style="color:#ffffff;"></i> <span class="nav-label" style="color:#ffffff;">Clientes</span><span class="fa arrow"></span></a>
+                        <ul class="nav nav-second-level">
+                            <li><a href="/clientes" style="color:#ffffff;">Registrar cliente</a></li>
+                        </ul>
+                    </li>
                     <li>
                         <a><i class="fa-solid fa-user" style="color:#ffffff;"></i> <span class="nav-label" style="color:#ffffff;">Reportes</span><span class="fa arrow"></span></a>
                         <ul class="nav nav-second-level">
                             <li><a href="/facturaDia" style="color:#ffffff;">Reporte de ventas</a>
                             <li ><a href="/reporte/comision" style="color:#ffffff;">Reporte comisiones</a></li>
+                            <li><a href="/reporte/reporteria" style="color:#ffffff;">Reportes Varios</a>
                         </ul>
                     </li>
                     <li>
