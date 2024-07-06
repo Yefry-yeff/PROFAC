@@ -8,93 +8,99 @@
         integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
 
     <style>
+        .producto {
 
-            /* Estilo personalizado para las cards */
-            .custom-card {
-                width: 30px; /* Ancho deseado */
-              }
-
-              /* Estilo para la imagen de la card */
-              .custom-card .card-img-top {
-                height: 20px; /* Altura deseada */
-                object-fit: cover; /* Ajusta la imagen para llenar el espacio sin deformar */
-              }
-        .color-red {
-            color: red;
+            width: 230px;
+            height: 145px;
+            border-radius: 50%;
+            object-fit: cover;
         }
 
         p {
-            font-size: 12px;
+            font-size: 10px;
         }
 
-        body {
-
-           /*  background-size: 100% 100%; */
-            margin-left: -95px;
-            padding: 50px;
-            /* ##background-image: url('img/membrete/Logo1.png'); */
-
-
-            width: 45rem;
-            height: 3rem;
-
-
+        .espacio{
+            height:15px;
         }
+        .polaroid {
+            width: 80%;
+            background-color: white;
+            box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2), 0 6px 20px 0 rgba(0,0,0,0.19);
+          }
+
+          body {
+
+            /*  background-size: 100% 100%; */
+             margin-left: -95px;
+             padding: 50px;
+             /* ##background-image: url('img/membrete/Logo1.png'); */
 
 
-        table {
-            border-collapse: collapse;
-            border-spacing: 0;
-            width: 100%;
-            border: 1px solid #ddd;
-        }
-
-        th,
-        td {
-            text-align: left;
-            padding: 2px;
-
-        }
-
-        thead {
-            background-color: #f2f2f2
-        }
-
-        /* tr:nth-child(even) {
-            background-color: #f2f2f2
-
-        } */
-
-        .letra {
-            font-weight: 800;
+             width: 45rem;
+             height: 3rem;
 
 
-        }
+         }
     </style>
     <title>Catálogo</title>
 </head>
 
 <body>
 
-    <div class="container mt-4">
-        <h1 class="mb-4">Catálogo de Productos</h1>
+    <img src="img/membrete/Logo3.png" width="800rem" style="margin-left:2%; margin-top:-70px; position:absolute;"alt="">
+                <div class="container">
 
-        <div class="row">
-          <div class="col-lg-4 col-md-6 mb-4">
-            <div class="card" style="width: 18rem;">
-                <img class="card-img-top" src="..." alt="Card image cap">
-                <div class="card-body">
-                  <p class="card-text">Some quick example text to build on the card title and make up the bulk of the  content.</p>
+
+                        <div>
+
+                            <table  style="font-size: 12px; margin-top:15px;margin-left:-8%; width:700px;">
+                                <thead>
+                                    <tr class="bg-warning rounded border-0" style="color: #FFFFFF; font-size: 14px; text-align: center;">
+                                        <th>PRODUCTO</th>
+                                        <th>DETALLE</th>
+                                    </tr >
+                                </thead>
+                                <tbody>
+
+                                    @foreach ($datos as $producto)
+                                        <tr class="rounded border border-warning border-0">
+                                            <td style="text-align: center;">
+
+                                                <div class="card border-0" >
+                                                    <img class="producto"  style="margin-left:10%;" src="catalogo/{{ $producto->imagen }}"alt="Card image cap">
+                                                    <div class="card-body">
+                                                      <p class="card-title"><b>{{ $producto->nombre }}</p>
+                                                    </div>
+                                                  </div>
+                                            </td>
+                                            <td class="p-3 mb-2 bg-light text-dark">
+                                                <p class="card-text"> <b>Marca:</b> {{ $producto->marca }}    </p>
+                                                <p class="card-text"><b>Categoría:</b> {{ $producto->categoria}}</p>
+                                                <p class="card-text"><b>Unidad:</b> {{ $producto->medida }}</p>
+                                                <p class="card-text"><b>Cantidad:</b> {{ $producto->cantidad }}</p>
+                                                <p class="card-text"><b>Precio:</b> L. {{ $producto->precio }}</p>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+
+
+                                    @php
+
+                                        $altura = 50;
+                                        $altura2 = 450;
+                                    @endphp
+
+                                </tbody>
+
+
+                            </table>
+
+                        </div>
+
                 </div>
-              </div>
-          </div>
-        </div>
-      </div>
 
-
-
-
-    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"
+      <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"
         integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous">
     </script>
     <script src="https://cdn.jsdelivr.net/npm/popper.js@1.14.7/dist/umd/popper.min.js"
