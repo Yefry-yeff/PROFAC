@@ -407,7 +407,7 @@ class Cotizacion extends Component
         $datos = DB::SELECT(
             "
                 select
-                    C.id as codigo,
+                      C.id as codigoProducto,
                     C.nombre,
                     C.descripcion,
                     if(C.isv = 0, 'SI' , 'NO' ) as excento,
@@ -419,7 +419,12 @@ class Cotizacion extends Component
                     E.descripcion as 'subcategoria',
                     F.descripcion as 'categoria',
                     G.nombre as 'marca',
-                    imagen.url_img as 'imagen'
+                    imagen.url_img as 'imagen',
+                    A.nombre_cliente,
+                    A.fecha_emision,
+                    A.RTN,
+                    A.id,
+                    CONCAT(YEAR(A.fecha_emision),'-',A.id) as 'cotizacion'
 
                 from cotizacion A
                     inner join cotizacion_has_producto B on A.id=B.cotizacion_id

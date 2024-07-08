@@ -54,9 +54,26 @@
 
                         <div>
 
-                            <table  style="font-size: 12px; margin-top:15px;margin-left:-8%; width:700px;">
-                                <thead>
-                                    <tr class="bg-warning rounded border-0" style="color: #FFFFFF; font-size: 14px; text-align: center;">
+                              <div class="card border border-dark" style="margin-left:-8%;  width:700px;margin-top:15px;">
+                                <div class="card-header">
+                                    <b>Cotización No. {{ $datos[0]->cotizacion }}  </b>
+                                    <b style="margin-left:40%;">Catálogo de productos</b>
+                                </div>
+
+                                <div class="card-body">
+                                    <p class="card-text" style="position:absolute;left:20px;  top:50px;"><b>Cliente:
+                                            </b>{{ $datos[0]->nombre_cliente }}</p>
+                                    <p class="card-text" style="position:absolute;left:510px;  top:50px;"><b>RTN:
+                                            </b>{{ $datos[0]->RTN }}</p>
+                                    <p class="card-text" style="position:absolute;left:510px;  top:50px;"><b>RTN:
+                                                    </b>{{ $datos[0]->RTN }}</p>
+                                    <p class="card-text" style="position:absolute;left:20px;  top:65px;"><b>Fecha de emisión:
+                                            </b>{{ $datos[0]->fecha_emision }}</p>
+                                </div>
+                            </div>
+                              <table  style="font-size: 12px; margin-top:15px;margin-left:-8%; width:700px;">
+                                <thead style="background-color:#F05D09;">
+                                    <tr class=" rounded border-0" style="color: #FFFFFF;  font-size: 14px; text-align: center;">
                                         <th>PRODUCTO</th>
                                         <th>DETALLE</th>
                                     </tr >
@@ -68,18 +85,20 @@
                                             <td style="text-align: center;">
 
                                                 <div class="card border-0" >
-                                                    <img class="producto"  style="margin-left:10%;" src="catalogo/{{ $producto->imagen }}"alt="Card image cap">
+                                                    <img class="producto"  style="margin-left:10%;" src="catalogo/{{ $producto->imagen }}"alt="Imagen del Producto">
                                                     <div class="card-body">
                                                       <p class="card-title"><b>{{ $producto->nombre }}</p>
                                                     </div>
                                                   </div>
                                             </td>
                                             <td class="p-3 mb-2 bg-light text-dark">
+                                                <p class="card-text"> <b>Código:</b> {{ $producto->codigoProducto }}    </p>
                                                 <p class="card-text"> <b>Marca:</b> {{ $producto->marca }}    </p>
                                                 <p class="card-text"><b>Categoría:</b> {{ $producto->categoria}}</p>
                                                 <p class="card-text"><b>Unidad:</b> {{ $producto->medida }}</p>
                                                 <p class="card-text"><b>Cantidad:</b> {{ $producto->cantidad }}</p>
                                                 <p class="card-text"><b>Precio:</b> L. {{ $producto->precio }}</p>
+                                                <p class="card-text"><b>ISV:</b> NO</p>
                                             </td>
                                         </tr>
                                     @endforeach
