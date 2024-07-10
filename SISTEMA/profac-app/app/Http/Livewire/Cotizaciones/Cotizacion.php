@@ -408,8 +408,8 @@ class Cotizacion extends Component
             "
                 select
                       C.id as codigoProducto,
-                    C.nombre,
-                    C.descripcion,
+                    C.nombre as nombre1,
+                    C.descripcion as nombre,
                     if(C.isv = 0, 'SI' , 'NO' ) as excento,
                     FORMAT(B.precio_unidad,2) as precio,
                     B.cantidad as cantidad,

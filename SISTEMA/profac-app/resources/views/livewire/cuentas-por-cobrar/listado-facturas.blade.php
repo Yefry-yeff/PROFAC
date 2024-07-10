@@ -72,6 +72,16 @@
                 responsive: true,
 
 
+
+                dom: '<"html5buttons"B>lTfgitp',
+                buttons: [
+
+                    {
+                        extend: 'excel',
+                        title: 'Facuras',
+                        className:'btn btn-success'
+                    }
+                ],
                 "ajax": "/cuentas/cobrar/lista",
                 "columns": [
                     {
