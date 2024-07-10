@@ -98,7 +98,7 @@
                                                 <p class="card-text"><b>Unidad:</b> {{ $producto->medida }}</p>
                                                 <p class="card-text"><b>Cantidad:</b> {{ $producto->cantidad }}</p>
                                                 <p class="card-text"><b>Precio:</b> L. {{ $producto->precio }}</p>
-                                                <p class="card-text"><b>ISV:</b> NO</p>
+                                                <p class="card-text"><b>Exento:</b> {{ $producto->excento }}</p>
                                             </td>
                                         </tr>
                                     @endforeach
