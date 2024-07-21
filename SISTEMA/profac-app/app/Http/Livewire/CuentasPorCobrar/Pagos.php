@@ -173,92 +173,95 @@ class Pagos extends Component
         return Datatables::of($cuentas)
                 ->addColumn('acciones', function ($cuenta) {
 
-
-
-                    if ($cuenta->estadoCierre) {
-                        return '<span class="badge badge-success">Factura cerrada</span>';
-                    }else{
-
-                        //dd($cuenta);
-                        if ($cuenta->retencion_aplicada == 0) {
-                            return
-                                '
-                                    <div class="btn-group">
-                                        <button data-toggle="dropdown" class="btn btn-warning dropdown-toggle" aria-expanded="false">Ver más</button>
-                                        <ul class="dropdown-menu" x-placement="bottom-start"
-                                            style="position: absolute; top: 33px; left: 0px; will-change: top, left;">
-
-
-                                            <li>
-                                                <a class="dropdown-item" href="/detalle/venta/'.$cuenta->idFactura.'" > <i class="fa-solid fa-arrows-to-eye text-info"></i> Detalle de venta </a>
-                                            </li>
-
-                                            <li>
-                                                <a class="dropdown-item" onclick="modalRetencion('.$cuenta->codigoPago.' , '.$cuenta->isv.', '.$cuenta->estadoRetencion.', '."'".$cuenta->codigoFactura."'".', '.$cuenta->idFactura.')">  <i class="fa-solid fa-cash-register text-success"></i> Gestionar retencion </a>
-                                            </li>
-
-                                            <li>
-                                                <a class="dropdown-item" onclick="modalNotaCredito('.$cuenta->codigoPago.' , '."'".$cuenta->codigoFactura."'".', '.$cuenta->idFactura.', '.$cuenta->tieneNC.')"> <i class="fa-solid fa-cash-register text-success"></i> Notas de credito </a>
-                                            </li>
-
-                                            <li>
-                                                <a class="dropdown-item" onclick="modalNotaDebito('.$cuenta->codigoPago.' , '."'".$cuenta->codigoFactura."'".', '.$cuenta->idFactura.', '.$cuenta->tieneND.')"> <i class="fa-solid fa-cash-register text-success"></i> Notas de debito </a>
-                                            </li>
-
-                                            <li>
-                                                <a class="dropdown-item" onclick="modalOtrosMovimientos('.$cuenta->codigoPago.' , '."'".$cuenta->codigoFactura."'".', '.$cuenta->idFactura.')"> <i class="fa-solid fa-cash-register text-success"></i> Otros movimientos </a>
-                                            </li>
-
-                                            <li>
-                                                <a class="dropdown-item" onclick="modalAbonos('.$cuenta->codigoPago.' , '."'".$cuenta->codigoFactura."'".', '.$cuenta->idFactura.')"> <i class="fa-solid fa-cash-register text-success"></i> Creditos/Pago </a>
-                                            </li>
-
-
-
-                                        </ul>
-                                    </div>
-                            ';
+                    if (Auth::user()->rol_id == '2') {
+                        return '<span class="badge badge-success">Sin Acciones</span>';
+                    }else {
+                        if ($cuenta->estadoCierre) {
+                            return '<span class="badge badge-success">Factura cerrada</span>';
                         }else{
 
-                            return
-                                '
-                                    <div class="btn-group">
-                                        <button data-toggle="dropdown" class="btn btn-warning dropdown-toggle" aria-expanded="false">Ver más</button>
-                                        <ul class="dropdown-menu" x-placement="bottom-start"
-                                            style="position: absolute; top: 33px; left: 0px; will-change: top, left;">
+                            //dd($cuenta);
+                            if ($cuenta->retencion_aplicada == 0) {
+                                return
+                                    '
+                                        <div class="btn-group">
+                                            <button data-toggle="dropdown" class="btn btn-warning dropdown-toggle" aria-expanded="false">Ver más</button>
+                                            <ul class="dropdown-menu" x-placement="bottom-start"
+                                                style="position: absolute; top: 33px; left: 0px; will-change: top, left;">
 
 
-                                            <li>
-                                                <a class="dropdown-item" href="/detalle/venta/'.$cuenta->idFactura.'" > <i class="fa-solid fa-arrows-to-eye text-info"></i> Detalle de venta </a>
-                                            </li>
+                                                <li>
+                                                    <a class="dropdown-item" href="/detalle/venta/'.$cuenta->idFactura.'" > <i class="fa-solid fa-arrows-to-eye text-info"></i> Detalle de venta </a>
+                                                </li>
 
-                                            <li>
-                                                <a class="dropdown-item" >  <i class="fa-solid fa-check text-success"></i> Retencion Gestionada </a>
-                                            </li>
+                                                <li>
+                                                    <a class="dropdown-item" onclick="modalRetencion('.$cuenta->codigoPago.' , '.$cuenta->isv.', '.$cuenta->estadoRetencion.', '."'".$cuenta->codigoFactura."'".', '.$cuenta->idFactura.')">  <i class="fa-solid fa-cash-register text-success"></i> Gestionar retencion </a>
+                                                </li>
 
-                                            <li>
-                                                <a class="dropdown-item" onclick="modalNotaCredito('.$cuenta->codigoPago.' , '."'".$cuenta->codigoFactura."'".', '.$cuenta->idFactura.', '.$cuenta->tieneNC.')"> <i class="fa-solid fa-cash-register text-success"></i> Notas de credito </a>
-                                            </li>
+                                                <li>
+                                                    <a class="dropdown-item" onclick="modalNotaCredito('.$cuenta->codigoPago.' , '."'".$cuenta->codigoFactura."'".', '.$cuenta->idFactura.', '.$cuenta->tieneNC.')"> <i class="fa-solid fa-cash-register text-success"></i> Notas de credito </a>
+                                                </li>
 
-                                            <li>
-                                                <a class="dropdown-item" onclick="modalNotaDebito('.$cuenta->codigoPago.' , '."'".$cuenta->codigoFactura."'".', '.$cuenta->idFactura.', '.$cuenta->tieneND.')"> <i class="fa-solid fa-cash-register text-success"></i> Notas de debito </a>
-                                            </li>
+                                                <li>
+                                                    <a class="dropdown-item" onclick="modalNotaDebito('.$cuenta->codigoPago.' , '."'".$cuenta->codigoFactura."'".', '.$cuenta->idFactura.', '.$cuenta->tieneND.')"> <i class="fa-solid fa-cash-register text-success"></i> Notas de debito </a>
+                                                </li>
 
-                                            <li>
-                                                <a class="dropdown-item" onclick="modalOtrosMovimientos('.$cuenta->codigoPago.' , '."'".$cuenta->codigoFactura."'".', '.$cuenta->idFactura.')"> <i class="fa-solid fa-cash-register text-success"></i> Otros movimientos </a>
-                                            </li>
+                                                <li>
+                                                    <a class="dropdown-item" onclick="modalOtrosMovimientos('.$cuenta->codigoPago.' , '."'".$cuenta->codigoFactura."'".', '.$cuenta->idFactura.')"> <i class="fa-solid fa-cash-register text-success"></i> Otros movimientos </a>
+                                                </li>
 
-                                            <li>
-                                                <a class="dropdown-item" onclick="modalAbonos('.$cuenta->codigoPago.' , '."'".$cuenta->codigoFactura."'".', '.$cuenta->idFactura.')"> <i class="fa-solid fa-cash-register text-success"></i> Creditos/Pago </a>
-                                            </li>
+                                                <li>
+                                                    <a class="dropdown-item" onclick="modalAbonos('.$cuenta->codigoPago.' , '."'".$cuenta->codigoFactura."'".', '.$cuenta->idFactura.')"> <i class="fa-solid fa-cash-register text-success"></i> Creditos/Pago </a>
+                                                </li>
 
 
 
-                                        </ul>
-                                    </div>
-                            ';
+                                            </ul>
+                                        </div>
+                                ';
+                            }else{
+
+                                return
+                                    '
+                                        <div class="btn-group">
+                                            <button data-toggle="dropdown" class="btn btn-warning dropdown-toggle" aria-expanded="false">Ver más</button>
+                                            <ul class="dropdown-menu" x-placement="bottom-start"
+                                                style="position: absolute; top: 33px; left: 0px; will-change: top, left;">
+
+
+                                                <li>
+                                                    <a class="dropdown-item" href="/detalle/venta/'.$cuenta->idFactura.'" > <i class="fa-solid fa-arrows-to-eye text-info"></i> Detalle de venta </a>
+                                                </li>
+
+                                                <li>
+                                                    <a class="dropdown-item" >  <i class="fa-solid fa-check text-success"></i> Retencion Gestionada </a>
+                                                </li>
+
+                                                <li>
+                                                    <a class="dropdown-item" onclick="modalNotaCredito('.$cuenta->codigoPago.' , '."'".$cuenta->codigoFactura."'".', '.$cuenta->idFactura.', '.$cuenta->tieneNC.')"> <i class="fa-solid fa-cash-register text-success"></i> Notas de credito </a>
+                                                </li>
+
+                                                <li>
+                                                    <a class="dropdown-item" onclick="modalNotaDebito('.$cuenta->codigoPago.' , '."'".$cuenta->codigoFactura."'".', '.$cuenta->idFactura.', '.$cuenta->tieneND.')"> <i class="fa-solid fa-cash-register text-success"></i> Notas de debito </a>
+                                                </li>
+
+                                                <li>
+                                                    <a class="dropdown-item" onclick="modalOtrosMovimientos('.$cuenta->codigoPago.' , '."'".$cuenta->codigoFactura."'".', '.$cuenta->idFactura.')"> <i class="fa-solid fa-cash-register text-success"></i> Otros movimientos </a>
+                                                </li>
+
+                                                <li>
+                                                    <a class="dropdown-item" onclick="modalAbonos('.$cuenta->codigoPago.' , '."'".$cuenta->codigoFactura."'".', '.$cuenta->idFactura.')"> <i class="fa-solid fa-cash-register text-success"></i> Creditos/Pago </a>
+                                                </li>
+
+
+
+                                            </ul>
+                                        </div>
+                                ';
+                            }
                         }
                     }
+
                 })
 
 
