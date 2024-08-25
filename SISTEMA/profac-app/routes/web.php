@@ -51,8 +51,10 @@ use App\Http\Livewire\VentasEstatal\LitsadoFacturasEstatalVendedor;
 use App\Http\Livewire\VentasExoneradas\VentasExoneradas;
 use App\Http\Livewire\VentasExoneradas\ListadoFacturasExonerads;
 use App\Http\Livewire\Cotizaciones\Cotizacion;
+use App\Http\Livewire\Cotizaciones\expo;
 use App\Http\Livewire\Cotizaciones\Editarcotizacion;
 use App\Http\Livewire\Cotizaciones\ListarCotizaciones;
+use App\Http\Livewire\Cotizaciones\ListarCotizacionesExpo;
 use App\Http\Livewire\Cotizaciones\FacturarCotizacion;
 use App\Http\Livewire\Cotizaciones\FacturarCotizacionGobierno;
 use App\Http\Livewire\Ventas\ListadoFacturasAnuladas;
@@ -234,6 +236,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 
     Route::post('/ruta/imagen/edit', [Producto::class, 'guardarFoto']);
     Route::get('/producto/datos/{id}', [Producto::class, 'listarModalProductoEdit']);
+
     Route::get('/producto/listar/productos', [Producto::class, 'listarProductos']);
     Route::post('/producto/actualizar/costos', [Producto::class, 'calcularCostos']);
     Route::get('/producto/detalle/{id}', DetalleProducto::class);
@@ -379,9 +382,27 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 
 
     //---------------------------------------Proforma y Cotizaciones--------------------------------//
+
     Route::get('/proforma/cotizacion/{id}', Cotizacion::class);
     Route::get('/cotizacion/clientes', [Cotizacion::class, 'listarClientes']);
     Route::post('/guardar/cotizacion', [Cotizacion::class, 'guardarCotizacion']);
+
+
+    //------------------------------------------------------------//
+    //------------------------EXPO FERIA-------------------------//
+       Route::get('/expo/cotizacion/{id}', expo::class);
+
+        Route::get('/expo/clientes', [expo::class, 'listarClientes']);
+        Route::post('/expo/cotizacion', [expo::class, 'guardarCotizacion']);
+        Route::get('/productos/listar/', [expo::class, 'productoBodega']);
+        Route::get('/info/producto/expo/{id}', [expo::class, 'infoProducto']);
+
+
+
+        Route::get('/cotizacion/listado/expo/{id}', ListarCotizacionesExpo::class);
+        Route::post('/cotizacion/obtener/listado/expo', [ListarCotizacionesExpo::class, 'listarCotizaciones']);
+    //-----------------------------------------------------------//
+
 
     Route::post('/editar/cotizacion', [Editarcotizacion::class, 'guardarCotizacion']);
     Route::get('/cotizacion/listado/{id}', ListarCotizaciones::class);

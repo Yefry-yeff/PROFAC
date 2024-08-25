@@ -260,6 +260,17 @@
                     <li>
                         <a><i class="fa-solid fa-file-invoice" style="color:#ffffff;"></i>
                             {{--  <span class="nav-label" style="color:#ffffff;">Ventas Clientes B</span>  --}}
+                            <span class="nav-label" style="color:#ffffff;">Sala de Ventas</span>
+                            <span class="fa arrow"></span></a>
+
+                        <ul class="nav nav-second-level">
+                            <li><a href="/expo/cotizacion/3" style="color:#ffffff;">Expo Cotiza</a></li>
+                            <li><a href="/cotizacion/listado/expo/4" style="color:#ffffff;">Listado de Cotizaciones</a></li>
+                        </ul>
+                    </li>
+                    <li>
+                        <a><i class="fa-solid fa-file-invoice" style="color:#ffffff;"></i>
+                            {{--  <span class="nav-label" style="color:#ffffff;">Ventas Clientes B</span>  --}}
                             <span class="nav-label" style="color:#ffffff;">Ventas Clientes A</span>
                             <span class="fa arrow"></span></a>
 

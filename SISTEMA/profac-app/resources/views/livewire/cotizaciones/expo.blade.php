@@ -8,7 +8,7 @@
                 position: relative;
                 display: inline-block;
                 width: 60px;
-                height: 34px;
+                height: 24px;
             }
 
             .switch input {
@@ -31,9 +31,9 @@
             .slider:before {
                 position: absolute;
                 content: "";
-                height: 26px;
-                width: 26px;
-                border-radius: 50%;
+                height: 16px;
+                width: 16px;
+                border-radius: 100%;
                 left: 4px;
                 bottom: 4px;
                 background-color: white;
@@ -41,7 +41,7 @@
             }
 
             input:checked + .slider {
-                background-color: #2196F3;
+                background-color: #d1641b;
             }
 
             input:checked + .slider:before {
@@ -107,18 +107,6 @@
                 <h2>Cotización</h2>
             @endif
             <ol class="breadcrumb">
-                <li class="breadcrumb-item">
-
-                    @if ($tipoCotizacion == 1)
-                        <a>Cliente B</a>
-                    @elseif($tipoCotizacion == 2)
-                        <a>Cliente A</a>
-                    @elseif($tipoCotizacion == 3)
-                        <a>Expo Feria</a>
-                    @else
-                        <a>Cliente Exonerado</a>
-                    @endif
-                </li>
                 {{-- <li class="breadcrumb-item">
                     <a data-toggle="modal" data-target="#modal_producto_crear">Registrar</a>
                 </li> --}}
@@ -195,9 +183,9 @@
                                     </select>
                                 </div>
                                 <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4">
-                                    <label for="vendedor">Seleccionar Vendedor:<span class="text-danger"></span> </label>
-                                    <select name="vendedor" id="vendedor" class="form-group form-control" data-parsley-required>
-                                      <option value="" selected disabled>--Seleccionar un vendedor--</option>
+                                    <label for="vendedor">Vendedor:<span class="text-danger"></span> </label>
+                                    <select name="vendedor" id="vendedor" class="form-group form-control">
+                                      <option value="{{Auth::user()->id}}" selected>{{Auth::user()->name}}</option>
                                     </select>
 
                               </div>
@@ -219,7 +207,7 @@
 
                                         <label for="porDescuento" class="col-form-label focus-label">Descuento aplicado %
                                             :<span class="text-danger">*</span></label>
-                                        <input class="form-control" oninput="validarDescuento()" onchange="calcularTotalesInicioPagina()" type="number" min="0" max="15" value="0" minlength="1" maxlength="2" id="porDescuento" name="porDescuento" data-parsley-required >
+                                        <input class="form-control" oninput="validarDescuento()" onchange="calcularTotalesInicioPagina()" type="number" min="0" max="15" value="0" minlength="1" maxlength="2" id="porDescuento" name="porDescuento"  >
                                         <p id="mensajeError" style="color: red;"></p>
 
 
@@ -249,8 +237,8 @@
                                 <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6 ">
 
                                     <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                        <label for="seleccionarProducto" class="col-form-label focus-label">Seleccionar
-                                            Producto:<span class="text-danger">*</span></label>
+                                        <label for="seleccionarProducto" class="col-form-label focus-label"> <label class="switch"> <input type="checkbox" id="mySwitch"><span class="slider"></span></label> Seleccionar
+                                            Producto :<span class="text-danger">*</span></label>
                                         <select id="seleccionarProducto" name="seleccionarProducto"
                                             class="form-group form-control" style="" onchange="obtenerImagenes()">
                                             <option value="" selected disabled>--Seleccione un producto--</option>
@@ -259,24 +247,20 @@
 
 
 
-                                        <h3>Lector de Barra</h3>
-                                        <label class="switch">
-                                            <input type="checkbox" id="mySwitch">
-                                            <span class="slider"></span>
-                                        </label>
 
                                 </div>
-
-                                <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6 ">
-                                    <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                        <label for="bodega" class="col-form-label focus-label">Seleccionar
-                                            bodega:<span class="text-danger">*</span></label>
+                                 <div  class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6 ">
+                                    <div class="card" >
+                                        <ul class="list-group list-group-flush" id="descripcionProducto">
+                                        </ul>
+                                      </div>
+                                    <div style="display: none" class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
+                                        <label for="bodega" class="col-form-label focus-label">Bodega:<span class="text-danger">*</span></label>
                                         <select id="bodega" name="bodega" class="form-group form-control"
                                             style="" onchange="prueba()" disabled>
-                                            <option value="" selected disabled>--Seleccione un producto--</option>
+                                            <option value="156" selected disabled>SALA DE VENTAS</option>
                                         </select>
                                     </div>
-
                                 </div>
 
 
@@ -646,7 +630,7 @@
                 }
             }
 
-            $('#vendedor').select2({
+            /*$('#vendedor').select2({
                 ajax:{
                     url:'/ventas/corporativo/vendedores',
                     data: function(params) {
@@ -661,14 +645,14 @@
                     }
 
                 }
-            });
+            });*/
 
 
 
 
             $('#seleccionarCliente').select2({
                 ajax: {
-                    url: '/cotizacion/clientes',
+                    url: '/expo/clientes',
                     data: function(params) {
                         var query = {
                             search: params.term,
@@ -688,7 +672,7 @@
 
             $('#seleccionarProducto').select2({
                 ajax: {
-                    url: '/ventas/listar',
+                    url: '/productos/listar/',
                     data: function(params) {
                         var query = {
                             search: params.term,
@@ -730,7 +714,6 @@
                         }
                     }
                 });
-
             }
 
 
@@ -817,9 +800,8 @@
 
                         }
 
-                        var element = document.getElementById('botonAdd');
-                        element.classList.add("d-none");
-
+                        /*var element = document.getElementById('botonAdd');
+                        element.classList.add("d-none");*/
                         let a = document.getElementById("detalleProducto");
                         let url = "/producto/detalle/" + id;
                         a.href = url;
@@ -837,17 +819,52 @@
                     })
 
                 obtenerBodegas(id);
+                prueba();
+                infoProducto(id);
             }
 
+            function infoProducto(id){
+
+                axios.get('/info/producto/expo/'+id)
+                    .then(response => {
+                        console.log(response);
+                       /* let tipoDePago = response.data.tipos;
+                        let numeroVenta = response.data.numeroVenta.numero;
+
+                        let htmlPagos = '  <option value="" selected disabled >--Seleccione una opcion--</option>';
+
+                        tipoDePago.forEach(element => {
+
+                            htmlPagos += `
+                            <option value="${element.id}" >${element.descripcion}</option>
+                            `
+                        });
+
+                        document.getElementById('tipoPagoVenta').innerHTML = htmlPagos;*/
+
+                        let html = '<li class="list-group-item"> Categoría:'+response.data.categoria+'</li><li class="list-group-item"> Sub Categoría:'+response.data.sub_categoria+'</li><li class="list-group-item"> Código de Barra:'+response.data.codigo_barra+'</li><li class="list-group-item"> Marca:'+response.data.marca+'</li><li class="list-group-item"> Nombre:'+response.data.nombre+'</li><li class="list-group-item"> Descripción:'+response.data.descripcion+'</li>';
+
+
+                        document.getElementById('descripcionProducto').innerHTML = html;
+                    })
+                    .catch(err => {
+                        console.log(err);
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error...',
+                            text: "Ha ocurrido un error al obtener los tipos de pago"
+                        })
+                    })
+            }
 
 
             function agregarProductoCarritoBarra() {
                 let idProducto = document.getElementById('seleccionarProducto').value;
 
-                let data = $("#bodega").select2('data')[0];
-                let bodega = data.bodegaSeccion;
-                let idBodega = data.idBodega;
-                let idSeccion = data.id
+                //let data = $("#bodega").select2('data')[0];
+                let bodega = 156;
+                let idBodega = 16;
+                let idSeccion = 156
 
 
                 axios.post('/ventas/datos/producto', {
@@ -1034,10 +1051,10 @@
             function agregarProductoCarrito() {
                 let idProducto = document.getElementById('seleccionarProducto').value;
 
-                let data = $("#bodega").select2('data')[0];
-                let bodega = data.bodegaSeccion;
-                let idBodega = data.idBodega;
-                let idSeccion = data.id
+               // let data = $("#bodega").select2('data')[0];
+                let bodega = 'SALA DE VENTAS';
+                let idBodega = 16;
+                let idSeccion = 156;
 
 
                 axios.post('/ventas/datos/producto', {
@@ -1645,7 +1662,7 @@
                 }
 
 
-                axios.post('/guardar/cotizacion', formDataObj, options)
+                axios.post('/expo/cotizacion', formDataObj, options)
                     .then(response => {
                         let data = response.data;
 
@@ -1716,6 +1733,7 @@
                             text: data.text
                         })
                     })
+                   // location.reload();
             }
 
             function sumarDiasCredito() {
