@@ -396,6 +396,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
         Route::post('/expo/cotizacion', [expo::class, 'guardarCotizacion']);
         Route::get('/productos/listar/', [expo::class, 'productoBodega']);
         Route::get('/info/producto/expo/{id}', [expo::class, 'infoProducto']);
+        Route::post('/ventas/datos/producto/expo', [expo::class, 'obtenerDatosProductoExpo']);
 
 
 

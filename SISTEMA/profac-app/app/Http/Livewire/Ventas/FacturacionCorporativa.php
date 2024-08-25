@@ -343,7 +343,7 @@ class FacturacionCorporativa extends Component
             ], 200);
         } catch (QueryException $e) {
             return response()->json([
-                'message' => 'Ha ocurrido un error al obtener los datos del producto.',
+                'message' => 'ERROR AL OBTENER PRODUCTO PARA EL CARRITO.',
                 'error' => $e,
             ], 402);
         }

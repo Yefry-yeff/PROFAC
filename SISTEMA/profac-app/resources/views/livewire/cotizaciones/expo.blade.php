@@ -32,7 +32,7 @@
                 position: absolute;
                 content: "";
                 height: 16px;
-                width: 16px;
+                width: 26px;
                 border-radius: 100%;
                 left: 4px;
                 bottom: 4px;
@@ -237,7 +237,7 @@
                                 <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6 ">
 
                                     <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                        <label for="seleccionarProducto" class="col-form-label focus-label"> <label class="switch"> <input type="checkbox" id="mySwitch"><span class="slider"></span></label> Seleccionar
+                                        <label for="seleccionarProducto" class="col-form-label focus-label"> <label style="display: none" class="switch"> <input type="checkbox" id="mySwitch"><span class="slider"></span></label> Seleccionar
                                             Producto :<span class="text-danger">*</span></label>
                                         <select id="seleccionarProducto" name="seleccionarProducto"
                                             class="form-group form-control" style="" onchange="obtenerImagenes()">
@@ -540,7 +540,6 @@
 
     @push('scripts')
         <script>
-
             /*****************************************/
                 // Función a ejecutar cuando el interruptor está activado
                 function checkActivo() {
@@ -575,7 +574,8 @@
                                 // Process barcodes
                             // console.log('Todos los códigos de barras leídos:');
                                 barcodes.forEach((barcode, index) => {
-                                    console.log(`Codigo agregado: ${barcode}`);
+                                    console.log(barcode);
+                                    agregarProductoCarritoBarra(barcode);
                                 });
                                 // Clear the array after processing
                                 barcodes = [];
@@ -589,7 +589,7 @@
 
                 // Función a ejecutar cuando el interruptor está desactivado
                 function checkInactivo() {
-                    console.log('Interruptor está desactivado.');
+                        console.log('Interruptor está desactivado.');
                 }
 
                 // Función para manejar el cambio de estado del interruptor
@@ -630,26 +630,6 @@
                 }
             }
 
-            /*$('#vendedor').select2({
-                ajax:{
-                    url:'/ventas/corporativo/vendedores',
-                    data: function(params) {
-                        var query = {
-                            search: params.term,
-                            type: 'public',
-                            page: params.page || 1
-                        }
-
-                        // Query parameters will be ?search=[term]&type=public
-                        return query;
-                    }
-
-                }
-            });*/
-
-
-
-
             $('#seleccionarCliente').select2({
                 ajax: {
                     url: '/expo/clientes',
@@ -666,9 +646,6 @@
                     }
                 }
             });
-
-
-
 
             $('#seleccionarProducto').select2({
                 ajax: {
@@ -715,7 +692,6 @@
                     }
                 });
             }
-
 
             function obtenerTipoPago() {
 
@@ -842,7 +818,7 @@
 
                         document.getElementById('tipoPagoVenta').innerHTML = htmlPagos;*/
 
-                        let html = '<li class="list-group-item"> Categoría:'+response.data.categoria+'</li><li class="list-group-item"> Sub Categoría:'+response.data.sub_categoria+'</li><li class="list-group-item"> Código de Barra:'+response.data.codigo_barra+'</li><li class="list-group-item"> Marca:'+response.data.marca+'</li><li class="list-group-item"> Nombre:'+response.data.nombre+'</li><li class="list-group-item"> Descripción:'+response.data.descripcion+'</li>';
+                        let html = '<li class="list-group-item"> <b>Categoría </b>: '+response.data.categoria+'</li><li class="list-group-item">  <b>Sub Categoría </b>: '+response.data.sub_categoria+'</li><li class="list-group-item">  <b>Código de Barra </b>: '+response.data.codigo_barra+'</li><li class="list-group-item">  <b>Marca </b>: '+response.data.marca+'</li><li class="list-group-item">  <b>Nombre </b>: '+response.data.nombre+'</li><li class="list-group-item">  <b>Descripción </b>: '+response.data.descripcion+'</li>';
 
 
                         document.getElementById('descripcionProducto').innerHTML = html;
@@ -857,18 +833,17 @@
                     })
             }
 
+            function agregarProductoCarritoBarra(barcode) {
+                let barraProd = barcode;
 
-            function agregarProductoCarritoBarra() {
-                let idProducto = document.getElementById('seleccionarProducto').value;
-
-                //let data = $("#bodega").select2('data')[0];
-                let bodega = 156;
+               // let data = $("#bodega").select2('data')[0];
+                let bodega = 'SALA DE VENTAS';
                 let idBodega = 16;
-                let idSeccion = 156
+                let idSeccion = 156;
 
 
-                axios.post('/ventas/datos/producto', {
-                        idProducto: idProducto,
+                axios.post('/ventas/datos/producto/expo', {
+                        barraProd: barraProd,
 
                     })
                     .then(response => {
@@ -1237,8 +1212,6 @@
                         })
                     })
             }
-
-
 
             function eliminarInput(id) {
                 const element = document.getElementById(id);
@@ -1618,15 +1591,11 @@
 
             }
 
-
             $(document).on('submit', '#crear_venta',
                 function(event) {
                     event.preventDefault();
                     guardarVenta();
             });
-
-
-
 
             function guardarVenta() {
 
@@ -1722,6 +1691,8 @@
 
                         document.getElementById("guardar_cotizacion_btn").disabled = false;
 
+                    location.reload();
+
                     })
                     .catch(err => {
                         document.getElementById("guardar_cotizacion_btn").disabled = false;
@@ -1733,7 +1704,6 @@
                             text: data.text
                         })
                     })
-                   // location.reload();
             }
 
             function sumarDiasCredito() {

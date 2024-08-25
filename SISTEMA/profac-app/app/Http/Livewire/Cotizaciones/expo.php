@@ -70,6 +70,53 @@ class expo extends Component
         return $producto;
     }
 
+    public function obtenerDatosProductoExpo(Request $request)
+    {
+
+        try {
+            //dd($request);
+            $productoBarra = DB::SELECTONE("
+            select
+            id
+            from producto where codigo_barra = " . $request['barraProd'] . "
+            ");
+
+            $unidades = DB::SELECT(
+                "
+            select
+                A.unidad_venta as id,
+                CONCAT(B.nombre,'-',A.unidad_venta) as nombre ,
+                A.unidad_venta_defecto as 'valor_defecto',
+                A.id as idUnidadVenta
+            from unidad_medida_venta A
+            inner join unidad_medida B
+            on A.unidad_medida_id = B.id
+            where A.estado_id = 1 and A.producto_id = " . $productoBarra->id
+            );
+            /* CAMBIO 20230725 FORMAT(ultimo_costo_compra,2):FORMAT(precio_base,2)*/
+            $producto = DB::SELECTONE("
+            select
+            id,
+            concat(id,' - ',nombre) as nombre,
+            isv,
+            ultimo_costo_compra as ultimo_costo_compra,
+            precio_base as precio_base
+            from producto where id = " . $productoBarra->id. "
+            ");
+
+
+            return response()->json([
+                "producto" => $producto,
+
+                "unidades" => $unidades
+            ], 200);
+        } catch (QueryException $e) {
+            return response()->json([
+                'message' => 'ERROR AL ESCANEAR PRODUCTO.',
+                'error' => $e,
+            ], 402);
+        }
+    }
     public function listarClientes(Request $request)
     {
         try {
