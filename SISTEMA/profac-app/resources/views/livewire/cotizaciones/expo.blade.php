@@ -185,7 +185,7 @@
                                 <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4">
                                     <label for="vendedor">Vendedor:<span class="text-danger"></span> </label>
                                     <select name="vendedor" id="vendedor" class="form-group form-control">
-                                      <option value="{{Auth::user()->id}}" selected>{{Auth::user()->name}}</option>
+
                                     </select>
 
                               </div>
@@ -1553,6 +1553,9 @@
                         response => {
 
                             let data = response.data.datos;
+                            console.log(data);
+                            let html = '<option value="'+data.idVendedor+'" selected disable>'+data.vendedor+'</option>';
+                            document.getElementById('vendedor').innerHTML = html;
 
                             if (data.id == 1) {
                                 document.getElementById("nombre_cliente_ventas").readOnly = false;

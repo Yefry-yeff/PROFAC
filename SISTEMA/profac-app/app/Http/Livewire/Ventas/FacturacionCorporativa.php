@@ -57,8 +57,11 @@ class FacturacionCorporativa extends Component
                 $listaClientes = DB::SELECT("
                 select
                     id,
-                    nombre as text
+                    nombre as text,
+                    users.id as 'idVendedor',
+                    users.name as 'vendedor'
                 from cliente
+                inner join users on users.id = cliente.vendedor
                     where estado_cliente_id = 1
 
                     and tipo_cliente_id=1
@@ -68,8 +71,11 @@ class FacturacionCorporativa extends Component
                 $listaClientes = DB::SELECT("
                 select
                     id,
-                    nombre as text
+                    nombre as text,
+                    users.id as 'idVendedor',
+                    users.name as 'vendedor'
                 from cliente
+                inner join users on users.id = cliente.vendedor
                     where estado_cliente_id = 1
 
                     and tipo_cliente_id=1
@@ -94,7 +100,12 @@ class FacturacionCorporativa extends Component
     {
         try {
 
-            $datos = DB::SELECTONE("select id,nombre, rtn, dias_credito from cliente where id = " . $request->id);
+            $datos = DB::SELECTONE("select cliente.id,cliente.nombre, cliente.rtn, cliente.dias_credito ,
+
+                    users.id as 'idVendedor',
+                    users.name as 'vendedor'
+                from cliente
+                inner join users on users.id = cliente.vendedor where cliente.id = " . $request->id);
 
             return response()->json([
                 "datos" => $datos
