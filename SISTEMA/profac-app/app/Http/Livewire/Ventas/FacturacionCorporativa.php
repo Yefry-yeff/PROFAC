@@ -56,30 +56,30 @@ class FacturacionCorporativa extends Component
             if (Auth::user()->rol_id == 1 or Auth::user()->rol_id == 3) {
                 $listaClientes = DB::SELECT("
                 select
-                    id,
-                    nombre as text,
+                    cliente.id,
+                    cliente.nombre as text,
                     users.id as 'idVendedor',
                     users.name as 'vendedor'
                 from cliente
                 inner join users on users.id = cliente.vendedor
-                    where estado_cliente_id = 1
+                    where cliente.estado_cliente_id = 1
 
-                    and tipo_cliente_id=1
-                    and  (id LIKE '%" . $request->search . "%' or nombre Like '%" . $request->search . "%') limit 15
+                    and cliente.tipo_cliente_id=1
+                    and  (cliente.id LIKE '%" . $request->search . "%' or cliente.nombre Like '%" . $request->search . "%') limit 15
                         ");
             } else {
                 $listaClientes = DB::SELECT("
                 select
-                    id,
-                    nombre as text,
+                    cliente.id,
+                    cliente.nombre as text,
                     users.id as 'idVendedor',
                     users.name as 'vendedor'
                 from cliente
                 inner join users on users.id = cliente.vendedor
-                    where estado_cliente_id = 1
+                    where cliente.estado_cliente_id = 1
 
-                    and tipo_cliente_id=1
-                    and  (id LIKE '%" . $request->search . "%' or nombre Like '%" . $request->search . "%') limit 15
+                    and cliente.tipo_cliente_id=1
+                    and  (cliente.id LIKE '%" . $request->search . "%' or cliente.nombre Like '%" . $request->search . "%') limit 15
                         ");
             }
 
