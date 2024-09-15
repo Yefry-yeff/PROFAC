@@ -216,7 +216,7 @@ class expo extends Component
             $cotizacion->arregloIdInputs = json_encode($request->arregloIdInputs);
             $cotizacion->numeroInputs = $request->numeroInputs;
             $cotizacion->porc_descuento = $request->porDescuento;
-            $cotizacion->monto_descuento = $request->porDescuentoCalculado;
+            $cotizacion->monto_descuento = $request->descuentoGeneral;
             $cotizacion->save();
 
 

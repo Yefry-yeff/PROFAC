@@ -1400,7 +1400,7 @@ class FacturacionCorporativa extends Component
         FORMAT(sub_total_grabado,2) as sub_total_grabado,
         FORMAT(sub_total_excento,2) as sub_total_excento,
         FORMAT(porc_descuento,2) as porc_descuento,
-        monto_descuento
+        FORMAT(monto_descuento,2) as monto_descuento
         from factura where factura.id = " . $idFactura);
 
 
@@ -1574,7 +1574,7 @@ class FacturacionCorporativa extends Component
         FORMAT(sub_total_grabado,2) as sub_total_grabado,
         FORMAT(sub_total_excento,2) as sub_total_excento,
         FORMAT(porc_descuento,2) as porc_descuento,
-        monto_descuento
+        FORMAT(monto_descuento,2) as monto_descuento
         from factura where factura.id = " . $idFactura);
 
 

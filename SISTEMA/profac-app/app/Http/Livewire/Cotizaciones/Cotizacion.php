@@ -161,7 +161,7 @@ class Cotizacion extends Component
     public function guardarCotizacion(Request $request){
        try {
 
-
+        //dd($request);
 
         $validator = Validator::make($request->all(), [
 
@@ -218,7 +218,7 @@ class Cotizacion extends Component
             $cotizacion->arregloIdInputs = json_encode($request->arregloIdInputs);
             $cotizacion->numeroInputs = $request->numeroInputs;
             $cotizacion->porc_descuento = $request->porDescuento;
-            $cotizacion->monto_descuento = $request->porDescuentoCalculado;
+            $cotizacion->monto_descuento = $request->descuentoGeneral;
             $cotizacion->save();
 
 
@@ -366,7 +366,8 @@ class Cotizacion extends Component
             isv,
             sub_total,
             sub_total_grabado,
-            sub_total_excento
+            sub_total_excento,
+            monto_descuento
             from cotizacion
             where id = ".$idFactura
         );
@@ -503,7 +504,8 @@ class Cotizacion extends Component
             isv,
             sub_total,
             sub_total_grabado,
-            sub_total_excento
+            sub_total_excento,
+            monto_descuento
             from cotizacion
             where id = ".$idFactura
         );

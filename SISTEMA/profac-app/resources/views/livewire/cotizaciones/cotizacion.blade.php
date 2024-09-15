@@ -259,12 +259,12 @@
 
 
 
-                                        <h3>Lector de Barra</h3>
+                                        {{--  <h3>Lector de Barra</h3>
                                         <label class="switch">
                                             <input type="checkbox" id="mySwitch">
                                             <span class="slider"></span>
                                         </label>
-
+  --}}
                                 </div>
 
                                 <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6 ">

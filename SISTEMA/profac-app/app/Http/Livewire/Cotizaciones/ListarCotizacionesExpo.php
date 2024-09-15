@@ -49,7 +49,10 @@ class ListarCotizacionesExpo extends Component
 
     public function listarCotizaciones(Request $request){
 
-                $cotizaciones = DB::SELECT("
+
+        if(Auth::user()->rol_id=1){
+
+            $cotizaciones = DB::SELECT("
                 select
                 A.id,
                 concat(YEAR(now()),'-',A.id)  as codigo,
@@ -65,9 +68,29 @@ class ListarCotizacionesExpo extends Component
                 inner join users B
                 on A.users_id = B.id
 
+                order by A.id desc
+            ");
+        }else{
+
+            $cotizaciones = DB::SELECT("
+                select
+                A.id,
+                concat(YEAR(now()),'-',A.id)  as codigo,
+                A.nombre_cliente,
+                A.RTN,
+                FORMAT(A.sub_total,2) as sub_total,
+                FORMAT(A.isv,2) as isv,
+                FORMAT(A.total,2) as total,
+                B.name,
+                A.created_at,
+                A.tipo_venta_id
+                from cotizacion A
+                inner join users B
+                on A.users_id = B.id
                 where A.users_id = ".Auth::user()->id."
                 order by A.id desc
             ");
+        }
 
 
 

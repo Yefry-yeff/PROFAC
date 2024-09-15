@@ -249,19 +249,6 @@
 
 
                                 </div>
-                                 <div  class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6 ">
-                                    <div class="card" >
-                                        <ul class="list-group list-group-flush" id="descripcionProducto">
-                                        </ul>
-                                      </div>
-                                    <div style="display: none" class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                        <label for="bodega" class="col-form-label focus-label">Bodega:<span class="text-danger">*</span></label>
-                                        <select id="bodega" name="bodega" class="form-group form-control"
-                                            style="" onchange="prueba()" disabled>
-                                            <option value="156" selected disabled>SALA DE VENTAS</option>
-                                        </select>
-                                    </div>
-                                </div>
 
 
                             </div>
@@ -319,7 +306,19 @@
 
                                     </div>
 
+                                    <div class="card" >
+                                        <ul class="list-group list-group-flush" id="descripcionProducto">
+                                        </ul>
+                                      </div>
+                                    <div style="display: none" class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
+                                        <label for="bodega" class="col-form-label focus-label">Bodega:<span class="text-danger">*</span></label>
+                                        <select id="bodega" name="bodega" class="form-group form-control"
+                                            style="" onchange="prueba()" disabled>
+                                            <option value="156" selected disabled>SALA DE VENTAS</option>
+                                        </select>
+                                    </div>
                                 </div>
+
 
                             </div>
 

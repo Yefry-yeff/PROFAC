@@ -266,6 +266,7 @@
                         <ul class="nav nav-second-level">
                             <li><a href="/expo/cotizacion/3" style="color:#ffffff;">Expo Cotiza</a></li>
                             <li><a href="/cotizacion/listado/expo/4" style="color:#ffffff;">Listado de Cotizaciones</a></li>
+                            <li><a href="/bodega/prod" style="color:#ffffff;">Reporte</a></li>
                         </ul>
                     </li>
                     <li>
