@@ -58,7 +58,7 @@ use App\Http\Livewire\Cotizaciones\ListarCotizacionesExpo;
 use App\Http\Livewire\Cotizaciones\FacturarCotizacion;
 use App\Http\Livewire\Cotizaciones\FacturarCotizacionGobierno;
 use App\Http\Livewire\Ventas\ListadoFacturasAnuladas;
-use App\Http\Livewire\reportes\ProductoBodegas;
+use App\Http\Livewire\Reportes\ProductoBodegas;
 use App\Http\Livewire\Inventario\ListadoAjustes;
 use App\Http\Livewire\Inventario\HistorialTranslados;
 use App\Http\Livewire\Cardex\Cardex;

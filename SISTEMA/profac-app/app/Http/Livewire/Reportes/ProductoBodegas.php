@@ -13,16 +13,8 @@ use Validator;
 use PDF;
 use Luecano\NumeroALetras\NumeroALetras;
 
-use App\Models\ModelFactura;
-use App\Models\ModelCAI;
-use App\Models\ModelRecibirBodega;
-use App\Models\ModelVentaProducto;
-use App\Models\ModelLogTranslados;
-use App\Models\ModelParametro;
-use App\Models\ModelLista;
-use App\Models\ModelCliente;
-use App\Models\logCredito;
-use App\Models\User;
+use App\Models\ModelCotizacion;
+use App\Models\ModelCotizacionProducto;
 
 
 class ProductoBodegas extends Component
