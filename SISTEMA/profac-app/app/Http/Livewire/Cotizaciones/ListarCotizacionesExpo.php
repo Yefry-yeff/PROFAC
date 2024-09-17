@@ -11,7 +11,7 @@ use Illuminate\Database\QueryException;
 use Throwable;
 use DataTables;
 
-class ListarCotizaciones extends Component
+class ListarCotizacionesExpo extends Component
 
 
 {
@@ -44,12 +44,15 @@ class ListarCotizaciones extends Component
 
         }
 
-        return view('livewire.cotizaciones.listar-cotizaciones',compact('idTipoVenta'));
+        return view('livewire.cotizaciones.lista-expo',compact('idTipoVenta'));
     }
 
     public function listarCotizaciones(Request $request){
-        if (Auth::user()->rol_id == '2') {
-                $cotizaciones = DB::SELECT("
+
+
+        if(Auth::user()->rol_id=1){
+
+            $cotizaciones = DB::SELECT("
                 select
                 A.id,
                 concat(YEAR(now()),'-',A.id)  as codigo,
@@ -64,12 +67,12 @@ class ListarCotizaciones extends Component
                 from cotizacion A
                 inner join users B
                 on A.users_id = B.id
-                where A.tipo_venta_id = ".$request->id."
-                and A.vendedor =  ".Auth::user()->id."
+
                 order by A.id desc
             ");
         }else{
-                $cotizaciones = DB::SELECT("
+
+            $cotizaciones = DB::SELECT("
                 select
                 A.id,
                 concat(YEAR(now()),'-',A.id)  as codigo,
@@ -84,11 +87,11 @@ class ListarCotizaciones extends Component
                 from cotizacion A
                 inner join users B
                 on A.users_id = B.id
-                where A.tipo_venta_id = ".$request->id."
+                where A.users_id = ".Auth::user()->id."
                 order by A.id desc
             ");
-
         }
+
 
 
         return Datatables::of($cotizaciones)

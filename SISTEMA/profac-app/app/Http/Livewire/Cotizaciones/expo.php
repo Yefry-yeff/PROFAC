@@ -16,7 +16,7 @@ use Luecano\NumeroALetras\NumeroALetras;
 use App\Models\ModelCotizacion;
 use App\Models\ModelCotizacionProducto;
 
-class Cotizacion extends Component
+class expo extends Component
 
 {
 
@@ -31,10 +31,92 @@ class Cotizacion extends Component
     public function render()
     {
         $tipoCotizacion = $this->tipoCotizacion;
-        return view('livewire.cotizaciones.cotizacion', compact('tipoCotizacion'));
+        return view('livewire.cotizaciones.expo', compact('tipoCotizacion'));
     }
 
 
+
+    public function infoProducto($id){
+        $producto = DB::SELECTONE("
+            select
+                A.id,
+                A.nombre,
+                A.descripcion,
+                A.codigo_estatal,
+                A.codigo_barra,
+                B.descripcion as 'sub_categoria',
+                E.descripcion as 'categoria',
+                A.precio_base,
+                A.costo_promedio,
+                A.ultimo_costo_compra,
+                A.isv,
+                C.nombre as 'unidad_medida',
+                A.created_at as 'fecha_registro',
+                D.name as 'registrado_por',
+                A.marca_id,
+                A.sub_categoria_id,
+                unidad_medida_compra_id,
+                unidadad_compra,
+                M.nombre as 'marca'
+
+            from  producto A
+            inner join sub_categoria B on A.sub_categoria_id = B.id
+            inner join categoria_producto E on E.id = B.categoria_producto_id
+            inner join unidad_medida C  on A.unidad_medida_compra_id = C.id
+            inner join users D on A.users_id = D.id
+            inner join marca M on M.id = A.marca_id
+            where A.id = " . $id . "
+        ");
+        return $producto;
+    }
+
+    public function obtenerDatosProductoExpo(Request $request)
+    {
+
+        try {
+            //dd($request);
+            $productoBarra = DB::SELECTONE("
+            select
+            id
+            from producto where codigo_barra = " . $request['barraProd'] . "
+            ");
+
+            $unidades = DB::SELECT(
+                "
+            select
+                A.unidad_venta as id,
+                CONCAT(B.nombre,'-',A.unidad_venta) as nombre ,
+                A.unidad_venta_defecto as 'valor_defecto',
+                A.id as idUnidadVenta
+            from unidad_medida_venta A
+            inner join unidad_medida B
+            on A.unidad_medida_id = B.id
+            where A.estado_id = 1 and A.producto_id = " . $productoBarra->id
+            );
+            /* CAMBIO 20230725 FORMAT(ultimo_costo_compra,2):FORMAT(precio_base,2)*/
+            $producto = DB::SELECTONE("
+            select
+            id,
+            concat(id,' - ',nombre) as nombre,
+            isv,
+            ultimo_costo_compra as ultimo_costo_compra,
+            precio_base as precio_base
+            from producto where id = " . $productoBarra->id. "
+            ");
+
+
+            return response()->json([
+                "producto" => $producto,
+
+                "unidades" => $unidades
+            ], 200);
+        } catch (QueryException $e) {
+            return response()->json([
+                'message' => 'ERROR AL ESCANEAR PRODUCTO.',
+                'error' => $e,
+            ], 402);
+        }
+    }
     public function listarClientes(Request $request)
     {
         try {
@@ -42,12 +124,8 @@ class Cotizacion extends Component
 
            $tipoCotizacion = $request->tipoCotizacion;
 
-            if($tipoCotizacion==1){
-                $listaClientes = $this->clientesCorporativo($request);
-            }elseif ($tipoCotizacion==2){
-                $listaClientes = $this->clientesEstatal($request);
-            }else{
-                $listaClientes = $this->clientesExonerados($request);
+            if($tipoCotizacion==3){
+                $listaClientes = $this->clientesExpo($request);
             }
 
             return response()->json([
@@ -61,107 +139,28 @@ class Cotizacion extends Component
         }
     }
 
-    public function clientesCorporativo(Request $request)
+    public function clientesExpo(Request $request)
     {
 
-        if (Auth::user()->rol_id == 1) {
             $listaClientes = DB::SELECT("
-            select
-                id,
-                nombre as text
-            from cliente
-                where estado_cliente_id = 1
-                and tipo_cliente_id=1
-                and  (id LIKE '%" . $request->search . "%' or nombre Like '%" . $request->search . "%') limit 15
-                    ");
-        } elseif (Auth::user()->rol_id == 3) {
-            $listaClientes = DB::SELECT("
-            select
-                id,
-                nombre as text
-            from cliente
-                where estado_cliente_id = 1
-                and tipo_cliente_id=1
-                and  (id LIKE '%" . $request->search . "%' or nombre Like '%" . $request->search . "%') limit 15
-                    ");
-        }else {
-            $listaClientes = DB::SELECT("
-            select
-                id,
-                nombre as text
-            from cliente
-                where estado_cliente_id = 1
-                and tipo_cliente_id=1
-                and vendedor =" . Auth::user()->id . "
-                and  (id LIKE '%" . $request->search . "%' or nombre Like '%" . $request->search . "%') limit 15
-                    ");
-        }
+                    select
+                        id,
+                        nombre as text
+                    from cliente
+                        where estado_cliente_id = 1
+                        and  (id LIKE '%" . $request->search . "%' or nombre Like '%" . $request->search . "%') limit 15
+                            ");
+
 
         return $listaClientes;
     }
 
-    public function clientesEstatal(Request $request)
-    {
-
-        if (Auth::user()->rol_id == 1 || Auth::user()->rol_id == 3) {
-            $listaClientes = DB::SELECT("
-                    select
-                        id,
-                        nombre as text
-                    from cliente
-                        where estado_cliente_id = 1
-                        and tipo_cliente_id=2
-                        and  (id LIKE '%" . $request->search . "%' or nombre Like '%" . $request->search . "%') limit 15
-                            ");
-        } else {
-            $listaClientes = DB::SELECT("
-                    select
-                        id,
-                        nombre as text
-                    from cliente
-                        where estado_cliente_id = 1
-                        and tipo_cliente_id=2
-                        and vendedor =" . Auth::user()->id . "
-                        and  (id LIKE '%" . $request->search . "%' or nombre Like '%" . $request->search . "%') limit 15
-                            ");
-        }
-
-        return $listaClientes;
-    }
-
-    public function clientesExonerados(Request $request)
-    {
-
-
-        if (Auth::user()->rol_id == 1) {
-            $listaClientes = DB::SELECT("
-                    select
-                        id,
-                        nombre as text
-                    from cliente
-                        where estado_cliente_id = 1
-                        and id<>1
-                        and  (id LIKE '%" . $request->search . "%' or nombre Like '%" . $request->search . "%') limit 15
-                            ");
-        } else {
-            $listaClientes = DB::SELECT("
-                    select
-                        id,
-                        nombre as text
-                    from cliente
-                        where estado_cliente_id = 1
-                        and id<>1
-                        and vendedor =" . Auth::user()->id . "
-                        and  (id LIKE '%" . $request->search . "%' or nombre Like '%" . $request->search . "%') limit 15
-                            ");
-        }
-        return $listaClientes;
-    }
 
     public function guardarCotizacion(Request $request){
        try {
 
         //dd($request);
+
 
         $validator = Validator::make($request->all(), [
 
@@ -175,7 +174,6 @@ class Cotizacion extends Component
             'numeroInputs' => 'required',
             'seleccionarCliente' => 'required',
             'nombre_cliente_ventas' => 'required',
-            'bodega' => 'required',
             'seleccionarProducto' => 'required',
 
 
@@ -366,8 +364,7 @@ class Cotizacion extends Component
             isv,
             sub_total,
             sub_total_grabado,
-            sub_total_excento,
-            monto_descuento
+            sub_total_excento
             from cotizacion
             where id = ".$idFactura
         );
@@ -504,8 +501,7 @@ class Cotizacion extends Component
             isv,
             sub_total,
             sub_total_grabado,
-            sub_total_excento,
-            monto_descuento
+            sub_total_excento
             from cotizacion
             where id = ".$idFactura
         );
@@ -573,6 +569,43 @@ class Cotizacion extends Component
             ], 402);
         }
     }
+    public function productoBodega(Request $request)
+    {
+        try {
 
+
+            $listaProductos = DB::SELECT("
+         select
+            B.id,
+            concat('cod ',B.id,' - ',B.nombre,' - ',B.codigo_barra,' - ','cantidad ',sum(A.cantidad_disponible)) as text
+         from
+            recibido_bodega A
+            inner join producto B
+            on A.producto_id = B.id
+            inner join seccion
+            on A.seccion_id = seccion.id
+            inner join segmento
+            on seccion.segmento_id = segmento.id
+            inner join bodega
+            on segmento.bodega_id = bodega.id
+         where
+
+         (B.nombre LIKE '%" . $request->search . "%' or B.id LIKE '%" . $request->search . "%' or B.codigo_barra Like '%" . $request->search . "%')
+
+            and bodega.id = 16
+         group by A.producto_id
+         limit 15
+         ");
+
+            return response()->json([
+                "results" => $listaProductos
+            ], 200);
+        } catch (QueryException $e) {
+            return response()->json([
+                'message' => 'Ha ocurrido un error',
+                'error' => $e
+            ]);
+        }
+    }
 }
 

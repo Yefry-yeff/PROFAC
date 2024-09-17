@@ -476,6 +476,8 @@
                             <input type="hidden" id="idMedidaVenta" name="idMedidaVenta" value="0">
                             <input type="hidden" id="unidad_venta" name="unidad_venta" value="0">
                             <input type="hidden" id="isvPorcentaje" name="isvPorcentaje" value="0">
+                            <input type="hidden" id="isvVenta" name="isvVenta" value="0">
+                            <input type="hidden" id="totalVenta" name="totalVenta" value="0">
                             <div class="row">
 
                                 <div class="col-12 col-md-6">
@@ -796,6 +798,10 @@
                         document.getElementById('cantidad').max = cantidadMax;
                         document.getElementById('cantidad').min = 1;
 
+                        document.getElementById('isvVenta').value = data.isVenta;
+                        document.getElementById('totalVenta').value = data.totalVenta;
+
+
                         let htmlBodega =
                             `<option value="${data.bodegaId}" selected="" disabled="">${data.nombreBodega}</option>`;
                         let htmlSegmento =
@@ -887,6 +893,10 @@
 
                 let unidad_venta = document.getElementById('unidad_venta').value;
                 let isvPorcentaje = document.getElementById('isvPorcentaje').value;
+                let isvVenta = document.getElementById('isvVenta').value;
+                let totalVenta = document.getElementById('totalVenta').value;
+
+
 
 
                 let bodega = document.getElementById('bodega');
@@ -896,10 +906,17 @@
                 let bodegaTexto = bodega.options[bodega.selectedIndex].text;
                 let seccionTexto = seccion.options[seccion.selectedIndex].text;
 
+               // let precio2 = totalVenta/cantidad;
+
                 let subTotal = precio * cantidad * unidad_venta;
 
+                let isv = 0 ;
+                if (isvVenta != 0){
 
-                let isv = subTotal * (isvPorcentaje / 100);
+                     isv = subTotal * (isvPorcentaje / 100);
+                }
+
+                //let isv = isvPorcentaje;
 
                 let total = subTotal + isv;
 

@@ -1058,7 +1058,7 @@
             function calcularTotales(idPrecio, idCantidad, isvProducto, idUnidad, id, idRestaInventario) {
 
 
-                let valorInputPrecio = Number(idPrecio.value).toFixed(2);                              
+                let valorInputPrecio = Number(idPrecio.value).toFixed(2);
                 let valorInputCantidad = idCantidad.value;
                 let valorSelectUnidad = idUnidad.value;
 
@@ -1074,12 +1074,19 @@
                         subTotal = valorInputPrecio * (valorInputCantidad * valorSelectUnidad);
                         descuentoCalculado = subTotal * (descuento / 100);
                         subTotal = subTotal - descuentoCalculado;
-                        isv = subTotal * (isvProducto / 100);
+
+                        let isv1 = subTotal * (isvProducto / 100);
+                        let isvSinRedondeo1 = parseFloat(isv1.toFixed(2));
+                        isv = isvSinRedondeo1 ;
                         total = subTotal + (subTotal * (isvProducto / 100));
                     } else {
                         descuentoCalculado = 0
                         subTotal = valorInputPrecio * (valorInputCantidad * valorSelectUnidad);
-                        isv = subTotal * (isvProducto / 100);
+
+
+                        let isv2 = subTotal * (isvProducto / 100);
+                        let isvSinRedondeo2 = parseFloat(isv2.toFixed(2));
+                        isv = isvSinRedondeo2;
                         total = subTotal + subTotal * (isvProducto / 100);
                     }
 
@@ -1109,7 +1116,7 @@
                     }).format(isv)
 
 
-                    idRestaInventario.value = valorInputCantidad * valorSelectUnidad;               
+                    idRestaInventario.value = valorInputCantidad * valorSelectUnidad;
                     this.totalesGenerales();
 
 

@@ -739,7 +739,7 @@ class FacturacionEstatal extends Component
         $facturasVencidas = DB::SELECT(
             "
             select
-            id
+            fa.id
             from factura fa
             inner join aplicacion_pagos ap on ap.factura_id = fa.id
             where
