@@ -618,10 +618,10 @@
                 }
 
                 // Obtener el elemento del interruptor y agregar el evento de cambio
-                document.getElementById('mySwitch').addEventListener('change', handleSwitchChange);
+               // document.getElementById('mySwitch').addEventListener('change', handleSwitchChange);
 
                 // Ejecutar la función inicial basada en el estado actual del interruptor
-                handleSwitchChange({ target: document.getElementById('mySwitch') });
+              //  handleSwitchChange({ target: document.getElementById('mySwitch') });
             /*****************************************/
 
             var numeroInputs = 0;
