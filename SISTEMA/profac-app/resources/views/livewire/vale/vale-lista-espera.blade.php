@@ -115,7 +115,7 @@
                             <label for="porDescuento" class="col-form-label focus-label">Descuento aplicado %
                                 <span class="text-danger">*</span></label>
 
-                                <input class="form-control" type="number" value="{{ $datosFactura->porc_descuento }}" min="0" max="15" minlength="1" maxlength="2" id="porDescuento" name="porDescuento" data-parsley-required readonly>                           
+                                <input class="form-control" type="number" value="{{ $datosFactura->porc_descuento }}" min="0" max="25" minlength="1" maxlength="2" id="porDescuento" name="porDescuento" data-parsley-required readonly>                           
 
 
 

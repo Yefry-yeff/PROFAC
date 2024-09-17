@@ -155,7 +155,7 @@
                                         <label for="fecha_emision" class="col-form-label focus-label">Descuento aplicado
                                             %
                                             :<span class="text-danger">*</span></label>
-                                        <input class="form-control" type="number" min="0" max="15"
+                                        <input class="form-control" type="number" min="0" max="25"
                                             value="{{ $cotizacion->porc_descuento }}" minlength="1" maxlength="2"
                                             id="porDescuento" name="porDescuento" data-parsley-required
                                             onchange="calcularTotalesInicioPagina()">

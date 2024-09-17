@@ -222,7 +222,7 @@
                                             aplicado %
                                             :<span class="text-danger">*</span></label>
 
-                                        <input class="form-control" type="number" min="0" max="15"
+                                        <input class="form-control" type="number" min="0" max="25"
                                             value="0" id="porDescuento" name="porDescuento"
                                             onchange="calcularTotalesInicioPagina()" data-parsley-required>
 
