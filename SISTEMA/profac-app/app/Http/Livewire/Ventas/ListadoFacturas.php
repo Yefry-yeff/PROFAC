@@ -146,20 +146,19 @@ class ListadoFacturas extends Component
             ->addColumn('estado_cobro', function ($listaFacturas) {
 
 
+
+
                 $revision = DB::SELECTONE("
-                    select count(*) as valida
+                    SELECT IF(COUNT(*), aplicacion_pagos.saldo, -1) AS 'cerrado'
                     from aplicacion_pagos
-                    where aplicacion_pagos.estado = 1
-                    and aplicacion_pagos.estado_cerrado = 2
-                    and aplicacion_pagos.factura_id =
+                    where aplicacion_pagos.estado = 1 and aplicacion_pagos.factura_id =
                     ".$listaFacturas->id);
 
 
-                    if(  $revision->valida == 1){
+                    if( $revision->cerrado == 0){
 
                         return
                         '
-
                         <p class="text-center" ><span class="badge badge-primary p-2" style="font-size:0.75rem">Cerrada</span></p>
                         ';
 
@@ -169,24 +168,6 @@ class ListadoFacturas extends Component
                         <p class="text-center"><span class="badge badge-danger p-2" style="font-size:0.75rem">Pendiente</span></p>
                         ';
                     }
-
-                 /*  if( round($listaFacturas->monto_pagado,2) >= str_replace(",","",$listaFacturas->total) ){
-
-                    return
-                    '
-
-                    <p class="text-center" ><span class="badge badge-primary p-2" style="font-size:0.75rem">Cerrada</span></p>
-                    ';
-
-                }else{
-                    return
-                    '
-                    <p class="text-center"><span class="badge badge-danger p-2" style="font-size:0.75rem">Pendiente</span></p>
-                    ';
-                } */
-
-
-
            })
             ->rawColumns(['opciones','estado_cobro'])
             ->make(true);

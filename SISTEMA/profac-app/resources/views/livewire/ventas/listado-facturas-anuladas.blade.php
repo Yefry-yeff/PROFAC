@@ -125,6 +125,15 @@
                 responsive: true,
 
 
+                dom: '<"html5buttons"B>lTfgitp',
+                buttons: [
+
+                    {
+                        extend: 'excel',
+                        title: 'Facuras_anuladas',
+                        className:'btn btn-success'
+                    }
+                ],
                 "ajax": "/ventas/anulado/listado",
                 "ajax":{
                     'url':"/ventas/anulado/listado",

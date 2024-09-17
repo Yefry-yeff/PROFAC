@@ -4,20 +4,40 @@
 
     <div class="row wrapper border-bottom white-bg page-heading">
         <div class="col-lg-8 col-xl-10 col-md-8 col-sm-8">
-            <h2>Cuentas Por Cobrar</h2>
+            <h2>Listado De Cotizaciones Expor Ventas</h2>
             <ol class="breadcrumb">
-                <li class="breadcrumb-item active">
-                    <a>Cuentas Por Cobrar</a>
-                </li>
+
+                @switch(  $idTipoVenta )
+                @case(1)
+                    <li class="breadcrumb-item active">
+                        <a>Coorporativo</a>
+                    </li>
+                    @break
+                @case(2)
+                    <li class="breadcrumb-item active">
+                        <a>Gobierno</a>
+                    </li>
+                    @break
+                @case(3)
+                    <li class="breadcrumb-item active">
+                        <a>Exonerado</a>
+                    </li>
+                    @break
+                    @case(4)
+                    <li class="breadcrumb-item active">
+                        <a>Expo</a>
+                    </li>
+                    @break
+                @endswitch
+
+
 
                 <li class="breadcrumb-item">
-                    <a>Detalle de factura</a>
+                    <a>Imprimir Cotización</a>
                 </li>
                 <li class="breadcrumb-item">
-                    <a>Registro de Pagos</a>
+                    <a>Imprimir Factura</a>
                 </li>
-
-
             </ol>
         </div>
     </div>
@@ -27,23 +47,21 @@
             <div class="col-lg-12">
                 <div class="ibox ">
                     <div class="ibox-content">
+
                         <div class="table-responsive">
-                            <table id="tbl_listar_compras" class="table table-striped table-bordered table-hover">
+                            <table id="tbl_listar_cotizaciones" class="table table-striped table-bordered table-hover">
                                 <thead class="">
                                     <tr>
-                                        <th>N°</th>
-                                        <th>N° Factura</th>
-                                        <th>Correlativo</th>
-                                        <th>Fecha de Emision</th>
+                                        <th>Codigo</th>
                                         <th>Cliente</th>
-                                        <th>Tipo de Pago</th>
-                                        <th>Fecha de Vencimiento</th>
-                                        <th>Sub Total Lps.</th>
-                                        <th>ISV en Lps.</th>
-                                        <th>Total en Lps.</th>
-                                        <th>Esto de Cobro</th>
-                                        <th>Vendedor</th>
+                                        <th>RTN</th>
+                                        <th>Sub Total</th>
+                                        <th>ISV</th>
+                                        <th>Total</th>
+                                        <th>Registrado por:</th>
+                                        <th>Fecha de registro:</th>
                                         <th>Opciones</th>
+
 
                                     </tr>
                                 </thead>
@@ -61,9 +79,12 @@
 
     @push('scripts')
         <script>
+              //var varToken = {{ csrf_token() }};
+              var idTipoVenta = {{$idTipoVenta}};
+
             $(document).ready(function() {
-            $('#tbl_listar_compras').DataTable({
-                "order": [0, 'desc'],
+            $('#tbl_listar_cotizaciones').DataTable({
+                "order": [7, 'desc'],
                 "language": {
                     "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
                 },
@@ -72,39 +93,26 @@
                 responsive: true,
 
 
+                "ajax":{
+                    'url':"/cotizacion/obtener/listado/expo",
+                    'data' : {'id' : idTipoVenta },
+                    'type' : 'post',
+                    'headers': {
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                                }
 
-                dom: '<"html5buttons"B>lTfgitp',
-                buttons: [
 
-                    {
-                        extend: 'excel',
-                        title: 'Facuras',
-                        className:'btn btn-success'
-                    }
-                ],
-                "ajax": "/cuentas/cobrar/lista",
+                     },
                 "columns": [
-                    {
-                        data:'contador',
-                    },
-                    {
-                        data: 'numero_factura'
-                    },
-                    {
-                        data: 'correlativo'
-                    },
 
                     {
-                        data: 'fecha_emision'
+                        data: 'codigo'
                     },
                     {
-                        data: 'nombre'
+                        data: 'nombre_cliente'
                     },
                     {
-                        data: 'descripcion'
-                    },
-                    {
-                        data: 'fecha_vencimiento'
+                        data: 'RTN'
                     },
                     {
                         data: 'sub_total'
@@ -116,15 +124,16 @@
                         data: 'total'
                     },
                     {
-                        data: 'estado_cobro'
+                        data: 'name'
                     },
                     {
-                        data: 'creado_por'
+                        data: 'created_at'
                     },
-
                     {
                         data: 'opciones'
-                    }
+                    },
+
+
 
                 ]
 
@@ -136,37 +145,25 @@
 
             Swal.fire({
             title: '¿Está seguro de anular esta factura?',
-
-
-  // --------------^-- define html element with id
-            html: '<p>Una vez que ha sido anulada la factura el producto registrado en la misma sera devuelto al inventario.</p> <textarea rows="4" placeholder="Es obligatorio describir el motivo." required id="comentario"     class="form-group form-control" data-parsley-required></textarea>',
+            text:'Una vez que ha sido anulada la factura el producto registrado en la misma sera devuelto al inventario.',
             showDenyButton: false,
-            showCancelButton: false,
-            showDenyButton:true,
-            confirmButtonText: 'Si, Anular Factura',
-            denyButtonText: `Cancelar`,
-            confirmButtonColor:'#19A689',
-            denyButtonColor:'#676A6C',
+            showCancelButton: true,
+            confirmButtonText: 'Si, Anular Compra',
+            cancelButtonText: `Cancelar`,
             }).then((result) => {
+            /* Read more about isConfirmed, isDenied below */
+            if (result.isConfirmed) {
 
-                let motivo = document.getElementById("comentario").value
+                //Swal.fire('Saved!', '', 'success')
+                anularVenta(idFactura);
 
-            if (result.isConfirmed && motivo ) {
-
-
-                anularVenta(idFactura,motivo);
-
-            }else if(result.isDenied){
-                Swal.close()
-            }else{
-                Swal.close()
             }
             })
         }
 
-        function anularVenta(idFactura,motivo){
+        function anularVenta(idFactura){
 
-            axios.post("/factura/corporativo/anular", {'idFactura':idFactura,'motivo':motivo})
+            axios.post("/factura/corporativo/anular", {idFactura:idFactura})
             .then( response =>{
 
 

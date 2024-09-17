@@ -104,20 +104,21 @@ class LitsadoFacturasEstatalVendedor extends Component
                     </div>';
                 }
             })
+
             ->addColumn('estado_cobro', function ($listaFacturas) {
-                /* if($listaFacturas->estado_venta_id==2){
+
+                $revision = DB::SELECTONE("
+                SELECT IF(COUNT(*), aplicacion_pagos.saldo, -1) AS 'cerrado'
+                from aplicacion_pagos
+                where aplicacion_pagos.estado = 1 and aplicacion_pagos.factura_id =
+                ".$listaFacturas->id);
+
+
+                if( $revision->cerrado == 0){
 
                     return
                     '
-                    <p class="text-center"><span class="badge badge-danger p-2" style="font-size:0.75rem">Anulado</span></p>
-                    ';
-
-                }elseif(round($listaFacturas->monto_pagado,2) >= str_replace(",","",$listaFacturas->total)){
-
-                    return
-                    '
-
-                    <p class="text-center" ><span class="badge badge-primary p-2" style="font-size:0.75rem">Completo</span></p>
+                    <p class="text-center" ><span class="badge badge-primary p-2" style="font-size:0.75rem">Cerrada</span></p>
                     ';
 
                 }else{
@@ -125,32 +126,7 @@ class LitsadoFacturasEstatalVendedor extends Component
                     '
                     <p class="text-center"><span class="badge badge-danger p-2" style="font-size:0.75rem">Pendiente</span></p>
                     ';
-                } */
-
-                $revision = DB::SELECTONE("
-                    select count(*) as valida
-                    from aplicacion_pagos
-                    where aplicacion_pagos.estado = 1
-                    and aplicacion_pagos.estado_cerrado = 2
-                    and aplicacion_pagos.factura_id =
-                    ".$listaFacturas->id);
-
-
-                    if(  $revision->valida == 1){
-
-                        return
-                        '
-
-                        <p class="text-center" ><span class="badge badge-primary p-2" style="font-size:0.75rem">Cerrada</span></p>
-                        ';
-
-                    }else{
-                        return
-                        '
-                        <p class="text-center"><span class="badge badge-danger p-2" style="font-size:0.75rem">Pendiente</span></p>
-                        ';
-                    }
-
+                }
            })
             ->rawColumns(['opciones','estado_cobro'])
             ->make(true);
