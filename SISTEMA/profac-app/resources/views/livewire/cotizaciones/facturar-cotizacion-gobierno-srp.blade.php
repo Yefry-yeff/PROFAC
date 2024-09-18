@@ -615,8 +615,8 @@
                 const mensajeError = document.getElementById('mensajeError');
                 const numero = parseFloat(numeroInput.value);
 
-                if (isNaN(numero) || numero < 0 || numero > 15) {
-                    mensajeError.textContent = 'Este campo solo admite un valor entre 0 a 15';
+                if (isNaN(numero) || numero < 0 || numero > 25) {
+                    mensajeError.textContent = 'Este campo solo admite un valor entre 0 a 25';
                     numeroInput.value = '';
                 } else {
                     mensajeError.textContent = '';

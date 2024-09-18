@@ -207,7 +207,7 @@
 
                                         <label for="porDescuento" class="col-form-label focus-label">Descuento aplicado %
                                             :<span class="text-danger">*</span></label>
-                                        <input class="form-control" oninput="validarDescuento()" onchange="calcularTotalesInicioPagina()" type="number" min="0" max="15" value="0" minlength="1" maxlength="2" id="porDescuento" name="porDescuento"  >
+                                        <input class="form-control" oninput="validarDescuento()" onchange="calcularTotalesInicioPagina()" type="number" min="0" max="25" value="0" minlength="1" maxlength="2" id="porDescuento" name="porDescuento"  >
                                         <p id="mensajeError" style="color: red;"></p>
 
 
@@ -615,14 +615,14 @@
             var public_path = "{{ asset('catalogo/') }}";
             var diasCredito = 0;
 
-            //validando que no escriban un numero que no este entre 0 y 15
+            //validando que no escriban un numero que no este entre 0 y 25
             function validarDescuento(){
                 const numeroInput = document.getElementById('porDescuento');
                 const mensajeError = document.getElementById('mensajeError');
                 const numero = parseFloat(numeroInput.value);
 
-                if (isNaN(numero) || numero < 0 || numero > 15) {
-                    mensajeError.textContent = 'Este campo solo admite un valor entre 0 a 15';
+                if (isNaN(numero) || numero < 0 || numero > 25) {
+                    mensajeError.textContent = 'Este campo solo admite un valor entre 0 a 25';
                     numeroInput.value = '';
                 } else {
                     mensajeError.textContent = '';
