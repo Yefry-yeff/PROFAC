@@ -618,10 +618,10 @@
                 }
 
                 // Obtener el elemento del interruptor y agregar el evento de cambio
-                document.getElementById('mySwitch').addEventListener('change', handleSwitchChange);
+               // document.getElementById('mySwitch').addEventListener('change', handleSwitchChange);
 
                 // Ejecutar la función inicial basada en el estado actual del interruptor
-                handleSwitchChange({ target: document.getElementById('mySwitch') });
+              //  handleSwitchChange({ target: document.getElementById('mySwitch') });
             /*****************************************/
 
             var numeroInputs = 0;
@@ -632,7 +632,7 @@
             var public_path = "{{ asset('catalogo/') }}";
             var diasCredito = 0;
 
-            //validando que no escriban un numero que no este entre 0 y 15
+            //validando que no escriban un numero que no este entre 0 y 25
             function validarDescuento(){
                 const numeroInput = document.getElementById('porDescuento');
                 const mensajeError = document.getElementById('mensajeError');
