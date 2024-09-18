@@ -632,7 +632,7 @@
             var public_path = "{{ asset('catalogo/') }}";
             var diasCredito = 0;
 
-            //validando que no escriban un numero que no este entre 0 y 15
+            //validando que no escriban un numero que no este entre 0 y 25
             function validarDescuento(){
                 const numeroInput = document.getElementById('porDescuento');
                 const mensajeError = document.getElementById('mensajeError');
