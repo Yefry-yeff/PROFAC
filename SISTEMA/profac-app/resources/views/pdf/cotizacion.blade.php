@@ -228,7 +228,7 @@
                     <p class="card-text" style="position:absolute; left:200px;  top:65px; font-size:16px;">1200.00</p> --}}
 
                     <p class="card-text" style="position:absolute; left:10px;  top:85px; font-size:14px;">Desc. y
-                        Rebajas {{ $importes->porc_descuento }}%: {{ $importesConCentavos->monto_descuento }}
+                        Rebajas {{ $importes->porc_descuento }}%:
                     </p>
                     <p class="card-text" style="position:absolute; right:10px;  top:85px; font-size:14px;">L. {{ $importesConCentavos->monto_descuento }}</p>
 
