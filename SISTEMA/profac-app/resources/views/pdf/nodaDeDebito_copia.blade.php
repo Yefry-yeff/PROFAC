@@ -56,7 +56,7 @@
 
 
     </style>
-    <title>Comprobante de Entrega</title>
+    <title>Nota de débito</title>
 </head>
 
 <body>
