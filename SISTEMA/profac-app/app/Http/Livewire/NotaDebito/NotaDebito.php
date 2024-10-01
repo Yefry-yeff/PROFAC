@@ -472,7 +472,18 @@ class NotaDebito extends Component
             where tipo_documento_fiscal_id = 4 and estado_id = 1 and id = ".$notaDebito->cai_ndebito);
 
 
-            $cliente = DB::SELECTONE("select nombre_cliente, cai, estado_factura_id, numero_factura   from factura where id = ".$idFactura);
+            $cliente = DB::SELECTONE("select
+                nombre_cliente,
+                cai,
+                estado_factura_id,
+                numero_factura  ,
+                cliente.direccion,
+                cliente.telefono_empresa,
+                cliente.rtn,
+                cliente.correo
+                from factura
+                join cliente on cliente.id = factura.cliente_id
+                where factura.id =".$idFactura);
 
             $formatter = new NumeroALetras();
             $formatter->apocope = true;
@@ -513,8 +524,18 @@ class NotaDebito extends Component
         where tipo_documento_fiscal_id = 4 and estado_id = 1 and id = ".$notaDebito->cai_ndebito);
 
 
-        $cliente = DB::SELECTONE("select nombre_cliente, cai, estado_factura_id, numero_factura   from factura where id = ".$idFactura);
-
+        $cliente = DB::SELECTONE("select
+        nombre_cliente,
+        cai,
+        estado_factura_id,
+        numero_factura  ,
+        cliente.direccion,
+        cliente.telefono_empresa,
+        cliente.rtn,
+        cliente.correo
+        from factura
+        join cliente on cliente.id = factura.cliente_id
+        where factura.id =".$idFactura);
         $formatter = new NumeroALetras();
         $formatter->apocope = true;
         $numeroLetras = $formatter->toMoney($notaDebito->monto_asignado, 2, 'LEMPIRAS', 'CENTAVOS');

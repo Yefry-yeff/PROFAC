@@ -67,61 +67,83 @@
     $contadorFilas = 0;
 @endphp
 
-        @if($cliente->estado_factura_id==1)
+       {{--   @if($cliente->estado_factura_id==1)
         <span style = "font-size: 10px; position:absolute;left:500px;  top:105px;">Documento: N{{$cliente->numero_factura}}-CF11</span></p>
         @else
         <span style = "font-size: 10px; position:absolute;left:500px;  top:105px;">Documento: N{{$cliente->numero_factura}}-CF12</span></p>
-        @endif
+        @endif  --}}
     <div class="pruebaFondo">
         <img src="img/membrete/Logo3.png" width="800rem"
         style="margin-left:3%; margin-top:25px; position:absolute;"
          alt="">
 
-        <b style="position:absolute;right: 100px; top:50px;" >*copia*</b>
+        <b style="position:absolute;right: 60px; top:80px; font-size: 14px; " >COPIA</b>
         <br><br><br>
 
         <br><br>
-        <div class="card border border-dark" style="margin-left:44px;  margin-top:150px; width:45rem; height:7rem;">
-            <b style="margin-left:160px; ">NOTA DE DÉBITO No. {{$notaDebito->numeroCai}}</b>
+        <div class="card border border-dark" style="margin-left:44px;  margin-top:30px; width:45rem;">
+
+            <div >
+                <table  class="" style="font-size: 12px;">
+                    <thead>
+                        <tr>
+                          <th>Nota de débito No. {{$notaDebito->numeroCai}}</th>
+                          <th style=" text-align: right; ">Factura No. {{ $cliente->cai }} </th>
+                        </tr>
+                    </thead>
+                        <tr>
+                            <td>Registro tributario:
+                                08011986138652 </td>
+                            <td>CAI: {{$cai->cai}}</td>
+                        </tr>
+                        <tr>
+                            <td>Fecha límite de emisión: {{$cai->fecha_limite_emision}}</td>
+                            <td>Rango autorizado: {{$cai->numero_inicial}} - {{$cai->numero_final}}</td>
+                        </tr>
+                </table>
+            </div>
 
 
-                    <p class="card-text" style="position:absolute;left:20px;  top:30px;"><b>Registro tributario:
-                            08011986138652</b></p>
-                    <p class="card-text" style="position:absolute;left:420px;  top:30px;"><b>CAI: {{$cai->cai}}
-                            </b></p>
-                    <p class="card-text" style="position:absolute;left:20px;  top:45px;"><b>Fecha límite de emisión: {{$cai->fecha_limite_emision}} </b></p>
-                    <p class="card-text" style="position:absolute;left:340px;  top:45px;"><b>Rango autorizado: {{$cai->numero_inicial}} - {{$cai->numero_final}}</b></p>
+        </div>
+
+        <div class="card border border-dark" style="margin-left:44px;  margin-top:10px; width:45rem; height:5rem;">
 
             <div class="card-body">
-                <p class="card-text" style="position:absolute;left:20px;  top:73px;"><b>Cliente: {{ $cliente->nombre_cliente }} </b></p>
+                <p class="card-text" style="position:absolute;left:20px;  top:0px;"><b>Cliente: {{ $cliente->nombre_cliente }} </b></p>
+                <p class="card-text" style="position:absolute;left:20px;  top:20px;"><b>Dirección: {{ $cliente->direccion }} </b></p>
 
-                <p class="card-text" style="position:absolute;left:20px;  top:87px;"><b>Fecha Emisión: {{$notaDebito->fechaEmision}} </b></p>
+                <p class="card-text" style="position:absolute;left:550px;  top:0px;"><b>Fecha: {{$notaDebito->fechaEmision}} </b></p>
+
+                <p class="card-text" style="position:absolute;left:550px;  top:20px;"><b>RTN: {{$cliente->rtn}} </b></p>
+
+
+
+                <p class="card-text" style="position:absolute;left:20px;  top:60px;"><b>Correo: {{$cliente->correo}} </b></p>
+                <p class="card-text" style="position:absolute;left:550px;  top:60px;"><b>Teléfono: {{$cliente->telefono_empresa}} </b></p>
 
             </div>
         </div>
 
+
         <br>
         <br><br>
 
-        <div class="card border border-dark" style="position: relative; margin-left:44px; margin-top:10px; width:45rem;">
+        <div class="card border border-dark" style="position: relative; margin-left:44px; margin-top:-20px; width:45rem;">
             <div >
                 <table  class="" style="font-size: 11px;">
                     <thead>
                         <tr>
-                          <th>DESCRIPCIÓN</th>
-                          <th>VALOR</th>
-                          <th>TOTAL</th>
+                          <th>Producto</th>
+                          <th>Cantidad</th>
+                          <th>Valor unitario</th>
+                          <th>Total</th>
                         </tr>
                     </thead>
                         <tr>
-                            <td>POR FACTURA NO. {{ $cliente->cai }} </td>
-                            <td></td>
-                            <td></td>
-                        </tr>
-                        <tr>
                             <td>{{ $notaDebito->motivoDescripcion }}</td>
+                            <td>1</td>
                             <td>L. {{ $montoConCentavos->total }}</td>
-                            <td></td>
+                            <td>L. {{ $montoConCentavos->total }}</td>
                         </tr>
                         {{-- <tr>
                             <td>RECARGO APLICADO</td>
@@ -135,7 +157,15 @@
             </div>
         </div>
 
-        <p class="card-text" style="position:absolute;left:20px;  top:530px;"><b>TOTAL EN LETRAS: {{ $numeroLetras }} </b></p>
+
+        <p class="card-text" style="position:absolute;left:430px;  top:380px;">Sub Total:</p>
+        <p class="card-text" style="position:absolute;left:620px;  top:380px;">L. {{ $montoConCentavos->total }}</p>
+        <p class="card-text" style="position:absolute;left:430px;  top:395px;">Impuesto sobre la venta 15%:</p>
+        <p class="card-text" style="position:absolute;left:620px;  top:395px;">L. 0.00</p>
+        <p class="card-text" style="position:absolute;left:430px;  top:420px;"><b>Total:</b></p>
+        <p class="card-text" style="position:absolute;left:620px;  top:420px;">L. {{ $montoConCentavos->total }}</b></p>
+
+        <p class="card-text" style="position:absolute;left:20px;  top:530px;">VALOR EN LETRAS: {{ $numeroLetras }} EXACTOS</p>
 
         <div style=" position: relative; margin-left:44px;">
 
@@ -152,6 +182,8 @@
 
         </div>
 
+        <p class="card-text" style="position:absolute;left:30px;  top:800px;">ORIGINAL: EMISOR</p>
+        <p class="card-text" style="position:absolute;left:30px;  top:815px;">COPIA: CLIENTE</p>
         @if($notaDebito->estado_id==2)
         <div>
             <p class="" style="position:absolute; margin-top:{{$altura2 + 85}}px;  left:140px;   font-size:30px;">--Nota de Débito Anulada--</p>
