@@ -755,9 +755,9 @@ class CrearVale extends Component
             A.producto_id,
             B.nombre,
             D.nombre as unidad,
-            A.cantidad_para_entregar as cantidad,
-            sum(A.sub_total/A.cantidad_para_entregar) as precio,
-            sum(A.sub_total) sub_total
+            FORMAT(A.cantidad_para_entregar,0) as cantidad,
+            FORMAT(sum(A.sub_total/A.cantidad_para_entregar),2) as precio,
+            FORMAT(sum(A.sub_total),2) sub_total
         from vale_has_producto A
             inner join producto B
             on A.producto_id = B.id
@@ -771,11 +771,11 @@ class CrearVale extends Component
 
         $importes = DB::SELECTONE("
         select
-        sub_total_grabado as sub_total_grabado,
-        sub_total_excento as sub_total_excento,
-        sub_total as sub_total,
-        isv as isv,
-        total as total
+        FORMAT(sub_total_grabado,2) as sub_total_grabado,
+        FORMAT(sub_total_excento,2) as sub_total_excento,
+        FORMAT(sub_total,2) as sub_total,
+        FORMAT(isv,2) as isv,
+        FORMAT(total,2) as total
         from vale
         where id =".$idEntrega
     );
