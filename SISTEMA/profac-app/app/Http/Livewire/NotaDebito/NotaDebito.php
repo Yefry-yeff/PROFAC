@@ -65,7 +65,7 @@ class NotaDebito extends Component
             on factura.vendedor = users.id
 
             cross join (select @i := 0) r
-            where factura.fecha_emision > DATE_SUB(CURDATE(), INTERVAL 3 MONTH)
+            where factura.fecha_emision > DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
             order by factura.created_at desc
             ");
 
