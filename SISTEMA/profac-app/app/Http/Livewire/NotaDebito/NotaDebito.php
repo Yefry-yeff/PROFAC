@@ -65,7 +65,7 @@ class NotaDebito extends Component
             on factura.vendedor = users.id
 
             cross join (select @i := 0) r
-            where factura.fecha_emision > DATE_SUB(CURDATE(), INTERVAL 3 MONTH)
+            where factura.fecha_emision > DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
             order by factura.created_at desc
             ");
 
@@ -245,7 +245,6 @@ class NotaDebito extends Component
 
        try {
         $estadoCuenta = DB::selectone('select estado_cerrado from aplicacion_pagos where estado = 1 and factura_id = '.$request->factura_id);
-        // dd($saldoActual->saldo);
         if($estadoCuenta != null){
             if($estadoCuenta->estado_cerrado == 2){
                 return response()->json([
@@ -296,10 +295,13 @@ class NotaDebito extends Component
                              where tipo_documento_fiscal_id = 4 and estado_id = 1");
          }
 
-         $limite = explode('-',$cai->numero_final);
-         $limite = ltrim($limite[3],"0");
+         //dd($cai->numero_final);
+        $limite = explode('-',$cai->numero_final);
 
-        if($cai->numero_actual >  $limite ){
+         $limite2 = preg_replace('/^0+/', '', $limite[0]);
+
+         $num_1 = intval($limite2);
+         if($cai->numero_actual > $num_1){
 
             return response()->json([
                 "title" => "Advertencia",
@@ -308,14 +310,22 @@ class NotaDebito extends Component
             ], 401);
 
         }
+
+        //dd($num_1);
+
         $numeroSecuencia = $cai->numero_actual;
-        $arrayCai = explode('-',$cai->numero_final);
+
+        $arrayCai = explode('-',$cai->numero_inicial);
         $cuartoSegmentoCAI = sprintf("%'.08d", $numeroSecuencia);
+
+       // dd($arrayCai[1]);
         $numeroCAI = $arrayCai[0].'-'.$arrayCai[1].'-'.$arrayCai[2].'-'.$cuartoSegmentoCAI;
+
         $fechaActual = date('Y');
         $correlativo = $fechaActual.'-'.$numeroSecuencia;
 
         /* GUARDANDO LO DE LA NOTA DE DÉBITO */
+
 
         $validarCAI = new Notificaciones();
         $validarCAI->validarAlertaCAI(ltrim($arrayCai[3],"0"),$numeroSecuencia, 5);
