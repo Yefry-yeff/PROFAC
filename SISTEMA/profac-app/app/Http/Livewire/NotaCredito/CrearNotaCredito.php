@@ -230,7 +230,7 @@ class CrearNotaCredito extends Component
                         "text"=>"Esta factura esta cerrada, no se puede crear nota.",
                         "title"=>"Advertencia!"
 
-                    ],400);
+                    ],402);
 
                 }
 
@@ -335,33 +335,29 @@ class CrearNotaCredito extends Component
         }
 
 
-        $limite = explode('-',$cai->numero_final);
 
-       // dd($limite[0]);
-        $limite2 = preg_replace('/^0+/', '', $limite[0]);
-        $num_1 = intval($limite2);
-        if($cai->numero_actual > $num_1){
+        if ($cai->numero_actual < $cai->cantidad_otorgada) {
 
             return response()->json([
                 "title" => "Advertencia",
                 "icon" => "warning",
-                "text" => "La nota de credito no puede proceder, debido que ha alcanzadado el número maximo  de CAI otorgado.",
-            ], 200);
-
+                "text" => "La Nota de débito no puede proceder por alcanzar límite de número CAI.",
+            ], 400);
         }
+
 
 
 
         DB::beginTransaction();
            //SE CREA LA NOTA DE CREDITO
 
-        $numeroSecuencia = $cai->numero_actual;
 
-        $arrayCai = explode('-',$cai->numero_inicial);
-        $cuartoSegmentoCAI = sprintf("%'.08d", $numeroSecuencia);
 
-       // dd($arrayCai[1]);
-        $numeroCAI = $arrayCai[0].'-'.$arrayCai[1].'-'.$arrayCai[2].'-'.$cuartoSegmentoCAI;
+           $numeroSecuencia = $cai->numero_actual;
+           $arrayCai = explode('-', $cai->numero_final);
+           $cuartoSegmentoCAI = sprintf("%'.08d", $numeroSecuencia);
+           $numeroCAI = $arrayCai[0] . '-' . $arrayCai[1] . '-' . $arrayCai[2] . '-' . $cuartoSegmentoCAI;
+
 
 
 

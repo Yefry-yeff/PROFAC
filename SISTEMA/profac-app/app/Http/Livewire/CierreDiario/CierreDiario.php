@@ -170,8 +170,7 @@ class CierreDiario extends Component
                     inner join estado_venta B on A.estado_venta_id = B.id
                     inner join tipo_pago_venta C on A.tipo_pago_id = C.id
                 where
-                    B.id = 1
-                    and A.estado_venta_id = 2
+                    B.id = 2
                     and DATE(A.created_at) = DATE_FORMAT('".$fecha."', '%Y-%m-%d');
                 ");
 

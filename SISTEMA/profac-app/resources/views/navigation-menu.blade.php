@@ -471,7 +471,7 @@
                         <ul class="nav nav-second-level">
                             <li><a href="/cierre/caja" style="color:#ffffff;">Detalle de cierre</a></li>
                             <li><a href="/cierre/historico" style="color:#ffffff;">Historico de cierre</a></li>
-                            <li><a href="/ventas/anulado/corporativo" style="color:#ffffff;">Listado de Facturas Anuladas</a></li>
+                            <li><a href="/ventas/anulado/estatal" style="color:#ffffff;">Listado de Facturas Anuladas</a></li>
                         </ul>
                     </li>
                     <li>

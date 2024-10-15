@@ -252,7 +252,7 @@ class NotaDebito extends Component
                     "text"=>"Esta factura esta cerrada, no se puede crear nota.",
                     "title"=>"Advertencia!"
 
-                ],400);
+                ],402);
 
             }
 
@@ -295,31 +295,27 @@ class NotaDebito extends Component
                              where tipo_documento_fiscal_id = 4 and estado_id = 1");
          }
 
-         //dd($cai->numero_final);
-        $limite = explode('-',$cai->numero_final);
-
-         $limite2 = preg_replace('/^0+/', '', $limite[0]);
-
-         $num_1 = intval($limite2);
-         if($cai->numero_actual > $num_1){
+         if ($cai->numero_actual < $cai->cantidad_otorgada) {
 
             return response()->json([
                 "title" => "Advertencia",
                 "icon" => "warning",
-                "text" => "La Nota de débito no puede proceder, debido que ha alcanzadado el número maximo de unidades CAI.",
-            ], 401);
-
+                "text" => "La Nota de débito no puede proceder por alcanzar límite de número CAI.",
+            ], 400);
         }
 
         //dd($num_1);
 
+
         $numeroSecuencia = $cai->numero_actual;
-
-        $arrayCai = explode('-',$cai->numero_inicial);
+        $arrayCai = explode('-', $cai->numero_final);
         $cuartoSegmentoCAI = sprintf("%'.08d", $numeroSecuencia);
+        $numeroCAI = $arrayCai[0] . '-' . $arrayCai[1] . '-' . $arrayCai[2] . '-' . $cuartoSegmentoCAI;
 
-       // dd($arrayCai[1]);
-        $numeroCAI = $arrayCai[0].'-'.$arrayCai[1].'-'.$arrayCai[2].'-'.$cuartoSegmentoCAI;
+
+
+        //dd($numeroCAI);
+       // $numeroCAI = $arrayCai[0].'-'.$arrayCai[1].'-'.$arrayCai[2].'-'.$cuartoSegmentoCAI;
 
         $fechaActual = date('Y');
         $correlativo = $fechaActual.'-'.$numeroSecuencia;
