@@ -636,7 +636,7 @@ class Pagos extends Component
                             @estado, @msjResultado);");
 
 
-                        if ($request->selecttipoMovimiento=1) {
+                        if ($request->selecttipoMovimiento=2) {
 
 
                             $cliente = DB::SELECTONE("select cliente_id from factura where id=".$request->idFacturaom);

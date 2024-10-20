@@ -30,7 +30,7 @@ class CrearNotaCredito extends Component
 
     public function obtenerClientes(Request $request){
 
-        $clientes = DB::SELECT("select id, concat(id,'-',nombre) as text from cliente where id <> 1 and ((nombre like '%".$request->search."%') or (id like '%".$request->search."%')) limit 15");
+        $clientes = DB::SELECT("select id, concat(id,'-',nombre) as text from cliente where ((nombre like '%".$request->search."%') or (id like '%".$request->search."%')) limit 15");
 
         return response()->json([
             "results"=>$clientes,
