@@ -14,6 +14,7 @@ use PDF;
 
 use Illuminate\Support\Facades\File;
 
+use App\Models\ModelCliente;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\CuentasPorCobrarExport;
 use App\Exports\CuentasPorCobrarInteresExport;
@@ -619,6 +620,8 @@ class Pagos extends Component
                             $otrosMovimientos->tipo_movimiento = $request->selecttipoMovimiento;
                         $otrosMovimientos->save();
 
+
+
                         $cuentas2 = DB::select("
 
                         CALL sp_aplicacion_pagos(
@@ -632,6 +635,21 @@ class Pagos extends Component
                             '".$request->montoTM."',
                             @estado, @msjResultado);");
 
+
+                        if ($request->selecttipoMovimiento=1) {
+
+
+                            $cliente = DB::SELECTONE("select cliente_id from factura where id=".$request->idFacturaom);
+                            $creditoCli = DB::SELECTONE("select credito from cliente where id=".$cliente->cliente_id);
+
+
+                            $homologoCredito = $creditoCli->credito + $request->montoAbono;
+
+                            $clienteCredito =  ModelCliente::find($cliente->cliente_id);
+                            $clienteCredito->credito = trim($homologoCredito);
+                            $clienteCredito->save();
+
+                        }
 
                         //dd($cuentas2[0]->estado);
 
@@ -748,6 +766,16 @@ class Pagos extends Component
 
 
                        //dd($cuentas2[0]->estado);
+
+                       $cliente = DB::SELECTONE("select cliente_id from factura where id=".$request->idFacturaAbono);
+                       $creditoCli = DB::SELECTONE("select credito from cliente where id=".$cliente->cliente_id);
+
+
+                       $homologoCredito = $creditoCli->credito + $request->montoAbono;
+
+                       $clienteCredito =  ModelCliente::find($cliente->cliente_id);
+                       $clienteCredito->credito = trim($homologoCredito);
+                       $clienteCredito->save();
 
                        if ($cuentas2[0]->estado == -1) {
                            return response()->json([
