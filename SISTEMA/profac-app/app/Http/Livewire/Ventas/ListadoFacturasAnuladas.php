@@ -32,12 +32,12 @@ class ListadoFacturasAnuladas extends Component
 
         switch ($tipoFactura) {
             case "corporativo":
-                $nombreTipo = 'Cliente Corporativo';
-                $idTipoVenta = 2;
+                $nombreTipo = 'Cliente B';
+                $idTipoVenta = 1;
                 break;
             case 'estatal':
-                $nombreTipo = 'Cliente Estatatal';
-                $idTipoVenta = 1;
+                $nombreTipo = 'Cliente A';
+                $idTipoVenta = 2;
                 break;
             case 'exonerado':
                 $nombreTipo = 'Cliente Exonerado';

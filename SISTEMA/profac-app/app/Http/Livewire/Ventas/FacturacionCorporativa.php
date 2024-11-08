@@ -516,7 +516,7 @@ class FacturacionCorporativa extends Component
                     return response()->json([
                         "title" => "Advertencia",
                         "icon" => "warning",
-                        "text" => "La factura no puede proceder, debido que ha alcanzadado el número maximo de facturacion otorgado 1.",
+                        "text" => "La factura no puede proceder, debido que ha alcanzadado el número maximo de facturacion otorgado.",
                     ], 200);
                 }
 
