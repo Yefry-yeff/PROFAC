@@ -313,7 +313,6 @@ class NotaDebito extends Component
         $numeroCAI = $arrayCai[0] . '-' . $arrayCai[1] . '-' . $arrayCai[2] . '-' . $cuartoSegmentoCAI;
 
 
-
         //dd($numeroCAI);
        // $numeroCAI = $arrayCai[0].'-'.$arrayCai[1].'-'.$arrayCai[2].'-'.$cuartoSegmentoCAI;
 

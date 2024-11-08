@@ -98,12 +98,12 @@
 
                                         <div class="col-md-12">
                                             <label for="montoNotaDebito_id" class="col-form-label focus-label">Código de Monto Activo de Débito:<span class="text-danger">*</span></label>
-                                            <input class="form-control" readonly required type="number" id="montoNotaDebito_id" name="montoNotaDebito_id" data-parsley-required>
+                                            <input class="form-control" readonly required  type="number" step="0.01" id="montoNotaDebito_id" name="montoNotaDebito_id" data-parsley-required>
                                         </div>
 
                                         <div class="col-md-12">
                                             <label for="Monto" class="col-form-label focus-label">Monto a Asignar:<span class="text-danger">*</span></label>
-                                            <input class="form-control" readonly required type="number" id="monto_" name="monto_" data-parsley-required>
+                                            <input class="form-control" readonly required type="number" step="0.01" id="monto_" name="monto_" data-parsley-required>
                                         </div>
 
                                         <div class="col-md-12">
