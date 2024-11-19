@@ -318,8 +318,7 @@ class CrearVale extends Component
                 $keyunidad = 'unidad' . $arrayInputs[$i];
                 $KeyIdLote = 'idLote' . $arrayInputs[$i];
 
-
-
+                //dd("Llego la basura");
                 $idSeccion = $request->$keyIdSeccion;
                 $idProducto = $request->$keyIdProducto;
                 $idUnidadVenta = $request->$keyIdUnidadVenta;

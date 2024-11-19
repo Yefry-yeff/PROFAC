@@ -233,7 +233,6 @@ class ValeListaEspera extends Component
             $numero_vale = $anio->anio . '-' .($idVale->id + 1) ;
         }
 
-
         $vale = new ModelVale;
         $vale->numero_vale = $numero_vale;
         $vale->sub_total = $request->subTotalGeneral;
@@ -256,17 +255,17 @@ class ValeListaEspera extends Component
         $factura->sub_total = $factura->sub_total + $request->subTotalGeneral;
         $factura->pendiente_cobro = 0;
         if($factura->tipo_pago_id == 2){
-            $factura->credito = ROUND(($factura->credito + $request->totalGeneralVP),2);
+            $factura->credito = ROUND(($factura->credito + $request->totalGeneral),2);
 
             $cliente = ModelCliente::find($factura->cliente_id);
-            $cliente->credito = ROUND($cliente->credito - $request->totalGeneralVP,2);
+            $cliente->credito = ROUND($cliente->credito - $request->totalGeneral,2);
 
             $cliente->save();
 
-
+            //dd("se supone que arregle el vergueo");
             $credito = new logCredito();
             $credito->descripcion = "Reducción de credito por vale agregado a factura.";
-            $credito->monto =  $request->totalGeneralVP;
+            $credito->monto =  $request->totalGeneral;
             $credito->users_id = Auth::user()->id;
             $credito->factura_id = $factura->id;
             $credito->cliente_id = $factura->cliente_id;
