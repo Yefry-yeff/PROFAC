@@ -110,6 +110,8 @@ class ValeListaEspera extends Component
         $arrayTemporal = $request->arregloIdInputsVP;
         $arrayInputs = explode(',', $arrayTemporal);
 
+        /*****SE COMENTA PORQUE EL VALE DEBE DEJAR PASAR LOS PRODUCTOS AUNQUE ESTEN EN FACTURA */
+        /*
         $flagProductoExiste = false;
         $mensaje ="El producto o productos:";
         for ($i = 0; $i < count($arrayInputs); $i++) {
@@ -132,9 +134,7 @@ class ValeListaEspera extends Component
                 $mensaje = $mensaje . " <br><b>Cod." .  $request->$keyIdProducto ." - ". $contadorProducto->nombre . ".</b>";
             }
 
-        }
-
-        if($flagProductoExiste){
+        }if($flagProductoExiste){
             $mensaje = $mensaje . "<br> Ya existe en factura, no se puede agregar a vale.";
             return response()->json([
                 'icon' => "warning",
@@ -142,7 +142,7 @@ class ValeListaEspera extends Component
                 'title' => 'Advertencia!',
                 'estadoBorrar' => 'true'
             ], 200);
-        }
+        }*/
 
      //    dd($request->all());
         DB::beginTransaction();
