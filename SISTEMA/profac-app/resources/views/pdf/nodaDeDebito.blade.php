@@ -110,7 +110,7 @@
 
             <div class="card-body">
                 <p class="card-text" style="position:absolute;left:20px;  top:0px;"><b>Cliente: {{ $cliente->nombre_cliente }} </b></p>
-                <p class="card-text" style="position:absolute;left:20px;  top:20px;"><b>Dirección: {{ $cliente->direccion }} </b></p>
+                <p class="card-text" style="position:absolute;left:20px;  top:20px;font-size: 11px; max-width:500px"><b>Dirección: {{ $cliente->direccion }} </b></p>
 
                 <p class="card-text" style="position:absolute;left:550px;  top:0px;"><b>Fecha: {{$notaDebito->fechaEmision}} </b></p>
 
