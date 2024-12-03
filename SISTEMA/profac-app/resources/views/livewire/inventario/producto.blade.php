@@ -142,7 +142,7 @@
                                         <th>Descripcion</th>
                                         <th>Cod. Barra</th>
                                         <th>ISV</th>
-                                        <th>Cateogria</th>                                       
+                                        <th>Cateogria</th>
                                         <th>Existencia</th>
                                         <th>Disponibilidad</th>
                                     </tr>
@@ -226,6 +226,32 @@
                                             <input class="form-group form-control" min="0" type="number" name="ultimo_costo_compra" id="ultimo_costo_compra"
                                                 data-parsley-required step="any">
                                         </div>
+
+                                        <div class="col-md-4">
+                                            <label for="precio1" class="col-form-label focus-label">Precio <b>A</b>:<span class="text-danger">*</span></label>
+                                            <input class="form-group form-control" min="0" type="number" name="precio1" id="precio1"
+                                                data-parsley-required step="any">
+                                        </div>
+
+                                        <div class="col-md-4">
+                                            <label for="precio2" class="col-form-label focus-label">Precio <b>B</b>:<span class="text-danger">*</span></label>
+                                            <input class="form-group form-control" min="0" type="number" name="precio2" id="precio2"
+                                                data-parsley-required step="any">
+                                        </div>
+
+                                        <div class="col-md-4">
+                                            <label for="precio3" class="col-form-label focus-label">Precio <b>C</b>:<span class="text-danger">*</span></label>
+                                            <input class="form-group form-control" min="0" type="number" name="precio3" id="precio3"
+                                                data-parsley-required step="any">
+                                        </div>
+
+
+                                        <div class="col-md-4">
+                                            <label for="precio4" class="col-form-label focus-label">Precio <b>D</b>:<span class="text-danger">*</span></label>
+                                            <input class="form-group form-control" min="0" type="number" name="precio4" id="precio4"
+                                                data-parsley-required step="any">
+                                        </div>
+
                                         {{-- <div class="col-md-4">
                                             <label class="col-form-label focus-label" for="precio2">Precio de venta 2:</label>
                                             <input class="form-group form-control" min="1" type="number" name="precio[]"

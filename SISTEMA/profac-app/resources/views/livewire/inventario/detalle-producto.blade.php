@@ -221,6 +221,16 @@
                             </strong> {{ $producto->precio_base }} Lps.</small></p>
 
 
+                        <p class="mt-2 mb-2 d-block"> <strong> <i class="fa-solid fa-caret-right"></i> Precio A:
+                        </strong> {{ $producto->precio1 }} Lps.</small></p>
+                        <p class="mt-2 mb-2 d-block"> <strong> <i class="fa-solid fa-caret-right"></i> Precio B:
+                            </strong> {{ $producto->precio2 }} Lps.</small></p>
+                            <p class="mt-2 mb-2 d-block"> <strong> <i class="fa-solid fa-caret-right"></i> Precio C:
+                                </strong> {{ $producto->precio3}} Lps.</small></p>
+                                <p class="mt-2 mb-2 d-block"> <strong> <i class="fa-solid fa-caret-right"></i> Precio D:
+                                    </strong> {{ $producto->precio4 }} Lps.</small></p>
+
+
 
 
 
@@ -418,6 +428,32 @@
                                     name="ultimo_costo_compra_editar" id="ultimo_costo_compra_editar"
                                     data-parsley-required>
                             </div>
+
+
+
+
+
+                            <div class="col-md-4">
+                                <label for="precio1" class="col-form-label focus-label">Precio A:<span class="text-danger">*</span></label>
+                                <input class="form-group form-control" step="any" min="0.000001" type="number" name="precio1" id="precio1" data-parsley-required>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="precio2" class="col-form-label focus-label">Precio B:<span class="text-danger">*</span></label>
+                                <input class="form-group form-control" step="any" min="0.000001" type="number" name="precio2" id="precio2" data-parsley-required>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="precio3" class="col-form-label focus-label">Precio C:<span class="text-danger">*</span></label>
+                                <input class="form-group form-control" step="any" min="0.000001" type="number" name="precio3" id="precio3" data-parsley-required>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="precio4" class="col-form-label focus-label">Precio D:<span class="text-danger">*</span></label>
+                                <input class="form-group form-control" step="any" min="0.000001" type="number" name="precio4" id="precio4" data-parsley-required>
+                            </div>
+
+
+
+
+
 
 
                             <div class="col-md-4">
@@ -762,8 +798,13 @@
                         document.getElementById("precioBase_edit").value = datos.datosProducto.precio_base;
                         document.getElementById("costo_promedio_editar").value = datos.datosProducto.costo_promedio;
                         document.getElementById("unidades_editar").value = datos.datosProducto.unidadad_compra;
-                        document.getElementById("ultimo_costo_compra_editar").value = datos.datosProducto
-                            .ultimo_costo_compra;
+                        document.getElementById("ultimo_costo_compra_editar").value = datos.datosProducto.ultimo_costo_compra;
+
+
+                        document.getElementById("precio1").value = datos.datosProducto.precio1;
+                        document.getElementById("precio2").value = datos.datosProducto.precio2;
+                        document.getElementById("precio3").value = datos.datosProducto.precio3;
+                        document.getElementById("precio4").value = datos.datosProducto.precio4;
 
 
 
