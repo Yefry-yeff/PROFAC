@@ -934,16 +934,26 @@
 
                                             <div class="form-group col-12 col-sm-12 col-md-1 col-lg-1 col-xl-1">
                                                 <label for="precio${numeroInputs}" class="sr-only">Precio</label>
-                                                <input type="number" placeholder="Precio Unidad" id="precio${numeroInputs}"
-                                                    name="precio${numeroInputs}" value="${producto.precio_base}" class="form-control"  data-parsley-required step="any"
-                                                    autocomplete="off" onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
-                                            </div>
+
+                                                    <select class="form-control" name="precio${numeroInputs}" id="precio${numeroInputs}"
+                                                    data-parsley-required style="height:35.7px;" onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
+                                                           <option selected value="${producto.precio1}">${producto.precio1}</option>
+                                                           <option selected value="${producto.precio2}">${producto.precio2}</option>
+                                                           <option selected value="${producto.precio3}">${producto.precio3}</option>
+                                                           <option selected value="${producto.precio4}">${producto.precio4}</option>
+                                                </select>
+
+
+                                                </div>
 
                                             <div class="form-group col-12 col-sm-12 col-md-1 col-lg-1 col-xl-1">
                                                 <label for="cantidad${numeroInputs}" class="sr-only">cantidad</label>
                                                 <input type="number" placeholder="Cantidad" id="cantidad${numeroInputs}"
                                                     name="cantidad${numeroInputs}" class="form-control" min="1" data-parsley-required
                                                     autocomplete="off" onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
+
+
+
                                             </div>
 
                                             <div class="form-group col-12 col-sm-12 col-md-1 col-lg-1 col-xl-1">
@@ -1122,12 +1132,21 @@
                                                     autocomplete="off"  readonly  >
                                             </div>
 
+
                                             <div class="form-group col-12 col-sm-12 col-md-1 col-lg-1 col-xl-1">
                                                 <label for="precio${numeroInputs}" class="sr-only">Precio</label>
-                                                <input type="number" placeholder="Precio Unidad" id="precio${numeroInputs}"
-                                                    name="precio${numeroInputs}" value="${producto.precio_base}" class="form-control"  data-parsley-required step="any"
-                                                    autocomplete="off" onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
-                                            </div>
+
+                                                    <select class="form-control" name="precio${numeroInputs}" id="precio${numeroInputs}"
+                                                    data-parsley-required style="height:35.7px;" onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
+                                                           <option value="${producto.precio_base}">${producto.precio_base} - Base</option>
+                                                           <option value="${producto.precio1}">${producto.precio1} - A </option>
+                                                           <option value="${producto.precio2}">${producto.precio2} - B </option>
+                                                           <option value="${producto.precio3}">${producto.precio3} - C </option>
+                                                           <option value="${producto.precio4}">${producto.precio4} - D </option>
+                                                </select>
+
+
+                                                </div>
 
                                             <div class="form-group col-12 col-sm-12 col-md-1 col-lg-1 col-xl-1">
                                                 <label for="cantidad${numeroInputs}" class="sr-only">cantidad</label>

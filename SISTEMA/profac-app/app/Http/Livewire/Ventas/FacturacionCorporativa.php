@@ -342,7 +342,11 @@ class FacturacionCorporativa extends Component
             concat(id,' - ',nombre) as nombre,
             isv,
             ultimo_costo_compra as ultimo_costo_compra,
-            precio_base as precio_base
+            precio_base as precio_base,
+            precio1 as precio1,
+            precio2 as precio2,
+            precio3 as precio3,
+            precio4 as precio4
             from producto where id = " . $request['idProducto'] . "
             ");
 

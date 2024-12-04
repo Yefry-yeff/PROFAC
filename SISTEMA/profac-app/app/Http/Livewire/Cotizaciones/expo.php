@@ -47,6 +47,10 @@ class expo extends Component
                 B.descripcion as 'sub_categoria',
                 E.descripcion as 'categoria',
                 A.precio_base,
+                A.precio1,
+                A.precio2,
+                A.precio3,
+                A.precio4,
                 A.costo_promedio,
                 A.ultimo_costo_compra,
                 A.isv,
@@ -100,7 +104,11 @@ class expo extends Component
             concat(id,' - ',nombre) as nombre,
             isv,
             ultimo_costo_compra as ultimo_costo_compra,
-            precio_base as precio_base
+            precio_base as precio_base,
+            precio1 as precio1,
+            precio2 as precio2,
+            precio3 as precio3,
+            precio4 as precio4
             from producto where id = " . $productoBarra->id. "
             ");
 
