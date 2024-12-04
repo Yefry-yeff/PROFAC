@@ -1136,16 +1136,16 @@
                                             <div class="form-group col-12 col-sm-12 col-md-1 col-lg-1 col-xl-1">
                                                 <label for="precio${numeroInputs}" class="sr-only">Precio</label>
 
-                                                    <select class="form-control" name="precio${numeroInputs}" id="precio${numeroInputs}"
-                                                    data-parsley-required style="height:35.7px;" onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
-                                                           <option value="${producto.precio_base}">${producto.precio_base} - Base</option>
-                                                           <option value="${producto.precio1}">${producto.precio1} - A </option>
-                                                           <option value="${producto.precio2}">${producto.precio2} - B </option>
-                                                           <option value="${producto.precio3}">${producto.precio3} - C </option>
-                                                           <option value="${producto.precio4}">${producto.precio4} - D </option>
-                                                </select>
 
 
+                                                    <input list="browsers" id="precio${numeroInputs}" name="precio${numeroInputs}" class="form-control"  onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
+                                                        <datalist id="browsers">
+                                                        <option value="${producto.precio_base}">
+                                                        <option value="${producto.precio1}">
+                                                        <option value="${producto.precio2}">
+                                                        <option value="${producto.precio3}">
+                                                        <option value="${producto.precio4}">
+                                                        </datalist>
                                                 </div>
 
                                             <div class="form-group col-12 col-sm-12 col-md-1 col-lg-1 col-xl-1">
