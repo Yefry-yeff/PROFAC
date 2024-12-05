@@ -1136,15 +1136,13 @@
                                             <div class="form-group col-12 col-sm-12 col-md-1 col-lg-1 col-xl-1">
                                                 <label for="precio${numeroInputs}" class="sr-only">Precio</label>
 
-
-
                                                     <input list="browsers" id="precio${numeroInputs}" name="precio${numeroInputs}" class="form-control"  onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
                                                         <datalist id="browsers">
-                                                        <option value="${producto.precio_base}">
-                                                        <option value="${producto.precio1}">
-                                                        <option value="${producto.precio2}">
-                                                        <option value="${producto.precio3}">
-                                                        <option value="${producto.precio4}">
+                                                        <option class="form-control" value="${producto.precio_base}" >Precio Base</option>
+                                                        <option class="form-control" value="${producto.precio1}">Precio A</option>
+                                                        <option class="form-control" value="${producto.precio2}">Precio B</option>
+                                                        <option class="form-control" value="${producto.precio3}">Precio C</option>
+                                                        <option class="form-control" value="${producto.precio4}">Precio D</option>
                                                         </datalist>
                                                 </div>
 
