@@ -167,7 +167,7 @@ class expo extends Component
     public function guardarCotizacion(Request $request){
        try {
 
-        //dd($request);
+        dd($request);
 
 
         $validator = Validator::make($request->all(), [
@@ -242,7 +242,7 @@ class expo extends Component
                 $keyIsvAsigando = "isv" . $arrayInputs[$i];
                 $keyunidad = 'unidad' . $arrayInputs[$i];
                 $keyidBodega = 'idBodega'.$arrayInputs[$i];
-
+                $keyidPrecioSeleccionado = 'idPrecioSeleccionado'.$arrayInputs[$i];
                 $keyNombreProducto = 'nombre'.$arrayInputs[$i];
                 $keyBodegaNombre = 'bodega'.$arrayInputs[$i];
                 $keymonto_descProducto = 'acumuladoDescuento'.$arrayInputs[$i];
@@ -254,6 +254,7 @@ class expo extends Component
                 $idProducto = $request->$keyIdProducto;
                 $idUnidadVenta = $request->$keyIdUnidadVenta;
                 $isvProductoPagar = $request->$keyIsvPagar;
+                $idPrecioSeleccionado = $request->$keyidPrecioSeleccionado;
                 //$unidad = $request->$keyunidad;
                 $precio = $request->$keyPrecio;
                 $cantidad = $request->$keyCantidad;
@@ -284,6 +285,7 @@ class expo extends Component
                 'isv_producto'=>$ivsProductoAsignado,
                 'unidad_medida_venta_id'=>$idUnidadVenta,
                 'monto_descProducto'=>$monto_descProducto,
+                'idPrecioSeleccionado'=>$idPrecioSeleccionado,
                 'created_at'=>now(),
                 'updated_at'=>now()
 

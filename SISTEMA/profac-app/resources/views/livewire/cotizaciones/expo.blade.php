@@ -898,11 +898,13 @@
 
                         htmlSelectUnidades = "";
 
-                        htmlprecios = `<option  value="${producto.precio_base}" data-id="0">${producto.precio_base}</option>
-                        <option  value="${producto.precio1}" data-id="0">${producto.precio1}</option>
-                        <option  value="${producto.precio2}" data-id="0">${producto.precio2}</option>
-                        <option  value="${producto.precio3}" data-id="0">${producto.precio3}</option>
-                        <option  value="${producto.precio4}" data-id="0">${producto.precio4}</option>
+                        htmlprecios = `
+                        <option data-id="0" selected>--Seleccione precio--</option>
+                        <option  value="${producto.precio_base}" data-id="pb">${producto.precio_base} - Base</option>
+                        <option  value="${producto.precio1}" data-id="p1">${producto.precio1} - A</option>
+                        <option  value="${producto.precio2}" data-id="p2">${producto.precio2} - B</option>
+                        <option  value="${producto.precio3}" data-id="p3">${producto.precio3} - C</option>
+                        <option  value="${producto.precio4}" data-id="p4">${producto.precio4} - D</option>
 
 
 
@@ -957,7 +959,8 @@
                                                 <label for="" class="sr-only">precios</label>
                                                 <select class="form-control" name="precios${numeroInputs}" id="precios${numeroInputs}"
                                                     data-parsley-required style="height:35.7px;"
-                                                   >
+                                                    onchange="validacionPrecio(precios${numeroInputs}, precio${numeroInputs})"
+                                                    >
                                                             ${htmlprecios}
                                                 </select>
 
@@ -967,7 +970,7 @@
                                             <div class="form-group col-1">
                                                 <label for="precio${numeroInputs}" class="sr-only">Precio</label>
                                                 <input type="number" placeholder="Precio Unidad" id="precio${numeroInputs}"
-                                                    name="precio${numeroInputs}" value="${producto.precio_base}" class="form-control"  data-parsley-required step="any"
+                                                    name="precio${numeroInputs}" class="form-control"  data-parsley-required step="any"
                                                     autocomplete="off" onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
                                             </div>
 
@@ -1053,6 +1056,18 @@
                             text: "Ha ocurrido un error al agregar el producto a la compra."
                         })
                     })
+            }
+
+            function validacionPrecio(idPrecios, idprecio){
+
+                var idPrecioSeleccionado = idPrecios.options[idPrecios.selectedIndex].getAttribute("data-id");
+                var precioSeleccionado = idPrecios.value;
+                var idprecioIngresado = idprecio.id;
+                var precioIngresado = idprecio.value;
+
+                document.getElementById(idprecioIngresado).value = precioSeleccionado;
+                document.getElementById(idprecioIngresado).setAttribute("min",precioSeleccionado);
+
             }
 
             function eliminarInput(id) {
@@ -1460,7 +1475,23 @@
                     let idUnidadVenta = e.options[e.selectedIndex].getAttribute("data-id");
 
 
-                    data.append(nameForm, idUnidadVenta)
+                    data.append(nameForm, idUnidadVenta);
+
+                    /**************************************************************/
+
+                    let name2 = "precios" + arregloIdInputs[i];
+                    let nameForm2 = "idPrecioSeleccionado" + arregloIdInputs[i];
+
+                    let a = document.getElementById(name2);
+
+                    let idPrecioSeleccionado = a.options[a.selectedIndex].getAttribute("data-id");
+
+
+                    data.append(nameForm2, idPrecioSeleccionado);
+
+
+
+                    /**************************************************************/
 
                 }
                 data.append("numeroInputs", numeroInputs);
