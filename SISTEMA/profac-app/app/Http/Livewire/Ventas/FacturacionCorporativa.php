@@ -644,12 +644,16 @@ class FacturacionCorporativa extends Component
                 $keyISV = "isv" . $arrayInputs[$i];
                 $keyunidad = 'unidad' . $arrayInputs[$i];
 
+                $keyidPrecioSeleccionado = 'idPrecioSeleccionado'.$arrayInputs[$i];
+                $keyprecioSeleccionado = 'precios'.$arrayInputs[$i];
                 $restaInventario = $request->$keyRestaInventario;
                 $idSeccion = $request->$keyIdSeccion;
                 $idProducto = $request->$keyIdProducto;
                 $idUnidadVenta = $request->$keyIdUnidadVenta;
                 $ivsProducto = $request->$keyISV;
                 $unidad = $request->$keyunidad;
+                $idPrecioSeleccionado = $request->$keyidPrecioSeleccionado;
+                $precioSeleccionado = $request->$keyprecioSeleccionado;
 
                 $precio = $request->$keyPrecio;
                 $cantidad = $request->$keyCantidad;
@@ -659,7 +663,7 @@ class FacturacionCorporativa extends Component
 
                 // dd($factura);
 
-                $this->restarUnidadesInventario($restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $arrayInputs[$i]);
+                $this->restarUnidadesInventario($precioSeleccionado,$idPrecioSeleccionado,$restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $arrayInputs[$i]);
             };
 
             if ($request->tipoPagoVenta == 2) { //si el tipo de pago es credito
@@ -1300,6 +1304,8 @@ class FacturacionCorporativa extends Component
                     "sub_total_s" => $subTotalSecccionado,
                     "isv_s" => $isvSecccionado,
                     "total_s" => $totalSecccionado,
+                    "precioSeleccionado" => $precioSeleccionado,
+                    "idPrecioSeleccionado" => $idPrecioSeleccionado,
                     "created_at" => now(),
                     "updated_at" => now(),
                 ]);

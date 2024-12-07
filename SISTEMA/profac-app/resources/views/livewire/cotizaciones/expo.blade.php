@@ -368,7 +368,7 @@
                                             min="1" autocomplete="off" disabled>
                                     </div>
 
-                                    <div class="form-group col-1 ">
+                                    <div class="form-group col-1">
 
                                         <label class="sr-only">Unidad</label>
                                         <input type="text" placeholder="Unidad " class="form-control"
@@ -938,7 +938,7 @@
 
                                                     <div style="width:100%">
                                                         <label for="nombre${numeroInputs}" class="sr-only">Producto</label>
-                                                        <input type="text" placeholder="Nombre del producto" id="nombre${numeroInputs}"
+                                                        <input type="text" placeholder="Producto" id="nombre${numeroInputs}"
                                                             name="nombre${numeroInputs}" class="form-control"
                                                             data-parsley-required "
                                                             autocomplete="off"
