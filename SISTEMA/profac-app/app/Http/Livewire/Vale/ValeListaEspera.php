@@ -152,7 +152,6 @@ class ValeListaEspera extends Component
        $idVale = $this->guardarVale($request);
 
 
-
 /*         $factura = ModelFactura::find($request->idFactura);
         $factura->total = ROUND($factura->total + $request->totalGeneralVP,2);
         $factura->isv = Round($factura->isv +  $request->isvGeneralVP,2);
@@ -289,6 +288,8 @@ class ValeListaEspera extends Component
             $keyTotal = "totalVP" . $arrayInputs[$i];
             $keyRestaInventario = "restaInventarioVP" . $arrayInputs[$i];
             $keyunidad = 'idUnidadVentaVP' . $arrayInputs[$i];
+            $keyidPrecioSeleccionado = 'idPrecioSeleccionado'.$arrayInputs[$i];
+            $keyprecioSeleccionado = 'precios'.$arrayInputs[$i];
 
 
 
@@ -305,6 +306,8 @@ class ValeListaEspera extends Component
                 'isv'=>$request->$keyIsv,
                 'total'=>$request->$keyTotal,
                 'resta_inventario_total'=>$request->$keyRestaInventario,
+                "precioSeleccionado" => $request->$keyprecioSeleccionado,
+                "idPrecioSeleccionado" => $request->$keyidPrecioSeleccionado,
                 'created_at'=>now(),
                 'updated_at'=>now()
 
@@ -312,7 +315,7 @@ class ValeListaEspera extends Component
             array_push($arrayProductosFactura, [
                 "factura_id" => $request->idFactura,
                 "producto_id" => $request->$keyIdProducto,
-                "lote" => 0,
+                "lote" => 1,
                 "indice" => $arrayInputs[$i],
                 // "numero_unidades_resta_inventario" => $registroResta, //el numero de unidades que se va restar del inventario pero en unidad base
                 "seccion_id" => 0,
@@ -331,6 +334,8 @@ class ValeListaEspera extends Component
                 "sub_total_s" => $request->$keySubTotal,
                 "isv_s" => $request->$keyIsv,
                 "total_s" => $request->$keyTotal,
+                "precioSeleccionado" => $request->$keyprecioSeleccionado,
+                "idPrecioSeleccionado" => $request->$keyidPrecioSeleccionado,
                 "created_at" => now(),
                 "updated_at" => now(),
             ]);
@@ -338,6 +343,7 @@ class ValeListaEspera extends Component
 
 
         ModelEsperaProducto::insert($arrayProductosVale);
+
 
         ModelVentaProducto::insert($arrayProductosFactura);
 
