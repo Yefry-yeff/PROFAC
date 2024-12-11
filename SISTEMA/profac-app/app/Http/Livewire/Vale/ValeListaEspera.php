@@ -216,6 +216,7 @@ class ValeListaEspera extends Component
 
     public function guardarVale($request){
 
+
         $arrayTemporal = $request->arregloIdInputsVP;
         $arrayInputs = explode(',', $arrayTemporal);
 
@@ -334,6 +335,7 @@ class ValeListaEspera extends Component
                 "updated_at" => now(),
             ]);
         };
+
 
         ModelEsperaProducto::insert($arrayProductosVale);
 
