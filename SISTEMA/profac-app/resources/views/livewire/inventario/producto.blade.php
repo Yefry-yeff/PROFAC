@@ -608,10 +608,10 @@
 
 
 
-            precio1 = Number(precioBase) + (precioBase*0.06);
-            precio2 = Number(precioBase) + (precioBase*0.10);
-            precio3 = Number(precioBase) + (precioBase*0.15);
-            precio4 = Number(precioBase) + (precioBase*0.25);
+            precio1 = Number(precioBase) + (precioBase*0.03);
+            precio2 = Number(precioBase) + (precioBase*0.06);
+            precio3 = Number(precioBase) + (precioBase*0.10);
+            precio4 = Number(precioBase) + (precioBase*0.3);
 
             document.getElementById('precio1').value = precio1.toFixed(2);
             document.getElementById('precio2').value = precio2.toFixed(2);
