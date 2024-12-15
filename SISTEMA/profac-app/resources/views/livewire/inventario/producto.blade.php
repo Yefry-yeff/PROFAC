@@ -212,7 +212,7 @@
                                         <div class="col-md-4">
                                             <label for="precioBase" class="col-form-label focus-label">Precio de venta base:<span class="text-danger">*</span></label>
                                             <input class="form-group form-control" min="0" type="number" name="precioBase" id="precioBase"
-                                                data-parsley-required step="any">
+                                                data-parsley-required step="any" onchange="validacionPrecio()">
                                         </div>
 
                                         <div class="col-md-4">
@@ -230,26 +230,26 @@
                                         <div class="col-md-4">
                                             <label for="precio1" class="col-form-label focus-label">Precio <b>A</b>:<span class="text-danger">*</span></label>
                                             <input class="form-group form-control" type="number" name="precio1" id="precio1"
-                                                data-parsley-required step="any" onchange="validacionPrecio()" >
+                                                data-parsley-required step="any" disabled >
                                         </div>
 
                                         <div class="col-md-4">
                                             <label for="precio2" class="col-form-label focus-label">Precio <b>B</b>:<span class="text-danger">*</span></label>
                                             <input class="form-group form-control" type="number" name="precio2" id="precio2"
-                                                data-parsley-required step="any" onchange="validacionPrecio()">
+                                                data-parsley-required step="any" disabled >
                                         </div>
 
                                         <div class="col-md-4">
                                             <label for="precio3" class="col-form-label focus-label">Precio <b>C</b>:<span class="text-danger">*</span></label>
                                             <input class="form-group form-control"  type="number" name="precio3" id="precio3"
-                                                data-parsley-required step="any" onchange="validacionPrecio()">
+                                                data-parsley-required step="any" disabled >
                                         </div>
 
 
                                         <div class="col-md-4">
                                             <label for="precio4" class="col-form-label focus-label">Precio <b>D</b>:<span class="text-danger">*</span></label>
                                             <input class="form-group form-control" type="number" name="precio4" id="precio4"
-                                                data-parsley-required step="any" onchange="validacionPrecio()">
+                                                data-parsley-required step="any" disabled >
                                         </div>
 
                                         {{-- <div class="col-md-4">
@@ -607,10 +607,20 @@
             document.getElementById('precio4').setAttribute("min",precioBase);
 
 
-            precio1 = document.getElementById('precio1').value;
-            precio2 = document.getElementById('precio2').value;
-            precio3 = document.getElementById('precio3').value;
-            precio4 = document.getElementById('precio4').value;
+
+            precio1 = Number(precioBase) + (precioBase*0.06);
+            precio2 = Number(precioBase) + (precioBase*0.10);
+            precio3 = Number(precioBase) + (precioBase*0.15);
+            precio4 = Number(precioBase) + (precioBase*0.25);
+
+            document.getElementById('precio1').value = precio1.toFixed(2);
+            document.getElementById('precio2').value = precio2.toFixed(2);
+            document.getElementById('precio3').value = precio3.toFixed(2);
+            document.getElementById('precio4').value = precio4.toFixed(2);
+
+
+
+
 
             /*if(precio1<precioBase || precio2<precioBase  || precio3<precioBase  || precio4<precioBase ){
                 Swal.fire({

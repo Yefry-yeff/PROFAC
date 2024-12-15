@@ -412,7 +412,7 @@
                                 <label for="precioBase_edit" class="col-form-label focus-label">Precio de venta
                                     base:<span class="text-danger">*</span></label>
                                 <input class="form-group form-control" step="any" min="0.000001" type="number"
-                                    name="precioBase_edit" id="precioBase_edit" data-parsley-required>
+                                    name="precioBase_edit" id="precioBase_edit" data-parsley-required onchange="validacionPrecio()">
                             </div>
                             <div class="col-md-4">
                                 <label for="costo_promedio_editar" class="col-form-label focus-label">Costo
@@ -435,19 +435,19 @@
 
                             <div class="col-md-4">
                                 <label for="precio1" class="col-form-label focus-label">Precio A:<span class="text-danger">*</span></label>
-                                <input class="form-group form-control" step="any"  type="number" name="precio1" id="precio1" data-parsley-required onchange="validacionPrecio()">
+                                <input class="form-group form-control" step="any"  type="number" name="precio1" id="precio1" data-parsley-required disabled >
                             </div>
                             <div class="col-md-4">
                                 <label for="precio2" class="col-form-label focus-label">Precio B:<span class="text-danger">*</span></label>
-                                <input class="form-group form-control" step="any"  type="number" name="precio2" id="precio2" data-parsley-required onchange="validacionPrecio()">
+                                <input class="form-group form-control" step="any"  type="number" name="precio2" id="precio2" data-parsley-required disabled >
                             </div>
                             <div class="col-md-4">
                                 <label for="precio3" class="col-form-label focus-label">Precio C:<span class="text-danger">*</span></label>
-                                <input class="form-group form-control" step="any"  type="number" name="precio3" id="precio3" data-parsley-required onchange="validacionPrecio()">
+                                <input class="form-group form-control" step="any"  type="number" name="precio3" id="precio3" data-parsley-required disabled >
                             </div>
                             <div class="col-md-4">
                                 <label for="precio4" class="col-form-label focus-label">Precio D:<span class="text-danger">*</span></label>
-                                <input class="form-group form-control" step="any"  type="number" name="precio4" id="precio4" data-parsley-required onchange="validacionPrecio()">
+                                <input class="form-group form-control" step="any"  type="number" name="precio4" id="precio4" data-parsley-required disabled >
                             </div>
 
 
@@ -913,10 +913,19 @@
                 document.getElementById('precio4').setAttribute("min",precioBase);
 
 
-                precio1 = document.getElementById('precio1').value;
-                precio2 = document.getElementById('precio2').value;
-                precio3 = document.getElementById('precio3').value;
-                precio4 = document.getElementById('precio4').value;
+                precio1 = Number(precioBase) + (precioBase*0.06);
+                precio2 = Number(precioBase) + (precioBase*0.10);
+                precio3 = Number(precioBase) + (precioBase*0.15);
+                precio4 = Number(precioBase) + (precioBase*0.25);
+
+                document.getElementById('precio1').value = precio1.toFixed(2);
+                document.getElementById('precio2').value = precio2.toFixed(2);
+                document.getElementById('precio3').value = precio3.toFixed(2);
+                document.getElementById('precio4').value = precio4.toFixed(2);
+
+
+
+
 
                 /*if(precio1<precioBase || precio2<precioBase  || precio3<precioBase  || precio4<precioBase ){
                     Swal.fire({
@@ -926,6 +935,10 @@
                     })
 
                 }*/
+
+
+
+
             }
             function editarProducto() {
                 $('#modalSpinnerLoading').modal('show');
