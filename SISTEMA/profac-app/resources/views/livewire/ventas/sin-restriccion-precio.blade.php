@@ -1402,10 +1402,15 @@
                     var idprecioIngresado = idprecio.id;
                     var precioIngresado = idprecio.value;
 
-                    document.getElementById(idprecioIngresado).value = precioSeleccionado;
-                    document.getElementById(idprecioIngresado).setAttribute("min",precioSeleccionado);
+                    if(idPrecioSeleccionado != 'pb'){
 
-                }
+                        document.getElementById(idprecioIngresado).value = precioSeleccionado;
+                        document.getElementById(idprecioIngresado).setAttribute("min",precioSeleccionado);
+                    }
+
+
+                 }
+
             function guardarVenta() {
 
                 document.getElementById("btn_venta_coorporativa").disabled = true;
