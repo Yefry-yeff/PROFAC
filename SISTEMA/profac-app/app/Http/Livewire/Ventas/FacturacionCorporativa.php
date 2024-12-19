@@ -342,7 +342,11 @@ class FacturacionCorporativa extends Component
             concat(id,' - ',nombre) as nombre,
             isv,
             ultimo_costo_compra as ultimo_costo_compra,
-            precio_base as precio_base
+            precio_base as precio_base,
+            precio1 as precio1,
+            precio2 as precio2,
+            precio3 as precio3,
+            precio4 as precio4
             from producto where id = " . $request['idProducto'] . "
             ");
 
@@ -640,12 +644,16 @@ class FacturacionCorporativa extends Component
                 $keyISV = "isv" . $arrayInputs[$i];
                 $keyunidad = 'unidad' . $arrayInputs[$i];
 
+                $keyidPrecioSeleccionado = 'idPrecioSeleccionado'.$arrayInputs[$i];
+                $keyprecioSeleccionado = 'precios'.$arrayInputs[$i];
                 $restaInventario = $request->$keyRestaInventario;
                 $idSeccion = $request->$keyIdSeccion;
                 $idProducto = $request->$keyIdProducto;
                 $idUnidadVenta = $request->$keyIdUnidadVenta;
                 $ivsProducto = $request->$keyISV;
                 $unidad = $request->$keyunidad;
+                $idPrecioSeleccionado = $request->$keyidPrecioSeleccionado;
+                $precioSeleccionado = $request->$keyprecioSeleccionado;
 
                 $precio = $request->$keyPrecio;
                 $cantidad = $request->$keyCantidad;
@@ -655,7 +663,7 @@ class FacturacionCorporativa extends Component
 
                 // dd($factura);
 
-                $this->restarUnidadesInventario($restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $arrayInputs[$i]);
+                $this->restarUnidadesInventario($precioSeleccionado,$idPrecioSeleccionado,$restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $arrayInputs[$i]);
             };
 
             if ($request->tipoPagoVenta == 2) { //si el tipo de pago es credito
@@ -1296,6 +1304,8 @@ class FacturacionCorporativa extends Component
                     "sub_total_s" => $subTotalSecccionado,
                     "isv_s" => $isvSecccionado,
                     "total_s" => $totalSecccionado,
+                    "precioSeleccionado" => $precioSeleccionado,
+                    "idPrecioSeleccionado" => $idPrecioSeleccionado,
                     "created_at" => now(),
                     "updated_at" => now(),
                 ]);
@@ -1418,7 +1428,7 @@ class FacturacionCorporativa extends Component
                 if(C.isv = 0, 'SI' , 'NO' ) as excento,
                 H.nombre as bodega,
                 REPLACE(REPLACE(F.descripcion,'Seccion',''),' ', '') as seccion,
-                B.precio_unidad as precio,
+                FORMAT(B.precio_unidad,2) as precio,
                 REPLACE(sum(B.cantidad_s), '.00', '') as cantidad,
                 FORMAT(sum(B.sub_total_s),2) as importe
             from factura A
@@ -1453,9 +1463,9 @@ class FacturacionCorporativa extends Component
             if(C.isv = 0, 'SI' , 'NO' ) as excento,
             'N/A',
             'N/A',
-            C.precio as precio,
+            FORMAT(C.precio,2) as precio,
             C.cantidad as cantidad,
-            C.sub_total
+            FORMAT(C.sub_total,2)
             from factura A
             inner join vale B
             on A.id = B.factura_id
@@ -2135,13 +2145,13 @@ class FacturacionCorporativa extends Component
 
         $importes = DB::SELECTONE("
         select
-        total,
-        isv,
-        sub_total,
-        sub_total_grabado,
-        sub_total_excento,
+         total,
+         isv,
+         sub_total,
+         sub_total_grabado,
+         sub_total_excento,
         porc_descuento,
-        monto_descuento
+         monto_descuento
         from factura
         where id = " . $idFactura);
 

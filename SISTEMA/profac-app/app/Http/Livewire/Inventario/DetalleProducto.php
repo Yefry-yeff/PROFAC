@@ -42,6 +42,10 @@ class DetalleProducto extends Component
             B.descripcion as 'sub_categoria',
             E.descripcion as 'categoria',
             A.precio_base,
+            A.precio1,
+            A.precio2,
+            A.precio3,
+            A.precio4,
             A.costo_promedio,
             A.ultimo_costo_compra,
             A.isv,
@@ -98,11 +102,11 @@ class DetalleProducto extends Component
         //dd($imagenes);
 
         $lotes = DB::SELECT("
-        select 
+        select
         *,
         @i := @i + 1 as contador
         from  (
-                select          
+                select
                     B.id,
                     B.nombre,
                     G.nombre as 'departamento',
@@ -130,12 +134,12 @@ class DetalleProducto extends Component
                 inner join departamento G
                 on F.departamento_id = G.id
                 inner join compra
-                on A.compra_id = compra.id     
-                where B.id = ".$id."  and H.cantidad_disponible <> 0 and H.estado_recibido = 4 and compra.estado_compra_id =1 
-                
-                union 
-                
-                select            
+                on A.compra_id = compra.id
+                where B.id = ".$id."  and H.cantidad_disponible <> 0 and H.estado_recibido = 4 and compra.estado_compra_id =1
+
+                union
+
+                select
                     B.id,
                     B.nombre,
                     G.nombre as 'departamento',
@@ -147,7 +151,7 @@ class DetalleProducto extends Component
                     H.cantidad_disponible,
                     H.created_at,
                     H.id as idRecibido
-                from  producto B        
+                from  producto B
                 inner join recibido_bodega H
                 on  B.id = H.producto_id
                 inner join seccion C
@@ -159,8 +163,8 @@ class DetalleProducto extends Component
                 inner join municipio F
                 on E.municipio_id = F.id
                 inner join departamento G
-                on F.departamento_id = G.id     
-                where B.id = ".$id." and H.cantidad_disponible <> 0 and H.estado_recibido = 4 
+                on F.departamento_id = G.id
+                where B.id = ".$id." and H.cantidad_disponible <> 0 and H.estado_recibido = 4
         ) listado
         cross join (select @i := 0) r
         order by idRecibido ASC
@@ -206,7 +210,7 @@ class DetalleProducto extends Component
 
         // })
         ->addColumn('editar', function ($unidad) {
-            
+
             $cadena = "";
             if(Auth::user()->rol_id == '1' || Auth::user()->rol_id == '5'){
                 $cadena =   '<div class="text-center">  <button onclick="modalEditarUnidades('.$unidad->id.','.$unidad->unidad_venta.','.$unidad->unidad_medida_id.')" class="btn btn-warning  btn-dim" type="button"><i class="fa-solid fa-pencil"></i></button></div>';
@@ -214,7 +218,7 @@ class DetalleProducto extends Component
 
             return  $cadena;
 
-            
+
 
     })
 

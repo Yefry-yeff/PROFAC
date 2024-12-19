@@ -468,15 +468,15 @@ class NotaDebito extends Component
                     ,created_at
                     ,estado_id
                 from notadebito
-                where notadebito.factura_id = ".$idFactura
+                where notadebito.estado_id = 1 and notadebito.factura_id = ".$idFactura
             );
 
             $cai = DB::SELECTONE("select
                 *
             from cai
-            where tipo_documento_fiscal_id = 4 and estado_id = 1 and id = ".$notaDebito->cai_ndebito);
+            where tipo_documento_fiscal_id = 4 and id = ".$notaDebito->cai_ndebito);
 
-
+            //dd($cai);
             $cliente = DB::SELECTONE("select
                 nombre_cliente,
                 cai,

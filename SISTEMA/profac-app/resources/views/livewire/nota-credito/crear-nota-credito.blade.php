@@ -1195,14 +1195,19 @@
                             html: data.text,
 
                         })
-                        {{--  setTimeout(function(){
-                            location.reload()
-                        }, 40000)  --}}
+
+                        if(data.icon = 'warning'){
+                            setTimeout(function(){
+                                location.reload();
+                            }, 3000)
+                        }else{
+                            location.reload();
+                        }
 
 
 
 
-                        location.reload()
+                       // location.reload()
 
 
                         return;
@@ -1220,7 +1225,7 @@
                         Swal.fire({
                             icon: "error",
                             title: "Error",
-                            text: "Ha ocurrido un error.",
+                            text: "Ha ocurrido un error, reporte con soporte.",
                         })
 
                     })

@@ -210,7 +210,6 @@ class CrearVale extends Component
 
 
         ]);
-
         if ($validator->fails()) {
             return response()->json([
                 'icon' => 'error',
@@ -318,8 +317,7 @@ class CrearVale extends Component
                 $keyunidad = 'unidad' . $arrayInputs[$i];
                 $KeyIdLote = 'idLote' . $arrayInputs[$i];
 
-
-
+                //dd("Llego la basura");
                 $idSeccion = $request->$keyIdSeccion;
                 $idProducto = $request->$keyIdProducto;
                 $idUnidadVenta = $request->$keyIdUnidadVenta;
@@ -770,26 +768,26 @@ class CrearVale extends Component
         ");
 
         $importes = DB::SELECTONE("
+            select
+            FORMAT(sub_total_grabado,2) as sub_total_grabado,
+            FORMAT(sub_total_excento,2) as sub_total_excento,
+            FORMAT(sub_total,2) as sub_total,
+            FORMAT(isv,2) as isv,
+            FORMAT(total,2) as total
+            from vale
+            where id =".$idEntrega
+        );
+
+    $importesSinCentavos = DB::SELECTONE("
         select
-        FORMAT(sub_total_grabado,2) as sub_total_grabado,
-        FORMAT(sub_total_excento,2) as sub_total_excento,
-        FORMAT(sub_total,2) as sub_total,
-        FORMAT(isv,2) as isv,
-        FORMAT(total,2) as total
+            sub_total,
+            sub_total_grabado,
+            sub_total_excento,
+            isv,
+            total
         from vale
         where id =".$idEntrega
     );
-
-    $importesSinCentavos = DB::SELECTONE("
-    select
-        sub_total,
-        sub_total_grabado,
-        sub_total_excento,
-        isv,
-        total
-    from vale
-    where id =".$idEntrega
-);
 
 
 

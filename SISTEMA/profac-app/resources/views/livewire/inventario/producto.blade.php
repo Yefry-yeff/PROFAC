@@ -142,7 +142,7 @@
                                         <th>Descripcion</th>
                                         <th>Cod. Barra</th>
                                         <th>ISV</th>
-                                        <th>Cateogria</th>                                       
+                                        <th>Cateogria</th>
                                         <th>Existencia</th>
                                         <th>Disponibilidad</th>
                                     </tr>
@@ -212,7 +212,7 @@
                                         <div class="col-md-4">
                                             <label for="precioBase" class="col-form-label focus-label">Precio de venta base:<span class="text-danger">*</span></label>
                                             <input class="form-group form-control" min="0" type="number" name="precioBase" id="precioBase"
-                                                data-parsley-required step="any">
+                                                data-parsley-required step="any" onchange="validacionPrecio()">
                                         </div>
 
                                         <div class="col-md-4">
@@ -226,6 +226,32 @@
                                             <input class="form-group form-control" min="0" type="number" name="ultimo_costo_compra" id="ultimo_costo_compra"
                                                 data-parsley-required step="any">
                                         </div>
+
+                                        <div class="col-md-4">
+                                            <label for="precio1" class="col-form-label focus-label">Precio <b>A</b>:<span class="text-danger">*</span></label>
+                                            <input class="form-group form-control" type="number" name="precio1" id="precio1"
+                                                data-parsley-required step="any" disabled >
+                                        </div>
+
+                                        <div class="col-md-4">
+                                            <label for="precio2" class="col-form-label focus-label">Precio <b>B</b>:<span class="text-danger">*</span></label>
+                                            <input class="form-group form-control" type="number" name="precio2" id="precio2"
+                                                data-parsley-required step="any" disabled >
+                                        </div>
+
+                                        <div class="col-md-4">
+                                            <label for="precio3" class="col-form-label focus-label">Precio <b>C</b>:<span class="text-danger">*</span></label>
+                                            <input class="form-group form-control"  type="number" name="precio3" id="precio3"
+                                                data-parsley-required step="any" disabled >
+                                        </div>
+
+
+                                        <div class="col-md-4">
+                                            <label for="precio4" class="col-form-label focus-label">Precio <b>D</b>:<span class="text-danger">*</span></label>
+                                            <input class="form-group form-control" type="number" name="precio4" id="precio4"
+                                                data-parsley-required step="any" disabled >
+                                        </div>
+
                                         {{-- <div class="col-md-4">
                                             <label class="col-form-label focus-label" for="precio2">Precio de venta 2:</label>
                                             <input class="form-group form-control" min="1" type="number" name="precio[]"
@@ -570,7 +596,45 @@
               })
           }
         ///////////////////////////////////////////////////////////////////
+        function validacionPrecio(){
 
+
+            precioBase = document.getElementById('precioBase').value;
+
+            document.getElementById('precio1').setAttribute("min",precioBase);
+            document.getElementById('precio2').setAttribute("min",precioBase);
+            document.getElementById('precio3').setAttribute("min",precioBase);
+            document.getElementById('precio4').setAttribute("min",precioBase);
+
+
+
+            precio1 = Number(precioBase) + (precioBase*0.03);
+            precio2 = Number(precioBase) + (precioBase*0.06);
+            precio3 = Number(precioBase) + (precioBase*0.10);
+            precio4 = Number(precioBase) + (precioBase*0.3);
+
+            document.getElementById('precio1').value = precio1.toFixed(2);
+            document.getElementById('precio2').value = precio2.toFixed(2);
+            document.getElementById('precio3').value = precio3.toFixed(2);
+            document.getElementById('precio4').value = precio4.toFixed(2);
+
+
+
+
+
+            /*if(precio1<precioBase || precio2<precioBase  || precio3<precioBase  || precio4<precioBase ){
+                Swal.fire({
+                    icon: 'Info',
+                    title: 'Cuidado!',
+                    text: "PAsegurese de que los precios A, B, C y D no sean menores que el precio base del producto."
+                })
+
+            }*/
+
+
+
+
+        }
         </script>
 
     @endpush

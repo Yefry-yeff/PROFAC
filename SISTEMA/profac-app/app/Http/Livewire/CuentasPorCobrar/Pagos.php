@@ -33,7 +33,7 @@ class Pagos extends Component
          //$clientes = DB::SELECT("select id, nombre as text from cliente where estado_cliente_id = 1");//Clientes Activos
          $clientes = DB::SELECT("select id, concat(id,' - ',nombre) as text from cliente where (id LIKE '%".$request->search."%' or nombre Like '%".$request->search."%') limit 15");//Todos los Clientes
 
-        return response()->json([
+         return response()->json([
             'results'=>$clientes,
         ],200);
 

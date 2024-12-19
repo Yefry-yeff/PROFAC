@@ -226,11 +226,11 @@ class CrearNotaCredito extends Component
             if($estadoCuenta != null){
                 if($estadoCuenta->estado_cerrado == 2){
                     return response()->json([
-                        "icon" => "warning",
-                        "text"=>"Esta factura esta cerrada, no se puede crear nota.",
-                        "title"=>"Advertencia!"
+                        'icon' => 'warning',
+                        'text'=>'Esta factura esta cerrada, no se puede crear nota.',
+                        'title'=>'Advertencia!'
 
-                    ],402);
+                    ],203);
 
                 }
 

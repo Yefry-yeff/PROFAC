@@ -181,7 +181,10 @@ class Cai extends Component
             $cai->serie = (string)((int)($numero_inicial_set)); //ltrim($request->numero_inicial, '0');
             $cai->cantidad_no_utilizada = $cantidad_no_utilizada_set;
             $cai->numero_inicial = $request->numero_inicial;
-            $cai->numero_final = $arrayCai[3];
+            $cai->numero_final = $request->numero_final;
+
+
+            //dd($request->numero_final);
             ////////////////////////Numero Base//////////////////////////////////////////
             $cai->numero_base = $numero_base;
             /////////////////////////////////////////////////////////////////////////////
@@ -282,9 +285,9 @@ class Cai extends Component
             ////////////////////////////////////////////////////////////////////////
 
             $cai_update =  ModelCAI::find($request->idCAI);
-          
-           
-            
+
+
+
 
             switch ($cai_update->tipo_documento_fiscal_id) {
                 case 1:
@@ -296,7 +299,7 @@ class Cai extends Component
                             'text'=>'Ya exiten documentos con este número de cai.'
                        ],401);
                     }
-                    
+
                     break;
                 case 3:
                     $contadorNotaCredito = DB::SELECTONE("select count(id) as contador from nota_credito where cai_id =".$request->idCAI);
@@ -328,7 +331,7 @@ class Cai extends Component
             $cai_update->numero_inicial = $request->numero_inicial_editar;
             $cai_update->numero_final = $request->numero_final_editar;
             $cai_update->numero_actual = (string)((int)($numero_inicial_set));
-            $cai_update->serie = (string)((int)($numero_inicial_set)); 
+            $cai_update->serie = (string)((int)($numero_inicial_set));
             /////////////////////////////////Numero Base/////////////////////////////
             $arrayCai = explode('-', $request->numero_final_editar);
             $numero_base= $arrayCai[0] . '-' . $arrayCai[1] . '-' . $arrayCai[2];

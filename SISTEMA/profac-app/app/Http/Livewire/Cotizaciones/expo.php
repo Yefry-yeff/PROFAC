@@ -47,6 +47,10 @@ class expo extends Component
                 B.descripcion as 'sub_categoria',
                 E.descripcion as 'categoria',
                 A.precio_base,
+                A.precio1,
+                A.precio2,
+                A.precio3,
+                A.precio4,
                 A.costo_promedio,
                 A.ultimo_costo_compra,
                 A.isv,
@@ -100,7 +104,11 @@ class expo extends Component
             concat(id,' - ',nombre) as nombre,
             isv,
             ultimo_costo_compra as ultimo_costo_compra,
-            precio_base as precio_base
+            precio_base as precio_base,
+            precio1 as precio1,
+            precio2 as precio2,
+            precio3 as precio3,
+            precio4 as precio4
             from producto where id = " . $productoBarra->id. "
             ");
 
@@ -234,7 +242,8 @@ class expo extends Component
                 $keyIsvAsigando = "isv" . $arrayInputs[$i];
                 $keyunidad = 'unidad' . $arrayInputs[$i];
                 $keyidBodega = 'idBodega'.$arrayInputs[$i];
-
+                $keyidPrecioSeleccionado = 'idPrecioSeleccionado'.$arrayInputs[$i];
+                $keyprecioSeleccionado = 'precios'.$arrayInputs[$i];
                 $keyNombreProducto = 'nombre'.$arrayInputs[$i];
                 $keyBodegaNombre = 'bodega'.$arrayInputs[$i];
                 $keymonto_descProducto = 'acumuladoDescuento'.$arrayInputs[$i];
@@ -246,6 +255,8 @@ class expo extends Component
                 $idProducto = $request->$keyIdProducto;
                 $idUnidadVenta = $request->$keyIdUnidadVenta;
                 $isvProductoPagar = $request->$keyIsvPagar;
+                $idPrecioSeleccionado = $request->$keyidPrecioSeleccionado;
+                $precioSeleccionado = $request->$keyprecioSeleccionado;
                 //$unidad = $request->$keyunidad;
                 $precio = $request->$keyPrecio;
                 $cantidad = $request->$keyCantidad;
@@ -276,6 +287,8 @@ class expo extends Component
                 'isv_producto'=>$ivsProductoAsignado,
                 'unidad_medida_venta_id'=>$idUnidadVenta,
                 'monto_descProducto'=>$monto_descProducto,
+                'idPrecioSeleccionado'=>$idPrecioSeleccionado,
+                'precioSeleccionado'=>$precioSeleccionado,
                 'created_at'=>now(),
                 'updated_at'=>now()
 

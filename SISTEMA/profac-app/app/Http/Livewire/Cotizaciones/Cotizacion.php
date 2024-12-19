@@ -236,7 +236,8 @@ class Cotizacion extends Component
                 $keyIsvAsigando = "isv" . $arrayInputs[$i];
                 $keyunidad = 'unidad' . $arrayInputs[$i];
                 $keyidBodega = 'idBodega'.$arrayInputs[$i];
-
+                $keyidPrecioSeleccionado = 'idPrecioSeleccionado'.$arrayInputs[$i];
+                $keyprecioSeleccionado = 'precios'.$arrayInputs[$i];
                 $keyNombreProducto = 'nombre'.$arrayInputs[$i];
                 $keyBodegaNombre = 'bodega'.$arrayInputs[$i];
                 $keymonto_descProducto = 'acumuladoDescuento'.$arrayInputs[$i];
@@ -248,6 +249,8 @@ class Cotizacion extends Component
                 $idProducto = $request->$keyIdProducto;
                 $idUnidadVenta = $request->$keyIdUnidadVenta;
                 $isvProductoPagar = $request->$keyIsvPagar;
+                $idPrecioSeleccionado = $request->$keyidPrecioSeleccionado;
+                $precioSeleccionado = $request->$keyprecioSeleccionado;
                 //$unidad = $request->$keyunidad;
                 $precio = $request->$keyPrecio;
                 $cantidad = $request->$keyCantidad;
@@ -278,6 +281,8 @@ class Cotizacion extends Component
                 'isv_producto'=>$ivsProductoAsignado,
                 'unidad_medida_venta_id'=>$idUnidadVenta,
                 'monto_descProducto'=>$monto_descProducto,
+                'idPrecioSeleccionado'=>$idPrecioSeleccionado,
+                'precioSeleccionado'=>$precioSeleccionado,
                 'created_at'=>now(),
                 'updated_at'=>now()
 
