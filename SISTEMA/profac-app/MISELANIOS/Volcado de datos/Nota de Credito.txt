@@ -1,0 +1,33 @@
+INSERT INTO cardex (
+    fecha_creacion,
+    producto,
+    id_producto,
+    id_factura,
+    id_nota_de_credito,
+    descripcion,
+    id_Bodega_destino,
+    id_segmento_destino,
+    id_seccion_destino,
+    cantidad,
+    usuario
+)
+select DISTINCT
+lt.created_at creacion,
+p.nombre nombre,
+p.id idproducto,
+nc.factura_id idfactura,
+nc.id idnotacredito,
+concat(lt.descripcion,' (+)') descripcion,
+b.id idbodega,
+sg.id idsegmento,
+s.id idseccion,
+lt.cantidad cantidad,
+u.id usuario
+from nota_credito nc
+inner join log_translado lt on nc.id = lt.nota_credito_id
+inner join recibido_bodega rb on lt.destino = rb.id 
+inner join producto p on p.id = rb.producto_id
+inner join seccion s on s.id = rb.seccion_id
+inner join segmento sg on sg.id = s.segmento_id
+inner join bodega b on b.id = sg.bodega_id
+inner join users u on u.id = lt.users_id;

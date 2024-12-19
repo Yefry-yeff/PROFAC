@@ -62,6 +62,7 @@ use App\Http\Livewire\Reportes\ProductoBodegas;
 use App\Http\Livewire\Inventario\ListadoAjustes;
 use App\Http\Livewire\Inventario\HistorialTranslados;
 use App\Http\Livewire\Cardex\Cardex;
+use App\Http\Livewire\Cardex\Cardexdos;
 use App\Http\Livewire\Ventas\Cai;
 use App\Http\Livewire\Bancos;
 use App\Http\Livewire\VentasEstatal\NumOrdenCompra;
@@ -550,6 +551,9 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('/cardex/listar/productos', [Cardex::class, 'listarProductos']);
 
     Route::get('/listado/cardex/{idBodega}/{idProducto}', [Cardex::class, 'listarCardex']);
+
+    Route::get('/cardexn', Cardexdos::class);
+    Route::get('/listado/cardex/nuevo/{idBodega}/{idProducto}', [Cardex::class, 'listarCardexNuevo']);
 
     Route::get('/cardex/general', CardexGeneral::class);
     Route::get('/listado/cardex/general/{fecha_inicio}/{fecha_final}', [CardexGeneral::class, 'listarCardex']);
