@@ -46,7 +46,7 @@
                             </div>
 
                         </div>
-                        <button class="btn btn-primary" onclick="llamar()"><i class="fa-solid fa-paper-plane text-white"></i> Solicitar</button>
+                        <button class="btn btn-primary" onclick="cargaCardex()"><i class="fa-solid fa-paper-plane text-white"></i> Solicitar</button>
                     </div>
                 </div>
             </div>
@@ -66,12 +66,12 @@
                                         <th>Fecha de gestion</th>
                                         <th>Producto</th>
                                         <th>Codigo de producto</th>
-                                        <th>Factura</th>
+                                       {{--   <th>Factura</th>
                                         <th>Ajuste</th>
                                         <th>Compra</th>
                                         <th>Comprobante de entrega</th>
                                         <th>Vale Tipo 1</th>
-                                        <th>Vale Tipo 2</th>
+                                        <th>Vale Tipo 2</th>  --}}
                                         <th>Nota de credito</th>
                                         <th>Descripcion</th>
                                         <th>Origen</th>
@@ -86,12 +86,12 @@
                                             <th>Fecha de gestion</th>
                                             <th>Producto</th>
                                             <th>Codigo de producto</th>
-                                            <th>Factura</th>
+                                           {{--   <th>Factura</th>
                                             <th>Ajuste</th>
                                             <th>Compra</th>
                                             <th>Comprobante de entrega</th>
                                             <th>Vale Tipo 1</th>
-                                            <th>Vale Tipo 2</th>
+                                            <th>Vale Tipo 2</th>  --}}
                                             <th>Nota de credito</th>
                                             <th>Descripcion</th>
                                             <th>Origen</th>
@@ -172,7 +172,7 @@
 
         var idBodega = document.getElementById('bodega');
         var idProducto = document.getElementById('producto');
-        axios.get("/listado/cardex/nuevo/"+idBodega.value+"/"+idProducto.value)
+        axios.get("/listado/cardex/nuevo/"+idProducto.value+"/"+idBodega.value)
             .then( response => {
                 let data = response.data;
                 console.log(data);
@@ -199,45 +199,23 @@
             pageLength: 10,
             responsive: true,
             dom: '<"html5buttons"B>lTfgitp',
-            buttons: [{
-                    extend: 'copy'
-                },
-                {
-                    extend: 'csv'
-                },
+            buttons: [
                 {
                     extend: 'excel',
                     title: 'Cardex'
-                },
-                {
-                    extend: 'pdf',
-                    title: 'Cardex'
-                },
-
-                {
-                    extend: 'print',
-                    title: '',
-                    customize: function(win) {
-                        $(win.document.body).addClass('white-bg');
-                        $(win.document.body).css('font-size', '10px');
-
-                        $(win.document.body).find('table')
-                            .addClass('compact')
-                            .css('font-size', 'inherit');
-                    }
                 }
             ],
-            "ajax": "/listado/cardex/nuevo/"+idBodega.value+"/"+idProducto.value,
+            "ajax": "/listado/cardex/nuevo/"+idProducto.value+"/"+idBodega.value,
             "columns": [
                 {
-                    data: 'fecha_creacion',
+                    data: 'fecha_creacion'
                 },
                 {
                     data: 'producto'
                 },
                 {
                     data: 'id_producto'
-                },
+                },/*
                 {
                     data: 'doc_factura'
                 },
@@ -247,7 +225,6 @@
                 {
                     data: 'detalleCompra'
                 },
-
                 {
                     data: 'comprobante_entrega'
                 },
@@ -276,32 +253,7 @@
                 {
                     data: 'usuario'
                 },
-            ],initComplete: function () {
-                var r = $('#tbl_cardex tfoot tr');
-                r.find('th').each(function(){
-                  $(this).css('padding', 8);
-                });
-                $('#tbl_cardex thead').append(r);
-                $('#search_0').css('text-align', 'center');
-                this.api()
-                    .columns()
-                    .every(function () {
-                        let column = this;
-                        let title = column.footer().textContent;
-
-                        // Create input element
-                        let input = document.createElement('input');
-                        input.placeholder = title;
-                        column.footer().replaceChildren(input);
-
-                        // Event listener for user input
-                        input.addEventListener('keyup', () => {
-                            if (column.search() !== this.value) {
-                                column.search(input.value).draw();
-                            }
-                        });
-                    });
-            }
+            ]
 
 
         });

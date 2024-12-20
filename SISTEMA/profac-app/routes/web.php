@@ -553,7 +553,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('/listado/cardex/{idBodega}/{idProducto}', [Cardex::class, 'listarCardex']);
 
     Route::get('/cardexn', Cardexdos::class);
-    Route::get('/listado/cardex/nuevo/{idBodega}/{idProducto}', [Cardex::class, 'listarCardexNuevo']);
+    Route::get('/listado/cardex/nuevo/{idProducto}/{idBodega}', [Cardex::class, 'listarCardexNuevo']);
 
     Route::get('/cardex/general', CardexGeneral::class);
     Route::get('/listado/cardex/general/{fecha_inicio}/{fecha_final}', [CardexGeneral::class, 'listarCardex']);

@@ -128,16 +128,54 @@ class Cardex extends Component
     }
 
 
-    public function listarCardexNuevo($idBodega, $idProducto){
+    public function listarCardexNuevo($idProducto,$idBodega){
         //dd($idBodega, $idProducto);
        // dd("Entro");
         try {
+//dd("LLEGOO");
+            //$listaCardex = DB::SELECT("CALL sp_ConsultaCardex(".$idProducto.",". $idBodega.")");
+            $listaCardex = DB::SELECT("
+                SELECT
+        c.fecha_creacion,
+        c.producto,
+        c.id_producto,
+        f.id factura,
+        f.numero_factura,
+        a.id ajuste,
+        a.numero_ajuste ajuste_cod,
+        c.id_compra detalleCompra,
+        ce.id comprobante,
+        ce.numero_comprovante comprobante_cod,
+        v.id vale_tipo_1,
+        v.numero_vale vale_tipo_1_cod,
+        nc.id nota_credito,
+        nc.numero_nota nota_credito_cod,
+        c.descripcion,
+        CONCAT(b.nombre, ' ', s.descripcion) AS origen,
+        CONCAT(bo.nombre, ' ', se.descripcion) AS destino,
+        c.cantidad,
+        c.usuario
+    FROM cardex c
+    LEFT JOIN factura f ON f.id = c.id_factura
+    LEFT JOIN ajuste a ON a.id = c.id_ajuste
+    LEFT JOIN comprovante_entrega ce ON ce.id = c.id_comprobante_entrega
+    LEFT JOIN vale v ON v.id = c.id_vale_tipo_1
+    LEFT JOIN nota_credito nc ON nc.id = c.id_nota_de_credito
+    LEFT JOIN bodega b ON b.id = c.id_Bodega_origen
+    LEFT JOIN seccion s ON s.id = c.id_seccion_origen
+    LEFT JOIN bodega bo ON bo.id = c.id_bodega_destino
+    LEFT JOIN seccion se ON se.id = c.id_seccion_destino
+    WHERE c.id_producto = 2266
+      AND (c.id_Bodega_origen = 1 OR c.id_bodega_destino = 1)
+      ORDER BY c.fecha_creacion  ;
 
-            $listaCardex = DB::SELECT("CALL sp_ConsultaCardex(".$idProducto.",". $idBodega.")");
 
-            dd($listaCardex);
 
+
+            ");
+           // dd($listaCardex);
             return Datatables::of($listaCardex)
+            /*
             ->addColumn('doc_factura', function($elemento){
                 if($elemento->factura != null){
                     return '<a target="_blank" href="/detalle/venta/'.$elemento->factura.'"><i class="fas fa-receipt"></i> FACTURA # '.$elemento->numero_factura.'</a>';
@@ -166,18 +204,17 @@ class Cardex extends Component
                 }
             })
 
-           /*  ->addColumn('vale_tipo_2', function($elemento){
+            ->addColumn('vale_tipo_2', function($elemento){
                 if($elemento->vale_tipo_2 != null){
                     return '<a target="_blank" href="/vale/imprimir/'.$elemento->vale_tipo_2.'"><i class="fas fa-receipt"></i> VALE TIPO 2 #'.$elemento->vale_tipo_2_cod.' </a>';
                 }
-            }) */
 
             ->addColumn('nota_credito', function($elemento){
                 if($elemento->nota_credito != null){
                     return '<a target="_blank" href="/nota/credito/imprimir/'.$elemento->nota_credito.'"><i class="fas fa-receipt"></i> NOTA DE CREDITO #'.$elemento->nota_credito_cod.' </a>';
                 }
-            })
-            ->rawColumns(['doc_factura','doc_ajuste', 'detalleCompra','comprobante_entrega','vale_tipo_1','vale_tipo_2','nota_credito'])
+            })*/
+            ->rawColumns(['doc_factura','doc_ajuste', 'detalleCompra','comprobante_entrega','vale_tipo_1','nota_credito'])
             ->make(true);
 
         } catch (QueryException $e) {
