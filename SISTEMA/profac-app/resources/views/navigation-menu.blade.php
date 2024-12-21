@@ -604,6 +604,8 @@
                     <a><i class="fa-solid fa-truck-fast" style="color:#ffffff;"></i><span class="nav-label" style="color:#ffffff;">Cardex</span><span class="fa arrow"></span></a>
 
                     <ul class="nav nav-second-level">
+
+                        <li><a href="/cardexn" style="color:#ffffff;">Cardex 2</a></li>
                         <li><a href="/cardex" style="color:#ffffff;">Gestionar cardex</a></li>
                         <li><a href="/cardex/general" style="color:#ffffff;">Cardex general</a></li>
                     </ul>
@@ -741,6 +743,7 @@
                     <a><i class="fa-solid fa-truck-fast" style="color:#ffffff;"></i><span class="nav-label" style="color:#ffffff;">Cardex</span><span class="fa arrow"></span></a>
 
                     <ul class="nav nav-second-level">
+                        <li><a href="/cardexn" style="color:#ffffff;">Cardex 2</a></li>
                         <li><a href="/cardex" style="color:#ffffff;">Gestionar cardex</a></li>
                         <li><a href="/cardex/general" style="color:#ffffff;">Cardex general</a></li>
                     </ul>

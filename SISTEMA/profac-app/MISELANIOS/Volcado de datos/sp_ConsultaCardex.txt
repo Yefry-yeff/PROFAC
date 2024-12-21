@@ -21,17 +21,22 @@ BEGIN
         c.fecha_creacion,
         c.producto,
         c.id_producto,
+        c.id_factura,
         f.numero_factura,
-        a.numero_ajuste,
-        c.id_compra,
+        a.id as ajuste,
+        a.numero_ajuste as ajuste_cod,
+        c.id_compra as detalleCompra ,
+        ce.id as comprobante,
         ce.numero_comprovante,
-        v.numero_vale,
+        v.id as vale_tipo_2,
+        v.numero_vale as vale_tipo_2_cod,
         nc.numero_nota,
+        nc.id nota_credito,
         c.descripcion,
         CONCAT(b.nombre, ' ', s.descripcion) AS origen,
         CONCAT(bo.nombre, ' ', se.descripcion) AS destino,
         c.cantidad,
-        c.usuario
+        u.name as usuario
     FROM cardex c
     LEFT JOIN factura f ON f.id = c.id_factura
     LEFT JOIN ajuste a ON a.id = c.id_ajuste
@@ -42,6 +47,7 @@ BEGIN
     LEFT JOIN seccion s ON s.id = c.id_seccion_origen
     LEFT JOIN bodega bo ON bo.id = c.id_bodega_destino
     LEFT JOIN seccion se ON se.id = c.id_seccion_destino
+    LEFT JOIN users u on u.id = c.usuario
     WHERE c.id_producto = idproducto
       AND (c.id_Bodega_origen = idbodega OR c.id_bodega_destino = idbodega);
 

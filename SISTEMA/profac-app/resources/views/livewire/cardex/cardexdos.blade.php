@@ -66,12 +66,12 @@
                                         <th>Fecha de gestion</th>
                                         <th>Producto</th>
                                         <th>Codigo de producto</th>
-                                       {{--   <th>Factura</th>
-                                        <th>Ajuste</th>
-                                        <th>Compra</th>
+                                       <th>Factura</th>
+                                       <th>Ajuste</th>
+                                       <th>Compra</th>
                                         <th>Comprobante de entrega</th>
-                                        <th>Vale Tipo 1</th>
-                                        <th>Vale Tipo 2</th>  --}}
+                                        {{--  <th>Vale Tipo 1</th>  --}}
+                                         <th>Vale Tipo 2</th>
                                         <th>Nota de credito</th>
                                         <th>Descripcion</th>
                                         <th>Origen</th>
@@ -86,12 +86,12 @@
                                             <th>Fecha de gestion</th>
                                             <th>Producto</th>
                                             <th>Codigo de producto</th>
-                                           {{--   <th>Factura</th>
-                                            <th>Ajuste</th>
+                                           <th>Factura</th>
+                                           <th>Ajuste</th>
                                             <th>Compra</th>
                                             <th>Comprobante de entrega</th>
-                                            <th>Vale Tipo 1</th>
-                                            <th>Vale Tipo 2</th>  --}}
+                                            {{--  <th>Vale Tipo 1</th>  --}}
+                                            <th>Vale Tipo 2</th>
                                             <th>Nota de credito</th>
                                             <th>Descripcion</th>
                                             <th>Origen</th>
@@ -192,7 +192,7 @@
         var idProducto = document.getElementById('producto');
         //console.log(idBodega.options[idBodega.selectedIndex].text, idProducto.options[idProducto.selectedIndex].text);
         $('#tbl_cardex').DataTable({
-            "paging": false,
+            "paging": true,
             "language": {
                 "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
             },
@@ -215,29 +215,29 @@
                 },
                 {
                     data: 'id_producto'
-                },/*
+                },
                 {
                     data: 'doc_factura'
                 },
                 {
                     data: 'doc_ajuste'
                 },
+
                 {
                     data: 'detalleCompra'
                 },
                 {
                     data: 'comprobante_entrega'
-                },
+                },/*
                 {
-                    data: 'vale_tipo_1'
-                },
-                /*{
+                    data: 'vale_tipo_1
+                },'*/
+                {
                     data: 'vale_tipo_2'
-                },*/
+                },
                 {
                     data: 'nota_credito'
                 },
-
                 {
                     data: 'descripcion'
                 },
@@ -253,7 +253,32 @@
                 {
                     data: 'usuario'
                 },
-            ]
+            ],initComplete: function () {
+                var r = $('#tbl_cardex tfoot tr');
+                r.find('th').each(function(){
+                  $(this).css('padding', 8);
+                });
+                $('#tbl_cardex thead').append(r);
+                $('#search_0').css('text-align', 'center');
+                this.api()
+                    .columns()
+                    .every(function () {
+                        let column = this;
+                        let title = column.footer().textContent;
+
+                        // Create input element
+                        let input = document.createElement('input');
+                        input.placeholder = title;
+                        column.footer().replaceChildren(input);
+
+                        // Event listener for user input
+                        input.addEventListener('keyup', () => {
+                            if (column.search() !== this.value) {
+                                column.search(input.value).draw();
+                            }
+                        });
+                    });
+            }
 
 
         });
