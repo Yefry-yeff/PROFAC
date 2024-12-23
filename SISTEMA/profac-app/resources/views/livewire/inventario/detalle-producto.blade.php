@@ -945,6 +945,14 @@
 
                 var data = new FormData($('#editarProductoForm').get(0));
 
+                let precio1 = document.getElementById('precio1').value;
+                let precio2 =  document.getElementById('precio2').value
+                let precio3 =  document.getElementById('precio3').value
+                let precio4 = document.getElementById('precio4').value
+                data.append('precio1', precio1);
+                data.append('precio2', precio2);
+                data.append('precio3', precio3);
+                data.append('precio4', precio4);
                 axios.post("/producto/editar", data)
                     .then(response => {
                         $('#modalSpinnerLoading').modal('hide');
