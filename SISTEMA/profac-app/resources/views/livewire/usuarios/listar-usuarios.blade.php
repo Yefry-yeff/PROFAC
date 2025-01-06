@@ -12,15 +12,15 @@
             </ol>
         </div>
 
-        <div class="col-lg-4 col-xl-2 col-md-4 col-sm-4">
+       {{--   <div class="col-lg-4 col-xl-2 col-md-4 col-sm-4">
             <div style="margin-top: 1.5rem">
                 <a href="#" class="btn add-btn btn-primary" data-toggle="modal"
                     data-target="#modal_usuario_crear"><i class="fa fa-plus"></i>Registrar Usuarios</a>
             </div>
-        </div>
+        </div>  --}}
 
-        <!-- Modal para registro de Banco-->
-            <div class="modal fade" id="modal_usuario_crear" tabindex="-1" role="dialog"
+        <!-- Modal para cambiar rol de usuario-->
+        <div class="modal fade" id="modal_usuario_rol" tabindex="-1" role="dialog"
                 aria-labelledby="exampleModalLabel" aria-hidden="true">
                 <div class="modal-dialog modal-dialog-centered" role="document">
                     <div class="modal-content">
@@ -36,39 +36,29 @@
                                 <div class="row" id="row_datos">
 
                                     <div class="col-md-12">
-                                        <label for="identidad_user" class="col-form-label focus-label">Número de Identidad:<span class="text-danger">*</span></label>
-                                        <input class="form-control" required type="text" id="identidad_user" name="identidad_user" data-parsley-required>
-                                    </div>
+                                        <label for="nombre" class="col-form-label focus-label">Nombre Usuario:<span class="text-danger">*</span></label>
 
-                                    <div class="col-md-12">
-                                        <label for="nombre_usuario" class="col-form-label focus-label">Nombre de Usuario:<span class="text-danger">*</span></label>
+                                        <input required type="hide" id="id_usuario" name="id_usuario" data-parsley-required>
                                         <input class="form-control" required type="text" id="nombre_usuario" name="nombre_usuario" data-parsley-required>
                                     </div>
 
                                     <div class="col-md-12">
-                                        <label for="email_user" class="col-form-label focus-label">Correo Institucional:<span class="text-danger">*</span></label>
-                                        <input class="form-control" required type="mail" id="email_user" name="email_user" data-parsley-required>
+                                        <label for="correo" class="col-form-label focus-label">Correo de usuario:<span class="text-danger">*</span></label>
+                                        <input class="form-control" required type="text" id="correo_usuario" name="correo_usuario" data-parsley-required>
                                     </div>
-
                                     <div class="col-md-12">
-                                        <label for="pass_user" class="col-form-label focus-label">Contraseña:<span class="text-danger">*</span></label>
-                                        <input class="form-control" required type="text" id="pass_user" name="pass_user" data-parsley-required>
+                                        <label for="identidad_user" class="col-form-label focus-label">Rol Actuál:<span class="text-danger">*</span></label>
+                                        <input class="form-control" required type="text" id="rol_actual" name="rol_actual" data-parsley-required>
                                     </div>
-
 
 
                                     <div class="col-md-12">
-                                        <label for="rol_user" class="col-form-label focus-label">Seleccionar Rol de acceso:<span class="text-danger">*</span></label>
-                                        <select class="form-select form-control" name="rol_user" id="rol_user" required data-parsley-required>
-                                            <option value="1">Administrador</option>
-                                            <option value="5">Auxiliar Administrativo</option>
-                                            <option value="2">Vendedor</option>
-                                            <option value="3">Facturador</option>
-                                            <option value="4">Auxiliar de Contabilidad</option>
+                                        <label for="identidad_user" class="col-form-label focus-label">Seleccione nuevo rol:<span class="text-danger">*</span></label>
+                                        <select id="seleccionarRol" name="seleccionarRol"class="form-group form-control" style="" onchange="obtenerRoles()">
+                                        <option value="" selected disabled>--Seleccione un Rol--</option>
                                         </select>
+
                                     </div>
-
-
                                 </div>
                             </form>
 

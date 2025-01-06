@@ -6,13 +6,18 @@ use Livewire\Component;
 
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Auth;
-use Validator;
 use Illuminate\Database\QueryException;
 use Throwable;
 use App\Models\usuario;
 
+use App\Models\Team;
+use App\Models\User;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Validator;
+use Laravel\Fortify\Contracts\CreatesNewUsers;
+use Laravel\Jetstream\Jetstream;
 use DataTables;
 
 
@@ -140,5 +145,14 @@ class ListarUsuarios extends Component
          'error' => $e
         ],402);
         }
+    }
+
+    public function editarRol(Request $request){
+
+
+    }
+    public function infoUsuario(){
+
+
     }
 }

@@ -895,10 +895,6 @@
                         <option  value="${producto.precio2}" data-id="p2">${producto.precio2} - B</option>
                         <option  value="${producto.precio3}" data-id="p3">${producto.precio3} - C</option>
                         <option  value="${producto.precio4}" data-id="p4">${producto.precio4} - D</option>
-
-
-
-
                         `;
                         arrayUnidades.forEach(unidad => {
                             if (unidad.valor_defecto == 1) {
