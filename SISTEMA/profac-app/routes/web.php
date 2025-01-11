@@ -220,8 +220,15 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     //-----------------------------------------------Usuarios-------------------------------------------------------------------------------------------//
     Route::get('/usuarios', ListarUsuarios::class);
     Route::get('/usuarios/listar/usuarios', [ListarUsuarios::class, 'listarUsuarios']);
+    Route::get('/usuario/info/{idUsuario}', [ListarUsuarios::class, 'infoUsuario']);
+    Route::get('/usuario/roles/{idRol}', [ListarUsuarios::class, 'selectRoles']);
+    Route::get('/usuario/baja/{idUsuario}', [ListarUsuarios::class, 'baja']);
+
+
     /*------------------------------------------------NUEVAS RUTAS DE ACCESO A USUARIOS  */
     Route::post('/usuario/guardar', [ListarUsuarios::class, 'guardarUsuarios']);
+
+    Route::post('/usuario/actualizar', [ListarUsuarios::class, 'actualizarUsuarios']);
 
     /*----------------------------------------------- /NUEVAS RUTAS DE ACCESO A USUARIOS  */
 

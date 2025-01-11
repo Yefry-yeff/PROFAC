@@ -59,21 +59,17 @@ class ListarUsuarios extends Component
                 return
 
                 '
+                    <div class="btn-group">
+                        <button data-toggle="dropdown" class="btn btn-warning dropdown-toggle" aria-expanded="false">Ver
+                            más</button>
+                        <ul class="dropdown-menu" x-placement="bottom-start"
+                            style="position: absolute; top: 33px; left: 0px; will-change: top, left;">
+                            <li><a class="dropdown-item" onclick="infoUsuario('.$nota->id.')"> <i class="fa fa-pencil m-r-5 text-warning"></i>Editar Rol</a></li>
+                            <li><a class="dropdown-item" onclick="baja('.$nota->id.')"> <i class="fa fa-times text-danger" aria-hidden="true"></i>
+                                    Dar de baja </a></li>
 
-                <div class="btn-group">
-                <button data-toggle="dropdown" class="btn btn-warning dropdown-toggle" aria-expanded="false">Ver
-                    más</button>
-                <ul class="dropdown-menu" x-placement="bottom-start"
-                    style="position: absolute; top: 33px; left: 0px; will-change: top, left;">
-                    <li><a class="dropdown-item" href="#" "> <i class="fa fa-pencil m-r-5 text-warning"></i>
-                            Editar Rol</a></li>
-                    <li><a class="dropdown-item" href="#" "> <i class="fa fa-times text-danger" aria-hidden="true"></i>
-                            Dar de baja </a></li>
-
-                </ul>
-            </div>
-
-
+                        </ul>
+                    </div>
                 ';
             })->rawColumns(['opciones'])
 
@@ -147,12 +143,78 @@ class ListarUsuarios extends Component
         }
     }
 
-    public function editarRol(Request $request){
+    public function actualizarUsuarios(Request $request){
+        try {
+            //dd($request);
 
+
+            $usuario = usuario::find($request->id_usuario);
+            $usuario->identidad = $request->identidad_usuario;
+            $usuario->name = $request->nombre_usuario;
+            $usuario->rol_id = $request->seleccionarRol;
+            $usuario->email = $request->correo_usuario;
+            $usuario->fecha_nacimiento = $request->fenacimiento_usuario;
+            $usuario->save();
+
+            return response()->json([
+                 'icon'=>'success',
+                 'title'=>'Exito!',
+                 'text'=>'Usuario Actualizaron con exito.'
+            ],200);
+
+        } catch (QueryException $e) {
+
+        return response()->json([
+         'icon'=>'error',
+         'title'=>'Error!',
+         'text'=>'Ha ocurrido un error, intente de nuevo.',
+         'message' => 'Ha ocurrido un error',
+         'error' => $e
+        ],402);
+        }
+    }
+
+
+    public function selectRoles($idRol){
+
+        $infoRoles = DB::SELECT("
+
+            SELECT
+                id, nombre
+            FROM rol
+            WHERE id not in (".$idRol.")");
+       return $infoRoles;
+    }
+    public function infoUsuario($idUsuario){
+
+        //dd($idUsuario);
+        $infoUsuario = DB::SELECT("
+
+             SELECT
+                a.id,
+                a.name,
+                a.identidad,
+                a.email,
+                a.telefono,
+                a.rol_id,
+                b.nombre as rol,
+                a.fecha_nacimiento
+            FROM users as a
+            left join rol b on b.id = a.rol_id
+            WHERE a.id = ".$idUsuario);
+            return $infoUsuario;
 
     }
-    public function infoUsuario(){
 
+    public function baja($idUsuario){
+        $usuario = usuario::find($idUsuario);
+        $usuario->rol_id = NULL;
+        $usuario->save();
 
+        return response()->json([
+             'icon'=>'success',
+             'title'=>'Exito!',
+             'text'=>'Usuario Dado de baja con exito.'
+        ],200);
     }
 }
