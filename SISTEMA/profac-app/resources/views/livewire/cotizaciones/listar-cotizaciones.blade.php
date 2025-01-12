@@ -74,147 +74,69 @@
 
     @push('scripts')
         <script>
-              //var varToken = {{ csrf_token() }};
-              var idTipoVenta = {{$idTipoVenta}};
+            var idTipoVenta = {{$idTipoVenta}};
 
             $(document).ready(function() {
-            $('#tbl_listar_cotizaciones').DataTable({
-                "order": [7, 'desc'],
-                "language": {
-                    "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
-                },
-
-                pageLength: 10,
-                responsive: true,
-
-
-                "ajax":{
-                    'url':"/cotizacion/obtener/listado",
-                    'data' : {'id' : idTipoVenta },
-                    'type' : 'post',
-                    'headers': {
-                                'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                                }
-
-
-                     },
-                "columns": [
-
-                    {
-                        data: 'codigo'
-                    },
-                    {
-                        data: 'nombre_cliente'
-                    },
-                    {
-                        data: 'RTN'
-                    },
-                    {
-                        data: 'sub_total'
-                    },
-                    {
-                        data: 'isv'
-                    },
-                    {
-                        data: 'total'
-                    },
-                    {
-                        data: 'name'
-                    },
-                    {
-                        data: 'created_at'
-                    },
-                    {
-                        data: 'opciones'
+                $('#tbl_listar_cotizaciones').DataTable({
+                    "order": [7, 'desc'],
+                    "language": {
+                        "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
                     },
 
+                    pageLength: 10,
+                    responsive: true,
 
 
-                ]
+                    "ajax":{
+                        'url':"/cotizacion/obtener/listado",
+                        'data' : {'id' : idTipoVenta },
+                        'type' : 'post',
+                        'headers': {
+                                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                                    }
 
 
-            });
-            })
+                         },
+                    "columns": [
 
-        function anularVentaConfirmar(idFactura){
+                        {
+                            data: 'codigo'
+                        },
+                        {
+                            data: 'nombre_cliente'
+                        },
+                        {
+                            data: 'RTN'
+                        },
+                        {
+                            data: 'sub_total'
+                        },
+                        {
+                            data: 'isv'
+                        },
+                        {
+                            data: 'total'
+                        },
+                        {
+                            data: 'name'
+                        },
+                        {
+                            data: 'created_at'
+                        },
+                        {
+                            data: 'opciones'
+                        },
 
-            Swal.fire({
-            title: '¿Está seguro de anular esta factura?',
-            text:'Una vez que ha sido anulada la factura el producto registrado en la misma sera devuelto al inventario.',
-            showDenyButton: false,
-            showCancelButton: true,
-            confirmButtonText: 'Si, Anular Compra',
-            cancelButtonText: `Cancelar`,
-            }).then((result) => {
-            /* Read more about isConfirmed, isDenied below */
-            if (result.isConfirmed) {
-
-                //Swal.fire('Saved!', '', 'success')
-                anularVenta(idFactura);
-
-            }
-            })
-        }
-
-        function anularVenta(idFactura){
-
-            axios.post("/factura/corporativo/anular", {idFactura:idFactura})
-            .then( response =>{
 
 
-                let data = response.data;
-                Swal.fire({
-                            icon: data.icon,
-                            title: data.title,
-                            html: data.text,
-                        });
-                        $('#tbl_listar_compras').DataTable().ajax.reload();
+                    ]
 
-            })
-            .catch( err => {
 
-                Swal.fire({
-                            icon: 'error',
-                            title: 'Error!',
-                            text: 'Ha ocurrido un error al anular la compra.',
-                        })
+                });
+                })
 
-            })
 
-        }
         </script>
+        <script src="{{ asset('js/js_proyecto/cotizaciones/listar-cotizaciones.js') }}"></script>
     @endpush
 </div>
-
-<?php
-    date_default_timezone_set('America/Tegucigalpa');
-    $act_fecha=date("Y-m-d");
-    $act_hora=date("H:i:s");
-    $mes=date("m");
-    $year=date("Y");
-    $datetim=$act_fecha." ".$act_hora;
-?>
-<script>
-    function mostrarHora() {
-        var fecha = new Date(); // Obtener la fecha y hora actual
-        var hora = fecha.getHours();
-        var minutos = fecha.getMinutes();
-        var segundos = fecha.getSeconds();
-
-        // A単adir un 0 delante si los minutos o segundos son menores a 10
-        minutos = minutos < 10 ? "0" + minutos : minutos;
-        segundos = segundos < 10 ? "0" + segundos : segundos;
-
-        // Mostrar la hora actual en el elemento con el id "reloj"
-        document.getElementById("reloj").innerHTML = hora + ":" + minutos + ":" + segundos;
-    }
-    // Actualizar el reloj cada segundo
-    setInterval(mostrarHora, 1000);
-</script>
-<div class="float-right">
-    <?php echo "$act_fecha";  ?> <strong id="reloj"></strong>
-</div>
-<div>
-    <strong>Copyright</strong> Distribuciones Valencia &copy; <?php echo "$year";  ?>
-</div>
-<p id="reloj"></p>
