@@ -116,7 +116,6 @@
 
 @push('scripts')
 
-
     <script src="{{ asset('js/js_proyecto/usuarios/usuarios.js') }}"></script>
 
 @endpush

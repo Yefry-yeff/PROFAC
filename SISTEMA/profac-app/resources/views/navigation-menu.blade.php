@@ -211,8 +211,7 @@
                             alt="{{ Auth::user()->name }}" />
 
                         <div data-toggle="dropdown" class="dropdown-toggle" href="#">
-                            <span class="block m-t-xs font-bold" style="color:#FFF;"><b>
-                                    {{ Auth::user()->name }}</b></span>
+                            <span class="block m-t-xs font-bold" style="color:#FFF;"><b> {{ Auth::user()->name }}</b></span>
                             @php
                                 $rol = DB::SELECTONE('select nombre from rol where id = ' . Auth::user()->rol_id);
                             @endphp
@@ -232,34 +231,21 @@
                 </li>
 
                 {{--  INICIO DE MENÚ  --}}
-                @if (Auth::user()->rol_id == '1')
+            @if (Auth::user()->rol_id == '1')
                 <li>
-                    <a href="{{ route('dashboard') }}"><i class="fa fa-area-chart" style="color:#ffffff;"
-                            aria-hidden="true"></i> <span class="nav-label" style="color:#ffffff;">Dashboard</span>
-                    </a>
-
+                    <a href="{{ route('dashboard') }}"><i class="fa fa-area-chart" style="color:#ffffff; "aria-hidden="true"></i> <span class="nav-label" style="color:#ffffff;">Dashboard</span></a>
                 <li>
                 <li>
-                    <a><i class="fa-solid fa-user" style="color:#ffffff;"></i> <span class="nav-label"
-                            style="color:#ffffff;">Usuarios</span>
-                        <span class="fa arrow"></span></a>
+                    <a><i class="fa-solid fa-user" style="color:#ffffff;"></i> <span class="nav-label" style="color:#ffffff;">Usuarios</span><span class="fa arrow"></span></a>
                     <ul class="nav nav-second-level">
-                        <li href="dashboard_2.html"><a href="/usuarios" style="color:#ffffff;">Lista de
-                                Usuarios</a>
-                        </li>
-                        {{-- <li><a href="dashboard_2.html " style="color:#ffffff;">Reportes de Usuario</a></li> --}}
+                        <li href="dashboard_2.html"><a href="/usuarios" style="color:#ffffff;">Lista de Usuarios</a></li>
                     </ul>
                 </li>
             @endif
             @if (Auth::user()->rol_id == '2' or Auth::user()->rol_id == '1')
-                <a><i  style="color:#ffffff;"></i><span style="color:#ffffff;">Vendedores</span>
-                </a>
+                <a><i  style="color:#ffffff;"></i><span style="color:#ffffff;">Vendedores</span></a>
                 <li>
-                    <a><i class="fa-solid fa-file-invoice" style="color:#ffffff;"></i>
-                        {{--  <span class="nav-label" style="color:#ffffff;">Ventas Clientes B</span>  --}}
-                        <span class="nav-label" style="color:#ffffff;">Sala de Ventas</span>
-                        <span class="fa arrow"></span></a>
-
+                    <a><i class="fa-solid fa-file-invoice" style="color:#ffffff;"></i><span class="nav-label" style="color:#ffffff;">Sala de Ventas</span><span class="fa arrow"></span></a>
                     <ul class="nav nav-second-level">
                         <li><a href="/expo/cotizacion/3" style="color:#ffffff;">Expo Cotiza</a></li>
                         <li><a href="/cotizacion/listado/expo/4" style="color:#ffffff;">Listado de Cotizaciones</a></li>
