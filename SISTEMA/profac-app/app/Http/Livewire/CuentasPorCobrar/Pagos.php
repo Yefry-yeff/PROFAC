@@ -745,7 +745,7 @@ class Pagos extends Component
                         $abonos->estado_abono= 1;
                         $abonos->monto_abonado = $request->montoAbono;
                         $abonos->usr_registro = Auth::user()->id;
-                        $abonos->comentario = $cm.$request->comentarioAbono.$cm;
+                        $abonos->comentario = $request->comentarioAbono;
                         $abonos->url_documento = $path;
                         $abonos->fecha_pago = $request->fecha_pago;
 
@@ -758,7 +758,7 @@ class Pagos extends Component
                            '0',
                            '".Auth::user()->id."',
                            '".$request->idFacturaAbono."',
-                           '".$request->comentarioAbono."',
+                           '.$request->comentarioAbono.',
                            '".$request->codAplicPagoAbono."',
                            '0',
                            '".$request->montoAbono."',
