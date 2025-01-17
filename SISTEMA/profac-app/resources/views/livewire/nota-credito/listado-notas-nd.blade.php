@@ -100,178 +100,87 @@
         </div>
     </div>
 
-
-
-
-
     @push('scripts')
-        <script>
-            var fechaInicio = "{{ $fechaInicio }}";
-            var fechaFinal = "{{ date('Y-m-t') }}";
+    <script src="{{ asset('js/js_proyecto/nota-credito/listado-notas-nd.js') }}"></script>
+    <script>
+        var fechaInicio = "{{ $fechaInicio }}";
+        var fechaFinal = "{{ date('Y-m-t') }}";
 
-            $(document).ready(function() {
-                tablas();
-            })
+        $(document).ready(function() {
+            tablas();
+        })
 
-            function tablas()
-            {
+        function tablas()
+        {
 
-                $('#tbl_listar_ajustes').DataTable({
+            $('#tbl_listar_ajustes').DataTable({
 
-                    "order": [1, 'desc'],
-                    "language": {
-                        "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
+                "order": [1, 'desc'],
+                "language": {
+                    "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
+                },
+
+                pageLength: 15,
+                responsive: true,
+
+
+
+                'ajax': {
+                    'url': "/nota/credito/lista/gobierno",
+                    'data': {
+                        'fechaInicio': fechaInicio,
+                        'fechaFinal': fechaFinal,
+                        "_token": "{{ csrf_token() }}"
+                    },
+                    'type': 'post'
+                },
+                "columns": [
+
+                    {
+                        data: 'codigo'
+                    },
+                    {
+                        data: 'cai'
+                    },
+                    {
+                        data: 'cliente'
+                    },
+                    {
+                        data: 'factura'
+                    },
+                    {
+                        data: 'motivo'
+                    },
+                    {
+                        data: 'comentario'
+                    },
+                    {
+                        data: 'sub_total'
+                    },
+                    {
+                        data: 'isv'
+                    },
+                    {
+                        data: 'total'
+                    },
+                    {
+                        data: 'fecha_registro'
+                    },
+                    {
+                        data: 'registrado_por'
+                    },
+                    {
+                        data: 'opciones'
                     },
 
-                    pageLength: 15,
-                    responsive: true,
+                ]
+
+
+            });
 
 
 
-                    'ajax': {
-                        'url': "/nota/credito/lista/gobierno",
-                        'data': {
-                            'fechaInicio': fechaInicio,
-                            'fechaFinal': fechaFinal,
-                            "_token": "{{ csrf_token() }}"
-                        },
-                        'type': 'post'
-                    },
-                    "columns": [
-
-                        {
-                            data: 'codigo'
-                        },
-                        {
-                            data: 'cai'
-                        },
-                        {
-                            data: 'cliente'
-                        },
-                        {
-                            data: 'factura'
-                        },
-                        {
-                            data: 'motivo'
-                        },
-                        {
-                            data: 'comentario'
-                        },
-                        {
-                            data: 'sub_total'
-                        },
-                        {
-                            data: 'isv'
-                        },
-                        {
-                            data: 'total'
-                        },
-                        {
-                            data: 'fecha_registro'
-                        },
-                        {
-                            data: 'registrado_por'
-                        },
-                        {
-                            data: 'opciones'
-                        },
-
-                    ]
-
-
-                });
-
-
-
-            }
-
-
-            function ajustesPorfecha(){
-                let inicio = document.getElementById('fechaInicio').value;
-                let final = document.getElementById('fechaFinal').value;
-
-                console.log("entro")
-
-                fechaInicio = inicio;
-                fechaFinal = final;
-
-                $('#tbl_listar_ajustes').DataTable().clear().destroy();
-               // $('#tbl_listar_ventas_dos').DataTable().clear().destroy();
-
-                this.tablas();
-
-                //$('#tbl_listar_ventas_uno').DataTable().ajax.reload();
-                //$('#tbl_listar_ventas_dos').DataTable().ajax.reload();
-            }
-
-
-            function anularNota(idNotaCredito, idFactura){
-                axios.post('/nota/credito/anular', {
-                                    idFactura: idFactura,
-                                    idNotaCredito: idNotaCredito
-                                })
-                                .then(response => {
-
-                                    let data = response.data;
-
-                                    Swal.fire({
-                                        icon: data.icon,
-                                        title: data.title,
-                                        html: data.text,
-
-                                    })
-
-                                    location.reload()
-
-
-                                    return;
-
-
-                                })
-                                .catch(err => {
-
-
-                                    Swal.fire({
-                                        icon: "error",
-                                        title: "Error",
-                                        text: "Ha ocurrido un error al anular nota de credito.",
-                                    })
-
-                                })
-            }
-
-        </script>
+        }
+    </script>
     @endpush
 </div>
-<?php
-    date_default_timezone_set('America/Tegucigalpa');
-    $act_fecha=date("Y-m-d");
-    $act_hora=date("H:i:s");
-    $mes=date("m");
-    $year=date("Y");
-    $datetim=$act_fecha." ".$act_hora;
-?>
-<script>
-    function mostrarHora() {
-        var fecha = new Date(); // Obtener la fecha y hora actual
-        var hora = fecha.getHours();
-        var minutos = fecha.getMinutes();
-        var segundos = fecha.getSeconds();
-
-        // A単adir un 0 delante si los minutos o segundos son menores a 10
-        minutos = minutos < 10 ? "0" + minutos : minutos;
-        segundos = segundos < 10 ? "0" + segundos : segundos;
-
-        // Mostrar la hora actual en el elemento con el id "reloj"
-        document.getElementById("reloj").innerHTML = hora + ":" + minutos + ":" + segundos;
-    }
-    // Actualizar el reloj cada segundo
-    setInterval(mostrarHora, 1000);
-</script>
-<div class="float-right">
-    <?php echo "$act_fecha";  ?> <strong id="reloj"></strong>
-</div>
-<div>
-    <strong>Copyright</strong> Distribuciones Valencia &copy; <?php echo "$year";  ?>
-</div>
-<p id="reloj"></p>
