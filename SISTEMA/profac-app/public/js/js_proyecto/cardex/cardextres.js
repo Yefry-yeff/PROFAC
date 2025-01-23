@@ -93,13 +93,13 @@ function cargaCardex(){
         "ajax": "/listado/cardex/com/"+idBodega.value+"/"+idProducto.value,
         "columns": [
             {
-                data: 'fechaIngreso',
+                data: 'fecha_creacion',
             },
             {
                 data: 'producto'
             },
             {
-                data: 'codigoProducto'
+                data: 'id_producto'
             },
             {
                 data: 'doc_factura'
