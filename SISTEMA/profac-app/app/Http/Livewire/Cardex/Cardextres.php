@@ -4,6 +4,7 @@ namespace App\Http\Livewire\Cardex;
 
 use Livewire\Component;
 
+
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -11,14 +12,12 @@ use Auth;
 use Validator;
 use DataTables;
 
-class Cardex extends Component
+class Cardextres extends Component
 {
     public function render()
     {
-        return view('livewire.cardex.cardex');
+        return view('livewire.cardex.cardextres');
     }
-
-
     public function listarBodegas(Request $request){
         try {
 

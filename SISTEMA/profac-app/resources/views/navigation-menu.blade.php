@@ -591,7 +591,7 @@
 
                     <ul class="nav nav-second-level">
 
-                        <li><a href="/cardexn" style="color:#ffffff;">Cardex 2</a></li>
+                        <li><a href="/cardex/com" style="color:#ffffff;">Cardex Completo</a></li>
                         <li><a href="/cardex" style="color:#ffffff;">Gestionar cardex</a></li>
                         <li><a href="/cardex/general" style="color:#ffffff;">Cardex general</a></li>
                     </ul>

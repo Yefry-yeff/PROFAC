@@ -108,7 +108,12 @@ use App\Http\Livewire\CierreDiario\CierreDiario;
 
 use App\Http\Livewire\CierreDiario\HistoricoCierres;
 
+/********Cardex tres Johan Ruiz */
 
+use App\Http\Livewire\Cardex\Cardextres;
+
+
+/******* */
 
 
 
@@ -564,6 +569,14 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 
     Route::get('/cardex/general', CardexGeneral::class);
     Route::get('/listado/cardex/general/{fecha_inicio}/{fecha_final}', [CardexGeneral::class, 'listarCardex']);
+
+    Route::get('/cardex/com',  Cardextres::class);
+
+    Route::get('/cardex/com/listar/bodega', [Cardextres::class, 'listarBodegas']);
+    Route::get('/cardex/com/listar/productos', [Cardextres::class, 'listarProductos']);
+    Route::get('/listado/cardex/com/{idBodega}/{idProducto}', [Cardextres::class, 'listarCardex']);
+
+
 
 
 
