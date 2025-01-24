@@ -108,14 +108,11 @@ use App\Http\Livewire\CierreDiario\CierreDiario;
 
 use App\Http\Livewire\CierreDiario\HistoricoCierres;
 
-/********Cardex tres Johan Ruiz */
-
+//------------Johann Routes-------------//
+//------------Cardex tres--------------//
 use App\Http\Livewire\Cardex\Cardextres;
-
-
-/******* */
-
-
+//------------Reporte Cierre Diario-------//
+use App\Http\Livewire\Reportes\Cierrediariorep;
 
 /*
 |--------------------------------------------------------------------------
@@ -839,7 +836,10 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::post('/cierre/guardar/{fecha}', [CierreDiario::class,'guardarCierre']);
     Route::post('/registro/tipoC', [CierreDiario::class,'guardarTipoCobro']);
 
-
+/****************************************Reportes******************************* */
+//------------------------------- Cierre Diario ----------------------------//
+Route::get('/reporte/Cierrediariorep', CierreDiariorep::class);
+Route::get('/reporte/Cierrediariorep/consulta/{fecha}', [CierreDiariorep::class,'consulta']);
 
 
 
