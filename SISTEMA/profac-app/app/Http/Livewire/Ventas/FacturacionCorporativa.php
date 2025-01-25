@@ -1426,8 +1426,8 @@ class FacturacionCorporativa extends Component
                 concat(C.nombre) as descripcion,
                 UPPER(J.nombre) as medida,
                 if(C.isv = 0, 'SI' , 'NO' ) as excento,
-                H.nombre as bodega,
-                REPLACE(REPLACE(F.descripcion,'Seccion',''),' ', '') as seccion,
+                if(B.seccion_id = 0, 'N/A',H.nombre) as bodega,
+                if(B.seccion_id = 0, 'N/A',REPLACE(REPLACE(F.descripcion,'Seccion',''),' ', '')) as seccion,
                 FORMAT(B.precio_unidad,2) as precio,
                 REPLACE(sum(B.cantidad_s), '.00', '') as cantidad,
                 FORMAT(sum(B.sub_total_s),2) as importe
@@ -1451,33 +1451,7 @@ class FacturacionCorporativa extends Component
             where A.id=" . $idFactura . "
             group by codigo, descripcion, medida, bodega, seccion, precio,B.indice
             order by B.indice asc
-            ) A
-
-
-            union
-
-            Select
-            D.id,
-            D.nombre as descripcion,
-            F.nombre as medida,
-            if(C.isv = 0, 'SI' , 'NO' ) as excento,
-            'N/A',
-            'N/A',
-            FORMAT(C.precio,2) as precio,
-            C.cantidad as cantidad,
-            FORMAT(C.sub_total,2)
-            from factura A
-            inner join vale B
-            on A.id = B.factura_id
-            inner join espera_has_producto C
-            on B.id = C.vale_id
-            inner join producto D
-            on C.producto_id = D.id
-            inner join unidad_medida_venta E
-            on C.unidad_medida_venta_id = E.id
-            inner join unidad_medida F
-            on F.id = E.unidad_medida_id
-            where B.estado_id=1 and A.id = " . $idFactura
+            ) A"
 
         );
         // for ($i=0; $i < 15 ; $i++) {
@@ -1600,8 +1574,8 @@ class FacturacionCorporativa extends Component
                 concat(C.nombre) as descripcion,
                 UPPER(J.nombre) as medida,
                 if(C.isv = 0, 'SI' , 'NO' ) as excento,
-                H.nombre as bodega,
-                REPLACE(REPLACE(F.descripcion,'Seccion',''),' ', '') as seccion,
+                if(B.seccion_id = 0, 'N/A',H.nombre) as bodega,
+                if(B.seccion_id = 0, 'N/A',REPLACE(REPLACE(F.descripcion,'Seccion',''),' ', '')) as seccion,
                 B.precio_unidad as precio,
                 REPLACE(sum(B.cantidad_s), '.00', '') as cantidad,
                 format(sum(B.sub_total_s),2) as importe
@@ -1625,33 +1599,7 @@ class FacturacionCorporativa extends Component
             where A.id=" . $idFactura . "
             group by codigo, descripcion, medida, bodega, seccion, precio,B.indice
             order by B.indice asc
-            ) A
-
-
-            union
-
-            Select
-            D.id,
-            D.nombre as descripcion,
-            F.nombre as medida,
-            if(C.isv = 0, 'SI' , 'NO' ) as excento,
-            'N/A',
-            'N/A',
-            C.precio as precio,
-            C.cantidad as cantidad,
-            C.sub_total
-            from factura A
-            inner join vale B
-            on A.id = B.factura_id
-            inner join espera_has_producto C
-            on B.id = C.vale_id
-            inner join producto D
-            on C.producto_id = D.id
-            inner join unidad_medida_venta E
-            on C.unidad_medida_venta_id = E.id
-            inner join unidad_medida F
-            on F.id = E.unidad_medida_id
-            where B.estado_id=1 and A.id = " . $idFactura
+            ) A"
 
         );
         // for ($i=0; $i < 15 ; $i++) {
@@ -2183,8 +2131,8 @@ class FacturacionCorporativa extends Component
                 concat(C.nombre) as descripcion,
                 UPPER(J.nombre) as medida,
                 if(C.isv = 0, 'SI' , 'NO' ) as excento,
-                H.nombre as bodega,
-                REPLACE(REPLACE(F.descripcion,'Seccion',''),' ', '') as seccion,
+                if(B.seccion_id = 0, 'N/A',H.nombre) as bodega,
+                if(B.seccion_id = 0, 'N/A',REPLACE(REPLACE(F.descripcion,'Seccion',''),' ', '')) as seccion,
                 FORMAT(B.precio_unidad,2) as precio,
                 REPLACE(sum(B.cantidad_s), '.00', '') as cantidad,
                 FORMAT(sum(B.sub_total_s),2) as importe
@@ -2210,33 +2158,7 @@ class FacturacionCorporativa extends Component
             group by codigo, descripcion, medida, bodega, seccion, precio,B.indice
             order by B.indice asc
             ) A
-
-
-            union
-
-            select
-            D.id,
-            D.nombre as descripcion,
-            F.nombre as medida,
-            if(C.isv = 0, 'SI' , 'NO' ) as excento,
-            'N/A',
-            'N/A',
-            FORMAT(C.precio,2) as precio,
-            C.cantidad as cantidad,
-            FORMAT(C.sub_total,2) as sub_total
-
-            from factura A
-            inner join vale B
-            on A.id = B.factura_id
-            inner join espera_has_producto C
-            on B.id = C.vale_id
-            inner join producto D
-            on C.producto_id = D.id
-            inner join unidad_medida_venta E
-            on C.unidad_medida_venta_id = E.id
-            inner join unidad_medida F
-            on F.id = E.unidad_medida_id
-            where B.estado_id=1 and A.id = " . $idFactura
+            where B.estado_id=1 and A.id = "
 
         );
         // for ($i=0; $i < 15 ; $i++) {
