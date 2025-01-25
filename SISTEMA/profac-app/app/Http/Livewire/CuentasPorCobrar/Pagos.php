@@ -743,6 +743,7 @@ class Pagos extends Component
                         $abonos->factura_id = $request->idFacturaAbono;
                         $abonos->banco_id = $request->selectBanco;
                         $abonos->estado_abono= 1;
+                        $abonos->id_tipo_pago_cobro= $request->selectMetodoPago;
                         $abonos->monto_abonado = $request->montoAbono;
                         $abonos->usr_registro = Auth::user()->id;
                         $abonos->comentario = $request->comentarioAbono;

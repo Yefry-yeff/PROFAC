@@ -419,7 +419,7 @@
                                                     <option class="form-control" selected >--------Seleccione------</option>
                                                     <option class="form-control" value="1">EFECTIVO</option>
                                                     <option class="form-control"  value="2">TRANSFERENCIA BANCARIA</option>
-                                                    <option class="form-control"  value="2">CHEQUE</option>
+                                                    <option class="form-control"  value="3">CHEQUE</option>
                                                  </select>
                                             </div>
 
