@@ -1,16 +1,16 @@
-<nav x-data="{ open: false }" class="bg-white border-b border-gray-100 sticky" style=" ">
+<nav x-data="{ open: false }" class="sticky bg-white border-b border-gray-100" style=" ">
     <a class="navbar-minimalize minimalize-styl-2 btn btn-primary " href="#"><i class="fa fa-bars"></i></a>
 
     <!-- Primary Navigation Menu -->
-    <div class=" px-4 sm:px-6 lg:px-8 " style="width:100vw">
+    <div class="px-4  sm:px-6 lg:px-8" style="width:100vw">
 
         <div class="flex justify-between h-16">
             <div class="flex">
                 <!-- Logo -->
-                <div class="shrink-0 flex items-center">
+                <div class="flex items-center shrink-0">
                     <a href="{{ route('dashboard') }}">
-                        {{-- <x-jet-application-mark class="block h-9 w-auto" /> --}}
-                        <img class="animate__animated animate__bounceIn  rounded-full object-cover " style="width:5rem"
+                        {{-- <x-jet-application-mark class="block w-auto h-9" /> --}}
+                        <img class="object-cover rounded-full animate__animated animate__bounceIn " style="width:5rem"
                             src="{{ asset('img/LOGO_VALENCIA.jpg') }}" />
                     </a>
 
@@ -28,20 +28,20 @@
                 <!-- Teams Dropdown -->
 
                 <!-- Settings Dropdown -->
-                <div class="ml-3 relative">
+                <div class="relative ml-3">
                     <x-jet-dropdown align="right" width="48">
                         <x-slot name="trigger">
                             @if (Laravel\Jetstream\Jetstream::managesProfilePhotos())
                                 <button
-                                    class="flex text-sm border-2 border-transparent rounded-full focus:outline-none focus:border-gray-300 transition">
-                                    <img class="h-8 w-8 rounded-full object-cover"
+                                    class="flex text-sm transition border-2 border-transparent rounded-full focus:outline-none focus:border-gray-300">
+                                    <img class="object-cover w-8 h-8 rounded-full"
                                         src="{{ asset('storage/' . Auth::user()->profile_photo_path) }}"
                                         alt="{{ Auth::user()->name }}" />
                                 </button>
                             @else
                                 <span class="inline-flex rounded-md">
                                     <button type="button"
-                                        class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 bg-white hover:text-gray-700 focus:outline-none transition">
+                                        class="inline-flex items-center px-3 py-2 text-sm font-medium leading-4 text-gray-500 transition bg-white border border-transparent rounded-md hover:text-gray-700 focus:outline-none">
                                         {{ Auth::user()->name }}
 
                                         <svg class="ml-2 -mr-0.5 h-4 w-4" xmlns="http://www.w3.org/2000/svg"
@@ -89,10 +89,10 @@
             </div>
 
             <!-- Hamburger -->
-            <div class="-mr-2 flex items-center sm:hidden">
+            <div class="flex items-center -mr-2 sm:hidden">
                 <button @click="open = ! open"
-                    class="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 focus:text-gray-500 transition">
-                    <svg class="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
+                    class="inline-flex items-center justify-center p-2 text-gray-400 transition rounded-md hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 focus:text-gray-500">
+                    <svg class="w-6 h-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
                         <path :class="{ 'hidden': open, 'inline-flex': !open }" class="inline-flex"
                             stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M4 6h16M4 12h16M4 18h16" />
@@ -116,16 +116,16 @@
         <div class="pt-4 pb-1 border-t border-gray-200">
             <div class="flex items-center px-4">
                 @if (Laravel\Jetstream\Jetstream::managesProfilePhotos())
-                    <div class="shrink-0 mr-3">
-                        <img class="h-10 w-10 rounded-full object-cover"
+                    <div class="mr-3 shrink-0">
+                        <img class="object-cover w-10 h-10 rounded-full"
                             src="{{ asset('storage/' . Auth::user()->profile_photo_path) }}"
                             alt="{{ Auth::user()->name }}" />
                     </div>
                 @endif
 
                 <div>
-                    <div class="font-medium text-base text-gray-800">{{ Auth::user()->name }}</div>
-                    <div class="font-medium text-sm text-gray-500">{{ Auth::user()->email }}</div>
+                    <div class="text-base font-medium text-gray-800">{{ Auth::user()->name }}</div>
+                    <div class="text-sm font-medium text-gray-500">{{ Auth::user()->email }}</div>
                 </div>
             </div>
 
@@ -211,11 +211,11 @@
                             alt="{{ Auth::user()->name }}" />
 
                         <div data-toggle="dropdown" class="dropdown-toggle" href="#">
-                            <span class="block m-t-xs font-bold" style="color:#FFF;"><b> {{ Auth::user()->name }}</b></span>
+                            <span class="block font-bold m-t-xs" style="color:#FFF;"><b> {{ Auth::user()->name }}</b></span>
                             @php
                                 $rol = DB::SELECTONE('select nombre from rol where id = ' . Auth::user()->rol_id);
                             @endphp
-                            <span class="text-muted text-xs block">{{ $rol->nombre }} <b class="caret"></b></span>
+                            <span class="block text-xs text-muted">{{ $rol->nombre }} <b class="caret"></b></span>
                         </div>
                         <!-- <ul class="dropdown-menu animated fadeInRight m-t-xs">
                                         <li><a class="dropdown-item" href="profile.html">Profile</a></li>
@@ -415,7 +415,7 @@
                 </li>
 
                 <li>
-                    <a><i class="fa-solid fa-arrow-right-arrow-left text-white"></i>
+                    <a><i class="text-white fa-solid fa-arrow-right-arrow-left"></i>
                         <span class="nav-label" style="color:#ffffff;">Nota de crédito</span>
                         <span class="fa arrow"></span></a>
 
@@ -633,6 +633,7 @@
                     <ul class="nav nav-second-level">
                             <li><a href="/facturaDia" style="color:#ffffff;">Reporte de ventas</a>
                             <li ><a href="/reporte/comision" style="color:#ffffff;">Reporte comisiones</a></li>
+                            <li ><a href="/reporte/Cierrediariorep" style="color:#ffffff;">Reporte Cierre Diario</a></li>
                             <li><a href="/reporte/reporteria" style="color:#ffffff;">Reportes Varios</a>
                     </ul>
                 </li>
