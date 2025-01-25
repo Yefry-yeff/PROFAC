@@ -1,18 +1,23 @@
 function cargaCierreDiario(){
     $("#tbl_cierre_diario").dataTable().fnDestroy();
 
-    var fecha = document.getElementById('fecha').value;
+    var fecha = document.getElementById('fecha_cierre').value;
 
     $('#tbl_cierre_diario').DataTable({
         "order": ['0', 'desc'],
         "paging": true,
         "language": {
-            "url": "//cdn.datatables.net/1.13.5/css/jquery.dataTables.min.css"
+            "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
         },
         pageLength: 10,
         responsive: true,
         dom: '<"html5buttons"B>lTfgitp',
-        buttons: [
+        buttons: [{
+            extend: 'copy'
+        },
+        {
+            extend: 'csv'
+        },
             {
                 extend: 'excel',
                 title: 'Cierre_Diario',
@@ -24,11 +29,13 @@ function cargaCierreDiario(){
                 className:'btn btn-danger'
             }
         ],
-        "ajax": "/reporte/cierre-diario/consulta/"+fecha,
+        "ajax": "/reporte/Cierrediariorep/consulta/"+fecha,
         "columns": [
             {data: 'FECHA DE CIERRE'},
             {data: 'REGISTRADO POR'},
-            {data: 'ESTADO DE CAI'},
+            {data: 'ESTADO DE CAJA'},
+            {data: 'id'},
+            {data: 'cai'},
             {data: 'FACTURA'},
             {data: 'CLIENTE'},
             {data: 'VENDEDOR'},
@@ -39,7 +46,8 @@ function cargaCierreDiario(){
             {data: 'TIPO DE CLIENTE'},
             {data: 'PAGO POR'},
             {data: 'BANCO'},
-            {data: 'FECHA DE REGISTRO' }
+            {data: 'ABONO'},
+            {data: 'FECHA DE PAGO' }
         ],
         initComplete: function () {
             var r = $('#tbl_cierre_diario tfoot tr');
