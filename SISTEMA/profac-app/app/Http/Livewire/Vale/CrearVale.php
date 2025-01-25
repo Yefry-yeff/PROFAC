@@ -146,7 +146,7 @@ class CrearVale extends Component
         C.unidad_venta as id,
         CONCAT(D.nombre,'-',C.unidad_venta) as nombre,
         C.id as idUnidadVenta
-    from venta_has_producto A
+             from venta_has_producto A
         inner join unidad_medida_venta C
         on A.unidad_medida_venta_id = C.id
         inner join unidad_medida D
@@ -229,47 +229,6 @@ class CrearVale extends Component
            $flag = false;
            // $turno = null;
            $factura = null;
-
-           //comprobar existencia de producto en bodega
-        //    for ($j = 0; $j < count($arrayInputs); $j++) {
-
-        //        $keyIdSeccion = "idSeccion" . $arrayInputs[$j];
-        //        $keyIdProducto = "idProducto" . $arrayInputs[$j];
-        //        $keyRestaInventario = "restaInventario" . $arrayInputs[$j];
-        //        $keyNombre = "nombre" . $arrayInputs[$j];
-        //        $keyBodega = "bodega" . $arrayInputs[$j];
-
-        //        $resultado = DB::selectONE("select
-        //    if(sum(cantidad_disponible) is null,0,sum(cantidad_disponible)) as cantidad_disponoble
-        //    from recibido_bodega
-        //    where cantidad_disponible <> 0
-        //    and producto_id = " . $request->$keyIdProducto . "
-        //    and seccion_id = " . $request->$keyIdSeccion);
-
-        //        if ($request->$keyRestaInventario > $resultado->cantidad_disponoble) {
-        //            $mensaje = $mensaje . "Unidades insuficientes para el producto: <b>" . $request->$keyNombre . "</b> en la bodega con sección :<b>" . $request->$keyBodega . "</b><br><br>";
-        //            $flag = true;
-        //        }
-        //    }
-
-        //    if ($flag) {
-        //        return response()->json([
-        //            'icon' => "warning",
-        //            'text' =>  '<p class="text-left">' . $mensaje . '</p>',
-        //            'title' => 'Advertencia!',
-        //            'idFactura' => 0,
-
-        //        ], 200);
-        //    }
-        //    //comprobar existencia de producto en bodega
-
-        //    $flagEstado = DB::SELECTONE("select estado_encendido from parametro where id = 1");
-
-        //    if ($flagEstado->estado_encendido == 1) {
-        //        $estado = 1;
-        //    } else {
-        //        $estado = 2;
-        //    }
 
 
 
@@ -509,15 +468,10 @@ class CrearVale extends Component
                 'sub_total' => $subTotalSecccionado,
                 'isv' => $isvSecccionado,
                 'total' => $totalSecccionado,
-
                 'sub_total_s' => $subTotalSecccionado,
                 'isv_s' => $isvSecccionado,
                 'total_s' => $totalSecccionado,
-
-
                 'cantidad_para_entregar' => $cantidad,
-
-
                 'resta_inventario_total' => $restaInventario, //el total de unidades a restar de la factura
                 'resta_inventario_unidades' => $registroResta, // unidades base a restar de la factura,
                 'cantidad_s' => $cantidadSeccion, // cantidad convertida a restar de la factura
@@ -778,16 +732,16 @@ class CrearVale extends Component
             where id =".$idEntrega
         );
 
-    $importesSinCentavos = DB::SELECTONE("
-        select
-            sub_total,
-            sub_total_grabado,
-            sub_total_excento,
-            isv,
-            total
-        from vale
-        where id =".$idEntrega
-    );
+        $importesSinCentavos = DB::SELECTONE("
+            select
+                sub_total,
+                sub_total_grabado,
+                sub_total_excento,
+                isv,
+                total
+            from vale
+            where id =".$idEntrega
+        );
 
 
 

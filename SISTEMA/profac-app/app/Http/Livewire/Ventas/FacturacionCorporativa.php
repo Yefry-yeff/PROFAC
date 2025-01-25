@@ -1396,6 +1396,7 @@ class FacturacionCorporativa extends Component
         sub_total,
         sub_total_grabado,
         sub_total_excento,
+        FORMAT((select sum(sub_total) from venta_has_producto where isv = 0 and factura_id = ".$idFactura."),2) as subtotal_excentovale,
         porc_descuento,
         monto_descuento
         from factura
@@ -1409,6 +1410,7 @@ class FacturacionCorporativa extends Component
         FORMAT(sub_total,2) as sub_total,
         FORMAT(sub_total_grabado,2) as sub_total_grabado,
         FORMAT(sub_total_excento,2) as sub_total_excento,
+        FORMAT((select sum(sub_total) from venta_has_producto where isv = 0 and factura_id = ".$idFactura."),2) as subtotal_excentovale,
         FORMAT(porc_descuento,2) as porc_descuento,
         FORMAT(monto_descuento,2) as monto_descuento
         from factura where factura.id = " . $idFactura);
@@ -1544,6 +1546,7 @@ class FacturacionCorporativa extends Component
         sub_total,
         sub_total_grabado,
         sub_total_excento,
+        FORMAT((select sum(sub_total) from venta_has_producto where isv = 0 and factura_id = ".$idFactura."),2) as subtotal_excentovale,
         porc_descuento,
         monto_descuento
         from factura
@@ -1557,6 +1560,7 @@ class FacturacionCorporativa extends Component
         FORMAT(sub_total,2) as sub_total,
         FORMAT(sub_total_grabado,2) as sub_total_grabado,
         FORMAT(sub_total_excento,2) as sub_total_excento,
+        FORMAT((select sum(sub_total) from venta_has_producto where isv = 0 and factura_id = ".$idFactura."),2) as subtotal_excentovale,
         FORMAT(porc_descuento,2) as porc_descuento,
         FORMAT(monto_descuento,2) as monto_descuento
         from factura where factura.id = " . $idFactura);
@@ -2098,6 +2102,7 @@ class FacturacionCorporativa extends Component
          sub_total,
          sub_total_grabado,
          sub_total_excento,
+        FORMAT((select sum(sub_total) from venta_has_producto where isv = 0 and factura_id = ".$idFactura."),2) as subtotal_excentovale,
         porc_descuento,
          monto_descuento
         from factura
@@ -2111,6 +2116,7 @@ class FacturacionCorporativa extends Component
         FORMAT(sub_total,2) as sub_total,
         FORMAT(sub_total_grabado,2) as sub_total_grabado,
         FORMAT(sub_total_excento,2) as sub_total_excento,
+        FORMAT((select sum(sub_total) from venta_has_producto where isv = 0 and factura_id = ".$idFactura."),2) as subtotal_excentovale,
         FORMAT(porc_descuento,2) as porc_descuento,
         FORMAT(monto_descuento,2) as monto_descuento
         from factura where factura.id = " . $idFactura);

@@ -275,7 +275,13 @@
                             <div>
                                 <p class="card-text" style="position:absolute; left:10px;  top:64px; font-size:14px;">Importe
                                     Exento: </p>
-                                <p class="card-text" style="position:absolute; right:10px;  top:64px; font-size:14px;">L. {{ $importesConCentavos->sub_total_excento }}
+                                <p class="card-text" style="position:absolute; right:10px;  top:64px; font-size:14px;">L.
+                                    @if ($importesConCentavos->subtotal_excentovale>0)
+
+                                    {{ $importesConCentavos->subtotal_excentovale }}
+                               @else
+                                   0.00
+                               @endif
                                 </p>
                             </div>
 

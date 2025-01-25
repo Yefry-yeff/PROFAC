@@ -653,6 +653,7 @@ class VentasExoneradas extends Component
          isv,
          sub_total,
          porc_descuento,
+        FORMAT((select sum(sub_total) from venta_has_producto where isv = 0 and factura_id = ".$idFactura."),2) as subtotal_excentovale,
          monto_descuento
          from factura
          where id = ".$idFactura);
@@ -662,6 +663,7 @@ class VentasExoneradas extends Component
          FORMAT(total,2) as total,
          FORMAT(isv,2) as isv,
          FORMAT(sub_total,2) as sub_total,
+        FORMAT((select sum(sub_total) from venta_has_producto where isv = 0 and factura_id = ".$idFactura."),2) as subtotal_excentovale,
          FORMAT(porc_descuento,2) as porc_descuento,
          FORMAT(monto_descuento,2) as monto_descuento
          from factura where factura.id = ".$idFactura);
@@ -805,6 +807,7 @@ class VentasExoneradas extends Component
         isv,
         sub_total,
         porc_descuento,
+        FORMAT((select sum(sub_total) from venta_has_producto where isv = 0 and factura_id = ".$idFactura."),2) as subtotal_excentovale,
         monto_descuento
         from factura
         where id = ".$idFactura);
@@ -815,6 +818,7 @@ class VentasExoneradas extends Component
         FORMAT(isv,2) as isv,
         FORMAT(sub_total,2) as sub_total,
         FORMAT(porc_descuento,2) as porc_descuento,
+        FORMAT((select sum(sub_total) from venta_has_producto where isv = 0 and factura_id = ".$idFactura."),2) as subtotal_excentovale,
         FORMAT(monto_descuento,2) as monto_descuento
         from factura where factura.id = ".$idFactura);
 
@@ -963,6 +967,7 @@ class VentasExoneradas extends Component
          isv,
          sub_total,
          porc_descuento,
+        FORMAT((select sum(sub_total) from venta_has_producto where isv = 0 and factura_id = ".$idFactura."),2) as subtotal_excentovale,
          monto_descuento
          from factura
          where id = ".$idFactura);
@@ -972,6 +977,7 @@ class VentasExoneradas extends Component
          FORMAT(total,2) as total,
          FORMAT(isv,2) as isv,
          FORMAT(sub_total,2) as sub_total,
+        FORMAT((select sum(sub_total) from venta_has_producto where isv = 0 and factura_id = ".$idFactura."),2) as subtotal_excentovale,
          FORMAT(porc_descuento,2) as porc_descuento,
          FORMAT(monto_descuento,2) as monto_descuento
          from factura where factura.id = ".$idFactura);
