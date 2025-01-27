@@ -113,6 +113,7 @@ use App\Http\Livewire\CierreDiario\HistoricoCierres;
 use App\Http\Livewire\Cardex\Cardextres;
 //------------Reporte Cierre Diario-------//
 use App\Http\Livewire\Reportes\Cierrediariorep;
+use App\Http\Livewire\Reportes\Librocobrosrep;
 
 /*
 |--------------------------------------------------------------------------
@@ -840,6 +841,11 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 //------------------------------- Cierre Diario ----------------------------//
 Route::get('/reporte/Cierrediariorep', CierreDiariorep::class);
 Route::get('/reporte/Cierrediariorep/consulta/{tipo}/{fecha}', [CierreDiariorep::class, 'consulta']);
+
+//------------------------------- Libro de Cobros ----------------------------//
+Route::get('/reporte/Librocobrosrep', Librocobrosrep::class);
+Route::get('/reporte/Librocobrosrep/consulta/{tipo}/{fecha}', [Librocobrosrep::class, 'consulta']);
+
 
 
 
