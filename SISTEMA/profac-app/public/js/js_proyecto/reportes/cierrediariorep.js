@@ -1,7 +1,8 @@
-function cargaCierreDiario(){
+function cargaCierreDiario() {
     $("#tbl_cierre_diario").dataTable().fnDestroy();
 
-    var fecha = document.getElementById('fecha_cierre').value;
+    var fechaInput = document.getElementById('fecha_cierre').value;
+    var fecha = new Date(fechaInput).toISOString().split('T')[0]; // Convertimos a texto en formato ISO (YYYY-MM-DD)
 
     $('#tbl_cierre_diario').DataTable({
         "order": ['0', 'desc'],
@@ -12,42 +13,29 @@ function cargaCierreDiario(){
         pageLength: 10,
         responsive: true,
         dom: '<"html5buttons"B>lTfgitp',
-        buttons: [{
-            extend: 'copy'
-        },
-        {
-            extend: 'csv'
-        },
-            {
-                extend: 'excel',
-                title: 'Cierre_Diario',
-                className:'btn btn-success'
-            },
-            {
-                extend: 'pdf',
-                title: 'Cierre_Diario',
-                className:'btn btn-danger'
-            }
+        buttons: [
+            { extend: 'copy' },
+            { extend: 'csv' },
+            { extend: 'excel', title: 'Cierre_Diario', className: 'btn btn-success' },
+            { extend: 'pdf', title: 'Cierre_Diario', className: 'btn btn-danger' }
         ],
-        "ajax": "/reporte/Cierrediariorep/consulta/"+fecha,
+        "ajax":  "/reporte/Cierrediariorep/consulta/"+1+"/"+fecha,
         "columns": [
-            {data: 'FECHA DE CIERRE'},
-            {data: 'REGISTRADO POR'},
-            {data: 'ESTADO DE CAJA'},
-            {data: 'id'},
-            {data: 'cai'},
-            {data: 'FACTURA'},
-            {data: 'CLIENTE'},
-            {data: 'VENDEDOR'},
-            {data: 'SUBTOTAL FACTURADO'},
-            {data: 'ISV FACTURADO'},
-            {data: 'TOTAL FACTURADO'},
-            {data: 'CALIDAD DE FACTURA'},
-            {data: 'TIPO DE CLIENTE'},
-            {data: 'PAGO POR'},
-            {data: 'BANCO'},
-            {data: 'ABONO'},
-            {data: 'FECHA DE PAGO' }
+            { data: 'FECHA DE CIERRE' },
+            { data: 'REGISTRADO POR' },
+            { data: 'ESTADO DE CAJA' },
+            { data: 'FACTURA' },
+            { data: 'CLIENTE' },
+            { data: 'VENDEDOR' },
+            { data: 'SUBTOTAL FACTURADO' },
+            { data: 'ISV FACTURADO' },
+            { data: 'TOTAL FACTURADO' },
+            { data: 'CALIDAD DE FACTURA' },
+            { data: 'TIPO DE CLIENTE' },
+            { data: 'PAGO POR' },
+            { data: 'BANCO' },
+            { data: 'ABONO' },
+            { data: 'FECHA DE PAGO' }
         ],
         initComplete: function () {
             var r = $('#tbl_cierre_diario tfoot tr');

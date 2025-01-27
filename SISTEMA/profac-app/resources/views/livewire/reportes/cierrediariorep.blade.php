@@ -37,8 +37,6 @@
                 <th>FECHA DE CIERRE</th>
                 <th>REGISTRADO POR</th>
                 <th>ESTADO DE CAJA</th>
-                <th>ID FACTURA</th>
-                <th>CAI</th>
                 <th>FACTURA</th>
                 <th>CLIENTE</th>
                 <th>VENDEDOR</th>

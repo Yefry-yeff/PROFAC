@@ -839,7 +839,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 /****************************************Reportes******************************* */
 //------------------------------- Cierre Diario ----------------------------//
 Route::get('/reporte/Cierrediariorep', CierreDiariorep::class);
-Route::get('/reporte/Cierrediariorep/consulta/{fecha}', [CierreDiariorep::class,'consulta']);
+Route::get('/reporte/Cierrediariorep/consulta/{tipo}/{fecha}', [CierreDiariorep::class, 'consulta']);
 
 
 
