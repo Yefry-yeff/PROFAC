@@ -4,7 +4,14 @@
             width: 100%;
             padding: 3px;
             box-sizing: border-box;
+
         }
+    #fecha_cierre_error {
+    color: red;
+    font-size: 12px;
+    display: none; /* Por defecto está oculto */
+    margin-top: 5px;
+}
     </style>
     <h1>Reporte de Cierre Diario</h1>
 
@@ -17,6 +24,7 @@
     <div class="form-group">
         <label for="fecha_cierre">Fecha de Cierre:</label>
         <input type="date" id="fecha_cierre" class="form-control" onchange="cargaCierreDiario()">
+        <div id="fecha_cierre_error">Por favor, seleccione una fecha válida.</div>
     </div>
 </div>
 </div>

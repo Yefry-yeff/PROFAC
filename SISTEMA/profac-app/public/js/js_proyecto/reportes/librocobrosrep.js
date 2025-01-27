@@ -2,6 +2,25 @@ function carga_libro_cobros() {
     $("#tbl_libro_cobros").dataTable().fnDestroy();
 
     var fechaInput = document.getElementById('fecha_cobro').value;
+    // Verificamos si la fecha está vacía
+    if (!fechaInput) {
+        // Mostrar mensaje de error si la fecha no está seleccionada
+        document.getElementById('fecha_cobro_error').style.display = 'block';
+        document.getElementById('fecha_cobro').style.borderColor = 'red';
+        return; // Salir de la función si no hay fecha
+    }
+    /*var fechaRegex = /^(0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[0-2])\/\d{4}$/;
+    if (!fechaRegex.test(fechaInput)) {
+        // Mostrar mensaje de error si el formato no es dd/mm/yyyy
+        document.getElementById('fecha_cobro_error').style.display = 'block';
+
+        // Pintar el borde del campo de fecha de color rojo (error)
+        document.getElementById('fecha_cobro').style.borderColor = 'red';
+
+        return; // Salir de la función si el formato es incorrecto
+    }*/
+    document.getElementById('fecha_cobro').style.borderColor = '';
+    document.getElementById('fecha_cobro_error').style.display = 'none';
     var fecha = new Date(fechaInput).toISOString().split('T')[0]; // Convertimos a texto en formato ISO (YYYY-MM-DD)
 
     $('#tbl_libro_cobros').DataTable({

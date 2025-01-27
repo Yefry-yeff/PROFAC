@@ -5,6 +5,12 @@
             padding: 3px;
             box-sizing: border-box;
         }
+    #fecha_cobro_error {
+    color: red;
+    font-size: 12px;
+    display: none; /* Por defecto está oculto */
+    margin-top: 5px;
+}
     </style>
     <h1>Reporte de LIBRO DE COBRO</h1>
 
@@ -17,6 +23,7 @@
     <div class="form-group">
         <label for="fecha_cobro">Fecha de Libro de Cobro:</label>
         <input type="date" id="fecha_cobro" class="form-control" onchange="carga_libro_cobros()">
+        <div id="fecha_cobro_error">Por favor, seleccione una fecha válida.</div>
     </div>
 </div>
 </div>
