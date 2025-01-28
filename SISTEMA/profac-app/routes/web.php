@@ -845,7 +845,8 @@ Route::get('/reporte/Cierrediariorep/consulta/{tipo}/{fecha}', [CierreDiariorep:
 //------------------------------- Libro de Cobros ----------------------------//
 Route::get('/reporte/Librocobrosrep', Librocobrosrep::class);
 Route::get('/reporte/Librocobrosrep/consulta/{tipo}/{fecha}', [Librocobrosrep::class, 'consulta']);
-
+Route::get('/reporte/Librocobrosrep/exportar-pdf/{tipo}/{fecha}', [Librocobrosrep::class, 'exportarPdf'])
+    ->name('reporte.libro_cobros.pdf');
 
 
 
