@@ -24,7 +24,21 @@ function cargaCierreDiario() {
         responsive: true,
         dom: '<"html5buttons"B>lTfgitp',
         buttons: [
-            { extend: 'excel', title: 'Cierre_Diario', className: 'btn btn-success' },
+            {
+                extend: 'excelHtml5',
+                title: 'Cierre_Diario',
+                text: '<i class="fa-solid fa-file-excel"></i> Exportar a Excel',
+                className: 'btn-excel'
+            },
+            {
+                extend: 'pdfHtml5',
+                title: 'Cierre_Diario',
+                text: '<i class="fa-solid fa-file-pdf"></i> Exportar a PDF',
+                className: 'btn-pdf',
+                action: function () {
+                    exportarPdf();
+            }
+        }
         ],
         "ajax":  "/reporte/Cierrediariorep/consulta/"+1+"/"+fecha,
         "columns": [
@@ -71,25 +85,32 @@ function cargaCierreDiario() {
     });
 }
 
-
 function exportarPdf() {
-    // Obtener la fecha seleccionada
     var fechaInput = document.getElementById('fecha_cierre').value;
 
-    // Validar si el campo de fecha está vacío
     if (!fechaInput) {
         document.getElementById('fecha_cierre_error').style.display = 'block';
         document.getElementById('fecha_cierre').style.borderColor = 'red';
         return;
     }
 
-    // Restaurar estilos si la fecha es válida
     document.getElementById('fecha_cierre').style.borderColor = '';
     document.getElementById('fecha_cierre_error').style.display = 'none';
 
-    // Construir la URL para la exportación
-    var url = "/reporte/Cierrediariorep/exportar-pdf/1/" + fechaInput;
+    // Configurar el formulario de envío POST
+    var form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/reporte/Cierrediariorep/exportar-pdf/1/' + fechaInput;
 
-    // Abrir la URL en una nueva pestaña para descargar el PDF
-    window.open(url, '_blank');
+    // Agregar token CSRF
+    var csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    var csrfInput = document.createElement('input');
+    csrfInput.type = 'hidden';
+    csrfInput.name = '_token';
+    csrfInput.value = csrfToken;
+    form.appendChild(csrfInput);
+
+    // Enviar el formulario
+    document.body.appendChild(form);
+    form.submit();
 }

@@ -27,7 +27,21 @@ function carga_libro_venta() {
         responsive: true,
         dom: '<"html5buttons"B>lTfgitp', // Mantén el DOM como estaba
         buttons: [
-            { extend: 'excel', title: 'Libro_Ventas ' + fecha, className: 'btn btn-success' },
+            {
+                extend: 'excelHtml5',
+                title: 'Cierre_Diario',
+                text: '<i class="fa-solid fa-file-excel"></i> Exportar a Excel',
+                className: 'btn-excel'
+            },
+            {
+                extend: 'pdfHtml5',
+                title: 'Cierre_Diario',
+                text: '<i class="fa-solid fa-file-pdf"></i> Exportar a PDF',
+                className: 'btn-pdf',
+                action: function () {
+                    exportarPdf();
+            }
+        }
         ],
         ajax: "/reporte/Libroventarep/consulta/4/" + fecha,
         columns: [
@@ -46,23 +60,31 @@ function carga_libro_venta() {
 }
 
 function exportarPdf() {
-    // Obtener la fecha seleccionada
     var fechaInput = document.getElementById('fecha_venta').value;
 
-    // Validar si el campo de fecha está vacío
     if (!fechaInput) {
         document.getElementById('fecha_venta_error').style.display = 'block';
         document.getElementById('fecha_venta').style.borderColor = 'red';
         return;
     }
 
-    // Restaurar estilos si la fecha es válida
     document.getElementById('fecha_venta').style.borderColor = '';
     document.getElementById('fecha_venta_error').style.display = 'none';
 
-    // Construir la URL para la exportación
-    var url = "/reporte/Libroventarep/exportar-pdf/4/" + fechaInput;
+    // Configurar el formulario de envío POST
+    var form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/reporte/Libroventarep/exportar-pdf/4/' + fechaInput;
 
-    // Abrir la URL en una nueva pestaña para descargar el PDF
-    window.open(url, '_blank');
+    // Agregar token CSRF
+    var csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    var csrfInput = document.createElement('input');
+    csrfInput.type = 'hidden';
+    csrfInput.name = '_token';
+    csrfInput.value = csrfToken;
+    form.appendChild(csrfInput);
+
+    // Enviar el formulario
+    document.body.appendChild(form);
+    form.submit();
 }

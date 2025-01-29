@@ -22,14 +22,13 @@
                 <div class="ibox-content">
                     <div class="row">
                         <div class="form-group col-lg-6 offset-lg-3"> <!-- Centrado del campo de fecha -->
-                            <label for="fecha_cierre">Fecha de Cierre:</label>
+                            <label for="fecha_cierre">Fecha de Cierre:<span class="text-danger">*</span></label>
                              <input type="date" id="fecha_cierre" class="form-control" onchange="cargaCierreDiario()">
                             <div id="fecha_cierre_error" class="mt-2 text-danger" style="display: none;">Por favor, seleccione una fecha válida.</div>
                         </div>
                     </div>
                     <div class="mt-5 row justify-content-center"> <!-- Centrado del botón y margen amplio -->
                         <div class="col-auto">
-                            <button id="btn_exportar_pdf" class="btn btn-primary" onclick="exportarPdf()">Exportar a PDF</button>
                         </div>
                     </div>
                 </div>
