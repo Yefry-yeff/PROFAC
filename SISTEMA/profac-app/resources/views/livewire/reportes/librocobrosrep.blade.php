@@ -67,27 +67,7 @@
                                         <th>OBSERVACIONES</th>
                                     </tr>
                                 </thead>
-                                <tfoot>
-                                    <tr>
-                                        <th>VENDEDOR</th>
-                                        <th>CLIENTE</th>
-                                        <th>FACTURA</th>
-                                        <th>EXONERADO</th>
-                                        <th>GRAVADO</th>
-                                        <th>EXCENTO</th>
-                                        <th>ABONO</th>
-                                        <th>SUBTOTAL</th>
-                                        <th>ISV</th>
-                                        <th>TOTAL</th>
-                                        <th>RETENCION</th>
-                                        <th>TOTAL PAGADO</th>
-                                        <th>FECHA DE COMPRA</th>
-                                        <th>FECHA DE VENCIMIENTO</th>
-                                        <th>FECHA DE PAGO</th>
-                                        <th>BANCO</th>
-                                        <th>OBSERVACIONES</th>
-                                    </tr>
-                                </tfoot>
+
                                 <tbody></tbody>
                             </table>
                         </div>
