@@ -2,7 +2,7 @@
     <a class="navbar-minimalize minimalize-styl-2 btn btn-primary " href="#"><i class="fa fa-bars"></i></a>
 
     <!-- Primary Navigation Menu -->
-    <div class="px-4  sm:px-6 lg:px-8" style="width:100vw">
+    <div class="px-4 sm:px-6 lg:px-8" style="width:100vw">
 
         <div class="flex justify-between h-16">
             <div class="flex">
@@ -460,6 +460,9 @@
                         <li><a href="/facturaDia" style="color:#ffffff;">Reporte de ventas</a>
                         <li ><a href="/reporte/comision" style="color:#ffffff;">Reporte comisiones</a></li>
                         <li><a href="/reporte/reporteria" style="color:#ffffff;">Reportes Varios</a>
+                        <li ><a href="/reporte/Cierrediariorep" style="color:#ffffff;">Reporte Cierre Diario</a></li>
+                        <li ><a href="/reporte/Librocobrosrep" style="color:#ffffff;">Reporte Libro de Cobros</a></li>
+                        <li ><a href="/reporte/Libroventarep" style="color:#ffffff;">Reporte Libro de Ventas</a></li>
                     </ul>
                 </li>
             @endif
@@ -633,7 +636,6 @@
                     <ul class="nav nav-second-level">
                             <li><a href="/facturaDia" style="color:#ffffff;">Reporte de ventas</a>
                             <li ><a href="/reporte/comision" style="color:#ffffff;">Reporte comisiones</a></li>
-                            <li ><a href="/reporte/Cierrediariorep" style="color:#ffffff;">Reporte Cierre Diario</a></li>
                             <li><a href="/reporte/reporteria" style="color:#ffffff;">Reportes Varios</a>
                     </ul>
                 </li>

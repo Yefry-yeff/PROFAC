@@ -93,7 +93,7 @@ class Cardextres extends Component
             })
             ->addColumn('comprobante_entrega', function($elemento){
                 if($elemento->comprobante != null){
-                    return '<a target="_blank" href="/comprobante/imprimir/'.$elemento->comprobante.'"><i class="fas fa-receipt"></i> COMPROBANTE DE ENTREGA #'.$elemento->numero_comprovante.' </a>';
+                    return '<a target="_blank" href="/comprobante/imprimir/'.$elemento->comprobante.'"><i class="fas fa-receipt"></i> COMPROBANTE DE ENTREGA #'.$elemento->numero_comprobante.' </a>';
                 }
             })
 
@@ -193,7 +193,7 @@ class Cardextres extends Component
             })
             ->addColumn('comprobante_entrega', function($elemento){
                 if($elemento->comprobante != null){
-                    return '<a target="_blank" href="/comprobante/imprimir/'.$elemento->comprobante.'"><i class="fas fa-receipt"></i> COMPROBANTE DE ENTREGA #'.$elemento->numero_comprovante.' </a>';
+                    return '<a target="_blank" href="/comprobante/imprimir/'.$elemento->comprobante.'"><i class="fas fa-receipt"></i> COMPROBANTE DE ENTREGA #'.$elemento->numero_comprobante.' </a>';
                 }
             })
 

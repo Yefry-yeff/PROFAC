@@ -4,24 +4,38 @@
             width: 100%;
             padding: 3px;
             box-sizing: border-box;
+
         }
+    #fecha_cierre_error {
+    color: red;
+    font-size: 12px;
+    display: none; /* Por defecto está oculto */
+    margin-top: 5px;
+}
     </style>
     <h1>Reporte de Cierre Diario</h1>
 
-    <div class="pb-0 wrapper wrapper-content animated fadeInRight">
-        <div class="row">
-            <div class="col-lg-12">
-                <div class="ibox ">
-                    <div class="ibox-content">
-                        <div class="row">
-    <div class="form-group">
-        <label for="fecha_cierre">Fecha de Cierre:</label>
-        <input type="date" id="fecha_cierre" class="form-control" onchange="cargaCierreDiario()">
+<div class="pb-0 wrapper wrapper-content animated fadeInRight">
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="ibox">
+                <div class="ibox-content">
+                    <div class="row">
+                        <div class="form-group col-lg-6 offset-lg-3"> <!-- Centrado del campo de fecha -->
+                            <label for="fecha_cierre">Fecha de Cierre:</label>
+                             <input type="date" id="fecha_cierre" class="form-control" onchange="cargaCierreDiario()">
+                            <div id="fecha_cierre_error" class="mt-2 text-danger" style="display: none;">Por favor, seleccione una fecha válida.</div>
+                        </div>
+                    </div>
+                    <div class="mt-5 row justify-content-center"> <!-- Centrado del botón y margen amplio -->
+                        <div class="col-auto">
+                            <button id="btn_exportar_pdf" class="btn btn-primary" onclick="exportarPdf()">Exportar a PDF</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
-</div>
-</div>
-</div>
-</div>
 </div>
     <p> <b>Nota: </b> Se requiere de selección de una fechas para mostrar la información.</p>
 
@@ -37,8 +51,6 @@
                 <th>FECHA DE CIERRE</th>
                 <th>REGISTRADO POR</th>
                 <th>ESTADO DE CAJA</th>
-                <th>ID FACTURA</th>
-                <th>CAI</th>
                 <th>FACTURA</th>
                 <th>CLIENTE</th>
                 <th>VENDEDOR</th>

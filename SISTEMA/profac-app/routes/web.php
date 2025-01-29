@@ -113,6 +113,8 @@ use App\Http\Livewire\CierreDiario\HistoricoCierres;
 use App\Http\Livewire\Cardex\Cardextres;
 //------------Reporte Cierre Diario-------//
 use App\Http\Livewire\Reportes\Cierrediariorep;
+use App\Http\Livewire\Reportes\Librocobrosrep;
+use App\Http\Livewire\Reportes\Libroventarep;
 
 /*
 |--------------------------------------------------------------------------
@@ -839,8 +841,19 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 /****************************************Reportes******************************* */
 //------------------------------- Cierre Diario ----------------------------//
 Route::get('/reporte/Cierrediariorep', CierreDiariorep::class);
-Route::get('/reporte/Cierrediariorep/consulta/{fecha}', [CierreDiariorep::class,'consulta']);
-
+Route::get('/reporte/Cierrediariorep/consulta/{tipo}/{fecha}', [CierreDiariorep::class, 'consulta']);
+Route::get('/reporte/Cierrediariorep/exportar-pdf/{tipo}/{fecha}', [CierreDiariorep::class, 'exportarPdf'])
+    ->name('reporte.cierrediariorep.pdf');
+//------------------------------- Libro de Cobros ----------------------------//
+Route::get('/reporte/Librocobrosrep', Librocobrosrep::class);
+Route::get('/reporte/Librocobrosrep/consulta/{tipo}/{fecha}', [Librocobrosrep::class, 'consulta']);
+Route::get('/reporte/Librocobrosrep/exportar-pdf/{tipo}/{fecha}', [Librocobrosrep::class, 'exportarPdf'])
+    ->name('reporte.libro_cobros.pdf');
+//------------------------------- Libro de Ventas ----------------------------//
+Route::get('/reporte/Libroventarep', Libroventarep::class);
+Route::get('/reporte/Libroventarep/consulta/{tipo}/{fecha}', [Libroventarep::class, 'consulta']);
+Route::get('/reporte/Libroventarep/exportar-pdf/{tipo}/{fecha}', [Libroventarep::class, 'exportarPdf'])
+    ->name('reporte.libro_venta.pdf');
 
 
 
