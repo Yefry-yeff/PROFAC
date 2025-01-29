@@ -9,16 +9,7 @@ function cargaCierreDiario() {
         document.getElementById('fecha_cierre').style.borderColor = 'red';
         return; // Salir de la función si no hay fecha
     }
-    /*var fechaRegex = /^(0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[0-2])\/\d{4}$/;
-    if (!fechaRegex.test(fechaInput)) {
-        // Mostrar mensaje de error si el formato no es dd/mm/yyyy
-        document.getElementById('fecha_cobro_error').style.display = 'block';
 
-        // Pintar el borde del campo de fecha de color rojo (error)
-        document.getElementById('fecha_cobro').style.borderColor = 'red';
-
-        return; // Salir de la función si el formato es incorrecto
-    }*/
     document.getElementById('fecha_cierre').style.borderColor = '';
     document.getElementById('fecha_cierre_error').style.display = 'none';
     var fecha = new Date(fechaInput).toISOString().split('T')[0]; // Convertimos a texto en formato ISO (YYYY-MM-DD)
@@ -33,10 +24,7 @@ function cargaCierreDiario() {
         responsive: true,
         dom: '<"html5buttons"B>lTfgitp',
         buttons: [
-            { extend: 'copy' },
-            { extend: 'csv' },
             { extend: 'excel', title: 'Cierre_Diario', className: 'btn btn-success' },
-            { extend: 'pdf', title: 'Cierre_Diario', className: 'btn btn-danger' }
         ],
         "ajax":  "/reporte/Cierrediariorep/consulta/"+1+"/"+fecha,
         "columns": [
@@ -81,4 +69,27 @@ function cargaCierreDiario() {
             });
         }
     });
+}
+
+
+function exportarPdf() {
+    // Obtener la fecha seleccionada
+    var fechaInput = document.getElementById('fecha_cierre').value;
+
+    // Validar si el campo de fecha está vacío
+    if (!fechaInput) {
+        document.getElementById('fecha_cierre_error').style.display = 'block';
+        document.getElementById('fecha_cierre').style.borderColor = 'red';
+        return;
+    }
+
+    // Restaurar estilos si la fecha es válida
+    document.getElementById('fecha_cierre').style.borderColor = '';
+    document.getElementById('fecha_cierre_error').style.display = 'none';
+
+    // Construir la URL para la exportación
+    var url = "/reporte/Cierrediariorep/exportar-pdf/1/" + fechaInput;
+
+    // Abrir la URL en una nueva pestaña para descargar el PDF
+    window.open(url, '_blank');
 }

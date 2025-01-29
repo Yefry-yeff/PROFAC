@@ -8,30 +8,33 @@ use Illuminate\Support\Facades\DB;
 use Yajra\DataTables\DataTables;
 use Barryvdh\DomPDF\Facade\Pdf;
 
-class CierreDiariorep extends Component
+class Libroventarep extends Component
 {
     public function render()
     {
-        return view('livewire.reportes.cierrediariorep');
+        return view('livewire.reportes.libroventarep');
     }
+
 
     public function consulta($tipo, $fecha)
     {
         try {
-            // Pasamos los dos parámetros al procedimiento almacenado
-            $consulta = DB::select("Call sp_reportesxfecha (?, ?,?)", [$tipo, $fecha, $fecha]);
+            if (!$tipo || !$fecha) {
+                return response()->json([
+                    'message' => 'Faltan parámetros requeridos para la consulta.'
+                ], 400);
+            }
 
-            return Datatables::of($consulta)
-                ->rawColumns([])
-                ->make(true);
-
+            $consulta = DB::select("CALL sp_reportesxfecha(?, ?, ?)", [$tipo, $fecha, $fecha]);
+            return datatables()->of($consulta)->make(true);
         } catch (QueryException $e) {
             return response()->json([
-                'message' => 'Ha ocurrido un error al listar el reporte solicitado.',
+                'message' => 'Error al listar el reporte solicitado.',
                 'errorTh' => $e->getMessage(),
             ], 402);
         }
     }
+
     public function exportarPdf($tipo, $fecha)
     {
         try {
@@ -49,11 +52,11 @@ class CierreDiariorep extends Component
             $data = json_decode(json_encode($consulta), true);
 
             // Generar el PDF usando DomPDF
-            $pdf = Pdf::loadView('pdf.Cierrediariorep', compact('data', 'fecha'))
+            $pdf = Pdf::loadView('pdf.libroventarep', compact('data', 'fecha'))
                 ->setPaper('a4', 'landscape');
 
             // Retornar el PDF para descarga
-            return $pdf->download("Cierre_De_Caja_{$fecha}.pdf");
+            return $pdf->download("Libroventa_{$fecha}.pdf");
         } catch (QueryException $e) {
             return response()->json([
                 'message' => 'Error al generar el PDF.',
