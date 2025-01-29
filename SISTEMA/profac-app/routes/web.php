@@ -113,6 +113,7 @@ use App\Http\Livewire\CierreDiario\HistoricoCierres;
 use App\Http\Livewire\Cardex\Cardextres;
 //------------Reporte Cierre Diario-------//
 use App\Http\Livewire\Reportes\Cierrediariorep;
+use App\Http\Livewire\Reportes\Facturasanuladasrep;
 use App\Http\Livewire\Reportes\Librocobrosrep;
 use App\Http\Livewire\Reportes\Libroventarep;
 
@@ -844,6 +845,12 @@ Route::get('/reporte/Cierrediariorep', CierreDiariorep::class);
 Route::get('/reporte/Cierrediariorep/consulta/{tipo}/{fecha}', [CierreDiariorep::class, 'consulta']);
 Route::post('/reporte/Cierrediariorep/exportar-pdf/{tipo}/{fecha}', [CierreDiariorep::class, 'exportarPdf'])
     ->name('reporte.cierrediariorep.pdf');
+
+    //------------------------------- Facturas Anuladas ----------------------------//
+Route::get('/reporte/Facturasanuladasrep', Facturasanuladasrep::class);
+Route::get('/reporte/Facturasanuladasrep/consulta/{tipo}/{fecha}', [Facturasanuladasrep::class, 'consulta']);
+Route::post('/reporte/Facturasanuladasrep/exportar-pdf/{tipo}/{fechaInicio}/{fechaFinal}', [Facturasanuladasrep::class, 'exportarPdf'])
+    ->name('reporte.facturasanuladasrep.pdf');
 //------------------------------- Libro de Cobros ----------------------------//
 Route::get('/reporte/Librocobrosrep', Librocobrosrep::class);
 Route::get('/reporte/Librocobrosrep/consulta/{tipo}/{fecha}', [Librocobrosrep::class, 'consulta']);
