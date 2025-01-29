@@ -18,7 +18,7 @@
         }
 
         .header img {
-            width: 150px; /* Tamaño más grande para el logo */
+            width: 800px; /* Tamaño más grande para el logo */
             height: auto;
         }
 
@@ -41,14 +41,16 @@
         table {
             width: 100%;
             border-collapse: collapse;
-            margin: 10px 0; /* Reducido para ocupar menos espacio */
-            font-size: 9px; /* Tamaño de fuente más pequeño */
+            margin: 5px 0; /* Reducido para ocupar menos espacio */
+            margin-top:10px;
+            font-size: 10px; /* Tamaño de fuente más pequeño */
+            border: 1px solid #ddd;
         }
 
         table th,
         table td {
             border: 1px solid #ddd;
-            padding: 5px; /* Menor espacio entre celdas */
+            padding: 1px; /* Menor espacio entre celdas */
             text-align: center;
         }
 
@@ -74,9 +76,8 @@
 </head>
 <body>
     <div class="header">
-        <img src="img/LOGO_VALENCIA.jpg" alt="LOGO VALENCIA">
-        <div class="header-text">
-            <h1>DISTRIBUCIONES VALENCIA</h1>
+        <img src="img/membrete/Logo3.png" style="margin-left:10%; margin-top:-25px; position:absolute;"alt="">
+        <div class="header-text" style="margin-left:10%;  margin-top:60px; width:45rem; height:5.5rem;">
             <p>RTN: 08011986138652</p>
             <p>LIBRO GENERAL DE COBROS GOBIERNO</p>
             <p>{{ $fecha }} </p>

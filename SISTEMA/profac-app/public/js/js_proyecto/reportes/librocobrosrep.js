@@ -23,7 +23,7 @@ function carga_libro_cobros() {
         language: {
             url: "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
         },
-        pageLength: 15,
+        pageLength: 8,
         responsive: true,
         dom: '<"html5buttons"B>lTfgitp', // Mantén el DOM como estaba
         buttons: [
