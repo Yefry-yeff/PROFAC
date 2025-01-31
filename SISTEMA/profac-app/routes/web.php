@@ -848,7 +848,7 @@ Route::post('/reporte/Cierrediariorep/exportar-pdf/{tipo}/{fecha}', [CierreDiari
 
     //------------------------------- Facturas Anuladas ----------------------------//
 Route::get('/reporte/Facturasanuladasrep', Facturasanuladasrep::class);
-Route::get('/reporte/Facturasanuladasrep/consulta/{tipo}/{fecha}', [Facturasanuladasrep::class, 'consulta']);
+Route::get('/reporte/Facturasanuladasrep/consulta/{tipo}/{fechaInicio}/{fechaFinal}', [Facturasanuladasrep::class, 'consulta']);
 Route::post('/reporte/Facturasanuladasrep/exportar-pdf/{tipo}/{fechaInicio}/{fechaFinal}', [Facturasanuladasrep::class, 'exportarPdf'])
     ->name('reporte.facturasanuladasrep.pdf');
 //------------------------------- Libro de Cobros ----------------------------//

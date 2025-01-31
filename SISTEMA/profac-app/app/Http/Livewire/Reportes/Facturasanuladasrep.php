@@ -37,14 +37,14 @@ class Facturasanuladasrep extends Component
 {
     try {
         // Validación de parámetros
-        if (!$tipo || !$fechaI ||$fechaF ) {
+        if (!$tipo || !$fechaInicio ||$fechaFinal ) {
             return response()->json([
                 'message' => 'Faltan parámetros requeridos para la exportación del PDF.'
             ], 400);
         }
 
         // Obtener datos del procedimiento almacenado
-        $consulta = DB::select("CALL sp_reportesxfecha(?, ?, ?)", [$tipo, $fechaI,$fechaF]);
+        $consulta = DB::select("CALL sp_reportesxfecha(?, ?, ?)", [$tipo, $fechaInicio,$fechaFinal]);
 
         // Convertir los datos a arreglo para la vista
         $data = json_decode(json_encode($consulta), true);
@@ -54,7 +54,7 @@ class Facturasanuladasrep extends Component
                   ->setPaper('a4', 'landscape');
 
         // Retornar el PDF para descarga
-        return $pdf->download("Facturas_anuladas_{$fechaI}_a_{$fechaF}.pdf");
+        return $pdf->download("Facturas_anuladas_{$fechaInicio}_a_{$fechaFinal}.pdf");
     } catch (QueryException $e) {
         return response()->json([
             'message' => 'Error al generar el PDF.',

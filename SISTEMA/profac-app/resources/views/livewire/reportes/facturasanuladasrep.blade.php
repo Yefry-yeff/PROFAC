@@ -6,14 +6,14 @@
             box-sizing: border-box;
 
         }
-    #fecha_cierre_error {
+    #fecha_facturas_anuladas {
     color: red;
     font-size: 12px;
     display: none; /* Por defecto está oculto */
     margin-top: 5px;
 }
     </style>
-    <h1>Reporte de Cierre Diario</h1>
+    <h1>Facturas anuladas</h1>
 
 <div class="pb-0 wrapper wrapper-content animated fadeInRight">
     <div class="row">

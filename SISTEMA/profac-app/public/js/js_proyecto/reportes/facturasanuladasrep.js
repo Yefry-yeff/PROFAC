@@ -1,12 +1,12 @@
 function cargafacturasanuladasrep() {
-    $("#tbl_facturas_anuladas").DataTable().fnDestroy(); // Destruir la tabla anterior
+    $("#tbl_facturas_anuladas").dataTable().fnDestroy();
 
     var fechaInicioInput = document.getElementById('fecha_inicio').value;
     var fechaFinalInput = document.getElementById('fecha_final').value;
 
     // Verificamos si las fechas están vacías
     if (!fechaInicioInput || !fechaFinalInput) {
-        document.getElementById('fecha_cierre_error').style.display = 'block';
+        //document.getElementById('fecha_facturas_anuladas').style.display = 'block';
         document.getElementById('fecha_inicio').style.borderColor = 'red';
         document.getElementById('fecha_final').style.borderColor = 'red';
         return; // Salir de la función si no hay fecha
@@ -14,7 +14,7 @@ function cargafacturasanuladasrep() {
 
     document.getElementById('fecha_inicio').style.borderColor = '';
     document.getElementById('fecha_final').style.borderColor = '';
-    document.getElementById('fecha_cierre_error').style.display = 'none';
+    //document.getElementById('fecha_facturas_anuladas').style.display = 'none';
 
     var fechaInicio = new Date(fechaInicioInput).toISOString().split('T')[0]; // Convertir fecha de inicio a formato ISO (YYYY-MM-DD)
     var fechaFinal = new Date(fechaFinalInput).toISOString().split('T')[0]; // Convertir fecha final a formato ISO (YYYY-MM-DD)
@@ -45,7 +45,7 @@ function cargafacturasanuladasrep() {
                 }
             }
         ],
-        "ajax":  "/reporte/FacturasAnuladas/consulta/4/"+fechaInicio+"/"+fechaFinal, // Ajusta la ruta de acuerdo a tu backend
+        "ajax":  "/reporte/Facturasanuladasrep/consulta/2/"+fechaInicio+"/"+fechaFinal, // Ajusta la ruta de acuerdo a tu backend
         "columns": [
             { data: 'FECHA DE CREACION' },
             { data: 'NUMERO FACTURA' },
@@ -85,7 +85,7 @@ function cargafacturasanuladasrep() {
 function exportarPdf(fechaInicio, fechaFinal) {
     // Validar las fechas
     if (!fechaInicio || !fechaFinal) {
-        document.getElementById('fecha_cierre_error').style.display = 'block';
+        document.getElementById('fecha_facturas_anuladas').style.display = 'block';
         document.getElementById('fecha_inicio').style.borderColor = 'red';
         document.getElementById('fecha_final').style.borderColor = 'red';
         return;
@@ -93,7 +93,7 @@ function exportarPdf(fechaInicio, fechaFinal) {
 
     document.getElementById('fecha_inicio').style.borderColor = '';
     document.getElementById('fecha_final').style.borderColor = '';
-    document.getElementById('fecha_cierre_error').style.display = 'none';
+    document.getElementById('fecha_facturas_anuladas').style.display = 'none';
 
     // Configurar el formulario de envío POST
     var form = document.createElement('form');
