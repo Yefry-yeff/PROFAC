@@ -37,7 +37,7 @@ class Facturasanuladasrep extends Component
 {
     try {
         // Validación de parámetros
-        if (!$tipo || !$fechaInicio ||$fechaFinal ) {
+    if (!$tipo || !$fechaInicio ||!$fechaFinal ) {
             return response()->json([
                 'message' => 'Faltan parámetros requeridos para la exportación del PDF.'
             ], 400);
@@ -50,7 +50,7 @@ class Facturasanuladasrep extends Component
         $data = json_decode(json_encode($consulta), true);
 
         // Generar el PDF usando DomPDF
-        $pdf = PDF::loadView('pdf.Facturasanuladasrep', compact('data', 'fecha'))
+        $pdf = PDF::loadView('pdf.facturasanuladasrep', compact('data','fechaInicio','fechaFinal'))
                   ->setPaper('a4', 'landscape');
 
         // Retornar el PDF para descarga

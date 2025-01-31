@@ -82,10 +82,11 @@ function cargafacturasanuladasrep() {
     });
 }
 
-function exportarPdf(fechaInicio, fechaFinal) {
-    // Validar las fechas
+function exportarPdf() {
+    var fechaInicio = document.getElementById('fecha_inicio').value;
+    var fechaFinal = document.getElementById('fecha_final').value;
+
     if (!fechaInicio || !fechaFinal) {
-        document.getElementById('fecha_facturas_anuladas').style.display = 'block';
         document.getElementById('fecha_inicio').style.borderColor = 'red';
         document.getElementById('fecha_final').style.borderColor = 'red';
         return;
@@ -93,22 +94,29 @@ function exportarPdf(fechaInicio, fechaFinal) {
 
     document.getElementById('fecha_inicio').style.borderColor = '';
     document.getElementById('fecha_final').style.borderColor = '';
-    document.getElementById('fecha_facturas_anuladas').style.display = 'none';
 
-    // Configurar el formulario de envío POST
+    var fechaInicioFormat = new Date(fechaInicio).toISOString().split('T')[0];
+    var fechaFinalFormat = new Date(fechaFinal).toISOString().split('T')[0];
+
+    var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    if (!csrfMeta) {
+        console.error("No se encontró el token CSRF.");
+        return;
+    }
+
+    var csrfToken = csrfMeta.getAttribute('content');
+
     var form = document.createElement('form');
     form.method = 'POST';
-    form.action = '/reporte/Facturasanuladas/exportar-pdf/2/' + fechaInicio + '/' + fechaFinal;
+    form.action = '/reporte/Facturasanuladasrep/exportar-pdf/2/' + encodeURIComponent(fechaInicioFormat) + '/' + encodeURIComponent(fechaFinalFormat);
 
-    // Agregar token CSRF
-    var csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
     var csrfInput = document.createElement('input');
     csrfInput.type = 'hidden';
     csrfInput.name = '_token';
     csrfInput.value = csrfToken;
     form.appendChild(csrfInput);
 
-    // Enviar el formulario
     document.body.appendChild(form);
     form.submit();
 }
+

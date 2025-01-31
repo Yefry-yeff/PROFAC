@@ -80,7 +80,10 @@
         <div class="header-text"style="margin-left:10%;  margin-top:60px; width:45rem; height:5.5rem;">
             <p>RTN: 08011986138652</p>
             <p>LISTADO DE FACTURAS ANULADAS</p>
-            <p>{{ $fecha }} </p>
+            @php
+                use Carbon\Carbon;
+            @endphp
+            <p>{{ Carbon::parse($fechaInicio)->translatedFormat('d F Y') }}   al   {{ Carbon::parse($fechaFinal)->translatedFormat('d F Y') }}</p>
         </div>
     </div>
 
