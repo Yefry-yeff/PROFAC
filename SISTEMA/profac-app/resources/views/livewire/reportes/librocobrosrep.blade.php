@@ -22,14 +22,13 @@
                     <div class="ibox-content">
                         <div class="row">
                             <div class="form-group col-lg-6 offset-lg-3"> <!-- Centrado del campo de fecha -->
-                                <label for="fecha_cobro">Fecha que se generara el Libro de Cobro:</label>
+                                <label for="fecha_cobro">Fecha que se generara el Libro de Cobro:<span class="text-danger">*</span></label>
                                 <input type="date" id="fecha_cobro" class="form-control" onchange="carga_libro_cobros()">
                                 <div id="fecha_cobro_error" class="mt-2 text-danger" style="display: none;">Por favor, seleccione una fecha válida.</div>
                             </div>
                         </div>
                         <div class="mt-5 row justify-content-center"> <!-- Centrado del botón y margen amplio -->
                             <div class="col-auto">
-                                <button id="btn_exportar_pdf" class="btn btn-primary" onclick="exportarPdf()">Exportar a PDF</button>
                             </div>
                         </div>
                     </div>
@@ -67,27 +66,7 @@
                                         <th>OBSERVACIONES</th>
                                     </tr>
                                 </thead>
-                                <tfoot>
-                                    <tr>
-                                        <th>VENDEDOR</th>
-                                        <th>CLIENTE</th>
-                                        <th>FACTURA</th>
-                                        <th>EXONERADO</th>
-                                        <th>GRAVADO</th>
-                                        <th>EXCENTO</th>
-                                        <th>ABONO</th>
-                                        <th>SUBTOTAL</th>
-                                        <th>ISV</th>
-                                        <th>TOTAL</th>
-                                        <th>RETENCION</th>
-                                        <th>TOTAL PAGADO</th>
-                                        <th>FECHA DE COMPRA</th>
-                                        <th>FECHA DE VENCIMIENTO</th>
-                                        <th>FECHA DE PAGO</th>
-                                        <th>BANCO</th>
-                                        <th>OBSERVACIONES</th>
-                                    </tr>
-                                </tfoot>
+
                                 <tbody></tbody>
                             </table>
                         </div>

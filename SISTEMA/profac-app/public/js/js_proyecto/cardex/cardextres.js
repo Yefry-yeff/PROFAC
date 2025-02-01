@@ -55,11 +55,11 @@ function cargaCardex(){
     var idProducto = document.getElementById('producto');
     //console.log(idBodega.options[idBodega.selectedIndex].text, idProducto.options[idProducto.selectedIndex].text);
     $('#tbl_cardex').DataTable({
-        "paging": false,
+        "paging": true,
         "language": {
             "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
         },
-        pageLength: 10,
+        pageLength: 8,
         responsive: true,
         dom: '<"html5buttons"B>lTfgitp',
         buttons: [{

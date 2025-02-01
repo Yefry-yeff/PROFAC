@@ -23,11 +23,25 @@ function carga_libro_cobros() {
         language: {
             url: "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
         },
-        pageLength: 15,
+        pageLength: 8,
         responsive: true,
         dom: '<"html5buttons"B>lTfgitp', // Mantén el DOM como estaba
         buttons: [
-            { extend: 'excel', title: 'Libro_Cobros ' + fecha, className: 'btn btn-success' },
+            {
+                extend: 'excelHtml5',
+                title: 'Libro_cobros',
+                text: '<i class="fa-solid fa-file-excel"></i> Exportar a Excel',
+                className: 'btn-excel'
+            },
+            {
+                extend: 'pdfHtml5',
+                title: 'Libro_cobros',
+                text: '<i class="fa-solid fa-file-pdf"></i> Exportar a PDF',
+                className: 'btn-pdf',
+                action: function () {
+                    exportarPdf();
+            }
+        }
         ],
         ajax: "/reporte/Librocobrosrep/consulta/3/" + fecha,
         columns: [
@@ -53,23 +67,31 @@ function carga_libro_cobros() {
 }
 
 function exportarPdf() {
-    // Obtener la fecha seleccionada
     var fechaInput = document.getElementById('fecha_cobro').value;
 
-    // Validar si el campo de fecha está vacío
     if (!fechaInput) {
         document.getElementById('fecha_cobro_error').style.display = 'block';
         document.getElementById('fecha_cobro').style.borderColor = 'red';
         return;
     }
 
-    // Restaurar estilos si la fecha es válida
     document.getElementById('fecha_cobro').style.borderColor = '';
     document.getElementById('fecha_cobro_error').style.display = 'none';
 
-    // Construir la URL para la exportación
-    var url = "/reporte/Librocobrosrep/exportar-pdf/3/" + fechaInput;
+    // Configurar el formulario de envío POST
+    var form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/reporte/Librocobrosrep/exportar-pdf/3/' + fechaInput;
 
-    // Abrir la URL en una nueva pestaña para descargar el PDF
-    window.open(url, '_blank');
+    // Agregar token CSRF
+    var csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    var csrfInput = document.createElement('input');
+    csrfInput.type = 'hidden';
+    csrfInput.name = '_token';
+    csrfInput.value = csrfToken;
+    form.appendChild(csrfInput);
+
+    // Enviar el formulario
+    document.body.appendChild(form);
+    form.submit();
 }

@@ -13,7 +13,7 @@
             margin-top: 5px;
         }
     </style>
-    <h1>Reporte de LIBRO DE COBRO</h1>
+    <h1>Reporte de LIBRO DE VENTA</h1>
 
     <div class="pb-0 wrapper wrapper-content animated fadeInRight">
         <div class="row">
@@ -22,15 +22,14 @@
                     <div class="ibox-content">
                         <div class="row">
                             <div class="form-group col-lg-6 offset-lg-3"> <!-- Centrado del campo de fecha -->
-                                <label for="fecha_venta">Fecha que se generara el Libro de Venta:</label>
+                                <label for="fecha_venta">Fecha que se generara el Libro de Venta:<span class="text-danger">*</span></label>
                                 <input type="date" id="fecha_venta" class="form-control" onchange="carga_libro_venta()">
                                 <div id="fecha_venta_error" class="mt-2 text-danger" style="display: none;">Por favor, seleccione una fecha válida.</div>
                             </div>
                         </div>
                         <div class="mt-5 row justify-content-center"> <!-- Centrado del botón y margen amplio -->
                             <div class="col-auto">
-                                <button id="btn_exportar_pdf" class="btn btn-primary" onclick="exportarPdf()">Exportar a PDF</button>
-                            </div>
+                        </div>
                         </div>
                     </div>
                 </div>

@@ -72,49 +72,43 @@
             margin: 5px 0;
         }
     </style>
-    <title>Reporte de Libro de Cobros</title>
+    <title>Facturas Anuladas</title>
 </head>
 <body>
     <div class="header">
         <img src="img/membrete/Logo3.png" style="margin-left:10%; margin-top:-25px; position:absolute;"alt="">
         <div class="header-text"style="margin-left:10%;  margin-top:60px; width:45rem; height:5.5rem;">
             <p>RTN: 08011986138652</p>
-            <p>LIBRO GENERAL DE COBROS GOBIERNO</p>
+            <p>LISTADO DE FACTURAS ANULADAS</p>
             @php
-            use Carbon\Carbon;
-        @endphp
-        <p>{{ Carbon::parse($fecha)->translatedFormat('d F Y') }}</p>
+                use Carbon\Carbon;
+            @endphp
+            <p>{{ Carbon::parse($fechaInicio)->translatedFormat('d F Y') }}   al   {{ Carbon::parse($fechaFinal)->translatedFormat('d F Y') }}</p>
         </div>
     </div>
 
     <table>
         <thead>
             <tr>
-                <th>VENDEDOR</th>
-                <th>CLIENTE</th>
-                <th>FACTURA</th>
-                <th>EXONERADO</th>
-                <th>GRAVADO</th>
-                <th>EXCENTO</th>
+                <th>FECHA DE CREACION</th>
+                <th>NUMERO FACTURA</th>
+                <th>NOMBRE CLIENTE</th>
                 <th>SUBTOTAL</th>
                 <th>ISV</th>
                 <th>TOTAL</th>
-                <th>FECHA COMPRA</th>
+                <th>TIPO CLIENTE</th>
             </tr>
         </thead>
         <tbody>
             @foreach($data as $row)
             <tr>
-                <td>{{ $row['VENDEDOR'] }}</td>
-                <td>{{ $row['CLIENTE'] }}</td>
-                <td>{{ $row['FACTURA'] }}</td>
-                <td>{{ $row['EXONERADO'] }}</td>
-                <td>{{ $row['GRAVADO'] }}</td>
-                <td>{{ $row['EXCENTO'] }}</td>
+                <td>{{ $row['FECHA DE CREACION'] }}</td>
+                <td>{{ $row['NUMERO FACTURA'] }}</td>
+                <td>{{ $row['NOMBRE CLIENTE'] }}</td>
                 <td>{{ $row['SUBTOTAL'] }}</td>
                 <td>{{ $row['ISV'] }}</td>
                 <td>{{ $row['TOTAL'] }}</td>
-                <td>{{ $row['FECHA COMPRA'] }}</td>
+                <td>{{ $row['TIPO CLIENTE'] }}</td>
             </tr>
             @endforeach
         </tbody>
@@ -126,8 +120,6 @@
             <p>CREDITOS Y COBROS: JOSSELINE ZEPEDA</p>
         </div>
         <div class="signature">
-            <p>___________________________________</p>
-            <p>GERENCIA GENERAL: ING. DANILO MORALES</p>
         </div>
         <div class="signature">
             <p>___________________________________</p>

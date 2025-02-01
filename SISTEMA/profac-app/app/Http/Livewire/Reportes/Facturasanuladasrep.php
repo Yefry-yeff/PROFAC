@@ -9,18 +9,18 @@ use Yajra\DataTables\DataTables;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 
-class CierreDiariorep extends Component
+class Facturasanuladasrep extends Component
 {
     public function render()
     {
-        return view('livewire.reportes.cierrediariorep');
+        return view('livewire.reportes.Facturasanuladasrep');
     }
 
-    public function consulta($tipo, $fecha)
+    public function consulta($tipo, $fechaInicio,$fechaFinal)
     {
         try {
             // Pasamos los dos parámetros al procedimiento almacenado
-            $consulta = DB::select("Call sp_reportesxfecha (?, ?,?)", [$tipo, $fecha, $fecha]);
+            $consulta = DB::select("Call sp_reportesxfecha (?, ?,?)", [$tipo, $fechaInicio, $fechaFinal]);
 
             return Datatables::of($consulta)
                 ->rawColumns([])
@@ -33,28 +33,28 @@ class CierreDiariorep extends Component
             ], 402);
         }
     }
-    public function exportarPdf(Request $request, $tipo, $fecha)
+    public function exportarPdf(Request $request, $tipo, $fechaInicio,$fechaFinal)
 {
     try {
         // Validación de parámetros
-        if (!$tipo || !$fecha) {
+    if (!$tipo || !$fechaInicio ||!$fechaFinal ) {
             return response()->json([
                 'message' => 'Faltan parámetros requeridos para la exportación del PDF.'
             ], 400);
         }
 
         // Obtener datos del procedimiento almacenado
-        $consulta = DB::select("CALL sp_reportesxfecha(?, ?, ?)", [$tipo, $fecha, $fecha]);
+        $consulta = DB::select("CALL sp_reportesxfecha(?, ?, ?)", [$tipo, $fechaInicio,$fechaFinal]);
 
         // Convertir los datos a arreglo para la vista
         $data = json_decode(json_encode($consulta), true);
 
         // Generar el PDF usando DomPDF
-        $pdf = PDF::loadView('pdf.Cierrediariorep', compact('data', 'fecha'))
+        $pdf = PDF::loadView('pdf.facturasanuladasrep', compact('data','fechaInicio','fechaFinal'))
                   ->setPaper('a4', 'landscape');
 
         // Retornar el PDF para descarga
-        return $pdf->download("Cierre_De_Caja_{$fecha}.pdf");
+        return $pdf->download("Facturas_anuladas_{$fechaInicio}_a_{$fechaFinal}.pdf");
     } catch (QueryException $e) {
         return response()->json([
             'message' => 'Error al generar el PDF.',
