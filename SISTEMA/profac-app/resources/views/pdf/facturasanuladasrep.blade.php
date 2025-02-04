@@ -105,13 +105,22 @@
                 <td>{{ $row['FECHA DE CREACION'] }}</td>
                 <td>{{ $row['NUMERO FACTURA'] }}</td>
                 <td>{{ $row['NOMBRE CLIENTE'] }}</td>
-                <td>{{ $row['SUBTOTAL'] }}</td>
-                <td>{{ $row['ISV'] }}</td>
-                <td>{{ $row['TOTAL'] }}</td>
+                <td>{{ number_format((float) $row['SUBTOTAL'], 2) }}</td>
+                <td>{{ number_format((float) $row['ISV'], 2) }}</td>
+                <td>{{ number_format((float) $row['TOTAL'], 2) }}</td>
                 <td>{{ $row['TIPO CLIENTE'] }}</td>
             </tr>
             @endforeach
         </tbody>
+        <tfoot>
+            <tr>
+                <th colspan="3" style="text-align: center;">Totales:</th>
+                <th style="text-align: center;">{{ number_format((float) collect($data)->sum(fn($row) => (float) $row['SUBTOTAL']), 2) }}</th>
+                <th style="text-align: center;">{{ number_format((float) collect($data)->sum(fn($row) => (float) $row['ISV']), 2) }}</th>
+                <th style="text-align: center;">{{ number_format((float) collect($data)->sum(fn($row) => (float) $row['TOTAL']), 2) }}</th>
+                <th></th>
+            </tr>
+        </tfoot>
     </table>
 
     <div class="footer">

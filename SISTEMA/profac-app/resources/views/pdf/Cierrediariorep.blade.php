@@ -90,7 +90,7 @@
     <table>
         <thead>
             <tr>
-                <th>FECHA DE CIERRE</th>
+                <th>FECHA CIERRE</th>
                 <th>REGISTRADO POR</th>
                 <th>ESTADO DE CAJA</th>
                 <th>FACTURA</th>
@@ -99,12 +99,12 @@
                 <th>SUBTOTAL FACTURADO</th>
                 <th>ISV FACTURADO</th>
                 <th>TOTAL FACTURADO</th>
-                <th>CALIDAD DE FACTURA</th>
-                <th>TIPO DE CLIENTE</th>
+                <th>CALIDAD FACTURA</th>
+                <th>TIPO CLIENTE</th>
                 <th>PAGO POR</th>
                 <th>BANCO</th>
                 <th>ABONO</th>
-                <th>FECHA DE PAGO</th>
+                <th>FECHA PAGO</th>
             </tr>
         </thead>
         <tbody>
@@ -116,19 +116,31 @@
                 <td>{{ $row['FACTURA'] }}</td>
                 <td>{{ $row['CLIENTE'] }}</td>
                 <td>{{ $row['VENDEDOR'] }}</td>
-                <td>{{ $row['SUBTOTAL FACTURADO'] }}</td>
-                <td>{{ $row['ISV FACTURADO'] }}</td>
-                <td>{{ $row['TOTAL FACTURADO'] }}</td>
+                <td>{{ number_format((float) $row['SUBTOTAL FACTURADO'], 2) }}</td>
+                <td>{{ number_format((float) $row['ISV FACTURADO'], 2) }}</td>
+                <td>{{ number_format((float) $row['TOTAL FACTURADO'], 2) }}</td>
                 <td>{{ $row['CALIDAD DE FACTURA'] }}</td>
                 <td>{{ $row['TIPO DE CLIENTE'] }}</td>
                 <td>{{ $row['PAGO POR'] }}</td>
                 <td>{{ $row['BANCO'] }}</td>
-                <td>{{ $row['ABONO'] }}</td>
+                <td>{{ number_format((float) $row['ABONO'], 2) }}</td>
                 <td>{{ $row['FECHA DE PAGO'] }}</td>
             </tr>
             @endforeach
         </tbody>
+        <tfoot>
+            <tr>
+                <th colspan="6" style="text-align: center;">Totales:</th>
+                <th style="text-align: center;">{{ number_format((float) collect($data)->sum(fn($row) => (float) $row['SUBTOTAL FACTURADO']), 2) }}</th>
+                <th style="text-align: center;">{{ number_format((float) collect($data)->sum(fn($row) => (float) $row['ISV FACTURADO']), 2) }}</th>
+                <th style="text-align: center;">{{ number_format((float) collect($data)->sum(fn($row) => (float) $row['TOTAL FACTURADO']), 2) }}</th>
+                <th colspan="4"></th>
+                <th style="text-align: center;">{{ number_format((float) collect($data)->sum(fn($row) => (float) $row['ABONO']), 2) }}</th>
+                <th></th>
+            </tr>
+        </tfoot>
     </table>
+
 
     <div class="footer">
         <div class="signature">
