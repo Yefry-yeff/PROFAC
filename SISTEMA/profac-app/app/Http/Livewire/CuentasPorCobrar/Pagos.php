@@ -768,15 +768,17 @@ class Pagos extends Component
 
                        //dd($cuentas2[0]->estado);
 
-                       $cliente = DB::SELECTONE("select cliente_id from factura where id=".$request->idFacturaAbono);
+                       $cliente = DB::SELECTONE("select cliente_id, credito from factura where id=".$request->idFacturaAbono);
                        $creditoCli = DB::SELECTONE("select credito from cliente where id=".$cliente->cliente_id);
 
+                       if ($cliente->credito !=0) {
+                        $homologoCredito = $creditoCli->credito + $request->montoAbono;
 
-                       $homologoCredito = $creditoCli->credito + $request->montoAbono;
+                        $clienteCredito =  ModelCliente::find($cliente->cliente_id);
+                        $clienteCredito->credito = trim($homologoCredito);
+                        $clienteCredito->save();
+                       }
 
-                       $clienteCredito =  ModelCliente::find($cliente->cliente_id);
-                       $clienteCredito->credito = trim($homologoCredito);
-                       $clienteCredito->save();
 
                        if ($cuentas2[0]->estado == -1) {
                            return response()->json([
