@@ -1394,13 +1394,13 @@ class FacturacionCorporativa extends Component
         total,
         isv,
         sub_total,
-        sub_total_grabado,
+        FORMAT((select sum(sub_total_s) from venta_has_producto where isv != 0 and factura_id = ".$idFactura.") ,2) as sub_total_grabado,
         sub_total_excento,
-        FORMAT((select sum(sub_total) from venta_has_producto where isv = 0 and factura_id = ".$idFactura."),2) as subtotal_excentovale,
+        FORMAT((select sum(sub_total_s) from venta_has_producto where isv = 0 and factura_id = ".$idFactura."),2) as subtotal_excentovale,
         porc_descuento,
         monto_descuento
         from factura
-        where id = " . $idFactura);
+        where id = ".$idFactura);
 
         /* CAMBIO 20230725 FORMAT(total,2) as total:FORMAT(isv,2) as isv:FORMAT(sub_total,2) as sub_total,:FORMAT(sub_total_grabado,2) as sub_total_grabado:FORMAT(sub_total_excento,2) as sub_total_excento*/
         $importesConCentavos = DB::SELECTONE("
@@ -1408,12 +1408,12 @@ class FacturacionCorporativa extends Component
         FORMAT(total,2) as total,
         FORMAT(isv,2) as isv,
         FORMAT(sub_total,2) as sub_total,
-        FORMAT(sub_total_grabado,2) as sub_total_grabado,
+        FORMAT((select sum(sub_total_s) from venta_has_producto where isv != 0 and factura_id = ".$idFactura.") ,2) as sub_total_grabado,
         FORMAT(sub_total_excento,2) as sub_total_excento,
-        FORMAT((select sum(sub_total) from venta_has_producto where isv = 0 and factura_id = ".$idFactura."),2) as subtotal_excentovale,
+        FORMAT((select sum(sub_total_s) from venta_has_producto where isv = 0 and factura_id = ".$idFactura."),2) as subtotal_excentovale,
         FORMAT(porc_descuento,2) as porc_descuento,
         FORMAT(monto_descuento,2) as monto_descuento
-        from factura where factura.id = " . $idFactura);
+        from factura where factura.id = ".$idFactura);
 
 
         /* CAMBIO 20230725 FORMAT(B.sub_total/B.cantidad,2) as precio:FORMAT(sum(B.cantidad_s),2) as cantidad:FORMAT(sum(B.sub_total_s),2) as importe*/
@@ -1539,18 +1539,19 @@ class FacturacionCorporativa extends Component
         on factura.cliente_id = cliente.id
         where factura.id = " . $idFactura);
 
+
         $importes = DB::SELECTONE("
         select
         total,
         isv,
         sub_total,
-        sub_total_grabado,
+        FORMAT((select sum(sub_total_s) from venta_has_producto where isv != 0 and factura_id = ".$idFactura.") ,2) as sub_total_grabado,
         sub_total_excento,
-        FORMAT((select sum(sub_total) from venta_has_producto where isv = 0 and factura_id = ".$idFactura."),2) as subtotal_excentovale,
+        FORMAT((select sum(sub_total_s) from venta_has_producto where isv = 0 and factura_id = ".$idFactura."),2) as subtotal_excentovale,
         porc_descuento,
         monto_descuento
         from factura
-        where id = " . $idFactura);
+        where id = ".$idFactura);
 
         /* CAMBIO 20230725 FORMAT(total,2) as total:FORMAT(isv,2) as isv:FORMAT(sub_total,2) as sub_total,:FORMAT(sub_total_grabado,2) as sub_total_grabado:FORMAT(sub_total_excento,2) as sub_total_excento*/
         $importesConCentavos = DB::SELECTONE("
@@ -1558,12 +1559,12 @@ class FacturacionCorporativa extends Component
         FORMAT(total,2) as total,
         FORMAT(isv,2) as isv,
         FORMAT(sub_total,2) as sub_total,
-        FORMAT(sub_total_grabado,2) as sub_total_grabado,
+        FORMAT((select sum(sub_total_s) from venta_has_producto where isv != 0 and factura_id = ".$idFactura.") ,2) as sub_total_grabado,
         FORMAT(sub_total_excento,2) as sub_total_excento,
-        FORMAT((select sum(sub_total) from venta_has_producto where isv = 0 and factura_id = ".$idFactura."),2) as subtotal_excentovale,
+        FORMAT((select sum(sub_total_s) from venta_has_producto where isv = 0 and factura_id = ".$idFactura."),2) as subtotal_excentovale,
         FORMAT(porc_descuento,2) as porc_descuento,
         FORMAT(monto_descuento,2) as monto_descuento
-        from factura where factura.id = " . $idFactura);
+        from factura where factura.id = ".$idFactura);
 
 
         /* CAMBIO 20230725 FORMAT(B.sub_total/B.cantidad,2) as precio:FORMAT(sum(B.cantidad_s),2) as cantidad:FORMAT(sum(B.sub_total_s),2) as importe*/
@@ -2095,31 +2096,32 @@ class FacturacionCorporativa extends Component
         on factura.cliente_id = cliente.id
         where factura.id = " . $idFactura);
 
+
         $importes = DB::SELECTONE("
         select
-         total,
-         isv,
-         sub_total,
-         sub_total_grabado,
-         sub_total_excento,
-        FORMAT((select sum(sub_total) from venta_has_producto where isv = 0 and factura_id = ".$idFactura."),2) as subtotal_excentovale,
+        total,
+        isv,
+        sub_total,
+        FORMAT((select sum(sub_total_s) from venta_has_producto where isv != 0 and factura_id = ".$idFactura.") ,2) as sub_total_grabado,
+        sub_total_excento,
+        FORMAT((select sum(sub_total_s) from venta_has_producto where isv = 0 and factura_id = ".$idFactura."),2) as subtotal_excentovale,
         porc_descuento,
-         monto_descuento
+        monto_descuento
         from factura
-        where id = " . $idFactura);
+        where id = ".$idFactura);
 
-
+        /* CAMBIO 20230725 FORMAT(total,2) as total:FORMAT(isv,2) as isv:FORMAT(sub_total,2) as sub_total,:FORMAT(sub_total_grabado,2) as sub_total_grabado:FORMAT(sub_total_excento,2) as sub_total_excento*/
         $importesConCentavos = DB::SELECTONE("
         select
         FORMAT(total,2) as total,
         FORMAT(isv,2) as isv,
         FORMAT(sub_total,2) as sub_total,
-        FORMAT(sub_total_grabado,2) as sub_total_grabado,
+        FORMAT((select sum(sub_total_s) from venta_has_producto where isv != 0 and factura_id = ".$idFactura.") ,2) as sub_total_grabado,
         FORMAT(sub_total_excento,2) as sub_total_excento,
-        FORMAT((select sum(sub_total) from venta_has_producto where isv = 0 and factura_id = ".$idFactura."),2) as subtotal_excentovale,
+        FORMAT((select sum(sub_total_s) from venta_has_producto where isv = 0 and factura_id = ".$idFactura."),2) as subtotal_excentovale,
         FORMAT(porc_descuento,2) as porc_descuento,
         FORMAT(monto_descuento,2) as monto_descuento
-        from factura where factura.id = " . $idFactura);
+        from factura where factura.id = ".$idFactura);
 
 
 
@@ -2164,7 +2166,7 @@ class FacturacionCorporativa extends Component
             group by codigo, descripcion, medida, bodega, seccion, precio,B.indice
             order by B.indice asc
             ) A
-            where B.estado_id=1 and A.id = "
+            where B.estado_id=1 and A.id = " . $idFactura
 
         );
         // for ($i=0; $i < 15 ; $i++) {
