@@ -201,9 +201,13 @@
                     <div class="card {{-- border border-dark --}}" style="position:absolute;left:0px;  width:26rem; height:15rem;">
                         <div class="card-body">
 
+
                             <p class="card-text" style="position:absolute;left:10px;  top:2px; font-size:14px;"><b>Vendedor:
+                            </b>
+                            {{ $cai->vendedor }} </p>
+                            <p class="card-text" style="position:absolute;left:200px;  top:2px; font-size:14px;"><b>Facturador:
                                 </b>
-                                {{ $cai->name }} </p>
+                                {{ $cai->facturador }} </p>
 
 
                             {{-- <p class="card-text" style="position:absolute;left:0px;  top:28px; font-size:11px;">

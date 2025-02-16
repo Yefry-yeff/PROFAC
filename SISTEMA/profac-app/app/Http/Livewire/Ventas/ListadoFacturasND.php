@@ -42,7 +42,8 @@ class ListadoFacturasND extends Component
                 FORMAT(isv,2) as isv,
                 FORMAT(total,2) as total,
                 factura.credito,
-                users.name as creado_por,
+            users.name as vendedor,
+            (select name from users where id = factura.users_id) as facturador,
                 (select if(sum(monto) is null,0,sum(monto)) from pago_venta where estado_venta_id = 1   and factura_id = factura.id ) as monto_pagado,
                 factura.estado_venta_id,
                 factura.created_at as fecha_registro

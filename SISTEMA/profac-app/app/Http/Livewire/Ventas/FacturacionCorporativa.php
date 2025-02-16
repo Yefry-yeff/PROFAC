@@ -1360,18 +1360,15 @@ class FacturacionCorporativa extends Component
         DATE_FORMAT(A.fecha_emision,'%d/%m/%Y' ) as  fecha_emision,
         TIME(A.created_at) as hora,
         DATE_FORMAT(A.fecha_vencimiento,'%d/%m/%Y' ) as fecha_vencimiento,
-        name,
+        users.name as vendedor,
+        (select name from users where id = A.users_id ) as facturador,
         D.id as factura
 
        from factura A
-       inner join cai B
-       on A.cai_id = B.id
-       inner join tipo_pago_venta C
-       on A.tipo_pago_id = C.id
-       inner join users
-       on A.vendedor = users.id
-       inner join estado_factura D
-       on A.estado_factura_id = D.id
+       inner join cai B  on A.cai_id = B.id
+       inner join tipo_pago_venta C on A.tipo_pago_id = C.id
+       inner join users on A.vendedor = users.id
+       inner join estado_factura D on A.estado_factura_id = D.id
        where A.id = " . $idFactura);
 
         $cliente = DB::SELECTONE("
@@ -1510,7 +1507,8 @@ class FacturacionCorporativa extends Component
         DATE_FORMAT(A.fecha_emision,'%d/%m/%Y' ) as  fecha_emision,
         TIME(A.created_at) as hora,
         DATE_FORMAT(A.fecha_vencimiento,'%d/%m/%Y' ) as fecha_vencimiento,
-        name,
+        users.name as vendedor,
+        (select name from users where id = A.users_id ) as facturador,
         D.id as factura
 
        from factura A
@@ -2067,7 +2065,8 @@ class FacturacionCorporativa extends Component
         DATE_FORMAT(A.fecha_emision,'%d/%m/%Y' ) as  fecha_emision,
         TIME(A.created_at) as hora,
         DATE_FORMAT(A.fecha_vencimiento,'%d/%m/%Y' ) as fecha_vencimiento,
-        name,
+        users.name as vendedor,
+        (select name from users where id = A.users_id ) as facturador,
         D.id as factura
 
        from factura A
@@ -2130,7 +2129,6 @@ class FacturacionCorporativa extends Component
 
         $productos = DB::SELECT(
             "
-
             select
             *
             from (
@@ -2144,7 +2142,6 @@ class FacturacionCorporativa extends Component
                 FORMAT(B.precio_unidad,2) as precio,
                 REPLACE(sum(B.cantidad_s), '.00', '') as cantidad,
                 FORMAT(sum(B.sub_total_s),2) as importe
-
             from factura A
             inner join venta_has_producto B
             on A.id = B.factura_id
@@ -2165,8 +2162,7 @@ class FacturacionCorporativa extends Component
             where A.id=" . $idFactura . "
             group by codigo, descripcion, medida, bodega, seccion, precio,B.indice
             order by B.indice asc
-            ) A
-            where B.estado_id=1 and A.id = " . $idFactura
+            ) A"
 
         );
         // for ($i=0; $i < 15 ; $i++) {

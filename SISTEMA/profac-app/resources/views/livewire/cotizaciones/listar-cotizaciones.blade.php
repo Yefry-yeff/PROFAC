@@ -53,7 +53,8 @@
                                         <th>Sub Total</th>
                                         <th>ISV</th>
                                         <th>Total</th>
-                                        <th>Registrado por:</th>
+                                        <th>Vendedor</th>
+                                        <th>Cotizador</th>
                                         <th>Fecha de registro:</th>
                                         <th>Opciones</th>
 
@@ -118,7 +119,10 @@
                             data: 'total'
                         },
                         {
-                            data: 'name'
+                            data: 'vendedor'
+                        },
+                        {
+                            data: 'cotizador'
                         },
                         {
                             data: 'created_at'

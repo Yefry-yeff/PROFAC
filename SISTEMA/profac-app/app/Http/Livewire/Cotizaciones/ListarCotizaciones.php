@@ -58,7 +58,8 @@ class ListarCotizaciones extends Component
                 FORMAT(A.sub_total,2) as sub_total,
                 FORMAT(A.isv,2) as isv,
                 FORMAT(A.total,2) as total,
-                B.name,
+                B.name as cotizador,
+                (select name from users where id = A.vendedor) as vendedor,
                 A.created_at,
                 A.tipo_venta_id
                 from cotizacion A
@@ -78,7 +79,8 @@ class ListarCotizaciones extends Component
                 FORMAT(A.sub_total,2) as sub_total,
                 FORMAT(A.isv,2) as isv,
                 FORMAT(A.total,2) as total,
-                B.name,
+                B.name as cotizador,
+                (select name from users where id = A.vendedor) as vendedor,
                 A.created_at,
                 A.tipo_venta_id
                 from cotizacion A

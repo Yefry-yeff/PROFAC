@@ -329,7 +329,7 @@ class Cotizacion extends Component
             time(A.created_at) as hora,
             A.fecha_vencimiento,
             B.rtn,
-            users.name,
+            users.name as cotizador,
             (select name from users where id = A.vendedor) as vendedor
             from cotizacion A
             inner join cliente B
@@ -465,7 +465,7 @@ class Cotizacion extends Component
             time(A.created_at) as hora,
             A.fecha_vencimiento,
             B.rtn,
-            users.name,
+            users.name as cotizador,
             (select name from users where id = A.vendedor) as vendedor
             from cotizacion A
             inner join cliente B
