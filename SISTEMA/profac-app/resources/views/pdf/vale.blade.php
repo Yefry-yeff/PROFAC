@@ -295,7 +295,7 @@
                 <p class="card-text" style="position:absolute;left:450px;  top:10px;">
                     _______________________________________</p>
                 <p class="card-text" style="position:absolute;left:80px;  top:25px; ">
-                    {{ strtoupper($cliente->nombre) }}</p>
+                    {{ $vale->nombre_cliente }}</p>
                 <p class="card-text" style="position:absolute;left:495px;  top:25px;">DISTRIBUCIONES VALENCIA</p>
             </div>
 
