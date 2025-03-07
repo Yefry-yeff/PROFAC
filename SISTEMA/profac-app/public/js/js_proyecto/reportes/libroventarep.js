@@ -29,13 +29,13 @@ function carga_libro_venta() {
         buttons: [
             {
                 extend: 'excelHtml5',
-                title: 'Cierre_Diario',
+                title: 'Libro_Ventas',
                 text: '<i class="fa-solid fa-file-excel"></i> Exportar a Excel',
                 className: 'btn-excel'
             },
             {
                 extend: 'pdfHtml5',
-                title: 'Cierre_Diario',
+                title: 'Libro_ventas',
                 text: '<i class="fa-solid fa-file-pdf"></i> Exportar a PDF',
                 className: 'btn-pdf',
                 action: function () {

@@ -72,14 +72,14 @@
             margin: 5px 0;
         }
     </style>
-    <title>Reporte de Libro de Cobros</title>
+    <title>Reporte de Libro de Ventas</title>
 </head>
 <body>
     <div class="header">
         <img src="img/membrete/Logo3.png" style="margin-left:10%; margin-top:-25px; position:absolute;"alt="">
         <div class="header-text"style="margin-left:10%;  margin-top:60px; width:45rem; height:5.5rem;">
             <p>RTN: 08011986138652</p>
-            <p>LIBRO GENERAL DE COBROS GOBIERNO</p>
+            <p>LIBRO GENERAL DE VENTAS DE GOBIERNO</p>
             @php
             use Carbon\Carbon;
         @endphp
