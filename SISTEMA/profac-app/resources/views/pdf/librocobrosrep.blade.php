@@ -96,12 +96,13 @@
                 <th>EXONERADO</th>
                 <th>GRAVADO</th>
                 <th>EXCENTO</th>
-                <th>ABONO</th>
                 <th>SUBTOTAL</th>
                 <th>ISV</th>
                 <th>TOTAL</th>
                 <th>RETENCIÓN</th>
+                <th>ABONO</th>
                 <th>TOTAL PAGADO</th>
+                <th>SALDO</th>
                 <th>FECHA COMPRA</th>
                 <th>FECHA VENCIMIENTO</th>
                 <th>FECHA PAGO</th>
@@ -118,12 +119,13 @@
                 <td>{{ number_format((float) $row['EXONERADO'], 2) }}</td>
                 <td>{{ number_format((float) $row['GRAVADO'], 2) }}</td>
                 <td>{{ number_format((float) $row['EXCENTO'], 2) }}</td>
-                <td>{{ number_format((float) $row['ABONO'], 2) }}</td>
                 <td>{{ number_format((float) $row['SUBTOTAL'], 2) }}</td>
                 <td>{{ number_format((float) $row['ISV'], 2) }}</td>
                 <td>{{ number_format((float) $row['TOTAL'], 2) }}</td>
                 <td>{{ number_format((float) $row['RETENCION'], 2) }}</td>
+                <td>{{ number_format((float) $row['ABONO'], 2) }}</td>
                 <td>{{ number_format((float) $row['TOTAL PAGADO'], 2) }}</td>
+                <td>{{ number_format((float) $row['SALDO'], 2) }}</td>
                 <td>{{ $row['FECHA DE COMPRA'] }}</td>
                 <td>{{ $row['FECHA DE VENCIMIENTO'] }}</td>
                 <td>{{ $row['FECHA DE PAGO'] }}</td>
@@ -138,12 +140,13 @@
                 <th style="text-align: center;">{{ number_format((float) collect($data)->sum(fn($row) => (float) $row['EXONERADO']), 2) }}</th>
                 <th style="text-align: center;">{{ number_format((float) collect($data)->sum(fn($row) => (float) $row['GRAVADO']), 2) }}</th>
                 <th style="text-align: center;">{{ number_format((float) collect($data)->sum(fn($row) => (float) $row['EXCENTO']), 2) }}</th>
-                <th style="text-align: center;">{{ number_format((float) collect($data)->sum(fn($row) => (float) $row['ABONO']), 2) }}</th>
                 <th style="text-align: center;">{{ number_format((float) collect($data)->sum(fn($row) => (float) $row['SUBTOTAL']), 2) }}</th>
                 <th style="text-align: center;">{{ number_format((float) collect($data)->sum(fn($row) => (float) $row['ISV']), 2) }}</th>
                 <th style="text-align: center;">{{ number_format((float) collect($data)->sum(fn($row) => (float) $row['TOTAL']), 2) }}</th>
                 <th style="text-align: center;">{{ number_format((float) collect($data)->sum(fn($row) => (float) $row['RETENCION']), 2) }}</th>
+                <th style="text-align: center;">{{ number_format((float) collect($data)->sum(fn($row) => (float) $row['ABONO']), 2) }}</th>
                 <th style="text-align: center;">{{ number_format((float) collect($data)->sum(fn($row) => (float) $row['TOTAL PAGADO']), 2) }}</th>
+                <th style="text-align: center;">{{ number_format((float) collect($data)->sum(fn($row) => (float) $row['SALDO']), 2) }}</th>
                 <th colspan="5"></th>
                 <th></th>
             </tr>
