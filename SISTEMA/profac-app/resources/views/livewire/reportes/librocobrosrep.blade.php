@@ -24,10 +24,10 @@
                             <div class="form-group col-lg-6 offset-lg-3"> <!-- Centrado del campo de fecha -->
                                 <label for="fecha_cobro">Fecha que se generara el Libro de Cobro:<span class="text-danger">*</span></label>
                                 <input type="date" id="fecha_cobro" class="form-control" onchange="carga_libro_cobros()">
-                                <div id="fecha_cobro_error" class="mt-2 text-danger" style="display: none;">Por favor, seleccione una fecha válida.</div>
+                                <div id="fecha_cobro_error" class="mt-2 text-danger" style="display: none;">Por favor, seleccione una fecha v谩lida.</div>
                             </div>
                         </div>
-                        <div class="mt-5 row justify-content-center"> <!-- Centrado del botón y margen amplio -->
+                        <div class="mt-5 row justify-content-center"> <!-- Centrado del bot贸n y margen amplio -->
                             <div class="col-auto">
                             </div>
                         </div>
@@ -36,7 +36,7 @@
             </div>
         </div>
     </div>
-    <p><b>Nota:</b> Se requiere la selección de una fecha para mostrar la información.</p>
+    <p><b>Nota:</b> Se requiere la selecci贸n de una fecha para mostrar la informaci贸n.</p>
 
     <div class="wrapper wrapper-content animated fadeInRight">
         <div class="row">
@@ -53,11 +53,11 @@
                                         <th>EXONERADO</th>
                                         <th>GRAVADO</th>
                                         <th>EXCENTO</th>
+                                        <th>ABONO</th>
                                         <th>SUBTOTAL</th>
                                         <th>ISV</th>
                                         <th>TOTAL</th>
                                         <th>RETENCION</th>
-                                        <th>ABONO</th>
                                         <th>TOTAL PAGADO</th>
                                         <th>SALDO</th>
                                         <th>FECHA DE COMPRA</th>
