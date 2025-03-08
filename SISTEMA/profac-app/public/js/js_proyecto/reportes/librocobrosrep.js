@@ -95,4 +95,5 @@ function exportarPdf() {
     // Enviar el formulario
     document.body.appendChild(form);
     form.submit();
+    //commit
 }
