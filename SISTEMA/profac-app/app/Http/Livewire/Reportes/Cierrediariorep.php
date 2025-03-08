@@ -13,7 +13,7 @@ class CierreDiariorep extends Component
 {
     public function render()
     {
-        return view('livewire.reportes.cierrediariorep');
+        return view('livewire.reportes.Cierrediariorep');
     }
 
     public function consulta($tipo, $fecha)
