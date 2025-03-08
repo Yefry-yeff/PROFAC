@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Yajra\DataTables\DataTables;
 use Barryvdh\DomPDF\Facade\Pdf;
 
-class Librocobrosrep extends Component
+class librocobrosrep extends Component
 {
     public function render()
     {
@@ -52,6 +52,7 @@ class Librocobrosrep extends Component
             $data = json_decode(json_encode($consulta), true);
 
             // Generar el PDF usando DomPDF
+
             $pdf = Pdf::loadView('pdf.librocobrosrep', compact('data', 'fecha'))
                 ->setPaper('a4', 'landscape');
 

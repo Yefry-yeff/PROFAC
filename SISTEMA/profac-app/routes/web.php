@@ -841,21 +841,21 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 
 /****************************************Reportes******************************* */
 //------------------------------- Cierre Diario ----------------------------//
-Route::get('/reporte/Cierrediariorep', CierreDiariorep::class);
-Route::get('/reporte/Cierrediariorep/consulta/{tipo}/{fecha}', [CierreDiariorep::class, 'consulta']);
-Route::post('/reporte/Cierrediariorep/exportar-pdf/{tipo}/{fecha}', [CierreDiariorep::class, 'exportarPdf'])
-    ->name('reporte.cierrediariorep.pdf');
+Route::get('/reporte/Cierrediariorep', Cierrediariorep::class);
+Route::get('/reporte/Cierrediariorep/consulta/{tipo}/{fecha}', [Cierrediariorep::class, 'consulta']);
+Route::post('/reporte/Cierrediariorep/exportar-pdf/{tipo}/{fecha}', [Cierrediariorep::class, 'exportarPdf'])
+    ->name('reporte.Cierrediariorep.pdf');
 
     //------------------------------- Facturas Anuladas ----------------------------//
 Route::get('/reporte/Facturasanuladasrep', Facturasanuladasrep::class);
 Route::get('/reporte/Facturasanuladasrep/consulta/{tipo}/{fechaInicio}/{fechaFinal}', [Facturasanuladasrep::class, 'consulta']);
 Route::post('/reporte/Facturasanuladasrep/exportar-pdf/{tipo}/{fechaInicio}/{fechaFinal}', [Facturasanuladasrep::class, 'exportarPdf'])
-    ->name('reporte.facturasanuladasrep.pdf');
+    ->name('reporte.Facturasanuladasrep.pdf');
 //------------------------------- Libro de Cobros ----------------------------//
-Route::get('/reporte/Librocobrosrep', Librocobrosrep::class);
+Route::get('/reporte/Librocobrosrep', action: Librocobrosrep::class);
 Route::get('/reporte/Librocobrosrep/consulta/{tipo}/{fecha}', [Librocobrosrep::class, 'consulta']);
 Route::post('/reporte/Librocobrosrep/exportar-pdf/{tipo}/{fecha}', [Librocobrosrep::class, 'exportarPdf'])
-    ->name('reporte.librocobrosrep.pdf');
+    ->name('reporte.Librocobrosrep.pdf');
 //------------------------------- Libro de Ventas ----------------------------//
 Route::get('/reporte/Libroventarep', Libroventarep::class);
 Route::get('/reporte/Libroventarep/consulta/{tipo}/{fecha}', [Libroventarep::class, 'consulta']);

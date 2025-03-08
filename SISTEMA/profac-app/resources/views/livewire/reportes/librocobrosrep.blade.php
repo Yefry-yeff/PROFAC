@@ -36,7 +36,7 @@
             </div>
         </div>
     </div>
-    <p><b>Nota:</b> Se requiere la selecci贸n de una fecha para mostrar la informaci贸n.</p>
+    <p><b>Nota:</b> Se requiere la seleccion de una fecha para mostrar la informacion.</p>
 
     <div class="wrapper wrapper-content animated fadeInRight">
         <div class="row">
