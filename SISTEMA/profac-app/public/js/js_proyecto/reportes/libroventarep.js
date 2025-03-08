@@ -43,7 +43,7 @@ function carga_libro_venta() {
             }
         }
         ],
-        ajax: "/reporte/Libroventarep/consulta/4/" + fecha,
+        ajax: "/reporte/libroventarep/consulta/4/" + fecha,
         columns: [
             { data: 'VENDEDOR' },
             { data: 'CLIENTE' },
@@ -74,7 +74,7 @@ function exportarPdf() {
     // Configurar el formulario de envío POST
     var form = document.createElement('form');
     form.method = 'POST';
-    form.action = '/reporte/Libroventarep/exportar-pdf/4/' + fechaInput;
+    form.action = '/reporte/libroventarep/exportar-pdf/4/' + fechaInput;
 
     // Agregar token CSRF
     var csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');

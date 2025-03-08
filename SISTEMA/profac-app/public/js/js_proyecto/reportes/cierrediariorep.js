@@ -40,7 +40,7 @@ function cargaCierreDiario() {
             }
         }
         ],
-        "ajax":  "/reporte/Cierrediariorep/consulta/"+1+"/"+fecha,
+        "ajax":  "/reporte/cierrediariorep/consulta/"+1+"/"+fecha,
         "columns": [
             { data: 'FECHA DE CIERRE' },
             { data: 'REGISTRADO POR' },
@@ -100,7 +100,7 @@ function exportarPdf() {
     // Configurar el formulario de envío POST
     var form = document.createElement('form');
     form.method = 'POST';
-    form.action = '/reporte/Cierrediariorep/exportar-pdf/1/' + fechaInput;
+    form.action = '/reporte/cierrediariorep/exportar-pdf/1/' + fechaInput;
 
     // Agregar token CSRF
     var csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');

@@ -50,7 +50,7 @@ class CierreDiariorep extends Component
         $data = json_decode(json_encode($consulta), true);
 
         // Generar el PDF usando DomPDF
-        $pdf = PDF::loadView('pdf.Cierrediariorep', compact('data', 'fecha'))
+        $pdf = PDF::loadView('pdf.cierrediariorep', compact('data', 'fecha'))
                   ->setPaper('a4', 'landscape');
 
         // Retornar el PDF para descarga

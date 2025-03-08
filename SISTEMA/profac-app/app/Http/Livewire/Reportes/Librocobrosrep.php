@@ -52,7 +52,7 @@ class Librocobrosrep extends Component
             $data = json_decode(json_encode($consulta), true);
 
             // Generar el PDF usando DomPDF
-            $pdf = Pdf::loadView('pdf.Librocobrosrep', compact('data', 'fecha'))
+            $pdf = Pdf::loadView('pdf.librocobrosrep', compact('data', 'fecha'))
                 ->setPaper('a4', 'landscape');
 
             // Retornar el PDF para descarga

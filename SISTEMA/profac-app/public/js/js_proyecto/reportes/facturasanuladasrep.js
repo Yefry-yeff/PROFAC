@@ -45,7 +45,7 @@ function cargafacturasanuladasrep() {
                 }
             }
         ],
-        "ajax":  "/reporte/Facturasanuladasrep/consulta/2/"+fechaInicio+"/"+fechaFinal, // Ajusta la ruta de acuerdo a tu backend
+        "ajax":  "/reporte/facturasanuladasrep/consulta/2/"+fechaInicio+"/"+fechaFinal, // Ajusta la ruta de acuerdo a tu backend
         "columns": [
             { data: 'FECHA DE CREACION' },
             { data: 'NUMERO FACTURA' },
@@ -108,7 +108,7 @@ function exportarPdf() {
 
     var form = document.createElement('form');
     form.method = 'POST';
-    form.action = '/reporte/Facturasanuladasrep/exportar-pdf/2/' + encodeURIComponent(fechaInicioFormat) + '/' + encodeURIComponent(fechaFinalFormat);
+    form.action = '/reporte/facturasanuladasrep/exportar-pdf/2/' + encodeURIComponent(fechaInicioFormat) + '/' + encodeURIComponent(fechaFinalFormat);
 
     var csrfInput = document.createElement('input');
     csrfInput.type = 'hidden';

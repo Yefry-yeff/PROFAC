@@ -43,7 +43,7 @@ function carga_libro_cobros() {
             }
         }
         ],
-        ajax: "/reporte/Librocobrosrep/consulta/3/" + fecha,
+        ajax: "/reporte/librocobrosrep/consulta/3/" + fecha,
         columns: [
             { data: 'VENDEDOR' },
             { data: 'CLIENTE' },
@@ -82,7 +82,7 @@ function exportarPdf() {
     // Configurar el formulario de envío POST
     var form = document.createElement('form');
     form.method = 'POST';
-    form.action = '/reporte/Librocobrosrep/exportar-pdf/3/' + fechaInput;
+    form.action = '/reporte/librocobrosrep/exportar-pdf/3/' + fechaInput;
 
     // Agregar token CSRF
     var csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
