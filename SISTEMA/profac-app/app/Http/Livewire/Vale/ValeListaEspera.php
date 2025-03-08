@@ -251,6 +251,7 @@ class ValeListaEspera extends Component
 
         $factura = ModelFactura::find($request->idFactura);
         $factura->total = $factura->total + $request->totalGeneral;
+        $factura->sub_total_excento = $factura->sub_total_excento + $request->subTotalGeneralExcento;
         $factura->isv = $factura->isv + $request->isvGeneral;
         $factura->sub_total = $factura->sub_total + $request->subTotalGeneral;
         $factura->pendiente_cobro = 0;

@@ -214,6 +214,13 @@ class RestarVale extends Component
                     $producto->ivsProducto,
                     $producto->unidad_venta
                 );
+
+                DB::table('venta_has_producto')
+                ->where('producto_id', '=', $producto->producto_id)
+                ->where('factura_id', '=', $producto->idFactura)
+                ->where('seccion_id', '=', 0)
+                ->delete();
+
             }
 
 

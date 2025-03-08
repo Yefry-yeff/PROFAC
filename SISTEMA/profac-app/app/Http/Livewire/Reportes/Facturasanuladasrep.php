@@ -13,7 +13,7 @@ class Facturasanuladasrep extends Component
 {
     public function render()
     {
-        return view('livewire.reportes.Facturasanuladasrep');
+        return view('livewire.reportes.facturasanuladasrep');
     }
 
     public function consulta($tipo, $fechaInicio,$fechaFinal)
