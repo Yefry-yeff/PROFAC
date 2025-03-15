@@ -8,6 +8,9 @@ use Illuminate\Support\Facades\DB;
 use Yajra\DataTables\DataTables;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use App\Exports\FacturasAnuladasExport;
+use Maatwebsite\Excel\Facades\Excel;
+
 
 class Facturasanuladasrep extends Component
 {
@@ -62,4 +65,31 @@ class Facturasanuladasrep extends Component
         ], 402);
     }
 }
+public function exportarExcel(Request $request, $tipo, $fechaInicio, $fechaFinal)
+{
+    try {
+        // Validación de parámetros
+        if (!$tipo || !$fechaInicio || !$fechaFinal) {
+            return response()->json([
+                'message' => 'Faltan parámetros requeridos para la exportación del Excel.'
+            ], 400);
+        }
+
+        // Obtener datos del procedimiento almacenado
+        $consulta = DB::select("CALL sp_reportesxfecha(?, ?, ?)", [$tipo, $fechaInicio, $fechaFinal]);
+
+        // Convertir los datos a arreglo para la vista
+        $data = json_decode(json_encode($consulta), true);
+
+        // Exportar a Excel
+        return Excel::download(new FacturasAnuladasExport($data, $fechaInicio, $fechaFinal), "Facturas_anuladas_{$fechaInicio}_a_{$fechaFinal}.xlsx");
+
+    } catch (QueryException $e) {
+        return response()->json([
+            'message' => 'Error al generar el Excel.',
+            'errorTh' => $e->getMessage(),
+        ], 402);
+    }
 }
+}
+

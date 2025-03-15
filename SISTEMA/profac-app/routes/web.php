@@ -851,6 +851,8 @@ Route::get('/reporte/Facturasanuladasrep', Facturasanuladasrep::class);
 Route::get('/reporte/Facturasanuladasrep/consulta/{tipo}/{fechaInicio}/{fechaFinal}', [Facturasanuladasrep::class, 'consulta']);
 Route::post('/reporte/Facturasanuladasrep/exportar-pdf/{tipo}/{fechaInicio}/{fechaFinal}', [Facturasanuladasrep::class, 'exportarPdf'])
     ->name('reporte.Facturasanuladasrep.pdf');
+Route::post('/reporte/Facturasanuladasrep/exportar-excel/{tipo}/{fechaInicio}/{fechaFinal}', [Facturasanuladasrep::class, 'exportarExcel'])
+    ->name('reporte.Facturasanuladasrep.excel');
 //------------------------------- Libro de Cobros ----------------------------//
 Route::get('/reporte/Librocobrosrep', action: Librocobrosrep::class);
 Route::get('/reporte/Librocobrosrep/consulta/{tipo}/{fechaInicio}/{fechaFinal}', [Librocobrosrep::class, 'consulta']);
