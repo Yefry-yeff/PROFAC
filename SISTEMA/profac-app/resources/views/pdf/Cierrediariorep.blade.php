@@ -103,7 +103,6 @@
                 <th>TIPO CLIENTE</th>
                 <th>PAGO POR</th>
                 <th>BANCO</th>
-                <th>ABONO</th>
                 <th>FECHA PAGO</th>
             </tr>
         </thead>
@@ -123,7 +122,6 @@
                 <td>{{ $row['TIPO DE CLIENTE'] }}</td>
                 <td>{{ $row['PAGO POR'] }}</td>
                 <td>{{ $row['BANCO'] }}</td>
-                <td>{{ number_format((float) $row['ABONO'], 2) }}</td>
                 <td>{{ $row['FECHA DE PAGO'] }}</td>
             </tr>
             @endforeach
@@ -135,7 +133,6 @@
                 <th style="text-align: center;">{{ number_format((float) collect($data)->sum(fn($row) => (float) $row['ISV FACTURADO']), 2) }}</th>
                 <th style="text-align: center;">{{ number_format((float) collect($data)->sum(fn($row) => (float) $row['TOTAL FACTURADO']), 2) }}</th>
                 <th colspan="4"></th>
-                <th style="text-align: center;">{{ number_format((float) collect($data)->sum(fn($row) => (float) $row['ABONO']), 2) }}</th>
                 <th></th>
             </tr>
         </tfoot>

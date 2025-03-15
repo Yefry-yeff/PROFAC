@@ -62,7 +62,6 @@ function cargaCierreDiario() {
             { data: 'TIPO DE CLIENTE' },
             { data: 'PAGO POR' },
             { data: 'BANCO' },
-            { data: 'ABONO' },
             { data: 'FECHA DE PAGO' }
         ],
         initComplete: function () {

@@ -33,10 +33,12 @@ class CierreDiarioExport implements FromView, WithStyles
     {
         $sheet->mergeCells('A1:O1');
         $sheet->mergeCells('A2:O2');
+        $sheet->mergeCells('A3:O3');
         $sheet->getStyle('A1:O1')->getFont()->setBold(true)->setSize(16);
         $sheet->getStyle('A2:O2')->getFont()->setBold(true)->setSize(12);
         $sheet->getStyle('A3:O3')->getFont()->setBold(true)->setSize(12);
-        $sheet->getStyle('A1:O3')->getAlignment()->setHorizontal('center');
+        $sheet->getStyle('A4:O4')->getFont()->setBold(true)->setSize(12);
+        $sheet->getStyle('A1:O4')->getAlignment()->setHorizontal('center');
 
         // Ajustar el ancho de las columnas automáticamente
         foreach (range('A', 'O') as $columnID) {

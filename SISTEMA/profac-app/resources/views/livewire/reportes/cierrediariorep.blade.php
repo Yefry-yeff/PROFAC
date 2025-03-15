@@ -67,7 +67,6 @@
                 <th>TIPO DE CLIENTE</th>
                 <th>PAGO POR</th>
                 <th>BANCO</th>
-                <th>ABONO</th>
                 <th>FECHA DE PAGO</th>
             </tr>
         </thead>
