@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\DB;
 use Yajra\DataTables\DataTables;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use App\Exports\CierreDiarioExport;
+use Maatwebsite\Excel\Facades\Excel;
 
 class CierreDiariorep extends Component
 {
@@ -60,6 +62,27 @@ class CierreDiariorep extends Component
     } catch (QueryException $e) {
         return response()->json([
             'message' => 'Error al generar el PDF.',
+            'errorTh' => $e->getMessage(),
+        ], 402);
+    }
+}
+public function exportarExcel(Request $request, $tipo, $fechaInicio, $fechaFinal)
+{
+    try {
+        if (!$tipo || !$fechaInicio || !$fechaFinal) {
+            return response()->json([
+                'message' => 'Faltan parámetros requeridos para la exportación del Excel.'
+            ], 400);
+        }
+
+        $consulta = DB::select("CALL sp_reportesxfecha(?, ?, ?)", [$tipo, $fechaInicio, $fechaFinal]);
+        $data = json_decode(json_encode($consulta), true);
+
+        return Excel::download(new CierreDiarioExport($data, $fechaInicio, $fechaFinal), "Cierre_De_Caja_{$fechaInicio}_a_{$fechaFinal}.xlsx");
+
+    } catch (QueryException $e) {
+        return response()->json([
+            'message' => 'Error al generar el Excel.',
             'errorTh' => $e->getMessage(),
         ], 402);
     }

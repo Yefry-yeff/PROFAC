@@ -32,7 +32,10 @@ function cargaCierreDiario() {
                 extend: 'excelHtml5',
                 title: 'Cierre_Diario',
                 text: '<i class="fa-solid fa-file-excel"></i> Exportar a Excel',
-                className: 'btn-excel'
+                className: 'btn-excel',
+                action: function(){
+                    exportarExcel(fechaInicio, fechaFinal)
+                }
             },
             {
                 extend: 'pdfHtml5',
@@ -127,6 +130,43 @@ function exportarPdf() {
     form.appendChild(csrfInput);
 
     // Enviar el formulario
+    document.body.appendChild(form);
+    form.submit();
+}
+function exportarExcel() {
+    var fechaInicio = document.getElementById('fecha_inicio').value;
+    var fechaFinal = document.getElementById('fecha_final').value;
+
+    if (!fechaInicio || !fechaFinal) {
+        document.getElementById('fecha_inicio').style.borderColor = 'red';
+        document.getElementById('fecha_final').style.borderColor = 'red';
+        return;
+    }
+
+    document.getElementById('fecha_inicio').style.borderColor = '';
+    document.getElementById('fecha_final').style.borderColor = '';
+
+    var fechaInicioFormat = new Date(fechaInicio).toISOString().split('T')[0];
+    var fechaFinalFormat = new Date(fechaFinal).toISOString().split('T')[0];
+
+    var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    if (!csrfMeta) {
+        console.error("No se encontró el token CSRF.");
+        return;
+    }
+
+    var csrfToken = csrfMeta.getAttribute('content');
+
+    var form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/reporte/Cierrediariorep/exportar-excel/1/' + encodeURIComponent(fechaInicioFormat) + '/' + encodeURIComponent(fechaFinalFormat);
+
+    var csrfInput = document.createElement('input');
+    csrfInput.type = 'hidden';
+    csrfInput.name = '_token';
+    csrfInput.value = csrfToken;
+    form.appendChild(csrfInput);
+
     document.body.appendChild(form);
     form.submit();
 }

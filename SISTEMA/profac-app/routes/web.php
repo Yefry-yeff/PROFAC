@@ -845,6 +845,8 @@ Route::get('/reporte/Cierrediariorep', Cierrediariorep::class);
 Route::get('/reporte/Cierrediariorep/consulta/{tipo}/{fechaInicio}/{fechaFinal}', [Cierrediariorep::class, 'consulta']);
 Route::post('/reporte/Cierrediariorep/exportar-pdf/{tipo}/{fechaInicio}/{fechaFinal}', [Cierrediariorep::class, 'exportarPdf'])
     ->name('reporte.Cierrediariorep.pdf');
+Route::post('/reporte/Cierrediariorep/exportar-excel/{tipo}/{fechaInicio}/{fechaFinal}', [Cierrediariorep::class, 'exportarExcel'])
+    ->name('reporte.Cierrediariorep.excel');
 
     //------------------------------- Facturas Anuladas ----------------------------//
 Route::get('/reporte/Facturasanuladasrep', Facturasanuladasrep::class);
@@ -858,11 +860,15 @@ Route::get('/reporte/Librocobrosrep', action: Librocobrosrep::class);
 Route::get('/reporte/Librocobrosrep/consulta/{tipo}/{fechaInicio}/{fechaFinal}', [Librocobrosrep::class, 'consulta']);
 Route::post('/reporte/Librocobrosrep/exportar-pdf/{tipo}/{fechaInicio}/{fechaFinal}', [Librocobrosrep::class, 'exportarPdf'])
     ->name('reporte.Librocobrosrep.pdf');
+Route::post('/reporte/Librocobrosrep/exportar-excel/{tipo}/{fechaInicio}/{fechaFinal}', [Librocobrosrep::class, 'exportarExcel'])
+    ->name('reporte.Librocobrosrep.excel');
 //------------------------------- Libro de Ventas ----------------------------//
 Route::get('/reporte/Libroventarep', Libroventarep::class);
 Route::get('/reporte/Libroventarep/consulta/{tipo}/{fechaInicio}/{fechaFinal}', [Libroventarep::class, 'consulta']);
 Route::post('/reporte/Libroventarep/exportar-pdf/{tipo}/{fechaInicio}/{fechaFinal}', [Libroventarep::class, 'exportarPdf'])
     ->name('reporte.libro_venta.pdf');
+Route::post('/reporte/Libroventarep/exportar-excel/{tipo}/{fechaInicio}/{fechaFinal}', [Libroventarep::class, 'exportarExcel'])
+    ->name('reporte.libro_venta.excel');
 
 
 
