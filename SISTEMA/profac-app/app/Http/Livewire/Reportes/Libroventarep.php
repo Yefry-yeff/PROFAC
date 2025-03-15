@@ -7,6 +7,8 @@ use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Yajra\DataTables\DataTables;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\Request;
+
 
 class Libroventarep extends Component
 {
@@ -16,17 +18,15 @@ class Libroventarep extends Component
     }
 
 
-    public function consulta($tipo, $fecha)
+    public function consulta($tipo, $fechaInicio,$fechaFinal)
     {
         try {
-            if (!$tipo || !$fecha) {
-                return response()->json([
-                    'message' => 'Faltan parámetros requeridos para la consulta.'
-                ], 400);
-            }
+           // Pasamos los dos parámetros al procedimiento almacenado
+           $consulta = DB::select("Call sp_reportesxfecha (?, ?,?)", [$tipo, $fechaInicio, $fechaFinal]);
 
-            $consulta = DB::select("CALL sp_reportesxfecha(?, ?, ?)", [$tipo, $fecha, $fecha]);
-            return datatables()->of($consulta)->make(true);
+           return Datatables::of($consulta)
+               ->rawColumns([])
+               ->make(true);
         } catch (QueryException $e) {
             return response()->json([
                 'message' => 'Error al listar el reporte solicitado.',
@@ -35,28 +35,29 @@ class Libroventarep extends Component
         }
     }
 
-    public function exportarPdf($tipo, $fecha)
+    public function exportarPdf(Request $request, $tipo, $fechaInicio,$fechaFinal)
     {
         try {
-            // Validación de parámetros
-            if (!$tipo || !$fecha) {
-                return response()->json([
-                    'message' => 'Faltan parámetros requeridos para la exportación del PDF.'
-                ], 400);
-            }
+ // Validación de parámetros
+ if (!$tipo || !$fechaInicio ||!$fechaFinal ) {
+    return response()->json([
+        'message' => 'Faltan parámetros requeridos para la exportación del PDF.'
+    ], 400);
+}
 
-            // Obtener datos del procedimiento almacenado
-            $consulta = DB::select("CALL sp_reportesxfecha(?, ?, ?)", [$tipo, $fecha, $fecha]);
+// Obtener datos del procedimiento almacenado
+$consulta = DB::select("CALL sp_reportesxfecha(?, ?, ?)", [$tipo, $fechaInicio,$fechaFinal]);
 
-            // Convertir los datos a arreglo para la vista
-            $data = json_decode(json_encode($consulta), true);
+// Convertir los datos a arreglo para la vista
+$data = json_decode(json_encode($consulta), true);
 
-            // Generar el PDF usando DomPDF
-            $pdf = Pdf::loadView('pdf.libroventarep', compact('data', 'fecha'))
-                ->setPaper('a4', 'landscape');
+// Generar el PDF usando DomPDF
+$pdf = PDF::loadView('pdf.libroventarep', compact('data','fechaInicio','fechaFinal'))
+          ->setPaper('oficio', 'landscape');
 
-            // Retornar el PDF para descarga
-            return $pdf->download("Libroventa_{$fecha}.pdf");
+// Retornar el PDF para descarga
+return $pdf->download("Libroventa_{$fechaInicio}_a_{$fechaFinal}.pdf");
+
         } catch (QueryException $e) {
             return response()->json([
                 'message' => 'Error al generar el PDF.',

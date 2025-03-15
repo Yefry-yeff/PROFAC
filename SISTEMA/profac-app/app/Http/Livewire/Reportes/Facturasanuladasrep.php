@@ -51,7 +51,7 @@ class Facturasanuladasrep extends Component
 
         // Generar el PDF usando DomPDF
         $pdf = PDF::loadView('pdf.facturasanuladasrep', compact('data','fechaInicio','fechaFinal'))
-                  ->setPaper('a4', 'landscape');
+                  ->setPaper('oficio', 'landscape');
 
         // Retornar el PDF para descarga
         return $pdf->download("Facturas_anuladas_{$fechaInicio}_a_{$fechaFinal}.pdf");

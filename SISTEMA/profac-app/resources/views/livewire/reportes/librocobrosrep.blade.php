@@ -21,14 +21,21 @@
                 <div class="ibox">
                     <div class="ibox-content">
                         <div class="row">
-                            <div class="form-group col-lg-6 offset-lg-3"> <!-- Centrado del campo de fecha -->
-                                <label for="fecha_cobro">Fecha que se generara el Libro de Cobro:<span class="text-danger">*</span></label>
-                                <input type="date" id="fecha_cobro" class="form-control" onchange="carga_libro_cobros()">
-                                <div id="fecha_cobro_error" class="mt-2 text-danger" style="display: none;">Por favor, seleccione una fecha v谩lida.</div>
+                            <div class="col-6 col-sm-6 col-md-6">
+                                <label for="fecha_inicio" class="col-form-label focus-label">Fecha de inicio:<span class="text-danger">*</span></label>
+                                <input class="form-group form-control" type="date" id="fecha_inicio" name="fecha_inicio">
                             </div>
-                        </div>
-                        <div class="mt-5 row justify-content-center"> <!-- Centrado del bot贸n y margen amplio -->
-                            <div class="col-auto">
+
+                            <div class="col-6 col-sm-6 col-md-6">
+                                <label for="fecha_final" class="col-form-label focus-label">Fecha final:<span class="text-danger">*</span></label>
+                                <input class="form-group form-control" type="date" id="fecha_final" name="fecha_final">
+                            </div>
+
+                            <!-- Botón centrado debajo de los inputs -->
+                            <div class="mt-3 text-center col-12">
+                                <button class="btn btn-primary btn-lg w-50" onclick="carga_libro_cobros()">
+                                    <i class="text-white fa-solid fa-paper-plane"></i> Solicitar
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -36,8 +43,8 @@
             </div>
         </div>
     </div>
-    <p><b>Nota:</b> Se requiere la seleccion de una fecha para mostrar la informacion.</p>
 
+    <p><b>Nota:</b> Se requiere de selección de fechas para mostrar la información.</p>
     <div class="wrapper wrapper-content animated fadeInRight">
         <div class="row">
             <div class="col-lg-12">

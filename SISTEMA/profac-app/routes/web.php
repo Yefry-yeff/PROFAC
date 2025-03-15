@@ -842,8 +842,8 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 /****************************************Reportes******************************* */
 //------------------------------- Cierre Diario ----------------------------//
 Route::get('/reporte/Cierrediariorep', Cierrediariorep::class);
-Route::get('/reporte/Cierrediariorep/consulta/{tipo}/{fecha}', [Cierrediariorep::class, 'consulta']);
-Route::post('/reporte/Cierrediariorep/exportar-pdf/{tipo}/{fecha}', [Cierrediariorep::class, 'exportarPdf'])
+Route::get('/reporte/Cierrediariorep/consulta/{tipo}/{fechaInicio}/{fechaFinal}', [Cierrediariorep::class, 'consulta']);
+Route::post('/reporte/Cierrediariorep/exportar-pdf/{tipo}/{fechaInicio}/{fechaFinal}', [Cierrediariorep::class, 'exportarPdf'])
     ->name('reporte.Cierrediariorep.pdf');
 
     //------------------------------- Facturas Anuladas ----------------------------//
@@ -853,13 +853,13 @@ Route::post('/reporte/Facturasanuladasrep/exportar-pdf/{tipo}/{fechaInicio}/{fec
     ->name('reporte.Facturasanuladasrep.pdf');
 //------------------------------- Libro de Cobros ----------------------------//
 Route::get('/reporte/Librocobrosrep', action: Librocobrosrep::class);
-Route::get('/reporte/Librocobrosrep/consulta/{tipo}/{fecha}', [Librocobrosrep::class, 'consulta']);
-Route::post('/reporte/Librocobrosrep/exportar-pdf/{tipo}/{fecha}', [Librocobrosrep::class, 'exportarPdf'])
+Route::get('/reporte/Librocobrosrep/consulta/{tipo}/{fechaInicio}/{fechaFinal}', [Librocobrosrep::class, 'consulta']);
+Route::post('/reporte/Librocobrosrep/exportar-pdf/{tipo}/{fechaInicio}/{fechaFinal}', [Librocobrosrep::class, 'exportarPdf'])
     ->name('reporte.Librocobrosrep.pdf');
 //------------------------------- Libro de Ventas ----------------------------//
 Route::get('/reporte/Libroventarep', Libroventarep::class);
-Route::get('/reporte/Libroventarep/consulta/{tipo}/{fecha}', [Libroventarep::class, 'consulta']);
-Route::post('/reporte/Libroventarep/exportar-pdf/{tipo}/{fecha}', [Libroventarep::class, 'exportarPdf'])
+Route::get('/reporte/Libroventarep/consulta/{tipo}/{fechaInicio}/{fechaFinal}', [Libroventarep::class, 'consulta']);
+Route::post('/reporte/Libroventarep/exportar-pdf/{tipo}/{fechaInicio}/{fechaFinal}', [Libroventarep::class, 'exportarPdf'])
     ->name('reporte.libro_venta.pdf');
 
 

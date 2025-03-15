@@ -83,7 +83,7 @@
             @php
             use Carbon\Carbon;
         @endphp
-        <p>{{ Carbon::parse($fecha)->translatedFormat('d F Y') }}</p>
+        <p>{{ Carbon::parse($fechaInicio)->translatedFormat('d F Y') }}   al   {{ Carbon::parse($fechaFinal)->translatedFormat('d F Y') }}</p>
         </div>
     </div>
 

@@ -15,29 +15,36 @@
     </style>
     <h1>Reporte de Cierre Diario</h1>
 
-<div class="pb-0 wrapper wrapper-content animated fadeInRight">
-    <div class="row">
-        <div class="col-lg-12">
-            <div class="ibox">
-                <div class="ibox-content">
-                    <div class="row">
-                        <div class="form-group col-lg-6 offset-lg-3"> <!-- Centrado del campo de fecha -->
-                            <label for="fecha_cierre">Fecha de Cierre:<span class="text-danger">*</span></label>
-                             <input type="date" id="fecha_cierre" class="form-control" onchange="cargaCierreDiario()">
-                            <div id="fecha_cierre_error" class="mt-2 text-danger" style="display: none;">Por favor, seleccione una fecha válida.</div>
-                        </div>
-                    </div>
-                    <div class="mt-5 row justify-content-center"> <!-- Centrado del botón y margen amplio -->
-                        <div class="col-auto">
+    <div class="pb-0 wrapper wrapper-content animated fadeInRight">
+        <div class="row">
+            <div class="col-lg-12">
+                <div class="ibox">
+                    <div class="ibox-content">
+                        <div class="row">
+                            <div class="col-6 col-sm-6 col-md-6">
+                                <label for="fecha_inicio" class="col-form-label focus-label">Fecha de inicio:<span class="text-danger">*</span></label>
+                                <input class="form-group form-control" type="date" id="fecha_inicio" name="fecha_inicio">
+                            </div>
+
+                            <div class="col-6 col-sm-6 col-md-6">
+                                <label for="fecha_final" class="col-form-label focus-label">Fecha final:<span class="text-danger">*</span></label>
+                                <input class="form-group form-control" type="date" id="fecha_final" name="fecha_final">
+                            </div>
+
+                            <!-- Botón centrado debajo de los inputs -->
+                            <div class="mt-3 text-center col-12">
+                                <button class="btn btn-primary btn-lg w-50" onclick="cargaCierreDiario()">
+                                    <i class="text-white fa-solid fa-paper-plane"></i> Solicitar
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
-    <p> <b>Nota: </b> Se requiere de selección de una fechas para mostrar la información.</p>
 
+    <p><b>Nota:</b> Se requiere de selección de fechas para mostrar la información.</p>
     <div class="wrapper wrapper-content animated fadeInRight">
         <div class="row">
             <div class="col-lg-12">
