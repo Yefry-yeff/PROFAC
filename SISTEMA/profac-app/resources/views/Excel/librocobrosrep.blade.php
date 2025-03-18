@@ -97,7 +97,6 @@
                     <td>{{ number_format((float) $row['TOTAL'], 2) }}</td>
                     <td>{{ number_format((float) $row['RETENCION'], 2) }}</td>
                     <td>{{ number_format((float) $row['TOTAL PAGADO'], 2) }}</td>
-                    <td>{{ number_format((float) $row['SALDO'], 2) }}</td>
                     <td>{{ $row['FECHA DE COMPRA'] }}</td>
                     <td>{{ $row['FECHA DE VENCIMIENTO'] }}</td>
                     <td>{{ $row['FECHA DE PAGO'] }}</td>
