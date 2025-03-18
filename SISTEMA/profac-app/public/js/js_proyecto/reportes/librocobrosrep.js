@@ -62,7 +62,6 @@ function carga_libro_cobros() {
             { data: 'TOTAL' },
             { data: 'RETENCION' },
             { data: 'TOTAL PAGADO' },
-            { data: 'SALDO' },
             { data: 'FECHA DE COMPRA' },
             { data: 'FECHA DE VENCIMIENTO' },
             { data: 'FECHA DE PAGO' },

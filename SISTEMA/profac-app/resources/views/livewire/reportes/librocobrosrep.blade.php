@@ -66,7 +66,6 @@
                                         <th>TOTAL</th>
                                         <th>RETENCION</th>
                                         <th>TOTAL PAGADO</th>
-                                        <th>SALDO</th>
                                         <th>FECHA DE COMPRA</th>
                                         <th>FECHA DE VENCIMIENTO</th>
                                         <th>FECHA DE PAGO</th>
