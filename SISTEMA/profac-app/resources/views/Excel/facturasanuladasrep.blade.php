@@ -97,13 +97,26 @@
     </table>
 
     <div class="footer">
+
         <div class="signature">
-            <p>___________________________________                                                   ___________________________________</p>
-            <p>CREDITOS Y COBROS: JOSSELINE ZEPEDA                                            GERENTE ADMINISTRATIVO: LIC. EILEEN RODRIGUEZ</p>
+            <tr></tr>
+            <tr></tr>
         </div>
         <div class="signature">
-            <p>___________________________________</p>
-            <p>GERENTE ADMINISTRATIVO: LIC. EILEEN RODRIGUEZ</p>
+            <tfoot>
+                <tr>
+                    <th colspan="6" style="text-align: center;">___________________________________</th>
+                    <th colspan="5" style="text-align: center;">___________________________________</th>
+                </tr>
+            </tfoot>
+        </div>
+        <div class="signature">
+            <tfoot>
+                <tr>
+                    <th colspan="6" style="text-align: center;">CREDITOS Y COBROS: {{ strtoupper(Auth::user()->name) }}</</th>
+                    <th colspan="5" style="text-align: center;">GERENTE ADMINISTRATIVO: LIC. EILEEN RODRIGUEZ</th>
+                </tr>
+            </tfoot>
         </div>
     </div>
 </body>

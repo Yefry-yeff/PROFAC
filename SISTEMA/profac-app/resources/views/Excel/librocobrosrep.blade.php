@@ -109,6 +109,7 @@
             <tr>
                 <th colspan="3" style="text-align: center;">Totales:</th>
                 <th style="text-align: center;">{{ number_format((float) collect($data)->sum(fn($row) => (float) $row['EXONERADO']), 2) }}</th>
+                <th style="text-align: center;">{{ number_format((float) collect($data)->sum(fn($row) => (float) $row['GRAVADO']), 2) }}</th>
                 <th style="text-align: center;">{{ number_format((float) collect($data)->sum(fn($row) => (float) $row['EXCENTO']), 2) }}</th>
                 <th style="text-align: center;">{{ number_format((float) collect($data)->sum(fn($row) => (float) $row['ABONO']), 2) }}</th>
                 <th style="text-align: center;">{{ number_format((float) collect($data)->sum(fn($row) => (float) $row['SUBTOTAL']), 2) }}</th>
@@ -116,23 +117,35 @@
                 <th style="text-align: center;">{{ number_format((float) collect($data)->sum(fn($row) => (float) $row['TOTAL']), 2) }}</th>
                 <th style="text-align: center;">{{ number_format((float) collect($data)->sum(fn($row) => (float) $row['RETENCION']), 2) }}</th>
                 <th style="text-align: center;">{{ number_format((float) collect($data)->sum(fn($row) => (float) $row['TOTAL PAGADO']), 2) }}</th>
-                <th colspan="6"></th>
+                <th colspan="5"></th>
             </tr>
         </tfoot>
     </table>
 
+
     <div class="footer">
+
         <div class="signature">
-            <p>___________________________________</p>
-            <p>CREDITOS Y COBROS: JOSSELINE ZEPEDA</p>
+            <tr></tr>
+            <tr></tr>
         </div>
         <div class="signature">
-            <p>___________________________________</p>
-            <p>GERENCIA GENERAL: ING. DANILO MORALES</p>
+            <tfoot>
+                <tr>
+                    <th colspan="6" style="text-align: center;">___________________________________</th>
+                    <th colspan="5" style="text-align: center;">___________________________________</th>
+                    <th colspan="5" style="text-align: center;">___________________________________</th>
+                </tr>
+            </tfoot>
         </div>
         <div class="signature">
-            <p>___________________________________</p>
-            <p>GERENTE ADMINISTRATIVO: LIC. EILEEN RODRIGUEZ</p>
+            <tfoot>
+                <tr>
+                    <th colspan="6" style="text-align: center;">CREDITOS Y COBROS: {{ strtoupper(Auth::user()->name) }}</</th>
+                    <th colspan="5" style="text-align: center;">GERENCIA GENERAL: ING. DANILO MORALES</th>
+                    <th colspan="5" style="text-align: center;">GERENTE ADMINISTRATIVO: LIC. EILEEN RODRIGUEZ</th>
+                </tr>
+            </tfoot>
         </div>
     </div>
 </body>
