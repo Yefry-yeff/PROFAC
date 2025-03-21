@@ -59,7 +59,7 @@
         }
 
         .footer {
-            margin-top: 200px;
+            margin-top: 100px;
             text-align: center;
         }
 
@@ -70,6 +70,7 @@
 
         .signature p {
             margin: 5px 0;
+            font-size: 10px;
         }
     </style>
     <title>Reporte de Libro de Ventas</title>
@@ -135,7 +136,7 @@
     <div class="footer">
         <div class="signature">
             <p>___________________________________</p>
-            <p>CREDITOS Y COBROS: JOSSELINE ZEPEDA</p>
+            <p>CREDITOS Y COBROS: {{ strtoupper(Auth::user()->name) }}</p>
         </div>
         <div class="signature">
             <p>___________________________________</p>

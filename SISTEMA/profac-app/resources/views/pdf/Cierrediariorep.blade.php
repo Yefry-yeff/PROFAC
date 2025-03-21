@@ -142,7 +142,7 @@
     <div class="footer">
         <div class="signature">
             <p>___________________________________</p>
-            <p>CREDITOS Y COBROS: JOSSELINE ZEPEDA</p>
+            <p>CREDITOS Y COBROS: {{ strtoupper(Auth::user()->name) }}</p>
         </div>
         <div class="signature">
         </div>

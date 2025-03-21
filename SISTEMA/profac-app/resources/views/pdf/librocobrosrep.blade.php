@@ -5,20 +5,20 @@
         integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
     <style>
         body {
-            font-size: 12px;
+            font-size: 10px; /* Tamaño de fuente más pequeño */
             margin: 0;
-            padding: 10px;
+            padding: 5px; /* Márgenes reducidos */
         }
 
         .header {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 15px;
+            margin-bottom: 10px; /* Espacio reducido */
         }
 
         .header img {
-            width: 800px; /* Tamaño más grande para el logo */
+            width: 600px; /* Tamaño ajustado para el logo */
             height: auto;
         }
 
@@ -30,20 +30,20 @@
 
         .header-text h1 {
             margin: 0;
-            font-size: 20px; /* Tamaño del título ajustado */
+            font-size: 18px; /* Tamaño del título ajustado */
         }
 
         .header-text p {
             margin: 0;
-            font-size: 14px; /* Legibilidad mejorada */
+            font-size: 12px; /* Legibilidad mejorada */
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
             margin: 5px 0; /* Reducido para ocupar menos espacio */
-            margin-top:10px;
-            font-size: 10px; /* Tamaño de fuente más pequeño */
+            margin-top: 10px;
+            font-size: 8px; /* Tamaño de fuente más pequeño */
             border: 1px solid #ddd;
         }
 
@@ -59,13 +59,13 @@
         }
 
         .footer {
-            margin-top: 200px;
+            margin-top: 100px; /* Espacio reducido */
             text-align: center;
         }
 
         .footer .signature {
             display: inline-block; /* Asegura que las firmas estén en línea */
-            margin: 0 20px; /* Espacio entre las firmas */
+            margin: 0 10px; /* Espacio entre las firmas */
         }
 
         .signature p {
@@ -76,15 +76,15 @@
 </head>
 <body>
     <div class="header">
-        <img src="img/membrete/Logo3.png" style="margin-left:10%; margin-top:-25px; position:absolute;"alt="">
-        <div class="header-text" style="margin-left:10%;  margin-top:60px; width:45rem; height:5.5rem;">
+        <img src="img/membrete/Logo3.png" style="margin-left:10%; margin-top:-25px; position:absolute;" alt="">
+        <div class="header-text" style="margin-left:10%; margin-top:60px; width:45rem; height:5.5rem;">
             <p>RTN: 08011986138652</p>
             <p>LIBRO GENERAL DE COBROS GOBIERNO</p>
             @php
             use Carbon\Carbon;
-        @endphp
-        <p>{{ Carbon::parse($fechaInicio)->translatedFormat('d F Y') }}   al   {{ Carbon::parse($fechaFinal)->translatedFormat('d F Y') }}</p>
-         </div>
+            @endphp
+            <p>{{ Carbon::parse($fechaInicio)->translatedFormat('d F Y') }} al {{ Carbon::parse($fechaFinal)->translatedFormat('d F Y') }}</p>
+        </div>
     </div>
 
     <table>
@@ -136,7 +136,7 @@
             <tr>
                 <th colspan="3" style="text-align: center;">Totales:</th>
                 <th style="text-align: center;">{{ number_format((float) collect($data)->sum(fn($row) => (float) $row['EXONERADO']), 2) }}</th>
-                <td>{{ $row['GRAVADO'] }}</td>
+                <th style="text-align: center;">{{ number_format((float) collect($data)->sum(fn($row) => (float) $row['GRAVADO']), 2) }}</th>
                 <th style="text-align: center;">{{ number_format((float) collect($data)->sum(fn($row) => (float) $row['EXCENTO']), 2) }}</th>
                 <th style="text-align: center;">{{ number_format((float) collect($data)->sum(fn($row) => (float) $row['ABONO']), 2) }}</th>
                 <th style="text-align: center;">{{ number_format((float) collect($data)->sum(fn($row) => (float) $row['SUBTOTAL']), 2) }}</th>
@@ -153,7 +153,7 @@
     <div class="footer">
         <div class="signature">
             <p>___________________________________</p>
-            <p>CREDITOS Y COBROS: JOSSELINE ZEPEDA</p>
+            <p>CREDITOS Y COBROS: {{ strtoupper(Auth::user()->name) }}</p>
         </div>
         <div class="signature">
             <p>___________________________________</p>

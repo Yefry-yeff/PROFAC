@@ -59,7 +59,7 @@
         }
 
         .footer {
-            margin-top: 200px;
+            margin-top: 180px;
             text-align: center;
         }
 
@@ -70,6 +70,7 @@
 
         .signature p {
             margin: 5px 0;
+            font-size: 10px;
         }
     </style>
     <title>Facturas Anuladas</title>
@@ -126,7 +127,7 @@
     <div class="footer">
         <div class="signature">
             <p>___________________________________</p>
-            <p>CREDITOS Y COBROS: JOSSELINE ZEPEDA</p>
+            <p>CREDITOS Y COBROS: {{ strtoupper(Auth::user()->name) }}</p>
         </div>
         <div class="signature">
         </div>

@@ -114,18 +114,18 @@
         <div class="signature">
             <tfoot>
                 <tr>
-                    <th colspan="6" style="text-align: center;">___________________________________</th>
+                    <th colspan="2" style="text-align: center;">___________________________________</th>
                     <th colspan="5" style="text-align: center;">___________________________________</th>
-                    <th colspan="5" style="text-align: center;">___________________________________</th>
+                    <th colspan="3" style="text-align: center;">___________________________________</th>
                 </tr>
             </tfoot>
         </div>
         <div class="signature">
             <tfoot>
                 <tr>
-                    <th colspan="6" style="text-align: center;">CREDITOS Y COBROS: {{ strtoupper(Auth::user()->name) }}</</th>
+                    <th colspan="2" style="text-align: center;">CREDITOS Y COBROS: {{ strtoupper(Auth::user()->name) }}</</th>
                     <th colspan="5" style="text-align: center;">GERENCIA GENERAL: ING. DANILO MORALES</th>
-                    <th colspan="5" style="text-align: center;">GERENTE ADMINISTRATIVO: LIC. EILEEN RODRIGUEZ</th>
+                    <th colspan="3" style="text-align: center;">GERENTE ADMINISTRATIVO: LIC. EILEEN RODRIGUEZ</th>
                 </tr>
             </tfoot>
         </div>
