@@ -280,6 +280,8 @@ class CrearVale extends Component
                 $idSeccion = $request->$keyIdSeccion;
                 $idProducto = $request->$keyIdProducto;
                 $idUnidadVenta = $request->$keyIdUnidadVenta;
+                $idPrecioSeleccionado = $request->$keyidPrecioSeleccionado;
+                $precioSeleccionado = $request->$keyprecioSeleccionado;
 
 
                 $precio = $request->$keyPrecio;
@@ -305,7 +307,9 @@ class CrearVale extends Component
                     $cantidad,
                     $restaInventario,
                     $ivsProducto,
-                    $unidad
+                    $unidad,
+                    $idPrecioSeleccionado,
+                    $precioSeleccionado
                 );
             };
 
@@ -383,7 +387,10 @@ class CrearVale extends Component
                 ModelVentaProducto::where('factura_id', '=', $idFactura)
                     ->where('producto_id', '=', $idProducto)
                     ->where('lote', '=', $unidadesDisponibles->lote_id)
-                    ->update(['cantidad_para_entregar' => $diferencia]);
+                    ->update(['cantidad_para_entregar' => $diferencia])
+                    ->update(['unidades_nota_credito_resta_inventario' => $cantidad])
+                    ->update(['cantidad_nota_credito' => $cantidad])
+                    ;
 
 
                 //Actualiza unidades en log registro
@@ -410,7 +417,9 @@ class CrearVale extends Component
                 ModelVentaProducto::where('factura_id', '=', $idFactura)
                     ->where('producto_id', '=', $idProducto)
                     ->where('lote', '=', $unidadesDisponibles->lote_id)
-                    ->update(['cantidad_para_entregar' => $diferencia]);
+                    ->update(['cantidad_para_entregar' => $diferencia])
+                    ->update(['unidades_nota_credito_resta_inventario' => $cantidad])
+                    ->update(['cantidad_nota_credito' => $cantidad]);
 
                 //Actualiza unidades en log registro
                 ModelLogTranslados::where('factura_id', '=', $idFactura)
@@ -436,7 +445,9 @@ class CrearVale extends Component
                 ModelVentaProducto::where('factura_id', '=', $idFactura)
                     ->where('producto_id', '=', $idProducto)
                     ->where('lote', '=', $unidadesDisponibles->lote_id)
-                    ->update(['cantidad_para_entregar' => 0]);
+                    ->update(['cantidad_para_entregar' => 0])
+                    ->update(['unidades_nota_credito_resta_inventario' => $cantidad])
+                    ->update(['cantidad_nota_credito' => $cantidad]);
 
                 //Actualiza unidades en log registro
                 ModelLogTranslados::where('factura_id', '=', $idFactura)
@@ -476,6 +487,8 @@ class CrearVale extends Component
                 'resta_inventario_unidades' => $registroResta, // unidades base a restar de la factura,
                 'cantidad_s' => $cantidadSeccion, // cantidad convertida a restar de la factura
 
+                "precioSeleccionado" => $precioSeleccionado,
+                "idPrecioSeleccionado" => $idPrecioSeleccionado,
                 'created_at' => NOW(),
                 'updated_at' => NOW()
 
