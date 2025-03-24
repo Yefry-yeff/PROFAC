@@ -861,6 +861,60 @@
                     </ul>
                 </li>
             @endif
+
+            @if (Auth::user()->rol_id == '9' or Auth::user()->rol_id == '1')
+                <a><i  style="color:#ffffff;"></i><span style="color:#ffffff;">Mercadeo</span></a>
+
+
+                <li>
+                    <a><i class="fa-solid fa-cubes" style="color:#ffffff;">
+                        </i><span class="nav-label" style="color:#ffffff;">Inventario</span>
+                        <span class="fa arrow"></span></a>
+
+                    <ul class="nav nav-second-level">
+                        <li><a href="/producto/registro" style="color:#ffffff;">Catálogo de productos</a>
+                    </ul>
+                </li>
+                <li>
+                    <a><i class="fa-solid fa-file-invoice" style="color:#ffffff;"></i>
+                        <span class="nav-label" style="color:#ffffff;">Cotizaciones</span>
+                        <span class="fa arrow"></span></a>
+                        <ul class="nav nav-second-level">
+
+                            <li><a href="/proforma/cotizacion/2" style="color:#ffffff;">Cotización A</a></li>
+                            <li><a href="/cotizacion/listado/estatal" style="color:#ffffff;">Listado de Cotizaciones A</a></li>
+                            <li><a href="/proforma/cotizacion/1" style="color:#ffffff;">Cotización B</a></li>
+                            <li><a href="/cotizacion/listado/corporativo" style="color:#ffffff;">Listado de Cotizaciones B</a></li>
+                            <li><a href="/expo/cotizacion/3" style="color:#ffffff;">Expo Cotiza</a></li>
+                        </ul>
+                </li>
+                <li>
+                    <a><i class="fa-solid fa-file-invoice" style="color:#ffffff;"></i>
+                        <span class="nav-label" style="color:#ffffff;">Ventas Clientes A</span>
+                        <span class="fa arrow"></span></a>
+
+                    <ul class="nav nav-second-level">
+                        <li><a href="/facturas/estatal" style="color:#ffffff;">Listado de Facturas Clientes A</a> </li>
+                        <li><a href="/ventas/anulado/estatal" style="color:#ffffff;">Listado de Facturas Anuladas</a></li>
+                    </ul>
+                </li>
+                <li>
+                    <a><i class="fa-solid fa-file-invoice" style="color:#ffffff;"></i>
+                        <span class="nav-label" style="color:#ffffff;">Ventas Clientes B</span>
+                        <span class="fa arrow"></span></a>
+                        <ul class="nav nav-second-level">
+                            <li><a href="/facturas/corporativo/lista" style="color:#ffffff;">Listado de FacturasClientes B</a></li>
+                            <li><a href="/ventas/anulado/corporativo" style="color:#ffffff;">Listado de Facturas Anuladas</a></li>
+                        </ul>
+                </li>
+                <li>
+                    <a><i class="fa-solid fa-user" style="color:#ffffff;"></i> <span class="nav-label" style="color:#ffffff;">Reportes</span><span class="fa arrow"></span></a>
+                    <ul class="nav nav-second-level">
+                            <li><a href="/facturaDia" style="color:#ffffff;">Reporte de ventas</a>
+                            <li><a href="/reporte/reporteria" style="color:#ffffff;">Reportes Varios</a>
+                    </ul>
+                </li>
+            @endif
                  {{--  FIN DE MENÚ  --}}
             </ul>
         </div>

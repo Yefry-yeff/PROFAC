@@ -244,7 +244,6 @@ class CrearNotaCredito extends Component
         $arregloIdInputs = $request->arregloIdInputs;
 
 
-
         /***VERIFICA LA EXISTENCIA DEL PRODUCTO EN LA FACTURA PARA REALIZAR LA DEVOLUCION - SI NO ENCUENTRA CANTIDAD DISPONIBLE, NO REALIZAR LA NOTA DE CREDITO */
         for ($i=0; $i < count($arregloIdInputs) ; $i++) {
 
@@ -595,6 +594,7 @@ class CrearNotaCredito extends Component
             $logTranslados->nota_credito_id = $idNotaCredito;
             $logTranslados->save();
 
+           // dd(" cantidad devolver: ".$cantidadDevolver);
             $recibidoBodega = ModelRecibirBodega::find($lote->lote);
             $recibidoBodega->cantidad_disponible = $recibidoBodega->cantidad_disponible + $cantidadDevolver ;
             $recibidoBodega->updated_at = now();

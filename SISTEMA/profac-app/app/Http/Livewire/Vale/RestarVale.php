@@ -339,6 +339,8 @@ class RestarVale extends Component
                     "precio_unidad" => $precio, // precio de venta ingresado por el usuario
                     "cantidad" => $cantidad, //cantidad ingresada por el usuario
                     "cantidad_s" => $cantidadSeccion, //la unidad que se resta del inventario  pero convertida a la unidad de venta seleccionada por el usuario
+                    "cantidad_nota_credito" => $cantidad,
+                    "unidades_nota_credito_resta_inventario" => $cantidad,
                     "cantidad_para_entregar" => $registroResta, //las unidades basica 1 disponible para vale
                     "sub_total_s" => $subTotalSecccionado,
                     "isv_s" => $isvSecccionado,
