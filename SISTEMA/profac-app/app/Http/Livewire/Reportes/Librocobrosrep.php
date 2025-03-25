@@ -15,7 +15,7 @@ class Librocobrosrep extends Component
 {
     public function render()
     {
-        return view('livewire.reportes.Librocobrosrep');
+        return view('livewire.reportes.librocobrosrep');
     }
 
 
