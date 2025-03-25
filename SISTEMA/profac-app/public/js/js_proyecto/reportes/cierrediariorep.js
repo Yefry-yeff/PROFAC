@@ -1,18 +1,22 @@
 function cargaCierreDiario() {
     $("#tbl_cierre_diario").dataTable().fnDestroy();
 
-    var fechaInput = document.getElementById('fecha_cierre').value;
-     // Verificamos si la fecha está vacía
-     if (!fechaInput) {
-        // Mostrar mensaje de error si la fecha no está seleccionada
-        document.getElementById('fecha_cierre_error').style.display = 'block';
-        document.getElementById('fecha_cierre').style.borderColor = 'red';
+    var fechaInicioInput = document.getElementById('fecha_inicio').value;
+    var fechaFinalInput = document.getElementById('fecha_final').value;
+
+     // Verificamos si las fechas están vacías
+    if (!fechaInicioInput || !fechaFinalInput) {
+        //document.getElementById('fecha_facturas_anuladas').style.display = 'block';
+        document.getElementById('fecha_inicio').style.borderColor = 'red';
+        document.getElementById('fecha_final').style.borderColor = 'red';
         return; // Salir de la función si no hay fecha
     }
 
-    document.getElementById('fecha_cierre').style.borderColor = '';
-    document.getElementById('fecha_cierre_error').style.display = 'none';
-    var fecha = new Date(fechaInput).toISOString().split('T')[0]; // Convertimos a texto en formato ISO (YYYY-MM-DD)
+    document.getElementById('fecha_inicio').style.borderColor = '';
+    document.getElementById('fecha_final').style.borderColor = '';
+
+    var fechaInicio = new Date(fechaInicioInput).toISOString().split('T')[0]; // Convertir fecha de inicio a formato ISO (YYYY-MM-DD)
+    var fechaFinal = new Date(fechaFinalInput).toISOString().split('T')[0]; // Convertir fecha final a formato ISO (YYYY-MM-DD)
 
     $('#tbl_cierre_diario').DataTable({
         "order": ['0', 'desc'],
@@ -28,7 +32,10 @@ function cargaCierreDiario() {
                 extend: 'excelHtml5',
                 title: 'Cierre_Diario',
                 text: '<i class="fa-solid fa-file-excel"></i> Exportar a Excel',
-                className: 'btn-excel'
+                className: 'btn-excel',
+                action: function(){
+                    exportarExcel(fechaInicio, fechaFinal)
+                }
             },
             {
                 extend: 'pdfHtml5',
@@ -36,11 +43,11 @@ function cargaCierreDiario() {
                 text: '<i class="fa-solid fa-file-pdf"></i> Exportar a PDF',
                 className: 'btn-pdf',
                 action: function () {
-                    exportarPdf();
+                    exportarPdf(fechaInicio, fechaFinal);
             }
         }
         ],
-        "ajax":  "/reporte/Cierrediariorep/consulta/"+1+"/"+fecha,
+        "ajax":  "/reporte/Cierrediariorep/consulta/"+1+"/"+fechaInicio+"/"+fechaFinal,
         "columns": [
             { data: 'FECHA DE CIERRE' },
             { data: 'REGISTRADO POR' },
@@ -55,7 +62,6 @@ function cargaCierreDiario() {
             { data: 'TIPO DE CLIENTE' },
             { data: 'PAGO POR' },
             { data: 'BANCO' },
-            { data: 'ABONO' },
             { data: 'FECHA DE PAGO' }
         ],
         initComplete: function () {
@@ -86,21 +92,33 @@ function cargaCierreDiario() {
 }
 
 function exportarPdf() {
-    var fechaInput = document.getElementById('fecha_cierre').value;
+    var fechaInicio = document.getElementById('fecha_inicio').value;
+    var fechaFinal = document.getElementById('fecha_final').value;
 
-    if (!fechaInput) {
-        document.getElementById('fecha_cierre_error').style.display = 'block';
-        document.getElementById('fecha_cierre').style.borderColor = 'red';
+    if (!fechaInicio || !fechaFinal) {
+        document.getElementById('fecha_inicio').style.borderColor = 'red';
+        document.getElementById('fecha_final').style.borderColor = 'red';
         return;
     }
 
-    document.getElementById('fecha_cierre').style.borderColor = '';
-    document.getElementById('fecha_cierre_error').style.display = 'none';
+    document.getElementById('fecha_inicio').style.borderColor = '';
+    document.getElementById('fecha_final').style.borderColor = '';
+
+    var fechaInicioFormat = new Date(fechaInicio).toISOString().split('T')[0];
+    var fechaFinalFormat = new Date(fechaFinal).toISOString().split('T')[0];
+
+    var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    if (!csrfMeta) {
+        console.error("No se encontró el token CSRF.");
+        return;
+    }
+
+    var csrfToken = csrfMeta.getAttribute('content');
 
     // Configurar el formulario de envío POST
     var form = document.createElement('form');
     form.method = 'POST';
-    form.action = '/reporte/Cierrediariorep/exportar-pdf/1/' + fechaInput;
+    form.action = '/reporte/Cierrediariorep/exportar-pdf/1/' + encodeURIComponent(fechaInicioFormat) + '/' + encodeURIComponent(fechaFinalFormat);
 
     // Agregar token CSRF
     var csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
@@ -111,6 +129,43 @@ function exportarPdf() {
     form.appendChild(csrfInput);
 
     // Enviar el formulario
+    document.body.appendChild(form);
+    form.submit();
+}
+function exportarExcel() {
+    var fechaInicio = document.getElementById('fecha_inicio').value;
+    var fechaFinal = document.getElementById('fecha_final').value;
+
+    if (!fechaInicio || !fechaFinal) {
+        document.getElementById('fecha_inicio').style.borderColor = 'red';
+        document.getElementById('fecha_final').style.borderColor = 'red';
+        return;
+    }
+
+    document.getElementById('fecha_inicio').style.borderColor = '';
+    document.getElementById('fecha_final').style.borderColor = '';
+
+    var fechaInicioFormat = new Date(fechaInicio).toISOString().split('T')[0];
+    var fechaFinalFormat = new Date(fechaFinal).toISOString().split('T')[0];
+
+    var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    if (!csrfMeta) {
+        console.error("No se encontró el token CSRF.");
+        return;
+    }
+
+    var csrfToken = csrfMeta.getAttribute('content');
+
+    var form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/reporte/Cierrediariorep/exportar-excel/1/' + encodeURIComponent(fechaInicioFormat) + '/' + encodeURIComponent(fechaFinalFormat);
+
+    var csrfInput = document.createElement('input');
+    csrfInput.type = 'hidden';
+    csrfInput.name = '_token';
+    csrfInput.value = csrfToken;
+    form.appendChild(csrfInput);
+
     document.body.appendChild(form);
     form.submit();
 }
