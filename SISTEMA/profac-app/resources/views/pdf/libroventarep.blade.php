@@ -70,6 +70,7 @@
 
         .signature p {
             margin: 5px 0;
+
             font-size: 10px;
         }
     </style>
