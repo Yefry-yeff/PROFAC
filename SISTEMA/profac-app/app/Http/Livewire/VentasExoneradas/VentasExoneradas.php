@@ -643,7 +643,7 @@ class VentasExoneradas extends Component
         factura.fecha_vencimiento,
         TIME(factura.created_at) as hora,
         cliente.telefono_empresa,
-        cliente.rtn
+        factura.rtn
         from factura
         inner join cliente
         on factura.cliente_id = cliente.id
@@ -799,7 +799,7 @@ class VentasExoneradas extends Component
         factura.fecha_vencimiento,
         TIME(factura.created_at) as hora,
         cliente.telefono_empresa,
-        cliente.rtn
+        factura.rtn
         from factura
         inner join cliente
         on factura.cliente_id = cliente.id
@@ -961,7 +961,7 @@ class VentasExoneradas extends Component
         factura.fecha_vencimiento,
         TIME(factura.created_at) as hora,
         cliente.telefono_empresa,
-        cliente.rtn
+        factura.rtn
         from factura
         inner join cliente
         on factura.cliente_id = cliente.id
