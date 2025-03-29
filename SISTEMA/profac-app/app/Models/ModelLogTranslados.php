@@ -15,8 +15,11 @@ class ModelLogTranslados extends Model
         'origen',
         'destino',
         'cantidad',
+        'comprovante_entrega_id',
         'users_id',
+        'unidad_medida_venta_id',
         'nota_credito_id',
+        'descripcion',
         'translado_id'
 
     ];
