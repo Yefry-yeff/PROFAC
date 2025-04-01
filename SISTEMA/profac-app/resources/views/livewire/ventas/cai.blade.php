@@ -124,14 +124,14 @@
                     <li class="breadcrumb-item">
                         <a data-toggle="modal" data-target="#modal_cai_crear_devolucion">Crédito</a>
                     </li>
-    
+
                 </ol>
-            </div> 
+            </div>
         </div>
-   
+
         <hr>
         <div class="d-flex justify-content-around mt-2">
-    
+
             <div style="">
                 <a href="#" class="btn add-btn btn-primary" data-toggle="modal"
                     data-target="#modal_cai_crear_facturacion"><i class="fa fa-plus"></i> Añadir CAI Facturación</a>
@@ -144,15 +144,15 @@
                 <a href="#" class="btn add-btn btn-primary" data-toggle="modal"
                     data-target="#modal_cai_crear_debito"><i class="fa fa-plus"></i> Añadir CAI Nota Débito</a>
             </div>
-            <div style="">
+           {{--   <div style="">
                 <a href="#" class="btn add-btn btn-primary" data-toggle="modal"
                     data-target="#modal_cai_crear_devolucion"><i class="fa fa-plus"></i> Añadir CAI Devolución Crédito</a>
-            </div>
-    
+            </div>  --}}
+
         </div>
 
     </div>
-   
+
 
 
 

@@ -222,6 +222,7 @@ class CrearComprovante extends Component
             };
 
             ModelComprovanteHasProducto::insert($this->arrayProductos);
+            //dd("prueba");
             ModelLogTranslados::insert($this->arrayLogs);
 
 

@@ -536,10 +536,13 @@ class CrearVale extends Component
         from vale_has_producto
             inner join vale on
             vale.id = vale_has_producto.vale_id
-            where vale_id = " . $idVale
+            where estado_id <> 1 and vale_id = " . $idVale
             );
 
-            if ($lotes[0]->estado_id <> 1) {
+           // dd($lotes);
+           $numeroDeRegistros = count($lotes);
+
+            if ($numeroDeRegistros > 0) {
                 return response()->json([
                     'icon' => 'warning',
                     'text' => 'Este vale ya fue anulado!',
@@ -569,6 +572,7 @@ class CrearVale extends Component
 
             foreach ($lotes as $lote) {
                 //al anular el vale se eliminan todos los registros del mismo en el registro de log cardex
+
                 ModelLogTranslados::where('factura_id', '=', $lote->factura_id)
                     ->where('vale_id', '=', $lote->vale_id)
                     ->where('origen', '=', $lote->lote_id)

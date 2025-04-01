@@ -24,6 +24,7 @@ class CierreDiariorep extends Component
             // Pasamos los dos parámetros al procedimiento almacenado
             $consulta = DB::select("Call sp_reportesxfecha (?, ?,?)", [$tipo, $fechaInicio, $fechaFinal]);
 
+            dd($consulta);
             return Datatables::of($consulta)
                 ->rawColumns([])
                 ->make(true);

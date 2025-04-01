@@ -99,7 +99,6 @@ class ListarComprovantes extends Component
 
     public function anularComprobante(Request $request){
 
-        //dd($request);
            try {
             DB::beginTransaction();
             $arrayLogs=[];
@@ -134,9 +133,11 @@ class ListarComprovantes extends Component
                 ]);
 
             }
+                //dd($request);
+            //ModelLogTranslados::insert($arrayLogs);
+            DB::table('log_translado')->insert($arrayLogs);
 
-            ModelLogTranslados::insert($arrayLogs);
-
+            //dd("llega despues de log traslado");
             $comprobante = ModelComprovanteEntrega::find($request->idComprobante);
             $comprobante->estado_id = 2;
             $comprobante->comentarioAnulado = 'Anulado por '.Auth::user()->name.' Motivo: '.$request->motivo;

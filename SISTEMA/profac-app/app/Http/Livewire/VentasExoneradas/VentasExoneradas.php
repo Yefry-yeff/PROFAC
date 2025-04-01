@@ -618,7 +618,9 @@ class VentasExoneradas extends Component
         D.id as factura,
         E.codigo as codigo_exoneracion,
         E.corrOrd as correlativoexo,
-        A.estado_venta_id
+        A.estado_venta_id,
+        users.name as vendedor,
+        (select name from users where id = A.users_id ) as facturador
        from factura A
        inner join cai B
        on A.cai_id = B.id
@@ -641,7 +643,7 @@ class VentasExoneradas extends Component
         factura.fecha_vencimiento,
         TIME(factura.created_at) as hora,
         cliente.telefono_empresa,
-        cliente.rtn
+        factura.rtn
         from factura
         inner join cliente
         on factura.cliente_id = cliente.id
@@ -772,7 +774,9 @@ class VentasExoneradas extends Component
         D.id as factura,
         E.codigo as codigo_exoneracion,
         E.corrOrd as correlativoexo,
-        A.estado_venta_id
+        A.estado_venta_id,
+        users.name as vendedor,
+        (select name from users where id = A.users_id ) as facturador
        from factura A
        inner join cai B
        on A.cai_id = B.id
@@ -795,7 +799,7 @@ class VentasExoneradas extends Component
         factura.fecha_vencimiento,
         TIME(factura.created_at) as hora,
         cliente.telefono_empresa,
-        cliente.rtn
+        factura.rtn
         from factura
         inner join cliente
         on factura.cliente_id = cliente.id
@@ -932,7 +936,9 @@ class VentasExoneradas extends Component
         D.id as factura,
         E.codigo as codigo_exoneracion,
         E.corrOrd as correlativoexo,
-        A.estado_venta_id
+        A.estado_venta_id,
+        users.name as vendedor,
+        (select name from users where id = A.users_id ) as facturador
        from factura A
        inner join cai B
        on A.cai_id = B.id
@@ -955,7 +961,7 @@ class VentasExoneradas extends Component
         factura.fecha_vencimiento,
         TIME(factura.created_at) as hora,
         cliente.telefono_empresa,
-        cliente.rtn
+        factura.rtn
         from factura
         inner join cliente
         on factura.cliente_id = cliente.id

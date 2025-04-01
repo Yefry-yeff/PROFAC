@@ -763,6 +763,12 @@
                         <li><a href="/vale/restar/inventario" style="color:#ffffff;">Lista de vales</a></li>
                     </ul>
                 </li>
+                <li>
+                    <a><i class="fa-solid fa-user" style="color:#ffffff;"></i> <span class="nav-label" style="color:#ffffff;">Reportes</span><span class="fa arrow"></span></a>
+                    <ul class="nav nav-second-level">
+                            <li><a href="/bodega/prod" style="color:#ffffff;">Reporte productos por bodega</a></li>
+                    </ul>
+                </li>
             @endif
 
             @if (Auth::user()->rol_id == '8' or Auth::user()->rol_id == '1')
@@ -783,6 +789,7 @@
                         <li><a href="/facturaDia" style="color:#ffffff;">Reporte de ventas</a>
                         <li ><a href="/reporte/comision" style="color:#ffffff;">Reporte comisiones</a></li>
                         <li><a href="/reporte/reporteria" style="color:#ffffff;">Reportes Varios</a>
+                            <li><a href="/bodega/prod" style="color:#ffffff;">Reporte productos por bodega</a></li>
                     </ul>
                 </li>
                 <li>
