@@ -64,7 +64,7 @@ class Cotizacion extends Component
     public function clientesCorporativo(Request $request)
     {
 
-        if (Auth::user()->rol_id == 1) {
+        if (Auth::user()->rol_id == 1 || Auth::user()->rol_id == 9) {
             $listaClientes = DB::SELECT("
             select
                 id,
@@ -103,7 +103,7 @@ class Cotizacion extends Component
     public function clientesEstatal(Request $request)
     {
 
-        if (Auth::user()->rol_id == 1 || Auth::user()->rol_id == 3) {
+        if (Auth::user()->rol_id == 1 || Auth::user()->rol_id == 3 || Auth::user()->rol_id == 9) {
             $listaClientes = DB::SELECT("
                     select
                         id,
@@ -133,7 +133,7 @@ class Cotizacion extends Component
     {
 
 
-        if (Auth::user()->rol_id == 1) {
+        if (Auth::user()->rol_id == 1 || Auth::user()->rol_id == 9) {
             $listaClientes = DB::SELECT("
                     select
                         id,
