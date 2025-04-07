@@ -234,7 +234,6 @@ class CrearVale extends Component
 
         try {
             DB::beginTransaction();
-
             $idVale = DB::selectOne("  select id  from vale order by id desc");
             $anio = DB::SELECTONE("select year(now()) as anio");
             $numero_vale = "";
@@ -280,8 +279,8 @@ class CrearVale extends Component
                 $idSeccion = $request->$keyIdSeccion;
                 $idProducto = $request->$keyIdProducto;
                 $idUnidadVenta = $request->$keyIdUnidadVenta;
-                $idPrecioSeleccionado = $request->$keyidPrecioSeleccionado;
-                $precioSeleccionado = $request->$keyprecioSeleccionado;
+                //$idPrecioSeleccionado = $request->$keyidPrecioSeleccionado;
+                //$precioSeleccionado = $request->$keyprecioSeleccionado;
 
 
                 $precio = $request->$keyPrecio;
@@ -307,9 +306,9 @@ class CrearVale extends Component
                     $cantidad,
                     $restaInventario,
                     $ivsProducto,
-                    $unidad,
-                    $idPrecioSeleccionado,
-                    $precioSeleccionado
+                    $unidad
+                   // $idPrecioSeleccionado,
+                   // $precioSeleccionado
                 );
             };
 
@@ -487,8 +486,8 @@ class CrearVale extends Component
                 'resta_inventario_unidades' => $registroResta, // unidades base a restar de la factura,
                 'cantidad_s' => $cantidadSeccion, // cantidad convertida a restar de la factura
 
-                "precioSeleccionado" => $precioSeleccionado,
-                "idPrecioSeleccionado" => $idPrecioSeleccionado,
+               // "precioSeleccionado" => $precioSeleccionado,
+               // "idPrecioSeleccionado" => $idPrecioSeleccionado,
                 'created_at' => NOW(),
                 'updated_at' => NOW()
 
