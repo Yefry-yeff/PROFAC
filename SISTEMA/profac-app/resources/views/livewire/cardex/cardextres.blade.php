@@ -21,7 +21,7 @@
 
     </div>
 
-    <div class="wrapper wrapper-content animated fadeInRight pb-0">
+    <div class="pb-0 wrapper wrapper-content animated fadeInRight">
         <div class="row">
             <div class="col-lg-12">
                 <div class="ibox ">
@@ -46,7 +46,11 @@
                             </div>
 
                         </div>
-                        <button class="btn btn-primary" onclick="cargaCardex()"><i class="fa-solid fa-paper-plane text-white"></i> Solicitar</button>
+                        <div class="mt-3 text-center col-12">
+                        <button class="btn btn-primary" onclick="cargaCardex()">
+                        <i class="text-white fa-solid fa-paper-plane"></i> Solicitar
+                                </button>
+                            </div>
                     </div>
                 </div>
             </div>
