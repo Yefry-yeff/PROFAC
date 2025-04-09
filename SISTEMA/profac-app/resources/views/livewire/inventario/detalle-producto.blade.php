@@ -119,7 +119,7 @@
                                 @else
                                     <div class="carousel-item row w-100 align-items-center">
 
-                                        @if (Auth::user()->rol_id == '1' || Auth::user()->rol_id == '5')
+                                        @if (Auth::user()->rol_id == '1' || Auth::user()->rol_id == '5'  || Auth::user()->rol_id == '9')
                                             <div class="col text-center">
                                                 <button class="btn btn-danger regular-button "
                                                     onclick="eliminar({{ $comillas . $imagen->url_img . $comillas }})"

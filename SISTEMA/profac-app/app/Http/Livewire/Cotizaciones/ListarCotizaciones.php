@@ -67,7 +67,7 @@ class ListarCotizaciones extends Component
                 on A.users_id = B.id
                 where A.tipo_venta_id = ".$request->id."
                 and A.vendedor =  ".Auth::user()->id."
-                order by A.id desc
+                order by A.created_at desc
             ");
         }else{
                 $cotizaciones = DB::SELECT("
@@ -87,7 +87,7 @@ class ListarCotizaciones extends Component
                 inner join users B
                 on A.users_id = B.id
                 where A.tipo_venta_id = ".$request->id."
-                order by A.id desc
+                order by A.created_at desc
             ");
 
         }

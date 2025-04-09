@@ -69,7 +69,7 @@ class ListarCotizacionesExpo extends Component
                 inner join users B
                 on A.users_id = B.id
 
-                order by A.id desc
+                order by A.created_at desc
             ");
         }else{
 
@@ -90,7 +90,7 @@ class ListarCotizacionesExpo extends Component
                 inner join users B
                 on A.users_id = B.id
                 where A.users_id = ".Auth::user()->id."
-                order by A.id desc
+                order by A.created_at desc
             ");
         }
 
