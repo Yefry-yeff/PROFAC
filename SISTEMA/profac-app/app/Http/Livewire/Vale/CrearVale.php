@@ -718,22 +718,24 @@ class CrearVale extends Component
         );
 
         $productos = DB::SELECT("
-        select
+         select
             A.producto_id,
             B.nombre,
             D.nombre as unidad,
+            if(A.seccion_id = 0, 'N/A',H.nombre) as bodega,
+            if(A.seccion_id = 0, 'N/A',REPLACE(REPLACE(F.descripcion,'Seccion',''),' ', '')) as seccion,
             FORMAT(A.cantidad_para_entregar,0) as cantidad,
             FORMAT(sum(A.sub_total/A.cantidad_para_entregar),2) as precio,
             FORMAT(sum(A.sub_total),2) sub_total
         from vale_has_producto A
-            inner join producto B
-            on A.producto_id = B.id
-            inner join unidad_medida_venta C
-            on A.unidad_medida_venta_id = C.id
-            inner join unidad_medida D
-            on C.unidad_medida_id = D.id
+            inner join producto B on A.producto_id = B.id
+            inner join unidad_medida_venta C on A.unidad_medida_venta_id = C.id
+            inner join unidad_medida D on C.unidad_medida_id = D.id
+            inner join seccion F on A.seccion_id = F.id
+            inner join segmento G on F.segmento_id = G.id
+            inner join bodega H on G.bodega_id = H.id
             where vale_id = ".$idEntrega."
-        group by A.producto_id, B.nombre, D.nombre, A.cantidad_para_entregar
+        group by A.producto_id, B.nombre, D.nombre,A.seccion_id,H.nombre,F.descripcion, A.cantidad_para_entregar
         ");
 
         $importes = DB::SELECTONE("

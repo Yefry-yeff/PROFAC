@@ -80,9 +80,9 @@
         <div class="card border border-dark"   style="margin-left:44px; margin-top:10px; width:45rem; height:6.5rem;">
             <div class="card-body" >
                 <p class="card-text" style="position:absolute;left:20px;  top:10px; "><b>Cliente:</b> {{$datosEntrega->nombre_cliente}}</p>
-                <p class="card-text" style="position:absolute;left:20px;  top:29px; "><b>Dirección:</b> {{$datosEntrega->direccion}} </p>
+                <p class="card-text" style="position:absolute;left:20px;  top:29px;font-size: 11px; max-width:500px"><b>Dirección:</b> {{$datosEntrega->direccion}} </p>
 
-                <p class="card-text" style="position:absolute;left:20px;  top:47px; "><b>Correo:</b> {{$datosEntrega->correo}}</p>
+                <p class="card-text" style="position:absolute;left:20px;  top:57px; "><b>Correo:</b> {{$datosEntrega->correo}}</p>
 
 
 
@@ -97,7 +97,7 @@
 
 
 
-                <p class="card-text" style="position:absolute;left:270px;  top:45px;"><b>Teléfono:</b> {{$datosEntrega->telefono_empresa}}
+                <p class="card-text" style="position:absolute;left:270px;  top:57px;"><b>Teléfono:</b> {{$datosEntrega->telefono_empresa}}
                 </p>
             </div>
         </div>
@@ -112,6 +112,8 @@
                           <th>Código</th>
                           <th>Descripción</th>
                           <th>Medida</th>
+                          <th>Bodega</th>
+                          <th>Seccion</th>
                           <th>Cantidad</th>
                           <th>Precio </th>
                           <th>Importe</th>
@@ -123,6 +125,8 @@
                             <td>{{$producto->producto_id}}</td>
                             <td>{{$producto->nombre}}</td>
                             <td>{{$producto->unidad}}</td>
+                            <td>{{$producto->bodega}}</td>
+                            <td>{{$producto->seccion}}</td>
                             <td>{{$producto->cantidad}}</td>
                             <td>{{$producto->precio}}</td>
                             <td>{{$producto->sub_total}}</td>
