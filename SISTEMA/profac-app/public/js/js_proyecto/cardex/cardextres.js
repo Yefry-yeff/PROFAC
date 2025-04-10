@@ -53,7 +53,6 @@ function cargaCardex(){
 
     var idBodega = document.getElementById('bodega');
     var idProducto = document.getElementById('producto');
-    //console.log(idBodega.options[idBodega.selectedIndex].text, idProducto.options[idProducto.selectedIndex].text);
     $('#tbl_cardex').DataTable({
         "paging": true,
         "language": {

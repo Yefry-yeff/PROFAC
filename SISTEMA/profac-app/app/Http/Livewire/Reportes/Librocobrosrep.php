@@ -19,6 +19,7 @@ class Librocobrosrep extends Component
     }
 
 
+
     public function consulta($tipo, $fechaInicio,$fechaFinal)
     {
         try {
