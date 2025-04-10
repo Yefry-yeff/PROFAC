@@ -13,6 +13,7 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class CierreDiariorep extends Component
 {
+
     public function render()
     {
         return view('livewire.reportes.cierrediariorep');
