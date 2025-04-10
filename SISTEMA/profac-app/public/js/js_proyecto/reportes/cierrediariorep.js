@@ -21,9 +21,6 @@ function cargaCierreDiario() {
     $('#tbl_cierre_diario').DataTable({
         "order": ['0', 'desc'],
         "paging": true,
-        "language": {
-            "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
-        },
         pageLength: 8,
         responsive: true,
         dom: '<"html5buttons"B>lTfgitp',

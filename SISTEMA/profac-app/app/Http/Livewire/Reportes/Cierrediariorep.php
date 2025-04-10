@@ -11,21 +11,21 @@ use Illuminate\Http\Request;
 use App\Exports\CierreDiarioExport;
 use Maatwebsite\Excel\Facades\Excel;
 
-class CierreDiariorep extends Component
+class Cierrediariorep extends Component
 {
 
     public function render()
     {
-        return view('livewire.reportes.cierrediariorep');
+        return view('livewire.reportes.Cierrediariorep');
     }
 
-    public function consulta($tipo, $fechaInicio,$fechaFinal)
+    public function consulta($tipo,$fechaInicio,$fechaFinal)
     {
         try {
             // Pasamos los dos parámetros al procedimiento almacenado
-            $consulta = DB::select("Call sp_reportesxfecha (?, ?,?)", [$tipo, $fechaInicio, $fechaFinal]);
+            $consulta = DB::select("Call sp_reportesxfecha (?,?,?)", [$tipo,$fechaInicio,$fechaFinal]);
 
-            dd($consulta);
+            //dd($consulta);
             return Datatables::of($consulta)
                 ->rawColumns([])
                 ->make(true);
