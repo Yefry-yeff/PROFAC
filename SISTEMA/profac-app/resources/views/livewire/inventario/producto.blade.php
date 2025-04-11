@@ -142,7 +142,7 @@
                                         <th>Descripcion</th>
                                         <th>Cod. Barra</th>
                                         <th>ISV</th>
-                                        <th>Cateogria</th>                                       
+                                        <th>Cateogria</th>
                                         <th>Existencia</th>
                                         <th>Disponibilidad</th>
                                     </tr>
@@ -212,7 +212,7 @@
                                         <div class="col-md-4">
                                             <label for="precioBase" class="col-form-label focus-label">Precio de venta base:<span class="text-danger">*</span></label>
                                             <input class="form-group form-control" min="0" type="number" name="precioBase" id="precioBase"
-                                                data-parsley-required step="any">
+                                                data-parsley-required step="any" onchange="validacionPrecio()">
                                         </div>
 
                                         <div class="col-md-4">
@@ -226,6 +226,32 @@
                                             <input class="form-group form-control" min="0" type="number" name="ultimo_costo_compra" id="ultimo_costo_compra"
                                                 data-parsley-required step="any">
                                         </div>
+
+                                        <div class="col-md-4">
+                                            <label for="precio1" class="col-form-label focus-label">Precio <b>A</b>:<span class="text-danger">*</span></label>
+                                            <input class="form-group form-control" type="number" name="precio1" id="precio1"
+                                                data-parsley-required step="any" disabled >
+                                        </div>
+
+                                        <div class="col-md-4">
+                                            <label for="precio2" class="col-form-label focus-label">Precio <b>B</b>:<span class="text-danger">*</span></label>
+                                            <input class="form-group form-control" type="number" name="precio2" id="precio2"
+                                                data-parsley-required step="any" disabled >
+                                        </div>
+
+                                        <div class="col-md-4">
+                                            <label for="precio3" class="col-form-label focus-label">Precio <b>C</b>:<span class="text-danger">*</span></label>
+                                            <input class="form-group form-control"  type="number" name="precio3" id="precio3"
+                                                data-parsley-required step="any" disabled >
+                                        </div>
+
+
+                                        <div class="col-md-4">
+                                            <label for="precio4" class="col-form-label focus-label">Precio <b>D</b>:<span class="text-danger">*</span></label>
+                                            <input class="form-group form-control" type="number" name="precio4" id="precio4"
+                                                data-parsley-required step="any" disabled >
+                                        </div>
+
                                         {{-- <div class="col-md-4">
                                             <label class="col-form-label focus-label" for="precio2">Precio de venta 2:</label>
                                             <input class="form-group form-control" min="1" type="number" name="precio[]"
@@ -386,224 +412,7 @@
     </div>
     @push('scripts')
 
-        <script>
-
-        const $foto_producto = document.querySelector("#foto_producto"),
-        $imagenPrevisualizacion = document.querySelector("#imagenPrevisualizacion");
-
-        // Escuchar cuando cambie
-        $foto_producto.addEventListener("change", () => {
-        // Los archivos seleccionados, pueden ser muchos o uno
-        const archivos = $foto_producto.files;
-        // Si no hay archivos salimos de la función y quitamos la imagen
-        if (!archivos || !archivos.length) {
-            $imagenPrevisualizacion.src = "";
-            return;
-        }
-        // Ahora tomamos el primer archivo, el cual vamos a previsualizar
-        const primerArchivo = archivos[0];
-        // Lo convertimos a un objeto de tipo objectURL
-        const objectURL = URL.createObjectURL(primerArchivo);
-        // Y a la fuente de la imagen le ponemos el objectURL
-        $imagenPrevisualizacion.src = objectURL;
-        });
-
-        $(document).on('submit', '#crearProductoForm', function(event) {
-
-            event.preventDefault();
-            guardarProducto();
-
-        });
-
-        function guardarProducto(){
-            $('#modalSpinnerLoading').modal('show');
-
-            var data = new FormData($('#crearProductoForm').get(0));
-
-            var totalfiles = document.getElementById('foto_producto').files.length;
-            for (var i = 0; i < totalfiles; i++) {
-                data.append("files[]", document.getElementById('foto_producto').files[i]);
-            }
-
-            axios.post("/producto/registrar", data)
-            .then( response => {
-                $('#modalSpinnerLoading').modal('hide');
-
-
-                $('#crearProductoForm').parsley().reset();
-                img = document.getElementById('imagenPrevisualizacion');
-                img.src = "";
-                document.getElementById("crearProductoForm").reset();
-                $('#modal_producto_crear').modal('hide');
-
-                $('#tbl_productosListar').DataTable().ajax.reload();
-
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Exito!',
-                        text: "Producto creado con éxito."
-                    })
-
-            })
-            .catch( err =>{
-                $('#modalSpinnerLoading').modal('hide');
-                $('#modal_producto_crear').modal('hide');
-
-                console.error(err);
-                let data = err.response.data;
-                if(data.icon){
-                    Swal.fire({
-                            icon: data.icon,
-                            title: data.title,
-                            text: data.text,
-                        })
-
-                }else{
-                    Swal.fire({
-                            icon: "error",
-                            title: "Error!",
-                            text: "Ha ocurrido un error.",
-                        })
-
-                }
-
-            })
-
-        }
-
-        $(document).ready(function() {
-            $('#tbl_productosListar').DataTable({
-                "order": [0, 'desc'],
-                "language": {
-                    "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
-                },
-                pageLength: 10,
-                responsive: true,
-                dom: '<"html5buttons"B>lTfgitp',
-                buttons: [{
-                        extend: 'copy'
-                    },
-                    {
-                        extend: 'csv'
-                    },
-                    {
-                        extend: 'excel',
-                        title: 'ExampleFile'
-                    },
-                    {
-                        extend: 'pdf',
-                        title: 'ExampleFile'
-                    },
-
-                    {
-                        extend: 'print',
-                        customize: function(win) {
-                            $(win.document.body).addClass('white-bg');
-                            $(win.document.body).css('font-size', '10px');
-
-                            $(win.document.body).find('table')
-                                .addClass('compact')
-                                .css('font-size', 'inherit');
-                        }
-                    }
-                ],
-                "ajax": "/producto/listar/productos",
-                "columns": [{
-                        data: 'codigo'
-                    },
-                    {
-                        data: 'nombre'
-                    },
-                    {
-                        data: 'descripcion'
-                    },
-                    {
-                        data: 'codigo_barra'
-                    },
-                    {
-                        data: 'ISV'
-                    },
-                    {
-                        data: 'categoria'
-                    },
-
-                    {
-                        data: 'existencia'
-                    },
-                    {
-                        data: 'disponibilidad'
-                    }
-
-                ]
-
-
-            });
-        })
-
-        function disponibilidadProducto(id){
-            axios.post("/producto/detalle", {"id":id})
-        }
-
-        ///////////////////////////////////////////////////////////////////
-        function listarSubCategorias(){
-
-            var categoria_produ = document.getElementById('categoria_producto').value;
-              axios.get("/producto/sub_categoria/listar/"+categoria_produ)
-              .then( response=>{
-                  let data = response.data.sub_categorias;
-
-                  let htmlSelect = '<option disabled selected>--Seleccione una Subcategoria--</option>'
-
-                  data.forEach(element => {
-                      htmlSelect += `<option value="${element.id}">${element.descripcion}</option>`
-                  });
-
-                  document.getElementById('sub_categoria_producto').innerHTML = htmlSelect;
-              })
-              .catch(err=>{
-                  console.log(err.response.data)
-                  Swal.fire({
-                  icon: 'error',
-                  title: 'Error!',
-                  text: 'Ha ocurrido un error',
-                  })
-              })
-          }
-        ///////////////////////////////////////////////////////////////////
-
-        </script>
+    <script src="{{ asset('js/js_proyecto/inventario/producto.js') }}"></script>
 
     @endpush
 </div>
-<?php
-    date_default_timezone_set('America/Tegucigalpa');
-    $act_fecha=date("Y-m-d");
-    $act_hora=date("H:i:s");
-    $mes=date("m");
-    $year=date("Y");
-    $datetim=$act_fecha." ".$act_hora;
-?>
-<script>
-    function mostrarHora() {
-        var fecha = new Date(); // Obtener la fecha y hora actual
-        var hora = fecha.getHours();
-        var minutos = fecha.getMinutes();
-        var segundos = fecha.getSeconds();
-
-        // A単adir un 0 delante si los minutos o segundos son menores a 10
-        minutos = minutos < 10 ? "0" + minutos : minutos;
-        segundos = segundos < 10 ? "0" + segundos : segundos;
-
-        // Mostrar la hora actual en el elemento con el id "reloj"
-        document.getElementById("reloj").innerHTML = hora + ":" + minutos + ":" + segundos;
-    }
-    // Actualizar el reloj cada segundo
-    setInterval(mostrarHora, 1000);
-</script>
-<div class="float-right">
-    <?php echo "$act_fecha";  ?> <strong id="reloj"></strong>
-</div>
-<div>
-    <strong>Copyright</strong> Distribuciones Valencia &copy; <?php echo "$year";  ?>
-</div>
-<p id="reloj"></p>

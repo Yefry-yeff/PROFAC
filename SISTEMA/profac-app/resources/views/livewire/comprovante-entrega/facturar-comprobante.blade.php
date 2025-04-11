@@ -18,9 +18,6 @@
 
 
                 </li>
-                {{-- <li class="breadcrumb-item">
-                    <a data-toggle="modal" data-target="#modal_producto_crear">Registrar</a>
-                </li> --}}
 
             </ol>
         </div>
@@ -126,7 +123,7 @@
                                             aplicado %
                                             :<span class="text-danger">*</span></label>
 
-                                        <input class="form-control" type="number" min="0" max="15"
+                                        <input class="form-control" type="number" min="0" max="25"
                                             value="{{ $comprobante->porc_descuento }}" id="porDescuento"
                                             name="porDescuento" onchange="calcularTotalesInicioPagina()"
                                             data-parsley-required>
@@ -245,7 +242,7 @@
                                          data-parsley-required
                                         autocomplete="off" readonly>
 
-                                    <input type="hidden" 
+                                    <input type="hidden"
                                         id="porDescuentoCalculado" name="porDescuentoCalculado">
                                 </div>
                             </div>
@@ -659,7 +656,7 @@ return 0;
                     let e = document.getElementById(name);
                     let idUnidadVenta = e.options[e.selectedIndex].getAttribute("data-id");
 
-                    
+
                     data.append(nameForm, idUnidadVenta)
 
                 }

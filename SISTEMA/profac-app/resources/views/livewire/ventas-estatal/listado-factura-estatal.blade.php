@@ -42,6 +42,7 @@
                                         <th>Total en Lps.</th>
                                         <th>Esto de Cobro</th>
                                         <th>Vendedor</th>
+                                        <th>Facturador</th>
                                         <th>Fecha Registro</th>
                                         <th>Opciones</th>
 
@@ -72,6 +73,15 @@
                 responsive: true,
 
 
+                dom: '<"html5buttons"B>lTfgitp',
+                buttons: [
+
+                    {
+                        extend: 'excel',
+                        title: 'Facuras_estatal',
+                        className:'btn btn-success'
+                    }
+                ],
                 "ajax": "/lista/facturas/estatal",
                 "columns": [
                     {
@@ -105,7 +115,10 @@
                         data: 'estado_cobro'
                     },
                     {
-                        data: 'creado_por'
+                        data: 'vendedor'
+                    },
+                    {
+                        data: 'facturador'
                     },
                     {
                         data:'fecha_registro',

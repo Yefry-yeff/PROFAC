@@ -116,8 +116,8 @@
         </div>
 
 
-        <div class="col-lg-4 col-xl-2 col-md-4 col-sm-4">
-            <div style="margin-top: 1.5rem">
+        <div class="col-lg-2 col-xl-2 col-md-2 col-sm-2">
+            <div style="margin-top: 1.5rem; margin-left: -10rem;">
                 <a href="#" class="btn add-btn btn-primary" data-toggle="modal"
                     data-target="#modal_orden_compra_crear"><i class="fa fa-plus"></i> Añadir Numero Orden Compra</a>
             </div>

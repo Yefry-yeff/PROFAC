@@ -204,10 +204,13 @@
                     <div class="card border border-dark" style="position:absolute;left:0px;  width:26rem; height:15rem;">
                         <div class="card-body">
 
-                            <p class="card-text" style="position:absolute;left:10px;  top:2px; font-size:14px;"><b>Vendedor:
-                                </b>
-                                {{ $cai->name }} </p>
 
+                            <p class="card-text" style="position:absolute;left:10px;  top:2px; font-size:14px;"><b>Vendedor:
+                            </b>
+                            {{ $cai->vendedor }} </p>
+                            <p class="card-text" style="position:absolute;left:200px;  top:2px; font-size:14px;"><b>Facturador:
+                                </b>
+                                {{ $cai->facturador }} </p>
 
                             <p class="card-text" style="position:absolute;left:0px;  top:28px; font-size:11px;">
                                 ____________________________________________________________________</p>
@@ -279,7 +282,13 @@
                             <div>
                                 <p class="card-text" style="position:absolute; left:10px;  top:64px; font-size:14px;">Importe
                                     Exento: </p>
-                                <p class="card-text" style="position:absolute; right:10px;  top:64px; font-size:14px;">L. {{ $importesConCentavos->sub_total_excento }}
+                                <p class="card-text" style="position:absolute; right:10px;  top:64px; font-size:14px;">L.
+                                    @if ($importesConCentavos->subtotal_excentovale>0)
+
+                                         {{ $importesConCentavos->subtotal_excentovale }}
+                                    @else
+                                        0.00
+                                    @endif
                                 </p>
                             </div>
 

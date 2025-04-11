@@ -51,14 +51,18 @@ use App\Http\Livewire\VentasEstatal\LitsadoFacturasEstatalVendedor;
 use App\Http\Livewire\VentasExoneradas\VentasExoneradas;
 use App\Http\Livewire\VentasExoneradas\ListadoFacturasExonerads;
 use App\Http\Livewire\Cotizaciones\Cotizacion;
+use App\Http\Livewire\Cotizaciones\expo;
 use App\Http\Livewire\Cotizaciones\Editarcotizacion;
 use App\Http\Livewire\Cotizaciones\ListarCotizaciones;
+use App\Http\Livewire\Cotizaciones\ListarCotizacionesExpo;
 use App\Http\Livewire\Cotizaciones\FacturarCotizacion;
 use App\Http\Livewire\Cotizaciones\FacturarCotizacionGobierno;
 use App\Http\Livewire\Ventas\ListadoFacturasAnuladas;
+use App\Http\Livewire\Reportes\ProductoBodegas;
 use App\Http\Livewire\Inventario\ListadoAjustes;
 use App\Http\Livewire\Inventario\HistorialTranslados;
 use App\Http\Livewire\Cardex\Cardex;
+use App\Http\Livewire\Cardex\Cardexdos;
 use App\Http\Livewire\Ventas\Cai;
 use App\Http\Livewire\Bancos;
 use App\Http\Livewire\VentasEstatal\NumOrdenCompra;
@@ -104,9 +108,14 @@ use App\Http\Livewire\CierreDiario\CierreDiario;
 
 use App\Http\Livewire\CierreDiario\HistoricoCierres;
 
-
-
-
+//------------Johann Routes-------------//
+//------------Cardex tres--------------//
+use App\Http\Livewire\Cardex\Cardextres;
+//------------Reporte Cierre Diario-------//
+use App\Http\Livewire\Reportes\Cierrediariorep;
+use App\Http\Livewire\Reportes\Facturasanuladasrep;
+use App\Http\Livewire\Reportes\Librocobrosrep;
+use App\Http\Livewire\Reportes\Libroventarep;
 
 /*
 |--------------------------------------------------------------------------
@@ -146,6 +155,11 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 
     //-----------------------Bodega---------------------------------------------------------------------------------------------------------------------//
     Route::get('/bodega', Bodega::class);
+    Route::get('/bodega/prod', ProductoBodegas::class);
+
+    Route::get('/consulta/prod/bodega/{selectBodega}', [ProductoBodegas::class, 'consultaProducto']);
+
+
     Route::get('/bodega/editar/screen', BodegaEditar::class);
 
     Route::post('/bodega/crear',  [Bodega::class, 'crearBodega']);
@@ -211,8 +225,15 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     //-----------------------------------------------Usuarios-------------------------------------------------------------------------------------------//
     Route::get('/usuarios', ListarUsuarios::class);
     Route::get('/usuarios/listar/usuarios', [ListarUsuarios::class, 'listarUsuarios']);
+    Route::get('/usuario/info/{idUsuario}', [ListarUsuarios::class, 'infoUsuario']);
+    Route::get('/usuario/roles/{idRol}', [ListarUsuarios::class, 'selectRoles']);
+    Route::get('/usuario/baja/{idUsuario}', [ListarUsuarios::class, 'baja']);
+
+
     /*------------------------------------------------NUEVAS RUTAS DE ACCESO A USUARIOS  */
     Route::post('/usuario/guardar', [ListarUsuarios::class, 'guardarUsuarios']);
+
+    Route::post('/usuario/actualizar', [ListarUsuarios::class, 'actualizarUsuarios']);
 
     /*----------------------------------------------- /NUEVAS RUTAS DE ACCESO A USUARIOS  */
 
@@ -234,6 +255,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 
     Route::post('/ruta/imagen/edit', [Producto::class, 'guardarFoto']);
     Route::get('/producto/datos/{id}', [Producto::class, 'listarModalProductoEdit']);
+
     Route::get('/producto/listar/productos', [Producto::class, 'listarProductos']);
     Route::post('/producto/actualizar/costos', [Producto::class, 'calcularCostos']);
     Route::get('/producto/detalle/{id}', DetalleProducto::class);
@@ -298,7 +320,9 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('/ventas/tipo/pago', [FacturacionCorporativa::class, 'tipoPagoVenta']);
     Route::get('/ventas/listar/bodegas/{idProducto}', [FacturacionCorporativa::class, 'listarBodegas']);
     Route::get('/ventas/listar/', [FacturacionCorporativa::class, 'productoBodega']);
+
     Route::post('/ventas/datos/producto', [FacturacionCorporativa::class, 'obtenerDatosProducto']);
+
     Route::post('/ventas/corporativo/guardar', [FacturacionCorporativa::class, 'guardarVenta']);
     Route::get('/ventas/corporativo/vendedores', [FacturacionCorporativa::class, 'listadoVendedores']);
     Route::get('/detalle/venta/{id}', DetalleVenta::class);
@@ -377,20 +401,40 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 
 
     //---------------------------------------Proforma y Cotizaciones--------------------------------//
+
     Route::get('/proforma/cotizacion/{id}', Cotizacion::class);
     Route::get('/cotizacion/clientes', [Cotizacion::class, 'listarClientes']);
     Route::post('/guardar/cotizacion', [Cotizacion::class, 'guardarCotizacion']);
-    
+
+
+    //------------------------------------------------------------//
+    //------------------------EXPO FERIA-------------------------//
+       Route::get('/expo/cotizacion/{id}', expo::class);
+
+        Route::get('/expo/clientes', [expo::class, 'listarClientes']);
+        Route::post('/expo/cotizacion', [expo::class, 'guardarCotizacion']);
+        Route::get('/productos/listar/', [expo::class, 'productoBodega']);
+        Route::get('/info/producto/expo/{id}', [expo::class, 'infoProducto']);
+        Route::post('/ventas/datos/producto/expo', [expo::class, 'obtenerDatosProductoExpo']);
+
+
+
+        Route::get('/cotizacion/listado/expo/{id}', ListarCotizacionesExpo::class);
+        Route::post('/cotizacion/obtener/listado/expo', [ListarCotizacionesExpo::class, 'listarCotizaciones']);
+    //-----------------------------------------------------------//
+
+
     Route::post('/editar/cotizacion', [Editarcotizacion::class, 'guardarCotizacion']);
     Route::get('/cotizacion/listado/{id}', ListarCotizaciones::class);
     Route::post('/cotizacion/obtener/listado', [ListarCotizaciones::class, 'listarCotizaciones']);
     Route::get('/cotizacion/imprimir/{id}', [Cotizacion::class, 'imprimirCotizacion']);
+    Route::get('/cotizacion/imprimir/catalogo/{id}', [Cotizacion::class, 'imprimirCatalogo']);
     Route::get('/proforma/imprimir/{id}', [Cotizacion::class, 'imprimirProforma']);
     Route::get('/cotizacion/facturar/{id}', FacturarCotizacion::class);
     Route::get('/cotizacion/facturar/gobierno/{id}', FacturarCotizacionGobierno::class);
 
 
-    
+
     Route::get('/cotizacion/edicion/{id}', Editarcotizacion::class);
     Route::get('/cotizacion/listar/bodegas/{idProducto}', [Cotizacion::class, 'listarBodegas']);
 
@@ -520,8 +564,19 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 
     Route::get('/listado/cardex/{idBodega}/{idProducto}', [Cardex::class, 'listarCardex']);
 
+    Route::get('/cardexn', Cardexdos::class);
+    Route::get('/listado/cardex/nuevo/{idProducto}/{idBodega}', [Cardex::class, 'listarCardexNuevo']);
+
     Route::get('/cardex/general', CardexGeneral::class);
     Route::get('/listado/cardex/general/{fecha_inicio}/{fecha_final}', [CardexGeneral::class, 'listarCardex']);
+
+    Route::get('/cardex/com',  Cardextres::class);
+
+    Route::get('/cardex/com/listar/bodega', [Cardextres::class, 'listarBodegas']);
+    Route::get('/cardex/com/listar/productos', [Cardextres::class, 'listarProductos']);
+    Route::get('/listado/cardex/com/{idBodega}/{idProducto}', [Cardextres::class, 'listarCardex']);
+
+
 
 
 
@@ -784,8 +839,36 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::post('/cierre/guardar/{fecha}', [CierreDiario::class,'guardarCierre']);
     Route::post('/registro/tipoC', [CierreDiario::class,'guardarTipoCobro']);
 
+/****************************************Reportes******************************* */
+//------------------------------- Cierre Diario ----------------------------//
+Route::get('/reporte/Cierrediariorep', Cierrediariorep::class);
+Route::get('/reporte/Cierrediariorep/consulta/{tipo}/{fechaInicio}/{fechaFinal}', [Cierrediariorep::class, 'consulta']);
+Route::post('/reporte/Cierrediariorep/exportar-pdf/{tipo}/{fechaInicio}/{fechaFinal}', [Cierrediariorep::class, 'exportarPdf'])
+    ->name('reporte.Cierrediariorep.pdf');
+Route::post('/reporte/Cierrediariorep/exportar-excel/{tipo}/{fechaInicio}/{fechaFinal}', [Cierrediariorep::class, 'exportarExcel'])
+    ->name('reporte.Cierrediariorep.excel');
 
-
+    //------------------------------- Facturas Anuladas ----------------------------//
+Route::get('/reporte/Facturasanuladasrep', Facturasanuladasrep::class);
+Route::get('/reporte/Facturasanuladasrep/consulta/{tipo}/{fechaInicio}/{fechaFinal}', [Facturasanuladasrep::class, 'consulta']);
+Route::post('/reporte/Facturasanuladasrep/exportar-pdf/{tipo}/{fechaInicio}/{fechaFinal}', [Facturasanuladasrep::class, 'exportarPdf'])
+    ->name('reporte.Facturasanuladasrep.pdf');
+Route::post('/reporte/Facturasanuladasrep/exportar-excel/{tipo}/{fechaInicio}/{fechaFinal}', [Facturasanuladasrep::class, 'exportarExcel'])
+    ->name('reporte.Facturasanuladasrep.excel');
+//------------------------------- Libro de Cobros ----------------------------//
+Route::get('/reporte/Librocobrosrep', action: Librocobrosrep::class);
+Route::get('/reporte/Librocobrosrep/consulta/{tipo}/{fechaInicio}/{fechaFinal}', [Librocobrosrep::class, 'consulta']);
+Route::post('/reporte/Librocobrosrep/exportar-pdf/{tipo}/{fechaInicio}/{fechaFinal}', [Librocobrosrep::class, 'exportarPdf'])
+    ->name('reporte.Librocobrosrep.pdf');
+Route::post('/reporte/Librocobrosrep/exportar-excel/{tipo}/{fechaInicio}/{fechaFinal}', [Librocobrosrep::class, 'exportarExcel'])
+    ->name('reporte.Librocobrosrep.excel');
+//------------------------------- Libro de Ventas ----------------------------//
+Route::get('/reporte/Libroventarep', Libroventarep::class);
+Route::get('/reporte/Libroventarep/consulta/{tipo}/{fechaInicio}/{fechaFinal}', [Libroventarep::class, 'consulta']);
+Route::post('/reporte/Libroventarep/exportar-pdf/{tipo}/{fechaInicio}/{fechaFinal}', [Libroventarep::class, 'exportarPdf'])
+    ->name('reporte.libro_venta.pdf');
+Route::post('/reporte/Libroventarep/exportar-excel/{tipo}/{fechaInicio}/{fechaFinal}', [Libroventarep::class, 'exportarExcel'])
+    ->name('reporte.libro_venta.excel');
 
 
 

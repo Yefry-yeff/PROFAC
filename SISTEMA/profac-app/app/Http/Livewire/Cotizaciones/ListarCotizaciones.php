@@ -58,7 +58,8 @@ class ListarCotizaciones extends Component
                 FORMAT(A.sub_total,2) as sub_total,
                 FORMAT(A.isv,2) as isv,
                 FORMAT(A.total,2) as total,
-                B.name,
+                B.name as cotizador,
+                (select name from users where id = A.vendedor) as vendedor,
                 A.created_at,
                 A.tipo_venta_id
                 from cotizacion A
@@ -66,7 +67,7 @@ class ListarCotizaciones extends Component
                 on A.users_id = B.id
                 where A.tipo_venta_id = ".$request->id."
                 and A.vendedor =  ".Auth::user()->id."
-                order by A.id desc
+                order by A.created_at desc
             ");
         }else{
                 $cotizaciones = DB::SELECT("
@@ -78,14 +79,15 @@ class ListarCotizaciones extends Component
                 FORMAT(A.sub_total,2) as sub_total,
                 FORMAT(A.isv,2) as isv,
                 FORMAT(A.total,2) as total,
-                B.name,
+                B.name as cotizador,
+                (select name from users where id = A.vendedor) as vendedor,
                 A.created_at,
                 A.tipo_venta_id
                 from cotizacion A
                 inner join users B
                 on A.users_id = B.id
                 where A.tipo_venta_id = ".$request->id."
-                order by A.id desc
+                order by A.created_at desc
             ");
 
         }
@@ -100,7 +102,7 @@ class ListarCotizaciones extends Component
                         <button data-toggle="dropdown" class="btn btn-warning dropdown-toggle" aria-expanded="false">Ver
                             más</button>
                         <ul class="dropdown-menu" x-placement="bottom-start" style="position: absolute; top: 33px; left: 0px; will-change: top, left;">
-                            
+
                             <li>
                                  <a class="dropdown-item" target="_blank"  href="/cotizacion/edicion/'.$cotizacion->id.'" > <i class="fa-solid fa-file-invoice text-info"></i> Editar </a>
                             </li>
@@ -122,6 +124,9 @@ class ListarCotizaciones extends Component
                             <a class="dropdown-item" target="_blank"  href="/proforma/imprimir/'.$cotizacion->id.'"> <i class="fa-solid fa-print text-success"></i> Imprimir Proforma </a>
                             </li>
 
+                            <li>
+                            <a class="dropdown-item" target="_blank"  href="/cotizacion/imprimir/catalogo/'.$cotizacion->id.'"> <i class="fa-solid fa-print text-success"></i> Catálogo </a>
+                            </li>
 
 
 
@@ -152,6 +157,9 @@ class ListarCotizaciones extends Component
                         </li>
 
 
+                        <li>
+                        <a class="dropdown-item" target="_blank"  href="/cotizacion/imprimir/catalogo/'.$cotizacion->id.'"> <i class="fa-solid fa-print text-success"></i> Catálogo </a>
+                        </li>
 
 
                     </ul>

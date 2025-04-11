@@ -100,8 +100,8 @@
         <div class="card border border-dark" style="margin-left:44px; margin-top:10px; width:45rem; height:10.5rem;">
             <div class="card-body">
                 <p class="card-text" style="position:absolute;left:20px;  top:10px;"><b>Cliente:
-                    </b>{{ $cliente->nombre }}</p>
-                    <p class="card-text" style="position:absolute;left:20px;  top:29px;font-size: 11px; max-width:500px">
+                </b>{{ $cliente->nombre }}</p>
+                 <p class="card-text" style="position:absolute;left:20px;  top:29px;font-size: 11px; max-width:500px">
                         <b>Dirección:</b> {{ $cliente->direccion }}
                     </p>
                     <br>
@@ -201,12 +201,15 @@
                 <div style="position: relative; margin-left:44px; margin-top:30px; width:26rem; height:20rem;">
 
 
-                    <div class="card border border-dark" style="position:absolute;left:0px;  width:26rem; height:15rem;">
+                    <div class="card border border-dark" style="position:absolute;left:0px;  width:26rem; height:18rem;">
                         <div class="card-body">
 
                             <p class="card-text" style="position:absolute;left:10px;  top:2px; font-size:14px;"><b>Vendedor:
                                 </b>
-                                {{ $cai->name }} </p>
+                                {{ $cai->vendedor }} </p>
+                                <p class="card-text" style="position:absolute;left:200px;  top:2px; font-size:14px;"><b>Facturador:
+                                    </b>
+                                    {{ $cai->facturador }} </p>
 
 
                             <p class="card-text" style="position:absolute;left:0px;  top:28px; font-size:11px;">
@@ -254,7 +257,7 @@
                         </div>
                     </div>
 
-                    <div class="card border border-dark" style="position:absolute;left:430px;   width:18rem; height:15rem;">
+                    <div class="card border border-dark" style="position:absolute;left:430px;   width:18rem; height:18rem;">
                         <div class="card-body">
                             <div>
                                 <p class="card-text " style="position:absolute; left:10px;  top:10px; font-size:14px;">Importe
@@ -279,7 +282,13 @@
                             <div>
                                 <p class="card-text" style="position:absolute; left:10px;  top:64px; font-size:14px;">Importe
                                     Exento: </p>
-                                <p class="card-text" style="position:absolute; right:10px;  top:64px; font-size:14px;">L. {{ $importesConCentavos->sub_total_excento }}
+                                <p class="card-text" style="position:absolute; right:10px;  top:64px; font-size:14px;">L.
+                                    @if ($importesConCentavos->subtotal_excentovale>0)
+
+                                         {{ $importesConCentavos->subtotal_excentovale }}
+                                    @else
+                                        0.00
+                                    @endif
                                 </p>
                             </div>
 

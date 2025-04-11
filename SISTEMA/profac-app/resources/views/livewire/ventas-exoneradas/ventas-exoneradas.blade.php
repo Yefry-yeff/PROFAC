@@ -307,7 +307,7 @@
                                     seguido del numero de unidades a restar del inventario</p>
                                 <div class="row no-gutters ">
 
-                                    <div class="form-group col-12 col-sm-12 col-md-2 col-lg-2 col-xl-2">
+                                    <div class="form-group col-3">
                                         <div class="d-flex">
 
 
@@ -315,31 +315,37 @@
                                             <div style="width:100%">
                                                 <label class="sr-only">Nombre del
                                                     producto</label>
-                                                <input type="text" placeholder="Nombre del producto"
+                                                <input type="text" placeholder="Producto"
                                                     class="form-control" pattern="[A-Z]{1}" disabled>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div class="form-group col-12 col-sm-12 col-md-1 col-lg- col-xl-1">
+                                    <div class="form-group col-1">
                                         <label class="sr-only">Bodega</label>
                                         <input type="number" placeholder="Bodega" class="form-control"
                                             autocomplete="off" disabled>
                                     </div>
 
-                                    <div class="form-group col-12 col-sm-12 col-md-1 col-lg- col-xl-1">
+                                    <div class="form-group col-2">
+                                        <label class="sr-only">Precios</label>
+                                        <input type="number" placeholder="Opciones" class="form-control"
+                                            min="1" autocomplete="off" disabled>
+                                    </div>
+
+                                    <div class="form-group col-1">
                                         <label class="sr-only">Precio</label>
                                         <input type="number" placeholder="Precio Unidad" class="form-control"
                                             min="1" autocomplete="off" disabled>
                                     </div>
 
-                                    <div class="form-group col-12 col-sm-12 col-md-1 col-lg-1 col-xl-1">
+                                    <div class="form-group col-1">
                                         <label class="sr-only">cantidad</label>
                                         <input type="text" placeholder="Cantidad" class="form-control"
                                             min="1" autocomplete="off" disabled>
                                     </div>
 
-                                    <div class="form-group col-12 col-sm-12 col-md-1 col-lg-1 col-xl-1 ">
+                                    <div class="form-group col-1">
 
                                         <label class="sr-only">Unidad</label>
                                         <input type="text" placeholder="Unidad " class="form-control"
@@ -356,21 +362,21 @@
                                             min="1" autocomplete="off" disabled>
                                     </div> --}}
 
-                                    <div class="form-group col-12 col-sm-12 col-md-2 col-lg-2 col-xl-2">
+                                    <div class="form-group col-1">
                                         <label class="sr-only">Sub Total</label>
-                                        <input type="number" placeholder="Sub total del producto"
+                                        <input type="number" placeholder="Sub total"
                                             class="form-control" min="1" autocomplete="off" disabled>
                                     </div>
 
-                                    <div class="form-group col-12 col-sm-12 col-md-2 col-lg-2 col-xl-2">
+                                    <div class="form-group col-1">
                                         <label class="sr-only">ISV</label>
                                         <input type="number" placeholder="ISV" class="form-control" min="1"
                                             autocomplete="off" disabled>
                                     </div>
 
-                                    <div class="form-group col-12 col-sm-12 col-md-2 col-lg-2 col-xl-2">
+                                    <div class="form-group col-1">
                                         <label class="sr-only">Total</label>
-                                        <input type="number" placeholder="Total del producto" class="form-control"
+                                        <input type="number" placeholder="Total" class="form-control"
                                             min="1" disabled autocomplete="off">
                                     </div>
 
@@ -744,7 +750,20 @@
                         //     htmlSelectSeccion += `<option values="${seccion.id}" >${seccion.descripcion}</option>`
                         // });
 
-                        htmlSelectUnidades = ""
+                        htmlSelectUnidades = "";
+
+                        htmlprecios = `
+                        <option data-id="0" selected>--Seleccione precio--</option>
+                        <option  value="${producto.precio_base}" data-id="pb">${producto.precio_base} - Base</option>
+                        <option  value="${producto.precio1}" data-id="p1">${producto.precio1} - A</option>
+                        <option  value="${producto.precio2}" data-id="p2">${producto.precio2} - B</option>
+                        <option  value="${producto.precio3}" data-id="p3">${producto.precio3} - C</option>
+                        <option  value="${producto.precio4}" data-id="p4">${producto.precio4} - D</option>
+
+
+
+
+                        `;
                         arrayUnidades.forEach(unidad => {
                             if (unidad.valor_defecto == 1) {
                                 htmlSelectUnidades +=
@@ -759,7 +778,7 @@
 
                         html = `
                         <div id='${numeroInputs}' class="row no-gutters">
-                                            <div class="form-group col-12 col-sm-12 col-md-2 col-lg-2 col-xl-2">
+                                            <div class="form-group col-3">
                                                 <div class="d-flex">
 
                                                     <button class="btn btn-danger" type="button" style="display: inline" onclick="eliminarInput(${numeroInputs})"><i
@@ -769,8 +788,8 @@
                                                     <input id="idProducto${numeroInputs}" name="idProducto${numeroInputs}" type="hidden" value="${producto.id}">
 
                                                     <div style="width:100%">
-                                                        <label for="nombre${numeroInputs}" class="sr-only">Nombre del producto</label>
-                                                        <input type="text" placeholder="Nombre del producto" id="nombre${numeroInputs}"
+                                                        <label for="nombre${numeroInputs}" class="sr-only">Producto</label>
+                                                        <input type="text" placeholder="Producto" id="nombre${numeroInputs}"
                                                             name="nombre${numeroInputs}" class="form-control"
                                                             data-parsley-required "
                                                             autocomplete="off"
@@ -781,28 +800,42 @@
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div class="form-group col-12 col-sm-12 col-md-1 col-lg-1 col-xl-1">
+                                            <div class="form-group col-1">
                                                 <label for="" class="sr-only">cantidad</label>
                                                 <input type="text" value="${bodega}" placeholder="bodega-seccion" id="bodega${numeroInputs}"
                                                     name="bodega${numeroInputs}" class="form-control"
                                                     autocomplete="off"  readonly  >
                                             </div>
 
-                                            <div class="form-group col-12 col-sm-12 col-md-1 col-lg-1 col-xl-1">
+
+                                            <div class="form-group col-2">
+                                                <label for="" class="sr-only">precios</label>
+                                                <select class="form-control" name="precios${numeroInputs}" id="precios${numeroInputs}"
+                                                    data-parsley-required style="height:35.7px;"
+                                                    onchange="validacionPrecio(precios${numeroInputs}, precio${numeroInputs})"
+                                                    >
+                                                            ${htmlprecios}
+                                                </select>
+
+
+                                            </div>
+
+
+                                            <div class="form-group col-1">
                                                 <label for="precio${numeroInputs}" class="sr-only">Precio</label>
                                                 <input type="number" value="${producto.precio_base}" placeholder="Precio Unidad" id="precio${numeroInputs}"
                                                     name="precio${numeroInputs}" class="form-control"  data-parsley-required step="any"
                                                     autocomplete="off" onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
                                             </div>
 
-                                            <div class="form-group col-12 col-sm-12 col-md-1 col-lg-1 col-xl-1">
+                                            <div class="form-group col-1">
                                                 <label for="cantidad${numeroInputs}" class="sr-only">cantidad</label>
                                                 <input type="number" placeholder="Cantidad" id="cantidad${numeroInputs}"
                                                     name="cantidad${numeroInputs}" class="form-control" min="1" data-parsley-required
                                                     autocomplete="off" onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
                                             </div>
 
-                                            <div class="form-group col-12 col-sm-12 col-md-1 col-lg-1 col-xl-1">
+                                            <div class="form-group col-1">
                                                 <label for="" class="sr-only">unidad</label>
                                                 <select class="form-control" name="unidad${numeroInputs}" id="unidad${numeroInputs}"
                                                     data-parsley-required style="height:35.7px;"
@@ -816,7 +849,7 @@
 
 
 
-                                            <div class="form-group col-12 col-sm-12 col-md-2 col-lg-2 col-xl-2">
+                                            <div class="form-group col-1">
                                                 <label for="subTotalMostrar${numeroInputs}" class="sr-only">Sub Total</label>
                                                 <input type="text" placeholder="Sub total producto" id="subTotalMostrar${numeroInputs}"
                                                     name="subTotalMostrar${numeroInputs}" class="form-control"
@@ -826,7 +859,7 @@
                                                 <input id="subTotal${numeroInputs}" name="subTotal${numeroInputs}" type="hidden" value="" required>
                                             </div>
 
-                                            <div class="form-group col-12 col-sm-12 col-md-2 col-lg-2 col-xl-2">
+                                            <div class="form-group col-1">
                                                 <label for="isvProductoMostrar${numeroInputs}" class="sr-only">ISV</label>
                                                 <input type="text" placeholder="ISV" id="isvProductoMostrar${numeroInputs}"
                                                     name="isvProductoMostrar${numeroInputs}" class="form-control"
@@ -836,7 +869,7 @@
                                                     <input id="isvProducto${numeroInputs}" name="isvProducto${numeroInputs}" type="hidden" value="" required>
                                             </div>
 
-                                            <div class="form-group col-12 col-sm-12 col-md-2 col-lg-2 col-xl-2">
+                                            <div class="form-group col-1">
                                                 <label for="totalMostrar${numeroInputs}" class="sr-only">Total</label>
                                                 <input type="text" placeholder="Total del producto" id="totalMostrar${numeroInputs}"
                                                     name="totalMostrar${numeroInputs}" class="form-control"
@@ -899,8 +932,13 @@
                 if (valorInputPrecio && valorInputCantidad) {
 
                     let subTotal = valorInputPrecio * (valorInputCantidad * valorSelectUnidad);
-                    let isv = subTotal * (isvProducto / 100);
+
+                    let isv1 = subTotal * (isvProducto / 100);
+                    let isvSinRedondeo1 = parseFloat(isv1.toFixed(2));
+                    let isv = isvSinRedondeo1 ;
+                    //let isv = subTotal * (isvProducto / 100);
                     let total = subTotal;
+
 
                     document.getElementById('total' + id).value = total.toFixed(2);
                     document.getElementById('totalMostrar' + id).value = new Intl.NumberFormat('es-HN', {
@@ -1074,6 +1112,17 @@
                     guardarVenta();
                 });
 
+                function validacionPrecio(idPrecios, idprecio){
+
+                    var idPrecioSeleccionado = idPrecios.options[idPrecios.selectedIndex].getAttribute("data-id");
+                    var precioSeleccionado = idPrecios.value;
+                    var idprecioIngresado = idprecio.id;
+                    var precioIngresado = idprecio.value;
+
+                    document.getElementById(idprecioIngresado).value = precioSeleccionado;
+                    document.getElementById(idprecioIngresado).setAttribute("min",precioSeleccionado);
+
+                }
             function guardarVenta() {
 
                 document.getElementById("btn_venta_coorporativa").disabled = true;
@@ -1091,7 +1140,23 @@
                     let idUnidadVenta = e.options[e.selectedIndex].getAttribute("data-id");
 
 
-                    data.append(nameForm, idUnidadVenta)
+                    data.append(nameForm, idUnidadVenta);
+
+                    /**************************************************************/
+
+                    let name2 = "precios" + arregloIdInputs[i];
+                    let nameForm2 = "idPrecioSeleccionado" + arregloIdInputs[i];
+
+                    let a = document.getElementById(name2);
+
+                    let idPrecioSeleccionado = a.options[a.selectedIndex].getAttribute("data-id");
+
+
+                    data.append(nameForm2, idPrecioSeleccionado);
+
+
+
+                    /**************************************************************/
                 }
 
                 data.append("numeroInputs", numeroInputs);

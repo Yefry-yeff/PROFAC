@@ -146,7 +146,7 @@ class CrearVale extends Component
         C.unidad_venta as id,
         CONCAT(D.nombre,'-',C.unidad_venta) as nombre,
         C.id as idUnidadVenta
-    from venta_has_producto A
+             from venta_has_producto A
         inner join unidad_medida_venta C
         on A.unidad_medida_venta_id = C.id
         inner join unidad_medida D
@@ -210,7 +210,6 @@ class CrearVale extends Component
 
 
         ]);
-
         if ($validator->fails()) {
             return response()->json([
                 'icon' => 'error',
@@ -231,52 +230,10 @@ class CrearVale extends Component
            // $turno = null;
            $factura = null;
 
-           //comprobar existencia de producto en bodega
-        //    for ($j = 0; $j < count($arrayInputs); $j++) {
-
-        //        $keyIdSeccion = "idSeccion" . $arrayInputs[$j];
-        //        $keyIdProducto = "idProducto" . $arrayInputs[$j];
-        //        $keyRestaInventario = "restaInventario" . $arrayInputs[$j];
-        //        $keyNombre = "nombre" . $arrayInputs[$j];
-        //        $keyBodega = "bodega" . $arrayInputs[$j];
-
-        //        $resultado = DB::selectONE("select
-        //    if(sum(cantidad_disponible) is null,0,sum(cantidad_disponible)) as cantidad_disponoble
-        //    from recibido_bodega
-        //    where cantidad_disponible <> 0
-        //    and producto_id = " . $request->$keyIdProducto . "
-        //    and seccion_id = " . $request->$keyIdSeccion);
-
-        //        if ($request->$keyRestaInventario > $resultado->cantidad_disponoble) {
-        //            $mensaje = $mensaje . "Unidades insuficientes para el producto: <b>" . $request->$keyNombre . "</b> en la bodega con sección :<b>" . $request->$keyBodega . "</b><br><br>";
-        //            $flag = true;
-        //        }
-        //    }
-
-        //    if ($flag) {
-        //        return response()->json([
-        //            'icon' => "warning",
-        //            'text' =>  '<p class="text-left">' . $mensaje . '</p>',
-        //            'title' => 'Advertencia!',
-        //            'idFactura' => 0,
-
-        //        ], 200);
-        //    }
-        //    //comprobar existencia de producto en bodega
-
-        //    $flagEstado = DB::SELECTONE("select estado_encendido from parametro where id = 1");
-
-        //    if ($flagEstado->estado_encendido == 1) {
-        //        $estado = 1;
-        //    } else {
-        //        $estado = 2;
-        //    }
-
 
 
         try {
             DB::beginTransaction();
-
             $idVale = DB::selectOne("  select id  from vale order by id desc");
             $anio = DB::SELECTONE("select year(now()) as anio");
             $numero_vale = "";
@@ -318,11 +275,12 @@ class CrearVale extends Component
                 $keyunidad = 'unidad' . $arrayInputs[$i];
                 $KeyIdLote = 'idLote' . $arrayInputs[$i];
 
-
-
+                //dd("Llego la basura");
                 $idSeccion = $request->$keyIdSeccion;
                 $idProducto = $request->$keyIdProducto;
                 $idUnidadVenta = $request->$keyIdUnidadVenta;
+                //$idPrecioSeleccionado = $request->$keyidPrecioSeleccionado;
+                //$precioSeleccionado = $request->$keyprecioSeleccionado;
 
 
                 $precio = $request->$keyPrecio;
@@ -349,6 +307,8 @@ class CrearVale extends Component
                     $restaInventario,
                     $ivsProducto,
                     $unidad
+                   // $idPrecioSeleccionado,
+                   // $precioSeleccionado
                 );
             };
 
@@ -395,7 +355,6 @@ class CrearVale extends Component
 
         $unidadesRestar = $restaInventario; //es la cantidad ingresada por el usuario multiplicado por unidades de venta del producto
         $registroResta = 0;
-
         while (!($unidadesRestar <= 0)) {
 
             $unidadesDisponibles = DB::SELECTONE("
@@ -427,6 +386,9 @@ class CrearVale extends Component
                     ->where('producto_id', '=', $idProducto)
                     ->where('lote', '=', $unidadesDisponibles->lote_id)
                     ->update(['cantidad_para_entregar' => $diferencia]);
+                   // ->update(['unidades_nota_credito_resta_inventario' => $cantidad])
+                   // ->update(['cantidad_nota_credito' => $cantidad])
+                    ;
 
 
                 //Actualiza unidades en log registro
@@ -448,13 +410,15 @@ class CrearVale extends Component
             } else if ($unidadesDisponibles->cantidad_disponible > $unidadesRestar) {
 
                 $diferencia = $unidadesDisponibles->cantidad_disponible - $unidadesRestar;
-
                 //Actualiza las uniades disponibles en factura
                 ModelVentaProducto::where('factura_id', '=', $idFactura)
                     ->where('producto_id', '=', $idProducto)
                     ->where('lote', '=', $unidadesDisponibles->lote_id)
                     ->update(['cantidad_para_entregar' => $diferencia]);
+                    //->update(['unidades_nota_credito_resta_inventario' => $cantidad])
+                   // ->update(['cantidad_nota_credito' => $cantidad]);
 
+                    //dd("Pasa del primero ModelVentaProducto");
                 //Actualiza unidades en log registro
                 ModelLogTranslados::where('factura_id', '=', $idFactura)
                     ->where('origen', '=', $unidadesDisponibles->lote_id)
@@ -480,6 +444,8 @@ class CrearVale extends Component
                     ->where('producto_id', '=', $idProducto)
                     ->where('lote', '=', $unidadesDisponibles->lote_id)
                     ->update(['cantidad_para_entregar' => 0]);
+                   // ->update(['unidades_nota_credito_resta_inventario' => $cantidad])
+                  //  ->update(['cantidad_nota_credito' => $cantidad]);
 
                 //Actualiza unidades en log registro
                 ModelLogTranslados::where('factura_id', '=', $idFactura)
@@ -511,19 +477,16 @@ class CrearVale extends Component
                 'sub_total' => $subTotalSecccionado,
                 'isv' => $isvSecccionado,
                 'total' => $totalSecccionado,
-
                 'sub_total_s' => $subTotalSecccionado,
                 'isv_s' => $isvSecccionado,
                 'total_s' => $totalSecccionado,
-
-
                 'cantidad_para_entregar' => $cantidad,
-
-
                 'resta_inventario_total' => $restaInventario, //el total de unidades a restar de la factura
                 'resta_inventario_unidades' => $registroResta, // unidades base a restar de la factura,
                 'cantidad_s' => $cantidadSeccion, // cantidad convertida a restar de la factura
 
+               // "precioSeleccionado" => $precioSeleccionado,
+               // "idPrecioSeleccionado" => $idPrecioSeleccionado,
                 'created_at' => NOW(),
                 'updated_at' => NOW()
 
@@ -571,10 +534,13 @@ class CrearVale extends Component
         from vale_has_producto
             inner join vale on
             vale.id = vale_has_producto.vale_id
-            where vale_id = " . $idVale
+            where estado_id <> 1 and vale_id = " . $idVale
             );
 
-            if ($lotes[0]->estado_id <> 1) {
+           // dd($lotes);
+           $numeroDeRegistros = count($lotes);
+
+            if ($numeroDeRegistros > 0) {
                 return response()->json([
                     'icon' => 'warning',
                     'text' => 'Este vale ya fue anulado!',
@@ -604,6 +570,7 @@ class CrearVale extends Component
 
             foreach ($lotes as $lote) {
                 //al anular el vale se eliminan todos los registros del mismo en el registro de log cardex
+
                 ModelLogTranslados::where('factura_id', '=', $lote->factura_id)
                     ->where('vale_id', '=', $lote->vale_id)
                     ->where('origen', '=', $lote->lote_id)
@@ -751,45 +718,47 @@ class CrearVale extends Component
         );
 
         $productos = DB::SELECT("
-        select
+         select
             A.producto_id,
             B.nombre,
             D.nombre as unidad,
-            A.cantidad_para_entregar as cantidad,
-            sum(A.sub_total/A.cantidad_para_entregar) as precio,
-            sum(A.sub_total) sub_total
+            if(A.seccion_id = 0, 'N/A',H.nombre) as bodega,
+            if(A.seccion_id = 0, 'N/A',REPLACE(REPLACE(F.descripcion,'Seccion',''),' ', '')) as seccion,
+            FORMAT(A.cantidad_para_entregar,0) as cantidad,
+            FORMAT(sum(A.sub_total/A.cantidad_para_entregar),2) as precio,
+            FORMAT(sum(A.sub_total),2) sub_total
         from vale_has_producto A
-            inner join producto B
-            on A.producto_id = B.id
-            inner join unidad_medida_venta C
-            on A.unidad_medida_venta_id = C.id
-            inner join unidad_medida D
-            on C.unidad_medida_id = D.id
+            inner join producto B on A.producto_id = B.id
+            inner join unidad_medida_venta C on A.unidad_medida_venta_id = C.id
+            inner join unidad_medida D on C.unidad_medida_id = D.id
+            inner join seccion F on A.seccion_id = F.id
+            inner join segmento G on F.segmento_id = G.id
+            inner join bodega H on G.bodega_id = H.id
             where vale_id = ".$idEntrega."
-        group by A.producto_id, B.nombre, D.nombre, A.cantidad_para_entregar
+        group by A.producto_id, B.nombre, D.nombre,A.seccion_id,H.nombre,F.descripcion, A.cantidad_para_entregar
         ");
 
         $importes = DB::SELECTONE("
-        select
-        sub_total_grabado as sub_total_grabado,
-        sub_total_excento as sub_total_excento,
-        sub_total as sub_total,
-        isv as isv,
-        total as total
-        from vale
-        where id =".$idEntrega
-    );
+            select
+            FORMAT(sub_total_grabado,2) as sub_total_grabado,
+            FORMAT(sub_total_excento,2) as sub_total_excento,
+            FORMAT(sub_total,2) as sub_total,
+            FORMAT(isv,2) as isv,
+            FORMAT(total,2) as total
+            from vale
+            where id =".$idEntrega
+        );
 
-    $importesSinCentavos = DB::SELECTONE("
-    select
-        sub_total,
-        sub_total_grabado,
-        sub_total_excento,
-        isv,
-        total
-    from vale
-    where id =".$idEntrega
-);
+        $importesSinCentavos = DB::SELECTONE("
+            select
+                sub_total,
+                sub_total_grabado,
+                sub_total_excento,
+                isv,
+                total
+            from vale
+            where id =".$idEntrega
+        );
 
 
 

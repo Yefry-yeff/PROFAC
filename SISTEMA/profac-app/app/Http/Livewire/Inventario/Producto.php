@@ -85,8 +85,8 @@ class Producto extends Component
                 }
             }
 
-           
-           
+
+
 
 
 
@@ -108,6 +108,10 @@ class Producto extends Component
             $producto->estado_producto_id = 1;
             $producto->unidad_medida_compra_id = $request->unidad_producto;
             $producto->unidadad_compra = $request->unidades;
+            $producto->precio1 = $request->precio1;
+            $producto->precio2 = $request->precio2;
+            $producto->precio3 = $request->precio3;
+            $producto->precio4 = $request->precio4;
             $producto->save();
 
             //------------------------guardar precios------------//
@@ -292,7 +296,7 @@ class Producto extends Component
                 2417,
                 3887,
                 3888
-                        )            
+                        )
             order by A.created_at DESC
                         ");
 
@@ -379,6 +383,10 @@ class Producto extends Component
                 descripcion,
                 isv,
                 precio_base,
+                precio1,
+                precio2,
+                precio3,
+                precio4,
                 codigo_barra,
                 codigo_estatal,
                 sub_categoria_id,
@@ -456,12 +464,12 @@ class Producto extends Component
                     return response()->json([
                         'icon'=>'error',
                         'title'=>'Error!',
-                        'text' => 'El código de barra ya está registrado para otro producto.'                        
+                        'text' => 'El código de barra ya está registrado para otro producto.'
                     ], 401);
                 }
             }
 
-          
+
 
 
             $producto = ModelProducto::find($request['id_producto_edit']);
@@ -476,6 +484,10 @@ class Producto extends Component
             $producto->unidadad_compra = trim($request['unidades_editar']);
             $producto->ultimo_costo_compra = trim($request->ultimo_costo_compra_editar);
             $producto->unidad_medida_compra_id = $request['unidad_producto_editar'];
+            $producto->precio1 = $request['precio1'];
+            $producto->precio2 = $request['precio2'];
+            $producto->precio3 = $request['precio3'];
+            $producto->precio4 = $request['precio4'];
             $producto->marca_id= $request->marca_producto_editar;
             $producto->users_id = Auth::user()->id;
             $producto->save();

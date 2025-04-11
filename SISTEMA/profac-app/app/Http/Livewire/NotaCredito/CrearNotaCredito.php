@@ -30,7 +30,7 @@ class CrearNotaCredito extends Component
 
     public function obtenerClientes(Request $request){
 
-        $clientes = DB::SELECT("select id, concat(id,'-',nombre) as text from cliente where id <> 1 and ((nombre like '%".$request->search."%') or (id like '%".$request->search."%')) limit 15");
+        $clientes = DB::SELECT("select id, concat(id,'-',nombre) as text from cliente where ((nombre like '%".$request->search."%') or (id like '%".$request->search."%')) limit 15");
 
         return response()->json([
             "results"=>$clientes,
@@ -164,7 +164,9 @@ class CrearNotaCredito extends Component
             H.nombre as unidad_medida,
             B.unidad_medida_venta_id as idUnidadVenta ,
             G.unidad_venta,
-            C.isv as porcentajeISV
+            C.isv as porcentajeISV,
+            B.isv as isVenta,
+            B.total AS totalVenta
 
         from factura A
         inner join venta_has_producto B
@@ -224,11 +226,11 @@ class CrearNotaCredito extends Component
             if($estadoCuenta != null){
                 if($estadoCuenta->estado_cerrado == 2){
                     return response()->json([
-                        "icon" => "warning",
-                        "text"=>"Esta factura esta cerrada, no se puede crear nota.",
-                        "title"=>"Advertencia!"
+                        'icon' => 'warning',
+                        'text'=>'Esta factura esta cerrada, no se puede crear nota.',
+                        'title'=>'Advertencia!'
 
-                    ],400);
+                    ],203);
 
                 }
 
@@ -238,8 +240,8 @@ class CrearNotaCredito extends Component
         $text1 ="<p>Los siguientes productos exceden la cantidad disponible para realizar la nota de credito: <p><ul>";
         $nombreProducto ="";
 
-        $arregloIdInputs = $request->arregloIdInputs;
 
+        $arregloIdInputs = $request->arregloIdInputs;
 
 
         /***VERIFICA LA EXISTENCIA DEL PRODUCTO EN LA FACTURA PARA REALIZAR LA DEVOLUCION - SI NO ENCUENTRA CANTIDAD DISPONIBLE, NO REALIZAR LA NOTA DE CREDITO */
@@ -312,7 +314,7 @@ class CrearNotaCredito extends Component
                             from cai
                             where tipo_documento_fiscal_id = 3 and estado_id = 1");
         }
-
+       // dd($cai);
         if(empty($cai)){
 
             return response()->json([
@@ -331,27 +333,32 @@ class CrearNotaCredito extends Component
             ], 200);
         }
 
-        $limite = explode('-',$cai->numero_final);
-        $limite = ltrim($limite[3],"0");
 
-        if($cai->numero_actual > $limite){
+
+        if ($cai->numero_actual < $cai->cantidad_otorgada) {
 
             return response()->json([
                 "title" => "Advertencia",
                 "icon" => "warning",
-                "text" => "La nota de credito no puede proceder, debido que ha alcanzadado el número maximo  de CAI otorgado.",
-            ], 200);
-
+                "text" => "La Nota de débito no puede proceder por alcanzar límite de número CAI.",
+            ], 400);
         }
+
+
 
 
         DB::beginTransaction();
            //SE CREA LA NOTA DE CREDITO
 
-        $numeroSecuencia = $cai->numero_actual;
-        $arrayCai = explode('-',$cai->numero_final);
-        $cuartoSegmentoCAI = sprintf("%'.08d", $numeroSecuencia);
-        $numeroCAI = $arrayCai[0].'-'.$arrayCai[1].'-'.$arrayCai[2].'-'.$cuartoSegmentoCAI;
+
+
+           $numeroSecuencia = $cai->numero_actual;
+           $arrayCai = explode('-', $cai->numero_final);
+           $cuartoSegmentoCAI = sprintf("%'.08d", $numeroSecuencia);
+           $numeroCAI = $arrayCai[0] . '-' . $arrayCai[1] . '-' . $arrayCai[2] . '-' . $cuartoSegmentoCAI;
+
+
+
 
         $validarCAI = new Notificaciones();
         $validarCAI->validarAlertaCAI(ltrim($arrayCai[3],"0"),$numeroSecuencia, 4);
@@ -587,6 +594,7 @@ class CrearNotaCredito extends Component
             $logTranslados->nota_credito_id = $idNotaCredito;
             $logTranslados->save();
 
+           // dd(" cantidad devolver: ".$cantidadDevolver);
             $recibidoBodega = ModelRecibirBodega::find($lote->lote);
             $recibidoBodega->cantidad_disponible = $recibidoBodega->cantidad_disponible + $cantidadDevolver ;
             $recibidoBodega->updated_at = now();
@@ -621,7 +629,7 @@ class CrearNotaCredito extends Component
 
             $factura = DB::SELECTONE("select factura_id from nota_credito where id =".$idNotaCredito );
 
-            
+
 
 
          $estadoVenta = DB::SELECTONE("select estado_nota_id from nota_credito where id =".$idNotaCredito );
@@ -645,7 +653,7 @@ class CrearNotaCredito extends Component
 
 
 
-          DB::commit();     
+          DB::commit();
           return response()->json(
             [         "text" =>"Factura anulada con exito",         "icon" => "success",         "title" => "Exito",     ],200);
              } catch (QueryException $e) {
@@ -675,7 +683,7 @@ class CrearNotaCredito extends Component
 
 
          $lotes = DB::SELECT("
-         select 
+         select
            (select lote from venta_has_producto where factura_id = A.factura_id  and producto_id = B.producto_id AND seccion_id = B.seccion_id AND precio_unidad = B.precio_unidad AND unidad_medida_venta_id = B.unidad_medida_venta_id limit 1) as lote,
            (B.cantidad * C.unidad_venta ) as numero_unidades_resta_inventario,
             B.unidad_medida_venta_id
@@ -750,7 +758,7 @@ class CrearNotaCredito extends Component
 
 
          $lotes = DB::SELECT("
-         select 
+         select
            (select lote from venta_has_producto where factura_id = A.factura_id  and producto_id = B.producto_id AND seccion_id = B.seccion_id AND precio_unidad = B.precio_unidad AND unidad_medida_venta_id = B.unidad_medida_venta_id limit 1) as lote,
            (B.cantidad * C.unidad_venta ) as numero_unidades_resta_inventario,
             B.unidad_medida_venta_id

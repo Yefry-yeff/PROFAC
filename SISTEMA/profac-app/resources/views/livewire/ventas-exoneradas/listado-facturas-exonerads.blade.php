@@ -41,6 +41,7 @@
                                         <th>Total en Lps.</th>
                                         <th>Esto de Cobro</th>
                                         <th>Vendedor</th>
+                                        <th>Facturador</th>
                                         <th>Opciones</th>
 
                                     </tr>
@@ -104,7 +105,10 @@
                         data: 'estado_cobro'
                     },
                     {
-                        data: 'creado_por'
+                        data: 'vendedor'
+                    },
+                    {
+                        data: 'facturador'
                     },
 
                     {

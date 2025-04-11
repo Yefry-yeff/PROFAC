@@ -277,7 +277,7 @@ class RecibirProducto extends Component
             unidad_compra_id
             from compra_has_producto
             where compra_id = ".$request->idCompra."  and producto_id=".$request->idProducto
-        );
+            );
 
         if($datosCompra->cantidad_sin_asignar <= 0){
             return response()->json([
@@ -349,9 +349,8 @@ class RecibirProducto extends Component
             ->where('producto_id','=', $request->idProducto)
             ->update([
                 'cantidad_sin_asignar' => $restaCantidad,
-                'cantidad_disponible' => ($datosCompra->cantidad_disponible+$request->cantidad)
+                'cantidad_disponible' => ($datosCompra->cantidad_disponible+$request->cantidad)]);
 
-        ]);
 
 
         $this->comprobarVales();
@@ -505,7 +504,9 @@ class RecibirProducto extends Component
             select
             cantidad_ingresada,
             fecha_expiracion,
-            cantidad_sin_asignar
+            cantidad_sin_asignar,
+            unidad_compra_id,
+            unidades_compra
             from compra_has_producto
             where compra_id = ".$request->idCompra."  and producto_id=".$request->idProducto
         );
@@ -526,6 +527,7 @@ class RecibirProducto extends Component
 
 
         DB::beginTransaction();
+
         $recibir = new ModelRecibirBodega();
         $recibir->compra_id = $request->idCompra;
         $recibir->producto_id = $request->idProducto;
@@ -537,20 +539,33 @@ class RecibirProducto extends Component
         $recibir->fecha_expiracion = $datosCompra->fecha_expiracion;
         $recibir->estado_recibido = 4;
         $recibir->recibido_por = Auth::user()->id;
+        $recibir->unidad_compra_id = $datosCompra->unidad_compra_id;
+        $recibir->unidades_compra = $datosCompra->unidades_compra;
         $recibir->save();
+
+        $log = new ModelLogTranslados();
+        $log->compra_id = $request->idCompra;
+        $log->origen = $recibir->id;
+        $log->cantidad = $request->cantidadExcedente;
+        $log->users_id = Auth::user()->id;
+        $log->descripcion = "Ingreso de producto por compra - Excedente";
+        $log->save();
 
         $incidencia = new ModelIncidencia();
         $incidencia->descripcion = "Excedente de producto";
         $incidencia->recibido_bodega_id =  $recibir->id;
+        $incidencia->users_id = Auth::user()->id;
         $incidencia->save();
 
         DB::commit();
+
         return response()->json([
             "text" => "Excedente de producto registrado en bodega con éxito.",
             "icon" => "success",
             "title"=>"Exito!"
         ], 200);
         } catch (QueryException $e) {
+
             DB::rollback();
             return response()->json([
                 'message' => 'Ha ocurrido un error',
@@ -694,7 +709,6 @@ class RecibirProducto extends Component
        }
 
        public function comprobarVales(){
-
          $flagVale = false;
          $valesArray =[];
 
@@ -708,6 +722,7 @@ class RecibirProducto extends Component
          where estado_id = 1
          order by id ASC
          ");
+
 
 
 
@@ -749,7 +764,6 @@ class RecibirProducto extends Component
              }
 
 
-
              $subject = "Vales disponibles para anular";
             // $for = ['williams.villalta@distribucionesvalencia.hn','cristian.zelaya@distribucionesvalencia.hn' ];
 
@@ -757,15 +771,17 @@ class RecibirProducto extends Component
 
 
 
+            /* dd("Antes de algo de enviar el correo");
              Mail::send('email/vales-disponibles',['valesArray' => $valesArray], function($msj) use($subject,$for){
                  $msj->from(env('MAIL_FROM_ADRESS'),"Soporte Técnico Distribuciones Valencia ");
                  $msj->subject($subject);
                  $msj->to($for);
-             });
+             }); */
+
 
              return;
 
-     }
+        }
 
 
 }

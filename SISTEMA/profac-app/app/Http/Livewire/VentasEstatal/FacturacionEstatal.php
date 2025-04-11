@@ -248,8 +248,12 @@ class FacturacionEstatal extends Component
             id,
             concat(id,' - ',nombre) as nombre,
             isv,
-            FORMAT(ultimo_costo_compra,2) as ultimo_costo_compra,
-            FORMAT(precio_base,2) as precio_base
+            ultimo_costo_compra as ultimo_costo_compra,
+            precio_base as precio_base,
+            precio1 as precio1,
+            precio2 as precio2,
+            precio3 as precio3,
+            precio4 as precio4
             from producto where id = " . $request['idProducto'] . "
             ");
 
@@ -515,6 +519,8 @@ class FacturacionEstatal extends Component
                 $keyTotal = "total" . $arrayInputs[$i];
                 $keyISV = "isv" . $arrayInputs[$i];
                 $keyunidad = 'unidad' . $arrayInputs[$i];
+                $keyidPrecioSeleccionado = 'idPrecioSeleccionado'.$arrayInputs[$i];
+                $keyprecioSeleccionado = 'precios'.$arrayInputs[$i];
 
                 $restaInventario = $request->$keyRestaInventario;
                 $idSeccion = $request->$keyIdSeccion;
@@ -522,6 +528,8 @@ class FacturacionEstatal extends Component
                 $idUnidadVenta = $request->$keyIdUnidadVenta;
                 $ivsProducto = $request->$keyISV;
                 $unidad = $request->$keyunidad;
+                $idPrecioSeleccionado = $request->$keyidPrecioSeleccionado;
+                $precioSeleccionado = $request->$keyprecioSeleccionado;
 
                 $precio = $request->$keyPrecio;
                 $cantidad = $request->$keyCantidad;
@@ -529,7 +537,7 @@ class FacturacionEstatal extends Component
                 $isv = $request->$keyIsv;
                 $total = $request->$keyTotal;
 
-                $this->restarUnidadesInventario($restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $arrayInputs[$i]);
+                $this->restarUnidadesInventario($idPrecioSeleccionado,$precioSeleccionado ,$restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $arrayInputs[$i]);
             };
 
             if ($request->tipoPagoVenta == 2) { //si el tipo de pago es credito
@@ -572,12 +580,12 @@ class FacturacionEstatal extends Component
         }
     }
 
-    public function restarUnidadesInventario($unidadesRestarInv, $idProducto, $idSeccion, $idFactura, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $indice)
+    public function restarUnidadesInventario($idPrecioSeleccionado,$precioSeleccionado ,$unidadesRestarInv, $idProducto, $idSeccion, $idFactura, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $indice)
     {
         try {
-
             $precioUnidad = $subTotal / $unidadesRestarInv;
 
+            //dd("PRUEBA");
             $unidadesRestar = $unidadesRestarInv;  //es la cantidad ingresada por el usuario multiplicado por unidades de venta del producto
             $registroResta = 0;
             while (!($unidadesRestar <= 0)) {
@@ -668,6 +676,8 @@ class FacturacionEstatal extends Component
                     "sub_total_s" => $subTotalSecccionado,
                     "isv_s" => $isvSecccionado,
                     "total_s" => $totalSecccionado,
+                    "idPrecioSeleccionado"=>$idPrecioSeleccionado,
+                    "precioSeleccionado"=>$precioSeleccionado,
                     "created_at" => now(),
                     "updated_at" => now(),
                 ]);

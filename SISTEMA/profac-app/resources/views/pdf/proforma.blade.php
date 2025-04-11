@@ -169,6 +169,8 @@
 
                     <p class="card-text" style="position:absolute;left:10px;  top:2px; font-size:14px;"><b>Vendedor: {{$datos->vendedor}}</b>
                          </p>
+                         <p class="card-text" style="position:absolute;left:200px;  top:2px; font-size:14px;"><b>Cotizador: {{$datos->cotizador}}</b>
+                              </p>
 
                     {{-- <p class="card-text" style="position:absolute;left:10px;  top:18px; font-size:14px"><b>Repartidor: </b>
                         NULL</p> --}}
@@ -233,7 +235,6 @@
 
                     <p class="card-text" style="position:absolute; left:10px;  top:85px; font-size:14px;">Desc. y
                         Rebajas {{ $importes->porc_descuento }}%:
-                    </p>
                     <p class="card-text" style="position:absolute; right:10px;  top:85px; font-size:14px;">L. {{ $importesConCentavos->monto_descuento }}</p>
 
 

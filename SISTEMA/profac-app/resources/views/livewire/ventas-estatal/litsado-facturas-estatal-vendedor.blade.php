@@ -70,6 +70,17 @@
                 responsive: true,
 
 
+
+
+                dom: '<"html5buttons"B>lTfgitp',
+                buttons: [
+
+                    {
+                        extend: 'excel',
+                        title: 'Facuras_estatal',
+                        className:'btn btn-success'
+                    }
+                ],
                 "ajax": "/listado/ventas/estatal/vendedor",
                 "columns": [
                     {

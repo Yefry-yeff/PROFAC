@@ -115,7 +115,7 @@
                             <label for="porDescuento" class="col-form-label focus-label">Descuento aplicado %
                                 <span class="text-danger">*</span></label>
 
-                                <input class="form-control" type="number" value="{{ $datosFactura->porc_descuento }}" min="0" max="15" minlength="1" maxlength="2" id="porDescuento" name="porDescuento" data-parsley-required readonly>                           
+                                <input class="form-control" type="number" value="{{ $datosFactura->porc_descuento }}" min="0" max="25" minlength="1" maxlength="2" id="porDescuento" name="porDescuento" data-parsley-required readonly>
 
 
 
@@ -193,35 +193,39 @@
                             numero de unidades a restar del inventario</p>
                         <div class="row no-gutters ">
 
-                            <div class="form-group col-12 col-sm-12 col-md-3 col-lg-3 col-xl-3">
+                            <div class="form-group col-3">
                                 <div class="d-flex">
 
 
 
                                     <div style="width:100%">
-                                        <label class="sr-only">Nombre del
-                                            producto</label>
+                                        <label class="sr-only">Producto</label>
                                         <input type="text" placeholder="Nombre del producto" class="form-control"
                                             pattern="[A-Z]{1}" disabled>
                                     </div>
                                 </div>
                             </div>
 
+                            <div class="form-group col-2">
+                                <label class="sr-only">Precios</label>
+                                <input type="number" placeholder="Opciones" class="form-control"
+                                    min="1" autocomplete="off" disabled>
+                            </div>
 
 
-                            <div class="form-group col-12 col-sm-12 col-md-1 col-lg- col-xl-1">
+                            <div class="form-group col-1">
                                 <label class="sr-only">Precio</label>
                                 <input type="number" placeholder="Precio Unidad" class="form-control" min="1"
                                     autocomplete="off" disabled>
                             </div>
 
-                            <div class="form-group col-12 col-sm-12 col-md-1 col-lg-1 col-xl-1">
+                            <div class="form-group col-1">
                                 <label class="sr-only">cantidad</label>
                                 <input type="text" placeholder="Cantidad" class="form-control" min="1"
                                     autocomplete="off" disabled>
                             </div>
 
-                            <div class="form-group col-12 col-sm-12 col-md-1 col-lg-1 col-xl-1 ">
+                            <div class="form-group col-1 ">
 
                                 <label class="sr-only">Unidad</label>
                                 <input type="text" placeholder="Unidad " class="form-control" min="1"
@@ -233,19 +237,19 @@
                             </div>
 
 
-                            <div class="form-group col-12 col-sm-12 col-md-2 col-lg-2 col-xl-2">
+                            <div class="form-group col-1">
                                 <label class="sr-only">Sub Total</label>
-                                <input type="number" placeholder="Sub total del producto" class="form-control"
+                                <input type="number" placeholder="Sub total" class="form-control"
                                     min="1" autocomplete="off" disabled>
                             </div>
 
-                            <div class="form-group col-12 col-sm-12 col-md-2 col-lg-2 col-xl-2">
+                            <div class="form-group col-1">
                                 <label class="sr-only">ISV</label>
                                 <input type="number" placeholder="ISV" class="form-control" min="1"
                                     autocomplete="off" disabled>
                             </div>
 
-                            <div class="form-group col-12 col-sm-12 col-md-2 col-lg-2 col-xl-2">
+                            <div class="form-group col-1">
                                 <label class="sr-only">Total</label>
                                 <input type="number" placeholder="Total del producto" class="form-control"
                                     min="1" disabled autocomplete="off">
@@ -414,6 +418,18 @@
 
 
 
+            function validacionPrecio(idPrecios, idprecio){
+
+                var idPrecioSeleccionado = idPrecios.options[idPrecios.selectedIndex].getAttribute("data-id");
+                var precioSeleccionado = idPrecios.value;
+                var idprecioIngresado = idprecio.id;
+                var precioIngresado = idprecio.value;
+
+                document.getElementById(idprecioIngresado).value = precioSeleccionado;
+                document.getElementById(idprecioIngresado).setAttribute("min",precioSeleccionado);
+
+            }
+
 
             function obtenerImagenesVale() {
                 let id = document.getElementById('seleccionarProductoVale').value;
@@ -539,7 +555,20 @@
                         //     htmlSelectSeccion += `<option values="${seccion.id}" >${seccion.descripcion}</option>`
                         // });
 
-                        htmlSelectUnidades = ""
+                        htmlSelectUnidades = "";
+
+                        htmlprecios = `
+                        <option data-id="0" selected>--Seleccione precio--</option>
+                        <option  value="${producto.precio_base}" data-id="pb">${producto.precio_base} - Base</option>
+                        <option  value="${producto.precio1}" data-id="p1">${producto.precio1} - A</option>
+                        <option  value="${producto.precio2}" data-id="p2">${producto.precio2} - B</option>
+                        <option  value="${producto.precio3}" data-id="p3">${producto.precio3} - C</option>
+                        <option  value="${producto.precio4}" data-id="p4">${producto.precio4} - D</option>
+
+
+
+
+                        `;
                         arrayUnidades.forEach(unidad => {
                             if (unidad.valor_defecto == 1) {
                                 htmlSelectUnidades +=
@@ -554,7 +583,7 @@
 
                         let htmlVP = `
                         <div id='VP${numeroInputsVP}' class="row no-gutters">
-                                            <div class="form-group col-12 col-sm-12 col-md-3 col-lg-3 col-xl-3">
+                                            <div class="form-group col-3">
                                                 <div class="d-flex">
 
                                                     <button class="btn btn-danger" type="button" style="display: inline" onclick="eliminarInputVP(${numeroInputsVP})"><i
@@ -577,22 +606,33 @@
                                                 </div>
                                             </div>
 
+                                            <div class="form-group col-2">
+                                                <label for="" class="sr-only">precios</label>
+                                                <select class="form-control" name="precios${numeroInputsVP}" id="precios${numeroInputsVP}"
+                                                    data-parsley-required style="height:35.7px;"
+                                                    onchange="validacionPrecio(precios${numeroInputsVP}, precio${numeroInputsVP})"
+                                                    >
+                                                            ${htmlprecios}
+                                                </select>
 
-                                            <div class="form-group col-12 col-sm-12 col-md-1 col-lg-1 col-xl-1">
+
+                                            </div>
+
+                                            <div class="form-group col-1">
                                                 <label for="precioVP${numeroInputsVP}" class="sr-only">Precio</label>
                                                 <input type="number" placeholder="Precio Unidad" id="precioVP${numeroInputsVP}"
                                                     name="precioVP${numeroInputsVP}" value="${producto.precio_base}" class="form-control"  data-parsley-required step="any"
                                                     autocomplete="off" min="${producto.precio_base}" onchange="calcularTotalesVP(precio${numeroInputsVP},cantidad${numeroInputsVP},${producto.isv},unidad${numeroInputsVP},${numeroInputsVP},restaInventario${numeroInputsVP})">
                                             </div>
 
-                                            <div class="form-group col-12 col-sm-12 col-md-1 col-lg-1 col-xl-1">
+                                            <div class="form-group col-1">
                                                 <label for="cantidadVP${numeroInputsVP}" class="sr-only">cantidad</label>
                                                 <input type="number" placeholder="Cantidad" id="cantidadVP${numeroInputsVP}"
                                                     name="cantidadVP${numeroInputsVP}" class="form-control" min="1" data-parsley-required
                                                     autocomplete="off" onchange="calcularTotalesVP(precioVP${numeroInputsVP},cantidadVP${numeroInputsVP},${producto.isv},unidadVP${numeroInputsVP},${numeroInputsVP},restaInventarioVP${numeroInputsVP})">
                                             </div>
 
-                                            <div class="form-group col-12 col-sm-12 col-md-1 col-lg-1 col-xl-1">
+                                            <div class="form-group col-1">
                                                 <label for="" class="sr-only">unidad</label>
                                                 <select class="form-control" name="unidadVP${numeroInputsVP}" id="unidadVP${numeroInputsVP}"
                                                     data-parsley-required style="height:35.7px;"
@@ -606,7 +646,7 @@
 
 
 
-                                            <div class="form-group col-12 col-sm-12 col-md-2 col-lg-2 col-xl-2">
+                                            <div class="form-group col-1">
                                                 <label for="subTotalMostrarVP${numeroInputsVP}" class="sr-only">Sub Total</label>
                                                 <input type="text" placeholder="Sub total producto" id="subTotalMostrarVP${numeroInputsVP}"
                                                     name="subTotalMostrarVP${numeroInputsVP}" class="form-control"
@@ -616,7 +656,7 @@
                                                 <input id="subTotalVP${numeroInputsVP}" name="subTotalVP${numeroInputsVP}" type="hidden" value="" required>
                                             </div>
 
-                                            <div class="form-group col-12 col-sm-12 col-md-2 col-lg-2 col-xl-2">
+                                            <div class="form-group col-1">
                                                 <label for="isvProductoMostrarVP${numeroInputsVP}" class="sr-only">ISV</label>
                                                 <input type="text" placeholder="ISV" id="isvProductoMostrarVP${numeroInputsVP}"
                                                     name="isvProductoMostrarVP${numeroInputsVP}" class="form-control"
@@ -626,7 +666,7 @@
                                                     <input id="isvProductoVP${numeroInputsVP}" name="isvProductoVP${numeroInputsVP}" type="hidden" value="" required>
                                             </div>
 
-                                            <div class="form-group col-12 col-sm-12 col-md-2 col-lg-2 col-xl-2">
+                                            <div class="form-group col-1">
                                                 <label for="totalMostrarVP${numeroInputsVP}" class="sr-only">Total</label>
                                                 <input type="text" placeholder="Total del producto" id="totalMostrarVP${numeroInputsVP}"
                                                     name="totalMostrarVP${numeroInputsVP}" class="form-control"
@@ -693,7 +733,7 @@
                 let descuentoCalculado= 0;
                 let isv=0;
                 let total=0;
-                
+
 
                 if (valorInputPrecio && valorInputCantidad) {
 
@@ -704,7 +744,7 @@
                                      subTotal = valorInputPrecio * (valorInputCantidad * valorSelectUnidad);
                                      descuentoCalculado = subTotal * (descuento/100);
 
-                                     document.getElementById("acumuladoDescuentoVP"+id).value=descuentoCalculado                                  
+                                     document.getElementById("acumuladoDescuentoVP"+id).value=descuentoCalculado
 
                                      subTotal = subTotal - descuentoCalculado;
                                      isv = subTotal * (isvProducto / 100);
@@ -796,16 +836,16 @@
                     }
 
                     subTotalGeneral += new Number(document.getElementById('subTotalVP' + arregloIdInputsVP[i]).value);
-                    
+
 
 
                     totalISV += new Number(document.getElementById('isvProductoVP' + arregloIdInputsVP[i]).value);
-                    totalGeneralValor += new Number(document.getElementById('totalVP' + arregloIdInputsVP[i]).value);                    
+                    totalGeneralValor += new Number(document.getElementById('totalVP' + arregloIdInputsVP[i]).value);
                     acumularDescuento += new Number(document.getElementById('acumuladoDescuentoVP' + arregloIdInputsVP[i]).value);
 
                 }
 
-                
+
                 document.getElementById('descuentoGeneral').value = acumularDescuento.toFixed(2);
                 document.getElementById('descuentoMostrar').value = new Intl.NumberFormat('es-HN', {
                     style: 'currency',

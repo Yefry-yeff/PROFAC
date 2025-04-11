@@ -129,15 +129,14 @@ class LitsadoFacturasVendedor extends Component
 
 
                 $revision = DB::SELECTONE("
-                    select count(*) as valida
+                    SELECT IF(COUNT(*), aplicacion_pagos.estado_cerrado, 0) AS 'cerrado'
                     from aplicacion_pagos
                     where aplicacion_pagos.estado = 1
-                    and aplicacion_pagos.estado_cerrado = 2
                     and aplicacion_pagos.factura_id =
                     ".$listaFacturas->id);
 
 
-                    if(  $revision->valida == 1){
+                    if(  $revision->cerrado == 2){
 
                         return
                         '

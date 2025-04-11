@@ -222,6 +222,7 @@ class CrearComprovante extends Component
             };
 
             ModelComprovanteHasProducto::insert($this->arrayProductos);
+            //dd("prueba");
             ModelLogTranslados::insert($this->arrayLogs);
 
 
@@ -406,19 +407,21 @@ class CrearComprovante extends Component
         A.producto_id,
         B.nombre,
         D.nombre as unidad,
+         if(A.seccion_id = 0, 'N/A',H.nombre) as bodega,
+         if(A.seccion_id = 0, 'N/A',REPLACE(REPLACE(F.descripcion,'Seccion',''),' ', '')) as seccion,
         A.cantidad,
         (A.precio_unidad) as precio,
         A.sub_total
 
         from comprovante_has_producto A
-        inner join producto B
-        on A.producto_id = B.id
-        inner join unidad_medida_venta C
-        on A.unidad_medida_venta_id = C.id
-        inner join unidad_medida D
-        on C.unidad_medida_id = D.id
+        inner join producto B on A.producto_id = B.id
+        inner join unidad_medida_venta C on A.unidad_medida_venta_id = C.id
+        inner join unidad_medida D on C.unidad_medida_id = D.id
+        inner join seccion F on A.seccion_id = F.id
+        inner join segmento G on F.segmento_id = G.id
+        inner join bodega H on G.bodega_id = H.id
         where A.comprovante_id = ".$idComprobante."
-        group by A.producto_id, B.nombre, D.nombre, A.cantidad, A.sub_total, A.precio_unidad
+        group by A.producto_id, B.nombre, D.nombre,H.nombre,F.descripcion,A.seccion_id, A.cantidad, A.sub_total, A.precio_unidad
         ");
 
         $importes = DB::SELECTONE("
@@ -500,19 +503,21 @@ class CrearComprovante extends Component
         A.producto_id,
         B.nombre,
         D.nombre as unidad,
+         if(A.seccion_id = 0, 'N/A',H.nombre) as bodega,
+         if(A.seccion_id = 0, 'N/A',REPLACE(REPLACE(F.descripcion,'Seccion',''),' ', '')) as seccion,
         A.cantidad,
         (A.precio_unidad) as precio,
         A.sub_total
 
         from comprovante_has_producto A
-        inner join producto B
-        on A.producto_id = B.id
-        inner join unidad_medida_venta C
-        on A.unidad_medida_venta_id = C.id
-        inner join unidad_medida D
-        on C.unidad_medida_id = D.id
+        inner join producto B on A.producto_id = B.id
+        inner join unidad_medida_venta C on A.unidad_medida_venta_id = C.id
+        inner join unidad_medida D on C.unidad_medida_id = D.id
+        inner join seccion F on A.seccion_id = F.id
+        inner join segmento G on F.segmento_id = G.id
+        inner join bodega H on G.bodega_id = H.id
         where A.comprovante_id = ".$idComprobante."
-        group by A.producto_id, B.nombre, D.nombre, A.cantidad, A.sub_total, A.precio_unidad
+        group by A.producto_id, B.nombre, D.nombre,H.nombre,F.descripcion,A.seccion_id, A.cantidad, A.sub_total, A.precio_unidad
         ");
 
         $importes = DB::SELECTONE("

@@ -326,6 +326,8 @@ class VentasExoneradas extends Component
                 $keyTotal = "total" . $arrayInputs[$i];
                 $keyISV = "isv" . $arrayInputs[$i];
                 $keyunidad = 'unidad' . $arrayInputs[$i];
+                $keyidPrecioSeleccionado = 'idPrecioSeleccionado'.$arrayInputs[$i];
+                $keyprecioSeleccionado = 'precios'.$arrayInputs[$i];
 
                 $restaInventario = $request->$keyRestaInventario;
                 $idSeccion = $request->$keyIdSeccion;
@@ -334,6 +336,8 @@ class VentasExoneradas extends Component
                 $ivsProducto = $request->$keyISV;
                 $unidad = $request->$keyunidad;
 
+                $idPrecioSeleccionado = $request->$keyidPrecioSeleccionado;
+                $precioSeleccionado = $request->$keyprecioSeleccionado;
                 $precio = $request->$keyPrecio;
                 $cantidad = $request->$keyCantidad;
                 $subTotal = $request->$keySubTotal;
@@ -342,7 +346,7 @@ class VentasExoneradas extends Component
 
                 //dd($factura);
 
-                $this->restarUnidadesInventario($restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad,$arrayInputs[$i]);
+                $this->restarUnidadesInventario($idPrecioSeleccionado,$precioSeleccionado,$restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad,$arrayInputs[$i]);
             };
 
             if ($request->tipoPagoVenta == 2) { //si el tipo de pago es credito
@@ -386,7 +390,7 @@ class VentasExoneradas extends Component
         }
     }
 
-    public function restarUnidadesInventario($unidadesRestarInv, $idProducto, $idSeccion, $idFactura, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $indice)
+    public function restarUnidadesInventario($idPrecioSeleccionado,$precioSeleccionado,$unidadesRestarInv, $idProducto, $idSeccion, $idFactura, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $indice)
     {
         try {
 
@@ -481,6 +485,8 @@ class VentasExoneradas extends Component
                     "sub_total_s" => $subTotalSecccionado,
                     "isv_s" => $isvSecccionado,
                     "total_s" => $totalSecccionado,
+                    "idPrecioSeleccionado"=>$idPrecioSeleccionado,
+                    "precioSeleccionado"=>$precioSeleccionado,
                     "created_at" => now(),
                     "updated_at" => now(),
                 ]);
@@ -612,7 +618,9 @@ class VentasExoneradas extends Component
         D.id as factura,
         E.codigo as codigo_exoneracion,
         E.corrOrd as correlativoexo,
-        A.estado_venta_id
+        A.estado_venta_id,
+        users.name as vendedor,
+        (select name from users where id = A.users_id ) as facturador
        from factura A
        inner join cai B
        on A.cai_id = B.id
@@ -635,7 +643,7 @@ class VentasExoneradas extends Component
         factura.fecha_vencimiento,
         TIME(factura.created_at) as hora,
         cliente.telefono_empresa,
-        cliente.rtn
+        factura.rtn
         from factura
         inner join cliente
         on factura.cliente_id = cliente.id
@@ -647,17 +655,19 @@ class VentasExoneradas extends Component
          isv,
          sub_total,
          porc_descuento,
+        FORMAT((select sum(sub_total_s) from venta_has_producto where isv = 0 and factura_id = ".$idFactura."),2) as subtotal_excentovale,
          monto_descuento
          from factura
          where id = ".$idFactura);
 
          $importesConCentavos= DB::SELECTONE("
          select
-         total as total,
-         isv as isv,
-         sub_total as sub_total,
-         porc_descuento as porc_descuento,
-         monto_descuento as monto_descuento
+         FORMAT(total,2) as total,
+         FORMAT(isv,2) as isv,
+         FORMAT(sub_total,2) as sub_total,
+        FORMAT((select sum(sub_total_s) from venta_has_producto where isv = 0 and factura_id = ".$idFactura."),2) as subtotal_excentovale,
+         FORMAT(porc_descuento,2) as porc_descuento,
+         FORMAT(monto_descuento,2) as monto_descuento
          from factura where factura.id = ".$idFactura);
 
        $productos = DB::SELECT("
@@ -665,8 +675,8 @@ class VentasExoneradas extends Component
                     B.producto_id as codigo,
                     concat(C.nombre) as descripcion,
                     UPPER(J.nombre) as medida,
-                    H.nombre as bodega,
-                    F.descripcion as seccion,
+                if(B.seccion_id = 0, 'N/A',H.nombre) as bodega,
+                if(B.seccion_id = 0, 'N/A',REPLACE(REPLACE(F.descripcion,'Seccion',''),' ', '')) as seccion,
                     (B.sub_total/B.cantidad) as precio,
                     sum(B.cantidad_s) as cantidad,
                     sum(B.sub_total_s) as importe
@@ -689,31 +699,7 @@ class VentasExoneradas extends Component
                 inner join bodega H
                 on G.bodega_id = H.id
                 where A.id=".$idFactura."
-                group by codigo, descripcion, medida, bodega, seccion, precio
-
-                union
-
-                select
-                    D.id,
-                    D.nombre as descripcion,
-                    F.nombre as medida,
-                    'Pendiente',
-                    'Pendiente',
-                    C.precio as precio,
-                    C.cantidad as cantidad,
-                    C.sub_total as sub_total
-                from factura A
-                inner join vale B
-                on A.id = B.factura_id
-                inner join espera_has_producto C
-                on B.id = C.vale_id
-                inner join producto D
-                on C.producto_id = D.id
-                inner join unidad_medida_venta E
-                on C.unidad_medida_venta_id = E.id
-                inner join unidad_medida F
-                on F.id = E.unidad_medida_id
-                where B.estado_id=1 and A.id = ".$idFactura
+                group by codigo, descripcion, medida, bodega, seccion, precio"
 
 
 
@@ -788,7 +774,9 @@ class VentasExoneradas extends Component
         D.id as factura,
         E.codigo as codigo_exoneracion,
         E.corrOrd as correlativoexo,
-        A.estado_venta_id
+        A.estado_venta_id,
+        users.name as vendedor,
+        (select name from users where id = A.users_id ) as facturador
        from factura A
        inner join cai B
        on A.cai_id = B.id
@@ -811,7 +799,7 @@ class VentasExoneradas extends Component
         factura.fecha_vencimiento,
         TIME(factura.created_at) as hora,
         cliente.telefono_empresa,
-        cliente.rtn
+        factura.rtn
         from factura
         inner join cliente
         on factura.cliente_id = cliente.id
@@ -823,17 +811,19 @@ class VentasExoneradas extends Component
         isv,
         sub_total,
         porc_descuento,
+        FORMAT((select sum(sub_total_s) from venta_has_producto where isv = 0 and factura_id = ".$idFactura."),2) as subtotal_excentovale,
         monto_descuento
         from factura
         where id = ".$idFactura);
 
         $importesConCentavos= DB::SELECTONE("
         select
-        total as total,
-        isv as isv,
-        sub_total as sub_total,
-        porc_descuento as porc_descuento,
-        monto_descuento as monto_descuento
+        FORMAT(total,2) as total,
+        FORMAT(isv,2) as isv,
+        FORMAT(sub_total,2) as sub_total,
+        FORMAT(porc_descuento,2) as porc_descuento,
+        FORMAT((select sum(sub_total_s) from venta_has_producto where isv = 0 and factura_id = ".$idFactura."),2) as subtotal_excentovale,
+        FORMAT(monto_descuento,2) as monto_descuento
         from factura where factura.id = ".$idFactura);
 
         $productos = DB::SELECT("
@@ -841,11 +831,11 @@ class VentasExoneradas extends Component
                     B.producto_id as codigo,
                     concat(C.nombre) as descripcion,
                     UPPER(J.nombre) as medida,
-                    H.nombre as bodega,
-                    F.descripcion as seccion,
-                    B.precio_unidad as precio,
-                    sum(B.cantidad_s) as cantidad,
-                    sum(B.sub_total_s) as importe
+                if(B.seccion_id = 0, 'N/A',H.nombre) as bodega,
+                if(B.seccion_id = 0, 'N/A',REPLACE(REPLACE(F.descripcion,'Seccion',''),' ', '')) as seccion,
+                    FORMAT(B.precio_unidad,2) as precio,
+                    REPLACE(sum(B.cantidad_s), '.00', '') as cantidad,
+                    FORMAT(sum(B.sub_total_s),2) as importe
 
                 from factura A
                 inner join venta_has_producto B
@@ -867,29 +857,7 @@ class VentasExoneradas extends Component
                 where A.id=".$idFactura."
                 group by codigo, descripcion, medida, bodega, seccion, precio
 
-                union
-
-                select
-                    D.id,
-                    D.nombre as descripcion,
-                    F.nombre as medida,
-                    'Pendiente',
-                    'Pendiente',
-                    C.precio as precio,
-                    C.cantidad as cantidad,
-                    C.sub_total as sub_total
-                from factura A
-                inner join vale B
-                on A.id = B.factura_id
-                inner join espera_has_producto C
-                on B.id = C.vale_id
-                inner join producto D
-                on C.producto_id = D.id
-                inner join unidad_medida_venta E
-                on C.unidad_medida_venta_id = E.id
-                inner join unidad_medida F
-                on F.id = E.unidad_medida_id
-                where B.estado_id=1 and A.id = ".$idFactura
+                "
 
 
 
@@ -968,7 +936,9 @@ class VentasExoneradas extends Component
         D.id as factura,
         E.codigo as codigo_exoneracion,
         E.corrOrd as correlativoexo,
-        A.estado_venta_id
+        A.estado_venta_id,
+        users.name as vendedor,
+        (select name from users where id = A.users_id ) as facturador
        from factura A
        inner join cai B
        on A.cai_id = B.id
@@ -991,7 +961,7 @@ class VentasExoneradas extends Component
         factura.fecha_vencimiento,
         TIME(factura.created_at) as hora,
         cliente.telefono_empresa,
-        cliente.rtn
+        factura.rtn
         from factura
         inner join cliente
         on factura.cliente_id = cliente.id
@@ -1003,17 +973,19 @@ class VentasExoneradas extends Component
          isv,
          sub_total,
          porc_descuento,
+        FORMAT((select sum(sub_total_s) from venta_has_producto where isv = 0 and factura_id = ".$idFactura."),2) as subtotal_excentovale,
          monto_descuento
          from factura
          where id = ".$idFactura);
 
          $importesConCentavos= DB::SELECTONE("
          select
-         total as total,
-         isv as isv,
-         sub_total as sub_total,
-         porc_descuento as porc_descuento,
-         monto_descuento as monto_descuento
+         FORMAT(total,2) as total,
+         FORMAT(isv,2) as isv,
+         FORMAT(sub_total,2) as sub_total,
+        FORMAT((select sum(sub_total_s) from venta_has_producto where isv = 0 and factura_id = ".$idFactura."),2) as subtotal_excentovale,
+         FORMAT(porc_descuento,2) as porc_descuento,
+         FORMAT(monto_descuento,2) as monto_descuento
          from factura where factura.id = ".$idFactura);
 
         $productos = DB::SELECT("
@@ -1021,11 +993,11 @@ class VentasExoneradas extends Component
                     B.producto_id as codigo,
                     concat(C.nombre) as descripcion,
                     UPPER(J.nombre) as medida,
-                    H.nombre as bodega,
-                    F.descripcion as seccion,
-                    B.precio_unidad as precio,
-                    sum(B.cantidad_s) as cantidad,
-                    sum(B.sub_total_s) as importe
+                if(B.seccion_id = 0, 'N/A',H.nombre) as bodega,
+                if(B.seccion_id = 0, 'N/A',REPLACE(REPLACE(F.descripcion,'Seccion',''),' ', '')) as seccion,
+                    FORMAT(B.precio_unidad,2) as precio,
+                    REPLACE(sum(B.cantidad_s), '.00', '') as cantidad,
+                    FORMAT(sum(B.sub_total_s),2) as importe
 
                 from factura A
                 inner join venta_has_producto B
@@ -1047,29 +1019,7 @@ class VentasExoneradas extends Component
                 where A.id=".$idFactura."
                 group by codigo, descripcion, medida, bodega, seccion, precio
 
-                union
-
-                select
-                    D.id,
-                    D.nombre as descripcion,
-                    F.nombre as medida,
-                    'Pendiente',
-                    'Pendiente',
-                    C.precio as precio,
-                    C.cantidad as cantidad,
-                    C.sub_total as sub_total
-                from factura A
-                inner join vale B
-                on A.id = B.factura_id
-                inner join espera_has_producto C
-                on B.id = C.vale_id
-                inner join producto D
-                on C.producto_id = D.id
-                inner join unidad_medida_venta E
-                on C.unidad_medida_venta_id = E.id
-                inner join unidad_medida F
-                on F.id = E.unidad_medida_id
-                where B.estado_id=1 and A.id = ".$idFactura
+                 "
 
 
 

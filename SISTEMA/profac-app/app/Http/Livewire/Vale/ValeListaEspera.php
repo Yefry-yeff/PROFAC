@@ -26,7 +26,7 @@ use App\Models\logCredito;
 use App\Models\User;
 
 use App\Models\ModelVale;
-use App\Models\ModelValeHasProducto; 
+use App\Models\ModelValeHasProducto;
 use App\Models\ModelEsperaProducto;
 
 
@@ -54,31 +54,31 @@ class ValeListaEspera extends Component
     public function obtenerProductosVale(Request $request){
        try {
 
-      
+
         $productos = DB::SELECT("
-        select 
+        select
         id,
         concat('cod ',id,' - ',nombre) as text
         from producto
-        where nombre like '%". $request->search ."%' or id like '%" . $request->search ."%' 
+        where nombre like '%". $request->search ."%' or id like '%" . $request->search ."%'
         limit 15
         ");
 
         return response()->json([
             "results" => $productos
         ], 200);
-     
+
        } catch (QueryException $e) {
        return response()->json([
         'icon' => 'error',
         'text' => 'Ha ocurrido un error al listar los productos',
         'title' => 'Error!',
-        'message' => 'Ha ocurrido un error', 
+        'message' => 'Ha ocurrido un error',
         'error' => $e,
        ],402);
        }
     }
-    
+
     public function guardarVentaVale(Request $request){
        try{
 
@@ -107,34 +107,34 @@ class ValeListaEspera extends Component
         }
 
 
-        $arrayTemporal = $request->arregloIdInputsVP;            
+        $arrayTemporal = $request->arregloIdInputsVP;
         $arrayInputs = explode(',', $arrayTemporal);
 
+        /*****SE COMENTA PORQUE EL VALE DEBE DEJAR PASAR LOS PRODUCTOS AUNQUE ESTEN EN FACTURA */
+        /*
         $flagProductoExiste = false;
         $mensaje ="El producto o productos:";
         for ($i = 0; $i < count($arrayInputs); $i++) {
 
-          
+
 
             $keyIdProducto = "idProductoVP" . $arrayInputs[$i];
 
 
             $contadorProducto = DB::SELECTONE("
-            select 
+            select
                 count(producto_id) as contador,
                 B.nombre
             from venta_has_producto A
             inner join producto B
             on A.producto_id = B.id where producto_id =".$request->$keyIdProducto." and factura_id =".$request->idFactura."  limit 1");
-            
+
             if($contadorProducto->contador > 0){
                 $flagProductoExiste = true;
                 $mensaje = $mensaje . " <br><b>Cod." .  $request->$keyIdProducto ." - ". $contadorProducto->nombre . ".</b>";
             }
 
-        }
-
-        if($flagProductoExiste){
+        }if($flagProductoExiste){
             $mensaje = $mensaje . "<br> Ya existe en factura, no se puede agregar a vale.";
             return response()->json([
                 'icon' => "warning",
@@ -142,18 +142,17 @@ class ValeListaEspera extends Component
                 'title' => 'Advertencia!',
                 'estadoBorrar' => 'true'
             ], 200);
-        }
-        
+        }*/
+
      //    dd($request->all());
         DB::beginTransaction();
 
-        ////Verficar si es factura de credito, para umentar credito y disminuir credito disponible 
+        ////Verficar si es factura de credito, para umentar credito y disminuir credito disponible
 
        $idVale = $this->guardarVale($request);
 
 
-
-        $factura = ModelFactura::find($request->idFactura);        
+/*         $factura = ModelFactura::find($request->idFactura);
         $factura->total = ROUND($factura->total + $request->totalGeneralVP,2);
         $factura->isv = Round($factura->isv +  $request->isvGeneralVP,2);
         $factura->sub_total = ROUND($factura->sub_total + $request->subTotalGeneralVP,2);
@@ -164,7 +163,7 @@ class ValeListaEspera extends Component
 
             $cliente = ModelCliente::find($factura->cliente_id);
             $cliente->credito = ROUND($cliente->credito - $request->totalGeneralVP,2);
-            
+
             $cliente->save();
 
 
@@ -174,11 +173,11 @@ class ValeListaEspera extends Component
             $credito->users_id = Auth::user()->id;
             $credito->factura_id = $factura->id;
             $credito->cliente_id = $factura->cliente_id;
-            $credito->save();          
+            $credito->save();
 
         }
 
-        $factura->save();
+        $factura->save(); */
 
 
 
@@ -214,13 +213,16 @@ class ValeListaEspera extends Component
        }
     }
 
-    public function guardarVale($request){     
-        
-        $arrayTemporal = $request->arregloIdInputsVP;            
+    public function guardarVale($request){
+
+
+        $arrayTemporal = $request->arregloIdInputsVP;
         $arrayInputs = explode(',', $arrayTemporal);
-    
-     
+
+
         $arrayProductosVale =[];
+        $arrayProductosFactura =[];
+
         $idVale = DB::selectOne("  select id  from vale order by id desc");
         $anio = DB::SELECTONE("select year(now()) as anio");
         $numero_vale = "";
@@ -230,7 +232,6 @@ class ValeListaEspera extends Component
         } else {
             $numero_vale = $anio->anio . '-' .($idVale->id + 1) ;
         }
-
 
         $vale = new ModelVale;
         $vale->numero_vale = $numero_vale;
@@ -248,6 +249,34 @@ class ValeListaEspera extends Component
         $vale->monto_descuento = bcdiv($request->descuentoGeneral, '1', 2);
         $vale->save();
 
+        $factura = ModelFactura::find($request->idFactura);
+        $factura->total = $factura->total + $request->totalGeneral;
+        $factura->sub_total_excento = $factura->sub_total_excento + $request->subTotalGeneralExcento;
+        $factura->isv = $factura->isv + $request->isvGeneral;
+        $factura->sub_total = $factura->sub_total + $request->subTotalGeneral;
+        $factura->pendiente_cobro = 0;
+        if($factura->tipo_pago_id == 2){
+            $factura->credito = ROUND(($factura->credito + $request->totalGeneral),2);
+
+            $cliente = ModelCliente::find($factura->cliente_id);
+            $cliente->credito = ROUND($cliente->credito - $request->totalGeneral,2);
+
+            $cliente->save();
+
+            //dd("se supone que arregle el vergueo");
+            $credito = new logCredito();
+            $credito->descripcion = "Reducción de credito por vale agregado a factura.";
+            $credito->monto =  $request->totalGeneral;
+            $credito->users_id = Auth::user()->id;
+            $credito->factura_id = $factura->id;
+            $credito->cliente_id = $factura->cliente_id;
+            $credito->save();
+
+        }
+        $factura->save();
+
+
+
 
         for ($i = 0; $i < count($arrayInputs); $i++) {
 
@@ -260,9 +289,11 @@ class ValeListaEspera extends Component
             $keyTotal = "totalVP" . $arrayInputs[$i];
             $keyRestaInventario = "restaInventarioVP" . $arrayInputs[$i];
             $keyunidad = 'idUnidadVentaVP' . $arrayInputs[$i];
-            
-       
-      
+            $keyidPrecioSeleccionado = 'idPrecioSeleccionado'.$arrayInputs[$i];
+            $keyprecioSeleccionado = 'precios'.$arrayInputs[$i];
+
+
+
 
             array_push($arrayProductosVale,[
                 'vale_id'=> $vale->id,
@@ -276,13 +307,47 @@ class ValeListaEspera extends Component
                 'isv'=>$request->$keyIsv,
                 'total'=>$request->$keyTotal,
                 'resta_inventario_total'=>$request->$keyRestaInventario,
+                "precioSeleccionado" => $request->$keyprecioSeleccionado,
+                "idPrecioSeleccionado" => $request->$keyidPrecioSeleccionado,
                 'created_at'=>now(),
                 'updated_at'=>now()
 
             ]);
+            array_push($arrayProductosFactura, [
+                "factura_id" => $request->idFactura,
+                "producto_id" => $request->$keyIdProducto,
+                "lote" => 1,
+                "indice" => $arrayInputs[$i],
+                // "numero_unidades_resta_inventario" => $registroResta, //el numero de unidades que se va restar del inventario pero en unidad base
+                "seccion_id" => 0,
+                "sub_total" => $request->$keySubTotal,
+                "isv" => $request->$keyIsv,
+                "total" => $request->$keyTotal,
+                "numero_unidades_resta_inventario" => 0, //La cantidad de unidades que se resta por lote - esta canitdad es ingresada por el usuario - se **multipla** por la unidad de medida venta para convertir a unidad base y restar de la tabla recibido bodega **la cantidad que se resta por lote**
+                "unidades_nota_credito_resta_inventario" => 0, // Este campo tiene el mismo valor que **numero_unidades_resta_inventario** - se utiliza para registrar las unidades a devolver en la nota de credito - resta las unidades y las devuelve a la tabla **recibido_bodega**
+                "resta_inventario_total" => $request->$keyRestaInventario, //Es la cantidad ingresada por el usuario en la pantalla de factura - misma cantidad se **multiplica** por la unidad de venta - registra la cantidad total a restar en la seccion_id- se repite para el lote
+                "unidad_medida_venta_id" => $request->$keyunidad, //la unidad de medida que selecciono el usuario para la venta
+                "precio_unidad" => $request->$keyPrecio, // precio de venta ingresado por el usuario
+                "cantidad" =>  $request->$keyCantidad, //Es la cantidad escrita por el usuario en la pantalla de factura la cual se va restar a la seccion - esta cantidad no sufre ningun tipo de alteracion - se guardar tal cual la ingresa el usuario
+                "cantidad_nota_credito" => $request->$keyCantidad, //Este campo contiene el mismo valor que el campo **cantidad** - es la cantidad ingresada por el usuario en la pantalla de factura - a este campo se le restan la cantidad a devolver en la nota de credito
+                "cantidad_s" => $request->$keyCantidad, //Es la cantidad que se resta por lote - esta cantidad se convierte de unidad base a la unidad de venta seleccionada en la pantalla de factura - al realizar esta convercion es posible obtener decimales como resultado.
+                "cantidad_para_entregar" => $request->$keyCantidad, //las unidades basica 1 disponible para vale
+                "sub_total_s" => $request->$keySubTotal,
+                "isv_s" => $request->$keyIsv,
+                "total_s" => $request->$keyTotal,
+                "precioSeleccionado" => $request->$keyprecioSeleccionado,
+                "idPrecioSeleccionado" => $request->$keyidPrecioSeleccionado,
+                "created_at" => now(),
+                "updated_at" => now(),
+            ]);
         };
 
+
         ModelEsperaProducto::insert($arrayProductosVale);
+
+
+        ModelVentaProducto::insert($arrayProductosFactura);
+
 
 
        return  $vale->id;

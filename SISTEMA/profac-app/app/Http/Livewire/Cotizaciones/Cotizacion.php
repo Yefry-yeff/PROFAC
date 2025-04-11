@@ -64,7 +64,7 @@ class Cotizacion extends Component
     public function clientesCorporativo(Request $request)
     {
 
-        if (Auth::user()->rol_id == 1) {
+        if (Auth::user()->rol_id == 1 || Auth::user()->rol_id == 9) {
             $listaClientes = DB::SELECT("
             select
                 id,
@@ -103,7 +103,7 @@ class Cotizacion extends Component
     public function clientesEstatal(Request $request)
     {
 
-        if (Auth::user()->rol_id == 1 || Auth::user()->rol_id == 3) {
+        if (Auth::user()->rol_id == 1 || Auth::user()->rol_id == 3 || Auth::user()->rol_id == 9) {
             $listaClientes = DB::SELECT("
                     select
                         id,
@@ -133,7 +133,7 @@ class Cotizacion extends Component
     {
 
 
-        if (Auth::user()->rol_id == 1) {
+        if (Auth::user()->rol_id == 1 || Auth::user()->rol_id == 9) {
             $listaClientes = DB::SELECT("
                     select
                         id,
@@ -161,7 +161,7 @@ class Cotizacion extends Component
     public function guardarCotizacion(Request $request){
        try {
 
-
+        //dd($request);
 
         $validator = Validator::make($request->all(), [
 
@@ -218,7 +218,7 @@ class Cotizacion extends Component
             $cotizacion->arregloIdInputs = json_encode($request->arregloIdInputs);
             $cotizacion->numeroInputs = $request->numeroInputs;
             $cotizacion->porc_descuento = $request->porDescuento;
-            $cotizacion->monto_descuento = $request->porDescuentoCalculado;
+            $cotizacion->monto_descuento = $request->descuentoGeneral;
             $cotizacion->save();
 
 
@@ -236,7 +236,8 @@ class Cotizacion extends Component
                 $keyIsvAsigando = "isv" . $arrayInputs[$i];
                 $keyunidad = 'unidad' . $arrayInputs[$i];
                 $keyidBodega = 'idBodega'.$arrayInputs[$i];
-
+                $keyidPrecioSeleccionado = 'idPrecioSeleccionado'.$arrayInputs[$i];
+                $keyprecioSeleccionado = 'precios'.$arrayInputs[$i];
                 $keyNombreProducto = 'nombre'.$arrayInputs[$i];
                 $keyBodegaNombre = 'bodega'.$arrayInputs[$i];
                 $keymonto_descProducto = 'acumuladoDescuento'.$arrayInputs[$i];
@@ -248,6 +249,8 @@ class Cotizacion extends Component
                 $idProducto = $request->$keyIdProducto;
                 $idUnidadVenta = $request->$keyIdUnidadVenta;
                 $isvProductoPagar = $request->$keyIsvPagar;
+                $idPrecioSeleccionado = $request->$keyidPrecioSeleccionado;
+                $precioSeleccionado = $request->$keyprecioSeleccionado;
                 //$unidad = $request->$keyunidad;
                 $precio = $request->$keyPrecio;
                 $cantidad = $request->$keyCantidad;
@@ -278,6 +281,8 @@ class Cotizacion extends Component
                 'isv_producto'=>$ivsProductoAsignado,
                 'unidad_medida_venta_id'=>$idUnidadVenta,
                 'monto_descProducto'=>$monto_descProducto,
+                'idPrecioSeleccionado'=>$idPrecioSeleccionado,
+                'precioSeleccionado'=>$precioSeleccionado,
                 'created_at'=>now(),
                 'updated_at'=>now()
 
@@ -324,7 +329,7 @@ class Cotizacion extends Component
             time(A.created_at) as hora,
             A.fecha_vencimiento,
             B.rtn,
-            users.name,
+            users.name as cotizador,
             (select name from users where id = A.vendedor) as vendedor
             from cotizacion A
             inner join cliente B
@@ -366,7 +371,8 @@ class Cotizacion extends Component
             isv,
             sub_total,
             sub_total_grabado,
-            sub_total_excento
+            sub_total_excento,
+            monto_descuento
             from cotizacion
             where id = ".$idFactura
         );
@@ -402,6 +408,49 @@ class Cotizacion extends Component
 
     }
 
+    public function imprimirCatalogo($idCotizacion)
+    {
+        $datos = DB::SELECT(
+            "
+                select
+                      C.id as codigoProducto,
+                    C.nombre as nombre1,
+                    C.descripcion as nombre,
+                    if(C.isv = 0, 'SI' , 'NO' ) as excento,
+                    FORMAT(B.precio_unidad,2) as precio,
+                    B.cantidad as cantidad,
+                    FORMAT(B.sub_total,2) as importe,
+                    J.nombre as medida,
+                    C.codigo_barra,
+                    E.descripcion as 'subcategoria',
+                    F.descripcion as 'categoria',
+                    G.nombre as 'marca',
+                    imagen.url_img as 'imagen',
+                    A.nombre_cliente,
+                    A.fecha_emision,
+                    A.RTN,
+                    A.id,
+                    CONCAT(YEAR(A.fecha_emision),'-',A.id) as 'cotizacion'
+
+                from cotizacion A
+                    inner join cotizacion_has_producto B on A.id=B.cotizacion_id
+                    inner join producto C on B.producto_id = C.id
+                    inner join unidad_medida_venta D on B.unidad_medida_venta_id = D.id
+                    inner join unidad_medida J on J.id = D.unidad_medida_id
+                    inner join sub_categoria E on E.id = C.sub_categoria_id
+                    inner join categoria_producto F on F.id = E.categoria_producto_id
+                    inner join marca G on G.id = C.marca_id
+                    inner join img_producto imagen on imagen.producto_id = C.id
+                where A.id = ".$idCotizacion."
+                order by B.indice asc
+            "
+        );
+        $pdf = PDF::loadView('/pdf/catalogo',compact('datos'))->setPaper("A4", "portrait");
+
+        return $pdf->stream("catalogo.pdf");
+
+    }
+
     public function imprimirProforma($idFactura)
     {
 
@@ -416,7 +465,7 @@ class Cotizacion extends Component
             time(A.created_at) as hora,
             A.fecha_vencimiento,
             B.rtn,
-            users.name,
+            users.name as cotizador,
             (select name from users where id = A.vendedor) as vendedor
             from cotizacion A
             inner join cliente B
@@ -460,7 +509,8 @@ class Cotizacion extends Component
             isv,
             sub_total,
             sub_total_grabado,
-            sub_total_excento
+            sub_total_excento,
+            monto_descuento
             from cotizacion
             where id = ".$idFactura
         );

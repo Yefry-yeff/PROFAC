@@ -56,24 +56,30 @@ class FacturacionCorporativa extends Component
             if (Auth::user()->rol_id == 1 or Auth::user()->rol_id == 3) {
                 $listaClientes = DB::SELECT("
                 select
-                    id,
-                    nombre as text
+                    cliente.id,
+                    cliente.nombre as text,
+                    users.id as 'idVendedor',
+                    users.name as 'vendedor'
                 from cliente
-                    where estado_cliente_id = 1
+                inner join users on users.id = cliente.vendedor
+                    where cliente.estado_cliente_id = 1
 
-                    and tipo_cliente_id=1
-                    and  (id LIKE '%" . $request->search . "%' or nombre Like '%" . $request->search . "%') limit 15
+                    and cliente.tipo_cliente_id=1
+                    and  (cliente.id LIKE '%" . $request->search . "%' or cliente.nombre Like '%" . $request->search . "%') limit 15
                         ");
             } else {
                 $listaClientes = DB::SELECT("
                 select
-                    id,
-                    nombre as text
+                    cliente.id,
+                    cliente.nombre as text,
+                    users.id as 'idVendedor',
+                    users.name as 'vendedor'
                 from cliente
-                    where estado_cliente_id = 1
+                inner join users on users.id = cliente.vendedor
+                    where cliente.estado_cliente_id = 1
 
-                    and tipo_cliente_id=1
-                    and  (id LIKE '%" . $request->search . "%' or nombre Like '%" . $request->search . "%') limit 15
+                    and cliente.tipo_cliente_id=1
+                    and  (cliente.id LIKE '%" . $request->search . "%' or cliente.nombre Like '%" . $request->search . "%') limit 15
                         ");
             }
 
@@ -94,7 +100,12 @@ class FacturacionCorporativa extends Component
     {
         try {
 
-            $datos = DB::SELECTONE("select id,nombre, rtn, dias_credito from cliente where id = " . $request->id);
+            $datos = DB::SELECTONE("select cliente.id,cliente.nombre, cliente.rtn, cliente.dias_credito ,
+
+                    users.id as 'idVendedor',
+                    users.name as 'vendedor'
+                from cliente
+                inner join users on users.id = cliente.vendedor where cliente.id = " . $request->id);
 
             return response()->json([
                 "datos" => $datos
@@ -184,7 +195,8 @@ class FacturacionCorporativa extends Component
          (B.nombre LIKE '%" . $request->search . "%' or B.id LIKE '%" . $request->search . "%' or B.codigo_barra Like '%" . $request->search . "%')
 
          and B.id not in (
-
+            4088,
+            4036,
             1157,
             1321,
             2665,
@@ -330,7 +342,11 @@ class FacturacionCorporativa extends Component
             concat(id,' - ',nombre) as nombre,
             isv,
             ultimo_costo_compra as ultimo_costo_compra,
-            precio_base as precio_base
+            precio_base as precio_base,
+            precio1 as precio1,
+            precio2 as precio2,
+            precio3 as precio3,
+            precio4 as precio4
             from producto where id = " . $request['idProducto'] . "
             ");
 
@@ -342,7 +358,7 @@ class FacturacionCorporativa extends Component
             ], 200);
         } catch (QueryException $e) {
             return response()->json([
-                'message' => 'Ha ocurrido un error al obtener los datos del producto.',
+                'message' => 'ERROR AL OBTENER PRODUCTO PARA EL CARRITO.',
                 'error' => $e,
             ], 402);
         }
@@ -391,7 +407,7 @@ class FacturacionCorporativa extends Component
             if ($request->restriccion == 1) {
                 //dd($request);
                 $facturaVencida = $this->comprobarFacturaVencida($request->seleccionarCliente);
-                
+
                 //dd('llego dentro de funcion facturas vencidas despues de llamarlo');
                 if ($facturaVencida) {
                     return response()->json([
@@ -403,7 +419,7 @@ class FacturacionCorporativa extends Component
                 }
             }
 
-            
+
 
 
             if ($request->tipoPagoVenta == 2) {
@@ -504,7 +520,7 @@ class FacturacionCorporativa extends Component
                     return response()->json([
                         "title" => "Advertencia",
                         "icon" => "warning",
-                        "text" => "La factura no puede proceder, debido que ha alcanzadado el número maximo de facturacion otorgado 1.",
+                        "text" => "La factura no puede proceder, debido que ha alcanzadado el número maximo de facturacion otorgado.",
                     ], 200);
                 }
 
@@ -628,12 +644,16 @@ class FacturacionCorporativa extends Component
                 $keyISV = "isv" . $arrayInputs[$i];
                 $keyunidad = 'unidad' . $arrayInputs[$i];
 
+                $keyidPrecioSeleccionado = 'idPrecioSeleccionado'.$arrayInputs[$i];
+                $keyprecioSeleccionado = 'precios'.$arrayInputs[$i];
                 $restaInventario = $request->$keyRestaInventario;
                 $idSeccion = $request->$keyIdSeccion;
                 $idProducto = $request->$keyIdProducto;
                 $idUnidadVenta = $request->$keyIdUnidadVenta;
                 $ivsProducto = $request->$keyISV;
                 $unidad = $request->$keyunidad;
+                $idPrecioSeleccionado = $request->$keyidPrecioSeleccionado;
+                $precioSeleccionado = $request->$keyprecioSeleccionado;
 
                 $precio = $request->$keyPrecio;
                 $cantidad = $request->$keyCantidad;
@@ -643,7 +663,7 @@ class FacturacionCorporativa extends Component
 
                 // dd($factura);
 
-                $this->restarUnidadesInventario($restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $arrayInputs[$i]);
+                $this->restarUnidadesInventario($precioSeleccionado,$idPrecioSeleccionado,$restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $arrayInputs[$i]);
             };
 
             if ($request->tipoPagoVenta == 2) { //si el tipo de pago es credito
@@ -1284,6 +1304,8 @@ class FacturacionCorporativa extends Component
                     "sub_total_s" => $subTotalSecccionado,
                     "isv_s" => $isvSecccionado,
                     "total_s" => $totalSecccionado,
+                    "precioSeleccionado" => $precioSeleccionado,
+                    "idPrecioSeleccionado" => $idPrecioSeleccionado,
                     "created_at" => now(),
                     "updated_at" => now(),
                 ]);
@@ -1338,18 +1360,15 @@ class FacturacionCorporativa extends Component
         DATE_FORMAT(A.fecha_emision,'%d/%m/%Y' ) as  fecha_emision,
         TIME(A.created_at) as hora,
         DATE_FORMAT(A.fecha_vencimiento,'%d/%m/%Y' ) as fecha_vencimiento,
-        name,
+        users.name as vendedor,
+        (select name from users where id = A.users_id ) as facturador,
         D.id as factura
 
        from factura A
-       inner join cai B
-       on A.cai_id = B.id
-       inner join tipo_pago_venta C
-       on A.tipo_pago_id = C.id
-       inner join users
-       on A.vendedor = users.id
-       inner join estado_factura D
-       on A.estado_factura_id = D.id
+       inner join cai B  on A.cai_id = B.id
+       inner join tipo_pago_venta C on A.tipo_pago_id = C.id
+       inner join users on A.vendedor = users.id
+       inner join estado_factura D on A.estado_factura_id = D.id
        where A.id = " . $idFactura);
 
         $cliente = DB::SELECTONE("
@@ -1361,7 +1380,7 @@ class FacturacionCorporativa extends Component
         factura.fecha_vencimiento,
         TIME(factura.created_at) as hora,
         cliente.telefono_empresa,
-        cliente.rtn
+        factura.rtn
         from factura
         inner join cliente
         on factura.cliente_id = cliente.id
@@ -1372,24 +1391,26 @@ class FacturacionCorporativa extends Component
         total,
         isv,
         sub_total,
-        sub_total_grabado,
+        FORMAT((select sum(sub_total_s) from venta_has_producto where isv != 0 and factura_id = ".$idFactura.") ,2) as sub_total_grabado,
         sub_total_excento,
+        FORMAT((select sum(sub_total_s) from venta_has_producto where isv = 0 and factura_id = ".$idFactura."),2) as subtotal_excentovale,
         porc_descuento,
         monto_descuento
         from factura
-        where id = " . $idFactura);
+        where id = ".$idFactura);
 
         /* CAMBIO 20230725 FORMAT(total,2) as total:FORMAT(isv,2) as isv:FORMAT(sub_total,2) as sub_total,:FORMAT(sub_total_grabado,2) as sub_total_grabado:FORMAT(sub_total_excento,2) as sub_total_excento*/
         $importesConCentavos = DB::SELECTONE("
         select
-        total,
-        isv,
-        sub_total,
-        sub_total_grabado,
-        sub_total_excento,
+        FORMAT(total,2) as total,
+        FORMAT(isv,2) as isv,
+        FORMAT(sub_total,2) as sub_total,
+        FORMAT((select sum(sub_total_s) from venta_has_producto where isv != 0 and factura_id = ".$idFactura.") ,2) as sub_total_grabado,
+        FORMAT(sub_total_excento,2) as sub_total_excento,
+        FORMAT((select sum(sub_total_s) from venta_has_producto where isv = 0 and factura_id = ".$idFactura."),2) as subtotal_excentovale,
         FORMAT(porc_descuento,2) as porc_descuento,
-        monto_descuento
-        from factura where factura.id = " . $idFactura);
+        FORMAT(monto_descuento,2) as monto_descuento
+        from factura where factura.id = ".$idFactura);
 
 
         /* CAMBIO 20230725 FORMAT(B.sub_total/B.cantidad,2) as precio:FORMAT(sum(B.cantidad_s),2) as cantidad:FORMAT(sum(B.sub_total_s),2) as importe*/
@@ -1404,11 +1425,11 @@ class FacturacionCorporativa extends Component
                 concat(C.nombre) as descripcion,
                 UPPER(J.nombre) as medida,
                 if(C.isv = 0, 'SI' , 'NO' ) as excento,
-                H.nombre as bodega,
-                REPLACE(REPLACE(F.descripcion,'Seccion',''),' ', '') as seccion,
-                B.precio_unidad as precio,
-                sum(B.cantidad_s) as cantidad,
-                sum(B.sub_total_s) as importe
+                if(B.seccion_id = 0, 'N/A',H.nombre) as bodega,
+                if(B.seccion_id = 0, 'N/A',REPLACE(REPLACE(F.descripcion,'Seccion',''),' ', '')) as seccion,
+                FORMAT(B.precio_unidad,2) as precio,
+                REPLACE(sum(B.cantidad_s), '.00', '') as cantidad,
+                FORMAT(sum(B.sub_total_s),2) as importe
             from factura A
             inner join venta_has_producto B
             on A.id = B.factura_id
@@ -1429,33 +1450,7 @@ class FacturacionCorporativa extends Component
             where A.id=" . $idFactura . "
             group by codigo, descripcion, medida, bodega, seccion, precio,B.indice
             order by B.indice asc
-            ) A
-
-
-            union
-
-            Select
-            D.id,
-            D.nombre as descripcion,
-            F.nombre as medida,
-            if(C.isv = 0, 'SI' , 'NO' ) as excento,
-            'N/A',
-            'N/A',
-            C.precio as precio,
-            FORMAT(C.cantidad,2) as cantidad,
-            C.sub_total
-            from factura A
-            inner join vale B
-            on A.id = B.factura_id
-            inner join espera_has_producto C
-            on B.id = C.vale_id
-            inner join producto D
-            on C.producto_id = D.id
-            inner join unidad_medida_venta E
-            on C.unidad_medida_venta_id = E.id
-            inner join unidad_medida F
-            on F.id = E.unidad_medida_id
-            where B.estado_id=1 and A.id = " . $idFactura
+            ) A"
 
         );
         // for ($i=0; $i < 15 ; $i++) {
@@ -1512,7 +1507,8 @@ class FacturacionCorporativa extends Component
         DATE_FORMAT(A.fecha_emision,'%d/%m/%Y' ) as  fecha_emision,
         TIME(A.created_at) as hora,
         DATE_FORMAT(A.fecha_vencimiento,'%d/%m/%Y' ) as fecha_vencimiento,
-        name,
+        users.name as vendedor,
+        (select name from users where id = A.users_id ) as facturador,
         D.id as factura
 
        from factura A
@@ -1535,35 +1531,38 @@ class FacturacionCorporativa extends Component
         factura.fecha_vencimiento,
         TIME(factura.created_at) as hora,
         cliente.telefono_empresa,
-        cliente.rtn
+        factura.rtn
         from factura
         inner join cliente
         on factura.cliente_id = cliente.id
         where factura.id = " . $idFactura);
+
 
         $importes = DB::SELECTONE("
         select
         total,
         isv,
         sub_total,
-        sub_total_grabado,
+        FORMAT((select sum(sub_total_s) from venta_has_producto where isv != 0 and factura_id = ".$idFactura.") ,2) as sub_total_grabado,
         sub_total_excento,
+        FORMAT((select sum(sub_total_s) from venta_has_producto where isv = 0 and factura_id = ".$idFactura."),2) as subtotal_excentovale,
         porc_descuento,
         monto_descuento
         from factura
-        where id = " . $idFactura);
+        where id = ".$idFactura);
 
         /* CAMBIO 20230725 FORMAT(total,2) as total:FORMAT(isv,2) as isv:FORMAT(sub_total,2) as sub_total,:FORMAT(sub_total_grabado,2) as sub_total_grabado:FORMAT(sub_total_excento,2) as sub_total_excento*/
         $importesConCentavos = DB::SELECTONE("
         select
-        total,
-        isv,
-        sub_total,
-        sub_total_grabado,
-        sub_total_excento,
+        FORMAT(total,2) as total,
+        FORMAT(isv,2) as isv,
+        FORMAT(sub_total,2) as sub_total,
+        FORMAT((select sum(sub_total_s) from venta_has_producto where isv != 0 and factura_id = ".$idFactura.") ,2) as sub_total_grabado,
+        FORMAT(sub_total_excento,2) as sub_total_excento,
+        FORMAT((select sum(sub_total_s) from venta_has_producto where isv = 0 and factura_id = ".$idFactura."),2) as subtotal_excentovale,
         FORMAT(porc_descuento,2) as porc_descuento,
-        monto_descuento
-        from factura where factura.id = " . $idFactura);
+        FORMAT(monto_descuento,2) as monto_descuento
+        from factura where factura.id = ".$idFactura);
 
 
         /* CAMBIO 20230725 FORMAT(B.sub_total/B.cantidad,2) as precio:FORMAT(sum(B.cantidad_s),2) as cantidad:FORMAT(sum(B.sub_total_s),2) as importe*/
@@ -1578,11 +1577,11 @@ class FacturacionCorporativa extends Component
                 concat(C.nombre) as descripcion,
                 UPPER(J.nombre) as medida,
                 if(C.isv = 0, 'SI' , 'NO' ) as excento,
-                H.nombre as bodega,
-                REPLACE(REPLACE(F.descripcion,'Seccion',''),' ', '') as seccion,
+                if(B.seccion_id = 0, 'N/A',H.nombre) as bodega,
+                if(B.seccion_id = 0, 'N/A',REPLACE(REPLACE(F.descripcion,'Seccion',''),' ', '')) as seccion,
                 B.precio_unidad as precio,
-                sum(B.cantidad_s) as cantidad,
-                sum(B.sub_total_s) as importe
+                REPLACE(sum(B.cantidad_s), '.00', '') as cantidad,
+                format(sum(B.sub_total_s),2) as importe
             from factura A
             inner join venta_has_producto B
             on A.id = B.factura_id
@@ -1603,33 +1602,7 @@ class FacturacionCorporativa extends Component
             where A.id=" . $idFactura . "
             group by codigo, descripcion, medida, bodega, seccion, precio,B.indice
             order by B.indice asc
-            ) A
-
-
-            union
-
-            Select
-            D.id,
-            D.nombre as descripcion,
-            F.nombre as medida,
-            if(C.isv = 0, 'SI' , 'NO' ) as excento,
-            'N/A',
-            'N/A',
-            C.precio as precio,
-            FORMAT(C.cantidad,2) as cantidad,
-            C.sub_total
-            from factura A
-            inner join vale B
-            on A.id = B.factura_id
-            inner join espera_has_producto C
-            on B.id = C.vale_id
-            inner join producto D
-            on C.producto_id = D.id
-            inner join unidad_medida_venta E
-            on C.unidad_medida_venta_id = E.id
-            inner join unidad_medida F
-            on F.id = E.unidad_medida_id
-            where B.estado_id=1 and A.id = " . $idFactura
+            ) A"
 
         );
         // for ($i=0; $i < 15 ; $i++) {
@@ -1878,7 +1851,7 @@ class FacturacionCorporativa extends Component
             and tipo_pago_id = 2 and cliente_id=" . $idCliente
         ); */
 
-        
+
         //dd('llego dentro de funcion facturas vencidas Inicio');
         $facturasVencidas = DB::SELECT(
             "
@@ -1903,7 +1876,7 @@ class FacturacionCorporativa extends Component
 
         return false;
 
-        
+
     }
 
     public function restarCreditoCliente($idCliente, $totalFactura, $idFactura)
@@ -2092,7 +2065,8 @@ class FacturacionCorporativa extends Component
         DATE_FORMAT(A.fecha_emision,'%d/%m/%Y' ) as  fecha_emision,
         TIME(A.created_at) as hora,
         DATE_FORMAT(A.fecha_vencimiento,'%d/%m/%Y' ) as fecha_vencimiento,
-        name,
+        users.name as vendedor,
+        (select name from users where id = A.users_id ) as facturador,
         D.id as factura
 
        from factura A
@@ -2115,35 +2089,38 @@ class FacturacionCorporativa extends Component
         factura.fecha_vencimiento,
         TIME(factura.created_at) as hora,
         cliente.telefono_empresa,
-        cliente.rtn
+        factura.rtn
         from factura
         inner join cliente
         on factura.cliente_id = cliente.id
         where factura.id = " . $idFactura);
+
 
         $importes = DB::SELECTONE("
         select
         total,
         isv,
         sub_total,
-        sub_total_grabado,
+        FORMAT((select sum(sub_total_s) from venta_has_producto where isv != 0 and factura_id = ".$idFactura.") ,2) as sub_total_grabado,
         sub_total_excento,
+        FORMAT((select sum(sub_total_s) from venta_has_producto where isv = 0 and factura_id = ".$idFactura."),2) as subtotal_excentovale,
         porc_descuento,
         monto_descuento
         from factura
-        where id = " . $idFactura);
+        where id = ".$idFactura);
 
-
+        /* CAMBIO 20230725 FORMAT(total,2) as total:FORMAT(isv,2) as isv:FORMAT(sub_total,2) as sub_total,:FORMAT(sub_total_grabado,2) as sub_total_grabado:FORMAT(sub_total_excento,2) as sub_total_excento*/
         $importesConCentavos = DB::SELECTONE("
         select
-        total as total,
-        isv as isv,
-        sub_total as sub_total,
-        sub_total_grabado as sub_total_grabado,
-        sub_total_excento as sub_total_excento,
-        porc_descuento as porc_descuento,
-        monto_descuento as monto_descuento
-        from factura where factura.id = " . $idFactura);
+        FORMAT(total,2) as total,
+        FORMAT(isv,2) as isv,
+        FORMAT(sub_total,2) as sub_total,
+        FORMAT((select sum(sub_total_s) from venta_has_producto where isv != 0 and factura_id = ".$idFactura.") ,2) as sub_total_grabado,
+        FORMAT(sub_total_excento,2) as sub_total_excento,
+        FORMAT((select sum(sub_total_s) from venta_has_producto where isv = 0 and factura_id = ".$idFactura."),2) as subtotal_excentovale,
+        FORMAT(porc_descuento,2) as porc_descuento,
+        FORMAT(monto_descuento,2) as monto_descuento
+        from factura where factura.id = ".$idFactura);
 
 
 
@@ -2152,7 +2129,6 @@ class FacturacionCorporativa extends Component
 
         $productos = DB::SELECT(
             "
-
             select
             *
             from (
@@ -2161,12 +2137,11 @@ class FacturacionCorporativa extends Component
                 concat(C.nombre) as descripcion,
                 UPPER(J.nombre) as medida,
                 if(C.isv = 0, 'SI' , 'NO' ) as excento,
-                H.nombre as bodega,
-                REPLACE(REPLACE(F.descripcion,'Seccion',''),' ', '') as seccion,
-                B.precio_unidad as precio,
-                sum(B.cantidad_s) as cantidad,
+                if(B.seccion_id = 0, 'N/A',H.nombre) as bodega,
+                if(B.seccion_id = 0, 'N/A',REPLACE(REPLACE(F.descripcion,'Seccion',''),' ', '')) as seccion,
+                FORMAT(B.precio_unidad,2) as precio,
+                REPLACE(sum(B.cantidad_s), '.00', '') as cantidad,
                 FORMAT(sum(B.sub_total_s),2) as importe
-
             from factura A
             inner join venta_has_producto B
             on A.id = B.factura_id
@@ -2187,34 +2162,7 @@ class FacturacionCorporativa extends Component
             where A.id=" . $idFactura . "
             group by codigo, descripcion, medida, bodega, seccion, precio,B.indice
             order by B.indice asc
-            ) A
-
-
-            union
-
-            select
-            D.id,
-            D.nombre as descripcion,
-            F.nombre as medida,
-            if(C.isv = 0, 'SI' , 'NO' ) as excento,
-            'N/A',
-            'N/A',
-            C.precio as precio,
-            FORMAT(C.cantidad,2) as cantidad,
-            C.sub_total as sub_total
-
-            from factura A
-            inner join vale B
-            on A.id = B.factura_id
-            inner join espera_has_producto C
-            on B.id = C.vale_id
-            inner join producto D
-            on C.producto_id = D.id
-            inner join unidad_medida_venta E
-            on C.unidad_medida_venta_id = E.id
-            inner join unidad_medida F
-            on F.id = E.unidad_medida_id
-            where B.estado_id=1 and A.id = " . $idFactura
+            ) A"
 
         );
         // for ($i=0; $i < 15 ; $i++) {

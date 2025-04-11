@@ -205,24 +205,13 @@
 
     <hr>
     <hr>
-    <h3>CLIENTES ACTIVOS</h3>
+    <h3>CLIENTES ACTIVOS/INACTIVOS</h3>
     <div class="wrapper wrapper-content animated fadeInRight pb-0">
         <div class="row">
             <div class="col-lg-12">
                 <div class="ibox ">
                     <div class="ibox-content">
                         <div class="row">
-
-
-                            {{--  <div class="col-6 col-sm-6 col-md-6 ">
-                                <label for="fecha_inicio" class="col-form-label focus-label">Fecha de inicio:<span class="text-danger">*</span></label>
-                                <input class="form-group form-control" type="date" id="fecha_inicio" name="fecha_inicio" value="{{date('Y-m-01')}}">
-                            </div>
-
-                            <div class="col-6 col-sm-6 col-md-6">
-                                <label for="fecha_final" class="col-form-label focus-label">Fecha final:<span class="text-danger">*</span></label>
-                                <input class="form-group form-control" type="date" id="fecha_final" name="fecha_final" value="{{date('Y-m-t')}}">
-                            </div>  --}}
 
                         </div>
                         <button class="btn btn-primary btn-block" onclick="cargaClientes()"><i class="fa-solid fa-paper-plane text-white"></i> Solicitar catálogo</button>
@@ -242,11 +231,19 @@
                                     <tr>
                                         <th>CODIGO</th>
                                         <th>TIPO CLIENTE (AoB)</th>
+                                        <th>ESTADO</th>
+                                        <th>RTN</th>
                                         <th>CLIENTE</th>
                                         <th>DIRECCION</th>
-                                        <th>TELEFONO</th>
                                         <th>CORREO</th>
-                                        <th>RTN</th>
+                                        <th>TELEFONO</th>
+                                        <th>PAIS</th>
+                                        <th>DEPARTAMENTO</th>
+                                        <th>MUNICIPIO</th>
+                                        <th>NOMBRE CONTACTO 1</th>
+                                        <th>TELEFONO CONTACTO 1</th>
+                                        <th>NOMBRE CONTACTO 2</th>
+                                        <th>TELEFONO CONTACO 2</th>
                                         <th>VENDEDOR</th>
                                         <th>REGISTRO</th>
                                     </tr>
@@ -256,11 +253,19 @@
                                         <tr>
                                             <th>CODIGO</th>
                                             <th>TIPO CLIENTE (AoB)</th>
+                                            <th>ESTADO</th>
+                                            <th>RTN</th>
                                             <th>CLIENTE</th>
                                             <th>DIRECCION</th>
-                                            <th>TELEFONO</th>
                                             <th>CORREO</th>
-                                            <th>RTN</th>
+                                            <th>TELEFONO</th>
+                                            <th>PAIS</th>
+                                            <th>DEPARTAMENTO</th>
+                                            <th>MUNICIPIO</th>
+                                            <th>NOMBRE CONTACTO 1</th>
+                                            <th>TELEFONO CONTACTO 1</th>
+                                            <th>NOMBRE CONTACTO 2</th>
+                                            <th>TELEFONO CONTACO 2</th>
                                             <th>VENDEDOR</th>
                                             <th>REGISTRO</th>
                                         </tr>
@@ -461,12 +466,20 @@
             "columns": [
 
                 {data: 'CODIGO'},
-                {data: 'TIPO CLIENTE (AoB)'},
-                {data: 'CLIENTE'},
-                {data: 'DIRECCION'},
-                {data: 'TELEFONO'},
-                {data: 'CORREO'},
+                {data: 'TIPO'},
+                {data: 'ESTADO'},
                 {data: 'RTN'},
+                {data: 'NOMBRE'},
+                {data: 'DIRECCION'},
+                {data: 'CORREO'},
+                {data: 'TELEFONO'},
+                {data: 'PAIS'},
+                {data: 'DEPARTAMENTO'},
+                {data: 'MUNICIPIO'},
+                {data: 'NCONT1'},
+                {data: 'TCONT1'},
+                {data: 'NCONT2'},
+                {data: 'TCONT2'},
                 {data: 'VENDEDOR'},
                 {data: 'REGISTRO'}
             ],initComplete: function () {

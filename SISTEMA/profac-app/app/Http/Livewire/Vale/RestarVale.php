@@ -214,6 +214,13 @@ class RestarVale extends Component
                     $producto->ivsProducto,
                     $producto->unidad_venta
                 );
+
+                DB::table('venta_has_producto')
+                ->where('producto_id', '=', $producto->producto_id)
+                ->where('factura_id', '=', $producto->idFactura)
+                ->where('seccion_id', '=', 0)
+                ->delete();
+
             }
 
 
@@ -332,6 +339,8 @@ class RestarVale extends Component
                     "precio_unidad" => $precio, // precio de venta ingresado por el usuario
                     "cantidad" => $cantidad, //cantidad ingresada por el usuario
                     "cantidad_s" => $cantidadSeccion, //la unidad que se resta del inventario  pero convertida a la unidad de venta seleccionada por el usuario
+                    "cantidad_nota_credito" => $cantidad,
+                    "unidades_nota_credito_resta_inventario" => $cantidad,
                     "cantidad_para_entregar" => $registroResta, //las unidades basica 1 disponible para vale
                     "sub_total_s" => $subTotalSecccionado,
                     "isv_s" => $isvSecccionado,
@@ -506,13 +515,14 @@ class RestarVale extends Component
         select
         A.id,
         A.numero_vale,
-        A.sub_total,
-        A.isv,
-        A.total,
+        FORMAT(A.sub_total,2),
+        FORMAT(A.isv,2),
+        FORMAT(A.total,2),
         A.estado_id as estado_id_vale,
         B.numero_factura,
         B.cai,
         B.cliente_id,
+        B.nombre_cliente,
         DATE(A.created_at) as fecha_emision,
         TIME(A.created_at) as hora,
         A.estado_id,
@@ -545,23 +555,23 @@ class RestarVale extends Component
 
        $importes = DB::SELECTONE("
        select
-       total,
-       isv,
-       sub_total,
-       sub_total_grabado,
-       sub_total_excento
+       FORMAT(total,2),
+       FORMAT(isv,2),
+       FORMAT(sub_total,2),
+       FORMAT(sub_total_grabado,2),
+       FORMAT(sub_total_excento,2)
        from factura
         where id = ".$idVale);
 
 
         $importesConCentavos= DB::SELECTONE("
         select
-        total as total,
-        isv as isv,
-        sub_total as sub_total,
-        sub_total_grabado as sub_total_grabado,
-        sub_total_excento as sub_total_excento,
-        monto_descuento as monto_descuento,
+        FORMAT(total as total,2),
+        FORMAT(isv as isv,2),
+        FORMAT(sub_total,2) as sub_total,
+        FORMAT(sub_total_grabado,2) as sub_total_grabado,
+        FORMAT(sub_total_excento,2) as sub_total_excento,
+        FORMAT(monto_descuento,2) as monto_descuento,
         porc_descuento
         from vale where id = ".$idVale);
 
@@ -571,9 +581,9 @@ class RestarVale extends Component
             B.id as codigo,
             B.nombre as descripcion,
             D.nombre as medida,
-            A.precio as precio,
+            FORMAT(A.precio,2) as precio,
             A.cantidad,
-            A.sub_total as importe
+            FORMAT(A.sub_total,2) as importe
             from espera_has_producto A
             inner join producto B
             on A.producto_id = B.id
@@ -625,13 +635,14 @@ class RestarVale extends Component
         select
         A.id,
         A.numero_vale,
-        A.sub_total,
-        A.isv,
-        A.total,
+        FORMAT(A.sub_total,2),
+        FORMAT(A.isv,2),
+        FORMAT(A.total,2),
         A.estado_id as estado_id_vale,
         B.numero_factura,
         B.cai,
         B.cliente_id,
+        B.nombre_cliente,
         DATE(A.created_at) as fecha_emision,
         TIME(A.created_at) as hora,
         A.estado_id,
@@ -668,19 +679,19 @@ class RestarVale extends Component
        isv,
        sub_total,
        sub_total_grabado,
-       sub_total_excento
+      sub_total_excento
        from factura
         where id = ".$idVale);
 
 
         $importesConCentavos= DB::SELECTONE("
         select
-        total as total,
-        isv as isv,
-        sub_total as sub_total,
-        sub_total_grabado as sub_total_grabado,
-        sub_total_excento as sub_total_excento,
-        monto_descuento as monto_descuento,
+        FORMAT(total,2) as total,
+        FORMAT(isv,2) as isv,
+        FORMAT(sub_total,2) as sub_total,
+        FORMAT(sub_total_grabado,2) as sub_total_grabado,
+        FORMAT(sub_total_excento,2) as sub_total_excento,
+        FORMAT(monto_descuento,2) as monto_descuento,
         porc_descuento
         from vale where id = ".$idVale);
 
@@ -690,9 +701,9 @@ class RestarVale extends Component
             B.id as codigo,
             B.nombre as descripcion,
             D.nombre as medida,
-            A.precio as precio,
+            FORMAT(A.precio,2) as precio,
             A.cantidad,
-            A.sub_total as importe
+            FORMAT(A.sub_total,2) as importe
             from espera_has_producto A
             inner join producto B
             on A.producto_id = B.id
