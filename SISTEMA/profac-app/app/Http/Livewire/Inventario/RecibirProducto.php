@@ -277,7 +277,7 @@ class RecibirProducto extends Component
             unidad_compra_id
             from compra_has_producto
             where compra_id = ".$request->idCompra."  and producto_id=".$request->idProducto
-        );
+            );
 
         if($datosCompra->cantidad_sin_asignar <= 0){
             return response()->json([
@@ -349,9 +349,8 @@ class RecibirProducto extends Component
             ->where('producto_id','=', $request->idProducto)
             ->update([
                 'cantidad_sin_asignar' => $restaCantidad,
-                'cantidad_disponible' => ($datosCompra->cantidad_disponible+$request->cantidad)
+                'cantidad_disponible' => ($datosCompra->cantidad_disponible+$request->cantidad)]);
 
-        ]);
 
 
         $this->comprobarVales();
@@ -710,7 +709,6 @@ class RecibirProducto extends Component
        }
 
        public function comprobarVales(){
-
          $flagVale = false;
          $valesArray =[];
 
@@ -724,6 +722,7 @@ class RecibirProducto extends Component
          where estado_id = 1
          order by id ASC
          ");
+
 
 
 
@@ -765,7 +764,6 @@ class RecibirProducto extends Component
              }
 
 
-
              $subject = "Vales disponibles para anular";
             // $for = ['williams.villalta@distribucionesvalencia.hn','cristian.zelaya@distribucionesvalencia.hn' ];
 
@@ -773,15 +771,17 @@ class RecibirProducto extends Component
 
 
 
+            /* dd("Antes de algo de enviar el correo");
              Mail::send('email/vales-disponibles',['valesArray' => $valesArray], function($msj) use($subject,$for){
                  $msj->from(env('MAIL_FROM_ADRESS'),"Soporte Técnico Distribuciones Valencia ");
                  $msj->subject($subject);
                  $msj->to($for);
-             });
+             }); */
+
 
              return;
 
-     }
+        }
 
 
 }
