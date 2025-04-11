@@ -38,7 +38,7 @@ class Cierrediariorep extends Component
         }
     }
     public function exportarPdf(Request $request, $tipo, $fechaInicio,$fechaFinal)
-{
+    {
     try {
 
          // Validación de parámetros
@@ -67,26 +67,27 @@ class Cierrediariorep extends Component
             'errorTh' => $e->getMessage(),
         ], 402);
     }
-}
-public function exportarExcel(Request $request, $tipo, $fechaInicio, $fechaFinal)
-{
-    try {
-        if (!$tipo || !$fechaInicio || !$fechaFinal) {
-            return response()->json([
-                'message' => 'Faltan parámetros requeridos para la exportación del Excel.'
-            ], 400);
-        }
-
-        $consulta = DB::select("CALL sp_reportesxfecha(?, ?, ?)", [$tipo, $fechaInicio, $fechaFinal]);
-        $data = json_decode(json_encode($consulta), true);
-
-        return Excel::download(new CierreDiarioExport($data, $fechaInicio, $fechaFinal), "Cierre_De_Caja_{$fechaInicio}_a_{$fechaFinal}.xlsx");
-
-    } catch (QueryException $e) {
-        return response()->json([
-            'message' => 'Error al generar el Excel.',
-            'errorTh' => $e->getMessage(),
-        ], 402);
     }
-}
+
+    public function exportarExcel(Request $request, $tipo, $fechaInicio, $fechaFinal)
+    {
+        try {
+            if (!$tipo || !$fechaInicio || !$fechaFinal) {
+                return response()->json([
+                    'message' => 'Faltan parámetros requeridos para la exportación del Excel.'
+                ], 400);
+            }
+
+            $consulta = DB::select("CALL sp_reportesxfecha(?, ?, ?)", [$tipo, $fechaInicio, $fechaFinal]);
+            $data = json_decode(json_encode($consulta), true);
+
+            return Excel::download(new CierreDiarioExport($data, $fechaInicio, $fechaFinal), "Cierre_De_Caja_{$fechaInicio}_a_{$fechaFinal}.xlsx");
+
+        } catch (QueryException $e) {
+            return response()->json([
+                'message' => 'Error al generar el Excel.',
+                'errorTh' => $e->getMessage(),
+            ], 402);
+        }
+    }
 }
