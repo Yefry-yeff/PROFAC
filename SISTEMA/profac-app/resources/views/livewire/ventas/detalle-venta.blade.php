@@ -212,7 +212,7 @@
                                         <th>Nombre</th>
                                         <th>Unidad</th>
                                         <th>Precio Lps</th>
-                                        <th>Cantidad</th>
+                                        {{--  <th>Cantidad</th>  --}}
                                         <th>Unidades Vendidas</th>
                                         <th>Sub total Lps</th>
                                         <th>ISV Lps</th>
@@ -353,9 +353,9 @@
                         {
                             data: 'precio_unidad'
                         },
-                        {
+                        /**{
                             data: 'cantidad'
-                        },
+                        },**/
                         {
                             data: 'unidades_vendidas'
                         },
