@@ -852,6 +852,8 @@ Route::post('/reporte/Cierrediariorep/exportar-excel/{tipo}/{fechaInicio}/{fecha
 
 Route::get('/reporte/comisiones', Comisiones::class);
 
+Route::get('/reporte/comisiones/consulta/{fechaInicio}/{fechaFinal}/{vendedor}', [Comisiones::class, 'consulta']);
+
     //------------------------------- Facturas Anuladas ----------------------------//
 Route::get('/reporte/Facturasanuladasrep', Facturasanuladasrep::class);
 Route::get('/reporte/Facturasanuladasrep/consulta/{tipo}/{fechaInicio}/{fechaFinal}', [Facturasanuladasrep::class, 'consulta']);

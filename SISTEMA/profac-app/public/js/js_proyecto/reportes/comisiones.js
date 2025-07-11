@@ -18,7 +18,116 @@
             });
 /* */
 
+function carga_comision() {
+    $("#tbl_comisiones").dataTable().fnDestroy();
 
+    var fechaInicioInput = document.getElementById('fecha_inicio').value;
+    var fechaFinalInput = document.getElementById('fecha_final').value;
+    var vendedor = document.getElementById('vendedor').value;
+
+    // Verificamos si las fechas están vacías
+    if (!fechaInicioInput || !fechaFinalInput) {
+        //document.getElementById('fecha_facturas_anuladas').style.display = 'block';
+        document.getElementById('fecha_inicio').style.borderColor = 'red';
+        document.getElementById('fecha_final').style.borderColor = 'red';
+        return; // Salir de la función si no hay fecha
+    }
+
+    document.getElementById('fecha_inicio').style.borderColor = '';
+    document.getElementById('fecha_final').style.borderColor = '';
+    //document.getElementById('fecha_facturas_anuladas').style.display = 'none';
+
+    var fechaInicio = new Date(fechaInicioInput).toISOString().split('T')[0]; // Convertir fecha de inicio a formato ISO (YYYY-MM-DD)
+    var fechaFinal = new Date(fechaFinalInput).toISOString().split('T')[0]; // Convertir fecha final a formato ISO (YYYY-MM-DD)
+
+    $('#tbl_comisiones').DataTable({
+        order: ['0', 'desc'],
+        paging: true,
+        language: {
+            url: "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
+        },
+        pageLength: 8,
+        responsive: true,
+        dom: '<"html5buttons"B>lTfgitp', // Mantén el DOM como estaba
+        buttons: [
+            {
+                extend: 'excelHtml5',
+                title: 'Comisiones',
+                text: '<i class="fa-solid fa-file-excel"></i> Exportar a Excel',
+                className: 'btn-excel',
+                action: function(){
+                    exportarExcel(fechaInicio, fechaFinal)
+                }
+            },
+            {
+                extend: 'pdfHtml5',
+                title: 'Comisiones',
+                text: '<i class="fa-solid fa-file-pdf"></i> Exportar a PDF',
+                className: 'btn-pdf',
+                action: function () {
+                    exportarPdf(fechaInicio, fechaFinal);
+            }
+        }
+        ],
+        ajax: "/reporte/comisiones/consulta/" +fechaInicio+"/"+fechaFinal+"/"+vendedor,
+        columns: [
+            { data: 'VENDEDOR' },
+            { data: 'CLIENTE' },
+            { data: 'FACTURA' },
+            { data: 'IDPRODUCTO' },
+            { data: 'OBSERVACION' },
+            { data: 'EXONERADO' },
+            { data: 'EXCENTO' },
+            { data: 'ABONO' },
+            { data: 'BASECOMISIONABLE' },
+            { data: 'ISV' },
+            { data: 'TOTAL' },
+            { data: 'FECHADEPAGO' },
+            { data: 'FECHAENTREGA' },
+            { data: 'FECHAVENCIMIENTO' },
+            { data: 'pb_30' },
+            { data: 'pb_60' },
+            { data: 'pb_90' },
+            { data: 'p1_30' },
+            { data: 'p1_60' },
+            { data: 'p1_90' },
+            { data: 'p2_30' },
+            { data: 'p2_60' },
+            { data: 'p2_90' },
+            { data: 'p3_30' },
+            { data: 'p3_60' },
+            { data: 'p3_90' },
+            { data: 'p4_30' },
+            { data: 'p4_60' },
+            { data: 'p3_90' }
+
+        ],
+        initComplete: function () {
+            var r = $('#tbl_comisiones tfoot tr');
+            r.find('th').each(function(){
+                $(this).css('padding', 8);
+            });
+            $('#tbl_comisiones thead').append(r);
+            $('#search_0').css('text-align', 'center');
+            this.api().columns().every(function () {
+                let column = this;
+                let title = column.footer().textContent;
+
+                // Crear un input para cada columna
+                let input = document.createElement('input');
+                input.placeholder = title;
+                column.footer().replaceChildren(input);
+
+                // Event listener para la búsqueda
+                input.addEventListener('keyup', () => {
+                    if (column.search() !== this.value) {
+                        column.search(input.value).draw();
+                    }
+                });
+            });
+        }
+    });
+}
 
 function exportarPdf() {
     var fechaInicio = document.getElementById('fecha_inicio').value;

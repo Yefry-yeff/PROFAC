@@ -22,24 +22,13 @@
                     <div class="ibox-content">
                         <div class="row">
                             <div class="col-6 col-sm-6 col-md-6">
-                                <label for="mes" class="col-form-label focus-label">Seleccionar mes:<span class="text-danger">*</span></label>
+                                <label for="fecha_inicio" class="col-form-label focus-label">Fecha de inicio:<span class="text-danger">*</span></label>
+                                <input class="form-group form-control" type="date" id="fecha_inicio" name="fecha_inicio">
+                            </div>
 
-
-                                    <select name="mes" id="mes"  class="form-group form-control" data-parsley-required>
-                                        <option value="" selected disabled>--Seleccione un mes--</option>
-                                        <option value="1">Enero</option>
-                                        <option value="2">Febrero</option>
-                                        <option value="3">Marzo</option>
-                                        <option value="4">Abril</option>
-                                        <option value="5">Mayo</option>
-                                        <option value="6">Junio</option>
-                                        <option value="7">Julio</option>
-                                        <option value="8">Agosto</option>
-                                        <option value="9">Septiembre</option>
-                                        <option value="10">Octubre</option>
-                                        <option value="11">Noviembre</option>
-                                        <option value="12">Diciembre</option>
-                                    </select>
+                            <div class="col-6 col-sm-6 col-md-6">
+                                <label for="fecha_final" class="col-form-label focus-label">Fecha final:<span class="text-danger">*</span></label>
+                                <input class="form-group form-control" type="date" id="fecha_final" name="fecha_final">
                             </div>
 
                             <div class="col-6 col-sm-6 col-md-6">
@@ -52,7 +41,7 @@
 
                             <!-- Botón centrado debajo de los inputs -->
                             <div class="mt-3 text-center col-12">
-                                <button class="btn btn-primary btn-lg w-50" onclick="carga_libro_cobros()">
+                                <button class="btn btn-primary btn-lg w-50" onclick="carga_comision()">
                                     <i class="text-white fa-solid fa-paper-plane"></i> Solicitar
                                 </button>
                             </div>
@@ -75,24 +64,18 @@
                                     <tr>
                                         <th>Vendedor</th>
                                         <th>Cliente</th>
-                                        <th>No. FACT</th>
+                                        <th>Factura</th>
                                         <th>Cod. Prod</th>
-                                        <th>Precio</th>
-                                        <th>Cantidad</th>
-                                        <th>Obs.</th>
+                                        <th>Observacion</th>
                                         <th>Exonerado</th>
-                                        <th>Gravado</th>
-                                        <th>Exento</th>
+                                        <th>Excento</th>
                                         <th>Abono</th>
-                                        <th>Base Com.</th>
+                                        <th>Base Comisionable</th>
                                         <th>Isv</th>
                                         <th>Total</th>
-                                        <th>Entrega</th>
-                                        <th>Vencimiento</th>
-                                        <th>Pago</th>
-                                        <th>(N-30)</th>
-                                        <th>(N-60)</th>
-                                        <th>(N-90)</th>
+                                        <th>Fecha Pago.</th>
+                                        <th>Fecha Entrega</th>
+                                        <th>Fecha Vencimiento</th>
 
                                         <th>(BA-30)</th>
                                         <th>(BA-60)</th>
@@ -114,9 +97,6 @@
                                         <th>(PD-30)</th>
                                         <th>(PD-60)</th>
                                         <th>(PD-90)</th>
-
-
-                                        <th>Comisión Total</th>
                                     </tr>
                                 </thead>
 
