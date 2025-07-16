@@ -420,6 +420,8 @@
                                                     <option class="form-control" value="1">EFECTIVO</option>
                                                     <option class="form-control"  value="2">TRANSFERENCIA BANCARIA</option>
                                                     <option class="form-control"  value="3">CHEQUE</option>
+                                                    <option class="form-control"  value="4">LINK DE PAGO</option>
+                                                    <option class="form-control"  value="5">POS</option>
                                                  </select>
                                             </div>
 

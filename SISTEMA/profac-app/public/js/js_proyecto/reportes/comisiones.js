@@ -1,10 +1,31 @@
-function cargaCierreDiario() {
-    $("#tbl_cierre_diario").dataTable().fnDestroy();
+
+/* COMISIONES */
+ $('#vendedor').select2({
+                ajax:{
+                    url:'/ventas/corporativo/vendedores',
+                    data: function(params) {
+                        var query = {
+                            search: params.term,
+                            type: 'public',
+                            page: params.page || 1
+                        }
+
+                        // Query parameters will be ?search=[term]&type=public
+                        return query;
+                    }
+
+                }
+            });
+/* */
+
+function carga_comision() {
+    $("#tbl_comisiones").dataTable().fnDestroy();
 
     var fechaInicioInput = document.getElementById('fecha_inicio').value;
     var fechaFinalInput = document.getElementById('fecha_final').value;
+    var vendedor = document.getElementById('vendedor').value;
 
-     // Verificamos si las fechas están vacías
+    // Verificamos si las fechas están vacías
     if (!fechaInicioInput || !fechaFinalInput) {
         //document.getElementById('fecha_facturas_anuladas').style.display = 'block';
         document.getElementById('fecha_inicio').style.borderColor = 'red';
@@ -14,20 +35,24 @@ function cargaCierreDiario() {
 
     document.getElementById('fecha_inicio').style.borderColor = '';
     document.getElementById('fecha_final').style.borderColor = '';
+    //document.getElementById('fecha_facturas_anuladas').style.display = 'none';
 
     var fechaInicio = new Date(fechaInicioInput).toISOString().split('T')[0]; // Convertir fecha de inicio a formato ISO (YYYY-MM-DD)
     var fechaFinal = new Date(fechaFinalInput).toISOString().split('T')[0]; // Convertir fecha final a formato ISO (YYYY-MM-DD)
 
-    $('#tbl_cierre_diario').DataTable({
-        "order": ['0', 'desc'],
-        "paging": true,
+    $('#tbl_comisiones').DataTable({
+        order: ['0', 'desc'],
+        paging: true,
+        language: {
+            url: "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
+        },
         pageLength: 8,
         responsive: true,
-        dom: '<"html5buttons"B>lTfgitp',
+        dom: '<"html5buttons"B>lTfgitp', // Mantén el DOM como estaba
         buttons: [
             {
                 extend: 'excelHtml5',
-                title: 'Cierre_Diario',
+                title: 'Comisiones',
                 text: '<i class="fa-solid fa-file-excel"></i> Exportar a Excel',
                 className: 'btn-excel',
                 action: function(){
@@ -36,7 +61,7 @@ function cargaCierreDiario() {
             },
             {
                 extend: 'pdfHtml5',
-                title: 'Cierre_Diario',
+                title: 'Comisiones',
                 text: '<i class="fa-solid fa-file-pdf"></i> Exportar a PDF',
                 className: 'btn-pdf',
                 action: function () {
@@ -44,40 +69,56 @@ function cargaCierreDiario() {
             }
         }
         ],
-        "ajax":  "/reporte/Cierrediariorep/consulta/"+1+"/"+fechaInicio+"/"+fechaFinal,
-        "columns": [
-            { data: 'FECHA DE CIERRE' },
-            { data: 'REGISTRADO POR' },
-            { data: 'ESTADO DE CAJA' },
-            { data: 'FACTURA' },
-            { data: 'CLIENTE' },
+        ajax: "/reporte/comisiones/consulta/" +fechaInicio+"/"+fechaFinal+"/"+vendedor,
+        columns: [
             { data: 'VENDEDOR' },
-            { data: 'SUBTOTAL FACTURADO' },
-            { data: 'ISV FACTURADO' },
-            { data: 'TOTAL FACTURADO' },
-            { data: 'CALIDAD DE FACTURA' },
-            { data: 'TIPO DE CLIENTE' },
-            { data: 'PAGO POR' },
-            { data: 'BANCO' },
-            { data: 'FECHA DE PAGO' }
+            { data: 'CLIENTE' },
+            { data: 'FACTURA' },
+            { data: 'IDPRODUCTO' },
+            { data: 'OBSERVACION' },
+            { data: 'EXONERADO' },
+            { data: 'EXCENTO' },
+            { data: 'ABONO' },
+            { data: 'BASECOMISIONABLE' },
+            { data: 'ISV' },
+            { data: 'TOTAL' },
+            { data: 'FECHADEPAGO' },
+            { data: 'FECHAENTREGA' },
+            { data: 'FECHAVENCIMIENTO' },
+            { data: 'pb_30' },
+            { data: 'pb_60' },
+            { data: 'pb_90' },
+            { data: 'p1_30' },
+            { data: 'p1_60' },
+            { data: 'p1_90' },
+            { data: 'p2_30' },
+            { data: 'p2_60' },
+            { data: 'p2_90' },
+            { data: 'p3_30' },
+            { data: 'p3_60' },
+            { data: 'p3_90' },
+            { data: 'p4_30' },
+            { data: 'p4_60' },
+            { data: 'p3_90' }
+
         ],
         initComplete: function () {
-            var r = $('#tbl_cierre_diario tfoot tr');
+            var r = $('#tbl_comisiones tfoot tr');
             r.find('th').each(function(){
-              $(this).css('padding', 8);
+                $(this).css('padding', 8);
             });
-            $('#tbl_cierre_diario thead').append(r);
+            $('#tbl_comisiones thead').append(r);
             $('#search_0').css('text-align', 'center');
             this.api().columns().every(function () {
                 let column = this;
                 let title = column.footer().textContent;
 
-                // Create input element
+                // Crear un input para cada columna
                 let input = document.createElement('input');
                 input.placeholder = title;
                 column.footer().replaceChildren(input);
 
-                // Event listener for user input
+                // Event listener para la búsqueda
                 input.addEventListener('keyup', () => {
                     if (column.search() !== this.value) {
                         column.search(input.value).draw();
@@ -115,20 +156,18 @@ function exportarPdf() {
     // Configurar el formulario de envío POST
     var form = document.createElement('form');
     form.method = 'POST';
-    form.action = '/reporte/Cierrediariorep/exportar-pdf/1/' + encodeURIComponent(fechaInicioFormat) + '/' + encodeURIComponent(fechaFinalFormat);
+    form.action = '/reporte/Librocobrosrep/exportar-pdf/3/' + encodeURIComponent(fechaInicioFormat) + '/' + encodeURIComponent(fechaFinalFormat);
 
-    // Agregar token CSRF
-    var csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
     var csrfInput = document.createElement('input');
     csrfInput.type = 'hidden';
     csrfInput.name = '_token';
     csrfInput.value = csrfToken;
     form.appendChild(csrfInput);
 
-    // Enviar el formulario
     document.body.appendChild(form);
     form.submit();
 }
+
 function exportarExcel() {
     var fechaInicio = document.getElementById('fecha_inicio').value;
     var fechaFinal = document.getElementById('fecha_final').value;
@@ -155,7 +194,7 @@ function exportarExcel() {
 
     var form = document.createElement('form');
     form.method = 'POST';
-    form.action = '/reporte/Cierrediariorep/exportar-excel/1/' + encodeURIComponent(fechaInicioFormat) + '/' + encodeURIComponent(fechaFinalFormat);
+    form.action = '/reporte/Librocobrosrep/exportar-excel/3/' + encodeURIComponent(fechaInicioFormat) + '/' + encodeURIComponent(fechaFinalFormat);
 
     var csrfInput = document.createElement('input');
     csrfInput.type = 'hidden';

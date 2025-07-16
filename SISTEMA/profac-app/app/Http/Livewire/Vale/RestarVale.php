@@ -223,8 +223,9 @@ class RestarVale extends Component
 
             }
 
-
+            //dd($this->arrayProductos);
             ModelVentaProducto::insert($this->arrayProductos);
+
             ModelLogTranslados::insert($this->arrayLogs);
 
             $vale =  ModelVale::find($request->idVale);

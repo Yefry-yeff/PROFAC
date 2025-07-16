@@ -113,6 +113,7 @@ use App\Http\Livewire\CierreDiario\HistoricoCierres;
 use App\Http\Livewire\Cardex\Cardextres;
 //------------Reporte Cierre Diario-------//
 use App\Http\Livewire\Reportes\Cierrediariorep;
+use App\Http\Livewire\Reportes\Comisiones;
 use App\Http\Livewire\Reportes\Facturasanuladasrep;
 use App\Http\Livewire\Reportes\Librocobrosrep;
 use App\Http\Livewire\Reportes\Libroventarep;
@@ -847,6 +848,11 @@ Route::post('/reporte/Cierrediariorep/exportar-pdf/{tipo}/{fechaInicio}/{fechaFi
     ->name('reporte.Cierrediariorep.pdf');
 Route::post('/reporte/Cierrediariorep/exportar-excel/{tipo}/{fechaInicio}/{fechaFinal}', [Cierrediariorep::class, 'exportarExcel'])
     ->name('reporte.Cierrediariorep.excel');
+
+
+Route::get('/reporte/comisiones', Comisiones::class);
+
+Route::get('/reporte/comisiones/consulta/{fechaInicio}/{fechaFinal}/{vendedor}', [Comisiones::class, 'consulta']);
 
     //------------------------------- Facturas Anuladas ----------------------------//
 Route::get('/reporte/Facturasanuladasrep', Facturasanuladasrep::class);
