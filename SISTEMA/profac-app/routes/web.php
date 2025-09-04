@@ -140,19 +140,6 @@ Route::middleware(['auth:sanctum', 'verified'])->get('/dashboard', function () {
 })->name('dashboard');
 
 
-// Ruta temporal sin middleware para testing
-Route::post('/test/barcode', function(\Illuminate\Http\Request $request) {
-    return response()->json([
-        'success' => true,
-        'message' => 'Ruta temporal funcionando',
-        'data_received' => $request->all(),
-        'timestamp' => now()
-    ], 200);
-});
-
-// Ruta de barcode fuera del middleware (temporal)
-Route::post('/ventas/datos/producto/expo-temp', [App\Http\Livewire\Cotizaciones\expo::class, 'obtenerDatosProductoExpo']);
-
 Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 
     //---------------------------------------configuracion-------------------------------//
@@ -430,16 +417,6 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
         Route::get('/productos/listar/', [expo::class, 'productoBodega']);
         Route::get('/info/producto/expo/{id}', [expo::class, 'infoProducto']);
         Route::post('/ventas/datos/producto/expo', [expo::class, 'obtenerDatosProductoExpo']);
-
-// Ruta temporal sin middleware para testing
-Route::post('/test/barcode', function(\Illuminate\Http\Request $request) {
-    return response()->json([
-        'success' => true,
-        'message' => 'Ruta temporal funcionando',
-        'data_received' => $request->all(),
-        'timestamp' => now()
-    ], 200);
-});
 
 
 

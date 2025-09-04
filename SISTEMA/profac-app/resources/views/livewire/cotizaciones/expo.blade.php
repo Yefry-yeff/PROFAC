@@ -1,6 +1,4 @@
 <div>
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    
     @push('styles')
         <style>
 
@@ -864,12 +862,19 @@
                             "code_93_reader"
                         ],
                         debug: {
-                            drawBoundingBox: true,
-                            showFrequency: true,
-                            drawScanline: true,
-                            showPattern: true
-                        },
-                        multiple: false
+                            showCanvas: false,
+                            showPatches: false,
+                            showFoundPatches: false,
+                            showSkeleton: false,
+                            showLabels: false,
+                            showPatchLabels: false,
+                            showRemainingPatchLabels: false,
+                            boxFromPatches: {
+                                showTransformed: false,
+                                showTransformedBox: false,
+                                showBB: false
+                            }
+                        }
                     },
                     locate: true
                 }, function(err) {
@@ -885,287 +890,41 @@
                     
                     Quagga.start();
                     
-                    // Configuración simple para testing
+                    // Configurar variables para control de detección
                     let lastDetectionTime = 0;
-                    let detectionCooldown = 1000; // 1 segundo entre detecciones
+                    let detectionCooldown = 2000; // 2 segundos entre detecciones
                     let detectionCount = 0;
+                    let lastCode = '';
                     
-                    // Evento cuando se detecta un código de barras - SIMPLIFICADO
+                    // Evento cuando se detecta un código de barras
                     Quagga.onDetected(function(data) {
                         const currentTime = Date.now();
                         const code = data.codeResult.code;
                         
-                        console.log("=== DETECCIÓN SIMPLE ===");
-                        console.log("Código detectado:", code);
-                        console.log("Calidad:", data.codeResult.quality);
-                        
-                        // Validación mínima
-                        if (!code || code.length < 3) {
-                            console.log("❌ Código muy corto, ignorado");
+                        // Evitar detecciones duplicadas muy seguidas
+                        if (currentTime - lastDetectionTime < detectionCooldown && code === lastCode) {
                             return;
                         }
                         
-                        // Cooldown simple
-                        if (currentTime - lastDetectionTime < detectionCooldown) {
-                            console.log("❌ Cooldown activo, ignorado");
+                        // Validar que el código tenga una longitud mínima
+                        if (!code || code.length < 3) {
                             return;
                         }
                         
                         lastDetectionTime = currentTime;
+                        lastCode = code;
                         detectionCount++;
                         
-                        console.log(`✅ Código ACEPTADO (${detectionCount}):`, code);
+                        console.log(`Código de barras detectado (${detectionCount}):`, code);
                         
                         // Mostrar el resultado visualmente
-                        console.log('Intentando mostrar resultado visual...');
-                        const resultElement = document.getElementById('barcodeResult');
-                        const scanElement = document.getElementById('scanResult');
-                        
-                        if (resultElement && scanElement) {
-                            resultElement.textContent = code;
-                            scanElement.style.display = 'block';
-                            console.log('Resultado visual mostrado correctamente');
-                        } else {
-                            console.error('Elementos no encontrados:', {
-                                barcodeResult: !!resultElement,
-                                scanResult: !!scanElement
-                            });
-                        }
+                        document.getElementById('barcodeResult').textContent = code;
+                        document.getElementById('scanResult').style.display = 'block';
                         
                         // Detener temporalmente el escáner para procesar
                         Quagga.pause();
-                        console.log('Escáner pausado, iniciando búsqueda de producto...');
-                        
-                        // Override completo de la función para evitar conflictos
-                        window.agregarProductoCarritoBarra = function(codigoBarra) {
-                            console.log('🔍 [NUEVO] Buscando producto:', codigoBarra);
-                            
-                            function playSound(type) {
-                                try {
-                                    let freq = type === 'success' ? 800 : 300;
-                                    let ctx = new (window.AudioContext || window.webkitAudioContext)();
-                                    let osc = ctx.createOscillator();
-                                    let gain = ctx.createGain();
-                                    osc.connect(gain);
-                                    gain.connect(ctx.destination);
-                                    osc.frequency.value = freq;
-                                    osc.type = 'sine';
-                                    gain.gain.setValueAtTime(0.3, ctx.currentTime);
-                                    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
-                                    osc.start();
-                                    osc.stop(ctx.currentTime + 0.2);
-                                } catch(e) { console.log('Sin sonido:', e); }
-                            }
-                            
-                            fetch('/ventas/datos/producto/expo-temp', {
-                                method: 'POST',
-                                headers: {'Content-Type': 'application/json'},
-                                body: JSON.stringify({barraProd: codigoBarra})
-                            })
-                            .then(response => response.json())
-                            .then(data => {
-                                if (data.success) {
-                                    playSound('success');
-                                    Swal.fire({
-                                        icon: 'success',
-                                        title: '🎉 ¡Producto Encontrado!',
-                                        html: `
-                                            <p><b>Código:</b> ${codigoBarra}</p>
-                                            <p><b>Producto:</b> ${data.producto.nombre}</p>
-                                            <p><b>Precio:</b> L. ${data.producto.precio1}</p>
-                                            <hr>
-                                            <p style="color: #28a745;">✅ Listo para agregar</p>
-                                        `,
-                                        confirmButtonText: 'Agregar al Carrito',
-                                        confirmButtonColor: '#28a745'
-                                    });
-                                } else {
-                                    playSound('error');
-                                    Swal.fire({
-                                        icon: 'error',
-                                        title: '❌ Producto No Encontrado',
-                                        html: `
-                                            <p><b>Código:</b> ${codigoBarra}</p>
-                                            <p><b>Estado:</b> No existe en la base de datos</p>
-                                            <hr>
-                                            <p style="color: #666; font-size: 0.9em;">
-                                                Verifique el código o contacte al administrador
-                                            </p>
-                                        `,
-                                        confirmButtonColor: '#d33'
-                                    });
-                                }
-                            })
-                            .catch(err => {
-                                console.error('Error:', err);
-                                playSound('error');
-                                Swal.fire({
-                                    icon: 'error',
-                                    title: 'Error de Conexión',
-                                    text: 'No se pudo conectar con el servidor',
-                                    confirmButtonColor: '#d33'
-                                });
-                            });
-                        };
-                        
-                        // Función de prueba simple
-                        window.testBarcodeSearch = function(code) {
-                            console.log('🧪 TESTING código:', code);
-                            
-                            axios.post('/ventas/datos/producto/expo-temp', {
-                                barraProd: code
-                            })
-                            .then(response => {
-                                console.log('✅ Respuesta exitosa:', response.data);
-                                if (response.data.success) {
-                                    alert(`✅ PRODUCTO ENCONTRADO: ${response.data.producto.nombre}`);
-                                } else {
-                                    alert(`❌ PRODUCTO NO ENCONTRADO: ${code}`);
-                                }
-                            })
-                            .catch(error => {
-                                console.log('❌ Error capturado:', error);
-                                if (error.response && error.response.status === 404) {
-                                    console.log('📄 Datos del error 404:', error.response.data);
-                                    alert(`❌ PRODUCTO NO ENCONTRADO (404): ${error.response.data.message || code}`);
-                                } else {
-                                    alert(`❌ ERROR DE CONEXIÓN: ${error.message}`);
-                                }
-                            });
-                        };
                         
                         // Agregar automáticamente al carrito
-                        window.agregarProductoCarritoBarra = function(codigoBarra) {
-                            console.log('🔍 Buscando producto con código:', codigoBarra);
-                            
-                            // Función para sonidos
-                            function playSound(type) {
-                                try {
-                                    let frequency = type === 'success' ? 800 : 300;
-                                    let duration = type === 'success' ? 200 : 500;
-                                    
-                                    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                                    const oscillator = audioContext.createOscillator();
-                                    const gainNode = audioContext.createGain();
-                                    
-                                    oscillator.connect(gainNode);
-                                    gainNode.connect(audioContext.destination);
-                                    
-                                    oscillator.frequency.value = frequency;
-                                    oscillator.type = 'sine';
-                                    
-                                    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-                                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration / 1000);
-                                    
-                                    oscillator.start(audioContext.currentTime);
-                                    oscillator.stop(audioContext.currentTime + duration / 1000);
-                                } catch (e) {
-                                    console.log('No se pudo reproducir sonido:', e);
-                                }
-                            }
-                            
-                            // Petición al servidor
-                            axios.post('/ventas/datos/producto/expo-temp', {
-                                barraProd: codigoBarra
-                            })
-                            .then(response => {
-                                if (!response.data.success) {
-                                    playSound('error');
-                                    Swal.fire({
-                                        icon: 'error',
-                                        title: '¡Producto No Encontrado!',
-                                        html: `
-                                            <div style="text-align: left;">
-                                                <p><strong>Código escaneado:</strong> ${codigoBarra}</p>
-                                                <p><strong>Estado:</strong> No existe en la base de datos</p>
-                                                <hr>
-                                                <p style="color: #666; font-size: 0.9em;">
-                                                    • Verifique que el código esté completo<br>
-                                                    • Asegúrese de que el producto esté registrado<br>
-                                                    • Contacte al administrador si persiste el problema
-                                                </p>
-                                            </div>
-                                        `,
-                                        confirmButtonText: 'Entendido',
-                                        confirmButtonColor: '#d33'
-                                    });
-                                    return;
-                                }
-                                
-                                playSound('success');
-                                const producto = response.data.producto;
-                                
-                                Swal.fire({
-                                    icon: 'success',
-                                    title: '🎉 ¡Producto Encontrado!',
-                                    html: `
-                                        <div style="text-align: left;">
-                                            <p><strong>Código:</strong> ${codigoBarra}</p>
-                                            <p><strong>Producto:</strong> ${producto.nombre}</p>
-                                            <p><strong>Precio:</strong> L. ${producto.precio1}</p>
-                                            <hr>
-                                            <p style="color: #28a745; font-size: 0.9em;">
-                                                ✅ Producto listo para agregar al carrito
-                                            </p>
-                                        </div>
-                                    `,
-                                    showCancelButton: true,
-                                    confirmButtonText: 'Agregar al Carrito',
-                                    cancelButtonText: 'Cancelar',
-                                    confirmButtonColor: '#28a745'
-                                }).then((result) => {
-                                    if (result.isConfirmed) {
-                                        console.log('Agregando al carrito:', producto);
-                                        // Aquí se puede agregar la lógica del carrito original
-                                        // Por ahora solo mostrar confirmación
-                                        Swal.fire({
-                                            icon: 'success',
-                                            title: 'Agregado al Carrito',
-                                            text: `${producto.nombre} agregado exitosamente`,
-                                            timer: 2000,
-                                            showConfirmButton: false
-                                        });
-                                    }
-                                });
-                            })
-                            .catch(error => {
-                                console.error('Error al buscar producto:', error);
-                                
-                                // Si es un 404, significa que el producto no existe
-                                if (error.response && error.response.status === 404) {
-                                    playSound('error');
-                                    const errorData = error.response.data || {};
-                                    Swal.fire({
-                                        icon: 'error',
-                                        title: '¡Producto No Encontrado!',
-                                        html: `
-                                            <div style="text-align: left;">
-                                                <p><strong>Código escaneado:</strong> ${codigoBarra}</p>
-                                                <p><strong>Estado:</strong> ${errorData.message || 'No existe en la base de datos'}</p>
-                                                <hr>
-                                                <p style="color: #666; font-size: 0.9em;">
-                                                    • Verifique que el código esté completo<br>
-                                                    • Asegúrese de que el producto esté registrado<br>
-                                                    • Contacte al administrador si persiste el problema
-                                                </p>
-                                            </div>
-                                        `,
-                                        confirmButtonText: 'Entendido',
-                                        confirmButtonColor: '#d33'
-                                    });
-                                } else {
-                                    // Otros tipos de errores
-                                    playSound('error');
-                                    Swal.fire({
-                                        icon: 'error',
-                                        title: 'Error de Conexión',
-                                        text: 'No se pudo conectar con el servidor',
-                                        confirmButtonColor: '#d33'
-                                    });
-                                }
-                            });
-                        };
-                        
                         agregarProductoCarritoBarra(code);
                         
                         // Reactivar el escáner después de un tiempo
