@@ -1039,3 +1039,193 @@
 
                 }
             }
+
+            // Función para agregar producto al carrito mediante código de barras
+            function agregarProductoCarritoBarra(codigoBarra) {
+                console.log('Buscando producto con código de barras:', codigoBarra);
+                
+                // Usar el método existente obtenerDatosProductoExpo
+                axios.post('/ventas/datos/producto/expo', {
+                    barraProd: codigoBarra
+                })
+                .then(response => {
+                    let producto = response.data.producto;
+                    let arrayUnidades = response.data.unidades;
+
+                    if (!producto || !producto.id) {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Producto no encontrado!',
+                            text: `No se encontró ningún producto con el código de barras: ${codigoBarra}`,
+                            timer: 3000
+                        });
+                        return;
+                    }
+
+                    // Usar la misma lógica que agregarProductoCarrito
+                    let bodega = 'SALA DE VENTAS';
+                    let idBodega = 16;
+                    let idSeccion = 156;
+                    let idProducto = producto.id;
+
+                    // Verificar si el producto ya existe en el carrito
+                    let flag = false;
+                    arregloIdInputs.forEach(idInpunt => {
+                        let idProductoFila = document.getElementById("idProducto" + idInpunt).value;
+                        let idSeccionFila = document.getElementById("idSeccion" + idInpunt).value;
+
+                        if (idProducto == idProductoFila && idSeccion == idSeccionFila && !flag) {
+                            flag = true;
+                        }
+                    });
+
+                    if (flag) {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Producto ya agregado!',
+                            text: 'Este producto ya se encuentra en el carrito. Modifique la cantidad si es necesario.',
+                            timer: 3000
+                        });
+                        return;
+                    }
+
+                    numeroInputs += 1;
+
+                    let htmlSelectUnidades = "";
+                    let htmlprecios = `
+                    <option data-id="0" selected>--Seleccione precio--</option>
+                    <option  value="${producto.precio_base}" data-id="pb">${producto.precio_base} - Base</option>
+                    <option  value="${producto.precio1}" data-id="p1">${producto.precio1} - A</option>
+                    <option  value="${producto.precio2}" data-id="p2">${producto.precio2} - B</option>
+                    <option  value="${producto.precio3}" data-id="p3">${producto.precio3} - C</option>
+                    <option  value="${producto.precio4}" data-id="p4">${producto.precio4} - D</option>
+                    `;
+
+                    arrayUnidades.forEach(unidad => {
+                        if (unidad.valor_defecto == 1) {
+                            htmlSelectUnidades +=
+                                `<option selected value="${unidad.id}" data-id="${unidad.idUnidadVenta}">${unidad.nombre}</option>`;
+                        } else {
+                            htmlSelectUnidades +=
+                                `<option  value="${unidad.id}" data-id="${unidad.idUnidadVenta}">${unidad.nombre}</option>`;
+                        }
+                    });
+
+                    let html = `
+                    <div id='${numeroInputs}' class="row no-gutters">
+                        <div class="form-group col-3">
+                            <div class="d-flex">
+                                <button class="btn btn-danger" type="button" style="display: inline" onclick="eliminarInput(${numeroInputs})"><i
+                                        class="fa-regular fa-rectangle-xmark"></i>
+                                </button>
+                                <input id="idProducto${numeroInputs}" name="idProducto${numeroInputs}" type="hidden" value="${producto.id}">
+                                <div style="width:100%">
+                                    <label for="nombre${numeroInputs}" class="sr-only">Producto</label>
+                                    <input type="text" placeholder="Producto" id="nombre${numeroInputs}"
+                                        name="nombre${numeroInputs}" class="form-control"
+                                        data-parsley-required 
+                                        autocomplete="off"
+                                        readonly
+                                        value='${producto.nombre} 📱'
+                                        style="background-color: #e8f5e8; border-color: #28a745;">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group col-1">
+                            <label for="" class="sr-only">cantidad</label>
+                            <input type="text" value="${bodega}" placeholder="Bodega" id="bodega${numeroInputs}"
+                                name="bodega${numeroInputs}" class="form-control"
+                                autocomplete="off"  readonly  >
+                        </div>
+                        <div class="form-group col-2">
+                            <label for="" class="sr-only">precios</label>
+                            <select class="form-control" name="precios${numeroInputs}" id="precios${numeroInputs}"
+                                data-parsley-required style="height:35.7px;"
+                                onchange="validacionPrecio(precios${numeroInputs}, precio${numeroInputs})"
+                                >
+                                    ${htmlprecios}
+                            </select>
+                        </div>
+                        <div class="form-group col-1">
+                            <label for="precio${numeroInputs}" class="sr-only">Precio</label>
+                            <input type="number" placeholder="Precio Unidad" id="precio${numeroInputs}"
+                                name="precio${numeroInputs}" class="form-control"  data-parsley-required step="any"
+                                autocomplete="off" onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
+                        </div>
+                        <div class="form-group col-1">
+                            <label for="cantidad${numeroInputs}" class="sr-only">cantidad</label>
+                            <input type="number" placeholder="Cantidad" id="cantidad${numeroInputs}"
+                                name="cantidad${numeroInputs}" class="form-control" min="1" data-parsley-required
+                                autocomplete="off" value="1" onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
+                        </div>
+                        <div class="form-group col-1">
+                            <label for="" class="sr-only">unidad</label>
+                            <select class="form-control" name="unidad${numeroInputs}" id="unidad${numeroInputs}"
+                                data-parsley-required style="height:35.7px;"
+                                onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
+                                    ${htmlSelectUnidades}
+                            </select>
+                        </div>
+                        <div class="form-group col-1">
+                            <label for="subTotalMostrar${numeroInputs}" class="sr-only">Sub Total</label>
+                            <input type="text" placeholder="Sub total" id="subTotalMostrar${numeroInputs}"
+                                name="subTotalMostrar${numeroInputs}" class="form-control"
+                                autocomplete="off"
+                                readonly >
+                            <input id="subTotal${numeroInputs}" name="subTotal${numeroInputs}" type="hidden" value="" required>
+                            <input type="hidden" id="acumuladoDescuento${numeroInputs}" name="acumuladoDescuento${numeroInputs}" >
+                        </div>
+                        <div class="form-group col-1">
+                            <label for="isvProductoMostrar${numeroInputs}" class="sr-only">ISV</label>
+                            <input type="text" placeholder="ISV" id="isvProductoMostrar${numeroInputs}"
+                                name="isvProductoMostrar${numeroInputs}" class="form-control"
+                                autocomplete="off"
+                                readonly >
+                            <input id="isvProducto${numeroInputs}" name="isvProducto${numeroInputs}" type="hidden" value="" required>
+                        </div>
+                        <div class="form-group col-1">
+                            <label for="totalMostrar${numeroInputs}" class="sr-only">Total</label>
+                            <input type="text" placeholder="Total" id="totalMostrar${numeroInputs}"
+                                name="totalMostrar${numeroInputs}" class="form-control"
+                                autocomplete="off"
+                                readonly >
+                            <input id="total${numeroInputs}" name="total${numeroInputs}" type="hidden" value="" required>
+                        </div>
+                        <input id="idBodega${numeroInputs}" name="idBodega${numeroInputs}" type="hidden" value="${idBodega}">
+                        <input id="idSeccion${numeroInputs}" name="idSeccion${numeroInputs}" type="hidden" value="${idSeccion}">
+                        <input id="restaInventario${numeroInputs}" name="restaInventario${numeroInputs}" type="hidden" value="">
+                        <input id="isv${numeroInputs}" name="isv${numeroInputs}" type="hidden" value="${producto.isv}">
+                    </div>
+                    `;
+
+                    arregloIdInputs.splice(numeroInputs, 0, numeroInputs);
+                    document.getElementById('divProductos').insertAdjacentHTML('beforeend', html);
+
+                    // Mostrar mensaje de éxito
+                    Swal.fire({
+                        icon: 'success',
+                        title: '¡Producto escaneado!',
+                        text: `Código: ${codigoBarra} agregado al carrito exitosamente`,
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+
+                    return;
+                })
+                .catch(err => {
+                    console.error('Error al buscar producto por código de barras:', err);
+                    
+                    // Manejar diferentes tipos de errores
+                    let errorMessage = 'No se pudo encontrar el producto con ese código de barras.';
+                    if (err.response && err.response.data && err.response.data.message) {
+                        errorMessage = err.response.data.message;
+                    }
+                    
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error al escanear',
+                        text: errorMessage,
+                        timer: 3000
+                    });
+                });
+            }

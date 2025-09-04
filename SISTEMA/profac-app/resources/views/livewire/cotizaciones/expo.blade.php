@@ -96,6 +96,51 @@
             input[type=number] {
                 -moz-appearance: textfield;
             }
+
+            /* Estilos para el escáner de códigos de barras */
+            #cameraContainer {
+                position: relative;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                background-color: #f8f9fa;
+                border-radius: 8px;
+                overflow: hidden;
+            }
+
+            #videoElement {
+                max-width: 100%;
+                height: auto;
+            }
+
+            .scanner-overlay {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                border: 2px solid #ff0000;
+                border-radius: 4px;
+                width: 250px;
+                height: 150px;
+                box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.3);
+                pointer-events: none;
+                animation: pulse 2s infinite;
+            }
+
+            @keyframes pulse {
+                0% {
+                    border-color: #ff0000;
+                    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.3);
+                }
+                50% {
+                    border-color: #00ff00;
+                    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+                }
+                100% {
+                    border-color: #ff0000;
+                    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.3);
+                }
+            }
         </style>
     @endpush
 
@@ -245,8 +290,43 @@
                                         </select>
                                     </div>
 
-
-
+                                    <!-- Sección para lectura de código de barras con cámara -->
+                                    <div class="col-12 mt-3">
+                                        <div class="card">
+                                            <div class="card-header">
+                                                <h5><i class="fa fa-camera"></i> Lectura de Código de Barras</h5>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="row">
+                                                    <div class="col-12 mb-3">
+                                                        <button type="button" id="btnStartCamera" class="btn btn-info btn-sm me-2">
+                                                            <i class="fa fa-camera"></i> Activar Cámara
+                                                        </button>
+                                                        <button type="button" id="btnStopCamera" class="btn btn-danger btn-sm" style="display: none;">
+                                                            <i class="fa fa-stop"></i> Desactivar Cámara
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <div class="row">
+                                                    <div class="col-12">
+                                                        <!-- Video preview de la cámara -->
+                                                        <div id="cameraContainer" style="display: none;">
+                                                            <video id="videoElement" width="100%" height="300" style="border: 2px solid #007bff; border-radius: 8px;"></video>
+                                                            <canvas id="canvasElement" style="display: none;"></canvas>
+                                                        </div>
+                                                        <!-- Mensaje de estado -->
+                                                        <div id="scannerStatus" class="alert alert-info" style="display: none;">
+                                                            <i class="fa fa-info-circle"></i> <span id="statusMessage">Enfoque el código de barras hacia la cámara...</span>
+                                                        </div>
+                                                        <!-- Resultado del escaneo -->
+                                                        <div id="scanResult" class="alert alert-success" style="display: none;">
+                                                            <strong>Código escaneado:</strong> <span id="barcodeResult"></span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
 
                                 </div>
 
@@ -568,5 +648,156 @@
         </script>
 
         <script src="{{ asset('js/js_proyecto/cotizaciones/expo.js') }}"></script>
+        
+        <!-- QuaggaJS para lectura de códigos de barras -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+        
+        <script>
+            // Variables globales para el escáner
+            let isScanning = false;
+            let videoStream = null;
+
+            // Función para inicializar el escáner
+            function initBarcodeScanner() {
+                const video = document.getElementById('videoElement');
+                const canvas = document.getElementById('canvasElement');
+                const cameraContainer = document.getElementById('cameraContainer');
+                const scannerStatus = document.getElementById('scannerStatus');
+                const statusMessage = document.getElementById('statusMessage');
+                
+                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                    navigator.mediaDevices.getUserMedia({
+                        video: {
+                            facingMode: 'environment', // Usar cámara trasera preferentemente
+                            width: { ideal: 640 },
+                            height: { ideal: 480 }
+                        }
+                    })
+                    .then(function(stream) {
+                        videoStream = stream;
+                        video.srcObject = stream;
+                        video.play();
+                        
+                        cameraContainer.style.display = 'block';
+                        scannerStatus.style.display = 'block';
+                        statusMessage.textContent = 'Cámara activada. Enfoque el código de barras...';
+                        
+                        // Agregar overlay de escaneo
+                        if (!document.querySelector('.scanner-overlay')) {
+                            const overlay = document.createElement('div');
+                            overlay.className = 'scanner-overlay';
+                            cameraContainer.appendChild(overlay);
+                        }
+                        
+                        startQuaggaScanner();
+                        isScanning = true;
+                        
+                        document.getElementById('btnStartCamera').style.display = 'none';
+                        document.getElementById('btnStopCamera').style.display = 'inline-block';
+                    })
+                    .catch(function(err) {
+                        console.error('Error al acceder a la cámara:', err);
+                        statusMessage.textContent = 'Error al acceder a la cámara. Verifique los permisos.';
+                        scannerStatus.className = 'alert alert-danger';
+                    });
+                } else {
+                    statusMessage.textContent = 'Su navegador no soporta acceso a la cámara.';
+                    scannerStatus.className = 'alert alert-warning';
+                    scannerStatus.style.display = 'block';
+                }
+            }
+
+            // Función para inicializar QuaggaJS
+            function startQuaggaScanner() {
+                Quagga.init({
+                    inputStream: {
+                        name: "Live",
+                        type: "LiveStream",
+                        target: document.querySelector('#videoElement'),
+                        constraints: {
+                            width: 640,
+                            height: 480,
+                            facingMode: "environment"
+                        }
+                    },
+                    locator: {
+                        patchSize: "medium",
+                        halfSample: true
+                    },
+                    numOfWorkers: 2,
+                    decoder: {
+                        readers: [
+                            "code_128_reader",
+                            "ean_reader",
+                            "ean_8_reader",
+                            "code_39_reader",
+                            "code_39_vin_reader",
+                            "codabar_reader",
+                            "upc_reader",
+                            "upc_e_reader",
+                            "i2of5_reader",
+                            "2of5_reader",
+                            "code_93_reader"
+                        ]
+                    },
+                    locate: true
+                }, function(err) {
+                    if (err) {
+                        console.error('Error al inicializar Quagga:', err);
+                        return;
+                    }
+                    console.log("Inicialización completa. Listo para escanear");
+                    Quagga.start();
+                    
+                    // Evento cuando se detecta un código de barras
+                    Quagga.onDetected(function(data) {
+                        const code = data.codeResult.code;
+                        console.log('Código de barras detectado:', code);
+                        
+                        // Mostrar el resultado
+                        document.getElementById('barcodeResult').textContent = code;
+                        document.getElementById('scanResult').style.display = 'block';
+                        
+                        // Agregar automáticamente al carrito
+                        agregarProductoCarritoBarra(code);
+                        
+                        // Opcional: detener el escáner después de una lectura exitosa
+                        // setTimeout(stopBarcodeScanner, 2000);
+                    });
+                });
+            }
+
+            // Función para detener el escáner
+            function stopBarcodeScanner() {
+                if (isScanning) {
+                    Quagga.stop();
+                    isScanning = false;
+                }
+                
+                if (videoStream) {
+                    videoStream.getTracks().forEach(track => track.stop());
+                    videoStream = null;
+                }
+                
+                document.getElementById('cameraContainer').style.display = 'none';
+                document.getElementById('scannerStatus').style.display = 'none';
+                document.getElementById('scanResult').style.display = 'none';
+                
+                document.getElementById('btnStartCamera').style.display = 'inline-block';
+                document.getElementById('btnStopCamera').style.display = 'none';
+                
+                // Remover overlay
+                const overlay = document.querySelector('.scanner-overlay');
+                if (overlay) {
+                    overlay.remove();
+                }
+            }
+
+            // Event listeners para los botones
+            document.addEventListener('DOMContentLoaded', function() {
+                document.getElementById('btnStartCamera').addEventListener('click', initBarcodeScanner);
+                document.getElementById('btnStopCamera').addEventListener('click', stopBarcodeScanner);
+            });
+        </script>
     @endpush
 </div>
