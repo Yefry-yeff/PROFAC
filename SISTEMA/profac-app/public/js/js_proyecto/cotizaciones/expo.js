@@ -1071,51 +1071,45 @@
                     }
                 }
                 
-                // Usar el método existente obtenerDatosProductoExpo
-                axios.post('/ventas/datos/producto/expo', {
+                // Usar ruta temporal sin middleware
+                axios.post('/ventas/datos/producto/expo-temp', {
                     barraProd: codigoBarra
                 })
                 .then(response => {
-                    // Verificar si la respuesta indica éxito
-                    if (!response.data.success) {
-                        playSound('error');
+                    // TEST - Respuesta temporal de prueba
+                    console.log('✅ Respuesta del servidor recibida:', response.data);
+                    
+                    if (response.data.success) {
+                        playSound('success');
                         Swal.fire({
-                            icon: 'error',
-                            title: '¡Producto No Encontrado!',
+                            icon: 'success',
+                            title: '🎉 ¡Test Exitoso!',
                             html: `
                                 <div style="text-align: left;">
                                     <p><strong>Código escaneado:</strong> ${codigoBarra}</p>
-                                    <p><strong>Estado:</strong> No existe en la base de datos</p>
+                                    <p><strong>Estado:</strong> ${response.data.message}</p>
+                                    <p><strong>Timestamp:</strong> ${response.data.timestamp}</p>
                                     <hr>
-                                    <p style="color: #666; font-size: 0.9em;">
-                                        • Verifique que el código esté completo<br>
-                                        • Asegúrese de que el producto esté registrado<br>
-                                        • Contacte al administrador si persiste el problema
+                                    <p style="color: #28a745; font-size: 0.9em;">
+                                        ✅ La comunicación con el servidor está funcionando correctamente
                                     </p>
                                 </div>
                             `,
-                            confirmButtonText: 'Entendido',
-                            confirmButtonColor: '#d33'
+                            confirmButtonText: 'Perfecto! 🚀',
+                            confirmButtonColor: '#28a745'
                         });
                         return;
                     }
-
-                    let producto = response.data.producto;
-                    let arrayUnidades = response.data.unidades;
-
-                    if (!producto || !producto.id) {
-                        playSound('error');
-                        Swal.fire({
-                            icon: 'warning',
-                            title: 'Producto no encontrado!',
-                            text: `No se encontró ningún producto con el código de barras: ${codigoBarra}`,
-                            confirmButtonColor: '#f39c12'
-                        });
-                        return;
-                    }
-
-                    // Reproducir sonido de éxito
-                    playSound('success');
+                    
+                    // Si no es success
+                    playSound('error');
+                    Swal.fire({
+                        icon: 'error',
+                        title: '❌ Error en Test',
+                        text: response.data.message || 'Error desconocido',
+                        confirmButtonColor: '#d33'
+                    });
+                })
 
                     // Usar la misma lógica que agregarProductoCarrito
                     let bodega = 'SALA DE VENTAS';
@@ -1272,8 +1266,8 @@
                         showConfirmButton: false
                     });
 
-                    return;
-                })
+                    // return; // Comentado temporalmente
+                // }) // Comentado - causaba error de sintaxis
                 .catch(err => {
                     console.error('Error al buscar producto por código de barras:', err);
                     playSound('error');

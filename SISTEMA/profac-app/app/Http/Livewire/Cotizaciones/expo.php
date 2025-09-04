@@ -77,12 +77,107 @@ class expo extends Component
 
     public function obtenerDatosProductoExpo(Request $request)
     {
-        // Test simple para verificar que el método se ejecuta
-        return response()->json([
-            'success' => true,
-            'message' => 'Método funcionando correctamente',
-            'data_received' => $request->all()
-        ], 200);
+        try {
+            // Log para debugging
+            Log::info('obtenerDatosProductoExpo called with:', $request->all());
+            
+            // Validar que se envío el código de barras
+            if (!$request->has('barraProd') || empty($request['barraProd'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Código de barras no proporcionado.'
+                ], 400);
+            }
+
+            $codigoBarra = $request['barraProd'];
+            Log::info('Buscando producto con código de barras:', ['codigo' => $codigoBarra]);
+            
+            // Buscar producto por código de barras
+            $productoBarra = DB::selectOne("
+                SELECT id 
+                FROM producto 
+                WHERE codigo_barra = ?
+                AND estado_producto_id = 1
+            ", [$codigoBarra]);
+
+            // Si no se encuentra el producto, retornar error específico
+            if (!$productoBarra) {
+                Log::info('Producto no encontrado:', ['codigo' => $codigoBarra]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'PRODUCTO NO ENCONTRADO',
+                    'codigo_barra' => $codigoBarra
+                ], 404);
+            }
+
+            Log::info('Producto encontrado:', ['id' => $productoBarra->id]);
+
+            // Obtener unidades del producto (sin filtro de estado por ahora)
+            $unidades = DB::SELECT("
+                SELECT
+                    A.unidad_venta as id,
+                    CONCAT(B.nombre,'-',A.unidad_venta) as nombre,
+                    A.unidad_venta_defecto as 'valor_defecto',
+                    A.id as idUnidadVenta
+                FROM unidad_medida_venta A
+                INNER JOIN unidad_medida B ON A.unidad_medida_id = B.id
+                WHERE A.producto_id = ?
+            ", [$productoBarra->id]);
+
+            // Obtener datos completos del producto
+            $producto = DB::selectOne("
+                SELECT
+                    id,
+                    CONCAT(id,' - ',nombre) as nombre,
+                    isv,
+                    ultimo_costo_compra as ultimo_costo_compra,
+                    precio_base as precio_base,
+                    precio1 as precio1,
+                    precio2 as precio2,
+                    precio3 as precio3,
+                    precio4 as precio4
+                FROM producto 
+                WHERE id = ?
+            ", [$productoBarra->id]);
+
+            Log::info('Datos del producto obtenidos correctamente');
+
+            return response()->json([
+                "success" => true,
+                "producto" => $producto,
+                "unidades" => $unidades
+            ], 200);
+
+        } catch (\Exception $e) {
+            Log::error('Error en obtenerDatosProductoExpo:', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'ERROR AL ESCANEAR PRODUCTO.',
+                'error' => $e->getMessage(),
+                'details' => [
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine()
+                ]
+            ], 500);
+        } catch (QueryException $e) {
+            Log::error('Error SQL en obtenerDatosProductoExpo:', [
+                'message' => $e->getMessage(),
+                'sql' => $e->getSql() ?? 'No SQL available',
+                'bindings' => $e->getBindings() ?? []
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'ERROR AL ESCANEAR PRODUCTO.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
     public function listarClientes(Request $request)
     {
