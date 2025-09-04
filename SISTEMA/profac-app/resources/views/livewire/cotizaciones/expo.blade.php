@@ -536,7 +536,7 @@
                                 <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
                                     <button id="guardar_cotizacion_btn"
                                         class="btn  btn-primary float-left m-t-n-xs"><strong>
-                                            Guardar Cotizacion</strong></button>
+                                            Guardar </strong></button>
                                 </div>
                             </div>
 
