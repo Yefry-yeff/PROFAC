@@ -149,18 +149,6 @@
                 white-space: nowrap;
             }
 
-            .scanner-overlay::after {
-                content: '';
-                position: absolute;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                width: 2px;
-                height: 60%;
-                background: #ff0000;
-                animation: scanLine 1.5s infinite ease-in-out;
-            }
-
             @keyframes scannerPulse {
                 0%, 100% {
                     border-color: #ff0000;
@@ -175,21 +163,6 @@
                         0 0 0 2000px rgba(0, 0, 0, 0.5),
                         inset 0 0 0 2px rgba(255, 255, 255, 0.3),
                         0 0 25px rgba(0, 255, 0, 0.7);
-                }
-            }
-
-            @keyframes scanLine {
-                0% {
-                    opacity: 1;
-                    transform: translate(-50%, -50%) scaleY(1);
-                }
-                50% {
-                    opacity: 0.6;
-                    transform: translate(-50%, -50%) scaleY(0.8);
-                }
-                100% {
-                    opacity: 1;
-                    transform: translate(-50%, -50%) scaleY(1);
                 }
             }
 
@@ -899,7 +872,10 @@
                     // Evento cuando se detecta un código de barras
                     Quagga.onDetected(function(data) {
                         const currentTime = Date.now();
-                        const code = data.codeResult.code;
+                        let code = data.codeResult.code;
+                        
+                        // Omitir los ceros a la izquierda
+                        code = code.replace(/^0+/, '') || '0';
                         
                         // Evitar detecciones duplicadas muy seguidas
                         if (currentTime - lastDetectionTime < detectionCooldown && code === lastCode) {
@@ -979,6 +955,317 @@
                 document.getElementById('btnStartCamera').addEventListener('click', initBarcodeScanner);
                 document.getElementById('btnStopCamera').addEventListener('click', stopBarcodeScanner);
             });
+
+            // Función de prueba para debuggear
+            window.testBarcodeAPI = function(codigo) {
+                codigo = codigo || '849607055569';
+                console.log('Probando API con código:', codigo);
+                
+                const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                
+                fetch('/ventas/datos/producto/expo', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': token,
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        barraProd: codigo
+                    })
+                })
+                .then(response => {
+                    console.log('Status:', response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Respuesta completa:', data);
+                    
+                    if (data.success) {
+                        console.log('✅ Producto encontrado:', data.producto.nombre);
+                        alert(`✅ Producto encontrado: ${data.producto.nombre}\nCódigo: ${codigo}\nPrecio: L. ${data.producto.precio_base}`);
+                    } else {
+                        console.log('❌ Producto no encontrado');
+                        alert(`❌ Producto no encontrado con código: ${codigo}`);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert(`❌ Error de conexión: ${error.message}`);
+                });
+            };
+
+            // Función para agregar producto al carrito mediante código de barras
+            window.agregarProductoCarritoBarra = function(codigoBarra) {
+                console.log('Buscando producto con código de barras:', codigoBarra);
+                
+                // Función para reproducir sonido
+                function playSound(type) {
+                    try {
+                        let frequency = type === 'success' ? 800 : 300;
+                        let duration = type === 'success' ? 200 : 500;
+                        
+                        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                        const oscillator = audioContext.createOscillator();
+                        const gainNode = audioContext.createGain();
+                        
+                        oscillator.connect(gainNode);
+                        gainNode.connect(audioContext.destination);
+                        
+                        oscillator.frequency.value = frequency;
+                        oscillator.type = 'sine';
+                        
+                        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration / 1000);
+                        
+                        oscillator.start(audioContext.currentTime);
+                        oscillator.stop(audioContext.currentTime + duration / 1000);
+                    } catch (e) {
+                        console.log('No se pudo reproducir el sonido:', e);
+                    }
+                }
+                
+                // Obtener token CSRF
+                const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                
+                // Hacer petición al backend
+                fetch('/ventas/datos/producto/expo', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': token
+                    },
+                    body: JSON.stringify({
+                        barraProd: codigoBarra
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Respuesta del servidor:', data);
+                    
+                    if (!data.success) {
+                        playSound('error');
+                        Swal.fire({
+                            icon: 'error',
+                            title: '¡Producto No Encontrado!',
+                            html: `
+                                <div style="text-align: left;">
+                                    <p><strong>Código escaneado:</strong> ${codigoBarra}</p>
+                                    <p><strong>Estado:</strong> No existe en la base de datos</p>
+                                    <hr>
+                                    <p style="color: #666; font-size: 0.9em;">
+                                        • Verifique que el código esté completo<br>
+                                        • Asegúrese de que el producto esté registrado<br>
+                                        • Contacte al administrador si persiste el problema
+                                    </p>
+                                </div>
+                            `,
+                            confirmButtonText: 'Entendido',
+                            confirmButtonColor: '#d33'
+                        });
+                        return;
+                    }
+                    
+                    // Verificar que tenemos los datos necesarios
+                    const producto = data.producto;
+                    const arrayUnidades = data.unidades;
+                    
+                    if (!producto || !producto.id) {
+                        playSound('error');
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Datos incompletos',
+                            text: `El producto con código ${codigoBarra} no tiene datos válidos.`,
+                            confirmButtonColor: '#f39c12'
+                        });
+                        return;
+                    }
+                    
+                    // Reproducir sonido de éxito
+                    playSound('success');
+                    
+                    // Usar la misma lógica que agregarProductoCarrito
+                    let bodega = 'SALA DE VENTAS';
+                    let idBodega = 16;
+                    let idSeccion = 156;
+                    let idProducto = producto.id;
+                    
+                    // Verificar si el producto ya existe en el carrito
+                    let flag = false;
+                    if (typeof arregloIdInputs !== 'undefined') {
+                        arregloIdInputs.forEach(idInpunt => {
+                            let idProductoFila = document.getElementById("idProducto" + idInpunt)?.value;
+                            let idSeccionFila = document.getElementById("idSeccion" + idInpunt)?.value;
+
+                            if (idProducto == idProductoFila && idSeccion == idSeccionFila && !flag) {
+                                flag = true;
+                            }
+                        });
+                    }
+                    
+                    if (flag) {
+                        playSound('error');
+                        Swal.fire({
+                            icon: 'info',
+                            title: '¡Producto ya agregado!',
+                            text: 'Este producto ya se encuentra en el carrito. Modifique la cantidad si es necesario.',
+                            confirmButtonColor: '#17a2b8'
+                        });
+                        return;
+                    }
+                    
+                    // Incrementar contador y agregar a array
+                    if (typeof numeroInputs !== 'undefined') {
+                        numeroInputs += 1;
+                    } else {
+                        window.numeroInputs = 1;
+                    }
+                    
+                    // Construir HTML de unidades
+                    let htmlSelectUnidades = "";
+                    arrayUnidades.forEach(unidad => {
+                        if (unidad.valor_defecto == 1) {
+                            htmlSelectUnidades += `<option selected value="${unidad.id}" data-id="${unidad.idUnidadVenta}">${unidad.nombre}</option>`;
+                        } else {
+                            htmlSelectUnidades += `<option value="${unidad.id}" data-id="${unidad.idUnidadVenta}">${unidad.nombre}</option>`;
+                        }
+                    });
+
+                    // Construir HTML de precios
+                    let htmlprecios = `
+                        <option data-id="0" selected>--Seleccione precio--</option>
+                        <option value="${producto.precio_base}" data-id="pb">${producto.precio_base} - Base</option>
+                        <option value="${producto.precio1}" data-id="p1">${producto.precio1} - A</option>
+                        <option value="${producto.precio2}" data-id="p2">${producto.precio2} - B</option>
+                        <option value="${producto.precio3}" data-id="p3">${producto.precio3} - C</option>
+                        <option value="${producto.precio4}" data-id="p4">${producto.precio4} - D</option>
+                    `;
+
+                    let currentInputId = typeof numeroInputs !== 'undefined' ? numeroInputs : 1;
+
+                    // Construir HTML completo del producto
+                    let html = `
+                        <div id='${currentInputId}' class="row no-gutters">
+                            <div class="form-group col-3">
+                                <div class="d-flex">
+                                    <button class="btn btn-danger" type="button" style="display: inline" onclick="eliminarInput(${currentInputId})">
+                                        <i class="fa-regular fa-rectangle-xmark"></i>
+                                    </button>
+                                    <input id="idProducto${currentInputId}" name="idProducto${currentInputId}" type="hidden" value="${producto.id}">
+                                    <div style="width:100%">
+                                        <label for="nombre${currentInputId}" class="sr-only">Producto</label>
+                                        <input type="text" placeholder="Producto" id="nombre${currentInputId}"
+                                            name="nombre${currentInputId}" class="form-control"
+                                            data-parsley-required autocomplete="off" readonly
+                                            value='${producto.nombre} 📱'
+                                            style="background-color: #e8f5e8; border-color: #28a745; font-weight: bold;">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group col-1">
+                                <label for="" class="sr-only">Bodega</label>
+                                <input type="text" value="${bodega}" placeholder="Bodega" id="bodega${currentInputId}"
+                                    name="bodega${currentInputId}" class="form-control" autocomplete="off" readonly>
+                            </div>
+                            <div class="form-group col-2">
+                                <label for="" class="sr-only">Precios</label>
+                                <select class="form-control" name="precios${currentInputId}" id="precios${currentInputId}"
+                                    data-parsley-required style="height:35.7px;"
+                                    onchange="validacionPrecio(precios${currentInputId}, precio${currentInputId})">
+                                    ${htmlprecios}
+                                </select>
+                            </div>
+                            <div class="form-group col-1">
+                                <label for="precio${currentInputId}" class="sr-only">Precio</label>
+                                <input type="number" placeholder="Precio Unidad" id="precio${currentInputId}"
+                                    name="precio${currentInputId}" class="form-control" data-parsley-required step="any"
+                                    autocomplete="off" onchange="calcularTotales(precio${currentInputId},cantidad${currentInputId},${producto.isv},unidad${currentInputId},${currentInputId},restaInventario${currentInputId})">
+                            </div>
+                            <div class="form-group col-1">
+                                <label for="cantidad${currentInputId}" class="sr-only">Cantidad</label>
+                                <input type="number" placeholder="Cantidad" id="cantidad${currentInputId}"
+                                    name="cantidad${currentInputId}" class="form-control" min="1" data-parsley-required
+                                    autocomplete="off" value="1" onchange="calcularTotales(precio${currentInputId},cantidad${currentInputId},${producto.isv},unidad${currentInputId},${currentInputId},restaInventario${currentInputId})">
+                            </div>
+                            <div class="form-group col-1">
+                                <label for="" class="sr-only">Unidad</label>
+                                <select class="form-control" name="unidad${currentInputId}" id="unidad${currentInputId}"
+                                    data-parsley-required style="height:35.7px;"
+                                    onchange="calcularTotales(precio${currentInputId},cantidad${currentInputId},${producto.isv},unidad${currentInputId},${currentInputId},restaInventario${currentInputId})">
+                                    ${htmlSelectUnidades}
+                                </select>
+                            </div>
+                            <div class="form-group col-1">
+                                <label for="subTotalMostrar${currentInputId}" class="sr-only">Sub Total</label>
+                                <input type="text" placeholder="Sub total" id="subTotalMostrar${currentInputId}"
+                                    name="subTotalMostrar${currentInputId}" class="form-control" autocomplete="off" readonly>
+                                <input id="subTotal${currentInputId}" name="subTotal${currentInputId}" type="hidden" value="" required>
+                                <input type="hidden" id="acumuladoDescuento${currentInputId}" name="acumuladoDescuento${currentInputId}">
+                            </div>
+                            <div class="form-group col-1">
+                                <label for="isvProductoMostrar${currentInputId}" class="sr-only">ISV</label>
+                                <input type="text" placeholder="ISV" id="isvProductoMostrar${currentInputId}"
+                                    name="isvProductoMostrar${currentInputId}" class="form-control" autocomplete="off" readonly>
+                                <input id="isvProducto${currentInputId}" name="isvProducto${currentInputId}" type="hidden" value="" required>
+                            </div>
+                            <div class="form-group col-1">
+                                <label for="totalMostrar${currentInputId}" class="sr-only">Total</label>
+                                <input type="text" placeholder="Total" id="totalMostrar${currentInputId}"
+                                    name="totalMostrar${currentInputId}" class="form-control" autocomplete="off" readonly>
+                                <input id="total${currentInputId}" name="total${currentInputId}" type="hidden" value="" required>
+                            </div>
+                            <input id="idBodega${currentInputId}" name="idBodega${currentInputId}" type="hidden" value="${idBodega}">
+                            <input id="idSeccion${currentInputId}" name="idSeccion${currentInputId}" type="hidden" value="${idSeccion}">
+                            <input id="restaInventario${currentInputId}" name="restaInventario${currentInputId}" type="hidden" value="">
+                            <input id="isv${currentInputId}" name="isv${currentInputId}" type="hidden" value="${producto.isv}">
+                        </div>
+                    `;
+
+                    // Agregar el HTML al DOM
+                    const divProductos = document.getElementById('divProductos');
+                    if (divProductos) {
+                        divProductos.insertAdjacentHTML('beforeend', html);
+                        
+                        // Agregar al array de IDs si existe
+                        if (typeof arregloIdInputs !== 'undefined') {
+                            arregloIdInputs.splice(currentInputId, 0, currentInputId);
+                        }
+                        
+                        // Mostrar mensaje de éxito
+                        Swal.fire({
+                            icon: 'success',
+                            title: '¡Producto Escaneado!',
+                            html: `
+                                <div style="text-align: left;">
+                                    <p><strong>Código:</strong> ${codigoBarra}</p>
+                                    <p><strong>Producto:</strong> ${producto.nombre}</p>
+                                    <p style="color: #28a745;">✓ Agregado al carrito exitosamente</p>
+                                </div>
+                            `,
+                            timer: 2500,
+                            showConfirmButton: false
+                        });
+                    } else {
+                        console.error('No se encontró el div de productos');
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'No se pudo agregar el producto al carrito. Intente nuevamente.',
+                            confirmButtonColor: '#d33'
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    playSound('error');
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error de conexión',
+                        text: 'No se pudo conectar con el servidor. Intente nuevamente.',
+                        confirmButtonColor: '#d33'
+                    });
+                });
+            };
         </script>
     @endpush
 </div>

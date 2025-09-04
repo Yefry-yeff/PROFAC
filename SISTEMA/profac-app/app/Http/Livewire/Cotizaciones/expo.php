@@ -77,12 +77,73 @@ class expo extends Component
 
     public function obtenerDatosProductoExpo(Request $request)
     {
-        // Test simple para verificar que el método se ejecuta
-        return response()->json([
-            'success' => true,
-            'message' => 'Método funcionando correctamente',
-            'data_received' => $request->all()
-        ], 200);
+        try {
+            $codigoBarra = $request->input('barraProd');
+            
+            Log::info('Buscando producto con código de barras: ' . $codigoBarra);
+            
+            if (empty($codigoBarra)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Código de barras no proporcionado'
+                ], 400);
+            }
+            
+            // Buscar producto por código de barras (misma lógica que obtenerDatosProducto)
+            $producto = DB::selectOne("
+                SELECT 
+                    id,
+                    CONCAT(id,' - ',nombre) as nombre,
+                    isv,
+                    ultimo_costo_compra as ultimo_costo_compra,
+                    precio_base as precio_base,
+                    precio1 as precio1,
+                    precio2 as precio2,
+                    precio3 as precio3,
+                    precio4 as precio4,
+                    codigo_barra,
+                    estado_producto_id
+                FROM producto 
+                WHERE codigo_barra = ? AND estado_producto_id = 1
+            ", [$codigoBarra]);
+            
+            if (!$producto) {
+                Log::info('Producto no encontrado con código: ' . $codigoBarra);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Producto no encontrado',
+                    'codigo' => $codigoBarra
+                ], 404);
+            }
+            
+            // Obtener unidades del producto (misma lógica que obtenerDatosProducto)
+            $unidades = DB::select("
+                SELECT
+                    A.unidad_venta as id,
+                    CONCAT(B.nombre,'-',A.unidad_venta) as nombre,
+                    A.unidad_venta_defecto as 'valor_defecto',
+                    A.id as idUnidadVenta
+                FROM unidad_medida_venta A
+                INNER JOIN unidad_medida B ON A.unidad_medida_id = B.id
+                WHERE A.estado_id = 1 AND A.producto_id = ?
+            ", [$producto->id]);
+            
+            Log::info('Producto encontrado: ' . $producto->nombre);
+            
+            return response()->json([
+                'success' => true,
+                'producto' => $producto,
+                'unidades' => $unidades
+            ], 200);
+            
+        } catch (\Exception $e) {
+            Log::error('Error en obtenerDatosProductoExpo: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error interno del servidor',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
     public function listarClientes(Request $request)
     {
