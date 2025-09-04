@@ -127,7 +127,7 @@
                 width: 280px;
                 height: 120px;
                 background: transparent;
-                box-shadow: 
+                box-shadow:
                     0 0 0 2000px rgba(0, 0, 0, 0.4),
                     inset 0 0 0 2px rgba(255, 255, 255, 0.2);
                 pointer-events: none;
@@ -152,14 +152,14 @@
             @keyframes scannerPulse {
                 0%, 100% {
                     border-color: #ff0000;
-                    box-shadow: 
+                    box-shadow:
                         0 0 0 2000px rgba(0, 0, 0, 0.4),
                         inset 0 0 0 2px rgba(255, 255, 255, 0.2),
                         0 0 20px rgba(255, 0, 0, 0.5);
                 }
                 50% {
                     border-color: #00ff00;
-                    box-shadow: 
+                    box-shadow:
                         0 0 0 2000px rgba(0, 0, 0, 0.5),
                         inset 0 0 0 2px rgba(255, 255, 255, 0.3),
                         0 0 25px rgba(0, 255, 0, 0.7);
@@ -325,12 +325,12 @@
                                     <!-- Sección para lectura de código de barras con cámara -->
                                     <div class="mt-3 col-12">
                                         <div class="card camera-card">
-                                            <div class="card-header bg-primary text-white">
+                                            <div class="text-white card-header bg-primary">
                                                 <h5 class="mb-0"><i class="fa fa-camera"></i> Lectura de Código de Barras</h5>
                                             </div>
                                             <div class="card-body">
                                                 <div class="row">
-                                                    <div class="mb-3 col-12 text-center">
+                                                    <div class="mb-3 text-center col-12">
                                                         <button type="button" id="btnStartCamera" class="btn btn-success btn-lg me-3">
                                                             <i class="fa fa-camera"></i> Activar Escáner
                                                         </button>
@@ -349,21 +349,21 @@
                                                         <!-- Mensaje de estado -->
                                                         <div id="scannerStatus" class="alert alert-info" style="display: none;">
                                                             <div class="d-flex align-items-center">
-                                                                <i class="fa fa-info-circle me-2"></i> 
+                                                                <i class="fa fa-info-circle me-2"></i>
                                                                 <span id="statusMessage">Preparando escáner...</span>
                                                                 <div class="spinner-border spinner-border-sm ms-auto" role="status" aria-hidden="true"></div>
                                                             </div>
                                                         </div>
                                                         <!-- Resultado del escaneo -->
                                                         <div id="scanResult" class="alert alert-success" style="display: none;">
-                                                            <strong><i class="fa fa-check-circle"></i> Código escaneado:</strong> 
+                                                            <strong><i class="fa fa-check-circle"></i> Código escaneado:</strong>
                                                             <span id="barcodeResult" class="fw-bold"></span>
                                                         </div>
                                                         <!-- Mensaje de ayuda -->
                                                         <div class="mt-3 alert alert-light" style="font-size: 0.9em;">
-                                                            <i class="fa fa-lightbulb text-warning"></i> 
+                                                            <i class="fa fa-lightbulb text-warning"></i>
                                                             <strong>Consejos:</strong>
-                                                            <ul class="mb-0 mt-2">
+                                                            <ul class="mt-2 mb-0">
                                                                 <li>Mantenga el código de barras dentro del recuadro rojo</li>
                                                                 <li>Asegúrese de tener buena iluminación</li>
                                                                 <li>Mantenga el dispositivo estable</li>
@@ -696,10 +696,10 @@
         </script>
 
         <script src="{{ asset('js/js_proyecto/cotizaciones/expo.js') }}"></script>
-        
+
         <!-- QuaggaJS para lectura de códigos de barras -->
         <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
-        
+
         <script>
             // Variables globales para el escáner
             let isScanning = false;
@@ -712,11 +712,11 @@
                 const cameraContainer = document.getElementById('cameraContainer');
                 const scannerStatus = document.getElementById('scannerStatus');
                 const statusMessage = document.getElementById('statusMessage');
-                
+
                 // Mostrar estado de carga
                 scannerStatus.style.display = 'block';
                 statusMessage.textContent = 'Solicitando acceso a la cámara...';
-                
+
                 if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                     navigator.mediaDevices.getUserMedia({
                         video: {
@@ -730,17 +730,17 @@
                     .then(function(stream) {
                         videoStream = stream;
                         video.srcObject = stream;
-                        
+
                         // Configurar el video para mejor rendimiento
                         video.setAttribute('playsinline', true);
                         video.setAttribute('webkit-playsinline', true);
                         video.muted = true;
-                        
+
                         video.onloadedmetadata = function() {
                             video.play().then(function() {
                                 cameraContainer.style.display = 'block';
                                 statusMessage.textContent = 'Inicializando escáner...';
-                                
+
                                 // Crear overlay de escaneo con mejor posicionamiento
                                 setTimeout(function() {
                                     if (!document.querySelector('.scanner-overlay')) {
@@ -748,32 +748,32 @@
                                         overlay.className = 'scanner-overlay';
                                         cameraContainer.appendChild(overlay);
                                     }
-                                    
+
                                     startQuaggaScanner();
                                     isScanning = true;
-                                    
+
                                     document.getElementById('btnStartCamera').style.display = 'none';
                                     document.getElementById('btnStopCamera').style.display = 'inline-block';
                                 }, 500);
-                                
+
                             }).catch(function(playError) {
                                 console.error('Error al reproducir el video:', playError);
                                 statusMessage.textContent = 'Error al iniciar la vista previa de la cámara.';
                                 scannerStatus.className = 'alert alert-danger';
                             });
                         };
-                        
+
                         video.onerror = function(videoError) {
                             console.error('Error en el video:', videoError);
                             statusMessage.textContent = 'Error en la transmisión de video.';
                             scannerStatus.className = 'alert alert-danger';
                         };
-                        
+
                     })
                     .catch(function(err) {
                         console.error('Error al acceder a la cámara:', err);
                         let errorMsg = 'Error al acceder a la cámara. ';
-                        
+
                         if (err.name === 'NotAllowedError') {
                             errorMsg += 'Permisos denegados. Por favor, permite el acceso a la cámara.';
                         } else if (err.name === 'NotFoundError') {
@@ -783,7 +783,7 @@
                         } else {
                             errorMsg += 'Verifique los permisos y que la cámara esté disponible.';
                         }
-                        
+
                         statusMessage.textContent = errorMsg;
                         scannerStatus.className = 'alert alert-danger';
                     });
@@ -824,7 +824,7 @@
                         readers: [
                             "code_128_reader",
                             "ean_reader",
-                            "ean_8_reader", 
+                            "ean_8_reader",
                             "code_39_reader",
                             "code_39_vin_reader",
                             "codabar_reader",
@@ -857,52 +857,52 @@
                         document.getElementById('scannerStatus').className = 'alert alert-danger';
                         return;
                     }
-                    
+
                     console.log("Inicialización de Quagga completa. Listo para escanear");
                     document.getElementById('statusMessage').textContent = 'Escáner activo. Enfoque el código de barras en el recuadro rojo...';
-                    
+
                     Quagga.start();
-                    
+
                     // Configurar variables para control de detección
                     let lastDetectionTime = 0;
                     let detectionCooldown = 2000; // 2 segundos entre detecciones
                     let detectionCount = 0;
                     let lastCode = '';
-                    
+
                     // Evento cuando se detecta un código de barras
                     Quagga.onDetected(function(data) {
                         const currentTime = Date.now();
                         let code = data.codeResult.code;
-                        
+
                         // Omitir los ceros a la izquierda
                         code = code.replace(/^0+/, '') || '0';
-                        
+
                         // Evitar detecciones duplicadas muy seguidas
                         if (currentTime - lastDetectionTime < detectionCooldown && code === lastCode) {
                             return;
                         }
-                        
+
                         // Validar que el código tenga una longitud mínima
                         if (!code || code.length < 3) {
                             return;
                         }
-                        
+
                         lastDetectionTime = currentTime;
                         lastCode = code;
                         detectionCount++;
-                        
+
                         console.log(`Código de barras detectado (${detectionCount}):`, code);
-                        
+
                         // Mostrar el resultado visualmente
                         document.getElementById('barcodeResult').textContent = code;
                         document.getElementById('scanResult').style.display = 'block';
-                        
+
                         // Detener temporalmente el escáner para procesar
                         Quagga.pause();
-                        
-                        // Agregar automáticamente al carrito
+
+                        // Agregar automáticamente al carrito funciono la basuk
                         agregarProductoCarritoBarra(code);
-                        
+
                         // Reactivar el escáner después de un tiempo
                         setTimeout(function() {
                             if (isScanning) {
@@ -911,11 +911,11 @@
                             }
                         }, 3000);
                     });
-                    
+
                     // Evento para errores durante el procesamiento
                     Quagga.onProcessed(function(result) {
                         if (result) {
-                            // Opcional: mostrar información de debug
+                            // mando el fucking debug por que no me saba esta basuk
                             if (result.codeResult && result.codeResult.code) {
                                 console.log("Código procesado:", result.codeResult.code);
                             }
@@ -930,19 +930,19 @@
                     Quagga.stop();
                     isScanning = false;
                 }
-                
+
                 if (videoStream) {
                     videoStream.getTracks().forEach(track => track.stop());
                     videoStream = null;
                 }
-                
+
                 document.getElementById('cameraContainer').style.display = 'none';
                 document.getElementById('scannerStatus').style.display = 'none';
                 document.getElementById('scanResult').style.display = 'none';
-                
+
                 document.getElementById('btnStartCamera').style.display = 'inline-block';
                 document.getElementById('btnStopCamera').style.display = 'none';
-                
+
                 // Remover overlay
                 const overlay = document.querySelector('.scanner-overlay');
                 if (overlay) {
@@ -960,9 +960,9 @@
             window.testBarcodeAPI = function(codigo) {
                 codigo = codigo || '849607055569';
                 console.log('Probando API con código:', codigo);
-                
+
                 const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-                
+
                 fetch('/ventas/datos/producto/expo', {
                     method: 'POST',
                     headers: {
@@ -980,7 +980,7 @@
                 })
                 .then(data => {
                     console.log('Respuesta completa:', data);
-                    
+
                     if (data.success) {
                         console.log('✅ Producto encontrado:', data.producto.nombre);
                         alert(`✅ Producto encontrado: ${data.producto.nombre}\nCódigo: ${codigo}\nPrecio: L. ${data.producto.precio_base}`);
@@ -998,36 +998,36 @@
             // Función para agregar producto al carrito mediante código de barras
             window.agregarProductoCarritoBarra = function(codigoBarra) {
                 console.log('Buscando producto con código de barras:', codigoBarra);
-                
-                // Función para reproducir sonido
+
+                // Función para reproducir sonido como le gusta a yeff
                 function playSound(type) {
                     try {
                         let frequency = type === 'success' ? 800 : 300;
                         let duration = type === 'success' ? 200 : 500;
-                        
+
                         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
                         const oscillator = audioContext.createOscillator();
                         const gainNode = audioContext.createGain();
-                        
+
                         oscillator.connect(gainNode);
                         gainNode.connect(audioContext.destination);
-                        
+
                         oscillator.frequency.value = frequency;
                         oscillator.type = 'sine';
-                        
+
                         gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
                         gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration / 1000);
-                        
+
                         oscillator.start(audioContext.currentTime);
                         oscillator.stop(audioContext.currentTime + duration / 1000);
                     } catch (e) {
                         console.log('No se pudo reproducir el sonido:', e);
                     }
                 }
-                
+
                 // Obtener token CSRF
                 const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-                
+
                 // Hacer petición al backend
                 fetch('/ventas/datos/producto/expo', {
                     method: 'POST',
@@ -1042,7 +1042,7 @@
                 .then(response => response.json())
                 .then(data => {
                     console.log('Respuesta del servidor:', data);
-                    
+
                     if (!data.success) {
                         playSound('error');
                         Swal.fire({
@@ -1065,11 +1065,11 @@
                         });
                         return;
                     }
-                    
+
                     // Verificar que tenemos los datos necesarios
                     const producto = data.producto;
                     const arrayUnidades = data.unidades;
-                    
+
                     if (!producto || !producto.id) {
                         playSound('error');
                         Swal.fire({
@@ -1080,17 +1080,17 @@
                         });
                         return;
                     }
-                    
-                    // Reproducir sonido de éxito
+
+                    // Reproducir sonido de éxito yeah
                     playSound('success');
-                    
+
                     // Usar la misma lógica que agregarProductoCarrito
                     let bodega = 'SALA DE VENTAS';
                     let idBodega = 16;
                     let idSeccion = 156;
                     let idProducto = producto.id;
-                    
-                    // Verificar si el producto ya existe en el carrito
+
+                    // Verificar si el producto ya existe en el carrito(La dejo pero si queres la quitas)
                     let flag = false;
                     if (typeof arregloIdInputs !== 'undefined') {
                         arregloIdInputs.forEach(idInpunt => {
@@ -1102,7 +1102,7 @@
                             }
                         });
                     }
-                    
+
                     if (flag) {
                         playSound('error');
                         Swal.fire({
@@ -1113,14 +1113,14 @@
                         });
                         return;
                     }
-                    
+
                     // Incrementar contador y agregar a array
                     if (typeof numeroInputs !== 'undefined') {
                         numeroInputs += 1;
                     } else {
                         window.numeroInputs = 1;
                     }
-                    
+
                     // Construir HTML de unidades
                     let htmlSelectUnidades = "";
                     arrayUnidades.forEach(unidad => {
@@ -1225,12 +1225,12 @@
                     const divProductos = document.getElementById('divProductos');
                     if (divProductos) {
                         divProductos.insertAdjacentHTML('beforeend', html);
-                        
+
                         // Agregar al array de IDs si existe
                         if (typeof arregloIdInputs !== 'undefined') {
                             arregloIdInputs.splice(currentInputId, 0, currentInputId);
                         }
-                        
+
                         // Mostrar mensaje de éxito
                         Swal.fire({
                             icon: 'success',

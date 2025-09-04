@@ -1043,34 +1043,34 @@
             // Función para agregar producto al carrito mediante código de barras
             function agregarProductoCarritoBarra(codigoBarra) {
                 console.log('Buscando producto con código de barras:', codigoBarra);
-                
-                // Función para reproducir sonido
+
+                // Función para reproducir sonido como le gusta a yeff
                 function playSound(type) {
                     try {
                         let frequency = type === 'success' ? 800 : 300;
                         let duration = type === 'success' ? 200 : 500;
-                        
+
                         // Crear contexto de audio
                         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
                         const oscillator = audioContext.createOscillator();
                         const gainNode = audioContext.createGain();
-                        
+
                         oscillator.connect(gainNode);
                         gainNode.connect(audioContext.destination);
-                        
+
                         oscillator.frequency.value = frequency;
                         oscillator.type = 'sine';
-                        
+
                         gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
                         gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration / 1000);
-                        
+
                         oscillator.start(audioContext.currentTime);
                         oscillator.stop(audioContext.currentTime + duration / 1000);
                     } catch (e) {
                         console.log('No se pudo reproducir el sonido:', e);
                     }
                 }
-                
+
                 // Usar el método existente obtenerDatosProductoExpo
                 axios.post('/ventas/datos/producto/expo', {
                     barraProd: codigoBarra
@@ -1179,7 +1179,7 @@
                                     <label for="nombre${numeroInputs}" class="sr-only">Producto</label>
                                     <input type="text" placeholder="Producto" id="nombre${numeroInputs}"
                                         name="nombre${numeroInputs}" class="form-control"
-                                        data-parsley-required 
+                                        data-parsley-required
                                         autocomplete="off"
                                         readonly
                                         value='${producto.nombre} 📱'
@@ -1277,11 +1277,11 @@
                 .catch(err => {
                     console.error('Error al buscar producto por código de barras:', err);
                     playSound('error');
-                    
+
                     // Manejar diferentes tipos de errores
                     let errorMessage = 'No se pudo encontrar el producto con ese código de barras.';
                     let errorTitle = 'Error al escanear';
-                    
+
                     if (err.response) {
                         if (err.response.status === 404) {
                             errorTitle = '¡Producto No Encontrado!';
@@ -1290,7 +1290,7 @@
                             errorMessage = err.response.data.message;
                         }
                     }
-                    
+
                     Swal.fire({
                         icon: 'error',
                         title: errorTitle,

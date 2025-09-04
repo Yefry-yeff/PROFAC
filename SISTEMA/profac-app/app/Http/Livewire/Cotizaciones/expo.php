@@ -79,19 +79,19 @@ class expo extends Component
     {
         try {
             $codigoBarra = $request->input('barraProd');
-            
+
             Log::info('Buscando producto con código de barras: ' . $codigoBarra);
-            
+
             if (empty($codigoBarra)) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Código de barras no proporcionado'
                 ], 400);
             }
-            
-            // Buscar producto por código de barras (misma lógica que obtenerDatosProducto)
+
+            // Buscar producto por código de barras (misma lógica que obtenerDatosProducto) foo no me daba
             $producto = DB::selectOne("
-                SELECT 
+                SELECT
                     id,
                     CONCAT(id,' - ',nombre) as nombre,
                     isv,
@@ -103,10 +103,10 @@ class expo extends Component
                     precio4 as precio4,
                     codigo_barra,
                     estado_producto_id
-                FROM producto 
+                FROM producto
                 WHERE codigo_barra = ? AND estado_producto_id = 1
             ", [$codigoBarra]);
-            
+
             if (!$producto) {
                 Log::info('Producto no encontrado con código: ' . $codigoBarra);
                 return response()->json([
@@ -115,7 +115,7 @@ class expo extends Component
                     'codigo' => $codigoBarra
                 ], 404);
             }
-            
+
             // Obtener unidades del producto (misma lógica que obtenerDatosProducto)
             $unidades = DB::select("
                 SELECT
@@ -127,15 +127,15 @@ class expo extends Component
                 INNER JOIN unidad_medida B ON A.unidad_medida_id = B.id
                 WHERE A.estado_id = 1 AND A.producto_id = ?
             ", [$producto->id]);
-            
+
             Log::info('Producto encontrado: ' . $producto->nombre);
-            
+
             return response()->json([
                 'success' => true,
                 'producto' => $producto,
                 'unidades' => $unidades
             ], 200);
-            
+
         } catch (\Exception $e) {
             Log::error('Error en obtenerDatosProductoExpo: ' . $e->getMessage());
             return response()->json([
