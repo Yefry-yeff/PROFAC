@@ -1,7 +1,13 @@
 <div>
     @push('styles')
         <style>
-
+ #alert-fixed {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 9999; /* para que quede por encima de todo */
+      max-width: 300px;
+    }
 
             /* Estilos opcionales para el interruptor */
             .switch {
@@ -102,7 +108,7 @@
     <div class="row wrapper border-bottom white-bg page-heading">
         <div class="col-lg-8 col-xl-10 col-md-8 col-sm-8">
             @if ($tipoCotizacion == 3)
-                <h2>Expo Feria 2024</h2>
+                <h2>Expo pedidos</h2>
             @else
                 <h2>Cotización</h2>
             @endif
@@ -124,73 +130,82 @@
 
 
     </div>
-
+    <div id="alert-fixed"></div>
     <div class="wrapper wrapper-content animated fadeInRight">
         <div class="row">
             <div class="col-lg-12">
                 <div class="ibox ">
                     <div class="ibox-title">
-                        <h3>Datos de cotización <i class="fa-solid fa-cart-shopping"></i></h3>
+                        <h3>Datos del pedido <i class="fa-solid fa-cart-shopping"></i></h3>
                     </div>
                     <div class="ibox-content">
                         <form onkeydown="return event.key != 'Enter';" autocomplete="off" id="crear_venta"
                             name="crear_venta" data-parsley-validate>
 
 
-                            <input type="hidden" id="tipo_venta_id" name="tipo_venta_id" value="{{ $tipoCotizacion }}">
+                            <input type="hidden" id="tipo_venta_id" name="tipo_venta_id" value="4">
+
+                            <div class="row align-items-center" style="margin-top: -60px; margin-left:210px;">
+                                <label for="pedido_id" class="col-md-3 col-form-label focus-label">
+                                    Pedido:<span class="text-danger">*</span>
+                                </label>
+                                <div class="col-md-9">
+                                    <input class="form-control" type="text" readonly id="pedido_id" name="pedido_id"
+                                        style="width: 150px;"  value="">
+                                </div>
+                            </div>
 
 
 
-                            <div class="row mt-4">
-                                <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4">
-                                    <label for="seleccionarCliente" class="col-form-label focus-label">Seleccionar
-                                        Cliente:<span class="text-danger">*</span> </label>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label for="seleccionarCliente" class="col-form-label focus-label">
+                                    Seleccionar Cliente: <span class="text-danger">*</span>
+                                    </label>
                                     <select id="seleccionarCliente" name="seleccionarCliente"
-                                        class="form-group form-control" style="" data-parsley-required
-                                        onchange="obtenerDatosCliente()">
-                                        <option value="" selected disabled>--Seleccionar un cliente--</option>
+                                    class="form-control" data-parsley-required onchange="obtenerDatosCliente()">
+                                    <option value="" selected disabled>--Seleccionar un cliente--</option>
                                     </select>
                                 </div>
 
-                                <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4">
-                                    <label class="col-form-label focus-label">Nombre del cliente:<span
-                                            class="text-danger">*</span></label>
-                                    <input class="form-control" required type="text" id="nombre_cliente_ventas"
-                                        name="nombre_cliente_ventas" data-parsley-required readonly>
+                                <!-- Nombre del cliente -->
+                                <div class="col-md-6">
+                                    <label class="col-form-label focus-label">
+                                    Nombre del cliente: <span class="text-danger">*</span>
+                                    </label>
+                                    <input class="form-control" required type="text"
+                                    id="nombre_cliente_ventas" name="nombre_cliente_ventas" readonly>
+                                </div>
+                                </div>
+
+                                <div class="row mt-3">
+                                <!-- RTN -->
+                                    <div class="col-md-6">
+                                        <label class="col-form-label focus-label">
+                                        RTN: <span class="text-danger">*</span>
+                                        </label>
+                                        <input class="form-control" type="text" id="rtn_ventas" name="rtn_ventas" readonly>
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <label for="vendedor">Vendedor:<span class="text-danger"></span> </label>
+                                        <select name="vendedor" id="vendedor" class="form-group form-control">
+
+                                        </select>
+                                    </div>
 
                                 </div>
 
-                                <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4">
-                                    <label class="col-form-label focus-label">RTN:<span
-                                            class="text-danger">*</span></label>
-                                    <input class="form-control" type="text" id="rtn_ventas" name="rtn_ventas"
-                                        readonly>
-
-                                </div>
-
-
-
-
-
-                            </div>
-
-                            <div class="row mt-4">
-                                <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4" style="display: none;">
+                            <div class="row mt-3">
+                                <div class="col-md-6" style="display: none;">
                                     <label for="tipoPagoVenta" class="col-form-label focus-label">Seleccionar tipo de
                                         pago:<span class="text-danger">*</span></label>
                                     <select class="form-group form-control " name="tipoPagoVenta" id="tipoPagoVenta"
                                         onchange="validarFechaPago()">
                                     </select>
                                 </div>
-                                <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4">
-                                    <label for="vendedor">Vendedor:<span class="text-danger"></span> </label>
-                                    <select name="vendedor" id="vendedor" class="form-group form-control">
 
-                                    </select>
-
-                              </div>
-
-                                <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4">
+                                <div class="col-md-6">
                                     <div class="form-group">
 
                                         <label for="fecha_emision" class="col-form-label focus-label">Fecha de emisión
@@ -202,19 +217,19 @@
                                     </div>
                                 </div>
 
-                                <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4">
+                                <div class="col-md-6">
                                     <div class="form-group">
 
                                         <label for="porDescuento" class="col-form-label focus-label">Descuento aplicado %
                                             :<span class="text-danger">*</span></label>
-                                        <input class="form-control" oninput="validarDescuento()" onchange="calcularTotalesInicioPagina()" type="number" min="0" max="25" value="0" minlength="1" maxlength="2" id="porDescuento" name="porDescuento"  >
+                                        <input class="form-control" oninput="validarDescuento()" onchange="calcularTotalesInicioPagina()" type="number" value="0" max="100" min="0"  mminlength="1" maxlength="2" id="porDescuento" name="porDescuento"  >
                                         <p id="mensajeError" style="color: red;"></p>
 
 
                                     </div>
                                 </div>
 
-                                <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4" style="display: none;">
+                                <div class="col-md-6" style="display: none;">
                                     <div class="form-group">
                                         <label for="fecha_vencimiento"
                                             class="col-form-label focus-label text-warning">Fecha de vencimiento:
@@ -233,20 +248,17 @@
 
                             </div>
 
-                            <div class="row mt-4">
+                            <div class="row mt-3">
                                 <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6 ">
 
                                     <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
                                         <label for="seleccionarProducto" class="col-form-label focus-label"> <label style="display: none" class="switch"> <input type="checkbox" id="mySwitch"><span class="slider"></span></label> Seleccionar
                                             Producto :<span class="text-danger">*</span></label>
                                         <select id="seleccionarProducto" name="seleccionarProducto"
-                                            class="form-group form-control" style="" onchange="obtenerImagenes()">
+                                            class="form-group form-control" style="width: 110%;" onchange="obtenerImagenes()">
                                             <option value="" selected disabled>--Seleccione un producto--</option>
                                         </select>
                                     </div>
-
-
-
 
                                 </div>
 
@@ -256,7 +268,7 @@
                             <div class="row">
 
 
-                                <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6 mt-4">
+                                <div class="col-md-6 mt-3">
                                     <div class="text-center">
                                         <a id="detalleProducto" href=""
                                             class="font-bold h3  d-none text-success" style="" target="_blank">
@@ -265,21 +277,7 @@
 
 
                                     <div id="carouselProducto" class="carousel slide mt-2" data-ride="carousel">
-                                        {{-- <ol  id="carousel_imagenes_producto" class="carousel-indicators">
-
-                                                <li data-target="#carouselProducto" data-slide-to="{{ $i }}" class="active"></li>
-
-                                                <li data-target="#carouselProducto" data-slide-to="{{ $i }}" class=""></li>
-
-
-
-                                        </ol> --}}
                                         <div id="bloqueImagenes" class="carousel-inner ">
-
-
-
-
-
 
                                         </div>
                                         <a class="carousel-control-prev" href="#carouselProducto" role="button"
@@ -295,11 +293,10 @@
                                     </div>
 
 
-                                </div>
 
-                                <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6 ">
-                                    <div id="botonAdd"
-                                        class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12 my-4 text-center d-none">
+                                </div>
+                                <div class="col-md-6" style="margin-top:-35px;">
+                                    <div id="botonAdd"class="text-center d-none">
                                         <button type="button" class="btn-rounded btn btn-success p-3"
                                             style="font-weight: 900; " onclick="agregarProductoCarrito()">Añadir
                                             Producto a venta <i class="fa-solid fa-cart-plus"></i> </button>
@@ -319,10 +316,21 @@
                                     </div>
                                 </div>
 
-
                             </div>
 
-                            <hr>
+
+                           {{--   <div class="row">
+                                <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
+                                    <div class="form-group">
+                                        <label for="nota" class="col-form-label focus-label">Nota:
+                                        </label>
+                                        <textarea class="form-control" id="nota_comen" name="nota_comen" cols="30" rows="3" maxlength="250"></textarea>
+                                    </div>
+
+                                </div>
+
+
+                            </div>  --}}
 
                             <div class="hide-container">
                                 <p>Nota:El campo "Unidad" describe la unidad de medida para la venta del producto -

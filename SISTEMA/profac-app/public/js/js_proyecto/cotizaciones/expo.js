@@ -81,8 +81,8 @@
                 const mensajeError = document.getElementById('mensajeError');
                 const numero = parseFloat(numeroInput.value);
 
-                if (isNaN(numero) || numero < 0 || numero > 25) {
-                    mensajeError.textContent = 'Este campo solo admite un valor entre 0 a 25';
+                if (isNaN(numero) || numero < 0 || numero > 100) {
+                    mensajeError.textContent = 'Este campo solo admite un valor entre 0 a 100';
                     numeroInput.value = '';
                 } else {
                     mensajeError.textContent = '';
@@ -900,7 +900,7 @@
 
             function guardarVenta() {
 
-                document.getElementById("guardar_cotizacion_btn").disabled = true;
+                /* document.getElementById("guardar_cotizacion_btn").disabled = true; */
 
                 var data = new FormData($('#crear_venta').get(0));
 
@@ -953,9 +953,9 @@
                     .then(response => {
                         let data = response.data;
 
+                        //console.log(response.data);
 
-
-                        if (data.idFactura == 0) {
+                       /*  if (data.idFactura == 0) {
 
 
                             Swal.fire({
@@ -974,10 +974,10 @@
                             icon: data.icon,
                             title: data.title,
                             html: data.text
-                        })
+                        }) */
 
 
-                        document.getElementById('bloqueImagenes').innerHTML = '';
+                        /* document.getElementById('bloqueImagenes').innerHTML = '';
                         document.getElementById('divProductos').innerHTML = '';
 
                         document.getElementById("crear_venta").reset();
@@ -1007,9 +1007,33 @@
                         retencionEstado = false;
 
 
-                        document.getElementById("guardar_cotizacion_btn").disabled = false;
+                        document.getElementById("guardar_cotizacion_btn").disabled = false; */
 
-                    location.reload();
+                            /* location.reload(); */
+                        const input = document.getElementById("pedido_id");
+                        input.value = data.pedido_id;
+
+                        const alerta = document.createElement("div");
+                        alerta.className = "alert alert-success alert-dismissible fade show";
+                        alerta.role = "alert";
+                        alerta.innerHTML = `
+                            ✅ Se ha guardado el pedido correctamente.
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+                        `;
+
+                        const contenedor = document.getElementById("alert-fixed");
+                        contenedor.appendChild(alerta);
+
+                        // 📌 Scroll automático hasta la alerta
+                        alerta.scrollIntoView({ behavior: "smooth", block: "center" });
+
+                        // Desaparece a los 5 segundos
+                        setTimeout(() => {
+                            alerta.classList.remove("show");
+                            alerta.classList.add("hide");
+                            setTimeout(() => alerta.remove(), 500);
+                        }, 3000);
+
 
                     })
                     .catch(err => {
