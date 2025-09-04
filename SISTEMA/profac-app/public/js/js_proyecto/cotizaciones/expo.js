@@ -1044,23 +1044,78 @@
             function agregarProductoCarritoBarra(codigoBarra) {
                 console.log('Buscando producto con código de barras:', codigoBarra);
                 
+                // Función para reproducir sonido
+                function playSound(type) {
+                    try {
+                        let frequency = type === 'success' ? 800 : 300;
+                        let duration = type === 'success' ? 200 : 500;
+                        
+                        // Crear contexto de audio
+                        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                        const oscillator = audioContext.createOscillator();
+                        const gainNode = audioContext.createGain();
+                        
+                        oscillator.connect(gainNode);
+                        gainNode.connect(audioContext.destination);
+                        
+                        oscillator.frequency.value = frequency;
+                        oscillator.type = 'sine';
+                        
+                        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration / 1000);
+                        
+                        oscillator.start(audioContext.currentTime);
+                        oscillator.stop(audioContext.currentTime + duration / 1000);
+                    } catch (e) {
+                        console.log('No se pudo reproducir el sonido:', e);
+                    }
+                }
+                
                 // Usar el método existente obtenerDatosProductoExpo
                 axios.post('/ventas/datos/producto/expo', {
                     barraProd: codigoBarra
                 })
                 .then(response => {
+                    // Verificar si la respuesta indica éxito
+                    if (!response.data.success) {
+                        playSound('error');
+                        Swal.fire({
+                            icon: 'error',
+                            title: '¡Producto No Encontrado!',
+                            html: `
+                                <div style="text-align: left;">
+                                    <p><strong>Código escaneado:</strong> ${codigoBarra}</p>
+                                    <p><strong>Estado:</strong> No existe en la base de datos</p>
+                                    <hr>
+                                    <p style="color: #666; font-size: 0.9em;">
+                                        • Verifique que el código esté completo<br>
+                                        • Asegúrese de que el producto esté registrado<br>
+                                        • Contacte al administrador si persiste el problema
+                                    </p>
+                                </div>
+                            `,
+                            confirmButtonText: 'Entendido',
+                            confirmButtonColor: '#d33'
+                        });
+                        return;
+                    }
+
                     let producto = response.data.producto;
                     let arrayUnidades = response.data.unidades;
 
                     if (!producto || !producto.id) {
+                        playSound('error');
                         Swal.fire({
                             icon: 'warning',
                             title: 'Producto no encontrado!',
                             text: `No se encontró ningún producto con el código de barras: ${codigoBarra}`,
-                            timer: 3000
+                            confirmButtonColor: '#f39c12'
                         });
                         return;
                     }
+
+                    // Reproducir sonido de éxito
+                    playSound('success');
 
                     // Usar la misma lógica que agregarProductoCarrito
                     let bodega = 'SALA DE VENTAS';
@@ -1080,11 +1135,12 @@
                     });
 
                     if (flag) {
+                        playSound('error');
                         Swal.fire({
-                            icon: 'warning',
-                            title: 'Producto ya agregado!',
+                            icon: 'info',
+                            title: '¡Producto ya agregado!',
                             text: 'Este producto ya se encuentra en el carrito. Modifique la cantidad si es necesario.',
-                            timer: 3000
+                            confirmButtonColor: '#17a2b8'
                         });
                         return;
                     }
@@ -1127,7 +1183,7 @@
                                         autocomplete="off"
                                         readonly
                                         value='${producto.nombre} 📱'
-                                        style="background-color: #e8f5e8; border-color: #28a745;">
+                                        style="background-color: #e8f5e8; border-color: #28a745; font-weight: bold;">
                                 </div>
                             </div>
                         </div>
@@ -1204,9 +1260,15 @@
                     // Mostrar mensaje de éxito
                     Swal.fire({
                         icon: 'success',
-                        title: '¡Producto escaneado!',
-                        text: `Código: ${codigoBarra} agregado al carrito exitosamente`,
-                        timer: 2000,
+                        title: '¡Producto Escaneado!',
+                        html: `
+                            <div style="text-align: left;">
+                                <p><strong>Código:</strong> ${codigoBarra}</p>
+                                <p><strong>Producto:</strong> ${producto.nombre}</p>
+                                <p style="color: #28a745;">✓ Agregado al carrito exitosamente</p>
+                            </div>
+                        `,
+                        timer: 2500,
                         showConfirmButton: false
                     });
 
@@ -1214,18 +1276,35 @@
                 })
                 .catch(err => {
                     console.error('Error al buscar producto por código de barras:', err);
+                    playSound('error');
                     
                     // Manejar diferentes tipos de errores
                     let errorMessage = 'No se pudo encontrar el producto con ese código de barras.';
-                    if (err.response && err.response.data && err.response.data.message) {
-                        errorMessage = err.response.data.message;
+                    let errorTitle = 'Error al escanear';
+                    
+                    if (err.response) {
+                        if (err.response.status === 404) {
+                            errorTitle = '¡Producto No Encontrado!';
+                            errorMessage = err.response.data.message || 'El producto no existe en la base de datos';
+                        } else if (err.response.data && err.response.data.message) {
+                            errorMessage = err.response.data.message;
+                        }
                     }
                     
                     Swal.fire({
                         icon: 'error',
-                        title: 'Error al escanear',
-                        text: errorMessage,
-                        timer: 3000
+                        title: errorTitle,
+                        html: `
+                            <div style="text-align: left;">
+                                <p><strong>Código escaneado:</strong> ${codigoBarra}</p>
+                                <p><strong>Error:</strong> ${errorMessage}</p>
+                                <hr>
+                                <p style="color: #666; font-size: 0.9em;">
+                                    Intente escanear el código nuevamente o verifique que el producto esté registrado en el sistema.
+                                </p>
+                            </div>
+                        `,
+                        confirmButtonColor: '#d33'
                     });
                 });
             }

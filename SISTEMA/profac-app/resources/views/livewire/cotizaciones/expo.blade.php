@@ -106,11 +106,15 @@
                 background-color: #f8f9fa;
                 border-radius: 8px;
                 overflow: hidden;
+                max-width: 100%;
+                margin: 0 auto;
             }
 
             #videoElement {
                 max-width: 100%;
-                height: auto;
+                height: 300px;
+                width: 100%;
+                object-fit: cover;
             }
 
             .scanner-overlay {
@@ -118,28 +122,83 @@
                 top: 50%;
                 left: 50%;
                 transform: translate(-50%, -50%);
-                border: 2px solid #ff0000;
-                border-radius: 4px;
-                width: 250px;
-                height: 150px;
-                box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.3);
+                border: 3px solid #ff0000;
+                border-radius: 8px;
+                width: 280px;
+                height: 120px;
+                background: transparent;
+                box-shadow: 
+                    0 0 0 2000px rgba(0, 0, 0, 0.4),
+                    inset 0 0 0 2px rgba(255, 255, 255, 0.2);
                 pointer-events: none;
-                animation: pulse 2s infinite;
+                animation: scannerPulse 2s infinite ease-in-out;
+                z-index: 10;
             }
 
-            @keyframes pulse {
-                0% {
+            .scanner-overlay::before {
+                content: 'Enfoque el código aquí';
+                position: absolute;
+                top: -35px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: rgba(0, 0, 0, 0.8);
+                color: white;
+                padding: 5px 12px;
+                border-radius: 15px;
+                font-size: 0.8em;
+                white-space: nowrap;
+            }
+
+            .scanner-overlay::after {
+                content: '';
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                width: 2px;
+                height: 60%;
+                background: #ff0000;
+                animation: scanLine 1.5s infinite ease-in-out;
+            }
+
+            @keyframes scannerPulse {
+                0%, 100% {
                     border-color: #ff0000;
-                    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.3);
+                    box-shadow: 
+                        0 0 0 2000px rgba(0, 0, 0, 0.4),
+                        inset 0 0 0 2px rgba(255, 255, 255, 0.2),
+                        0 0 20px rgba(255, 0, 0, 0.5);
                 }
                 50% {
                     border-color: #00ff00;
-                    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+                    box-shadow: 
+                        0 0 0 2000px rgba(0, 0, 0, 0.5),
+                        inset 0 0 0 2px rgba(255, 255, 255, 0.3),
+                        0 0 25px rgba(0, 255, 0, 0.7);
+                }
+            }
+
+            @keyframes scanLine {
+                0% {
+                    opacity: 1;
+                    transform: translate(-50%, -50%) scaleY(1);
+                }
+                50% {
+                    opacity: 0.6;
+                    transform: translate(-50%, -50%) scaleY(0.8);
                 }
                 100% {
-                    border-color: #ff0000;
-                    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.3);
+                    opacity: 1;
+                    transform: translate(-50%, -50%) scaleY(1);
                 }
+            }
+
+            /* Mejoras para el contenedor de la cámara */
+            .camera-card {
+                border: 2px solid #007bff;
+                border-radius: 12px;
+                overflow: hidden;
+                box-shadow: 0 4px 12px rgba(0, 123, 255, 0.15);
             }
         </style>
     @endpush
@@ -186,7 +245,7 @@
 
 
 
-                            <div class="row mt-4">
+                            <div class="mt-4 row">
                                 <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4">
                                     <label for="seleccionarCliente" class="col-form-label focus-label">Seleccionar
                                         Cliente:<span class="text-danger">*</span> </label>
@@ -219,7 +278,7 @@
 
                             </div>
 
-                            <div class="row mt-4">
+                            <div class="mt-4 row">
                                 <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4" style="display: none;">
                                     <label for="tipoPagoVenta" class="col-form-label focus-label">Seleccionar tipo de
                                         pago:<span class="text-danger">*</span></label>
@@ -278,7 +337,7 @@
 
                             </div>
 
-                            <div class="row mt-4">
+                            <div class="mt-4 row">
                                 <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6 ">
 
                                     <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
@@ -291,36 +350,52 @@
                                     </div>
 
                                     <!-- Sección para lectura de código de barras con cámara -->
-                                    <div class="col-12 mt-3">
-                                        <div class="card">
-                                            <div class="card-header">
-                                                <h5><i class="fa fa-camera"></i> Lectura de Código de Barras</h5>
+                                    <div class="mt-3 col-12">
+                                        <div class="card camera-card">
+                                            <div class="card-header bg-primary text-white">
+                                                <h5 class="mb-0"><i class="fa fa-camera"></i> Lectura de Código de Barras</h5>
                                             </div>
                                             <div class="card-body">
                                                 <div class="row">
-                                                    <div class="col-12 mb-3">
-                                                        <button type="button" id="btnStartCamera" class="btn btn-info btn-sm me-2">
-                                                            <i class="fa fa-camera"></i> Activar Cámara
+                                                    <div class="mb-3 col-12 text-center">
+                                                        <button type="button" id="btnStartCamera" class="btn btn-success btn-lg me-3">
+                                                            <i class="fa fa-camera"></i> Activar Escáner
                                                         </button>
-                                                        <button type="button" id="btnStopCamera" class="btn btn-danger btn-sm" style="display: none;">
-                                                            <i class="fa fa-stop"></i> Desactivar Cámara
+                                                        <button type="button" id="btnStopCamera" class="btn btn-danger btn-lg" style="display: none;">
+                                                            <i class="fa fa-stop-circle"></i> Detener Escáner
                                                         </button>
                                                     </div>
                                                 </div>
                                                 <div class="row">
                                                     <div class="col-12">
                                                         <!-- Video preview de la cámara -->
-                                                        <div id="cameraContainer" style="display: none;">
-                                                            <video id="videoElement" width="100%" height="300" style="border: 2px solid #007bff; border-radius: 8px;"></video>
+                                                        <div id="cameraContainer" class="camera-container" style="display: none;">
+                                                            <video id="videoElement" playsinline muted></video>
                                                             <canvas id="canvasElement" style="display: none;"></canvas>
                                                         </div>
                                                         <!-- Mensaje de estado -->
                                                         <div id="scannerStatus" class="alert alert-info" style="display: none;">
-                                                            <i class="fa fa-info-circle"></i> <span id="statusMessage">Enfoque el código de barras hacia la cámara...</span>
+                                                            <div class="d-flex align-items-center">
+                                                                <i class="fa fa-info-circle me-2"></i> 
+                                                                <span id="statusMessage">Preparando escáner...</span>
+                                                                <div class="spinner-border spinner-border-sm ms-auto" role="status" aria-hidden="true"></div>
+                                                            </div>
                                                         </div>
                                                         <!-- Resultado del escaneo -->
                                                         <div id="scanResult" class="alert alert-success" style="display: none;">
-                                                            <strong>Código escaneado:</strong> <span id="barcodeResult"></span>
+                                                            <strong><i class="fa fa-check-circle"></i> Código escaneado:</strong> 
+                                                            <span id="barcodeResult" class="fw-bold"></span>
+                                                        </div>
+                                                        <!-- Mensaje de ayuda -->
+                                                        <div class="mt-3 alert alert-light" style="font-size: 0.9em;">
+                                                            <i class="fa fa-lightbulb text-warning"></i> 
+                                                            <strong>Consejos:</strong>
+                                                            <ul class="mb-0 mt-2">
+                                                                <li>Mantenga el código de barras dentro del recuadro rojo</li>
+                                                                <li>Asegúrese de tener buena iluminación</li>
+                                                                <li>Mantenga el dispositivo estable</li>
+                                                                <li>El escaneo se realizará automáticamente</li>
+                                                            </ul>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -336,15 +411,15 @@
                             <div class="row">
 
 
-                                <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6 mt-4">
+                                <div class="mt-4 col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6">
                                     <div class="text-center">
                                         <a id="detalleProducto" href=""
-                                            class="font-bold h3  d-none text-success" style="" target="_blank">
+                                            class="font-bold h3 d-none text-success" style="" target="_blank">
                                             <i class="fa-solid fa-circle-info"></i> Ver Detalles De Producto </a>
                                     </div>
 
 
-                                    <div id="carouselProducto" class="carousel slide mt-2" data-ride="carousel">
+                                    <div id="carouselProducto" class="mt-2 carousel slide" data-ride="carousel">
                                         {{-- <ol  id="carousel_imagenes_producto" class="carousel-indicators">
 
                                                 <li data-target="#carouselProducto" data-slide-to="{{ $i }}" class="active"></li>
@@ -379,8 +454,8 @@
 
                                 <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6 ">
                                     <div id="botonAdd"
-                                        class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12 my-4 text-center d-none">
-                                        <button type="button" class="btn-rounded btn btn-success p-3"
+                                        class="my-4 text-center col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12 d-none">
+                                        <button type="button" class="p-3 btn-rounded btn btn-success"
                                             style="font-weight: 900; " onclick="agregarProductoCarrito()">Añadir
                                             Producto a venta <i class="fa-solid fa-cart-plus"></i> </button>
 
@@ -607,7 +682,7 @@
                             <div class="row">
                                 <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
                                     <button id="guardar_cotizacion_btn"
-                                        class="btn  btn-primary float-left m-t-n-xs"><strong>
+                                        class="float-left btn btn-primary m-t-n-xs"><strong>
                                             Guardar Cotizacion</strong></button>
                                 </div>
                             </div>
@@ -665,43 +740,82 @@
                 const scannerStatus = document.getElementById('scannerStatus');
                 const statusMessage = document.getElementById('statusMessage');
                 
+                // Mostrar estado de carga
+                scannerStatus.style.display = 'block';
+                statusMessage.textContent = 'Solicitando acceso a la cámara...';
+                
                 if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                     navigator.mediaDevices.getUserMedia({
                         video: {
-                            facingMode: 'environment', // Usar cámara trasera preferentemente
-                            width: { ideal: 640 },
-                            height: { ideal: 480 }
-                        }
+                            facingMode: { ideal: 'environment' }, // Preferir cámara trasera
+                            width: { min: 640, ideal: 1280, max: 1920 },
+                            height: { min: 480, ideal: 720, max: 1080 },
+                            frameRate: { ideal: 30, max: 60 }
+                        },
+                        audio: false
                     })
                     .then(function(stream) {
                         videoStream = stream;
                         video.srcObject = stream;
-                        video.play();
                         
-                        cameraContainer.style.display = 'block';
-                        scannerStatus.style.display = 'block';
-                        statusMessage.textContent = 'Cámara activada. Enfoque el código de barras...';
+                        // Configurar el video para mejor rendimiento
+                        video.setAttribute('playsinline', true);
+                        video.setAttribute('webkit-playsinline', true);
+                        video.muted = true;
                         
-                        // Agregar overlay de escaneo
-                        if (!document.querySelector('.scanner-overlay')) {
-                            const overlay = document.createElement('div');
-                            overlay.className = 'scanner-overlay';
-                            cameraContainer.appendChild(overlay);
-                        }
+                        video.onloadedmetadata = function() {
+                            video.play().then(function() {
+                                cameraContainer.style.display = 'block';
+                                statusMessage.textContent = 'Inicializando escáner...';
+                                
+                                // Crear overlay de escaneo con mejor posicionamiento
+                                setTimeout(function() {
+                                    if (!document.querySelector('.scanner-overlay')) {
+                                        const overlay = document.createElement('div');
+                                        overlay.className = 'scanner-overlay';
+                                        cameraContainer.appendChild(overlay);
+                                    }
+                                    
+                                    startQuaggaScanner();
+                                    isScanning = true;
+                                    
+                                    document.getElementById('btnStartCamera').style.display = 'none';
+                                    document.getElementById('btnStopCamera').style.display = 'inline-block';
+                                }, 500);
+                                
+                            }).catch(function(playError) {
+                                console.error('Error al reproducir el video:', playError);
+                                statusMessage.textContent = 'Error al iniciar la vista previa de la cámara.';
+                                scannerStatus.className = 'alert alert-danger';
+                            });
+                        };
                         
-                        startQuaggaScanner();
-                        isScanning = true;
+                        video.onerror = function(videoError) {
+                            console.error('Error en el video:', videoError);
+                            statusMessage.textContent = 'Error en la transmisión de video.';
+                            scannerStatus.className = 'alert alert-danger';
+                        };
                         
-                        document.getElementById('btnStartCamera').style.display = 'none';
-                        document.getElementById('btnStopCamera').style.display = 'inline-block';
                     })
                     .catch(function(err) {
                         console.error('Error al acceder a la cámara:', err);
-                        statusMessage.textContent = 'Error al acceder a la cámara. Verifique los permisos.';
+                        let errorMsg = 'Error al acceder a la cámara. ';
+                        
+                        if (err.name === 'NotAllowedError') {
+                            errorMsg += 'Permisos denegados. Por favor, permite el acceso a la cámara.';
+                        } else if (err.name === 'NotFoundError') {
+                            errorMsg += 'No se encontró ninguna cámara en el dispositivo.';
+                        } else if (err.name === 'NotSupportedError') {
+                            errorMsg += 'La cámara no es compatible con este navegador.';
+                        } else {
+                            errorMsg += 'Verifique los permisos y que la cámara esté disponible.';
+                        }
+                        
+                        statusMessage.textContent = errorMsg;
                         scannerStatus.className = 'alert alert-danger';
                     });
                 } else {
-                    statusMessage.textContent = 'Su navegador no soporta acceso a la cámara.';
+                    statusMessage.textContent = 'Su navegador no soporta acceso a la cámara. Pruebe con Chrome, Firefox o Safari.';
                     scannerStatus.className = 'alert alert-warning';
                     scannerStatus.style.display = 'block';
                 }
@@ -715,21 +829,29 @@
                         type: "LiveStream",
                         target: document.querySelector('#videoElement'),
                         constraints: {
-                            width: 640,
-                            height: 480,
-                            facingMode: "environment"
+                            width: { min: 640, ideal: 1280, max: 1920 },
+                            height: { min: 480, ideal: 720, max: 1080 },
+                            facingMode: "environment", // Cámara trasera preferentemente
+                            aspectRatio: { min: 1, max: 2 }
+                        },
+                        area: { // Área de escaneo
+                            top: "25%",    // 25% desde arriba
+                            right: "15%",  // 15% desde la derecha
+                            left: "15%",   // 15% desde la izquierda
+                            bottom: "25%"  // 25% desde abajo
                         }
                     },
                     locator: {
-                        patchSize: "medium",
-                        halfSample: true
+                        patchSize: "medium", // Tamaño de parche para detección
+                        halfSample: false    // Mejor calidad
                     },
-                    numOfWorkers: 2,
+                    numOfWorkers: navigator.hardwareConcurrency || 4, // Usar todos los núcleos disponibles
+                    frequency: 10, // Frecuencia de escaneo
                     decoder: {
                         readers: [
                             "code_128_reader",
                             "ean_reader",
-                            "ean_8_reader",
+                            "ean_8_reader", 
                             "code_39_reader",
                             "code_39_vin_reader",
                             "codabar_reader",
@@ -738,31 +860,90 @@
                             "i2of5_reader",
                             "2of5_reader",
                             "code_93_reader"
-                        ]
+                        ],
+                        debug: {
+                            showCanvas: false,
+                            showPatches: false,
+                            showFoundPatches: false,
+                            showSkeleton: false,
+                            showLabels: false,
+                            showPatchLabels: false,
+                            showRemainingPatchLabels: false,
+                            boxFromPatches: {
+                                showTransformed: false,
+                                showTransformedBox: false,
+                                showBB: false
+                            }
+                        }
                     },
                     locate: true
                 }, function(err) {
                     if (err) {
                         console.error('Error al inicializar Quagga:', err);
+                        document.getElementById('statusMessage').textContent = 'Error al inicializar el escáner: ' + err;
+                        document.getElementById('scannerStatus').className = 'alert alert-danger';
                         return;
                     }
-                    console.log("Inicialización completa. Listo para escanear");
+                    
+                    console.log("Inicialización de Quagga completa. Listo para escanear");
+                    document.getElementById('statusMessage').textContent = 'Escáner activo. Enfoque el código de barras en el recuadro rojo...';
+                    
                     Quagga.start();
+                    
+                    // Configurar variables para control de detección
+                    let lastDetectionTime = 0;
+                    let detectionCooldown = 2000; // 2 segundos entre detecciones
+                    let detectionCount = 0;
+                    let lastCode = '';
                     
                     // Evento cuando se detecta un código de barras
                     Quagga.onDetected(function(data) {
+                        const currentTime = Date.now();
                         const code = data.codeResult.code;
-                        console.log('Código de barras detectado:', code);
                         
-                        // Mostrar el resultado
+                        // Evitar detecciones duplicadas muy seguidas
+                        if (currentTime - lastDetectionTime < detectionCooldown && code === lastCode) {
+                            return;
+                        }
+                        
+                        // Validar que el código tenga una longitud mínima
+                        if (!code || code.length < 3) {
+                            return;
+                        }
+                        
+                        lastDetectionTime = currentTime;
+                        lastCode = code;
+                        detectionCount++;
+                        
+                        console.log(`Código de barras detectado (${detectionCount}):`, code);
+                        
+                        // Mostrar el resultado visualmente
                         document.getElementById('barcodeResult').textContent = code;
                         document.getElementById('scanResult').style.display = 'block';
+                        
+                        // Detener temporalmente el escáner para procesar
+                        Quagga.pause();
                         
                         // Agregar automáticamente al carrito
                         agregarProductoCarritoBarra(code);
                         
-                        // Opcional: detener el escáner después de una lectura exitosa
-                        // setTimeout(stopBarcodeScanner, 2000);
+                        // Reactivar el escáner después de un tiempo
+                        setTimeout(function() {
+                            if (isScanning) {
+                                document.getElementById('scanResult').style.display = 'none';
+                                Quagga.start();
+                            }
+                        }, 3000);
+                    });
+                    
+                    // Evento para errores durante el procesamiento
+                    Quagga.onProcessed(function(result) {
+                        if (result) {
+                            // Opcional: mostrar información de debug
+                            if (result.codeResult && result.codeResult.code) {
+                                console.log("Código procesado:", result.codeResult.code);
+                            }
+                        }
                     });
                 });
             }
