@@ -247,7 +247,48 @@
 
 
                             </div>
-
+  <!-- Sección para lectura de código de barras con cámara -->
+                                    <div class="row mt-3">
+                                        <div class="card camera-card">
+                                            <div class="text-white card-header bg-primary">
+                                                <h5 class="mb-0"><i class="fa fa-camera"></i> Lectura de Código de Barras</h5>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="row">
+                                                    <div class="mb-3 text-center col-12">
+                                                        <button type="button" id="btnStartCamera" class="btn btn-success btn-lg me-3">
+                                                            <i class="fa fa-camera"></i> Activar Escáner
+                                                        </button>
+                                                        <button type="button" id="btnStopCamera" class="btn btn-danger btn-lg" style="display: none;">
+                                                            <i class="fa fa-stop-circle"></i> Detener Escáner
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <div class="row">
+                                                    <div class="col-12">
+                                                        <!-- Video preview de la cámara -->
+                                                        <div id="cameraContainer" class="camera-container" style="display: none;">
+                                                            <video id="videoElement" playsinline muted></video>
+                                                            <canvas id="canvasElement" style="display: none;"></canvas>
+                                                        </div>
+                                                        <!-- Mensaje de estado -->
+                                                        <div id="scannerStatus" class="alert alert-info" style="display: none;">
+                                                            <div class="d-flex align-items-center">
+                                                                <i class="fa fa-info-circle me-2"></i>
+                                                                <span id="statusMessage">Preparando escáner...</span>
+                                                                <div class="spinner-border spinner-border-sm ms-auto" role="status" aria-hidden="true"></div>
+                                                            </div>
+                                                        </div>
+                                                        <!-- Resultado del escaneo -->
+                                                        <div id="scanResult" class="alert alert-success" style="display: none;">
+                                                            <strong><i class="fa fa-check-circle"></i> Código escaneado:</strong>
+                                                            <span id="barcodeResult" class="fw-bold"></span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                             <div class="row mt-3">
                                 <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6 ">
 
@@ -576,5 +617,575 @@
         </script>
 
         <script src="{{ asset('js/js_proyecto/cotizaciones/expo.js') }}"></script>
+
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+         <script>
+            // Variables globales para el escáner
+            let isScanning = false;
+            let videoStream = null;
+
+            // Función para inicializar el escáner
+            function initBarcodeScanner() {
+                const video = document.getElementById('videoElement');
+                const canvas = document.getElementById('canvasElement');
+                const cameraContainer = document.getElementById('cameraContainer');
+                const scannerStatus = document.getElementById('scannerStatus');
+                const statusMessage = document.getElementById('statusMessage');
+
+                // Mostrar estado de carga
+                scannerStatus.style.display = 'block';
+                statusMessage.textContent = 'Solicitando acceso a la cámara...';
+
+                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                    navigator.mediaDevices.getUserMedia({
+                        video: {
+                            facingMode: { ideal: 'environment' }, // Preferir cámara trasera
+                            width: { min: 640, ideal: 1280, max: 1920 },
+                            height: { min: 480, ideal: 720, max: 1080 },
+                            frameRate: { ideal: 30, max: 60 }
+                        },
+                        audio: false
+                    })
+                    .then(function(stream) {
+                        videoStream = stream;
+                        video.srcObject = stream;
+
+                        // Configurar el video para mejor rendimiento
+                        video.setAttribute('playsinline', true);
+                        video.setAttribute('webkit-playsinline', true);
+                        video.muted = true;
+
+                        video.onloadedmetadata = function() {
+                            video.play().then(function() {
+                                cameraContainer.style.display = 'block';
+                                statusMessage.textContent = 'Inicializando escáner...';
+
+                                // Crear overlay de escaneo con mejor posicionamiento
+                                setTimeout(function() {
+                                    if (!document.querySelector('.scanner-overlay')) {
+                                        const overlay = document.createElement('div');
+                                        overlay.className = 'scanner-overlay';
+                                        cameraContainer.appendChild(overlay);
+                                    }
+
+                                    startQuaggaScanner();
+                                    isScanning = true;
+
+                                    document.getElementById('btnStartCamera').style.display = 'none';
+                                    document.getElementById('btnStopCamera').style.display = 'inline-block';
+                                }, 500);
+
+                            }).catch(function(playError) {
+                                console.error('Error al reproducir el video:', playError);
+                                statusMessage.textContent = 'Error al iniciar la vista previa de la cámara.';
+                                scannerStatus.className = 'alert alert-danger';
+                            });
+                        };
+
+                        video.onerror = function(videoError) {
+                            console.error('Error en el video:', videoError);
+                            statusMessage.textContent = 'Error en la transmisión de video.';
+                            scannerStatus.className = 'alert alert-danger';
+                        };
+
+                    })
+                    .catch(function(err) {
+                        console.error('Error al acceder a la cámara:', err);
+                        let errorMsg = 'Error al acceder a la cámara. ';
+
+                        if (err.name === 'NotAllowedError') {
+                            errorMsg += 'Permisos denegados. Por favor, permite el acceso a la cámara.';
+                        } else if (err.name === 'NotFoundError') {
+                            errorMsg += 'No se encontró ninguna cámara en el dispositivo.';
+                        } else if (err.name === 'NotSupportedError') {
+                            errorMsg += 'La cámara no es compatible con este navegador.';
+                        } else {
+                            errorMsg += 'Verifique los permisos y que la cámara esté disponible.';
+                        }
+
+                        statusMessage.textContent = errorMsg;
+                        scannerStatus.className = 'alert alert-danger';
+                    });
+                } else {
+                    statusMessage.textContent = 'Su navegador no soporta acceso a la cámara. Pruebe con Chrome, Firefox o Safari.';
+                    scannerStatus.className = 'alert alert-warning';
+                    scannerStatus.style.display = 'block';
+                }
+            }
+
+            // Función para inicializar QuaggaJS
+            function startQuaggaScanner() {
+                Quagga.init({
+                    inputStream: {
+                        name: "Live",
+                        type: "LiveStream",
+                        target: document.querySelector('#videoElement'),
+                        constraints: {
+                            width: { min: 640, ideal: 1280, max: 1920 },
+                            height: { min: 480, ideal: 720, max: 1080 },
+                            facingMode: "environment", // Cámara trasera preferentemente
+                            aspectRatio: { min: 1, max: 2 }
+                        },
+                        area: { // Área de escaneo
+                            top: "25%",    // 25% desde arriba
+                            right: "15%",  // 15% desde la derecha
+                            left: "15%",   // 15% desde la izquierda
+                            bottom: "25%"  // 25% desde abajo
+                        }
+                    },
+                    locator: {
+                        patchSize: "medium", // Tamaño de parche para detección
+                        halfSample: false    // Mejor calidad
+                    },
+                    numOfWorkers: navigator.hardwareConcurrency || 4, // Usar todos los núcleos disponibles
+                    frequency: 10, // Frecuencia de escaneo
+                    decoder: {
+                        readers: [
+                            "code_128_reader",
+                            "ean_reader",
+                            "ean_8_reader",
+                            "code_39_reader",
+                            "code_39_vin_reader",
+                            "codabar_reader",
+                            "upc_reader",
+                            "upc_e_reader",
+                            "i2of5_reader",
+                            "2of5_reader",
+                            "code_93_reader"
+                        ],
+                        debug: {
+                            showCanvas: false,
+                            showPatches: false,
+                            showFoundPatches: false,
+                            showSkeleton: false,
+                            showLabels: false,
+                            showPatchLabels: false,
+                            showRemainingPatchLabels: false,
+                            boxFromPatches: {
+                                showTransformed: false,
+                                showTransformedBox: false,
+                                showBB: false
+                            }
+                        }
+                    },
+                    locate: true
+                }, function(err) {
+                    if (err) {
+                        console.error('Error al inicializar Quagga:', err);
+                        document.getElementById('statusMessage').textContent = 'Error al inicializar el escáner: ' + err;
+                        document.getElementById('scannerStatus').className = 'alert alert-danger';
+                        return;
+                    }
+
+                    console.log("Inicialización de Quagga completa. Listo para escanear");
+                    document.getElementById('statusMessage').textContent = 'Escáner activo. Enfoque el código de barras en el recuadro rojo...';
+
+                    Quagga.start();
+
+                    // Configurar variables para control de detección
+                    let lastDetectionTime = 0;
+                    let detectionCooldown = 2000; // 2 segundos entre detecciones
+                    let detectionCount = 0;
+                    let lastCode = '';
+
+                    // Evento cuando se detecta un código de barras
+                    Quagga.onDetected(function(data) {
+                        const currentTime = Date.now();
+                        let code = data.codeResult.code;
+
+                        // Omitir los ceros a la izquierda
+                        code = code.replace(/^0+/, '') || '0';
+
+                        // Evitar detecciones duplicadas muy seguidas
+                        if (currentTime - lastDetectionTime < detectionCooldown && code === lastCode) {
+                            return;
+                        }
+
+                        // Validar que el código tenga una longitud mínima
+                        if (!code || code.length < 3) {
+                            return;
+                        }
+
+                        lastDetectionTime = currentTime;
+                        lastCode = code;
+                        detectionCount++;
+
+                        console.log(`Código de barras detectado (${detectionCount}):`, code);
+
+                        // Mostrar el resultado visualmente
+                        document.getElementById('barcodeResult').textContent = code;
+                        document.getElementById('scanResult').style.display = 'block';
+
+                        // Detener temporalmente el escáner para procesar
+                        Quagga.pause();
+
+                        // Agregar automáticamente al carrito funciono la basuk
+                        agregarProductoCarritoBarra(code);
+
+                        // Reactivar el escáner después de un tiempo
+                        setTimeout(function() {
+                            if (isScanning) {
+                                document.getElementById('scanResult').style.display = 'none';
+                                Quagga.start();
+                            }
+                        }, 3000);
+                    });
+
+                    // Evento para errores durante el procesamiento
+                    Quagga.onProcessed(function(result) {
+                        if (result) {
+                            // mando el fucking debug por que no me saba esta basuk
+                            if (result.codeResult && result.codeResult.code) {
+                                console.log("Código procesado:", result.codeResult.code);
+                            }
+                        }
+                    });
+                });
+            }
+
+            // Función para detener el escáner
+            function stopBarcodeScanner() {
+                if (isScanning) {
+                    Quagga.stop();
+                    isScanning = false;
+                }
+
+                if (videoStream) {
+                    videoStream.getTracks().forEach(track => track.stop());
+                    videoStream = null;
+                }
+
+                document.getElementById('cameraContainer').style.display = 'none';
+                document.getElementById('scannerStatus').style.display = 'none';
+                document.getElementById('scanResult').style.display = 'none';
+
+                document.getElementById('btnStartCamera').style.display = 'inline-block';
+                document.getElementById('btnStopCamera').style.display = 'none';
+
+                // Remover overlay
+                const overlay = document.querySelector('.scanner-overlay');
+                if (overlay) {
+                    overlay.remove();
+                }
+            }
+
+            // Event listeners para los botones
+            document.addEventListener('DOMContentLoaded', function() {
+                document.getElementById('btnStartCamera').addEventListener('click', initBarcodeScanner);
+                document.getElementById('btnStopCamera').addEventListener('click', stopBarcodeScanner);
+            });
+
+            // Función de prueba para debuggear
+            window.testBarcodeAPI = function(codigo) {
+                codigo = codigo || '849607055569';
+                console.log('Probando API con código:', codigo);
+
+                const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+                fetch('/ventas/datos/producto/expo', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': token,
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        barraProd: codigo
+                    })
+                })
+                .then(response => {
+                    console.log('Status:', response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Respuesta completa:', data);
+
+                    if (data.success) {
+                        console.log('✅ Producto encontrado:', data.producto.nombre);
+                        alert(`✅ Producto encontrado: ${data.producto.nombre}\nCódigo: ${codigo}\nPrecio: L. ${data.producto.precio_base}`);
+                    } else {
+                        console.log('❌ Producto no encontrado');
+                        alert(`❌ Producto no encontrado con código: ${codigo}`);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert(`❌ Error de conexión: ${error.message}`);
+                });
+            };
+
+            // Función para agregar producto al carrito mediante código de barras
+            window.agregarProductoCarritoBarra = function(codigoBarra) {
+                console.log('Buscando producto con código de barras:', codigoBarra);
+
+                // Función para reproducir sonido como le gusta a yeff
+                function playSound(type) {
+                    try {
+                        let frequency = type === 'success' ? 800 : 300;
+                        let duration = type === 'success' ? 200 : 500;
+
+                        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                        const oscillator = audioContext.createOscillator();
+                        const gainNode = audioContext.createGain();
+
+                        oscillator.connect(gainNode);
+                        gainNode.connect(audioContext.destination);
+
+                        oscillator.frequency.value = frequency;
+                        oscillator.type = 'sine';
+
+                        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration / 1000);
+
+                        oscillator.start(audioContext.currentTime);
+                        oscillator.stop(audioContext.currentTime + duration / 1000);
+                    } catch (e) {
+                        console.log('No se pudo reproducir el sonido:', e);
+                    }
+                }
+
+                // Obtener token CSRF
+                const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+                // Hacer petición al backend
+                fetch('/ventas/datos/producto/expo', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': token
+                    },
+                    body: JSON.stringify({
+                        barraProd: codigoBarra
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Respuesta del servidor:', data);
+
+                    if (!data.success) {
+                        playSound('error');
+                        Swal.fire({
+                            icon: 'error',
+                            title: '¡Producto No Encontrado!',
+                            html: `
+                                <div style="text-align: left;">
+                                    <p><strong>Código escaneado:</strong> ${codigoBarra}</p>
+                                    <p><strong>Estado:</strong> No existe en la base de datos</p>
+                                    <hr>
+                                    <p style="color: #666; font-size: 0.9em;">
+                                        • Verifique que el código esté completo<br>
+                                        • Asegúrese de que el producto esté registrado<br>
+                                        • Contacte al administrador si persiste el problema
+                                    </p>
+                                </div>
+                            `,
+                            confirmButtonText: 'Entendido',
+                            confirmButtonColor: '#d33'
+                        });
+                        return;
+                    }
+
+                    // Verificar que tenemos los datos necesarios
+                    const producto = data.producto;
+                    const arrayUnidades = data.unidades;
+
+                    if (!producto || !producto.id) {
+                        playSound('error');
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Datos incompletos',
+                            text: `El producto con código ${codigoBarra} no tiene datos válidos.`,
+                            confirmButtonColor: '#f39c12'
+                        });
+                        return;
+                    }
+
+                    // Reproducir sonido de éxito yeah
+                    playSound('success');
+
+                    // Usar la misma lógica que agregarProductoCarrito
+                    let bodega = 'SALA DE VENTAS';
+                    let idBodega = 16;
+                    let idSeccion = 156;
+                    let idProducto = producto.id;
+
+                    // Verificar si el producto ya existe en el carrito(La dejo pero si queres la quitas)
+                    let flag = false;
+                    if (typeof arregloIdInputs !== 'undefined') {
+                        arregloIdInputs.forEach(idInpunt => {
+                            let idProductoFila = document.getElementById("idProducto" + idInpunt)?.value;
+                            let idSeccionFila = document.getElementById("idSeccion" + idInpunt)?.value;
+
+                            if (idProducto == idProductoFila && idSeccion == idSeccionFila && !flag) {
+                                flag = true;
+                            }
+                        });
+                    }
+
+                    if (flag) {
+                        playSound('error');
+                        Swal.fire({
+                            icon: 'info',
+                            title: '¡Producto ya agregado!',
+                            text: 'Este producto ya se encuentra en el carrito. Modifique la cantidad si es necesario.',
+                            confirmButtonColor: '#17a2b8'
+                        });
+                        return;
+                    }
+
+                    // Incrementar contador y agregar a array
+                    if (typeof numeroInputs !== 'undefined') {
+                        numeroInputs += 1;
+                    } else {
+                        window.numeroInputs = 1;
+                    }
+
+                    // Construir HTML de unidades
+                    let htmlSelectUnidades = "";
+                    arrayUnidades.forEach(unidad => {
+                        if (unidad.valor_defecto == 1) {
+                            htmlSelectUnidades += `<option selected value="${unidad.id}" data-id="${unidad.idUnidadVenta}">${unidad.nombre}</option>`;
+                        } else {
+                            htmlSelectUnidades += `<option value="${unidad.id}" data-id="${unidad.idUnidadVenta}">${unidad.nombre}</option>`;
+                        }
+                    });
+
+                    // Construir HTML de precios
+                    let htmlprecios = `
+                        <option data-id="0" selected>--Seleccione precio--</option>
+                        <option value="${producto.precio_base}" data-id="pb">${producto.precio_base} - Base</option>
+                        <option value="${producto.precio1}" data-id="p1">${producto.precio1} - A</option>
+                        <option value="${producto.precio2}" data-id="p2">${producto.precio2} - B</option>
+                        <option value="${producto.precio3}" data-id="p3">${producto.precio3} - C</option>
+                        <option value="${producto.precio4}" data-id="p4">${producto.precio4} - D</option>
+                    `;
+
+                    let currentInputId = typeof numeroInputs !== 'undefined' ? numeroInputs : 1;
+
+                    // Construir HTML completo del producto
+                    let html = `
+                        <div id='${currentInputId}' class="row no-gutters">
+                            <div class="form-group col-3">
+                                <div class="d-flex">
+                                    <button class="btn btn-danger" type="button" style="display: inline" onclick="eliminarInput(${currentInputId})">
+                                        <i class="fa-regular fa-rectangle-xmark"></i>
+                                    </button>
+                                    <input id="idProducto${currentInputId}" name="idProducto${currentInputId}" type="hidden" value="${producto.id}">
+                                    <div style="width:100%">
+                                        <label for="nombre${currentInputId}" class="sr-only">Producto</label>
+                                        <input type="text" placeholder="Producto" id="nombre${currentInputId}"
+                                            name="nombre${currentInputId}" class="form-control"
+                                            data-parsley-required autocomplete="off" readonly
+                                            value='${producto.nombre} 📱'
+                                            style="background-color: #e8f5e8; border-color: #28a745; font-weight: bold;">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group col-1">
+                                <label for="" class="sr-only">Bodega</label>
+                                <input type="text" value="${bodega}" placeholder="Bodega" id="bodega${currentInputId}"
+                                    name="bodega${currentInputId}" class="form-control" autocomplete="off" readonly>
+                            </div>
+                            <div class="form-group col-2">
+                                <label for="" class="sr-only">Precios</label>
+                                <select class="form-control" name="precios${currentInputId}" id="precios${currentInputId}"
+                                    data-parsley-required style="height:35.7px;"
+                                    onchange="validacionPrecio(precios${currentInputId}, precio${currentInputId})">
+                                    ${htmlprecios}
+                                </select>
+                            </div>
+                            <div class="form-group col-1">
+                                <label for="precio${currentInputId}" class="sr-only">Precio</label>
+                                <input type="number" placeholder="Precio Unidad" id="precio${currentInputId}"
+                                    name="precio${currentInputId}" class="form-control" data-parsley-required step="any"
+                                    autocomplete="off" onchange="calcularTotales(precio${currentInputId},cantidad${currentInputId},${producto.isv},unidad${currentInputId},${currentInputId},restaInventario${currentInputId})">
+                            </div>
+                            <div class="form-group col-1">
+                                <label for="cantidad${currentInputId}" class="sr-only">Cantidad</label>
+                                <input type="number" placeholder="Cantidad" id="cantidad${currentInputId}"
+                                    name="cantidad${currentInputId}" class="form-control" min="1" data-parsley-required
+                                    autocomplete="off" value="1" onchange="calcularTotales(precio${currentInputId},cantidad${currentInputId},${producto.isv},unidad${currentInputId},${currentInputId},restaInventario${currentInputId})">
+                            </div>
+                            <div class="form-group col-1">
+                                <label for="" class="sr-only">Unidad</label>
+                                <select class="form-control" name="unidad${currentInputId}" id="unidad${currentInputId}"
+                                    data-parsley-required style="height:35.7px;"
+                                    onchange="calcularTotales(precio${currentInputId},cantidad${currentInputId},${producto.isv},unidad${currentInputId},${currentInputId},restaInventario${currentInputId})">
+                                    ${htmlSelectUnidades}
+                                </select>
+                            </div>
+                            <div class="form-group col-1">
+                                <label for="subTotalMostrar${currentInputId}" class="sr-only">Sub Total</label>
+                                <input type="text" placeholder="Sub total" id="subTotalMostrar${currentInputId}"
+                                    name="subTotalMostrar${currentInputId}" class="form-control" autocomplete="off" readonly>
+                                <input id="subTotal${currentInputId}" name="subTotal${currentInputId}" type="hidden" value="" required>
+                                <input type="hidden" id="acumuladoDescuento${currentInputId}" name="acumuladoDescuento${currentInputId}">
+                            </div>
+                            <div class="form-group col-1">
+                                <label for="isvProductoMostrar${currentInputId}" class="sr-only">ISV</label>
+                                <input type="text" placeholder="ISV" id="isvProductoMostrar${currentInputId}"
+                                    name="isvProductoMostrar${currentInputId}" class="form-control" autocomplete="off" readonly>
+                                <input id="isvProducto${currentInputId}" name="isvProducto${currentInputId}" type="hidden" value="" required>
+                            </div>
+                            <div class="form-group col-1">
+                                <label for="totalMostrar${currentInputId}" class="sr-only">Total</label>
+                                <input type="text" placeholder="Total" id="totalMostrar${currentInputId}"
+                                    name="totalMostrar${currentInputId}" class="form-control" autocomplete="off" readonly>
+                                <input id="total${currentInputId}" name="total${currentInputId}" type="hidden" value="" required>
+                            </div>
+                            <input id="idBodega${currentInputId}" name="idBodega${currentInputId}" type="hidden" value="${idBodega}">
+                            <input id="idSeccion${currentInputId}" name="idSeccion${currentInputId}" type="hidden" value="${idSeccion}">
+                            <input id="restaInventario${currentInputId}" name="restaInventario${currentInputId}" type="hidden" value="">
+                            <input id="isv${currentInputId}" name="isv${currentInputId}" type="hidden" value="${producto.isv}">
+                        </div>
+                    `;
+
+                    // Agregar el HTML al DOM
+                    const divProductos = document.getElementById('divProductos');
+                    if (divProductos) {
+                        divProductos.insertAdjacentHTML('beforeend', html);
+
+                        // Agregar al array de IDs si existe
+                        if (typeof arregloIdInputs !== 'undefined') {
+                            arregloIdInputs.splice(currentInputId, 0, currentInputId);
+                        }
+
+                        // Mostrar mensaje de éxito
+                        Swal.fire({
+                            icon: 'success',
+                            title: '¡Producto Escaneado!',
+                            html: `
+                                <div style="text-align: left;">
+                                    <p><strong>Código:</strong> ${codigoBarra}</p>
+                                    <p><strong>Producto:</strong> ${producto.nombre}</p>
+                                    <p style="color: #28a745;">✓ Agregado al carrito exitosamente</p>
+                                </div>
+                            `,
+                            timer: 2500,
+                            showConfirmButton: false
+                        });
+                    } else {
+                        console.error('No se encontró el div de productos');
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'No se pudo agregar el producto al carrito. Intente nuevamente.',
+                            confirmButtonColor: '#d33'
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    playSound('error');
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error de conexión',
+                        text: 'No se pudo conectar con el servidor. Intente nuevamente.',
+                        confirmButtonColor: '#d33'
+                    });
+                });
+            };
+        </script>
+
     @endpush
 </div>
