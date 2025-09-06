@@ -1,4 +1,24 @@
 
+            // ============ FUNCIONES DE UTILIDAD PARA CÓDIGOS DE BARRAS ============
+            
+            // Función para normalizar códigos de barras eliminando ceros a la izquierda
+            function normalizarCodigoBarras(codigo) {
+                if (!codigo || typeof codigo !== 'string') {
+                    return '';
+                }
+                
+                // Eliminar ceros a la izquierda, pero conservar al menos un dígito
+                const normalizado = codigo.replace(/^0+/, '') || '0';
+                
+                console.log('🔧 Código normalizado:', {
+                    original: codigo,
+                    normalizado: normalizado,
+                    cambioRealizado: codigo !== normalizado
+                });
+                
+                return normalizado;
+            }
+
             /*****************************************/
                 // Función a ejecutar cuando el interruptor está activado
                 function checkActivo() {
@@ -25,15 +45,15 @@
                         // Set timeout to clear currentBarcode and process the barcodes array
                         timer = setTimeout(() => {
                             if (currentBarcode) {
-                                barcodes.push(currentBarcode);
-                            // console.log(`Código de barras agregado: ${currentBarcode}`);
+                                // Usar la función de normalización
+                                const processedBarcode = normalizarCodigoBarras(currentBarcode);
+                                barcodes.push(processedBarcode);
                                 currentBarcode = ''; // Clear the currentBarcode after adding to the array
                             }
                             if (barcodes.length > 0) {
                                 // Process barcodes
-                            // console.log('Todos los códigos de barras leídos:');
                                 barcodes.forEach((barcode, index) => {
-                                    console.log(barcode);
+                                    console.log('📋 Procesando código (teclado):', barcode);
                                     agregarProductoCarritoBarra(barcode);
                                 });
                                 // Clear the array after processing
@@ -1066,7 +1086,7 @@
 
             // Función para agregar producto al carrito mediante código de barras
             function agregarProductoCarritoBarra(codigoBarra) {
-                console.log('Buscando producto con código de barras:', codigoBarra);
+                console.log('� Agregando producto al carrito con código:', codigoBarra);
 
                 // Función para reproducir sonido como le gusta a yeff
                 function playSound(type) {
@@ -1457,11 +1477,15 @@
                         return;
                     }
                     
-                    const code = result.codeResult.code;
-                    console.log('📷 Código crudo detectado:', code, 'Longitud:', code ? code.length : 0);
+                    const rawCode = result.codeResult.code;
+                    console.log('📷 Código crudo detectado:', rawCode, 'Longitud:', rawCode ? rawCode.length : 0);
+                    
+                    // Usar la función de normalización para eliminar ceros a la izquierda
+                    const code = normalizarCodigoBarras(rawCode);
+                    console.log('✅ Código procesado (scanner visual):', code);
                     
                     // Validación más flexible
-                    if (code && code.length >= 4) { // Reducir longitud mínima
+                    if (code && code.length >= 1) { // Reducir longitud mínima
                         console.log('✅ Código válido detectado:', code);
                         
                         // Mostrar código dinámicamente debajo de la cámara
@@ -1472,7 +1496,7 @@
                         // Sonido de éxito
                         playSound('success');
                         
-                        // Agregar al carrito directamente
+                        // Agregar al carrito directamente con código procesado
                         agregarProductoCarritoBarra(code);
                         
                         // Pausar temporalmente para evitar múltiples detecciones
@@ -1771,6 +1795,19 @@
                     currentTime: video.currentTime,
                     readyState: video.readyState
                 });
+            };
+            
+            // Función para probar la normalización de códigos
+            window.testNormalizacion = function() {
+                console.log('🧪 === TEST DE NORMALIZACIÓN DE CÓDIGOS ===');
+                const testCodes = ['000123456', '00012', '0001', '0', '000', '123456', ''];
+                
+                testCodes.forEach(code => {
+                    const normalizado = normalizarCodigoBarras(code);
+                    console.log(`📋 "${code}" → "${normalizado}"`);
+                });
+                
+                console.log('🧪 === FIN TEST NORMALIZACIÓN ===');
             };
 
             console.log('📱 Scanner de códigos de barras cargado - usa testScanner() para probar');
