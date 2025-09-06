@@ -101,17 +101,20 @@
             /* Estilos para el scanner de códigos de barras */
             #cameraContainer {
                 position: relative;
-                max-width: 500px;
+                max-width: 400px;
+                width: 100%;
                 margin: 0 auto;
-                border: 2px solid #007bff;
-                border-radius: 10px;
+                border: 3px solid #007bff;
+                border-radius: 15px;
                 overflow: hidden;
                 background: #000;
+                box-shadow: 0 8px 20px rgba(0, 123, 255, 0.3);
             }
 
             #cameraContainer video {
                 width: 100%;
-                height: auto;
+                height: 250px;
+                object-fit: cover;
                 display: block;
             }
 
@@ -120,18 +123,47 @@
                 top: 50%;
                 left: 50%;
                 transform: translate(-50%, -50%);
-                width: 250px;
-                height: 150px;
-                border: 2px solid #ff0000;
-                border-radius: 10px;
-                box-shadow: 0 0 20px rgba(255, 0, 0, 0.5);
-                animation: pulse 2s infinite;
+                width: 200px;
+                height: 120px;
+                border: 3px solid #ff0000;
+                border-radius: 12px;
+                box-shadow: 
+                    0 0 20px rgba(255, 0, 0, 0.6),
+                    inset 0 0 20px rgba(255, 0, 0, 0.1);
+                animation: scannerPulse 2s infinite;
+                z-index: 10;
             }
 
-            @keyframes pulse {
-                0% { border-color: #ff0000; box-shadow: 0 0 20px rgba(255, 0, 0, 0.5); }
-                50% { border-color: #00ff00; box-shadow: 0 0 30px rgba(0, 255, 0, 0.7); }
-                100% { border-color: #ff0000; box-shadow: 0 0 20px rgba(255, 0, 0, 0.5); }
+            .scanner-overlay::before {
+                content: '';
+                position: absolute;
+                top: 50%;
+                left: 0;
+                right: 0;
+                height: 2px;
+                background: linear-gradient(90deg, transparent, #ff0000, transparent);
+                animation: scanLine 2s infinite;
+            }
+
+            @keyframes scannerPulse {
+                0% { 
+                    border-color: #ff0000; 
+                    box-shadow: 0 0 20px rgba(255, 0, 0, 0.6);
+                }
+                50% { 
+                    border-color: #00ff00; 
+                    box-shadow: 0 0 30px rgba(0, 255, 0, 0.8);
+                }
+                100% { 
+                    border-color: #ff0000; 
+                    box-shadow: 0 0 20px rgba(255, 0, 0, 0.6);
+                }
+            }
+
+            @keyframes scanLine {
+                0% { transform: translateY(-60px); opacity: 0; }
+                50% { opacity: 1; }
+                100% { transform: translateY(60px); opacity: 0; }
             }
 
             .camera-controls {
@@ -142,11 +174,17 @@
             .scanner-status {
                 background: linear-gradient(45deg, #28a745, #20c997);
                 color: white;
-                padding: 10px;
-                border-radius: 5px;
-                margin: 10px 0;
+                padding: 12px;
+                border-radius: 8px;
+                margin: 15px 0;
                 text-align: center;
                 font-weight: bold;
+                animation: statusPulse 1.5s infinite;
+            }
+
+            @keyframes statusPulse {
+                0%, 100% { opacity: 1; }
+                50% { opacity: 0.7; }
             }
 
             .scanner-result {
@@ -154,8 +192,45 @@
                 border: 1px solid #c3e6cb;
                 color: #155724;
                 padding: 15px;
-                border-radius: 5px;
-                margin: 10px 0;
+                border-radius: 8px;
+                margin: 15px 0;
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            }
+
+            /* Responsivo para móviles */
+            @media (max-width: 768px) {
+                #cameraContainer {
+                    max-width: 320px;
+                }
+                
+                #cameraContainer video {
+                    height: 200px;
+                }
+                
+                .scanner-overlay {
+                    width: 160px;
+                    height: 100px;
+                }
+                
+                .camera-controls .btn {
+                    font-size: 14px;
+                    padding: 8px 16px;
+                }
+            }
+
+            @media (max-width: 480px) {
+                #cameraContainer {
+                    max-width: 280px;
+                }
+                
+                #cameraContainer video {
+                    height: 180px;
+                }
+                
+                .scanner-overlay {
+                    width: 140px;
+                    height: 80px;
+                }
             }
 
             /* Firefox */
@@ -364,35 +439,53 @@
                             </div>
                                 <!-- Scanner de Códigos de Barras -->
                                 <div class="row mt-3">
-                                    <div class="col-12">
-                                        <div class="card border-primary">
+                                    <div class="col-12 col-md-8 col-lg-6 mx-auto">
+                                        <div class="card border-primary shadow-sm">
                                             <div class="card-header bg-primary text-white">
-                                                <h6 class="mb-0">
-                                                    <i class="fas fa-camera"></i> Scanner de Códigos de Barras
+                                                <h6 class="mb-0 text-center">
+                                                    <i class="fas fa-qrcode me-2"></i> Scanner de Códigos de Barras
                                                 </h6>
                                             </div>
-                                            <div class="card-body">
-                                                <div class="camera-controls text-center mb-3">
-                                                    <button id="btnStartCamera" class="btn btn-success mr-2">
-                                                        <i class="fas fa-camera"></i> Activar Cámara
+                                            <div class="card-body text-center">
+                                                
+                                                <!-- Botones de Control -->
+                                                <div class="camera-controls mb-3">
+                                                    <button id="btnStartCamera" class="btn btn-success btn-lg me-2">
+                                                        <i class="fas fa-camera me-2"></i>Activar Cámara
                                                     </button>
-                                                    <button id="btnStopCamera" class="btn btn-danger" style="display:none;">
-                                                        <i class="fas fa-stop"></i> Detener Cámara
+                                                    <button id="btnStopCamera" class="btn btn-danger btn-lg" style="display:none;">
+                                                        <i class="fas fa-stop me-2"></i>Detener
                                                     </button>
                                                 </div>
                                                 
-                                                <div id="cameraContainer" style="display:none;">
-                                                    <video id="scanner-video" width="100%" height="auto"></video>
+                                                <!-- Contenedor de la Cámara -->
+                                                <div class="d-flex justify-content-center mb-3">
+                                                    <div id="cameraContainer" style="display:none;">
+                                                        <video id="scanner-video" playsinline></video>
+                                                    </div>
                                                 </div>
                                                 
+                                                <!-- Estado del Scanner -->
                                                 <div id="scannerStatus" class="scanner-status" style="display:none;">
-                                                    <i class="fas fa-search"></i> Escaneando... Apunte la cámara al código de barras
+                                                    <i class="fas fa-search me-2"></i>
+                                                    <span>Escaneando... Enfoque el código en el recuadro rojo</span>
                                                 </div>
                                                 
+                                                <!-- Resultado del Escaneo -->
                                                 <div id="scanResult" class="scanner-result" style="display:none;">
-                                                    <strong><i class="fa fa-check-circle"></i> Código escaneado:</strong>
-                                                    <span id="barcodeResult" class="fw-bold"></span>
+                                                    <i class="fa fa-check-circle text-success me-2"></i>
+                                                    <strong>Código escaneado:</strong>
+                                                    <span id="barcodeResult" class="fw-bold text-primary ms-2"></span>
                                                 </div>
+                                                
+                                                <!-- Instrucciones -->
+                                                <div class="mt-3">
+                                                    <small class="text-muted">
+                                                        <i class="fas fa-info-circle me-1"></i>
+                                                        Coloque el código de barras dentro del recuadro rojo para escanearlo
+                                                    </small>
+                                                </div>
+                                                
                                             </div>
                                         </div>
                                     </div>
