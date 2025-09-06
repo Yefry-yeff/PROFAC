@@ -1,21 +1,21 @@
 
             // ============ FUNCIONES DE UTILIDAD PARA CÓDIGOS DE BARRAS ============
-            
+
             // Función para normalizar códigos de barras eliminando ceros a la izquierda
             function normalizarCodigoBarras(codigo) {
                 if (!codigo || typeof codigo !== 'string') {
                     return '';
                 }
-                
+
                 // Eliminar ceros a la izquierda, pero conservar al menos un dígito
                 const normalizado = codigo.replace(/^0+/, '') || '0';
-                
+
                 console.log('🔧 Código normalizado:', {
                     original: codigo,
                     normalizado: normalizado,
                     cambioRealizado: codigo !== normalizado
                 });
-                
+
                 return normalizado;
             }
 
@@ -524,10 +524,10 @@
 
                 // Obtener el número del input para actualizar campos hidden
                 const numeroInput = idprecioIngresado.replace('precio', '');
-                
+
                 // Actualizar campo hidden para el idPrecioSeleccionado
                 const idPrecioSeleccionadoField = document.getElementById(`idPrecioSeleccionado${numeroInput}`);
-                
+
                 if (idPrecioSeleccionadoField) {
                     idPrecioSeleccionadoField.value = idPrecioSeleccionado;
                 }
@@ -731,7 +731,7 @@
 
 
                         idRestaInventario.value = valorInputCantidad * valorSelectUnidad;
-                        
+
                         // Actualizar el campo idUnidadVenta si existe
                         const idUnidadVentaField = document.getElementById(`idUnidadVenta${id}`);
                         if (idUnidadVentaField && idUnidad.selectedOptions.length > 0) {
@@ -740,7 +740,7 @@
                             idUnidadVentaField.value = idUnidadVenta;
                             console.log(`✅ Campo idUnidadVenta${id} actualizado:`, idUnidadVenta);
                         }
-                        
+
                         this.totalesGenerales();
 
 
@@ -959,11 +959,11 @@
             function capturarYEnviarDatos() {
 
                 console.log('Recopilando datos del formulario manualmente...');
-                
+
                 // Recopilar datos básicos del formulario
                 const formData = {};
                 const formElements = document.getElementById('crear_venta').elements;
-                
+
                 // Agregar todos los campos del formulario base
                 for (let element of formElements) {
                     if (element.name && element.type !== 'button') {
@@ -971,15 +971,15 @@
                         console.log(`Campo base: ${element.name} = ${element.value}`);
                     }
                 }
-                
+
                 // También recopilar TODOS los campos dentro del divProductos
                 const divProductos = document.getElementById('divProductos');
                 console.log('divProductos encontrado:', divProductos);
-                
+
                 if (divProductos) {
                     const allInputsInDiv = divProductos.querySelectorAll('input, select');
                     console.log(`Encontrados ${allInputsInDiv.length} elementos en divProductos`);
-                    
+
                     allInputsInDiv.forEach((element, index) => {
                         console.log(`Elemento ${index}:`, {
                             tag: element.tagName,
@@ -988,7 +988,7 @@
                             name: element.name,
                             value: element.value
                         });
-                        
+
                         if (element.name) {
                             formData[element.name] = element.value;
                             console.log(`Campo producto: ${element.name} = ${element.value}`);
@@ -999,23 +999,23 @@
                 } else {
                     console.error('❌ divProductos NO encontrado!');
                 }
-                
+
                 // También capturar campos específicos del producto por ID
                 console.log('Capturando campos específicos por ID...');
                 arregloIdInputs.forEach(id => {
                     console.log(`--- Capturando campos para producto ID: ${id} ---`);
-                    
+
                     // Lista de campos específicos que necesitamos
                     const camposRequeridos = [
-                        'idProducto', 'nombre', 'bodega', 'precio', 'cantidad', 
-                        'subTotal', 'isvProducto', 'total', 'idBodega', 
+                        'idProducto', 'nombre', 'bodega', 'precio', 'cantidad',
+                        'subTotal', 'isvProducto', 'total', 'idBodega',
                         'idSeccion', 'restaInventario', 'isv', 'precios', 'unidad'
                     ];
-                    
+
                     camposRequeridos.forEach(campo => {
                         const nombreCampo = campo + id;
                         const elemento = document.getElementById(nombreCampo);
-                        
+
                         if (elemento) {
                             const valor = elemento.value || elemento.textContent || '';
                             formData[nombreCampo] = valor;
@@ -1025,12 +1025,12 @@
                         }
                     });
                 });
-                
+
                 console.log('Datos básicos del formulario:', formData);
 
                 let longitudArreglo = arregloIdInputs.length;
                 console.log('Longitud del arreglo:', longitudArreglo);
-                
+
                 for (var i = 0; i < longitudArreglo; i++) {
 
                     console.log(`=== PROCESANDO PRODUCTO ${i + 1} ===`);
@@ -1069,7 +1069,7 @@
 
                 let text = arregloIdInputs.toString();
                 formData["arregloIdInputs"] = text;
-                
+
                 // ✅ FIX: Agregar valor dummy para seleccionarProducto si tiene productos escaneados
                 if (arregloIdInputs.length > 0 && !formData["seleccionarProducto"]) {
                     formData["seleccionarProducto"] = "dummy"; // Valor dummy para pasar validación
@@ -1094,7 +1094,7 @@
                         console.log('=== RESPUESTA DEL SERVIDOR ===');
                         console.log('Response status:', response.status);
                         console.log('Response data:', response.data);
-                        
+
                         let data = response.data;
 
                         //console.log(response.data);
@@ -1184,13 +1184,13 @@
                         console.log('=== ERROR EN EL GUARDADO ===');
                         console.error('Error completo:', err);
                         console.error('Error response:', err.response);
-                        
+
                         if (err.response) {
                             console.error('Status:', err.response.status);
                             console.error('Data:', err.response.data);
                             console.error('Headers:', err.response.headers);
                         }
-                        
+
                         document.getElementById("guardar_cotizacion_btn").disabled = false;
                         let data = err.response.data;
                         console.log(err);
@@ -1256,7 +1256,7 @@
                 .then(response => {
                     console.log('=== RESPUESTA DATOS PRODUCTO ===');
                     console.log('Response data:', response.data);
-                    
+
                     // Verificar si la respuesta indica éxito
                     if (!response.data.success) {
                         playSound('error');
@@ -1451,7 +1451,7 @@
                     setTimeout(() => {
                         try {
                             console.log('Iniciando configuración automática...');
-                            
+
                             // Seleccionar precio base automáticamente
                             const selectPrecios = document.getElementById(`precios${numeroInputs}`);
                             if (selectPrecios) {
@@ -1460,14 +1460,14 @@
                                 // Disparar el evento onchange para actualizar el precio
                                 selectPrecios.dispatchEvent(new Event('change'));
                             }
-                            
+
                             // Configurar la unidad seleccionada y su idUnidadVenta
                             const selectUnidad = document.getElementById(`unidad${numeroInputs}`);
                             const idUnidadVentaField = document.getElementById(`idUnidadVenta${numeroInputs}`);
-                            
+
                             console.log('Select unidad encontrado:', selectUnidad);
                             console.log('Campo idUnidadVenta encontrado:', idUnidadVentaField);
-                            
+
                             if (selectUnidad && idUnidadVentaField) {
                                 const selectedOption = selectUnidad.options[selectUnidad.selectedIndex];
                                 if (selectedOption) {
@@ -1477,33 +1477,33 @@
                                     console.log('Valor del campo idUnidadVenta:', idUnidadVentaField.value);
                                 }
                             }
-                            
+
                             // Verificar campo idPrecioSeleccionado
                             const idPrecioSeleccionadoField = document.getElementById(`idPrecioSeleccionado${numeroInputs}`);
                             console.log('Campo idPrecioSeleccionado encontrado:', idPrecioSeleccionadoField);
                             console.log('Valor inicial idPrecioSeleccionado:', idPrecioSeleccionadoField?.value);
-                            
+
                             // Calcular totales automáticamente
                             const precioInput = document.getElementById(`precio${numeroInputs}`);
                             const cantidadInput = document.getElementById(`cantidad${numeroInputs}`);
                             const restaInventarioInput = document.getElementById(`restaInventario${numeroInputs}`);
-                            
+
                             console.log('Elementos para calcular totales:');
                             console.log('- precioInput:', precioInput);
                             console.log('- cantidadInput:', cantidadInput);
                             console.log('- restaInventarioInput:', restaInventarioInput);
-                            
+
                             // No calcular totales automáticamente - el usuario debe ingresar cantidad primero
                             // if (precioInput && cantidadInput && selectUnidad && restaInventarioInput) {
                             //     calcularTotales(precioInput, cantidadInput, producto.isv, selectUnidad, numeroInputs, restaInventarioInput);
                             // }
-                            
+
                             // Enfocar el campo cantidad para que el usuario pueda escribir inmediatamente
                             if (cantidadInput) {
                                 cantidadInput.focus();
                                 cantidadInput.select(); // Seleccionar todo el texto si hubiera alguno
                             }
-                            
+
                             console.log('✅ Producto configurado - esperando cantidad del usuario');
                         } catch (error) {
                             console.error('❌ Error configurando producto automáticamente:', error);
@@ -1525,6 +1525,7 @@
                         timer: 3000,
                         showConfirmButton: false
                     });
+                    infoProducto(producto.id);
 
                     return;
                 })
@@ -1566,7 +1567,7 @@
             // ========================================
             // SCANNER DE CÓDIGOS DE BARRAS SIMPLIFICADO
             // ========================================
-            
+
             let isScanning = false;
             let videoStream = null;
 
@@ -1578,7 +1579,7 @@
                 }
 
                 console.log('🎥 Iniciando scanner...');
-                
+
                 // Mostrar elementos
                 document.getElementById('cameraContainer').style.display = 'block';
                 document.getElementById('scannerStatus').style.display = 'block';
@@ -1606,7 +1607,7 @@
                 Quagga.init({
                     inputStream: {
                         name: "Live",
-                        type: "LiveStream", 
+                        type: "LiveStream",
                         target: document.querySelector('#cameraContainer'), // Cambiar target al contenedor
                         constraints: {
                             width: { min: 320, ideal: 640, max: 1280 },
@@ -1615,7 +1616,7 @@
                         },
                         area: { // Área de escaneo definida
                             top: "20%",
-                            right: "20%", 
+                            right: "20%",
                             left: "20%",
                             bottom: "20%"
                         }
@@ -1623,7 +1624,7 @@
                     decoder: {
                         readers: [
                             "code_128_reader",
-                            "ean_reader", 
+                            "ean_reader",
                             "ean_8_reader",
                             "code_39_reader",
                             "upc_reader",
@@ -1650,11 +1651,11 @@
                         stopBarcodeScanner();
                         return;
                     }
-                    
+
                     console.log('✅ Quagga inicializado, iniciando...');
                     Quagga.start();
                     console.log('✅ Scanner activo - buscando códigos...');
-                    
+
                     // Verificar que el video esté funcionando
                     setTimeout(() => {
                         const video = document.querySelector('#cameraContainer video');
@@ -1669,7 +1670,7 @@
                             canvasElement: canvas ? 'presente' : 'ausente',
                             containerVisible: document.getElementById('cameraContainer').style.display
                         });
-                        
+
                         // Si el video no está reproduciéndose, intentar forzar play
                         if (video && video.paused) {
                             console.log('🔧 Intentando forzar reproducción del video...');
@@ -1681,38 +1682,38 @@
                 // Configurar detección de códigos con mejor manejo
                 Quagga.onDetected(function(result) {
                     console.log('🔍 Evento onDetected disparado');
-                    
+
                     if (!isScanning) {
                         console.log('❌ Scanner no activo, ignorando detección');
                         return;
                     }
-                    
+
                     const rawCode = result.codeResult.code;
                     console.log('📷 Código crudo detectado:', rawCode, 'Longitud:', rawCode ? rawCode.length : 0);
-                    
+
                     // Usar la función de normalización para eliminar ceros a la izquierda
                     const code = normalizarCodigoBarras(rawCode);
                     console.log('✅ Código procesado (scanner visual):', code);
-                    
+
                     // Validación más flexible
                     if (code && code.length >= 1) { // Reducir longitud mínima
                         console.log('✅ Código válido detectado:', code);
-                        
+
                         // Mostrar código dinámicamente debajo de la cámara
                         if (typeof window.mostrarCodigoDetectado === 'function') {
                             window.mostrarCodigoDetectado(code);
                         }
-                        
+
                         // Sonido de éxito
                         playSound('success');
-                        
+
                         // Agregar al carrito directamente con código procesado
                         agregarProductoCarritoBarra(code);
-                        
+
                         // Pausar temporalmente para evitar múltiples detecciones
                         isScanning = false;
                         Quagga.pause();
-                        
+
                         setTimeout(() => {
                             if (document.getElementById('cameraContainer').style.display !== 'none') {
                                 isScanning = true;
@@ -1720,7 +1721,7 @@
                                 console.log('🔄 Scanner reactivado');
                             }
                         }, 2000);
-                        
+
                     } else {
                         console.log('❌ Código no válido o muy corto:', code);
                     }
@@ -1732,14 +1733,14 @@
                         console.log('🔍 Procesando código:', result.codeResult.code);
                     }
                 });
-                        
+
                         // Ocultar resultado después de 3 segundos
             }
 
             // Función para detener el scanner
             function stopBarcodeScanner() {
                 console.log('🛑 Deteniendo scanner...');
-                
+
                 // Detener Quagga completamente
                 try {
                     if (isScanning) {
@@ -1753,14 +1754,14 @@
 
                 // Marcar como no activo INMEDIATAMENTE
                 isScanning = false;
-                
+
                 // Limpiar el contenedor completamente
                 const cameraContainer = document.getElementById('cameraContainer');
                 if (cameraContainer) {
                     // Remover todos los elementos de video y canvas creados por Quagga
                     const videos = cameraContainer.querySelectorAll('video');
                     const canvases = cameraContainer.querySelectorAll('canvas');
-                    
+
                     videos.forEach(video => {
                         if (video.srcObject) {
                             video.srcObject.getTracks().forEach(track => track.stop());
@@ -1768,13 +1769,13 @@
                         }
                         video.remove();
                     });
-                    
+
                     canvases.forEach(canvas => canvas.remove());
-                    
+
                     // Ocultar contenedor
                     cameraContainer.style.display = 'none';
                 }
-                
+
                 console.log('✅ Scanner completamente detenido');
                 isScanning = false;
 
@@ -1789,7 +1790,7 @@
                         });
                         video.srcObject = null;
                     }
-                    
+
                     if (videoStream) {
                         videoStream.getTracks().forEach(track => track.stop());
                         videoStream = null;
@@ -1805,14 +1806,14 @@
                         const scannerStatus = document.getElementById('scannerStatus');
                         const btnStartCamera = document.getElementById('btnStartCamera');
                         const btnStopCamera = document.getElementById('btnStopCamera');
-                        
+
                         console.log('🔧 Elementos encontrados:', {
                             cameraContainer: !!cameraContainer,
                             scannerStatus: !!scannerStatus,
                             btnStartCamera: !!btnStartCamera,
                             btnStopCamera: !!btnStopCamera
                         });
-                        
+
                         if (cameraContainer) cameraContainer.style.display = 'none';
                         if (scannerStatus) scannerStatus.style.display = 'none';
                         if (btnStartCamera) {
@@ -1823,7 +1824,7 @@
                             btnStopCamera.style.display = 'none';
                             console.log('✅ Botón STOP ocultado');
                         }
-                        
+
                         // Actualizar estado del texto
                         if (typeof window.actualizarEstadoScanner === 'function') {
                             window.actualizarEstadoScanner('Scanner detenido');
@@ -1864,10 +1865,10 @@
             // Inicialización cuando el DOM esté listo
             document.addEventListener('DOMContentLoaded', function() {
                 console.log('🔧 Inicializando controles del scanner...');
-                
+
                 const btnStart = document.getElementById('btnStartCamera');
                 const btnStop = document.getElementById('btnStopCamera');
-                
+
                 if (btnStart) {
                     // Limpiar eventos previos
                     btnStart.removeEventListener('click', initBarcodeScanner);
@@ -1877,7 +1878,7 @@
                         initBarcodeScanner();
                     });
                 }
-                
+
                 if (btnStop) {
                     // Limpiar eventos previos
                     btnStop.removeEventListener('click', stopBarcodeScanner);
@@ -1887,7 +1888,7 @@
                         stopBarcodeScanner();
                     });
                 }
-                
+
                 console.log('✅ Controles del scanner listos');
             });
 
@@ -1902,21 +1903,21 @@
             window.emergencyStop = function() {
                 console.log('🚨 PARADA DE EMERGENCIA');
                 isScanning = false;
-                
+
                 try {
                     Quagga.stop();
                     Quagga.offDetected();
                 } catch (err) {
                     console.log('Quagga ya detenido');
                 }
-                
+
                 // Detener todos los streams de medios
                 navigator.mediaDevices.getUserMedia({ video: true })
                     .then(stream => {
                         stream.getTracks().forEach(track => track.stop());
                     })
                     .catch(() => {});
-                
+
                 // Limpiar video elements
                 const videos = document.querySelectorAll('video');
                 videos.forEach(video => {
@@ -1925,25 +1926,25 @@
                         video.srcObject = null;
                     }
                 });
-                
+
                 // Resetear UI
                 try {
                     const cameraContainer = document.getElementById('cameraContainer');
                     const scannerStatus = document.getElementById('scannerStatus');
                     const btnStartCamera = document.getElementById('btnStartCamera');
                     const btnStopCamera = document.getElementById('btnStopCamera');
-                    
+
                     if (cameraContainer) cameraContainer.style.display = 'none';
                     if (scannerStatus) scannerStatus.style.display = 'none';
                     if (btnStartCamera) btnStartCamera.style.display = 'inline-block';
                     if (btnStopCamera) btnStopCamera.style.display = 'none';
-                    
+
                     // Actualizar estado del texto
                     if (typeof window.actualizarEstadoScanner === 'function') {
                         window.actualizarEstadoScanner('Scanner detenido');
                     }
                 } catch (err) {}
-                
+
                 console.log('✅ Parada de emergencia completada');
             };
 
@@ -1955,12 +1956,12 @@
                     cameraContainer: document.getElementById('cameraContainer'),
                     quaggaExists: typeof Quagga !== 'undefined'
                 });
-                
+
                 const container = document.getElementById('cameraContainer');
                 if (container) {
                     const video = container.querySelector('video');
                     const canvas = container.querySelector('canvas');
-                    
+
                     console.log('🎥 Elementos de video:', {
                         video: video ? 'presente' : 'ausente',
                         videoSrc: video ? video.srcObject : 'sin source',
@@ -1968,7 +1969,7 @@
                         containerDisplay: container.style.display
                     });
                 }
-                
+
                 if (typeof Quagga !== 'undefined') {
                     console.log('✅ QuaggaJS disponible');
                     // Simular detección
@@ -1980,7 +1981,7 @@
                     console.log('❌ QuaggaJS no disponible');
                 }
             };
-            
+
             // Función para verificar estado del video en tiempo real
             window.checkVideoStatus = function() {
                 const container = document.getElementById('cameraContainer');
@@ -1988,13 +1989,13 @@
                     console.log('❌ Contenedor no encontrado');
                     return;
                 }
-                
+
                 const video = container.querySelector('video');
                 if (!video) {
                     console.log('❌ Video no encontrado');
                     return;
                 }
-                
+
                 console.log('📹 Estado del video:', {
                     paused: video.paused,
                     muted: video.muted,
@@ -2006,33 +2007,33 @@
                     readyState: video.readyState
                 });
             };
-            
+
             // Función para probar la normalización de códigos
             window.testNormalizacion = function() {
                 console.log('🧪 === TEST DE NORMALIZACIÓN DE CÓDIGOS ===');
                 const testCodes = ['000123456', '00012', '0001', '0', '000', '123456', ''];
-                
+
                 testCodes.forEach(code => {
                     const normalizado = normalizarCodigoBarras(code);
                     console.log(`📋 "${code}" → "${normalizado}"`);
                 });
-                
+
                 console.log('🧪 === FIN TEST NORMALIZACIÓN ===');
             };
-            
+
             // Función para verificar campos antes del guardado
             window.verificarCamposGuardado = function() {
                 console.log('🔍 === VERIFICACIÓN DE CAMPOS PARA GUARDADO ===');
-                
+
                 arregloIdInputs.forEach(id => {
                     console.log(`📦 Producto ${id}:`);
-                    
+
                     const campos = [
-                        'idProducto', 'nombre', 'bodega', 'precios', 'precio', 'cantidad', 
-                        'unidad', 'subTotal', 'isvProducto', 'total', 'idBodega', 
+                        'idProducto', 'nombre', 'bodega', 'precios', 'precio', 'cantidad',
+                        'unidad', 'subTotal', 'isvProducto', 'total', 'idBodega',
                         'idSeccion', 'restaInventario', 'isv', 'idPrecioSeleccionado', 'idUnidadVenta'
                     ];
-                    
+
                     campos.forEach(campo => {
                         const elemento = document.getElementById(`${campo}${id}`);
                         if (elemento) {
@@ -2041,10 +2042,10 @@
                             console.log(`  ❌ ${campo}${id}: NO ENCONTRADO`);
                         }
                     });
-                    
+
                     console.log('---');
                 });
-                
+
                 console.log('🔍 === FIN VERIFICACIÓN ===');
             };
 
