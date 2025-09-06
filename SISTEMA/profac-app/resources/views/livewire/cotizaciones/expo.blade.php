@@ -453,16 +453,8 @@
                                                 </div>
                                                 
                                                 <!-- Estado del Scanner -->
-                                                <div id="scannerStatus" class="scanner-status" style="display:none;">
-                                                    <i class="fas fa-search me-2"></i>
-                                                    <span>Escaneando...</span>
-                                                </div>
-                                                
-                                                <!-- Resultado del Escaneo -->
-                                                <div id="scanResult" class="scanner-result" style="display:none;">
-                                                    <i class="fa fa-check-circle text-success me-2"></i>
-                                                    <strong>Código:</strong>
-                                                    <span id="barcodeResult" class="fw-bold text-primary ms-2"></span>
+                                                <div id="scannerStatus" class="scanner-status text-center mt-2" style="display:none;">
+                                                    <span id="statusText">Escaneando...</span>
                                                 </div>
                                                 
                                             </div>
@@ -784,6 +776,30 @@
                     }
                 }
             });
+
+            // ============ FUNCIÓN SIMPLE PARA TEXTO DINÁMICO ============
+            
+            // Función para actualizar el texto del estado
+            function actualizarEstadoScanner(texto) {
+                const statusText = document.getElementById('statusText');
+                if (statusText) {
+                    statusText.textContent = texto;
+                }
+            }
+
+            // Función para mostrar código detectado
+            function mostrarCodigoDetectado(codigo) {
+                actualizarEstadoScanner(`Código detectado: ${codigo}`);
+                
+                // Después de 3 segundos, volver a "Escaneando..."
+                setTimeout(() => {
+                    actualizarEstadoScanner('Escaneando...');
+                }, 3000);
+            }
+
+            // Función global para que QuaggaJS pueda llamarla
+            window.mostrarCodigoDetectado = mostrarCodigoDetectado;
+            window.actualizarEstadoScanner = actualizarEstadoScanner;
 
 
         </script>

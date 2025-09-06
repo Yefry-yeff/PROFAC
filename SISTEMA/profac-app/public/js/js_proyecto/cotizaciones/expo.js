@@ -1352,9 +1352,13 @@
                 // Mostrar elementos
                 document.getElementById('cameraContainer').style.display = 'block';
                 document.getElementById('scannerStatus').style.display = 'block';
-                document.getElementById('scanResult').style.display = 'none';
                 document.getElementById('btnStartCamera').style.display = 'none';
                 document.getElementById('btnStopCamera').style.display = 'inline-block';
+
+                // Actualizar estado inicial
+                if (typeof window.actualizarEstadoScanner === 'function') {
+                    window.actualizarEstadoScanner('Escaneando...');
+                }
 
                 // Asegurar que el overlay esté presente
                 let overlay = document.querySelector('.scanner-overlay');
@@ -1415,9 +1419,10 @@
                     if (code && code.length >= 8) {
                         console.log('📷 Código detectado:', code);
                         
-                        // Mostrar código
-                        document.getElementById('barcodeResult').textContent = code;
-                        document.getElementById('scanResult').style.display = 'block';
+                        // Mostrar código dinámicamente debajo de la cámara
+                        if (typeof window.mostrarCodigoDetectado === 'function') {
+                            window.mostrarCodigoDetectado(code);
+                        }
                         
                         // Sonido de éxito
                         playSound('success');
@@ -1450,7 +1455,7 @@
                     console.error('Error deteniendo Quagga:', err);
                 }
 
-                // Marcar como no activo
+                // Marcar como no activo INMEDIATAMENTE
                 isScanning = false;
 
                 // Detener todos los streams de video
@@ -1473,16 +1478,40 @@
                     console.error('Error deteniendo video:', err);
                 }
 
-                // Ocultar elementos de UI
-                try {
-                    document.getElementById('cameraContainer').style.display = 'none';
-                    document.getElementById('scannerStatus').style.display = 'none';
-                    document.getElementById('scanResult').style.display = 'none';
-                    document.getElementById('btnStartCamera').style.display = 'inline-block';
-                    document.getElementById('btnStopCamera').style.display = 'none';
-                } catch (err) {
-                    console.error('Error ocultando elementos:', err);
-                }
+                // Ocultar elementos de UI - CON TIMEOUT PARA ASEGURAR ACTUALIZACIÓN
+                setTimeout(() => {
+                    try {
+                        const cameraContainer = document.getElementById('cameraContainer');
+                        const scannerStatus = document.getElementById('scannerStatus');
+                        const btnStartCamera = document.getElementById('btnStartCamera');
+                        const btnStopCamera = document.getElementById('btnStopCamera');
+                        
+                        console.log('🔧 Elementos encontrados:', {
+                            cameraContainer: !!cameraContainer,
+                            scannerStatus: !!scannerStatus,
+                            btnStartCamera: !!btnStartCamera,
+                            btnStopCamera: !!btnStopCamera
+                        });
+                        
+                        if (cameraContainer) cameraContainer.style.display = 'none';
+                        if (scannerStatus) scannerStatus.style.display = 'none';
+                        if (btnStartCamera) {
+                            btnStartCamera.style.display = 'inline-block';
+                            console.log('✅ Botón START mostrado');
+                        }
+                        if (btnStopCamera) {
+                            btnStopCamera.style.display = 'none';
+                            console.log('✅ Botón STOP ocultado');
+                        }
+                        
+                        // Actualizar estado del texto
+                        if (typeof window.actualizarEstadoScanner === 'function') {
+                            window.actualizarEstadoScanner('Scanner detenido');
+                        }
+                    } catch (err) {
+                        console.error('Error ocultando elementos:', err);
+                    }
+                }, 100);
 
                 console.log('✅ Scanner completamente detenido');
             }
@@ -1579,11 +1608,20 @@
                 
                 // Resetear UI
                 try {
-                    document.getElementById('cameraContainer').style.display = 'none';
-                    document.getElementById('scannerStatus').style.display = 'none';
-                    document.getElementById('scanResult').style.display = 'none';
-                    document.getElementById('btnStartCamera').style.display = 'inline-block';
-                    document.getElementById('btnStopCamera').style.display = 'none';
+                    const cameraContainer = document.getElementById('cameraContainer');
+                    const scannerStatus = document.getElementById('scannerStatus');
+                    const btnStartCamera = document.getElementById('btnStartCamera');
+                    const btnStopCamera = document.getElementById('btnStopCamera');
+                    
+                    if (cameraContainer) cameraContainer.style.display = 'none';
+                    if (scannerStatus) scannerStatus.style.display = 'none';
+                    if (btnStartCamera) btnStartCamera.style.display = 'inline-block';
+                    if (btnStopCamera) btnStopCamera.style.display = 'none';
+                    
+                    // Actualizar estado del texto
+                    if (typeof window.actualizarEstadoScanner === 'function') {
+                        window.actualizarEstadoScanner('Scanner detenido');
+                    }
                 } catch (err) {}
                 
                 console.log('✅ Parada de emergencia completada');
