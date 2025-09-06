@@ -1342,7 +1342,10 @@
 
             // Función para inicializar el scanner (sin validaciones)
             function initBarcodeScanner() {
-                if (isScanning) return;
+                if (isScanning) {
+                    console.log('⚠️ Scanner ya está activo');
+                    return;
+                }
 
                 console.log('🎥 Iniciando scanner...');
                 
@@ -1353,86 +1356,82 @@
                 document.getElementById('btnStartCamera').style.display = 'none';
                 document.getElementById('btnStopCamera').style.display = 'inline-block';
 
-                // Acceso directo a la cámara
-                navigator.mediaDevices.getUserMedia({
-                    video: {
-                        facingMode: "environment",
-                        width: { ideal: 280 },
-                        height: { ideal: 280 }
+                // Asegurar que el overlay esté presente
+                let overlay = document.querySelector('.scanner-overlay');
+                if (!overlay) {
+                    overlay = document.createElement('div');
+                    overlay.className = 'scanner-overlay';
+                    document.getElementById('cameraContainer').appendChild(overlay);
+                }
+
+                // Marcar como iniciando para evitar bucles
+                isScanning = true;
+
+                // Inicializar Quagga directamente sin getUserMedia manual
+                Quagga.init({
+                    inputStream: {
+                        name: "Live",
+                        type: "LiveStream", 
+                        target: document.querySelector('#cameraContainer'),
+                        constraints: {
+                            width: { ideal: 320 },
+                            height: { ideal: 320 },
+                            facingMode: "environment"
+                        }
+                    },
+                    decoder: {
+                        readers: [
+                            "code_128_reader",
+                            "ean_reader", 
+                            "ean_8_reader",
+                            "code_39_reader",
+                            "upc_reader",
+                            "upc_e_reader"
+                        ]
+                    },
+                    locate: true,
+                    locator: {
+                        patchSize: "medium",
+                        halfSample: true
                     }
-                })
-                .then(function(stream) {
-                    videoStream = stream;
-                    const video = document.getElementById('scanner-video');
-                    video.srcObject = stream;
+                }, function(err) {
+                    if (err) {
+                        console.error('Error Quagga:', err);
+                        alert('Error al inicializar el scanner');
+                        stopBarcodeScanner();
+                        return;
+                    }
                     
-                    // El overlay ya está en el HTML, no necesitamos crearlo dinámicamente
+                    console.log('✅ Quagga inicializado, iniciando...');
+                    Quagga.start();
+                    console.log('✅ Scanner activo');
+                });
 
-                    // Inicializar Quagga
-                    Quagga.init({
-                        inputStream: {
-                            name: "Live",
-                            type: "LiveStream", 
-                            target: document.querySelector('#cameraContainer'),
-                            constraints: {
-                                width: 280,
-                                height: 280,
-                                facingMode: "environment"
-                            }
-                        },
-                        decoder: {
-                            readers: [
-                                "code_128_reader",
-                                "ean_reader", 
-                                "ean_8_reader",
-                                "code_39_reader",
-                                "upc_reader",
-                                "upc_e_reader"
-                            ]
-                        },
-                        locate: true
-                    }, function(err) {
-                        if (err) {
-                            console.error('Error:', err);
-                            alert('Error al inicializar la cámara');
-                            stopBarcodeScanner();
-                            return;
-                        }
+                // Configurar detección de códigos una sola vez
+                Quagga.onDetected(function(result) {
+                    if (!isScanning) return;
+                    
+                    const code = result.codeResult.code;
+                    if (code && code.length >= 8) {
+                        console.log('📷 Código detectado:', code);
                         
-                        isScanning = true;
-                        Quagga.start();
-                        console.log('✅ Scanner activo');
-                    });
-
-                    // Detección de códigos
-                    Quagga.onDetected(function(result) {
-                        if (!isScanning) return;
+                        // Mostrar código
+                        document.getElementById('barcodeResult').textContent = code;
+                        document.getElementById('scanResult').style.display = 'block';
                         
-                        const code = result.codeResult.code;
-                        if (code && code.length >= 8) {
-                            console.log('📷 Código detectado:', code);
-                            
-                            // Mostrar código
-                            document.getElementById('barcodeResult').textContent = code;
-                            document.getElementById('scanResult').style.display = 'block';
-                            
-                            // Sonido de éxito
-                            playSound('success');
-                            
-                            // Agregar al carrito directamente
-                            agregarProductoCarritoBarra(code);
-                            
-                            // Ocultar resultado después de 3 segundos
-                            setTimeout(() => {
+                        // Sonido de éxito
+                        playSound('success');
+                        
+                        // Agregar al carrito directamente
+                        agregarProductoCarritoBarra(code);
+                        
+                        // Ocultar resultado después de 3 segundos
+                        setTimeout(() => {
+                            if (document.getElementById('scanResult')) {
                                 document.getElementById('scanResult').style.display = 'none';
-                            }, 3000);
-                        }
-                    });
-                })
-                .catch(function(err) {
-                    console.error('Error cámara:', err);
-                    alert('No se pudo acceder a la cámara');
-                    stopBarcodeScanner();
+                            }
+                        }, 3000);
+                    }
                 });
             }
 
@@ -1440,27 +1439,52 @@
             function stopBarcodeScanner() {
                 console.log('🛑 Deteniendo scanner...');
                 
-                if (isScanning) {
-                    Quagga.stop();
-                    isScanning = false;
+                // Detener Quagga completamente
+                try {
+                    if (isScanning) {
+                        Quagga.stop();
+                        Quagga.offDetected();
+                        console.log('✅ Quagga detenido');
+                    }
+                } catch (err) {
+                    console.error('Error deteniendo Quagga:', err);
                 }
 
-                if (videoStream) {
-                    videoStream.getTracks().forEach(track => track.stop());
-                    videoStream = null;
+                // Marcar como no activo
+                isScanning = false;
+
+                // Detener todos los streams de video
+                try {
+                    const video = document.getElementById('scanner-video');
+                    if (video && video.srcObject) {
+                        const tracks = video.srcObject.getTracks();
+                        tracks.forEach(track => {
+                            track.stop();
+                            console.log('🔴 Track detenido:', track.kind);
+                        });
+                        video.srcObject = null;
+                    }
+                    
+                    if (videoStream) {
+                        videoStream.getTracks().forEach(track => track.stop());
+                        videoStream = null;
+                    }
+                } catch (err) {
+                    console.error('Error deteniendo video:', err);
                 }
 
-                document.getElementById('cameraContainer').style.display = 'none';
-                document.getElementById('scannerStatus').style.display = 'none';
-                document.getElementById('scanResult').style.display = 'none';
-                document.getElementById('btnStartCamera').style.display = 'inline-block';
-                document.getElementById('btnStopCamera').style.display = 'none';
-
-                // Remover overlay
-                const overlay = document.querySelector('.scanner-overlay');
-                if (overlay) {
-                    overlay.remove();
+                // Ocultar elementos de UI
+                try {
+                    document.getElementById('cameraContainer').style.display = 'none';
+                    document.getElementById('scannerStatus').style.display = 'none';
+                    document.getElementById('scanResult').style.display = 'none';
+                    document.getElementById('btnStartCamera').style.display = 'inline-block';
+                    document.getElementById('btnStopCamera').style.display = 'none';
+                } catch (err) {
+                    console.error('Error ocultando elementos:', err);
                 }
+
+                console.log('✅ Scanner completamente detenido');
             }
 
             // Función para reproducir sonidos
@@ -1484,19 +1508,38 @@
                 }
             }
 
-            // Event listeners para los botones (se ejecuta cuando el DOM esté listo)
+            // Hacer las funciones globales para que estén disponibles
+            window.initBarcodeScanner = initBarcodeScanner;
+            window.stopBarcodeScanner = stopBarcodeScanner;
+
+            // Inicialización cuando el DOM esté listo
             document.addEventListener('DOMContentLoaded', function() {
-                // Verificar que los elementos existan antes de agregar listeners
+                console.log('🔧 Inicializando controles del scanner...');
+                
                 const btnStart = document.getElementById('btnStartCamera');
                 const btnStop = document.getElementById('btnStopCamera');
                 
                 if (btnStart) {
-                    btnStart.addEventListener('click', initBarcodeScanner);
+                    // Limpiar eventos previos
+                    btnStart.removeEventListener('click', initBarcodeScanner);
+                    btnStart.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        console.log('▶️ Botón activar presionado');
+                        initBarcodeScanner();
+                    });
                 }
                 
                 if (btnStop) {
-                    btnStop.addEventListener('click', stopBarcodeScanner);
+                    // Limpiar eventos previos
+                    btnStop.removeEventListener('click', stopBarcodeScanner);
+                    btnStop.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        console.log('⏹️ Botón detener presionado');
+                        stopBarcodeScanner();
+                    });
                 }
+                
+                console.log('✅ Controles del scanner listos');
             });
 
             // Función de prueba para debugging
@@ -1506,6 +1549,42 @@
                 agregarProductoCarritoBarra(codigo);
             };
 
-            // Hacer las funciones globales para que estén disponibles
-            window.initBarcodeScanner = initBarcodeScanner;
-            window.stopBarcodeScanner = stopBarcodeScanner;
+            // Función de emergencia para detener todo
+            window.emergencyStop = function() {
+                console.log('🚨 PARADA DE EMERGENCIA');
+                isScanning = false;
+                
+                try {
+                    Quagga.stop();
+                    Quagga.offDetected();
+                } catch (err) {
+                    console.log('Quagga ya detenido');
+                }
+                
+                // Detener todos los streams de medios
+                navigator.mediaDevices.getUserMedia({ video: true })
+                    .then(stream => {
+                        stream.getTracks().forEach(track => track.stop());
+                    })
+                    .catch(() => {});
+                
+                // Limpiar video elements
+                const videos = document.querySelectorAll('video');
+                videos.forEach(video => {
+                    if (video.srcObject) {
+                        video.srcObject.getTracks().forEach(track => track.stop());
+                        video.srcObject = null;
+                    }
+                });
+                
+                // Resetear UI
+                try {
+                    document.getElementById('cameraContainer').style.display = 'none';
+                    document.getElementById('scannerStatus').style.display = 'none';
+                    document.getElementById('scanResult').style.display = 'none';
+                    document.getElementById('btnStartCamera').style.display = 'inline-block';
+                    document.getElementById('btnStopCamera').style.display = 'none';
+                } catch (err) {}
+                
+                console.log('✅ Parada de emergencia completada');
+            };

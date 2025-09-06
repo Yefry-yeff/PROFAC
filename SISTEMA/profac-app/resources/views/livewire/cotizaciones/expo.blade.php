@@ -120,6 +120,17 @@
                 object-fit: cover;
                 display: block;
                 background: #000;
+                z-index: 1;
+            }
+
+            #cameraContainer canvas {
+                position: absolute !important;
+                top: 0 !important;
+                left: 0 !important;
+                width: 100% !important;
+                height: 100% !important;
+                z-index: 2 !important;
+                pointer-events: none !important;
             }
 
             .scanner-overlay {
@@ -777,10 +788,10 @@
 
         </script>
 
-        <script src="{{ asset('js/js_proyecto/cotizaciones/expo.js') }}"></script>
-
         <!-- Librería QuaggaJS para scanner de códigos de barras -->
         <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+        
+        <script src="{{ asset('js/js_proyecto/cotizaciones/expo.js') }}"></script>
 
     @endpush
 </div>
