@@ -220,8 +220,9 @@ class expo extends Component
             $cotizacion->isv= $request->isvGeneral;
             $cotizacion->total = $request->totalGeneral;
             $cotizacion->cliente_id = $request->seleccionarCliente;
-            $cotizacion->tipo_venta_id = $request->tipo_venta_id;
+            $cotizacion->tipo_venta_id = 4;
             $cotizacion->vendedor = $request->vendedor;
+            $cotizacion->nota = $request->nota;
             $cotizacion->users_id = Auth::user()->id;
             $cotizacion->arregloIdInputs = json_encode($request->arregloIdInputs);
             $cotizacion->numeroInputs = $request->numeroInputs;
@@ -229,6 +230,7 @@ class expo extends Component
             $cotizacion->monto_descuento = $request->descuentoGeneral;
             $cotizacion->save();
 
+           /*  ALTER TABLE cotizacion ADD COLUMN nota VARCHAR(255) NULL DEFAULT NULL; */
 
             for ($i = 0; $i < count($arrayInputs); $i++) {
 
@@ -429,7 +431,8 @@ class expo extends Component
             A.fecha_vencimiento,
             B.rtn,
             users.name,
-            (select name from users where id = A.vendedor) as vendedor
+            (select name from users where id = A.vendedor) as vendedor,
+            A.nota
             from cotizacion A
             inner join cliente B
             on A.cliente_id = B.id
@@ -487,7 +490,7 @@ class expo extends Component
             from cotizacion where id = ".$idFactura
         );
 
-
+        $tipoCot = 4;
         if( fmod($importes->total, 1) == 0.0 ){
             $flagCentavos = false;
 
@@ -499,9 +502,9 @@ class expo extends Component
         $formatter->apocope = true;
         $numeroLetras = $formatter->toMoney($importes->total, 2, 'LEMPIRAS', 'CENTAVOS');
 
-        $pdf = PDF::loadView('/pdf/cotizacion',compact('datos','productos','importes','importesConCentavos','flagCentavos','numeroLetras'))->setPaper('letter');
+        $pdf = PDF::loadView('/pdf/cotizacion',compact('datos','productos','importes','importesConCentavos','flagCentavos','numeroLetras', 'tipoCot'))->setPaper('letter');
 
-        return $pdf->stream("Cotizacion_NO_".$datos->codigo.".pdf");
+        return $pdf->stream("Pedido_NO_".$datos->codigo.".pdf");
 
 
     }
@@ -564,7 +567,8 @@ class expo extends Component
             A.fecha_vencimiento,
             B.rtn,
             users.name,
-            (select name from users where id = A.vendedor) as vendedor
+            (select name from users where id = A.vendedor) as vendedor,
+            A.nota
             from cotizacion A
             inner join cliente B
             on A.cliente_id = B.id
@@ -631,12 +635,12 @@ class expo extends Component
         }else{
             $flagCentavos = true;
         }
-
+         $tipoCot = 4;
         $formatter = new NumeroALetras();
         $formatter->apocope = true;
         $numeroLetras = $formatter->toMoney($importes->total, 2, 'LEMPIRAS', 'CENTAVOS');
 
-        $pdf = PDF::loadView('/pdf/proforma',compact('datos','productos','importes','importesConCentavos','flagCentavos','numeroLetras'))->setPaper('letter');
+        $pdf = PDF::loadView('/pdf/proforma',compact('datos','productos','importes','importesConCentavos','flagCentavos','numeroLetras', 'tipoCot'))->setPaper('letter');
 
         return $pdf->stream("proforma_NO_".$datos->codigo.".pdf");
 

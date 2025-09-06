@@ -247,8 +247,8 @@
 
 
                             </div>
-  <!-- Sección para lectura de código de barras con cámara -->
-                                    <div class="row mt-3">
+                                {{--  <!-- Sección para lectura de código de barras con cámara -->  --}}
+                                    {{--  <div class="row mt-3">
                                         <div class="card camera-card">
                                             <div class="text-white card-header bg-primary">
                                                 <h5 class="mb-0"><i class="fa fa-camera"></i> Lectura de Código de Barras</h5>
@@ -288,7 +288,7 @@
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
+                                    </div>  --}}
                             <div class="row mt-3">
                                 <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6 ">
 
@@ -359,20 +359,18 @@
 
                             </div>
 
-
-                           {{--   <div class="row">
+                            <div class="row">
                                 <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
                                     <div class="form-group">
                                         <label for="nota" class="col-form-label focus-label">Nota:
                                         </label>
-                                        <textarea class="form-control" id="nota_comen" name="nota_comen" cols="30" rows="3" maxlength="250"></textarea>
+                                        <textarea class="form-control" id="nota" name="nota" cols="30" rows="3" maxlength="250"></textarea>
                                     </div>
 
                                 </div>
 
 
-                            </div>  --}}
-
+                            </div>
                             <div class="hide-container">
                                 <p>Nota:El campo "Unidad" describe la unidad de medida para la venta del producto -
                                     seguido del numero de unidades a restar del inventario</p>
@@ -427,14 +425,6 @@
 
 
                                     </div>
-                                    {{--
-                                    <div class="form-group col-12 col-sm-12 col-md-1 col-lg-1 col-xl-1">
-                                        <label class="sr-only">Seccion</label>
-                                        <input type="text" placeholder="Seccion" class="form-control"
-                                            min="1" autocomplete="off" disabled>
-                                    </div> --}}
-
-
                                     <div class="form-group col-1">
                                         <label class="sr-only">Sub Total</label>
                                         <input type="number" placeholder="Sub total"
@@ -843,6 +833,274 @@
                 });
             }
 
+
+             function agregarProductoCarritoBarra(codigoBarra) {
+                console.log('Buscando producto con código de barras:', codigoBarra);
+
+                // Función para reproducir sonido como le gusta a yeff
+                function playSound(type) {
+                    try {
+                        let frequency = type === 'success' ? 800 : 300;
+                        let duration = type === 'success' ? 200 : 500;
+
+                        // Crear contexto de audio
+                        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                        const oscillator = audioContext.createOscillator();
+                        const gainNode = audioContext.createGain();
+
+                        oscillator.connect(gainNode);
+                        gainNode.connect(audioContext.destination);
+
+                        oscillator.frequency.value = frequency;
+                        oscillator.type = 'sine';
+
+                        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration / 1000);
+
+                        oscillator.start(audioContext.currentTime);
+                        oscillator.stop(audioContext.currentTime + duration / 1000);
+                    } catch (e) {
+                        console.log('No se pudo reproducir el sonido:', e);
+                    }
+                }
+
+                // Usar el método existente obtenerDatosProductoExpo
+                axios.post('/ventas/datos/producto/expo', {
+                    barraProd: codigoBarra
+                })
+                .then(response => {
+                    // Verificar si la respuesta indica éxito
+                    if (!response.data.success) {
+                        playSound('error');
+                        Swal.fire({
+                            icon: 'error',
+                            title: '¡Producto No Encontrado!',
+                            html: `
+                                <div style="text-align: left;">
+                                    <p><strong>Código escaneado:</strong> ${codigoBarra}</p>
+                                    <p><strong>Estado:</strong> No existe en la base de datos</p>
+                                    <hr>
+                                    <p style="color: #666; font-size: 0.9em;">
+                                        • Verifique que el código esté completo<br>
+                                        • Asegúrese de que el producto esté registrado<br>
+                                        • Contacte al administrador si persiste el problema
+                                    </p>
+                                </div>
+                            `,
+                            confirmButtonText: 'Entendido',
+                            confirmButtonColor: '#d33'
+                        });
+                        return;
+                    }
+
+                    let producto = response.data.producto;
+                    let arrayUnidades = response.data.unidades;
+
+                    if (!producto || !producto.id) {
+                        playSound('error');
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Producto no encontrado!',
+                            text: `No se encontró ningún producto con el código de barras: ${codigoBarra}`,
+                            confirmButtonColor: '#f39c12'
+                        });
+                        return;
+                    }
+
+                    // Reproducir sonido de éxito
+                    playSound('success');
+
+                    // Usar la misma lógica que agregarProductoCarrito
+                    let bodega = 'SALA DE VENTAS';
+                    let idBodega = 16;
+                    let idSeccion = 156;
+                    let idProducto = producto.id;
+
+                    // Verificar si el producto ya existe en el carrito
+                    let flag = false;
+                    arregloIdInputs.forEach(idInpunt => {
+                        let idProductoFila = document.getElementById("idProducto" + idInpunt).value;
+                        let idSeccionFila = document.getElementById("idSeccion" + idInpunt).value;
+
+                        if (idProducto == idProductoFila && idSeccion == idSeccionFila && !flag) {
+                            flag = true;
+                        }
+                    });
+
+                    if (flag) {
+                        playSound('error');
+                        Swal.fire({
+                            icon: 'info',
+                            title: '¡Producto ya agregado!',
+                            text: 'Este producto ya se encuentra en el carrito. Modifique la cantidad si es necesario.',
+                            confirmButtonColor: '#17a2b8'
+                        });
+                        return;
+                    }
+
+                    numeroInputs += 1;
+
+                    let htmlSelectUnidades = "";
+                    let htmlprecios = `
+                    <option data-id="0" selected>--Seleccione precio--</option>
+                    <option  value="${producto.precio_base}" data-id="pb">${producto.precio_base} - Base</option>
+                    <option  value="${producto.precio1}" data-id="p1">${producto.precio1} - A</option>
+                    <option  value="${producto.precio2}" data-id="p2">${producto.precio2} - B</option>
+                    <option  value="${producto.precio3}" data-id="p3">${producto.precio3} - C</option>
+                    <option  value="${producto.precio4}" data-id="p4">${producto.precio4} - D</option>
+                    `;
+
+                    arrayUnidades.forEach(unidad => {
+                        if (unidad.valor_defecto == 1) {
+                            htmlSelectUnidades +=
+                                `<option selected value="${unidad.id}" data-id="${unidad.idUnidadVenta}">${unidad.nombre}</option>`;
+                        } else {
+                            htmlSelectUnidades +=
+                                `<option  value="${unidad.id}" data-id="${unidad.idUnidadVenta}">${unidad.nombre}</option>`;
+                        }
+                    });
+
+                    let html = `
+                    <div id='${numeroInputs}' class="row no-gutters">
+                        <div class="form-group col-3">
+                            <div class="d-flex">
+                                <button class="btn btn-danger" type="button" style="display: inline" onclick="eliminarInput(${numeroInputs})"><i
+                                        class="fa-regular fa-rectangle-xmark"></i>
+                                </button>
+                                <input id="idProducto${numeroInputs}" name="idProducto${numeroInputs}" type="hidden" value="${producto.id}">
+                                <div style="width:100%">
+                                    <label for="nombre${numeroInputs}" class="sr-only">Producto</label>
+                                    <input type="text" placeholder="Producto" id="nombre${numeroInputs}"
+                                        name="nombre${numeroInputs}" class="form-control"
+                                        data-parsley-required
+                                        autocomplete="off"
+                                        readonly
+                                        value='${producto.nombre} 📱'
+                                        style="background-color: #e8f5e8; border-color: #28a745; font-weight: bold;">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group col-1">
+                            <label for="" class="sr-only">cantidad</label>
+                            <input type="text" value="${bodega}" placeholder="Bodega" id="bodega${numeroInputs}"
+                                name="bodega${numeroInputs}" class="form-control"
+                                autocomplete="off"  readonly  >
+                        </div>
+                        <div class="form-group col-2">
+                            <label for="" class="sr-only">precios</label>
+                            <select class="form-control" name="precios${numeroInputs}" id="precios${numeroInputs}"
+                                data-parsley-required style="height:35.7px;"
+                                onchange="validacionPrecio(precios${numeroInputs}, precio${numeroInputs})"
+                                >
+                                    ${htmlprecios}
+                            </select>
+                        </div>
+                        <div class="form-group col-1">
+                            <label for="precio${numeroInputs}" class="sr-only">Precio</label>
+                            <input type="number" placeholder="Precio Unidad" id="precio${numeroInputs}"
+                                name="precio${numeroInputs}" class="form-control"  data-parsley-required step="any"
+                                autocomplete="off" onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
+                        </div>
+                        <div class="form-group col-1">
+                            <label for="cantidad${numeroInputs}" class="sr-only">cantidad</label>
+                            <input type="number" placeholder="Cantidad" id="cantidad${numeroInputs}"
+                                name="cantidad${numeroInputs}" class="form-control" min="1" data-parsley-required
+                                autocomplete="off" value="1" onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
+                        </div>
+                        <div class="form-group col-1">
+                            <label for="" class="sr-only">unidad</label>
+                            <select class="form-control" name="unidad${numeroInputs}" id="unidad${numeroInputs}"
+                                data-parsley-required style="height:35.7px;"
+                                onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
+                                    ${htmlSelectUnidades}
+                            </select>
+                        </div>
+                        <div class="form-group col-1">
+                            <label for="subTotalMostrar${numeroInputs}" class="sr-only">Sub Total</label>
+                            <input type="text" placeholder="Sub total" id="subTotalMostrar${numeroInputs}"
+                                name="subTotalMostrar${numeroInputs}" class="form-control"
+                                autocomplete="off"
+                                readonly >
+                            <input id="subTotal${numeroInputs}" name="subTotal${numeroInputs}" type="hidden" value="" required>
+                            <input type="hidden" id="acumuladoDescuento${numeroInputs}" name="acumuladoDescuento${numeroInputs}" >
+                        </div>
+                        <div class="form-group col-1">
+                            <label for="isvProductoMostrar${numeroInputs}" class="sr-only">ISV</label>
+                            <input type="text" placeholder="ISV" id="isvProductoMostrar${numeroInputs}"
+                                name="isvProductoMostrar${numeroInputs}" class="form-control"
+                                autocomplete="off"
+                                readonly >
+                            <input id="isvProducto${numeroInputs}" name="isvProducto${numeroInputs}" type="hidden" value="" required>
+                        </div>
+                        <div class="form-group col-1">
+                            <label for="totalMostrar${numeroInputs}" class="sr-only">Total</label>
+                            <input type="text" placeholder="Total" id="totalMostrar${numeroInputs}"
+                                name="totalMostrar${numeroInputs}" class="form-control"
+                                autocomplete="off"
+                                readonly >
+                            <input id="total${numeroInputs}" name="total${numeroInputs}" type="hidden" value="" required>
+                        </div>
+                        <input id="idBodega${numeroInputs}" name="idBodega${numeroInputs}" type="hidden" value="${idBodega}">
+                        <input id="idSeccion${numeroInputs}" name="idSeccion${numeroInputs}" type="hidden" value="${idSeccion}">
+                        <input id="restaInventario${numeroInputs}" name="restaInventario${numeroInputs}" type="hidden" value="">
+                        <input id="isv${numeroInputs}" name="isv${numeroInputs}" type="hidden" value="${producto.isv}">
+                    </div>
+                    `;
+
+                    arregloIdInputs.splice(numeroInputs, 0, numeroInputs);
+                    document.getElementById('divProductos').insertAdjacentHTML('beforeend', html);
+
+                    // Mostrar mensaje de éxito
+                    Swal.fire({
+                        icon: 'success',
+                        title: '¡Producto Escaneado!',
+                        html: `
+                            <div style="text-align: left;">
+                                <p><strong>Código:</strong> ${codigoBarra}</p>
+                                <p><strong>Producto:</strong> ${producto.nombre}</p>
+                                <p style="color: #28a745;">✓ Agregado al carrito exitosamente</p>
+                            </div>
+                        `,
+                        timer: 2500,
+                        showConfirmButton: false
+                    });
+
+                    return;
+                })
+                .catch(err => {
+                    console.error('Error al buscar producto por código de barras:', err);
+                    playSound('error');
+
+                    // Manejar diferentes tipos de errores
+                    let errorMessage = 'No se pudo encontrar el producto con ese código de barras.';
+                    let errorTitle = 'Error al escanear';
+
+                    if (err.response) {
+                        if (err.response.status === 404) {
+                            errorTitle = '¡Producto No Encontrado!';
+                            errorMessage = err.response.data.message || 'El producto no existe en la base de datos';
+                        } else if (err.response.data && err.response.data.message) {
+                            errorMessage = err.response.data.message;
+                        }
+                    }
+
+                    Swal.fire({
+                        icon: 'error',
+                        title: errorTitle,
+                        html: `
+                            <div style="text-align: left;">
+                                <p><strong>Código escaneado:</strong> ${codigoBarra}</p>
+                                <p><strong>Error:</strong> ${errorMessage}</p>
+                                <hr>
+                                <p style="color: #666; font-size: 0.9em;">
+                                    Intente escanear el código nuevamente o verifique que el producto esté registrado en el sistema.
+                                </p>
+                            </div>
+                        `,
+                        confirmButtonColor: '#d33'
+                    });
+                });
+            }
             // Función para detener el escáner
             function stopBarcodeScanner() {
                 if (isScanning) {

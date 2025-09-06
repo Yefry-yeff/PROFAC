@@ -68,31 +68,10 @@ class ListarCotizacionesExpo extends Component
                 from cotizacion A
                 inner join users B
                 on A.users_id = B.id
-
+                where  A.tipo_venta_id =4
                 order by A.created_at desc
             ");
-        }else{
-
-            $cotizaciones = DB::SELECT("
-                select
-                A.id,
-                concat(YEAR(now()),'-',A.id)  as codigo,
-                A.nombre_cliente,
-                A.RTN,
-                FORMAT(A.sub_total,2) as sub_total,
-                FORMAT(A.isv,2) as isv,
-                FORMAT(A.total,2) as total,
-                B.name as cotizador,
-                (select name from users where id = A.vendedor) as vendedor,
-                A.created_at,
-                A.tipo_venta_id
-                from cotizacion A
-                inner join users B
-                on A.users_id = B.id
-                where A.users_id = ".Auth::user()->id."
-                order by A.created_at desc
-            ");
-        }
+        };
 
 
 
@@ -120,11 +99,11 @@ class ListarCotizacionesExpo extends Component
 
 
                             <li>
-                                <a class="dropdown-item"  target="_blank" href="/cotizacion/imprimir/'.$cotizacion->id.'">  <i class="fa-solid fa-print text-success"></i> Imprimir Cotización </a>
+                                <a class="dropdown-item"  target="_blank" href="/cotizacion/imprimir/'.$cotizacion->id.'">  <i class="fa-solid fa-print text-success"></i> Imprimir Pedido </a>
                             </li>
 
                             <li>
-                            <a class="dropdown-item" target="_blank"  href="/proforma/imprimir/'.$cotizacion->id.'"> <i class="fa-solid fa-print text-success"></i> Imprimir Proforma </a>
+                            <a class="dropdown-item" target="_blank"  href="/proforma/imprimir/'.$cotizacion->id.'"> <i class="fa-solid fa-print text-success"></i> Imprimir Pedido </a>
                             </li>
 
                             <li>
@@ -152,7 +131,7 @@ class ListarCotizacionesExpo extends Component
 
 
                         <li>
-                            <a class="dropdown-item"  target="_blank" href="/cotizacion/imprimir/'.$cotizacion->id.'">  <i class="fa-solid fa-print text-success"></i> Imprimir Cotización </a>
+                            <a class="dropdown-item"  target="_blank" href="/cotizacion/imprimir/'.$cotizacion->id.'">  <i class="fa-solid fa-print text-success"></i> Imprimir Pedido </a>
                         </li>
 
                         <li>
