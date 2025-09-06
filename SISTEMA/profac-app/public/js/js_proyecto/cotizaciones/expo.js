@@ -1371,16 +1371,23 @@
                 // Marcar como iniciando para evitar bucles
                 isScanning = true;
 
-                // Inicializar Quagga directamente sin getUserMedia manual
+                // Inicializar Quagga directamente con configuración mejorada
+                console.log('🔧 Configurando Quagga...');
                 Quagga.init({
                     inputStream: {
                         name: "Live",
                         type: "LiveStream", 
-                        target: document.querySelector('#cameraContainer'),
+                        target: document.querySelector('#cameraContainer'), // Cambiar target al contenedor
                         constraints: {
-                            width: { ideal: 320 },
-                            height: { ideal: 320 },
+                            width: { min: 320, ideal: 640, max: 1280 },
+                            height: { min: 240, ideal: 480, max: 720 },
                             facingMode: "environment"
+                        },
+                        area: { // Área de escaneo definida
+                            top: "20%",
+                            right: "20%", 
+                            left: "20%",
+                            bottom: "20%"
                         }
                     },
                     decoder: {
@@ -1390,34 +1397,72 @@
                             "ean_8_reader",
                             "code_39_reader",
                             "upc_reader",
-                            "upc_e_reader"
-                        ]
+                            "upc_e_reader",
+                            "i2of5_reader"
+                        ],
+                        debug: {
+                            drawBoundingBox: true,
+                            showFrequency: true,
+                            drawScanline: true,
+                            showPattern: true
+                        }
                     },
                     locate: true,
                     locator: {
                         patchSize: "medium",
-                        halfSample: true
-                    }
+                        halfSample: false // Mejor calidad
+                    },
+                    frequency: 10 // Frecuencia de escaneo
                 }, function(err) {
                     if (err) {
-                        console.error('Error Quagga:', err);
-                        alert('Error al inicializar el scanner');
+                        console.error('❌ Error Quagga:', err);
+                        alert('Error al inicializar el scanner: ' + err.message);
                         stopBarcodeScanner();
                         return;
                     }
                     
                     console.log('✅ Quagga inicializado, iniciando...');
                     Quagga.start();
-                    console.log('✅ Scanner activo');
+                    console.log('✅ Scanner activo - buscando códigos...');
+                    
+                    // Verificar que el video esté funcionando
+                    setTimeout(() => {
+                        const video = document.querySelector('#cameraContainer video');
+                        const canvas = document.querySelector('#cameraContainer canvas');
+                        console.log('🔍 Estado después de 2 segundos:', {
+                            isScanning: isScanning,
+                            videoElement: video ? 'presente' : 'ausente',
+                            videoSrc: video ? video.srcObject : 'sin source',
+                            videoPlaying: video ? !video.paused : false,
+                            videoWidth: video ? video.videoWidth : 0,
+                            videoHeight: video ? video.videoHeight : 0,
+                            canvasElement: canvas ? 'presente' : 'ausente',
+                            containerVisible: document.getElementById('cameraContainer').style.display
+                        });
+                        
+                        // Si el video no está reproduciéndose, intentar forzar play
+                        if (video && video.paused) {
+                            console.log('🔧 Intentando forzar reproducción del video...');
+                            video.play().catch(e => console.log('❌ Error al reproducir:', e));
+                        }
+                    }, 2000);
                 });
 
-                // Configurar detección de códigos una sola vez
+                // Configurar detección de códigos con mejor manejo
                 Quagga.onDetected(function(result) {
-                    if (!isScanning) return;
+                    console.log('🔍 Evento onDetected disparado');
+                    
+                    if (!isScanning) {
+                        console.log('❌ Scanner no activo, ignorando detección');
+                        return;
+                    }
                     
                     const code = result.codeResult.code;
-                    if (code && code.length >= 8) {
-                        console.log('📷 Código detectado:', code);
+                    console.log('📷 Código crudo detectado:', code, 'Longitud:', code ? code.length : 0);
+                    
+                    // Validación más flexible
+                    if (code && code.length >= 4) { // Reducir longitud mínima
+                        console.log('✅ Código válido detectado:', code);
                         
                         // Mostrar código dinámicamente debajo de la cámara
                         if (typeof window.mostrarCodigoDetectado === 'function') {
@@ -1430,14 +1475,31 @@
                         // Agregar al carrito directamente
                         agregarProductoCarritoBarra(code);
                         
-                        // Ocultar resultado después de 3 segundos
+                        // Pausar temporalmente para evitar múltiples detecciones
+                        isScanning = false;
+                        Quagga.pause();
+                        
                         setTimeout(() => {
-                            if (document.getElementById('scanResult')) {
-                                document.getElementById('scanResult').style.display = 'none';
+                            if (document.getElementById('cameraContainer').style.display !== 'none') {
+                                isScanning = true;
+                                Quagga.start();
+                                console.log('🔄 Scanner reactivado');
                             }
-                        }, 3000);
+                        }, 2000);
+                        
+                    } else {
+                        console.log('❌ Código no válido o muy corto:', code);
                     }
                 });
+
+                // Agregar eventos de debug adicionales
+                Quagga.onProcessed(function(result) {
+                    if (result && result.codeResult && result.codeResult.code) {
+                        console.log('🔍 Procesando código:', result.codeResult.code);
+                    }
+                });
+                        
+                        // Ocultar resultado después de 3 segundos
             }
 
             // Función para detener el scanner
@@ -1456,6 +1518,30 @@
                 }
 
                 // Marcar como no activo INMEDIATAMENTE
+                isScanning = false;
+                
+                // Limpiar el contenedor completamente
+                const cameraContainer = document.getElementById('cameraContainer');
+                if (cameraContainer) {
+                    // Remover todos los elementos de video y canvas creados por Quagga
+                    const videos = cameraContainer.querySelectorAll('video');
+                    const canvases = cameraContainer.querySelectorAll('canvas');
+                    
+                    videos.forEach(video => {
+                        if (video.srcObject) {
+                            video.srcObject.getTracks().forEach(track => track.stop());
+                            video.srcObject = null;
+                        }
+                        video.remove();
+                    });
+                    
+                    canvases.forEach(canvas => canvas.remove());
+                    
+                    // Ocultar contenedor
+                    cameraContainer.style.display = 'none';
+                }
+                
+                console.log('✅ Scanner completamente detenido');
                 isScanning = false;
 
                 // Detener todos los streams de video
@@ -1626,3 +1712,65 @@
                 
                 console.log('✅ Parada de emergencia completada');
             };
+
+            // Función de debug para probar el scanner
+            window.testScanner = function() {
+                console.log('🧪 Iniciando prueba del scanner...');
+                console.log('📊 Estado actual:', {
+                    isScanning: isScanning,
+                    cameraContainer: document.getElementById('cameraContainer'),
+                    quaggaExists: typeof Quagga !== 'undefined'
+                });
+                
+                const container = document.getElementById('cameraContainer');
+                if (container) {
+                    const video = container.querySelector('video');
+                    const canvas = container.querySelector('canvas');
+                    
+                    console.log('🎥 Elementos de video:', {
+                        video: video ? 'presente' : 'ausente',
+                        videoSrc: video ? video.srcObject : 'sin source',
+                        canvas: canvas ? 'presente' : 'ausente',
+                        containerDisplay: container.style.display
+                    });
+                }
+                
+                if (typeof Quagga !== 'undefined') {
+                    console.log('✅ QuaggaJS disponible');
+                    // Simular detección
+                    if (typeof window.mostrarCodigoDetectado === 'function') {
+                        window.mostrarCodigoDetectado('123456789012');
+                        console.log('✅ Función mostrarCodigoDetectado llamada');
+                    }
+                } else {
+                    console.log('❌ QuaggaJS no disponible');
+                }
+            };
+            
+            // Función para verificar estado del video en tiempo real
+            window.checkVideoStatus = function() {
+                const container = document.getElementById('cameraContainer');
+                if (!container) {
+                    console.log('❌ Contenedor no encontrado');
+                    return;
+                }
+                
+                const video = container.querySelector('video');
+                if (!video) {
+                    console.log('❌ Video no encontrado');
+                    return;
+                }
+                
+                console.log('📹 Estado del video:', {
+                    paused: video.paused,
+                    muted: video.muted,
+                    autoplay: video.autoplay,
+                    srcObject: video.srcObject,
+                    videoWidth: video.videoWidth,
+                    videoHeight: video.videoHeight,
+                    currentTime: video.currentTime,
+                    readyState: video.readyState
+                });
+            };
+
+            console.log('📱 Scanner de códigos de barras cargado - usa testScanner() para probar');

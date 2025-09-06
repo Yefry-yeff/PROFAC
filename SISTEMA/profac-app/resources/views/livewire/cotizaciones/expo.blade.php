@@ -101,26 +101,27 @@
             /* Estilos para el scanner de códigos de barras */
             #cameraContainer {
                 position: relative;
-                width: 280px;
-                height: 280px;
+                width: 100%;
+                max-width: 400px;
+                height: 400px;
                 margin: 0 auto;
                 border: 3px solid #007bff;
                 border-radius: 12px;
                 overflow: hidden;
                 background: #000;
                 box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
-                display: flex;
-                align-items: center;
-                justify-content: center;
             }
 
             #cameraContainer video {
-                width: 100%;
-                height: 100%;
-                object-fit: cover;
-                display: block;
+                width: 100% !important;
+                height: 100% !important;
+                object-fit: cover !important;
+                display: block !important;
                 background: #000;
-                z-index: 1;
+                position: absolute !important;
+                top: 0 !important;
+                left: 0 !important;
+                z-index: 1 !important;
             }
 
             #cameraContainer canvas {
@@ -447,8 +448,8 @@
                                                 </div>
                                                 
                                                 <!-- Contenedor de la Cámara -->
-                                                <div id="cameraContainer" style="display:none;">
-                                                    <video id="scanner-video" playsinline muted autoplay></video>
+                                                <div id="cameraContainer" style="display:none; position: relative; width: 100%; height: 400px; background: #000;">
+                                                    <!-- QuaggaJS creará automáticamente el video y canvas aquí -->
                                                     <div class="scanner-overlay"></div>
                                                 </div>
                                                 
