@@ -522,12 +522,20 @@
                 var idprecioIngresado = idprecio.id;
                 var precioIngresado = idprecio.value;
 
-                if(idPrecioSeleccionado != 'pb'){
+                // Obtener el número del input para actualizar campos hidden
+                const numeroInput = idprecioIngresado.replace('precio', '');
+                
+                // Actualizar campo hidden para el idPrecioSeleccionado
+                const idPrecioSeleccionadoField = document.getElementById(`idPrecioSeleccionado${numeroInput}`);
+                
+                if (idPrecioSeleccionadoField) {
+                    idPrecioSeleccionadoField.value = idPrecioSeleccionado;
+                }
 
+                if(idPrecioSeleccionado != 'pb'){
                     document.getElementById(idprecioIngresado).value = precioSeleccionado;
                     document.getElementById(idprecioIngresado).setAttribute("min",precioSeleccionado);
                 }
-
 
              }
 
@@ -723,6 +731,16 @@
 
 
                         idRestaInventario.value = valorInputCantidad * valorSelectUnidad;
+                        
+                        // Actualizar el campo idUnidadVenta si existe
+                        const idUnidadVentaField = document.getElementById(`idUnidadVenta${id}`);
+                        if (idUnidadVentaField && idUnidad.selectedOptions.length > 0) {
+                            const selectedOption = idUnidad.selectedOptions[0];
+                            const idUnidadVenta = selectedOption.getAttribute('data-id');
+                            idUnidadVentaField.value = idUnidadVenta;
+                            console.log(`✅ Campo idUnidadVenta${id} actualizado:`, idUnidadVenta);
+                        }
+                        
                         this.totalesGenerales();
 
 
@@ -922,21 +940,112 @@
 
                 /* document.getElementById("guardar_cotizacion_btn").disabled = true; */
 
-                var data = new FormData($('#crear_venta').get(0));
+                console.log('=== INICIANDO GUARDADO DE COTIZACIÓN ===');
+                console.log('Array de IDs:', arregloIdInputs);
+                console.log('Número de inputs:', numeroInputs);
+
+                // Verificar campos antes de enviar
+                if (typeof window.verificarCamposGuardado === 'function') {
+                    window.verificarCamposGuardado();
+                }
+
+                // Dar tiempo para que los cálculos se completen
+                setTimeout(() => {
+                    console.log('Iniciando captura de datos después del timeout...');
+                    capturarYEnviarDatos();
+                }, 100); // Reducido a 100ms
+            }
+
+            function capturarYEnviarDatos() {
+
+                console.log('Recopilando datos del formulario manualmente...');
+                
+                // Recopilar datos básicos del formulario
+                const formData = {};
+                const formElements = document.getElementById('crear_venta').elements;
+                
+                // Agregar todos los campos del formulario base
+                for (let element of formElements) {
+                    if (element.name && element.type !== 'button') {
+                        formData[element.name] = element.value;
+                        console.log(`Campo base: ${element.name} = ${element.value}`);
+                    }
+                }
+                
+                // También recopilar TODOS los campos dentro del divProductos
+                const divProductos = document.getElementById('divProductos');
+                console.log('divProductos encontrado:', divProductos);
+                
+                if (divProductos) {
+                    const allInputsInDiv = divProductos.querySelectorAll('input, select');
+                    console.log(`Encontrados ${allInputsInDiv.length} elementos en divProductos`);
+                    
+                    allInputsInDiv.forEach((element, index) => {
+                        console.log(`Elemento ${index}:`, {
+                            tag: element.tagName,
+                            type: element.type,
+                            id: element.id,
+                            name: element.name,
+                            value: element.value
+                        });
+                        
+                        if (element.name) {
+                            formData[element.name] = element.value;
+                            console.log(`Campo producto: ${element.name} = ${element.value}`);
+                        } else {
+                            console.log(`⚠️ Elemento sin name:`, element);
+                        }
+                    });
+                } else {
+                    console.error('❌ divProductos NO encontrado!');
+                }
+                
+                // También capturar campos específicos del producto por ID
+                console.log('Capturando campos específicos por ID...');
+                arregloIdInputs.forEach(id => {
+                    console.log(`--- Capturando campos para producto ID: ${id} ---`);
+                    
+                    // Lista de campos específicos que necesitamos
+                    const camposRequeridos = [
+                        'idProducto', 'nombre', 'bodega', 'precio', 'cantidad', 
+                        'subTotal', 'isvProducto', 'total', 'idBodega', 
+                        'idSeccion', 'restaInventario', 'isv', 'precios', 'unidad'
+                    ];
+                    
+                    camposRequeridos.forEach(campo => {
+                        const nombreCampo = campo + id;
+                        const elemento = document.getElementById(nombreCampo);
+                        
+                        if (elemento) {
+                            const valor = elemento.value || elemento.textContent || '';
+                            formData[nombreCampo] = valor;
+                            console.log(`✅ ${nombreCampo}: "${valor}"`);
+                        } else {
+                            console.log(`❌ ${nombreCampo}: NO ENCONTRADO`);
+                        }
+                    });
+                });
+                
+                console.log('Datos básicos del formulario:', formData);
 
                 let longitudArreglo = arregloIdInputs.length;
+                console.log('Longitud del arreglo:', longitudArreglo);
+                
                 for (var i = 0; i < longitudArreglo; i++) {
 
+                    console.log(`=== PROCESANDO PRODUCTO ${i + 1} ===`);
+                    console.log('ID actual:', arregloIdInputs[i]);
 
                     let name = "unidad" + arregloIdInputs[i];
                     let nameForm = "idUnidadVenta" + arregloIdInputs[i];
 
                     let e = document.getElementById(name);
+                    console.log('Elemento unidad encontrado:', e);
 
                     let idUnidadVenta = e.options[e.selectedIndex].getAttribute("data-id");
+                    console.log('ID Unidad Venta:', idUnidadVenta);
 
-
-                    data.append(nameForm, idUnidadVenta);
+                    formData[nameForm] = idUnidadVenta;
 
                     /**************************************************************/
 
@@ -944,23 +1053,32 @@
                     let nameForm2 = "idPrecioSeleccionado" + arregloIdInputs[i];
 
                     let a = document.getElementById(name2);
+                    console.log('Elemento precio encontrado:', a);
 
                     let idPrecioSeleccionado = a.options[a.selectedIndex].getAttribute("data-id");
+                    console.log('ID Precio Seleccionado:', idPrecioSeleccionado);
 
-
-                    data.append(nameForm2, idPrecioSeleccionado);
+                    formData[nameForm2] = idPrecioSeleccionado;
 
 
 
                     /**************************************************************/
 
                 }
-                data.append("numeroInputs", numeroInputs);
+                formData["numeroInputs"] = numeroInputs;
 
                 let text = arregloIdInputs.toString();
-                data.append("arregloIdInputs", text);
-                const formDataObj = {};
-                data.forEach((value, key) => (formDataObj[key] = value));
+                formData["arregloIdInputs"] = text;
+                
+                // ✅ FIX: Agregar valor dummy para seleccionarProducto si tiene productos escaneados
+                if (arregloIdInputs.length > 0 && !formData["seleccionarProducto"]) {
+                    formData["seleccionarProducto"] = "dummy"; // Valor dummy para pasar validación
+                    console.log('✅ Agregado valor dummy para seleccionarProducto');
+                }
+
+                console.log('=== DATOS FINALES A ENVIAR ===');
+                console.log('FormData Object:', formData);
+                console.log('Número de campos:', Object.keys(formData).length);
 
                 const options = {
                     headers: {
@@ -968,9 +1086,15 @@
                     }
                 }
 
+                console.log('Enviando petición POST a /expo/cotizacion...');
 
-                axios.post('/expo/cotizacion', formDataObj, options)
+
+                axios.post('/expo/cotizacion', formData, options)
                     .then(response => {
+                        console.log('=== RESPUESTA DEL SERVIDOR ===');
+                        console.log('Response status:', response.status);
+                        console.log('Response data:', response.data);
+                        
                         let data = response.data;
 
                         //console.log(response.data);
@@ -1057,6 +1181,16 @@
 
                     })
                     .catch(err => {
+                        console.log('=== ERROR EN EL GUARDADO ===');
+                        console.error('Error completo:', err);
+                        console.error('Error response:', err.response);
+                        
+                        if (err.response) {
+                            console.error('Status:', err.response.status);
+                            console.error('Data:', err.response.data);
+                            console.error('Headers:', err.response.headers);
+                        }
+                        
                         document.getElementById("guardar_cotizacion_btn").disabled = false;
                         let data = err.response.data;
                         console.log(err);
@@ -1120,6 +1254,9 @@
                     barraProd: codigoBarra
                 })
                 .then(response => {
+                    console.log('=== RESPUESTA DATOS PRODUCTO ===');
+                    console.log('Response data:', response.data);
+                    
                     // Verificar si la respuesta indica éxito
                     if (!response.data.success) {
                         playSound('error');
@@ -1146,6 +1283,9 @@
 
                     let producto = response.data.producto;
                     let arrayUnidades = response.data.unidades;
+
+                    console.log('Producto encontrado:', producto);
+                    console.log('Unidades disponibles:', arrayUnidades);
 
                     if (!producto || !producto.id) {
                         playSound('error');
@@ -1226,7 +1366,7 @@
                                         data-parsley-required
                                         autocomplete="off"
                                         readonly
-                                        value='${producto.nombre} 📱'
+                                        value='${producto.nombre} [ESCANEADO]'
                                         style="background-color: #e8f5e8; border-color: #28a745; font-weight: bold;">
                                 </div>
                             </div>
@@ -1295,11 +1435,73 @@
                         <input id="idSeccion${numeroInputs}" name="idSeccion${numeroInputs}" type="hidden" value="${idSeccion}">
                         <input id="restaInventario${numeroInputs}" name="restaInventario${numeroInputs}" type="hidden" value="">
                         <input id="isv${numeroInputs}" name="isv${numeroInputs}" type="hidden" value="${producto.isv}">
+                        <input id="idPrecioSeleccionado${numeroInputs}" name="idPrecioSeleccionado${numeroInputs}" type="hidden" value="pb">
+                        <input id="idUnidadVenta${numeroInputs}" name="idUnidadVenta${numeroInputs}" type="hidden" value="">
                     </div>
                     `;
 
                     arregloIdInputs.splice(numeroInputs, 0, numeroInputs);
                     document.getElementById('divProductos').insertAdjacentHTML('beforeend', html);
+
+                    console.log('=== CONFIGURACIÓN AUTOMÁTICA DEL PRODUCTO ===');
+                    console.log('Número de input:', numeroInputs);
+                    console.log('ID agregado al array:', arregloIdInputs);
+
+                    // Configurar precio base automáticamente para el producto escaneado
+                    setTimeout(() => {
+                        try {
+                            console.log('Iniciando configuración automática...');
+                            
+                            // Seleccionar precio base automáticamente
+                            const selectPrecios = document.getElementById(`precios${numeroInputs}`);
+                            if (selectPrecios) {
+                                selectPrecios.value = producto.precio_base;
+                                console.log('Precio base configurado:', producto.precio_base);
+                                // Disparar el evento onchange para actualizar el precio
+                                selectPrecios.dispatchEvent(new Event('change'));
+                            }
+                            
+                            // Configurar la unidad seleccionada y su idUnidadVenta
+                            const selectUnidad = document.getElementById(`unidad${numeroInputs}`);
+                            const idUnidadVentaField = document.getElementById(`idUnidadVenta${numeroInputs}`);
+                            
+                            console.log('Select unidad encontrado:', selectUnidad);
+                            console.log('Campo idUnidadVenta encontrado:', idUnidadVentaField);
+                            
+                            if (selectUnidad && idUnidadVentaField) {
+                                const selectedOption = selectUnidad.options[selectUnidad.selectedIndex];
+                                if (selectedOption) {
+                                    const idUnidadVenta = selectedOption.getAttribute('data-id');
+                                    idUnidadVentaField.value = idUnidadVenta;
+                                    console.log('✅ Unidad configurada - idUnidadVenta:', idUnidadVenta);
+                                    console.log('Valor del campo idUnidadVenta:', idUnidadVentaField.value);
+                                }
+                            }
+                            
+                            // Verificar campo idPrecioSeleccionado
+                            const idPrecioSeleccionadoField = document.getElementById(`idPrecioSeleccionado${numeroInputs}`);
+                            console.log('Campo idPrecioSeleccionado encontrado:', idPrecioSeleccionadoField);
+                            console.log('Valor inicial idPrecioSeleccionado:', idPrecioSeleccionadoField?.value);
+                            
+                            // Calcular totales automáticamente
+                            const precioInput = document.getElementById(`precio${numeroInputs}`);
+                            const cantidadInput = document.getElementById(`cantidad${numeroInputs}`);
+                            const restaInventarioInput = document.getElementById(`restaInventario${numeroInputs}`);
+                            
+                            console.log('Elementos para calcular totales:');
+                            console.log('- precioInput:', precioInput);
+                            console.log('- cantidadInput:', cantidadInput);
+                            console.log('- restaInventarioInput:', restaInventarioInput);
+                            
+                            if (precioInput && cantidadInput && selectUnidad && restaInventarioInput) {
+                                calcularTotales(precioInput, cantidadInput, producto.isv, selectUnidad, numeroInputs, restaInventarioInput);
+                            }
+                            
+                            console.log('✅ Producto configurado automáticamente con precio base');
+                        } catch (error) {
+                            console.error('❌ Error configurando producto automáticamente:', error);
+                        }
+                    }, 100);
 
                     // Mostrar mensaje de éxito
                     Swal.fire({
@@ -1808,6 +2010,34 @@
                 });
                 
                 console.log('🧪 === FIN TEST NORMALIZACIÓN ===');
+            };
+            
+            // Función para verificar campos antes del guardado
+            window.verificarCamposGuardado = function() {
+                console.log('🔍 === VERIFICACIÓN DE CAMPOS PARA GUARDADO ===');
+                
+                arregloIdInputs.forEach(id => {
+                    console.log(`📦 Producto ${id}:`);
+                    
+                    const campos = [
+                        'idProducto', 'nombre', 'bodega', 'precios', 'precio', 'cantidad', 
+                        'unidad', 'subTotal', 'isvProducto', 'total', 'idBodega', 
+                        'idSeccion', 'restaInventario', 'isv', 'idPrecioSeleccionado', 'idUnidadVenta'
+                    ];
+                    
+                    campos.forEach(campo => {
+                        const elemento = document.getElementById(`${campo}${id}`);
+                        if (elemento) {
+                            console.log(`  ✅ ${campo}${id}: "${elemento.value}"`);
+                        } else {
+                            console.log(`  ❌ ${campo}${id}: NO ENCONTRADO`);
+                        }
+                    });
+                    
+                    console.log('---');
+                });
+                
+                console.log('🔍 === FIN VERIFICACIÓN ===');
             };
 
             console.log('📱 Scanner de códigos de barras cargado - usa testScanner() para probar');

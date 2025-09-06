@@ -187,11 +187,12 @@ class expo extends Component
     public function guardarCotizacion(Request $request){
        try {
 
+        Log::info('=== INICIO GUARDADO COTIZACIÓN ===');
+        Log::info('Datos recibidos:', $request->all());
+        Log::info('Número de inputs: ' . $request->numeroInputs);
+        Log::info('Arreglo de IDs: ' . $request->arregloIdInputs);
 
         $validator = Validator::make($request->all(), [
-
-
-
             'subTotalGeneralGrabado' => 'required',
             'subTotalGeneralGrabadoMostrar' => 'required',
             'subTotalGeneral' => 'required',
@@ -200,15 +201,11 @@ class expo extends Component
             'numeroInputs' => 'required',
             'seleccionarCliente' => 'required',
             'nombre_cliente_ventas' => 'required',
-            'seleccionarProducto' => 'required',
-
-
-
+            // seleccionarProducto ya no es requerido para productos escaneados
         ]);
 
-
-
         if ($validator->fails()) {
+            Log::error('Error de validación:', ['errors' => $validator->errors()->toArray()]);
             return response()->json([
                 'icon' => 'error',
                 'title' => 'error',
@@ -218,10 +215,11 @@ class expo extends Component
             ], 401);
         }
 
-
         $arrayTemporal = $request->arregloIdInputs;
         $arrayInputs = explode(',', $arrayTemporal);
         $arrayProductos = [];
+        
+        Log::info('Array de inputs procesado:', ['arrayInputs' => $arrayInputs]);
 
         DB::beginTransaction();
 
@@ -254,6 +252,9 @@ class expo extends Component
 
             for ($i = 0; $i < count($arrayInputs); $i++) {
 
+                Log::info("=== PROCESANDO PRODUCTO $i ===");
+                Log::info("ID del input: " . $arrayInputs[$i]);
+
                 $keyRestaInventario = "restaInventario" . $arrayInputs[$i];
                 $keyIdSeccion = "idSeccion" . $arrayInputs[$i];
                 $keyIdProducto = "idProducto" . $arrayInputs[$i];
@@ -272,7 +273,46 @@ class expo extends Component
                 $keyBodegaNombre = 'bodega'.$arrayInputs[$i];
                 $keymonto_descProducto = 'acumuladoDescuento'.$arrayInputs[$i];
 
+                Log::info("Claves generadas:", [
+                    'keyIdProducto' => $keyIdProducto,
+                    'keyIdUnidadVenta' => $keyIdUnidadVenta,
+                    'keyPrecio' => $keyPrecio,
+                    'keyCantidad' => $keyCantidad,
+                    'keyidPrecioSeleccionado' => $keyidPrecioSeleccionado,
+                    'keyprecioSeleccionado' => $keyprecioSeleccionado
+                ]);
 
+                // Verificar si existen los campos en el request
+                $camposExistentes = [
+                    $keyRestaInventario => $request->has($keyRestaInventario),
+                    $keyIdSeccion => $request->has($keyIdSeccion),
+                    $keyIdProducto => $request->has($keyIdProducto),
+                    $keyIdUnidadVenta => $request->has($keyIdUnidadVenta),
+                    $keyPrecio => $request->has($keyPrecio),
+                    $keyCantidad => $request->has($keyCantidad),
+                    $keySubTotal => $request->has($keySubTotal),
+                    $keyIsvPagar => $request->has($keyIsvPagar),
+                    $keyTotal => $request->has($keyTotal),
+                    $keyIsvAsigando => $request->has($keyIsvAsigando),
+                    $keyunidad => $request->has($keyunidad),
+                    $keyidBodega => $request->has($keyidBodega),
+                    $keyidPrecioSeleccionado => $request->has($keyidPrecioSeleccionado),
+                    $keyprecioSeleccionado => $request->has($keyprecioSeleccionado),
+                    $keyNombreProducto => $request->has($keyNombreProducto),
+                    $keyBodegaNombre => $request->has($keyBodegaNombre),
+                    $keymonto_descProducto => $request->has($keymonto_descProducto)
+                ];
+
+                Log::info("Campos existentes en request:", ['campos' => $camposExistentes]);
+
+                // Mostrar campos faltantes
+                $camposFaltantes = array_filter($camposExistentes, function($existe) {
+                    return !$existe;
+                });
+                
+                if (!empty($camposFaltantes)) {
+                    Log::warning("CAMPOS FALTANTES:", array_keys($camposFaltantes));
+                }
 
                 $restaInventario = $request->$keyRestaInventario;
                 $idSeccion = $request->$keyIdSeccion;
@@ -292,6 +332,18 @@ class expo extends Component
                 $nombreProducto = $request->$keyNombreProducto;
                 $nombreBodega = $request->$keyBodegaNombre;
                 $monto_descProducto = $request->$keymonto_descProducto;
+
+                Log::info("Valores obtenidos:", [
+                    'idProducto' => $idProducto,
+                    'idUnidadVenta' => $idUnidadVenta,
+                    'precio' => $precio,
+                    'cantidad' => $cantidad,
+                    'idPrecioSeleccionado' => $idPrecioSeleccionado,
+                    'precioSeleccionado' => $precioSeleccionado,
+                    'nombreProducto' => $nombreProducto,
+                    'subTotal' => $subTotal,
+                    'total' => $total
+                ]);
 
 
                 array_push($arrayProductos,[
@@ -417,6 +469,10 @@ class expo extends Component
 
 
         DB::commit();
+        
+        Log::info('=== COTIZACIÓN GUARDADA EXITOSAMENTE ===');
+        Log::info('ID de cotización creada: ' . $cotizacion->id);
+        
         return response()->json([
             'icon'=>'success',
             'text'=>'Cotización guardada con éxito.',
@@ -424,14 +480,39 @@ class expo extends Component
             'pedido_id'=> $cotizacion->id
         ],200);
 
-        } catch (QueryException $e) {
+        } catch (\Exception $e) {
+        
         DB::rollback();
+        
+        Log::error('=== ERROR AL GUARDAR COTIZACIÓN ===');
+        Log::error('Mensaje: ' . $e->getMessage());
+        Log::error('Archivo: ' . $e->getFile());
+        Log::error('Línea: ' . $e->getLine());
+        Log::error('Stack trace: ' . $e->getTraceAsString());
+        
         return response()->json([
             'icon'=>'error',
-            'text'=>'Ha ocurrido un error al guardar la cotización.',
+            'text'=>'Ha ocurrido un error al guardar la cotización: ' . $e->getMessage(),
             'title'=>'Error!',
-            'message' => $e,
-            'error' => $e
+            'message' => $e->getMessage(),
+            'error' => $e->getMessage()
+        ],402);
+        
+        } catch (QueryException $e) {
+        
+        DB::rollback();
+        
+        Log::error('=== ERROR DE BASE DE DATOS ===');
+        Log::error('Mensaje: ' . $e->getMessage());
+        Log::error('SQL: ' . $e->getSql());
+        Log::error('Bindings: ', ['bindings' => $e->getBindings()]);
+        
+        return response()->json([
+            'icon'=>'error',
+            'text'=>'Ha ocurrido un error de base de datos al guardar la cotización.',
+            'title'=>'Error!',
+            'message' => $e->getMessage(),
+            'error' => $e->getMessage()
         ],402);
         }
     }
