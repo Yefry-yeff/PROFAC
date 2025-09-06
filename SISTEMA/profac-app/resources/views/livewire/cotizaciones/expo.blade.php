@@ -101,23 +101,25 @@
             /* Estilos para el scanner de códigos de barras */
             #cameraContainer {
                 position: relative;
-                max-width: 300px;
-                width: 100%;
+                width: 280px;
+                height: 280px;
                 margin: 0 auto;
-                border: 2px solid #007bff;
-                border-radius: 10px;
+                border: 3px solid #007bff;
+                border-radius: 12px;
                 overflow: hidden;
-                background: transparent;
-                box-shadow: 0 4px 12px rgba(0, 123, 255, 0.2);
+                background: #000;
+                box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
+                display: flex;
+                align-items: center;
+                justify-content: center;
             }
 
             #cameraContainer video {
                 width: 100%;
-                height: 180px;
+                height: 100%;
                 object-fit: cover;
                 display: block;
-                background: transparent;
-                border-radius: 8px;
+                background: #000;
             }
 
             .scanner-overlay {
@@ -125,14 +127,11 @@
                 top: 50%;
                 left: 50%;
                 transform: translate(-50%, -50%);
-                width: 150px;
-                height: 90px;
+                width: 120px;
+                height: 80px;
                 border: 2px solid #ff0000;
-                border-radius: 8px;
-                box-shadow: 
-                    0 0 15px rgba(255, 0, 0, 0.5),
-                    inset 0 0 15px rgba(255, 0, 0, 0.1);
-                animation: scannerPulse 2s infinite;
+                border-radius: 6px;
+                box-shadow: 0 0 10px rgba(255, 0, 0, 0.6);
                 z-index: 10;
                 pointer-events: none;
             }
@@ -148,25 +147,10 @@
                 animation: scanLine 2s infinite;
             }
 
-            @keyframes scannerPulse {
-                0% { 
-                    border-color: #ff0000; 
-                    box-shadow: 0 0 15px rgba(255, 0, 0, 0.5);
-                }
-                50% { 
-                    border-color: #00ff00; 
-                    box-shadow: 0 0 20px rgba(0, 255, 0, 0.7);
-                }
-                100% { 
-                    border-color: #ff0000; 
-                    box-shadow: 0 0 15px rgba(255, 0, 0, 0.5);
-                }
-            }
-
             @keyframes scanLine {
-                0% { transform: translateY(-45px); opacity: 0; }
+                0% { transform: translateY(-40px); opacity: 0; }
                 50% { opacity: 1; }
-                100% { transform: translateY(45px); opacity: 0; }
+                100% { transform: translateY(40px); opacity: 0; }
             }
 
             .camera-controls {
@@ -199,16 +183,13 @@
             /* Responsivo para móviles */
             @media (max-width: 768px) {
                 #cameraContainer {
-                    max-width: 280px;
-                }
-                
-                #cameraContainer video {
-                    height: 160px;
+                    width: 240px;
+                    height: 240px;
                 }
                 
                 .scanner-overlay {
-                    width: 130px;
-                    height: 80px;
+                    width: 100px;
+                    height: 70px;
                 }
                 
                 .camera-controls .btn {
@@ -219,16 +200,13 @@
 
             @media (max-width: 480px) {
                 #cameraContainer {
-                    max-width: 250px;
-                }
-                
-                #cameraContainer video {
-                    height: 140px;
+                    width: 200px;
+                    height: 200px;
                 }
                 
                 .scanner-overlay {
-                    width: 110px;
-                    height: 70px;
+                    width: 80px;
+                    height: 60px;
                 }
             }
 
@@ -460,6 +438,7 @@
                                                 <!-- Contenedor de la Cámara -->
                                                 <div id="cameraContainer" style="display:none;">
                                                     <video id="scanner-video" playsinline muted autoplay></video>
+                                                    <div class="scanner-overlay"></div>
                                                 </div>
                                                 
                                                 <!-- Estado del Scanner -->

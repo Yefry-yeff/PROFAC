@@ -1357,8 +1357,8 @@
                 navigator.mediaDevices.getUserMedia({
                     video: {
                         facingMode: "environment",
-                        width: { ideal: 640 },
-                        height: { ideal: 480 }
+                        width: { ideal: 280 },
+                        height: { ideal: 280 }
                     }
                 })
                 .then(function(stream) {
@@ -1366,12 +1366,7 @@
                     const video = document.getElementById('scanner-video');
                     video.srcObject = stream;
                     
-                    // Agregar overlay
-                    if (!document.querySelector('.scanner-overlay')) {
-                        const overlay = document.createElement('div');
-                        overlay.className = 'scanner-overlay';
-                        document.getElementById('cameraContainer').appendChild(overlay);
-                    }
+                    // El overlay ya está en el HTML, no necesitamos crearlo dinámicamente
 
                     // Inicializar Quagga
                     Quagga.init({
@@ -1380,8 +1375,8 @@
                             type: "LiveStream", 
                             target: document.querySelector('#cameraContainer'),
                             constraints: {
-                                width: 640,
-                                height: 480,
+                                width: 280,
+                                height: 280,
                                 facingMode: "environment"
                             }
                         },
