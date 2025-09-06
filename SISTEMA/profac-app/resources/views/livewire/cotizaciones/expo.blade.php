@@ -101,21 +101,23 @@
             /* Estilos para el scanner de códigos de barras */
             #cameraContainer {
                 position: relative;
-                max-width: 400px;
+                max-width: 300px;
                 width: 100%;
                 margin: 0 auto;
-                border: 3px solid #007bff;
-                border-radius: 15px;
+                border: 2px solid #007bff;
+                border-radius: 10px;
                 overflow: hidden;
-                background: #000;
-                box-shadow: 0 8px 20px rgba(0, 123, 255, 0.3);
+                background: transparent;
+                box-shadow: 0 4px 12px rgba(0, 123, 255, 0.2);
             }
 
             #cameraContainer video {
                 width: 100%;
-                height: 250px;
+                height: 180px;
                 object-fit: cover;
                 display: block;
+                background: transparent;
+                border-radius: 8px;
             }
 
             .scanner-overlay {
@@ -123,15 +125,16 @@
                 top: 50%;
                 left: 50%;
                 transform: translate(-50%, -50%);
-                width: 200px;
-                height: 120px;
-                border: 3px solid #ff0000;
-                border-radius: 12px;
+                width: 150px;
+                height: 90px;
+                border: 2px solid #ff0000;
+                border-radius: 8px;
                 box-shadow: 
-                    0 0 20px rgba(255, 0, 0, 0.6),
-                    inset 0 0 20px rgba(255, 0, 0, 0.1);
+                    0 0 15px rgba(255, 0, 0, 0.5),
+                    inset 0 0 15px rgba(255, 0, 0, 0.1);
                 animation: scannerPulse 2s infinite;
                 z-index: 10;
+                pointer-events: none;
             }
 
             .scanner-overlay::before {
@@ -140,7 +143,7 @@
                 top: 50%;
                 left: 0;
                 right: 0;
-                height: 2px;
+                height: 1px;
                 background: linear-gradient(90deg, transparent, #ff0000, transparent);
                 animation: scanLine 2s infinite;
             }
@@ -148,22 +151,22 @@
             @keyframes scannerPulse {
                 0% { 
                     border-color: #ff0000; 
-                    box-shadow: 0 0 20px rgba(255, 0, 0, 0.6);
+                    box-shadow: 0 0 15px rgba(255, 0, 0, 0.5);
                 }
                 50% { 
                     border-color: #00ff00; 
-                    box-shadow: 0 0 30px rgba(0, 255, 0, 0.8);
+                    box-shadow: 0 0 20px rgba(0, 255, 0, 0.7);
                 }
                 100% { 
                     border-color: #ff0000; 
-                    box-shadow: 0 0 20px rgba(255, 0, 0, 0.6);
+                    box-shadow: 0 0 15px rgba(255, 0, 0, 0.5);
                 }
             }
 
             @keyframes scanLine {
-                0% { transform: translateY(-60px); opacity: 0; }
+                0% { transform: translateY(-45px); opacity: 0; }
                 50% { opacity: 1; }
-                100% { transform: translateY(60px); opacity: 0; }
+                100% { transform: translateY(45px); opacity: 0; }
             }
 
             .camera-controls {
@@ -174,42 +177,38 @@
             .scanner-status {
                 background: linear-gradient(45deg, #28a745, #20c997);
                 color: white;
-                padding: 12px;
-                border-radius: 8px;
-                margin: 15px 0;
+                padding: 10px;
+                border-radius: 6px;
+                margin: 10px 0;
                 text-align: center;
                 font-weight: bold;
-                animation: statusPulse 1.5s infinite;
-            }
-
-            @keyframes statusPulse {
-                0%, 100% { opacity: 1; }
-                50% { opacity: 0.7; }
+                font-size: 14px;
             }
 
             .scanner-result {
                 background: #d4edda;
                 border: 1px solid #c3e6cb;
                 color: #155724;
-                padding: 15px;
-                border-radius: 8px;
-                margin: 15px 0;
-                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+                padding: 12px;
+                border-radius: 6px;
+                margin: 10px 0;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                font-size: 14px;
             }
 
             /* Responsivo para móviles */
             @media (max-width: 768px) {
                 #cameraContainer {
-                    max-width: 320px;
+                    max-width: 280px;
                 }
                 
                 #cameraContainer video {
-                    height: 200px;
+                    height: 160px;
                 }
                 
                 .scanner-overlay {
-                    width: 160px;
-                    height: 100px;
+                    width: 130px;
+                    height: 80px;
                 }
                 
                 .camera-controls .btn {
@@ -220,16 +219,16 @@
 
             @media (max-width: 480px) {
                 #cameraContainer {
-                    max-width: 280px;
+                    max-width: 250px;
                 }
                 
                 #cameraContainer video {
-                    height: 180px;
+                    height: 140px;
                 }
                 
                 .scanner-overlay {
-                    width: 140px;
-                    height: 80px;
+                    width: 110px;
+                    height: 70px;
                 }
             }
 
@@ -439,7 +438,7 @@
                             </div>
                                 <!-- Scanner de Códigos de Barras -->
                                 <div class="row mt-3">
-                                    <div class="col-12 col-md-8 col-lg-6 mx-auto">
+                                    <div class="col-12 col-md-6 col-lg-5 mx-auto">
                                         <div class="card border-primary shadow-sm">
                                             <div class="card-header bg-primary text-white">
                                                 <h6 class="mb-0 text-center">
@@ -450,40 +449,30 @@
                                                 
                                                 <!-- Botones de Control -->
                                                 <div class="camera-controls mb-3">
-                                                    <button id="btnStartCamera" class="btn btn-success btn-lg me-2">
-                                                        <i class="fas fa-camera me-2"></i>Activar Cámara
+                                                    <button type="button" id="btnStartCamera" class="btn btn-success me-2">
+                                                        <i class="fas fa-camera me-2"></i>Activar
                                                     </button>
-                                                    <button id="btnStopCamera" class="btn btn-danger btn-lg" style="display:none;">
+                                                    <button type="button" id="btnStopCamera" class="btn btn-danger" style="display:none;">
                                                         <i class="fas fa-stop me-2"></i>Detener
                                                     </button>
                                                 </div>
                                                 
                                                 <!-- Contenedor de la Cámara -->
-                                                <div class="d-flex justify-content-center mb-3">
-                                                    <div id="cameraContainer" style="display:none;">
-                                                        <video id="scanner-video" playsinline></video>
-                                                    </div>
+                                                <div id="cameraContainer" style="display:none;">
+                                                    <video id="scanner-video" playsinline muted autoplay></video>
                                                 </div>
                                                 
                                                 <!-- Estado del Scanner -->
                                                 <div id="scannerStatus" class="scanner-status" style="display:none;">
                                                     <i class="fas fa-search me-2"></i>
-                                                    <span>Escaneando... Enfoque el código en el recuadro rojo</span>
+                                                    <span>Escaneando...</span>
                                                 </div>
                                                 
                                                 <!-- Resultado del Escaneo -->
                                                 <div id="scanResult" class="scanner-result" style="display:none;">
                                                     <i class="fa fa-check-circle text-success me-2"></i>
-                                                    <strong>Código escaneado:</strong>
+                                                    <strong>Código:</strong>
                                                     <span id="barcodeResult" class="fw-bold text-primary ms-2"></span>
-                                                </div>
-                                                
-                                                <!-- Instrucciones -->
-                                                <div class="mt-3">
-                                                    <small class="text-muted">
-                                                        <i class="fas fa-info-circle me-1"></i>
-                                                        Coloque el código de barras dentro del recuadro rojo para escanearlo
-                                                    </small>
                                                 </div>
                                                 
                                             </div>

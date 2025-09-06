@@ -1334,46 +1334,50 @@
             }
 
             // ========================================
-            // SCANNER DE CÓDIGOS DE BARRAS CON CÁMARA
+            // SCANNER DE CÓDIGOS DE BARRAS SIMPLIFICADO
             // ========================================
             
             let isScanning = false;
             let videoStream = null;
 
-            // Función para inicializar el scanner
+            // Función para inicializar el scanner (sin validaciones)
             function initBarcodeScanner() {
                 if (isScanning) return;
 
-                console.log('🎥 Iniciando scanner de códigos de barras...');
+                console.log('🎥 Iniciando scanner...');
                 
-                // Mostrar elementos de la interfaz
+                // Mostrar elementos
                 document.getElementById('cameraContainer').style.display = 'block';
                 document.getElementById('scannerStatus').style.display = 'block';
                 document.getElementById('scanResult').style.display = 'none';
                 document.getElementById('btnStartCamera').style.display = 'none';
                 document.getElementById('btnStopCamera').style.display = 'inline-block';
 
-                // Solicitar acceso a la cámara
+                // Acceso directo a la cámara
                 navigator.mediaDevices.getUserMedia({
                     video: {
-                        facingMode: "environment", // Cámara trasera
+                        facingMode: "environment",
                         width: { ideal: 640 },
                         height: { ideal: 480 }
                     }
                 })
                 .then(function(stream) {
                     videoStream = stream;
+                    const video = document.getElementById('scanner-video');
+                    video.srcObject = stream;
                     
-                    // Agregar overlay visual para el scanner
-                    const overlay = document.createElement('div');
-                    overlay.className = 'scanner-overlay';
-                    document.getElementById('cameraContainer').appendChild(overlay);
+                    // Agregar overlay
+                    if (!document.querySelector('.scanner-overlay')) {
+                        const overlay = document.createElement('div');
+                        overlay.className = 'scanner-overlay';
+                        document.getElementById('cameraContainer').appendChild(overlay);
+                    }
 
-                    // Inicializar Quagga para detección de códigos
+                    // Inicializar Quagga
                     Quagga.init({
                         inputStream: {
                             name: "Live",
-                            type: "LiveStream",
+                            type: "LiveStream", 
                             target: document.querySelector('#cameraContainer'),
                             constraints: {
                                 width: 640,
@@ -1381,76 +1385,58 @@
                                 facingMode: "environment"
                             }
                         },
-                        locator: {
-                            patchSize: "medium",
-                            halfSample: true
-                        },
-                        numOfWorkers: 2,
                         decoder: {
                             readers: [
                                 "code_128_reader",
-                                "ean_reader",
+                                "ean_reader", 
                                 "ean_8_reader",
                                 "code_39_reader",
-                                "code_39_vin_reader",
-                                "codabar_reader",
                                 "upc_reader",
-                                "upc_e_reader",
-                                "i2of5_reader"
+                                "upc_e_reader"
                             ]
                         },
                         locate: true
                     }, function(err) {
                         if (err) {
-                            console.error('❌ Error al inicializar Quagga:', err);
-                            playSound('error');
-                            Swal.fire({
-                                icon: 'error',
-                                title: 'Error al inicializar la cámara',
-                                text: 'No se pudo acceder a la cámara. Verifique los permisos.',
-                                confirmButtonColor: '#d33'
-                            });
+                            console.error('Error:', err);
+                            alert('Error al inicializar la cámara');
                             stopBarcodeScanner();
                             return;
                         }
-
-                        console.log('✅ Scanner inicializado correctamente');
+                        
                         isScanning = true;
                         Quagga.start();
+                        console.log('✅ Scanner activo');
                     });
 
-                    // Event listener para detección de códigos
+                    // Detección de códigos
                     Quagga.onDetected(function(result) {
                         if (!isScanning) return;
-
+                        
                         const code = result.codeResult.code;
-                        console.log('📷 Código detectado:', code);
-
-                        // Filtrar códigos válidos
-                        if (code && code.length >= 8 && /^[0-9A-Za-z\-_]+$/.test(code)) {
-                            playSound('success');
+                        if (code && code.length >= 8) {
+                            console.log('📷 Código detectado:', code);
                             
-                            // Mostrar el código escaneado
+                            // Mostrar código
                             document.getElementById('barcodeResult').textContent = code;
                             document.getElementById('scanResult').style.display = 'block';
-
-                            // Detener el scanner temporalmente
-                            stopBarcodeScanner();
-
-                            // Procesar el código de barras
+                            
+                            // Sonido de éxito
+                            playSound('success');
+                            
+                            // Agregar al carrito directamente
                             agregarProductoCarritoBarra(code);
+                            
+                            // Ocultar resultado después de 3 segundos
+                            setTimeout(() => {
+                                document.getElementById('scanResult').style.display = 'none';
+                            }, 3000);
                         }
                     });
                 })
                 .catch(function(err) {
-                    console.error('❌ Error al acceder a la cámara:', err);
-                    playSound('error');
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error de cámara',
-                        text: 'No se pudo acceder a la cámara. Verifique que el navegador tenga permisos.',
-                        confirmButtonColor: '#d33'
-                    });
+                    console.error('Error cámara:', err);
+                    alert('No se pudo acceder a la cámara');
                     stopBarcodeScanner();
                 });
             }
@@ -1469,7 +1455,6 @@
                     videoStream = null;
                 }
 
-                // Ocultar elementos de la interfaz
                 document.getElementById('cameraContainer').style.display = 'none';
                 document.getElementById('scannerStatus').style.display = 'none';
                 document.getElementById('scanResult').style.display = 'none';
@@ -1487,25 +1472,20 @@
             function playSound(type) {
                 try {
                     let frequency = type === 'success' ? 800 : 300;
-                    let duration = type === 'success' ? 200 : 500;
-
                     const audioContext = new (window.AudioContext || window.webkitAudioContext)();
                     const oscillator = audioContext.createOscillator();
                     const gainNode = audioContext.createGain();
 
                     oscillator.connect(gainNode);
                     gainNode.connect(audioContext.destination);
-
                     oscillator.frequency.value = frequency;
                     oscillator.type = 'sine';
-
                     gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration / 1000);
-
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
                     oscillator.start(audioContext.currentTime);
-                    oscillator.stop(audioContext.currentTime + duration / 1000);
+                    oscillator.stop(audioContext.currentTime + 0.2);
                 } catch (e) {
-                    console.log('No se pudo reproducir el sonido:', e);
+                    console.log('No se pudo reproducir el sonido');
                 }
             }
 
