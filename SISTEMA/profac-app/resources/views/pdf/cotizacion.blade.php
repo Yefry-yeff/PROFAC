@@ -79,7 +79,15 @@
         <img src="img/membrete/Logo3.png" width="800rem" style="margin-left:3%; margin-top:-25px; position:absolute;"alt="">
         <div class="card" style="margin-left:44px;  margin-top:100px; width:45rem; height:5.5rem;">
             <div class="card-header">
-                <b>Cotización  No.  {{$datos->codigo}}</b>
+                <b>
+                        @if($tipoCot = 4)
+                            Pedido No.  {{$datos->codigo}}</b>
+                            @else
+                            Cotización No.  {{$datos->codigo}}</b>
+
+                        @endif
+
+
 
             </div>
             <div class="card-body">
@@ -181,7 +189,9 @@
 
                     <p class="card-text" style="position:absolute;left:0px;  top:28px; font-size:11px;">
                         ____________________________________________________________________</p>
-                    <p class="card-text" style="position:absolute;left:10px;  top:40px; font-size:11px;">Precios sujetos a cambios.</p>
+                    <p class="card-text" style="position:absolute;left:10px;  top:40px; font-size:11px;">Nota: {{ $datos->nota }} </p>
+
+
 
                     @if($flagCentavos == false)
                     <p class="card-text" style="position:absolute;left:35px;  top:240px; font-size:12px;">"{{$numeroLetras." CON CERO CENTAVOS"}}"</p>

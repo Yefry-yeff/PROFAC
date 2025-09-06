@@ -1,7 +1,13 @@
 <div>
     @push('styles')
         <style>
-
+ #alert-fixed {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 9999; /* para que quede por encima de todo */
+      max-width: 300px;
+    }
 
             /* Estilos opcionales para el interruptor */
             .switch {
@@ -96,90 +102,13 @@
             input[type=number] {
                 -moz-appearance: textfield;
             }
-
-            /* Estilos para el escáner de códigos de barras */
-            #cameraContainer {
-                position: relative;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                background-color: #f8f9fa;
-                border-radius: 8px;
-                overflow: hidden;
-                max-width: 100%;
-                margin: 0 auto;
-            }
-
-            #videoElement {
-                max-width: 100%;
-                height: 300px;
-                width: 100%;
-                object-fit: cover;
-            }
-
-            .scanner-overlay {
-                position: absolute;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                border: 3px solid #ff0000;
-                border-radius: 8px;
-                width: 280px;
-                height: 120px;
-                background: transparent;
-                box-shadow:
-                    0 0 0 2000px rgba(0, 0, 0, 0.4),
-                    inset 0 0 0 2px rgba(255, 255, 255, 0.2);
-                pointer-events: none;
-                animation: scannerPulse 2s infinite ease-in-out;
-                z-index: 10;
-            }
-
-            .scanner-overlay::before {
-                content: 'Enfoque el código aquí';
-                position: absolute;
-                top: -35px;
-                left: 50%;
-                transform: translateX(-50%);
-                background: rgba(0, 0, 0, 0.8);
-                color: white;
-                padding: 5px 12px;
-                border-radius: 15px;
-                font-size: 0.8em;
-                white-space: nowrap;
-            }
-
-            @keyframes scannerPulse {
-                0%, 100% {
-                    border-color: #ff0000;
-                    box-shadow:
-                        0 0 0 2000px rgba(0, 0, 0, 0.4),
-                        inset 0 0 0 2px rgba(255, 255, 255, 0.2),
-                        0 0 20px rgba(255, 0, 0, 0.5);
-                }
-                50% {
-                    border-color: #00ff00;
-                    box-shadow:
-                        0 0 0 2000px rgba(0, 0, 0, 0.5),
-                        inset 0 0 0 2px rgba(255, 255, 255, 0.3),
-                        0 0 25px rgba(0, 255, 0, 0.7);
-                }
-            }
-
-            /* Mejoras para el contenedor de la cámara */
-            .camera-card {
-                border: 2px solid #007bff;
-                border-radius: 12px;
-                overflow: hidden;
-                box-shadow: 0 4px 12px rgba(0, 123, 255, 0.15);
-            }
         </style>
     @endpush
 
     <div class="row wrapper border-bottom white-bg page-heading">
         <div class="col-lg-8 col-xl-10 col-md-8 col-sm-8">
             @if ($tipoCotizacion == 3)
-                <h2>Expo Feria 2024</h2>
+                <h2>Expo pedidos</h2>
             @else
                 <h2>Cotización</h2>
             @endif
@@ -201,73 +130,82 @@
 
 
     </div>
-
+    <div id="alert-fixed"></div>
     <div class="wrapper wrapper-content animated fadeInRight">
         <div class="row">
             <div class="col-lg-12">
                 <div class="ibox ">
                     <div class="ibox-title">
-                        <h3>Datos de cotización <i class="fa-solid fa-cart-shopping"></i></h3>
+                        <h3>Datos del pedido <i class="fa-solid fa-cart-shopping"></i></h3>
                     </div>
                     <div class="ibox-content">
                         <form onkeydown="return event.key != 'Enter';" autocomplete="off" id="crear_venta"
                             name="crear_venta" data-parsley-validate>
 
 
-                            <input type="hidden" id="tipo_venta_id" name="tipo_venta_id" value="{{ $tipoCotizacion }}">
+                            <input type="hidden" id="tipo_venta_id" name="tipo_venta_id" value="4">
+
+                            <div class="row align-items-center" style="margin-top: -60px; margin-left:210px;">
+                                <label for="pedido_id" class="col-md-3 col-form-label focus-label">
+                                    Pedido:<span class="text-danger">*</span>
+                                </label>
+                                <div class="col-md-9">
+                                    <input class="form-control" type="text" readonly id="pedido_id" name="pedido_id"
+                                        style="width: 150px;"  value="">
+                                </div>
+                            </div>
 
 
 
-                            <div class="mt-4 row">
-                                <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4">
-                                    <label for="seleccionarCliente" class="col-form-label focus-label">Seleccionar
-                                        Cliente:<span class="text-danger">*</span> </label>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label for="seleccionarCliente" class="col-form-label focus-label">
+                                    Seleccionar Cliente: <span class="text-danger">*</span>
+                                    </label>
                                     <select id="seleccionarCliente" name="seleccionarCliente"
-                                        class="form-group form-control" style="" data-parsley-required
-                                        onchange="obtenerDatosCliente()">
-                                        <option value="" selected disabled>--Seleccionar un cliente--</option>
+                                    class="form-control" data-parsley-required onchange="obtenerDatosCliente()">
+                                    <option value="" selected disabled>--Seleccionar un cliente--</option>
                                     </select>
                                 </div>
 
-                                <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4">
-                                    <label class="col-form-label focus-label">Nombre del cliente:<span
-                                            class="text-danger">*</span></label>
-                                    <input class="form-control" required type="text" id="nombre_cliente_ventas"
-                                        name="nombre_cliente_ventas" data-parsley-required readonly>
+                                <!-- Nombre del cliente -->
+                                <div class="col-md-6">
+                                    <label class="col-form-label focus-label">
+                                    Nombre del cliente: <span class="text-danger">*</span>
+                                    </label>
+                                    <input class="form-control" required type="text"
+                                    id="nombre_cliente_ventas" name="nombre_cliente_ventas" readonly>
+                                </div>
+                                </div>
+
+                                <div class="row mt-3">
+                                <!-- RTN -->
+                                    <div class="col-md-6">
+                                        <label class="col-form-label focus-label">
+                                        RTN: <span class="text-danger">*</span>
+                                        </label>
+                                        <input class="form-control" type="text" id="rtn_ventas" name="rtn_ventas" readonly>
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <label for="vendedor">Vendedor:<span class="text-danger"></span> </label>
+                                        <select name="vendedor" id="vendedor" class="form-group form-control">
+
+                                        </select>
+                                    </div>
 
                                 </div>
 
-                                <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4">
-                                    <label class="col-form-label focus-label">RTN:<span
-                                            class="text-danger">*</span></label>
-                                    <input class="form-control" type="text" id="rtn_ventas" name="rtn_ventas"
-                                        readonly>
-
-                                </div>
-
-
-
-
-
-                            </div>
-
-                            <div class="mt-4 row">
-                                <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4" style="display: none;">
+                            <div class="row mt-3">
+                                <div class="col-md-6" style="display: none;">
                                     <label for="tipoPagoVenta" class="col-form-label focus-label">Seleccionar tipo de
                                         pago:<span class="text-danger">*</span></label>
                                     <select class="form-group form-control " name="tipoPagoVenta" id="tipoPagoVenta"
                                         onchange="validarFechaPago()">
                                     </select>
                                 </div>
-                                <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4">
-                                    <label for="vendedor">Vendedor:<span class="text-danger"></span> </label>
-                                    <select name="vendedor" id="vendedor" class="form-group form-control">
 
-                                    </select>
-
-                              </div>
-
-                                <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4">
+                                <div class="col-md-6">
                                     <div class="form-group">
 
                                         <label for="fecha_emision" class="col-form-label focus-label">Fecha de emisión
@@ -279,19 +217,19 @@
                                     </div>
                                 </div>
 
-                                <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4">
+                                <div class="col-md-6">
                                     <div class="form-group">
 
                                         <label for="porDescuento" class="col-form-label focus-label">Descuento aplicado %
                                             :<span class="text-danger">*</span></label>
-                                        <input class="form-control" oninput="validarDescuento()" onchange="calcularTotalesInicioPagina()" type="number" min="0" max="25" value="0" minlength="1" maxlength="2" id="porDescuento" name="porDescuento"  >
+                                        <input class="form-control" oninput="validarDescuento()" onchange="calcularTotalesInicioPagina()" type="number" value="0" max="100" min="0"  mminlength="1" maxlength="2" id="porDescuento" name="porDescuento"  >
                                         <p id="mensajeError" style="color: red;"></p>
 
 
                                     </div>
                                 </div>
 
-                                <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4" style="display: none;">
+                                <div class="col-md-6" style="display: none;">
                                     <div class="form-group">
                                         <label for="fecha_vencimiento"
                                             class="col-form-label focus-label text-warning">Fecha de vencimiento:
@@ -309,21 +247,8 @@
 
 
                             </div>
-
-                            <div class="mt-4 row">
-                                <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6 ">
-
-                                    <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                        <label for="seleccionarProducto" class="col-form-label focus-label"> <label style="display: none" class="switch"> <input type="checkbox" id="mySwitch"><span class="slider"></span></label> Seleccionar
-                                            Producto :<span class="text-danger">*</span></label>
-                                        <select id="seleccionarProducto" name="seleccionarProducto"
-                                            class="form-group form-control" style="" onchange="obtenerImagenes()">
-                                            <option value="" selected disabled>--Seleccione un producto--</option>
-                                        </select>
-                                    </div>
-
-                                    <!-- Sección para lectura de código de barras con cámara -->
-                                    <div class="mt-3 col-12">
+                                {{--  <!-- Sección para lectura de código de barras con cámara -->  --}}
+                                    {{--  <div class="row mt-3">
                                         <div class="card camera-card">
                                             <div class="text-white card-header bg-primary">
                                                 <h5 class="mb-0"><i class="fa fa-camera"></i> Lectura de Código de Barras</h5>
@@ -359,21 +284,21 @@
                                                             <strong><i class="fa fa-check-circle"></i> Código escaneado:</strong>
                                                             <span id="barcodeResult" class="fw-bold"></span>
                                                         </div>
-                                                        <!-- Mensaje de ayuda -->
-                                                        <div class="mt-3 alert alert-light" style="font-size: 0.9em;">
-                                                            <i class="fa fa-lightbulb text-warning"></i>
-                                                            <strong>Consejos:</strong>
-                                                            <ul class="mt-2 mb-0">
-                                                                <li>Mantenga el código de barras dentro del recuadro rojo</li>
-                                                                <li>Asegúrese de tener buena iluminación</li>
-                                                                <li>Mantenga el dispositivo estable</li>
-                                                                <li>El escaneo se realizará automáticamente</li>
-                                                            </ul>
-                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
+                                    </div>  --}}
+                            <div class="row mt-3">
+                                <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6 ">
+
+                                    <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
+                                        <label for="seleccionarProducto" class="col-form-label focus-label"> <label style="display: none" class="switch"> <input type="checkbox" id="mySwitch"><span class="slider"></span></label> Seleccionar
+                                            Producto :<span class="text-danger">*</span></label>
+                                        <select id="seleccionarProducto" name="seleccionarProducto"
+                                            class="form-group form-control" style="width: 110%;" onchange="obtenerImagenes()">
+                                            <option value="" selected disabled>--Seleccione un producto--</option>
+                                        </select>
                                     </div>
 
                                 </div>
@@ -384,30 +309,16 @@
                             <div class="row">
 
 
-                                <div class="mt-4 col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6">
+                                <div class="col-md-6 mt-3">
                                     <div class="text-center">
                                         <a id="detalleProducto" href=""
-                                            class="font-bold h3 d-none text-success" style="" target="_blank">
+                                            class="font-bold h3  d-none text-success" style="" target="_blank">
                                             <i class="fa-solid fa-circle-info"></i> Ver Detalles De Producto </a>
                                     </div>
 
 
-                                    <div id="carouselProducto" class="mt-2 carousel slide" data-ride="carousel">
-                                        {{-- <ol  id="carousel_imagenes_producto" class="carousel-indicators">
-
-                                                <li data-target="#carouselProducto" data-slide-to="{{ $i }}" class="active"></li>
-
-                                                <li data-target="#carouselProducto" data-slide-to="{{ $i }}" class=""></li>
-
-
-
-                                        </ol> --}}
+                                    <div id="carouselProducto" class="carousel slide mt-2" data-ride="carousel">
                                         <div id="bloqueImagenes" class="carousel-inner ">
-
-
-
-
-
 
                                         </div>
                                         <a class="carousel-control-prev" href="#carouselProducto" role="button"
@@ -423,12 +334,11 @@
                                     </div>
 
 
-                                </div>
 
-                                <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6 ">
-                                    <div id="botonAdd"
-                                        class="my-4 text-center col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12 d-none">
-                                        <button type="button" class="p-3 btn-rounded btn btn-success"
+                                </div>
+                                <div class="col-md-6" style="margin-top:-35px;">
+                                    <div id="botonAdd"class="text-center d-none">
+                                        <button type="button" class="btn-rounded btn btn-success p-3"
                                             style="font-weight: 900; " onclick="agregarProductoCarrito()">Añadir
                                             Producto a venta <i class="fa-solid fa-cart-plus"></i> </button>
 
@@ -447,11 +357,20 @@
                                     </div>
                                 </div>
 
-
                             </div>
 
-                            <hr>
+                            <div class="row">
+                                <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
+                                    <div class="form-group">
+                                        <label for="nota" class="col-form-label focus-label">Nota:
+                                        </label>
+                                        <textarea class="form-control" id="nota" name="nota" cols="30" rows="3" maxlength="250"></textarea>
+                                    </div>
 
+                                </div>
+
+
+                            </div>
                             <div class="hide-container">
                                 <p>Nota:El campo "Unidad" describe la unidad de medida para la venta del producto -
                                     seguido del numero de unidades a restar del inventario</p>
@@ -506,14 +425,6 @@
 
 
                                     </div>
-                                    {{--
-                                    <div class="form-group col-12 col-sm-12 col-md-1 col-lg-1 col-xl-1">
-                                        <label class="sr-only">Seccion</label>
-                                        <input type="text" placeholder="Seccion" class="form-control"
-                                            min="1" autocomplete="off" disabled>
-                                    </div> --}}
-
-
                                     <div class="form-group col-1">
                                         <label class="sr-only">Sub Total</label>
                                         <input type="number" placeholder="Sub total"
@@ -655,8 +566,8 @@
                             <div class="row">
                                 <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
                                     <button id="guardar_cotizacion_btn"
-                                        class="float-left btn btn-primary m-t-n-xs"><strong>
-                                            Guardar Cotizacion</strong></button>
+                                        class="btn  btn-primary float-left m-t-n-xs"><strong>
+                                            Guardar </strong></button>
                                 </div>
                             </div>
 
@@ -697,10 +608,8 @@
 
         <script src="{{ asset('js/js_proyecto/cotizaciones/expo.js') }}"></script>
 
-        <!-- QuaggaJS para lectura de códigos de barras -->
         <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
-
-        <script>
+         <script>
             // Variables globales para el escáner
             let isScanning = false;
             let videoStream = null;
@@ -924,6 +833,274 @@
                 });
             }
 
+
+             function agregarProductoCarritoBarra(codigoBarra) {
+                console.log('Buscando producto con código de barras:', codigoBarra);
+
+                // Función para reproducir sonido como le gusta a yeff
+                function playSound(type) {
+                    try {
+                        let frequency = type === 'success' ? 800 : 300;
+                        let duration = type === 'success' ? 200 : 500;
+
+                        // Crear contexto de audio
+                        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                        const oscillator = audioContext.createOscillator();
+                        const gainNode = audioContext.createGain();
+
+                        oscillator.connect(gainNode);
+                        gainNode.connect(audioContext.destination);
+
+                        oscillator.frequency.value = frequency;
+                        oscillator.type = 'sine';
+
+                        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration / 1000);
+
+                        oscillator.start(audioContext.currentTime);
+                        oscillator.stop(audioContext.currentTime + duration / 1000);
+                    } catch (e) {
+                        console.log('No se pudo reproducir el sonido:', e);
+                    }
+                }
+
+                // Usar el método existente obtenerDatosProductoExpo
+                axios.post('/ventas/datos/producto/expo', {
+                    barraProd: codigoBarra
+                })
+                .then(response => {
+                    // Verificar si la respuesta indica éxito
+                    if (!response.data.success) {
+                        playSound('error');
+                        Swal.fire({
+                            icon: 'error',
+                            title: '¡Producto No Encontrado!',
+                            html: `
+                                <div style="text-align: left;">
+                                    <p><strong>Código escaneado:</strong> ${codigoBarra}</p>
+                                    <p><strong>Estado:</strong> No existe en la base de datos</p>
+                                    <hr>
+                                    <p style="color: #666; font-size: 0.9em;">
+                                        • Verifique que el código esté completo<br>
+                                        • Asegúrese de que el producto esté registrado<br>
+                                        • Contacte al administrador si persiste el problema
+                                    </p>
+                                </div>
+                            `,
+                            confirmButtonText: 'Entendido',
+                            confirmButtonColor: '#d33'
+                        });
+                        return;
+                    }
+
+                    let producto = response.data.producto;
+                    let arrayUnidades = response.data.unidades;
+
+                    if (!producto || !producto.id) {
+                        playSound('error');
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Producto no encontrado!',
+                            text: `No se encontró ningún producto con el código de barras: ${codigoBarra}`,
+                            confirmButtonColor: '#f39c12'
+                        });
+                        return;
+                    }
+
+                    // Reproducir sonido de éxito
+                    playSound('success');
+
+                    // Usar la misma lógica que agregarProductoCarrito
+                    let bodega = 'SALA DE VENTAS';
+                    let idBodega = 16;
+                    let idSeccion = 156;
+                    let idProducto = producto.id;
+
+                    // Verificar si el producto ya existe en el carrito
+                    let flag = false;
+                    arregloIdInputs.forEach(idInpunt => {
+                        let idProductoFila = document.getElementById("idProducto" + idInpunt).value;
+                        let idSeccionFila = document.getElementById("idSeccion" + idInpunt).value;
+
+                        if (idProducto == idProductoFila && idSeccion == idSeccionFila && !flag) {
+                            flag = true;
+                        }
+                    });
+
+                    if (flag) {
+                        playSound('error');
+                        Swal.fire({
+                            icon: 'info',
+                            title: '¡Producto ya agregado!',
+                            text: 'Este producto ya se encuentra en el carrito. Modifique la cantidad si es necesario.',
+                            confirmButtonColor: '#17a2b8'
+                        });
+                        return;
+                    }
+
+                    numeroInputs += 1;
+
+                    let htmlSelectUnidades = "";
+                    let htmlprecios = `
+                    <option data-id="0" selected>--Seleccione precio--</option>
+                    <option  value="${producto.precio_base}" data-id="pb">${producto.precio_base} - Base</option>
+                    <option  value="${producto.precio1}" data-id="p1">${producto.precio1} - A</option>
+                    <option  value="${producto.precio2}" data-id="p2">${producto.precio2} - B</option>
+                    <option  value="${producto.precio3}" data-id="p3">${producto.precio3} - C</option>
+                    <option  value="${producto.precio4}" data-id="p4">${producto.precio4} - D</option>
+                    `;
+
+                    arrayUnidades.forEach(unidad => {
+                        if (unidad.valor_defecto == 1) {
+                            htmlSelectUnidades +=
+                                `<option selected value="${unidad.id}" data-id="${unidad.idUnidadVenta}">${unidad.nombre}</option>`;
+                        } else {
+                            htmlSelectUnidades +=
+                                `<option  value="${unidad.id}" data-id="${unidad.idUnidadVenta}">${unidad.nombre}</option>`;
+                        }
+                    });
+
+                    let html = `
+                    <div id='${numeroInputs}' class="row no-gutters">
+                        <div class="form-group col-3">
+                            <div class="d-flex">
+                                <button class="btn btn-danger" type="button" style="display: inline" onclick="eliminarInput(${numeroInputs})"><i
+                                        class="fa-regular fa-rectangle-xmark"></i>
+                                </button>
+                                <input id="idProducto${numeroInputs}" name="idProducto${numeroInputs}" type="hidden" value="${producto.id}">
+                                <div style="width:100%">
+                                    <label for="nombre${numeroInputs}" class="sr-only">Producto</label>
+                                    <input type="text" placeholder="Producto" id="nombre${numeroInputs}"
+                                        name="nombre${numeroInputs}" class="form-control"
+                                        data-parsley-required
+                                        autocomplete="off"
+                                        readonly
+                                        value='${producto.nombre} 📱'
+                                        style="background-color: #e8f5e8; border-color: #28a745; font-weight: bold;">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group col-1">
+                            <label for="" class="sr-only">cantidad</label>
+                            <input type="text" value="${bodega}" placeholder="Bodega" id="bodega${numeroInputs}"
+                                name="bodega${numeroInputs}" class="form-control"
+                                autocomplete="off"  readonly  >
+                        </div>
+                        <div class="form-group col-2">
+                            <label for="" class="sr-only">precios</label>
+                            <select class="form-control" name="precios${numeroInputs}" id="precios${numeroInputs}"
+                                data-parsley-required style="height:35.7px;"
+                                onchange="validacionPrecio(precios${numeroInputs}, precio${numeroInputs})"
+                                >
+                                    ${htmlprecios}
+                            </select>
+                        </div>
+                        <div class="form-group col-1">
+                            <label for="precio${numeroInputs}" class="sr-only">Precio</label>
+                            <input type="number" placeholder="Precio Unidad" id="precio${numeroInputs}"
+                                name="precio${numeroInputs}" class="form-control"  data-parsley-required step="any"
+                                autocomplete="off" onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
+                        </div>
+                        <div class="form-group col-1">
+                            <label for="cantidad${numeroInputs}" class="sr-only">cantidad</label>
+                            <input type="number" placeholder="Cantidad" id="cantidad${numeroInputs}"
+                                name="cantidad${numeroInputs}" class="form-control" min="1" data-parsley-required
+                                autocomplete="off" value="1" onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
+                        </div>
+                        <div class="form-group col-1">
+                            <label for="" class="sr-only">unidad</label>
+                            <select class="form-control" name="unidad${numeroInputs}" id="unidad${numeroInputs}"
+                                data-parsley-required style="height:35.7px;"
+                                onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
+                                    ${htmlSelectUnidades}
+                            </select>
+                        </div>
+                        <div class="form-group col-1">
+                            <label for="subTotalMostrar${numeroInputs}" class="sr-only">Sub Total</label>
+                            <input type="text" placeholder="Sub total" id="subTotalMostrar${numeroInputs}"
+                                name="subTotalMostrar${numeroInputs}" class="form-control"
+                                autocomplete="off"
+                                readonly >
+                            <input id="subTotal${numeroInputs}" name="subTotal${numeroInputs}" type="hidden" value="" required>
+                            <input type="hidden" id="acumuladoDescuento${numeroInputs}" name="acumuladoDescuento${numeroInputs}" >
+                        </div>
+                        <div class="form-group col-1">
+                            <label for="isvProductoMostrar${numeroInputs}" class="sr-only">ISV</label>
+                            <input type="text" placeholder="ISV" id="isvProductoMostrar${numeroInputs}"
+                                name="isvProductoMostrar${numeroInputs}" class="form-control"
+                                autocomplete="off"
+                                readonly >
+                            <input id="isvProducto${numeroInputs}" name="isvProducto${numeroInputs}" type="hidden" value="" required>
+                        </div>
+                        <div class="form-group col-1">
+                            <label for="totalMostrar${numeroInputs}" class="sr-only">Total</label>
+                            <input type="text" placeholder="Total" id="totalMostrar${numeroInputs}"
+                                name="totalMostrar${numeroInputs}" class="form-control"
+                                autocomplete="off"
+                                readonly >
+                            <input id="total${numeroInputs}" name="total${numeroInputs}" type="hidden" value="" required>
+                        </div>
+                        <input id="idBodega${numeroInputs}" name="idBodega${numeroInputs}" type="hidden" value="${idBodega}">
+                        <input id="idSeccion${numeroInputs}" name="idSeccion${numeroInputs}" type="hidden" value="${idSeccion}">
+                        <input id="restaInventario${numeroInputs}" name="restaInventario${numeroInputs}" type="hidden" value="">
+                        <input id="isv${numeroInputs}" name="isv${numeroInputs}" type="hidden" value="${producto.isv}">
+                    </div>
+                    `;
+
+                    arregloIdInputs.splice(numeroInputs, 0, numeroInputs);
+                    document.getElementById('divProductos').insertAdjacentHTML('beforeend', html);
+
+                    // Mostrar mensaje de éxito
+                    Swal.fire({
+                        icon: 'success',
+                        title: '¡Producto Escaneado!',
+                        html: `
+                            <div style="text-align: left;">
+                                <p><strong>Código:</strong> ${codigoBarra}</p>
+                                <p><strong>Producto:</strong> ${producto.nombre}</p>
+                                <p style="color: #28a745;">✓ Agregado al carrito exitosamente</p>
+                            </div>
+                        `,
+                        timer: 2500,
+                        showConfirmButton: false
+                    });
+
+                    return;
+                })
+                .catch(err => {
+                    console.error('Error al buscar producto por código de barras:', err);
+                    playSound('error');
+
+                    // Manejar diferentes tipos de errores
+                    let errorMessage = 'No se pudo encontrar el producto con ese código de barras.';
+                    let errorTitle = 'Error al escanear';
+
+                    if (err.response) {
+                        if (err.response.status === 404) {
+                            errorTitle = '¡Producto No Encontrado!';
+                            errorMessage = err.response.data.message || 'El producto no existe en la base de datos';
+                        } else if (err.response.data && err.response.data.message) {
+                            errorMessage = err.response.data.message;
+                        }
+                    }
+
+                    Swal.fire({
+                        icon: 'error',
+                        title: errorTitle,
+                        html: `
+                            <div style="text-align: left;">
+                                <p><strong>Código escaneado:</strong> ${codigoBarra}</p>
+                                <p><strong>Error:</strong> ${errorMessage}</p>
+                                <hr>
+                                <p style="color: #666; font-size: 0.9em;">
+                                    Intente escanear el código nuevamente o verifique que el producto esté registrado en el sistema.
+                                </p>
+                            </div>
+                        `,
+                        confirmButtonColor: '#d33'
+                    });
+                });
+            }
             // Función para detener el escáner
             function stopBarcodeScanner() {
                 if (isScanning) {
@@ -1267,5 +1444,6 @@
                 });
             };
         </script>
+
     @endpush
 </div>
