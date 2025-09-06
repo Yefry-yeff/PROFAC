@@ -1396,7 +1396,7 @@
                             <label for="cantidad${numeroInputs}" class="sr-only">cantidad</label>
                             <input type="number" placeholder="Cantidad" id="cantidad${numeroInputs}"
                                 name="cantidad${numeroInputs}" class="form-control" min="1" data-parsley-required
-                                autocomplete="off" value="1" onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
+                                autocomplete="off" onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
                         </div>
                         <div class="form-group col-1">
                             <label for="" class="sr-only">unidad</label>
@@ -1493,11 +1493,18 @@
                             console.log('- cantidadInput:', cantidadInput);
                             console.log('- restaInventarioInput:', restaInventarioInput);
                             
-                            if (precioInput && cantidadInput && selectUnidad && restaInventarioInput) {
-                                calcularTotales(precioInput, cantidadInput, producto.isv, selectUnidad, numeroInputs, restaInventarioInput);
+                            // No calcular totales automáticamente - el usuario debe ingresar cantidad primero
+                            // if (precioInput && cantidadInput && selectUnidad && restaInventarioInput) {
+                            //     calcularTotales(precioInput, cantidadInput, producto.isv, selectUnidad, numeroInputs, restaInventarioInput);
+                            // }
+                            
+                            // Enfocar el campo cantidad para que el usuario pueda escribir inmediatamente
+                            if (cantidadInput) {
+                                cantidadInput.focus();
+                                cantidadInput.select(); // Seleccionar todo el texto si hubiera alguno
                             }
                             
-                            console.log('✅ Producto configurado automáticamente con precio base');
+                            console.log('✅ Producto configurado - esperando cantidad del usuario');
                         } catch (error) {
                             console.error('❌ Error configurando producto automáticamente:', error);
                         }
@@ -1511,10 +1518,11 @@
                             <div style="text-align: left;">
                                 <p><strong>Código:</strong> ${codigoBarra}</p>
                                 <p><strong>Producto:</strong> ${producto.nombre}</p>
-                                <p style="color: #28a745;">✓ Agregado al carrito exitosamente</p>
+                                <p style="color: #28a745;">✓ Agregado al carrito</p>
+                                <p style="color: #ff9800; font-weight: bold;">⚠️ Por favor, ingrese la cantidad deseada</p>
                             </div>
                         `,
-                        timer: 2500,
+                        timer: 3000,
                         showConfirmButton: false
                     });
 
