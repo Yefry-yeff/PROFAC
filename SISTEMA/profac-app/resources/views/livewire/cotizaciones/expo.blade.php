@@ -105,6 +105,7 @@
                 margin: 0 auto;
                 border: 2px solid #007bff;
                 border-radius: 10px;
+                overflow: hidden;
                 background: #000;
             }
 
