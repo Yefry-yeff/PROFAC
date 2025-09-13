@@ -38,7 +38,7 @@ function validarDescuento() {
     const numero = parseFloat(numeroInput.value);
 
     if (isNaN(numero) || numero < 0 || numero > 25) {
-        mensajeError.textContent = 'Este campo solo admite un valor entre 0 a 25';
+        mensajeError.textContent = 'Este campo solo admite un valor entre 0 a 100';
         numeroInput.value = '';
     } else {
         mensajeError.textContent = '';
@@ -940,7 +940,6 @@ function guardarVenta() {
         })
 
 }
-
 
 function sumarDiasCredito() {
     tipoPago = document.getElementById('tipoPagoVenta').value;

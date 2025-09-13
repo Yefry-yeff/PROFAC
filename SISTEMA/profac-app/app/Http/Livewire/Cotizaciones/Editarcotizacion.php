@@ -18,7 +18,7 @@ use App\Models\ModelCotizacionProducto;
 
 class Editarcotizacion extends Component
 {
-    
+
     public $idCotizacion;
 
     public function mount($id)
@@ -48,6 +48,7 @@ class Editarcotizacion extends Component
         A.cliente_id,
         A.tipo_venta_id,
         A.users_id,
+        A.nota,
         A.numeroInputs,
         A.porc_descuento,
         A.monto_descuento,
@@ -271,46 +272,15 @@ class Editarcotizacion extends Component
 
     public function guardarCotizacion(Request $request){
         try {
- 
-            //dd($request);
- 
-         /* $validator = Validator::make($request->all(), [
- 
- 
- 
-             'subTotalGeneralGrabado' => 'required',
-             'subTotalGeneralGrabadoMostrar' => 'required',
-             'subTotalGeneral' => 'required',
-             'isvGeneral' => 'required',
-             'totalGeneral' => 'required',
-             'numeroInputs' => 'required',
-             'seleccionarCliente' => 'required',
-             'nombre_cliente_ventas' => 'required',
-             'bodega' => 'required',
-             'seleccionarProducto' => 'required',
- 
- 
- 
-         ]); */
- 
- 
- 
-         /* if ($validator->fails()) {
-             return response()->json([
-                 'icon' => 'error',
-                 'title' => 'error',
-                 'text' => 'Por favor, verificar que todos los campos esten completados.',
-                 'mensaje' => 'Ha ocurrido un error al crear la compra.',
-                 'errors' => $validator->errors()
-             ], 401);
-         } */
- 
- 
+
+
+
+           // dd($request->porDescuentoCalculado);
          $arrayTemporal = $request->arregloIdInputs;
          $arrayInputs = explode(',', $arrayTemporal);
          $arrayProductos = [];
          DB::beginTransaction();
- 
+
              $cotizacion = ModelCotizacion::find($request->id_cotizacion);
              $cotizacion->nombre_cliente = $request->nombre_cliente_ventas;
              $cotizacion->RTN = $request->rtn_ventas;
@@ -322,18 +292,18 @@ class Editarcotizacion extends Component
              $cotizacion->isv= $request->isvGeneral;
              $cotizacion->total = $request->totalGeneral;
              $cotizacion->cliente_id = $request->seleccionarCliente;
-             $cotizacion->tipo_venta_id = $request->tipo_venta_id;
              $cotizacion->vendedor = $request->vendedor;
+             $cotizacion->nota = $request->nota_comen;
              $cotizacion->users_id = Auth::user()->id;
              $cotizacion->arregloIdInputs = json_encode($request->arregloIdInputs);
              $cotizacion->numeroInputs = $request->numeroInputs;
              $cotizacion->porc_descuento = $request->porDescuento;
              $cotizacion->monto_descuento = $request->porDescuentoCalculado;
              $cotizacion->save();
- 
- 
+
+
              for ($i = 0; $i < count($arrayInputs); $i++) {
- 
+
                  $keyRestaInventario = "restaInventario" . $arrayInputs[$i];
                  $keyIdSeccion = "idSeccion" . $arrayInputs[$i];
                  $keyIdProducto = "idProducto" . $arrayInputs[$i];
@@ -346,13 +316,13 @@ class Editarcotizacion extends Component
                  $keyIsvAsigando = "isv" . $arrayInputs[$i];
                  $keyunidad = 'unidad' . $arrayInputs[$i];
                  $keyidBodega = 'idBodega'.$arrayInputs[$i];
- 
+
                  $keyNombreProducto = 'nombre'.$arrayInputs[$i];
                  $keyBodegaNombre = 'bodega'.$arrayInputs[$i];
                  $keymonto_descProducto = 'acumuladoDescuento'.$arrayInputs[$i];
- 
- 
- 
+
+
+
                  $restaInventario = $request->$keyRestaInventario;
                  $idSeccion = $request->$keyIdSeccion;
                  $idProducto = $request->$keyIdProducto;
@@ -362,15 +332,15 @@ class Editarcotizacion extends Component
                  $precio = $request->$keyPrecio;
                  $cantidad = $request->$keyCantidad;
                  $subTotal = $request->$keySubTotal;
- 
+
                  $total = $request->$keyTotal;
                  $idBodega = $request->$keyidBodega;
                  $ivsProductoAsignado = $request->$keyIsvAsigando;
                  $nombreProducto = $request->$keyNombreProducto;
                  $nombreBodega = $request->$keyBodegaNombre;
                  $monto_descProducto = $request->$keymonto_descProducto;
- 
- 
+
+
                  array_push($arrayProductos,[
                  'cotizacion_id'=> $request->id_cotizacion,
                  'producto_id'=> $idProducto,
@@ -390,19 +360,19 @@ class Editarcotizacion extends Component
                  'monto_descProducto'=>$monto_descProducto,
                  'created_at'=>now(),
                  'updated_at'=>now()
- 
+
                  ]);
- 
+
              };
- 
+
              //dd('hasta aqui llega');
              //dd($arrayProductos);
                 DB::table('cotizacion_has_producto')->where('cotizacion_id', $request->id_cotizacion)->delete();
          ModelCotizacionProducto::insert($arrayProductos);
- 
- 
- 
- 
+
+
+
+
          DB::commit();
          return response()->json([
              'icon'=>'success',
@@ -410,7 +380,7 @@ class Editarcotizacion extends Component
              'title'=>'Exito!',
              'idFactura' => 0
          ],200);
- 
+
          } catch (QueryException $e) {
          DB::rollback();
          return response()->json([

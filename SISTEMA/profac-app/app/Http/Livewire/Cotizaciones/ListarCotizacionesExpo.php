@@ -50,7 +50,6 @@ class ListarCotizacionesExpo extends Component
     public function listarCotizaciones(Request $request){
 
 
-        if(Auth::user()->rol_id=1){
 
             $cotizaciones = DB::SELECT("
                 select
@@ -71,50 +70,11 @@ class ListarCotizacionesExpo extends Component
                 where  A.tipo_venta_id =4
                 order by A.created_at desc
             ");
-        };
 
 
 
         return Datatables::of($cotizaciones)
             ->addColumn('opciones', function ($cotizacion) {
-
-                if($cotizacion->tipo_venta_id == 1){ //corporativo
-                    return
-                    '<div class="btn-group">
-                        <button data-toggle="dropdown" class="btn btn-warning dropdown-toggle" aria-expanded="false">Ver
-                            más</button>
-                        <ul class="dropdown-menu" x-placement="bottom-start" style="position: absolute; top: 33px; left: 0px; will-change: top, left;">
-
-                            <li>
-                                 <a class="dropdown-item" target="_blank"  href="/cotizacion/edicion/'.$cotizacion->id.'" > <i class="fa-solid fa-file-invoice text-info"></i> Editar </a>
-                            </li>
-                            <li>
-                                <a class="dropdown-item" target="_blank"  href="/cotizacion/facturar/'.$cotizacion->id.'" > <i class="fa-solid fa-file-invoice text-info"></i> Facturar </a>
-                            </li>
-
-                            <li>
-                            <a class="dropdown-item" target="_blank"  href="/cotizacion/facturar/srp/corporativo/'.$cotizacion->id.'" > <i class="fa-solid fa-file-invoice text-info"></i> Facturar SR/P </a>
-                            </li>
-
-
-
-                            <li>
-                                <a class="dropdown-item"  target="_blank" href="/cotizacion/imprimir/'.$cotizacion->id.'">  <i class="fa-solid fa-print text-success"></i> Imprimir Pedido </a>
-                            </li>
-
-                            <li>
-                            <a class="dropdown-item" target="_blank"  href="/proforma/imprimir/'.$cotizacion->id.'"> <i class="fa-solid fa-print text-success"></i> Imprimir Pedido </a>
-                            </li>
-
-                            <li>
-                            <a class="dropdown-item" target="_blank"  href="/cotizacion/imprimir/catalogo/'.$cotizacion->id.'"> <i class="fa-solid fa-print text-success"></i> Catálogo </a>
-                            </li>
-
-
-
-                        </ul>
-                    </div>';
-                }else{//estatal
                     return
                     '<div class="btn-group">
                     <button data-toggle="dropdown" class="btn btn-warning dropdown-toggle" aria-expanded="false">Ver
@@ -146,7 +106,7 @@ class ListarCotizacionesExpo extends Component
 
                     </ul>
                 </div>';
-                }
+
 
 
             })
