@@ -8,7 +8,7 @@
                 }
 
                 // Eliminar ceros a la izquierda, pero conservar al menos un dígito
-                const normalizado = codigo.replace(/^0+/, '') || '0';
+               // const normalizado = codigo.replace(/^0+/, '') || '0';
 
                 console.log('🔧 Código normalizado:', {
                     original: codigo,

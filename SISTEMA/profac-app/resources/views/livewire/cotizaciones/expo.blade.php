@@ -198,12 +198,12 @@
                     width: 240px;
                     height: 240px;
                 }
-                
+
                 .scanner-overlay {
                     width: 100px;
                     height: 70px;
                 }
-                
+
                 .camera-controls .btn {
                     font-size: 14px;
                     padding: 8px 16px;
@@ -215,7 +215,7 @@
                     width: 200px;
                     height: 200px;
                 }
-                
+
                 .scanner-overlay {
                     width: 80px;
                     height: 60px;
@@ -257,12 +257,12 @@
             }
 
             @keyframes scannerPulse {
-                0%, 100% { 
-                    opacity: 0.7; 
+                0%, 100% {
+                    opacity: 0.7;
                     transform: translate(-50%, -50%) scale(1);
                 }
-                50% { 
-                    opacity: 1; 
+                50% {
+                    opacity: 1;
                     transform: translate(-50%, -50%) scale(1.02);
                 }
             }
@@ -436,7 +436,7 @@
                                                 </h6>
                                             </div>
                                             <div class="card-body text-center">
-                                                
+
                                                 <!-- Botones de Control -->
                                                 <div class="camera-controls mb-3">
                                                     <button type="button" id="btnStartCamera" class="btn btn-success me-2">
@@ -446,18 +446,18 @@
                                                         <i class="fas fa-stop me-2"></i>Detener
                                                     </button>
                                                 </div>
-                                                
+
                                                 <!-- Contenedor de la Cámara -->
                                                 <div id="cameraContainer" style="display:none; position: relative; width: 100%; height: 400px; background: #000;">
                                                     <!-- QuaggaJS creará automáticamente el video y canvas aquí -->
                                                     <div class="scanner-overlay"></div>
                                                 </div>
-                                                
+
                                                 <!-- Estado del Scanner -->
                                                 <div id="scannerStatus" class="scanner-status text-center mt-2" style="display:none;">
                                                     <span id="statusText">Escaneando...</span>
                                                 </div>
-                                                
+
                                             </div>
                                         </div>
                                     </div>
@@ -779,7 +779,7 @@
             });
 
             // ============ FUNCIÓN SIMPLE PARA TEXTO DINÁMICO ============
-            
+
             // Función para actualizar el texto del estado
             function actualizarEstadoScanner(texto) {
                 const statusText = document.getElementById('statusText');
@@ -791,7 +791,7 @@
             // Función para mostrar código detectado
             function mostrarCodigoDetectado(codigo) {
                 actualizarEstadoScanner(`Código detectado: ${codigo}`);
-                
+
                 // Después de 3 segundos, volver a "Escaneando..."
                 setTimeout(() => {
                     actualizarEstadoScanner('Escaneando...');
@@ -807,7 +807,7 @@
 
         <!-- Librería QuaggaJS para scanner de códigos de barras -->
         <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
-        
+
         <script src="{{ asset('js/js_proyecto/cotizaciones/expo.js') }}"></script>
 
     @endpush
