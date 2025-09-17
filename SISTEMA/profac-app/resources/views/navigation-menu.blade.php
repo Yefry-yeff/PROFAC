@@ -250,7 +250,10 @@
                     <ul class="nav nav-second-level">
                         <li><a href="/expo/cotizacion/3" style="color:#ffffff;">Pedido</a></li>
                         <li><a href="/cotizacion/listado/expo/4" style="color:#ffffff;">Lista de pedidos</a></li>
+                        @if (Auth::user()->rol_id == '1' or Auth::user()->rol_id == '5' or Auth::user()->rol_id == '8' or Auth::user()->rol_id == '9')
                         <li><a href="/reportes/expo" style="color:#ffffff;">Reportería Pedidos</a></li>
+
+                     @endif
                     </ul>
                 </li>
 

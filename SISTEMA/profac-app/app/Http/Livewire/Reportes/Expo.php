@@ -45,7 +45,7 @@ class Expo extends Component
                         from
                             users
                         where
-                            id = A.vendedor
+                            id = A.users_id
                         )
                     ) as 'VENDEDOR',
                     A.id as 'COTIZACION',

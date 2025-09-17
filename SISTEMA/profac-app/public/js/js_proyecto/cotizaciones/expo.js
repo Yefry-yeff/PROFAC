@@ -532,10 +532,9 @@
                     idPrecioSeleccionadoField.value = idPrecioSeleccionado;
                 }
 
-                if(idPrecioSeleccionado != 'pb'){
                     document.getElementById(idprecioIngresado).value = precioSeleccionado;
                     document.getElementById(idprecioIngresado).setAttribute("min",precioSeleccionado);
-                }
+
 
              }
 
