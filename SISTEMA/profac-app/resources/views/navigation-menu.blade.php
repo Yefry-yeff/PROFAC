@@ -250,7 +250,7 @@
                     <ul class="nav nav-second-level">
                         <li><a href="/expo/cotizacion/3" style="color:#ffffff;">Pedido</a></li>
                         <li><a href="/cotizacion/listado/expo/4" style="color:#ffffff;">Lista de pedidos</a></li>
-                        {{--  <li><a href="/bodega/prod" style="color:#ffffff;">Reporte Pedidos</a></li>  --}}
+                        <li><a href="/reportes/expo" style="color:#ffffff;">Reportería Pedidos</a></li>
                     </ul>
                 </li>
 

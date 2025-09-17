@@ -52,6 +52,7 @@ use App\Http\Livewire\VentasExoneradas\VentasExoneradas;
 use App\Http\Livewire\VentasExoneradas\ListadoFacturasExonerads;
 use App\Http\Livewire\Cotizaciones\Cotizacion;
 use App\Http\Livewire\Cotizaciones\expo;
+use App\Http\Livewire\Reportes\Expo as expoCotiza;
 use App\Http\Livewire\Cotizaciones\Editarcotizacion;
 use App\Http\Livewire\Cotizaciones\ListarCotizaciones;
 use App\Http\Livewire\Cotizaciones\ListarCotizacionesExpo;
@@ -417,6 +418,9 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
         Route::get('/productos/listar/', [expo::class, 'productoBodega']);
         Route::get('/info/producto/expo/{id}', [expo::class, 'infoProducto']);
         Route::post('/ventas/datos/producto/expo', [expo::class, 'obtenerDatosProductoExpo']);
+
+        Route::get('/reportes/expo', expoCotiza::class);
+        Route::get('/reporte/expo/pedidos/{fecha_inicio}/{fecha_final}', [expoCotiza::class, 'consultaProductoPedido']);
 
 
 
