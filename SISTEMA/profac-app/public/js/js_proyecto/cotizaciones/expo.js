@@ -937,6 +937,7 @@
 
             function guardarVenta() {
 
+                document.getElementById("guardar_cotizacion_btn").style.display = "none";
                 /* document.getElementById("guardar_cotizacion_btn").disabled = true; */
 
                 console.log('=== INICIANDO GUARDADO DE COTIZACIÓN ===');
@@ -956,8 +957,13 @@
             }
 
             function capturarYEnviarDatos() {
+                console.log('DESCUENTO DE MIERDA ABAJO MOSTRAR');
 
-                console.log('Recopilando datos del formulario manualmente...');
+                console.log(document.getElementById('descuentoMostrar').value);
+
+                console.log('DESCUENTO CULERO ARRIBA GENERAL');
+                console.log(document.getElementById('descuentoGeneral').value);
+                //console.log('Recopilando datos del formulario manualmente...');
 
                 // Recopilar datos básicos del formulario
                 const formData = {};
@@ -967,7 +973,7 @@
                 for (let element of formElements) {
                     if (element.name && element.type !== 'button') {
                         formData[element.name] = element.value;
-                        console.log(`Campo base: ${element.name} = ${element.value}`);
+                       console.log(`Campo base: ${element.name} = ${element.value}`);
                     }
                 }
 
@@ -1177,6 +1183,8 @@
                             setTimeout(() => alerta.remove(), 500);
                         }, 3000);
 
+
+                        document.getElementById("guardar_cotizacion_btn").style.display = "inline-block";
 
                     })
                     .catch(err => {

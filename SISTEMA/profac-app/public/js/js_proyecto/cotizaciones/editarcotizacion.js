@@ -815,7 +815,8 @@ $(document).on('submit', '#crear_venta',
 
 function guardarVenta() {
 
-    document.getElementById("guardar_cotizacion_btn").disabled = true;
+
+                document.getElementById("guardar_cotizacion_btn").style.display = "none";
 
     var data = new FormData($('#crear_venta').get(0));
 
@@ -922,7 +923,9 @@ function guardarVenta() {
 
 
 
-            document.getElementById("guardar_cotizacion_btn").disabled = false;
+
+
+                document.getElementById("guardar_cotizacion_btn").style.display = "inline-block";
 
             location.reload();
 

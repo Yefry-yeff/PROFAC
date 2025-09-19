@@ -186,7 +186,6 @@ class expo extends Component
 
     public function guardarCotizacion(Request $request){
        try {
-
         Log::info('=== INICIO GUARDADO COTIZACIÓN ===');
         Log::info('Datos recibidos:', $request->all());
         Log::info('Número de inputs: ' . $request->numeroInputs);
@@ -218,7 +217,7 @@ class expo extends Component
         $arrayTemporal = $request->arregloIdInputs;
         $arrayInputs = explode(',', $arrayTemporal);
         $arrayProductos = [];
-        
+
         Log::info('Array de inputs procesado:', ['arrayInputs' => $arrayInputs]);
 
         DB::beginTransaction();
@@ -309,7 +308,7 @@ class expo extends Component
                 $camposFaltantes = array_filter($camposExistentes, function($existe) {
                     return !$existe;
                 });
-                
+
                 if (!empty($camposFaltantes)) {
                     Log::warning("CAMPOS FALTANTES:", array_keys($camposFaltantes));
                 }
@@ -392,7 +391,7 @@ class expo extends Component
              $cotizacion->arregloIdInputs = json_encode($request->arregloIdInputs);
              $cotizacion->numeroInputs = $request->numeroInputs;
              $cotizacion->porc_descuento = $request->porDescuento;
-             $cotizacion->monto_descuento = $request->porDescuentoCalculado;
+             $cotizacion->monto_descuento =  $request->descuentoGeneral;
              $cotizacion->save();
 
 
@@ -469,10 +468,10 @@ class expo extends Component
 
 
         DB::commit();
-        
+
         Log::info('=== COTIZACIÓN GUARDADA EXITOSAMENTE ===');
         Log::info('ID de cotización creada: ' . $cotizacion->id);
-        
+
         return response()->json([
             'icon'=>'success',
             'text'=>'Cotización guardada con éxito.',
@@ -481,15 +480,15 @@ class expo extends Component
         ],200);
 
         } catch (\Exception $e) {
-        
+
         DB::rollback();
-        
+
         Log::error('=== ERROR AL GUARDAR COTIZACIÓN ===');
         Log::error('Mensaje: ' . $e->getMessage());
         Log::error('Archivo: ' . $e->getFile());
         Log::error('Línea: ' . $e->getLine());
         Log::error('Stack trace: ' . $e->getTraceAsString());
-        
+
         return response()->json([
             'icon'=>'error',
             'text'=>'Ha ocurrido un error al guardar la cotización: ' . $e->getMessage(),
@@ -497,16 +496,16 @@ class expo extends Component
             'message' => $e->getMessage(),
             'error' => $e->getMessage()
         ],402);
-        
+
         } catch (QueryException $e) {
-        
+
         DB::rollback();
-        
+
         Log::error('=== ERROR DE BASE DE DATOS ===');
         Log::error('Mensaje: ' . $e->getMessage());
         Log::error('SQL: ' . $e->getSql());
         Log::error('Bindings: ', ['bindings' => $e->getBindings()]);
-        
+
         return response()->json([
             'icon'=>'error',
             'text'=>'Ha ocurrido un error de base de datos al guardar la cotización.',
