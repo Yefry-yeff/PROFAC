@@ -54,6 +54,7 @@
                                         <th>FECHA DE VENTA</th>
                                         <th>FECHA DE VENCIMIENTO</th>
                                         <th>VENDEDOR</th>
+                                        <th>COTIZADOR</th>
                                         <th>COTIZACIÓN</th>
                                         <th>CLIENTE</th>
                                         <th>TIPO CLIENTE (AoB)</th>
@@ -81,6 +82,7 @@
                                             <th>FECHA DE VENTA</th>
                                             <th>FECHA DE VENCIMIENTO</th>
                                             <th>VENDEDOR</th>
+                                            <th>COTIZADOR</th>
                                             <th>COTIZACIÓN</th>
                                             <th>CLIENTE</th>
                                             <th>TIPO CLIENTE (AoB)</th>
@@ -150,6 +152,7 @@
                 {data: 'FECHA DE VENTA'},
                 {data: 'FECHA DE VENCIMIENTO'},
                 {data: 'VENDEDOR'},
+                {data: 'COTIZADOR'},
                 {data: 'COTIZACION'},
                 {data: 'CLIENTE'},
                 {data: 'TIPO CLIENTE (AoB)'},

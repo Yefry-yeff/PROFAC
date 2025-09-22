@@ -38,6 +38,8 @@ class Expo extends Component
                 select
                     A.fecha_emision as 'FECHA DE VENTA',
                     A.fecha_vencimiento as 'FECHA DE VENCIMIENTO',
+
+                (select name from users where id = A.vendedor) as 'VENDEDOR',
                     UPPER(
                         (
                         select
@@ -47,7 +49,7 @@ class Expo extends Component
                         where
                             id = A.users_id
                         )
-                    ) as 'VENDEDOR',
+                    ) as 'COTIZADOR',
                     A.id as 'COTIZACION',
                     UPPER(cli.nombre) as 'CLIENTE',
                     (

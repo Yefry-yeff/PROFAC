@@ -67,7 +67,48 @@ class ListarCotizacionesExpo extends Component
                 from cotizacion A
                 inner join users B
                 on A.users_id = B.id
-                where  A.tipo_venta_id =4
+                where  A.tipo_venta_id = 4 AND A.id NOT IN (
+                    24558,
+                    24557,
+                    24556,
+                    24555,
+                    24554,
+                    24552,
+                    24551,
+                    24550,
+                    24549,
+                    24548,
+                    24547,
+                    24546,
+                    24545,
+                    24839,
+                    24919,
+                    24918,
+                    24917,
+                    24916,
+                    24915,
+                    24914,
+                    24913,
+                    24912,
+                    24911,
+                    24910,
+                    24909,
+                    24908,
+                    24907,
+                    24906,
+                    24905,
+                    24904,
+                    24903,
+                    24902,
+                    24901,
+                    24900,
+                    24667,
+                    24655,
+                    24654,
+                    24545,
+                    24860,
+                    24597
+                )
                 order by A.created_at desc
             ");
 
