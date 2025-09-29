@@ -105,9 +105,13 @@ class ListarCotizacionesExpo extends Component
                     24667,
                     24655,
                     24654,
+                    25746,
+                    24784,
+                    25785,
                     24545,
                     24860,
-                    24597
+                    24597,
+                    25957
                 )
                 order by A.created_at desc
             ");
