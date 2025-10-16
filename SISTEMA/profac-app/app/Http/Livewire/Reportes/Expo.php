@@ -198,7 +198,9 @@ class Expo extends Component
                     25425,
                     25424,
                     25423,
-                    25957
+                    25957,
+                    24801,
+                    26049
                 )
                 group by
                     A.fecha_emision,
