@@ -219,7 +219,7 @@
 
                                         <label for="porDescuento" class="col-form-label focus-label">Descuento aplicado %
                                             :<span class="text-danger">*</span></label>
-                                        <input class="form-control" oninput="validarDescuento()" onchange="calcularTotalesInicioPagina()" type="number" min="0" max="25" value="0" minlength="1" maxlength="2" id="porDescuento" name="porDescuento" data-parsley-required >
+                                        <input class="form-control" oninput="validarDescuento()" onchange="calcularTotalesInicioPagina()" type="number" min="0" max="35" value="0" minlength="1" maxlength="2" id="porDescuento" name="porDescuento" data-parsley-required >
                                         <p id="mensajeError" style="color: red;"></p>
 
 
