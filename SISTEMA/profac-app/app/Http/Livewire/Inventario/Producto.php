@@ -215,7 +215,7 @@ class Producto extends Component
             A.nombre,
             A.descripcion,
             A.isv as 'ISV',
-            B.descripcion as 'categoria',
+            C.descripcion as 'categoria',
             @existenciaCompra := IFNULL ((select
             sum(cantidad_disponible)
             from recibido_bodega
@@ -231,8 +231,8 @@ class Producto extends Component
             FORMAT(@existenciaCompra + @existenciaAjuste,0) as existencia,
             A.codigo_barra
             from producto A
-            inner join sub_categoria B
-            on A.sub_categoria_id = B.id
+            inner join sub_categoria B on A.sub_categoria_id = B.id
+            inner join categoria_producto C on C.id = B.categoria_producto_id
             WHERE A.id not in (
 
                 1157,
