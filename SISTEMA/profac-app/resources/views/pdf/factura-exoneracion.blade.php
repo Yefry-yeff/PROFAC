@@ -278,8 +278,9 @@
                             </p>
                             <p class="card-text" style="position:absolute; right:10px;  top:85px; font-size:14px;">L. {{$importesConCentavos->monto_descuento}}</p>  --}}
 
+
                             <p class="card-text" style="position:absolute; left:10px;  top:105px; font-size:14px;">Sub Total:</p>
-                            <p class="card-text" style="position:absolute; right:10px;  top:105px; font-size:14px;">L. 0.00</p>
+                            <p class="card-text" style="position:absolute; right:10px;  top:105px; font-size:14px;">L. {{$importesConCentavos->sub_total}}</p>
 
                             <p class="card-text" style="position:absolute; left:10px;  top:130px; font-size:14px;">Impuesto sobre
                                 venta 15%: </p>
