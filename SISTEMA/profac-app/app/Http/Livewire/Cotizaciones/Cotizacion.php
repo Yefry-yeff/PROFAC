@@ -330,7 +330,8 @@ class Cotizacion extends Component
             A.fecha_vencimiento,
             B.rtn,
             users.name as cotizador,
-            (select name from users where id = A.vendedor) as vendedor
+            (select name from users where id = A.vendedor) as vendedor,
+            A.nota
             from cotizacion A
             inner join cliente B
             on A.cliente_id = B.id
@@ -396,12 +397,12 @@ class Cotizacion extends Component
         }else{
             $flagCentavos = true;
         }
-
+         $tipoCot = 2;
         $formatter = new NumeroALetras();
         $formatter->apocope = true;
         $numeroLetras = $formatter->toMoney($importes->total, 2, 'LEMPIRAS', 'CENTAVOS');
 
-        $pdf = PDF::loadView('/pdf/cotizacion',compact('datos','productos','importes','importesConCentavos','flagCentavos','numeroLetras'))->setPaper('letter');
+        $pdf = PDF::loadView('/pdf/cotizacion',compact('datos','productos','importes','importesConCentavos','flagCentavos','numeroLetras', 'tipoCot'))->setPaper('letter');
 
         return $pdf->stream("Cotizacion_NO_".$datos->codigo.".pdf");
 
@@ -466,7 +467,8 @@ class Cotizacion extends Component
             A.fecha_vencimiento,
             B.rtn,
             users.name as cotizador,
-            (select name from users where id = A.vendedor) as vendedor
+            (select name from users where id = A.vendedor) as vendedor,
+            A.nota
             from cotizacion A
             inner join cliente B
             on A.cliente_id = B.id

@@ -185,7 +185,7 @@
 
                     <p class="card-text" style="position:absolute;left:0px;  top:28px; font-size:11px;">
                         ____________________________________________________________________</p>
-                    <p class="card-text" style="position:absolute;left:10px;  top:40px; font-size:11px;">Precios sujetos a cambios.</p>
+                    <p class="card-text" style="position:absolute;left:10px;  top:40px; font-size:11px;">Nota: {{ $datos->nota }} </p>
 
                     @if($flagCentavos == false)
                     <p class="card-text" style="position:absolute;left:35px;  top:240px; font-size:12px;">"{{$numeroLetras." CON CERO CENTAVOS"}}"</p>

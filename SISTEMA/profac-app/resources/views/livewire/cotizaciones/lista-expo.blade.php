@@ -4,7 +4,7 @@
 
     <div class="row wrapper border-bottom white-bg page-heading">
         <div class="col-lg-8 col-xl-10 col-md-8 col-sm-8">
-            <h2>Listado De Cotizaciones Expor Ventas</h2>
+            <h2>Listado De Pedidos</h2>
             <ol class="breadcrumb">
 
                 @switch(  $idTipoVenta )
@@ -30,14 +30,6 @@
                     @break
                 @endswitch
 
-
-
-                <li class="breadcrumb-item">
-                    <a>Imprimir Cotización</a>
-                </li>
-                <li class="breadcrumb-item">
-                    <a>Imprimir Factura</a>
-                </li>
             </ol>
         </div>
     </div>
@@ -87,15 +79,31 @@
 
               $(document).ready(function() {
                 $('#tbl_listar_cotizaciones').DataTable({
-                    "order": [8, 'desc'],
-                    "language": {
-                        "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
-                    },
+        "order": [0, 'desc'],
+        "language": {
+            "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
+        },
+        pageLength: 10,
+        responsive: true,
+        dom: '<"html5buttons"B>lTfgitp',
+        buttons: [
+            {
+                extend: 'excel',
+                title: 'ExampleFile'
+            },
 
-                    pageLength: 10,
-                    responsive: true,
+            {
+                extend: 'print',
+                customize: function(win) {
+                    $(win.document.body).addClass('white-bg');
+                    $(win.document.body).css('font-size', '10px');
 
-
+                    $(win.document.body).find('table')
+                        .addClass('compact')
+                        .css('font-size', 'inherit');
+                }
+            }
+        ],
                     "ajax":{
                         'url':"/cotizacion/obtener/listado/expo",
                         'data' : {'id' : idTipoVenta },

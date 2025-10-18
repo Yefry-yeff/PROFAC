@@ -38,7 +38,7 @@ function validarDescuento() {
     const numero = parseFloat(numeroInput.value);
 
     if (isNaN(numero) || numero < 0 || numero > 25) {
-        mensajeError.textContent = 'Este campo solo admite un valor entre 0 a 25';
+        mensajeError.textContent = 'Este campo solo admite un valor entre 0 a 100';
         numeroInput.value = '';
     } else {
         mensajeError.textContent = '';
@@ -815,7 +815,8 @@ $(document).on('submit', '#crear_venta',
 
 function guardarVenta() {
 
-    document.getElementById("guardar_cotizacion_btn").disabled = true;
+
+                document.getElementById("guardar_cotizacion_btn").style.display = "none";
 
     var data = new FormData($('#crear_venta').get(0));
 
@@ -922,7 +923,9 @@ function guardarVenta() {
 
 
 
-            document.getElementById("guardar_cotizacion_btn").disabled = false;
+
+
+                document.getElementById("guardar_cotizacion_btn").style.display = "inline-block";
 
             location.reload();
 
@@ -940,7 +943,6 @@ function guardarVenta() {
         })
 
 }
-
 
 function sumarDiasCredito() {
     tipoPago = document.getElementById('tipoPagoVenta').value;

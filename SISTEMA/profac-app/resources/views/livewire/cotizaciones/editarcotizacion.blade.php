@@ -155,7 +155,7 @@
                                         <label for="fecha_emision" class="col-form-label focus-label">Descuento aplicado
                                             %
                                             :<span class="text-danger">*</span></label>
-                                        <input class="form-control" type="number" min="0" max="25"
+                                        <input class="form-control" type="number" min="0" max="99"
                                             value="{{ $cotizacion->porc_descuento }}" minlength="1" maxlength="2"
                                             id="porDescuento" name="porDescuento" data-parsley-required
                                             onchange="calcularTotalesInicioPagina()">
@@ -216,7 +216,7 @@
                                     <div class="form-group">
                                         <label for="nota" class="col-form-label focus-label">Nota:
                                         </label>
-                                        <textarea class="form-control" id="nota_comen" name="nota_comen" cols="30" rows="3" maxlength="250"></textarea>
+                                        <textarea class="form-control" id="nota_comen" name="nota_comen" cols="30" rows="3" maxlength="250">{{$cotizacion->nota}}</textarea>
                                     </div>
 
                                 </div>

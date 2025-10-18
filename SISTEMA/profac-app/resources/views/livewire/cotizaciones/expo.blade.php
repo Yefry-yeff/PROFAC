@@ -1,7 +1,13 @@
 <div>
     @push('styles')
         <style>
-
+ #alert-fixed {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 9999; /* para que quede por encima de todo */
+      max-width: 300px;
+    }
 
             /* Estilos opcionales para el interruptor */
             .switch {
@@ -92,9 +98,188 @@
                 margin: 0;
             }
 
+            /* Estilos para el scanner de códigos de barras */
+            #cameraContainer {
+                position: relative;
+                width: 100%;
+                max-width: 400px;
+                height: 400px;
+                margin: 0 auto;
+                border: 3px solid #007bff;
+                border-radius: 12px;
+                overflow: hidden;
+                background: #000;
+                box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
+            }
+
+            #cameraContainer video {
+                width: 100% !important;
+                height: 100% !important;
+                object-fit: cover !important;
+                display: block !important;
+                background: #000;
+                position: absolute !important;
+                top: 0 !important;
+                left: 0 !important;
+                z-index: 1 !important;
+            }
+
+            #cameraContainer canvas {
+                position: absolute !important;
+                top: 0 !important;
+                left: 0 !important;
+                width: 100% !important;
+                height: 100% !important;
+                z-index: 2 !important;
+                pointer-events: none !important;
+            }
+
+            .scanner-overlay {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                width: 120px;
+                height: 80px;
+                border: 2px solid #ff0000;
+                border-radius: 6px;
+                box-shadow: 0 0 10px rgba(255, 0, 0, 0.6);
+                z-index: 10;
+                pointer-events: none;
+            }
+
+            .scanner-overlay::before {
+                content: '';
+                position: absolute;
+                top: 50%;
+                left: 0;
+                right: 0;
+                height: 1px;
+                background: linear-gradient(90deg, transparent, #ff0000, transparent);
+                animation: scanLine 2s infinite;
+            }
+
+            @keyframes scanLine {
+                0% { transform: translateY(-40px); opacity: 0; }
+                50% { opacity: 1; }
+                100% { transform: translateY(40px); opacity: 0; }
+            }
+
+            .camera-controls {
+                text-align: center;
+                margin: 15px 0;
+            }
+
+            .scanner-status {
+                background: linear-gradient(45deg, #28a745, #20c997);
+                color: white;
+                padding: 10px;
+                border-radius: 6px;
+                margin: 10px 0;
+                text-align: center;
+                font-weight: bold;
+                font-size: 14px;
+            }
+
+            .scanner-result {
+                background: #d4edda;
+                border: 1px solid #c3e6cb;
+                color: #155724;
+                padding: 12px;
+                border-radius: 6px;
+                margin: 10px 0;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                font-size: 14px;
+            }
+
+            /* Responsivo para móviles */
+            @media (max-width: 768px) {
+                #cameraContainer {
+                    width: 240px;
+                    height: 240px;
+                }
+
+                .scanner-overlay {
+                    width: 100px;
+                    height: 70px;
+                }
+
+                .camera-controls .btn {
+                    font-size: 14px;
+                    padding: 8px 16px;
+                }
+            }
+
+            @media (max-width: 480px) {
+                #cameraContainer {
+                    width: 200px;
+                    height: 200px;
+                }
+
+                .scanner-overlay {
+                    width: 80px;
+                    height: 60px;
+                }
+            }
+
             /* Firefox */
             input[type=number] {
                 -moz-appearance: textfield;
+            }
+
+            /* Estilos para el escáner de códigos de barras */
+            .camera-card {
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                border: none;
+                margin-bottom: 20px;
+            }
+
+            .camera-container {
+                position: relative;
+                width: 100%;
+                max-width: 600px;
+                margin: 0 auto;
+            }
+
+            .scanner-overlay {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                width: 280px;
+                height: 120px;
+                border: 3px solid #dc3545;
+                border-radius: 8px;
+                background: rgba(220, 53, 69, 0.1);
+                animation: scannerPulse 2s infinite;
+                z-index: 10;
+                pointer-events: none;
+            }
+
+            @keyframes scannerPulse {
+                0%, 100% {
+                    opacity: 0.7;
+                    transform: translate(-50%, -50%) scale(1);
+                }
+                50% {
+                    opacity: 1;
+                    transform: translate(-50%, -50%) scale(1.02);
+                }
+            }
+
+            #scanResult {
+                margin-top: 15px;
+                border-left: 4px solid #28a745;
+            }
+
+            #scannerStatus {
+                margin-top: 15px;
+            }
+
+            .btn-lg {
+                padding: 12px 24px;
+                font-size: 16px;
+                margin: 0 5px;
             }
         </style>
     @endpush
@@ -102,7 +287,7 @@
     <div class="row wrapper border-bottom white-bg page-heading">
         <div class="col-lg-8 col-xl-10 col-md-8 col-sm-8">
             @if ($tipoCotizacion == 3)
-                <h2>Expo Feria 2024</h2>
+                <h2>Expo pedidos</h2>
             @else
                 <h2>Cotización</h2>
             @endif
@@ -124,73 +309,82 @@
 
 
     </div>
-
+    <div id="alert-fixed"></div>
     <div class="wrapper wrapper-content animated fadeInRight">
         <div class="row">
             <div class="col-lg-12">
                 <div class="ibox ">
                     <div class="ibox-title">
-                        <h3>Datos de cotización <i class="fa-solid fa-cart-shopping"></i></h3>
+                        <h3>Datos del pedido <i class="fa-solid fa-cart-shopping"></i></h3>
                     </div>
                     <div class="ibox-content">
                         <form onkeydown="return event.key != 'Enter';" autocomplete="off" id="crear_venta"
                             name="crear_venta" data-parsley-validate>
 
 
-                            <input type="hidden" id="tipo_venta_id" name="tipo_venta_id" value="{{ $tipoCotizacion }}">
+                            <input type="hidden" id="tipo_venta_id" name="tipo_venta_id" value="4">
+
+                            <div class="row align-items-center" style="margin-top: -60px; margin-left:210px;">
+                                <label for="pedido_id" class="col-md-3 col-form-label focus-label">
+                                    Pedido:<span class="text-danger">*</span>
+                                </label>
+                                <div class="col-md-9">
+                                    <input class="form-control" type="text" readonly id="pedido_id" name="pedido_id"
+                                        style="width: 150px;"  value="">
+                                </div>
+                            </div>
 
 
 
-                            <div class="row mt-4">
-                                <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4">
-                                    <label for="seleccionarCliente" class="col-form-label focus-label">Seleccionar
-                                        Cliente:<span class="text-danger">*</span> </label>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label for="seleccionarCliente" class="col-form-label focus-label">
+                                    Seleccionar Cliente: <span class="text-danger">*</span>
+                                    </label>
                                     <select id="seleccionarCliente" name="seleccionarCliente"
-                                        class="form-group form-control" style="" data-parsley-required
-                                        onchange="obtenerDatosCliente()">
-                                        <option value="" selected disabled>--Seleccionar un cliente--</option>
+                                    class="form-control" data-parsley-required onchange="obtenerDatosCliente()">
+                                    <option value="" selected disabled>--Seleccionar un cliente--</option>
                                     </select>
                                 </div>
 
-                                <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4">
-                                    <label class="col-form-label focus-label">Nombre del cliente:<span
-                                            class="text-danger">*</span></label>
-                                    <input class="form-control" required type="text" id="nombre_cliente_ventas"
-                                        name="nombre_cliente_ventas" data-parsley-required readonly>
+                                <!-- Nombre del cliente -->
+                                <div class="col-md-6">
+                                    <label class="col-form-label focus-label">
+                                    Nombre del cliente: <span class="text-danger">*</span>
+                                    </label>
+                                    <input class="form-control" required type="text"
+                                    id="nombre_cliente_ventas" name="nombre_cliente_ventas" readonly>
+                                </div>
+                                </div>
+
+                                <div class="row mt-3">
+                                <!-- RTN -->
+                                    <div class="col-md-6">
+                                        <label class="col-form-label focus-label">
+                                        RTN: <span class="text-danger">*</span>
+                                        </label>
+                                        <input class="form-control" type="text" id="rtn_ventas" name="rtn_ventas" readonly>
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <label for="vendedor">Vendedor:<span class="text-danger"></span> </label>
+                                        <select name="vendedor" id="vendedor" class="form-group form-control">
+
+                                        </select>
+                                    </div>
 
                                 </div>
 
-                                <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4">
-                                    <label class="col-form-label focus-label">RTN:<span
-                                            class="text-danger">*</span></label>
-                                    <input class="form-control" type="text" id="rtn_ventas" name="rtn_ventas"
-                                        readonly>
-
-                                </div>
-
-
-
-
-
-                            </div>
-
-                            <div class="row mt-4">
-                                <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4" style="display: none;">
+                            <div class="row mt-3">
+                                <div class="col-md-6" style="display: none;">
                                     <label for="tipoPagoVenta" class="col-form-label focus-label">Seleccionar tipo de
                                         pago:<span class="text-danger">*</span></label>
                                     <select class="form-group form-control " name="tipoPagoVenta" id="tipoPagoVenta"
                                         onchange="validarFechaPago()">
                                     </select>
                                 </div>
-                                <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4">
-                                    <label for="vendedor">Vendedor:<span class="text-danger"></span> </label>
-                                    <select name="vendedor" id="vendedor" class="form-group form-control">
 
-                                    </select>
-
-                              </div>
-
-                                <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4">
+                                <div class="col-md-6">
                                     <div class="form-group">
 
                                         <label for="fecha_emision" class="col-form-label focus-label">Fecha de emisión
@@ -202,19 +396,19 @@
                                     </div>
                                 </div>
 
-                                <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4">
+                                <div class="col-md-6">
                                     <div class="form-group">
 
                                         <label for="porDescuento" class="col-form-label focus-label">Descuento aplicado %
                                             :<span class="text-danger">*</span></label>
-                                        <input class="form-control" oninput="validarDescuento()" onchange="calcularTotalesInicioPagina()" type="number" min="0" max="25" value="0" minlength="1" maxlength="2" id="porDescuento" name="porDescuento"  >
+                                        <input class="form-control" oninput="validarDescuento()" onchange="calcularTotalesInicioPagina()" type="number" value="0" max="100" min="0"  mminlength="1" maxlength="2" id="porDescuento" name="porDescuento"  >
                                         <p id="mensajeError" style="color: red;"></p>
 
 
                                     </div>
                                 </div>
 
-                                <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4" style="display: none;">
+                                <div class="col-md-6" style="display: none;">
                                     <div class="form-group">
                                         <label for="fecha_vencimiento"
                                             class="col-form-label focus-label text-warning">Fecha de vencimiento:
@@ -232,21 +426,55 @@
 
 
                             </div>
+                                <!-- Scanner de Códigos de Barras -->
+                                <div class="row mt-3">
+                                    <div class="col-12 col-md-6 col-lg-5 mx-auto">
+                                        <div class="card border-primary shadow-sm">
+                                            <div class="card-header bg-primary text-white">
+                                                <h6 class="mb-0 text-center">
+                                                    <i class="fas fa-qrcode me-2"></i> Scanner de Códigos de Barras
+                                                </h6>
+                                            </div>
+                                            <div class="card-body text-center">
 
-                            <div class="row mt-4">
+                                                <!-- Botones de Control -->
+                                                <div class="camera-controls mb-3">
+                                                    <button type="button" id="btnStartCamera" class="btn btn-success me-2">
+                                                        <i class="fas fa-camera me-2"></i>Activar
+                                                    </button>
+                                                    <button type="button" id="btnStopCamera" class="btn btn-danger" style="display:none;">
+                                                        <i class="fas fa-stop me-2"></i>Detener
+                                                    </button>
+                                                </div>
+
+                                                <!-- Contenedor de la Cámara -->
+                                                <div id="cameraContainer" style="display:none; position: relative; width: 100%; height: 400px; background: #000;">
+                                                    <!-- QuaggaJS creará automáticamente el video y canvas aquí -->
+                                                    <div class="scanner-overlay"></div>
+                                                </div>
+
+                                                <!-- Estado del Scanner -->
+                                                <div id="scannerStatus" class="scanner-status text-center mt-2" style="display:none;">
+                                                    <span id="statusText">Escaneando...</span>
+                                                </div>
+
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            <div class="row mt-3">
                                 <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6 ">
 
                                     <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
                                         <label for="seleccionarProducto" class="col-form-label focus-label"> <label style="display: none" class="switch"> <input type="checkbox" id="mySwitch"><span class="slider"></span></label> Seleccionar
                                             Producto :<span class="text-danger">*</span></label>
                                         <select id="seleccionarProducto" name="seleccionarProducto"
-                                            class="form-group form-control" style="" onchange="obtenerImagenes()">
+                                            class="form-group form-control" style="width: 110%;" onchange="obtenerImagenes()">
                                             <option value="" selected disabled>--Seleccione un producto--</option>
                                         </select>
                                     </div>
-
-
-
+                                        </div>
+                                    </div>
 
                                 </div>
 
@@ -256,7 +484,7 @@
                             <div class="row">
 
 
-                                <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6 mt-4">
+                                <div class="col-md-6 mt-3">
                                     <div class="text-center">
                                         <a id="detalleProducto" href=""
                                             class="font-bold h3  d-none text-success" style="" target="_blank">
@@ -265,21 +493,7 @@
 
 
                                     <div id="carouselProducto" class="carousel slide mt-2" data-ride="carousel">
-                                        {{-- <ol  id="carousel_imagenes_producto" class="carousel-indicators">
-
-                                                <li data-target="#carouselProducto" data-slide-to="{{ $i }}" class="active"></li>
-
-                                                <li data-target="#carouselProducto" data-slide-to="{{ $i }}" class=""></li>
-
-
-
-                                        </ol> --}}
                                         <div id="bloqueImagenes" class="carousel-inner ">
-
-
-
-
-
 
                                         </div>
                                         <a class="carousel-control-prev" href="#carouselProducto" role="button"
@@ -295,11 +509,10 @@
                                     </div>
 
 
-                                </div>
 
-                                <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6 ">
-                                    <div id="botonAdd"
-                                        class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12 my-4 text-center d-none">
+                                </div>
+                                <div class="col-md-6" style="margin-top:-35px;">
+                                    <div id="botonAdd"class="text-center d-none">
                                         <button type="button" class="btn-rounded btn btn-success p-3"
                                             style="font-weight: 900; " onclick="agregarProductoCarrito()">Añadir
                                             Producto a venta <i class="fa-solid fa-cart-plus"></i> </button>
@@ -319,11 +532,20 @@
                                     </div>
                                 </div>
 
-
                             </div>
 
-                            <hr>
+                            <div class="row">
+                                <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
+                                    <div class="form-group">
+                                        <label for="nota" class="col-form-label focus-label">Nota:
+                                        </label>
+                                        <textarea class="form-control" id="nota" name="nota" cols="30" rows="3" maxlength="250"></textarea>
+                                    </div>
 
+                                </div>
+
+
+                            </div>
                             <div class="hide-container">
                                 <p>Nota:El campo "Unidad" describe la unidad de medida para la venta del producto -
                                     seguido del numero de unidades a restar del inventario</p>
@@ -378,14 +600,6 @@
 
 
                                     </div>
-                                    {{--
-                                    <div class="form-group col-12 col-sm-12 col-md-1 col-lg-1 col-xl-1">
-                                        <label class="sr-only">Seccion</label>
-                                        <input type="text" placeholder="Seccion" class="form-control"
-                                            min="1" autocomplete="off" disabled>
-                                    </div> --}}
-
-
                                     <div class="form-group col-1">
                                         <label class="sr-only">Sub Total</label>
                                         <input type="number" placeholder="Sub total"
@@ -528,7 +742,7 @@
                                 <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
                                     <button id="guardar_cotizacion_btn"
                                         class="btn  btn-primary float-left m-t-n-xs"><strong>
-                                            Guardar Cotizacion</strong></button>
+                                            Guardar </strong></button>
                                 </div>
                             </div>
 
@@ -564,9 +778,37 @@
                 }
             });
 
+            // ============ FUNCIÓN SIMPLE PARA TEXTO DINÁMICO ============
+
+            // Función para actualizar el texto del estado
+            function actualizarEstadoScanner(texto) {
+                const statusText = document.getElementById('statusText');
+                if (statusText) {
+                    statusText.textContent = texto;
+                }
+            }
+
+            // Función para mostrar código detectado
+            function mostrarCodigoDetectado(codigo) {
+                actualizarEstadoScanner(`Código detectado: ${codigo}`);
+
+                // Después de 3 segundos, volver a "Escaneando..."
+                setTimeout(() => {
+                    actualizarEstadoScanner('Escaneando...');
+                }, 3000);
+            }
+
+            // Función global para que QuaggaJS pueda llamarla
+            window.mostrarCodigoDetectado = mostrarCodigoDetectado;
+            window.actualizarEstadoScanner = actualizarEstadoScanner;
+
 
         </script>
 
+        <!-- Librería QuaggaJS para scanner de códigos de barras -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+
         <script src="{{ asset('js/js_proyecto/cotizaciones/expo.js') }}"></script>
+
     @endpush
 </div>

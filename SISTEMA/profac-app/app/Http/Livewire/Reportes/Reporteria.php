@@ -37,7 +37,6 @@ class Reporteria extends Component
         try {
 
 
-
             $consulta = DB::SELECT("
                 select
                     A.fecha_emision as 'FECHA DE VENTA',

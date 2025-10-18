@@ -123,13 +123,6 @@ function datosFactura() {
     this.obtenerProductos(idFactura);
 }
 
-
-
-
-
-
-
-
 function limpiarTablas() {
     $('#tbl_productos').DataTable().clear().destroy();
 }
@@ -156,6 +149,8 @@ function infoProducto(facturaId, productoId, seccionId) {
             document.getElementById('unidad_venta').value = data.unidad_venta;
             document.getElementById('unidad').value = data.unidad_medida;
             document.getElementById('precio').value = data.precio_unidad;
+            document.getElementById('subtotalproducto').value = data.sub_total;
+            document.getElementById('porc_descuento').value = data.porc_descuento;
             document.getElementById('isvPorcentaje').value = data.porcentajeISV;
             document.getElementById('cantidadMaxima').value = cantidadMax;
             document.getElementById('precioMostrar').value = monedaLempiras(data.precio_unidad);
@@ -196,7 +191,9 @@ function infoProducto(facturaId, productoId, seccionId) {
 function agregarProductoLista() {
     let cantidad = document.getElementById('cantidad').value;
     let cantidadMaxima = document.getElementById('cantidadMaxima').value;
-
+    let subtotalproducto = document.getElementById('subtotalproducto').value;
+    let porc_descuento = document.getElementById('porc_descuento').value;
+    console.log(subtotalproducto);
     let idProducto = document.getElementById('idProducto').value;
     let seccion = document.getElementById('seccion');
 
@@ -273,7 +270,14 @@ function agregarProductoLista() {
 
    // let precio2 = totalVenta/cantidad;
 
-    let subTotal = precio * cantidad * unidad_venta;
+    let subTotalAnt = precio * cantidad * unidad_venta;
+    console.log("Se supone que aqui es el anterior: "+subTotalAnt);
+    let descuento = subTotalAnt*(porc_descuento/100);
+    console.log("Se supone que el descuento: "+porc_descuento);
+    let subTotal = subTotalAnt - (subTotalAnt*(porc_descuento/100));
+
+    console.log("subtotal menos descuento: "+subTotal);
+
 
     let isv = 0 ;
     if (isvVenta != 0){

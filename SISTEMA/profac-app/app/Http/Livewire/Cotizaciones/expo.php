@@ -6,6 +6,7 @@ use Livewire\Component;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
 use DataTables;
 use Auth;
@@ -76,53 +77,72 @@ class expo extends Component
 
     public function obtenerDatosProductoExpo(Request $request)
     {
-
         try {
-            //dd($request);
-            $productoBarra = DB::SELECTONE("
-            select
-            id
-            from producto where codigo_barra = " . $request['barraProd'] . "
-            ");
+            $codigoBarra = $request->input('barraProd');
 
-            $unidades = DB::SELECT(
-                "
-            select
-                A.unidad_venta as id,
-                CONCAT(B.nombre,'-',A.unidad_venta) as nombre ,
-                A.unidad_venta_defecto as 'valor_defecto',
-                A.id as idUnidadVenta
-            from unidad_medida_venta A
-            inner join unidad_medida B
-            on A.unidad_medida_id = B.id
-            where A.estado_id = 1 and A.producto_id = " . $productoBarra->id
-            );
-            /* CAMBIO 20230725 FORMAT(ultimo_costo_compra,2):FORMAT(precio_base,2)*/
-            $producto = DB::SELECTONE("
-            select
-            id,
-            concat(id,' - ',nombre) as nombre,
-            isv,
-            ultimo_costo_compra as ultimo_costo_compra,
-            precio_base as precio_base,
-            precio1 as precio1,
-            precio2 as precio2,
-            precio3 as precio3,
-            precio4 as precio4
-            from producto where id = " . $productoBarra->id. "
-            ");
+            Log::info('Buscando producto con código de barras: ' . $codigoBarra);
 
+            if (empty($codigoBarra)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Código de barras no proporcionado'
+                ], 400);
+            }
+
+            // Buscar producto por código de barras (misma lógica que obtenerDatosProducto) foo no me daba
+            $producto = DB::selectOne("
+                SELECT
+                    id,
+                    CONCAT(id,' - ',nombre) as nombre,
+                    isv,
+                    ultimo_costo_compra as ultimo_costo_compra,
+                    precio_base as precio_base,
+                    precio1 as precio1,
+                    precio2 as precio2,
+                    precio3 as precio3,
+                    precio4 as precio4,
+                    codigo_barra,
+                    estado_producto_id
+                FROM producto
+                WHERE codigo_barra = ? AND estado_producto_id = 1
+            ", [$codigoBarra]);
+
+            if (!$producto) {
+                Log::info('Producto no encontrado con código: ' . $codigoBarra);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Producto no encontrado',
+                    'codigo' => $codigoBarra
+                ], 404);
+            }
+
+            // Obtener unidades del producto (misma lógica que obtenerDatosProducto)
+            $unidades = DB::select("
+                SELECT
+                    A.unidad_venta as id,
+                    CONCAT(B.nombre,'-',A.unidad_venta) as nombre,
+                    A.unidad_venta_defecto as 'valor_defecto',
+                    A.id as idUnidadVenta
+                FROM unidad_medida_venta A
+                INNER JOIN unidad_medida B ON A.unidad_medida_id = B.id
+                WHERE A.estado_id = 1 AND A.producto_id = ?
+            ", [$producto->id]);
+
+            Log::info('Producto encontrado: ' . $producto->nombre);
 
             return response()->json([
-                "producto" => $producto,
-
-                "unidades" => $unidades
+                'success' => true,
+                'producto' => $producto,
+                'unidades' => $unidades
             ], 200);
-        } catch (QueryException $e) {
+
+        } catch (\Exception $e) {
+            Log::error('Error en obtenerDatosProductoExpo: ' . $e->getMessage());
             return response()->json([
-                'message' => 'ERROR AL ESCANEAR PRODUCTO.',
-                'error' => $e,
-            ], 402);
+                'success' => false,
+                'message' => 'Error interno del servidor',
+                'error' => $e->getMessage()
+            ], 500);
         }
     }
     public function listarClientes(Request $request)
@@ -166,14 +186,12 @@ class expo extends Component
 
     public function guardarCotizacion(Request $request){
        try {
-
-        //dd($request);
-
+        Log::info('=== INICIO GUARDADO COTIZACIÓN ===');
+        Log::info('Datos recibidos:', $request->all());
+        Log::info('Número de inputs: ' . $request->numeroInputs);
+        Log::info('Arreglo de IDs: ' . $request->arregloIdInputs);
 
         $validator = Validator::make($request->all(), [
-
-
-
             'subTotalGeneralGrabado' => 'required',
             'subTotalGeneralGrabadoMostrar' => 'required',
             'subTotalGeneral' => 'required',
@@ -182,15 +200,11 @@ class expo extends Component
             'numeroInputs' => 'required',
             'seleccionarCliente' => 'required',
             'nombre_cliente_ventas' => 'required',
-            'seleccionarProducto' => 'required',
-
-
-
+            // seleccionarProducto ya no es requerido para productos escaneados
         ]);
 
-
-
         if ($validator->fails()) {
+            Log::error('Error de validación:', ['errors' => $validator->errors()->toArray()]);
             return response()->json([
                 'icon' => 'error',
                 'title' => 'error',
@@ -200,13 +214,18 @@ class expo extends Component
             ], 401);
         }
 
-
         $arrayTemporal = $request->arregloIdInputs;
         $arrayInputs = explode(',', $arrayTemporal);
         $arrayProductos = [];
 
+        Log::info('Array de inputs procesado:', ['arrayInputs' => $arrayInputs]);
+
         DB::beginTransaction();
 
+
+
+        if($request->pedido_id == null)
+        {
             $cotizacion = new ModelCotizacion();
             $cotizacion->nombre_cliente = $request->nombre_cliente_ventas;
             $cotizacion->RTN = $request->rtn_ventas;
@@ -218,8 +237,9 @@ class expo extends Component
             $cotizacion->isv= $request->isvGeneral;
             $cotizacion->total = $request->totalGeneral;
             $cotizacion->cliente_id = $request->seleccionarCliente;
-            $cotizacion->tipo_venta_id = $request->tipo_venta_id;
+            $cotizacion->tipo_venta_id = 4;
             $cotizacion->vendedor = $request->vendedor;
+            $cotizacion->nota = $request->nota;
             $cotizacion->users_id = Auth::user()->id;
             $cotizacion->arregloIdInputs = json_encode($request->arregloIdInputs);
             $cotizacion->numeroInputs = $request->numeroInputs;
@@ -227,8 +247,12 @@ class expo extends Component
             $cotizacion->monto_descuento = $request->descuentoGeneral;
             $cotizacion->save();
 
+           /*  ALTER TABLE cotizacion ADD COLUMN nota VARCHAR(255) NULL DEFAULT NULL; */
 
             for ($i = 0; $i < count($arrayInputs); $i++) {
+
+                Log::info("=== PROCESANDO PRODUCTO $i ===");
+                Log::info("ID del input: " . $arrayInputs[$i]);
 
                 $keyRestaInventario = "restaInventario" . $arrayInputs[$i];
                 $keyIdSeccion = "idSeccion" . $arrayInputs[$i];
@@ -248,7 +272,46 @@ class expo extends Component
                 $keyBodegaNombre = 'bodega'.$arrayInputs[$i];
                 $keymonto_descProducto = 'acumuladoDescuento'.$arrayInputs[$i];
 
+                Log::info("Claves generadas:", [
+                    'keyIdProducto' => $keyIdProducto,
+                    'keyIdUnidadVenta' => $keyIdUnidadVenta,
+                    'keyPrecio' => $keyPrecio,
+                    'keyCantidad' => $keyCantidad,
+                    'keyidPrecioSeleccionado' => $keyidPrecioSeleccionado,
+                    'keyprecioSeleccionado' => $keyprecioSeleccionado
+                ]);
 
+                // Verificar si existen los campos en el request
+                $camposExistentes = [
+                    $keyRestaInventario => $request->has($keyRestaInventario),
+                    $keyIdSeccion => $request->has($keyIdSeccion),
+                    $keyIdProducto => $request->has($keyIdProducto),
+                    $keyIdUnidadVenta => $request->has($keyIdUnidadVenta),
+                    $keyPrecio => $request->has($keyPrecio),
+                    $keyCantidad => $request->has($keyCantidad),
+                    $keySubTotal => $request->has($keySubTotal),
+                    $keyIsvPagar => $request->has($keyIsvPagar),
+                    $keyTotal => $request->has($keyTotal),
+                    $keyIsvAsigando => $request->has($keyIsvAsigando),
+                    $keyunidad => $request->has($keyunidad),
+                    $keyidBodega => $request->has($keyidBodega),
+                    $keyidPrecioSeleccionado => $request->has($keyidPrecioSeleccionado),
+                    $keyprecioSeleccionado => $request->has($keyprecioSeleccionado),
+                    $keyNombreProducto => $request->has($keyNombreProducto),
+                    $keyBodegaNombre => $request->has($keyBodegaNombre),
+                    $keymonto_descProducto => $request->has($keymonto_descProducto)
+                ];
+
+                Log::info("Campos existentes en request:", ['campos' => $camposExistentes]);
+
+                // Mostrar campos faltantes
+                $camposFaltantes = array_filter($camposExistentes, function($existe) {
+                    return !$existe;
+                });
+
+                if (!empty($camposFaltantes)) {
+                    Log::warning("CAMPOS FALTANTES:", array_keys($camposFaltantes));
+                }
 
                 $restaInventario = $request->$keyRestaInventario;
                 $idSeccion = $request->$keyIdSeccion;
@@ -268,6 +331,18 @@ class expo extends Component
                 $nombreProducto = $request->$keyNombreProducto;
                 $nombreBodega = $request->$keyBodegaNombre;
                 $monto_descProducto = $request->$keymonto_descProducto;
+
+                Log::info("Valores obtenidos:", [
+                    'idProducto' => $idProducto,
+                    'idUnidadVenta' => $idUnidadVenta,
+                    'precio' => $precio,
+                    'cantidad' => $cantidad,
+                    'idPrecioSeleccionado' => $idPrecioSeleccionado,
+                    'precioSeleccionado' => $precioSeleccionado,
+                    'nombreProducto' => $nombreProducto,
+                    'subTotal' => $subTotal,
+                    'total' => $total
+                ]);
 
 
                 array_push($arrayProductos,[
@@ -296,27 +371,147 @@ class expo extends Component
 
             };
 
-            //dd($arrayProductos);
-        ModelCotizacionProducto::insert($arrayProductos);
+            ModelCotizacionProducto::insert($arrayProductos);
+
+        }else{
+             $cotizacion = ModelCotizacion::find($request->pedido_id);
+             $cotizacion->nombre_cliente = $request->nombre_cliente_ventas;
+             $cotizacion->RTN = $request->rtn_ventas;
+             $cotizacion->fecha_emision = $request->fecha_emision;
+             $cotizacion->fecha_vencimiento = $request->fecha_emision;
+             $cotizacion->sub_total = $request->subTotalGeneral;
+             $cotizacion->sub_total_grabado=$request->subTotalGeneralGrabado;
+             $cotizacion->sub_total_excento=$request->subTotalGeneralExcento;
+             $cotizacion->isv= $request->isvGeneral;
+             $cotizacion->total = $request->totalGeneral;
+             $cotizacion->cliente_id = $request->seleccionarCliente;
+             $cotizacion->tipo_venta_id = $request->tipo_venta_id;
+             $cotizacion->vendedor = $request->vendedor;
+             $cotizacion->users_id = Auth::user()->id;
+             $cotizacion->arregloIdInputs = json_encode($request->arregloIdInputs);
+             $cotizacion->numeroInputs = $request->numeroInputs;
+             $cotizacion->porc_descuento = $request->porDescuento;
+             $cotizacion->monto_descuento =  $request->descuentoGeneral;
+             $cotizacion->save();
+
+
+             for ($i = 0; $i < count($arrayInputs); $i++) {
+
+                 $keyRestaInventario = "restaInventario" . $arrayInputs[$i];
+                 $keyIdSeccion = "idSeccion" . $arrayInputs[$i];
+                 $keyIdProducto = "idProducto" . $arrayInputs[$i];
+                 $keyIdUnidadVenta = "idUnidadVenta" . $arrayInputs[$i];
+                 $keyPrecio = "precio" . $arrayInputs[$i];
+                 $keyCantidad = "cantidad" . $arrayInputs[$i];
+                 $keySubTotal = "subTotal" . $arrayInputs[$i];
+                 $keyIsvPagar = "isvProducto" . $arrayInputs[$i];
+                 $keyTotal = "total" . $arrayInputs[$i];
+                 $keyIsvAsigando = "isv" . $arrayInputs[$i];
+                 $keyunidad = 'unidad' . $arrayInputs[$i];
+                 $keyidBodega = 'idBodega'.$arrayInputs[$i];
+
+                 $keyNombreProducto = 'nombre'.$arrayInputs[$i];
+                 $keyBodegaNombre = 'bodega'.$arrayInputs[$i];
+                 $keymonto_descProducto = 'acumuladoDescuento'.$arrayInputs[$i];
+
+
+
+                 $restaInventario = $request->$keyRestaInventario;
+                 $idSeccion = $request->$keyIdSeccion;
+                 $idProducto = $request->$keyIdProducto;
+                 $idUnidadVenta = $request->$keyIdUnidadVenta;
+                 $isvProductoPagar = $request->$keyIsvPagar;
+                 //$unidad = $request->$keyunidad;
+                 $precio = $request->$keyPrecio;
+                 $cantidad = $request->$keyCantidad;
+                 $subTotal = $request->$keySubTotal;
+
+                 $total = $request->$keyTotal;
+                 $idBodega = $request->$keyidBodega;
+                 $ivsProductoAsignado = $request->$keyIsvAsigando;
+                 $nombreProducto = $request->$keyNombreProducto;
+                 $nombreBodega = $request->$keyBodegaNombre;
+                 $monto_descProducto = $request->$keymonto_descProducto;
+
+
+                 array_push($arrayProductos,[
+                 'cotizacion_id'=> $request->pedido_id,
+                 'producto_id'=> $idProducto,
+                 'indice'=>$arrayInputs[$i],
+                 'nombre_producto'=>$nombreProducto,
+                 'nombre_bodega'=> $nombreBodega,
+                 'precio_unidad'=>$precio,
+                 'cantidad'=>$cantidad,
+                 'sub_total'=>$subTotal,
+                 'isv'=> $isvProductoPagar,
+                 'total'=> $total,
+                 'Bodega_id'=>$idBodega,
+                 'seccion_id'=>$idSeccion,
+                 'resta_inventario'=>$restaInventario,
+                 'isv_producto'=>$ivsProductoAsignado,
+                 'unidad_medida_venta_id'=>$idUnidadVenta,
+                 'monto_descProducto'=>$monto_descProducto,
+                 'created_at'=>now(),
+                 'updated_at'=>now()
+
+                 ]);
+
+             };
+
+             //dd('hasta aqui llega');
+             //dd($arrayProductos);
+                DB::table('cotizacion_has_producto')->where('cotizacion_id', $request->pedido_id)->delete();
+                ModelCotizacionProducto::insert($arrayProductos);
+        }
 
 
 
 
         DB::commit();
+
+        Log::info('=== COTIZACIÓN GUARDADA EXITOSAMENTE ===');
+        Log::info('ID de cotización creada: ' . $cotizacion->id);
+
         return response()->json([
             'icon'=>'success',
             'text'=>'Cotización guardada con éxito.',
-            'title'=>'Exito!'
+            'title'=>'Exito!',
+            'pedido_id'=> $cotizacion->id
         ],200);
 
-        } catch (QueryException $e) {
+        } catch (\Exception $e) {
+
         DB::rollback();
+
+        Log::error('=== ERROR AL GUARDAR COTIZACIÓN ===');
+        Log::error('Mensaje: ' . $e->getMessage());
+        Log::error('Archivo: ' . $e->getFile());
+        Log::error('Línea: ' . $e->getLine());
+        Log::error('Stack trace: ' . $e->getTraceAsString());
+
         return response()->json([
             'icon'=>'error',
-            'text'=>'Ha ocurrido un error al guardar la cotización.',
+            'text'=>'Ha ocurrido un error al guardar la cotización: ' . $e->getMessage(),
             'title'=>'Error!',
-            'message' => $e,
-            'error' => $e
+            'message' => $e->getMessage(),
+            'error' => $e->getMessage()
+        ],402);
+
+        } catch (QueryException $e) {
+
+        DB::rollback();
+
+        Log::error('=== ERROR DE BASE DE DATOS ===');
+        Log::error('Mensaje: ' . $e->getMessage());
+        Log::error('SQL: ' . $e->getSql());
+        Log::error('Bindings: ', ['bindings' => $e->getBindings()]);
+
+        return response()->json([
+            'icon'=>'error',
+            'text'=>'Ha ocurrido un error de base de datos al guardar la cotización.',
+            'title'=>'Error!',
+            'message' => $e->getMessage(),
+            'error' => $e->getMessage()
         ],402);
         }
     }
@@ -336,7 +531,8 @@ class expo extends Component
             A.fecha_vencimiento,
             B.rtn,
             users.name,
-            (select name from users where id = A.vendedor) as vendedor
+            (select name from users where id = A.vendedor) as vendedor,
+            A.nota
             from cotizacion A
             inner join cliente B
             on A.cliente_id = B.id
@@ -394,7 +590,7 @@ class expo extends Component
             from cotizacion where id = ".$idFactura
         );
 
-
+        $tipoCot = 4;
         if( fmod($importes->total, 1) == 0.0 ){
             $flagCentavos = false;
 
@@ -406,9 +602,9 @@ class expo extends Component
         $formatter->apocope = true;
         $numeroLetras = $formatter->toMoney($importes->total, 2, 'LEMPIRAS', 'CENTAVOS');
 
-        $pdf = PDF::loadView('/pdf/cotizacion',compact('datos','productos','importes','importesConCentavos','flagCentavos','numeroLetras'))->setPaper('letter');
+        $pdf = PDF::loadView('/pdf/cotizacion',compact('datos','productos','importes','importesConCentavos','flagCentavos','numeroLetras', 'tipoCot'))->setPaper('letter');
 
-        return $pdf->stream("Cotizacion_NO_".$datos->codigo.".pdf");
+        return $pdf->stream("Pedido_NO_".$datos->codigo.".pdf");
 
 
     }
@@ -471,7 +667,8 @@ class expo extends Component
             A.fecha_vencimiento,
             B.rtn,
             users.name,
-            (select name from users where id = A.vendedor) as vendedor
+            (select name from users where id = A.vendedor) as vendedor,
+            A.nota
             from cotizacion A
             inner join cliente B
             on A.cliente_id = B.id
@@ -538,12 +735,12 @@ class expo extends Component
         }else{
             $flagCentavos = true;
         }
-
+         $tipoCot = 4;
         $formatter = new NumeroALetras();
         $formatter->apocope = true;
         $numeroLetras = $formatter->toMoney($importes->total, 2, 'LEMPIRAS', 'CENTAVOS');
 
-        $pdf = PDF::loadView('/pdf/proforma',compact('datos','productos','importes','importesConCentavos','flagCentavos','numeroLetras'))->setPaper('letter');
+        $pdf = PDF::loadView('/pdf/proforma',compact('datos','productos','importes','importesConCentavos','flagCentavos','numeroLetras', 'tipoCot'))->setPaper('letter');
 
         return $pdf->stream("proforma_NO_".$datos->codigo.".pdf");
 
