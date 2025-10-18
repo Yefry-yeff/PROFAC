@@ -166,6 +166,8 @@ class CrearNotaCredito extends Component
             G.unidad_venta,
             C.isv as porcentajeISV,
             B.isv as isVenta,
+            B.sub_total,
+            A.porc_descuento,
             B.total AS totalVenta
 
         from factura A

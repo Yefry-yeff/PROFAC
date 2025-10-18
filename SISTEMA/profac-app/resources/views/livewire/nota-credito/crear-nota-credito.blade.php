@@ -473,6 +473,8 @@
                         <form id="form_producto_devolver" name="form_producto_devolver" data-parsley-validate>
                             <input type="hidden" id="idFactura" name="idFactura" value="0">
                             <input type="hidden" id="idProducto" name="idProducto" value="0">
+                            <input type="hidden" id="subtotalproducto" name="subtotalproducto" value="0">
+                            <input type="hidden" id="porc_descuento" name="porc_descuento" value="0">
                             <input type="hidden" id="idMedidaVenta" name="idMedidaVenta" value="0">
                             <input type="hidden" id="unidad_venta" name="unidad_venta" value="0">
                             <input type="hidden" id="isvPorcentaje" name="isvPorcentaje" value="0">
