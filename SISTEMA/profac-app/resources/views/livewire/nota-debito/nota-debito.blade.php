@@ -181,12 +181,13 @@
                                             <tr>
 
                                                 <th>N° Factura</th>
+                                                <th>Correlativo</th>
                                                 <th>Fecha de Emision</th>
                                                 <th>Cliente</th>
                                                 <th>Tipo de Pago</th>
                                                 <th>Fecha de Vencimiento</th>
-                                                <th>Sub Total Lps.</th>
-                                                <th>ISV en Lps.</th>
+                                                {{--  <th>Sub Total Lps.</th>
+                                                <th>ISV en Lps.</th>  --}}
                                                 <th>Total en Lps.</th>
                                                 <th>Esto de Cobro</th>
                                                 <th>Vendedor</th>

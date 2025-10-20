@@ -120,6 +120,9 @@ $(document).ready(function() {
                 data: 'numero_factura'
             },
             {
+                data: 'correlativo'
+            },
+            {
                 data: 'fecha_emision'
             },
             {
