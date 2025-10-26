@@ -253,6 +253,7 @@
                             {{-- <li><a href="dashboard_2.html " style="color:#ffffff;">Reportes de Usuario</a></li> --}}
                         </ul>
                     </li>
+
                 @endif
                 @if (Auth::user()->rol_id == '2' or Auth::user()->rol_id == '1')
                     <a><i  style="color:#ffffff;"></i><span style="color:#ffffff;">Vendedores</span>
