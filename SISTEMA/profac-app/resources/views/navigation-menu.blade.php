@@ -241,6 +241,14 @@
                         <li href="dashboard_2.html"><a href="/usuarios" style="color:#ffffff;">Lista de Usuarios</a></li>
                     </ul>
                 </li>
+                    <li>
+                        <a><i class="fa-solid fa-user" style="color:#ffffff;"></i> <span class="nav-label"
+                                style="color:#ffffff;">Escala de precios</span>
+                            <span class="fa arrow"></span></a>
+                        <ul class="nav nav-second-level">
+                            <li href="dashboard_2.html"><a href="/usuarios" style="color:#ffffff;">Categoría de precios</a></li>
+                        </ul>
+                    </li>
             @endif
 
 
