@@ -47,24 +47,52 @@
         margin-bottom: 0.5rem;
     }
 }
+/* Contenedor de filtros: todo en línea, con espacio dinámico */
+.filtro-container {
+    gap: 0.5rem; /* Espacio entre elementos */
+    flex-wrap: wrap; /* Si no cabe en una línea, se mueve abajo */
+}
+
+/* Select uniforme */
+.filtro-select {
+    min-width: 150px;
+    flex: 1 1 150px; /* Crece o se reduce dinámicamente */
+    height: 38px; /* Igual altura para todos */
+}
+
+/* Botón alineado con los selects */
+#btnDescargar {
+    height: 38px; /* Mismo alto que los selects */
+}
+
+/* Responsivo: en pantallas pequeñas */
+@media (max-width: 576px) {
+    .filtro-container {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    #btnDescargar {
+        width: 100%; /* Botón ocupa todo el ancho en móvil */
+    }
+}
 </style>
 @endpush
 
-<div class="d-flex justify-content-between align-items-center mb-3 p-2 bg-light rounded shadow-sm">
+<div class="d-flex justify-content-between align-items-center mb-3 p-2 bg-light rounded shadow-sm flex-wrap">
     <h4 class="mb-0 text-dark"><b>Categoría de Precios</b></h4>
 
     <form id="formExport" method="GET" action="{{ route('excel.plantilla') }}">
-        <div class="d-flex align-items-center flex-wrap">
+        <div class="d-flex align-items-center flex-wrap filtro-container">
 
             <!-- Tipo de filtro -->
-            <select id="tipoFiltro" name="tipoFiltro" class="form-control mr-2 select2bs4" style="min-width: 150px;">
+            <select id="tipoFiltro" name="tipoFiltro" class="form-control select2bs4 filtro-select">
                 <option value="">📂 Formato</option>
                 <option value="1">🏷️ Marca</option>
                 <option value="2">📂 Categoría</option>
             </select>
 
             <!-- Filtro por valor -->
-            <select id="listaTipoFiltro" name="listaTipoFiltro" class="form-control mr-2 select2bs4" style="min-width: 150px;">
+            <select id="listaTipoFiltro" name="listaTipoFiltro" class="form-control select2bs4 filtro-select">
                 <option value="">Seleccione filtro</option>
             </select>
 
