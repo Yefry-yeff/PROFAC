@@ -1,218 +1,135 @@
-<div>
-    @push('styles')
-        <style>
-            @media (max-width: 600px) {
-                .ancho-imagen {
-                    max-width: 200px;
-                }
-                }
+@push('styles')
+<style>
+/* Encabezado más ligero */
+.page-heading, .d-flex.bg-light {
+    background-color: #f8f9fa;
+    border-radius: 0.35rem;
+    padding: 0.5rem 1rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
 
-             @media (min-width: 601px ) and (max-width:900px){
-                .ancho-imagen {
-                    max-width: 300px;
-                }
-                }
+/* Select2 moderno y compacto */
+.select2-container--bootstrap4 .select2-selection--single {
+    height: 36px;
+    padding: 3px 10px;
+    border-radius: 0.35rem;
+    border: 1px solid #ced4da;
+    font-size: 0.9rem;
+}
 
-                @media (min-width: 901px) {
-                .ancho-imagen {
-                    max-width: 300px;
-                }
-                }
-          </style>
-    @endpush
+.select2-container--bootstrap4 .select2-selection__rendered {
+    line-height: 30px;
+}
 
-    <div class="border-bottom white-bg page-heading align-items-center"><h4><b>Categoría de Precios</b></h4></div>
+.select2-container--bootstrap4 .select2-selection__arrow {
+    height: 34px;
+    right: 6px;
+}
 
-    <div class="wrapper wrapper-content animated fadeInRight">
-        <div class="row">
-            <div class="col-lg-12">
-                <div class="ibox ">
-                    <div class="ibox-content">
+.select2-container--bootstrap4 .select2-dropdown {
+    max-height: 200px; /* scroll si hay muchos items */
+    overflow-y: auto;
+}
 
-                        <div class="table-responsive">
-                            <table id="tbl_ClientesLista" class="table table-striped table-bordered table-hover">
-                                <thead class="">
-                                    <tr>
-                                        <th>Codigo</th>
-                                        <th>Nombre</th>
-                                        <th>Dirreción</th>
-                                        <th>Teléfono</th>
-                                        <th>Correo</th>
-                                        <th>RTN</th>
-                                        <th>Estado</th>
-                                        <th>Registrado Por:</th>
-                                        <th>Fecha </th>
-                                        <th>Acciones</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
+/* Botón más plano y limpio */
+.btn-success {
+    font-weight: 500;
+    padding: 0.35rem 0.9rem;
+}
 
-                                </tbody>
-                            </table>
+/* Responsivo */
+@media (max-width: 576px) {
+    form.d-flex {
+        flex-direction: column;
+    }
 
-                        </div>
+    form.d-flex > * {
+        margin-bottom: 0.5rem;
+    }
+}
+</style>
+@endpush
 
-                    </div>
-                </div>
-            </div>
+<div class="d-flex justify-content-between align-items-center mb-3 p-2 bg-light rounded shadow-sm">
+    <h4 class="mb-0 text-dark"><b>Categoría de Precios</b></h4>
+
+    <form id="formExport" method="GET" action="{{ route('excel.plantilla') }}">
+        <div class="d-flex align-items-center flex-wrap">
+
+            <!-- Tipo de filtro -->
+            <select id="tipoFiltro" name="tipoFiltro" class="form-control mr-2 select2bs4" style="min-width: 150px;">
+                <option value="">📂 Formato</option>
+                <option value="1">🏷️ Marca</option>
+                <option value="2">📂 Categoría</option>
+            </select>
+
+            <!-- Filtro por valor -->
+            <select id="listaTipoFiltro" name="listaTipoFiltro" class="form-control mr-2 select2bs4" style="min-width: 150px;">
+                <option value="">Seleccione filtro</option>
+            </select>
+
+            <button type="submit" class="btn btn-success ml-2" id="btnDescargar" disabled>
+                📥 Descargar plantilla
+            </button>
         </div>
-    </div>
-
-        <!---MODAL PARA CREAR CLIENTES----->
-        <div id="modal_clientes_crear" class="modal custom-modal fade" role="dialog">
-            <div class="modal-dialog modal-dialog-centered modal-lg">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title text-success">Registro de Cliente</h5>
-                        </h5>
-                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                            <span aria-hidden="true">&times;</span>
-                        </button>
-                    </div>
-                    <div class="modal-body">
-                        <form id="clientesCreacionForm" name="clientesCreacionForm" data-parsley-validate>
-                            <input type="hidden" name="_token" value="{!! csrf_token() !!}">
-                            <div class="row" id="row_datos">
-
-                                <div class="col-md-12">
-                                    <label class="col-form-label focus-label">Nombre del cliente<span class="text-danger">*</span></label>
-                                    <input class="form-control" required type="text" id="nombre_cliente" name="nombre_cliente"
-                                        data-parsley-required maxlength="60">
-                                </div>
-                                <div class="col-md-12">
-                                    <label class="col-form-label focus-label">Dirección<span class="text-danger">*</span></label>
-                                    <textarea name="direccion_cliente" placeholder="Escriba aquí..." required id="direccion_cliente" cols="30" rows="3"
-                                        class="form-group form-control" data-parsley-required maxlength="142"></textarea>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="col-form-label focus-label">Credito Disponible<span class="text-danger">*</span></label>
-                                    <input data-type="currency"  id="credito" name="credito" type="text"  step="any" class="form-group form-control" data-parsley-required>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="col-form-label focus-label" for="dias_credito">Dias de credito<span class="text-danger">*</span></label>
-                                    <input   id="dias_credito" name="dias_credito" type="number"  min="0" max="120" class="form-group form-control" data-parsley-required>
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="col-form-label focus-label">RTN<span class="text-danger">*</span></label>
-                                    <input class="form-group form-control" required type="text" name="rtn_cliente"
-                                        id="rtn_cliente" data-parsley-required pattern="[0-9]{14}">
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="col-form-label focus-label">Correo electrónico<span class="text-danger">*</span></label>
-                                    <input class="form-group form-control" type="text" name="correo_cliente" id="correo_cliente"
-                                        data-parsley-required>
-                                </div>
-
-                                <div class="col-md-4">
-                                    <label class="col-form-label focus-label">Teléfono del cliente<span class="text-danger">*</span></label>
-                                    <input class="form-group form-control" type="text" name="telefono_cliente" id="telefono_cliente"
-                                        data-parsley-required>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="col-form-label focus-label">Nombre de contácto 1<span class="text-danger">*</span></label>
-                                    <input class="form-control" required type="text" id="contacto[]"
-                                        name="contacto[]" data-parsley-required>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="col-form-label focus-label">Teléfono contacto 1<span class="text-danger">*</span></label>
-                                    <input class="form-group form-control" required type="text" name="telefono[]" id="telefono[]" data-parsley-required pattern="[0-9]{8}">
-                                </div>
-
-                                <div class="col-md-6">
-                                    <label class="col-form-label focus-label">Nombre de contácto 2</label>
-                                    <input class="form-control"  type="text" id="contacto[]"
-                                        name="contacto[]" >
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="col-form-label focus-label">Teléfono contacto 2</label>
-                                    <input class="form-group form-control"  type="text" name="telefono[]"
-                                        id="telefono[]" pattern="[0-9]{8}">
-                                </div>
+    </form>
+</div>
 
 
-                                <div class="col-md-6">
-                                    <label class="col-form-label focus-label">Longitud</label>
-                                    <input class="form-group form-control"  type="text" name="longitud_cliente"
-                                        id="longitud_cliente" >
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="col-form-label focus-label">Latitud</label>
-                                    <input class="form-group form-control"  type="text" name="latitud_cliente"
-                                        id="latitud_clientee" >
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="col-form-label focus-label">Pais<span class="text-danger">*</span></label>
-                                    <select class="form-group form-control" name="pais_cliente" id="pais_cliente"
-                                    onchange="obtenerDepartamentos()">
-                                        <option selected disabled>---Seleccione un pais---</option>
-
-                                    </select>
-                                </div>
-
-                                <div class="col-md-4">
-                                    <label class="col-form-label focus-label">Departamento<span class="text-danger">*</span></label>
-                                    <select class="form-group form-control" name="departamento_cliente" id="departamento_cliente"
-                                        onchange="obtenerMunicipios()">
-                                        <option selected disabled>---Seleccione un departamento---</option>
-
-                                    </select>
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="col-form-label focus-label">Municipio<span class="text-danger">*</span></label>
-                                    <select class="form-group form-control" name="municipio_cliente" id="municipio_cliente"
-                                        data-parsley-required >
-                                        <option selected disabled>---Seleccione un municipio---</option>
-
-                                    </select>
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="col-form-label focus-label">Tipo de Personalidad<span class="text-danger">*</span> </label>
-                                    <select class="form-group form-control" name="tipo_personalidad" id="tipo_personalidad"
-                                        data-parsley-required>
-                                        <option disabled selected>---Seleccione una opción---</option>
-
-
-                                    </select>
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="col-form-label focus-label">Tipo de cliente<span class="text-danger">*</span></label>
-                                    <select class="form-group form-control" name="categoria_cliente" id="categoria_cliente"
-                                        data-parsley-required>
-                                        <option selected disabled>---Seleccione una opción---</option>
-
-                                    </select>
-                                </div>
-
-                                <div class="col-md-4">
-                                    <label class="col-form-label focus-label">Vendedor<span class="text-danger">*</span></label>
-                                    <select class="form-group form-control" name="vendedor_cliente" id="vendedor_cliente"
-                                        data-parsley-required>
-                                        <option selected disabled>---Seleccione una opción---</option>
-
-                                    </select>
-                                </div>
-                                <div class="col-md-5">
-                                    <label for="foto_cliente" class="col-form-label focus-label">Fotografía: </label>
-                                    <input class="" type="file" id="foto_cliente" name="foto_cliente" accept="image/png, image/gif, image/jpeg, image/jpg" >
-
-                                </div>
-                                <div class=" col-md-7">
-                                    <img id="imagenPrevisualizacion" class="ancho-imagen">
-
-                                </div>
-                            </div>
-                        </form>
-                        <button id="btn_crear_cliente" type="submit" class="btn btn-sm btn-primary float-left mt-4"
-                            form="clientesCreacionForm"><strong>Crear
-                               Cliente</strong></button>
-                    </div>
-
-                </div>
-            </div>
-        </div>
 
 @push('scripts')
 
-    <script src="{{ asset('js/js_proyecto/cliente/cliente.js') }}"></script>
+    <script>
+        $(document).ready(function() {
+            // Inicialmente deshabilitamos el botón
+            const $btnDescargar = $('#btnDescargar');
+            $btnDescargar.prop('disabled', true);
+
+            // Detectar cambios en el select dinámico
+            $('#listaTipoFiltro').on('change', function() {
+                if ($(this).val()) {
+                    $btnDescargar.prop('disabled', false); // habilitar
+                } else {
+                    $btnDescargar.prop('disabled', true); // deshabilitar
+                }
+            });
+        });
+        $(document).ready(function() {
+            // Inicializar Select2 con tema Bootstrap4
+            $('.select2bs4').select2({
+                theme: 'bootstrap4',
+                placeholder: "Seleccione un valor",
+                width: 'resolve'
+            });
+
+            $('#tipoFiltro').on('change', function() {
+                let tipo = $(this).val();
+                let $listaTipo = $('#listaTipoFiltro');
+
+                $listaTipo.val(null).trigger('change');
+                $listaTipo.empty();
+
+                if (!tipo) return;
+
+                let url = tipo == '1' ? '/filtros/marca' : '/filtros/categoria';
+
+                $.ajax({
+                    url: url,
+                    type: 'GET',
+                    dataType: 'json',
+                    success: function(data) {
+                        $listaTipo.append(new Option('Seleccione', '', false, false));
+                        data.forEach(function(item) {
+                            $listaTipo.append(new Option(item.nombre, item.id, false, false));
+                        });
+                        $listaTipo.trigger('change');
+                    }
+                });
+            });
+        });
+    </script>
+
+
+
 @endpush
 
