@@ -119,6 +119,13 @@ use App\Http\Livewire\Reportes\Facturasanuladasrep;
 use App\Http\Livewire\Reportes\Librocobrosrep;
 use App\Http\Livewire\Reportes\Libroventarep;
 
+
+use App\Http\Livewire\Escalas\CategoriaPrecios;
+
+/*
+
+/*Escala de precios*/
+
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -151,7 +158,10 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('/editar/configuracion/{estado}', [Configuracion::class, 'editarEstado']);
     Route::get('/configuracion/excel', [Configuracion::class, 'exportarExcel']);
 
-
+    /*
+    Inicio de todas las rutas de la Escala de precios
+    */
+    Route::get('/precios', CategoriaPrecios::class);
 
 
 

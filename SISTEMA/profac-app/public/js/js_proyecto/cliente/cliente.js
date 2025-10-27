@@ -655,7 +655,7 @@ $(document).ready(function() {
 
        }
 
-       $(document).on('submit', '#clientesCreacionForm_editar', function(event) {
+    $(document).on('submit', '#clientesCreacionForm_editar', function(event) {
         event.preventDefault();
         editarClienteGuardar();
     });
