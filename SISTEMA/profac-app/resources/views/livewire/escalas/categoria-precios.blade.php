@@ -75,6 +75,21 @@
         width: 100%; /* Botón ocupa todo el ancho en móvil */
     }
 }
+/* Select uniforme y un poco más ancho */
+.filtro-select {
+    min-width: 200px;      /* antes era 150px */
+    flex: 1 1 220px;       /* crece hasta 220px aprox */
+    height: 38px;          /* misma altura */
+    font-size: 0.9rem;     /* tamaño de texto consistente */
+}
+
+/* Para pantallas medianas o grandes, deja respirar más los selects */
+@media (min-width: 992px) {
+    .filtro-select {
+        min-width: 240px;
+        flex: 1 1 240px;
+    }
+}
 </style>
 @endpush
 
@@ -83,6 +98,13 @@
 
     <form id="formExport" method="GET" action="{{ route('excel.plantilla') }}">
         <div class="d-flex align-items-center flex-wrap filtro-container">
+
+            <!-- Tipo de inserción -->
+            <select id="tipoCategoria" name="tipoCategoria" class="form-control select2bs4 filtro-select">
+                <option value="">🧾 Tipo de categoría</option>
+                <option value="escalable">📈 Escalable</option>
+                <option value="manual">✍️ Manual</option>
+            </select>
 
             <!-- Tipo de filtro -->
             <select id="tipoFiltro" name="tipoFiltro" class="form-control select2bs4 filtro-select">
@@ -108,6 +130,11 @@
 @push('scripts')
 
     <script>
+        $('#listaTipoFiltro, #tipoCategoria').on('change', function() {
+            const tipoCategoria = $('#tipoCategoria').val();
+            const lista = $('#listaTipoFiltro').val();
+            $('#btnDescargar').prop('disabled', !(tipoCategoria && lista));
+        });
         $(document).ready(function() {
             // Inicialmente deshabilitamos el botón
             const $btnDescargar = $('#btnDescargar');
@@ -122,13 +149,29 @@
                 }
             });
         });
+
+
         $(document).ready(function() {
-            // Inicializar Select2 con tema Bootstrap4
-            $('.select2bs4').select2({
-                theme: 'bootstrap4',
-                placeholder: "Seleccione un valor",
-                width: 'resolve'
-            });
+                // Tipo de categoría
+                $('#tipoCategoria').select2({
+                    theme: 'bootstrap4',
+                    placeholder: "🧾 Tipo de categoría",
+                    width: 'resolve'
+                });
+
+                // Tipo de filtro
+                $('#tipoFiltro').select2({
+                    theme: 'bootstrap4',
+                    placeholder: "📂 Tipo de filtro",
+                    width: 'resolve'
+                });
+
+                // Lista de valores según el filtro
+                $('#listaTipoFiltro').select2({
+                    theme: 'bootstrap4',
+                    placeholder: "Seleccione una opción",
+                    width: 'resolve'
+                });
 
             $('#tipoFiltro').on('change', function() {
                 let tipo = $(this).val();
