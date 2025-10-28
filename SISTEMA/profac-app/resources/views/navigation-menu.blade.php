@@ -246,6 +246,7 @@
                                 style="color:#ffffff;">Escala de precios</span>
                             <span class="fa arrow"></span></a>
                         <ul class="nav nav-second-level">
+                            <li href="dashboard_2.html"><a href="/clientes/categorias" style="color:#ffffff;">Categoría de Clientes</a></li>
                             <li href="dashboard_2.html"><a href="/precios" style="color:#ffffff;">Gestión de precios</a></li>
                         </ul>
                     </li>

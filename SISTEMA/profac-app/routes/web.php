@@ -121,6 +121,7 @@ use App\Http\Livewire\Reportes\Libroventarep;
 
 
 use App\Http\Livewire\Escalas\CategoriaPrecios;
+use App\Http\Livewire\Escalas\CategoriaClientes;
 
 /*
 
@@ -162,6 +163,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Inicio de todas las rutas de la Escala de precios
     */
     Route::get('/precios', CategoriaPrecios::class);
+    Route::get('/clientes/categorias', CategoriaClientes::class);
     Route::get('/descargar-plantilla', [App\Http\Controllers\ExcelController::class, 'descargarPlantilla'])->name('excel.plantilla');
     Route::get('/filtros/marca', function() {
         return \App\Models\ModelMarca::select('id','nombre')->get();
