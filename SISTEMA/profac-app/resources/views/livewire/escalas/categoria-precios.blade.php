@@ -93,122 +93,142 @@
 </style>
 @endpush
 
-<div class="d-flex justify-content-between align-items-center mb-3 p-2 bg-light rounded shadow-sm flex-wrap">
-  <h3 class="mb-0 text-dark"><b>Categoría de precios</b></h3>
-  <h4>Creación de categorías</h4>
-  <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modalCategoriasPrecios">
-    Abrir Ventana de creación
-  </button>
+<div class="card shadow-sm border-0 mb-3">
+    <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center">
+        <h6 <b>CATEGORIA DE PRECIOS DE PRODUCTO</b></h6>
+    <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#modalCategoriasPrecios">
+        <i class="bi bi-plus-circle me-1"></i> Abrir ventana de creación
+    </button>
+    </div>
+  <div class="card-body p-2">
+
+        <!-- TABLA -->
+    <div class="row mt-4">
+        <div class="col-lg-12">
+            <div class="ibox">
+                <div class="ibox-content">
+                    <div class="table-responsive">
+                        <table id="tbl_listaCategoria" class="table table-striped table-bordered table-hover">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Categoría</th>
+                                    <th>Descripción</th>
+                                    <th>Comentario</th>
+                                    <th>Estado</th>
+                                    <th>Registro</th>
+                                    <th>Creación</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
-<div class="d-flex justify-content-between align-items-center mb-3 p-2 bg-light rounded shadow-sm flex-wrap">
-    <h4 class="mb-0 text-dark"><b>Plantilla de productos para precios</b></h4>
+<div class="card shadow-sm border-0 mb-3">
+    <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center">
+        <h6 <b>PLANTILLA DE PRECIOS POR PRODUCTOS</b></h6>
 
-    <form id="formExport" method="GET" action="{{ route('excel.plantilla') }}">
-        <div class="d-flex align-items-center flex-wrap filtro-container">
+            <form id="formExport" method="GET" action="{{ route('excel.plantilla') }}">
+                <div class="d-flex align-items-center flex-wrap filtro-container">
 
-            <!-- Tipo de inserción -->
-            <select id="tipoCategoria" name="tipoCategoria" class="form-control select2bs4 filtro-select">
-                <option value="">🧾 Tipo de categoría</option>
-                <option value="escalable">📈 Escalable</option>
-                <option value="manual">✍️ Manual</option>
-            </select>
+                    <!-- Tipo de inserción -->
+                    <select id="tipoCategoria" name="tipoCategoria" class="form-control select2bs4 filtro-select">
+                        <option value="">🧾 Tipo de categoría</option>
+                        <option value="escalable">📈 Escalable</option>
+                        <option value="manual">✍️ Manual</option>
+                    </select>
 
-            <!-- Tipo de filtro -->
-            <select id="tipoFiltro" name="tipoFiltro" class="form-control select2bs4 filtro-select">
-                <option value="">📂 Formato</option>
-                <option value="1">🏷️ Marca</option>
-                <option value="2">📂 Categoría</option>
-            </select>
+                    <!-- Tipo de filtro -->
+                    <select id="tipoFiltro" name="tipoFiltro" class="form-control select2bs4 filtro-select">
+                        <option value="">📂 Formato</option>
+                        <option value="1">🏷️ Marca</option>
+                        <option value="2">📂 Categoría</option>
+                    </select>
 
-            <!-- Filtro por valor -->
-            <select id="listaTipoFiltro" name="listaTipoFiltro" class="form-control select2bs4 filtro-select">
-                <option value="">Seleccione filtro</option>
-            </select>
+                    <!-- Filtro por valor -->
+                    <select id="listaTipoFiltro" name="listaTipoFiltro" class="form-control select2bs4 filtro-select">
+                        <option value="">Seleccione filtro</option>
+                    </select>
 
-            <button type="submit" class="btn btn-success ml-2" id="btnDescargar" disabled>
-                📥 Descargar plantilla
+                    <button type="submit" class="btn btn-success ml-2" id="btnDescargar" disabled>
+                        📥 Descargar plantilla
+                    </button>
+                </div>
+            </form>
+    </div>
+  <div class="card-body p-2">
+
+
+</div>
+
+
+<!-- MODAL ELEGANTE -->
+<div class="modal fade" id="modalCategoriasPrecios" tabindex="-1" role="dialog" aria-labelledby="modalCategoriasPreciosTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+    <div class="modal-content border-0 shadow-lg rounded">
+
+      <!-- Header -->
+      <div class="modal-header bg-primary text-white rounded-top">
+        <h5 class="modal-title font-weight-bold" id="modalCategoriasPreciosTitle">Categoría de Precios</h5>
+        <button type="button" class="close text-white" data-dismiss="modal" aria-label="Cerrar">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+
+      <!-- Body -->
+      <div class="modal-body px-4 py-4 bg-light">
+        <form id="CreacionCatPrecios">
+
+          <!-- Primera fila: Nombre y Descripción -->
+          <div class="form-row">
+            <div class="form-group col-md-6">
+              <label for="nombre_cat" class="font-weight-bold">Nombre de la Categoría</label>
+              <input type="text" class="form-control form-control-lg border-primary" id="nombre_cat" name="nombre_cat"
+                placeholder="Ej: Clientes estatales" maxlength="100" required>
+            </div>
+            <div class="form-group col-md-6">
+              <label for="descripcion_cat" class="font-weight-bold">Descripción</label>
+              <input type="text" class="form-control form-control-lg border-primary" id="descripcion_cat" name="descripcion_cat"
+                placeholder="Ej: Clientes institucionales o empresas" maxlength="150">
+            </div>
+          </div>
+
+          <!-- Comentario -->
+          <div class="mt-4">
+            <label for="comentario" class="font-weight-bold">Comentario</label>
+            <textarea id="comentario" name="comentario" class="form-control border-primary" rows="3"
+              placeholder="Agrega un comentario sobre esta categoría..."></textarea>
+          </div>
+
+          <!-- Footer -->
+          <div class="modal-footer border-0 mt-4">
+            <button type="button" class="btn btn-outline-secondary" data-dismiss="modal" id="btnCancelarCategoria">
+              Cancelar
             </button>
-        </div>
-    </form>
+
+            <button type="submit" class="btn btn-primary font-weight-bold" id="btn_guardar_categoria">
+              Guardar
+            </button>
+          </div>
+
+        </form>
+      </div>
+    </div>
+  </div>
 </div>
 
 
 
 @push('scripts')
-
-    <script>
-        $('#listaTipoFiltro, #tipoCategoria').on('change', function() {
-            const tipoCategoria = $('#tipoCategoria').val();
-            const lista = $('#listaTipoFiltro').val();
-            $('#btnDescargar').prop('disabled', !(tipoCategoria && lista));
-        });
-        $(document).ready(function() {
-            // Inicialmente deshabilitamos el botón
-            const $btnDescargar = $('#btnDescargar');
-            $btnDescargar.prop('disabled', true);
-
-            // Detectar cambios en el select dinámico
-            $('#listaTipoFiltro').on('change', function() {
-                if ($(this).val()) {
-                    $btnDescargar.prop('disabled', false); // habilitar
-                } else {
-                    $btnDescargar.prop('disabled', true); // deshabilitar
-                }
-            });
-        });
-
-
-        $(document).ready(function() {
-                // Tipo de categoría
-                $('#tipoCategoria').select2({
-                    theme: 'bootstrap4',
-                    placeholder: "🧾 Tipo de categoría",
-                    width: 'resolve'
-                });
-
-                // Tipo de filtro
-                $('#tipoFiltro').select2({
-                    theme: 'bootstrap4',
-                    placeholder: "📂 Tipo de filtro",
-                    width: 'resolve'
-                });
-
-                // Lista de valores según el filtro
-                $('#listaTipoFiltro').select2({
-                    theme: 'bootstrap4',
-                    placeholder: "Seleccione una opción",
-                    width: 'resolve'
-                });
-
-            $('#tipoFiltro').on('change', function() {
-                let tipo = $(this).val();
-                let $listaTipo = $('#listaTipoFiltro');
-
-                $listaTipo.val(null).trigger('change');
-                $listaTipo.empty();
-
-                if (!tipo) return;
-
-                let url = tipo == '1' ? '/filtros/marca' : '/filtros/categoria';
-
-                $.ajax({
-                    url: url,
-                    type: 'GET',
-                    dataType: 'json',
-                    success: function(data) {
-                        $listaTipo.append(new Option('Seleccione', '', false, false));
-                        data.forEach(function(item) {
-                            $listaTipo.append(new Option(item.nombre, item.id, false, false));
-                        });
-                        $listaTipo.trigger('change');
-                    }
-                });
-            });
-        });
-    </script>
-
-
-
+    <script src="{{ asset('js/js_proyecto/Escalas/gestionPrecios.js') }}"></script>
 @endpush
 

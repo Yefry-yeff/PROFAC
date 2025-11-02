@@ -186,7 +186,6 @@
 <!-- SCRIPT PARA RESET FORM AL CERRAR MODAL -->
 
 @push('scripts')
-
     <script src="{{ asset('js/js_proyecto/Escalas/categoriaClientes.js') }}"></script>
 @endpush
 

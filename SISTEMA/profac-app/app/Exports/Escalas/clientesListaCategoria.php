@@ -114,7 +114,5 @@ class ProductosPlantillaExport implements FromQuery, WithHeadings, WithMapping
         ];
     }
 
-
-
 }
 
