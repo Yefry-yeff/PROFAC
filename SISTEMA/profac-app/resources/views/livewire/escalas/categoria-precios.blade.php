@@ -191,14 +191,14 @@
           <!-- Primera fila: Nombre y Descripción -->
           <div class="form-row">
             <div class="form-group col-md-6">
-              <label for="nombre_cat" class="font-weight-bold">Nombre de la Categoría</label>
-              <input type="text" class="form-control form-control-lg border-primary" id="nombre_cat" name="nombre_cat"
-                placeholder="Ej: Clientes estatales" maxlength="100" required>
+              <label for="nombre_cat_precio" class="font-weight-bold">Nombre de la Categoría</label>
+              <input type="text" class="form-control form-control-lg border-primary" id="nombre_cat_precio" name="nombre_cat_precio"
+                placeholder="Ej: Precios de Cliente estatal" maxlength="100" required>
             </div>
             <div class="form-group col-md-6">
-              <label for="descripcion_cat" class="font-weight-bold">Descripción</label>
-              <input type="text" class="form-control form-control-lg border-primary" id="descripcion_cat" name="descripcion_cat"
-                placeholder="Ej: Clientes institucionales o empresas" maxlength="150">
+              <label for="comentario_cat_precio" class="font-weight-bold">Descripción</label>
+              <input type="text" class="form-control form-control-lg border-primary" id="comentario_cat_precio" name="comentario_cat_precio"
+                placeholder="Ej: Precio 1 para categoría de cliente estatal" maxlength="150">
             </div>
           </div>
 
