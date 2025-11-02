@@ -93,73 +93,100 @@
 </style>
 @endpush
 
+<!-- ENCABEZADO Y BOTÓN -->
 <div class="d-flex justify-content-between align-items-center mb-3 p-2 bg-light rounded shadow-sm flex-wrap">
-    <h3 class="mb-0 text-dark"><b>Categoría de Clientes</b></h3> <h4>Creación de categorías</h4>
-            <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#exampleModalCenter">Abrir Ventana de creación</button>
-        </div>
-    </form>
+  <h3 class="mb-0 text-dark"><b>Categoría de Clientes</b></h3>
+  <h4>Creación de categorías</h4>
+  <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modalCategoriasClientes">
+    Abrir Ventana de creación
+  </button>
 </div>
-{{--  CREACIÓN DE CATEGORIAS DE CLIENTES  --}}
-<div class="modal fade" id="exampleModalCenter" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered" role="document">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="exampleModalLongTitle">Modal title</h5>
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+
+<!-- MODAL ELEGANTE -->
+<div class="modal fade" id="modalCategoriasClientes" tabindex="-1" role="dialog" aria-labelledby="modalCategoriasClientesTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+    <div class="modal-content border-0 shadow-lg rounded">
+
+      <!-- Header -->
+      <div class="modal-header bg-primary text-white rounded-top">
+        <h5 class="modal-title font-weight-bold" id="modalCategoriasClientesTitle">Nueva Categoría de Cliente</h5>
+        <button type="button" class="close text-white" data-dismiss="modal" aria-label="Cerrar">
           <span aria-hidden="true">&times;</span>
         </button>
       </div>
-      <div class="modal-body">
-        ...
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-        <button type="button" class="btn btn-primary">Save changes</button>
+
+      <!-- Body -->
+      <div class="modal-body px-4 py-4 bg-light">
+        <form id="clientesCreacionForm">
+
+          <!-- Primera fila: Nombre y Descripción -->
+          <div class="form-row">
+            <div class="form-group col-md-6">
+              <label for="nombre_cat" class="font-weight-bold">Nombre de la Categoría</label>
+              <input type="text" class="form-control form-control-lg border-primary" id="nombre_cat" name="nombre_cat"
+                placeholder="Ej: Clientes estatales" maxlength="100" required>
+            </div>
+            <div class="form-group col-md-6">
+              <label for="descripcion_cat" class="font-weight-bold">Descripción</label>
+              <input type="text" class="form-control form-control-lg border-primary" id="descripcion_cat" name="descripcion_cat"
+                placeholder="Ej: Clientes institucionales o empresas" maxlength="150">
+            </div>
+          </div>
+
+          <!-- Comentario -->
+          <div class="mt-4">
+            <label for="comentario" class="font-weight-bold">Comentario</label>
+            <textarea id="comentario" name="comentario" class="form-control border-primary" rows="3"
+              placeholder="Agrega un comentario sobre esta categoría..."></textarea>
+          </div>
+
+          <!-- Footer -->
+          <div class="modal-footer border-0 mt-4">
+            <button type="button" class="btn btn-outline-secondary" data-dismiss="modal" id="btnCancelarCategoria">
+              Cancelar
+            </button>
+            <button type="submit" class="btn btn-primary font-weight-bold" id="btn_guardar_categoria">
+              Guardar
+            </button>
+          </div>
+
+        </form>
       </div>
     </div>
   </div>
 </div>
 
-{{--  Tabla de categorias de clientes  --}}
-
-<div class="wrapper wrapper-content animated fadeInRight">
-        <div class="row">
-            <div class="col-lg-12">
-                <div class="ibox ">
-                    <div class="ibox-content">
-
-                        <div class="table-responsive">
-                            <table id="tbl_ClientesLista" class="table table-striped table-bordered table-hover">
-                                <thead class="">
-                                    <tr>
-                                        <th>Codigo</th>
-                                        <th>Nombre</th>
-                                        <th>Dirreción</th>
-                                        <th>Teléfono</th>
-                                        <th>Correo</th>
-                                        <th>RTN</th>
-                                        <th>Estado</th>
-                                        <th>Registrado Por:</th>
-                                        <th>Fecha </th>
-                                        <th>Acciones</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-
-                                </tbody>
-                            </table>
-
-                        </div>
-
-                    </div>
-                </div>
-            </div>
+<!-- TABLA -->
+<div class="row mt-4">
+  <div class="col-lg-12">
+    <div class="ibox">
+      <div class="ibox-content">
+        <div class="table-responsive">
+          <table id="tbl_listaCategoria" class="table table-striped table-bordered table-hover">
+            <thead class="thead-light">
+              <tr>
+                <th>ID</th>
+                <th>Categoría</th>
+                <th>Descripción</th>
+                <th>Comentario</th>
+                <th>Estado</th>
+                <th>Registro</th>
+                <th>Creación</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
         </div>
+      </div>
     </div>
+  </div>
+</div>
 
-
+<!-- SCRIPT PARA RESET FORM AL CERRAR MODAL -->
 
 @push('scripts')
 
+    <script src="{{ asset('js/js_proyecto/Escalas/categoriaClientes.js') }}"></script>
 @endpush
 

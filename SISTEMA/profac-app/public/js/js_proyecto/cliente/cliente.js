@@ -222,8 +222,6 @@ $(document).ready(function() {
 
 
         function tipoCliente(){
-
-
            axios.get('/cliente/tipo/cliente')
            .then(function(response) {
            let array = response.data.tipoCliente;

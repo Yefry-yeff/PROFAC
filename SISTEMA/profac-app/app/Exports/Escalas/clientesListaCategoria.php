@@ -1,0 +1,121 @@
+<?php
+namespace App\Exports\Escalas;
+use Maatwebsite\Excel\Concerns\FromQuery;
+use Maatwebsite\Excel\Concerns\WithHeadings;
+use Maatwebsite\Excel\Concerns\WithMapping;
+use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Concerns\Exportable;
+
+
+class ProductosPlantillaExport implements FromQuery, WithHeadings, WithMapping
+{
+
+    protected $tipoFiltro;
+    protected $valorFiltro;
+
+    public function __construct($tipoFiltro = null, $valorFiltro = null)
+    {
+        $this->tipoFiltro = $tipoFiltro;
+        $this->valorFiltro = $valorFiltro;
+    }
+
+    public function query()
+    {
+        $query = DB::table('cliente as A')
+            ->join('marca as B', 'B.id', '=', 'A.marca_id')
+            ->join('sub_categoria as C', 'C.id', '=', 'A.sub_categoria_id')
+            ->join('categoria_producto as D', 'D.id', '=', 'C.categoria_producto_id')
+            ->join('unidad_medida as E', 'E.id', '=', 'A.unidad_medida_compra_id')
+            ->selectRaw("
+                A.id as 'idcliente',
+                A.nombre as 'idcliente',
+                A.nombre as nombreProducto,
+                A.descripcion as descripcionProducto,
+                E.id as idUnidadMedida,
+                E.nombre as unidadMedia,
+                B.id as idMarca,
+                B.nombre as nombreMarca,
+                D.id as idCategoria,
+                D.descripcion as nombreCategoria,
+                C.id as idsubCategoria,
+                C.descripcion as subcategoriaProducto,
+                IF(A.isv > 0,'SI','NO') as isv,
+                A.ultimo_costo_compra as costoProducto,
+                A.precio_base as precioBase
+            ")
+            ->orderBy('A.id', 'asc');
+
+        // Aplicar filtros
+        if ($this->tipoFiltro == 1 && $this->valorFiltro) {
+            $query->where('A.marca_id', $this->valorFiltro);
+        } elseif ($this->tipoFiltro == 2 && $this->valorFiltro) {
+            $query->where('D.id', $this->valorFiltro);
+        }
+
+        return $query;
+    }
+
+    public function headings(): array
+    {
+        return [
+            'idtipocategoria',
+            'tipocategoriaprecio',
+            'idproducto',
+            'nombreproducto',
+            'descripcionproducto',
+            'idmedida',
+            'unidadmedida',
+            'idmarca',
+            'nombremarca',
+            'idcategoria',
+            'nombrecategoria',
+            'idsubcategoria',
+            'subcategoriaproducto',
+            'isv',
+            'costoproducto',
+            'preciobaseventa',
+            'precioComprausd',
+            'tipoCambio',
+            'preciohnl',
+            'flete',
+            'arancel',
+            'porc_flete',
+            'porc_arancel',
+            'Observaciones'
+        ];
+    }
+
+    public function map($row): array
+    {
+        return [
+            $row->idtipocategoria,
+            $row->tipocategoriaprecio,
+            $row->idproducto,
+            $row->nombreProducto,
+            $row->descripcionProducto,
+            $row->idUnidadMedida,
+            $row->unidadMedia,
+            $row->idMarca,
+            $row->nombreMarca,
+            $row->idCategoria,
+            $row->nombreCategoria,
+            $row->idsubCategoria,
+            $row->subcategoriaProducto,
+            $row->isv,
+            $row->costoProducto,
+            $row->precioBase,
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+        ];
+    }
+
+
+
+}
+

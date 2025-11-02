@@ -172,7 +172,9 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('/filtros/categoria', function() {
         return \App\Models\ModelCategoriaProducto::select('id','descripcion as nombre')->get();
     });
-
+    Route::post('/guardar/categoria/cliente', [CategoriaClientes::class, 'guardarCtaegoria']);
+    Route::get('/listar/categoria/cliente', [CategoriaClientes::class, 'listarCategorias']);
+    Route::get('/desactivar/categoria/cliente/{idCategoria}', [CategoriaClientes::class, 'desactivarCategoria']);
 
 
     //-----------------------Bodega---------------------------------------------------------------------------------------------------------------------//
