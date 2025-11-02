@@ -28,8 +28,7 @@ class ProductosPlantillaExport implements FromQuery, WithHeadings, WithMapping
             ->join('unidad_medida as E', 'E.id', '=', 'A.unidad_medida_compra_id')
             ->selectRaw("
                 A.id as 'idcliente',
-                A.nombre as 'idcliente',
-                A.nombre as nombreProducto,
+                A.nombre as 'cliente',
                 A.descripcion as descripcionProducto,
                 E.id as idUnidadMedida,
                 E.nombre as unidadMedia,

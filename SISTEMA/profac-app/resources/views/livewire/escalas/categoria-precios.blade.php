@@ -94,7 +94,15 @@
 @endpush
 
 <div class="d-flex justify-content-between align-items-center mb-3 p-2 bg-light rounded shadow-sm flex-wrap">
-    <h4 class="mb-0 text-dark"><b>Categoría de Precios</b></h4>
+  <h3 class="mb-0 text-dark"><b>Categoría de precios</b></h3>
+  <h4>Creación de categorías</h4>
+  <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modalCategoriasPrecios">
+    Abrir Ventana de creación
+  </button>
+</div>
+
+<div class="d-flex justify-content-between align-items-center mb-3 p-2 bg-light rounded shadow-sm flex-wrap">
+    <h4 class="mb-0 text-dark"><b>Plantilla de productos para precios</b></h4>
 
     <form id="formExport" method="GET" action="{{ route('excel.plantilla') }}">
         <div class="d-flex align-items-center flex-wrap filtro-container">
