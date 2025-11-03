@@ -61,31 +61,31 @@ class ProductosPlantillaExport implements FromQuery, WithHeadings, WithMapping
     public function headings(): array
     {
         return [
-            'idCategoriaPrecio',
+            'categoria_precios_id',
             'idtipocategoria',
             'tipocategoriaprecio',
-            'idproducto',
+            'producto_id',
             'nombreproducto',
             'descripcionproducto',
-            'idmedida',
-            'unidadmedida',
-            'idmarca',
+            'unidad_medida_compra_id',
+            'unidad_medida_compra',
+            'marca_id',
             'nombremarca',
-            'idcategoria',
+            'categoria_producto_id',
             'nombrecategoria',
-            'idsubcategoria',
+            'sub_categoria_id',
             'subcategoriaproducto',
             'isv',
             'costoproducto',
-            'preciobaseventa',
-            'precioComprausd',
-            'tipoCambio',
-            'preciohnl',
+            'precio_base_venta',
+            'precio_compra_usd',
+            'tipo_cambio_usd',
+            'precio_hnl',
             'flete',
             'arancel',
             'porc_flete',
             'porc_arancel',
-            'Observaciones'
+            'comentario'
         ];
     }
 

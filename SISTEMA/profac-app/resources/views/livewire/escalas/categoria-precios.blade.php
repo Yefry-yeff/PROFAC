@@ -39,7 +39,7 @@
    Select2 — todos los selects
 ============================= */
 .select2-container {
-    z-index: 3050 !important; /* Siempre encima de modales */
+    z-index: 999 !important; /* Siempre encima de modales */
     width: 100% !important;   /* Ocupa todo el ancho del contenedor */
     font-size: 0.9rem;
 }
@@ -259,10 +259,65 @@ textarea.form-control, input.form-control {
             </div>
         </form>
     </div>
-    <div class="card-body p-2">
-        <!-- Aquí va el contenido de la card si es necesario -->
+    <div class="card-body p-2 text-center">
+        <form id="formSubirExcel" enctype="multipart/form-data" autocomplete="off" class="border rounded p-4 bg-light shadow-sm text-center">
+            <h6 class="mb-2 text-primary font-weight-bold">⬆️ Carga masiva de precios</h6>
+
+            <div class="form-group">
+                <div class="d-flex flex-wrap justify-content-center align-items-center gap-3">
+
+                <!-- Selector de archivo -->
+                <div class="custom-file flex-grow-1" style="max-width: 420px;">
+                    <input type="file" class="custom-file-input" id="archivo_excel" name="archivo_excel" accept=".xlsx,.xls" required>
+                    <label class="custom-file-label text-left" for="archivo_excel">Elija un archivo...</label>
+                </div>
+
+                <!-- Botón de subir -->
+                <button type="submit" class="btn btn-success px-4" id="btnSubirExcel">
+                    📤 Subir
+                </button>
+                </div>
+
+                <small class="form-text text-muted mt-2">
+                Formatos permitidos: <b>.xlsx</b>, <b>.xls</b> — Máx 10 MB
+                </small>
+            </div>
+
+            <!-- Barra de progreso -->
+            <div class="progress mt-4 d-none" id="progressUpload">
+                <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+            </div>
+            </form>
+
+        <!-- Vista previa del Excel -->
+        <div class="mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="mb-0 text-dark"><b>Vista previa del Excel</b></h6>
+            <div class="d-flex gap-2">
+            <button type="button" class="btn btn-outline-secondary btn-sm mr-2" id="btnLimpiarVista" disabled>
+                Limpiar
+            </button>
+            <button type="button" class="btn btn-primary btn-sm" id="btnProcesar" disabled>
+                Procesar
+            </button>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table id="previewExcel" class="table table-sm table-striped table-bordered">
+            <thead></thead>
+            <tbody></tbody>
+            </table>
+        </div>
+
+        {{--  <small class="text-muted d-block mt-2">
+            Consejo: revisá encabezados/columnas; deben coincidir con la plantilla exportada.
+        </small>  --}}
+        </div>
+
     </div>
 </div>
+
 
 
 
@@ -355,6 +410,8 @@ textarea.form-control, input.form-control {
 
 
 @push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
     <script src="{{ asset('js/js_proyecto/Escalas/gestionPrecios.js') }}"></script>
 @endpush
 
