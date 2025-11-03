@@ -1,4 +1,6 @@
 // === Habilitar/Deshabilitar botón "Descargar" (MISMA lógica actual)
+// Controla el estado del botón "Descargar" en función de que todos los filtros requeridos
+// tengan un valor seleccionado. Si falta alguno, deshabilita el botón para evitar acciones inválidas.
 function toggleDescargarCompleto() {
   const tipoCategoria = $('#tipoCategoria').val();
   const tipoFiltro = $('#tipoFiltro').val();
@@ -10,17 +12,20 @@ function toggleDescargarCompleto() {
 }
 
 $(document).ready(function () {
-  // Axios headers básicos (seguro y no invasivo)
+  // Configuración básica para Axios:
+  // - Define header X-Requested-With para solicitudes AJAX.
+  // - Inyecta token CSRF (si existe en <meta>) para proteger contra ataques CSRF.
   if (typeof axios !== 'undefined') {
     axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
     const csrf = document.querySelector('meta[name="csrf-token"]')?.content;
     if (csrf) axios.defaults.headers.common['X-CSRF-TOKEN'] = csrf;
   }
 
-  // === Tabla
+  // === Inicialización de la tabla principal de categorías (DataTable)
   listarCategorias();
 
-  // === Select2 - Filtros superiores
+  // === Inicialización de Select2 para los filtros superiores
+  // Mejora UX con tema bootstrap4 y placeholders.
   $('#tipoCategoria').select2({
     theme: 'bootstrap4',
     placeholder: '🧾 Tipo de categoría',
@@ -39,21 +44,27 @@ $(document).ready(function () {
     width: 'resolve'
   });
 
-  // === Cargar opciones de #listaTipoFiltro según #tipoFiltro
+  // === Cargar opciones dinámicas de #listaTipoFiltro según el valor de #tipoFiltro
+  // Si el usuario elige filtrar por Marca (1) o Categoría (2), se consulta el endpoint correspondiente
+  // y se pobla el select con los resultados.
   $('#tipoFiltro').on('change', function () {
     let tipo = $(this).val();
     let $listaTipo = $('#listaTipoFiltro');
 
+    // Limpieza del select dependiente
     $listaTipo.val(null).trigger('change');
     $listaTipo.empty();
 
+    // Si no hay tipo definido, sólo recalcula estado del botón y sale.
     if (!tipo) {
       toggleDescargarCompleto();
       return;
     }
 
+    // Selección del endpoint según tipo de filtro
     let url = tipo == '1' ? '/filtros/marca' : '/filtros/categoria';
 
+    // Solicitud AJAX para poblar el select
     $.ajax({
       url: url,
       type: 'GET',
@@ -72,7 +83,8 @@ $(document).ready(function () {
     });
   });
 
-  // === Select2 - Categoría de precios (ajax)
+  // === Select2 - Categoría de precios (con carga AJAX)
+  // Trae categorías de precio desde el servidor con búsqueda diferida (delay).
   $('#listaTipoFiltroCatPrecios').select2({
     theme: 'bootstrap4',
     placeholder: 'Seleccione Categoría de precio',
@@ -92,7 +104,8 @@ $(document).ready(function () {
     }
   });
 
-  // === Select2 dentro del modal
+  // === Select2 dentro del modal (categoría de cliente)
+  // Se especifica dropdownParent para asegurar el correcto renderizado dentro del modal.
   $('#categoria_cliente_id').select2({
     theme: 'bootstrap4',
     placeholder: 'Seleccione una categoría...',
@@ -100,27 +113,36 @@ $(document).ready(function () {
     minimumResultsForSearch: 0,
     dropdownParent: $('#modalCategoriasPrecios')
   });
-  // === Resetear form al cerrar modal
+
+  // === Resetear formulario al cerrar el modal
+  // Evita que queden valores anteriores al reabrir el modal.
   $('#modalCategoriasPrecios').on('hidden.bs.modal', function () {
     $('#CreacionCatPrecios')[0].reset();
     $('#categoria_cliente_id').val(null).trigger('change');
   });
 
-  // === Listeners para mantener la lógica actual del botón
+  // === Listeners para mantener la lógica actual del botón "Descargar"
+  // Recalcula el estado del botón al cambiar filtros críticos.
   $('#listaTipoFiltro, #tipoCategoria').on('change', toggleDescargarCompleto);
     toggleDescargarCompleto(); // estado inicial
   });
+
+// Listeners globales fuera del DOM ready para cobertura total de cambios.
 $('#tipoCategoria, #tipoFiltro, #listaTipoFiltro, #listaTipoFiltroCatPrecios')
   .on('change', toggleDescargarCompleto);
 
-// Estado inicial al cargar la página
+// Estado inicial al cargar la página (seguridad extra si el DOM ready no alcanzó)
 toggleDescargarCompleto();
+
 // === Submit del modal (crear categoría de precios)
+// Intercepta el submit nativo para manejarlo por AJAX.
 $(document).on('submit', '#CreacionCatPrecios', function (event) {
   event.preventDefault();
   registrarCategoriaPrecios();
 });
 
+// === Lógica de creación de categoría de precios
+// Envía el formulario del modal al backend y maneja la respuesta con feedback visual.
 function registrarCategoriaPrecios() {
   const $btn = $('#btn_guardar_categoria');
   $btn.prop('disabled', true);
@@ -130,18 +152,21 @@ function registrarCategoriaPrecios() {
   axios.post('/guardar/categoria/precios', data)
     .then(response => {
       let data = response.data;
+      // Cerrar modal y limpiar estado del formulario/validaciones
       $('#modalCategoriasPrecios').modal('hide');
       $('#CreacionCatPrecios').parsley().reset();
       $('#CreacionCatPrecios')[0].reset();
+      // Refrescar DataTable principal
       $('#tbl_listaCategoria').DataTable().ajax.reload();
 
+      // Notificación al usuario
       Swal.fire({
         icon: data.icon,
         title: data.title,
         text: data.text
       });
 
-      // foco en primer input
+      // Devolver foco al primer campo del modal (mejora de UX)
       $('#nombre_cat_precio').focus();
     })
     .catch(err => {
@@ -160,7 +185,9 @@ function registrarCategoriaPrecios() {
     });
 }
 
-// === DataTable
+// === DataTable principal de categorías de precios
+// Consume el endpoint /listar/categoria/precios y pinta columnas predefinidas.
+// Maneja errores de red y configura idioma, paginación y responsividad.
 function listarCategorias() {
   $('#tbl_listaCategoria').DataTable({
     destroy: true,
@@ -194,6 +221,8 @@ function listarCategorias() {
 }
 
 // === Desactivar categoría (se mantiene GET por compatibilidad)
+// Llama al endpoint de desactivación y refresca la tabla al completar.
+// Notifica al usuario del resultado (éxito o error).
 function desactivarCategoria(idCategoria) {
   axios.get('/desactivar/categoria/precios/' + idCategoria)
     .then(response => {
@@ -215,23 +244,24 @@ function desactivarCategoria(idCategoria) {
       });
     });
 }
+
 /*===================================================================================================================================*/
 /*===================================================================================================================================*/
 /*===================================================================================================================================*/
 /* Subida de Excel de precios de productos */
-// Mostrar nombre del archivo
-// Mostrar nombre del archivo elegido
-// Mostrar nombre del archivo
+
 // ================================
 //  Estado global de la vista previa
+//  (se usa para compartir datos entre funciones de preview)
 // ================================
 window.excelPreview = {
-  rows: [],      // Array de objetos (filas)
-  headers: []    // Encabezados detectados
+  rows: [],      // Array de objetos (filas del Excel parseado)
+  headers: []    // Encabezados detectados automáticamente
 };
 
 // ======================================
 //  Utilidad: destruir DataTable si existe
+//  (evita fugas de memoria y conflictos de inicialización)
 // ======================================
 function destroyPreviewTable() {
   if ($.fn.DataTable.isDataTable('#previewExcel')) {
@@ -243,6 +273,9 @@ function destroyPreviewTable() {
 
 // ======================================
 //  Renderiza la vista previa con DataTables
+//  - Construye encabezados desde las llaves del primer registro
+//  - Inicializa DataTable con los datos parseados
+//  - Habilita/deshabilita botones según corresponda
 // ======================================
 function renderPreviewTable(rows) {
   destroyPreviewTable();
@@ -257,14 +290,14 @@ function renderPreviewTable(rows) {
   const headers = Object.keys(rows[0] || {});
   window.excelPreview.headers = headers;
 
-  // Construir thead
+  // Construir thead dinámico
   const theadHtml = '<tr>' + headers.map(h => `<th>${h}</th>`).join('') + '</tr>';
   $('#previewExcel thead').html(theadHtml);
 
-  // Definir columnas para DataTables
+  // Definir columnas para DataTables (data binding por key)
   const columns = headers.map(h => ({ title: h, data: h }));
 
-  // Inicializar DataTable
+  // Inicializar DataTable para la vista previa
   $('#previewExcel').DataTable({
     destroy: true,
     data: rows,
@@ -275,13 +308,14 @@ function renderPreviewTable(rows) {
     deferRender: true
   });
 
-  // Habilitar botones
+  // Habilitar acciones asociadas a la vista previa
   $('#btnProcesar').prop('disabled', false);
   $('#btnLimpiarVista').prop('disabled', false);
 }
 
 // ======================================
 //  Mostrar nombre del archivo elegido
+//  - Actualiza la etiqueta del input file para feedback inmediato al usuario
 // ======================================
 $(document).on('change', '#archivo_excel', function () {
   const name = this.files?.[0]?.name || 'Elegí un archivo...';
@@ -289,7 +323,10 @@ $(document).on('change', '#archivo_excel', function () {
 });
 
 // =====================================================
-//  Submit: leer Excel y mostrar vista previa (no envía)
+//  Submit: leer Excel y mostrar vista previa (no envía al backend)
+//  - Valida tamaño y existencia del archivo
+//  - Usa FileReader + XLSX para parsear la primera hoja
+//  - Limita a 10k filas por rendimiento (opcional)
 // =====================================================
 $(document).on('submit', '#formSubirExcel', function (e) {
   e.preventDefault();
@@ -309,11 +346,11 @@ $(document).on('submit', '#formSubirExcel', function (e) {
       const data = new Uint8Array(event.target.result);
       const workbook = XLSX.read(data, { type: 'array' });
 
-      // Tomamos la PRIMERA hoja para la vista previa (se puede extender a más)
+      // Tomamos la PRIMERA hoja para la vista previa
       const firstSheet = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[firstSheet];
 
-      // Convertimos a JSON (defval:null para no perder celdas vacías)
+      // Convertimos a JSON manteniendo celdas vacías (defval:null)
       let jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: null });
 
       // Limitar a 10k filas por rendimiento (opcional)
@@ -327,7 +364,7 @@ $(document).on('submit', '#formSubirExcel', function (e) {
         });
       }
 
-      // Guardar y renderizar
+      // Guardar en estado global y renderizar tabla de vista previa
       window.excelPreview.rows = jsonData;
       renderPreviewTable(jsonData);
 
@@ -348,6 +385,7 @@ $(document).on('submit', '#formSubirExcel', function (e) {
 
 // ======================================
 //  Botón: limpiar vista previa
+//  - Restablece estado interno y UI
 // ======================================
 $('#btnLimpiarVista').on('click', function () {
   window.excelPreview.rows = [];
@@ -361,6 +399,9 @@ $('#btnLimpiarVista').on('click', function () {
 
 // ======================================
 //  Botón: procesar (envía al backend)
+//  - Valida filtros requeridos
+//  - Envía archivo + metadatos vía FormData a /procesar-excel-precios
+//  - Muestra feedback y refresca tabla principal
 // ======================================
 $('#btnProcesar').on('click', async function () {
   const file = $('#archivo_excel')[0].files[0];
@@ -399,7 +440,6 @@ $('#btnProcesar').on('click', async function () {
 });
 
 
-//Indice en base de datos
+// Índices sugeridos a nivel de base de datos para mejorar performance en consultas frecuentes:
 // CREATE INDEX idx_ppc_cat_prod ON precios_producto_carga (categoria_precios_id, producto_id);
-//CREATE INDEX idx_ppc_estado ON precios_producto_carga (estado_id);
-
+// CREATE INDEX idx_ppc_estado   ON precios_producto_carga (estado_id);
