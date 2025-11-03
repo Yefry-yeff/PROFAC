@@ -172,9 +172,16 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('/filtros/categoria', function() {
         return \App\Models\ModelCategoriaProducto::select('id','descripcion as nombre')->get();
     });
+    /* Categoria de cliente */
     Route::post('/guardar/categoria/cliente', [CategoriaClientes::class, 'guardarCtaegoria']);
     Route::get('/listar/categoria/cliente', [CategoriaClientes::class, 'listarCategorias']);
     Route::get('/desactivar/categoria/cliente/{idCategoria}', [CategoriaClientes::class, 'desactivarCategoria']);
+
+    /* Categoria de Precios */
+
+    Route::post('/guardar/categoria/precios', [CategoriaPrecios::class, 'guardarCtaegoria']);
+    Route::get('/listar/categoria/precios', [CategoriaPrecios::class, 'listarCategorias']);
+    Route::get('/desactivar/categoria/precios/{idCategoria}', [CategoriaPrecios::class, 'desactivarCategoria']);
 
 
     //-----------------------Bodega---------------------------------------------------------------------------------------------------------------------//

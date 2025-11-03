@@ -98,7 +98,7 @@
   <h3 class="mb-0 text-dark"><b>Categoría de Clientes</b></h3>
   <h4>Creación de categorías</h4>
   <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modalCategoriasClientes">
-    Abrir Ventana de creación
+    + Crear
   </button>
 </div>
 

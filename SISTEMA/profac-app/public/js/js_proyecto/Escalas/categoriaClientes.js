@@ -22,6 +22,7 @@
                 //$('#tbl_ClientesLista').DataTable().ajax.reload();
                 document.getElementById('btn_guardar_categoria').disabled=false;
 
+                $('#tbl_listaCategoria').DataTable().ajax.reload();
                 Swal.fire({
                     icon: data.icon,
                     title: data.title,
@@ -51,7 +52,7 @@
                 destroy: true,
                 order: [0, 'desc'],
                 language: {"url": "https://cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"},
-                pageLength: 10,
+                pageLength: 5,
                 responsive: true,
                 ajax: "/listar/categoria/cliente",
                 columns: [
