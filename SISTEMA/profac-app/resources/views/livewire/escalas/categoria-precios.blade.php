@@ -1,5 +1,29 @@
 @push('styles')
 <style>
+.select2-dropdown { scroll-behavior: smooth; }
+.select2-hidden-accessible {
+  border: 0 !important;
+  clip: rect(0 0 0 0) !important;
+  height: 1px !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+  position: absolute !important;
+  width: 1px !important;
+}
+/* Asegurar buen padding del texto y clear dentro del select */
+.select2-container--bootstrap4 .select2-selection--single .select2-selection__rendered {
+  line-height: 28px;         /* ya lo tenías */
+  padding-left: 0.5rem;      /* añade espacio para el texto */
+  padding-right: 2rem;       /* deja espacio para el botón clear */
+}
+
+.select2-container--bootstrap4 .select2-selection--single .select2-selection__clear {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+}
 
 /* =============================
    Encabezado y tarjetas
@@ -146,9 +170,11 @@ textarea.form-control, input.form-control {
 
 <div class="card shadow-sm border-0 mb-3">
     <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center">
-        <h6 <b>CATEGORIA DE PRECIOS DE PRODUCTO</b></h6>
+        <h6 class="mb-0"><b>CATEGORÍA DE PRECIOS DE PRODUCTO</b></h6>
+
     <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#modalCategoriasPrecios">
-        <i class="bi bi-plus-circle me-1"></i> + Creación
+        <i class="bi bi-plus-circle mr-1"></i> + Creación
+
     </button>
     </div>
   <div class="card-body p-2">
@@ -219,7 +245,8 @@ textarea.form-control, input.form-control {
 
             <!-- Categoria de precios -->
             <div class="filtro-item">
-                <select id="listaTipoFiltroCatPrecios" name="listaTipoFiltroCatPrecios" class="form-control select2bs4 filtro-select">
+                <select id="listaTipoFiltroCatPrecios" name="listaTipoFiltroCatPrecios" class="form-control select2bs4 filtro-select" required>
+
                     <option value="">Seleccione Categoría de precio</option>
                 </select>
             </div>
@@ -240,7 +267,9 @@ textarea.form-control, input.form-control {
 
 
 <!-- MODAL ELEGANTE -->
-<div class="modal fade" id="modalCategoriasPrecios" tabindex="-1" role="dialog" aria-labelledby="modalCategoriasPreciosTitle" aria-hidden="true">
+<div class="modal fade" id="modalCategoriasPrecios" tabindex="-1" role="dialog"
+     aria-labelledby="modalCategoriasPreciosTitle" aria-hidden="true"
+     data-backdrop="static" data-keyboard="false">
   <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
     <div class="modal-content border-0 shadow-lg rounded">
 
@@ -254,7 +283,7 @@ textarea.form-control, input.form-control {
 
       <!-- Body -->
       <div class="modal-body px-4 py-4 bg-light">
-        <form id="CreacionCatPrecios">
+        <form id="CreacionCatPrecios" autocomplete="off">
 
           <!-- Primera fila: Nombre y Descripción -->
           <div class="form-row">
@@ -280,22 +309,22 @@ textarea.form-control, input.form-control {
             <div class="form-group col-md-6">
               <label for="porc_precio_a" class="font-weight-bold">% Precio A</label>
               <input type="number" class="form-control form-control-lg border-primary" id="porc_precio_a" name="porc_precio_a"
-                placeholder="Ej: 5" min="0" max="100">
+                placeholder="Ej: 5" min="0" max="100" step="1" inputmode="numeric">
             </div>
             <div class="form-group col-md-6">
               <label for="porc_precio_b" class="font-weight-bold">% Precio B</label>
               <input type="number" class="form-control form-control-lg border-primary" id="porc_precio_b" name="porc_precio_b"
-                placeholder="Ej: 15" min="0" max="100">
+                placeholder="Ej: 15"  min="0" max="100" step="1" inputmode="numeric">
             </div>
             <div class="form-group col-md-6">
               <label for="porc_precio_c" class="font-weight-bold">% Precio C</label>
               <input type="number" class="form-control form-control-lg border-primary" id="porc_precio_c" name="porc_precio_c"
-                placeholder="Ej: 20" min="0" max="100">
+                placeholder="Ej: 20" min="0" max="100" step="1" inputmode="numeric">
             </div>
             <div class="form-group col-md-6">
               <label for="porc_precio_d" class="font-weight-bold">% Precio D</label>
               <input type="number" class="form-control form-control-lg border-primary" id="porc_precio_d" name="porc_precio_d"
-                placeholder="Ej: 30" min="0" max="100">
+                placeholder="Ej: 30" min="0" max="100" step="1" inputmode="numeric">
             </div>
           </div>
 
