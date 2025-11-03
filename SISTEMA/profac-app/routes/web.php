@@ -172,6 +172,9 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('/filtros/categoria', function() {
         return \App\Models\ModelCategoriaProducto::select('id','descripcion as nombre')->get();
     });
+    Route::get('/filtros/categoria/precios', function() {
+        return \App\Models\Escalas\modelCategoriaPrecios::select('id','nombre')->get();
+    });
     /* Categoria de cliente */
     Route::post('/guardar/categoria/cliente', [CategoriaClientes::class, 'guardarCtaegoria']);
     Route::get('/listar/categoria/cliente', [CategoriaClientes::class, 'listarCategorias']);

@@ -35,6 +35,7 @@
                     width: 'resolve'
                 });
 
+
                 // Lista de valores según el filtro
                 $('#listaTipoFiltro').select2({
                     theme: 'bootstrap4',
@@ -51,7 +52,7 @@
 
                 if (!tipo) return;
 
-                let url = tipo == '1' ? '/filtros/marca' : '/filtros/categoria';
+                let url = tipo == '1' ? '/filtros/marca' : '/filtros/categoria' ;
 
                 $.ajax({
                     url: url,
@@ -65,6 +66,25 @@
                         $listaTipo.trigger('change');
                     }
                 });
+            });
+
+           $('#listaTipoFiltroCatPrecios').select2({
+                theme: 'bootstrap4',
+                placeholder: 'Seleccione Categoría de precio',
+                allowClear: true,
+                ajax: {
+                    url: '/filtros/categoria/precios',
+                    dataType: 'json',
+                    delay: 250,
+                    processResults: function (data) {
+                        return {
+                            results: data.map(function(item) {
+                                return { id: item.id, text: item.nombre }; // <-- aquí
+                            })
+                        };
+                    },
+                    cache: true
+                }
             });
 
             $('#categoria_cliente_id').select2({

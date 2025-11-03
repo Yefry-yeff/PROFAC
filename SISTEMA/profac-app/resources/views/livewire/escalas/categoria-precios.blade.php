@@ -1,5 +1,6 @@
 @push('styles')
 <style>
+
 /* =============================
    Encabezado y tarjetas
 ============================= */
@@ -213,6 +214,13 @@ textarea.form-control, input.form-control {
             <div class="filtro-item">
                 <select id="listaTipoFiltro" name="listaTipoFiltro" class="form-control select2bs4 filtro-select">
                     <option value="">Seleccione filtro</option>
+                </select>
+            </div>
+
+            <!-- Categoria de precios -->
+            <div class="filtro-item">
+                <select id="listaTipoFiltroCatPrecios" name="listaTipoFiltroCatPrecios" class="form-control select2bs4 filtro-select">
+                    <option value="">Seleccione Categoría de precio</option>
                 </select>
             </div>
 

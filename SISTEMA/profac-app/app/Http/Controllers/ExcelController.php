@@ -14,16 +14,17 @@ class ExcelController extends Controller
          $tipoCategoria = $request->input('tipoCategoria'); // escalable o manual
         $tipoFiltro = $request->input('tipoFiltro');
         $valorFiltro = $request->input('listaTipoFiltro');
+        $valorCategoria = $request->input('listaTipoFiltroCatPrecios');
 
         if ($tipoCategoria === 'manual') {
             return Excel::download(
-                new ProductosPlantillaExportManual($tipoFiltro, $valorFiltro),
+                new ProductosPlantillaExportManual($tipoFiltro, $valorFiltro, $valorCategoria),
                 'plantilla_productos_manual.xlsx'
             );
         }
 
         return Excel::download(
-            new ProductosPlantillaExport($tipoFiltro, $valorFiltro),
+            new ProductosPlantillaExport($tipoFiltro, $valorFiltro, $valorCategoria),
             'plantilla_productos_escalable.xlsx'
         );
     }

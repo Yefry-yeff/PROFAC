@@ -12,11 +12,13 @@ class ProductosPlantillaExport implements FromQuery, WithHeadings, WithMapping
 
     protected $tipoFiltro;
     protected $valorFiltro;
+    protected $valorCategoria;
 
-    public function __construct($tipoFiltro = null, $valorFiltro = null)
+    public function __construct($tipoFiltro = null, $valorFiltro = null, $valorCategoria = null)
     {
         $this->tipoFiltro = $tipoFiltro;
         $this->valorFiltro = $valorFiltro;
+        $this->valorCategoria = $valorCategoria;
     }
 
     public function query()
@@ -59,6 +61,7 @@ class ProductosPlantillaExport implements FromQuery, WithHeadings, WithMapping
     public function headings(): array
     {
         return [
+            'idCategoriaPrecio',
             'idtipocategoria',
             'tipocategoriaprecio',
             'idproducto',
@@ -89,6 +92,7 @@ class ProductosPlantillaExport implements FromQuery, WithHeadings, WithMapping
     public function map($row): array
     {
         return [
+            $this->valorCategoria,
             $row->idtipocategoria,
             $row->tipocategoriaprecio,
             $row->idproducto,
