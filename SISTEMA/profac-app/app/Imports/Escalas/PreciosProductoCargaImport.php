@@ -120,6 +120,14 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
          * En cada vuelta se valida la información y se construye un array estructurado
          * con la información que será insertada en la tabla `precios_producto_carga`.
          */
+       $actualizados = DB::table('precios_producto_carga')
+        ->where('categoria_precios_id', $this->categoriaPrecioId)
+        ->where('estado_id', 1)
+        ->update(['estado_id' => 2]);
+
+
+
+
         foreach ($rows as $row) {
             $this->rowsRead++; // Incrementa el contador de filas leídas
 
@@ -159,42 +167,120 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
             $tipoCategoriaId = $this->asInt($row['idtipocategoria'] ?? null);
             if (!$tipoCategoriaId) {
                 $tipoCategoriaId = $this->tipoCategoria === 'manual' ? 2 : 1;
+
             }
 
-            /**
-             * Se prepara la estructura de datos lista para insertar en la base.
-             * Los campos faltantes o vacíos se manejan de forma segura con valores por defecto o nulos.
-             */
-            $batch[] = [
-                'categoria_precios_id'     => $catPrecioId,
-                'comentario'               => $this->asStr($row['comentario'] ?? null),
-                'producto_id'              => $productoId,
-                'estado_id'                => 1, // siempre activo al crear
-                'precio_a'                 => $this->numOrZero($row['precio_a'] ?? null),
-                'precio_b'                 => $this->numOrZero($row['precio_b'] ?? null),
-                'precio_c'                 => $this->numOrZero($row['precio_c'] ?? null),
-                'precio_d'                 => $this->numOrZero($row['precio_d'] ?? null),
-                'precio_base_venta'        => $this->asFloat($row['precio_base_venta'] ?? null),
-                'tipo_categoria_precio_id' => $tipoCategoriaId,
-                'users_id_creador'         => $this->userId,
-                'precio_compra_usd'        => $this->asFloat($row['precio_compra_usd'] ?? null),
-                'tipo_cambio_usd'          => $this->asFloat($row['tipo_cambio_usd'] ?? null),
-                'precio_hnl'               => $this->asFloat($row['precio_hnl'] ?? null),
-                'flete'                    => $this->asFloat($row['flete'] ?? null),
-                'arancel'                  => $this->asFloat($row['arancel'] ?? null),
-                'porc_flete'               => $this->asFloat($row['porc_flete'] ?? null),
-                'porc_arancel'             => $this->asFloat($row['porc_arancel'] ?? null),
-                'categoria_producto_id'    => $this->asInt($row['categoria_producto_id'] ?? null),
-                'sub_categoria_id'         => $this->asInt($row['sub_categoria_id'] ?? null),
-                'marca_id'                 => $this->asInt($row['marca_id'] ?? null),
-                'unidad_medida_compra_id'  => $unidadId,
-                'costoproducto'            => $this->asFloat($row['costoproducto'] ?? null),
-                'created_at'               => $now,
-                'updated_at'               => $now,
-            ];
+            $categoriaProductoId = $this->asInt($row['categoria_producto_id'] ?? null);
 
-            // Se agrupan los productos por categoría para poder inactivar los registros anteriores antes de insertar los nuevos.
-            $groupForInactivate[$catPrecioId][] = $productoId;
+            if (!$categoriaProductoId) {
+                throw new \RuntimeException("No se pudo determinar categoria_producto_id para producto {$productoId}");
+            }
+
+            $subcategoriaProductoId = $this->asInt($row['sub_categoria_id'] ?? null);
+
+            if (!$subcategoriaProductoId) {
+                throw new \RuntimeException("No se pudo determinar subcategoria_producto_id para producto {$productoId}");
+            }
+
+
+            $marca_idProductoId = $this->asInt($row['marca_id'] ?? null);
+
+            if (!$marca_idProductoId) {
+                throw new \RuntimeException("No se pudo determinar subcategoria_producto_id para producto {$productoId}");
+
+            }
+
+            if ((int)$tipoCategoriaId === 1) {
+                // 1) Traer porcentajes correctamente (un solo registro)
+                $cat = DB::table('categoria_precios')
+                    ->select('porc_precio_a','porc_precio_b','porc_precio_c','porc_precio_d')
+                    ->where('id', $catPrecioId)
+                    ->first();
+
+                    //dd($cat->porc_precio_a);
+                if (!$cat) {
+                    throw new \RuntimeException('Categoría de precios no existe: '.$catPrecioId);
+                }
+
+
+                // 2) Tomar base desde el Excel (asegura encabezado correcto)
+                $precioBase = $this->asFloat($row['precio_base_venta']);
+                if ($precioBase === null) {
+                    throw new \RuntimeException('Falta columna "precio_base_venta" en el Excel.');
+                }
+
+                // 3) Calcular precios
+                $precioA = $precioBase + (($cat->porc_precio_a/100)*$precioBase);
+                $precioB = $precioBase + (($cat->porc_precio_b/100)*$precioBase);
+                $precioC = $precioBase + (($cat->porc_precio_c/100)*$precioBase);
+                $precioD = $precioBase + (($cat->porc_precio_d/100)*$precioBase);
+
+                // 4) Usar los calculados en el batch (no los del Excel)
+                $batch[] = [
+                    'categoria_precios_id'   => $catPrecioId,
+                    'comentario'             => $this->asStr($row['comentario'] ?? null),
+                    'producto_id'            => $productoId,
+                    'estado_id'              => 1,
+                    'precio_a'               => $precioA,
+                    'precio_b'               => $precioB,
+                    'precio_c'               => $precioC,
+                    'precio_d'               => $precioD,
+                    'precio_base_venta'      => $precioBase,
+                    'categoria_producto_id'    => $categoriaProductoId,
+                    'sub_categoria_id'    => $subcategoriaProductoId,
+                    'marca_id'    => $marca_idProductoId,
+                    'tipo_categoria_precio_id'=> $tipoCategoriaId,
+                    'users_id_creador'       => $this->userId,
+                    'precio_compra_usd'      => $this->asFloat($row['precio_compra_usd'] ?? null),
+                    'tipo_cambio_usd'        => $this->asFloat($row['tipo_cambio_usd'] ?? null),
+                    'flete'                  => $this->asFloat($row['flete'] ?? null),
+                    'arancel'                => $this->asFloat($row['arancel'] ?? null),
+                    'porc_flete'                => $this->asFloat($row['porc_flete'] ?? null),
+                    'porc_arancel'                => $this->asFloat($row['porc_arancel'] ?? null),
+                    'costoproducto'                => $this->asFloat($row['costoproducto'] ?? null),
+                    'unidad_medida_compra_id'   => $this->asFloat($row['unidad_medida_compra_id'] ?? null),
+                    'precio_hnl'   => $this->asFloat($row['precio_hnl'] ?? null),
+                    'created_at'             => now(),
+                    'updated_at'             => now(),
+                ];
+            }else{
+
+                            /**
+                             * Se prepara la estructura de datos lista para insertar en la base.
+                             * Los campos faltantes o vacíos se manejan de forma segura con valores por defecto o nulos.
+                             */
+                    $batch[] = [
+                        'categoria_precios_id'   => $catPrecioId,
+                        'comentario'             => $this->asStr($row['comentario'] ?? null),
+                        'producto_id'            => $productoId,
+                        'estado_id'              => 1,
+                        'precio_a'                 => $this->numOrZero($row['precio_a'] ?? null),
+                        'precio_b'                 => $this->numOrZero($row['precio_b'] ?? null),
+                        'precio_c'                 => $this->numOrZero($row['precio_c'] ?? null),
+                        'precio_d'                 => $this->numOrZero($row['precio_d'] ?? null),
+                        'precio_base_venta'      => $this->asFloat($row['precio_base_venta']),
+                        'categoria_producto_id'    => $categoriaProductoId,
+                        'sub_categoria_id'    => $subcategoriaProductoId,
+                        'marca_id'    => $marca_idProductoId,
+                        'tipo_categoria_precio_id'=> $tipoCategoriaId,
+                        'users_id_creador'       => $this->userId,
+                        'precio_compra_usd'      => $this->asFloat($row['precio_compra_usd'] ?? null),
+                        'tipo_cambio_usd'        => $this->asFloat($row['tipo_cambio_usd'] ?? null),
+                        'flete'                  => $this->asFloat($row['flete'] ?? null),
+                        'arancel'                => $this->asFloat($row['arancel'] ?? null),
+                        'porc_flete'                => $this->asFloat($row['porc_flete'] ?? null),
+                        'porc_arancel'                => $this->asFloat($row['porc_arancel'] ?? null),
+                        'costoproducto'                => $this->asFloat($row['costoproducto'] ?? null),
+                        'unidad_medida_compra_id'   => $this->asFloat($row['unidad_medida_compra_id'] ?? null),
+                        'precio_hnl'   => $this->asFloat($row['precio_hnl'] ?? null),
+                        'created_at'             => now(),
+                        'updated_at'             => now(),
+                    ];
+
+                            // Se agrupan los productos por categoría para poder inactivar los registros anteriores antes de insertar los nuevos.
+                            $groupForInactivate[$catPrecioId][] = $productoId;
+
+                        }
         }
 
         // Si no hay registros válidos en el bloque, termina aquí.

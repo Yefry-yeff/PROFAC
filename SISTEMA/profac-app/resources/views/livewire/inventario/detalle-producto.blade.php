@@ -450,12 +450,6 @@
                                 <input class="form-group form-control" step="any"  type="number" name="precio4" id="precio4" data-parsley-required disabled >
                             </div>
 
-
-
-
-
-
-
                             <div class="col-md-4">
                                 <label for="marca_producto_editar" class="col-form-label focus-label">Marca de
                                     producto:<span class="text-danger">*</span></label>

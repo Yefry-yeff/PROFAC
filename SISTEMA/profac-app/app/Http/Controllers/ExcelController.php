@@ -139,7 +139,7 @@ class ExcelController extends Controller
             return response()->json([
                 'icon'  => 'success',
                 'title' => 'Procesado correctamente',
-                'text'  => "Leídas: {$stats['rows_read']} | Insertadas: {$stats['rows_inserted']} | Inactivadas (Todos los registros iguales): {$stats['rows_inactivated']} | Omitidas: {$stats['rows_skipped']}",
+                'text'  => "Leídas: {$stats['rows_read']} | Insertadas: {$stats['rows_inserted']} | Omitidas: {$stats['rows_skipped']}",
                 'debug' => $stats,
             ]);
         } catch (\Throwable $e) {

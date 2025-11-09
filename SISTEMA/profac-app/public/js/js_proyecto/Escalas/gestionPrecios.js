@@ -1,3 +1,34 @@
+
+
+function cargarCategoriasClienteEnModal() {
+  const $sel = $('#categoria_cliente_id');
+  const url  = $sel.data('url');
+
+  // limpiar opciones y dejar placeholder
+  $sel.empty().append('<option value="">Seleccione una categoría...</option>');
+
+  $.getJSON(url)
+    .done(res => {
+      (res.categorias || []).forEach(c => {
+        $sel.append(`<option value="${c.id}">${c.nombre_categoria}</option>`);
+      });
+    })
+    .fail(() => {
+      Swal.fire({ icon:'error', title:'Error', text:'No se pudo cargar Categoría de Cliente.' });
+    });
+}
+
+// Cargar SIEMPRE al abrir el modal
+$('#modalCategoriasPrecios').on('shown.bs.modal', function () {
+  cargarCategoriasClienteEnModal();
+});
+
+// (opcional) limpiar al cerrar
+$('#modalCategoriasPrecios').on('hidden.bs.modal', function () {
+  const $sel = $('#categoria_cliente_id');
+  $sel.empty().append('<option value="">Seleccione una categoría...</option>');
+});
+
 // === Habilitar/Deshabilitar botón "Descargar" (MISMA lógica actual)
 // Controla el estado del botón "Descargar" en función de que todos los filtros requeridos
 // tengan un valor seleccionado. Si falta alguno, deshabilita el botón para evitar acciones inválidas.
@@ -106,13 +137,13 @@ $(document).ready(function () {
 
   // === Select2 dentro del modal (categoría de cliente)
   // Se especifica dropdownParent para asegurar el correcto renderizado dentro del modal.
-  $('#categoria_cliente_id').select2({
+  /* $('#categoria_cliente_id').select2({
     theme: 'bootstrap4',
     placeholder: 'Seleccione una categoría...',
     allowClear: true,
     minimumResultsForSearch: 0,
     dropdownParent: $('#modalCategoriasPrecios')
-  });
+  }); */
 
   // === Resetear formulario al cerrar el modal
   // Evita que queden valores anteriores al reabrir el modal.
@@ -145,7 +176,12 @@ $(document).on('submit', '#CreacionCatPrecios', function (event) {
 // Envía el formulario del modal al backend y maneja la respuesta con feedback visual.
 function registrarCategoriaPrecios() {
   const $btn = $('#btn_guardar_categoria');
-  $btn.prop('disabled', true);
+  const cat = $('#categoria_cliente_id').val();
+
+  if (!cat) {
+    Swal.fire({ icon:'warning', title:'Falta categoría', text:'Seleccione una categoría de cliente.' });
+    return;
+  }
 
   var data = new FormData($('#CreacionCatPrecios').get(0));
 
@@ -428,8 +464,10 @@ $('#btnProcesar').on('click', async function () {
     const res = await axios.post('/procesar-excel-precios', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
     const d = res.data || {};
     console.log('Stats import:', d.debug || {});
-    Swal.fire({ icon: d.icon || 'success', title: d.title || 'Listo', text: d.text || 'Procesado.' });
+
     $('#tbl_listaCategoria').DataTable().ajax.reload();
+    Swal.fire({ icon: d.icon || 'success', title: d.title || 'Listo', text: d.text || 'Procesado.' }).then(() => location.reload());
+
   } catch (err) {
     const d = err.response?.data || {};
     console.error('Error:', d);

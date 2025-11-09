@@ -351,15 +351,14 @@ textarea.form-control, input.form-control {
             </div>
 
             <!-- Categoría de cliente -->
-            <div class="form-group col-md-6">
-                <label for="categoria_cliente_id" class="font-weight-bold">Categoría de Cliente</label>
-                <select id="categoria_cliente_id" name="categoria_cliente_id" required>
-                    <option value="">Seleccione una categoría...</option>
-                    @foreach($categoriasClientes as $categoria)
-                        <option value="{{ $categoria->id }}">{{ $categoria->nombre_categoria }}</option>
-                    @endforeach
-                </select>
-            </div>
+            <select id="categoria_cliente_id"
+                    name="categoria_cliente_id"
+                    class="form-control"
+                    data-url="{{ route('clientes.categorias.escala') }}"  {{-- devuelve id, nombre_categoria --}}
+                    required>
+                <option value="">Seleccione una categoría...</option>
+            </select>
+
 
             <div class="form-group col-md-6">
               <label for="porc_precio_a" class="font-weight-bold">% Precio A</label>

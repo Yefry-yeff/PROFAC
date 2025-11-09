@@ -174,7 +174,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
         return \App\Models\ModelCategoriaProducto::select('id','descripcion as nombre')->get();
     });
     Route::get('/filtros/categoria/precios', function() {
-        return \App\Models\Escalas\modelCategoriaPrecios::select('id','nombre')->get();
+        return \App\Models\Escalas\modelCategoriaPrecios::select('id','nombre')->where('estado_id','=',1)->get();
     });
     /* Categoria de cliente */
     Route::post('/guardar/categoria/cliente', [CategoriaClientes::class, 'guardarCtaegoria']);
