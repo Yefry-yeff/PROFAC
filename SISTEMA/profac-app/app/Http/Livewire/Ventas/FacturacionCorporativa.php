@@ -336,7 +336,7 @@ class FacturacionCorporativa extends Component
             where A.estado_id = 1 and A.producto_id = " . $request->idProducto
             );
             /* CAMBIO 20230725 FORMAT(ultimo_costo_compra,2):FORMAT(precio_base,2)*/
-            $producto = DB::SELECTONE("
+           /*  $producto = DB::SELECTONE("
             select
             id,
             concat(id,' - ',nombre) as nombre,
@@ -348,7 +348,29 @@ class FacturacionCorporativa extends Component
             precio3 as precio3,
             precio4 as precio4
             from producto where id = " . $request['idProducto'] . "
-            ");
+            "); */
+            $producto = DB::selectOne("
+                SELECT
+                    p.id,
+                    CONCAT(p.id,' - ',p.nombre) AS nombre,
+                    p.isv,
+                    p.ultimo_costo_compra AS ultimo_costo_compra,
+                    ppc.precio_base_venta AS precio_base,
+                    ppc.precio_a AS precio1,
+                    ppc.precio_b AS precio2,
+                    ppc.precio_c AS precio3,
+                    ppc.precio_d AS precio4
+                FROM producto p
+                JOIN cliente cON c.id = :idCliente
+                JOIN precios_producto_carga ppc ON ppc.producto_id = p.id AND ppc.estado_id = 1 AND ppc.cliente_categoria_escala_id = c.cliente_categoria_escala_id
+                WHERE p.id = :idProducto
+                ORDER BY ppc.updated_at DESC
+                LIMIT 1
+            ", [
+                'idCliente'  => $request['idCliente'],
+                'idProducto' => $request['idProducto'],
+            ]);
+
 
 
             return response()->json([

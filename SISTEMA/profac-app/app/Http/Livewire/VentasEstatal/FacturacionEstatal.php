@@ -243,7 +243,7 @@ class FacturacionEstatal extends Component
             where A.estado_id = 1 and A.producto_id = " . $request->idProducto
             );
 
-            $producto = DB::SELECTONE("
+            /* $producto = DB::SELECTONE("
             select
             id,
             concat(id,' - ',nombre) as nombre,
@@ -255,8 +255,39 @@ class FacturacionEstatal extends Component
             precio3 as precio3,
             precio4 as precio4
             from producto where id = " . $request['idProducto'] . "
-            ");
+            "); */
+           $producto = DB::selectOne("
+    SELECT
+      p.id,
+      CONCAT(p.id,' - ',p.nombre) AS nombre,
+      p.isv,
+      p.ultimo_costo_compra AS ultimo_costo_compra,
+      p.precio_base AS precio_base,
+      ppc.precio_a AS precio1,
+      ppc.precio_b AS precio2,
+      ppc.precio_c AS precio3,
+      ppc.precio_d AS precio4
+    FROM producto p
+    JOIN cliente cli
+      ON cli.id = :idCliente
+    JOIN cliente_categoria_escala cce
+      ON cce.id = cli.cliente_categoria_escala_id
+     AND cce.estado_id = 1
+    JOIN categoria_precios cp
+      ON cp.cliente_categoria_escala_id = cce.id
+     AND cp.estado_id = 1
+    JOIN precios_producto_carga ppc
+      ON ppc.producto_id = p.id
+     AND ppc.categoria_precios_id = cp.id
+     AND ppc.estado_id = 1
+    WHERE p.id = :idProducto
+    LIMIT 1
+", [
+    'idCliente'  => $request['idCliente'],
+    'idProducto' => $request['idProducto'],
+]);
 
+//dd($producto);
 
             return response()->json([
                 "producto" => $producto,
