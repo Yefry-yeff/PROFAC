@@ -200,6 +200,8 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 
         Route::post('/clientes/importar-categorias', [ClienteLW::class,'importarCategoriaClientes'])
             ->name('clientes.importar.categorias');
+        Route::get('/clientes/categorias-escala', [ClienteLW::class,'listaCategoriasEscala'])
+    ->name('clientes.categorias.escala');
 
     //-----------------------Bodega---------------------------------------------------------------------------------------------------------------------//
     Route::get('/bodega', Bodega::class);

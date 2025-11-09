@@ -141,6 +141,7 @@ class Cliente extends Component
             $cliente->users_id = Auth::user()->id;
             $cliente->estado_cliente_id = 1;
             $cliente->municipio_id = $request->municipio_cliente;
+            $cliente->cliente_categoria_escala_id = $request->cliente_categoria_escala_id_crear;
             $cliente->save();
 
 
@@ -187,6 +188,7 @@ class Cliente extends Component
                 $cliente->estado_cliente_id = 1;
                 $cliente->municipio_id = $request->municipio_cliente;
 
+            $cliente->cliente_categoria_escala_id = $request->cliente_categoria_escala_id_crear;
                 $cliente->save();
 
 
@@ -215,7 +217,7 @@ class Cliente extends Component
         DB::commit();
         return response()->json([
             "icon" => "success",
-            "text" => "Registro de pago realizo con exito!",
+            "text" => "Registro realizado con exito!",
             "title"=>"Exito!"
         ],200);
 
@@ -350,6 +352,8 @@ class Cliente extends Component
             users_id,
             estado_cliente_id,
             municipio_id,
+            cliente_categoria_escala_id,
+            (select nombre_categoria from cliente_categoria_escala where id = cliente_categoria_escala_id) as nombre_cat_escala,
             created_at,
             updated_at
         from cliente
@@ -433,6 +437,7 @@ class Cliente extends Component
         $cliente->users_id = Auth::user()->id;
         $cliente->estado_cliente_id = 1;
         $cliente->municipio_id = $request->municipio_cliente_editar;
+        $cliente->cliente_categoria_escala_id = $request->categoria_cliente_escala_editar;
         $cliente->save();
 
         ModelContacto::where('cliente_id','=', $request->idCliente)
@@ -679,5 +684,20 @@ class Cliente extends Component
         }
     }
 
+   public function listaCategoriasEscala(Request $request)
+{
+    $q = trim((string) $request->get('q', ''));
+
+    $cats = \DB::table('cliente_categoria_escala')
+        ->select('id', 'nombre_categoria')
+        ->when($q !== '', function ($qq) use ($q) {
+            $qq->where('nombre_categoria', 'like', '%'.$q.'%');
+        })
+        ->orderBy('nombre_categoria')
+        ->limit(50)
+        ->get();
+
+    return response()->json(['categorias' => $cats], 200);
+}
 
 }

@@ -4,6 +4,7 @@
 
 
         <style>
+              .select2-container .select2-dropdown { z-index: 2055 !important; }
             @media (max-width: 600px) {
                 .ancho-imagen {
                     max-width: 200px;
@@ -21,6 +22,68 @@
                     max-width: 300px;
                 }
                 }
+
+
+                .select2-dropdown { scroll-behavior: smooth; }
+.select2-hidden-accessible {
+  border: 0 !important;
+  clip: rect(0 0 0 0) !important;
+  height: 1px !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+  position: absolute !important;
+  width: 1px !important;
+}
+/* Asegurar buen padding del texto y clear dentro del select */
+.select2-container--bootstrap4 .select2-selection--single .select2-selection__rendered {
+  line-height: 28px;         /* ya lo tenías */
+  padding-left: 0.5rem;      /* añade espacio para el texto */
+  padding-right: 2rem;       /* deja espacio para el botón clear */
+}
+
+.select2-container--bootstrap4 .select2-selection--single .select2-selection__clear {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+/* =============================
+   Select2 — todos los selects
+============================= */
+.select2-container {
+    z-index: 999 !important; /* Siempre encima de modales */
+    width: 100% !important;   /* Ocupa todo el ancho del contenedor */
+    font-size: 0.9rem;
+}
+
+.select2-dropdown {
+    z-index: 3050 !important;
+    max-height: 200px; /* Scroll si hay muchos items */
+    overflow-y: auto;
+}
+
+/* Select2 estilo Bootstrap 4 */
+.select2-container--bootstrap4 .select2-selection--single {
+    height: 38px;          /* Altura igual a inputs grandes */
+    padding: 6px 12px;
+    border-radius: 0.35rem;
+    border: 1px solid #ced4da;
+}
+
+.select2-container--bootstrap4 .select2-selection__rendered {
+    line-height: 28px;     /* Ajuste vertical del texto */
+}
+
+.select2-container--bootstrap4 .select2-selection__arrow {
+    height: 34px;
+    right: 8px;
+}
+
+/* Placeholder gris más suave */
+.select2-container--bootstrap4 .select2-selection__placeholder {
+    color: #6c757d;
+}
           </style>
 
 
@@ -107,6 +170,18 @@
                         <form id="clientesCreacionForm" name="clientesCreacionForm" data-parsley-validate>
                             <input type="hidden" name="_token" value="{!! csrf_token() !!}">
                             <div class="row" id="row_datos">
+                                <div class="col-md-4">
+                                    <label class="col-form-label focus-label">
+                                        Categoría de cliente / Escala de precios <span class="text-danger">*</span>
+                                    </label>
+                                    <select class="form-group form-control"
+                                            id="cliente_categoria_escala_id_crear"
+                                            name="cliente_categoria_escala_id_crear"
+                                            data-url="{{ route('clientes.categorias.escala') }}"
+                                            required>
+                                        <option value="" selected disabled>--- Seleccione una categoría ---</option>
+                                    </select>
+                                </div>
 
                                 <div class="col-md-12">
                                     <label class="col-form-label focus-label">Nombre del cliente<span class="text-danger">*</span></label>
@@ -263,6 +338,17 @@
 
                             <div class="row" id="row_datos">
                                 <input id="idCliente" name="idCliente" type="hidden" >
+
+                                <div class="col-md-12">
+                                    <label class="col-form-label focus-label">
+                                        Categoría de cliente / Escala de precios
+                                    </label>
+
+                                    <select class="form-control" id="categoria_cliente_escala_editar"
+                                            name="categoria_cliente_escala_editar">
+                                        <!-- Lo llenamos por JS -->
+                                    </select>
+                                </div>
 
                                 <div class="col-md-12">
                                     <label class="col-form-label focus-label">Nombre del cliente</label>

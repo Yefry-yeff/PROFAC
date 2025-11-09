@@ -291,6 +291,18 @@ $(document).ready(function() {
         });
 
       function registrarCliente(){
+          const catEscala = $('#cliente_categoria_escala_id_crear').val();
+            if (!catEscala || catEscala === '') {
+                Swal.fire({
+                icon: 'warning',
+                title: 'Falta la categoría/escala',
+                text: 'Seleccioná una categoría de cliente antes de crear.'
+                });
+                return;
+            }
+
+
+            console.log(document.getElementById('cliente_categoria_escala_id_crear').value);
         document.getElementById('btn_crear_cliente').disabled=true;
         let contacto2 = document.getElementsByName('contacto[]');
         let telefono2 = document.getElementsByName('telefono[]');
@@ -384,7 +396,49 @@ $(document).ready(function() {
 
 /*---------------------------------------------------------------Editar Cliente----------------------------------------------------------------------------------------------------------------*/
 /*---------------------------------------------------------------Editar Cliente----------------------------------------------------------------------------------------------------------------*/
+    // cache para no pedir las categorías cada vez
 
+
+    function fillCategoriaEscalaSelect(currentId = null, currentText = null) {
+        const $sel = $('#categoria_cliente_escala_editar');
+        $sel.empty();
+
+        // Trae todas las categorías
+        $.getJSON("/clientes/categorias-escala", function(res){
+        const list = res.categorias || [];
+
+        // Si NO hay categoría actual, ponemos placeholder
+        if (currentId === null || currentId === '' || typeof currentId === 'undefined') {
+            $sel.append(new Option('Seleccione…', '', true, true));
+            list.forEach(c => $sel.append(new Option(c.nombre_categoria, c.id, false, false)));
+            return;
+        }
+
+        // 1) Opción seleccionada con la categoría actual (visible arriba)
+        $sel.append(new Option(currentText ?? ('ID ' + currentId), currentId, true, true));
+
+        // 2) Agregar el resto EXCLUYENDO la actual
+        list.forEach(c => {
+            if (String(c.id) !== String(currentId)) {
+            $sel.append(new Option(c.nombre_categoria, c.id, false, false));
+            }
+        });
+        });
+    }
+loadCategoriasEscalaCreate();
+    function loadCategoriasEscalaCreate() {
+    const $sel = $('#cliente_categoria_escala_id_crear');
+    const url  = $sel.data('url');
+
+    // placeholder limpio
+    $sel.empty().append(new Option('--- Seleccione una categoría ---', '', true, true));
+
+    $.getJSON(url, function(res){
+        (res.categorias || []).forEach(c => {
+        $sel.append(new Option(c.nombre_categoria, c.id, false, false));
+        });
+    });
+    }
 
     function modalEditarCliente(id){
 
@@ -561,9 +615,10 @@ $(document).ready(function() {
             document.getElementById("categoria_cliente_editar").innerHTML=htmlSelectTipoCliente;
             document.getElementById("vendedor_cliente_editar").innerHTML=htmlSelectVendedor;
 
+            const actualId   = datosCliente.cliente_categoria_escala_id;
+            const actualText = datosCliente.nombre_cat_escala;
 
-
-
+             fillCategoriaEscalaSelect(actualId, actualText);
             $('#modal_clientes_editar').modal('show');
 
 
