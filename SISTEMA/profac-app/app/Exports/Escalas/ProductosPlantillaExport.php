@@ -69,6 +69,7 @@ class ProductosPlantillaExport implements FromQuery, WithHeadings, WithMapping
                 A.ultimo_costo_compra as costoProducto,            -- Último costo de compra registrado
                 A.precio_base as precioBase                        -- Precio base del producto
             ")
+            ->where('A.estado_producto_id','=', 1)
             ->orderBy('A.id', 'asc');
 
         /**

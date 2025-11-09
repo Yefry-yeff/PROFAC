@@ -13,18 +13,19 @@ class ModelCliente extends Model
    // protected $dateFormat = 'America/Tegucigalpa';
     protected $fillable = [
         'id',
-        'rtn',  
-        'correo',  
-        'latitud',  
-        'longitud',  
-        'url_imagen',  
-        'credito',  
-        'tipo_cliente_id',  
-        'tipo_personalidad_id',  
-        'categoria_id',  
-        'vendedor',  
-        'users_id',  
-        'estado_cliente_id',        
+        'rtn',
+        'correo',
+        'latitud',
+        'longitud',
+        'url_imagen',
+        'credito',
+        'tipo_cliente_id',
+        'tipo_personalidad_id',
+        'categoria_id',
+        'vendedor',
+        'users_id',
+        'estado_cliente_id',
+        'cliente_categoria_escala_id'
     ];
 
 

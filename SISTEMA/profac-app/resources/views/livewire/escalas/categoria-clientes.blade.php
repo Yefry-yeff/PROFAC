@@ -92,16 +92,6 @@
 }
 </style>
 @endpush
-
-<!-- ENCABEZADO Y BOTÓN -->
-<div class="d-flex justify-content-between align-items-center mb-3 p-2 bg-light rounded shadow-sm flex-wrap">
-  <h3 class="mb-0 text-dark"><b>Categoría de Clientes</b></h3>
-  <h4>Creación de categorías</h4>
-  <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modalCategoriasClientes">
-    + Crear
-  </button>
-</div>
-
 <!-- MODAL ELEGANTE -->
 <div class="modal fade" id="modalCategoriasClientes" tabindex="-1" role="dialog" aria-labelledby="modalCategoriasClientesTitle" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
@@ -156,34 +146,74 @@
   </div>
 </div>
 
-<!-- TABLA -->
-<div class="row mt-4">
-  <div class="col-lg-12">
-    <div class="ibox">
-      <div class="ibox-content">
-        <div class="table-responsive">
-          <table id="tbl_listaCategoria" class="table table-striped table-bordered table-hover">
-            <thead class="thead-light">
-              <tr>
-                <th>ID</th>
-                <th>Categoría</th>
-                <th>Descripción</th>
-                <th>Comentario</th>
-                <th>Estado</th>
-                <th>Registro</th>
-                <th>Creación</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
+<div class="card shadow-sm border-0 mb-3">
+    <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center">
+        <h6 class="mb-0"><b>CATEGORÍA DE CLIENTES</b></h6>
+        <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#modalCategoriasClientes">
+            <i class="bi bi-plus-circle mr-1"></i>
+            + Creación
+        </button>
+    </div>
+    <div class="card-body p-2">
+        <div class="row mt-4">
+            <div class="col-lg-12">
+                <div class="ibox">
+                <div class="ibox-content">
+                    <div class="table-responsive">
+                    <table id="tbl_listaCategoria" class="table table-striped table-bordered table-hover">
+                        <thead class="thead-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>Categoría</th>
+                            <th>Descripción</th>
+                            <th>Comentario</th>
+                            <th>Estado</th>
+                            <th>Registro</th>
+                            <th>Creación</th>
+                            <th>Acciones</th>
+                        </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                    </div>
+                </div>
+                </div>
+            </div>
         </div>
-      </div>
+    </div>
+</div>
+
+
+<div class="card shadow-sm border-0 mb-3">
+  <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center">
+    <h6 class="mb-0"><b>PLANTILLA / CARGA MASIVA – CATEGORÍAS DE CLIENTE</b></h6>
+  </div>
+  <div class="card-body p-3">
+    <div class="d-flex filtro-container align-items-center">
+      <a href="{{ route('clientes.plantilla.categorias') }}" class="btn btn-success" id="btnDescargar">
+        <i class="bi bi-download"></i> Descargar Plantilla
+      </a>
+
+      <form id="formImportCategorias" class="d-flex align-items-center ml-2" enctype="multipart/form-data">
+        @csrf
+        <input type="file" class="form-control filtro-select" name="file" accept=".xlsx,.xls,.csv" required>
+        <button type="submit" class="btn btn-primary ml-2">
+          <i class="bi bi-upload"></i> Importar
+        </button>
+      </form>
+    </div>
+
+    <div class="progress mt-3" style="height:8px;">
+      <div id="barImportCategorias" class="progress-bar" role="progressbar" style="width:0%"></div>
+    </div>
+    <div id="msgImportCategorias" class="small mt-2 text-muted"></div>
+
+    <div id="erroresImportCategorias" class="mt-3 d-none">
+      <div class="alert alert-warning mb-2"><b>Errores (primeros 10):</b></div>
+      <ul class="small" id="erroresLista"></ul>
     </div>
   </div>
 </div>
-
-<!-- SCRIPT PARA RESET FORM AL CERRAR MODAL -->
 
 @push('scripts')
     <script src="{{ asset('js/js_proyecto/Escalas/categoriaClientes.js') }}"></script>

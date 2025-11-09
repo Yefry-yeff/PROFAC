@@ -20,6 +20,10 @@ use App\Models\logCredito;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\ClientesExport;
 
+use App\Exports\Escalas\ClientesCategoriaPlantillaExport;
+use App\Imports\Escalas\ClientesCategoriaMasivaImport;
+use Illuminate\Support\Facades\Validator;
+
 
 class Cliente extends Component
 {
@@ -629,6 +633,50 @@ class Cliente extends Component
             ],402);
         }
 
+    }
+
+    public function descargarPlantillaCategoriaClientes()
+    {
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new ClientesCategoriaPlantillaExport,
+            'Plantilla_Categorias_Clientes.xlsx'
+        );
+    }
+
+    public function importarCategoriaClientes(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'file' => 'required|file|mimes:xlsx,csv,xls|max:20480',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'icon'  => 'warning',
+                    'title' => 'Validación',
+                    'text'  => $validator->errors()->first(),
+                ], 422);
+            }
+
+            $import = new ClientesCategoriaMasivaImport();
+            \Maatwebsite\Excel\Facades\Excel::import($import, $request->file('file'));
+            $resumen = $import->resumen();
+
+            return response()->json([
+                'icon'    => 'success',
+                'title'   => 'Importación completada',
+                'text'    => "Actualizados: {$resumen['actualizados']} | Saltados: {$resumen['saltados']} | Errores: ".count($resumen['errores']),
+                'errores' => array_slice($resumen['errores'], 0, 10),
+            ], 200);
+
+        } catch (\Throwable $e) {
+            return response()->json([
+                'icon'  => 'error',
+                'title' => 'Error',
+                'text'  => 'Ocurrió un problema al procesar el archivo.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 
 

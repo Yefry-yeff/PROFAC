@@ -94,3 +94,54 @@
                     })
             })
         }
+
+        $('#formImportCategorias').on('submit', function(e){
+            e.preventDefault();
+
+            const fd = new FormData(this);
+            const $bar = $('#barImportCategorias');
+            const $msg = $('#msgImportCategorias');
+            const $errBox = $('#erroresImportCategorias');
+            const $errList = $('#erroresLista');
+
+            $errBox.addClass('d-none'); $errList.empty();
+            $bar.removeClass('bg-success bg-danger').css('width','0%');
+            $msg.removeClass('text-danger').text('Subiendo archivo…');
+
+            $.ajax({
+            url: '/clientes/importar-categorias',
+            method: 'POST',
+            data: fd,
+            contentType: false,
+            processData: false,
+            xhr: function(){
+                const xhr = $.ajaxSettings.xhr();
+                if (xhr.upload) {
+                xhr.upload.addEventListener('progress', function(e){
+                    if (e.lengthComputable) {
+                    const p = Math.round((e.loaded / e.total) * 100);
+                    $bar.css('width', p + '%');
+                    }
+                }, false);
+                }
+                return xhr;
+            },
+            success: function(res){
+                $bar.addClass('bg-success').css('width','100%');
+                $msg.text(res.text || 'Importación completada.');
+                if (res.errores && res.errores.length){
+                $errBox.removeClass('d-none');
+                res.errores.forEach(e => $errList.append('<li>'+e+'</li>'));
+                }
+                // Si tenés tabla/listado en pantalla:
+                // $('#tbl_listaCategoria').DataTable().ajax?.reload();
+            },
+            error: function(xhr){
+                $bar.addClass('bg-danger').css('width','100%');
+                let t = 'Error al procesar el archivo.';
+                if (xhr.responseJSON && xhr.responseJSON.text) t = xhr.responseJSON.text;
+                $msg.addClass('text-danger').text(t);
+            },
+            headers: {'X-CSRF-TOKEN': '{{ csrf_token() }}'}
+            });
+        });

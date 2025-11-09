@@ -8,6 +8,7 @@ use App\Http\Livewire\Comisiones\ComisionesVendedor;
 use App\Http\Livewire\Comisiones\ComisionesComisionar;
 use App\Http\Livewire\Comisiones\ComisionesHistorico;
 
+    use App\Http\Livewire\Clientes\Cliente as ClienteLW;
 
 
 /* ------------------------------/COMISIONES------------------------------------------- */
@@ -189,8 +190,16 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     // web.php
     Route::post('/importar-excel', [App\Http\Controllers\ExcelController::class, 'importarExcel']);// routes/web.php
 
-Route::post('/procesar-excel-precios', [App\Http\Controllers\ExcelController::class, 'procesarExcelPrecios'])
+    Route::post('/procesar-excel-precios', [App\Http\Controllers\ExcelController::class, 'procesarExcelPrecios'])
     ->name('procesar.excel.precios');
+
+    /* Gestión masiva de clientes */
+
+        Route::get('/clientes/plantilla-categorias', [ClienteLW::class,'descargarPlantillaCategoriaClientes'])
+            ->name('clientes.plantilla.categorias');
+
+        Route::post('/clientes/importar-categorias', [ClienteLW::class,'importarCategoriaClientes'])
+            ->name('clientes.importar.categorias');
 
     //-----------------------Bodega---------------------------------------------------------------------------------------------------------------------//
     Route::get('/bodega', Bodega::class);
