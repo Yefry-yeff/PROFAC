@@ -45,7 +45,10 @@ $(document).ready(function() {
                 "ajax": "/clientes/listar",
                 "columns": [{
                         data: 'idCliente'
+                    },{
+                        data: 'categoria_escala_cliente'
                     },
+
                     {
                         data: 'nombre'
                     },
@@ -425,7 +428,7 @@ $(document).ready(function() {
         });
         });
     }
-loadCategoriasEscalaCreate();
+    loadCategoriasEscalaCreate();
     function loadCategoriasEscalaCreate() {
     const $sel = $('#cliente_categoria_escala_id_crear');
     const url  = $sel.data('url');

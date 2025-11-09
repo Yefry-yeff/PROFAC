@@ -130,6 +130,7 @@
                                 <thead class="">
                                     <tr>
                                         <th>Codigo</th>
+                                        <th>Categoría Precio</th>
                                         <th>Nombre</th>
                                         <th>Dirreción</th>
                                         <th>Teléfono</th>

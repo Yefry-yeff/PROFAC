@@ -15,14 +15,27 @@ class ClientesExport implements FromCollection, WithHeadings, ShouldAutoSize
     */
     public function collection()
     {
-        //return ModelCliente::all();
-        return ModelCliente::select("id","nombre","direccion","telefono_empresa","rtn","correo","credito","dias_credito","users_id")->get();
+        return ModelCliente::select(
+        'cliente.id',
+        'cliente_categoria_escala.nombre_categoria as nombre_cat_escala',
+        'cliente.nombre',
+        'cliente.direccion',
+        'cliente.telefono_empresa',
+        'cliente.rtn',
+        'cliente.correo',
+        'cliente.credito',
+        'cliente.dias_credito',
+        'cliente.users_id'
+    )
+    ->join('cliente_categoria_escala', 'cliente_categoria_escala.id', '=', 'cliente.cliente_categoria_escala_id')
+    ->get();
     }
 
     public function headings(): array
     {
         return [
             '#',
+            'Categoría Escala',
             'Nombre',
             'Direccion',
             'Teléfono',

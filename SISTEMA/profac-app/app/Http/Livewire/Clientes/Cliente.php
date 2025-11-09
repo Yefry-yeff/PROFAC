@@ -246,6 +246,7 @@ class Cliente extends Component
             $clientes = DB::SELECT("
             select
                 cliente.id as idCliente,
+                (select nombre_categoria from cliente_categoria_escala where id = cliente_categoria_escala_id ) as categoria_escala_cliente,
                 nombre,
                 direccion,
                 telefono_empresa,
@@ -256,10 +257,8 @@ class Cliente extends Component
                 cliente.estado_cliente_id,
                 cliente.created_at
             from cliente
-            inner join estado_cliente
-            on estado_cliente.id = cliente.estado_cliente_id
-            inner join users
-            on users.id = cliente.users_id
+            inner join estado_cliente on estado_cliente.id = cliente.estado_cliente_id
+            inner join users on users.id = cliente.users_id
             ");
 
 
