@@ -269,6 +269,8 @@
 
             function agregarProductoCarrito() {
                 let idProducto = document.getElementById('seleccionarProducto').value;
+                let idCliente = document.getElementById('seleccionarCliente').value;
+
 
                 let data = $("#bodega").select2('data')[0];
                 let bodega = data.bodegaSeccion;
@@ -278,6 +280,7 @@
 
                 axios.post('/ventas/datos/producto', {
                         idProducto: idProducto,
+                        idCliente: idCliente,
 
                     })
                     .then(response => {

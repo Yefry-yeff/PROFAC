@@ -355,7 +355,7 @@ class FacturacionCorporativa extends Component
                 CONCAT(p.id,' - ',p.nombre) AS nombre,
                 p.isv,
                 p.ultimo_costo_compra AS ultimo_costo_compra,
-                p.precio_base AS precio_base,
+                ppc.precio_base_venta AS precio_base,
                 ppc.precio_a AS precio1,
                 ppc.precio_b AS precio2,
                 ppc.precio_c AS precio3,
