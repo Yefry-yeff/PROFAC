@@ -8,6 +8,8 @@ use App\Exports\Escalas\ProductosPlantillaExportManual;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\Validator;
 use App\Imports\Escalas\PreciosProductoCargaImport;
+// Arriba de tu controlador:
+use Maatwebsite\Excel\Excel as ExcelFormat;
 
 class ExcelController extends Controller
 {
@@ -79,26 +81,26 @@ class ExcelController extends Controller
     {
         // Validación de parámetros recibidos desde el frontend.
         // Incluye validaciones de pertenencia (in) y existencia en BD (exists).
-        $v = Validator::make($request->all(), [
-            'archivo_excel'      => 'required|file|mimes:xlsx,xls|max:20480',
-            'tipoCategoria'      => 'required|in:escalable,manual',
-            'tipoFiltro'         => 'required|in:1,2',
-            'valorFiltro'        => 'required|integer',
-            'categoriaPrecioId'  => 'required|exists:categoria_precios,id',
-            'defaultUnidadMedidaId' => 'nullable|integer|exists:unidad_medida_venta,id',
-        ], [
-            // Mensaje específico para cuando el id por defecto de unidad de medida no existe.
-            'defaultUnidadMedidaId.exists' => 'El defaultUnidadMedidaId no existe en unidad_medida_venta.',
-        ]);
+$v = Validator::make($request->all(), [
+    'archivo_excel'      => 'required|file|max:20480', // 20 MB
+    'tipoCategoria'      => 'required|in:escalable,manual',
+    'tipoFiltro'         => 'required|in:1,2',
+    'valorFiltro'        => 'required|integer',
+    'categoriaPrecioId'  => 'required|exists:categoria_precios,id',
+    'defaultUnidadMedidaId' => 'nullable|integer|exists:unidad_medida_venta,id',
+], [
+    'archivo_excel.required' => 'Subí un archivo.',
+    'archivo_excel.file'     => 'Archivo inválido.',
+    'archivo_excel.max'      => 'El archivo no puede superar 20 MB.',
+]);
+if ($v->fails()) {
+    return response()->json([
+        'icon'  => 'error',
+        'title' => 'Validación',
+        'text'  => $v->errors()->first(),
+    ], 422);
+}
 
-        // Si la validación falla, se retorna error 422 con el primer mensaje relevante.
-        if ($v->fails()) {
-            return response()->json([
-                'icon'  => 'error',
-                'title' => 'Validación',
-                'text'  => $v->errors()->first(),
-            ], 422);
-        }
 
         try {
             // Determinar el usuario autenticado (fallback a 1 si no hay auth disponible).
@@ -110,17 +112,132 @@ class ExcelController extends Controller
             // - categoriaPrecioId: categoría de precios a aplicar
             // - userId: auditoría del creador de los registros
             // - defaultUnidadMedidaId: fallback opcional para unidad de medida en caso de ausencia
-            $import = new PreciosProductoCargaImport(
-                tipoCategoria: $request->input('tipoCategoria'),
-                tipoFiltro: (int)$request->input('tipoFiltro'),
-                valorFiltro: (int)$request->input('valorFiltro'),
-                categoriaPrecioId: (int)$request->input('categoriaPrecioId'),
-                userId: (int)$userId,
-                defaultUnidadMedidaId: $request->input('defaultUnidadMedidaId') ? (int)$request->input('defaultUnidadMedidaId') : null
-            );
+            // Construcción del import SIN argumentos nombrados (compat PHP 7.x)
+$import = new PreciosProductoCargaImport(
+    $request->input('tipoCategoria'),
+    (int)$request->input('tipoFiltro'),
+    (int)$request->input('valorFiltro'),
+    (int)$request->input('categoriaPrecioId'),
+    (int)$userId,
+    $request->input('defaultUnidadMedidaId') ? (int)$request->input('defaultUnidadMedidaId') : null
+);
 
-            // Ejecución de la importación con Maatwebsite\Excel.
-            Excel::import($import, $request->file('archivo_excel'));
+
+// 0) Forzar carpeta temp en runtime (por si config está cacheado)
+config(['excel.temporary_files.local_path' => storage_path('app/excel-temp')]);
+
+// 1) Tomar archivo y extensión
+$file = $request->file('archivo_excel');
+$ext  = strtolower($file->getClientOriginalExtension()); // ext real (xlsx/xls/csv)
+
+// 2) Validar extensión permitida
+$allowed = ['xlsx','xls','csv'];
+if (!in_array($ext, $allowed)) {
+    return response()->json([
+        'icon'  => 'error',
+        'title' => 'Validación',
+        'text'  => 'El archivo debe ser XLSX, XLS o CSV.',
+    ], 422);
+}
+
+// 3) Elegir lector
+$readerType = ($ext === 'csv') ? ExcelFormat::CSV : ExcelFormat::XLSX;
+
+// 4) Guardar SOLO UNA VEZ y preparar ruta completa
+$storedPath = $file->storeAs('imports', 'probe.'.$ext, 'local'); // storage/app/imports/probe.ext
+$full = storage_path('app/'.$storedPath);
+
+// (opcional) ajustes CSV
+if ($readerType === ExcelFormat::CSV) {
+    config([
+        'excel.csv.input_encoding' => 'UTF-8', // o 'ISO-8859-1'
+        'excel.csv.delimiter'      => ',',     // o ';'
+    ]);
+}
+
+// 5) Logs útiles
+\Log::info('UPLOAD_META', [
+  'ext'  => $ext,
+  'name' => $file->getClientOriginalName(),
+  'mime' => $file->getMimeType(),
+  'size' => $file->getSize(),
+]);
+
+// 6) Diagnóstico ZIP/XML (opcional, deja si te sirve)
+$zipArchiveExists = class_exists(\ZipArchive::class);
+$rc = null; $contentTypesLen = null; $workbookLen = null;
+if ($zipArchiveExists) {
+    $zip = new \ZipArchive();
+    $rc = $zip->open($full);
+    if ($rc === true || $rc === 0) {
+        $ct = $zip->getFromName('[Content_Types].xml');
+        $wb = $zip->getFromName('xl/workbook.xml');
+        $contentTypesLen = is_string($ct) ? strlen($ct) : null;
+        $workbookLen     = is_string($wb) ? strlen($wb) : null;
+        $zip->close();
+    }
+}
+\Log::info('IMPORT_DIAG', [
+    'exists_ziparchive' => $zipArchiveExists,
+    'file_size' => @filesize($full),
+    'open_rc' => $rc,
+    'content_types_xml_len' => $contentTypesLen,
+    'workbook_xml_len' => $workbookLen,
+    'sys_temp_dir' => ini_get('sys_temp_dir'),
+    'excel_temp_path' => config('excel.temporary_files.local_path'),
+]);
+
+// (opcional) chequeos extra de XML
+$sheet1Len = $sharedLen = $stylesLen = null;
+$zip = new \ZipArchive();
+if ($zip->open($full) === true) {
+    $sheet1Len = strlen((string)$zip->getFromName('xl/worksheets/sheet1.xml'));
+    $sharedLen = strlen((string)$zip->getFromName('xl/sharedStrings.xml'));
+    $stylesLen = strlen((string)$zip->getFromName('xl/styles.xml'));
+    $zip->close();
+}
+\Log::info('IMPORT_XML_CHECK', compact('sheet1Len','sharedLen','stylesLen'));
+
+$emptyXml = [];
+$missingXml = [];
+$allXml = [];
+$zip = new \ZipArchive();
+if ($zip->open($full) === true) {
+    $index = [];
+    for ($i = 0; $i < $zip->numFiles; $i++) {
+        $st = $zip->statIndex($i);
+        $index[$st['name']] = true;
+        if (substr($st['name'], -4) === '.xml') {
+            $allXml[] = $st['name'];
+            $content = $zip->getFromIndex($i);
+            $len = is_string($content) ? strlen($content) : 0;
+            if ($len === 0) $emptyXml[] = $st['name'];
+        }
+    }
+    $critical = [
+        '_rels/.rels','docProps/core.xml','docProps/app.xml',
+        'xl/workbook.xml','xl/_rels/workbook.xml.rels',
+        'xl/sharedStrings.xml','xl/styles.xml','xl/theme/theme1.xml','xl/calcChain.xml',
+        'xl/worksheets/sheet1.xml','xl/worksheets/sheet2.xml','xl/worksheets/sheet3.xml',
+    ];
+    foreach ($critical as $name) {
+        if (!isset($index[$name])) $missingXml[] = $name;
+    }
+    $zip->close();
+}
+\Log::info('IMPORT_XML_SCAN', [
+    'emptyXml'   => $emptyXml,
+    'missingXml' => $missingXml,
+    'allXmlCnt'  => count($allXml)
+]);
+
+// 7) Importar desde disco y con lector forzado
+Excel::import(
+    $import,
+    $storedPath,
+    'local',
+    $readerType
+);
 
             // Obtención de estadísticas generadas por el import (lecturas, inserciones, inactivaciones, omisiones, etc.).
             $stats = $import->getStats();

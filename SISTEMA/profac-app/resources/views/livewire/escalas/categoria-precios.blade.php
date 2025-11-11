@@ -268,7 +268,8 @@ textarea.form-control, input.form-control {
 
                 <!-- Selector de archivo -->
                 <div class="custom-file flex-grow-1" style="max-width: 420px;">
-                    <input type="file" class="custom-file-input" id="archivo_excel" name="archivo_excel" accept=".xlsx,.xls" required>
+                    <input type="file" class="custom-file-input" id="archivo_excel" name="archivo_excel"
+                    accept=".xlsx,.xls,.csv" required>
                     <label class="custom-file-label text-left" for="archivo_excel">Elija un archivo...</label>
                 </div>
 

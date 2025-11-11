@@ -41,15 +41,13 @@ return [
         | Configure e.g. delimiter, enclosure and line ending for CSV exports.
         |
         */
-        'csv'                    => [
-            'delimiter'              => ',',
-            'enclosure'              => '"',
-            'line_ending'            => PHP_EOL,
-            'use_bom'                => false,
-            'include_separator_line' => false,
-            'excel_compatibility'    => false,
-            'output_encoding'        => '',
-        ],
+        'csv' => [
+    'delimiter' => ',',
+    'enclosure' => '"',
+    'escape_character' => '\\',
+    'contiguous' => false,
+    'input_encoding' => 'ISO-8859-1',
+],
 
         /*
         |--------------------------------------------------------------------------
@@ -293,7 +291,7 @@ return [
         | storing reading or downloading. Here you can customize that path.
         |
         */
-        'local_path'          => storage_path('framework/cache/laravel-excel'),
+        'local_path' => storage_path('app/excel-temp'),
 
         /*
         |--------------------------------------------------------------------------

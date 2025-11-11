@@ -933,8 +933,12 @@ Route::post('/reporte/Libroventarep/exportar-excel/{tipo}/{fechaInicio}/{fechaFi
 
 
     //------------------------------------------establecer links de storage---------------------------//
-    Route::get('/linkstorage', function () {
+  Route::get('/linkstorage', function () {
         Artisan::call('storage:link'); // this will do the command line job
+        Artisan::call('config:clear');
+        Artisan::call('cache:clear');
+        Artisan::call('optimize:clear');
+
     });
 
 
