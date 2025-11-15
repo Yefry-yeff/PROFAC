@@ -82,13 +82,15 @@ class ClientesCategoriaMasivaImport implements ToCollection, WithHeadingRow, Wit
             $cliente->save();
 
             // 6) Log
-            \App\Models\Escalas\ClienteCategoriaEscalaLog::create([
-                'cliente_id'        => $cliente->id,
-                'antigua_categoria' => $old ?: null,
-                'nueva_categoria'   => $new,
-                'comentario'        => 'Actualización masiva por Excel',
-                'users_id'          => \Auth::id() ?? 1,
-            ]);
+            DB::table('cliente_categoria_escala_logs')->insert([
+    'cliente_id'        => $cliente->id,
+    'antigua_categoria' => $old ?: null,
+    'nueva_categoria'   => $new,
+    'comentario'        => 'Actualización masiva por Excel',
+    'users_id'          => Auth::id() ?? 1,
+    'created_at'        => now(),
+    'updated_at'        => now(),
+]);
 
             \DB::commit();
             $this->actualizados++;

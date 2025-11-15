@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use DataTables;
 use Auth;
+use App\Models\Escalas\clienteCategoriaEscalaLog;
 
 use App\Models\ModelCliente;
 use App\Models\ModelContacto;
@@ -23,6 +24,8 @@ use App\Exports\ClientesExport;
 use App\Exports\Escalas\ClientesCategoriaPlantillaExport;
 use App\Imports\Escalas\ClientesCategoriaMasivaImport;
 use Illuminate\Support\Facades\Validator;
+use ZipArchive;
+use Illuminate\Support\Facades\Log;
 
 
 class Cliente extends Component
@@ -647,12 +650,34 @@ class Cliente extends Component
         );
     }
 
+   public function listaCategoriasEscala(Request $request)
+    {
+        $q = trim((string) $request->get('q', ''));
+
+        $cats = \DB::table('cliente_categoria_escala')
+            ->select('id', 'nombre_categoria')
+            ->when($q !== '', function ($qq) use ($q) {
+                $qq->where('nombre_categoria', 'like', '%'.$q.'%');
+            })
+            ->orderBy('nombre_categoria')
+            ->limit(50)
+            ->get();
+
+        return response()->json(['categorias' => $cats], 200);
+    }
+
     public function importarCategoriaClientes(Request $request)
     {
         try {
-            $validator = Validator::make($request->all(), [
-                'file' => 'required|file|mimes:xlsx,csv,xls|max:20480',
-            ]);
+           $validator = Validator::make($request->all(), [
+    'file' => [
+        'required',
+        'file',
+        'max:20480',
+        'mimetypes:text/plain,text/csv,application/csv,application/vnd.ms-excel,application/octet-stream'
+    ],
+]);
+
 
             if ($validator->fails()) {
                 return response()->json([
@@ -662,41 +687,114 @@ class Cliente extends Component
                 ], 422);
             }
 
+            $file = $request->file('file');
+
+            // Guardar el archivo en storage para trabajar con una ruta estable
+            $storedPath = $file->storeAs('imports', 'categorias_' . time() . '.' . $file->getClientOriginalExtension());
+            $fullPath = storage_path('app/' . $storedPath);
+
+            // Validación inteligente según extensión
+            $ext = strtolower($file->getClientOriginalExtension());
+            if ($err = $this->assertExcelPathIsReadable($fullPath, $ext)) {
+                Log::error("[ImportarCategorias] Validación previa falló: {$err}");
+                return response()->json([
+                    'icon'  => 'error',
+                    'title' => 'Error',
+                    'text'  => 'Ocurrió un problema al procesar el archivo.',
+                    'error' => $err,
+                ], 400);
+            }
+
             $import = new ClientesCategoriaMasivaImport();
-            \Maatwebsite\Excel\Facades\Excel::import($import, $request->file('file'));
+            Excel::import($import, $fullPath);
             $resumen = $import->resumen();
 
             return response()->json([
                 'icon'    => 'success',
                 'title'   => 'Importación completada',
-                'text'    => "Actualizados: {$resumen['actualizados']} | Saltados: {$resumen['saltados']} | Errores: ".count($resumen['errores']),
+                'text'    => "Actualizados: {$resumen['actualizados']} | Saltados: {$resumen['saltados']} | Errores: " . count($resumen['errores']),
                 'errores' => array_slice($resumen['errores'], 0, 10),
             ], 200);
 
         } catch (\Throwable $e) {
+            // Guardar detalle completo del error en un log dedicado (útil para cPanel)
+            $msg = $e->getMessage();
+            $trace = $e->getTraceAsString();
+            Log::error("[ImportarCategorias] Excepción: {$msg}", ['trace' => $trace]);
+            file_put_contents(storage_path('logs/import_categorias_exception.log'), date('c') . " " . $msg . PHP_EOL . $trace . PHP_EOL . PHP_EOL, FILE_APPEND);
+
             return response()->json([
                 'icon'  => 'error',
                 'title' => 'Error',
                 'text'  => 'Ocurrió un problema al procesar el archivo.',
-                'error' => $e->getMessage(),
+                'error' => $msg,
             ], 500);
         }
     }
 
-   public function listaCategoriasEscala(Request $request)
-{
-    $q = trim((string) $request->get('q', ''));
+    /**
+     * Valida que el archivo subido sea legible para el tipo indicado.
+     * @param string $path Ruta completa al archivo en disco
+     * @param string $ext  extensión (xlsx|xls|csv)
+     * @return string|null Mensaje de error o null si OK
+     */
+    private function assertExcelPathIsReadable(string $path, string $ext): ?string
+    {
+        // 1) existe y legible
+        if (!file_exists($path) || !is_readable($path)) {
+            return "Archivo no existe o no es legible en path: {$path}";
+        }
 
-    $cats = \DB::table('cliente_categoria_escala')
-        ->select('id', 'nombre_categoria')
-        ->when($q !== '', function ($qq) use ($q) {
-            $qq->where('nombre_categoria', 'like', '%'.$q.'%');
-        })
-        ->orderBy('nombre_categoria')
-        ->limit(50)
-        ->get();
+        // 2) tamaño > 0
+        if (filesize($path) === 0) {
+            return "Archivo con tamaño 0 bytes (posible subida fallida)";
+        }
 
-    return response()->json(['categorias' => $cats], 200);
-}
+        // 3) comportamiento por extensión
+        if ($ext === 'xlsx') {
+            // xlsx es un ZIP con XMLs: requiere Zip extension y que abra como ZIP
+            if (!extension_loaded('zip')) {
+                return "Extensión PHP 'zip' no está instalada/activada. Habilítala en cPanel (Select PHP Version) y reinténtalo.";
+            }
+            $zip = new ZipArchive;
+            $res = $zip->open($path);
+            if ($res !== true) {
+                return "No se pudo abrir el archivo .xlsx como ZIP. Código ZipArchive: {$res}. El archivo podría estar corrupto o no ser .xlsx.";
+            }
+            // chequear que existan archivos internos (al menos 1)
+            if ($zip->numFiles === 0) {
+                $zip->close();
+                return "El archivo .xlsx parece estar vacío (numFiles = 0).";
+            }
+            // opción: comprobar existencia de [Content_Types].xml mínimo
+            $hasContentTypes = ($zip->locateName('[Content_Types].xml') !== false);
+            $zip->close();
+            if (!$hasContentTypes) {
+                return "El archivo .xlsx no contiene [Content_Types].xml (podría estar corrupto o no ser un .xlsx estándar).";
+            }
+        } elseif ($ext === 'csv') {
+            // csv: comprobación simple de que se puede abrir como texto
+            $h = @fopen($path, 'r');
+            if ($h === false) return "No se pudo abrir el archivo CSV para lectura.";
+            $line = @fgets($h);
+            @fclose($h);
+            if ($line === false) return "El CSV parece vacío o ilegible.";
+        } elseif ($ext === 'xls') {
+            // xls (BIFF): PhpSpreadsheet lo maneja pero no podemos abrir con zip.
+            // comprobación básica: fichero no vacío (ya hecho) y opcional: detectar cabecera BIFF (D0 CF 11 E0 ...)
+            $fh = @fopen($path, 'rb');
+            if ($fh === false) return "No se pudo abrir el archivo .xls para lectura.";
+            $header = fread($fh, 8);
+            fclose($fh);
+            if ($header === false || strlen($header) < 4) {
+                return "El archivo .xls no tiene cabecera válida o está corrupto.";
+            }
+            // no hacemos más validaciones porque .xls es binario complejo
+        } else {
+            return "Extensión no soportada: {$ext}";
+        }
+
+        return null; // todo OK
+    }
 
 }
