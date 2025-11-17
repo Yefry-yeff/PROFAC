@@ -43,7 +43,13 @@ class ClientesCategoriaMasivaImport implements ToCollection, WithHeadingRow, Wit
 
         // 2) Lee ID (obligatorio)
         $idCliente = $row->get('id');
-
+/*         $activados = \App\Models\ModelCliente::lockForUpdate()->find((int)$idCliente);
+            if (!$cliente) {
+                $this->errores[] = "Cliente ID {$idCliente} no existe.";
+                \DB::rollBack();
+                continue;
+            }
+ */
         // 3) Lee nueva categoría desde varios alias
         $nuevaCat = $row->get('cliente_categoria_escala_id');
         if ($nuevaCat === null || $nuevaCat === '') $nuevaCat = $row->get('nueva_categoria_id');
@@ -83,14 +89,14 @@ class ClientesCategoriaMasivaImport implements ToCollection, WithHeadingRow, Wit
 
             // 6) Log
             DB::table('cliente_categoria_escala_logs')->insert([
-    'cliente_id'        => $cliente->id,
-    'antigua_categoria' => $old ?: null,
-    'nueva_categoria'   => $new,
-    'comentario'        => 'Actualización masiva por Excel',
-    'users_id'          => Auth::id() ?? 1,
-    'created_at'        => now(),
-    'updated_at'        => now(),
-]);
+                'cliente_id'        => $cliente->id,
+                'antigua_categoria' => $old ?: null,
+                'nueva_categoria'   => $new,
+                'comentario'        => 'Actualización masiva por Excel',
+                'users_id'          => Auth::id() ?? 1,
+                'created_at'        => now(),
+                'updated_at'        => now(),
+            ]);
 
             \DB::commit();
             $this->actualizados++;

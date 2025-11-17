@@ -38,40 +38,36 @@ class expo extends Component
 
 
     public function infoProducto($id){
-        $producto = DB::SELECTONE("
-            select
-                A.id,
-                A.nombre,
-                A.descripcion,
-                A.codigo_estatal,
-                A.codigo_barra,
-                B.descripcion as 'sub_categoria',
-                E.descripcion as 'categoria',
-                A.precio_base,
-                A.precio1,
-                A.precio2,
-                A.precio3,
-                A.precio4,
-                A.costo_promedio,
-                A.ultimo_costo_compra,
-                A.isv,
-                C.nombre as 'unidad_medida',
-                A.created_at as 'fecha_registro',
-                D.name as 'registrado_por',
-                A.marca_id,
-                A.sub_categoria_id,
-                unidad_medida_compra_id,
-                unidadad_compra,
-                M.nombre as 'marca'
-
-            from  producto A
-            inner join sub_categoria B on A.sub_categoria_id = B.id
-            inner join categoria_producto E on E.id = B.categoria_producto_id
-            inner join unidad_medida C  on A.unidad_medida_compra_id = C.id
-            inner join users D on A.users_id = D.id
-            inner join marca M on M.id = A.marca_id
-            where A.id = " . $id . "
-        ");
+                   $producto = DB::selectOne("
+                SELECT
+                p.id,
+                CONCAT(p.id,' - ',p.nombre) AS nombre,
+                p.isv,
+                p.ultimo_costo_compra AS ultimo_costo_compra,
+                ppc.precio_base_venta AS precio_base,
+                ppc.precio_a AS precio1,
+                ppc.precio_b AS precio2,
+                ppc.precio_c AS precio3,
+                ppc.precio_d AS precio4
+                FROM producto p
+                JOIN cliente cli
+                ON cli.id = :idCliente
+                JOIN cliente_categoria_escala cce
+                ON cce.id = cli.cliente_categoria_escala_id
+                AND cce.estado_id = 1
+                JOIN categoria_precios cp
+                ON cp.cliente_categoria_escala_id = cce.id
+                AND cp.estado_id = 1
+                JOIN precios_producto_carga ppc
+                ON ppc.producto_id = p.id
+                AND ppc.categoria_precios_id = cp.id
+                AND ppc.estado_id = 1
+                WHERE p.id = :idProducto
+                LIMIT 1
+            ", [
+                'idCliente'  => $request['idCliente'],
+                'idProducto' => $request['idProducto'],
+            ]);
         return $producto;
     }
 
