@@ -142,4 +142,6 @@ class CategoriaPrecios extends Component
             }
 
         }
+
+        public function listaPrecioEscala(){}
 }
