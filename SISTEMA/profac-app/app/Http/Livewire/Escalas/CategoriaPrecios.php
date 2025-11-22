@@ -143,5 +143,11 @@ class CategoriaPrecios extends Component
 
         }
 
-        public function listaPrecioEscala(){}
+        public function listaPrecioEscala(){
+
+
+
+
+
+        }
 }

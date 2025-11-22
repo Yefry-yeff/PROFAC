@@ -123,6 +123,7 @@ use App\Http\Livewire\Reportes\Libroventarep;
 
 use App\Http\Livewire\Escalas\CategoriaPrecios;
 use App\Http\Livewire\Escalas\CategoriaClientes;
+use App\Http\Livewire\Escalas\ReportesEscalas;
 
 /*
 
@@ -202,6 +203,12 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
             ->name('clientes.importar.categorias');
         Route::get('/clientes/categorias-escala', [ClienteLW::class,'listaCategoriasEscala'])
     ->name('clientes.categorias.escala');
+
+    /* REPORTE DE PRECIOS POR PRODUCTO */
+
+    Route::get('/reportes/escalas', ReportesEscalas::class);
+    Route::get('/descargar/productos/filtros', [ReportesEscalas::class, 'descargarPrecios'])->name('excel.productos.filtros');
+
 
     //-----------------------Bodega---------------------------------------------------------------------------------------------------------------------//
     Route::get('/bodega', Bodega::class);

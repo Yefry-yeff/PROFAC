@@ -248,6 +248,9 @@
                         <ul class="nav nav-second-level">
                             <li href="dashboard_2.html"><a href="/clientes/categorias" style="color:#ffffff;">Categoría de Clientes</a></li>
                             <li href="dashboard_2.html"><a href="/precios" style="color:#ffffff;">Gestión de precios</a></li>
+                            <li href="dashboard_2.html"><a href="/reportes/escalas" style="color:#ffffff;">Reportería Escalas</a></li>
+
+
                         </ul>
                     </li>
             @endif
