@@ -43,15 +43,17 @@ class ClientesCategoriaMasivaImport implements ToCollection, WithHeadingRow, Wit
 
         // 2) Lee ID (obligatorio)
         $idCliente = $row->get('id');
-/*         $activados = \App\Models\ModelCliente::lockForUpdate()->find((int)$idCliente);
-            if (!$cliente) {
-                $this->errores[] = "Cliente ID {$idCliente} no existe.";
-                \DB::rollBack();
+
+        // 3) Lee nueva categoría desde varios alias
+        $nuevaCatValidar = $row->get('nueva_categoria_id');
+        $nuevaCat = $row->get('cliente_categoria_escala_id');
+        $activados = DB::SELECTONE("select count(*) as existe from cliente_categoria_escala where estado_id =2 and id = ".$nuevaCatValidar);
+        if ($activados->existe != 0) {
+                $this->errores[] = "La Categoría de cliente ingresada ".$row->get('nueva_categoria')." se encuentra inactivo, no puede ser utilizable.";
+                DB::rollBack();
                 continue;
             }
- */
-        // 3) Lee nueva categoría desde varios alias
-        $nuevaCat = $row->get('cliente_categoria_escala_id');
+
         if ($nuevaCat === null || $nuevaCat === '') $nuevaCat = $row->get('nueva_categoria_id');
         if ($nuevaCat === null || $nuevaCat === '') $nuevaCat = $row->get('nueva_categoria');
 
