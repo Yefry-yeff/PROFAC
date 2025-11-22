@@ -670,13 +670,13 @@ class Cliente extends Component
     {
         try {
            $validator = Validator::make($request->all(), [
-    'file' => [
-        'required',
-        'file',
-        'max:20480',
-        'mimetypes:text/plain,text/csv,application/csv,application/vnd.ms-excel,application/octet-stream'
-    ],
-]);
+                'file' => [
+                    'required',
+                    'file',
+                    'max:20480',
+                    'mimetypes:text/plain,text/csv,application/csv,application/vnd.ms-excel,application/octet-stream'
+                ],
+            ]);
 
 
             if ($validator->fails()) {
