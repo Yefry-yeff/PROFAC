@@ -51,6 +51,10 @@ class ProductosPlantillaExport implements FromQuery, WithHeadings, WithMapping
             ->join('sub_categoria as C', 'C.id', '=', 'A.sub_categoria_id')
             ->join('categoria_producto as D', 'D.id', '=', 'C.categoria_producto_id')
             ->join('unidad_medida as E', 'E.id', '=', 'A.unidad_medida_compra_id')
+            ->leftJoin('precios_producto_carga as F', function($join) {
+                $join->on('F.producto_id', '=', 'A.id')
+                     ->where('F.estado_id', '=', 1);
+            })
             ->selectRaw("
                 1 as idtipocategoria,                             -- Tipo de categoría por defecto (1 = Escalable)
                 'Escalable' as tipocategoriaprecio,               -- Descripción del tipo de categoría
@@ -67,7 +71,7 @@ class ProductosPlantillaExport implements FromQuery, WithHeadings, WithMapping
                 C.descripcion as subcategoriaProducto,             -- Nombre de la subcategoría
                 IF(A.isv > 0,'SI','NO') as isv,                   -- Indicador de ISV (Impuesto sobre ventas)
                 A.ultimo_costo_compra as costoProducto,            -- Último costo de compra registrado
-                A.precio_base as precioBase                        -- Precio base del producto
+                COALESCE(F.precio_base_venta, A.precio_base) as precioBase  -- Precio base: primero de precios_producto_carga activo, si no existe toma de producto
             ")
             ->where('A.estado_producto_id','=', 1)
             ->orderBy('A.id', 'asc');
