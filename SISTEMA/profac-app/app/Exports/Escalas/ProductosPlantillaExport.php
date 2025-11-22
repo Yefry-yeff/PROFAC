@@ -4,8 +4,12 @@ namespace App\Exports\Escalas;
 use Maatwebsite\Excel\Concerns\FromQuery;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
+use Maatwebsite\Excel\Concerns\WithEvents;
+use Maatwebsite\Excel\Events\AfterSheet;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\Exportable;
+use PhpOffice\PhpSpreadsheet\Style\Protection;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 
 /**
  * Clase de exportación que genera la plantilla de productos
@@ -15,8 +19,9 @@ use Maatwebsite\Excel\Concerns\Exportable;
  *  - FromQuery: para generar el Excel directamente desde una consulta SQL.
  *  - WithHeadings: para definir encabezados personalizados.
  *  - WithMapping: para mapear los resultados a las columnas del archivo.
+ *  - WithEvents: para aplicar protección de celdas.
  */
-class ProductosPlantillaExport implements FromQuery, WithHeadings, WithMapping
+class ProductosPlantillaExport implements FromQuery, WithHeadings, WithMapping, WithEvents
 {
     use Exportable; // Habilita métodos como ->download() o ->store() propios de Maatwebsite Excel
 
@@ -53,7 +58,8 @@ class ProductosPlantillaExport implements FromQuery, WithHeadings, WithMapping
             ->join('unidad_medida as E', 'E.id', '=', 'A.unidad_medida_compra_id')
             ->leftJoin('precios_producto_carga as F', function($join) {
                 $join->on('F.producto_id', '=', 'A.id')
-                     ->where('F.estado_id', '=', 1);
+                     ->where('F.estado_id', '=', 1)
+                     ->where('F.categoria_precios_id', '=', $this->valorCategoria);
             })
             ->selectRaw("
                 1 as idtipocategoria,                             -- Tipo de categoría por defecto (1 = Escalable)
@@ -157,6 +163,58 @@ class ProductosPlantillaExport implements FromQuery, WithHeadings, WithMapping
             '',                        // % Flete (vacío)
             '',                        // % Arancel (vacío)
             '',                        // Comentario (vacío)
+        ];
+    }
+
+    /**
+     * Registra eventos para proteger las columnas especificadas.
+     */
+    public function registerEvents(): array
+    {
+        return [
+            AfterSheet::class => function(AfterSheet $event) {
+                $sheet = $event->sheet->getDelegate();
+
+                // Obtener el número total de filas
+                $highestRow = $sheet->getHighestRow();
+
+                // Desproteger toda la hoja primero
+                $sheet->getProtection()->setSheet(false);
+
+                // Columnas a bloquear (A-O): categoria_precios_id hasta isv
+                $columnasProtegidas = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O','P'];
+
+                // Aplicar estilo bloqueado a las columnas protegidas (desde fila 2 hasta el final)
+                foreach ($columnasProtegidas as $columna) {
+                    $rango = $columna . '2:' . $columna . $highestRow;
+                    $sheet->getStyle($rango)->getProtection()->setLocked(Protection::PROTECTION_PROTECTED);
+
+                    // Aplicar color de fondo gris claro para indicar que están bloqueadas
+                    $sheet->getStyle($rango)->getFill()
+                        ->setFillType(Fill::FILL_SOLID)
+                        ->getStartColor()->setARGB('FFE0E0E0');
+                }
+
+                // Desbloquear las columnas editables (P en adelante): costoproducto, precio_base_venta, etc.
+                $columnasEditables = ['Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y'];
+                foreach ($columnasEditables as $columna) {
+                    $rango = $columna . '2:' . $columna . $highestRow;
+                    $sheet->getStyle($rango)->getProtection()->setLocked(Protection::PROTECTION_UNPROTECTED);
+                }
+
+                // Proteger también los encabezados (fila 1 completa)
+                $sheet->getStyle('A1:Y1')->getProtection()->setLocked(Protection::PROTECTION_PROTECTED);
+
+                // Activar la protección de la hoja
+                $sheet->getProtection()->setPassword(''); // Sin contraseña para que puedan desproteger si necesitan
+                $sheet->getProtection()->setSheet(true);
+                $sheet->getProtection()->setSort(false);
+                $sheet->getProtection()->setInsertRows(false);
+                $sheet->getProtection()->setDeleteRows(false);
+                $sheet->getProtection()->setInsertColumns(false);
+                $sheet->getProtection()->setDeleteColumns(false);
+                $sheet->getProtection()->setFormatCells(false);
+            },
         ];
     }
 }
