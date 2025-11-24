@@ -985,9 +985,10 @@
 
                         htmlSelectUnidades = "";
 
+                         /*<option  value="${producto.precio_base}" data-id="pb">${producto.precio_base} - Base</option>*/
                         htmlprecios = `
                         <option data-id="0" selected>--Seleccione precio--</option>
-                        <option  value="${producto.precio_base}" data-id="pb">${producto.precio_base} - Base</option>
+
                         <option  value="${producto.precio1}" data-id="p1">${producto.precio1} - A</option>
                         <option  value="${producto.precio2}" data-id="p2">${producto.precio2} - B</option>
                         <option  value="${producto.precio3}" data-id="p3">${producto.precio3} - C</option>
@@ -1056,7 +1057,7 @@
                                             <div class="form-group col-1">
                                                 <label for="precio${numeroInputs}" class="sr-only">Precio</label>
                                                 <input type="number" placeholder="Precio Unidad" id="precio${numeroInputs}"
-                                                    name="precio${numeroInputs}" value="${producto.precio_base}" class="form-control"  data-parsley-required step="any"
+                                                    name="precio${numeroInputs}" value="${producto.precio1}" class="form-control"  data-parsley-required step="any"
                                                     autocomplete="off"  onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
                                             </div>
 

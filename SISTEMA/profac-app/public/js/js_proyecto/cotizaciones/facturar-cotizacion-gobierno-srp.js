@@ -369,7 +369,7 @@ function agregarProductoCarrito() {
                                     <label for="precio${numeroInputs}" class="sr-only">Precio</label>
                                     <input type="number" placeholder="Precio Unidad" id="precio${numeroInputs}"
                                                     name="cantidad${numeroInputs}" class="form-control" min="${producto.precio1}" data-parsley-required
-                                        autocomplete="off" min="${producto.ultimo_costo_compra}" onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
+                                        autocomplete="off" min="${producto.precio_base}" onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
                                 </div>
 
                                 <div class="form-group col-12 col-sm-12 col-md-1 col-lg-1 col-xl-1">

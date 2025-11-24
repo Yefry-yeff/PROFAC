@@ -330,22 +330,19 @@
 
 
 
-                        /* htmlprecios = `
+                         /*<option  value="${producto.precio_base}" data-id="pb">${producto.precio_base} - Base</option>*/
+                        htmlprecios = `
                         <option data-id="0" selected>--Seleccione precio--</option>
-                        <option  value="${producto.precio_base}" data-id="pb">${producto.precio_base} - Base</option>
+
                         <option  value="${producto.precio1}" data-id="p1">${producto.precio1} - A</option>
                         <option  value="${producto.precio2}" data-id="p2">${producto.precio2} - B</option>
                         <option  value="${producto.precio3}" data-id="p3">${producto.precio3} - C</option>
                         <option  value="${producto.precio4}" data-id="p4">${producto.precio4} - D</option>
 
 
-                        `; */
 
-                        htmlprecios = `
-                        <option data-id="0" selected>--Seleccione precio--</option>
-                        <option  value="${producto.precio1}" data-id="p1" selected>${producto.precio1} - A</option>
+
                         `;
-
 
                         arrayUnidades.forEach(unidad => {
                             if (unidad.valor_defecto == 1) {
@@ -413,7 +410,7 @@
                                             <div class="form-group col-1">
                                                 <label for="cantidad${numeroInputs}" class="sr-only">cantidad</label>
                                                 <input type="number" placeholder="Cantidad" id="cantidad${numeroInputs}"
-                                                    name="cantidad${numeroInputs}" class="form-control" min="${producto.precio1}" data-parsley-required
+                                                    name="cantidad${numeroInputs}" class="form-control" min="1" data-parsley-required
                                                     autocomplete="off" onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
                                             </div>
 
