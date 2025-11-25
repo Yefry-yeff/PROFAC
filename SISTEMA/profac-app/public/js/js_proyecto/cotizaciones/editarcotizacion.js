@@ -250,7 +250,7 @@ function agregarProductoCarrito() {
 
     axios.post('/ventas/datos/producto', {
             idProducto: idProducto,
-            idCliente: idCliente,
+            idCliente: idCliente
 
         })
         .then(response => {
