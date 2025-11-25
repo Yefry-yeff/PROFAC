@@ -912,7 +912,7 @@
 
                                 document.getElementById("nombre_cliente_ventas").value = data.nombre;
                                 document.getElementById("rtn_ventas").value = data.rtn;
-                                obtenerTipoPago();
+                                //obtenerTipoPago();
                                 diasCredito = data.dias_credito;
                             }
 
