@@ -142,8 +142,22 @@
             <div class="col-lg-12">
                 <div class="ibox ">
                     <div class="ibox-title">
-                        <h3>Datos de cotización <i class="fa-solid fa-cart-shopping"></i></h3>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h3>Datos de cotización <i class="fa-solid fa-cart-shopping"></i></h3>
+                            </div>
+                            <div class="col-md-6">
+                                <label>Categoría de cliente:</label>
+                                <input class="form-control" type="text" id="categoria_cliente" name="categoria_cliente" data-parsley-required readonly>
+
+                            </div>
+                        </div>
+
+
                     </div>
+
+
+
                     <div class="ibox-content">
                         <form onkeydown="return event.key != 'Enter';" autocomplete="off" id="crear_venta"
                             name="crear_venta" data-parsley-validate>
@@ -165,11 +179,8 @@
                                 </div>
 
                                 <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4">
-                                    <label class="col-form-label focus-label">Nombre del cliente:<span
-                                            class="text-danger">*</span></label>
-                                    <input class="form-control" required type="text" id="nombre_cliente_ventas"
-                                        name="nombre_cliente_ventas" data-parsley-required readonly>
-
+                                    <label class="col-form-label focus-label">Nombre del cliente:<span class="text-danger">*</span></label>
+                                    <input class="form-control" required type="text" id="nombre_cliente_ventas" name="nombre_cliente_ventas" data-parsley-required readonly>
                                 </div>
 
                                 <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4">
