@@ -393,7 +393,6 @@
 
 
                             </div>
-
                             <div id="divProductos">
                                 {!! $htmlProductos !!}
                             </div>

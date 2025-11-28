@@ -962,12 +962,12 @@
             }
 
             function capturarYEnviarDatos() {
-                console.log('DESCUENTO DE MIERDA ABAJO MOSTRAR');
+                //console.log('DESCUENTO DE MIERDA ABAJO MOSTRAR');
 
-                console.log(document.getElementById('descuentoMostrar').value);
+                //console.log(document.getElementById('descuentoMostrar').value);
 
-                console.log('DESCUENTO CULERO ARRIBA GENERAL');
-                console.log(document.getElementById('descuentoGeneral').value);
+                //console.log('DESCUENTO CULERO ARRIBA GENERAL');
+                //console.log(document.getElementById('descuentoGeneral').value);
                 //console.log('Recopilando datos del formulario manualmente...');
 
                 // Recopilar datos básicos del formulario

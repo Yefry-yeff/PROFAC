@@ -45,6 +45,7 @@ class Editarcotizacion extends Component
         A.sub_total_excento,
         A.isv,
         A.total,
+        A.nota,
         A.cliente_id,
         A.tipo_venta_id,
         A.users_id,
@@ -299,6 +300,7 @@ class Editarcotizacion extends Component
              $cotizacion->numeroInputs = $request->numeroInputs;
              $cotizacion->porc_descuento = $request->porDescuento;
              $cotizacion->monto_descuento = $request->porDescuentoCalculado;
+             $cotizacion->nota = $request->nota;
              $cotizacion->save();
 
 

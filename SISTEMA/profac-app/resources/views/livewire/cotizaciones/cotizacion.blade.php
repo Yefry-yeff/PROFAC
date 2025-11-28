@@ -352,6 +352,19 @@
 
                             <hr>
 
+                            <div class="row">
+                                <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
+                                    <div class="form-group">
+                                        <label for="nota" class="col-form-label focus-label">Nota:
+                                        </label>
+                                        <textarea class="form-control" id="nota" name="nota" cols="30" rows="3" maxlength="250"></textarea>
+                                    </div>
+
+                                </div>
+
+
+                            </div>
+
                             <div class="hide-container">
                                 <p>Nota:El campo "Unidad" describe la unidad de medida para la venta del producto -
                                     seguido del numero de unidades a restar del inventario</p>
@@ -440,7 +453,6 @@
                             <div id="divProductos">
 
                             </div>
-
 
 
 
