@@ -886,7 +886,7 @@
                         response => {
 
                             let data = response.data.datos;
-                            console.log(data);
+                           // console.log(data);
                             let html = '<option value="'+data.idVendedor+'" selected disable>'+data.vendedor+'</option>';
                             document.getElementById('vendedor').innerHTML = html;
 
