@@ -673,7 +673,6 @@
                             <div class="row">
 
 
-
                                 <div class="form-group col-12 col-sm-12 col-md-2 col-lg-1 col-xl-1">
                                     <label class="col-form-label" for="subTotalGeneralGrabadoMostrar">Sub Total
                                         Grabado L.<span class="text-danger">*</span></label>
