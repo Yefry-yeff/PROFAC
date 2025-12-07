@@ -23,12 +23,14 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
     protected int $categoriaPrecioId;
     protected int $userId;
     protected ?int $defaultUnidadMedidaId;
+    protected bool $previewMode;  // Modo preview: solo validar, no insertar
 
     // Contadores y variables de control para estadísticas de proceso
     protected int $rowsRead = 0;
     protected int $rowsInserted = 0;
     protected int $rowsInactivated = 0;
     protected int $rowsSkipped = 0;
+    protected int $rowsToProcess = 0;  // Contador para preview
 
     // Variables de control de encabezados
     protected array $missingHeaders = [];
@@ -40,12 +42,13 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
     // Registro detallado de productos procesados
     protected array $productosInsertados = [];
     protected array $productosInactivados = [];
+    protected array $productosParaProcesar = [];  // Preview de productos a procesar
 
     /**
      * Constructor: inicializa los parámetros requeridos para el proceso.
      * Se reciben directamente desde el controlador.
      */
-    public function __construct(string $tipoCategoria, int $tipoFiltro, int $valorFiltro, int $categoriaPrecioId, int $userId, ?int $defaultUnidadMedidaId = null)
+    public function __construct(string $tipoCategoria, int $tipoFiltro, int $valorFiltro, int $categoriaPrecioId, int $userId, ?int $defaultUnidadMedidaId = null, bool $previewMode = false)
     {
         $this->tipoCategoria         = $tipoCategoria;
         $this->tipoFiltro            = $tipoFiltro;
@@ -53,6 +56,7 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
         $this->categoriaPrecioId     = $categoriaPrecioId;
         $this->userId                = $userId;
         $this->defaultUnidadMedidaId = $defaultUnidadMedidaId;
+        $this->previewMode           = $previewMode;
     }
 
     /**
@@ -310,7 +314,37 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
         if (empty($batch)) return;
 
         /**
-         * Se ejecuta la inserción dentro de una transacción:
+         * MODO PREVIEW: Solo registrar productos para mostrar, NO insertar en BD
+         */
+        if ($this->previewMode) {
+            // Obtener información detallada de los productos para preview
+            $productoIds = array_column($batch, 'producto_id');
+            $productos = DB::table('producto')
+                ->whereIn('id', $productoIds)
+                ->get()
+                ->keyBy('id');
+            
+            // Guardar detalles de productos a procesar para mostrar en frontend
+            foreach ($batch as $item) {
+                $producto = $productos[$item['producto_id']] ?? null;
+                $this->productosParaProcesar[] = [
+                    'producto_id' => $item['producto_id'],
+                    'codigo' => $producto->codigo ?? $item['producto_id'],
+                    'descripcion' => $producto->nombre ?? 'Producto #' . $item['producto_id'],
+                    'precio_base' => number_format($item['precio_base_venta'], 2),
+                    'precio_a' => number_format($item['precio_a'], 2),
+                    'precio_b' => number_format($item['precio_b'], 2),
+                    'precio_c' => number_format($item['precio_c'], 2),
+                    'precio_d' => number_format($item['precio_d'], 2),
+                ];
+            }
+            
+            $this->rowsToProcess += count($batch);
+            return; // NO ejecutar la transacción en modo preview
+        }
+
+        /**
+         * MODO FINAL: Se ejecuta la inserción dentro de una transacción:
          * 1. Se inactivan los registros antiguos del mismo producto y categoría.
          * 2. Se insertan los nuevos registros.
          * 3. Se actualizan los contadores globales de estadísticas.
@@ -377,10 +411,12 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
             'rows_inserted'    => $this->rowsInserted,
             'rows_inactivated' => $this->rowsInactivated,
             'rows_skipped'     => $this->rowsSkipped,
+            'rows_to_process'  => $this->rowsToProcess,  // Para modo preview
             'missing_headers'  => $this->missingHeaders,
             'skipped_reasons'  => $this->skippedReasons,
             'productos_insertados' => $this->productosInsertados,
             'productos_inactivados' => $this->productosInactivados,
+            'productos_para_procesar' => $this->productosParaProcesar,  // Preview
         ];
     }
 

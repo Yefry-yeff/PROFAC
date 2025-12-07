@@ -192,11 +192,11 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     // web.php
     Route::post('/importar-excel', [App\Http\Controllers\ExcelController::class, 'importarExcel']);// routes/web.php
 
-    Route::post('/procesar-excel-precios', [App\Http\Controllers\ExcelController::class, 'procesarExcelPrecios'])
-    ->name('procesar.excel.precios');
+    Route::post('/preview-excel-precios', [App\Http\Controllers\ExcelController::class, 'previewExcelPrecios'])
+    ->name('preview.excel.precios');
 
-    Route::post('/importar-excel-precios', [App\Http\Controllers\ExcelController::class, 'importarExcelPrecios'])
-    ->name('importar.excel.precios');
+    Route::post('/finalizar-excel-precios', [App\Http\Controllers\ExcelController::class, 'finalizarExcelPrecios'])
+    ->name('finalizar.excel.precios');
 
     /* Gestión masiva de clientes */
 

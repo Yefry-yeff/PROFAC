@@ -311,6 +311,9 @@ textarea.form-control, input.form-control {
                 <button type="button" id="btnProcesarArchivoPrecios" class="btn btn-primary ml-2">
                     <i class="bi bi-search"></i> Procesar Archivo
                 </button>
+                <button type="button" id="btnFinalizarImportPrecios" class="btn btn-success ml-2" style="display:none;">
+                    <i class="bi bi-check-circle"></i> Finalizar Actualización
+                </button>
             </form>
         </div>
 
@@ -465,6 +468,7 @@ textarea.form-control, input.form-control {
         const fileInputPrecios = $('#archivo_excel');
         const btnLimpiarPrecios = $('#btnLimpiarArchivoPrecios');
         const btnProcesarPrecios = $('#btnProcesarArchivoPrecios');
+        const btnFinalizarPrecios = $('#btnFinalizarImportPrecios');
         const barProgressPrecios = $('#barImportPrecios');
         const msgImportPrecios = $('#msgImportPrecios');
         const formSubirExcel = $('#formSubirExcel');
@@ -475,8 +479,12 @@ textarea.form-control, input.form-control {
             $('#previewActualizablesPrecios').hide();
             $('#previewNoActualizablesPrecios').hide();
             
+            // Ocultar botón finalizar
+            btnFinalizarPrecios.hide();
+            btnProcesarPrecios.show();
+            
             // Limpiar barra de progreso y mensajes
-            barProgressPrecios.removeClass('bg-success bg-danger').css('width', '0%');
+            barProgressPrecios.removeClass('bg-success bg-danger bg-info').css('width', '0%');
             msgImportPrecios.removeClass('text-danger').text('');
             
             // Mostrar u ocultar botón de limpiar
@@ -494,19 +502,21 @@ textarea.form-control, input.form-control {
             // Limpiar input
             fileInputPrecios.val('');
             
-            // Ocultar botón X
+            // Ocultar botones
             btnLimpiarPrecios.hide();
+            btnFinalizarPrecios.hide();
+            btnProcesarPrecios.show();
             
             // Ocultar previews
             $('#previewActualizablesPrecios').hide();
             $('#previewNoActualizablesPrecios').hide();
             
             // Limpiar barra de progreso y mensajes
-            barProgressPrecios.removeClass('bg-success bg-danger').css('width', '0%');
+            barProgressPrecios.removeClass('bg-success bg-danger bg-info').css('width', '0%');
             msgImportPrecios.removeClass('text-danger').text('');
         });
 
-        // Procesar archivo para preview
+        // Procesar archivo para PREVIEW
         btnProcesarPrecios.on('click', function(e) {
             e.preventDefault();
 
@@ -532,7 +542,7 @@ textarea.form-control, input.form-control {
                 return;
             }
 
-            // Obtener valores de los filtros del formulario de exportación
+            // Obtener valores de los filtros
             const tipoCategoria = $('#tipoCategoria').val();
             const tipoFiltro = $('#tipoFiltro').val();
             const valorFiltro = $('#listaTipoFiltro').val();
@@ -556,12 +566,13 @@ textarea.form-control, input.form-control {
             // Ocultar previews anteriores
             $('#previewActualizablesPrecios').hide();
             $('#previewNoActualizablesPrecios').hide();
+            btnFinalizarPrecios.hide();
 
-            barProgressPrecios.removeClass('bg-success bg-danger').css('width', '0%');
-            msgImportPrecios.removeClass('text-danger').text('Procesando archivo...');
+            barProgressPrecios.removeClass('bg-success bg-danger').addClass('bg-info').css('width', '0%');
+            msgImportPrecios.removeClass('text-danger').text('Validando archivo...');
 
             $.ajax({
-                url: "{{ route('procesar.excel.precios') }}",
+                url: "{{ route('preview.excel.precios') }}",
                 method: 'POST',
                 data: formData,
                 contentType: false,
@@ -579,68 +590,50 @@ textarea.form-control, input.form-control {
                     return xhr;
                 },
                 success: function(res) {
-                    barProgressPrecios.addClass('bg-success').css('width', '100%');
-                    msgImportPrecios.text('Archivo procesado exitosamente');
+                    barProgressPrecios.addClass('bg-info').css('width', '100%');
+                    msgImportPrecios.text('Preview generado - Revise los productos');
 
-                    // El backend actual procesa directamente, mostramos los datos del debug
                     const debug = res.debug || {};
-                    const rowsInserted = debug.rows_inserted || 0;
+                    const rowsToProcess = debug.rows_to_process || 0;
                     const rowsSkipped = debug.rows_skipped || 0;
-                    const rowsInactivated = debug.rows_inactivated || 0;
                     const skippedReasons = debug.skipped_reasons || [];
-                    
-                    // Obtener los productos procesados del debug si existen
-                    const productosInsertados = debug.productos_insertados || [];
-                    const productosInactivados = debug.productos_inactivados || [];
+                    const productosParaProcesar = debug.productos_para_procesar || [];
 
-                    // Mostrar productos procesados con detalles completos
-                    if (rowsInserted > 0 || rowsInactivated > 0) {
-                        $('#countActualizablesPrecios').text(rowsInserted + rowsInactivated);
+                    // Mostrar productos a procesar
+                    if (rowsToProcess > 0 && productosParaProcesar.length > 0) {
+                        $('#countActualizablesPrecios').text(productosParaProcesar.length);
                         let htmlActualizables = '';
                         
-                        // Si hay datos detallados de productos, mostrarlos
-                        if (productosInsertados.length > 0) {
-                            productosInsertados.forEach(function(item) {
-                                htmlActualizables += `
-                                    <tr>
-                                        <td>${item.codigo || item.producto_id || 'N/A'}</td>
-                                        <td>${item.descripcion || item.nombre || 'N/A'}</td>
-                                        <td>${item.precio_base || item.precio_base_venta || 'N/A'}</td>
-                                        <td class="text-success font-weight-bold">${item.precio_a || item.precio_venta_a || 'N/A'}</td>
-                                        <td class="text-success font-weight-bold">${item.precio_b || item.precio_venta_b || 'N/A'}</td>
-                                        <td class="text-success font-weight-bold">${item.precio_c || item.precio_venta_c || 'N/A'}</td>
-                                        <td class="text-success font-weight-bold">${item.precio_d || item.precio_venta_d || 'N/A'}</td>
-                                    </tr>
-                                `;
-                            });
-                        } else {
-                            // Si no hay detalles, mostrar resumen
-                            htmlActualizables = `
+                        productosParaProcesar.forEach(function(item) {
+                            htmlActualizables += `
                                 <tr>
-                                    <td colspan="7" class="text-center">
-                                        <strong>Resumen de procesamiento:</strong><br>
-                                        Productos insertados/actualizados: ${rowsInserted}<br>
-                                        Productos inactivados: ${rowsInactivated}<br>
-                                        Productos omitidos: ${rowsSkipped}
-                                    </td>
+                                    <td>${item.codigo || item.producto_id || 'N/A'}</td>
+                                    <td>${item.descripcion || item.nombre || 'N/A'}</td>
+                                    <td>${item.precio_base || 'N/A'}</td>
+                                    <td class="text-success font-weight-bold">${item.precio_a || 'N/A'}</td>
+                                    <td class="text-success font-weight-bold">${item.precio_b || 'N/A'}</td>
+                                    <td class="text-success font-weight-bold">${item.precio_c || 'N/A'}</td>
+                                    <td class="text-success font-weight-bold">${item.precio_d || 'N/A'}</td>
                                 </tr>
                             `;
-                        }
+                        });
                         
                         $('#tablaActualizablesPrecios').html(htmlActualizables);
                         $('#previewActualizablesPrecios').show();
+                        
+                        // Mostrar botón de finalizar
+                        btnProcesarPrecios.hide();
+                        btnFinalizarPrecios.show();
                     }
 
-                    // Mostrar productos NO procesados con detalles
+                    // Mostrar productos NO procesados
                     if (skippedReasons.length > 0) {
                         $('#countNoActualizablesPrecios').text(skippedReasons.length);
                         let htmlNoActualizables = '';
                         let tieneErroresFiltros = false;
                         
                         skippedReasons.forEach(function(item, index) {
-                            // Si item es un objeto con detalles
                             if (typeof item === 'object') {
-                                // Detectar si hay errores de filtros
                                 if (item.motivo && (item.motivo.includes('no pertenece a la marca') || item.motivo.includes('no pertenece a la categoría'))) {
                                     tieneErroresFiltros = true;
                                 }
@@ -654,7 +647,6 @@ textarea.form-control, input.form-control {
                                     </tr>
                                 `;
                             } else {
-                                // Si es solo un string
                                 if (typeof item === 'string' && (item.includes('no pertenece a la marca') || item.includes('no pertenece a la categoría'))) {
                                     tieneErroresFiltros = true;
                                 }
@@ -673,30 +665,39 @@ textarea.form-control, input.form-control {
                         $('#tablaNoActualizablesPrecios').html(htmlNoActualizables);
                         $('#previewNoActualizablesPrecios').show();
                         
-                        // Si hay errores de filtros, mostrar alerta especial
+                        // Si hay errores de filtros, mostrar alerta
                         if (tieneErroresFiltros) {
                             Swal.fire({
                                 icon: 'warning',
                                 title: 'Filtros no coinciden',
                                 html: `
                                     <p><strong>ATENCIÓN:</strong> El archivo contiene productos que no coinciden con los filtros seleccionados.</p>
-                                    <p class="text-danger">Productos procesados: ${rowsInserted}</p>
+                                    <p class="text-success">Productos a procesar: ${rowsToProcess}</p>
                                     <p class="text-warning">Productos omitidos por filtros: ${skippedReasons.length}</p>
                                     <p class="text-muted mt-3">Verifique que el archivo corresponda a los filtros seleccionados (Marca/Categoría).</p>
                                 `,
                             });
-                            return; // No mostrar el Swal de éxito
+                        } else {
+                            Swal.fire({
+                                icon: res.icon || 'info',
+                                title: res.title || 'Preview Generado',
+                                html: `
+                                    <p>Productos a procesar: <strong>${rowsToProcess}</strong></p>
+                                    <p>Productos omitidos: <strong>${rowsSkipped}</strong></p>
+                                    <p class="mt-3 text-primary">Revise los datos y presione "Finalizar Actualización" para confirmar.</p>
+                                `,
+                            });
                         }
+                    } else if (rowsToProcess > 0) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Preview Generado',
+                            html: `
+                                <p>Productos a procesar: <strong>${rowsToProcess}</strong></p>
+                                <p class="mt-3 text-primary">Todo correcto. Presione "Finalizar Actualización" para confirmar.</p>
+                            `,
+                        });
                     }
-
-                    // No limpiar automáticamente, dejar que el usuario revise
-                    btnProcesarPrecios.show();
-                    
-                    Swal.fire({
-                        icon: res.icon || 'success',
-                        title: res.title || 'Éxito',
-                        html: res.text || 'Archivo procesado correctamente.',
-                    });
                 },
                 error: function(xhr) {
                     barProgressPrecios.addClass('bg-danger').css('width', '100%');
@@ -711,6 +712,86 @@ textarea.form-control, input.form-control {
                     });
                 },
                 headers: {'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')}
+            });
+        });
+
+        // FINALIZAR actualización de precios
+        btnFinalizarPrecios.on('click', function(e) {
+            e.preventDefault();
+
+            Swal.fire({
+                title: '¿Confirmar actualización?',
+                text: 'Se actualizarán los precios de los productos mostrados en el preview.',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#28a745',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Sí, actualizar',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    barProgressPrecios.removeClass('bg-info bg-danger').addClass('bg-success').css('width', '0%');
+                    msgImportPrecios.text('Finalizando actualización...');
+                    btnFinalizarPrecios.prop('disabled', true);
+
+                    $.ajax({
+                        url: "{{ route('finalizar.excel.precios') }}",
+                        method: 'POST',
+                        headers: {'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')},
+                        xhr: function() {
+                            const xhr = $.ajaxSettings.xhr();
+                            if (xhr.upload) {
+                                xhr.upload.addEventListener('progress', function(e) {
+                                    if (e.lengthComputable) {
+                                        const p = Math.round((e.loaded / e.total) * 100);
+                                        barProgressPrecios.css('width', p + '%');
+                                    }
+                                }, false);
+                            }
+                            return xhr;
+                        },
+                        success: function(res) {
+                            barProgressPrecios.css('width', '100%');
+                            msgImportPrecios.text('Actualización completada exitosamente');
+
+                            const debug = res.debug || {};
+                            const rowsInserted = debug.rows_inserted || 0;
+                            const rowsInactivated = debug.rows_inactivated || 0;
+
+                            Swal.fire({
+                                icon: 'success',
+                                title: '¡Actualización Completada!',
+                                html: `
+                                    <p>Productos actualizados: <strong>${rowsInserted}</strong></p>
+                                    <p>Productos inactivados: <strong>${rowsInactivated}</strong></p>
+                                `,
+                            }).then(() => {
+                                // Limpiar todo
+                                fileInputPrecios.val('');
+                                btnLimpiarPrecios.hide();
+                                btnFinalizarPrecios.hide();
+                                btnProcesarPrecios.show();
+                                $('#previewActualizablesPrecios').hide();
+                                $('#previewNoActualizablesPrecios').hide();
+                                barProgressPrecios.css('width', '0%');
+                                msgImportPrecios.text('');
+                            });
+                        },
+                        error: function(xhr) {
+                            barProgressPrecios.removeClass('bg-success').addClass('bg-danger').css('width', '100%');
+                            let t = 'Error al finalizar la actualización.';
+                            if (xhr.responseJSON && xhr.responseJSON.text) t = xhr.responseJSON.text;
+                            msgImportPrecios.addClass('text-danger').text(t);
+                            btnFinalizarPrecios.prop('disabled', false);
+                            
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: t
+                            });
+                        }
+                    });
+                }
             });
         });
     });

@@ -280,5 +280,181 @@ Excel::import(
         }
     }
 
+    /**
+     * Preview del archivo Excel de precios - Solo validaciones y vista previa
+     */
+    public function previewExcelPrecios(Request $request)
+    {
+        $v = Validator::make($request->all(), [
+            'archivo_excel'      => 'required|file|max:20480',
+            'tipoCategoria'      => 'required|in:escalable,manual',
+            'tipoFiltro'         => 'required|in:1,2',
+            'valorFiltro'        => 'required|integer',
+            'categoriaPrecioId'  => 'required|exists:categoria_precios,id',
+            'defaultUnidadMedidaId' => 'nullable|integer|exists:unidad_medida_venta,id',
+        ], [
+            'archivo_excel.required' => 'Subí un archivo.',
+            'archivo_excel.file'     => 'Archivo inválido.',
+            'archivo_excel.max'      => 'El archivo no puede superar 20 MB.',
+        ]);
+
+        if ($v->fails()) {
+            return response()->json([
+                'icon'  => 'error',
+                'title' => 'Validación',
+                'text'  => $v->errors()->first(),
+            ], 422);
+        }
+
+        try {
+            $userId = auth()->id() ?? 1;
+
+            // Crear importador en MODO PREVIEW (solo validación, sin insertar)
+            $import = new PreciosProductoCargaImport(
+                $request->input('tipoCategoria'),
+                (int)$request->input('tipoFiltro'),
+                (int)$request->input('valorFiltro'),
+                (int)$request->input('categoriaPrecioId'),
+                (int)$userId,
+                $request->input('defaultUnidadMedidaId') ? (int)$request->input('defaultUnidadMedidaId') : null,
+                true // MODO PREVIEW
+            );
+
+            config(['excel.temporary_files.local_path' => storage_path('app/excel-temp')]);
+
+            $file = $request->file('archivo_excel');
+            $ext  = strtolower($file->getClientOriginalExtension());
+            $allowed = ['xlsx','xls','csv'];
+
+            if (!in_array($ext, $allowed)) {
+                return response()->json([
+                    'icon'  => 'error',
+                    'title' => 'Validación',
+                    'text'  => 'El archivo debe ser XLSX, XLS o CSV.',
+                ], 422);
+            }
+
+            $readerType = ($ext === 'csv') ? ExcelFormat::CSV : ExcelFormat::XLSX;
+            $storedPath = $file->storeAs('imports', 'preview_precios_' . time() . '.' . $ext, 'local');
+
+            Excel::import($import, $storedPath, 'local', $readerType);
+
+            $stats = $import->getStats();
+
+            if (!empty($stats['missing_headers'])) {
+                return response()->json([
+                    'icon'  => 'error',
+                    'title' => 'Encabezados inválidos',
+                    'text'  => 'Faltan columnas: ' . implode(', ', $stats['missing_headers']),
+                    'debug' => $stats,
+                ], 422);
+            }
+
+            // Guardar datos del preview en sesión para usar en finalizar
+            session([
+                'preview_precios_data' => [
+                    'tipoCategoria' => $request->input('tipoCategoria'),
+                    'tipoFiltro' => (int)$request->input('tipoFiltro'),
+                    'valorFiltro' => (int)$request->input('valorFiltro'),
+                    'categoriaPrecioId' => (int)$request->input('categoriaPrecioId'),
+                    'userId' => (int)$userId,
+                    'defaultUnidadMedidaId' => $request->input('defaultUnidadMedidaId') ? (int)$request->input('defaultUnidadMedidaId') : null,
+                    'storedPath' => $storedPath,
+                    'readerType' => $readerType,
+                ]
+            ]);
+
+            return response()->json([
+                'icon'  => 'info',
+                'title' => 'Preview generado',
+                'text'  => "Productos a procesar: {$stats['rows_to_process']} | Productos omitidos: {$stats['rows_skipped']}",
+                'preview' => true,
+                'debug' => $stats,
+            ]);
+
+        } catch (\Throwable $e) {
+            \Log::error('[previewExcelPrecios] Error', [
+                'msg' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            return response()->json([
+                'icon'  => 'error',
+                'title' => 'Error al procesar',
+                'text'  => 'Revisá el archivo/encabezados y volvé a intentar.',
+                'debug' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Finalizar la actualización de precios después del preview
+     */
+    public function finalizarExcelPrecios(Request $request)
+    {
+        try {
+            // Recuperar datos del preview desde la sesión
+            $previewData = session('preview_precios_data');
+
+            if (!$previewData) {
+                return response()->json([
+                    'icon'  => 'error',
+                    'title' => 'Sesión expirada',
+                    'text'  => 'Debe procesar el archivo nuevamente.',
+                ], 422);
+            }
+
+            // Crear importador en MODO FINAL (con inserción)
+            $import = new PreciosProductoCargaImport(
+                $previewData['tipoCategoria'],
+                $previewData['tipoFiltro'],
+                $previewData['valorFiltro'],
+                $previewData['categoriaPrecioId'],
+                $previewData['userId'],
+                $previewData['defaultUnidadMedidaId'],
+                false // MODO FINAL - SÍ INSERTAR
+            );
+
+            config(['excel.temporary_files.local_path' => storage_path('app/excel-temp')]);
+
+            Excel::import(
+                $import,
+                $previewData['storedPath'],
+                'local',
+                $previewData['readerType']
+            );
+
+            $stats = $import->getStats();
+
+            // Limpiar sesión
+            session()->forget('preview_precios_data');
+
+            // Limpiar archivo temporal
+            \Storage::disk('local')->delete($previewData['storedPath']);
+
+            return response()->json([
+                'icon'  => 'success',
+                'title' => 'Actualización completada',
+                'text'  => "Productos actualizados: {$stats['rows_inserted']} | Productos inactivados: {$stats['rows_inactivated']}",
+                'debug' => $stats,
+            ]);
+
+        } catch (\Throwable $e) {
+            \Log::error('[finalizarExcelPrecios] Error', [
+                'msg' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            return response()->json([
+                'icon'  => 'error',
+                'title' => 'Error al finalizar',
+                'text'  => 'Ocurrió un error al actualizar los precios.',
+                'debug' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
 
 }
