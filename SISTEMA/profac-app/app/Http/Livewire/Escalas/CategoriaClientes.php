@@ -108,11 +108,23 @@ class CategoriaClientes extends Component
 
         public function desactivarCategoria($idCategoria){
             try {
+                // Verificar si existen categorías de precios activas vinculadas a esta categoría de cliente
+                $categoriaPreciosActivas = DB::table('categoria_precios')
+                    ->where('cliente_categoria_escala_id', $idCategoria)
+                    ->where('estado_id', 1)
+                    ->count();
 
+                if ($categoriaPreciosActivas > 0) {
+                    return response()->json([
+                        "text" => "No se puede inactivar esta categoría de cliente porque tiene {$categoriaPreciosActivas} categoría(s) de precios activa(s) vinculada(s). Primero debe inactivar las categorías de precios asociadas.",
+                        "icon" => "warning",
+                        "title"=>"Acción no permitida"
+                    ], 422);
+                }
 
-                    $Categoria =  modelCategoriaCliente::find($idCategoria);
-                    $Categoria->estado_id =  2;
-                    $Categoria->save();
+                $Categoria = modelCategoriaCliente::find($idCategoria);
+                $Categoria->estado_id = 2;
+                $Categoria->save();
 
                 return response()->json([
                     "text" => "Desactivado con éxito.",
