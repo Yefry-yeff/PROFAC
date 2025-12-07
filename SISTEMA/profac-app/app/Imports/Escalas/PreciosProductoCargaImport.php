@@ -36,6 +36,10 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
 
     // Registro de motivos por los cuales se omiten filas
     protected array $skippedReasons = [];
+    
+    // Registro detallado de productos procesados
+    protected array $productosInsertados = [];
+    protected array $productosInactivados = [];
 
     /**
      * Constructor: inicializa los parámetros requeridos para el proceso.
@@ -137,7 +141,7 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
 
             // Si faltan datos críticos, la fila se omite.
             if (!$productoId || !$catPrecioId) {
-                $this->skip("Fila sin producto_id o categoria_precios_id");
+                $this->skip("Falta producto_id o categoria_precios_id", $row->toArray());
                 continue;
             }
 
@@ -156,7 +160,7 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
 
             // Si no se obtiene un ID de unidad válido, se omite la fila.
             if (!$this->isValidUnidad($unidadId)) {
-                $this->skip("Sin unidad_medida_compra_id válido para producto_id={$productoId}");
+                $this->skip("Sin unidad_medida_compra_id válido para producto_id={$productoId}", $row->toArray());
                 continue;
             }
 
@@ -314,6 +318,28 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
                 // Paso 3: actualizar las métricas del proceso
                 $this->rowsInactivated += $totalInactivated;
                 $this->rowsInserted += count($batch);
+                
+                // Paso 4: Obtener información detallada de los productos insertados
+                $productoIds = array_column($batch, 'producto_id');
+                $productos = DB::table('producto')
+                    ->whereIn('id', $productoIds)
+                    ->get()
+                    ->keyBy('id');
+                
+                // Guardar detalles de productos insertados para mostrar en frontend
+                foreach ($batch as $item) {
+                    $producto = $productos[$item['producto_id']] ?? null;
+                    $this->productosInsertados[] = [
+                        'producto_id' => $item['producto_id'],
+                        'codigo' => $producto->codigo ?? $item['producto_id'],
+                        'descripcion' => $producto->nombre ?? 'Producto #' . $item['producto_id'],
+                        'precio_base' => number_format($item['precio_base_venta'], 2),
+                        'precio_a' => number_format($item['precio_a'], 2),
+                        'precio_b' => number_format($item['precio_b'], 2),
+                        'precio_c' => number_format($item['precio_c'], 2),
+                        'precio_d' => number_format($item['precio_d'], 2),
+                    ];
+                }
             });
         } catch (QueryException $e) {
             // En caso de error SQL, se registra el detalle y se relanza la excepción
@@ -334,16 +360,29 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
             'rows_skipped'     => $this->rowsSkipped,
             'missing_headers'  => $this->missingHeaders,
             'skipped_reasons'  => $this->skippedReasons,
+            'productos_insertados' => $this->productosInsertados,
+            'productos_inactivados' => $this->productosInactivados,
         ];
     }
 
     /**
-     * Marca una fila como omitida, registrando el motivo.
+     * Marca una fila como omitida, registrando el motivo con detalles.
      */
-    protected function skip(string $reason): void
+    protected function skip(string $reason, array $rowData = []): void
     {
         $this->rowsSkipped++;
-        $this->skippedReasons[] = $reason;
+        
+        // Si tenemos datos de la fila, creamos un objeto con detalles
+        if (!empty($rowData)) {
+            $this->skippedReasons[] = [
+                'fila' => $this->rowsRead,
+                'codigo' => $rowData['producto_id'] ?? 'N/A',
+                'descripcion' => $rowData['nombre'] ?? $rowData['descripcion'] ?? 'N/A',
+                'motivo' => $reason
+            ];
+        } else {
+            $this->skippedReasons[] = $reason;
+        }
     }
 
     /**
