@@ -635,9 +635,16 @@ textarea.form-control, input.form-control {
                     if (skippedReasons.length > 0) {
                         $('#countNoActualizablesPrecios').text(skippedReasons.length);
                         let htmlNoActualizables = '';
+                        let tieneErroresFiltros = false;
+                        
                         skippedReasons.forEach(function(item, index) {
                             // Si item es un objeto con detalles
                             if (typeof item === 'object') {
+                                // Detectar si hay errores de filtros
+                                if (item.motivo && (item.motivo.includes('no pertenece a la marca') || item.motivo.includes('no pertenece a la categoría'))) {
+                                    tieneErroresFiltros = true;
+                                }
+                                
                                 htmlNoActualizables += `
                                     <tr>
                                         <td>${item.fila || index + 1}</td>
@@ -648,6 +655,10 @@ textarea.form-control, input.form-control {
                                 `;
                             } else {
                                 // Si es solo un string
+                                if (typeof item === 'string' && (item.includes('no pertenece a la marca') || item.includes('no pertenece a la categoría'))) {
+                                    tieneErroresFiltros = true;
+                                }
+                                
                                 htmlNoActualizables += `
                                     <tr>
                                         <td>${index + 1}</td>
@@ -658,8 +669,24 @@ textarea.form-control, input.form-control {
                                 `;
                             }
                         });
+                        
                         $('#tablaNoActualizablesPrecios').html(htmlNoActualizables);
                         $('#previewNoActualizablesPrecios').show();
+                        
+                        // Si hay errores de filtros, mostrar alerta especial
+                        if (tieneErroresFiltros) {
+                            Swal.fire({
+                                icon: 'warning',
+                                title: 'Filtros no coinciden',
+                                html: `
+                                    <p><strong>ATENCIÓN:</strong> El archivo contiene productos que no coinciden con los filtros seleccionados.</p>
+                                    <p class="text-danger">Productos procesados: ${rowsInserted}</p>
+                                    <p class="text-warning">Productos omitidos por filtros: ${skippedReasons.length}</p>
+                                    <p class="text-muted mt-3">Verifique que el archivo corresponda a los filtros seleccionados (Marca/Categoría).</p>
+                                `,
+                            });
+                            return; // No mostrar el Swal de éxito
+                        }
                     }
 
                     // No limpiar automáticamente, dejar que el usuario revise
