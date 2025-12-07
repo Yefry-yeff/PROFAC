@@ -377,13 +377,18 @@ Excel::import(
                 'msg' => $e->getMessage(),
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'icon'  => 'error',
                 'title' => 'Error al procesar',
                 'text'  => 'Revisá el archivo/encabezados y volvé a intentar.',
-                'debug' => $e->getMessage(),
+                'debug' => [
+                    'message' => $e->getMessage(),
+                    'file' => basename($e->getFile()),
+                    'line' => $e->getLine(),
+                ],
             ], 500);
         }
     }

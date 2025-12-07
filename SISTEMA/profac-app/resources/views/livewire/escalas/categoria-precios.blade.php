@@ -702,13 +702,26 @@ textarea.form-control, input.form-control {
                 error: function(xhr) {
                     barProgressPrecios.addClass('bg-danger').css('width', '100%');
                     let t = 'Error al procesar el archivo.';
-                    if (xhr.responseJSON && xhr.responseJSON.text) t = xhr.responseJSON.text;
+                    let debugInfo = '';
+                    
+                    if (xhr.responseJSON) {
+                        if (xhr.responseJSON.text) t = xhr.responseJSON.text;
+                        if (xhr.responseJSON.debug) {
+                            const debug = xhr.responseJSON.debug;
+                            if (typeof debug === 'object') {
+                                debugInfo = `<br><small class="text-muted">Error: ${debug.message || ''}<br>Archivo: ${debug.file || ''} (Línea: ${debug.line || ''})</small>`;
+                            } else {
+                                debugInfo = `<br><small class="text-muted">${debug}</small>`;
+                            }
+                        }
+                    }
+                    
                     msgImportPrecios.addClass('text-danger').text(t);
                     
                     Swal.fire({
                         icon: 'error',
                         title: 'Error',
-                        text: t
+                        html: t + debugInfo
                     });
                 },
                 headers: {'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')}

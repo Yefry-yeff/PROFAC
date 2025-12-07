@@ -43,6 +43,7 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
     protected array $productosInsertados = [];
     protected array $productosInactivados = [];
     protected array $productosParaProcesar = [];  // Preview de productos a procesar
+    protected array $productoInfoMap = [];  // Mapeo temporal de info de productos
 
     /**
      * Constructor: inicializa los parámetros requeridos para el proceso.
@@ -116,12 +117,30 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
          * desde la tabla de productos. Esto evita consultas repetitivas dentro del loop.
          */
         $unidadMap = [];
+        $productoInfoMap = []; // Mapeo de id => [codigo, nombre]
         if (!empty($productoIds)) {
             $unidadMap = DB::table(self::PRODUCTOS_TABLE)
                 ->whereIn('id', $productoIds)
                 ->pluck('unidad_medida_compra_id', 'id')
                 ->toArray();
+                
+            // Obtener información completa de productos para usar en skip()
+            // Ajustar nombres de columnas según la estructura real de la tabla
+            $productosInfo = DB::table(self::PRODUCTOS_TABLE)
+                ->select('id', 'nombre')  // Solo nombre, sin codigo por ahora
+                ->whereIn('id', $productoIds)
+                ->get();
+                
+            foreach ($productosInfo as $prod) {
+                $productoInfoMap[$prod->id] = [
+                    'codigo' => $prod->id,  // Usar ID como codigo si no existe la columna
+                    'nombre' => $prod->nombre
+                ];
+            }
         }
+        
+        // Guardar el mapeo en la propiedad de clase para usar en skip()
+        $this->productoInfoMap = $productoInfoMap;
 
         /**
          * Iteración fila por fila del Excel.
@@ -329,7 +348,7 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
                 $producto = $productos[$item['producto_id']] ?? null;
                 $this->productosParaProcesar[] = [
                     'producto_id' => $item['producto_id'],
-                    'codigo' => $producto->codigo ?? $item['producto_id'],
+                    'codigo' => $producto->id ?? $item['producto_id'],
                     'descripcion' => $producto->nombre ?? 'Producto #' . $item['producto_id'],
                     'precio_base' => number_format($item['precio_base_venta'], 2),
                     'precio_a' => number_format($item['precio_a'], 2),
@@ -384,7 +403,7 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
                     $producto = $productos[$item['producto_id']] ?? null;
                     $this->productosInsertados[] = [
                         'producto_id' => $item['producto_id'],
-                        'codigo' => $producto->codigo ?? $item['producto_id'],
+                        'codigo' => $producto->id ?? $item['producto_id'],
                         'descripcion' => $producto->nombre ?? 'Producto #' . $item['producto_id'],
                         'precio_base' => number_format($item['precio_base_venta'], 2),
                         'precio_a' => number_format($item['precio_a'], 2),
@@ -429,10 +448,40 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
         
         // Si tenemos datos de la fila, creamos un objeto con detalles
         if (!empty($rowData)) {
+            $productoId = $rowData['producto_id'] ?? null;
+            $codigo = 'N/A';
+            $descripcion = 'N/A';
+            
+            // Usar el mapeo precargado en lugar de consultar cada vez
+            if ($productoId && isset($this->productoInfoMap[$productoId])) {
+                $codigo = $this->productoInfoMap[$productoId]['codigo'] ?? $productoId;
+                $descripcion = $this->productoInfoMap[$productoId]['nombre'] ?? 'Producto #' . $productoId;
+            } elseif ($productoId) {
+                // Si no está en el mapeo, intentar consulta directa (fallback)
+                try {
+                    $producto = DB::table(self::PRODUCTOS_TABLE)
+                        ->select('id', 'nombre')
+                        ->where('id', $productoId)
+                        ->first();
+                        
+                    if ($producto) {
+                        $codigo = $producto->id;
+                        $descripcion = $producto->nombre ?? 'Producto #' . $productoId;
+                    } else {
+                        $codigo = $productoId;
+                        $descripcion = 'Producto #' . $productoId;
+                    }
+                } catch (\Exception $e) {
+                    $codigo = $productoId;
+                    $descripcion = 'Producto #' . $productoId;
+                }
+            }
+            
             $this->skippedReasons[] = [
-                'fila' => $this->rowsRead,
-                'codigo' => $rowData['producto_id'] ?? 'N/A',
-                'descripcion' => $rowData['nombre'] ?? $rowData['descripcion'] ?? 'N/A',
+                'fila' => $this->rowsRead + 1,  // +1 para no contar el encabezado
+                'codigo' => $codigo,
+                'descripcion' => $descripcion,  // Mismo campo que productos actualizables
+                'producto_id' => $productoId,
                 'motivo' => $reason
             ];
         } else {
