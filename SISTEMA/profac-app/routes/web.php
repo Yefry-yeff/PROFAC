@@ -187,6 +187,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::post('/guardar/categoria/precios', [CategoriaPrecios::class, 'guardarCtaegoria']);
     Route::get('/listar/categoria/precios', [CategoriaPrecios::class, 'listarCategorias']);
     Route::get('/desactivar/categoria/precios/{idCategoria}', [CategoriaPrecios::class, 'desactivarCategoria']);
+    
     /*SUBIDA DE EXCEL */
     // web.php
     Route::post('/importar-excel', [App\Http\Controllers\ExcelController::class, 'importarExcel']);// routes/web.php

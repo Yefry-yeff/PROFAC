@@ -28,18 +28,21 @@ class ExcelController extends Controller
         $valorFiltro = $request->input('listaTipoFiltro');
         $valorCategoria = $request->input('listaTipoFiltroCatPrecios');
 
+        // Generar fecha para el nombre del archivo
+        $fecha = date('Y-m-d_H-i-s');
+
         // En caso de "manual", se usa el export específico con encabezados/estructura manual.
         if ($tipoCategoria === 'manual') {
             return Excel::download(
                 new ProductosPlantillaExportManual($tipoFiltro, $valorFiltro, $valorCategoria),
-                'plantilla_productos_manual.xlsx'
+                'plantilla_productos_manual_' . $fecha . '.xlsx'
             );
         }
 
         // Por defecto (o si es "escalable"), se usa el export escalable.
         return Excel::download(
             new ProductosPlantillaExport($tipoFiltro, $valorFiltro, $valorCategoria),
-            'plantilla_productos_escalable.xlsx'
+            'plantilla_productos_escalable_' . $fecha . '.xlsx'
         );
     }
 

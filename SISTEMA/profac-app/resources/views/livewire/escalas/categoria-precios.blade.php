@@ -168,19 +168,19 @@ textarea.form-control, input.form-control {
 </style>
 @endpush
 
-<div class="card shadow-sm border-0 mb-3">
-    <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center">
+<div class="mb-3 border-0 shadow-sm card">
+    <div class="py-2 card-header bg-light d-flex justify-content-between align-items-center">
         <h6 class="mb-0"><b>CATEGORÍA DE PRECIOS DE PRODUCTO</b></h6>
 
     <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#modalCategoriasPrecios">
-        <i class="bi bi-plus-circle mr-1"></i> + Creación
+        <i class="mr-1 bi bi-plus-circle"></i> + Creación
 
     </button>
     </div>
-  <div class="card-body p-2">
+  <div class="p-2 card-body">
 
         <!-- TABLA -->
-    <div class="row mt-4">
+    <div class="mt-4 row">
         <div class="col-lg-12">
             <div class="ibox">
                 <div class="ibox-content">
@@ -213,11 +213,11 @@ textarea.form-control, input.form-control {
     </div>
 </div>
 
-<div class="card shadow-sm border-0 mb-3">
-    <div class="card-header bg-light py-2 d-flex flex-wrap align-items-center justify-content-between">
+<div class="mb-3 border-0 shadow-sm card">
+    <div class="flex-wrap py-2 card-header bg-light d-flex align-items-center justify-content-between">
         <h6 class="mb-2 mb-md-0"><b>PLANTILLA DE PRECIOS POR PRODUCTOS</b></h6>
 
-        <form id="formExport" method="GET" action="{{ route('excel.plantilla') }}" class="d-flex flex-wrap align-items-center filtro-container">
+        <form id="formExport" method="GET" action="{{ route('excel.plantilla') }}" class="flex-wrap d-flex align-items-center filtro-container">
             <!-- Tipo de categoría -->
             <div class="filtro-item">
                 <select id="tipoCategoria" name="tipoCategoria" class="form-control select2bs4 filtro-select">
@@ -259,43 +259,43 @@ textarea.form-control, input.form-control {
             </div>
         </form>
     </div>
-    <div class="card-body p-2 text-center">
-        <form id="formSubirExcel" enctype="multipart/form-data" autocomplete="off" class="border rounded p-4 bg-light shadow-sm text-center">
+    <div class="p-2 text-center card-body">
+        <form id="formSubirExcel" enctype="multipart/form-data" autocomplete="off" class="p-4 text-center border rounded shadow-sm bg-light">
             <h6 class="mb-2 text-primary font-weight-bold">⬆️ Carga masiva de precios</h6>
 
             <div class="form-group">
-                <div class="d-flex flex-wrap justify-content-center align-items-center gap-3">
+                <div class="flex-wrap gap-3 d-flex justify-content-center align-items-center">
 
                 <!-- Selector de archivo -->
                 <div class="custom-file flex-grow-1" style="max-width: 420px;">
                     <input type="file" class="custom-file-input" id="archivo_excel" name="archivo_excel"
                     accept=".xlsx,.xls,.csv" required>
-                    <label class="custom-file-label text-left" for="archivo_excel">Elija un archivo...</label>
+                    <label class="text-left custom-file-label" for="archivo_excel">Elija un archivo...</label>
                 </div>
 
                 <!-- Botón de subir -->
-                <button type="submit" class="btn btn-success px-4" id="btnSubirExcel">
+                <button type="submit" class="px-4 btn btn-success" id="btnSubirExcel">
                     📤 Subir
                 </button>
                 </div>
 
-                <small class="form-text text-muted mt-2">
+                <small class="mt-2 form-text text-muted">
                 Formatos permitidos: <b>.xlsx</b>, <b>.xls</b> — Máx 10 MB
                 </small>
             </div>
 
             <!-- Barra de progreso -->
-            <div class="progress mt-4 d-none" id="progressUpload">
+            <div class="mt-4 progress d-none" id="progressUpload">
                 <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
             </div>
             </form>
 
         <!-- Vista previa del Excel -->
         <div class="mt-4">
-        <div class="d-flex justify-content-between align-items-center mb-2">
+        <div class="mb-2 d-flex justify-content-between align-items-center">
             <h6 class="mb-0 text-dark"><b>Vista previa del Excel</b></h6>
-            <div class="d-flex gap-2">
-            <button type="button" class="btn btn-outline-secondary btn-sm mr-2" id="btnLimpiarVista" disabled>
+            <div class="gap-2 d-flex">
+            <button type="button" class="mr-2 btn btn-outline-secondary btn-sm" id="btnLimpiarVista" disabled>
                 Limpiar
             </button>
             <button type="button" class="btn btn-primary btn-sm" id="btnProcesar" disabled>
@@ -311,7 +311,7 @@ textarea.form-control, input.form-control {
             </table>
         </div>
 
-        {{--  <small class="text-muted d-block mt-2">
+        {{--  <small class="mt-2 text-muted d-block">
             Consejo: revisá encabezados/columnas; deben coincidir con la plantilla exportada.
         </small>  --}}
         </div>
@@ -327,18 +327,18 @@ textarea.form-control, input.form-control {
      aria-labelledby="modalCategoriasPreciosTitle" aria-hidden="true"
      data-backdrop="static" data-keyboard="false">
   <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
-    <div class="modal-content border-0 shadow-lg rounded">
+    <div class="border-0 rounded shadow-lg modal-content">
 
       <!-- Header -->
-      <div class="modal-header bg-primary text-white rounded-top">
+      <div class="text-white modal-header bg-primary rounded-top">
         <h5 class="modal-title font-weight-bold" id="modalCategoriasPreciosTitle">Categoría de Precios</h5>
-        <button type="button" class="close text-white" data-dismiss="modal" aria-label="Cerrar">
+        <button type="button" class="text-white close" data-dismiss="modal" aria-label="Cerrar">
           <span aria-hidden="true">&times;</span>
         </button>
       </div>
 
       <!-- Body -->
-      <div class="modal-body px-4 py-4 bg-light">
+      <div class="px-4 py-4 modal-body bg-light">
         <form id="CreacionCatPrecios" autocomplete="off">
 
           <!-- Primera fila: Nombre y Descripción -->
@@ -391,7 +391,7 @@ textarea.form-control, input.form-control {
           </div>
 
           <!-- Footer -->
-          <div class="modal-footer border-0 mt-4">
+          <div class="mt-4 border-0 modal-footer">
             <button type="button" class="btn btn-outline-secondary" data-dismiss="modal" id="btnCancelarCategoria">
               Cancelar
             </button>
