@@ -90,6 +90,13 @@
         flex: 1 1 240px;
     }
 }
+
+/* Sticky header para tablas de preview */
+.sticky-top {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
 </style>
 @endpush
 <!-- MODAL ELEGANTE -->
@@ -196,9 +203,17 @@
 
       <form id="formImportCategorias" class="d-flex align-items-center ml-2" enctype="multipart/form-data">
         @csrf
-        <input type="file" class="form-control filtro-select" name="file" accept=".xlsx,.xls,.csv" required>
-        <button type="submit" class="btn btn-primary ml-2">
-          <i class="bi bi-upload"></i> Importar
+        <div class="position-relative d-flex align-items-center">
+          <input type="file" class="form-control filtro-select" name="file" id="fileInputCategorias" accept=".xlsx" required>
+          <button type="button" id="btnLimpiarArchivo" class="btn btn-sm btn-danger position-absolute" style="right: 5px; display: none; z-index: 10;" title="Quitar archivo">
+            <i class="bi bi-x"></i>
+          </button>
+        </div>
+        <button type="button" id="btnProcesarArchivo" class="btn btn-primary ml-2">
+          <i class="bi bi-search"></i> Procesar Archivo
+        </button>
+        <button type="submit" id="btnFinalizarImport" class="btn btn-success ml-2" style="display:none;">
+          <i class="bi bi-check-circle"></i> Finalizar Actualización
         </button>
       </form>
     </div>
@@ -208,10 +223,48 @@
     </div>
     <div id="msgImportCategorias" class="small mt-2 text-muted"></div>
 
-    <div id="erroresImportCategorias" class="mt-3 d-none">
-      <div class="alert alert-warning mb-2"><b>Errores (primeros 10):</b></div>
-      <ul class="small" id="erroresLista"></ul>
+    <!-- Preview de clientes a actualizar -->
+    <div id="previewActualizables" class="mt-4" style="display:none;">
+      <div class="alert alert-success">
+        <h6><i class="bi bi-check-circle"></i> <b>Clientes que se actualizarán (<span id="countActualizables">0</span>)</b></h6>
+      </div>
+      <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+        <table class="table table-sm table-bordered table-hover">
+          <thead class="bg-success text-white sticky-top">
+            <tr>
+              <th>ID</th>
+              <th>Nombre</th>
+              <th>RTN</th>
+              <th>Categoría Actual</th>
+              <th>Nueva Categoría</th>
+            </tr>
+          </thead>
+          <tbody id="tablaActualizables"></tbody>
+        </table>
+      </div>
     </div>
+
+    <!-- Preview de clientes NO actualizables -->
+    <div id="previewNoActualizables" class="mt-4" style="display:none;">
+      <div class="alert alert-warning">
+        <h6><i class="bi bi-exclamation-triangle"></i> <b>Clientes NO procesados (<span id="countNoActualizables">0</span>)</b></h6>
+      </div>
+      <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+        <table class="table table-sm table-bordered table-hover">
+          <thead class="bg-warning sticky-top">
+            <tr>
+              <th>ID</th>
+              <th>Nombre</th>
+              <th>RTN</th>
+              <th>Categoría Propuesta</th>
+              <th>Motivo</th>
+            </tr>
+          </thead>
+          <tbody id="tablaNoActualizables"></tbody>
+        </table>
+      </div>
+    </div>
+
   </div>
 </div>
 

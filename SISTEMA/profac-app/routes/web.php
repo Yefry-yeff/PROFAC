@@ -199,8 +199,12 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
         Route::get('/clientes/plantilla-categorias', [ClienteLW::class,'descargarPlantillaCategoriaClientes'])
             ->name('clientes.plantilla.categorias');
 
+        Route::post('/clientes/preview-categorias', [ClienteLW::class,'procesarPreviewCategorias'])
+            ->name('clientes.preview.categorias');
+
         Route::post('/clientes/importar-categorias', [ClienteLW::class,'importarCategoriaClientes'])
             ->name('clientes.importar.categorias');
+            
         Route::get('/clientes/categorias-escala', [ClienteLW::class,'listaCategoriasEscala'])
     ->name('clientes.categorias.escala');
 

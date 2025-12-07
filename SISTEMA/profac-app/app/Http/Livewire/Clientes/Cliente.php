@@ -644,10 +644,163 @@ class Cliente extends Component
 
     public function descargarPlantillaCategoriaClientes()
     {
+        $fecha = date('Y-m-d_H-i-s');
         return \Maatwebsite\Excel\Facades\Excel::download(
             new ClientesCategoriaPlantillaExport,
-            'Plantilla_Categorias_Clientes.xlsx'
+            'Plantilla_Categorias_Clientes_' . $fecha . '.xlsx'
         );
+    }
+
+    public function procesarPreviewCategorias(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'file' => [
+                    'required',
+                    'file',
+                    'max:20480',
+                    'mimes:xlsx',
+                    'mimetypes:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                ],
+            ], [
+                'file.mimes' => 'El archivo debe ser de formato .xlsx',
+                'file.mimetypes' => 'El archivo debe ser de formato .xlsx',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'icon'  => 'warning',
+                    'title' => 'Validación',
+                    'text'  => $validator->errors()->first(),
+                ], 422);
+            }
+
+            $file = $request->file('file');
+            $storedPath = $file->storeAs('imports', 'preview_categorias_' . time() . '.' . $file->getClientOriginalExtension());
+            $fullPath = storage_path('app/' . $storedPath);
+
+            $ext = strtolower($file->getClientOriginalExtension());
+            if ($err = $this->assertExcelPathIsReadable($fullPath, $ext)) {
+                Log::error("[PreviewCategorias] Validación previa falló: {$err}");
+                return response()->json([
+                    'icon'  => 'error',
+                    'title' => 'Error',
+                    'text'  => 'Ocurrió un problema al procesar el archivo.',
+                    'error' => $err,
+                ], 400);
+            }
+
+            // Leer el archivo y generar preview
+            $data = \Maatwebsite\Excel\Facades\Excel::toCollection(new \App\Imports\Escalas\ClientesCategoriaMasivaImport(), $fullPath);
+            
+            $paraActualizar = [];
+            $noActualizables = [];
+            
+            foreach ($data[0] as $rawRow) {
+                // Normalizar llaves
+                $norm = [];
+                foreach ($rawRow as $k => $v) {
+                    $k = is_string($k) ? trim($k) : $k;
+                    $k = mb_strtolower($k, 'UTF-8');
+                    $k = str_replace(
+                        [' ', '-', 'á','é','í','ó','ú','Á','É','Í','Ó','Ú','ñ','Ñ'],
+                        ['_', '_','a','e','i','o','u','a','e','i','o','u','n','N'],
+                        $k
+                    );
+                    $norm[$k] = is_string($v) ? trim($v) : $v;
+                }
+                $row = collect($norm);
+
+                $idCliente = $row->get('id');
+                $nuevaCat = $row->get('nueva_categoria_id');
+                
+                if ($nuevaCat === null || $nuevaCat === '') {
+                    $nuevaCat = $row->get('cliente_categoria_escala_id');
+                }
+                if ($nuevaCat === null || $nuevaCat === '') {
+                    $nuevaCat = $row->get('nueva_categoria');
+                }
+
+                // Saltar filas sin ID de cliente o sin nueva categoría (no es un error, simplemente no se procesa)
+                if ($idCliente === null || $idCliente === '' || $nuevaCat === null || $nuevaCat === '') {
+                    continue;
+                }
+
+                // Validaciones
+                $error = null;
+                
+                if (!is_numeric((string)$idCliente) || !is_numeric((string)$nuevaCat)) {
+                    $error = 'Valores no numéricos';
+                } else {
+                    $cliente = \App\Models\ModelCliente::find((int)$idCliente);
+                    if (!$cliente) {
+                        $error = 'Cliente no existe';
+                    } else {
+                        // Verificar si la categoría existe y está activa
+                        $categoriaInfo = DB::selectOne("SELECT id, nombre_categoria, estado_id FROM cliente_categoria_escala WHERE id = ?", [(int)$nuevaCat]);
+                        
+                        if (!$categoriaInfo) {
+                            $error = 'Categoría no existe';
+                        } elseif ($categoriaInfo->estado_id == 2) {
+                            $error = 'Categoría de cliente inactiva';
+                        } else {
+                            $old = (int)($cliente->cliente_categoria_escala_id ?? 0);
+                            $new = (int)$nuevaCat;
+                            
+                            if ($old === $new) {
+                                $error = 'Categoría sin cambios';
+                            } else {
+                                // Obtener nombre de categoría antigua
+                                $categoriaAntigua = DB::selectOne("SELECT nombre_categoria FROM cliente_categoria_escala WHERE id = ?", [$old]);
+                                
+                                $paraActualizar[] = [
+                                    'id' => $cliente->id,
+                                    'nombre' => $cliente->nombre,
+                                    'rtn' => $cliente->rtn,
+                                    'categoria_antigua_id' => $old,
+                                    'categoria_antigua_nombre' => $categoriaAntigua->nombre_categoria ?? 'Sin categoría',
+                                    'categoria_nueva_id' => $new,
+                                    'categoria_nueva_nombre' => $categoriaInfo->nombre_categoria,
+                                ];
+                            }
+                        }
+                    }
+                }
+                
+                if ($error) {
+                    $noActualizables[] = [
+                        'id' => $idCliente ?? 'N/A',
+                        'nombre' => $row->get('nombre') ?? 'N/A',
+                        'rtn' => $row->get('rtn') ?? 'N/A',
+                        'categoria_propuesta' => $nuevaCat ?? 'N/A',
+                        'motivo' => $error,
+                    ];
+                }
+            }
+
+            // Guardar el path del archivo para usarlo después
+            session(['preview_categorias_file' => $storedPath]);
+
+            return response()->json([
+                'icon' => 'success',
+                'title' => 'Preview generado',
+                'text' => 'Se han procesado ' . (count($paraActualizar) + count($noActualizables)) . ' registros.',
+                'para_actualizar' => $paraActualizar,
+                'no_actualizables' => $noActualizables,
+            ], 200);
+
+        } catch (\Throwable $e) {
+            $msg = $e->getMessage();
+            $trace = $e->getTraceAsString();
+            Log::error("[PreviewCategorias] Excepción: {$msg}", ['trace' => $trace]);
+
+            return response()->json([
+                'icon'  => 'error',
+                'title' => 'Error',
+                'text'  => 'Ocurrió un problema al procesar el archivo.',
+                'error' => $msg,
+            ], 500);
+        }
     }
 
    public function listaCategoriasEscala(Request $request)
@@ -669,45 +822,38 @@ class Cliente extends Component
     public function importarCategoriaClientes(Request $request)
     {
         try {
-           $validator = Validator::make($request->all(), [
-                'file' => [
-                    'required',
-                    'file',
-                    'max:20480',
-                    'mimetypes:text/plain,text/csv,application/csv,application/vnd.ms-excel,application/octet-stream'
-                ],
-            ]);
-
-
-            if ($validator->fails()) {
+            // Obtener el archivo previamente procesado de la sesión
+            $storedPath = session('preview_categorias_file');
+            
+            if (!$storedPath) {
                 return response()->json([
                     'icon'  => 'warning',
-                    'title' => 'Validación',
-                    'text'  => $validator->errors()->first(),
+                    'title' => 'Advertencia',
+                    'text'  => 'No hay un archivo procesado. Por favor, procese el archivo primero.',
                 ], 422);
             }
 
-            $file = $request->file('file');
-
-            // Guardar el archivo en storage para trabajar con una ruta estable
-            $storedPath = $file->storeAs('imports', 'categorias_' . time() . '.' . $file->getClientOriginalExtension());
             $fullPath = storage_path('app/' . $storedPath);
 
-            // Validación inteligente según extensión
-            $ext = strtolower($file->getClientOriginalExtension());
-            if ($err = $this->assertExcelPathIsReadable($fullPath, $ext)) {
-                Log::error("[ImportarCategorias] Validación previa falló: {$err}");
+            if (!file_exists($fullPath)) {
                 return response()->json([
                     'icon'  => 'error',
                     'title' => 'Error',
-                    'text'  => 'Ocurrió un problema al procesar el archivo.',
-                    'error' => $err,
+                    'text'  => 'El archivo procesado no existe. Por favor, procese el archivo nuevamente.',
                 ], 400);
             }
 
             $import = new ClientesCategoriaMasivaImport();
             Excel::import($import, $fullPath);
             $resumen = $import->resumen();
+
+            // Limpiar la sesión
+            session()->forget('preview_categorias_file');
+            
+            // Eliminar el archivo temporal
+            if (file_exists($fullPath)) {
+                @unlink($fullPath);
+            }
 
             return response()->json([
                 'icon'    => 'success',

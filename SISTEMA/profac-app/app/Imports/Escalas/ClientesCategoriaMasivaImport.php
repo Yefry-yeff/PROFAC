@@ -45,25 +45,33 @@ class ClientesCategoriaMasivaImport implements ToCollection, WithHeadingRow, Wit
         $idCliente = $row->get('id');
 
         // 3) Lee nueva categoría desde varios alias
-        $nuevaCatValidar = $row->get('nueva_categoria_id');
-        $nuevaCat = $row->get('cliente_categoria_escala_id');
-        $activados = DB::SELECTONE("select count(*) as existe from cliente_categoria_escala where estado_id =2 and id = ".$nuevaCatValidar);
-        if ($activados->existe != 0) {
-                $this->errores[] = "La Categoría de cliente ingresada ".$row->get('nueva_categoria')." se encuentra inactivo, no puede ser utilizable.";
-                DB::rollBack();
-                continue;
-            }
-
-        if ($nuevaCat === null || $nuevaCat === '') $nuevaCat = $row->get('nueva_categoria_id');
+        $nuevaCat = $row->get('nueva_categoria_id');
+        if ($nuevaCat === null || $nuevaCat === '') $nuevaCat = $row->get('cliente_categoria_escala_id');
         if ($nuevaCat === null || $nuevaCat === '') $nuevaCat = $row->get('nueva_categoria');
 
-        // 4) Validaciones mínimas
+        // 4) Saltar si no hay ID o nueva categoría (no es error, simplemente no se procesa)
         if ($idCliente === null || $idCliente === '' || $nuevaCat === null || $nuevaCat === '') {
             $this->saltados++;
             continue;
         }
+
+        // 5) Validar que sean numéricos
         if (!is_numeric((string)$idCliente) || !is_numeric((string)$nuevaCat)) {
             $this->errores[] = "Fila ID '{$idCliente}': valores no numéricos.";
+            continue;
+        }
+
+        // 6) Validar que la categoría esté activa
+        $activados = DB::SELECTONE("SELECT COUNT(*) as existe FROM cliente_categoria_escala WHERE estado_id = 2 AND id = ?", [(int)$nuevaCat]);
+        if ($activados && $activados->existe != 0) {
+            $this->errores[] = "Cliente ID {$idCliente}: Categoría de cliente inactiva.";
+            continue;
+        }
+
+        // 7) Validar que la categoría exista
+        $categoriaExiste = DB::SELECTONE("SELECT COUNT(*) as existe FROM cliente_categoria_escala WHERE id = ?", [(int)$nuevaCat]);
+        if (!$categoriaExiste || $categoriaExiste->existe == 0) {
+            $this->errores[] = "Cliente ID {$idCliente}: Categoría no existe.";
             continue;
         }
 
