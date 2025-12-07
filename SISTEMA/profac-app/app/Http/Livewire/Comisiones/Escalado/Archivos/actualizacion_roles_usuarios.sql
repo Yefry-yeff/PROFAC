@@ -48,7 +48,11 @@ select id from users A where A.email in (
 
 --CREANDO ROL SIN ACCESO
 INSERT INTO rol (nombre)
-VALUES ('inaccesoble');
+VALUES ('inaccesible');
+
+
+INSERT INTO rol (nombre)
+VALUES ('Equipo de Entrega');
 
 --ACTUALUIZANDO TODO AL ROL SIN ACCESO
 UPDATE users
