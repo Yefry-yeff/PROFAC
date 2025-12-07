@@ -165,6 +165,39 @@ textarea.form-control, input.form-control {
     }
 }
 
+/* Botón de eliminar archivo - diseño suave y profesional */
+#btnLimpiarArchivoPrecios {
+    background: transparent;
+    border: none;
+    color: #dc3545;
+    padding: 0.25rem 0.4rem;
+    font-size: 1.2rem;
+    line-height: 1;
+    transition: all 0.2s ease;
+    border-radius: 0.25rem;
+}
+
+#btnLimpiarArchivoPrecios:hover {
+    background-color: rgba(220, 53, 69, 0.1);
+    color: #c82333;
+    transform: scale(1.1);
+}
+
+#btnLimpiarArchivoPrecios:active {
+    transform: scale(0.95);
+}
+
+#btnLimpiarArchivoPrecios i {
+    font-weight: 600;
+}
+
+/* Sticky header para tablas de preview */
+.sticky-top {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
 </style>
 @endpush
 
@@ -259,63 +292,78 @@ textarea.form-control, input.form-control {
             </div>
         </form>
     </div>
-    <div class="p-2 text-center card-body">
-        <form id="formSubirExcel" enctype="multipart/form-data" autocomplete="off" class="p-4 text-center border rounded shadow-sm bg-light">
-            <h6 class="mb-2 text-primary font-weight-bold">⬆️ Carga masiva de precios</h6>
+</div>
 
-            <div class="form-group">
-                <div class="flex-wrap gap-3 d-flex justify-content-center align-items-center">
-
-                <!-- Selector de archivo -->
-                <div class="custom-file flex-grow-1" style="max-width: 420px;">
-                    <input type="file" class="custom-file-input" id="archivo_excel" name="archivo_excel"
-                    accept=".xlsx,.xls,.csv" required>
-                    <label class="text-left custom-file-label" for="archivo_excel">Elija un archivo...</label>
+<div class="mb-3 border-0 shadow-sm card">
+    <div class="flex-wrap py-2 card-header bg-light d-flex align-items-center justify-content-center">
+        <h6 class="mb-0"><b>IMPORTACIÓN DE LA PLANTILLA DE PRECIOS DE PRODUCTO</b></h6>
+    </div>
+    <div class="p-2 card-body">
+        <div class="d-flex justify-content-center align-items-center">
+            <form id="formSubirExcel" class="d-flex align-items-center" enctype="multipart/form-data">
+                @csrf
+                <div class="position-relative d-flex align-items-center">
+                    <input type="file" class="form-control filtro-select" name="archivo_excel" id="archivo_excel" accept=".xlsx" required>
+                    <button type="button" id="btnLimpiarArchivoPrecios" class="position-absolute" style="right: 8px; display: none; z-index: 10;" title="Quitar archivo">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
                 </div>
-
-                <!-- Botón de subir -->
-                <button type="submit" class="px-4 btn btn-success" id="btnSubirExcel">
-                    📤 Subir
+                <button type="button" id="btnProcesarArchivoPrecios" class="btn btn-primary ml-2">
+                    <i class="bi bi-search"></i> Procesar Archivo
                 </button>
-                </div>
-
-                <small class="mt-2 form-text text-muted">
-                Formatos permitidos: <b>.xlsx</b>, <b>.xls</b> — Máx 10 MB
-                </small>
-            </div>
-
-            <!-- Barra de progreso -->
-            <div class="mt-4 progress d-none" id="progressUpload">
-                <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
-            </div>
+                <button type="submit" id="btnFinalizarImportPrecios" class="btn btn-success ml-2" style="display:none;">
+                    <i class="bi bi-check-circle"></i> Finalizar Importación
+                </button>
             </form>
+        </div>
 
-        <!-- Vista previa del Excel -->
-        <div class="mt-4">
-        <div class="mb-2 d-flex justify-content-between align-items-center">
-            <h6 class="mb-0 text-dark"><b>Vista previa del Excel</b></h6>
-            <div class="gap-2 d-flex">
-            <button type="button" class="mr-2 btn btn-outline-secondary btn-sm" id="btnLimpiarVista" disabled>
-                Limpiar
-            </button>
-            <button type="button" class="btn btn-primary btn-sm" id="btnProcesar" disabled>
-                Procesar
-            </button>
+        <div class="progress mt-3" style="height:8px;">
+            <div id="barImportPrecios" class="progress-bar" role="progressbar" style="width:0%"></div>
+        </div>
+        <div id="msgImportPrecios" class="small mt-2 text-muted"></div>
+
+        <!-- Preview de productos a importar -->
+        <div id="previewProductosImport" class="mt-4" style="display:none;">
+            <div class="alert alert-success">
+                <h6><i class="bi bi-check-circle"></i> <b>Productos que se importarán (<span id="countProductosImport">0</span>)</b></h6>
+            </div>
+            <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                <table class="table table-sm table-bordered table-hover">
+                    <thead class="bg-success text-white sticky-top">
+                        <tr>
+                            <th>Código</th>
+                            <th>Descripción</th>
+                            <th>Precio Base</th>
+                            <th>Precio A</th>
+                            <th>Precio B</th>
+                            <th>Precio C</th>
+                            <th>Precio D</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbodyProductosImport"></tbody>
+                </table>
             </div>
         </div>
 
-        <div class="table-responsive">
-            <table id="previewExcel" class="table table-sm table-striped table-bordered">
-            <thead></thead>
-            <tbody></tbody>
-            </table>
+        <!-- Preview de errores -->
+        <div id="previewErroresImport" class="mt-4" style="display:none;">
+            <div class="alert alert-danger">
+                <h6><i class="bi bi-exclamation-triangle"></i> <b>Registros con errores (<span id="countErroresImport">0</span>)</b></h6>
+            </div>
+            <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                <table class="table table-sm table-bordered table-hover">
+                    <thead class="bg-danger text-white sticky-top">
+                        <tr>
+                            <th>Fila</th>
+                            <th>Código</th>
+                            <th>Descripción</th>
+                            <th>Motivo</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbodyErroresImport"></tbody>
+                </table>
+            </div>
         </div>
-
-        {{--  <small class="mt-2 text-muted d-block">
-            Consejo: revisá encabezados/columnas; deben coincidir con la plantilla exportada.
-        </small>  --}}
-        </div>
-
     </div>
 </div>
 
@@ -413,5 +461,187 @@ textarea.form-control, input.form-control {
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
     <script src="{{ asset('js/js_proyecto/Escalas/gestionPrecios.js') }}"></script>
+
+    <!-- Script para carga masiva de productos con preview -->
+    <script>
+    $(document).ready(function() {
+        const fileInputPrecios = $('#archivo_excel');
+        const btnLimpiarPrecios = $('#btnLimpiarArchivoPrecios');
+        const btnProcesarPrecios = $('#btnProcesarArchivoPrecios');
+        const btnFinalizarPrecios = $('#btnFinalizarImportPrecios');
+        const barProgressPrecios = $('#barImportPrecios');
+        const msgImportPrecios = $('#msgImportPrecios');
+        const formSubirExcel = $('#formSubirExcel');
+
+        // Mostrar/ocultar botón de limpiar archivo
+        fileInputPrecios.on('change', function() {
+            if (this.files.length > 0) {
+                btnLimpiarPrecios.show();
+                btnProcesarPrecios.prop('disabled', false);
+            } else {
+                btnLimpiarPrecios.hide();
+                btnProcesarPrecios.prop('disabled', true);
+            }
+        });
+
+        // Limpiar archivo seleccionado
+        btnLimpiarPrecios.on('click', function() {
+            fileInputPrecios.val('');
+            btnLimpiarPrecios.hide();
+            btnProcesarPrecios.prop('disabled', true);
+            limpiarPreviewPrecios();
+        });
+
+        // Procesar archivo y mostrar preview
+        btnProcesarPrecios.on('click', function(e) {
+            e.preventDefault();
+            
+            if (fileInputPrecios[0].files.length === 0) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Advertencia',
+                    text: 'Por favor seleccione un archivo.',
+                });
+                return;
+            }
+
+            // Obtener valores de los filtros del formulario de exportación
+            const tipoCategoria = $('#tipoCategoria').val();
+            const tipoFiltro = $('#tipoFiltro').val();
+            const valorFiltro = $('#listaTipoFiltro').val();
+            const categoriaPrecioId = $('#listaTipoFiltroCatPrecios').val();
+
+            if (!tipoCategoria || !tipoFiltro || !valorFiltro || !categoriaPrecioId) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Campos requeridos',
+                    text: 'Por favor complete todos los filtros antes de procesar el archivo.',
+                });
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('archivo_excel', fileInputPrecios[0].files[0]);
+            formData.append('tipoCategoria', tipoCategoria);
+            formData.append('tipoFiltro', tipoFiltro);
+            formData.append('valorFiltro', valorFiltro);
+            formData.append('categoriaPrecioId', categoriaPrecioId);
+            formData.append('_token', $('input[name="_token"]', formSubirExcel).val());
+
+            barProgressPrecios.css('width', '30%');
+            msgImportPrecios.text('Procesando archivo...');
+            btnProcesarPrecios.prop('disabled', true);
+
+            $.ajax({
+                url: "{{ route('procesar.excel.precios') }}",
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function(resp) {
+                    barProgressPrecios.css('width', '100%').addClass('bg-success');
+                    msgImportPrecios.text('Archivo procesado correctamente.');
+
+                    if (resp.resumen) {
+                        mostrarResumenImport(resp.resumen);
+                        btnFinalizarPrecios.show();
+                    }
+
+                    Swal.fire({
+                        icon: resp.icon || 'success',
+                        title: resp.title || 'Éxito',
+                        html: resp.text || 'Archivo procesado correctamente.',
+                    });
+                },
+                error: function(xhr) {
+                    barProgressPrecios.css('width', '100%').removeClass('bg-success').addClass('bg-danger');
+                    msgImportPrecios.text('Error al procesar el archivo.');
+                    btnProcesarPrecios.prop('disabled', false);
+
+                    const resp = xhr.responseJSON || {};
+                    Swal.fire({
+                        icon: 'error',
+                        title: resp.title || 'Error',
+                        text: resp.text || 'Ocurrió un error al procesar el archivo.',
+                    });
+                }
+            });
+        });
+
+        // Finalizar importación (este botón ya no se usa porque la importación es automática)
+        formSubirExcel.on('submit', function(e) {
+            e.preventDefault();
+            
+            Swal.fire({
+                icon: 'success',
+                title: 'Importación completada',
+                text: 'Los precios se han procesado correctamente.',
+            }).then(() => {
+                limpiarTodoPrecios();
+            });
+        });
+
+        function mostrarResumenImport(resumen) {
+            if (resumen.leidas > 0) {
+                $('#countProductosImport').text(resumen.insertadas || 0);
+                $('#previewProductosImport').show();
+                
+                // Mostrar información resumida
+                const tbody = $('#tbodyProductosImport');
+                tbody.empty();
+                const tr = $('<tr>');
+                tr.append($('<td colspan="7" class="text-center">').html(
+                    `<strong>Resumen de importación:</strong><br>
+                    Filas leídas: ${resumen.leidas}<br>
+                    Insertadas: ${resumen.insertadas}<br>
+                    Inactivadas: ${resumen.inactivadas}<br>
+                    Omitidas: ${resumen.omitidas}`
+                ));
+                tbody.append(tr);
+            }
+
+            if (resumen.errores && resumen.errores.length > 0) {
+                mostrarErroresImport(resumen.errores);
+            } else {
+                $('#previewErroresImport').hide();
+            }
+        }
+
+        function mostrarErroresImport(errores) {
+            const tbody = $('#tbodyErroresImport');
+            tbody.empty();
+
+            errores.slice(0, 50).forEach(error => {
+                const tr = $('<tr>');
+                tr.append($('<td>').text(error.fila || 'N/A'));
+                tr.append($('<td>').text(error.codigo || 'N/A'));
+                tr.append($('<td>').text(error.descripcion || 'N/A'));
+                tr.append($('<td>').text(error.motivo || error.error || 'Error desconocido'));
+                tbody.append(tr);
+            });
+
+            $('#countErroresImport').text(errores.length);
+            $('#previewErroresImport').show();
+        }
+
+        function limpiarPreviewPrecios() {
+            $('#previewProductosImport').hide();
+            $('#previewErroresImport').hide();
+            $('#tbodyProductosImport').empty();
+            $('#tbodyErroresImport').empty();
+            btnFinalizarPrecios.hide();
+            barProgressPrecios.css('width', '0%').removeClass('bg-success bg-danger');
+            msgImportPrecios.text('');
+        }
+
+        function limpiarTodoPrecios() {
+            fileInputPrecios.val('');
+            btnLimpiarPrecios.hide();
+            btnProcesarPrecios.prop('disabled', true);
+            btnFinalizarPrecios.hide();
+            limpiarPreviewPrecios();
+        }
+    });
+    </script>
 @endpush
 
