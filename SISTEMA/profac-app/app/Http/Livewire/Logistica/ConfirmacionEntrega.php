@@ -1,0 +1,374 @@
+<?php
+
+namespace App\Http\Livewire\Logistica;
+
+use Livewire\Component;
+use App\Models\Logistica\DistribucionEntrega as ModelDistribucionEntrega;
+use App\Models\Logistica\DistribucionEntregaFactura;
+use App\Models\Logistica\EntregaProducto;
+use App\Models\Logistica\EntregaEvidencia;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Http\Request;
+use DataTables;
+use Auth;
+
+class ConfirmacionEntrega extends Component
+{
+    public function render()
+    {
+        return view('livewire.logistica.confirmacion-entrega');
+    }
+
+    /**
+     * Listar distribuciones en proceso por fecha
+     */
+    public function listarDistribucionesPorFecha(Request $request)
+    {
+        try {
+            $fecha = $request->input('fecha', date('Y-m-d'));
+            
+            $distribuciones = DB::select("
+                SELECT 
+                    d.id,
+                    d.fecha_programada,
+                    d.observaciones,
+                    e.nombre_equipo,
+                    (SELECT COUNT(*) FROM distribuciones_entrega_facturas WHERE distribucion_entrega_id = d.id) as total_facturas,
+                    (SELECT COUNT(*) FROM distribuciones_entrega_facturas WHERE distribucion_entrega_id = d.id AND estado_entrega = 'entregado') as facturas_entregadas
+                FROM distribuciones_entrega d
+                INNER JOIN equipos_entrega e ON d.equipo_entrega_id = e.id
+                WHERE d.estado_id = 2
+                AND DATE(d.fecha_programada) = ?
+                ORDER BY d.id ASC
+            ", [$fecha]);
+
+            return response()->json([
+                'success' => true,
+                'distribuciones' => $distribuciones
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al listar distribuciones',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Obtener facturas con productos para confirmación
+     */
+    public function obtenerFacturasParaConfirmacion($distribucionId)
+    {
+        try {
+            $facturas = DB::select("
+                SELECT 
+                    df.id as distribucion_factura_id,
+                    df.factura_id,
+                    df.orden_entrega,
+                    df.estado_entrega,
+                    f.numero_factura,
+                    f.total,
+                    c.nombre AS cliente,
+                    c.direccion,
+                    c.telefono
+                FROM distribuciones_entrega_facturas df
+                INNER JOIN facturacion f ON df.factura_id = f.id
+                INNER JOIN clientes c ON f.cliente_id = c.id
+                WHERE df.distribucion_entrega_id = ?
+                ORDER BY df.orden_entrega ASC
+            ", [$distribucionId]);
+
+            // Para cada factura, obtener sus productos
+            foreach ($facturas as &$factura) {
+                $factura->productos = $this->obtenerProductosFactura($factura->distribucion_factura_id);
+            }
+
+            return response()->json([
+                'success' => true,
+                'facturas' => $facturas
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener facturas',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Obtener productos de una factura en distribución
+     */
+    private function obtenerProductosFactura($distribucionFacturaId)
+    {
+        // Primero verificar si ya existen registros de entrega
+        $productosExistentes = DB::select("
+            SELECT 
+                ep.id,
+                ep.producto_id,
+                p.nombre AS nombre_producto,
+                ep.cantidad_facturada,
+                ep.cantidad_entregada,
+                ep.entregado,
+                ep.tiene_incidencia,
+                ep.descripcion_incidencia,
+                ep.tipo_incidencia
+            FROM entregas_productos ep
+            INNER JOIN producto p ON ep.producto_id = p.id
+            WHERE ep.distribucion_factura_id = ?
+            ORDER BY p.nombre ASC
+        ", [$distribucionFacturaId]);
+
+        if (!empty($productosExistentes)) {
+            return $productosExistentes;
+        }
+
+        // Si no existen, crear registros iniciales desde los detalles de la factura
+        $distribucionFactura = DistribucionEntregaFactura::findOrFail($distribucionFacturaId);
+        
+        $productosFactura = DB::select("
+            SELECT 
+                df.producto_id,
+                p.nombre AS nombre_producto,
+                df.cantidad
+            FROM detalle_factura df
+            INNER JOIN producto p ON df.producto_id = p.id
+            WHERE df.factura_id = ?
+            ORDER BY p.nombre ASC
+        ", [$distribucionFactura->factura_id]);
+
+        // Crear registros iniciales
+        foreach ($productosFactura as $producto) {
+            EntregaProducto::create([
+                'distribucion_factura_id' => $distribucionFacturaId,
+                'producto_id' => $producto->producto_id,
+                'cantidad_facturada' => $producto->cantidad,
+                'cantidad_entregada' => 0,
+                'entregado' => 0,
+                'tiene_incidencia' => 0,
+                'users_id_registro' => Auth::id(),
+            ]);
+        }
+
+        // Retornar los productos recién creados
+        return DB::select("
+            SELECT 
+                ep.id,
+                ep.producto_id,
+                p.nombre AS nombre_producto,
+                ep.cantidad_facturada,
+                ep.cantidad_entregada,
+                ep.entregado,
+                ep.tiene_incidencia,
+                ep.descripcion_incidencia,
+                ep.tipo_incidencia
+            FROM entregas_productos ep
+            INNER JOIN producto p ON ep.producto_id = p.id
+            WHERE ep.distribucion_factura_id = ?
+            ORDER BY p.nombre ASC
+        ", [$distribucionFacturaId]);
+    }
+
+    /**
+     * Confirmar entrega de productos
+     */
+    public function confirmarEntregaProductos(Request $request)
+    {
+        try {
+            $request->validate([
+                'productos' => 'required|array|min:1',
+                'productos.*.id' => 'required|exists:entregas_productos,id',
+                'productos.*.entregado' => 'required|boolean',
+                'productos.*.cantidad_entregada' => 'nullable|numeric|min:0',
+                'productos.*.tiene_incidencia' => 'nullable|boolean',
+                'productos.*.tipo_incidencia' => 'nullable|string',
+                'productos.*.descripcion_incidencia' => 'nullable|string',
+            ]);
+
+            DB::beginTransaction();
+
+            foreach ($request->productos as $productoData) {
+                $producto = EntregaProducto::findOrFail($productoData['id']);
+                
+                $producto->entregado = $productoData['entregado'];
+                $producto->cantidad_entregada = $productoData['cantidad_entregada'] ?? 0;
+                $producto->tiene_incidencia = $productoData['tiene_incidencia'] ?? 0;
+                $producto->tipo_incidencia = $productoData['tipo_incidencia'] ?? null;
+                $producto->descripcion_incidencia = $productoData['descripcion_incidencia'] ?? null;
+                $producto->users_id_registro = Auth::id();
+                $producto->save();
+            }
+
+            // Los triggers actualizarán automáticamente el estado_entrega de la factura
+
+            DB::commit();
+
+            return response()->json([
+                'icon' => 'success',
+                'title' => 'Confirmacion exitosa',
+                'text' => 'Los productos han sido actualizados correctamente',
+            ], 200);
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            return response()->json([
+                'icon' => 'error',
+                'title' => 'Error',
+                'text' => 'Error al confirmar entrega: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Registrar evidencia (foto, firma, etc.)
+     */
+    public function registrarEvidencia(Request $request)
+    {
+        try {
+            $request->validate([
+                'distribucion_factura_id' => 'required|exists:distribuciones_entrega_facturas,id',
+                'tipo_evidencia' => 'required|in:foto_entrega,firma_cliente,incidencia,otro',
+                'archivo' => 'required|file|max:10240', // 10MB máximo
+            ]);
+
+            $archivo = $request->file('archivo');
+            $extension = $archivo->getClientOriginalExtension();
+            $nombreArchivo = 'evidencia_' . time() . '_' . uniqid() . '.' . $extension;
+            
+            // Guardar en public/evidencias_entrega/
+            $ruta = $archivo->storeAs('evidencias_entrega', $nombreArchivo, 'public');
+
+            EntregaEvidencia::create([
+                'distribucion_factura_id' => $request->distribucion_factura_id,
+                'tipo_evidencia' => $request->tipo_evidencia,
+                'ruta_archivo' => $ruta,
+                'users_id_registro' => Auth::id(),
+            ]);
+
+            return response()->json([
+                'icon' => 'success',
+                'title' => 'Evidencia guardada',
+                'text' => 'La evidencia ha sido registrada correctamente',
+                'ruta' => asset('storage/' . $ruta),
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'icon' => 'error',
+                'title' => 'Error',
+                'text' => 'Error al guardar evidencia: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Obtener evidencias de una factura
+     */
+    public function obtenerEvidencias($distribucionFacturaId)
+    {
+        try {
+            $evidencias = DB::select("
+                SELECT 
+                    id,
+                    tipo_evidencia,
+                    ruta_archivo,
+                    created_at
+                FROM entregas_evidencias
+                WHERE distribucion_factura_id = ?
+                ORDER BY created_at DESC
+            ", [$distribucionFacturaId]);
+
+            // Agregar URL completa a cada evidencia
+            foreach ($evidencias as &$evidencia) {
+                $evidencia->url = asset('storage/' . $evidencia->ruta_archivo);
+            }
+
+            return response()->json([
+                'success' => true,
+                'evidencias' => $evidencias
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener evidencias',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Marcar todos los productos como entregados
+     */
+    public function marcarTodosEntregados($distribucionFacturaId)
+    {
+        try {
+            DB::table('entregas_productos')
+                ->where('distribucion_factura_id', $distribucionFacturaId)
+                ->update([
+                    'entregado' => 1,
+                    'cantidad_entregada' => DB::raw('cantidad_facturada'),
+                    'users_id_registro' => Auth::id(),
+                    'updated_at' => now(),
+                ]);
+
+            // El trigger actualizará el estado_entrega automáticamente
+
+            return response()->json([
+                'icon' => 'success',
+                'title' => 'Productos marcados',
+                'text' => 'Todos los productos han sido marcados como entregados',
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'icon' => 'error',
+                'title' => 'Error',
+                'text' => 'Error al marcar productos: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Obtener reporte de entregas por distribución
+     */
+    public function obtenerReporteDistribucion($distribucionId)
+    {
+        try {
+            $reporte = DB::select("
+                SELECT 
+                    d.id,
+                    d.fecha_programada,
+                    e.nombre_equipo,
+                    d.observaciones,
+                    (SELECT COUNT(*) FROM distribuciones_entrega_facturas WHERE distribucion_entrega_id = d.id) as total_facturas,
+                    (SELECT COUNT(*) FROM distribuciones_entrega_facturas WHERE distribucion_entrega_id = d.id AND estado_entrega = 'entregado') as facturas_entregadas,
+                    (SELECT COUNT(*) FROM distribuciones_entrega_facturas WHERE distribucion_entrega_id = d.id AND estado_entrega = 'parcial') as facturas_parciales,
+                    (SELECT COUNT(*) FROM distribuciones_entrega_facturas WHERE distribucion_entrega_id = d.id AND estado_entrega = 'sin_entrega') as facturas_sin_entrega,
+                    (SELECT COUNT(*) 
+                     FROM entregas_productos ep
+                     INNER JOIN distribuciones_entrega_facturas df ON ep.distribucion_factura_id = df.id
+                     WHERE df.distribucion_entrega_id = d.id AND ep.tiene_incidencia = 1
+                    ) as total_incidencias
+                FROM distribuciones_entrega d
+                INNER JOIN equipos_entrega e ON d.equipo_entrega_id = e.id
+                WHERE d.id = ?
+            ", [$distribucionId]);
+
+            return response()->json([
+                'success' => true,
+                'reporte' => $reporte[0] ?? null
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener reporte',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+}

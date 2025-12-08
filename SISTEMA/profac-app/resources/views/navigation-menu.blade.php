@@ -785,6 +785,15 @@
                     </ul>
                 </li>
                 <li>
+                    <a><i class="fa-solid fa-truck-fast" style="color:#ffffff;"></i><span class="nav-label" style="color:#ffffff;">Logistica de Entregas</span><span class="fa arrow"></span></a>
+
+                    <ul class="nav nav-second-level">
+                        <li><a href="/logistica/equipos" style="color:#ffffff;">Equipos de Entrega</a></li>
+                        <li><a href="/logistica/distribuciones" style="color:#ffffff;">Distribucion de Entregas</a></li>
+                        <li><a href="/logistica/confirmacion" style="color:#ffffff;">Confirmacion de Entregas</a></li>
+                    </ul>
+                </li>
+                <li>
                     <a><i class="fa-solid fa-list-check" style="color:#ffffff;"></i><span class="nav-label" style="color:#ffffff;">Vale</span><span class="fa arrow"></span></a>
 
                     <ul class="nav nav-second-level">
