@@ -125,6 +125,10 @@ use App\Http\Livewire\Escalas\CategoriaPrecios;
 use App\Http\Livewire\Escalas\CategoriaClientes;
 use App\Http\Livewire\Escalas\ReportesEscalas;
 
+use App\Http\Livewire\Comisiones\Escalado\Configuracion as confcomisiones;
+use App\Http\Livewire\Comisiones\Escalado\MisComisiones;
+use App\Http\Livewire\Comisiones\Escalado\ReportesComisionesGenerales;
+
 /*
 
 /*Escala de precios*/
@@ -164,6 +168,14 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     /*
     Inicio de todas las rutas de la Escala de precios
     */
+
+
+    Route::get('/comisiones/configuracion', confcomisiones::class);
+    Route::get('/comisiones/empleado', MisComisiones::class);
+    Route::get('/comisiones/general', ReportesComisionesGenerales::class);
+
+
+
     Route::get('/precios', CategoriaPrecios::class);
     Route::get('/clientes/categorias', CategoriaClientes::class);
     Route::get('/descargar-plantilla', [App\Http\Controllers\ExcelController::class, 'descargarPlantilla'])->name('excel.plantilla');
