@@ -93,13 +93,13 @@
 </style>
 @endpush
 <!-- MODAL ELEGANTE -->
-<div class="modal fade" id="modalCategoriasClientes" tabindex="-1" role="dialog" aria-labelledby="modalCategoriasClientesTitle" aria-hidden="true">
+<div class="modal fade" id="modalParamComision" tabindex="-1" role="dialog" aria-labelledby="modalParamComisionTitle" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
     <div class="modal-content border-0 shadow-lg rounded">
 
       <!-- Header -->
       <div class="modal-header bg-primary text-white rounded-top">
-        <h5 class="modal-title font-weight-bold" id="modalCategoriasClientesTitle">Nueva Categoría de Cliente</h5>
+        <h5 class="modal-title font-weight-bold" id="modalCategoriasClientesTitle">Parametrización de Comisión</h5>
         <button type="button" class="close text-white" data-dismiss="modal" aria-label="Cerrar">
           <span aria-hidden="true">&times;</span>
         </button>
@@ -107,27 +107,45 @@
 
       <!-- Body -->
       <div class="modal-body px-4 py-4 bg-light">
-        <form id="clientesCreacionForm">
+        <form id="paramComisionForm">
 
           <!-- Primera fila: Nombre y Descripción -->
           <div class="form-row">
+
             <div class="form-group col-md-6">
-              <label for="nombre_cat" class="font-weight-bold">Nombre de la Categoría</label>
-              <input type="text" class="form-control form-control-lg border-primary" id="nombre_cat" name="nombre_cat"
-                placeholder="Ej: Clientes estatales" maxlength="100" required>
+              <label for="nombre_cat" class="font-weight-bold">Título de Comisión</label>
+              <input type="text" class="form-control form-control-lg border-primary" id="nombre_comescala" name="nombre_comescala" maxlength="150" required>
             </div>
+
             <div class="form-group col-md-6">
               <label for="descripcion_cat" class="font-weight-bold">Descripción</label>
-              <input type="text" class="form-control form-control-lg border-primary" id="descripcion_cat" name="descripcion_cat"
-                placeholder="Ej: Clientes institucionales o empresas" maxlength="150">
+              <input type="text" class="form-control form-control-lg border-primary" id="descripcion_comescala" name="descripcion_comescala" maxlength="250"  required>
             </div>
-          </div>
 
-          <!-- Comentario -->
-          <div class="mt-4">
-            <label for="comentario" class="font-weight-bold">Comentario</label>
-            <textarea id="comentario" name="comentario" class="form-control border-primary" rows="3"
-              placeholder="Agrega un comentario sobre esta categoría..."></textarea>
+            <div class="form-group col-md-6">
+              <label for="Categoria de cliente" class="font-weight-bold">Categoría de Cliente</label>
+                <select id="categoria_cliente_id" name="categoria_cliente_id" class="form-control" data-url="{{ route('clientes.categorias.escala') }}"  required>
+                    <option value="">Seleccione una categoría...</option>
+                </select>
+            </div>
+
+            <div class="form-group col-md-6">
+              <label for="Categoria de cliente" class="font-weight-bold">Rol asociado</label>
+                <select id="rol_id" name="rol_id" class="form-control" data-url="{{ route('comision.configuracion.rol') }}"  required>
+                    <option value="">Seleccione una categoría...</option>
+                </select>
+            </div>
+            <hr>
+            <p>Se debe ingresar un rango de compra mensual del cliente, para diferenciación de ingreso</p>
+            <div class="form-group col-md-6">
+              <label for="descripcion_cat" class="font-weight-bold">Inicio</label>
+              <input type="number" class="form-control form-control-lg border-primary" id="rango_inicial_comescala" name="rango_inicial_comescala" min="0" required>
+            </div>
+
+            <div class="form-group col-md-6">
+              <label for="descripcion_cat" class="font-weight-bold">Fin</label>
+              <input type="number" class="form-control form-control-lg border-primary" id="rango_final_comescala" name="rango_final_comescala" min="0" required>
+            </div>
           </div>
 
           <!-- Footer -->
@@ -148,10 +166,8 @@
 
 <div class="card shadow-sm border-0 mb-3">
     <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center">
-        <h6 class="mb-0"><b>Configuraciòn de % de comisiones por Categoría de clientes</b></h6>
-        <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#modalCategoriasClientes">
-            <i class="bi bi-plus-circle mr-1"></i>+ Creación
-        </button>
+        <h6 class="mb-0"><b>Parametrización de % de comisiones por Categoría de clientes</b></h6>
+        <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#modalParamComision"><i class="bi bi-plus-circle mr-1"></i>+ Ingreso</button>
     </div>
     <div class="card-body p-2">
         <div class="row mt-4">
@@ -184,7 +200,7 @@
 
 
 
-{{--  @push('scripts')
-    <script src="{{ asset('js/js_proyecto/Escalas/categoriaClientes.js') }}"></script>
-@endpush  --}}
+@push('scripts')
+    <script src="{{ asset('js/js_proyecto/comisiones/Escalado/gestionComision.js') }}"></script>
+@endpush
 

@@ -171,8 +171,10 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 
 
     Route::get('/comisiones/configuracion', confcomisiones::class);
+    Route::get('/comisiones/configuracion/rol', [confcomisiones::class,'listaRolesUsuario'])->name('comision.configuracion.rol');
     Route::get('/comisiones/empleado', MisComisiones::class);
     Route::get('/comisiones/general', ReportesComisionesGenerales::class);
+
 
 
 
