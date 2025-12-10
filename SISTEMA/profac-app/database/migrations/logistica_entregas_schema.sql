@@ -65,6 +65,29 @@ CREATE TABLE `distribuciones_entrega` (
   CONSTRAINT `fk_distribucion_users` FOREIGN KEY (`users_id_creador`) REFERENCES `users` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Distribuciones de entrega programadas';
 
+-- Tabla de composición del equipo al momento de la distribución (snapshot)
+-- Esta tabla guarda quiénes eran los miembros y sus porcentajes EXACTOS cuando se creó/ejecutó la distribución
+CREATE TABLE `distribuciones_entrega_miembros` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `distribucion_entrega_id` BIGINT UNSIGNED NOT NULL COMMENT 'ID de la distribución',
+  `user_id` BIGINT UNSIGNED NOT NULL COMMENT 'Usuario miembro del equipo en ese momento',
+  `porcentaje_comision` DECIMAL(5,2) NOT NULL DEFAULT 0.00 COMMENT 'Porcentaje que tenía asignado en ese momento',
+  `monto_comision_calculado` DECIMAL(10,2) NULL DEFAULT 0.00 COMMENT 'Monto de comisión calculado para esta distribución',
+  `pagado` TINYINT NOT NULL DEFAULT 0 COMMENT '1=Pagado, 0=Pendiente de pago',
+  `fecha_pago` DATETIME NULL COMMENT 'Fecha en que se pagó la comisión',
+  `users_id_quien_pago` BIGINT UNSIGNED NULL COMMENT 'Usuario que registró el pago',
+  `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  INDEX `idx_distribucion` (`distribucion_entrega_id`),
+  INDEX `idx_user` (`user_id`),
+  INDEX `idx_pagado` (`pagado`),
+  CONSTRAINT `fk_dist_miembros_distribucion` FOREIGN KEY (`distribucion_entrega_id`) REFERENCES `distribuciones_entrega` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_dist_miembros_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `fk_dist_miembros_quien_pago` FOREIGN KEY (`users_id_quien_pago`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `chk_dist_porcentaje_valido` CHECK (`porcentaje_comision` >= 0 AND `porcentaje_comision` <= 100)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Snapshot de miembros del equipo por distribución para cálculo de comisiones';
+
 -- Tabla de facturas asignadas a distribuciones
 CREATE TABLE `distribuciones_entrega_facturas` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -139,6 +162,78 @@ CREATE TABLE `entregas_evidencias` (
 -- =====================================================
 
 DELIMITER $$
+
+-- Trigger para crear snapshot de miembros del equipo cuando se crea una distribución
+CREATE TRIGGER `trg_snapshot_miembros_distribucion`
+AFTER INSERT ON `distribuciones_entrega`
+FOR EACH ROW
+BEGIN
+    -- Copiar los miembros activos del equipo con sus porcentajes al momento de crear la distribución
+    INSERT INTO `distribuciones_entrega_miembros` 
+        (`distribucion_entrega_id`, `user_id`, `porcentaje_comision`, `created_at`)
+    SELECT 
+        NEW.id,
+        eem.user_id,
+        eem.porcentaje_comision,
+        NOW()
+    FROM `equipos_entrega_miembros` eem
+    WHERE eem.equipo_entrega_id = NEW.equipo_entrega_id
+    AND eem.estado_id = 1;  -- Solo miembros activos
+END$$
+
+-- Trigger para actualizar snapshot cuando cambian los miembros del equipo
+-- Solo actualiza si las distribuciones están en estado PENDIENTE (estado_id = 1)
+CREATE TRIGGER `trg_actualizar_snapshot_miembros_after_insert`
+AFTER INSERT ON `equipos_entrega_miembros`
+FOR EACH ROW
+BEGIN
+    -- Actualizar snapshots de distribuciones PENDIENTES del mismo día
+    IF NEW.estado_id = 1 THEN
+        INSERT INTO `distribuciones_entrega_miembros` 
+            (`distribucion_entrega_id`, `user_id`, `porcentaje_comision`, `created_at`)
+        SELECT 
+            de.id,
+            NEW.user_id,
+            NEW.porcentaje_comision,
+            NOW()
+        FROM `distribuciones_entrega` de
+        WHERE de.equipo_entrega_id = NEW.equipo_entrega_id
+        AND de.estado_id = 1  -- Solo distribuciones PENDIENTES
+        AND DATE(de.fecha_programada) = CURDATE()  -- Solo del día actual
+        AND NOT EXISTS (
+            SELECT 1 FROM `distribuciones_entrega_miembros` dem
+            WHERE dem.distribucion_entrega_id = de.id
+            AND dem.user_id = NEW.user_id
+        );
+    END IF;
+END$$
+
+CREATE TRIGGER `trg_actualizar_snapshot_miembros_after_update`
+AFTER UPDATE ON `equipos_entrega_miembros`
+FOR EACH ROW
+BEGIN
+    -- Actualizar snapshots de distribuciones PENDIENTES del mismo día cuando cambia el porcentaje
+    IF NEW.estado_id = 1 AND (OLD.porcentaje_comision != NEW.porcentaje_comision OR OLD.estado_id != NEW.estado_id) THEN
+        UPDATE `distribuciones_entrega_miembros` dem
+        INNER JOIN `distribuciones_entrega` de ON dem.distribucion_entrega_id = de.id
+        SET dem.porcentaje_comision = NEW.porcentaje_comision,
+            dem.updated_at = NOW()
+        WHERE de.equipo_entrega_id = NEW.equipo_entrega_id
+        AND de.estado_id = 1  -- Solo distribuciones PENDIENTES
+        AND DATE(de.fecha_programada) = CURDATE()  -- Solo del día actual
+        AND dem.user_id = NEW.user_id;
+    END IF;
+    
+    -- Si desactivan un miembro, quitar de snapshots PENDIENTES del día actual
+    IF OLD.estado_id = 1 AND NEW.estado_id != 1 THEN
+        DELETE dem FROM `distribuciones_entrega_miembros` dem
+        INNER JOIN `distribuciones_entrega` de ON dem.distribucion_entrega_id = de.id
+        WHERE de.equipo_entrega_id = NEW.equipo_entrega_id
+        AND de.estado_id = 1  -- Solo distribuciones PENDIENTES
+        AND DATE(de.fecha_programada) = CURDATE()  -- Solo del día actual
+        AND dem.user_id = NEW.user_id;
+    END IF;
+END$$
 
 -- Trigger para actualizar estado de factura cuando se registran productos
 CREATE TRIGGER `trg_actualizar_estado_factura_after_producto`
@@ -220,25 +315,55 @@ NOTAS IMPORTANTES:
    - Un equipo puede tener múltiples usuarios
    - La suma de porcentajes_comision debe validarse en la aplicación (≤ 100%)
    - Los equipos se pueden activar/desactivar sin eliminar histórico
+   - Los miembros pueden agregarse/removerse del equipo en cualquier momento
 
-2. DISTRIBUCIÓN:
+2. DISTRIBUCIÓN Y COMISIONES:
    - Una factura solo puede estar en una distribución activa a la vez
    - El orden_entrega permite optimizar rutas
-   - Estados: sin_entrega → parcial → entregado
+   - Estados de distribución: 1=Pendiente, 2=En proceso, 3=Completada, 4=Cancelada
+   - Estados de entrega: sin_entrega → parcial → entregado
+   - **IMPORTANTE - SNAPSHOT DE MIEMBROS:**
+     * Cuando se crea una distribución, automáticamente se guarda un snapshot
+       de quiénes eran los miembros del equipo y sus porcentajes en ese momento
+     * Esto se almacena en `distribuciones_entrega_miembros`
+     * **ACTUALIZACIÓN DINÁMICA DEL MISMO DÍA:**
+       - Si la distribución está en estado PENDIENTE (1) Y es del día actual,
+         el snapshot SE ACTUALIZA automáticamente cuando:
+         * Se agrega un nuevo miembro al equipo
+         * Se cambia el porcentaje de un miembro existente
+         * Se quita un miembro del equipo
+       - Una vez que la distribución cambia a EN PROCESO (2), COMPLETADA (3) 
+         o CANCELADA (4), el snapshot se CONGELA y ya no se puede modificar
+       - Si la distribución es de un día anterior, el snapshot NUNCA se actualiza
+     * Las comisiones se calculan y pagan basándose en este snapshot
+     * Ejemplo práctico:
+       - 8:00 AM: Se crea distribución del día con Juan (40%), María (30%), Pedro (30%)
+       - 9:00 AM: Se edita equipo, Pedro cambia a 35% y María a 25%
+         → El snapshot se actualiza porque está PENDIENTE y es del mismo día
+       - 10:00 AM: La distribución cambia a EN PROCESO
+       - 11:00 AM: Se quita a Pedro del equipo
+         → El snapshot NO cambia porque ya está EN PROCESO
+       - Las comisiones se pagan con: Juan 40%, María 25%, Pedro 35%
 
 3. CONFIRMACIÓN:
    - Cada producto tiene su propio registro de entrega
    - Las incidencias se registran por producto
    - Los triggers automáticamente actualizan el estado de la factura
 
-4. LLAVES FORÁNEAS:
+4. CÁLCULO DE COMISIONES:
+   - El campo `monto_comision_calculado` se debe calcular cuando la distribución
+     se completa, multiplicando el total de la distribución por el porcentaje
+   - El campo `pagado` permite controlar qué comisiones ya fueron pagadas
+   - Se puede generar reportes de comisiones pendientes por pagar
+
+5. LLAVES FORÁNEAS:
    - users: tabla de usuarios del sistema
    - facturacion: tabla de facturas
    - producto: tabla de productos
 
-5. EXTENSIONES FUTURAS:
+6. EXTENSIONES FUTURAS:
    - Geolocalización de entregas
    - Notificaciones push
-   - Cálculo automático de comisiones
    - Dashboard de métricas
+   - Reportes de comisiones por período
 */

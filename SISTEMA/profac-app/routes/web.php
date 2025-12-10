@@ -956,6 +956,8 @@ Route::post('/reporte/Libroventarep/exportar-excel/{tipo}/{fechaInicio}/{fechaFi
     Route::get('/logistica/equipos', EquiposEntrega::class);
     Route::get('/logistica/equipos/listar', [EquiposEntrega::class, 'listarEquipos'])->name('logistica.equipos.listar');
     Route::post('/logistica/equipos/guardar', [EquiposEntrega::class, 'guardarEquipo'])->name('logistica.equipos.guardar');
+    Route::get('/logistica/equipos/obtener/{equipoId}', [EquiposEntrega::class, 'obtenerEquipo']);
+    Route::post('/logistica/equipos/actualizar', [EquiposEntrega::class, 'actualizarEquipo']);
     Route::get('/logistica/equipos/miembros/{equipoId}', [EquiposEntrega::class, 'obtenerMiembros']);
     Route::post('/logistica/equipos/desactivar/{equipoId}', [EquiposEntrega::class, 'desactivarEquipo']);
     Route::post('/logistica/equipos/agregar-miembro', [EquiposEntrega::class, 'agregarMiembro']);

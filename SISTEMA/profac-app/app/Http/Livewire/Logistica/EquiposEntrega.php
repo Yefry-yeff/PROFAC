@@ -195,6 +195,66 @@ class EquiposEntrega extends Component
     }
 
     /**
+     * Obtener datos de un equipo para edición
+     */
+    public function obtenerEquipo($equipoId)
+    {
+        try {
+            $equipo = EquipoEntrega::findOrFail($equipoId);
+            
+            return response()->json([
+                'success' => true,
+                'equipo' => [
+                    'id' => $equipo->id,
+                    'nombre_equipo' => $equipo->nombre_equipo,
+                    'descripcion' => $equipo->descripcion,
+                ]
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener equipo',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Actualizar equipo de entrega
+     */
+    public function actualizarEquipo(Request $request)
+    {
+        try {
+            $request->validate([
+                'equipo_id' => 'required|exists:equipos_entrega,id',
+                'nombre_equipo' => 'required|string|max:100',
+                'descripcion' => 'nullable|string',
+            ], [
+                'nombre_equipo.required' => 'El nombre del equipo es obligatorio',
+            ]);
+
+            $equipo = EquipoEntrega::findOrFail($request->equipo_id);
+            $equipo->nombre_equipo = $request->nombre_equipo;
+            $equipo->descripcion = $request->descripcion;
+            $equipo->save();
+
+            return response()->json([
+                'icon' => 'success',
+                'title' => 'Éxito',
+                'text' => 'Equipo actualizado correctamente',
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'icon' => 'error',
+                'title' => 'Error',
+                'text' => 'Error al actualizar equipo: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
      * Desactivar equipo
      */
     public function desactivarEquipo($equipoId)

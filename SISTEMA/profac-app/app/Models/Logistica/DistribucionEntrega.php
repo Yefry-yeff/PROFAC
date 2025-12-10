@@ -48,6 +48,14 @@ class DistribucionEntrega extends Model
     }
 
     /**
+     * Relación con los miembros del equipo al momento de la distribución (snapshot)
+     */
+    public function miembrosSnapshot()
+    {
+        return $this->hasMany(DistribucionEntregaMiembro::class, 'distribucion_entrega_id');
+    }
+
+    /**
      * Relación con las facturas sin entregar
      */
     public function facturasSinEntregar()

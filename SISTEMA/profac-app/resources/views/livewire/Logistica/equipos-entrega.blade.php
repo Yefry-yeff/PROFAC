@@ -16,12 +16,11 @@
                             <tr>
                                 <th>ID</th>
                                 <th>Nombre Equipo</th>
-                                <th>Descripcion</th>
-                                <th>Creador</th>
                                 <th>Miembros</th>
                                 <th>% Asignado</th>
+                                <th>Creador</th>
                                 <th>Estado</th>
-                                <th>Fecha</th>
+                                <th>Fecha Creación</th>
                                 <th>Opciones</th>
                             </tr>
                         </thead>
@@ -78,11 +77,62 @@
             </div>
         </div>
     </div>
+
+    <!-- Modal Editar Equipo -->
+    <div class="modal fade" id="modalEditarEquipo">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Editar Equipo</h5>
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="formEditarEquipo">
+                        <input type="hidden" name="equipo_id" id="editEquipoId">
+                        <div class="form-group">
+                            <label>Nombre del Equipo *</label>
+                            <input type="text" class="form-control" name="nombre_equipo" id="editNombreEquipo" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Descripcion</label>
+                            <textarea class="form-control" name="descripcion" id="editDescripcion" rows="3"></textarea>
+                        </div>
+                        <hr>
+                        <h6>Miembros Actuales</h6>
+                        <div id="listaMiembrosActuales"></div>
+                        <hr>
+                        <h6>Agregar Nuevo Miembro</h6>
+                        <div class="row mb-2">
+                            <div class="col-8">
+                                <select class="form-control" id="selectUsuarioEditar">
+                                    <option value="">Seleccione...</option>
+                                    @foreach($usuarios as $u)
+                                        <option value="{{ $u->id }}">{{ $u->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-3">
+                                <input type="number" class="form-control" id="inputPorcentajeEditar" min="0" max="100" step="0.01" placeholder="%">
+                            </div>
+                            <div class="col-1">
+                                <button type="button" class="btn btn-success" onclick="agregarNuevoMiembro()"><i class="fa fa-plus"></i></button>
+                            </div>
+                        </div>
+                        <div class="alert alert-info">Total: <span id="totalPctEditar">0</span>%</div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="actualizarEquipo()">Actualizar</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 @push('scripts')
 <script>
-let tablaEquipos, miembrosTmp = [];
+let tablaEquipos, miembrosTmp = [], equipoEditando = null;
 $(document).ready(() => {
     tablaEquipos = $('#tablaEquipos').DataTable({
         processing: true,
@@ -91,10 +141,9 @@ $(document).ready(() => {
         columns: [
             {data: 'id'},
             {data: 'nombre_equipo'},
-            {data: 'descripcion'},
-            {data: 'creador'},
             {data: 'miembros'},
             {data: 'porcentaje'},
+            {data: 'creador'},
             {data: 'estado'},
             {data: 'created_at'},
             {data: 'opciones', orderable: false}
@@ -113,8 +162,8 @@ function abrirModalNuevoEquipo() {
 function agregarMiembroTmp() {
     const uid = $('#selectUsuarioNuevo').val();
     const pct = parseFloat($('#inputPorcentaje').val());
-    if (!uid || !pct) return Swal.fire('Error', 'Complete los datos', 'error');
-    if (miembrosTmp.find(m => m.user_id == uid)) return Swal.fire('Error', 'Usuario duplicado', 'error');
+    if (!uid || !pct) return Swal.fire({title: 'Error', text: 'Complete los datos', icon: 'error', customClass: {container: 'swal-over-modal'}});
+    if (miembrosTmp.find(m => m.user_id == uid)) return Swal.fire({title: 'Error', text: 'Usuario duplicado', icon: 'error', customClass: {container: 'swal-over-modal'}});
     
     // Calcular total actual
     const totalActual = miembrosTmp.reduce((sum, m) => sum + m.porcentaje, 0);
@@ -122,7 +171,12 @@ function agregarMiembroTmp() {
     
     if (nuevoTotal > 100) {
         const disponible = 100 - totalActual;
-        return Swal.fire('Error', `Solo hay ${disponible.toFixed(2)}% disponible. El total ya es ${totalActual.toFixed(2)}%`, 'error');
+        return Swal.fire({
+            title: 'Error', 
+            html: `Solo hay <strong>${disponible.toFixed(2)}%</strong> disponible.<br>El total ya es <strong>${totalActual.toFixed(2)}%</strong>`, 
+            icon: 'error',
+            customClass: {container: 'swal-over-modal'}
+        });
     }
     
     miembrosTmp.push({user_id: uid, porcentaje: pct, nombre: $('#selectUsuarioNuevo option:selected').text()});
@@ -161,7 +215,7 @@ function actualizarListaTmp() {
 }
 
 function guardarEquipo() {
-    if (!miembrosTmp.length) return Swal.fire('Error', 'Agregue miembros', 'error');
+    if (!miembrosTmp.length) return Swal.fire({title: 'Error', text: 'Agregue miembros', icon: 'error', customClass: {container: 'swal-over-modal'}});
     const fd = new FormData($('#formNuevoEquipo')[0]);
     fd.append('miembros', JSON.stringify(miembrosTmp));
     $.ajax({
@@ -203,5 +257,108 @@ function desactivarEquipo(id) {
         }
     });
 }
+
+function editarEquipo(id) {
+    equipoEditando = id;
+    $.get("{{ url('/logistica/equipos/obtener') }}/" + id, function(r) {
+        if (r.success) {
+            $('#editEquipoId').val(r.equipo.id);
+            $('#editNombreEquipo').val(r.equipo.nombre_equipo);
+            $('#editDescripcion').val(r.equipo.descripcion);
+            
+            // Cargar miembros actuales
+            cargarMiembrosActuales(id);
+            $('#modalEditarEquipo').modal('show');
+        }
+    }).fail(() => Swal.fire({title: 'Error', text: 'No se pudo cargar el equipo', icon: 'error', customClass: {container: 'swal-over-modal'}}));
+}
+
+function cargarMiembrosActuales(equipoId) {
+    $.get("{{ url('/logistica/equipos/miembros') }}/" + equipoId, function(r) {
+        if (r.success) {
+            let html = '<div class="table-responsive"><table class="table table-sm table-bordered"><thead><tr><th>Usuario</th><th>%</th><th></th></tr></thead><tbody>';
+            let total = 0;
+            r.miembros.forEach(m => {
+                total += parseFloat(m.porcentaje_comision);
+                html += `<tr>
+                    <td>${m.nombre_usuario}</td>
+                    <td><span class="badge badge-info">${m.porcentaje_comision}%</span></td>
+                    <td><button type="button" class="btn btn-xs btn-danger" onclick="removerMiembroEquipo(${m.id})"><i class="fa fa-trash"></i></button></td>
+                </tr>`;
+            });
+            html += '</tbody></table></div>';
+            $('#listaMiembrosActuales').html(html);
+            $('#totalPctEditar').text(total.toFixed(2));
+        }
+    });
+}
+
+function agregarNuevoMiembro() {
+    const equipoId = $('#editEquipoId').val();
+    const userId = $('#selectUsuarioEditar').val();
+    const porcentaje = parseFloat($('#inputPorcentajeEditar').val());
+    
+    if (!userId || !porcentaje) return Swal.fire({title: 'Error', text: 'Complete los datos', icon: 'error', customClass: {container: 'swal-over-modal'}});
+    
+    $.post("{{ url('/logistica/equipos/agregar-miembro') }}", {
+        _token: $('meta[name="csrf-token"]').attr('content'),
+        equipo_id: equipoId,
+        user_id: userId,
+        porcentaje: porcentaje
+    }, r => {
+        Swal.fire({title: r.title, text: r.text, icon: r.icon, customClass: {container: 'swal-over-modal'}});
+        if (r.icon === 'success') {
+            cargarMiembrosActuales(equipoId);
+            $('#selectUsuarioEditar, #inputPorcentajeEditar').val('');
+        }
+    }).fail(x => Swal.fire({title: x.responseJSON.title, text: x.responseJSON.text, icon: x.responseJSON.icon, customClass: {container: 'swal-over-modal'}}));
+}
+
+function removerMiembroEquipo(miembroId) {
+    Swal.fire({
+        title: 'Confirmar',
+        text: 'Remover este miembro del equipo?',
+        icon: 'warning',
+        showCancelButton: true,
+        customClass: {container: 'swal-over-modal'}
+    }).then(r => {
+        if (r.isConfirmed) {
+            $.post("{{ url('/logistica/equipos/remover-miembro') }}/" + miembroId, {
+                _token: $('meta[name="csrf-token"]').attr('content')
+            }, r => {
+                Swal.fire({title: r.title, text: r.text, icon: r.icon, customClass: {container: 'swal-over-modal'}});
+                if (r.icon === 'success') {
+                    cargarMiembrosActuales(equipoEditando);
+                }
+            }).fail(x => Swal.fire({title: x.responseJSON.title, text: x.responseJSON.text, icon: x.responseJSON.icon, customClass: {container: 'swal-over-modal'}}));
+        }
+    });
+}
+
+function actualizarEquipo() {
+    const fd = new FormData($('#formEditarEquipo')[0]);
+    fd.append('_token', $('meta[name="csrf-token"]').attr('content'));
+    
+    $.ajax({
+        url: "{{ url('/logistica/equipos/actualizar') }}",
+        method: 'POST',
+        data: fd,
+        processData: false,
+        contentType: false,
+        success: r => {
+            Swal.fire({title: r.title, text: r.text, icon: r.icon, customClass: {container: 'swal-over-modal'}});
+            if (r.icon === 'success') {
+                $('#modalEditarEquipo').modal('hide');
+                tablaEquipos.ajax.reload();
+            }
+        },
+        error: x => Swal.fire({title: x.responseJSON.title, text: x.responseJSON.text, icon: x.responseJSON.icon, customClass: {container: 'swal-over-modal'}})
+    });
+}
 </script>
+<style>
+.swal-over-modal {
+    z-index: 10000 !important;
+}
+</style>
 @endpush
