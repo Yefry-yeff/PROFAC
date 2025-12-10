@@ -975,6 +975,7 @@ Route::post('/reporte/Libroventarep/exportar-excel/{tipo}/{fechaInicio}/{fechaFi
     Route::get('/logistica/facturas/autocompletado', [DistribucionEntrega::class, 'autocompletadoFacturas'])->name('logistica.facturas.autocompletado');
     Route::get('/logistica/facturas/clientes-autocompletado', [DistribucionEntrega::class, 'autocompletadoClientes'])->name('logistica.facturas.clientesAutocompletado');
     Route::get('/logistica/facturas/por-cliente-id', [DistribucionEntrega::class, 'obtenerFacturasPorClienteId'])->name('logistica.facturas.porClienteId');
+    Route::get('/logistica/facturas/detalle', [DistribucionEntrega::class, 'obtenerDetalleFactura'])->name('logistica.facturas.detalle');
     Route::post('/logistica/distribuciones/iniciar/{distribucionId}', [DistribucionEntrega::class, 'iniciarDistribucion']);
     Route::post('/logistica/distribuciones/cancelar/{distribucionId}', [DistribucionEntrega::class, 'cancelarDistribucion']);
     Route::post('/logistica/distribuciones/completar/{distribucionId}', [DistribucionEntrega::class, 'completarDistribucion']);

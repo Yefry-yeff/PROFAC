@@ -580,7 +580,8 @@ class DistribucionEntrega extends Component
                     f.id,
                     f.numero_factura,
                     f.total,
-                    DATE_FORMAT(f.fecha_emision, '%d/%m/%Y') as fecha_factura
+                    DATE_FORMAT(f.fecha_emision, '%d/%m/%Y') as fecha_factura,
+                    (SELECT COUNT(*) FROM venta_has_producto vhp WHERE vhp.factura_id = f.id) as cantidad_productos
                 FROM factura f
                 WHERE f.cliente_id = ?
                 AND f.estado_factura_id = 1
@@ -613,6 +614,75 @@ class DistribucionEntrega extends Component
             return response()->json([
                 'success' => false,
                 'message' => 'Error al obtener facturas',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Obtener detalle de una factura
+     */
+    public function obtenerDetalleFactura(Request $request)
+    {
+        try {
+            $facturaId = $request->input('factura_id');
+            
+            Log::info('Obtener detalle de factura', [
+                'factura_id' => $facturaId
+            ]);
+            
+            // Datos de la factura
+            $factura = DB::selectOne("
+                SELECT 
+                    f.id,
+                    f.numero_factura,
+                    f.total,
+                    f.sub_total as subtotal,
+                    0 as descuento,
+                    f.isv as impuesto,
+                    DATE_FORMAT(f.fecha_emision, '%d/%m/%Y') as fecha_factura,
+                    c.nombre as cliente,
+                    c.direccion,
+                    c.telefono_empresa
+                FROM factura f
+                INNER JOIN cliente c ON f.cliente_id = c.id
+                WHERE f.id = ?
+            ", [$facturaId]);
+            
+            // Detalle de productos
+            $productos = DB::select("
+                SELECT 
+                    vhp.id,
+                    vhp.cantidad,
+                    vhp.precio_unidad as precio_unitario,
+                    vhp.sub_total_s as subtotal,
+                    0 as descuento,
+                    vhp.isv_s as impuesto,
+                    vhp.total_s as total,
+                    p.nombre as producto,
+                    p.codigo
+                FROM venta_has_producto vhp
+                INNER JOIN producto p ON vhp.producto_id = p.id
+                WHERE vhp.factura_id = ?
+                ORDER BY vhp.id
+            ", [$facturaId]);
+            
+            return response()->json([
+                'success' => true,
+                'factura' => $factura,
+                'productos' => $productos
+            ], 200);
+
+        } catch (\Exception $e) {
+            Log::error('Error en obtenerDetalleFactura', [
+                'message' => $e->getMessage(),
+                'factura_id' => $request->input('factura_id'),
+                'line' => $e->getLine()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener detalle de factura',
                 'error' => $e->getMessage()
             ], 500);
         }

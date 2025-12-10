@@ -219,6 +219,70 @@
     </form>
 </div>
 
+<!-- Modal Detalle de Factura -->
+<div class="modal fade" id="modalDetalleFactura" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-file-invoice"></i> Detalle de Factura
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <!-- Datos de la factura -->
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Factura:</strong> <span id="detalleNumeroFactura"></span></p>
+                        <p class="mb-1"><strong>Fecha:</strong> <span id="detalleFechaFactura"></span></p>
+                        <p class="mb-0"><strong>Cliente:</strong> <span id="detalleCliente"></span></p>
+                    </div>
+                    <div class="col-md-6 text-right">
+                        <p class="mb-1"><strong>Subtotal:</strong> <span id="detalleSubtotal"></span></p>
+                        <p class="mb-1"><strong>Descuento:</strong> <span id="detalleDescuento"></span></p>
+                        <p class="mb-1"><strong>Impuesto:</strong> <span id="detalleImpuesto"></span></p>
+                        <h5 class="mb-0 text-success"><strong>Total:</strong> <span id="detalleTotal"></span></h5>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <!-- Tabla de productos -->
+                <h6 class="mb-3"><i class="fas fa-box"></i> Productos</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered">
+                        <thead class="thead-light">
+                            <tr>
+                                <th>Código</th>
+                                <th>Producto</th>
+                                <th class="text-center">Cantidad</th>
+                                <th class="text-right">Precio Unit.</th>
+                                <th class="text-right">Subtotal</th>
+                                <th class="text-right">Descuento</th>
+                                <th class="text-right">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="detalleProductosTabla">
+                            <tr>
+                                <td colspan="7" class="text-center">
+                                    <i class="fas fa-spinner fa-spin"></i> Cargando...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    <i class="fas fa-times"></i> Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <style>
 .sticky-top {
     z-index: 1020;
@@ -367,6 +431,50 @@ function agregarFacturasSeleccionadas() {
     });
 }
 
+function verDetalleFactura(facturaId) {
+    $('#modalDetalleFactura').modal('show');
+    $('#detalleProductosTabla').html('<tr><td colspan="7" class="text-center"><i class="fas fa-spinner fa-spin"></i> Cargando...</td></tr>');
+    
+    $.get(`/logistica/facturas/detalle?factura_id=${facturaId}`, function(data) {
+        if (data.success) {
+            const f = data.factura;
+            const formatoMoneda = new Intl.NumberFormat('es-HN', { style: 'currency', currency: 'HNL' });
+            
+            // Datos de la factura
+            $('#detalleNumeroFactura').text('#' + f.numero_factura);
+            $('#detalleFechaFactura').text(f.fecha_factura);
+            $('#detalleCliente').text(f.cliente);
+            $('#detalleSubtotal').text(formatoMoneda.format(f.subtotal || 0));
+            $('#detalleDescuento').text(formatoMoneda.format(f.descuento || 0));
+            $('#detalleImpuesto').text(formatoMoneda.format(f.impuesto || 0));
+            $('#detalleTotal').text(formatoMoneda.format(f.total));
+            
+            // Productos
+            let htmlProductos = '';
+            data.productos.forEach(p => {
+                htmlProductos += `
+                <tr>
+                    <td><small>${p.codigo}</small></td>
+                    <td>${p.producto}</td>
+                    <td class="text-center"><strong>${p.cantidad}</strong></td>
+                    <td class="text-right">${formatoMoneda.format(p.precio_unitario)}</td>
+                    <td class="text-right">${formatoMoneda.format(p.subtotal)}</td>
+                    <td class="text-right">${formatoMoneda.format(p.descuento || 0)}</td>
+                    <td class="text-right"><strong>${formatoMoneda.format(p.total)}</strong></td>
+                </tr>`;
+            });
+            
+            $('#detalleProductosTabla').html(htmlProductos || '<tr><td colspan="7" class="text-center text-muted">No hay productos</td></tr>');
+        } else {
+            toastr.error('Error al cargar detalle de factura', 'Error');
+            $('#modalDetalleFactura').modal('hide');
+        }
+    }).fail(function() {
+        toastr.error('Error al cargar detalle de factura', 'Error');
+        $('#modalDetalleFactura').modal('hide');
+    });
+}
+
 function agregarFactura(id, numero, cliente, direccion, total) {
     if (facturasSelTmp.find(f => f.id === id)) {
         return;
@@ -432,6 +540,7 @@ function seleccionarCliente(clienteId, nombreCliente, facturas) {
                         </th>
                         <th>Factura</th>
                         <th>Fecha</th>
+                        <th width="100px" class="text-center">Productos</th>
                         <th class="text-right">Total</th>
                         <th width="80px" class="text-center">Estado</th>
                     </tr>
@@ -453,8 +562,16 @@ function seleccionarCliente(clienteId, nombreCliente, facturas) {
                                data-numero="${f.numero_factura}" 
                                data-total="${f.total}">
                     </td>
-                    <td><strong>#${f.numero_factura}</strong></td>
+                    <td>
+                        <strong>#${f.numero_factura}</strong>
+                        <a href="javascript:void(0)" onclick="verDetalleFactura(${f.id})" class="ml-2 text-info" title="Ver detalle">
+                            <i class="fas fa-eye"></i>
+                        </a>
+                    </td>
                     <td><small class="text-muted"><i class="fas fa-calendar"></i> ${f.fecha_factura}</small></td>
+                    <td class="text-center">
+                        <span class="badge badge-info">${f.cantidad_productos || 0} <i class="fas fa-box"></i></span>
+                    </td>
                     <td class="text-right"><strong>${formatoMoneda}</strong></td>
                     <td class="text-center">${badge}</td>
                 </tr>`;
