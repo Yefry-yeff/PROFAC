@@ -8,9 +8,10 @@ use App\Models\Logistica\DistribucionEntregaFactura;
 use App\Models\Logistica\EquipoEntrega;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Http\Request;
 use DataTables;
-use Auth;
 
 class DistribucionEntrega extends Component
 {
@@ -35,31 +36,71 @@ class DistribucionEntrega extends Component
     public function guardarDistribucion(Request $request)
     {
         try {
-            $request->validate([
+            Log::info('=== INICIO guardarDistribucion ===');
+            Log::info('Request completo:', $request->all());
+            Log::info('Request JSON:', $request->json()->all());
+            
+            // Obtener datos del request (ya sea JSON o form-data)
+            $data = $request->json()->all() ?: $request->all();
+            
+            Log::info('Datos procesados:', $data);
+            
+            $validator = Validator::make($data, [
                 'equipo_entrega_id' => 'required|exists:equipos_entrega,id',
                 'fecha_programada' => 'required|date',
                 'observaciones' => 'nullable|string',
                 'facturas' => 'required|array|min:1',
-                'facturas.*' => 'required|exists:facturacion,id',
+                'facturas.*' => 'required|exists:factura,id',
             ], [
                 'equipo_entrega_id.required' => 'Debe seleccionar un equipo',
                 'fecha_programada.required' => 'La fecha programada es obligatoria',
                 'facturas.required' => 'Debe agregar al menos una factura',
+                'facturas.*.exists' => 'Una o más facturas no existen',
+            ]);
+            
+            if ($validator->fails()) {
+                Log::warning('Validación fallida:', $validator->errors()->toArray());
+                return response()->json([
+                    'icon' => 'error',
+                    'title' => 'Error de Validación',
+                    'text' => implode(', ', $validator->errors()->all()),
+                ], 422);
+            }
+
+            Log::info('Validación exitosa');
+            Log::info('Datos validados:', [
+                'equipo_entrega_id' => $data['equipo_entrega_id'],
+                'fecha_programada' => $data['fecha_programada'],
+                'observaciones' => $data['observaciones'] ?? null,
+                'facturas' => $data['facturas'],
+                'total_facturas' => count($data['facturas'])
             ]);
 
             DB::beginTransaction();
+            Log::info('Transacción iniciada');
 
             // Crear distribución
             $distribucion = ModelDistribucionEntrega::create([
-                'equipo_entrega_id' => $request->equipo_entrega_id,
-                'fecha_programada' => $request->fecha_programada,
-                'observaciones' => trim($request->observaciones),
+                'equipo_entrega_id' => $data['equipo_entrega_id'],
+                'fecha_programada' => $data['fecha_programada'],
+                'observaciones' => trim($data['observaciones'] ?? ''),
                 'estado_id' => 1, // Pendiente
                 'users_id_creador' => Auth::id(),
             ]);
 
+            Log::info('Distribución creada:', [
+                'id' => $distribucion->id,
+                'equipo_entrega_id' => $distribucion->equipo_entrega_id,
+                'fecha_programada' => $distribucion->fecha_programada
+            ]);
+
             // Agregar facturas en el orden especificado
-            foreach ($request->facturas as $index => $facturaId) {
+            foreach ($data['facturas'] as $index => $facturaId) {
+                Log::info("Procesando factura {$index}", [
+                    'factura_id' => $facturaId,
+                    'orden' => $index + 1
+                ]);
+                
                 DistribucionEntregaFactura::create([
                     'distribucion_entrega_id' => $distribucion->id,
                     'factura_id' => $facturaId,
@@ -68,16 +109,26 @@ class DistribucionEntrega extends Component
                 ]);
             }
 
+            Log::info('Todas las facturas procesadas correctamente');
+
             DB::commit();
+            Log::info('Transacción confirmada - Distribución guardada exitosamente');
 
             return response()->json([
                 'icon' => 'success',
                 'title' => '¡Éxito!',
-                'text' => 'Distribución creada con ' . count($request->facturas) . ' factura(s)',
+                'text' => 'Distribución creada con ' . count($data['facturas']) . ' factura(s)',
             ], 200);
 
         } catch (\Exception $e) {
             DB::rollback();
+            Log::error('Error al guardar distribución:', [
+                'message' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
             return response()->json([
                 'icon' => 'error',
                 'title' => 'Error',

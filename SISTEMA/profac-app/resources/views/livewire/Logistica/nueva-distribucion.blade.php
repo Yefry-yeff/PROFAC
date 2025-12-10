@@ -689,16 +689,49 @@ function guardarDistribucion() {
         return;
     }
     
-    const fd = new FormData($('#formNuevaDistribucion')[0]);
-    fd.append('facturas', JSON.stringify(facturasSelTmp.map(f => f.id)));
+    const equipoId = $('select[name="equipo_entrega_id"]').val();
+    const fechaProgramada = $('input[name="fecha_programada"]').val();
+    const observaciones = $('textarea[name="observaciones"]').val();
+    
+    if (!equipoId) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Equipo requerido',
+            text: 'Debe seleccionar un equipo de entrega',
+            confirmButtonColor: '#28a745'
+        });
+        return;
+    }
+    
+    if (!fechaProgramada) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Fecha requerida',
+            text: 'Debe seleccionar una fecha programada',
+            confirmButtonColor: '#28a745'
+        });
+        return;
+    }
+    
+    const data = {
+        equipo_entrega_id: equipoId,
+        fecha_programada: fechaProgramada,
+        observaciones: observaciones,
+        facturas: facturasSelTmp.map(f => f.id)
+    };
+    
+    console.log('Datos a enviar:', data);
     
     $.ajax({
         url: '/logistica/distribuciones/guardar',
         type: 'POST',
-        data: fd,
-        processData: false,
-        contentType: false,
+        data: JSON.stringify(data),
+        contentType: 'application/json',
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        },
         success: function(r) {
+            console.log('Respuesta exitosa:', r);
             Swal.fire({
                 icon: r.icon || 'success',
                 title: r.title || 'Éxito',
@@ -708,11 +741,13 @@ function guardarDistribucion() {
                 window.location.href = '{{ route("logistica.distribuciones") }}';
             });
         },
-        error: function(x) {
+        error: function(xhr, status, error) {
+            console.error('Error AJAX:', {xhr, status, error});
+            console.error('Response:', xhr.responseJSON);
             Swal.fire({
-                icon: x.responseJSON?.icon || 'error',
-                title: x.responseJSON?.title || 'Error',
-                text: x.responseJSON?.text || 'Error al guardar la distribución',
+                icon: xhr.responseJSON?.icon || 'error',
+                title: xhr.responseJSON?.title || 'Error',
+                text: xhr.responseJSON?.text || 'Error al guardar la distribución',
                 confirmButtonColor: '#dc3545'
             });
         }
