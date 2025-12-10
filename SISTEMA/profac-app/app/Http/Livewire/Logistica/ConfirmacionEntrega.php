@@ -10,7 +10,7 @@ use App\Models\Logistica\EntregaEvidencia;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use DataTables;
-use Auth;
+use Illuminate\Support\Facades\Auth;
 
 class ConfirmacionEntrega extends Component
 {
@@ -72,10 +72,10 @@ class ConfirmacionEntrega extends Component
                     f.total,
                     c.nombre AS cliente,
                     c.direccion,
-                    c.telefono
+                       c.telefono_empresa
                 FROM distribuciones_entrega_facturas df
-                INNER JOIN facturacion f ON df.factura_id = f.id
-                INNER JOIN clientes c ON f.cliente_id = c.id
+                   INNER JOIN factura f ON df.factura_id = f.id
+                   INNER JOIN cliente c ON f.cliente_id = c.id
                 WHERE df.distribucion_entrega_id = ?
                 ORDER BY df.orden_entrega ASC
             ", [$distribucionId]);
@@ -129,28 +129,32 @@ class ConfirmacionEntrega extends Component
         // Si no existen, crear registros iniciales desde los detalles de la factura
         $distribucionFactura = DistribucionEntregaFactura::findOrFail($distribucionFacturaId);
         
-        $productosFactura = DB::select("
-            SELECT 
-                df.producto_id,
-                p.nombre AS nombre_producto,
-                df.cantidad
-            FROM detalle_factura df
-            INNER JOIN producto p ON df.producto_id = p.id
-            WHERE df.factura_id = ?
-            ORDER BY p.nombre ASC
-        ", [$distribucionFactura->factura_id]);
+           $productosFactura = DB::select("
+               SELECT 
+                   vhp.producto_id,
+                   p.nombre AS nombre_producto,
+                   vhp.cantidad
+               FROM venta_has_producto vhp
+               INNER JOIN producto p ON vhp.producto_id = p.id
+               WHERE vhp.factura_id = ?
+               ORDER BY p.nombre ASC
+           ", [$distribucionFactura->factura_id]);
 
-        // Crear registros iniciales
+        // Crear registros iniciales o reutilizar los existentes para evitar duplicados
         foreach ($productosFactura as $producto) {
-            EntregaProducto::create([
-                'distribucion_factura_id' => $distribucionFacturaId,
-                'producto_id' => $producto->producto_id,
-                'cantidad_facturada' => $producto->cantidad,
-                'cantidad_entregada' => 0,
-                'entregado' => 0,
-                'tiene_incidencia' => 0,
-                'users_id_registro' => Auth::id(),
-            ]);
+            EntregaProducto::firstOrCreate(
+                [
+                    'distribucion_factura_id' => $distribucionFacturaId,
+                    'producto_id' => $producto->producto_id,
+                ],
+                [
+                    'cantidad_facturada' => $producto->cantidad,
+                    'cantidad_entregada' => 0,
+                    'entregado' => 0,
+                    'tiene_incidencia' => 0,
+                    'user_id_registro' => Auth::id(),
+                ]
+            );
         }
 
         // Retornar los productos recién creados
@@ -198,7 +202,7 @@ class ConfirmacionEntrega extends Component
                 $producto->tiene_incidencia = $productoData['tiene_incidencia'] ?? 0;
                 $producto->tipo_incidencia = $productoData['tipo_incidencia'] ?? null;
                 $producto->descripcion_incidencia = $productoData['descripcion_incidencia'] ?? null;
-                $producto->users_id_registro = Auth::id();
+                $producto->user_id_registro = Auth::id();
                 $producto->save();
             }
 
@@ -245,7 +249,7 @@ class ConfirmacionEntrega extends Component
                 'distribucion_factura_id' => $request->distribucion_factura_id,
                 'tipo_evidencia' => $request->tipo_evidencia,
                 'ruta_archivo' => $ruta,
-                'users_id_registro' => Auth::id(),
+                'user_id_registro' => Auth::id(),
             ]);
 
             return response()->json([
@@ -311,7 +315,7 @@ class ConfirmacionEntrega extends Component
                 ->update([
                     'entregado' => 1,
                     'cantidad_entregada' => DB::raw('cantidad_facturada'),
-                    'users_id_registro' => Auth::id(),
+                    'user_id_registro' => Auth::id(),
                     'updated_at' => now(),
                 ]);
 
