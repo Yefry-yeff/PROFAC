@@ -787,13 +787,14 @@ function mostrarResultadosFacturas(facturas) {
     
     facturas.forEach(f => {
         const yaAgregada = facturasSelTmp.find(fs => fs.id === f.id);
-        const disabled = yaAgregada ? 'disabled' : '';
-        const checked = yaAgregada ? 'checked' : '';
+        const checkDisabled = yaAgregada ? 'disabled' : '';
+        const rowClass = yaAgregada ? 'table-success' : '';
+        const badge = yaAgregada ? '<span class="badge badge-success"><i class="fas fa-check"></i> Agregada</span>' : '<span class="badge badge-light">Disponible</span>';
         
         html += `
-        <tr ${yaAgregada ? 'class="table-success"' : ''}>
-            <td>
-                <input type="checkbox" class="check-factura-busqueda" ${checked} ${disabled}
+        <tr class="${rowClass}">
+            <td class="text-center">
+                <input type="checkbox" class="check-factura-busqueda" ${checkDisabled}
                        data-id="${f.id}"
                        data-numero="${f.numero_factura}"
                        data-cliente="${f.cliente.replace(/"/g, '&quot;')}"
@@ -802,14 +803,14 @@ function mostrarResultadosFacturas(facturas) {
             </td>
             <td>
                 <strong>#${f.numero_factura}</strong>
-                <button class="btn btn-xs btn-link p-0 ml-2" onclick="verDetalleFactura(${f.id})" title="Ver detalle">
-                    <i class="fas fa-eye text-info"></i>
-                </button>
+                <a href="javascript:void(0)" onclick="verDetalleFactura(${f.id})" class="ml-2 text-info" title="Ver detalle">
+                    <i class="fas fa-eye"></i>
+                </a>
             </td>
             <td><small>${f.cliente}</small></td>
-            <td><small>${f.fecha_emision || ''}</small></td>
+            <td><small class="text-muted"><i class="fas fa-calendar"></i> ${f.fecha_emision || ''}</small></td>
             <td class="text-center"><span class="badge badge-info">${f.cantidad_productos || 0} <i class="fas fa-box"></i></span></td>
-            <td class="text-center"><span class="badge badge-success">Facturada</span></td>
+            <td class="text-center">${badge}</td>
         </tr>`;
     });
     
