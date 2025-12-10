@@ -172,6 +172,13 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 
     Route::get('/comisiones/configuracion', confcomisiones::class);
     Route::get('/comisiones/configuracion/rol', [confcomisiones::class,'listaRolesUsuario'])->name('comision.configuracion.rol');
+    Route::post('/guardar/parametro/comision', [confcomisiones::class, 'guardarParametroComision']);
+    Route::get('/listar/parametros/comision', [confcomisiones::class,'listarParametroComision']);
+    Route::post('/desactivar/parametro-comision/{id}',[confcomisiones::class,'desactivarParametro'])->name('parametro.comision.desactivar');
+    Route::get('/parametro-comision/{id}', [confcomisiones::class,'obtenerParametro']);
+    Route::post('/actualizar/parametro/comision/{id}', [confcomisiones::class,'actualizarParametro']);
+
+
     Route::get('/comisiones/empleado', MisComisiones::class);
     Route::get('/comisiones/general', ReportesComisionesGenerales::class);
 

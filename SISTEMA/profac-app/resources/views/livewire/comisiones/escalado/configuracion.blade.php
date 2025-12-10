@@ -128,12 +128,17 @@
                     <option value="">Seleccione una categoría...</option>
                 </select>
             </div>
-
+            <input type="hidden" id="param_comision_id" name="param_comision_id">
             <div class="form-group col-md-6">
               <label for="Categoria de cliente" class="font-weight-bold">Rol asociado</label>
                 <select id="rol_id" name="rol_id" class="form-control" data-url="{{ route('comision.configuracion.rol') }}"  required>
-                    <option value="">Seleccione una categoría...</option>
+                    <option value="">Seleccione un rol...</option>
                 </select>
+            </div>
+
+            <div class="form-group col-md-6">
+              <label for="Categoria de cliente" class="font-weight-bold">Porcentaje de comisión a aplicar</label>
+              <input type="number" step="any" class="form-control form-control-lg border-primary" id="porcentaje_comision" name="porcentaje_comision" required>
             </div>
             <hr>
             <p>Se debe ingresar un rango de compra mensual del cliente, para diferenciación de ingreso</p>
@@ -153,7 +158,7 @@
             <button type="button" class="btn btn-outline-secondary" data-dismiss="modal" id="btnCancelarCategoria">
               Cancelar
             </button>
-            <button type="submit" class="btn btn-primary font-weight-bold" id="btn_guardar_categoria">
+            <button type="submit" class="btn btn-primary font-weight-bold" id="btn_guardar_parametro_comision">
               Guardar
             </button>
           </div>
@@ -175,16 +180,19 @@
                 <div class="ibox">
                 <div class="ibox-content">
                     <div class="table-responsive">
-                    <table id="tbl_listaCategoria" class="table table-striped table-bordered table-hover">
+                    <table id="tbl_listaParametroComision" class="table table-striped table-bordered table-hover">
                         <thead class="thead-light">
                         <tr>
                             <th>ID</th>
-                            <th>Categoría</th>
-                            <th>Descripción</th>
-                            <th>Comentario</th>
-                            <th>Estado</th>
-                            <th>Registro</th>
+                            <th>Comisión</th>
+                            <th>%</th>
+                            <th>Monto compra Inicial</th>
+                            <th>Monto compra Final</th>
+                            <th>Rol de Usuario</th>
+                            <th>Clientes</th>
+                            <th>Registrado</th>
                             <th>Creación</th>
+                            <th>Estado</th>
                             <th>Acciones</th>
                         </tr>
                         </thead>
