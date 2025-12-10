@@ -178,7 +178,7 @@
                                     <tr>
                                         <th>#Factura</th>
                                         <th>Cliente</th>
-                                        <th class="text-right">Total</th>
+                                        <th class="text-center">Productos</th>
                                         <th class="text-center" width="50">Acción</th>
                                     </tr>
                                 </thead>
@@ -195,17 +195,6 @@
                         </div>
                     </div>
                     <div class="card-footer bg-light">
-                        <div class="row mb-3">
-                            <div class="col-6">
-                                <strong>Total a Distribuir:</strong>
-                            </div>
-                            <div class="col-6 text-right">
-                                <h5 class="mb-0 text-success">
-                                    <i class="fas fa-dollar-sign"></i> 
-                                    <span id="totalMontoDistribucion">0.00</span>
-                                </h5>
-                            </div>
-                        </div>
                         <button type="button" class="btn btn-success btn-block btn-lg" onclick="guardarDistribucion()">
                             <i class="fas fa-save"></i> Guardar Distribución
                         </button>
@@ -233,18 +222,10 @@
             </div>
             <div class="modal-body">
                 <!-- Datos de la factura -->
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <p class="mb-1"><strong>Factura:</strong> <span id="detalleNumeroFactura"></span></p>
-                        <p class="mb-1"><strong>Fecha:</strong> <span id="detalleFechaFactura"></span></p>
-                        <p class="mb-0"><strong>Cliente:</strong> <span id="detalleCliente"></span></p>
-                    </div>
-                    <div class="col-md-6 text-right">
-                        <p class="mb-1"><strong>Subtotal:</strong> <span id="detalleSubtotal"></span></p>
-                        <p class="mb-1"><strong>Descuento:</strong> <span id="detalleDescuento"></span></p>
-                        <p class="mb-1"><strong>Impuesto:</strong> <span id="detalleImpuesto"></span></p>
-                        <h5 class="mb-0 text-success"><strong>Total:</strong> <span id="detalleTotal"></span></h5>
-                    </div>
+                <div class="mb-3">
+                    <p class="mb-1"><strong>Factura:</strong> <span id="detalleNumeroFactura"></span></p>
+                    <p class="mb-1"><strong>Fecha:</strong> <span id="detalleFechaFactura"></span></p>
+                    <p class="mb-0"><strong>Cliente:</strong> <span id="detalleCliente"></span></p>
                 </div>
                 
                 <hr>
@@ -255,18 +236,14 @@
                     <table class="table table-sm table-bordered">
                         <thead class="thead-light">
                             <tr>
-                                <th>Código</th>
+                                <th width="80px">Código</th>
                                 <th>Producto</th>
-                                <th class="text-center">Cantidad</th>
-                                <th class="text-right">Precio Unit.</th>
-                                <th class="text-right">Subtotal</th>
-                                <th class="text-right">Descuento</th>
-                                <th class="text-right">Total</th>
+                                <th class="text-center" width="100px">Cantidad</th>
                             </tr>
                         </thead>
                         <tbody id="detalleProductosTabla">
                             <tr>
-                                <td colspan="7" class="text-center">
+                                <td colspan="3" class="text-center">
                                     <i class="fas fa-spinner fa-spin"></i> Cargando...
                                 </td>
                             </tr>
@@ -402,9 +379,10 @@ function agregarFacturasSeleccionadas() {
         const id = parseInt($(this).data('id'));
         const numero = $(this).data('numero');
         const total = parseFloat($(this).data('total'));
+        const cantidadProductos = parseInt($(this).data('productos')) || 0;
         
         if (!facturasSelTmp.find(f => f.id === id)) {
-            seleccionadas.push({id, numero, total});
+            seleccionadas.push({id, numero, total, cantidadProductos});
         }
     });
     
@@ -417,7 +395,7 @@ function agregarFacturasSeleccionadas() {
     }
     
     seleccionadas.forEach(f => {
-        agregarFactura(f.id, f.numero, clienteSeleccionado.nombre, '', f.total);
+        agregarFactura(f.id, f.numero, clienteSeleccionado.nombre, '', f.total, f.cantidadProductos);
     });
     
     // Recargar lista de facturas del cliente para actualizar estados
@@ -444,27 +422,19 @@ function verDetalleFactura(facturaId) {
             $('#detalleNumeroFactura').text('#' + f.numero_factura);
             $('#detalleFechaFactura').text(f.fecha_factura);
             $('#detalleCliente').text(f.cliente);
-            $('#detalleSubtotal').text(formatoMoneda.format(f.subtotal || 0));
-            $('#detalleDescuento').text(formatoMoneda.format(f.descuento || 0));
-            $('#detalleImpuesto').text(formatoMoneda.format(f.impuesto || 0));
-            $('#detalleTotal').text(formatoMoneda.format(f.total));
             
             // Productos
             let htmlProductos = '';
             data.productos.forEach(p => {
                 htmlProductos += `
                 <tr>
-                    <td><small>${p.codigo}</small></td>
+                    <td class="text-center"><small>${p.codigo}</small></td>
                     <td>${p.producto}</td>
-                    <td class="text-center"><strong>${p.cantidad}</strong></td>
-                    <td class="text-right">${formatoMoneda.format(p.precio_unitario)}</td>
-                    <td class="text-right">${formatoMoneda.format(p.subtotal)}</td>
-                    <td class="text-right">${formatoMoneda.format(p.descuento || 0)}</td>
-                    <td class="text-right"><strong>${formatoMoneda.format(p.total)}</strong></td>
+                    <td class="text-center"><strong>${parseInt(p.cantidad)}</strong></td>
                 </tr>`;
             });
             
-            $('#detalleProductosTabla').html(htmlProductos || '<tr><td colspan="7" class="text-center text-muted">No hay productos</td></tr>');
+            $('#detalleProductosTabla').html(htmlProductos || '<tr><td colspan="3" class="text-center text-muted">No hay productos</td></tr>');
         } else {
             toastr.error('Error al cargar detalle de factura', 'Error');
             $('#modalDetalleFactura').modal('hide');
@@ -475,7 +445,7 @@ function verDetalleFactura(facturaId) {
     });
 }
 
-function agregarFactura(id, numero, cliente, direccion, total) {
+function agregarFactura(id, numero, cliente, direccion, total, cantidadProductos) {
     if (facturasSelTmp.find(f => f.id === id)) {
         return;
     }
@@ -485,7 +455,8 @@ function agregarFactura(id, numero, cliente, direccion, total) {
         numero: numero,
         cliente: cliente,
         direccion: direccion,
-        total: parseFloat(total)
+        total: parseFloat(total),
+        cantidadProductos: cantidadProductos || 0
     });
     
     actualizarPreviewFacturas();
@@ -541,7 +512,6 @@ function seleccionarCliente(clienteId, nombreCliente, facturas) {
                         <th>Factura</th>
                         <th>Fecha</th>
                         <th width="100px" class="text-center">Productos</th>
-                        <th class="text-right">Total</th>
                         <th width="80px" class="text-center">Estado</th>
                     </tr>
                 </thead>
@@ -552,7 +522,6 @@ function seleccionarCliente(clienteId, nombreCliente, facturas) {
             const checkDisabled = yaAgregada ? 'disabled' : '';
             const rowClass = yaAgregada ? 'table-success' : '';
             const badge = yaAgregada ? '<span class="badge badge-success"><i class="fas fa-check"></i> Agregada</span>' : '<span class="badge badge-light">Disponible</span>';
-            const formatoMoneda = new Intl.NumberFormat('es-HN', { style: 'currency', currency: 'HNL' }).format(f.total);
             
             html += `
                 <tr class="${rowClass}">
@@ -560,7 +529,8 @@ function seleccionarCliente(clienteId, nombreCliente, facturas) {
                         <input type="checkbox" class="check-factura" ${checkDisabled} 
                                data-id="${f.id}" 
                                data-numero="${f.numero_factura}" 
-                               data-total="${f.total}">
+                               data-total="${f.total}"
+                               data-productos="${f.cantidad_productos || 0}">
                     </td>
                     <td>
                         <strong>#${f.numero_factura}</strong>
@@ -572,7 +542,6 @@ function seleccionarCliente(clienteId, nombreCliente, facturas) {
                     <td class="text-center">
                         <span class="badge badge-info">${f.cantidad_productos || 0} <i class="fas fa-box"></i></span>
                     </td>
-                    <td class="text-right"><strong>${formatoMoneda}</strong></td>
                     <td class="text-center">${badge}</td>
                 </tr>`;
         });
@@ -600,22 +569,18 @@ function actualizarPreviewFacturas() {
     if (total === 0) {
         $('#mensajeVacioPreview').show();
         $('#tablaPreviewFacturas tr:not(#mensajeVacioPreview)').remove();
-        $('#totalMontoDistribucion').text('L 0.00');
         return;
     }
     
     $('#mensajeVacioPreview').hide();
     $('#tablaPreviewFacturas tr:not(#mensajeVacioPreview)').remove();
     
-    let montoTotal = 0;
     facturasSelTmp.forEach((f, index) => {
-        montoTotal += parseFloat(f.total);
-        const formatoMoneda = new Intl.NumberFormat('es-HN', { style: 'currency', currency: 'HNL' }).format(f.total);
         const row = `
         <tr>
             <td><strong>#${f.numero}</strong></td>
             <td><small>${f.cliente}</small></td>
-            <td class="text-right"><strong>${formatoMoneda}</strong></td>
+            <td class="text-center"><span class="badge badge-info">${f.cantidadProductos || 0} <i class="fas fa-box"></i></span></td>
             <td class="text-center">
                 <button class="btn btn-xs btn-danger" onclick="removerFactura(${index})" title="Quitar">
                     <i class="fas fa-trash"></i>
@@ -624,9 +589,6 @@ function actualizarPreviewFacturas() {
         </tr>`;
         $('#tablaPreviewFacturas').append(row);
     });
-    
-    const formatoTotal = new Intl.NumberFormat('es-HN', { style: 'currency', currency: 'HNL' }).format(montoTotal);
-    $('#totalMontoDistribucion').text(formatoTotal);
 }
 
 function removerFactura(index) {

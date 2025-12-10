@@ -652,7 +652,7 @@ class DistribucionEntrega extends Component
             // Detalle de productos
             $productos = DB::select("
                 SELECT 
-                    vhp.id,
+                    vhp.producto_id as id,
                     vhp.cantidad,
                     vhp.precio_unidad as precio_unitario,
                     vhp.sub_total_s as subtotal,
@@ -660,11 +660,11 @@ class DistribucionEntrega extends Component
                     vhp.isv_s as impuesto,
                     vhp.total_s as total,
                     p.nombre as producto,
-                    p.codigo
+                    CAST(p.id AS CHAR) as codigo
                 FROM venta_has_producto vhp
                 INNER JOIN producto p ON vhp.producto_id = p.id
                 WHERE vhp.factura_id = ?
-                ORDER BY vhp.id
+                ORDER BY p.nombre
             ", [$facturaId]);
             
             return response()->json([
