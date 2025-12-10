@@ -312,6 +312,7 @@ class ConfirmacionEntrega extends Component
         try {
             DB::table('entregas_productos')
                 ->where('distribucion_factura_id', $distribucionFacturaId)
+                ->where('tiene_incidencia', 0)
                 ->update([
                     'entregado' => 1,
                     'cantidad_entregada' => DB::raw('cantidad_facturada'),

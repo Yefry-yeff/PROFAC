@@ -253,9 +253,12 @@
                         <input type="checkbox" class="form-check-input position-static chk-producto" data-producto="${p.id}" data-factura="${factura.distribucion_factura_id}" data-cantidad="${p.cantidad_facturada}" ${p.entregado ? 'checked' : ''} ${tieneIncidencia ? 'disabled' : ''}>
                     </td>
                     <td class="text-center">
-                        ${tieneIncidencia
-                            ? '<span class="badge badge-danger">Incidencia</span>'
-                            : `<button type="button" class="btn btn-outline-warning btn-sm" onclick="abrirIncidencia(${p.id})"><i class="fas fa-exclamation-triangle mr-1"></i>Reportar</button>`}
+                        <div class="d-flex flex-column align-items-center">
+                            ${tieneIncidencia ? '<span class="badge badge-danger mb-1">Incidencia</span>' : ''}
+                            <button type="button" class="btn btn-outline-warning btn-sm" onclick="abrirIncidencia(${p.id})">
+                                <i class="fas fa-exclamation-triangle mr-1"></i>${tieneIncidencia ? 'Gestionar' : 'Reportar'}
+                            </button>
+                        </div>
                     </td>
                 </tr>`;
             });
@@ -388,7 +391,14 @@
             const $checkbox = $(`.chk-producto[data-producto='${productoId}']`);
             if ($checkbox.length) {
                 $checkbox.prop('checked', false).prop('disabled', true);
-                $checkbox.closest('tr').find('td:last-child').html('<span class="badge badge-danger">Incidencia</span>');
+                const acciones = `
+                    <div class="d-flex flex-column align-items-center">
+                        <span class="badge badge-danger mb-1">Incidencia</span>
+                        <button type="button" class="btn btn-outline-warning btn-sm" onclick="abrirIncidencia(${productoId})">
+                            <i class="fas fa-exclamation-triangle mr-1"></i>Gestionar
+                        </button>
+                    </div>`;
+                $checkbox.closest('tr').find('td:last-child').html(acciones);
             }
 
             Swal.fire('Incidencia registrada', 'Recuerda capturar la evidencia y actualizar esta factura antes de confirmar.', 'success');
