@@ -1312,6 +1312,25 @@ class FacturacionCorporativa extends Component
                     $cantidadSeccion = $registroResta / $unidad;
                 };
 
+                $precio_producto_carga = DB::table('factura as A')
+                    ->join('cliente as B', 'B.id', '=', 'A.cliente_id')
+                    ->join('cliente_categoria_escala as C', function ($join) {
+                        $join->on('C.id', '=', 'B.cliente_categoria_escala_id')
+                            ->where('C.estado_id', 1);
+                    })
+                    ->join('categoria_precios as D', function ($join) {
+                        $join->on('D.cliente_categoria_escala_id', '=', 'C.id')
+                            ->where('D.estado_id', 1);
+                    })
+                    ->join('precios_producto_carga as E', function ($join) {
+                        $join->on('E.categoria_precios_id', '=', 'D.id')
+                            ->where('E.estado_id', 1);
+                    })
+                    ->where('A.id', $idFactura)
+                    ->where('E.producto_id', $idProducto)
+                    ->select('E.id')
+                    ->first();
+
 
                 array_push($this->arrayProductos, [
                     "factura_id" => $idFactura,
@@ -1337,6 +1356,7 @@ class FacturacionCorporativa extends Component
                     "total_s" => $totalSecccionado,
                     "precioSeleccionado" => $precioSeleccionado,
                     "idPrecioSeleccionado" => $idPrecioSeleccionado,
+                    "precios_producto_carga_id" => $precio_producto_carga->id,
                     "created_at" => now(),
                     "updated_at" => now(),
                 ]);

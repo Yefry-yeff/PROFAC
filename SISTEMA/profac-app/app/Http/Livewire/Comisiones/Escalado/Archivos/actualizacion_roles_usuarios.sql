@@ -112,3 +112,341 @@ UPDATE rol SET nombre = 'Televendedor' where id = 3;
 UPDATE rol SET nombre = 'Recursos Humanos' where id = 8;
 UPDATE rol SET nombre = 'Administrador' where id = 1;
 
+-------------------------ACTUALIZACIÓN DE SP DE APLICACION DE PAGOS/ REGISTRANDO FECHA EXACTA DE CIERRE PARA REFERENCIA DE COMISIÓN--------------
+BEGIN
+  DECLARE EXIT HANDLER FOR SQLEXCEPTION
+  BEGIN
+    ROLLBACK;
+				SET estado := -1;
+				SET msjResultado := "Se ha hecho rollback";
+
+               select estado,msjResultado;
+  END;
+
+  START TRANSACTION;
+
+          IF accion = 1 THEN
+            INSERT INTO aplicacion_pagos
+
+            (
+             cliente_id,
+             factura_id,
+             total_factura_cargo,
+             retencion_isv_factura,
+             estado_retencion_isv,
+             total_notas_credito,
+             total_nodas_debito,
+             credito_abonos,
+             movimiento_suma,
+             movimiento_resta,
+             comentario,
+             saldo,
+             ultimo_usr_actualizo,
+             estado,
+             estado_cerrado,
+             usr_cerro,
+             created_at)
+            SELECT
+                pcliente_id,
+                fa.id,
+                fa.total,
+                fa.isv,
+                1,
+                0,
+                0,
+                0,
+                0,
+                0,
+                '',
+                fa.total,
+                0,
+                1,
+                0,
+                0,
+                NOW()
+            FROM factura fa
+              inner join cliente cli on cli.id = fa.cliente_id
+            WHERE cli.id = pcliente_id and fa.estado_venta_id = 1;
+				SET estado := 1;
+				SET msjResultado := "Se ha guardado con exito";
+
+                select estado,msjResultado;
+          END IF;
+
+          IF accion = 2 THEN
+            INSERT INTO aplicacion_pagos
+
+            (
+             cliente_id,
+             factura_id,
+             total_factura_cargo,
+             retencion_isv_factura,
+             estado_retencion_isv,
+             total_notas_credito,
+             total_nodas_debito,
+             credito_abonos,
+             movimiento_suma,
+             movimiento_resta,
+             comentario,
+             saldo,
+             ultimo_usr_actualizo,
+             estado,
+             estado_cerrado,
+             usr_cerro,
+             created_at)
+            SELECT
+                pcliente_id,
+                pfactura_id,
+                fa.total,
+                fa.isv,
+                1,
+                0,
+                0,
+                0,
+                0,
+                0,
+                '',
+                fa.total,
+                0,
+                1,
+                0,
+                0,
+                NOW()
+            FROM factura fa
+            WHERE fa.estado_venta_id = 1 and fa.id = pfactura_id;
+				SET estado := 1;
+				SET msjResultado := "Se ha guardado con exito";
+
+                select estado,msjResultado;
+          END IF;
+
+          IF accion = 3 THEN
+            INSERT INTO aplicacion_pagos
+
+            (
+             cliente_id,
+             factura_id,
+             total_factura_cargo,
+             retencion_isv_factura,
+             estado_retencion_isv,
+             total_notas_credito,
+             total_nodas_debito,
+             credito_abonos,
+             movimiento_suma,
+             movimiento_resta,
+             comentario,
+             saldo,
+             ultimo_usr_actualizo,
+             estado,
+             estado_cerrado,
+             usr_cerro,
+             created_at)
+            SELECT
+                pcliente_id,
+                fa.id,
+                fa.total,
+                fa.isv,
+                1,
+                0,
+                0,
+                0,
+                0,
+                0,
+                '',
+                fa.total,
+                0,
+                1,
+                0,
+                0,
+                NOW()
+            FROM factura fa
+              inner join cliente cli on cli.id = fa.cliente_id
+            WHERE cli.id = pcliente_id
+            and fa.estado_venta_id = 1
+            and fa.id not in (
+                select aplicacion_pagos.factura_id
+                from aplicacion_pagos
+                where aplicacion_pagos.estado = 1
+            );
+				SET estado := 1;
+				SET msjResultado := "Se ha guardado con exito";
+
+                select estado,msjResultado;
+          END IF;
+
+  COMMIT;
+
+        IF accion = 4 THEN
+
+            IF ptipo = 1 THEN
+                UPDATE aplicacion_pagos
+                    SET estado_retencion_isv = ptipo,
+                     comentario_retencion = pcomentario,
+                     ultimo_usr_actualizo = usr_actual,
+                     retencion_aplicada = 1
+                WHERE aplicacion_pagos.retencion_aplicada = 0 and aplicacion_pagos.estado = 1 and aplicacion_pagos.id =  paplic_id;
+            END IF;
+
+            IF ptipo = 2 THEN
+                UPDATE aplicacion_pagos
+                    SET estado_retencion_isv = ptipo,
+                     saldo = (saldo - pmonto),
+                     comentario_retencion = pcomentario,
+                     ultimo_usr_actualizo = usr_actual,
+                     retencion_aplicada = 1
+                WHERE aplicacion_pagos.retencion_aplicada = 0 and aplicacion_pagos.estado = 1 and aplicacion_pagos.id =  paplic_id;
+            END IF;
+
+				SET estado := 1;
+				SET msjResultado := "Se ha guardado con exito";
+
+                select estado,msjResultado;
+        END IF;
+
+        IF accion = 5 THEN
+
+            IF ptipo = 1 THEN
+
+                UPDATE nota_credito
+                SET estado_rebajado = 1,
+                    user_registra_rebaja = usr_actual,
+                    fecha_rebajado = NOW(),
+                    comentario_rebajado = pcomentario
+                WHERE nota_credito.id = pcliente_id
+                and nota_credito.factura_id = pfactura_id;
+
+                UPDATE aplicacion_pagos
+                    SET total_notas_credito = (total_notas_credito + pmonto),
+                        saldo = (saldo - pmonto)
+                WHERE aplicacion_pagos.estado = 1
+                and aplicacion_pagos.factura_id = pfactura_id
+                and aplicacion_pagos.id =  paplic_id;
+
+            END IF;
+
+            IF ptipo = 2 THEN
+
+                UPDATE nota_credito
+                SET estado_rebajado = 1,
+                    user_registra_rebaja = usr_actual,
+                    fecha_rebajado = NOW(),
+                    comentario_rebajado = pcomentario
+                WHERE nota_credito.id = pcliente_id
+                and nota_credito.factura_id = pfactura_id;
+
+            END IF;
+
+				SET estado := 1;
+				SET msjResultado := "Se ha guardado con exito";
+
+                select estado,msjResultado;
+        END IF;
+
+        IF accion = 6 THEN
+
+            IF ptipo = 1 THEN
+
+                UPDATE notadebito
+                SET estado_sumado = 1,
+                    user_registra_sumado = usr_actual,
+                    fecha_sumado = NOW(),
+                    comentario_sumado = pcomentario
+                WHERE notadebito.id = pcliente_id
+                and notadebito.factura_id = pfactura_id;
+
+                UPDATE aplicacion_pagos
+                    SET total_nodas_debito = (total_nodas_debito + pmonto),
+                        saldo = (saldo + pmonto)
+                WHERE aplicacion_pagos.estado = 1
+                and aplicacion_pagos.factura_id = pfactura_id
+                and aplicacion_pagos.id =  paplic_id;
+
+            END IF;
+
+            IF ptipo = 2 THEN
+
+                UPDATE notadebito
+                SET estado_sumado = 1,
+                    user_registra_sumado = usr_actual,
+                    fecha_sumado = NOW(),
+                    comentario_sumado = pcomentario
+                WHERE notadebito.id = pcliente_id
+                and notadebito.factura_id = pfactura_id;
+
+            END IF;
+
+				SET estado := 1;
+				SET msjResultado := "Se ha guardado con exito";
+
+                select estado,msjResultado;
+        END IF;
+
+        IF accion = 7 THEN
+
+            IF ptipo = 1 THEN
+                UPDATE aplicacion_pagos
+                    SET movimiento_suma = (movimiento_suma + pmonto),
+                    ultimo_usr_actualizo = usr_actual,
+                    saldo = (saldo + pmonto),
+                    updated_at = NOW()
+                WHERE aplicacion_pagos.estado = 1
+                and aplicacion_pagos.factura_id = pfactura_id
+                and aplicacion_pagos.id =  paplic_id;
+
+            END IF;
+
+            IF ptipo = 2 THEN
+
+
+                UPDATE aplicacion_pagos
+                    SET movimiento_resta = (movimiento_resta + pmonto),
+                    ultimo_usr_actualizo = usr_actual,
+                    saldo = (saldo - pmonto),
+                    updated_at = NOW()
+                WHERE aplicacion_pagos.estado = 1
+                and aplicacion_pagos.factura_id = pfactura_id
+                and aplicacion_pagos.id =  paplic_id;
+
+            END IF;
+
+				SET estado := 1;
+				SET msjResultado := "Se ha guardado con exito";
+
+                select estado,msjResultado;
+        END IF;
+
+        IF accion = 8 THEN
+                UPDATE aplicacion_pagos
+                    SET credito_abonos = (credito_abonos + pmonto),
+                    ultimo_usr_actualizo = usr_actual,
+                    saldo = (saldo - pmonto),
+                    updated_at = NOW()
+                WHERE aplicacion_pagos.estado = 1
+                and aplicacion_pagos.factura_id = pfactura_id
+                and aplicacion_pagos.id =  paplic_id;
+
+				SET estado := 1;
+				SET msjResultado := "Se ha guardado con exito";
+
+                select estado,msjResultado;
+        END IF;
+
+        IF accion = 9 THEN
+
+                UPDATE aplicacion_pagos
+                    SET
+                    ultimo_usr_actualizo = usr_actual,
+                    usr_cerro = usr_actual,
+                    estado_cerrado = 2,
+                    fecha_cierre_factura=NOW(),
+                    comentario = pcomentario,
+                    updated_at = NOW()
+                WHERE aplicacion_pagos.estado = 1
+                and aplicacion_pagos.id =  paplic_id;
+
+				SET estado := 1;
+				SET msjResultado := "Se ha guardado con exito";
+
+                select estado,msjResultado;
+        END IF;
+END

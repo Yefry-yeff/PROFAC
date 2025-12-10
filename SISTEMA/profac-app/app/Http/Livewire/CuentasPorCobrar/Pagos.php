@@ -666,9 +666,8 @@ class Pagos extends Component
 
                       // dd($request);
                        if($saldoActual2->saldo == 0){
-
+                            //dd("Prueba de que llega aqui esta mierda");
                            $cuentas22 = DB::select("
-
                                CALL sp_aplicacion_pagos(
                                    '9',
                                    '0',
@@ -793,7 +792,7 @@ class Pagos extends Component
                        $saldoActual2 = DB::selectone('select saldo from aplicacion_pagos where id = '.$request->codAplicPagoAbono);
 
                        if($saldoActual2->saldo == 0){
-
+                            //dd("Prueba de que llega aqui esta mierda");
                            $cuentas22 = DB::select("
 
                                CALL sp_aplicacion_pagos(
