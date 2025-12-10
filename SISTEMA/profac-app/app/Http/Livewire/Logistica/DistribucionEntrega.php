@@ -21,6 +21,15 @@ class DistribucionEntrega extends Component
     }
 
     /**
+     * Vista de nueva distribución
+     */
+    public function nuevaDistribucion()
+    {
+        $equipos = EquipoEntrega::activos()->get();
+        return view('livewire.logistica.nueva-distribucion', compact('equipos'));
+    }
+
+    /**
      * Guardar nueva distribución
      */
     public function guardarDistribucion(Request $request)

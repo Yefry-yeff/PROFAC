@@ -5,9 +5,9 @@
                 <div class="card-header">
                     <h3 class="card-title">Distribuciones de Entrega</h3>
                     <div class="card-tools">
-                        <button type="button" class="btn btn-primary btn-sm" onclick="abrirModalNuevaDistribucion()">
+                        <a href="{{ route('logistica.distribuciones.nueva') }}" class="btn btn-primary btn-sm">
                             <i class="fa fa-plus"></i> Nueva Distribucion
-                        </button>
+                        </a>
                     </div>
                 </div>
                 <div class="card-body">
