@@ -970,6 +970,10 @@ Route::post('/reporte/Libroventarep/exportar-excel/{tipo}/{fechaInicio}/{fechaFi
     Route::get('/logistica/distribuciones/facturas/{distribucionId}', [DistribucionEntrega::class, 'obtenerFacturas']);
     Route::get('/logistica/facturas/buscar', [DistribucionEntrega::class, 'buscarFacturas'])->name('logistica.facturas.buscar');
     Route::get('/logistica/facturas/por-numero', [DistribucionEntrega::class, 'obtenerFacturaPorNumero'])->name('logistica.facturas.porNumero');
+    Route::get('/logistica/facturas/por-cliente', [DistribucionEntrega::class, 'obtenerFacturasPorCliente'])->name('logistica.facturas.porCliente');
+    Route::get('/logistica/facturas/autocompletado', [DistribucionEntrega::class, 'autocompletadoFacturas'])->name('logistica.facturas.autocompletado');
+    Route::get('/logistica/facturas/clientes-autocompletado', [DistribucionEntrega::class, 'autocompletadoClientes'])->name('logistica.facturas.clientesAutocompletado');
+    Route::get('/logistica/facturas/por-cliente-id', [DistribucionEntrega::class, 'obtenerFacturasPorClienteId'])->name('logistica.facturas.porClienteId');
     Route::post('/logistica/distribuciones/iniciar/{distribucionId}', [DistribucionEntrega::class, 'iniciarDistribucion']);
     Route::post('/logistica/distribuciones/cancelar/{distribucionId}', [DistribucionEntrega::class, 'cancelarDistribucion']);
     Route::post('/logistica/distribuciones/completar/{distribucionId}', [DistribucionEntrega::class, 'completarDistribucion']);

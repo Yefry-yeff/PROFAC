@@ -7,6 +7,7 @@ use App\Models\Logistica\DistribucionEntrega as ModelDistribucionEntrega;
 use App\Models\Logistica\DistribucionEntregaFactura;
 use App\Models\Logistica\EquipoEntrega;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
 use DataTables;
 use Auth;
@@ -276,6 +277,7 @@ class DistribucionEntrega extends Component
 
     /**
      * Obtener factura por número exacto
+     * Valida que fecha_factura >= 2025-08-01 y que no esté entregada
      */
     public function obtenerFacturaPorNumero(Request $request)
     {
@@ -287,14 +289,19 @@ class DistribucionEntrega extends Component
                     f.id,
                     f.numero_factura,
                     f.total,
-                    f.fecha_factura,
+                    f.fecha_emision as fecha_factura,
                     c.nombre AS cliente,
-                    c.direccion,
-                    c.telefono
-                FROM facturacion f
-                INNER JOIN clientes c ON f.cliente_id = c.id
-                WHERE f.estado_id = 1
+                    c.direccion
+                FROM factura f
+                INNER JOIN cliente c ON f.cliente_id = c.id
+                WHERE f.estado_factura_id = 1
                 AND f.numero_factura = ?
+                AND f.fecha_emision >= '2025-08-01'
+                AND NOT EXISTS (
+                    SELECT 1 FROM distribuciones_entrega_facturas def
+                    WHERE def.factura_id = f.id
+                    AND def.estado_entrega = 'entregado'
+                )
                 LIMIT 1
             ", [$numero]);
 
@@ -304,9 +311,38 @@ class DistribucionEntrega extends Component
                     'factura' => $factura[0]
                 ], 200);
             } else {
+                // Verificar si existe pero no cumple condiciones
+                $facturaExiste = DB::select("SELECT id FROM factura WHERE numero_factura = ? LIMIT 1", [$numero]);
+                
+                if (!empty($facturaExiste)) {
+                    // Verificar por qué no es válida
+                    $facturaInfo = DB::select("
+                        SELECT 
+                            f.fecha_emision,
+                            CASE WHEN EXISTS (
+                                SELECT 1 FROM distribuciones_entrega_facturas def
+                                WHERE def.factura_id = f.id AND def.estado_entrega = 'entregado'
+                            ) THEN 1 ELSE 0 END as ya_entregada
+                        FROM factura f
+                        WHERE f.numero_factura = ?
+                    ", [$numero]);
+                    
+                    if ($facturaInfo[0]->ya_entregada) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Esta factura ya fue entregada'
+                        ], 422);
+                    } elseif ($facturaInfo[0]->fecha_emision < '2025-08-01') {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Esta factura es anterior al 01/08/2025 y no está disponible para entrega'
+                        ], 422);
+                    }
+                }
+                
                 return response()->json([
                     'success' => false,
-                    'message' => 'Factura no encontrada'
+                    'message' => 'Factura no encontrada o no disponible'
                 ], 404);
             }
 
@@ -314,6 +350,260 @@ class DistribucionEntrega extends Component
             return response()->json([
                 'success' => false,
                 'message' => 'Error al buscar factura',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Obtener facturas por cliente
+     * Busca por nombre o teléfono, filtra fecha >= 2025-08-01 y no entregadas
+     */
+    public function obtenerFacturasPorCliente(Request $request)
+    {
+        try {
+            $termino = $request->input('termino', '');
+            
+            if (strlen($termino) < 3) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Ingrese al menos 3 caracteres para buscar'
+                ], 422);
+            }
+            
+            $facturas = DB::select("
+                SELECT 
+                    f.id,
+                    f.numero_factura,
+                    f.total,
+                    DATE_FORMAT(f.fecha_emision, '%d/%m/%Y') as fecha_factura,
+                    c.nombre AS cliente,
+                    c.direccion
+                FROM factura f
+                INNER JOIN cliente c ON f.cliente_id = c.id
+                WHERE f.estado_factura_id = 1
+                AND f.fecha_emision >= '2025-08-01'
+                AND c.nombre LIKE ?
+                AND NOT EXISTS (
+                    SELECT 1 FROM distribuciones_entrega_facturas def
+                    WHERE def.factura_id = f.id
+                    AND def.estado_entrega = 'entregado'
+                )
+                ORDER BY f.fecha_emision DESC, f.numero_factura DESC
+                LIMIT 50
+            ", ["%{$termino}%"]);
+
+            return response()->json([
+                'success' => true,
+                'facturas' => $facturas,
+                'total' => count($facturas)
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al buscar facturas',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Autocompletado de facturas por número
+     */
+    public function autocompletadoFacturas(Request $request)
+    {
+        try {
+            $termino = $request->input('termino', '');
+            
+            Log::info('Búsqueda de facturas autocompletado', [
+                'termino' => $termino,
+                'longitud' => strlen($termino)
+            ]);
+            
+            if (strlen($termino) < 2) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Ingrese al menos 2 caracteres'
+                ], 422);
+            }
+            
+            $facturas = DB::select("
+                SELECT 
+                    f.id,
+                    f.numero_factura,
+                    f.total,
+                    c.nombre AS cliente
+                FROM factura f
+                INNER JOIN cliente c ON f.cliente_id = c.id
+                WHERE f.estado_factura_id = 1
+                AND f.fecha_emision >= '2025-08-01'
+                AND f.numero_factura LIKE ?
+                AND NOT EXISTS (
+                    SELECT 1 FROM distribuciones_entrega_facturas def
+                    WHERE def.factura_id = f.id
+                    AND def.estado_entrega = 'entregado'
+                )
+                ORDER BY f.numero_factura DESC
+                LIMIT 20
+            ", ["%{$termino}%"]);
+
+            Log::info('Facturas encontradas', [
+                'total' => count($facturas)
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'facturas' => $facturas
+            ], 200);
+
+        } catch (\Exception $e) {
+            Log::error('Error en autocompletadoFacturas', [
+                'message' => $e->getMessage(),
+                'line' => $e->getLine()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al buscar facturas',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Autocompletado de clientes con facturas disponibles
+     */
+    public function autocompletadoClientes(Request $request)
+    {
+        try {
+            $termino = $request->input('termino', '');
+            
+            Log::info('Búsqueda de clientes autocompletado', [
+                'termino' => $termino,
+                'longitud' => strlen($termino)
+            ]);
+            
+            if (strlen($termino) < 3) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Ingrese al menos 3 caracteres'
+                ], 422);
+            }
+            
+            // Mostrar TODOS los clientes activos que tienen facturas disponibles
+            // sin filtrar por el término de búsqueda aún
+            $clientes = DB::select("
+                SELECT DISTINCT
+                    c.id,
+                    c.nombre,
+                    (SELECT COUNT(*) 
+                     FROM factura f2 
+                     WHERE f2.cliente_id = c.id
+                     AND f2.fecha_emision >= '2025-08-01'
+                     AND f2.estado_factura_id = 1
+                     AND NOT EXISTS (
+                         SELECT 1 FROM distribuciones_entrega_facturas def
+                         WHERE def.factura_id = f2.id
+                         AND def.estado_entrega = 'entregado'
+                     )) as facturas_disponibles
+                FROM cliente c
+                INNER JOIN factura f ON c.id = f.cliente_id
+                WHERE f.estado_factura_id = 1
+                AND f.fecha_emision >= '2025-08-01'
+                AND c.nombre LIKE ?
+                AND EXISTS (
+                    SELECT 1 FROM factura f2
+                    WHERE f2.cliente_id = c.id
+                    AND f2.fecha_emision >= '2025-08-01'
+                    AND f2.estado_factura_id = 1
+                    AND NOT EXISTS (
+                        SELECT 1 FROM distribuciones_entrega_facturas def
+                        WHERE def.factura_id = f2.id
+                        AND def.estado_entrega = 'entregado'
+                    )
+                )
+                ORDER BY c.nombre
+                LIMIT 50
+            ", ["%{$termino}%"]);
+
+            Log::info('Clientes encontrados', [
+                'total' => count($clientes),
+                'clientes' => $clientes
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'clientes' => $clientes
+            ], 200);
+
+        } catch (\Exception $e) {
+            Log::error('Error en autocompletadoClientes', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al buscar clientes',
+                'error' => $e->getMessage(),
+                'line' => $e->getLine()
+            ], 500);
+        }
+    }
+
+    /**
+     * Obtener facturas de un cliente específico por ID
+     */
+    public function obtenerFacturasPorClienteId(Request $request)
+    {
+        try {
+            $clienteId = $request->input('cliente_id');
+            
+            Log::info('Obtener facturas por cliente ID', [
+                'cliente_id' => $clienteId
+            ]);
+            
+            $facturas = DB::select("
+                SELECT 
+                    f.id,
+                    f.numero_factura,
+                    f.total,
+                    DATE_FORMAT(f.fecha_emision, '%d/%m/%Y') as fecha_factura
+                FROM factura f
+                WHERE f.cliente_id = ?
+                AND f.estado_factura_id = 1
+                AND f.fecha_emision >= '2025-08-01'
+                AND NOT EXISTS (
+                    SELECT 1 FROM distribuciones_entrega_facturas def
+                    WHERE def.factura_id = f.id
+                    AND def.estado_entrega = 'entregado'
+                )
+                ORDER BY f.fecha_emision DESC, f.numero_factura DESC
+            ", [$clienteId]);
+
+            Log::info('Facturas del cliente encontradas', [
+                'total' => count($facturas),
+                'cliente_id' => $clienteId
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'facturas' => $facturas
+            ], 200);
+
+        } catch (\Exception $e) {
+            Log::error('Error en obtenerFacturasPorClienteId', [
+                'message' => $e->getMessage(),
+                'cliente_id' => $request->input('cliente_id'),
+                'line' => $e->getLine()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener facturas',
                 'error' => $e->getMessage()
             ], 500);
         }

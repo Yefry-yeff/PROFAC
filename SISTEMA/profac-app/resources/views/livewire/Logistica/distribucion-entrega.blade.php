@@ -30,58 +30,236 @@
         </div>
     </div>
 
-    <div class="modal fade" id="modalNuevaDistribucion">
-        <div class="modal-dialog modal-xl">
+    <!-- Modal Mejorado: Nueva Distribución -->
+    <div class="modal fade" id="modalNuevaDistribucion" data-backdrop="static">
+        <div class="modal-dialog modal-xl" style="max-width: 95%;">
             <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Nueva Distribucion</h5>
-                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <div class="modal-header bg-gradient-primary">
+                    <h5 class="modal-title text-white">
+                        <i class="fas fa-truck-loading"></i> Nueva Distribución de Entrega
+                    </h5>
+                    <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body" style="background: #f4f6f9;">
                     <form id="formNuevaDistribucion">
-                        <div class="row">
-                            <div class="col-6">
-                                <div class="form-group">
-                                    <label>Equipo *</label>
-                                    <select class="form-control" name="equipo_entrega_id" required>
-                                        <option value="">Seleccione...</option>
-                                        @foreach($equipos as $eq)
-                                            <option value="{{ $eq->id }}">{{ $eq->nombre_equipo }}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="col-6">
-                                <div class="form-group">
-                                    <label>Fecha Programada *</label>
-                                    <input type="date" class="form-control" name="fecha_programada" required>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label>Observaciones</label>
-                            <textarea class="form-control" name="observaciones" rows="2"></textarea>
-                        </div>
-                        <hr>
-                        <h6>Facturas a Entregar</h6>
                         
-                        <!-- Ingresar por número de factura -->
-                        <div class="card mb-3 border-primary">
+                        <!-- Información Básica -->
+                        <div class="card shadow-sm mb-3">
+                            <div class="card-header bg-white">
+                                <h6 class="mb-0"><i class="fas fa-info-circle text-primary"></i> Información de la Distribución</h6>
+                            </div>
                             <div class="card-body">
                                 <div class="row">
-                                    <div class="col-10">
-                                        <input type="text" class="form-control form-control-lg" id="numeroFactura" 
-                                               placeholder="Ingrese número de factura y presione Enter" 
-                                               onkeypress="if(event.keyCode==13){agregarPorNumero(); return false;}"
-                                               autofocus>
+                                    <div class="col-md-5">
+                                        <div class="form-group">
+                                            <label><i class="fas fa-users"></i> Equipo de Entrega *</label>
+                                            <select class="form-control form-control-lg" name="equipo_entrega_id" required>
+                                                <option value="">-- Seleccione un equipo --</option>
+                                                @foreach($equipos as $eq)
+                                                    <option value="{{ $eq->id }}">{{ $eq->nombre_equipo }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
                                     </div>
-                                    <div class="col-2">
-                                        <button type="button" class="btn btn-success btn-lg btn-block" onclick="agregarPorNumero()">
-                                            <i class="fa fa-plus"></i>
-                                        </button>
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label><i class="fas fa-calendar-alt"></i> Fecha Programada *</label>
+                                            <input type="date" class="form-control form-control-lg" name="fecha_programada" 
+                                                   value="{{ date('Y-m-d') }}" required>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="form-group">
+                                            <label><i class="fas fa-box"></i> Facturas</label>
+                                            <input type="text" class="form-control form-control-lg bg-light" 
+                                                   id="contadorFacturas" value="0 facturas" readonly>
+                                        </div>
                                     </div>
                                 </div>
-                                <small class="text-muted"><i class="fa fa-info-circle"></i> Ingrese el número de factura y presione <kbd>Enter</kbd> para agregar</small>
+                                <div class="row">
+                                    <div class="col-12">
+                                        <div class="form-group mb-0">
+                                            <label><i class="fas fa-sticky-note"></i> Observaciones</label>
+                                            <textarea class="form-control" name="observaciones" rows="2" 
+                                                      placeholder="Ingrese observaciones adicionales..."></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Búsqueda de Facturas -->
+                        <div class="card shadow-sm mb-3">
+                            <div class="card-header bg-white">
+                                <h6 class="mb-0"><i class="fas fa-search text-success"></i> Búsqueda de Facturas</h6>
+                            </div>
+                            <div class="card-body">
+                                
+                                <!-- Tabs de búsqueda -->
+                                <ul class="nav nav-pills mb-3" id="tipoBusquedaTabs" role="tablist">
+                                    <li class="nav-item">
+                                        <a class="nav-link active" id="tab-factura" data-toggle="pill" href="#busqueda-factura" role="tab">
+                                            <i class="fas fa-file-invoice"></i> Buscar por Factura
+                                        </a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link" id="tab-cliente" data-toggle="pill" href="#busqueda-cliente" role="tab">
+                                            <i class="fas fa-user"></i> Buscar por Cliente
+                                        </a>
+                                    </li>
+                                </ul>
+
+                                <div class="tab-content" id="tipoBusquedaContent">
+                                    
+                                    <!-- Búsqueda por Factura -->
+                                    <div class="tab-pane fade show active" id="busqueda-factura" role="tabpanel">
+                                        <div class="input-group input-group-lg mb-3">
+                                            <div class="input-group-prepend">
+                                                <span class="input-group-text bg-primary text-white">
+                                                    <i class="fas fa-file-invoice"></i>
+                                                </span>
+                                            </div>
+                                            <input type="text" class="form-control" id="buscarFacturaNumero" 
+                                                   placeholder="Escriba el número de factura..." 
+                                                   autocomplete="off">
+                                            <div class="input-group-append">
+                                                <button class="btn btn-outline-secondary" type="button" onclick="limpiarBusquedaFactura()">
+                                                    <i class="fas fa-times"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Resultados de búsqueda de facturas -->
+                                        <div id="resultadosFacturas" style="display: none;">
+                                            <div class="alert alert-info">
+                                                <i class="fas fa-info-circle"></i> 
+                                                <span id="mensajeResultadosFacturas">Ingrese al menos 2 caracteres para buscar</span>
+                                            </div>
+                                            <div id="listaResultadosFacturas" class="row"></div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Búsqueda por Cliente -->
+                                    <div class="tab-pane fade" id="busqueda-cliente" role="tabpanel">
+                                        <div class="input-group input-group-lg mb-3">
+                                            <div class="input-group-prepend">
+                                                <span class="input-group-text bg-info text-white">
+                                                    <i class="fas fa-user"></i>
+                                                </span>
+                                            </div>
+                                            <input type="text" class="form-control" id="buscarClienteNombre" 
+                                                   placeholder="Escriba el nombre del cliente..." 
+                                                   autocomplete="off">
+                                            <div class="input-group-append">
+                                                <button class="btn btn-outline-secondary" type="button" onclick="limpiarBusquedaCliente()">
+                                                    <i class="fas fa-times"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <!-- Resultados de búsqueda de clientes -->
+                                        <div id="resultadosClientes" style="display: none;">
+                                            <div class="alert alert-info">
+                                                <i class="fas fa-info-circle"></i> 
+                                                <span id="mensajeResultadosClientes">Ingrese al menos 3 caracteres para buscar</span>
+                                            </div>
+                                            <div id="listaResultadosClientes" class="list-group mb-3"></div>
+                                        </div>
+
+                                        <!-- Facturas del cliente seleccionado -->
+                                        <div id="facturasClienteSeleccionado" style="display: none;">
+                                            <div class="alert alert-success">
+                                                <i class="fas fa-user-check"></i> 
+                                                <strong>Cliente:</strong> <span id="nombreClienteSeleccionado"></span>
+                                                <button type="button" class="close" onclick="limpiarClienteSeleccionado()">
+                                                    <span>&times;</span>
+                                                </button>
+                                            </div>
+                                            <div id="listaFacturasCliente" class="row"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Preview de Facturas Seleccionadas -->
+                        <div class="card shadow-sm">
+                            <div class="card-header bg-gradient-success text-white">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-clipboard-list"></i> 
+                                    Facturas para Distribuir 
+                                    <span class="badge badge-light ml-2" id="totalFacturasSeleccionadas">0</span>
+                                </h6>
+                            </div>
+                            <div class="card-body p-0">
+                                <div id="previewFacturasSeleccionadas" class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                                    <table class="table table-sm table-hover mb-0">
+                                        <thead class="bg-light sticky-top">
+                                            <tr>
+                                                <th width="100">#Factura</th>
+                                                <th>Cliente</th>
+                                                <th>Dirección</th>
+                                                <th width="120" class="text-right">Total</th>
+                                                <th width="80" class="text-center">Acción</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="tablaPreviewFacturas">
+                                            <tr id="mensajeVacioPreview">
+                                                <td colspan="5" class="text-center text-muted py-4">
+                                                    <i class="fas fa-inbox fa-3x mb-2"></i>
+                                                    <p>No hay facturas seleccionadas</p>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="card-footer bg-light">
+                                <div class="row">
+                                    <div class="col-6">
+                                        <strong>Total a Distribuir:</strong>
+                                    </div>
+                                    <div class="col-6 text-right">
+                                        <h5 class="mb-0 text-success">
+                                            <i class="fas fa-dollar-sign"></i> 
+                                            <span id="totalMontoDistribucion">0.00</span>
+                                        </h5>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </form>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                        <i class="fas fa-times"></i> Cancelar
+                    </button>
+                    <button type="button" class="btn btn-success btn-lg" onclick="guardarDistribucion()">
+                        <i class="fas fa-save"></i> Guardar Distribución
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+                                    <label>Cliente</label>
+                                    <input type="text" class="form-control form-control-lg" id="buscarCliente" 
+                                           list="listaClientes"
+                                           placeholder="Escriba nombre o teléfono..."
+                                           onkeyup="buscarClientesAutocompletado()"
+                                           onchange="seleccionarClienteDesdeInput()">
+                                    <datalist id="listaClientes"></datalist>
+                                    <small class="text-muted"><i class="fa fa-info-circle"></i> Escriba para buscar clientes</small>
+                                </div>
+                                <div id="facturasDelCliente" style="display: none;">
+                                    <label>Facturas Disponibles</label>
+                                    <select class="form-control" id="selectFacturasCliente" size="5" multiple>
+                                    </select>
+                                    <small class="text-muted"><i class="fa fa-info-circle"></i> Seleccione una o varias facturas (Ctrl+Click)</small>
+                                    <button type="button" class="btn btn-success btn-block mt-2" onclick="agregarFacturasSeleccionadas()">
+                                        <i class="fa fa-plus"></i> Agregar Seleccionadas
+                                    </button>
+                                </div>
                             </div>
                         </div>
                         
@@ -100,6 +278,7 @@
 @push('scripts')
 <script>
 let tablaDistribuciones, facturasSelTmp = [];
+
 $(document).ready(() => {
     tablaDistribuciones = $('#tablaDistribuciones').DataTable({
         processing: true,
@@ -119,115 +298,350 @@ $(document).ready(() => {
     });
 });
 
+// ========== MODAL Y BÚSQUEDA ==========
+
 function abrirModalNuevaDistribucion() {
     $('#formNuevaDistribucion')[0].reset();
     facturasSelTmp = [];
-    actualizarFacturasSel();
-    $('#numeroFactura').val('');
+    actualizarPreviewFacturas();
+    limpiarBusquedaFactura();
+    limpiarBusquedaCliente();
+    $('input[name="fecha_programada"]').val('{{ date("Y-m-d") }}');
     $('#modalNuevaDistribucion').modal('show');
-    setTimeout(() => $('#numeroFactura').focus(), 500);
+    setTimeout(() => {
+        $('#tab-factura').tab('show');
+        $('#buscarFacturaNumero').focus();
+    }, 500);
 }
 
-function agregarPorNumero() {
-    const numero = $('#numeroFactura').val().trim();
-    if (!numero) {
-        Swal.fire({
-            icon: 'warning',
-            title: 'Campo vacio',
-            text: 'Ingrese un numero de factura',
-            timer: 1500
-        });
+// Limpiar búsquedas
+function limpiarBusquedaFactura() {
+    $('#buscarFacturaNumero').val('');
+    $('#resultadosFacturas').hide();
+    $('#listaResultadosFacturas').html('');
+}
+
+function limpiarBusquedaCliente() {
+    $('#buscarClienteNombre').val('');
+    $('#resultadosClientes').hide();
+    $('#listaResultadosClientes').html('');
+    limpiarClienteSeleccionado();
+}
+
+function limpiarClienteSeleccionado() {
+    $('#facturasClienteSeleccionado').hide();
+    $('#listaFacturasCliente').html('');
+    $('#nombreClienteSeleccionado').text('');
+}
+
+// ========== BÚSQUEDA POR FACTURA ==========
+
+let timerBusquedaFactura;
+$('#buscarFacturaNumero').on('keyup', function() {
+    clearTimeout(timerBusquedaFactura);
+    const termino = $(this).val().trim();
+    
+    if (termino.length < 2) {
+        $('#resultadosFacturas').hide();
         return;
     }
     
-    // Buscar la factura por número exacto
+    $('#resultadosFacturas').show();
+    $('#mensajeResultadosFacturas').html('<i class="fas fa-spinner fa-spin"></i> Buscando...');
+    
+    timerBusquedaFactura = setTimeout(() => {
+        $.ajax({
+            url: "{{ url('/logistica/facturas/autocompletado') }}",
+            type: 'GET',
+            data: {termino: termino},
+            success: function(response) {
+                if (response.success && response.facturas.length > 0) {
+                    $('#mensajeResultadosFacturas').text(`${response.facturas.length} factura(s) encontrada(s)`);
+                    mostrarResultadosFacturas(response.facturas);
+                } else {
+                    $('#mensajeResultadosFacturas').html('<i class="fas fa-search"></i> No se encontraron facturas');
+                    $('#listaResultadosFacturas').html('');
+                }
+            },
+            error: function() {
+                $('#mensajeResultadosFacturas').html('<i class="fas fa-exclamation-triangle"></i> Error al buscar');
+                $('#listaResultadosFacturas').html('');
+            }
+        });
+    }, 400);
+});
+
+function mostrarResultadosFacturas(facturas) {
+    let html = '';
+    facturas.forEach(f => {
+        const yaAgregada = facturasSelTmp.find(fs => fs.id === f.id);
+        const disabled = yaAgregada ? 'disabled' : '';
+        const btnClass = yaAgregada ? 'btn-secondary' : 'btn-success';
+        const btnText = yaAgregada ? '<i class="fas fa-check"></i> Agregada' : '<i class="fas fa-plus"></i> Agregar';
+        
+        html += `
+        <div class="col-md-6 col-lg-4 mb-3">
+            <div class="card h-100 shadow-sm ${yaAgregada ? 'border-success' : ''}">
+                <div class="card-body p-3">
+                    <h6 class="card-title text-primary mb-2">
+                        <i class="fas fa-file-invoice"></i> #${f.numero_factura}
+                    </h6>
+                    <p class="card-text mb-2">
+                        <small class="text-muted"><i class="fas fa-user"></i> ${f.cliente}</small>
+                    </p>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="h6 mb-0 text-success">Q${parseFloat(f.total).toFixed(2)}</span>
+                        <button class="btn btn-sm ${btnClass}" ${disabled}
+                                onclick="agregarFactura(${f.id}, '${f.numero_factura}', '${f.cliente.replace(/'/g, "\\'")}', '${f.direccion || ''}', ${f.total})">
+                            ${btnText}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+    });
+    $('#listaResultadosFacturas').html(html);
+}
+
+function agregarFactura(id, numero, cliente, direccion, total) {
+    if (facturasSelTmp.find(f => f.id === id)) {
+        return;
+    }
+    
+    facturasSelTmp.push({
+        id: id,
+        numero: numero,
+        cliente: cliente,
+        direccion: direccion,
+        total: parseFloat(total)
+    });
+    
+    actualizarPreviewFacturas();
+    
+    // Actualizar resultados
+    $('#buscarFacturaNumero').trigger('keyup');
+    
+    toastr.success(`Factura #${numero} agregada`, 'Éxito');
+}
+
+// ========== BÚSQUEDA POR CLIENTE ==========
+
+let timerBusquedaCliente, clienteSeleccionado = null;
+$('#buscarClienteNombre').on('keyup', function() {
+    clearTimeout(timerBusquedaCliente);
+    const termino = $(this).val().trim();
+    
+    // Limpiar cliente seleccionado si cambia la búsqueda
+    limpiarClienteSeleccionado();
+    
+    if (termino.length < 3) {
+        $('#resultadosClientes').hide();
+        return;
+    }
+    
+    $('#resultadosClientes').show();
+    $('#mensajeResultadosClientes').html('<i class="fas fa-spinner fa-spin"></i> Buscando clientes...');
+    
+    timerBusquedaCliente = setTimeout(() => {
+        $.ajax({
+            url: "{{ url('/logistica/facturas/clientes-autocompletado') }}",
+            type: 'GET',
+            data: {termino: termino},
+            success: function(response) {
+                if (response.success && response.clientes.length > 0) {
+                    $('#mensajeResultadosClientes').text(`${response.clientes.length} cliente(s) encontrado(s)`);
+                    mostrarResultadosClientes(response.clientes);
+                } else {
+                    $('#mensajeResultadosClientes').html('<i class="fas fa-search"></i> No se encontraron clientes');
+                    $('#listaResultadosClientes').html('');
+                }
+            },
+            error: function() {
+                $('#mensajeResultadosClientes').html('<i class="fas fa-exclamation-triangle"></i> Error al buscar');
+                $('#listaResultadosClientes').html('');
+            }
+        });
+    }, 500);
+});
+
+function mostrarResultadosClientes(clientes) {
+    let html = '';
+    clientes.forEach(c => {
+        html += `
+        <a href="javascript:void(0)" class="list-group-item list-group-item-action" 
+           onclick="seleccionarCliente(${c.id}, '${c.nombre.replace(/'/g, "\\'")}', ${c.facturas_disponibles || 0})">
+            <div class="d-flex w-100 justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-1"><i class="fas fa-user-circle text-info"></i> ${c.nombre}</h6>
+                </div>
+                <span class="badge badge-primary badge-pill">${c.facturas_disponibles || 0} facturas</span>
+            </div>
+        </a>`;
+    });
+    $('#listaResultadosClientes').html(html);
+}
+
+function seleccionarCliente(clienteId, nombreCliente, facturas) {
+    clienteSeleccionado = {id: clienteId, nombre: nombreCliente};
+    
+    // Ocultar resultados y mostrar facturas del cliente
+    $('#resultadosClientes').hide();
+    $('#buscarClienteNombre').val(nombreCliente);
+    $('#nombreClienteSeleccionado').text(nombreCliente);
+    $('#facturasClienteSeleccionado').show();
+    
+    // Cargar facturas del cliente
+    $('#listaFacturasCliente').html(`
+        <div class="col-12 text-center py-4">
+            <i class="fas fa-spinner fa-spin fa-3x text-info"></i>
+            <p class="mt-2">Cargando facturas...</p>
+        </div>
+    `);
+    
     $.ajax({
-        url: "{{ url('/logistica/facturas/por-numero') }}",
+        url: "{{ url('/logistica/facturas/por-cliente-id') }}",
         type: 'GET',
-        data: {numero: numero},
+        data: {cliente_id: clienteId},
         success: function(response) {
-            if (response.success && response.factura) {
-                const f = response.factura;
-                facturasSelTmp.push({
-                    id: f.id, 
-                    numero: f.numero_factura, 
-                    cliente: f.cliente, 
-                    total: f.total
-                });
-                actualizarFacturasSel();
-                $('#numeroFactura').val('').focus();
-                
-                // Notificación breve
-                const Toast = Swal.mixin({
-                    toast: true,
-                    position: 'top-end',
-                    showConfirmButton: false,
-                    timer: 1500,
-                    timerProgressBar: true
-                });
-                Toast.fire({
-                    icon: 'success',
-                    title: `Factura #${f.numero_factura} agregada`
-                });
+            if (response.success && response.facturas.length > 0) {
+                mostrarFacturasCliente(response.facturas, nombreCliente);
             } else {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'No encontrada',
-                    text: `No existe la factura #${numero}`,
-                    timer: 2000
-                });
-                $('#numeroFactura').select();
+                $('#listaFacturasCliente').html(`
+                    <div class="col-12">
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle"></i> 
+                            No hay facturas disponibles para este cliente
+                        </div>
+                    </div>
+                `);
             }
         },
         error: function() {
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: 'Error al buscar la factura',
-                timer: 2000
-            });
+            $('#listaFacturasCliente').html(`
+                <div class="col-12">
+                    <div class="alert alert-danger">
+                        <i class="fas fa-times"></i> Error al cargar facturas
+                    </div>
+                </div>
+            `);
         }
     });
 }
 
-function removerFacturaTmp(idx) {
-    facturasSelTmp.splice(idx, 1);
-    actualizarFacturasSel();
-    $('#numeroFactura').focus();
+function mostrarFacturasCliente(facturas, nombreCliente) {
+    let html = '';
+    facturas.forEach(f => {
+        const yaAgregada = facturasSelTmp.find(fs => fs.id === f.id);
+        const disabled = yaAgregada ? 'disabled' : '';
+        const btnClass = yaAgregada ? 'btn-secondary' : 'btn-success';
+        const btnText = yaAgregada ? '<i class="fas fa-check"></i> Agregada' : '<i class="fas fa-plus"></i> Agregar';
+        
+        html += `
+        <div class="col-md-6 col-lg-4 mb-3">
+            <div class="card h-100 shadow-sm ${yaAgregada ? 'border-success' : ''}">
+                <div class="card-body p-3">
+                    <h6 class="card-title text-primary mb-2">
+                        <i class="fas fa-file-invoice"></i> #${f.numero_factura}
+                    </h6>
+                    <p class="card-text mb-1">
+                        <small class="text-muted"><i class="fas fa-calendar"></i> ${f.fecha_factura}</small>
+                    </p>
+                    <p class="card-text mb-2">
+                        <small class="text-muted"><i class="fas fa-map-marker-alt"></i> ${f.direccion || 'Sin dirección'}</small>
+                    </p>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="h6 mb-0 text-success">Q${parseFloat(f.total).toFixed(2)}</span>
+                        <button class="btn btn-sm ${btnClass}" ${disabled}
+                                onclick="agregarFactura(${f.id}, '${f.numero_factura}', '${nombreCliente.replace(/'/g, "\\'")}', '${f.direccion || ''}', ${f.total})">
+                            ${btnText}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+    });
+    $('#listaFacturasCliente').html(html);
 }
 
-function actualizarFacturasSel() {
-    if (!facturasSelTmp.length) {
-        $('#facturasSeleccionadas').html(`
-            <div class="alert alert-info text-center">
-                <i class="fa fa-info-circle"></i> Sin facturas agregadas. 
-                <br><small>Ingrese el número de factura y presione Enter</small>
-            </div>
-        `);
+// ========== PREVIEW DE FACTURAS ==========
+
+function actualizarPreviewFacturas() {
+    const total = facturasSelTmp.length;
+    $('#contadorFacturas').val(`${total} factura${total !== 1 ? 's' : ''}`);
+    $('#totalFacturasSeleccionadas').text(total);
+    
+    if (total === 0) {
+        $('#mensajeVacioPreview').show();
+        $('#tablaPreviewFacturas tr:not(#mensajeVacioPreview)').remove();
+        $('#totalMontoDistribucion').text('0.00');
         return;
     }
     
-    let h = '<h6 class="mt-3">Facturas Seleccionadas <span class="badge badge-primary">' + facturasSelTmp.length + '</span></h6>';
-    h += '<div class="list-group">';
-    facturasSelTmp.forEach((f, i) => {
-        h += `<div class="list-group-item d-flex justify-content-between align-items-center">
-            <div>
-                <strong>#${f.numero}</strong> - ${f.cliente} 
-                <br><small class="text-muted">Total: Q${f.total}</small>
-            </div>
-            <button class="btn btn-sm btn-danger" onclick="removerFacturaTmp(${i})" title="Eliminar">
-                <i class="fa fa-trash"></i>
-            </button>
-        </div>`;
+    $('#mensajeVacioPreview').hide();
+    $('#tablaPreviewFacturas tr:not(#mensajeVacioPreview)').remove();
+    
+    let montoTotal = 0;
+    facturasSelTmp.forEach((f, index) => {
+        montoTotal += parseFloat(f.total);
+        const row = `
+        <tr>
+            <td><strong>#${f.numero}</strong></td>
+            <td>${f.cliente}</td>
+            <td><small>${f.direccion || 'Sin dirección'}</small></td>
+            <td class="text-right"><strong>Q${parseFloat(f.total).toFixed(2)}</strong></td>
+            <td class="text-center">
+                <button class="btn btn-xs btn-danger" onclick="removerFactura(${index})" title="Quitar">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        </tr>`;
+        $('#tablaPreviewFacturas').append(row);
     });
-    h += '</div>';
-    $('#facturasSeleccionadas').html(h);
+    
+    $('#totalMontoDistribucion').text(montoTotal.toFixed(2));
 }
 
+function removerFactura(index) {
+    const factura = facturasSelTmp[index];
+    facturasSelTmp.splice(index, 1);
+    actualizarPreviewFacturas();
+    
+    // Actualizar resultados si están visibles
+    if ($('#resultadosFacturas').is(':visible')) {
+        $('#buscarFacturaNumero').trigger('keyup');
+    }
+    if ($('#facturasClienteSeleccionado').is(':visible') && clienteSeleccionado) {
+        seleccionarCliente(clienteSeleccionado.id, clienteSeleccionado.nombre);
+    }
+    
+    toastr.info(`Factura #${factura.numero} eliminada`);
+}
+
+// ========== GUARDAR DISTRIBUCIÓN ==========
+
 function guardarDistribucion() {
-    if (!facturasSelTmp.length) return Swal.fire('Error', 'Agregue facturas', 'error');
+    if (!facturasSelTmp.length) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Sin facturas',
+            text: 'Debe agregar al menos una factura',
+            confirmButtonColor: '#28a745'
+        });
+        return;
+    }
+    
     const fd = new FormData($('#formNuevaDistribucion')[0]);
     fd.append('facturas', JSON.stringify(facturasSelTmp.map(f => f.id)));
+    
+    Swal.fire({
+        title: 'Guardando...',
+        text: 'Por favor espere',
+        allowOutsideClick: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+    
     $.ajax({
         url: "{{ route('logistica.distribuciones.guardar') }}",
         type: 'POST',
@@ -235,14 +649,28 @@ function guardarDistribucion() {
         processData: false,
         contentType: false,
         headers: {'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')},
-        success: r => {
-            Swal.fire(r.title, r.text, r.icon);
+        success: function(r) {
+            Swal.fire({
+                icon: r.icon,
+                title: r.title,
+                text: r.text,
+                confirmButtonColor: '#28a745'
+            });
             $('#modalNuevaDistribucion').modal('hide');
             tablaDistribuciones.ajax.reload();
         },
-        error: x => Swal.fire(x.responseJSON.title, x.responseJSON.text, x.responseJSON.icon)
+        error: function(x) {
+            Swal.fire({
+                icon: x.responseJSON?.icon || 'error',
+                title: x.responseJSON?.title || 'Error',
+                text: x.responseJSON?.text || 'Error al guardar la distribución',
+                confirmButtonColor: '#dc3545'
+            });
+        }
     });
 }
+
+// ========== FUNCIONES DE DISTRIBUCIÓN ==========
 
 function verFacturas(id) {
     $.get("{{ url('/logistica/distribuciones/facturas') }}/" + id, r => {
@@ -253,7 +681,7 @@ function verFacturas(id) {
 }
 
 function iniciarDistribucion(id) {
-    Swal.fire({title: 'Iniciar?', icon: 'question', showCancelButton: true}).then(r => {
+    Swal.fire({title: 'Iniciar?', icon: 'question', showCancelButton: true, confirmButtonColor: '#28a745'}).then(r => {
         if (r.isConfirmed) {
             $.post("{{ url('/logistica/distribuciones/iniciar') }}/" + id, {_token: $('meta[name="csrf-token"]').attr('content')}, r => {
                 Swal.fire(r.title, r.text, r.icon);
@@ -264,7 +692,7 @@ function iniciarDistribucion(id) {
 }
 
 function cancelarDistribucion(id) {
-    Swal.fire({title: 'Cancelar?', icon: 'warning', showCancelButton: true}).then(r => {
+    Swal.fire({title: 'Cancelar?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#dc3545'}).then(r => {
         if (r.isConfirmed) {
             $.post("{{ url('/logistica/distribuciones/cancelar') }}/" + id, {_token: $('meta[name="csrf-token"]').attr('content')}, r => {
                 Swal.fire(r.title, r.text, r.icon);
