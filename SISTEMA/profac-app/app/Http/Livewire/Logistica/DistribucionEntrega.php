@@ -442,7 +442,10 @@ class DistribucionEntrega extends Component
                     f.id,
                     f.numero_factura,
                     f.total,
-                    c.nombre AS cliente
+                    f.fecha_emision,
+                    f.estado_factura_id AS estado_id,
+                    c.nombre AS cliente,
+                    (SELECT COUNT(*) FROM venta_has_producto vhp WHERE vhp.factura_id = f.id) AS cantidad_productos
                 FROM factura f
                 INNER JOIN cliente c ON f.cliente_id = c.id
                 WHERE f.estado_factura_id = 1

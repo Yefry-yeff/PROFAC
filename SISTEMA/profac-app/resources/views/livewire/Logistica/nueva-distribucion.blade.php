@@ -166,9 +166,8 @@
                 <div class="card shadow-sm sticky-top" style="top: 20px;">
                     <div class="card-header bg-gradient-success text-white">
                         <h6 class="mb-0">
-                            <i class="fas fa-clipboard-list"></i> 
-                            Facturas para Distribuir 
-                            <span class="badge badge-light ml-2" id="totalFacturasSeleccionadas">0</span>
+                            <i class="fas fa-truck-loading"></i> 
+                            Facturas para Distribuir
                         </h6>
                     </div>
                     <div class="card-body p-0">
@@ -195,6 +194,22 @@
                         </div>
                     </div>
                     <div class="card-footer bg-light">
+                        <div class="mb-3 p-3 bg-white border rounded text-center">
+                            <h6 class="mb-2 text-muted">Total para Distribuir</h6>
+                            <div class="d-flex justify-content-around">
+                                <div>
+                                    <i class="fas fa-file-invoice text-primary"></i>
+                                    <strong id="totalFacturasSeleccionadas" class="h4 text-primary d-block">0</strong>
+                                    <small class="text-muted">Facturas</small>
+                                </div>
+                                <div class="border-left"></div>
+                                <div>
+                                    <i class="fas fa-box text-info"></i>
+                                    <strong id="totalProductosDistribuir" class="h4 text-info d-block">0</strong>
+                                    <small class="text-muted">Productos</small>
+                                </div>
+                            </div>
+                        </div>
                         <button type="button" class="btn btn-success btn-block btn-lg" onclick="guardarDistribucion()">
                             <i class="fas fa-save"></i> Guardar Distribución
                         </button>
@@ -409,6 +424,53 @@ function agregarFacturasSeleccionadas() {
     });
 }
 
+function seleccionarTodasFacturasBusqueda(checked) {
+    $('.check-factura-busqueda:not(:disabled)').prop('checked', checked);
+}
+
+function toggleSeleccionarTodasBusqueda() {
+    const todasMarcadas = $('.check-factura-busqueda:not(:disabled):checked').length === $('.check-factura-busqueda:not(:disabled)').length;
+    seleccionarTodasFacturasBusqueda(!todasMarcadas);
+    $('#checkTodasFacturasBusqueda').prop('checked', !todasMarcadas);
+}
+
+function agregarFacturasSeleccionadasBusqueda() {
+    const seleccionadas = [];
+    $('.check-factura-busqueda:checked').each(function() {
+        const id = parseInt($(this).data('id'));
+        const numero = $(this).data('numero');
+        const cliente = $(this).data('cliente');
+        const total = parseFloat($(this).data('total'));
+        const cantidadProductos = parseInt($(this).data('productos')) || 0;
+        
+        if (!facturasSelTmp.find(f => f.id === id)) {
+            seleccionadas.push({id, numero, cliente, total, cantidadProductos});
+        }
+    });
+    
+    if (seleccionadas.length === 0) {
+        toastr.warning('No hay facturas seleccionadas', 'Atención', {
+            positionClass: 'toast-top-right',
+            timeOut: 2000
+        });
+        return;
+    }
+    
+    seleccionadas.forEach(f => {
+        agregarFactura(f.id, f.numero, f.cliente, '', f.total, f.cantidadProductos);
+    });
+    
+    toastr.success(`${seleccionadas.length} factura(s) agregada(s)`, 'Éxito', {
+        positionClass: 'toast-top-right',
+        timeOut: 2000
+    });
+    
+    // Deshabilitar los checkboxes agregados
+    $('.check-factura-busqueda:checked').prop('disabled', true).prop('checked', true);
+    $('.check-factura-busqueda:checked').closest('tr').addClass('table-success');
+    $('#checkTodasFacturasBusqueda').prop('checked', false);
+}
+
 function verDetalleFactura(facturaId) {
     $('#modalDetalleFactura').modal('show');
     $('#detalleProductosTabla').html('<tr><td colspan="7" class="text-center"><i class="fas fa-spinner fa-spin"></i> Cargando...</td></tr>');
@@ -566,6 +628,13 @@ function actualizarPreviewFacturas() {
     const total = facturasSelTmp.length;
     $('#totalFacturasSeleccionadas').text(total);
     
+    // Calcular total de productos
+    let totalProductos = 0;
+    facturasSelTmp.forEach(f => {
+        totalProductos += parseInt(f.cantidadProductos || 0);
+    });
+    $('#totalProductosDistribuir').text(totalProductos);
+    
     if (total === 0) {
         $('#mensajeVacioPreview').show();
         $('#tablaPreviewFacturas tr:not(#mensajeVacioPreview)').remove();
@@ -691,34 +760,64 @@ $('#buscarFacturaNumero').on('keyup', function() {
 });
 
 function mostrarResultadosFacturas(facturas) {
-    let html = '';
+    let html = `
+        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+            <table class="table table-sm table-hover mb-0">
+                <thead class="bg-light sticky-top">
+                    <tr>
+                        <th width="40">
+                            <input type="checkbox" id="checkTodasFacturasBusqueda" onchange="seleccionarTodasFacturasBusqueda(this.checked)">
+                        </th>
+                        <th>Factura</th>
+                        <th>Cliente</th>
+                        <th>Fecha</th>
+                        <th class="text-center">Productos</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+    
     facturas.forEach(f => {
         const yaAgregada = facturasSelTmp.find(fs => fs.id === f.id);
         const disabled = yaAgregada ? 'disabled' : '';
-        const btnClass = yaAgregada ? 'btn-secondary' : 'btn-success';
-        const btnText = yaAgregada ? '<i class="fas fa-check"></i> Agregada' : '<i class="fas fa-plus"></i> Agregar';
+        const checked = yaAgregada ? 'checked' : '';
         
         html += `
-        <div class="col-md-6 mb-3">
-            <div class="card h-100 ${yaAgregada ? 'border-success' : ''}">
-                <div class="card-body p-3">
-                    <h6 class="card-title text-primary mb-2">
-                        <i class="fas fa-file-invoice"></i> #${f.numero_factura}
-                    </h6>
-                    <p class="card-text mb-2">
-                        <small class="text-muted"><i class="fas fa-user"></i> ${f.cliente}</small>
-                    </p>
-                    <div class="d-flex justify-content-between align-items-center">
-                        <span class="h6 mb-0 text-success">Q${parseFloat(f.total).toFixed(2)}</span>
-                        <button class="btn btn-sm ${btnClass}" ${disabled}
-                                onclick="agregarFactura(${f.id}, '${f.numero_factura}', '${f.cliente.replace(/'/g, "\\'")}', '', ${f.total})">
-                            ${btnText}
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>`;
+        <tr ${yaAgregada ? 'class="table-success"' : ''}>
+            <td>
+                <input type="checkbox" class="check-factura-busqueda" ${checked} ${disabled}
+                       data-id="${f.id}"
+                       data-numero="${f.numero_factura}"
+                       data-cliente="${f.cliente.replace(/"/g, '&quot;')}"
+                       data-total="${f.total}"
+                       data-productos="${f.cantidad_productos || 0}">
+            </td>
+            <td>
+                <strong>#${f.numero_factura}</strong>
+                <button class="btn btn-xs btn-link p-0 ml-2" onclick="verDetalleFactura(${f.id})" title="Ver detalle">
+                    <i class="fas fa-eye text-info"></i>
+                </button>
+            </td>
+            <td><small>${f.cliente}</small></td>
+            <td><small>${f.fecha_emision || ''}</small></td>
+            <td class="text-center"><span class="badge badge-info">${f.cantidad_productos || 0} <i class="fas fa-box"></i></span></td>
+            <td><span class="badge badge-success">Facturada</span></td>
+        </tr>`;
     });
+    
+    html += `
+                </tbody>
+            </table>
+        </div>
+        <div class="mt-3 text-right">
+            <button type="button" class="btn btn-sm btn-primary" onclick="toggleSeleccionarTodasBusqueda()">
+                <i class="fas fa-check-square"></i> Seleccionar Todas
+            </button>
+            <button type="button" class="btn btn-sm btn-success" onclick="agregarFacturasSeleccionadasBusqueda()">
+                <i class="fas fa-plus"></i> Agregar Seleccionadas
+            </button>
+        </div>`;
+    
     $('#listaResultadosFacturas').html(html);
 }
 
