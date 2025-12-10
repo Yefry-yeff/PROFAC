@@ -255,12 +255,11 @@ class DistribucionEntrega extends Component
                     f.total,
                     c.nombre AS cliente,
                     c.direccion,
-                    c.telefono,
                     (SELECT COUNT(*) FROM entregas_productos WHERE distribucion_factura_id = df.id AND entregado = 1) as productos_entregados,
                     (SELECT COUNT(*) FROM entregas_productos WHERE distribucion_factura_id = df.id) as total_productos
                 FROM distribuciones_entrega_facturas df
-                INNER JOIN facturacion f ON df.factura_id = f.id
-                INNER JOIN clientes c ON f.cliente_id = c.id
+                INNER JOIN factura f ON df.factura_id = f.id
+                INNER JOIN cliente c ON f.cliente_id = c.id
                 WHERE df.distribucion_entrega_id = ?
                 ORDER BY df.orden_entrega ASC
             ", [$distribucionId]);

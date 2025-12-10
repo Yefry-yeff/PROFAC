@@ -51,6 +51,8 @@
     </div>
 </div>
 
+{{-- Agregar jQuery antes de cualquier script que use $ --}}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
 let distribucionActual = null;
 
@@ -160,3 +162,6 @@ function guardarConfirmacion() {
     });
 }
 </script>
+
+{{-- Nota para storage:link --}}
+{{-- Si ves error 404 en /storage, ejecuta en terminal: php artisan storage:link --}}
