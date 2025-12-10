@@ -761,18 +761,26 @@ $('#buscarFacturaNumero').on('keyup', function() {
 
 function mostrarResultadosFacturas(facturas) {
     let html = `
+        <div class="mb-3 d-flex justify-content-between align-items-center">
+            <button type="button" class="btn btn-success btn-sm" onclick="agregarFacturasSeleccionadasBusqueda()">
+                <i class="fas fa-plus-circle"></i> Agregar Seleccionadas
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="toggleSeleccionarTodasBusqueda()">
+                <i class="fas fa-check-square"></i> Seleccionar Todas
+            </button>
+        </div>
         <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
-            <table class="table table-sm table-hover mb-0">
-                <thead class="bg-light sticky-top">
+            <table class="table table-sm table-hover table-bordered">
+                <thead class="thead-light">
                     <tr>
-                        <th width="40">
+                        <th width="40px" class="text-center">
                             <input type="checkbox" id="checkTodasFacturasBusqueda" onchange="seleccionarTodasFacturasBusqueda(this.checked)">
                         </th>
                         <th>Factura</th>
                         <th>Cliente</th>
                         <th>Fecha</th>
                         <th class="text-center">Productos</th>
-                        <th>Estado</th>
+                        <th class="text-center">Estado</th>
                     </tr>
                 </thead>
                 <tbody>`;
@@ -801,21 +809,13 @@ function mostrarResultadosFacturas(facturas) {
             <td><small>${f.cliente}</small></td>
             <td><small>${f.fecha_emision || ''}</small></td>
             <td class="text-center"><span class="badge badge-info">${f.cantidad_productos || 0} <i class="fas fa-box"></i></span></td>
-            <td><span class="badge badge-success">Facturada</span></td>
+            <td class="text-center"><span class="badge badge-success">Facturada</span></td>
         </tr>`;
     });
     
     html += `
                 </tbody>
             </table>
-        </div>
-        <div class="mt-3 text-right">
-            <button type="button" class="btn btn-sm btn-primary" onclick="toggleSeleccionarTodasBusqueda()">
-                <i class="fas fa-check-square"></i> Seleccionar Todas
-            </button>
-            <button type="button" class="btn btn-sm btn-success" onclick="agregarFacturasSeleccionadasBusqueda()">
-                <i class="fas fa-plus"></i> Agregar Seleccionadas
-            </button>
         </div>`;
     
     $('#listaResultadosFacturas').html(html);
