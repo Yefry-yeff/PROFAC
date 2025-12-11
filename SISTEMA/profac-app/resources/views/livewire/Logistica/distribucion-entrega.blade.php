@@ -657,7 +657,43 @@ function cancelarDistribucion(id) {
 }
 
 function abrirConfirmacion(id) {
-    window.location.href = "{{ url('/logistica/confirmacion') }}?distribucion=" + id;
+    Swal.fire({
+        title: '¿Completar distribución?',
+        text: 'Esto cambiará el estado de la distribución a "Completada".',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#28a745',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sí, completar',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            $.ajax({
+                url: "{{ url('/logistica/distribuciones/completar') }}/" + id,
+                type: 'POST',
+                data: {
+                    _token: $('meta[name="csrf-token"]').attr('content')
+                },
+                success: function(r) {
+                    Swal.fire({
+                        icon: r.icon || 'success',
+                        title: r.title || 'Completada',
+                        text: r.text || 'La distribución ha sido completada correctamente',
+                        confirmButtonColor: '#28a745'
+                    });
+                    tablaDistribuciones.ajax.reload(null, false);
+                },
+                error: function(x) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: x.responseJSON?.title || 'Error',
+                        text: x.responseJSON?.text || 'No se pudo completar la distribución',
+                        confirmButtonColor: '#dc3545'
+                    });
+                }
+            });
+        }
+    });
 }
 
 // ========== FUNCIONES DE GESTIÓN DE FACTURAS ==========

@@ -815,9 +815,22 @@ class DistribucionEntrega extends Component
     public function completarDistribucion($distribucionId)
     {
         try {
+            Log::info("=== Completando distribución ID: {$distribucionId} ===");
+            
             $distribucion = ModelDistribucionEntrega::findOrFail($distribucionId);
             
+            Log::info("Distribución encontrada:", [
+                'id' => $distribucion->id,
+                'estado_actual' => $distribucion->estado_id,
+                'fecha_programada' => $distribucion->fecha_programada
+            ]);
+            
             if ($distribucion->estado_id != 2) {
+                Log::warning("Intento de completar distribución con estado inválido:", [
+                    'distribucion_id' => $distribucion->id,
+                    'estado_actual' => $distribucion->estado_id
+                ]);
+                
                 return response()->json([
                     'icon' => 'warning',
                     'title' => 'Estado inválido',
@@ -827,6 +840,11 @@ class DistribucionEntrega extends Component
 
             $distribucion->estado_id = 3; // Completada
             $distribucion->save();
+            
+            Log::info("Distribución completada exitosamente:", [
+                'distribucion_id' => $distribucion->id,
+                'nuevo_estado' => $distribucion->estado_id
+            ]);
 
             return response()->json([
                 'icon' => 'success',
@@ -835,6 +853,12 @@ class DistribucionEntrega extends Component
             ], 200);
 
         } catch (\Exception $e) {
+            Log::error("Error al completar distribución:", [
+                'distribucion_id' => $distribucionId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
             return response()->json([
                 'icon' => 'error',
                 'title' => 'Error',
@@ -895,6 +919,101 @@ class DistribucionEntrega extends Component
                 'success' => false,
                 'message' => 'Error al obtener incidencias',
                 'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Anular entrega de una factura
+     */
+    public function anularEntrega($facturaId)
+    {
+        try {
+            Log::info("=== Anulando entrega de factura ID: {$facturaId} ===");
+            
+            $factura = DistribucionEntregaFactura::findOrFail($facturaId);
+            Log::info("Factura encontrada:", [
+                'id' => $factura->id,
+                'estado_actual' => $factura->estado_entrega
+            ]);
+            
+            // Cambiar estado a sin_entrega
+            $factura->estado_entrega = 'sin_entrega';
+            $factura->fecha_entrega_real = null;
+            $factura->save();
+            
+            Log::info("Entrega anulada exitosamente:", [
+                'factura_id' => $factura->id,
+                'nuevo_estado' => $factura->estado_entrega
+            ]);
+            
+            return response()->json([
+                'success' => true,
+                'icon' => 'success',
+                'title' => 'Anulada',
+                'text' => 'La entrega ha sido anulada correctamente'
+            ], 200);
+            
+        } catch (\Exception $e) {
+            Log::error("Error al anular entrega:", [
+                'factura_id' => $facturaId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'icon' => 'error',
+                'title' => 'Error',
+                'text' => 'No se pudo anular la entrega: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Confirmar entrega completa de una factura
+     */
+    public function confirmarEntregaFactura($facturaId)
+    {
+        try {
+            Log::info("=== Confirmando entrega de factura ID: {$facturaId} ===");
+            
+            $factura = DistribucionEntregaFactura::findOrFail($facturaId);
+            Log::info("Factura encontrada:", [
+                'id' => $factura->id,
+                'estado_actual' => $factura->estado_entrega
+            ]);
+            
+            // Cambiar estado a entregado
+            $factura->estado_entrega = 'entregado';
+            $factura->fecha_entrega_real = now();
+            $factura->save();
+            
+            Log::info("Entrega confirmada exitosamente:", [
+                'factura_id' => $factura->id,
+                'nuevo_estado' => $factura->estado_entrega,
+                'fecha_entrega' => $factura->fecha_entrega_real
+            ]);
+            
+            return response()->json([
+                'success' => true,
+                'icon' => 'success',
+                'title' => 'Confirmada',
+                'text' => 'La entrega ha sido confirmada como completa'
+            ], 200);
+            
+        } catch (\Exception $e) {
+            Log::error("Error al confirmar entrega:", [
+                'factura_id' => $facturaId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'icon' => 'error',
+                'title' => 'Error',
+                'text' => 'No se pudo confirmar la entrega: ' . $e->getMessage()
             ], 500);
         }
     }
