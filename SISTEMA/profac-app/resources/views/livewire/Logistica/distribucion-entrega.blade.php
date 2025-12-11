@@ -595,6 +595,9 @@ function verFacturas(id) {
         if (r.facturas.length === 0) {
             html += '<tr><td colspan="5" class="text-center py-4 text-muted">No hay facturas asignadas</td></tr>';
         } else {
+            // Verificar si la distribución está completada o cancelada
+            const soloLectura = distribucion.estado_id === 3 || distribucion.estado_id === 4;
+            
             r.facturas.forEach((f, index) => {
                 const estadoBadge = f.estado_entrega === 'entregado' ? 'success' : 
                                    f.estado_entrega === 'parcial' ? 'warning' : 'secondary';
@@ -609,16 +612,16 @@ function verFacturas(id) {
                     <td><span class="badge badge-${estadoBadge}">${estadoTexto}</span></td>
                     <td>
                         <div class="btn-group btn-group-sm" role="group">
-                            ${bloqueado ? `<button class="btn btn-warning" onclick="desbloquearFactura(${f.id})" title="Desbloquear">
+                            ${!soloLectura && bloqueado ? `<button class="btn btn-warning" onclick="desbloquearFactura(${f.id})" title="Desbloquear">
                                 <i class="fas fa-unlock"></i>
                             </button>` : ''}
-                            ${f.estado_entrega !== 'sin_entrega' && !bloqueado ? `<button class="btn btn-danger" onclick="anularEntrega(${f.id})" title="Anular Entrega">
+                            ${!soloLectura && f.estado_entrega !== 'sin_entrega' && !bloqueado ? `<button class="btn btn-danger" onclick="anularEntrega(${f.id})" title="Anular Entrega">
                                 <i class="fas fa-times"></i>
                             </button>` : ''}
                             <button class="btn btn-info" onclick="verIncidencias(${f.id})" title="Ver Incidencias">
                                 <i class="fas fa-exclamation-circle"></i>
                             </button>
-                            ${f.estado_entrega !== 'entregado' && !bloqueado ? `<button class="btn btn-success" onclick="confirmarEntregaFactura(${f.id})" title="Confirmar Entrega">
+                            ${!soloLectura && f.estado_entrega !== 'entregado' && !bloqueado ? `<button class="btn btn-success" onclick="confirmarEntregaFactura(${f.id})" title="Confirmar Entrega">
                                 <i class="fas fa-check"></i>
                             </button>` : ''}
                         </div>

@@ -244,6 +244,9 @@ class DistribucionEntrega extends Component
     public function obtenerFacturas($distribucionId)
     {
         try {
+            // Obtener información de la distribución
+            $distribucion = ModelDistribucionEntrega::with('equipo')->findOrFail($distribucionId);
+            
             $facturas = DB::select("
                 SELECT 
                     df.id,
@@ -266,7 +269,13 @@ class DistribucionEntrega extends Component
 
             return response()->json([
                 'success' => true,
-                'facturas' => $facturas
+                'facturas' => $facturas,
+                'distribucion' => [
+                    'id' => $distribucion->id,
+                    'estado_id' => $distribucion->estado_id,
+                    'nombre_equipo' => $distribucion->equipo->nombre_equipo ?? 'N/A',
+                    'fecha_programada' => $distribucion->fecha_programada
+                ]
             ], 200);
 
         } catch (\Exception $e) {
