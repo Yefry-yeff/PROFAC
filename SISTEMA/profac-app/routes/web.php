@@ -18,6 +18,7 @@ use App\Http\Livewire\FacturaDia\FacturaDia;
 use App\Http\Livewire\Reportes\Prodmes;
 use App\Http\Livewire\Reportes\Reporteria;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Artisan;
 use App\Http\Livewire\Bodega;
 use App\Http\Livewire\BodegaComponent\BodegaEditar;
 use App\Http\Livewire\Proveedores;
@@ -987,6 +988,8 @@ Route::post('/reporte/Libroventarep/exportar-excel/{tipo}/{fechaInicio}/{fechaFi
     Route::post('/logistica/confirmacion/guardar', [ConfirmacionEntrega::class, 'confirmarEntregaProductos'])->name('logistica.confirmacion.guardar');
     Route::post('/logistica/confirmacion/evidencia', [ConfirmacionEntrega::class, 'registrarEvidencia']);
     Route::get('/logistica/confirmacion/evidencias/{distribucionFacturaId}', [ConfirmacionEntrega::class, 'obtenerEvidencias']);
+    Route::get('/logistica/confirmacion/productos/{productoId}/incidencias', [ConfirmacionEntrega::class, 'listarIncidenciasProducto']);
+    Route::post('/logistica/confirmacion/productos/{productoId}/incidencias', [ConfirmacionEntrega::class, 'registrarIncidenciaProducto']);
     Route::post('/logistica/confirmacion/marcar-todos/{distribucionFacturaId}', [ConfirmacionEntrega::class, 'marcarTodosEntregados']);
     Route::get('/logistica/confirmacion/reporte/{distribucionId}', [ConfirmacionEntrega::class, 'obtenerReporteDistribucion']);
 

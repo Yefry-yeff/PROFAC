@@ -4,6 +4,7 @@ namespace App\Models\Logistica;
 
 use Illuminate\Database\Eloquent\Model;
 use App\Models\User;
+use App\Models\Logistica\EntregaProductoIncidencia;
 
 class EntregaProducto extends Model
 {
@@ -54,6 +55,14 @@ class EntregaProducto extends Model
     public function usuarioRegistro()
     {
         return $this->belongsTo(User::class, 'user_id_registro');
+    }
+
+    /**
+     * Incidencias registradas para este producto entregado
+     */
+    public function incidencias()
+    {
+        return $this->hasMany(EntregaProductoIncidencia::class, 'entrega_producto_id');
     }
 
     /**

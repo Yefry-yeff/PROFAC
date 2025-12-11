@@ -6,11 +6,13 @@ use Livewire\Component;
 use App\Models\Logistica\DistribucionEntrega as ModelDistribucionEntrega;
 use App\Models\Logistica\DistribucionEntregaFactura;
 use App\Models\Logistica\EntregaProducto;
+use App\Models\Logistica\EntregaProductoIncidencia;
 use App\Models\Logistica\EntregaEvidencia;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use DataTables;
 use Illuminate\Support\Facades\Auth;
+use Carbon\Carbon;
 
 class ConfirmacionEntrega extends Component
 {
@@ -115,7 +117,12 @@ class ConfirmacionEntrega extends Component
                 ep.entregado,
                 ep.tiene_incidencia,
                 ep.descripcion_incidencia,
-                ep.tipo_incidencia
+                ep.tipo_incidencia,
+                (
+                    SELECT COUNT(*)
+                    FROM entregas_productos_incidencias epi
+                    WHERE epi.entrega_producto_id = ep.id
+                ) AS incidencias_registradas
             FROM entregas_productos ep
             INNER JOIN producto p ON ep.producto_id = p.id
             WHERE ep.distribucion_factura_id = ?
@@ -168,7 +175,12 @@ class ConfirmacionEntrega extends Component
                 ep.entregado,
                 ep.tiene_incidencia,
                 ep.descripcion_incidencia,
-                ep.tipo_incidencia
+                ep.tipo_incidencia,
+                (
+                    SELECT COUNT(*)
+                    FROM entregas_productos_incidencias epi
+                    WHERE epi.entrega_producto_id = ep.id
+                ) AS incidencias_registradas
             FROM entregas_productos ep
             INNER JOIN producto p ON ep.producto_id = p.id
             WHERE ep.distribucion_factura_id = ?
@@ -190,7 +202,30 @@ class ConfirmacionEntrega extends Component
                 'productos.*.tiene_incidencia' => 'nullable|boolean',
                 'productos.*.tipo_incidencia' => 'nullable|string',
                 'productos.*.descripcion_incidencia' => 'nullable|string',
+                'hora_entrega' => 'required|date_format:H:i',
             ]);
+
+            $productosIds = collect($request->productos)->pluck('id')->unique()->values();
+
+            $facturasCerradas = DB::table('entregas_productos as ep')
+                ->join('distribuciones_entrega_facturas as df', 'ep.distribucion_factura_id', '=', 'df.id')
+                ->join('factura as f', 'df.factura_id', '=', 'f.id')
+                ->whereIn('ep.id', $productosIds)
+                ->where('df.estado_entrega', 'entregado')
+                ->select('f.numero_factura')
+                ->distinct()
+                ->pluck('numero_factura');
+
+            if ($facturasCerradas->isNotEmpty()) {
+                return response()->json([
+                    'icon' => 'warning',
+                    'title' => 'Factura confirmada',
+                    'text' => 'La factura #' . $facturasCerradas->first() . ' ya fue confirmada y no puede editarse.',
+                ], 422);
+            }
+
+            [$hora, $minuto] = explode(':', $request->hora_entrega);
+            $fechaRegistro = Carbon::now()->setTime((int) $hora, (int) $minuto);
 
             DB::beginTransaction();
 
@@ -203,6 +238,7 @@ class ConfirmacionEntrega extends Component
                 $producto->tipo_incidencia = $productoData['tipo_incidencia'] ?? null;
                 $producto->descripcion_incidencia = $productoData['descripcion_incidencia'] ?? null;
                 $producto->user_id_registro = Auth::id();
+                $producto->fecha_registro = $fechaRegistro;
                 $producto->save();
             }
 
@@ -269,6 +305,80 @@ class ConfirmacionEntrega extends Component
     }
 
     /**
+     * Listar incidencias de un producto entregado
+     */
+    public function listarIncidenciasProducto($productoId)
+    {
+        try {
+            $producto = EntregaProducto::findOrFail($productoId);
+
+            $incidencias = EntregaProductoIncidencia::where('entrega_producto_id', $productoId)
+                ->orderByDesc('created_at')
+                ->get(['id', 'tipo', 'descripcion', 'created_at']);
+
+            return response()->json([
+                'success' => true,
+                'producto' => [
+                    'id' => $producto->id,
+                    'producto_id' => $producto->producto_id,
+                ],
+                'incidencias' => $incidencias,
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener incidencias',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Registrar una nueva incidencia para un producto
+     */
+    public function registrarIncidenciaProducto(Request $request, $productoId)
+    {
+        try {
+            $producto = EntregaProducto::findOrFail($productoId);
+
+            $request->validate([
+                'tipo' => 'required|string|max:60',
+                'descripcion' => 'required|string|min:5',
+            ]);
+
+            EntregaProductoIncidencia::create([
+                'entrega_producto_id' => $productoId,
+                'tipo' => $request->tipo,
+                'descripcion' => $request->descripcion,
+                'user_id_registro' => Auth::id(),
+            ]);
+
+            $producto->tiene_incidencia = 1;
+            $producto->tipo_incidencia = $request->tipo;
+            $producto->descripcion_incidencia = $request->descripcion;
+            $producto->user_id_registro = Auth::id();
+            $producto->save();
+
+            $incidencias = EntregaProductoIncidencia::where('entrega_producto_id', $productoId)
+                ->orderByDesc('created_at')
+                ->get(['id', 'tipo', 'descripcion', 'created_at']);
+
+            return response()->json([
+                'icon' => 'success',
+                'title' => 'Incidencia registrada',
+                'text' => 'La incidencia se guardó correctamente.',
+                'incidencias' => $incidencias,
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'icon' => 'error',
+                'title' => 'Error',
+                'text' => 'No se pudo registrar la incidencia: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
      * Obtener evidencias de una factura
      */
     public function obtenerEvidencias($distribucionFacturaId)
@@ -310,6 +420,16 @@ class ConfirmacionEntrega extends Component
     public function marcarTodosEntregados($distribucionFacturaId)
     {
         try {
+            $factura = DistribucionEntregaFactura::findOrFail($distribucionFacturaId);
+
+            if ($factura->estado_entrega === 'entregado') {
+                return response()->json([
+                    'icon' => 'info',
+                    'title' => 'Factura confirmada',
+                    'text' => 'Esta factura ya se encuentra confirmada.',
+                ], 422);
+            }
+
             DB::table('entregas_productos')
                 ->where('distribucion_factura_id', $distribucionFacturaId)
                 ->where('tiene_incidencia', 0)
