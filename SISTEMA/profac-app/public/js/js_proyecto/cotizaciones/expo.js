@@ -301,7 +301,7 @@
                 let idProducto = document.getElementById('seleccionarProducto').value;
 
                 let idCliente = document.getElementById('seleccionarCliente').value;
-
+                console.log("ENTRO AL CARRITO DE PRECIOS");
                // let data = $("#bodega").select2('data')[0];
                 let bodega = 'SALA DE VENTAS';
                 let idBodega = 16;
