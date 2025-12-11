@@ -211,7 +211,7 @@ class ConfirmacionEntrega extends Component
                 ->join('distribuciones_entrega_facturas as df', 'ep.distribucion_factura_id', '=', 'df.id')
                 ->join('factura as f', 'df.factura_id', '=', 'f.id')
                 ->whereIn('ep.id', $productosIds)
-                ->where('df.estado_entrega', 'entregado')
+                ->whereIn('df.estado_entrega', ['entregado', 'parcial'])
                 ->select('f.numero_factura')
                 ->distinct()
                 ->pluck('numero_factura');
@@ -219,7 +219,7 @@ class ConfirmacionEntrega extends Component
             if ($facturasCerradas->isNotEmpty()) {
                 return response()->json([
                     'icon' => 'warning',
-                    'title' => 'Factura confirmada',
+                    'title' => 'Factura cerrada',
                     'text' => 'La factura #' . $facturasCerradas->first() . ' ya fue confirmada y no puede editarse.',
                 ], 422);
             }

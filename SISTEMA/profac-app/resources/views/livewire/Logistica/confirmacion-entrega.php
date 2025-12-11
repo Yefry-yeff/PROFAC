@@ -1,41 +1,144 @@
 <div class="logistica-confirmacion">
-    <div class="border-0 shadow-sm card">
-        <div class="flex-wrap bg-white border-0 card-header d-flex justify-content-between align-items-center">
+    <style>
+        /* Estilos personalizados para scroll en listas */
+        #listaFacturas::-webkit-scrollbar,
+        .table-responsive::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        #listaFacturas::-webkit-scrollbar-track,
+        .table-responsive::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        
+        #listaFacturas::-webkit-scrollbar-thumb,
+        .table-responsive::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        
+        #listaFacturas::-webkit-scrollbar-thumb:hover,
+        .table-responsive::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        /* Animación suave para filtros */
+        .factura-item, #tablaProductos tbody tr {
+            transition: opacity 0.2s ease-in-out;
+        }
+    </style>
+    <div class="card shadow-sm border-0">
+        <div class="card-header border-0 bg-white d-flex justify-content-between align-items-center flex-wrap">
             <div>
                 <h4 class="mb-1">Confirmación de entregas</h4>
                 <p class="mb-0 text-muted">Selecciona el equipo, luego la factura para validar los productos entregados.</p>
             </div>
             <div class="d-flex align-items-center">
-                <div class="mr-3 text-right">
+                <div class="text-right mr-3">
                     <span class="d-block text-uppercase small text-muted">Fecha programada</span>
                     <input type="date" class="form-control form-control-sm" id="fechaConfirmacion" value="<?= date('Y-m-d') ?>">
                 </div>
             </div>
         </div>
-        <div class="pt-0 card-body">
+        <div class="card-body pt-0">
             <div class="row">
                 <div class="col-lg-4 border-right">
-                    <div class="mb-2 d-flex justify-content-between align-items-center">
-                        <h6 class="mb-0 text-uppercase text-muted">Equipos programados</h6>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="text-uppercase text-muted mb-0">Equipos programados</h6>
                         <span class="badge badge-light" id="totalEquipos">0</span>
                     </div>
-                    <div id="listaDistribuciones" style="min-height:250px;" class="pr-lg-3"></div>
+                    <div id="listaDistribuciones" class="pr-lg-3" style="min-height:250px;"></div>
                 </div>
                 <div class="col-lg-8">
-                    <div class="mb-2 d-flex justify-content-between align-items-center">
-                        <h6 class="mb-0 text-uppercase text-muted">Detalle de confirmación</h6>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="text-uppercase text-muted mb-0">Detalle de confirmación</h6>
                     </div>
-                    <div id="contenedorFacturas" class="p-4 border rounded bg-light" style="min-height:320px;">
-                        <div class="py-5 text-center text-muted">
-                            <i class="mb-3 fas fa-truck-loading fa-2x"></i>
+                    <div id="contenedorFacturas" class="border rounded bg-light p-4" style="min-height:320px;">
+                        <div class="text-center text-muted py-5">
+                            <i class="fas fa-truck-loading fa-2x mb-3"></i>
                             <p class="mb-0">Selecciona un equipo para ver sus facturas.</p>
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
 
+    <div class="modal fade" id="modalIncidencia" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div>
+                        <h5 class="modal-title mb-0">Incidencias del producto</h5>
+                        <small class="text-muted" id="tituloProductoIncidencia">Selecciona un producto de la tabla.</small>
+                    </div>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning small">
+                        Cada incidencia registrada bloquea el producto hasta que logística la gestione.
+                    </div>
+                    <form id="formIncidencia" class="mb-3">
+                        <input type="hidden" id="productoIncidenciaId">
+                        <div class="form-row">
+                            <div class="form-group col-md-5">
+                                <label class="small text-muted">Tipo de incidencia</label>
+                                <select class="form-control" id="tipoIncidencia">
+                                    <option value="producto_danado">Producto dañado</option>
+                                    <option value="cantidad_incorrecta">Cantidad incorrecta</option>
+                                    <option value="cliente_rechazo">Cliente rechazó</option>
+                                    <option value="direccion_incorrecta">Dirección incorrecta</option>
+                                    <option value="otro">Otro</option>
+                                </select>
+                            </div>
+                            <div class="form-group col-md-7">
+                                <label class="small text-muted">Descripción</label>
+                                <textarea class="form-control" id="descripcionIncidencia" rows="4" placeholder="Describe lo sucedido..."></textarea>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <button type="button" class="btn btn-outline-secondary btn-sm mr-2" data-dismiss="modal">Cerrar</button>
+                            <button type="submit" class="btn btn-primary btn-sm" id="btnIncidenciaGuardar">
+                                <i class="fas fa-plus-circle mr-1"></i>Agregar incidencia
+                            </button>
+                        </div>
+                    </form>
+                    <hr>
+                    <h6 class="text-uppercase small text-muted">Incidencias registradas</h6>
+                    <div id="listaIncidenciasProducto">
+                        <p class="text-muted mb-0">No hay incidencias para este producto.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-            <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-            <script>
+    <div class="modal fade" id="modalHoraEntrega" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-sm" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title mb-0">Hora de entrega</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p class="small text-muted">Confirma la hora a la que se completó la entrega. Se registrará en el historial.</p>
+                    <input type="time" class="form-control" id="horaEntregaInput" step="60">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="btnConfirmarHora">Continuar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
                 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
                 const rutasConfirmacion = {
                     distribuciones: "<?= route('logistica.confirmacion.distribuciones') ?>",
@@ -100,6 +203,9 @@
                         }
                     });
                     $('#contenedorFacturas').on('click', '#btnConfirmarEntrega', guardarConfirmacion);
+                    $('#contenedorFacturas').on('input', '#filtroFacturas', function() {
+                        renderFacturasList($(this).val());
+                    });
                     $('#modalHoraEntrega').on('click', '#btnConfirmarHora', confirmarHoraEntrega);
                     cargarDistribucionesFecha();
                 });
@@ -167,6 +273,24 @@
                     $('#listaDistribuciones').html(html);
                 }
 
+                function actualizarDistribuciones() {
+                    // Recargar solo la lista de distribuciones sin resetear la selección actual
+                    const fecha = $('#fechaConfirmacion').val();
+                    $.get(rutasConfirmacion.distribuciones, { fecha })
+                        .done(resp => {
+                            const distribuciones = resp.distribuciones || [];
+                            $('#totalEquipos').text(distribuciones.length);
+                            renderDistribuciones(distribuciones);
+                            // Mantener activo el equipo seleccionado
+                            if (confirmacionState.distribucionActual) {
+                                $(`.btn-distribucion[data-distribucion='${confirmacionState.distribucionActual}']`).addClass('active');
+                            }
+                        })
+                        .fail(() => {
+                            console.error('No se pudieron actualizar las distribuciones');
+                        });
+                }
+
                 function seleccionarDistribucion(distribucionId, element) {
                     const facturaAnterior = confirmacionState.facturaSeleccionada;
                     confirmacionState.distribucionActual = distribucionId;
@@ -207,9 +331,12 @@
                                 <div class="p-3 bg-white border rounded h-100">
                                     <div class="mb-2 d-flex justify-content-between align-items-center">
                                         <span class="text-uppercase small text-muted">Facturas asignadas</span>
-                                        <span class="badge badge-light">${confirmacionState.facturas.length}</span>
+                                        <span class="badge badge-light" id="contadorFacturas">${confirmacionState.facturas.length}</span>
                                     </div>
-                                    <div id="listaFacturas" class="list-group list-group-flush"></div>
+                                    <div class="mb-2">
+                                        <input type="text" id="filtroFacturas" class="form-control form-control-sm" placeholder="Buscar por número de factura...">
+                                    </div>
+                                    <div id="listaFacturas" class="list-group list-group-flush" style="max-height: 450px; overflow-y: auto;"></div>
                                 </div>
                             </div>
                             <div class="col-lg-7">
@@ -228,18 +355,30 @@
                     renderDetalleFactura(confirmacionState.facturaSeleccionada);
                 }
 
-                function renderFacturasList() {
+                function renderFacturasList(filtro = '') {
                     if (!confirmacionState.facturas.length) {
                         $('#listaFacturas').html('<p class="mb-0 text-muted">Sin facturas.</p>');
+                        $('#contadorFacturas').text('0');
+                        return;
+                    }
+
+                    const filtroLower = filtro.toLowerCase().trim();
+                    const facturasFiltradas = filtro ? confirmacionState.facturas.filter(f => 
+                        f.numero_factura.toLowerCase().includes(filtroLower)
+                    ) : confirmacionState.facturas;
+
+                    if (!facturasFiltradas.length) {
+                        $('#listaFacturas').html('<p class="mb-0 text-muted">No se encontraron facturas con ese número.</p>');
+                        $('#contadorFacturas').text('0');
                         return;
                     }
 
                     let html = '';
-                    confirmacionState.facturas.forEach(f => {
+                    facturasFiltradas.forEach(f => {
                         const isActive = confirmacionState.facturaSeleccionada === f.distribucion_factura_id;
                         const progreso = calcularProgresoFactura(f);
                         const incidencias = (f.productos || []).filter(p => Number(p.tiene_incidencia) === 1).length;
-                        html += `<button type="button" class="list-group-item list-group-item-action factura-item ${isActive ? 'active' : ''}" data-factura="${f.distribucion_factura_id}">
+                        html += `<button type="button" class="list-group-item list-group-item-action factura-item ${isActive ? 'active' : ''}" data-factura="${f.distribucion_factura_id}" data-numero="${f.numero_factura}">
                             <div class="d-flex justify-content-between">
                                 <div>
                                     <div class="font-weight-bold">Factura #${f.numero_factura}</div>
@@ -254,6 +393,7 @@
                         </button>`;
                     });
                     $('#listaFacturas').html(html);
+                    $('#contadorFacturas').text(facturasFiltradas.length);
                 }
 
                 function seleccionarFactura(distribucionFacturaId) {
@@ -280,7 +420,8 @@
                     const articulosEntregados = productos.filter(p => Number(p.entregado) === 1).length;
                     const progreso = productos.length ? Math.round((articulosEntregados / productos.length) * 100) : 0;
                     const estado = (factura.estado_entrega || '').toLowerCase();
-                    const facturaBloqueada = estado === 'entregado';
+                    // Bloquear si está entregada, parcial, o si ya se ha confirmado al menos una vez
+                    const facturaBloqueada = estado === 'entregado' || estado === 'parcial' || (Number(factura.confirmada) === 1);
 
                     let filas = '';
                     productos.forEach((p, index) => {
@@ -321,15 +462,31 @@
                                 <button type="button" class="mb-2 btn btn-outline-success btn-sm btn-marcar-todos" data-factura="${factura.distribucion_factura_id}" ${facturaBloqueada ? 'disabled' : ''}>
                                     <i class="mr-1 fas fa-check-double"></i>Marcar todos
                                 </button>
-                                <div class="small text-muted">${articulosEntregados}/${productos.length || 0} productos · ${progreso}%</div>
+                                <div class="small text-muted"><span id="contadorProductos">${articulosEntregados}</span>/${productos.length || 0} productos · ${progreso}%</div>
                             </div>
-                        </div>
-                        ${facturaBloqueada ? '<div class="py-2 alert alert-info"><i class="mr-2 fas fa-lock"></i>Esta factura ya fue confirmada. Solo puedes consultar su historial.</div>' : ''}`;
+                        </div>`;
+                    
+                    // Mensaje dinámico según el estado
+                    let mensajeBloqueo = '';
+                    if (facturaBloqueada) {
+                        if (estado === 'entregado') {
+                            mensajeBloqueo = '<div class="py-2 alert alert-success"><i class="mr-2 fas fa-lock"></i>Esta factura fue confirmada como <strong>entregada completamente</strong> y está bloqueada.</div>';
+                        } else if (estado === 'parcial') {
+                            mensajeBloqueo = '<div class="py-2 alert alert-warning"><i class="mr-2 fas fa-lock"></i>Esta factura fue confirmada con <strong>entrega parcial</strong> y está bloqueada. Algunos productos tienen incidencias o no fueron entregados.</div>';
+                        } else {
+                            mensajeBloqueo = '<div class="py-2 alert alert-info"><i class="mr-2 fas fa-lock"></i>Esta factura ya fue confirmada y está bloqueada.</div>';
+                        }
+                    }
+                    
+                    const filtroProductos = `${mensajeBloqueo}
+                        <div class="mb-2">
+                            <input type="text" id="filtroProductos" class="form-control form-control-sm" placeholder="Buscar producto por nombre...">
+                        </div>`;
 
-                    const tabla = productos.length ? `${header}
-                            <div class="table-responsive">
-                                <table class="table table-sm table-hover">
-                                    <thead class="thead-light">
+                    const tabla = productos.length ? `${header}${filtroProductos}
+                            <div class="table-responsive" style="max-height: 280px; overflow-y: auto;">
+                                <table class="table table-sm table-hover" id="tablaProductos">
+                                    <thead class="thead-light" style="position: sticky; top: 0; background-color: #f8f9fa; z-index: 10;">
                                         <tr>
                                             <th>#</th>
                                             <th>Producto</th>
@@ -344,6 +501,37 @@
                         : '<p class="mb-0 text-muted">La factura no tiene productos asociados.</p>';
 
                     contenedor.html(tabla);
+                    
+                    // Configurar filtro de productos
+                    $('#filtroProductos').off('input').on('input', function() {
+                        filtrarProductos($(this).val());
+                    });
+                }
+
+                function filtrarProductos(filtro) {
+                    const filtroLower = filtro.toLowerCase().trim();
+                    let contadorVisibles = 0;
+                    
+                    $('#tablaProductos tbody tr:not(.no-results)').each(function() {
+                        const nombreProducto = $(this).find('td:eq(1) .font-weight-bold').text().toLowerCase();
+                        
+                        if (!filtro || nombreProducto.includes(filtroLower)) {
+                            $(this).fadeIn(200);
+                            contadorVisibles++;
+                        } else {
+                            $(this).fadeOut(200);
+                        }
+                    });
+                    
+                    // Mostrar mensaje si no hay resultados
+                    if (contadorVisibles === 0 && filtro) {
+                        if ($('#tablaProductos tbody .no-results').length === 0) {
+                            $('#tablaProductos tbody').append('<tr class="no-results"><td colspan="5" class="text-center text-muted py-3"><i class="fas fa-search mr-2"></i>No se encontraron productos con ese nombre</td></tr>');
+                        }
+                        $('#tablaProductos tbody .no-results').show();
+                    } else {
+                        $('#tablaProductos tbody .no-results').remove();
+                    }
                 }
 
                 function calcularProgresoFactura(factura) {
@@ -367,9 +555,24 @@
                 }
 
                 function marcarTodosEntregados(distribucionFacturaId) {
+                    // Verificar si la factura está bloqueada antes de marcar todos
+                    const factura = confirmacionState.facturas.find(f => f.distribucion_factura_id === distribucionFacturaId);
+                    if (factura) {
+                        const estado = (factura.estado_entrega || '').toLowerCase();
+                        const yaConfirmada = Number(factura.confirmada) === 1;
+                        if (estado === 'entregado' || estado === 'parcial' || yaConfirmada) {
+                            Swal.fire({
+                                icon: 'warning',
+                                title: 'Factura ya confirmada',
+                                text: 'Esta factura ya fue confirmada y no se puede modificar.',
+                                confirmButtonText: 'Entendido'
+                            });
+                            return;
+                        }
+                    }
+
                     $.post(`${rutasConfirmacion.marcarTodos}/${distribucionFacturaId}`, { _token: csrfToken })
                         .done(resp => {
-                            Swal.fire(resp.title, resp.text, resp.icon);
                             if (confirmacionState.distribucionActual) {
                                 cargarConfirmacion(confirmacionState.distribucionActual, confirmacionState.facturaSeleccionada);
                             }
@@ -380,10 +583,27 @@
                         });
                 }
 
+
                 function guardarConfirmacion() {
                     if (!confirmacionState.distribucionActual) {
                         Swal.fire('Selecciona un equipo', 'Primero debes elegir la ruta a confirmar.', 'info');
                         return;
+                    }
+
+                    // Verificar si la factura seleccionada ya está confirmada
+                    const facturaActual = confirmacionState.facturas.find(f => f.distribucion_factura_id === confirmacionState.facturaSeleccionada);
+                    if (facturaActual) {
+                        const estado = (facturaActual.estado_entrega || '').toLowerCase();
+                        const yaConfirmada = Number(facturaActual.confirmada) === 1;
+                        if (estado === 'entregado' || estado === 'parcial' || yaConfirmada) {
+                            Swal.fire({
+                                icon: 'warning',
+                                title: 'Factura ya confirmada',
+                                text: 'Esta factura ya fue confirmada y no se puede modificar. Solo puedes consultar su historial.',
+                                confirmButtonText: 'Entendido'
+                            });
+                            return;
+                        }
                     }
 
                     const productos = recolectarProductosSeleccionados();
@@ -446,6 +666,9 @@
                         .done(resp => {
                             Swal.fire(resp.title, resp.text, resp.icon);
                             if (confirmacionState.distribucionActual) {
+                                // Recargar la lista de distribuciones para actualizar los porcentajes
+                                actualizarDistribuciones();
+                                // Recargar las facturas del equipo actual
                                 cargarConfirmacion(confirmacionState.distribucionActual, confirmacionState.facturaSeleccionada);
                             }
                         })
@@ -460,12 +683,36 @@
                 }
 
                 function abrirIncidencia(button) {
+                    // Verificar si la factura actual está bloqueada
+                    const facturaActual = confirmacionState.facturas.find(f => f.distribucion_factura_id === confirmacionState.facturaSeleccionada);
+                    let facturaBloqueada = false;
+                    
+                    if (facturaActual) {
+                        const estado = (facturaActual.estado_entrega || '').toLowerCase();
+                        const yaConfirmada = Number(facturaActual.confirmada) === 1;
+                        facturaBloqueada = (estado === 'entregado' || estado === 'parcial' || yaConfirmada);
+                    }
+
                     const productoId = Number($(button).data('producto'));
                     const nombreCodificado = $(button).data('nombre') || '';
                     confirmacionState.productoIncidencia = productoId;
                     confirmacionState.productoIncidenciaNombre = decodeURIComponent(nombreCodificado);
                     $('#productoIncidenciaId').val(productoId);
                     $('#tituloProductoIncidencia').text(confirmacionState.productoIncidenciaNombre || `Producto #${productoId}`);
+                    
+                    // Deshabilitar el formulario si la factura está bloqueada
+                    if (facturaBloqueada) {
+                        $('#tipoIncidencia').prop('disabled', true);
+                        $('#descripcionIncidencia').prop('disabled', true);
+                        $('#btnIncidenciaGuardar').prop('disabled', true);
+                        $('.alert-warning').html('<i class="fas fa-lock mr-2"></i>Esta factura ya fue confirmada. Solo puedes consultar las incidencias existentes.').removeClass('alert-warning').addClass('alert-info');
+                    } else {
+                        $('#tipoIncidencia').prop('disabled', false);
+                        $('#descripcionIncidencia').prop('disabled', false);
+                        $('#btnIncidenciaGuardar').prop('disabled', false);
+                        $('.alert-info').html('Cada incidencia registrada bloquea el producto hasta que logística la gestione.').removeClass('alert-info').addClass('alert-warning');
+                    }
+                    
                     $('#modalIncidencia').modal('show');
                     cargarIncidenciasProducto(productoId);
                 }
@@ -520,6 +767,22 @@
                         return;
                     }
 
+                    // Verificar si la factura está confirmada antes de permitir agregar incidencias
+                    const facturaActual = confirmacionState.facturas.find(f => f.distribucion_factura_id === confirmacionState.facturaSeleccionada);
+                    if (facturaActual) {
+                        const estado = (facturaActual.estado_entrega || '').toLowerCase();
+                        const yaConfirmada = Number(facturaActual.confirmada) === 1;
+                        if (estado === 'entregado' || estado === 'parcial' || yaConfirmada) {
+                            Swal.fire({
+                                icon: 'warning',
+                                title: 'Factura ya confirmada',
+                                text: 'No puedes agregar incidencias a una factura que ya fue confirmada.',
+                                confirmButtonText: 'Entendido'
+                            });
+                            return;
+                        }
+                    }
+
                     const tipo = $('#tipoIncidencia').val();
                     const descripcion = $('#descripcionIncidencia').val().trim();
                     if (!descripcion.length) {
@@ -544,7 +807,6 @@
                             renderListaIncidencias(resp.incidencias || []);
                             actualizarProductoEnState(productoId, resp.incidencias ? resp.incidencias.length : 1);
                             renderDetalleFactura(confirmacionState.facturaSeleccionada);
-                            Swal.fire(resp.title || 'Incidencia registrada', resp.text || 'La incidencia se guardó correctamente.', resp.icon || 'success');
                         })
                         .fail(xhr => {
                             const r = xhr.responseJSON || {};
@@ -576,4 +838,5 @@
                     }
                     return fecha.toLocaleString('es-HN', { hour12: true });
                 }
-            </script>
+    </script>
+</div>
