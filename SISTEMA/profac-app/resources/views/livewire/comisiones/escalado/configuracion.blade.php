@@ -140,7 +140,7 @@
               <label for="Categoria de cliente" class="font-weight-bold">Porcentaje de comisión a aplicar</label>
               <input type="number" step="any" class="form-control form-control-lg border-primary" id="porcentaje_comision" name="porcentaje_comision" required>
             </div>
-            <hr>
+{{--              <hr>
             <p>Se debe ingresar un rango de compra mensual del cliente, para diferenciación de ingreso</p>
             <div class="form-group col-md-6">
               <label for="descripcion_cat" class="font-weight-bold">Inicio</label>
@@ -150,7 +150,7 @@
             <div class="form-group col-md-6">
               <label for="descripcion_cat" class="font-weight-bold">Fin</label>
               <input type="number" class="form-control form-control-lg border-primary" id="rango_final_comescala" name="rango_final_comescala" min="0" required>
-            </div>
+            </div>  --}}
           </div>
 
           <!-- Footer -->
@@ -186,8 +186,8 @@
                             <th>ID</th>
                             <th>Comisión</th>
                             <th>%</th>
-                            <th>Monto compra Inicial</th>
-                            <th>Monto compra Final</th>
+                            {{--  <th>Monto compra Inicial</th>
+                            <th>Monto compra Final</th>  --}}
                             <th>Rol de Usuario</th>
                             <th>Clientes</th>
                             <th>Registrado</th>

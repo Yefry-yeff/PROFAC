@@ -170,8 +170,8 @@ function listaParametroComision() {
         { data: 'id' },
         { data: 'nombre' },
         { data: 'porcentaje_comision' },
-        { data: 'rango_inicial' },
-        { data: 'rango_final' },
+        /* { data: 'rango_inicial' },
+        { data: 'rango_final' }, */
         { data: 'rol' },
         { data: 'cliente_cat_escala' },
         { data: 'userRegistro' },

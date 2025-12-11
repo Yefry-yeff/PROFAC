@@ -112,6 +112,13 @@ UPDATE rol SET nombre = 'Televendedor' where id = 3;
 UPDATE rol SET nombre = 'Recursos Humanos' where id = 8;
 UPDATE rol SET nombre = 'Administrador' where id = 1;
 
+------------INSERCION MASIVA EN COMISION_EMPLEADO-----------------
+INSERT INTO comision_empleado (comision_acumulada, fecha_ult_modificacion, mes_comision, nombre_empleado,users_comision, rol_id, estado_id)
+SELECT 0.00, NOW(), DATE_FORMAT(NOW(), '%Y-%m-01'),A.name, A.id as 'user', B.id as 'rol', 1 as 'estado'
+FROM users A
+inner join rol B on B.id = A.rol_id
+WHERE B.id != 10;
+
 -------------------------ACTUALIZACIÓN DE SP DE APLICACION DE PAGOS/ REGISTRANDO FECHA EXACTA DE CIERRE PARA REFERENCIA DE COMISIÓN--------------
 BEGIN
   DECLARE EXIT HANDLER FOR SQLEXCEPTION
