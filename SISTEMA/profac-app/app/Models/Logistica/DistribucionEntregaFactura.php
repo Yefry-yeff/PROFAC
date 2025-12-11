@@ -33,11 +33,10 @@ class DistribucionEntregaFactura extends Model
 
     /**
      * Relación con la factura
-     * Nota: Ajustar el nombre del modelo según tu estructura
      */
     public function factura()
     {
-        return $this->belongsTo(\App\Models\ModelFacturacion::class, 'factura_id');
+        return $this->belongsTo(\App\Models\ModelFactura::class, 'factura_id');
     }
 
     /**

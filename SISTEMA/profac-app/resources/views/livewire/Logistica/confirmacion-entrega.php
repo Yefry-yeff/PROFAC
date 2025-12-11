@@ -65,7 +65,7 @@
         </div>
     </div>
 
-    <div class="modal fade" id="modalIncidencia" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal fade" id="modalIncidencia" tabindex="-1" role="dialog">
         <div class="modal-dialog modal-lg" role="document">
             <div class="modal-content">
                 <div class="modal-header">
@@ -116,7 +116,7 @@
         </div>
     </div>
 
-    <div class="modal fade" id="modalHoraEntrega" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal fade" id="modalHoraEntrega" tabindex="-1" role="dialog">
         <div class="modal-dialog modal-sm" role="document">
             <div class="modal-content">
                 <div class="modal-header">
@@ -137,9 +137,9 @@
         </div>
     </div>
 
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
-                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+        document.addEventListener('DOMContentLoaded', function() {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
                 const rutasConfirmacion = {
                     distribuciones: "<?= route('logistica.confirmacion.distribuciones') ?>",
                     facturas: "<?= url('/logistica/confirmacion/facturas') ?>",
@@ -838,5 +838,6 @@
                     }
                     return fecha.toLocaleString('es-HN', { hour12: true });
                 }
+        });
     </script>
 </div>

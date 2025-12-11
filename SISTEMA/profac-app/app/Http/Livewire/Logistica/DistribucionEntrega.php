@@ -842,4 +842,60 @@ class DistribucionEntrega extends Component
             ], 500);
         }
     }
+
+    /**
+     * Obtener incidencias de una factura
+     */
+    public function obtenerIncidenciasFactura($facturaId)
+    {
+        try {
+            Log::info("=== Obteniendo incidencias para factura ID: {$facturaId} ===");
+            
+            $factura = DistribucionEntregaFactura::with('factura')->findOrFail($facturaId);
+            Log::info("Factura encontrada:", ['factura_id' => $factura->id, 'numero_factura' => $factura->factura->numero_factura ?? 'N/A']);
+            
+            // Obtener todos los productos de entrega de esta factura con sus incidencias
+            $incidencias = DB::select("
+                SELECT 
+                    i.id,
+                    i.tipo,
+                    i.descripcion,
+                    i.created_at,
+                    p.id as producto_id,
+                    p.nombre as producto_nombre,
+                    ep.id as entrega_producto_id
+                FROM entregas_productos_incidencias i
+                INNER JOIN entregas_productos ep ON i.entrega_producto_id = ep.id
+                INNER JOIN distribuciones_entrega_facturas def ON ep.distribucion_factura_id = def.id
+                INNER JOIN producto p ON ep.producto_id = p.id
+                WHERE def.id = ?
+                ORDER BY i.created_at DESC
+            ", [$facturaId]);
+            
+            Log::info("Total de incidencias encontradas: " . count($incidencias));
+            
+            return response()->json([
+                'success' => true,
+                'factura' => [
+                    'id' => $factura->id,
+                    'numero_factura' => $factura->factura->numero_factura ?? 'N/A',
+                    'cliente' => $factura->factura->cliente->nombre_completo ?? 'N/A',
+                ],
+                'incidencias' => $incidencias,
+            ], 200);
+            
+        } catch (\Exception $e) {
+            Log::error("Error al obtener incidencias de factura:", [
+                'factura_id' => $facturaId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener incidencias',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }
