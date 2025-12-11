@@ -18,7 +18,6 @@ use App\Http\Livewire\FacturaDia\FacturaDia;
 use App\Http\Livewire\Reportes\Prodmes;
 use App\Http\Livewire\Reportes\Reporteria;
 use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Artisan;
 use App\Http\Livewire\Bodega;
 use App\Http\Livewire\BodegaComponent\BodegaEditar;
 use App\Http\Livewire\Proveedores;
@@ -126,10 +125,9 @@ use App\Http\Livewire\Escalas\CategoriaPrecios;
 use App\Http\Livewire\Escalas\CategoriaClientes;
 use App\Http\Livewire\Escalas\ReportesEscalas;
 
-// Logistica de Entregas
-use App\Http\Livewire\Logistica\EquiposEntrega;
-use App\Http\Livewire\Logistica\DistribucionEntrega;
-use App\Http\Livewire\Logistica\ConfirmacionEntrega;
+use App\Http\Livewire\Comisiones\Escalado\Configuracion as confcomisiones;
+use App\Http\Livewire\Comisiones\Escalado\MisComisiones;
+use App\Http\Livewire\Comisiones\Escalado\ReportesComisionesGenerales;
 
 /*
 
@@ -170,6 +168,23 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     /*
     Inicio de todas las rutas de la Escala de precios
     */
+
+
+    Route::get('/comisiones/configuracion', confcomisiones::class);
+    Route::get('/comisiones/configuracion/rol', [confcomisiones::class,'listaRolesUsuario'])->name('comision.configuracion.rol');
+    Route::post('/guardar/parametro/comision', [confcomisiones::class, 'guardarParametroComision']);
+    Route::get('/listar/parametros/comision', [confcomisiones::class,'listarParametroComision']);
+    Route::post('/desactivar/parametro-comision/{id}',[confcomisiones::class,'desactivarParametro'])->name('parametro.comision.desactivar');
+    Route::get('/parametro-comision/{id}', [confcomisiones::class,'obtenerParametro']);
+    Route::post('/actualizar/parametro/comision/{id}', [confcomisiones::class,'actualizarParametro']);
+
+
+    Route::get('/comisiones/empleado', MisComisiones::class);
+    Route::get('/comisiones/general', ReportesComisionesGenerales::class);
+
+
+
+
     Route::get('/precios', CategoriaPrecios::class);
     Route::get('/clientes/categorias', CategoriaClientes::class);
     Route::get('/descargar-plantilla', [App\Http\Controllers\ExcelController::class, 'descargarPlantilla'])->name('excel.plantilla');
@@ -193,28 +208,20 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::post('/guardar/categoria/precios', [CategoriaPrecios::class, 'guardarCtaegoria']);
     Route::get('/listar/categoria/precios', [CategoriaPrecios::class, 'listarCategorias']);
     Route::get('/desactivar/categoria/precios/{idCategoria}', [CategoriaPrecios::class, 'desactivarCategoria']);
-    
     /*SUBIDA DE EXCEL */
     // web.php
     Route::post('/importar-excel', [App\Http\Controllers\ExcelController::class, 'importarExcel']);// routes/web.php
 
-    Route::post('/preview-excel-precios', [App\Http\Controllers\ExcelController::class, 'previewExcelPrecios'])
-    ->name('preview.excel.precios');
-
-    Route::post('/finalizar-excel-precios', [App\Http\Controllers\ExcelController::class, 'finalizarExcelPrecios'])
-    ->name('finalizar.excel.precios');
+    Route::post('/procesar-excel-precios', [App\Http\Controllers\ExcelController::class, 'procesarExcelPrecios'])
+    ->name('procesar.excel.precios');
 
     /* Gestión masiva de clientes */
 
         Route::get('/clientes/plantilla-categorias', [ClienteLW::class,'descargarPlantillaCategoriaClientes'])
             ->name('clientes.plantilla.categorias');
 
-        Route::post('/clientes/preview-categorias', [ClienteLW::class,'procesarPreviewCategorias'])
-            ->name('clientes.preview.categorias');
-
         Route::post('/clientes/importar-categorias', [ClienteLW::class,'importarCategoriaClientes'])
             ->name('clientes.importar.categorias');
-            
         Route::get('/clientes/categorias-escala', [ClienteLW::class,'listaCategoriasEscala'])
     ->name('clientes.categorias.escala');
 
@@ -951,50 +958,8 @@ Route::post('/reporte/Libroventarep/exportar-pdf/{tipo}/{fechaInicio}/{fechaFina
 Route::post('/reporte/Libroventarep/exportar-excel/{tipo}/{fechaInicio}/{fechaFinal}', [Libroventarep::class, 'exportarExcel'])
     ->name('reporte.libro_venta.excel');
 
-    //------------------------------- Logistica de Entregas ----------------------------//
-    
-    // Equipos de Entrega
-    Route::get('/logistica/equipos', EquiposEntrega::class);
-    Route::get('/logistica/equipos/listar', [EquiposEntrega::class, 'listarEquipos'])->name('logistica.equipos.listar');
-    Route::post('/logistica/equipos/guardar', [EquiposEntrega::class, 'guardarEquipo'])->name('logistica.equipos.guardar');
-    Route::get('/logistica/equipos/obtener/{equipoId}', [EquiposEntrega::class, 'obtenerEquipo']);
-    Route::post('/logistica/equipos/actualizar', [EquiposEntrega::class, 'actualizarEquipo']);
-    Route::get('/logistica/equipos/miembros/{equipoId}', [EquiposEntrega::class, 'obtenerMiembros']);
-    Route::post('/logistica/equipos/desactivar/{equipoId}', [EquiposEntrega::class, 'desactivarEquipo']);
-    Route::post('/logistica/equipos/agregar-miembro', [EquiposEntrega::class, 'agregarMiembro']);
-    Route::post('/logistica/equipos/remover-miembro/{miembroId}', [EquiposEntrega::class, 'removerMiembro']);
 
-    // Distribucion de Entregas
-    Route::get('/logistica/distribuciones', DistribucionEntrega::class)->name('logistica.distribuciones');
-    Route::get('/logistica/distribuciones/nueva', [DistribucionEntrega::class, 'nuevaDistribucion'])->name('logistica.distribuciones.nueva');
-    Route::get('/logistica/distribuciones/listar', [DistribucionEntrega::class, 'listarDistribuciones'])->name('logistica.distribuciones.listar');
-    Route::post('/logistica/distribuciones/guardar', [DistribucionEntrega::class, 'guardarDistribucion'])->name('logistica.distribuciones.guardar');
-    Route::get('/logistica/distribuciones/facturas/{distribucionId}', [DistribucionEntrega::class, 'obtenerFacturas']);
-    Route::get('/logistica/facturas/buscar', [DistribucionEntrega::class, 'buscarFacturas'])->name('logistica.facturas.buscar');
-    Route::get('/logistica/facturas/por-numero', [DistribucionEntrega::class, 'obtenerFacturaPorNumero'])->name('logistica.facturas.porNumero');
-    Route::get('/logistica/facturas/por-cliente', [DistribucionEntrega::class, 'obtenerFacturasPorCliente'])->name('logistica.facturas.porCliente');
-    Route::get('/logistica/facturas/autocompletado', [DistribucionEntrega::class, 'autocompletadoFacturas'])->name('logistica.facturas.autocompletado');
-    Route::get('/logistica/facturas/clientes-autocompletado', [DistribucionEntrega::class, 'autocompletadoClientes'])->name('logistica.facturas.clientesAutocompletado');
-    Route::get('/logistica/facturas/por-cliente-id', [DistribucionEntrega::class, 'obtenerFacturasPorClienteId'])->name('logistica.facturas.porClienteId');
-    Route::get('/logistica/facturas/detalle', [DistribucionEntrega::class, 'obtenerDetalleFactura'])->name('logistica.facturas.detalle');
-    Route::post('/logistica/distribuciones/iniciar/{distribucionId}', [DistribucionEntrega::class, 'iniciarDistribucion']);
-    Route::post('/logistica/distribuciones/cancelar/{distribucionId}', [DistribucionEntrega::class, 'cancelarDistribucion']);
-    Route::post('/logistica/distribuciones/completar/{distribucionId}', [DistribucionEntrega::class, 'completarDistribucion']);
-    Route::get('/logistica/facturas/incidencias/{facturaId}', [DistribucionEntrega::class, 'obtenerIncidenciasFactura']);
-    Route::post('/logistica/facturas/anular-entrega/{facturaId}', [DistribucionEntrega::class, 'anularEntrega']);
-    Route::post('/logistica/facturas/confirmar-entrega/{facturaId}', [DistribucionEntrega::class, 'confirmarEntregaFactura']);
 
-    // Confirmacion de Entregas
-    Route::get('/logistica/confirmacion', ConfirmacionEntrega::class);
-    Route::get('/logistica/confirmacion/distribuciones', [ConfirmacionEntrega::class, 'listarDistribucionesPorFecha'])->name('logistica.confirmacion.distribuciones');
-    Route::get('/logistica/confirmacion/facturas/{distribucionId}', [ConfirmacionEntrega::class, 'obtenerFacturasParaConfirmacion']);
-    Route::post('/logistica/confirmacion/guardar', [ConfirmacionEntrega::class, 'confirmarEntregaProductos'])->name('logistica.confirmacion.guardar');
-    Route::post('/logistica/confirmacion/evidencia', [ConfirmacionEntrega::class, 'registrarEvidencia']);
-    Route::get('/logistica/confirmacion/evidencias/{distribucionFacturaId}', [ConfirmacionEntrega::class, 'obtenerEvidencias']);
-    Route::get('/logistica/confirmacion/productos/{productoId}/incidencias', [ConfirmacionEntrega::class, 'listarIncidenciasProducto']);
-    Route::post('/logistica/confirmacion/productos/{productoId}/incidencias', [ConfirmacionEntrega::class, 'registrarIncidenciaProducto']);
-    Route::post('/logistica/confirmacion/marcar-todos/{distribucionFacturaId}', [ConfirmacionEntrega::class, 'marcarTodosEntregados']);
-    Route::get('/logistica/confirmacion/reporte/{distribucionId}', [ConfirmacionEntrega::class, 'obtenerReporteDistribucion']);
 
 
     //------------------------------------------establecer links de storage---------------------------//

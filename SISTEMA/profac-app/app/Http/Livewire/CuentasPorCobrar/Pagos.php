@@ -11,6 +11,7 @@ use Validator;
 use DataTables;
 use Throwable;
 use PDF;
+use Carbon\Carbon;
 
 use Illuminate\Support\Facades\File;
 
@@ -20,12 +21,19 @@ use App\Exports\CuentasPorCobrarExport;
 use App\Exports\CuentasPorCobrarInteresExport;
 use App\Models\AplicacionPagos\Modelotros_movimientos;
 use App\Models\AplicacionPagos\Modelabonos_creditos;
+use App\Models\Comisiones\Escalado\modelproducto_comision;
+use App\Models\Comisiones\Escalado\modelfacturas_comision;
+use App\Models\Comisiones\Escalado\modelcomision_empleado;
+use App\Models\Comisiones\Escalado\modelcomision_escala;
 class Pagos extends Component
 {
     public function render()
     {
         return view('livewire.cuentas-por-cobrar.pagos');
     }
+
+
+
 
     public function listarClientes(Request $request){
         try {
@@ -666,9 +674,8 @@ class Pagos extends Component
 
                       // dd($request);
                        if($saldoActual2->saldo == 0){
-
+                            //dd("Prueba de que llega aqui esta mierda");
                            $cuentas22 = DB::select("
-
                                CALL sp_aplicacion_pagos(
                                    '9',
                                    '0',
@@ -688,6 +695,10 @@ class Pagos extends Component
                                    "title"=>"Error!"
                                ],402);
                            }
+
+                           /* Me sale más facil procesarlo aqui */
+
+                           /* Distribución de facturas comision */
 
                        }
 
@@ -770,7 +781,7 @@ class Pagos extends Component
 
                        $cliente = DB::SELECTONE("select cliente_id from factura where id=".$request->idFacturaAbono);
 
-                       $creditoCli = DB::SELECTONE("select credito_inicial, credito from cliente where id=".$cliente->cliente_id);
+                       $creditoCli = DB::SELECTONE("select credito_inicial, credito, cliente_categoria_escala_id from cliente where id=".$cliente->cliente_id);
 
                        if ($creditoCli->credito_inicial !=0) {
                         $homologoCredito = $creditoCli->credito + $request->montoAbono;
@@ -793,7 +804,7 @@ class Pagos extends Component
                        $saldoActual2 = DB::selectone('select saldo from aplicacion_pagos where id = '.$request->codAplicPagoAbono);
 
                        if($saldoActual2->saldo == 0){
-
+                            //dd("Prueba de que llega aqui esta mierda");
                            $cuentas22 = DB::select("
 
                                CALL sp_aplicacion_pagos(
@@ -808,7 +819,180 @@ class Pagos extends Component
                                    @estado,
                                    @msjResultado);");
 
+                             //gestionComision($creditoCli->cliente_categoria_escala_id,$request->idFacturaAbono.$request->codAplicPagoAbono);
+
+
+                                                              /*Ejecución de Llenado de facturas comisión*/
+                            $arrayfacturas_comision = [];
+                            $arrayproducto_comision = [];
+
+                           $parametros_comision = DB::SELECT("select * from comision_escala where estado_id = 1 and cliente_categoria_escala_id = ". $creditoCli->cliente_categoria_escala_id);
+                           $productos_factura = DB::SELECT(" select * from venta_has_producto where factura_id = ".$request->idFacturaAbono);
+                           /* recorriendo los parametros para comisionar de ese cliente, en esta factura */
+                           $monto_rol_factura = 0;
+                           foreach ($parametros_comision as $param) {
+
+                                // Aquí accedés a cada campo del registro
+                                $comision_escala_id     = $param->id;
+                                $rol_id                 = $param->rol_id;
+                                $porcentaje_comision    = $param->porcentaje_comision;
+
+                                foreach ($productos_factura as $producto) {
+                                    $cantidad = $producto->cantidad;
+                                    $precio_venta = $producto->precio_unidad;
+                                    $precios_producto_carga_id  = $producto->precios_producto_carga_id;
+                                    $idproducto =  $producto->producto_id;
+                                    $monto_comision = ((($porcentaje_comision/100) * $precio_venta));
+                                    array_push($arrayproducto_comision, [
+                                        "cantidad" => $cantidad,
+                                        "precio_venta" => $precio_venta,
+                                        "monto_comision" => $monto_comision,
+                                        "precios_producto_carga_id" => $precios_producto_carga_id,
+                                        "factura_id" => $request->idFacturaAbono,
+                                        "producto_id" => $idproducto,
+                                        "rol_id" => $rol_id,
+                                        "estado_id" => 1,
+                                        "created_at" => NOW(),
+                                        "updated_at" => NOW()
+
+                                    ]);
+                                }
+                                /*Inserto todos los productos según yo */
+
+
+                                array_push($arrayfacturas_comision, [
+                                    "fecha_cierre_factura" => NOW(),
+                                    "monto_rol" => 0,
+                                    "factura_id" => $request->idFacturaAbono,
+                                    "comision_escala_id" => $comision_escala_id,
+                                    "aplicacion_pagos_id" => $request->codAplicPagoAbono,
+                                    "rol_id" => $rol_id,
+                                    "estado_id" => 1
+                                ]);
+
+
+
+                            }
+                                $totalesPorRol = [];
+                                foreach ($arrayproducto_comision as $p) {
+                                    // soporta tanto arrays asociativos como objetos stdClass
+                                    $rol = isset($p['rol_id']) ? $p['rol_id'] : (isset($p->rol_id) ? $p->rol_id : null);
+                                    $monto = isset($p['monto_comision']) ? $p['monto_comision'] : (isset($p->monto_comision) ? $p->monto_comision : 0);
+
+                                    if ($rol === null) continue;
+
+                                    // forzamos a float por seguridad
+                                    $monto = (float) $monto;
+
+                                    if (!isset($totalesPorRol[$rol])) $totalesPorRol[$rol] = 0.0;
+                                    $totalesPorRol[$rol] += $monto;
+                                }
+
+                                // 2) Actualizar $arrayfacturas_comision usando los totales por rol
+                                // (se asume que cada elemento tiene 'rol_id' y queremos setear/actualizar 'monto_rol')
+                                foreach ($arrayfacturas_comision as &$facturaRol) {
+
+                                $rol = $facturaRol['rol_id'];
+                                $totalRol = 0;
+
+                                foreach ($arrayproducto_comision as $prod) {
+
+                                    if ($prod['rol_id'] == $rol) {
+                                        // multiplicar monto * cantidad ANTES de sumar
+                                        $totalRol += ($prod['monto_comision'] * $prod['cantidad']);
+                                    }
+
+                                }
+
+                                // asignar el total calculado
+                                $facturaRol['monto_rol'] = $totalRol;
+                            }
+                            unset($facturaRol);
+
+
+                                modelproducto_comision::insert($arrayproducto_comision);
+                                modelfacturas_comision::insert($arrayfacturas_comision);
+
+                                /*recuperar factura, vendedor y teleoperacior del id factura*/
+
+                                    dd("Hasta aqui llego?");
+                                $datos_factura = DB::SELECTONE("select users_id as 'teleoperador', vendedor from factura where id =".$request->idFacturaAbono);
+
+                                    /*Variables constantes porque es la estructura en duro de cualquier factura */
+
+                                    $idTeleoperador = $datos_factura->teleoperador;
+                                    $idVendedor = $datos_factura->vendedor;
+
+                                foreach ($arrayfacturas_comision as $factura) {
+
+
+                                    //----------------------------------------TELEOPERADOR
+                                    if ($factura['rol_id'] == 3 ) {
+
+                                        $com_empleado_teleoperador = DB::SELECT("select *
+                                        from comision_empleado where estado_id = 1
+                                        and users_comision = ".$idTeleoperador."
+                                        and mes_comision = ".$factura['fecha_cierre_factura'."
+                                        and rol_id = ".$com_empleado_teleoperador->rol_id]);
+
+                                        $nuevacomision = ($com_empleado_teleoperador->comision_acumulada + $factura['monto_rol']);
+
+                                        modelcomision_empleado::where('id', $com_empleado_teleoperador->id)
+                                        ->update([
+                                            'comision_acumulada'      => $nuevacomision,
+                                            'fecha_ult_modificacion'  => now()
+                                        ]);
+                                    }
+
+                                    //----------------------------------------VENDEDOR
+                                   /*  if ($factura['rol_id'] == 2 ) {
+
+                                        $com_empleado = DB::SELECT("select * from comision_empleado where estado_id = 1 and users_comision = ".$idVendedor." and mes_comision = ".$factura['fecha_cierre_factura']);
+
+
+                                        $nuevacomision = ($com_empleado->comision_acumulada + $factura['monto_rol']);
+
+                                        modelcomision_empleado::where('users_comision', $com_empleado->users_comision)
+                                        ->where('rol_id', $com_empleado->rol_id)
+                                        ->update([
+                                            'comision_acumulada'      => $nuevacomision,
+                                            'fecha_ult_modificacion'  => now()
+                                        ]);
+                                    } */
+
+                                    //---------------------------------------RESTO DE COMISIONES PARAMETRIZADAS A EXCEPCIÓN DE LOGISTICA Y EQUIPO DE ENTREGA
+
+
+
+                                 /*    $com_empleado = DB::SELECT("select * from comision_empleado where estado_id = 1 and rol_id not in (2,3) and mes_comision = ".$factura['fecha_cierre_factura']);
+
+                                    if ($factura['rol_id'] = $com_empleado->rol_id ) {
+                                        $nuevacomision = ($com_empleado->comision_acumulada + $factura['monto_rol']);
+
+                                        modelcomision_empleado::where('users_comision', $com_empleado->users_comision)
+                                        ->where('rol_id', $com_empleado->rol_id)
+                                        ->update([
+                                            'comision_acumulada'      => $nuevacomision,
+                                            'fecha_ult_modificacion'  => now()
+                                        ]);
+
+                                    } */
+                                }
+
+
+
+                                modelcomision_empleado::where('users_comision', $userId)
+                                ->where('rol_id', $rolId)
+                                ->update([
+                                    'comision_acumulada'      => $nuevacomision,
+                                    'fecha_ult_modificacion'  => now(),
+                                    'mes_comision'            => $mesComision,
+                                    'nombre_empleado'         => $nombreEmpleado,
+                                    'estado_id'               => 1
+                                ]);
+
                            if ($cuentas22[0]->estado == -1) {
+
                                return response()->json([
                                    "text" => "Ha ocurrido un error en el procedimiento almacenado.",
                                    "icon" => "error",
@@ -816,10 +1000,119 @@ class Pagos extends Component
                                ],402);
                            }
 
+
+
                        }
 
 
            }catch (QueryException $e) {
+
+           return response()->json([
+               "icon" => "error",
+               "text" => "Ha ocurrido un error: ".$e,
+               "title"=>"Error!",
+               "error" => $e
+           ],402);
+       }
+
+    }
+
+    public function gestionComision($cliente_categoria_escala_id,$idFacturaAbono ,$codAplicPagoAbono){
+        try{
+            $arrayfacturas_comision = [];
+            $arrayproducto_comision = [];
+
+            $parametros_comision = DB::SELECT("select * from comision_escala where estado_id = 1 and cliente_categoria_escala_id = ". $cliente_categoria_escala_id);
+            $productos_factura = DB::SELECT(" select * from venta_has_producto where factura_id = ".$idFacturaAbono);
+                            /* recorriendo los parametros para comisionar de ese cliente, en esta factura */
+            $monto_rol_factura = 0;
+            foreach ($parametros_comision as $param) {
+
+                // Aquí accedés a cada campo del registro
+                $comision_escala_id     = $param->id;
+                $rol_id                 = $param->rol_id;
+                $porcentaje_comision    = $param->porcentaje_comision;
+
+                foreach ($productos_factura as $producto) {
+                    $precio_venta = $producto->precio_unidad;
+                    $cantidad = $producto->cantidad;
+                    $idproducto =  $producto->producto_id;
+                    $precios_producto_carga_id  = $producto->precios_producto_carga_id;
+                    $monto_comision = ((($porcentaje_comision/100) * $precio_venta));
+                    array_push($arrayproducto_comision, [
+                        "cantidad" => $cantidad,
+                        "precio_venta" => $precio_venta,
+                        "monto_comision" => $monto_comision,
+                        "precios_producto_carga_id" => $precios_producto_carga_id,
+                        "producto_id" => $idproducto,
+                        "rol_id" => $rol_id,
+                        "estado_id" => 1,
+                        "created_at" => NOW(),
+                        "updated_at" => NOW()
+
+                    ]);
+                }
+                    /*Inserto todos los productos según yo */
+
+
+                array_push($arrayfacturas_comision, [
+                    "fecha_cierre_factura" => NOW(),
+                    "monto_rol" => 0,
+                    "factura_id" => $idFacturaAbono,
+                    "comision_escala_id" => $comision_escala_id,
+                    "aplicacion_pagos_id" => $codAplicPagoAbono,
+                    "rol_id" => $rol_id,
+                    "estado_id" => 1
+                ]);
+
+
+
+            }
+            $totalesPorRol = [];
+            foreach ($arrayproducto_comision as $p) {
+                // soporta tanto arrays asociativos como objetos stdClass
+                $rol = isset($p['rol_id']) ? $p['rol_id'] : (isset($p->rol_id) ? $p->rol_id : null);
+                $monto = isset($p['monto_comision']) ? $p['monto_comision'] : (isset($p->monto_comision) ? $p->monto_comision : 0);
+
+                if ($rol === null) continue;
+
+                // forzamos a float por seguridad
+                $monto = (float) $monto;
+
+                if (!isset($totalesPorRol[$rol])) $totalesPorRol[$rol] = 0.0;
+                $totalesPorRol[$rol] += $monto;
+            }
+
+                // 2) Actualizar $arrayfacturas_comision usando los totales por rol
+                // (se asume que cada elemento tiene 'rol_id' y queremos setear/actualizar 'monto_rol')
+            foreach ($arrayfacturas_comision as &$facturaRol) {
+
+                $rol = $facturaRol['rol_id'];
+                $totalRol = 0;
+
+                foreach ($arrayproducto_comision as $prod) {
+
+                    if ($prod['rol_id'] == $rol) {
+                        // multiplicar monto * cantidad ANTES de sumar
+                        $totalRol += ($prod['monto_comision'] * $prod['cantidad']);
+                    }
+
+                }
+
+                // asignar el total calculado
+                $facturaRol['monto_rol'] = $totalRol;
+            }
+            unset($facturaRol);
+
+            modelproducto_comision::insert($arrayproducto_comision);
+            modelfacturas_comision::insert($arrayfacturas_comision);
+
+            /*recuperar factura, vendedor y teleoperacior del id factura*/
+
+            $datos_factura = DB::SELECTONE("select user_id as 'teleoperador', vendedor from factura where id = ".$idFacturaAbono);
+
+        }catch (QueryException $e) {
+
            return response()->json([
                "icon" => "error",
                "text" => "Ha ocurrido un error: ".$e,

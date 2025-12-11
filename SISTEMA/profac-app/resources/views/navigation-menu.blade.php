@@ -253,6 +253,18 @@
 
                         </ul>
                     </li>
+                    <li>
+                        <a><i class="fa-solid fa-user" style="color:#ffffff;"></i> <span class="nav-label"
+                                style="color:#ffffff;">Escala de comisiones</span>
+                            <span class="fa arrow"></span></a>
+                        <ul class="nav nav-second-level">
+                            <li href="dashboard_2.html"><a href="/comisiones/configuracion" style="color:#ffffff;">Gestión de Comisiones</a></li>
+                            <li href="dashboard_2.html"><a href="/comisiones/empleado" style="color:#ffffff;">Mis comisiones</a></li>
+                            <li href="dashboard_2.html"><a href="/comisiones/general" style="color:#ffffff;">Reportes de Comisión</a></li>
+
+
+                        </ul>
+                    </li>
             @endif
 
 
@@ -304,7 +316,7 @@
                 </li>
 
 
-                <li>
+                {{--  <li>
                     <a><i class="fa-solid fa-magnifying-glass-dollar" style="color:#ffffff;"></i><span class="nav-label"
                             style="color:#ffffff;">Comisiones</span>
                         <span class="fa arrow"></span></a>
@@ -312,7 +324,7 @@
                     <ul class="nav nav-second-level">
                         <li><a href="/comisiones/vendedor" style="color:#ffffff;">Comisiones Colaborador</a></li>
                     </ul>
-                </li>
+                </li>  --}}
 
                 <li>
                     <a><i class="fa-solid fa-cubes" style="color:#ffffff;">
@@ -889,7 +901,7 @@
                         <li><a href="/cierre/historico" style="color:#ffffff;">Historico de cierre</a></li>
                     </ul>
                 </li>
-                <li>
+                {{--  <li>
                     <a><i class="fa-solid fa-magnifying-glass-dollar" style="color:#ffffff;"></i><span class="nav-label"style="color:#ffffff;">Comisiones</span><span class="fa arrow"></span></a>
 
                     <ul class="nav nav-second-level">
@@ -898,7 +910,7 @@
                         <li><a href="/comisiones/vendedor" style="color:#ffffff;">Comisiones Colaborador</a></li>
                         <li><a href="/comisiones/historico" style="color:#ffffff;">Hstórico de comisiones</a></li>
                     </ul>
-                </li>
+                </li>  --}}
                 <li>
                     <a><i class="fa-solid fa-file-invoice" style="color:#ffffff;"></i><span class="nav-label" style="color:#ffffff;">Precios</span><span class="fa arrow"></span></a>
 
