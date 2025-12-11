@@ -92,7 +92,7 @@ CREATE TABLE `distribuciones_entrega_miembros` (
 CREATE TABLE `distribuciones_entrega_facturas` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `distribucion_entrega_id` BIGINT UNSIGNED NOT NULL COMMENT 'ID de la distribución',
-  `factura_id` BIGINT UNSIGNED NOT NULL COMMENT 'ID de la factura a entregar',
+  `factura_id` INT NOT NULL COMMENT 'ID de la factura a entregar',
   `orden_entrega` INT NULL COMMENT 'Orden en la ruta de entrega',
   `estado_entrega` ENUM('sin_entrega', 'parcial', 'entregado') NOT NULL DEFAULT 'sin_entrega' COMMENT 'Estado de entrega',
   `fecha_entrega_real` DATETIME NULL COMMENT 'Fecha y hora real de entrega',
@@ -105,7 +105,7 @@ CREATE TABLE `distribuciones_entrega_facturas` (
   INDEX `idx_factura` (`factura_id`),
   INDEX `idx_estado_entrega` (`estado_entrega`),
   CONSTRAINT `fk_dist_facturas_distribucion` FOREIGN KEY (`distribucion_entrega_id`) REFERENCES `distribuciones_entrega` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `fk_dist_facturas_factura` FOREIGN KEY (`factura_id`) REFERENCES `facturacion` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
+  CONSTRAINT `fk_dist_facturas_factura` FOREIGN KEY (`factura_id`) REFERENCES `factura` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Facturas asignadas a distribuciones';
 
 -- =====================================================
@@ -169,9 +169,9 @@ AFTER INSERT ON `distribuciones_entrega`
 FOR EACH ROW
 BEGIN
     -- Copiar los miembros activos del equipo con sus porcentajes al momento de crear la distribución
-    INSERT INTO `distribuciones_entrega_miembros` 
+    INSERT INTO `distribuciones_entrega_miembros`
         (`distribucion_entrega_id`, `user_id`, `porcentaje_comision`, `created_at`)
-    SELECT 
+    SELECT
         NEW.id,
         eem.user_id,
         eem.porcentaje_comision,
@@ -189,9 +189,9 @@ FOR EACH ROW
 BEGIN
     -- Actualizar snapshots de distribuciones PENDIENTES del mismo día
     IF NEW.estado_id = 1 THEN
-        INSERT INTO `distribuciones_entrega_miembros` 
+        INSERT INTO `distribuciones_entrega_miembros`
             (`distribucion_entrega_id`, `user_id`, `porcentaje_comision`, `created_at`)
-        SELECT 
+        SELECT
             de.id,
             NEW.user_id,
             NEW.porcentaje_comision,
@@ -223,7 +223,7 @@ BEGIN
         AND DATE(de.fecha_programada) = CURDATE()  -- Solo del día actual
         AND dem.user_id = NEW.user_id;
     END IF;
-    
+
     -- Si desactivan un miembro, quitar de snapshots PENDIENTES del día actual
     IF OLD.estado_id = 1 AND NEW.estado_id != 1 THEN
         DELETE dem FROM `distribuciones_entrega_miembros` dem
@@ -243,12 +243,12 @@ BEGIN
     DECLARE total_productos INT;
     DECLARE productos_entregados INT;
     DECLARE nuevo_estado VARCHAR(20);
-    
+
     -- Contar total de productos y entregados
     SELECT COUNT(*), SUM(entregado) INTO total_productos, productos_entregados
     FROM entregas_productos
     WHERE distribucion_factura_id = NEW.distribucion_factura_id;
-    
+
     -- Determinar nuevo estado
     IF productos_entregados = 0 THEN
         SET nuevo_estado = 'sin_entrega';
@@ -257,7 +257,7 @@ BEGIN
     ELSE
         SET nuevo_estado = 'parcial';
     END IF;
-    
+
     -- Actualizar estado en distribuciones_entrega_facturas
     UPDATE distribuciones_entrega_facturas
     SET estado_entrega = nuevo_estado,
@@ -273,11 +273,11 @@ BEGIN
     DECLARE total_productos INT;
     DECLARE productos_entregados INT;
     DECLARE nuevo_estado VARCHAR(20);
-    
+
     SELECT COUNT(*), SUM(entregado) INTO total_productos, productos_entregados
     FROM entregas_productos
     WHERE distribucion_factura_id = NEW.distribucion_factura_id;
-    
+
     IF productos_entregados = 0 THEN
         SET nuevo_estado = 'sin_entrega';
     ELSEIF productos_entregados = total_productos THEN
@@ -285,7 +285,7 @@ BEGIN
     ELSE
         SET nuevo_estado = 'parcial';
     END IF;
-    
+
     UPDATE distribuciones_entrega_facturas
     SET estado_entrega = nuevo_estado,
         fecha_entrega_real = IF(nuevo_estado != 'sin_entrega', NOW(), fecha_entrega_real)
@@ -332,7 +332,7 @@ NOTAS IMPORTANTES:
          * Se agrega un nuevo miembro al equipo
          * Se cambia el porcentaje de un miembro existente
          * Se quita un miembro del equipo
-       - Una vez que la distribución cambia a EN PROCESO (2), COMPLETADA (3) 
+       - Una vez que la distribución cambia a EN PROCESO (2), COMPLETADA (3)
          o CANCELADA (4), el snapshot se CONGELA y ya no se puede modificar
        - Si la distribución es de un día anterior, el snapshot NUNCA se actualiza
      * Las comisiones se calculan y pagan basándose en este snapshot
