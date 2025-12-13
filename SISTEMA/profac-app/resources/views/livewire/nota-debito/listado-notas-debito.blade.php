@@ -70,7 +70,7 @@
                                         <th>#</th>
                                         <th>Nota de débito</th>
                                         <th>Monto Asignado</th>
-                                        <th>Código de Factura</th>
+                                        <th>CAI de Factura</th>
                                         <th>Cliente</th>
                                         <th>Fecha de Emisión</th>
 
