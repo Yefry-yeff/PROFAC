@@ -60,7 +60,6 @@
 @php
 $suma=0;
 $altura =20;
-    $altura2 = 320;
     $contadorFilas = 0;
 @endphp
 
@@ -225,27 +224,22 @@ $altura =20;
         </div>
         --}}
 
-
-
-
-
-
-
-        <div style=" position: relative; margin-left:44px;">
-
-
-
-
-            <div style="position:absolute;left:0px;  margin-top:{{$altura2}}px;  width:45rem;">
-                <p class="card-text" style="position:absolute;left:20px;  top:10px;">  _______________________________________</p>
-                <p class="card-text" style="position:absolute;left:450px;  top:10px;"> _______________________________________</p>
-
-
-                <p class="card-text" style="position:absolute;left:80px;  top:25px; ">Realizado por {{ucwords($datos->realizado_por)}}</p>
-                <p class="card-text" style="position:absolute;left:550px;  top:25px;">Autorizado por</p>
-            </div>
-
-
+        <!-- Sección de firmas con espaciado dinámico -->
+        <div style="margin-left:44px; margin-top:60px; width:45rem;">
+            <table style="width: 100%; border: none;">
+                <tr>
+                    <td style="width: 50%; text-align: center; border: none; padding-top: 20px;">
+                        _______________________________________
+                        <br>
+                        Realizado por {{ucwords($datos->realizado_por)}}
+                    </td>
+                    <td style="width: 50%; text-align: center; border: none; padding-top: 20px;">
+                        _______________________________________
+                        <br>
+                        Autorizado por
+                    </td>
+                </tr>
+            </table>
         </div>
 
 
