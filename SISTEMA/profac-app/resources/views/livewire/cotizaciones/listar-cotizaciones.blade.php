@@ -28,7 +28,7 @@
 
 
                 <li class="breadcrumb-item">
-                    <a>Imprimir Cotizaci√≥n</a>
+                    <a>Imprimir Cotizaci®Æn</a>
                 </li>
                 <li class="breadcrumb-item">
                     <a>Imprimir Factura</a>
@@ -86,8 +86,15 @@
 
                     pageLength: 10,
                     responsive: true,
+                    dom: '<"html5buttons"B>lTfgitp',
+                    buttons: [
 
-
+                        {
+                            extend: 'excel',
+                            title: 'Cotizaciones',
+                            className:'btn btn-success'
+                        }
+                    ],
                     "ajax":{
                         'url':"/cotizacion/obtener/listado",
                         'data' : {'id' : idTipoVenta },

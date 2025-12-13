@@ -53,8 +53,8 @@
                                     <tr>
                                         <th>FECHA DE VENTA</th>
                                         <th>FECHA DE VENCIMIENTO</th>
-                                        <th>VENDEDOR</th>
-                                        <th>COTIZADOR</th>
+                                            <th>VENDEDOR</th>
+                                            <th>COTIZADOR</th>
                                         <th>COTIZACIÓN</th>
                                         <th>CLIENTE</th>
                                         <th>TIPO CLIENTE (AoB)</th>
