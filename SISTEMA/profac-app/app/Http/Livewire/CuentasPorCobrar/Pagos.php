@@ -829,6 +829,8 @@ class Pagos extends Component
                            $parametros_comision = DB::SELECT("select * from comision_escala where estado_id = 1 and cliente_categoria_escala_id = ". $creditoCli->cliente_categoria_escala_id);
                            $productos_factura = DB::SELECT(" select * from venta_has_producto where factura_id = ".$request->idFacturaAbono);
                            /* recorriendo los parametros para comisionar de ese cliente, en esta factura */
+
+
                            $monto_rol_factura = 0;
                            foreach ($parametros_comision as $param) {
 
@@ -915,26 +917,22 @@ class Pagos extends Component
 
                                 /*recuperar factura, vendedor y teleoperacior del id factura*/
 
-                                    dd("Hasta aqui llego?");
+
                                 $datos_factura = DB::SELECTONE("select users_id as 'teleoperador', vendedor from factura where id =".$request->idFacturaAbono);
 
                                     /*Variables constantes porque es la estructura en duro de cualquier factura */
 
                                     $idTeleoperador = $datos_factura->teleoperador;
                                     $idVendedor = $datos_factura->vendedor;
-
                                 foreach ($arrayfacturas_comision as $factura) {
-
 
                                     //----------------------------------------TELEOPERADOR
                                     if ($factura['rol_id'] == 3 ) {
 
                                         $com_empleado_teleoperador = DB::SELECT("select *
                                         from comision_empleado where estado_id = 1
-                                        and users_comision = ".$idTeleoperador."
-                                        and mes_comision = ".$factura['fecha_cierre_factura'."
-                                        and rol_id = ".$com_empleado_teleoperador->rol_id]);
-
+                                        and users_comision = ".$idTeleoperador);
+                                         dd($com_empleado_teleoperador);
                                         $nuevacomision = ($com_empleado_teleoperador->comision_acumulada + $factura['monto_rol']);
 
                                         modelcomision_empleado::where('id', $com_empleado_teleoperador->id)
