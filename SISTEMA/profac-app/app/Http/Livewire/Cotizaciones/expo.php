@@ -71,6 +71,7 @@ class expo extends Component
             inner join users D on A.users_id = D.id
             inner join marca M on M.id = A.marca_id
             where A.id = " . $id . "
+            and A.estado_producto_id =1
         ");
         return $producto;
     }
@@ -218,7 +219,7 @@ class expo extends Component
         $arrayTemporal = $request->arregloIdInputs;
         $arrayInputs = explode(',', $arrayTemporal);
         $arrayProductos = [];
-        
+
         Log::info('Array de inputs procesado:', ['arrayInputs' => $arrayInputs]);
 
         DB::beginTransaction();
@@ -309,7 +310,7 @@ class expo extends Component
                 $camposFaltantes = array_filter($camposExistentes, function($existe) {
                     return !$existe;
                 });
-                
+
                 if (!empty($camposFaltantes)) {
                     Log::warning("CAMPOS FALTANTES:", array_keys($camposFaltantes));
                 }
@@ -469,10 +470,10 @@ class expo extends Component
 
 
         DB::commit();
-        
+
         Log::info('=== COTIZACIÓN GUARDADA EXITOSAMENTE ===');
         Log::info('ID de cotización creada: ' . $cotizacion->id);
-        
+
         return response()->json([
             'icon'=>'success',
             'text'=>'Cotización guardada con éxito.',
@@ -481,15 +482,15 @@ class expo extends Component
         ],200);
 
         } catch (\Exception $e) {
-        
+
         DB::rollback();
-        
+
         Log::error('=== ERROR AL GUARDAR COTIZACIÓN ===');
         Log::error('Mensaje: ' . $e->getMessage());
         Log::error('Archivo: ' . $e->getFile());
         Log::error('Línea: ' . $e->getLine());
         Log::error('Stack trace: ' . $e->getTraceAsString());
-        
+
         return response()->json([
             'icon'=>'error',
             'text'=>'Ha ocurrido un error al guardar la cotización: ' . $e->getMessage(),
@@ -497,16 +498,16 @@ class expo extends Component
             'message' => $e->getMessage(),
             'error' => $e->getMessage()
         ],402);
-        
+
         } catch (QueryException $e) {
-        
+
         DB::rollback();
-        
+
         Log::error('=== ERROR DE BASE DE DATOS ===');
         Log::error('Mensaje: ' . $e->getMessage());
         Log::error('SQL: ' . $e->getSql());
         Log::error('Bindings: ', ['bindings' => $e->getBindings()]);
-        
+
         return response()->json([
             'icon'=>'error',
             'text'=>'Ha ocurrido un error de base de datos al guardar la cotización.',

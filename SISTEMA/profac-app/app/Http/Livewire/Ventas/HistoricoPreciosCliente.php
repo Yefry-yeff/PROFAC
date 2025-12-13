@@ -40,7 +40,7 @@ class HistoricoPreciosCliente extends Component
     public function listarProductos(Request $request){
         try {
  
-         $productos = DB::SELECT("select id, concat(id,' - ',nombre) as text from producto where (id LIKE '%".$request->search."%' or nombre Like '%".$request->search."%') limit 15");//Todos los productos
+         $productos = DB::SELECT("select id, concat(id,' - ',nombre) as text from producto where estado_producto_id = 1 and (id LIKE '%".$request->search."%' or nombre Like '%".$request->search."%') limit 15");//Todos los productos
 
         return response()->json([
             'results'=>$productos,

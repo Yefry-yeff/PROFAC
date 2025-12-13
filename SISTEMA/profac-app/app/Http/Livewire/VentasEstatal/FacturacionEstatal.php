@@ -180,6 +180,7 @@ class FacturacionEstatal extends Component
             on segmento.bodega_id = bodega.id
          where
          A.cantidad_disponible <> 0 and
+         b.estado_producto_id = 1 and
          (B.nombre LIKE '%" . $request->search . "%' or B.id LIKE '%" . $request->search . "%' or B.codigo_barra Like '%".$request->search."%')
          group by A.producto_id
          limit 15
@@ -254,7 +255,7 @@ class FacturacionEstatal extends Component
             precio2 as precio2,
             precio3 as precio3,
             precio4 as precio4
-            from producto where id = " . $request['idProducto'] . "
+            from producto where id = " . $request['idProducto'] . " and estado_producto_id = 1
             ");
 
 

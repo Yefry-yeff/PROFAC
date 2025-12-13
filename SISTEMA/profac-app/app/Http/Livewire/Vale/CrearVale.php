@@ -87,6 +87,7 @@ class CrearVale extends Component
               on A.unidad_medida_venta_id = C.id
               where A.cantidad_para_entregar <>0 and A.factura_id = ".$request->idFactura."
               and (B.id like '%".$request->search."%' or B.nombre like '%".$request->search."%' )
+              and B.estado_producto_id =1
               group by A.producto_id, A.seccion_id, A.factura_id, A.cantidad, C.unidad_venta
 
         "); //agregar group by por producto factura y seccion, agregar un and para omitir lote con 0 producto para entrega

@@ -194,71 +194,7 @@ class FacturacionCorporativa extends Component
 
          (B.nombre LIKE '%" . $request->search . "%' or B.id LIKE '%" . $request->search . "%' or B.codigo_barra Like '%" . $request->search . "%')
 
-         and B.id not in (
-            4088,
-            4036,
-            1157,
-            1321,
-            2665,
-            2585,
-            2409,
-            2464,
-            1569,
-            1506,
-            2708,
-            2937,
-            2645,
-            1118,
-            2652,
-            3355,
-            3356,
-            3358,
-            3359,
-            3360,
-            3361,
-            3362,
-            1259,
-            1231,
-            2452,
-            3386,
-            3387,
-            3084,
-            3391,
-            3390,
-            3077,
-            3375,
-            3378,
-            3384,
-            3383,
-            3381,
-            3382,
-            2948,
-            3554,
-            2714,
-            2021,
-            2026,
-            2469,
-            2025,
-            2470,
-            2024,
-            2471,
-            2022,
-            2473,
-            2921,
-            2023,
-            2472,
-            2597,
-            2277,
-            2252,
-            2544,
-            3389,
-            3388,
-            3385,
-            3357,
-            2417,
-            3887,
-            3888
-                    )
+         and B.estado_producto_id =1
          group by A.producto_id
          limit 15
          ");
@@ -347,7 +283,7 @@ class FacturacionCorporativa extends Component
             precio2 as precio2,
             precio3 as precio3,
             precio4 as precio4
-            from producto where id = " . $request['idProducto'] . "
+            from producto where id = " . $request['idProducto'] . " and estado_producto_id = 1
             ");
 
 

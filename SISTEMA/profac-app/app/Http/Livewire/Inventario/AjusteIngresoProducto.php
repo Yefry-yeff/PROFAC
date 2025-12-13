@@ -29,7 +29,7 @@ class AjusteIngresoProducto extends Component
         try {
 
 
-            $productos = DB::SELECT("select id, concat(id,' - ',nombre) as text   from producto where nombre like '%".$request->search."%' or id like '%".$request->search."%' or codigo_barra like '%".$request->search."%' limit 15");
+            $productos = DB::SELECT("select id, concat(id,' - ',nombre) as text   from producto where estado_producto_id = 1 and (nombre like '%".$request->search."%' or id like '%".$request->search."%' or codigo_barra like '%".$request->search."%') limit 15");
 
  
         return response()->json([
@@ -46,7 +46,7 @@ class AjusteIngresoProducto extends Component
     public function datosProducto(Request $request){
         try {
 
-         $producto = DB::SELECTONE("select id, nombre, precio_base from producto where id=".$request->id);
+         $producto = DB::SELECTONE("select id, nombre, precio_base from producto where id=".$request->id." and estado_producto_id = 1");
  
          $datosBodega = DB::SELECTONE("
          select

@@ -130,7 +130,7 @@ class Ajustes extends Component
      public function datosProducto(Request $request){
        try {
 
-        $producto = DB::SELECTONE("select id, nombre, precio_base from producto where id=".$request->id);
+        $producto = DB::SELECTONE("select id, nombre, precio_base from producto where id=".$request->id." and estado_producto_id = 1");
 
         $datosBodega = DB::SELECTONE("
         select
