@@ -117,7 +117,7 @@ $(document).ready(function() {
         "ajax": "/debito/lista/facturas",
         "columns": [
             {
-                data: 'numero_factura'
+                data: 'cai'
             },
             {
                 data: 'fecha_emision'

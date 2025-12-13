@@ -180,7 +180,7 @@
                                         <thead class="">
                                             <tr>
 
-                                                <th>N° Factura</th>
+                                                <th>CAI</th>
                                                 <th>Fecha de Emision</th>
                                                 <th>Cliente</th>
                                                 <th>Tipo de Pago</th>

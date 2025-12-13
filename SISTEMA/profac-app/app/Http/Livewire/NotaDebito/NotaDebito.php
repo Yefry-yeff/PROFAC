@@ -38,12 +38,14 @@ class NotaDebito extends Component
 
         try {
 
+            // Obtener el monto activo una sola vez
+            $montoDebito = DB::SELECTONE("select monto, id from montonotadebito where estado_id = 1 limit 1");
+
             $listaFacturas = DB::SELECT("
             select
             factura.id as id,
             @i := @i + 1 as contador,
-            numero_factura,
-            factura.cai as correlativo,
+            factura.cai,
             fecha_emision,
             cliente.nombre,
             tipo_pago_venta.descripcion,
@@ -54,15 +56,13 @@ class NotaDebito extends Component
             factura.credito,
             users.name as creado_por,
             factura.pendiente_cobro as monto_pagado,
-            factura.estado_venta_id
+            factura.estado_venta_id,
+            (select COUNT(factura_id) from notadebito where notadebito.factura_id = factura.id and notadebito.estado_id = 1) as tiene_nota_debito
 
             from factura
-            inner join cliente
-            on factura.cliente_id = cliente.id
-            inner join tipo_pago_venta
-            on factura.tipo_pago_id = tipo_pago_venta.id
-            inner join users
-            on factura.vendedor = users.id
+            inner join cliente on factura.cliente_id = cliente.id
+            inner join tipo_pago_venta on factura.tipo_pago_id = tipo_pago_venta.id
+            inner join users on factura.vendedor = users.id
 
             cross join (select @i := 0) r
             where factura.fecha_emision > DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
@@ -75,15 +75,9 @@ class NotaDebito extends Component
 
 
             return Datatables::of($listaFacturas)
-            ->addColumn('opciones', function ($listaFacturas) {
+            ->addColumn('opciones', function ($listaFacturas) use ($montoDebito) {
 
-                $existencianDebito = DB::SELECTONE("select COUNT(factura_id) as 'existe' from notadebito
-                where notadebito.factura_id = ".$listaFacturas->id." and notadebito.estado_id = 1");
-
-
-                    if ($existencianDebito->existe == 0) {
-
-                        $montoDebito = DB::SELECTONE("select monto, id from montonotadebito where estado_id = 1");
+                    if ($listaFacturas->tiene_nota_debito == 0) {
 
                         return
 
@@ -93,7 +87,7 @@ class NotaDebito extends Component
                             <ul class="dropdown-menu" x-placement="bottom-start" style="position: absolute; top: 33px; left: 0px; will-change: top, left;">
 
                                 <li>
-                                    <a class="dropdown-item" onclick="llenadoModalDebito('.$listaFacturas->id.', '.$montoDebito->monto.', '.$montoDebito->id.')" > <i class="fa-solid fa-arrows-to-eye text-info"></i> Asignar Noda Débito </a>
+                                    <a class="dropdown-item" onclick="llenadoModalDebito('.$listaFacturas->id.', '.($montoDebito ? $montoDebito->monto : 0).', '.($montoDebito ? $montoDebito->id : 0).')" > <i class="fa-solid fa-arrows-to-eye text-info"></i> Asignar Noda Débito </a>
                                 </li>
 
                             </ul>
@@ -138,9 +132,7 @@ class NotaDebito extends Component
            })
            ->addColumn('estado_ndebito', function ($listaFacturas) {
 
-                $existencianDebito = DB::SELECTONE("select COUNT(factura_id) as 'existe' from notadebito
-                where notadebito.factura_id = ".$listaFacturas->id." and notadebito.estado_id = 1");
-               if( $existencianDebito->existe == 0 ){
+               if( $listaFacturas->tiene_nota_debito == 0 ){
                    return
                    '
                    <p class="text-center"><span class="badge badge-danger p-2" style="font-size:0.75rem">Nota Sin Asignar</span></p>
@@ -174,18 +166,19 @@ class NotaDebito extends Component
 
             $listaMontos = DB::SELECT("
                 select
-                id,
+                montonotadebito.id,
                 monto,
-                (select name from users where id = montonotadebito.users_registra_id) as 'user',
-                created_at
+                users.name as 'user',
+                montonotadebito.created_at,
+                montonotadebito.estado_id
                 from montonotadebito
-                where estado_id = 1
+                left join users on users.id = montonotadebito.users_registra_id
+                where montonotadebito.estado_id = 1
             ");
 
             return Datatables::of($listaMontos)
             ->addColumn('estado_monto', function ($listaMontos) {
-                $ESTADOmONTO = DB::SELECTONE("select estado_id from montonotadebito where id = ".$listaMontos->id);
-                if( $ESTADOmONTO->estado_id == 1){
+                if( $listaMontos->estado_id == 1){
 
                     return
                     '
