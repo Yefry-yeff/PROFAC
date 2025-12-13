@@ -12,7 +12,7 @@
         }
 
         p {
-            font-size: 12px;
+            font-size: 9px;
         }
 
         body {
@@ -28,7 +28,7 @@
         }
 
         table {
-        font-size: 12px;
+        font-size: 9px;
         border-collapse: collapse;
         border-spacing: 0;
         width: 100%;
@@ -68,7 +68,7 @@ $altura =20;
         <img src="img/membrete/Logo3.png" width="800rem"
         style="margin-left:3%; margin-top:25px; position:absolute;"
          alt="">
-        <div class="card border border-dark" style="margin-left:44px;  margin-top:150px; width:45rem; height:4rem;">
+        <div class="border card border-dark" style="margin-left:44px;  margin-top:150px; width:45rem; height:4rem;">
             <div class="card-header">
                 <b>Registro de Ajuste No. {{$ajuste->numero_ajuste}} </b>
 
@@ -77,7 +77,7 @@ $altura =20;
 
         </div>
 
-        <div class="card border border-dark"   style="margin-left:44px; margin-top:10px; width:45rem; height:7rem;">
+        <div class="border card border-dark"   style="margin-left:44px; margin-top:10px; width:45rem; height:7rem;">
             <div class="card-body">
 
                 <p class="card-text "  style="position:absolute;left:20px;  top:10px;"><b>Fecha de Ajuste: </b> {{$datos->fecha}}
@@ -98,7 +98,7 @@ $altura =20;
             </div>
         </div>
 
-        <div class="card border border-dark" style="position: relative; margin-left:44px; margin-top:10px; width:45rem; page-break-inside: auto;">
+        <div class="border card border-dark" style="position: relative; margin-left:44px; margin-top:10px; width:45rem; page-break-inside: auto;">
             <div >
 
 
@@ -137,7 +137,7 @@ $altura =20;
             </div>
         </div>
 
-        {{--  <div class="card  border-dark" style="position: relative; margin-left:44px; margin-top:10px; width:45rem; page-break-inside: auto;">
+        {{--  <div class="card border-dark" style="position: relative; margin-left:44px; margin-top:10px; width:45rem; page-break-inside: auto;">
                 <table>
                     <thead>
                         <tr>
