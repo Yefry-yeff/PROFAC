@@ -421,6 +421,31 @@
                         <li><a href="/producto/registro" style="color:#ffffff;">Catálogo</a></li>
                     </ul>
                 </li>
+                <li>
+                    <a><i class="fa-solid fa-check-to-slot" style="color:#ffffff"></i> </i><span class="nav-label" style="color:#ffffff;">Comprobante De Entrega</span><span class="fa arrow"></span></a>
+
+                    <ul class="nav nav-second-level">
+                        <li><a href="/comprobante/entrega" style="color:#ffffff;">Crear Comprobante</a></li>
+                        <li><a href="/comprovante/entrega/listado" style="color:#ffffff;">Listado de Comprobantes</a></li>
+                        <li><a href=" /comprovante/entrega/anulados" style="color:#ffffff;">Listado de Anulados</a></li>
+                    </ul>
+                </li>
+                                <li>
+                    <a><i class="fa-solid fa-truck-medical" style="color:#ffffff"></i><span class="nav-label" style="color:#ffffff;">Entregas Agendadas</span><span class="fa arrow"></span></a>
+
+                    <ul class="nav nav-second-level">
+                        <li><a href=" /listar/vale/entrega" style="color:#ffffff;">Listado de Entregas</a></li>
+                    </ul>
+                </li>
+                                <li>
+                    <a><i class="fa-solid fa-list-check" style="color:#ffffff;"></i><span class="nav-label" style="color:#ffffff;">Vale</span><span class="fa arrow"></span></a>
+
+                    <ul class="nav nav-second-level">
+                        {{-- <li><a href="/vale/listado/facturas" style="color:#ffffff;">Agregar vale a factura</a>
+                        </li> --}}
+                        <li><a href="/vale/restar/inventario" style="color:#ffffff;">Lista de vales</a></li>
+                    </ul>
+                </li>
             @endif
 
             @if (Auth::user()->rol_id == '4' or Auth::user()->rol_id == '1')
