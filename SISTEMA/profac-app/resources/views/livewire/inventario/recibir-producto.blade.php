@@ -78,6 +78,7 @@
                                         <th>N°</th>
                                         <th>Codigo de Producto</th>
                                         <th>Nombre</th>
+                                        <th>Unidad de Medida</th>
                                         <th>Precio</th>
                                         <th>Cantidad</th>
                                         <th>Cantidad sin asignar</th>

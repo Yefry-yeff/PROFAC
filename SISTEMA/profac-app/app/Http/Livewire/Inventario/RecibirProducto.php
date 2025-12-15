@@ -68,12 +68,14 @@ class RecibirProducto extends Component
             A.precio_total,
             if(A.fecha_expiracion is null, 'No definido',A.fecha_expiracion) as fecha_expiracion,
             (select sum(cantidad_inicial_seccion) from recibido_bodega where producto_id = A.producto_id and compra_id = A.compra_id ) as 'cantidad_ingresada_bodega',
-            A.unidades_compra
+            A.unidades_compra,
+            U.nombre as unidad_medida
 
         from
             compra_has_producto A
             inner join producto
             on producto.id = A.producto_id
+            INNER JOIN unidad_medida U on U.id = A.unidad_compra_id
             cross join (select @i := 0) r
             where A.compra_id = ".$id."
 
@@ -139,24 +141,24 @@ class RecibirProducto extends Component
                         return
                         '
 
-                        <p class="text-center" ><span class="badge badge-primary p-2" style="font-size:0.95rem">Recibido</span></p>
+                        <p class="text-center" ><span class="p-2 badge badge-primary" style="font-size:0.95rem">Recibido</span></p>
                         ';
 
                     }else if($cantidadBodega < $listaCompra->cantidad_comprada  ){
                         return
                         '
-                        <p class="text-center"><span class="badge badge-danger p-2" style="font-size:0.95rem">Incompleto</span></p>
+                        <p class="text-center"><span class="p-2 badge badge-danger" style="font-size:0.95rem">Incompleto</span></p>
                         ';
                     }else if($cantidadBodega > $listaCompra->cantidad_comprada){
                         return
                         '
-                        <p class="text-center"><span class="badge badge-info p-2" style="font-size:0.95rem">Excedente</span></p>
+                        <p class="text-center"><span class="p-2 badge badge-info" style="font-size:0.95rem">Excedente</span></p>
                         ';
 
                     }else if($cantidadBodega >= 0){
                         return
                         '
-                        <p class="text-center"><span class="badge p-2" style="font-size:0.95rem">No recibido</span></p>
+                        <p class="text-center"><span class="p-2 badge" style="font-size:0.95rem">No recibido</span></p>
                         ';
                     }
 

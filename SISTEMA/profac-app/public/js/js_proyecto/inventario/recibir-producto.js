@@ -471,6 +471,9 @@ $(document).ready(function() {
                 "data": "nombre"
             },
             {
+                "data": "unidad_medida"
+            },
+            {
                 "data": "precio_unidad"
             },
             {
