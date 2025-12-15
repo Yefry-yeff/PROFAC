@@ -318,6 +318,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('/usuario/info/{idUsuario}', [ListarUsuarios::class, 'infoUsuario']);
     Route::get('/usuario/roles/{idRol}', [ListarUsuarios::class, 'selectRoles']);
     Route::get('/usuario/baja/{idUsuario}', [ListarUsuarios::class, 'baja']);
+    Route::get('/usuario/activar/{idUsuario}', [ListarUsuarios::class, 'activar']);
 
 
     /*------------------------------------------------NUEVAS RUTAS DE ACCESO A USUARIOS  */

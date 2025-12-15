@@ -44,33 +44,49 @@ class ListarUsuarios extends Component
             identidad,
             fecha_nacimiento,
             rol.nombre as tipo_usuario,
+            estado.id as estado_id,
+            estado.descripcion as estado,
             users.created_at as fecha_registro
 
-            FROM users inner join rol
-            on users.rol_id = rol.id
-            cross join (select @i := 0) r
+            FROM users 
+            INNER JOIN rol ON users.rol_id = rol.id
+            INNER JOIN estado ON users.estado_id = estado.id
+            CROSS JOIN (SELECT @i := 0) r
 
 
             ");
 
             return Datatables::of($listaUsuarios)
             ->addColumn('opciones', function ($nota) {
-
-                return
-
-                '
+                $opciones = '
                     <div class="btn-group">
-                        <button data-toggle="dropdown" class="btn btn-warning dropdown-toggle" aria-expanded="false">Ver
-                            más</button>
+                        <button data-toggle="dropdown" class="btn btn-warning dropdown-toggle" aria-expanded="false">Ver más</button>
                         <ul class="dropdown-menu" x-placement="bottom-start"
                             style="position: absolute; top: 33px; left: 0px; will-change: top, left;">
-                            <li><a class="dropdown-item" onclick="infoUsuario('.$nota->id.')"> <i class="fa fa-pencil m-r-5 text-warning"></i>Editar Rol</a></li>
-                            <li><a class="dropdown-item" onclick="baja('.$nota->id.')"> <i class="fa fa-times text-danger" aria-hidden="true"></i>
-                                    Dar de baja </a></li>
-
+                            <li><a class="dropdown-item" onclick="infoUsuario('.$nota->id.')"> 
+                                <i class="fa fa-pencil m-r-5 text-warning"></i>Editar Rol</a></li>';
+                
+                // Mostrar opción según el estado
+                if ($nota->estado_id == 1) {
+                    // Usuario activo - mostrar opción de dar de baja
+                    $opciones .= '
+                            <li><a class="dropdown-item" onclick="baja('.$nota->id.')"> 
+                                <i class="fa fa-times text-danger" aria-hidden="true"></i>
+                                Dar de baja</a></li>';
+                } else {
+                    // Usuario inactivo - mostrar opción de activar
+                    $opciones .= '
+                            <li><a class="dropdown-item" onclick="activar('.$nota->id.')"> 
+                                <i class="fa fa-check text-success" aria-hidden="true"></i>
+                                Activar</a></li>';
+                }
+                
+                $opciones .= '
                         </ul>
                     </div>
                 ';
+                
+                return $opciones;
             })->rawColumns(['opciones'])
 
             ->make(true);
@@ -120,6 +136,7 @@ class ListarUsuarios extends Component
             $usuario->email = $request->email_user;
             $usuario->password = $request->pass_user;
             $usuario->rol_id = $request->rol_user;
+            $usuario->estado_id = 1; // Por defecto, usuario activo
             $usuario->save();
 
 
@@ -208,13 +225,30 @@ class ListarUsuarios extends Component
 
     public function baja($idUsuario){
         $usuario = usuario::find($idUsuario);
-        $usuario->rol_id = NULL;
+        // Cambiar el estado a 2 (Inactivo)
+        $usuario->estado_id = 2;
         $usuario->save();
 
         return response()->json([
              'icon'=>'success',
              'title'=>'Exito!',
-             'text'=>'Usuario Dado de baja con exito.'
+             'text'=>'Usuario dado de baja con éxito.'
+        ],200);
+    }
+    
+    /**
+     * Método para activar un usuario
+     */
+    public function activar($idUsuario){
+        $usuario = usuario::find($idUsuario);
+        // Cambiar el estado a 1 (Activo)
+        $usuario->estado_id = 1;
+        $usuario->save();
+
+        return response()->json([
+             'icon'=>'success',
+             'title'=>'Exito!',
+             'text'=>'Usuario activado con éxito.'
         ],200);
     }
 }

@@ -47,7 +47,7 @@ $(document).ready(function()
     $('#tbl_usuariosListar').DataTable({
         "order": [0, 'desc'],
         "language": {
-            "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
+            "url": "https://cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
         },
         pageLength: 10,
         responsive: true,
@@ -83,6 +83,16 @@ $(document).ready(function()
             },
             {
                 data: 'tipo_usuario'
+            },
+            {
+                data: 'estado',
+                render: function(data, type, row) {
+                    if (row.estado_id == 1) {
+                        return '<span class="badge badge-success">'+data+'</span>';
+                    } else {
+                        return '<span class="badge badge-danger">'+data+'</span>';
+                    }
+                }
             },
             {
                 data: 'fecha_registro'
@@ -195,25 +205,65 @@ function actualizarUsuario() {
 }
 
 function baja(idUsuario){
+    Swal.fire({
+        title: '¿Está seguro?',
+        text: "¿Desea dar de baja a este usuario?",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Sí, dar de baja',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            axios.get('/usuario/baja/'+idUsuario).then(function(response) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Exito!',
+                    text: "Usuario dado de baja con éxito."
+                });
+                $('#tbl_usuariosListar').DataTable().ajax.reload();
+            })
+            .catch(function(error) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: "Ha ocurrido un error al dar de baja el usuario."
+                });
+                console.log(error);
+            });
+        }
+    });
+}
 
-    axios.get('/usuario/baja/'+idUsuario).then(function(response) {
-
-        Swal.fire({
-            icon: 'success',
-            title: 'Exito!',
-            text: "Usuario Dado de baja con exito."
-        });
-
-        location.reload();
-    })
-    .catch(function(error) {
-        // handle error
-        console.log(error);
-
-        Swal.fire({
-            icon: 'error',
-            title: 'Error...',
-            text: "Ha ocurrido un error"
-        });
+function activar(idUsuario){
+    Swal.fire({
+        title: '¿Está seguro?',
+        text: "¿Desea activar a este usuario?",
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#28a745',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Sí, activar',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            axios.get('/usuario/activar/'+idUsuario).then(function(response) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Exito!',
+                    text: "Usuario activado con éxito."
+                });
+                $('#tbl_usuariosListar').DataTable().ajax.reload();
+            })
+            .catch(function(error) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: "Ha ocurrido un error al activar el usuario."
+                });
+                console.log(error);
+            });
+        }
     });
 }
