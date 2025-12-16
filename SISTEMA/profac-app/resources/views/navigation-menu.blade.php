@@ -34,9 +34,15 @@
                             @if (Laravel\Jetstream\Jetstream::managesProfilePhotos())
                                 <button
                                     class="flex text-sm transition border-2 border-transparent rounded-full focus:outline-none focus:border-gray-300">
-                                    <img class="object-cover w-8 h-8 rounded-full"
-                                        src="{{ asset('storage/' . Auth::user()->profile_photo_path) }}"
-                                        alt="{{ Auth::user()->name }}" />
+                                    @if (Auth::user()->profile_photo_path && file_exists(public_path('storage/' . Auth::user()->profile_photo_path)))
+                                        <img class="object-cover w-8 h-8 rounded-full"
+                                            src="{{ asset('storage/' . Auth::user()->profile_photo_path) }}"
+                                            alt="{{ Auth::user()->name }}" />
+                                    @else
+                                        <div class="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 font-bold">
+                                            {{ substr(Auth::user()->name, 0, 1) }}
+                                        </div>
+                                    @endif
                                 </button>
                             @else
                                 <span class="inline-flex rounded-md">
@@ -117,9 +123,15 @@
             <div class="flex items-center px-4">
                 @if (Laravel\Jetstream\Jetstream::managesProfilePhotos())
                     <div class="mr-3 shrink-0">
-                        <img class="object-cover w-10 h-10 rounded-full"
-                            src="{{ asset('storage/' . Auth::user()->profile_photo_path) }}"
-                            alt="{{ Auth::user()->name }}" />
+                        @if (Auth::user()->profile_photo_path && file_exists(public_path('storage/' . Auth::user()->profile_photo_path)))
+                            <img class="object-cover w-10 h-10 rounded-full"
+                                src="{{ asset('storage/' . Auth::user()->profile_photo_path) }}"
+                                alt="{{ Auth::user()->name }}" />
+                        @else
+                            <div class="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 font-bold text-lg">
+                                {{ substr(Auth::user()->name, 0, 1) }}
+                            </div>
+                        @endif
                     </div>
                 @endif
 

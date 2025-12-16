@@ -81,14 +81,21 @@ function guardarMenu() {
 
     axios[metodo](url, datos)
         .then(response => {
-            Swal.fire({
-                title: 'Éxito',
-                text: response.data.mensaje || 'Menú guardado correctamente',
-                icon: 'success',
-                confirmButtonText: 'Aceptar'
-            }).then(() => {
-                $('#modalMenu').modal('hide');
-                location.reload();
+            // Cerrar el modal primero
+            $('#modalMenu').modal('hide');
+            
+            // Esperar a que el modal se cierre completamente antes de mostrar SweetAlert
+            $('#modalMenu').on('hidden.bs.modal', function () {
+                Swal.fire({
+                    title: 'Éxito',
+                    text: response.data.mensaje || 'Menú guardado correctamente',
+                    icon: 'success',
+                    confirmButtonText: 'Aceptar'
+                }).then(() => {
+                    location.reload();
+                });
+                // Remover el event listener para evitar duplicados
+                $(this).off('hidden.bs.modal');
             });
         })
         .catch(error => {
@@ -177,14 +184,21 @@ function guardarSubmenu() {
 
     axios[metodo](url, datos)
         .then(response => {
-            Swal.fire({
-                title: 'Éxito',
-                text: response.data.mensaje || 'Submenu guardado correctamente',
-                icon: 'success',
-                confirmButtonText: 'Aceptar'
-            }).then(() => {
-                $('#modalSubmenu').modal('hide');
-                location.reload();
+            // Cerrar el modal primero
+            $('#modalSubmenu').modal('hide');
+            
+            // Esperar a que el modal se cierre completamente antes de mostrar SweetAlert
+            $('#modalSubmenu').on('hidden.bs.modal', function () {
+                Swal.fire({
+                    title: 'Éxito',
+                    text: response.data.mensaje || 'Submenu guardado correctamente',
+                    icon: 'success',
+                    confirmButtonText: 'Aceptar'
+                }).then(() => {
+                    location.reload();
+                });
+                // Remover el event listener para evitar duplicados
+                $(this).off('hidden.bs.modal');
             });
         })
         .catch(error => {
