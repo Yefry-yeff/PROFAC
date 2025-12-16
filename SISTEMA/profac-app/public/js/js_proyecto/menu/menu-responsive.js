@@ -211,15 +211,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // DIAGNÓSTICO: Verificar si los iconos existen
-    console.log('=== DIAGNÓSTICO DE ICONOS ===');
     const allMenuIcons = document.querySelectorAll('#side-menu li a i');
-    console.log('Total de iconos encontrados:', allMenuIcons.length);
-    
-    if (allMenuIcons.length > 0) {
-        console.log('Primer icono:', allMenuIcons[0]);
-        console.log('Clases del primer icono:', allMenuIcons[0].className);
-        console.log('Estilos computados del primer icono:', window.getComputedStyle(allMenuIcons[0]).display);
-    }
     
     // Ejecutar al cargar
     forceIconsVisible();
@@ -230,13 +222,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setTimeout(forceIconsVisible, 1000);
     
     // Re-diagnóstico después de aplicar estilos
-    setTimeout(function() {
-        console.log('=== DESPUÉS DE FORZAR ESTILOS ===');
-        if (allMenuIcons.length > 0) {
-            console.log('Display del primer icono:', allMenuIcons[0].style.display);
-            console.log('Visibility del primer icono:', allMenuIcons[0].style.visibility);
-        }
-    }, 1100);
+    // Logs de diagnóstico eliminados
     
     // Observar cambios en el DOM para aplicar estilos a iconos nuevos
     const observer = new MutationObserver(function(mutations) {

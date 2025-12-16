@@ -1,6 +1,6 @@
 <div>
-    <div class="row wrapper border-bottom white-bg page-heading">
-        <div class="col-lg-10">
+    <div class="row wrapper border-bottom white-bg page-heading d-flex align-items-center">
+        <div class="col-lg-12 col-xl-12 col-md-12 col-sm-12">
             <h2>Gestión de Roles</h2>
             <ol class="breadcrumb">
                 <li class="breadcrumb-item">
@@ -33,21 +33,21 @@
             </div>
         @endif
 
+        <div class="row mb-3">
+            <div class="col-lg-12 text-right">
+                <button type="button" class="btn btn-primary" onclick="abrirModalRol()">
+                    <i class="fa fa-plus"></i> Nuevo Rol
+                </button>
+            </div>
+        </div>
+
         <!-- Contenido Principal -->
         <div class="row">
             <div class="col-lg-12">
                 <div class="ibox">
-                    <div class="ibox-title">
-                        <h5><i class="fa fa-users"></i> Lista de Roles</h5>
-                        <div class="ibox-tools">
-                            <button type="button" class="btn btn-primary btn-sm" onclick="abrirModalRol()">
-                                <i class="fa fa-plus"></i> Nuevo Rol
-                            </button>
-                        </div>
-                    </div>
                     <div class="ibox-content">
                         <div class="table-responsive">
-                            <table class="table table-striped table-bordered table-hover" id="tablaRoles">
+                            <table id="tablaRoles" class="table table-striped table-bordered table-hover">
                                 <thead>
                                     <tr>
                                         <th>ID</th>
@@ -60,7 +60,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {{-- Los datos se cargarán vía DataTables --}}
+                                    
                                 </tbody>
                             </table>
                         </div>
@@ -73,7 +73,7 @@
 
     <!-- Modal para Crear/Editar Rol -->
     <div class="modal fade" id="modalRol" tabindex="-1" role="dialog" aria-labelledby="modalRolLabel" aria-hidden="true">
-        <div class="modal-dialog" role="document">
+        <div class="modal-dialog modal-lg" role="document">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="tituloModalRol">Nuevo Rol</h5>
@@ -81,34 +81,83 @@
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
-                <form id="formRol" data-parsley-validate>
+                <form id="formRol">
                     <div class="modal-body">
                         <input type="hidden" id="rolId">
                         
-                        <div class="form-group">
-                            <label for="rolNombre">Nombre del Rol <span class="text-danger">*</span></label>
-                            <input type="text" 
-                                   class="form-control" 
-                                   id="rolNombre" 
-                                   placeholder="Ej: Administrador, Vendedor, etc."
-                                   required
-                                   data-parsley-required-message="El nombre del rol es obligatorio"
-                                   data-parsley-maxlength="255">
-                            <small class="form-text text-muted">
-                                <i class="fa fa-info-circle"></i> Ingrese un nombre descriptivo para el rol
-                            </small>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="rolNombre">Nombre del Rol <span class="text-danger">*</span></label>
+                                    <input type="text" 
+                                           class="form-control" 
+                                           id="rolNombre" 
+                                           placeholder="Ej: Administrador, Vendedor, etc."
+                                           required>
+                                    <small class="form-text text-muted">
+                                        <i class="fa fa-info-circle"></i> Ingrese un nombre descriptivo para el rol
+                                    </small>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="rolEstado">Estado <span class="text-danger">*</span></label>
+                                    <select class="form-control" id="rolEstado" required>
+                                        @foreach($estados as $estado)
+                                            <option value="{{ $estado->id }}">{{ $estado->descripcion }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
                         </div>
 
-                        <div class="form-group">
-                            <label for="rolEstado">Estado <span class="text-danger">*</span></label>
-                            <select class="form-control" id="rolEstado" required>
-                                @foreach($estados as $estado)
-                                    <option value="{{ $estado->id }}">{{ $estado->descripcion }}</option>
-                                @endforeach
-                            </select>
+                        <!-- Sección de Usuarios del Rol (solo visible al editar) -->
+                        <div id="seccionUsuarios" style="display:none;">
+                            <hr>
+                            <h6><i class="fa fa-users"></i> Usuarios Asignados a este Rol</h6>
+                            
+                            <div class="row mb-3">
+                                <div class="col-md-12">
+                                    <div class="input-group">
+                                        <select class="form-control" id="selectUsuarioAgregar">
+                                            <option value="">Seleccione un usuario para agregar...</option>
+                                        </select>
+                                        <div class="input-group-append">
+                                            <button type="button" class="btn btn-primary" onclick="event.stopPropagation(); event.preventDefault(); agregarUsuarioAlRol(event); return false;">
+                                                <i class="fa fa-plus"></i> Agregar
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <small class="form-text text-muted">
+                                        <i class="fa fa-info-circle"></i> Si el usuario ya tiene otro rol, se actualizará automáticamente
+                                    </small>
+                                </div>
+                            </div>
+
+                            <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                                <table class="table table-sm table-bordered table-hover" id="tablaUsuariosRol">
+                                    <thead class="thead-light">
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Nombre</th>
+                                            <th>Email</th>
+                                            <th>Rol Anterior</th>
+                                            <th width="80px">Acción</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="listaUsuariosRol">
+                                        <tr>
+                                            <td colspan="5" class="text-center text-muted">
+                                                <i class="fa fa-info-circle"></i> No hay usuarios asignados
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
 
-                        <div class="alert alert-info" role="alert">
+                        <div class="alert alert-info mt-3" role="alert">
                             <i class="fa fa-info-circle"></i> 
                             <strong>Nota:</strong> Los permisos del rol se gestionan en el módulo de "Gestión de Menús".
                         </div>
@@ -126,7 +175,7 @@
         </div>
     </div>
 
-    <!-- Modal de Confirmación para Eliminar -->
+    <!-- Modal de Confirmación para Eliminar Rol -->
     <div class="modal fade" id="modalConfirmarEliminar" tabindex="-1" role="dialog">
         <div class="modal-dialog modal-sm" role="document">
             <div class="modal-content">
@@ -155,6 +204,38 @@
         </div>
     </div>
 
+    <!-- Modal de Confirmación para Quitar Usuario -->
+    <div class="modal fade" id="modalConfirmarQuitarUsuario" tabindex="-1" role="dialog" data-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header bg-warning">
+                    <h5 class="modal-title">
+                        <i class="fa fa-exclamation-triangle"></i> Confirmar Acción
+                    </h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p>¿Está seguro de quitar este usuario del rol?</p>
+                    <p class="text-muted mb-0">
+                        <small><i class="fa fa-info-circle"></i> El cambio se aplicará cuando presione "Guardar" en el formulario principal.</small>
+                    </p>
+                    <input type="hidden" id="usuarioQuitarId">
+                    <input type="hidden" id="usuarioQuitarRolId">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                        <i class="fa fa-times"></i> Cancelar
+                    </button>
+                    <button type="button" class="btn btn-warning" onclick="event.stopPropagation(); confirmarQuitarUsuarioDelRol(); return false;">
+                        <i class="fa fa-check"></i> Sí, quitar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal Spinner Loading -->
     <div class="modal fade" id="modalSpinnerLoading" tabindex="-1" role="dialog" data-backdrop="static" data-keyboard="false">
         <div class="modal-dialog modal-dialog-centered modal-sm" role="document">
@@ -175,9 +256,9 @@
     <link href="{{ asset('css/plugins/dataTables/datatables.min.css') }}" rel="stylesheet">
     <script src="{{ asset('js/plugins/dataTables/datatables.min.js') }}"></script>
     
-    <!-- Parsley Validation -->
-    <link href="{{ asset('css/plugins/parsley/parsley.css') }}" rel="stylesheet">
-    <script src="{{ asset('js/plugins/parsley/parsley.min.js') }}"></script>
+    {{-- Parsley Validation - Comentado porque no existe en el proyecto --}}
+    {{-- <link href="{{ asset('css/plugins/parsley/parsley.css') }}" rel="stylesheet"> --}}
+    {{-- <script src="{{ asset('js/plugins/parsley/parsley.min.js') }}"></script> --}}
     
     <!-- SweetAlert2 -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>

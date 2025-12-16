@@ -158,21 +158,33 @@ class Roles extends Component
      */
     public function actualizarRol(Request $request, $id)
     {
+        \Log::info('=== ACTUALIZAR ROL INICIO ===');
+        \Log::info('Request data', ['data' => $request->all()]);
+        \Log::info('Rol ID', ['id' => $id]);
+        
         try {
             $request->validate([
                 'nombre' => 'required|string|max:255|unique:rol,nombre,' . $id,
                 'estado_id' => 'required|integer|exists:estado,id'
             ]);
 
+            \Log::info('Validación exitosa');
+
             DB::beginTransaction();
 
             $rol = Rol::findOrFail($id);
+            \Log::info('Rol encontrado', ['rol_id' => $rol->id, 'nombre' => $rol->nombre]);
+            
             $rol->update([
                 'nombre' => $request->nombre,
                 'estado_id' => $request->estado_id
             ]);
 
+            \Log::info('Rol actualizado');
+
             DB::commit();
+
+            \Log::info('=== ACTUALIZAR ROL FIN ===');
 
             return response()->json([
                 'success' => true,
@@ -182,6 +194,7 @@ class Roles extends Component
 
         } catch (\Exception $e) {
             DB::rollBack();
+            \Log::error('Error al actualizar rol', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
             return response()->json([
                 'success' => false,
                 'mensaje' => 'Error al actualizar rol: ' . $e->getMessage()
@@ -276,6 +289,185 @@ class Roles extends Component
             return response()->json([
                 'success' => false,
                 'mensaje' => 'Error al listar estados: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Obtener usuarios de un rol
+     */
+    public function obtenerUsuariosDelRol($rolId)
+    {
+        try {
+            $usuarios = DB::table('users')
+                ->leftJoin('rol as rol_anterior', 'users.rol_id', '=', 'rol_anterior.id')
+                ->where('users.rol_id', $rolId)
+                ->select(
+                    'users.id', 
+                    'users.name', 
+                    'users.email', 
+                    'users.rol_id',
+                    'rol_anterior.nombre as rol_anterior_nombre'
+                )
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => $usuarios
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'mensaje' => 'Error al obtener usuarios: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Agregar usuario al rol
+     */
+    public function agregarUsuarioAlRol(Request $request, $rolId)
+    {
+        \Log::info('=== AGREGAR USUARIO AL ROL INICIO ===');
+        \Log::info('Request data', ['data' => $request->all()]);
+        \Log::info('Rol ID', ['id' => $rolId]);
+        
+        try {
+            $request->validate([
+                'usuario_id' => 'required|integer|exists:users,id'
+            ]);
+
+            \Log::info('Validación exitosa');
+
+            DB::beginTransaction();
+
+            $usuario = DB::table('users')->where('id', $request->usuario_id)->first();
+            \Log::info('Usuario encontrado', ['usuario_id' => $usuario->id, 'rol_anterior' => $usuario->rol_id]);
+            
+            $rolAnterior = $usuario->rol_id;
+
+            // Actualizar el rol del usuario
+            DB::table('users')
+                ->where('id', $request->usuario_id)
+                ->update(['rol_id' => $rolId]);
+
+            \Log::info('Rol actualizado para usuario', ['usuario_id' => $request->usuario_id, 'nuevo_rol' => $rolId]);
+
+            DB::commit();
+
+            $mensaje = $rolAnterior 
+                ? 'Usuario agregado correctamente. Rol anterior actualizado.'
+                : 'Usuario agregado correctamente al rol.';
+
+            \Log::info('=== AGREGAR USUARIO AL ROL FIN ===');
+
+            return response()->json([
+                'success' => true,
+                'mensaje' => $mensaje
+            ], 200);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Error al agregar usuario', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return response()->json([
+                'success' => false,
+                'mensaje' => 'Error al agregar usuario: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Quitar usuario del rol
+     */
+    public function quitarUsuarioDelRol(Request $request, $rolId)
+    {
+        \Log::info('=== QUITAR USUARIO DEL ROL INICIO ===');
+        \Log::info('Request data', ['data' => $request->all()]);
+        \Log::info('Rol ID', ['id' => $rolId]);
+        
+        try {
+            $request->validate([
+                'usuario_id' => 'required|integer|exists:users,id'
+            ]);
+
+            \Log::info('Validación exitosa');
+
+            DB::beginTransaction();
+
+            // Poner el rol en NULL
+            $affected = DB::table('users')
+                ->where('id', $request->usuario_id)
+                ->where('rol_id', $rolId)
+                ->update(['rol_id' => null]);
+
+            \Log::info('Filas afectadas', ['affected' => $affected]);
+
+            DB::commit();
+
+            \Log::info('=== QUITAR USUARIO DEL ROL FIN ===');
+
+            return response()->json([
+                'success' => true,
+                'mensaje' => 'Usuario removido del rol correctamente'
+            ], 200);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Error al quitar usuario', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return response()->json([
+                'success' => false,
+                'mensaje' => 'Error al quitar usuario: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Listar todos los usuarios
+     */
+    public function listarTodosUsuarios()
+    {
+        try {
+            $usuarios = DB::table('users')
+                ->select('id', 'name', 'email', 'rol_id')
+                ->orderBy('name')
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => $usuarios
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'mensaje' => 'Error al listar usuarios: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Obtener rol anterior de un usuario
+     */
+    public function obtenerRolAnteriorUsuario($usuarioId)
+    {
+        try {
+            $usuario = DB::table('users')
+                ->leftJoin('rol', 'users.rol_id', '=', 'rol.id')
+                ->where('users.id', $usuarioId)
+                ->select('users.rol_id as rol_anterior_id', 'rol.nombre as rol_anterior_nombre')
+                ->first();
+
+            return response()->json([
+                'success' => true,
+                'rol_anterior_id' => $usuario->rol_anterior_id,
+                'rol_anterior_nombre' => $usuario->rol_anterior_nombre
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'mensaje' => 'Error al obtener rol anterior: ' . $e->getMessage()
             ], 500);
         }
     }

@@ -346,6 +346,11 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::post('/roles/cambiar-estado/{id}', [App\Http\Livewire\Usuarios\Roles::class, 'cambiarEstadoRol']);
     Route::delete('/roles/eliminar/{id}', [App\Http\Livewire\Usuarios\Roles::class, 'eliminarRol']);
     Route::get('/roles/estados', [App\Http\Livewire\Usuarios\Roles::class, 'listarEstados']);
+    Route::get('/roles/{id}/usuarios', [App\Http\Livewire\Usuarios\Roles::class, 'obtenerUsuariosDelRol']);
+    Route::post('/roles/{id}/agregar-usuario', [App\Http\Livewire\Usuarios\Roles::class, 'agregarUsuarioAlRol']);
+    Route::post('/roles/{id}/quitar-usuario', [App\Http\Livewire\Usuarios\Roles::class, 'quitarUsuarioDelRol']);
+    Route::get('/usuarios/todos', [App\Http\Livewire\Usuarios\Roles::class, 'listarTodosUsuarios']);
+    Route::get('/usuarios/{id}/rol-anterior', [App\Http\Livewire\Usuarios\Roles::class, 'obtenerRolAnteriorUsuario']);
 
     /*----------------------------------------------- /NUEVAS RUTAS DE ACCESO A USUARIOS  */
 
