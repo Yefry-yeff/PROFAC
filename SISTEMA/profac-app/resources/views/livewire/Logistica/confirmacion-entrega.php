@@ -96,16 +96,27 @@
                             </div>
                             <div class="form-group col-md-7">
                                 <label class="small text-muted">Descripción</label>
-                                <textarea class="form-control" id="descripcionIncidencia" rows="4" placeholder="Describe lo sucedido..."></textarea>
+                                <textarea class="form-control" id="descripcionIncidencia" rows="4" placeholder="Describe lo sucedido..." required minlength="5"></textarea>
                             </div>
                         </div>
-                        <div class="text-right">
-                            <button type="button" class="btn btn-outline-secondary btn-sm mr-2" data-dismiss="modal">Cerrar</button>
-                            <button type="submit" class="btn btn-primary btn-sm" id="btnIncidenciaGuardar">
-                                <i class="fas fa-plus-circle mr-1"></i>Agregar incidencia
-                            </button>
-                        </div>
                     </form>
+                    <hr>
+                    <div class="mb-3">
+                        <h6 class="text-uppercase small text-muted mb-2">Evidencia fotográfica</h6>
+                        <div class="custom-file mb-2">
+                            <input type="file" class="custom-file-input" id="inputEvidencias" accept="image/*" multiple>
+                            <label class="custom-file-label" for="inputEvidencias">Seleccionar imágenes...</label>
+                        </div>
+                        <small class="text-muted d-block mb-2">Puedes adjuntar múltiples fotos por incidencia. Se guardarán en public/incidencia_entrega.</small>
+                        <div id="previewEvidencias" class="d-flex flex-wrap"></div>
+                        <div id="listaEvidencias" class="mt-3"></div>
+                    </div>
+                    <div class="text-right">
+                        <button type="button" class="btn btn-outline-secondary btn-sm mr-2" data-dismiss="modal">Cerrar</button>
+                        <button type="submit" class="btn btn-primary btn-sm" id="btnIncidenciaGuardar" form="formIncidencia">
+                            <i class="fas fa-plus-circle mr-1"></i>Agregar incidencia
+                        </button>
+                    </div>
                     <hr>
                     <h6 class="text-uppercase small text-muted">Incidencias registradas</h6>
                     <div id="listaIncidenciasProducto">
@@ -145,7 +156,9 @@
                     facturas: "<?= url('/logistica/confirmacion/facturas') ?>",
                     marcarTodos: "<?= url('/logistica/confirmacion/marcar-todos') ?>",
                     guardar: "<?= route('logistica.confirmacion.guardar') ?>",
-                    incidencias: "<?= url('/logistica/confirmacion/productos') ?>"
+                    incidencias: "<?= url('/logistica/confirmacion/productos') ?>",
+                    evidencia: "<?= url('/logistica/confirmacion/evidencia') ?>",
+                    evidencias: "<?= url('/logistica/confirmacion/evidencias') ?>"
                 };
 
                 const confirmacionState = {
@@ -682,6 +695,8 @@
                         });
                 }
 
+                let evidenciasPendientes = [];
+
                 function abrirIncidencia(button) {
                     // Verificar si la factura actual está bloqueada
                     const facturaActual = confirmacionState.facturas.find(f => f.distribucion_factura_id === confirmacionState.facturaSeleccionada);
@@ -714,6 +729,13 @@
                     }
                     
                     $('#modalIncidencia').modal('show');
+                    evidenciasPendientes = [];
+                    // Cargar evidencias de la factura actual
+                    if (confirmacionState.facturaSeleccionada) {
+                        cargarEvidenciasFactura(confirmacionState.facturaSeleccionada);
+                    }
+                    // Limpiar previews
+                    $('#previewEvidencias').html('');
                     cargarIncidenciasProducto(productoId);
                 }
 
@@ -760,6 +782,91 @@
                     $('#listaIncidenciasProducto').html(tabla);
                 }
 
+                // ==================== EVIDENCIAS (FOTOS) ====================
+                function cargarEvidenciasFactura(distribucionFacturaId) {
+                    $('#listaEvidencias').html('<div class="text-muted"><i class="fas fa-spinner fa-spin"></i> Cargando evidencias...</div>');
+                    $.get(`${rutasConfirmacion.evidencias}/${distribucionFacturaId}`)
+                        .done(resp => {
+                            const evidencias = resp.evidencias || [];
+                            if (!evidencias.length) {
+                                $('#listaEvidencias').html('<div class="alert alert-light mb-0">No hay evidencias registradas para esta factura.</div>');
+                                return;
+                            }
+                            let grid = '<div class="row">';
+                            evidencias.forEach(e => {
+                                const isImg = /(\.jpg|\.jpeg|\.png|\.gif|\.webp)$/i.test(e.ruta_archivo || '');
+                                grid += `<div class="col-6 col-md-3 mb-3">
+                                    <div class="border rounded p-1 h-100 d-flex align-items-center justify-content-center" style="min-height:100px; background:#f8f9fa;">
+                                        ${isImg ? `<a href="${e.url}" target="_blank" title="${e.tipo_evidencia}"><img src="${e.url}" alt="evidencia" class="img-fluid" style="max-height:120px;"></a>` : `<a href="${e.url}" target="_blank">Descargar archivo</a>`}
+                                    </div>
+                                    <div class="text-center mt-1"><small class="text-muted">${e.tipo_evidencia}</small></div>
+                                </div>`;
+                            });
+                            grid += '</div>';
+                            $('#listaEvidencias').html(grid);
+                        })
+                        .fail(() => {
+                            $('#listaEvidencias').html('<div class="alert alert-danger mb-0">No se pudieron cargar las evidencias.</div>');
+                        });
+                }
+
+                // Vista previa y subida automática
+                $(document).off('change', '#inputEvidencias').on('change', '#inputEvidencias', function() {
+                    const files = Array.from(this.files || []);
+                    if (!files.length) return;
+                    const preview = $('#previewEvidencias');
+                    files.forEach(f => {
+                        evidenciasPendientes.push(f);
+                        const reader = new FileReader();
+                        reader.onload = e => {
+                            const el = `<div class="mr-2 mb-2 border rounded" style="width:90px;height:90px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f8f9fa;">
+                                <img src="${e.target.result}" style="max-width:100%;max-height:100%;"/>
+                            </div>`;
+                            preview.append(el);
+                        };
+                        reader.readAsDataURL(f);
+                    });
+                    // Update label with cumulative count
+                    $(this).next('.custom-file-label').text(`${evidenciasPendientes.length} archivo(s) acumulado(s)`);
+                });
+
+                function subirEvidenciasPendientes(incidenciaId, callback) {
+                    const dfId = confirmacionState.facturaSeleccionada;
+                    const descripcion = $('#descripcionIncidencia').val().trim();
+                    if (!evidenciasPendientes.length) {
+                        callback && callback({ subidas: 0, fallidas: 0 });
+                        return;
+                    }
+                    let subidas = 0, fallidas = 0;
+                    const total = evidenciasPendientes.length;
+                    const subir = (file) => {
+                        const fd = new FormData();
+                        fd.append('incidencia_id', incidenciaId);
+                        fd.append('archivo', file);
+                        if (descripcion) fd.append('descripcion', descripcion);
+                        $.ajax({
+                            url: rutasConfirmacion.evidencia,
+                            type: 'POST',
+                            data: fd,
+                            processData: false,
+                            contentType: false,
+                            headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') }
+                        }).done(() => { subidas++; })
+                          .fail(() => { fallidas++; })
+                          .always(() => {
+                              if (subidas + fallidas === total) {
+                                  cargarEvidenciasFactura(dfId);
+                                  callback && callback({ subidas, fallidas });
+                                  evidenciasPendientes = [];
+                                  $('#inputEvidencias').val('');
+                                  $('.custom-file-label[for="inputEvidencias"]').text('Seleccionar imágenes...');
+                                  $('#previewEvidencias').html('');
+                              }
+                          });
+                    };
+                    evidenciasPendientes.forEach(subir);
+                }
+
                 function registrarIncidencia() {
                     const productoId = confirmacionState.productoIncidencia;
                     if (!productoId) {
@@ -803,10 +910,19 @@
                         }
                     })
                         .done(resp => {
+                            const incidenciaId = resp?.incidencia?.id;
+                            // Subir evidencias acumuladas después de registrar la incidencia
+                            subirEvidenciasPendientes(incidenciaId, ({ subidas, fallidas }) => {
                             $('#descripcionIncidencia').val('');
                             renderListaIncidencias(resp.incidencias || []);
                             actualizarProductoEnState(productoId, resp.incidencias ? resp.incidencias.length : 1);
                             renderDetalleFactura(confirmacionState.facturaSeleccionada);
+                                if (fallidas) {
+                                    toastr.error(`${fallidas} evidencia(s) no se pudieron subir`);
+                                } else if (subidas) {
+                                    toastr.success('Evidencias subidas');
+                                }
+                            });
                         })
                         .fail(xhr => {
                             const r = xhr.responseJSON || {};

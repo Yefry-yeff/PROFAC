@@ -269,30 +269,35 @@ class ConfirmacionEntrega extends Component
     {
         try {
             $request->validate([
-                'distribucion_factura_id' => 'required|exists:distribuciones_entrega_facturas,id',
-                'tipo_evidencia' => 'required|in:foto_entrega,firma_cliente,incidencia,otro',
+                'incidencia_id' => 'required|exists:entregas_productos_incidencias,id',
                 'archivo' => 'required|file|max:10240', // 10MB máximo
             ]);
 
             $archivo = $request->file('archivo');
             $extension = $archivo->getClientOriginalExtension();
             $nombreArchivo = 'evidencia_' . time() . '_' . uniqid() . '.' . $extension;
+
+            // Guardar directamente en public/incidencia_entrega
+            $destinoPath = public_path('incidencia_entrega');
+            if (!file_exists($destinoPath)) {
+                mkdir($destinoPath, 0755, true);
+            }
             
-            // Guardar en public/evidencias_entrega/
-            $ruta = $archivo->storeAs('evidencias_entrega', $nombreArchivo, 'public');
+            $archivo->move($destinoPath, $nombreArchivo);
+            $ruta = 'public/incidencia_entrega/' . $nombreArchivo;
 
             EntregaEvidencia::create([
-                'distribucion_factura_id' => $request->distribucion_factura_id,
-                'tipo_evidencia' => $request->tipo_evidencia,
+                'entrega_producto_incidencia_id' => $request->incidencia_id,
                 'ruta_archivo' => $ruta,
                 'user_id_registro' => Auth::id(),
+                'descripcion' => $request->input('descripcion', null),
             ]);
 
             return response()->json([
                 'icon' => 'success',
                 'title' => 'Evidencia guardada',
                 'text' => 'La evidencia ha sido registrada correctamente',
-                'ruta' => asset('storage/' . $ruta),
+                'ruta' => asset('incidencia_entrega/' . $nombreArchivo),
             ], 200);
 
         } catch (\Exception $e) {
@@ -346,7 +351,7 @@ class ConfirmacionEntrega extends Component
                 'descripcion' => 'required|string|min:5',
             ]);
 
-            EntregaProductoIncidencia::create([
+            $incidencia = EntregaProductoIncidencia::create([
                 'entrega_producto_id' => $productoId,
                 'tipo' => $request->tipo,
                 'descripcion' => $request->descripcion,
@@ -367,6 +372,9 @@ class ConfirmacionEntrega extends Component
                 'icon' => 'success',
                 'title' => 'Incidencia registrada',
                 'text' => 'La incidencia se guardó correctamente.',
+                'incidencia' => [
+                    'id' => $incidencia->id,
+                ],
                 'incidencias' => $incidencias,
             ], 201);
         } catch (\Exception $e) {
@@ -384,20 +392,23 @@ class ConfirmacionEntrega extends Component
     public function obtenerEvidencias($distribucionFacturaId)
     {
         try {
-            $evidencias = DB::select("
-                SELECT 
-                    id,
-                    tipo_evidencia,
-                    ruta_archivo,
-                    created_at
-                FROM entregas_evidencias
-                WHERE distribucion_factura_id = ?
-                ORDER BY created_at DESC
-            ", [$distribucionFacturaId]);
+            $evidencias = DB::select(
+                "SELECT 
+                    ee.id,
+                    ee.ruta_archivo,
+                    ee.created_at
+                FROM entregas_evidencias ee
+                INNER JOIN entregas_productos_incidencias epi ON ee.entrega_producto_incidencia_id = epi.id
+                INNER JOIN entregas_productos ep ON epi.entrega_producto_id = ep.id
+                WHERE ep.distribucion_factura_id = ?
+                ORDER BY ee.created_at DESC",
+                [$distribucionFacturaId]
+            );
 
-            // Agregar URL completa a cada evidencia
             foreach ($evidencias as &$evidencia) {
-                $evidencia->url = asset('storage/' . $evidencia->ruta_archivo);
+                // La ruta viene como "public/incidencia_entrega/archivo.jpg"
+                $nombreArchivo = basename($evidencia->ruta_archivo);
+                $evidencia->url = asset('incidencia_entrega/' . $nombreArchivo);
             }
 
             return response()->json([
