@@ -28,23 +28,12 @@
                   <div class="text-sm" style="color:#6b7280;">Rol asignado</div>
                   <div class="text-lg font-semibold" style="color:#111827;">
                     @php
-                      $roleName = null;
-                      try {
-                        if (method_exists(Auth::user(), 'getRoleNames')) {
-                          $roleName = Auth::user()->getRoleNames()->first();
-                        } elseif (method_exists(Auth::user(), 'roles')) {
-                          $roleName = optional(Auth::user()->roles()->first())->name ?? optional(Auth::user()->roles()->first())->nombre;
-                        } elseif (property_exists(Auth::user(), 'roles') && Auth::user()->roles) {
-                          $first = is_iterable(Auth::user()->roles) ? (Auth::user()->roles[0] ?? null) : Auth::user()->roles;
-                          $roleName = $first->name ?? $first->nombre ?? null;
-                        } elseif (property_exists(Auth::user(), 'role') && Auth::user()->role) {
-                          $roleName = Auth::user()->role->name ?? Auth::user()->role->nombre ?? null;
-                        }
-                      } catch (\Throwable $e) {
-                        $roleName = null;
-                      }
+                      // Preferir relación directa User->rol (FK users.rol_id)
+                      $roleLabel = optional(Auth::user()->rol)->nombre
+                        ?? optional(Auth::user()->rol)->name
+                        ?? null;
                     @endphp
-                    {{ $roleName ?? 'Sin rol' }}
+                    {{ $roleLabel ?? 'Sin rol' }}
                   </div>
                 </div>
               </div>

@@ -22,7 +22,7 @@ class Rol extends Model
      */
     public function usuarios()
     {
-        return $this->hasMany(usuario::class, 'rol_id');
+        return $this->hasMany(User::class, 'rol_id');
     }
 
     /**
