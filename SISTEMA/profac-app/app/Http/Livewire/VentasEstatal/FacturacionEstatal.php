@@ -21,6 +21,7 @@ use App\Models\ModelRecibirBodega;
 use App\Models\ModelVentaProducto;
 use App\Models\ModelLogTranslados;
 use App\Models\ModelCliente;
+use App\Models\Escalas\modelCategoriaCliente;
 use App\Models\logCredito;
 use App\Models\ModelNumOrdenCompra;
 use App\Http\Controllers\CAI\Notificaciones;
@@ -94,20 +95,21 @@ class FacturacionEstatal extends Component
         try {
 
             $datos = modelCategoriaCliente::select(
-        'cliente.id',
-        'cliente.nombre',
-        'cliente.rtn',
-        'cliente.dias_credito',
-        'cliente_categoria_escala.categoria_id'
-    )
-    ->join(
-        'cliente',
-        'cliente.id',
-        '=',
-        'cliente_categoria_escala.cliente_id'
-    )
-    ->where('cliente.id', $request->id)
-    ->first();
+                'cliente.id',
+                'cliente.nombre',
+                'cliente.rtn',
+                'cliente.dias_credito',
+                'cliente_categoria_escala.nombre_categoria',
+                'cliente_categoria_escala.id as idcategoriacliente',
+            )
+            ->join(
+                'cliente',
+                'cliente.cliente_categoria_escala_id',
+                '=',
+                'cliente_categoria_escala.id'
+            )
+            ->where('cliente.id', $request->id)
+            ->first();
             return response()->json([
                 "datos" => $datos
             ], 200);
@@ -271,33 +273,32 @@ class FacturacionEstatal extends Component
             "); */
            $producto = DB::selectOne("
                 SELECT
-                p.id,
-                CONCAT(p.id,' - ',p.nombre) AS nombre,
-                p.isv,
-                p.ultimo_costo_compra AS ultimo_costo_compra,
-                ppc.precio_base_venta AS precio_base,
-                ppc.precio_a AS precio1,
-                ppc.precio_b AS precio2,
-                ppc.precio_c AS precio3,
-                ppc.precio_d AS precio4
+                    p.id,
+                    CONCAT(p.id,' - ',p.nombre) AS nombre,
+                    p.isv,
+                    p.ultimo_costo_compra AS ultimo_costo_compra,
+                    ppc.precio_base_venta AS precio_base,
+                    ppc.precio_a AS precio1,
+                    ppc.precio_b AS precio2,
+                    ppc.precio_c AS precio3,
+                    ppc.precio_d AS precio4
                 FROM producto p
-                JOIN cliente cli
-                ON cli.id = :idCliente
                 JOIN cliente_categoria_escala cce
-                ON cce.id = cli.cliente_categoria_escala_id
-                AND cce.estado_id = 1
+                    ON cce.id = :categoria_cliente_venta_id
+                    AND cce.estado_id = 1
                 JOIN categoria_precios cp
-                ON cp.cliente_categoria_escala_id = cce.id
-                AND cp.estado_id = 1
+                    ON cp.cliente_categoria_escala_id = cce.id
+                    AND cp.estado_id = 1
                 JOIN precios_producto_carga ppc
-                ON ppc.producto_id = p.id
-                AND ppc.categoria_precios_id = cp.id
-                AND ppc.estado_id = 1
+                    ON ppc.producto_id = p.id
+                    AND ppc.categoria_precios_id = cp.id
+                    AND ppc.estado_id = 1
                 WHERE p.id = :idProducto
-                LIMIT 1
+                LIMIT 1;
             ", [
-                'idCliente'  => $request['idCliente'],
+                'categoria_cliente_venta_id' => $request['categoria_cliente_venta_id'],
                 'idProducto' => $request['idProducto'],
+
             ]);
 
 

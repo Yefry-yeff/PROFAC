@@ -28,43 +28,10 @@
         </style>
     @endpush
 
-    <div class="row wrapper border-bottom white-bg page-heading">
-        <div class="col-lg-8 col-xl-10 col-md-8 col-sm-8">
-            <h2>Ventas</h2>
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item">
-                    {{--  <a>Clientes <b>B</b></a>  --}}
-                    {{--  <a>Clientes <b>A</b></a>  --}}
-                </li>
-
-                <div class="alert alert-info" role="alert">
-                    Clientes <b>A</b>
-                </div>
-                {{-- <li class="breadcrumb-item">
-                    <a data-toggle="modal" data-target="#modal_producto_crear">Registrar</a>
-                </li> --}}
-
-            </ol>
-        </div>
-
-
-        {{-- <div class="col-lg-4 col-xl-2 col-md-4 col-sm-4">
-                <div style="margin-top: 1.5rem">
-                    <a href="#" class="btn add-btn btn-primary" data-toggle="modal" data-target="#modal_producto_crear"><i
-                            class="fa fa-plus"></i> Registrar Producto</a>
-                </div>
-            </div> --}}
-
-
-    </div>
-
     <div class="wrapper wrapper-content animated fadeInRight">
         <div class="row">
             <div class="col-lg-12">
                 <div class="ibox ">
-                    <div class="ibox-title">
-                        <h3>Datos de compra <i class="fa-solid fa-cart-shopping"></i></h3>
-                    </div>
                     <div class="ibox-content">
                         <form onkeydown="return event.key != 'Enter';" autocomplete="off" id="crear_venta"
                             name="crear_venta" data-parsley-validate>
@@ -72,25 +39,42 @@
                             <input name="idComprobante" id="idComprobante" type="hidden" value="">
                             <input type="hidden" id="tipo_venta_id" name="tipo_venta_id" value="2">
 
-                            <div class="row">
-                                <div class="col-6 col-sm-6 col-md-2 col-lg-2 col-xl-2">
-                                    <label class="col-form-label text-danger" for="numero_venta"
-                                        style="font-size: 1.5rem; font-weight:600;">Numero de Venta</label>
+                            <div class="row align-items-center">
+                                <div class="col-12 col-md-6 col-lg-6 col-xl-6">
+                                    <div class="d-flex align-items-center gap-2 flex-nowrap">
+                                        <h3 class="mb-0">
+                                            Venta Cliente A:
+                                        </h3>
+
+                                        <input
+                                            type="text"
+                                            id="numero_venta"
+                                            name="numero_venta"
+                                            class="form-control form-control-sm"
+                                            style="max-width: 140px;"
+                                            readonly
+                                        >
+                                    </div>
                                 </div>
 
-                                <div class="col-6 col-sm-6 col-md-2 col-lg-2 col-xl-2">
-                                    <input class="form-control"
-                                        style="font-size: 1.5rem; font-weight:600; text-align:center" type="text"
-                                        id="numero_venta" name="numero_venta" value="" data-parsley-required
-                                        readonly>
+                                <div class="col-12 col-md-6 col-lg-6 col-xl-6 d-flex align-items-center gap-2">
+                                    <span class="text-muted small">Categoría del Cliente:</span>
+                                    <span
+                                        id="categoria_cliente_nombre"
+                                        class="badge badge-info px-3 py-2"
+                                    ></span>
                                 </div>
+
 
 
                             </div>
 
-                            <div class="row  mt-4 mb-4">
 
-                                <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6">
+
+
+                            <div class="row">
+
+                                <div class="col-12 col-md-6 col-lg-6 col-xl-6">
                                     <label for="seleccionarCliente" class="col-form-label focus-label">Seleccionar
                                         Cliente:<span class="text-danger">*</span> </label>
                                     <select id="seleccionarCliente" name="seleccionarCliente"
@@ -100,7 +84,25 @@
                                     </select>
                                 </div>
 
-                                <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6">
+
+                                <div class="col-12 col-md-6 col-lg-6 col-xl-6">
+                                    <label class="col-form-label focus-label">Nombre del cliente: <span class="text-danger">*</span></label>
+                                    <input class="form-control" required type="text" id="nombre_cliente_ventas"
+                                        name="nombre_cliente_ventas" data-parsley-required readonly>
+
+                                </div>
+
+                                <div class="col-12 col-md-6 col-lg-6 col-xl-6">
+                                    <label for="vendedor" class="col-form-label focus-label">Seleccionar Vendedor:<span
+                                            class="text-danger">*</span> </label>
+                                    <select name="vendedor" id="vendedor" class="form-group form-control" required>
+                                        <option value="" selected disabled>--Seleccionar un vendedor--</option>
+                                    </select>
+
+                                </div>
+
+
+                                <div class="col-12 col-md-6 col-lg-6 col-xl-6">
                                     <label for="ordenCompra" class="col-form-label focus-label">Seleccionar un número de
                                         orden de compra:<span class="text-danger">*</span> </label>
                                     <select class="form-group form-control " name="ordenCompra" id="ordenCompra">
@@ -110,42 +112,14 @@
                                     </select>
                                 </div>
 
-
-                            </div>
-
-
-                            <div class="row ">
-                                <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4">
-                                    <label for="vendedor" class="col-form-label focus-label">Seleccionar Vendedor:<span
-                                            class="text-danger">*</span> </label>
-                                    <select name="vendedor" id="vendedor" class="form-group form-control" required>
-                                        <option value="" selected disabled>--Seleccionar un vendedor--</option>
-                                    </select>
-
-                                </div>
-
-                                <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4">
-                                    <label class="col-form-label focus-label">Nombre del cliente: <span class="text-danger">*</span></label>
-                                    <input class="form-control" required type="text" id="nombre_cliente_ventas"
-                                        name="nombre_cliente_ventas" data-parsley-required readonly>
-
-                                </div>
-
-                                <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4">
+                                <div class="col-12 col-md-6 col-lg-6 col-xl-6">
                                     <label class="col-form-label focus-label">RTN: <span class="text-danger">*</span></label>
                                     <input class="form-control" type="text" id="rtn_ventas" name="rtn_ventas"
                                         readonly>
 
                                 </div>
 
-
-
-
-
-                            </div>
-
-                            <div class="row mt-4">
-                                <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4">
+                                <div class="col-12 col-md-6 col-lg-6 col-xl-6">
                                     <label for="tipoPagoVenta" class="col-form-label focus-label">Seleccionar tipo de
                                         pago:<span class="text-danger">*</span></label>
                                     <select class="form-group form-control " name="tipoPagoVenta" id="tipoPagoVenta"
@@ -153,7 +127,7 @@
                                     </select>
                                 </div>
 
-                                <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4">
+                                <div class="col-12 col-md-6 col-lg-6 col-xl-6">
                                     <div class="form-group">
 
                                         <label for="fecha_emision" class="col-form-label focus-label">Fecha de emisión
@@ -166,7 +140,7 @@
                                 </div>
 
 
-                                <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4">
+                                <div class="col-12 col-md-6 col-lg-6 col-xl-6">
                                     <div class="form-group">
                                         <label for="fecha_vencimiento"
                                             class="col-form-label focus-label text-warning">Fecha de vencimiento:
@@ -178,10 +152,7 @@
 
                                 </div>
 
-
-                            </div>
-                            <div class="row">
-                                <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4">
+                                <div class="col-12 col-md-6 col-lg-6 col-xl-6">
                                     <div class="form-group">
 
                                         <label for="porDescuento" class="col-form-label focus-label">Descuento
@@ -192,9 +163,8 @@
                                             onchange="calcularTotalesInicioPagina()" data-parsley-required>
                                     </div>
                                 </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
+
+                                <div class="col-12 col-md-6 col-lg-6 col-xl-6">
                                     <div class="form-group">
                                         <label for="nota" class="col-form-label focus-label">Nota:
                                         </label>
@@ -202,12 +172,10 @@
                                     </div>
 
                                 </div>
-
-
                             </div>
 
-                            <div class="row mt-4">
-                                <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6 ">
+                            <div class="row">
+                                <div class="col-12 col-md-6 col-lg-6 col-xl-6">
 
                                     <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
                                         <label for="seleccionarProducto"
@@ -220,11 +188,17 @@
                                         </select>
                                     </div>
 
-
-
                                 </div>
 
-                                <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6 ">
+                                <div class="col-12 col-md-6 col-lg-6 col-xl-6">
+                                    <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
+                                        <label for="bodega" class="col-form-label focus-label">Categoría/Cliente Venta:<span class="text-danger">*</span></label>
+                                        <select id="categoria_cliente_venta_id" name="categoria_cliente_venta_id" class="form-group form-control"style="" onchange="listaCategoríaClientes()">
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="col-12 col-md-6 col-lg-6 col-xl-6">
                                     <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
                                         <label for="bodega" class="col-form-label focus-label">Seleccionar
                                             bodega:<span class="text-danger">*</span></label>
@@ -234,7 +208,6 @@
                                             </option>
                                         </select>
                                     </div>
-
                                 </div>
 
 
@@ -252,15 +225,6 @@
 
 
                                     <div id="carouselProducto" class="carousel slide mt-2" data-ride="carousel">
-                                        {{-- <ol  id="carousel_imagenes_producto" class="carousel-indicators">
-
-                                                <li data-target="#carouselProducto" data-slide-to="{{ $i }}" class="active"></li>
-
-                                                <li data-target="#carouselProducto" data-slide-to="{{ $i }}" class=""></li>
-
-
-
-                                        </ol> --}}
                                         <div id="bloqueImagenes" class="carousel-inner ">
 
 
@@ -351,11 +315,6 @@
 
 
                                     </div>
-                                    {{-- <div class="form-group col-12 col-sm-12 col-md-1 col-lg-1 col-xl-1">
-                                        <label class="sr-only">Seccion</label>
-                                        <input type="text" placeholder="Seccion" class="form-control"
-                                            min="1" autocomplete="off" disabled>
-                                    </div> --}}
 
                                     <div class="form-group col-1">
                                         <label class="sr-only">Sub Total</label>
@@ -384,40 +343,6 @@
                             <div id="divProductos">
 
                             </div>
-                            {{-- <div class="table-responsive">
-                                <table id="tbl_productos_venta" class="table table-striped table-bordered table-hover">
-                                    <thead class="">
-                                        <tr>
-                                            <th><label class="sr-only">Total</label>
-                                                <input type="number" placeholder="Total del producto" class="form-control"
-                                                    min="1"  autocomplete="off" style="min-width: 100px">
-                                            </th>
-                                            <th><label class="sr-only">Total</label>
-                                                <input type="number" placeholder="Total del producto" class="form-control"
-                                                    min="1" disabled autocomplete="off" style="min-width: 100px">
-                                            </th>
-                                            <th><label class="sr-only">Total</label>
-                                                <input type="number" placeholder="Total del producto" class="form-control"
-                                                    min="1" disabled autocomplete="off" style="min-width: 100px">
-                                            </th>
-
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-
-                                    </tbody>
-                                </table>
-
-                            </div> --}}
-
-
-
-
-
-
-
-
-
                             <hr>
                             <div class="row">
 
@@ -701,6 +626,37 @@
                 return 0;
             }
 
+            function obtenerCategoriasClientes() {
+
+                $('#categoria_cliente_venta_id').select2({
+                    placeholder: 'Seleccione una categoría',
+                    allowClear: true,
+                    ajax: {
+                        url: '/clientes/categorias-escala',
+                        dataType: 'json',
+                        delay: 250,
+                        data: function (params) {
+                            return {
+                                q: params.term || '',
+                                page: params.page || 1
+                            };
+                        },
+                        processResults: function (data) {
+                            return {
+                                results: data.categorias.map(function (item) {
+                                    return {
+                                        id: item.id,
+                                        text: item.nombre_categoria
+                                    };
+                                })
+                            };
+                        }
+                    }
+                });
+            }
+
+
+
             function obtenerBodegas(id) {
 
                 document.getElementById('bodega').innerHTML = "<option  selected disabled>--Seleccione una bodega--</option>";
@@ -832,7 +788,7 @@
 
             function agregarProductoCarrito() {
                 let idProducto = document.getElementById('seleccionarProducto').value;
-                let idCliente = document.getElementById('seleccionarCliente').value;
+                let categoria_cliente_venta_id = document.getElementById('categoria_cliente_venta_id').value;
                 //console.log(idCliente);
                 let data = $("#bodega").select2('data')[0];
                 let bodega = data.bodegaSeccion;
@@ -842,7 +798,7 @@
 
                 axios.post('/estatal/datos/producto', {
                         idProducto: idProducto,
-                        idCliente: idCliente
+                        categoria_cliente_venta_id: categoria_cliente_venta_id
 
                     })
                     .then(response => {
@@ -1251,12 +1207,20 @@
 
                                 let selectBox = document.getElementById("tipoPagoVenta");
                                 selectBox.remove(2);
+                                obtenerCategoriasClientes();
+                                $('#categoria_cliente_nombre').text(data.nombre_categoria);
+                                document.getElementById("categoria_cliente_venta_id").appendChild(new Option(data.nombre_categoria, data.idcategoriacliente, true, true));
 
                             } else {
                                 document.getElementById("nombre_cliente_ventas").readOnly = true;
                                 document.getElementById("rtn_ventas").readOnly = true;
                                 document.getElementById("nombre_cliente_ventas").value = data.nombre;
                                 document.getElementById("rtn_ventas").value = data.rtn;
+                                $('#categoria_cliente_nombre').text(data.nombre_categoria);
+
+                                document.getElementById("categoria_cliente_venta_id").appendChild(new Option(data.nombre_categoria, data.idcategoriacliente, true, true));
+
+                                obtenerCategoriasClientes();
 
                                 diasCredito = data.dias_credito;
                                 obtenerTipoPago();

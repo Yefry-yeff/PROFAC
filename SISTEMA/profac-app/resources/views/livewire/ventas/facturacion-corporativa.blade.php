@@ -150,20 +150,12 @@
 
                                 </div>
 
-
-
-
                                 <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4">
                                     <label class="col-form-label focus-label">RTN:<span
                                             class="text-danger">*</span></label>
                                     <input class="form-control" type="text" id="rtn_ventas" name="rtn_ventas"
                                         readonly>
-
                                 </div>
-
-
-
-
 
                             </div>
 
@@ -200,17 +192,6 @@
                                     </div>
 
                                 </div>
-
-                                {{--   <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4">
-                                    <div class="form-group">
-                                        <label for="fecha_vencimiento"
-                                            class="col-form-label focus-label text-warning">Fecha de vencimiento:
-                                        </label>
-                                        <input class="form-control" type="date" id="fecha_vencimiento"
-                                            name="fecha_vencimiento" value="" data-parsley-required
-                                            min="{{ date('Y-m-d') }}" readonly>
-                                    </div>
-                                </div>  --}}
 
                             </div>
 

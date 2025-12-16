@@ -26,6 +26,7 @@ use App\Models\ModelCliente;
 use App\Models\logCredito;
 use App\Models\User;
 use App\Http\Controllers\CAI\Notificaciones;
+use App\Models\Escalas\modelCategoriaCliente;
 
 class FacturacionCorporativa extends Component
 {
@@ -100,12 +101,37 @@ class FacturacionCorporativa extends Component
     {
         try {
 
-            $datos = DB::SELECTONE("select cliente.id,cliente.nombre, cliente.rtn, cliente.dias_credito ,
+            /* $datos = DB::SELECTONE("select cliente.id,cliente.nombre, cliente.rtn, cliente.dias_credito ,
 
                     users.id as 'idVendedor',
                     users.name as 'vendedor'
                 from cliente
-                inner join users on users.id = cliente.vendedor where cliente.id = " . $request->id);
+                inner join users on users.id = cliente.vendedor where cliente.id = " . $request->id); */
+
+                $datos = modelCategoriaCliente::select(
+                'cliente.id',
+                'cliente.nombre',
+                'cliente.rtn',
+                'cliente.dias_credito',
+                'cliente_categoria_escala.nombre_categoria',
+                'cliente_categoria_escala.id',
+                'users.id as idVendedor',
+                'users.name as vendedor'
+            )
+            ->join(
+                'cliente',
+                'cliente.cliente_categoria_escala_id',
+                '=',
+                'cliente_categoria_escala.id'
+            )
+            ->join(
+                'users',
+                'users.id',
+                '=',
+                'cliente.vendedor'
+            )
+            ->where('cliente.id', $request->id)
+            ->first();
 
             return response()->json([
                 "datos" => $datos
