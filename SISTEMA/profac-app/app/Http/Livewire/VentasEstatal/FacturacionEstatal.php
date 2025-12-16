@@ -258,19 +258,6 @@ class FacturacionEstatal extends Component
             where A.estado_id = 1 and A.producto_id = " . $request->idProducto
             );
 
-            /* $producto = DB::SELECTONE("
-            select
-            id,
-            concat(id,' - ',nombre) as nombre,
-            isv,
-            ultimo_costo_compra as ultimo_costo_compra,
-            precio_base as precio_base,
-            precio1 as precio1,
-            precio2 as precio2,
-            precio3 as precio3,
-            precio4 as precio4
-            from producto where id = " . $request['idProducto'] . "
-            "); */
            $producto = DB::selectOne("
                 SELECT
                     p.id,
@@ -301,6 +288,23 @@ class FacturacionEstatal extends Component
 
             ]);
 
+
+            if (!$producto) {
+                $nombreProducto = DB::table('producto')
+                    ->where('id', $request['idProducto'])
+                    ->value('nombre');
+
+                $nombreCategoria = DB::table('cliente_categoria_escala')
+                    ->where('id', $request['categoria_cliente_venta_id'])
+                    ->value('nombre_categoria');
+
+               if (!$producto) {
+                    return response()->json([
+                        'message' => "El producto <b>{$nombreProducto}</b> no tiene una escala de precios asignada para la categoría de cliente <b>{$nombreCategoria}</b>."
+                    ], 404);
+                }
+
+            }
 
             //dd();
             return response()->json([

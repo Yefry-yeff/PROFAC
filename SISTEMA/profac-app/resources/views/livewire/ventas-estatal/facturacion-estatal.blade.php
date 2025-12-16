@@ -656,7 +656,6 @@
             }
 
 
-
             function obtenerBodegas(id) {
 
                 document.getElementById('bodega').innerHTML = "<option  selected disabled>--Seleccione una bodega--</option>";
@@ -987,14 +986,17 @@
 
                     })
                     .catch(err => {
+                        //console.error(err);
 
-                        console.error(err);
+                            const mensaje = err.response?.data?.message
+                                || 'Ha ocurrido un error inesperado';
 
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Error!',
-                            text: "Ha ocurrido un error al agregar el producto a la compra."
-                        })
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                html: mensaje
+                            });
+
                     })
             }
 
