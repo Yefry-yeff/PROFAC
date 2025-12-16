@@ -24,7 +24,7 @@
                 </div>
             </div>
 
-            <div class="hidden sm:flex sm:items-center sm:ml-6">
+            <div class="hidden sm:flex sm:items-center sm:ml-6 profile-area">
                 <!-- Teams Dropdown -->
 
                 <!-- Settings Dropdown -->
@@ -38,6 +38,8 @@
                                         <img class="object-cover w-8 h-8 rounded-full"
                                             src="{{ asset('storage/' . Auth::user()->profile_photo_path) }}"
                                             alt="{{ Auth::user()->name }}" />
+                                        <!-- Inicial visible solo en móvil -->
+                                        <span class="mobile-initial-avatar" aria-hidden="true">{{ substr(Auth::user()->name, 0, 1) }}</span>
                                     @else
                                         <div class="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 font-bold">
                                             {{ substr(Auth::user()->name, 0, 1) }}
@@ -202,6 +204,62 @@
 
     <!---menu lateral de la plantilla--->
     <style>
+        /* ====== Header mobile layout: center logo, align buttons ====== */
+        @media (max-width: 768px) {
+            /* Make header row positioning context */
+            nav .flex.justify-between.h-16 { position: relative; }
+
+            /* Center logo block */
+            nav .flex.justify-between.h-16 > .flex {
+                width: 100%;
+                justify-content: center;
+            }
+
+            /* Hide Jetstream hamburger (we'll use the sidebar toggle button) */
+            nav .flex.items-center.-mr-2.sm\:hidden { display: none !important; }
+
+            /* Use the existing sidebar toggle button on the left */
+            nav .navbar-minimalize {
+                position: absolute;
+                left: 12px;
+                top: 50%;
+                transform: translateY(-50%);
+                display: inline-flex !important;
+                z-index: 10;
+                background: #1ab394 !important; /* Verde original */
+                color: #ffffff !important;
+                border: none !important;
+                width: 40px; height: 40px;
+                align-items: center; justify-content: center;
+                padding: 0 !important;
+                line-height: 1;
+                border-radius: 6px;
+                box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+            }
+            nav .navbar-minimalize i.fa { font-size: 20px; color: #ffffff !important; }
+
+            /* Show profile avatar/initial on the right in mobile */
+            nav .profile-area {
+                display: flex !important;
+                position: absolute;
+                right: 10px;
+                top: 50%;
+                transform: translateY(-50%);
+                margin-left: 0;
+            }
+
+            /* Force initial-only on mobile even if photo exists */
+            nav .profile-area img { display: none !important; }
+            nav .profile-area .mobile-initial-avatar {
+                display: inline-flex !important;
+                width: 32px; height: 32px;
+                border-radius: 9999px;
+                background: #e5e7eb; /* gray-200 */
+                color: #374151; /* gray-700 */
+                font-weight: 700;
+                align-items: center; justify-content: center;
+            }
+        }
         @media screen and (min-width: 600px) {
             .scroll-bar-sidebar {
                 overflow-y: auto;
@@ -428,6 +486,16 @@
                     
                     /* Ajustes específicos para móvil - aplicar los mismos estilos que escritorio */
                     @media (max-width: 768px) {
+                        /* Habilitar scroll dentro del menú lateral */
+                        .navbar-static-side {
+                            overflow-y: auto !important;
+                            -webkit-overflow-scrolling: touch;
+                        }
+                        .scroll-bar-sidebar {
+                            overflow-y: auto !important;
+                            overflow-x: hidden !important;
+                            max-height: 100vh !important;
+                        }
                         /* Asegurar que el sidebar esté visible en pantalla */
                         .navbar-static-side {
                             position: fixed !important;
@@ -602,6 +670,14 @@
                             display: block !important;
                             z-index: 2000 !important;
                             width: 70px !important;
+                            overflow-y: auto !important;
+                            -webkit-overflow-scrolling: touch;
+                        }
+
+                        .scroll-bar-sidebar {
+                            overflow-y: auto !important;
+                            overflow-x: hidden !important;
+                            max-height: 100vh !important;
                         }
 
                         /* Ocultar textos y flechas en tablet */
@@ -767,13 +843,28 @@ document.addEventListener('DOMContentLoaded', function () {
     if (overlay) {
         overlay.addEventListener('click', () => {
             document.body.classList.remove('mobile-sidebar-open');
+            // Cerrar submenús activos
+            document.querySelectorAll('#side-menu > li').forEach(li => li.classList.remove('active'));
         });
     }
+
+    // Cerrar submenús y sidebar al hacer clic fuera del menú en móvil/tablet
+    document.addEventListener('click', (e) => {
+        if (!isNonDesktop()) return;
+        const clickedInsideMenu = e.target.closest('#side-menu');
+        const clickedToggle = e.target.closest('.navbar-minimalize');
+        const clickedOverlay = e.target.closest('.mobile-sidebar-overlay');
+        if (!clickedInsideMenu && !clickedToggle && !clickedOverlay) {
+            document.querySelectorAll('#side-menu > li').forEach(li => li.classList.remove('active'));
+            document.body.classList.remove('mobile-sidebar-open');
+        }
+    });
 
     // Cerrar el sidebar si cambia a escritorio
     window.addEventListener('resize', () => {
         if (!isNonDesktop()) {
             document.body.classList.remove('mobile-sidebar-open');
+            document.querySelectorAll('#side-menu > li').forEach(li => li.classList.remove('active'));
         }
     });
 });
