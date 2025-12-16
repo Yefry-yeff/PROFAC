@@ -163,6 +163,19 @@ Route::middleware(['auth:sanctum', 'verified'])->get('/dashboard', function () {
 
 Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 
+    //---------------------------------------GESTIÓN DE MENÚS-------------------------------//
+    Route::get('/menu/gestion', \App\Http\Livewire\Menu\GestionMenu::class)->name('menu.gestion');
+    
+    // Rutas para Menús
+    Route::post('/menu/guardar', [App\Http\Controllers\MenuController::class, 'guardarMenu']);
+    Route::get('/menu/obtener/{id}', [App\Http\Controllers\MenuController::class, 'obtenerMenu']);
+    Route::put('/menu/actualizar/{id}', [App\Http\Controllers\MenuController::class, 'actualizarMenu']);
+    
+    // Rutas para Submenus
+    Route::post('/submenu/guardar', [App\Http\Controllers\MenuController::class, 'guardarSubmenu']);
+    Route::get('/submenu/obtener/{id}', [App\Http\Controllers\MenuController::class, 'obtenerSubmenu']);
+    Route::put('/submenu/actualizar/{id}', [App\Http\Controllers\MenuController::class, 'actualizarSubmenu']);
+
     //---------------------------------------configuracion-------------------------------//
     Route::get('/configuracion/datos', [Configuracion::class, 'parametros']);
     Route::get('/configuracion/datos/compra', [Configuracion::class, 'datosCompra']);
