@@ -85,70 +85,41 @@ function guardarProducto(){
 
 $(document).ready(function() {
     $('#tbl_productosListar').DataTable({
-        "order": [0, 'desc'],
+        "processing": true,
+        "serverSide": true,
+        "order": [[0, 'desc']],
         "language": {
-            "url": "https://cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
+            "url": "https://cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json",
+            "processing": '<i class="fa fa-spinner fa-spin fa-3x fa-fw"></i><span class="sr-only">Cargando...</span>'
         },
-        pageLength: 10,
-        responsive: true,
-        dom: '<"html5buttons"B>lTfgitp',
-        buttons: [{
-                extend: 'copy'
-            },
-            {
-                extend: 'csv'
-            },
+        "pageLength": 10,
+        "lengthMenu": [[10, 25, 50, 100], [10, 25, 50, 100]],
+        "responsive": true,
+        "dom": '<"html5buttons"B>lfrtip',
+        "buttons": [
             {
                 extend: 'excel',
-                title: 'ExampleFile'
-            },
-            {
-                extend: 'pdf',
-                title: 'ExampleFile'
-            },
-
-            {
-                extend: 'print',
-                customize: function(win) {
-                    $(win.document.body).addClass('white-bg');
-                    $(win.document.body).css('font-size', '10px');
-
-                    $(win.document.body).find('table')
-                        .addClass('compact')
-                        .css('font-size', 'inherit');
-                }
+                title: 'Productos',
+                text: '<i class="fa fa-file-excel-o"></i> Excel'
             }
         ],
-        "ajax": "/producto/listar/productos",
-        "columns": [{
-                data: 'codigo'
-            },
-            {
-                data: 'nombre'
-            },
-            {
-                data: 'descripcion'
-            },
-            {
-                data: 'codigo_barra'
-            },
-            {
-                data: 'ISV'
-            },
-            {
-                data: 'categoria'
-            },
-
-            {
-                data: 'existencia'
-            },
-            {
-                data: 'disponibilidad'
+        "ajax": {
+            "url": "/producto/listar/productos",
+            "type": "GET",
+            "data": function(d) {
+                // Parámetros adicionales si es necesario
             }
-
+        },
+        "columns": [
+            { "data": "codigo", "name": "codigo" },
+            { "data": "nombre", "name": "nombre" },
+            { "data": "descripcion", "name": "descripcion" },
+            { "data": "codigo_barra", "name": "codigo_barra" },
+            { "data": "ISV", "name": "ISV", "searchable": false },
+            { "data": "categoria", "name": "categoria" },
+            { "data": "existencia", "name": "existencia", "searchable": false },
+            { "data": "disponibilidad", "name": "disponibilidad", "orderable": false, "searchable": false }
         ]
-
-
     });
 })
 
