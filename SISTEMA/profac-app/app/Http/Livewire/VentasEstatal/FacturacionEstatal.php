@@ -113,6 +113,7 @@ class FacturacionEstatal extends Component
             return response()->json([
                 "datos" => $datos
             ], 200);
+
         } catch (QueryException $e) {
             return response()->json([
                 'message' => 'Ha ocurrido un error',

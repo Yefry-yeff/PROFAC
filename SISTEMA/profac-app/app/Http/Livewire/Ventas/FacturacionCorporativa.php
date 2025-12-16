@@ -108,15 +108,15 @@ class FacturacionCorporativa extends Component
                 from cliente
                 inner join users on users.id = cliente.vendedor where cliente.id = " . $request->id); */
 
-                $datos = modelCategoriaCliente::select(
+
+
+            $datos = modelCategoriaCliente::select(
                 'cliente.id',
                 'cliente.nombre',
                 'cliente.rtn',
                 'cliente.dias_credito',
                 'cliente_categoria_escala.nombre_categoria',
-                'cliente_categoria_escala.id',
-                'users.id as idVendedor',
-                'users.name as vendedor'
+                'cliente_categoria_escala.id as idcategoriacliente',
             )
             ->join(
                 'cliente',
@@ -124,18 +124,12 @@ class FacturacionCorporativa extends Component
                 '=',
                 'cliente_categoria_escala.id'
             )
-            ->join(
-                'users',
-                'users.id',
-                '=',
-                'cliente.vendedor'
-            )
             ->where('cliente.id', $request->id)
             ->first();
-
             return response()->json([
                 "datos" => $datos
             ], 200);
+
         } catch (QueryException $e) {
             return response()->json([
                 'message' => 'Ha ocurrido un error',
@@ -333,22 +327,6 @@ class FacturacionCorporativa extends Component
 
         try {
 
-            // $secciones = DB::SELECT("
-            // select
-            //     B.id,
-            //     B.descripcion,
-            //     D.nombre
-            // from recibido_bodega A
-            //     inner join seccion B
-            //     on A.seccion_id = B.id
-            //     inner join segmento C
-            //     on B.segmento_id = C.id
-            //     inner join bodega D
-            //     on C.bodega_id = D.id
-            // where producto_id = ".$request->idProducto." and D.id =".$request->idBodega."
-            // group by B.id
-            // ");
-
             $unidades = DB::SELECT(
                 "
             select
@@ -361,52 +339,57 @@ class FacturacionCorporativa extends Component
             on A.unidad_medida_id = B.id
             where A.estado_id = 1 and A.producto_id = " . $request->idProducto
             );
-            /* CAMBIO 20230725 FORMAT(ultimo_costo_compra,2):FORMAT(precio_base,2)*/
-           /*  $producto = DB::SELECTONE("
-            select
-            id,
-            concat(id,' - ',nombre) as nombre,
-            isv,
-            ultimo_costo_compra as ultimo_costo_compra,
-            precio_base as precio_base,
-            precio1 as precio1,
-            precio2 as precio2,
-            precio3 as precio3,
-            precio4 as precio4
-            from producto where id = " . $request['idProducto'] . "
-            "); */
-           $producto = DB::selectOne("
+
+            $producto = DB::selectOne("
                 SELECT
-                p.id,
-                CONCAT(p.id,' - ',p.nombre) AS nombre,
-                p.isv,
-                p.ultimo_costo_compra AS ultimo_costo_compra,
-                ppc.precio_base_venta AS precio_base,
-                ppc.precio_a AS precio1,
-                ppc.precio_b AS precio2,
-                ppc.precio_c AS precio3,
-                ppc.precio_d AS precio4
+                    p.id,
+                    CONCAT(p.id,' - ',p.nombre) AS nombre,
+                    p.isv,
+                    p.ultimo_costo_compra AS ultimo_costo_compra,
+                    ppc.precio_base_venta AS precio_base,
+                    ppc.precio_a AS precio1,
+                    ppc.precio_b AS precio2,
+                    ppc.precio_c AS precio3,
+                    ppc.precio_d AS precio4
                 FROM producto p
-                JOIN cliente cli
-                ON cli.id = :idCliente
                 JOIN cliente_categoria_escala cce
-                ON cce.id = cli.cliente_categoria_escala_id
-                AND cce.estado_id = 1
+                    ON cce.id = :categoria_cliente_venta_id
+                    AND cce.estado_id = 1
                 JOIN categoria_precios cp
-                ON cp.cliente_categoria_escala_id = cce.id
-                AND cp.estado_id = 1
+                    ON cp.cliente_categoria_escala_id = cce.id
+                    AND cp.estado_id = 1
                 JOIN precios_producto_carga ppc
-                ON ppc.producto_id = p.id
-                AND ppc.categoria_precios_id = cp.id
-                AND ppc.estado_id = 1
+                    ON ppc.producto_id = p.id
+                    AND ppc.categoria_precios_id = cp.id
+                    AND ppc.estado_id = 1
                 WHERE p.id = :idProducto
-                LIMIT 1
+                LIMIT 1;
             ", [
-                'idCliente'  => $request['idCliente'],
+                'categoria_cliente_venta_id' => $request['categoria_cliente_venta_id'],
                 'idProducto' => $request['idProducto'],
+
             ]);
 
 
+
+
+            if (!$producto) {
+                dd("Entro a este if");
+                $nombreProducto = DB::table('producto')
+                    ->where('id', $request['idProducto'])
+                    ->value('nombre');
+
+                $nombreCategoria = DB::table('cliente_categoria_escala')
+                    ->where('id', $request['categoria_cliente_venta_id'])
+                    ->value('nombre_categoria');
+
+               if (!$producto) {
+                    return response()->json([
+                        'message' => "El producto <b>{$nombreProducto}</b> no tiene una escala de precios asignada para la categoría de cliente <b>{$nombreCategoria}</b>."
+                    ], 404);
+                }
+
+            }
 
             return response()->json([
                 "producto" => $producto,
@@ -423,10 +406,8 @@ class FacturacionCorporativa extends Component
 
     public function guardarVenta(Request $request)
     {
-        // dd($request->nota_comen);
+
         try {
-
-
 
             $validator = Validator::make($request->all(), [
 

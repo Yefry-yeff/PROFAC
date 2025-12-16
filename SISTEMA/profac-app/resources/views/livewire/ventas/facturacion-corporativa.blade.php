@@ -49,43 +49,11 @@
         </style>
     @endpush
 
-    <div class="row wrapper border-bottom white-bg page-heading">
-        <div class="col-lg-8 col-xl-10 col-md-8 col-sm-8">
-            <h2>Ventas</h2>
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item">
-                    {{--  <a>Clientes <b>A</b></a>  --}}
-                    {{--  <a>Clientes <b>B</b></a>  --}}
-                    <div class="alert alert-info" role="alert">
-                        Clientes <b>B</b>
-                    </div>
-
-                </li>
-                {{-- <li class="breadcrumb-item">
-                    <a data-toggle="modal" data-target="#modal_producto_crear">Registrar</a>
-                </li> --}}
-
-            </ol>
-        </div>
-
-
-        {{-- <div class="col-lg-4 col-xl-2 col-md-4 col-sm-4">
-                <div style="margin-top: 1.5rem">
-                    <a href="#" class="btn add-btn btn-primary" data-toggle="modal" data-target="#modal_producto_crear"><i
-                            class="fa fa-plus"></i> Registrar Producto</a>
-                </div>
-            </div> --}}
-
-
-    </div>
 
     <div class="wrapper wrapper-content animated fadeInRight">
         <div class="row">
             <div class="col-lg-12">
                 <div class="ibox ">
-                    <div class="ibox-title">
-                        <h3>Datos de compra <i class="fa-solid fa-cart-shopping"></i></h3>
-                    </div>
                     <div class="ibox-content">
                         <form onkeydown="return event.key != 'Enter';" autocomplete="off" id="crear_venta"
                             name="crear_venta" data-parsley-validate>
@@ -93,17 +61,30 @@
                             <input type="hidden" id="restriccion" name="restriccion" value="1">
                             <input name="idComprobante" id="idComprobante" type="hidden" value="">
                             <input type="hidden" id="codigo_autorizacion" name="codigo_autorizacion" value="">
-                            <div class="row">
-                                <div class="col-6 col-sm-6 col-md-2 col-lg-2 col-xl-2">
-                                    <label class="col-form-label text-danger" for="numero_venta"
-                                        style="font-size: 1.5rem; font-weight:600;">Numero de Venta</label>
+                            <div class="row align-items-center">
+                                <div class="col-12 col-md-6 col-lg-6 col-xl-6">
+                                    <div class="d-flex align-items-center gap-2 flex-nowrap">
+                                        <h3 class="mb-0">
+                                            Venta Cliente A:
+                                        </h3>
+
+                                        <input
+                                            type="text"
+                                            id="numero_venta"
+                                            name="numero_venta"
+                                            class="form-control form-control-sm"
+                                            style="max-width: 140px;"
+                                            readonly
+                                        >
+                                    </div>
                                 </div>
 
-                                <div class="col-6 col-sm-6 col-md-2 col-lg-2 col-xl-2">
-                                    <input class="form-control"
-                                        style="font-size: 1.5rem; font-weight:600; text-align:center" type="text"
-                                        id="numero_venta" name="numero_venta" value="" data-parsley-required
-                                        readonly>
+                                <div class="col-12 col-md-6 col-lg-6 col-xl-6 d-flex align-items-center gap-2">
+                                    <span class="text-muted small">Categoría del Cliente:</span>
+                                    <span
+                                        id="categoria_cliente_nombre"
+                                        class="badge badge-info px-3 py-2"
+                                    ></span>
                                 </div>
 
 
@@ -111,8 +92,8 @@
                             </div>
 
 
-                            <div class="row mt-4 mb-4">
-                                <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6">
+                            <div class="row">
+                                <div class="col-12 col-md-6 col-lg-6 col-xl-6">
                                     <label for="seleccionarCliente" class="col-form-label focus-label">Seleccionar
                                         Cliente:<span class="text-danger">*</span> </label>
                                     <select id="seleccionarCliente" name="seleccionarCliente"
@@ -122,18 +103,17 @@
                                     </select>
                                 </div>
 
-                                <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6">
-                                    <label for="ordenCompra" class="col-form-label focus-label">Seleccionar un número de
-                                        orden de compra:</label>
-                                    <select class="form-group form-control " name="ordenCompra" id="ordenCompra">
-                                        <option value="" selected disabled>--Seleccionar un número de compra--
-                                        </option>
 
-                                    </select>
+                                <div class="col-12 col-md-6 col-lg-6 col-xl-6">
+                                    <label class="col-form-label focus-label">Nombre del cliente:<span
+                                            class="text-danger">*</span></label>
+                                    <input class="form-control" required type="text" id="nombre_cliente_ventas"
+                                        name="nombre_cliente_ventas" data-parsley-required readonly>
+
                                 </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4">
+
+
+                                <div class="col-12 col-md-6 col-lg-6 col-xl-6">
                                     <label for="vendedor">Seleccionar Vendedor:<span class="text-danger">*</span>
                                     </label>
                                     <select name="vendedor" id="vendedor" class="form-group form-control" required>
@@ -142,25 +122,25 @@
 
                                 </div>
 
-                                <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4">
-                                    <label class="col-form-label focus-label">Nombre del cliente:<span
-                                            class="text-danger">*</span></label>
-                                    <input class="form-control" required type="text" id="nombre_cliente_ventas"
-                                        name="nombre_cliente_ventas" data-parsley-required readonly>
+                                <div class="col-12 col-md-6 col-lg-6 col-xl-6">
+                                    <label for="ordenCompra" class="col-form-label focus-label">Seleccionar un número de
+                                        orden de compra:</label>
+                                    <select class="form-group form-control " name="ordenCompra" id="ordenCompra">
+                                        <option value="" selected disabled>--Seleccionar un número de compra--
+                                        </option>
 
+                                    </select>
                                 </div>
 
-                                <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4">
+                                <div class="col-12 col-md-6 col-lg-6 col-xl-6">
                                     <label class="col-form-label focus-label">RTN:<span
                                             class="text-danger">*</span></label>
                                     <input class="form-control" type="text" id="rtn_ventas" name="rtn_ventas"
                                         readonly>
                                 </div>
 
-                            </div>
 
-                            <div class="row mt-4">
-                                <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4">
+                                <div class="col-12 col-md-6 col-lg-6 col-xl-6">
                                     <label for="tipoPagoVenta" class="col-form-label focus-label">Seleccionar tipo de
                                         pago:<span class="text-danger">*</span></label>
                                     <select class="form-group form-control " name="tipoPagoVenta" id="tipoPagoVenta"
@@ -168,7 +148,7 @@
                                     </select>
                                 </div>
 
-                                <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4">
+                                <div class="col-12 col-md-6 col-lg-6 col-xl-6">
                                     <div class="form-group">
 
                                         <label for="fecha_emision" class="col-form-label focus-label">Fecha de emisión
@@ -179,9 +159,7 @@
 
                                     </div>
                                 </div>
-
-
-                                <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4">
+                                <div class="col-12 col-md-6 col-lg-6 col-xl-6">
                                     <div class="form-group">
                                         <label for="fecha_vencimiento"
                                             class="col-form-label focus-label text-warning">Fecha de vencimiento:
@@ -192,11 +170,7 @@
                                     </div>
 
                                 </div>
-
-                            </div>
-
-                            <div class="row">
-                                <div class="col-12 col-sm-12 col-md-4 col-lg-4 col-xl-4">
+                                <div class="col-12 col-md-6 col-lg-6 col-xl-6">
                                     <div class="form-group">
 
                                         <label for="porDescuento" class="col-form-label focus-label">Descuento
@@ -211,10 +185,8 @@
 
                                     </div>
                                 </div>
-                            </div>
 
-                            <div class="row">
-                                <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
+                                <div class="col-12 col-md-6 col-lg-6 col-xl-6">
                                     <div class="form-group">
                                         <label for="nota" class="col-form-label focus-label">Nota:
                                         </label>
@@ -223,11 +195,11 @@
 
                                 </div>
 
-
                             </div>
 
-                            <div class="row mt-4">
-                                <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6 ">
+
+                            <div class="row">
+                                <div class="col-12 col-md-6 col-lg-6 col-xl-6">
 
 
                                     <label for="seleccionarProducto" class="col-form-label focus-label">Seleccionar
@@ -242,7 +214,15 @@
 
                                 </div>
 
-                                <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6 ">
+                                <div class="col-12 col-md-6 col-lg-6 col-xl-6">
+                                    <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
+                                        <label for="bodega" class="col-form-label focus-label">Categoría/Cliente Venta:<span class="text-danger">*</span></label>
+                                        <select id="categoria_cliente_venta_id" name="categoria_cliente_venta_id" class="form-group form-control"style="" onchange="listaCategoríaClientes()">
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="col-12 col-md-6 col-lg-6 col-xl-6">
 
                                     <label for="bodega" class="col-form-label focus-label">Seleccionar bodega:<span
                                             class="text-danger">*</span></label>
@@ -705,6 +685,35 @@
 
             }
 
+            function obtenerCategoriasClientes() {
+
+                $('#categoria_cliente_venta_id').select2({
+                    placeholder: 'Seleccione una categoría',
+                    allowClear: true,
+                    ajax: {
+                        url: '/clientes/categorias-escala',
+                        dataType: 'json',
+                        delay: 250,
+                        data: function (params) {
+                            return {
+                                q: params.term || '',
+                                page: params.page || 1
+                            };
+                        },
+                        processResults: function (data) {
+                            return {
+                                results: data.categorias.map(function (item) {
+                                    return {
+                                        id: item.id,
+                                        text: item.nombre_categoria
+                                    };
+                                })
+                            };
+                        }
+                    }
+                });
+            }
+
             function obtenerBodegas(id) {
 
                 document.getElementById('bodega').innerHTML = "<option  selected disabled>--Seleccione una bodega--</option>";
@@ -836,7 +845,7 @@
 
             function agregarProductoCarrito() {
                 let idProducto = document.getElementById('seleccionarProducto').value;
-                let idCliente = document.getElementById('select2-seleccionarCliente-container').value;
+                let categoria_cliente_venta_id = document.getElementById('categoria_cliente_venta_id').value;
 
                 let data = $("#bodega").select2('data')[0];
                 let bodega = data.bodegaSeccion;
@@ -846,7 +855,7 @@
 
                 axios.post('/ventas/datos/producto', {
                         idProducto: idProducto,
-                        idCliente: idCliente
+                        categoria_cliente_venta_id: categoria_cliente_venta_id
 
                     })
                     .then(response => {
@@ -881,7 +890,7 @@
                         }
 
                         let producto = response.data.producto;
-                        let precio_base = new Intl.NumberFormat('es-HN').format(producto.precio_base);
+                        //let precio_base = new Intl.NumberFormat('es-HN').format(producto.precio_base);
 
                         let arrayUnidades = response.data.unidades;
 
@@ -900,19 +909,11 @@
 
                         /*<option  value="${producto.precio_base}" data-id="pb">${producto.precio_base} - Base</option>*/
                         htmlprecios = `
-                        <option  value="${producto.precio1}" data-id="p1" selectec>${producto.precio1} - A</option>
+                        <option  value="${producto.precio1}" data-id="p1" selected>${producto.precio1} - A</option>
                         <option  value="${producto.precio2}" data-id="p2">${producto.precio2} - B</option>
                         <option  value="${producto.precio3}" data-id="p3">${producto.precio3} - C</option>
                         <option  value="${producto.precio4}" data-id="p4">${producto.precio4} - D</option>
-
-
-
-
                         `;
-                        /*htmlprecios = `
-                        <option data-id="0" selected>--Seleccione precio--</option>
-                        <option  value="${producto.precio1}" data-id="p1" selected>${producto.precio1} - A</option>`;*/
-
                         arrayUnidades.forEach(unidad => {
                             if (unidad.valor_defecto == 1) {
                                 htmlSelectUnidades +=
@@ -970,7 +971,7 @@
                                             <div class="form-group col-1">
                                                 <label for="precio${numeroInputs}" class="sr-only">Precio</label>
                                                 <input type="number" placeholder="Precio Unidad" id="precio${numeroInputs}"
-                                                    name="precio${numeroInputs}" value="${producto.producto.precio1}" class="form-control" min="${producto.precio1}" data-parsley-required step="any"
+                                                    name="precio${numeroInputs}" value="${producto.precio1}" class="form-control" min="${producto.precio1}" data-parsley-required step="any"
                                                     autocomplete="off" onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
                                             </div>
 
@@ -1046,13 +1047,13 @@
                     })
                     .catch(err => {
 
-                        console.error(err);
 
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Error!',
-                            text: "Ha ocurrido un error al agregar el producto a la compra."
-                        })
+                        console.error(err);
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                html: mensaje
+                            });
                     })
             }
 
@@ -1293,6 +1294,10 @@
                                 document.getElementById("rtn_ventas").value = '';
                                 let selectBox = document.getElementById("tipoPagoVenta");
                                 selectBox.remove(2);
+                                obtenerCategoriasClientes();
+                                $('#categoria_cliente_nombre').text(data.nombre_categoria);
+                                document.getElementById("categoria_cliente_venta_id").appendChild(new Option(data.nombre_categoria, data.idcategoriacliente, true, true));
+
 
                             } else {
                                 document.getElementById("nombre_cliente_ventas").readOnly = true;
@@ -1300,6 +1305,12 @@
 
                                 document.getElementById("nombre_cliente_ventas").value = data.nombre;
                                 document.getElementById("rtn_ventas").value = data.rtn;
+                                $('#categoria_cliente_nombre').text(data.nombre_categoria);
+
+                                document.getElementById("categoria_cliente_venta_id").appendChild(new Option(data.nombre_categoria, data.idcategoriacliente, true, true));
+
+                                obtenerCategoriasClientes();
+
                                 obtenerTipoPago();
 
                                 obtenerOrdenesCompra();
@@ -1312,7 +1323,10 @@
                     )
                     .catch(err => {
 
-                        console.log(err);
+                            const mensaje = err.response?.data?.message
+                                || 'Ha ocurrido un error inesperado';
+
+                        //console.log(err);
                         Swal.fire({
                             icon: 'error',
                             title: 'Error...',
