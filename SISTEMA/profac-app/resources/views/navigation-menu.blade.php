@@ -428,6 +428,15 @@
                     
                     /* Ajustes específicos para móvil - aplicar los mismos estilos que escritorio */
                     @media (max-width: 768px) {
+                        /* Asegurar que el sidebar esté visible en pantalla */
+                        .navbar-static-side {
+                            position: fixed !important;
+                            top: 0 !important;
+                            left: 0 !important;
+                            height: 100vh !important;
+                            display: block !important;
+                            z-index: 2000 !important;
+                        }
                         /* Ancho minimizado por defecto en móvil */
                         body:not(.mini-navbar) .navbar-static-side {
                             width: 70px !important;
@@ -578,6 +587,41 @@
                             font-size: 20px !important;
                         }
                     }
+
+                    /* ========== TABLET: Solo iconos (similar a móvil) ========== */
+                    @media (min-width: 769px) and (max-width: 992px) {
+                        .navbar-static-side {
+                            position: fixed !important;
+                            top: 0 !important;
+                            left: 0 !important;
+                            height: 100vh !important;
+                            display: block !important;
+                            z-index: 2000 !important;
+                            width: 70px !important;
+                        }
+
+                        /* Ocultar textos y flechas en tablet */
+                        .nav li a span.nav-label,
+                        .nav li a .fa.arrow {
+                            display: none !important;
+                        }
+
+                        /* Centrar iconos */
+                        .nav > li > a {
+                            text-align: center !important;
+                            padding: 14px 10px !important;
+                        }
+
+                        /* Ocultar búsqueda en tablet */
+                        .search-sidebar {
+                            display: none !important;
+                        }
+
+                        /* Ajustar contenido principal */
+                        #page-wrapper {
+                            margin-left: 70px !important;
+                        }
+                    }
                     
                     /* Asegurar ancho 70px en escritorio minimizado */
                     body.mini-navbar .navbar-static-side {
@@ -610,64 +654,32 @@
                             border-radius: 4px;
                             cursor: pointer;
                         }
-                        
-                        /* Cuando se expande el menú en móvil */
+
+                        /* Siempre iconos en móvil (incluso si se pulsa el toggle) */
                         body.mini-navbar .navbar-static-side {
-                            width: 220px !important;
+                            width: 70px !important;
                         }
-                        
+
                         body.mini-navbar #page-wrapper {
-                            margin-left: 220px !important;
+                            margin-left: 70px !important;
                         }
-                        
-                        body.mini-navbar .navbar-default .nav li a span.nav-label {
-                            display: inline !important;
+
+                        body.mini-navbar .nav li a span.nav-label,
+                        body.mini-navbar .nav li a .fa.arrow {
+                            display: none !important;
                         }
-                        
-                        body.mini-navbar .navbar-default .nav li a .fa.arrow {
-                            display: inline !important;
+
+                        body.mini-navbar .navbar-default .nav > li > a {
+                            text-align: center !important;
+                            padding: 14px 10px !important;
                         }
-                        
-                        body.mini-navbar .search-sidebar {
-                            display: block !important;
-                        }
-                        
+
                         body.mini-navbar .dashboard-btn .dashboard-link {
                             justify-content: center !important;
                         }
-                        
+
                         body.mini-navbar .dashboard-btn .dashboard-link i {
-                            margin-right: 10px !important;
-                        }
-                        
-                        /* Resetear estilos del hover tooltip cuando está expandido */
-                        body.mini-navbar .navbar-default .nav li .nav-second-level {
-                            position: static !important;
-                            left: auto !important;
-                            width: auto !important;
-                            border: none !important;
-                            box-shadow: none !important;
-                            background: transparent !important;
-                            padding: 0 !important;
-                            max-height: none !important;
-                            overflow-y: visible !important;
-                            border-radius: 0 !important;
-                            z-index: auto !important;
-                        }
-                        
-                        /* Comportamiento normal de submenús en modo expandido */
-                        body.mini-navbar .navbar-default .nav li.active > .nav-second-level {
-                            display: block !important;
-                        }
-                        
-                        body.mini-navbar .navbar-default .nav li:not(.active) > .nav-second-level {
-                            display: none !important;
-                        }
-                        
-                        /* Resetear padding de items en modo expandido */
-                        body.mini-navbar .navbar-default .nav > li > a {
-                            text-align: left !important;
-                            padding: 14px 20px 14px 25px !important;
+                            margin-right: 0 !important;
                         }
                     }
                 </style>
