@@ -555,8 +555,12 @@
                             display: none !important;
                         }
                         
-                        /* Ajustar contenido principal */
+                        /* Ajustar contenido principal: sin espacio por defecto */
                         body:not(.mini-navbar) #page-wrapper {
+                            margin-left: 0 !important;
+                        }
+                        /* Cuando el sidebar está abierto, empujar el contenido */
+                        body.mobile-sidebar-open #page-wrapper {
                             margin-left: 70px !important;
                         }
                         
@@ -617,8 +621,8 @@
                             display: none !important;
                         }
 
-                        /* Ajustar contenido principal */
-                        #page-wrapper {
+                        /* Ajustar contenido principal solo cuando el sidebar esté abierto */
+                        body.mobile-sidebar-open #page-wrapper {
                             margin-left: 70px !important;
                         }
                     }
@@ -682,6 +686,30 @@
                             margin-right: 0 !important;
                         }
                     }
+
+                    /* ========== Off-canvas en móvil: oculto por defecto, visible al expandir ========== */
+                    @media (max-width: 768px) {
+                        .navbar-static-side {
+                            transition: left 0.25s ease;
+                            left: -80px !important; /* Oculto por defecto */
+                            width: 70px !important;
+                        }
+                        body.mobile-sidebar-open .navbar-static-side {
+                            left: 0 !important; /* Visible al expandir */
+                        }
+                    }
+
+                    /* ========== Off-canvas en tablet: oculto por defecto, visible al expandir ========== */
+                    @media (min-width: 769px) and (max-width: 992px) {
+                        .navbar-static-side {
+                            transition: left 0.25s ease;
+                            left: -80px !important; /* Oculto por defecto */
+                            width: 70px !important;
+                        }
+                        body.mobile-sidebar-open .navbar-static-side {
+                            left: 0 !important; /* Visible al expandir */
+                        }
+                    }
                 </style>
 
                 {{--  MENÚ DINÁMICO DESDE BASE DE DATOS  --}}
@@ -690,4 +718,63 @@
             </ul>
         </div>
     </nav>
+        <!-- Overlay para cerrar el menú en móvil/tablet -->
+        <div class="mobile-sidebar-overlay" aria-hidden="true"></div>
 </nav>
+
+<style>
+/* Overlay para mobile/tablet */
+@media (max-width: 992px) {
+    .mobile-sidebar-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.45);
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.25s ease, visibility 0.25s ease;
+        z-index: 1500; /* Debajo del sidebar (2000) */
+    }
+    body.mobile-sidebar-open .mobile-sidebar-overlay {
+        opacity: 1;
+        visibility: visible;
+    }
+}
+</style>
+
+<script>
+// Toggle del sidebar en móvil/tablet: oculto por defecto, aparece al pulsar
+document.addEventListener('DOMContentLoaded', function () {
+    const toggleBtn = document.querySelector('.navbar-minimalize');
+    const overlay = document.querySelector('.mobile-sidebar-overlay');
+    function isNonDesktop() { return window.innerWidth <= 992; }
+
+    function toggleMobileSidebar(e) {
+        if (!toggleBtn) return;
+        if (isNonDesktop()) {
+            if (e) e.preventDefault();
+            document.body.classList.toggle('mobile-sidebar-open');
+        }
+    }
+
+    if (toggleBtn) {
+        toggleBtn.addEventListener('click', toggleMobileSidebar);
+    }
+
+    // Cerrar tocando overlay
+    if (overlay) {
+        overlay.addEventListener('click', () => {
+            document.body.classList.remove('mobile-sidebar-open');
+        });
+    }
+
+    // Cerrar el sidebar si cambia a escritorio
+    window.addEventListener('resize', () => {
+        if (!isNonDesktop()) {
+            document.body.classList.remove('mobile-sidebar-open');
+        }
+    });
+});
+</script>
