@@ -502,8 +502,13 @@
                         const checkboxDeshabilitado = facturaBloqueada || tieneIncidencia;
                         const incidenciasRegistradas = Number(p.incidencias_registradas) || 0;
                         const nombreSafe = encodeURIComponent(p.nombre_producto || '');
-                        // Usar el estado guardado del checkbox si existe, sino usar p.entregado
-                        const estaChecked = estadoCheckboxes.hasOwnProperty(p.id) ? estadoCheckboxes[p.id] : p.entregado;
+                        // Si tiene incidencia, siempre debe estar desmarcado
+                        // Si no tiene incidencia, usar el estado guardado o p.entregado
+                        const estaChecked = tieneIncidencia ? false : (estadoCheckboxes.hasOwnProperty(p.id) ? estadoCheckboxes[p.id] : p.entregado);
+                        // Actualizar el estado en memoria también
+                        if (tieneIncidencia) {
+                            p.entregado = 0;
+                        }
                         filas += `<tr>
                             <td>${index + 1}</td>
                             <td>
