@@ -93,8 +93,21 @@ class FacturacionEstatal extends Component
     {
         try {
 
-            $datos = DB::SELECTONE("select id,nombre, rtn,dias_credito  from cliente where id = " . $request->id);
-
+            $datos = modelCategoriaCliente::select(
+        'cliente.id',
+        'cliente.nombre',
+        'cliente.rtn',
+        'cliente.dias_credito',
+        'cliente_categoria_escala.categoria_id'
+    )
+    ->join(
+        'cliente',
+        'cliente.id',
+        '=',
+        'cliente_categoria_escala.cliente_id'
+    )
+    ->where('cliente.id', $request->id)
+    ->first();
             return response()->json([
                 "datos" => $datos
             ], 200);
