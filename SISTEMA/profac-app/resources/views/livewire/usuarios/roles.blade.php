@@ -112,54 +112,108 @@
                             </div>
                         </div>
 
-                        <!-- Sección de Usuarios del Rol (solo visible al editar) -->
-                        <div id="seccionUsuarios" style="display:none;">
+                        <!-- Pestañas de Usuarios y Permisos (solo visible al editar) -->
+                        <div id="seccionTabs" style="display:none;">
                             <hr>
-                            <h6><i class="fa fa-users"></i> Usuarios Asignados a este Rol</h6>
                             
-                            <div class="row mb-3">
-                                <div class="col-md-12">
-                                    <div class="input-group">
-                                        <select class="form-control" id="selectUsuarioAgregar">
-                                            <option value="">Seleccione un usuario para agregar...</option>
-                                        </select>
-                                        <div class="input-group-append">
-                                            <button type="button" class="btn btn-primary" onclick="event.stopPropagation(); event.preventDefault(); agregarUsuarioAlRol(event); return false;">
-                                                <i class="fa fa-plus"></i> Agregar
-                                            </button>
+                            <ul class="nav nav-tabs" id="tabsRol" role="tablist">
+                                <li class="nav-item">
+                                    <a class="nav-link active" id="tab-usuarios-link" data-toggle="tab" href="#tab-usuarios" role="tab">
+                                        <i class="fa fa-users"></i> Usuarios
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" id="tab-permisos-link" data-toggle="tab" href="#tab-permisos" role="tab">
+                                        <i class="fa fa-lock"></i> Permisos
+                                    </a>
+                                </li>
+                            </ul>
+
+                            <div class="tab-content mt-3" id="tabsRolContent">
+                                <!-- Tab de Usuarios -->
+                                <div class="tab-pane fade show active" id="tab-usuarios" role="tabpanel">
+                                    <div class="row mb-3">
+                                        <div class="col-md-12">
+                                            <div class="input-group">
+                                                <select class="form-control" id="selectUsuarioAgregar">
+                                                    <option value="">Seleccione un usuario para agregar...</option>
+                                                </select>
+                                                <div class="input-group-append">
+                                                    <button type="button" class="btn btn-primary" onclick="event.stopPropagation(); event.preventDefault(); agregarUsuarioAlRol(event); return false;">
+                                                        <i class="fa fa-plus"></i> Agregar
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <small class="form-text text-muted">
+                                                <i class="fa fa-info-circle"></i> Si el usuario ya tiene otro rol, se actualizará automáticamente
+                                            </small>
                                         </div>
                                     </div>
-                                    <small class="form-text text-muted">
-                                        <i class="fa fa-info-circle"></i> Si el usuario ya tiene otro rol, se actualizará automáticamente
-                                    </small>
+
+                                    <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                                        <table class="table table-sm table-bordered table-hover" id="tablaUsuariosRol">
+                                            <thead class="thead-light">
+                                                <tr>
+                                                    <th>ID</th>
+                                                    <th>Nombre</th>
+                                                    <th>Email</th>
+                                                    <th>Rol Anterior</th>
+                                                    <th width="80px">Acción</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="listaUsuariosRol">
+                                                <tr>
+                                                    <td colspan="5" class="text-center text-muted">
+                                                        <i class="fa fa-info-circle"></i> No hay usuarios asignados
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                <!-- Tab de Permisos -->
+                                <div class="tab-pane fade" id="tab-permisos" role="tabpanel">
+                                    <div class="row mb-3">
+                                        <div class="col-md-12">
+                                            <div class="input-group">
+                                                <select class="form-control" id="selectSubmenuAgregar">
+                                                    <option value="">Seleccione un submenu para agregar...</option>
+                                                </select>
+                                                <div class="input-group-append">
+                                                    <button type="button" class="btn btn-primary" onclick="event.stopPropagation(); event.preventDefault(); agregarPermisoAlRol(event); return false;">
+                                                        <i class="fa fa-plus"></i> Agregar Permiso
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <small class="form-text text-muted">
+                                                <i class="fa fa-info-circle"></i> Agregue o quite permisos de acceso a los submenús
+                                            </small>
+                                        </div>
+                                    </div>
+
+                                    <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                                        <table class="table table-sm table-bordered table-hover" id="tablaPermisosRol">
+                                            <thead class="thead-light">
+                                                <tr>
+                                                    <th>ID</th>
+                                                    <th>Menú</th>
+                                                    <th>Submenú</th>
+                                                    <th>Ruta</th>
+                                                    <th width="80px">Acción</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="listaPermisosRol">
+                                                <tr>
+                                                    <td colspan="5" class="text-center text-muted">
+                                                        <i class="fa fa-info-circle"></i> No hay permisos asignados
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
                             </div>
-
-                            <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
-                                <table class="table table-sm table-bordered table-hover" id="tablaUsuariosRol">
-                                    <thead class="thead-light">
-                                        <tr>
-                                            <th>ID</th>
-                                            <th>Nombre</th>
-                                            <th>Email</th>
-                                            <th>Rol Anterior</th>
-                                            <th width="80px">Acción</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="listaUsuariosRol">
-                                        <tr>
-                                            <td colspan="5" class="text-center text-muted">
-                                                <i class="fa fa-info-circle"></i> No hay usuarios asignados
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-
-                        <div class="alert alert-info mt-3" role="alert">
-                            <i class="fa fa-info-circle"></i> 
-                            <strong>Nota:</strong> Los permisos del rol se gestionan en el módulo de "Gestión de Menús".
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -229,6 +283,37 @@
                         <i class="fa fa-times"></i> Cancelar
                     </button>
                     <button type="button" class="btn btn-warning" onclick="event.stopPropagation(); confirmarQuitarUsuarioDelRol(); return false;">
+                        <i class="fa fa-check"></i> Sí, quitar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmación para Quitar Permiso -->
+    <div class="modal fade" id="modalConfirmarQuitarPermiso" tabindex="-1" role="dialog" data-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header bg-warning">
+                    <h5 class="modal-title">
+                        <i class="fa fa-exclamation-triangle"></i> Confirmar Acción
+                    </h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p>¿Está seguro de quitar este permiso del rol?</p>
+                    <p class="text-muted mb-0">
+                        <small><i class="fa fa-info-circle"></i> El cambio se aplicará cuando presione "Guardar" en el formulario principal.</small>
+                    </p>
+                    <input type="hidden" id="permisoQuitarId">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                        <i class="fa fa-times"></i> Cancelar
+                    </button>
+                    <button type="button" class="btn btn-warning" onclick="event.stopPropagation(); confirmarQuitarPermisoDelRol(); return false;">
                         <i class="fa fa-check"></i> Sí, quitar
                     </button>
                 </div>

@@ -2,11 +2,17 @@
 // GESTIÓN DE ROLES - JavaScript
 // ======================================================================
 
-// Variables globales para cambios pendientes
+// Variables globales para cambios pendientes de usuarios
 let usuariosOriginales = [];
 let usuariosActuales = [];
 let usuariosAgregar = [];
 let usuariosQuitar = [];
+
+// Variables globales para cambios pendientes de permisos
+let permisosOriginales = [];
+let permisosActuales = [];
+let permisosAgregar = [];
+let permisosQuitar = [];
 
 $(document).ready(function() {
     // Inicializar DataTable
@@ -60,13 +66,17 @@ function abrirModalRol() {
     $('#rolNombre').val('');
     $('#rolEstado').val('1');
     $('#tituloModalRol').text('Nuevo Rol');
-    $('#seccionUsuarios').hide();
+    $('#seccionTabs').hide();
     
     // Limpiar cambios pendientes
     usuariosOriginales = [];
     usuariosActuales = [];
     usuariosAgregar = [];
     usuariosQuitar = [];
+    permisosOriginales = [];
+    permisosActuales = [];
+    permisosAgregar = [];
+    permisosQuitar = [];
     
     $('#modalRol').modal('show');
 }
@@ -91,10 +101,13 @@ function editarRol(idRol) {
                 $('#rolEstado').val(rol.estado_id);
                 $('#tituloModalRol').text('Editar Rol');
                 
-                // Mostrar sección de usuarios y cargarlos
-                $('#seccionUsuarios').show();
+                // Mostrar sección de tabs y cargar datos
+                $('#seccionTabs').show();
+                $('#tab-usuarios-link').tab('show'); // Activar tab de usuarios por defecto
                 cargarUsuariosDelRol(idRol);
                 cargarUsuariosDisponibles();
+                cargarPermisosDelRol(idRol);
+                cargarSubmenusDisponibles();
                 
                 // Forzar cierre del spinner
                 $('#modalSpinnerLoading').modal('hide');
@@ -369,13 +382,17 @@ function guardarRol() {
         nombre: $('#rolNombre').val().trim(),
         estado_id: $('#rolEstado').val(),
         usuarios_agregar: usuariosAgregar,
-        usuarios_quitar: usuariosQuitar
+        usuarios_quitar: usuariosQuitar,
+        permisos_agregar: permisosAgregar,
+        permisos_quitar: permisosQuitar
     };
 
     console.log('Rol ID:', rolId);
     console.log('Datos a guardar:', JSON.stringify(datos));
     console.log('Usuarios a agregar:', usuariosAgregar);
     console.log('Usuarios a quitar:', usuariosQuitar);
+    console.log('Permisos a agregar:', permisosAgregar);
+    console.log('Permisos a quitar:', permisosQuitar);
 
     const url = rolId ? `/roles/actualizar/${rolId}` : '/roles/guardar';
     const metodo = rolId ? 'put' : 'post';
@@ -423,6 +440,10 @@ function guardarRol() {
             usuariosActuales = [];
             usuariosAgregar = [];
             usuariosQuitar = [];
+            permisosOriginales = [];
+            permisosActuales = [];
+            permisosAgregar = [];
+            permisosQuitar = [];
         })
         .catch(error => {
             // Forzar cierre del spinner
@@ -554,3 +575,242 @@ $('#rolNombre').on('blur', function() {
         // axios.get('/roles/validar-nombre', { params: { nombre, id: rolId } })
     }
 });
+
+// ======================================================================
+// GESTIÓN DE PERMISOS (SUBMENUS) DEL ROL
+// ======================================================================
+
+/**
+ * Cargar permisos (submenus) del rol
+ */
+function cargarPermisosDelRol(rolId) {
+    console.log('=== cargarPermisosDelRol INICIO ===');
+    console.log('Rol ID:', rolId);
+    
+    axios.get(`/roles/${rolId}/permisos`)
+        .then(response => {
+            console.log('Permisos cargados:', response.data);
+            permisosOriginales = response.data.data || [];
+            permisosActuales = [...permisosOriginales];
+            permisosAgregar = [];
+            permisosQuitar = [];
+            
+            mostrarPermisosEnTabla();
+            console.log('=== cargarPermisosDelRol FIN ===');
+        })
+        .catch(error => {
+            console.error('Error al cargar permisos:', error);
+            alert('Error al cargar los permisos del rol');
+        });
+}
+
+/**
+ * Cargar lista de todos los submenus disponibles
+ */
+function cargarSubmenusDisponibles() {
+    console.log('=== cargarSubmenusDisponibles INICIO ===');
+    
+    axios.get('/submenus/todos')
+        .then(response => {
+            console.log('Submenus disponibles:', response.data);
+            const submenus = response.data.data || [];
+            const $select = $('#selectSubmenuAgregar');
+            
+            $select.empty();
+            $select.append('<option value="">Seleccione un submenu para agregar...</option>');
+            
+            submenus.forEach(submenu => {
+                $select.append(`<option value="${submenu.id}" data-menu="${submenu.menu_nombre}" data-ruta="${submenu.ruta}">${submenu.menu_nombre} - ${submenu.nombre}</option>`);
+            });
+            
+            console.log('=== cargarSubmenusDisponibles FIN ===');
+        })
+        .catch(error => {
+            console.error('Error al cargar submenus:', error);
+        });
+}
+
+/**
+ * Mostrar permisos en la tabla
+ */
+function mostrarPermisosEnTabla() {
+    console.log('=== mostrarPermisosEnTabla INICIO ===');
+    console.log('Permisos actuales a mostrar:', permisosActuales);
+    
+    const $tbody = $('#listaPermisosRol');
+    $tbody.empty();
+    
+    if (permisosActuales.length === 0) {
+        $tbody.html(`
+            <tr>
+                <td colspan="5" class="text-center text-muted">
+                    <i class="fa fa-info-circle"></i> No hay permisos asignados
+                </td>
+            </tr>
+        `);
+    } else {
+        permisosActuales.forEach(permiso => {
+            const esNuevo = permisosAgregar.includes(permiso.id);
+            const claseNuevo = esNuevo ? 'table-success' : '';
+            
+            $tbody.append(`
+                <tr class="${claseNuevo}">
+                    <td>${permiso.id}</td>
+                    <td>${permiso.menu_nombre || '-'}</td>
+                    <td>${permiso.submenu_nombre}</td>
+                    <td><small>${permiso.ruta || '-'}</small></td>
+                    <td class="text-center">
+                        <button type="button" class="btn btn-sm btn-danger btn-quitar-permiso" data-permiso-id="${permiso.id}">
+                            <i class="fa fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `);
+        });
+        
+        // Event delegation para botones de quitar
+        $tbody.off('click', '.btn-quitar-permiso');
+        $tbody.on('click', '.btn-quitar-permiso', function(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            const permisoId = parseInt($(this).data('permiso-id'));
+            console.log('Click en botón quitar permiso, ID:', permisoId);
+            solicitarQuitarPermiso(permisoId);
+        });
+    }
+    
+    console.log('Tabla actualizada con', permisosActuales.length, 'permisos');
+    console.log('=== mostrarPermisosEnTabla FIN ===');
+}
+
+/**
+ * Agregar permiso al rol
+ */
+function agregarPermisoAlRol(event) {
+    console.log('=== agregarPermisoAlRol INICIO ===');
+    
+    if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+    }
+    
+    const submenuId = parseInt($('#selectSubmenuAgregar').val());
+    console.log('Submenu ID seleccionado:', submenuId);
+    
+    if (!submenuId) {
+        alert('Debe seleccionar un submenu');
+        return;
+    }
+    
+    // Verificar si ya existe
+    const yaExiste = permisosActuales.find(p => p.id === submenuId);
+    if (yaExiste) {
+        alert('El permiso ya está asignado al rol');
+        console.log('=== agregarPermisoAlRol FIN (ya existe) ===');
+        return;
+    }
+    
+    // Obtener datos del option seleccionado
+    const $option = $('#selectSubmenuAgregar option:selected');
+    const menuNombre = $option.data('menu');
+    const submenuNombre = $option.text().split(' - ')[1];
+    const ruta = $option.data('ruta');
+    
+    // Agregar a lista de cambios
+    if (!permisosAgregar.includes(submenuId)) {
+        permisosAgregar.push(submenuId);
+    }
+    
+    // Quitar de lista de eliminados si estaba
+    const indexQuitar = permisosQuitar.indexOf(submenuId);
+    if (indexQuitar > -1) {
+        permisosQuitar.splice(indexQuitar, 1);
+    }
+    
+    // Agregar a permisos actuales
+    permisosActuales.push({
+        id: submenuId,
+        menu_nombre: menuNombre,
+        submenu_nombre: submenuNombre,
+        ruta: ruta
+    });
+    
+    console.log('Permiso agregado:', { submenuId, menuNombre, submenuNombre });
+    console.log('Permisos a agregar:', permisosAgregar);
+    console.log('Permisos a quitar:', permisosQuitar);
+    
+    // Actualizar vista
+    mostrarPermisosEnTabla();
+    $('#selectSubmenuAgregar').val('');
+    
+    console.log('=== agregarPermisoAlRol FIN ===');
+}
+
+/**
+ * Solicitar confirmación para quitar permiso
+ */
+function solicitarQuitarPermiso(permisoId) {
+    console.log('=== solicitarQuitarPermiso INICIO ===');
+    console.log('Permiso ID a quitar:', permisoId);
+    console.log('Estado actual de permisos:', permisosActuales);
+    
+    $('#permisoQuitarId').val(permisoId);
+    $('#modalConfirmarQuitarPermiso').modal('show');
+    
+    console.log('Modal de confirmación mostrado');
+    console.log('=== solicitarQuitarPermiso FIN ===');
+}
+
+/**
+ * Confirmar quitar permiso del rol
+ */
+function confirmarQuitarPermisoDelRol() {
+    console.log('=== confirmarQuitarPermisoDelRol INICIO ===');
+    
+    const permisoId = parseInt($('#permisoQuitarId').val());
+    console.log('Permiso ID a quitar:', permisoId);
+    console.log('Permisos actuales ANTES:', permisosActuales);
+    console.log('Permisos a agregar ANTES:', permisosAgregar);
+    console.log('Permisos a quitar ANTES:', permisosQuitar);
+    
+    // Actualizar listas
+    permisosActuales = permisosActuales.filter(p => p.id !== permisoId);
+    console.log('Permisos actuales DESPUÉS de filtrar:', permisosActuales);
+    
+    // Si estaba en la lista de agregar, quitarlo
+    const indexAgregar = permisosAgregar.indexOf(permisoId);
+    console.log('Index en lista de agregar:', indexAgregar);
+    
+    if (indexAgregar > -1) {
+        permisosAgregar.splice(indexAgregar, 1);
+        console.log('Permiso quitado de lista de agregar');
+    } else {
+        // Si no estaba en la lista de agregar, agregarlo a la lista de quitar
+        if (!permisosQuitar.includes(permisoId)) {
+            permisosQuitar.push(permisoId);
+            console.log('Permiso agregado a lista de quitar');
+        }
+    }
+    
+    console.log('Permisos a agregar DESPUÉS:', permisosAgregar);
+    console.log('Permisos a quitar DESPUÉS:', permisosQuitar);
+    
+    // Cerrar modal de confirmación
+    console.log('Cerrando modal de confirmación...');
+    $('#modalConfirmarQuitarPermiso').modal('hide');
+    
+    // Delay para asegurar cierre limpio
+    setTimeout(() => {
+        console.log('Limpiando backdrops...');
+        $('.modal-backdrop').remove();
+        $('body').removeClass('modal-open').css('padding-right', '');
+        console.log('Mostrando modal principal...');
+        $('#modalRol').modal('show');
+    }, 300);
+    
+    // Actualizar vista
+    console.log('Actualizando vista de tabla...');
+    mostrarPermisosEnTabla();
+    
+    console.log('=== confirmarQuitarPermisoDelRol FIN ===');
+}

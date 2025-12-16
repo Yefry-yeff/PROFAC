@@ -182,6 +182,44 @@ class Roles extends Component
 
             \Log::info('Rol actualizado');
 
+            // Procesar cambios de usuarios
+            if ($request->has('usuarios_agregar') && is_array($request->usuarios_agregar)) {
+                foreach ($request->usuarios_agregar as $usuarioId) {
+                    DB::table('users')->where('id', $usuarioId)->update(['rol_id' => $id]);
+                    \Log::info('Usuario agregado al rol', ['usuario_id' => $usuarioId, 'rol_id' => $id]);
+                }
+            }
+
+            if ($request->has('usuarios_quitar') && is_array($request->usuarios_quitar)) {
+                foreach ($request->usuarios_quitar as $usuarioId) {
+                    DB::table('users')->where('id', $usuarioId)->where('rol_id', $id)->update(['rol_id' => null]);
+                    \Log::info('Usuario quitado del rol', ['usuario_id' => $usuarioId]);
+                }
+            }
+
+            // Procesar cambios de permisos
+            if ($request->has('permisos_agregar') && is_array($request->permisos_agregar)) {
+                foreach ($request->permisos_agregar as $submenuId) {
+                    DB::table('rol_submenu')->insertOrIgnore([
+                        'rol_id' => $id,
+                        'sub_menu_id' => $submenuId,
+                        'created_at' => now(),
+                        'updated_at' => now()
+                    ]);
+                    \Log::info('Permiso agregado al rol', ['submenu_id' => $submenuId, 'rol_id' => $id]);
+                }
+            }
+
+            if ($request->has('permisos_quitar') && is_array($request->permisos_quitar)) {
+                foreach ($request->permisos_quitar as $submenuId) {
+                    DB::table('rol_submenu')
+                        ->where('rol_id', $id)
+                        ->where('sub_menu_id', $submenuId)
+                        ->delete();
+                    \Log::info('Permiso quitado del rol', ['submenu_id' => $submenuId]);
+                }
+            }
+
             DB::commit();
 
             \Log::info('=== ACTUALIZAR ROL FIN ===');
@@ -468,6 +506,83 @@ class Roles extends Component
             return response()->json([
                 'success' => false,
                 'mensaje' => 'Error al obtener rol anterior: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Obtener permisos (submenus) del rol
+     */
+    public function obtenerPermisosDelRol($rolId)
+    {
+        \Log::info('=== OBTENER PERMISOS DEL ROL INICIO ===');
+        \Log::info('Rol ID', ['id' => $rolId]);
+
+        try {
+            $permisos = DB::table('rol_submenu as rs')
+                ->join('sub_menu as sm', 'rs.sub_menu_id', '=', 'sm.id')
+                ->leftJoin('menu as m', 'sm.menu_id', '=', 'm.id')
+                ->where('rs.rol_id', $rolId)
+                ->select(
+                    'sm.id',
+                    'sm.nombre as submenu_nombre',
+                    'sm.url as ruta',
+                    'm.nombre_menu as menu_nombre'
+                )
+                ->orderBy('m.nombre_menu')
+                ->orderBy('sm.nombre')
+                ->get();
+
+            \Log::info('Permisos encontrados', ['count' => $permisos->count()]);
+            \Log::info('=== OBTENER PERMISOS DEL ROL FIN ===');
+
+            return response()->json([
+                'success' => true,
+                'data' => $permisos
+            ], 200);
+
+        } catch (\Exception $e) {
+            \Log::error('Error al obtener permisos del rol', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return response()->json([
+                'success' => false,
+                'mensaje' => 'Error al obtener permisos: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Listar todos los submenus disponibles
+     */
+    public function listarTodosSubmenus()
+    {
+        \Log::info('=== LISTAR TODOS LOS SUBMENUS INICIO ===');
+
+        try {
+            $submenus = DB::table('sub_menu as sm')
+                ->leftJoin('menu as m', 'sm.menu_id', '=', 'm.id')
+                ->select(
+                    'sm.id',
+                    'sm.nombre',
+                    'sm.url as ruta',
+                    'm.nombre_menu as menu_nombre'
+                )
+                ->orderBy('m.nombre_menu')
+                ->orderBy('sm.nombre')
+                ->get();
+
+            \Log::info('Submenus encontrados', ['count' => $submenus->count()]);
+            \Log::info('=== LISTAR TODOS LOS SUBMENUS FIN ===');
+
+            return response()->json([
+                'success' => true,
+                'data' => $submenus
+            ], 200);
+
+        } catch (\Exception $e) {
+            \Log::error('Error al listar submenus', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return response()->json([
+                'success' => false,
+                'mensaje' => 'Error al listar submenus: ' . $e->getMessage()
             ], 500);
         }
     }

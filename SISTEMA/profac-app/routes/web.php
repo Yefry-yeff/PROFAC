@@ -351,6 +351,10 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::post('/roles/{id}/quitar-usuario', [App\Http\Livewire\Usuarios\Roles::class, 'quitarUsuarioDelRol']);
     Route::get('/usuarios/todos', [App\Http\Livewire\Usuarios\Roles::class, 'listarTodosUsuarios']);
     Route::get('/usuarios/{id}/rol-anterior', [App\Http\Livewire\Usuarios\Roles::class, 'obtenerRolAnteriorUsuario']);
+    Route::get('/roles/{id}/permisos', [App\Http\Livewire\Usuarios\Roles::class, 'obtenerPermisosDelRol']);
+    Route::get('/submenus/todos', [App\Http\Livewire\Usuarios\Roles::class, 'listarTodosSubmenus']);
+    Route::get('/roles/{id}/permisos', [App\Http\Livewire\Usuarios\Roles::class, 'obtenerPermisosDelRol']);
+    Route::get('/submenus/todos', [App\Http\Livewire\Usuarios\Roles::class, 'listarTodosSubmenus']);
 
     /*----------------------------------------------- /NUEVAS RUTAS DE ACCESO A USUARIOS  */
 
