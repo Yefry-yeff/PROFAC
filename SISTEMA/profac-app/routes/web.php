@@ -333,11 +333,19 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('/usuario/baja/{idUsuario}', [ListarUsuarios::class, 'baja']);
     Route::get('/usuario/activar/{idUsuario}', [ListarUsuarios::class, 'activar']);
 
-
     /*------------------------------------------------NUEVAS RUTAS DE ACCESO A USUARIOS  */
     Route::post('/usuario/guardar', [ListarUsuarios::class, 'guardarUsuarios']);
-
     Route::post('/usuario/actualizar', [ListarUsuarios::class, 'actualizarUsuarios']);
+
+    //-----------------------------------------------Roles-------------------------------------------------------------------------------------------//
+    Route::get('/usuarios/roles', App\Http\Livewire\Usuarios\Roles::class)->name('roles.gestion');
+    Route::get('/roles/listar', [App\Http\Livewire\Usuarios\Roles::class, 'listarRoles']);
+    Route::post('/roles/guardar', [App\Http\Livewire\Usuarios\Roles::class, 'guardarRol']);
+    Route::get('/roles/obtener/{id}', [App\Http\Livewire\Usuarios\Roles::class, 'obtenerRol']);
+    Route::put('/roles/actualizar/{id}', [App\Http\Livewire\Usuarios\Roles::class, 'actualizarRol']);
+    Route::post('/roles/cambiar-estado/{id}', [App\Http\Livewire\Usuarios\Roles::class, 'cambiarEstadoRol']);
+    Route::delete('/roles/eliminar/{id}', [App\Http\Livewire\Usuarios\Roles::class, 'eliminarRol']);
+    Route::get('/roles/estados', [App\Http\Livewire\Usuarios\Roles::class, 'listarEstados']);
 
     /*----------------------------------------------- /NUEVAS RUTAS DE ACCESO A USUARIOS  */
 

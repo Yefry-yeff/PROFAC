@@ -313,6 +313,18 @@
                             </div>
                             <small class="form-text text-muted">Seleccione los roles que pueden ver este submenu</small>
                         </div>
+
+                        <div class="form-group">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="generarArchivos" checked>
+                                <label class="form-check-label" for="generarArchivos">
+                                    <strong>Generar archivos automáticamente</strong>
+                                </label>
+                            </div>
+                            <small class="form-text text-muted">
+                                <i class="fa fa-info-circle"></i> Crea automáticamente: Controlador Livewire, Vista Blade y genera la ruta para web.php
+                            </small>
+                        </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>

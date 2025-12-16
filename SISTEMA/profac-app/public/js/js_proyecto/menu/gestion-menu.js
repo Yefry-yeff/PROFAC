@@ -6,7 +6,8 @@ $(document).ready(function() {
             "url": "https://cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
         },
         "order": [[3, 'asc']], // Ordenar por columna Orden
-        "pageLength": 25
+        "pageLength": 10,
+        "lengthMenu": [[10, 25, 50, 100], [10, 25, 50, 100]]
     });
 
     $('#tablaSubmenus').DataTable({
@@ -14,7 +15,8 @@ $(document).ready(function() {
             "url": "https://cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
         },
         "order": [[1, 'asc'], [5, 'asc']], // Ordenar por Menú y Orden
-        "pageLength": 25
+        "pageLength": 10,
+        "lengthMenu": [[10, 25, 50, 100], [10, 25, 50, 100]]
     });
 
     // Manejar envío de formulario de Menú
@@ -116,6 +118,7 @@ function abrirModalSubmenu() {
     $('#submenuOrden').val('');
     $('#submenuEstado').val('1');
     $('.rol-checkbox').prop('checked', false);
+    $('#generarArchivos').prop('checked', true); // Activado por defecto
     $('#tituloModalSubmenu').text('Nuevo Submenu');
     $('#modalSubmenu').modal('show');
 }
@@ -176,7 +179,8 @@ function guardarSubmenu() {
         icono: $('#submenuIcono').val(),
         orden: $('#submenuOrden').val(),
         estado_id: $('#submenuEstado').val(),
-        roles: rolesSeleccionados
+        roles: rolesSeleccionados,
+        generar_archivos: $('#generarArchivos').is(':checked')
     };
 
     const url = submenuId ? `/submenu/actualizar/${submenuId}` : '/submenu/guardar';
@@ -189,11 +193,31 @@ function guardarSubmenu() {
             
             // Esperar a que el modal se cierre completamente antes de mostrar SweetAlert
             $('#modalSubmenu').on('hidden.bs.modal', function () {
+                let mensajeCompleto = response.data.mensaje;
+                
+                // Si se generaron archivos, mostrar información adicional
+                if (response.data.generacion) {
+                    const gen = response.data.generacion;
+                    
+                    if (gen.archivos_creados && gen.archivos_creados.length > 0) {
+                        mensajeCompleto += '\n\n📁 Archivos creados:\n' + gen.archivos_creados.map(f => '✓ ' + f).join('\n');
+                    }
+                    
+                    if (gen.ruta_generada) {
+                        mensajeCompleto += '\n\n🔗 Agrega esta ruta a routes/web.php:\n' + gen.ruta_generada;
+                    }
+                    
+                    if (gen.errores && gen.errores.length > 0) {
+                        mensajeCompleto += '\n\n⚠️ Advertencias:\n' + gen.errores.join('\n');
+                    }
+                }
+                
                 Swal.fire({
                     title: 'Éxito',
-                    text: response.data.mensaje || 'Submenu guardado correctamente',
+                    text: mensajeCompleto,
                     icon: 'success',
-                    confirmButtonText: 'Aceptar'
+                    confirmButtonText: 'Aceptar',
+                    width: '600px'
                 }).then(() => {
                     location.reload();
                 });

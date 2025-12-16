@@ -95,14 +95,7 @@ $(document).ready(function() {
         "pageLength": 10,
         "lengthMenu": [[10, 25, 50, 100], [10, 25, 50, 100]],
         "responsive": true,
-        "dom": '<"html5buttons"B>lfrtip',
-        "buttons": [
-            {
-                extend: 'excel',
-                title: 'Productos',
-                text: '<i class="fa fa-file-excel-o"></i> Excel'
-            }
-        ],
+        "dom": 'lfrtip',
         "ajax": {
             "url": "/producto/listar/productos",
             "type": "GET",

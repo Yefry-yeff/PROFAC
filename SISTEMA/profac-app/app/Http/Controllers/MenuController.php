@@ -6,9 +6,16 @@ use Illuminate\Http\Request;
 use App\Models\Menu;
 use App\Models\SubMenu;
 use Illuminate\Support\Facades\DB;
+use App\Services\MenuGeneratorService;
 
 class MenuController extends Controller
 {
+    protected $menuGenerator;
+
+    public function __construct(MenuGeneratorService $menuGenerator)
+    {
+        $this->menuGenerator = $menuGenerator;
+    }
     /**
      * Guardar nuevo menú
      */
@@ -97,7 +104,8 @@ class MenuController extends Controller
                 'orden' => 'required|integer|min:1',
                 'estado_id' => 'required|integer|exists:estado,id',
                 'roles' => 'required|array|min:1',
-                'roles.*' => 'integer|exists:rol,id'
+                'roles.*' => 'integer|exists:rol,id',
+                'generar_archivos' => 'boolean'
             ]);
 
             DB::beginTransaction();
@@ -115,13 +123,41 @@ class MenuController extends Controller
             // Asociar roles
             $submenu->roles()->sync($request->roles);
 
+            // Generar archivos automáticamente si se solicita
+            $resultadosGeneracion = null;
+            if ($request->generar_archivos === true || $request->generar_archivos === 'true' || $request->generar_archivos === 1) {
+                $resultadosGeneracion = $this->menuGenerator->generarArchivosSubmenu(
+                    $request->nombre,
+                    $request->url
+                );
+            }
+
             DB::commit();
 
-            return response()->json([
+            $respuesta = [
                 'success' => true,
                 'mensaje' => 'Submenu creado correctamente',
                 'data' => $submenu->load('roles')
-            ], 201);
+            ];
+
+            // Agregar información de generación de archivos si aplica
+            if ($resultadosGeneracion) {
+                $respuesta['generacion'] = $resultadosGeneracion;
+                
+                if (!empty($resultadosGeneracion['archivos_creados'])) {
+                    $respuesta['mensaje'] .= ' - Se generaron ' . count($resultadosGeneracion['archivos_creados']) . ' archivo(s).';
+                }
+                
+                if (!empty($resultadosGeneracion['ruta_generada'])) {
+                    $respuesta['mensaje'] .= ' - Agrega esta ruta a web.php: ' . $resultadosGeneracion['ruta_generada'];
+                }
+
+                if (!empty($resultadosGeneracion['errores'])) {
+                    $respuesta['advertencias'] = $resultadosGeneracion['errores'];
+                }
+            }
+
+            return response()->json($respuesta, 201);
 
         } catch (\Exception $e) {
             DB::rollBack();
