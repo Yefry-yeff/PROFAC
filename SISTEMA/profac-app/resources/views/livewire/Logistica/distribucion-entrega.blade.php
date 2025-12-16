@@ -51,7 +51,8 @@
                     </div>
                 </div>
                 <div class="card-body">
-                    <table id="tablaDistribuciones" class="table table-bordered table-striped table-sm">
+                    <div class="table-responsive">
+                    <table id="tablaDistribuciones" class="table table-bordered table-striped table-sm mb-0">
                         <thead>
                             <tr>
                                 <th>ID</th>
@@ -65,6 +66,7 @@
                         </thead>
                         <tbody></tbody>
                     </table>
+                    </div>
                 </div>
             </div>
         </div>
