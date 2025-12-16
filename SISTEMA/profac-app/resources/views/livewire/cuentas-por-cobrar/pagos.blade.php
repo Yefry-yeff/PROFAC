@@ -1,44 +1,54 @@
 <div>
-    <div class="row wrapper border-bottom white-bg page-heading d-flex align-items-center">
-        <div class="col-lg-12 col-xl-12 col-md-12 col-sm-12">
-            <h2>Aplicación de Pagos</h2>
-
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item">
-                    <a href="index.html">/ Cuentas Por Cobrar</a>
-                </li>
-
-
-            </ol>
-        </div>
-
-    </div>
+<div class="row border-bottom white-bg page-heading align-items-center">
+    <div class="col-12 d-flex justify-content-between align-items-center">
+        <h2 class="mb-0">Aplicación de Pagos</h2>
+        <ol class="breadcrumb mb-0 bg-transparent p-0">
+            <li class="breadcrumb-item"><a href="#">Cuentas por Cobrar</a></li>
+            <li class="breadcrumb-item active">Pagos</li>
+        </ol>
+    </div></div>
 
     <div class="wrapper wrapper-content animated fadeInRight pb-0">
         <div class="row">
-            <div class="col-lg-12">
-                <div class="ibox ">
+            <div class="col-12">
+                <div class="ibox">
                     <div class="ibox-content">
-                        <div class="row">
+
+                        <div class="form-row align-items-end">
 
 
-                            <div class="col-6 col-sm-6 col-md-6 ">
-                                <label for="cliente" class="col-form-label focus-label">Seleccionar Cliente:<span class="text-danger">*</span></label>
-                                <select id="cliente" name="cliente" class="form-group form-control" style=""
-                                    data-parsley-required >
-                                    <option value="" selected disabled>--Seleccionar un Cliente--</option>
+                            <!-- Solicitar -->
+                            <div class="form-group col-md-1">
+                                <label class="invisible">Acción</label>
+                                <button type="button"
+                                        class="btn btn-primary btn-block"
+                                        onclick="llamarTablas()">
+                                    <i class="fa fa-search"></i> Solicitar
+                                </button>
+                            </div>
+                            <!-- Cliente -->
+                            <div class="form-group col-md-4">
+                                </label>
+                                <select id="cliente"
+                                        name="cliente"
+                                        class="form-control"
+                                        required>
+                                    <option value="" disabled selected>
+                                        -- Seleccionar un Cliente --
+                                    </option>
                                 </select>
                             </div>
 
-                            <div class="col-6 col-sm-6 col-md-6 " id="btnEC" name="btnEC" style="display: none">
-                                <label for="cliente" class="alert alert-warning"> <b>Estado de cuenta</b> <span class="text-danger"></span></label>
-                                <button class="btn btn-primary btn-block" onclick="pdfEstadoCuenta()"><i class="fa-solid fa-paper-plane text-white"></i> Visualizar </button>
+                            <div class="form-group col-md-3 ml-auto" id="btnEC">
+                                <button type="button"
+                                        class="btn btn-outline-primary btn-block"
+                                        onclick="pdfEstadoCuenta()">
+                                    <i class="fa fa-file-pdf-o"></i> Estado de Cuenta
+                                </button>
                             </div>
 
 
-
                         </div>
-                        <button class="btn btn-primary mt-2" onclick=" llamarTablas()"><i class="fa-solid fa-paper-plane text-white"></i> Solicitar</button>
 
                     </div>
                 </div>
@@ -207,7 +217,6 @@
         </div>
     </div>
     {{--  FIN DEL MODAL APLICAR NOTA DE CREDITO  --}}
-
 
     {{--  MODAL APLICAR NOTA DE DEBITO  --}}
     <div class="modal" id="modalND" tabindex="-1" role="dialog">
@@ -475,7 +484,6 @@
     {{--  FIN DEL MODAL APLICAR CREDITOS/ABONOS  --}}
 
 
-
     {{--  MODAL APLICAR CREDITOS/ABONOS  --}}
     <div class="modal" id="modalcerrarFact" tabindex="-1" role="dialog">
         <div class="modal-dialog" role="document">
@@ -537,60 +545,73 @@
     {{--  FIN DEL MODAL APLICAR CREDITOS/ABONOS  --}}
 
 
-
-
-
-
-    {{--  TABLA PRINCIPAL DE REGISTRO  --}}
-    <div class="wrapper wrapper-content animated fadeInRight">
+    {{-- ================= TABLA PRINCIPAL DE REGISTRO ================= --}}
+    <div class="wrapper wrapper-content animated fadeInRight" id="tbl_principal_div">
         <div class="row">
-            <div class="col-lg-12">
-                <div class="ibox ">
+            <div class="col-12">
+                <div class="ibox">
+
+                    <!-- Header de la tabla -->
+                    <div class="ibox-title d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0 font-weight-bold">
+                            Registros de saldos por factura
+                        </h5>
+                        <span class="badge badge-primary">
+                            Cliente seleccionado
+                        </span>
+                    </div>
+
                     <div class="ibox-content">
+
                         <div class="table-responsive">
-                            <h4>Registros de saldos por factura del cliente:</h4>
-                            <table id="tbl_cuentas_facturas_cliente" class="table table-striped table-bordered table-hover">
-                                <thead class="">
+
+                            <table id="tbl_cuentas_facturas_cliente"
+                                class="table table-sm table-striped table-bordered table-hover w-100">
+
+                                <thead class="thead-light">
                                     <tr>
-                                        <th>Codigo Pagos</th>
-                                        <th>Cod. Factura</th>
+                                        <th>Código Pago</th>
+                                        <th>Factura</th>
                                         <th>Correlativo</th>
                                         <th>Cargo</th>
-                                        <th>Notas Credito</th>
+                                        <th>Notas Crédito</th>
                                         <th>Notas Débito</th>
-                                        <th>Créditos/Abonos</th>
+                                        <th>Créditos / Abonos</th>
                                         <th>Cargo Extra</th>
-                                        <th>Cargo A Deducir</th>
+                                        <th>Deducciones</th>
                                         <th>ISV</th>
-                                        <th>Retencion</th>
+                                        <th>Retención</th>
                                         <th>Saldo</th>
-                                        <th>Fecha registro</th>
-                                        <th>Ultima actualizacion</th>
-                                        <th>Acciones</th>
+                                        <th>Fecha Registro</th>
+                                        <th>Última Actualización</th>
+                                        <th class="text-center">Acciones</th>
                                     </tr>
                                 </thead>
-                                <tbody>
-                                    <tfoot>
-                                        <tr>
-                                            <th>Codigo Pagos</th>
-                                            <th>Cod. Factura</th>
-                                            <th>Correlativo</th>
-                                            <th>Cargo</th>
-                                            <th>Notas Credito</th>
-                                            <th>Notas Débito</th>
-                                            <th>Créditos/Abonos</th>
-                                            <th>Cargo Extra</th>
-                                            <th>Cargo Debito</th>
-                                            <th>ISV</th>
-                                            <th>Retencion</th>
-                                            <th>Saldo</th>
-                                            <th>Fecha registro</th>
-                                            <th>Ultima actualizacion</th>
-                                            <th>Acciones</th>
-                                        </tr>
-                                    </tfoot>
 
+                                <tbody>
+                                    {{-- DataTables --}}
                                 </tbody>
+
+                                <tfoot class="thead-light">
+                                    <tr>
+                                        <th>Código Pago</th>
+                                        <th>Factura</th>
+                                        <th>Correlativo</th>
+                                        <th>Cargo</th>
+                                        <th>Notas Crédito</th>
+                                        <th>Notas Débito</th>
+                                        <th>Créditos / Abonos</th>
+                                        <th>Cargo Extra</th>
+                                        <th>Deducciones</th>
+                                        <th>ISV</th>
+                                        <th>Retención</th>
+                                        <th>Saldo</th>
+                                        <th>Fecha Registro</th>
+                                        <th>Última Actualización</th>
+                                        <th class="text-center">Acciones</th>
+                                    </tr>
+                                </tfoot>
+
                             </table>
 
                         </div>
@@ -600,10 +621,10 @@
             </div>
         </div>
     </div>
-    {{-- FIN TABLA PRINCIPAL DE REGISTRO  --}}
+    {{-- ============== FIN TABLA PRINCIPAL DE REGISTRO ============== --}}
 
     {{--  TABLA DE OTROS MOVIMIENTOS --}}
-    <div class="wrapper wrapper-content animated fadeInRight">
+    <div class="wrapper wrapper-content animated fadeInRight"  id="tbl_movimientos_div">
         <div class="row">
             <div class="col-lg-12">
                 <div class="ibox ">
@@ -654,7 +675,7 @@
     {{-- FIN TABLA DE OTROS MOVIMIENTOS  --}}
 
     {{--  TABLA DE CREDITOS Y ABONOS --}}
-    <div class="wrapper wrapper-content animated fadeInRight">
+    <div class="wrapper wrapper-content animated fadeInRight"  id="tbl_creditos_abonos_div">
         <div class="row">
             <div class="col-lg-12">
                 <div class="ibox ">
@@ -699,12 +720,6 @@
         </div>
     </div>
     {{-- FIN TABLA DE CREDITOS Y ABONOS --}}
-
-
-
-
-
-
 
 </div>
 @push('scripts')

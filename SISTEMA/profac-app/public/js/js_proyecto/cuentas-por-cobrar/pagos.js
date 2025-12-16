@@ -1,6 +1,11 @@
 
-$('#btnEC').css('display','none');
-$('#btnEC').hide();
+$('#btnEC').addClass('d-none');
+
+$('#tbl_principal_div').addClass('d-none');
+$('#tbl_movimientos_div').addClass('d-none');
+$('#tbl_creditos_abonos_div').addClass('d-none');
+
+
     $('#cliente').select2({
         ajax: {
             url: '/aplicacion/pagos/clientes',
@@ -16,6 +21,9 @@ $('#btnEC').hide();
             }
         }
     });
+
+
+
 
 
 function modalRetencion(codigoPago, retencion, estadoRetencion, caiFactura, idFactura){
@@ -215,6 +223,9 @@ function modalAbonos(codigoPagoA, caiFactura, idFactura){
 }
 
 function llamarTablas(){
+    $('#tbl_principal_div').removeClass('d-none');
+    $('#tbl_movimientos_div').removeClass('d-none');
+    $('#tbl_creditos_abonos_div').removeClass('d-none');
 
     $("#tbl_cuentas_facturas_cliente").dataTable().fnDestroy();
     $("#tbl_tipo_movimientos_cliente").dataTable().fnDestroy();
@@ -225,6 +236,9 @@ function llamarTablas(){
 
     this.listarMovimientos();
     this.listarAbonos()
+
+    $('#btnEC').removeClass('d-none');
+
 
 }
 
