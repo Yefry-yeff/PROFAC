@@ -30,4 +30,9 @@ class EntregaProductoIncidencia extends Model
     {
         return $this->belongsTo(User::class, 'user_id_registro');
     }
+
+    public function evidencias()
+    {
+        return $this->hasMany(EntregaEvidencia::class, 'entrega_producto_incidencia_id');
+    }
 }

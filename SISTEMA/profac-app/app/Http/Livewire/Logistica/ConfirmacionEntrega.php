@@ -318,6 +318,7 @@ class ConfirmacionEntrega extends Component
             $producto = EntregaProducto::findOrFail($productoId);
 
             $incidencias = EntregaProductoIncidencia::where('entrega_producto_id', $productoId)
+                ->withCount('evidencias')
                 ->orderByDesc('created_at')
                 ->get(['id', 'tipo', 'descripcion', 'created_at']);
 
@@ -420,6 +421,43 @@ class ConfirmacionEntrega extends Component
             return response()->json([
                 'success' => false,
                 'message' => 'Error al obtener evidencias',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Obtener evidencias de una incidencia específica
+     */
+    public function obtenerEvidenciasIncidencia($incidenciaId)
+    {
+        try {
+            $evidencias = DB::select(
+                "SELECT 
+                    ee.id,
+                    ee.ruta_archivo,
+                    ee.descripcion,
+                    ee.created_at
+                FROM entregas_evidencias ee
+                WHERE ee.entrega_producto_incidencia_id = ?
+                ORDER BY ee.created_at DESC",
+                [$incidenciaId]
+            );
+
+            foreach ($evidencias as &$evidencia) {
+                $nombreArchivo = basename($evidencia->ruta_archivo);
+                $evidencia->url = asset('incidencia_entrega/' . $nombreArchivo);
+            }
+
+            return response()->json([
+                'success' => true,
+                'evidencias' => $evidencias
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener evidencias de la incidencia',
                 'error' => $e->getMessage()
             ], 500);
         }

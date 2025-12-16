@@ -1043,6 +1043,7 @@ Route::post('/reporte/Libroventarep/exportar-excel/{tipo}/{fechaInicio}/{fechaFi
     Route::get('/logistica/confirmacion/evidencias/{distribucionFacturaId}', [ConfirmacionEntrega::class, 'obtenerEvidencias']);
     Route::get('/logistica/confirmacion/productos/{productoId}/incidencias', [ConfirmacionEntrega::class, 'listarIncidenciasProducto']);
     Route::post('/logistica/confirmacion/productos/{productoId}/incidencias', [ConfirmacionEntrega::class, 'registrarIncidenciaProducto']);
+    Route::get('/logistica/confirmacion/incidencias/{incidenciaId}/evidencias', [ConfirmacionEntrega::class, 'obtenerEvidenciasIncidencia']);
     Route::post('/logistica/confirmacion/marcar-todos/{distribucionFacturaId}', [ConfirmacionEntrega::class, 'marcarTodosEntregados']);
     Route::get('/logistica/confirmacion/reporte/{distribucionId}', [ConfirmacionEntrega::class, 'obtenerReporteDistribucion']);
 

@@ -5,19 +5,19 @@
         .table-responsive::-webkit-scrollbar {
             width: 8px;
         }
-        
+
         #listaFacturas::-webkit-scrollbar-track,
         .table-responsive::-webkit-scrollbar-track {
             background: #f1f1f1;
             border-radius: 10px;
         }
-        
+
         #listaFacturas::-webkit-scrollbar-thumb,
         .table-responsive::-webkit-scrollbar-thumb {
             background: #888;
             border-radius: 10px;
         }
-        
+
         #listaFacturas::-webkit-scrollbar-thumb:hover,
         .table-responsive::-webkit-scrollbar-thumb:hover {
             background: #555;
@@ -28,35 +28,35 @@
             transition: opacity 0.2s ease-in-out;
         }
     </style>
-    <div class="card shadow-sm border-0">
-        <div class="card-header border-0 bg-white d-flex justify-content-between align-items-center flex-wrap">
+    <div class="border-0 shadow-sm card">
+        <div class="flex-wrap bg-white border-0 card-header d-flex justify-content-between align-items-center">
             <div>
                 <h4 class="mb-1">Confirmación de entregas</h4>
                 <p class="mb-0 text-muted">Selecciona el equipo, luego la factura para validar los productos entregados.</p>
             </div>
             <div class="d-flex align-items-center">
-                <div class="text-right mr-3">
+                <div class="mr-3 text-right">
                     <span class="d-block text-uppercase small text-muted">Fecha programada</span>
                     <input type="date" class="form-control form-control-sm" id="fechaConfirmacion" value="<?= date('Y-m-d') ?>">
                 </div>
             </div>
         </div>
-        <div class="card-body pt-0">
+        <div class="pt-0 card-body">
             <div class="row">
                 <div class="col-lg-4 border-right">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <h6 class="text-uppercase text-muted mb-0">Equipos programados</h6>
+                    <div class="mb-2 d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0 text-uppercase text-muted">Equipos programados</h6>
                         <span class="badge badge-light" id="totalEquipos">0</span>
                     </div>
                     <div id="listaDistribuciones" class="pr-lg-3" style="min-height:250px;"></div>
                 </div>
                 <div class="col-lg-8">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <h6 class="text-uppercase text-muted mb-0">Detalle de confirmación</h6>
+                    <div class="mb-2 d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0 text-uppercase text-muted">Detalle de confirmación</h6>
                     </div>
-                    <div id="contenedorFacturas" class="border rounded bg-light p-4" style="min-height:320px;">
-                        <div class="text-center text-muted py-5">
-                            <i class="fas fa-truck-loading fa-2x mb-3"></i>
+                    <div id="contenedorFacturas" class="p-4 border rounded bg-light" style="min-height:320px;">
+                        <div class="py-5 text-center text-muted">
+                            <i class="mb-3 fas fa-truck-loading fa-2x"></i>
                             <p class="mb-0">Selecciona un equipo para ver sus facturas.</p>
                         </div>
                     </div>
@@ -70,7 +70,7 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <div>
-                        <h5 class="modal-title mb-0">Incidencias del producto</h5>
+                        <h5 class="mb-0 modal-title">Incidencias del producto</h5>
                         <small class="text-muted" id="tituloProductoIncidencia">Selecciona un producto de la tabla.</small>
                     </div>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
@@ -102,25 +102,24 @@
                     </form>
                     <hr>
                     <div class="mb-3">
-                        <h6 class="text-uppercase small text-muted mb-2">Evidencia fotográfica</h6>
-                        <div class="custom-file mb-2">
+                        <h6 class="mb-2 text-uppercase small text-muted">Evidencia fotográfica</h6>
+                        <div class="mb-2 custom-file">
                             <input type="file" class="custom-file-input" id="inputEvidencias" accept="image/*" multiple>
                             <label class="custom-file-label" for="inputEvidencias">Seleccionar imágenes...</label>
                         </div>
-                        <small class="text-muted d-block mb-2">Puedes adjuntar múltiples fotos por incidencia. Se guardarán en public/incidencia_entrega.</small>
-                        <div id="previewEvidencias" class="d-flex flex-wrap"></div>
-                        <div id="listaEvidencias" class="mt-3"></div>
+
+                        <div id="previewEvidencias" class="flex-wrap d-flex"></div>
                     </div>
                     <div class="text-right">
-                        <button type="button" class="btn btn-outline-secondary btn-sm mr-2" data-dismiss="modal">Cerrar</button>
+                        <button type="button" class="mr-2 btn btn-outline-secondary btn-sm" data-dismiss="modal">Cerrar</button>
                         <button type="submit" class="btn btn-primary btn-sm" id="btnIncidenciaGuardar" form="formIncidencia">
-                            <i class="fas fa-plus-circle mr-1"></i>Agregar incidencia
+                            <i class="mr-1 fas fa-plus-circle"></i>Agregar incidencia
                         </button>
                     </div>
                     <hr>
                     <h6 class="text-uppercase small text-muted">Incidencias registradas</h6>
                     <div id="listaIncidenciasProducto">
-                        <p class="text-muted mb-0">No hay incidencias para este producto.</p>
+                        <p class="mb-0 text-muted">No hay incidencias para este producto.</p>
                     </div>
                 </div>
             </div>
@@ -131,7 +130,7 @@
         <div class="modal-dialog modal-sm" role="document">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title mb-0">Hora de entrega</h5>
+                    <h5 class="mb-0 modal-title">Hora de entrega</h5>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
                         <span aria-hidden="true">&times;</span>
                     </button>
@@ -148,6 +147,30 @@
         </div>
     </div>
 
+    <div class="modal fade" id="modalImagenesIncidencia" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="mb-0 modal-title">
+                        <i class="fas fa-images"></i> Evidencias Fotográficas
+                    </h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body" id="bodyImagenesIncidencia">
+                    <div class="py-4 text-center">
+                        <i class="fas fa-spinner fa-spin fa-2x text-muted"></i>
+                        <p class="mt-2 text-muted">Cargando imágenes...</p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
@@ -158,7 +181,8 @@
                     guardar: "<?= route('logistica.confirmacion.guardar') ?>",
                     incidencias: "<?= url('/logistica/confirmacion/productos') ?>",
                     evidencia: "<?= url('/logistica/confirmacion/evidencia') ?>",
-                    evidencias: "<?= url('/logistica/confirmacion/evidencias') ?>"
+                    evidencias: "<?= url('/logistica/confirmacion/evidencias') ?>",
+                    evidenciasIncidencia: "<?= url('/logistica/confirmacion/incidencias') ?>"
                 };
 
                 const confirmacionState = {
@@ -214,6 +238,21 @@
                         if (facturaId) {
                             marcarTodosEntregados(facturaId);
                         }
+                    });
+                    // Event handler para actualizar el estado cuando se marca/desmarca un checkbox
+                    $(document).on('change', '.chk-producto', function () {
+                        const productoId = $(this).data('producto');
+                        const checked = $(this).is(':checked');
+                        // Actualizar el estado en memoria
+                        confirmacionState.facturas.forEach(factura => {
+                            (factura.productos || []).forEach(producto => {
+                                if (Number(producto.id) === Number(productoId)) {
+                                    producto.entregado = checked ? 1 : 0;
+                                }
+                            });
+                        });
+                        // Actualizar contador
+                        actualizarContadorProductos();
                     });
                     $('#contenedorFacturas').on('click', '#btnConfirmarEntrega', guardarConfirmacion);
                     $('#contenedorFacturas').on('input', '#filtroFacturas', function() {
@@ -376,7 +415,7 @@
                     }
 
                     const filtroLower = filtro.toLowerCase().trim();
-                    const facturasFiltradas = filtro ? confirmacionState.facturas.filter(f => 
+                    const facturasFiltradas = filtro ? confirmacionState.facturas.filter(f =>
                         f.numero_factura.toLowerCase().includes(filtroLower)
                     ) : confirmacionState.facturas;
 
@@ -416,6 +455,20 @@
                     renderDetalleFactura(distribucionFacturaId);
                 }
 
+                function actualizarContadorProductos() {
+                    const facturaId = confirmacionState.facturaSeleccionada;
+                    if (!facturaId) return;
+
+                    const factura = confirmacionState.facturas.find(f => f.distribucion_factura_id === facturaId);
+                    if (!factura) return;
+
+                    const productos = factura.productos || [];
+                    const articulosEntregados = productos.filter(p => Number(p.entregado) === 1).length;
+                    const progreso = productos.length ? Math.round((articulosEntregados / productos.length) * 100) : 0;
+
+                    $('#contadorProductos').text(articulosEntregados);
+                }
+
                 function renderDetalleFactura(distribucionFacturaId) {
                     const contenedor = $('#detalleFactura');
                     if (!distribucionFacturaId) {
@@ -428,6 +481,13 @@
                         contenedor.html('<p class="mb-0 text-muted">No se encontró la factura seleccionada.</p>');
                         return;
                     }
+
+                    // Guardar el estado actual de los checkboxes antes de re-renderizar
+                    const estadoCheckboxes = {};
+                    $('.chk-producto').each(function() {
+                        const productoId = $(this).data('producto');
+                        estadoCheckboxes[productoId] = $(this).is(':checked');
+                    });
 
                     const productos = factura.productos || [];
                     const articulosEntregados = productos.filter(p => Number(p.entregado) === 1).length;
@@ -442,6 +502,8 @@
                         const checkboxDeshabilitado = facturaBloqueada || tieneIncidencia;
                         const incidenciasRegistradas = Number(p.incidencias_registradas) || 0;
                         const nombreSafe = encodeURIComponent(p.nombre_producto || '');
+                        // Usar el estado guardado del checkbox si existe, sino usar p.entregado
+                        const estaChecked = estadoCheckboxes.hasOwnProperty(p.id) ? estadoCheckboxes[p.id] : p.entregado;
                         filas += `<tr>
                             <td>${index + 1}</td>
                             <td>
@@ -451,7 +513,7 @@
                             </td>
                             <td class="text-center">${p.cantidad_facturada}</td>
                             <td class="text-center">
-                                <input type="checkbox" class="form-check-input position-static chk-producto" data-producto="${p.id}" data-factura="${factura.distribucion_factura_id}" data-cantidad="${p.cantidad_facturada}" ${p.entregado ? 'checked' : ''} ${checkboxDeshabilitado ? 'disabled' : ''}>
+                                <input type="checkbox" class="form-check-input position-static chk-producto" data-producto="${p.id}" data-factura="${factura.distribucion_factura_id}" data-cantidad="${p.cantidad_facturada}" ${estaChecked ? 'checked' : ''} ${checkboxDeshabilitado ? 'disabled' : ''}>
                             </td>
                             <td class="text-center">
                                 <div class="d-flex flex-column align-items-center">
@@ -478,7 +540,7 @@
                                 <div class="small text-muted"><span id="contadorProductos">${articulosEntregados}</span>/${productos.length || 0} productos · ${progreso}%</div>
                             </div>
                         </div>`;
-                    
+
                     // Mensaje dinámico según el estado
                     let mensajeBloqueo = '';
                     if (facturaBloqueada) {
@@ -490,7 +552,7 @@
                             mensajeBloqueo = '<div class="py-2 alert alert-info"><i class="mr-2 fas fa-lock"></i>Esta factura ya fue confirmada y está bloqueada.</div>';
                         }
                     }
-                    
+
                     const filtroProductos = `${mensajeBloqueo}
                         <div class="mb-2">
                             <input type="text" id="filtroProductos" class="form-control form-control-sm" placeholder="Buscar producto por nombre...">
@@ -514,7 +576,7 @@
                         : '<p class="mb-0 text-muted">La factura no tiene productos asociados.</p>';
 
                     contenedor.html(tabla);
-                    
+
                     // Configurar filtro de productos
                     $('#filtroProductos').off('input').on('input', function() {
                         filtrarProductos($(this).val());
@@ -524,10 +586,10 @@
                 function filtrarProductos(filtro) {
                     const filtroLower = filtro.toLowerCase().trim();
                     let contadorVisibles = 0;
-                    
+
                     $('#tablaProductos tbody tr:not(.no-results)').each(function() {
                         const nombreProducto = $(this).find('td:eq(1) .font-weight-bold').text().toLowerCase();
-                        
+
                         if (!filtro || nombreProducto.includes(filtroLower)) {
                             $(this).fadeIn(200);
                             contadorVisibles++;
@@ -535,11 +597,11 @@
                             $(this).fadeOut(200);
                         }
                     });
-                    
+
                     // Mostrar mensaje si no hay resultados
                     if (contadorVisibles === 0 && filtro) {
                         if ($('#tablaProductos tbody .no-results').length === 0) {
-                            $('#tablaProductos tbody').append('<tr class="no-results"><td colspan="5" class="text-center text-muted py-3"><i class="fas fa-search mr-2"></i>No se encontraron productos con ese nombre</td></tr>');
+                            $('#tablaProductos tbody').append('<tr class="no-results"><td colspan="5" class="py-3 text-center text-muted"><i class="mr-2 fas fa-search"></i>No se encontraron productos con ese nombre</td></tr>');
                         }
                         $('#tablaProductos tbody .no-results').show();
                     } else {
@@ -701,7 +763,7 @@
                     // Verificar si la factura actual está bloqueada
                     const facturaActual = confirmacionState.facturas.find(f => f.distribucion_factura_id === confirmacionState.facturaSeleccionada);
                     let facturaBloqueada = false;
-                    
+
                     if (facturaActual) {
                         const estado = (facturaActual.estado_entrega || '').toLowerCase();
                         const yaConfirmada = Number(facturaActual.confirmada) === 1;
@@ -714,26 +776,22 @@
                     confirmacionState.productoIncidenciaNombre = decodeURIComponent(nombreCodificado);
                     $('#productoIncidenciaId').val(productoId);
                     $('#tituloProductoIncidencia').text(confirmacionState.productoIncidenciaNombre || `Producto #${productoId}`);
-                    
+
                     // Deshabilitar el formulario si la factura está bloqueada
                     if (facturaBloqueada) {
                         $('#tipoIncidencia').prop('disabled', true);
                         $('#descripcionIncidencia').prop('disabled', true);
                         $('#btnIncidenciaGuardar').prop('disabled', true);
-                        $('.alert-warning').html('<i class="fas fa-lock mr-2"></i>Esta factura ya fue confirmada. Solo puedes consultar las incidencias existentes.').removeClass('alert-warning').addClass('alert-info');
+                        $('.alert-warning').html('<i class="mr-2 fas fa-lock"></i>Esta factura ya fue confirmada. Solo puedes consultar las incidencias existentes.').removeClass('alert-warning').addClass('alert-info');
                     } else {
                         $('#tipoIncidencia').prop('disabled', false);
                         $('#descripcionIncidencia').prop('disabled', false);
                         $('#btnIncidenciaGuardar').prop('disabled', false);
                         $('.alert-info').html('Cada incidencia registrada bloquea el producto hasta que logística la gestione.').removeClass('alert-info').addClass('alert-warning');
                     }
-                    
+
                     $('#modalIncidencia').modal('show');
                     evidenciasPendientes = [];
-                    // Cargar evidencias de la factura actual
-                    if (confirmacionState.facturaSeleccionada) {
-                        cargarEvidenciasFactura(confirmacionState.facturaSeleccionada);
-                    }
                     // Limpiar previews
                     $('#previewEvidencias').html('');
                     cargarIncidenciasProducto(productoId);
@@ -758,11 +816,19 @@
 
                     let filas = '';
                     incidencias.forEach((inc, index) => {
+                        const imagenCount = inc.evidencias_count || 0;
+                        const btnImagenes = imagenCount > 0
+                            ? `<button type="button" class="btn btn-sm btn-info" onclick="verImagenesIncidencia(${inc.id})" title="Ver imágenes">
+                                <i class="fas fa-images"></i> ${imagenCount}
+                               </button>`
+                            : '<span class="text-muted"><i class="fas fa-image-slash"></i> Sin imágenes</span>';
+
                         filas += `<tr>
                             <td>${index + 1}</td>
                             <td>${inc.tipo}</td>
                             <td>${inc.descripcion}</td>
                             <td>${formatearFecha(inc.created_at)}</td>
+                            <td class="text-center">${btnImagenes}</td>
                         </tr>`;
                     });
 
@@ -774,6 +840,7 @@
                                     <th>Tipo</th>
                                     <th>Descripción</th>
                                     <th>Registrado</th>
+                                    <th class="text-center" width="120">Imágenes</th>
                                 </tr>
                             </thead>
                             <tbody>${filas}</tbody>
@@ -783,33 +850,6 @@
                 }
 
                 // ==================== EVIDENCIAS (FOTOS) ====================
-                function cargarEvidenciasFactura(distribucionFacturaId) {
-                    $('#listaEvidencias').html('<div class="text-muted"><i class="fas fa-spinner fa-spin"></i> Cargando evidencias...</div>');
-                    $.get(`${rutasConfirmacion.evidencias}/${distribucionFacturaId}`)
-                        .done(resp => {
-                            const evidencias = resp.evidencias || [];
-                            if (!evidencias.length) {
-                                $('#listaEvidencias').html('<div class="alert alert-light mb-0">No hay evidencias registradas para esta factura.</div>');
-                                return;
-                            }
-                            let grid = '<div class="row">';
-                            evidencias.forEach(e => {
-                                const isImg = /(\.jpg|\.jpeg|\.png|\.gif|\.webp)$/i.test(e.ruta_archivo || '');
-                                grid += `<div class="col-6 col-md-3 mb-3">
-                                    <div class="border rounded p-1 h-100 d-flex align-items-center justify-content-center" style="min-height:100px; background:#f8f9fa;">
-                                        ${isImg ? `<a href="${e.url}" target="_blank" title="${e.tipo_evidencia}"><img src="${e.url}" alt="evidencia" class="img-fluid" style="max-height:120px;"></a>` : `<a href="${e.url}" target="_blank">Descargar archivo</a>`}
-                                    </div>
-                                    <div class="text-center mt-1"><small class="text-muted">${e.tipo_evidencia}</small></div>
-                                </div>`;
-                            });
-                            grid += '</div>';
-                            $('#listaEvidencias').html(grid);
-                        })
-                        .fail(() => {
-                            $('#listaEvidencias').html('<div class="alert alert-danger mb-0">No se pudieron cargar las evidencias.</div>');
-                        });
-                }
-
                 // Vista previa y subida automática
                 $(document).off('change', '#inputEvidencias').on('change', '#inputEvidencias', function() {
                     const files = Array.from(this.files || []);
@@ -819,7 +859,7 @@
                         evidenciasPendientes.push(f);
                         const reader = new FileReader();
                         reader.onload = e => {
-                            const el = `<div class="mr-2 mb-2 border rounded" style="width:90px;height:90px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f8f9fa;">
+                            const el = `<div class="mb-2 mr-2 border rounded" style="width:90px;height:90px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f8f9fa;">
                                 <img src="${e.target.result}" style="max-width:100%;max-height:100%;"/>
                             </div>`;
                             preview.append(el);
@@ -855,7 +895,6 @@
                           .fail(() => { fallidas++; })
                           .always(() => {
                               if (subidas + fallidas === total) {
-                                  cargarEvidenciasFactura(dfId);
                                   callback && callback({ subidas, fallidas });
                                   evidenciasPendientes = [];
                                   $('#inputEvidencias').val('');
@@ -954,6 +993,52 @@
                     }
                     return fecha.toLocaleString('es-HN', { hour12: true });
                 }
+
+                // Handle modal close properly to avoid black screen
+                $('#modalImagenesIncidencia').on('hidden.bs.modal', function () {
+                    $('.modal-backdrop').remove();
+                    $('body').removeClass('modal-open').css('padding-right', '');
+                });
+
+                window.verImagenesIncidencia = function(incidenciaId) {
+                    const modal = $('#modalImagenesIncidencia');
+                    modal.modal('show');
+                    $('#bodyImagenesIncidencia').html('<div class="py-4 text-center"><i class="fas fa-spinner fa-spin fa-2x text-muted"></i><p class="mt-2 text-muted">Cargando imágenes...</p></div>');
+
+                    $.get(`${rutasConfirmacion.evidenciasIncidencia}/${incidenciaId}/evidencias`)
+                        .done(resp => {
+                            const evidencias = resp.evidencias || [];
+                            if (!evidencias.length) {
+                                $('#bodyImagenesIncidencia').html('<div class="mb-0 alert alert-info"><i class="fas fa-info-circle"></i> Esta incidencia no tiene evidencias fotográficas.</div>');
+                                return;
+                            }
+
+                            let grid = '<div class="row">';
+                            evidencias.forEach(e => {
+                                grid += `<div class="mb-3 col-6 col-md-4">
+                                    <div class="p-2 border rounded" style="height:200px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f8f9fa;">
+                                        <a href="${e.url}" target="_blank" title="Ver imagen completa">
+                                            <img src="${e.url}" alt="evidencia" class="img-fluid" style="max-height:180px;max-width:100%;object-fit:contain;">
+                                        </a>
+                                    </div>
+                                    ${e.descripcion ? `<small class="mt-1 text-muted d-block">${e.descripcion}</small>` : ''}
+                                </div>`;
+                            });
+                            grid += '</div>';
+                            $('#bodyImagenesIncidencia').html(grid);
+                        })
+                        .fail(() => {
+                            $('#bodyImagenesIncidencia').html('<div class="mb-0 alert alert-danger"><i class="fas fa-exclamation-triangle"></i> Error al cargar las imágenes.</div>');
+                        });
+                }
+
+                // Handle modal close properly to avoid black screen
+                $('#modalImagenesIncidencia').on('hidden.bs.modal', function () {
+                    // Remove any lingering backdrops
+                    $('.modal-backdrop').remove();
+                    // Restore body scroll
+                    $('body').removeClass('modal-open').css('padding-right', '');
+                });
         });
     </script>
 </div>
