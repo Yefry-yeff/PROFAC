@@ -310,239 +310,374 @@
 
 
     {{--  MODAL APLICAR OTROS MOVIMIENTOS  --}}
-    <div class="modal" id="modalOtrosMovimientos" tabindex="-1" role="dialog">
-        <div class="modal-dialog" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-            <h3 class="modal-title">Aplicación de otros movimientos a la factura Cobro/Rebajas:</h3>
-            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                <span aria-hidden="true">&times;</span>
-            </button>
-            </div>
-            <div class="modal-body">
-                <div class="row">
-                    <div class="col-lg-12">
-                        <div class="ibox ">
-                            <div class="ibox-content">
-                                <form class="form-control" id="formOtrosMovimientos" name="formOtrosMovimientos" >
-                                <div class="row">
+    <div class="modal fade" id="modalOtrosMovimientos" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+            <div class="modal-content shadow-sm">
+
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title font-weight-bold">
+                        Aplicación de otros movimientos a la factura Cobro/Rebajas
+                    </h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-lg-12">
+                            <div class="ibox mb-0">
+                                <div class="ibox-content p-3">
+
+                                    <form class="form-control border-0 p-0"
+                                        id="formOtrosMovimientos"
+                                        name="formOtrosMovimientos">
+
                                         <div class="row">
-                                            <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                                <label for="exampleFormControlTextarea1"> <b>Código de Registro:</b></label>
-                                                <input required type="text" readonly class="form-control" id="codAplicPagoom" name="codAplicPagoom" >
+
+                                            <div class="col-12 col-md-6 mb-3">
+                                                <label class="font-weight-bold">
+                                                    Código de Registro
+                                                </label>
+                                                <input required
+                                                    type="text"
+                                                    readonly
+                                                    class="form-control"
+                                                    id="codAplicPagoom"
+                                                    name="codAplicPagoom">
                                             </div>
 
-                                            <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                                <label for="exampleFormControlTextarea1"> <b>Factura:</b></label>
-                                                <input required type="text" readonly class="form-control" id="facturaCaiom" name="facturaCaiom" >
-
-                                                <input type="hidden" id="idFacturaom" name="idFacturaom" >
+                                            <div class="col-12 col-md-6 mb-3">
+                                                <label class="font-weight-bold">
+                                                    Factura
+                                                </label>
+                                                <input required
+                                                    type="text"
+                                                    readonly
+                                                    class="form-control"
+                                                    id="facturaCaiom"
+                                                    name="facturaCaiom">
+                                                <input type="hidden"
+                                                    id="idFacturaom"
+                                                    name="idFacturaom">
                                             </div>
 
-                                            <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                                <label for="exampleFormControlTextarea1"> <b>Selección el tipo de Movimiento a realizar</b></label>
-
-                                                <select required id="selecttipoMovimiento" name="selecttipoMovimiento" class="form-control form-select form-select-lg">
-                                                    <option class="form-control" selected>--------SELECCIONE MOVIMIENTO----------</option>
-                                                    <option class="form-control" value="1">CARGO EXTRA</option>
-                                                    <option class="form-control"  value="2">CARGO A DEDUCIR</option>
+                                            <div class="col-12 col-md-6 mb-3">
+                                                <label class="font-weight-bold">
+                                                    Selección el tipo de Movimiento a realizar
+                                                </label>
+                                                <select required
+                                                        id="selecttipoMovimiento"
+                                                        name="selecttipoMovimiento"
+                                                        class="form-control">
+                                                    <option selected>--------SELECCIONE MOVIMIENTO----------</option>
+                                                    <option value="1">CARGO EXTRA</option>
+                                                    <option value="2">CARGO A DEDUCIR</option>
                                                 </select>
                                             </div>
 
-                                            <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                                <label for="exampleFormControlTextarea1"> <b>Monto por Aplicar:</b></label>
-                                                <input required type="number" step="any" min="0" class="form-control" id="montoTM" name="montoTM" >
+                                            <div class="col-12 col-md-6 mb-3">
+                                                <label class="font-weight-bold">
+                                                    Monto por Aplicar
+                                                </label>
+                                                <input required
+                                                    type="number"
+                                                    step="any"
+                                                    min="0"
+                                                    class="form-control"
+                                                    id="montoTM"
+                                                    name="montoTM">
                                             </div>
 
-                                            <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                                <label for="exampleFormControlTextarea1"> <b>Comentario del movimiento:</b></label>
-
-                                                <textarea required maxlength="500" class="form-control"   id="motivoMovimiento" name="motivoMovimiento" cols="30" rows="5"></textarea>
-
+                                            <div class="col-12 mb-3">
+                                                <label class="font-weight-bold">
+                                                    Comentario del movimiento
+                                                </label>
+                                                <textarea required
+                                                        maxlength="500"
+                                                        class="form-control"
+                                                        id="motivoMovimiento"
+                                                        name="motivoMovimiento"
+                                                        rows="4"
+                                                        placeholder="Ingrese el comentario del movimiento"></textarea>
                                             </div>
 
                                         </div>
+
+                                        <hr class="my-3">
+
+                                        <div class="row">
+                                            <div class="col-12 text-right">
+                                                <button id="btn_tipomov"
+                                                        class="btn btn-dark btn-lg px-4">
+                                                    <strong>Guardar Gestionar</strong>
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                    </form>
+
                                 </div>
-                                <br>
-                                <div class="row">
-                                    <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                        <button id="btn_tipomov" class="btn  btn-dark btn-lg btn-block float-left m-t-n-xs">
-                                            <strong>
-                                                Guardar Gestionar
-                                            </strong>
-                                        </button>
-                                    </div>
-                                </div>
-                                </form>
                             </div>
                         </div>
                     </div>
                 </div>
+
             </div>
-        </div>
         </div>
     </div>
     {{--  FIN DEL MODAL OTROS MOVIMIENTOS  --}}
 
 
     {{--  MODAL APLICAR CREDITOS/ABONOS  --}}
-    <div class="modal" id="modalAbonos" tabindex="-1" role="dialog">
-        <div class="modal-dialog" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-            <h3 class="modal-title">Aplicación Creditos o Abonos al Saldo de la factura:</h3>
-            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                <span aria-hidden="true">&times;</span>
-            </button>
-            </div>
-            <div class="modal-body">
-                <div class="row">
-                    <div class="col-lg-12">
-                        <div class="ibox ">
-                            <div class="ibox-content">
-                                <form class="form-control" id="formabonos" name="formabonos" >
-                                <div class="row">
+    <div class="modal fade" id="modalAbonos" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+            <div class="modal-content shadow-sm">
+
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title font-weight-bold">
+                        Aplicación Créditos o Abonos al Saldo de la Factura
+                    </h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-lg-12">
+                            <div class="ibox mb-0">
+                                <div class="ibox-content p-3">
+
+                                    <form class="form-control border-0 p-0"
+                                        id="formabonos"
+                                        name="formabonos">
+
                                         <div class="row">
-                                            <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                                <label for="exampleFormControlTextarea1"> <b>Código de Registro:</b></label>
-                                                <input required type="text" readonly class="form-control" id="codAplicPagoAbono" name="codAplicPagoAbono" >
+
+                                            <div class="col-12 col-md-6 mb-3">
+                                                <label class="font-weight-bold">
+                                                    Código de Registro
+                                                </label>
+                                                <input required
+                                                    type="text"
+                                                    readonly
+                                                    class="form-control"
+                                                    id="codAplicPagoAbono"
+                                                    name="codAplicPagoAbono">
                                             </div>
 
-                                            <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                                <label for="exampleFormControlTextarea1"> <b>Factura:</b></label>
-                                                <input required type="text" readonly class="form-control" id="facturaCaiAbono" name="facturaCaiAbono" >
-
-                                                <input type="hidden" id="idFacturaAbono" name="idFacturaAbono" >
+                                            <div class="col-12 col-md-6 mb-3">
+                                                <label class="font-weight-bold">
+                                                    Factura
+                                                </label>
+                                                <input required
+                                                    type="text"
+                                                    readonly
+                                                    class="form-control"
+                                                    id="facturaCaiAbono"
+                                                    name="facturaCaiAbono">
+                                                <input type="hidden"
+                                                    id="idFacturaAbono"
+                                                    name="idFacturaAbono">
                                             </div>
 
-                                            <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                                <label for="exampleFormControlTextarea1"> <b>Monto por Aplicar:</b></label>
-                                                <input required type="number" min="0" step="any" class="form-control" id="montoAbono" name="montoAbono" >
+                                            <div class="col-12 col-md-6 mb-3">
+                                                <label class="font-weight-bold">
+                                                    Monto por Aplicar
+                                                </label>
+                                                <input required
+                                                    type="number"
+                                                    min="0"
+                                                    step="any"
+                                                    class="form-control"
+                                                    id="montoAbono"
+                                                    name="montoAbono">
                                             </div>
 
-                                            <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                                <label for="exampleFormControlTextarea1"> <b>Selección Medio de Pago:</b></label>
-
-                                                 <select required onchange="metodoPago()" id="selectMetodoPago" name="selectMetodoPago" class="form-control form-select form-select-lg">
-
-                                                    <option class="form-control" selected >--------Seleccione------</option>
-                                                    <option class="form-control" value="1">EFECTIVO</option>
-                                                    <option class="form-control"  value="2">TRANSFERENCIA BANCARIA</option>
-                                                    <option class="form-control"  value="3">CHEQUE</option>
-                                                    <option class="form-control"  value="4">LINK DE PAGO</option>
-                                                    <option class="form-control"  value="5">POS</option>
-                                                 </select>
+                                            <div class="col-12 col-md-6 mb-3">
+                                                <label class="font-weight-bold">
+                                                    Selección Medio de Pago
+                                                </label>
+                                                <select required
+                                                        onchange="metodoPago()"
+                                                        id="selectMetodoPago"
+                                                        name="selectMetodoPago"
+                                                        class="form-control">
+                                                    <option selected>--------Seleccione------</option>
+                                                    <option value="1">EFECTIVO</option>
+                                                    <option value="2">TRANSFERENCIA BANCARIA</option>
+                                                    <option value="3">CHEQUE</option>
+                                                    <option value="4">LINK DE PAGO</option>
+                                                    <option value="5">POS</option>
+                                                </select>
                                             </div>
 
-                                            <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                                <label for="exampleFormControlTextarea1"> <b>Selección banco:</b></label>
-
-                                                 <select required id="selectBanco" name="selectBanco" class="form-control form-select form-select-lg">
-
-                                                 </select>
+                                            <div class="col-12 col-md-6 mb-3">
+                                                <label class="font-weight-bold">
+                                                    Selección banco
+                                                </label>
+                                                <select required
+                                                        id="selectBanco"
+                                                        name="selectBanco"
+                                                        class="form-control">
+                                                </select>
                                             </div>
 
-                                            <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12 mt-3">
-                                                <label for="doc_pago" class="col-form-label focus-label">Documento de Pago:<span class="text-danger">*</span></label>
-                                                <input class="form-control"  id="doc_pago" name="doc_pago" type="file" accept="image/png, image/jpeg, image/jpg, application/pdf">
-                                            </div>
-
-                                            <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12 mt-3">
-                                                <label for="fecha_pago" class="col-form-label focus-label">Fecha que se realizo el pago:<span class="text-danger">*</span></label>
-                                                <input class="form-control" required type="date" id="fecha_pago" name="fecha_pago"
+                                            <div class="col-12 col-md-6 mb-3">
+                                                <label class="font-weight-bold">
+                                                    Fecha que se realizó el pago <span class="text-danger">*</span>
+                                                </label>
+                                                <input class="form-control"
+                                                    required
+                                                    type="date"
+                                                    id="fecha_pago"
+                                                    name="fecha_pago"
                                                     data-parsley-required>
                                             </div>
 
-                                            <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                                <label for="exampleFormControlTextarea1"> <b>Nota de pago:</b></label>
+                                            <div class="col-12 mb-3">
+                                                <label class="font-weight-bold">
+                                                    Documento de Pago <span class="text-danger">*</span>
+                                                </label>
+                                                <input class="form-control"
+                                                    id="doc_pago"
+                                                    name="doc_pago"
+                                                    type="file"
+                                                    accept="image/png, image/jpeg, image/jpg, application/pdf">
+                                            </div>
 
-                                                <textarea required class="form-control"   id="comentarioAbono" name="comentarioAbono" cols="30" rows="5"></textarea>
-
+                                            <div class="col-12 mb-3">
+                                                <label class="font-weight-bold">
+                                                    Nota de pago
+                                                </label>
+                                                <textarea required
+                                                        class="form-control"
+                                                        id="comentarioAbono"
+                                                        name="comentarioAbono"
+                                                        rows="4"
+                                                        placeholder="Ingrese la nota del pago realizado"></textarea>
                                             </div>
 
                                         </div>
+
+                                        <hr class="my-3">
+
+                                        <div class="row">
+                                            <div class="col-12 text-right">
+                                                <button id="btn_notaabono"
+                                                        class="btn btn-dark btn-lg px-4">
+                                                    <strong>Gestionar</strong>
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                    </form>
+
                                 </div>
-                                <br>
-                                <div class="row">
-                                    <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                        <button id="btn_notaabono" class="btn  btn-dark btn-lg btn-block float-left m-t-n-xs">
-                                            <strong>
-                                                Gestionar
-                                            </strong>
-                                        </button>
-                                    </div>
-                                </div>
-                                </form>
                             </div>
                         </div>
                     </div>
                 </div>
+
             </div>
-        </div>
         </div>
     </div>
     {{--  FIN DEL MODAL APLICAR CREDITOS/ABONOS  --}}
+
 
 
     {{--  MODAL APLICAR CREDITOS/ABONOS  --}}
-    <div class="modal" id="modalcerrarFact" tabindex="-1" role="dialog">
-        <div class="modal-dialog" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-            <h3 class="modal-title">Cerrar factura:</h3>
-            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                <span aria-hidden="true">&times;</span>
-            </button>
-            </div>
-            <div class="modal-body">
-                <div class="row">
-                    <div class="col-lg-12">
-                        <div class="ibox ">
-                            <div class="ibox-content">
-                                <form class="form-control" id="formCierrefact" name="formCierrefact" >
-                                <div class="row">
+    <div class="modal fade" id="modalcerrarFact" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+            <div class="modal-content shadow-sm">
+
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title font-weight-bold">
+                        Cerrar factura
+                    </h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-lg-12">
+                            <div class="ibox mb-0">
+                                <div class="ibox-content p-3">
+
+                                    <form class="form-control border-0 p-0"
+                                        id="formCierrefact"
+                                        name="formCierrefact">
+
                                         <div class="row">
-                                            <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                                <label for="exampleFormControlTextarea1"> <b>Código de Registro:</b></label>
-                                                <input required type="text" readonly class="form-control" id="codAplicCierre" name="codAplicCierre" >
+
+                                            <div class="col-12 col-md-6 mb-3">
+                                                <label class="font-weight-bold">
+                                                    Código de Registro
+                                                </label>
+                                                <input required
+                                                    type="text"
+                                                    readonly
+                                                    class="form-control"
+                                                    id="codAplicCierre"
+                                                    name="codAplicCierre">
                                             </div>
 
-                                            <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                                <label for="exampleFormControlTextarea1"> <b>Factura:</b></label>
-                                                <input required type="text" readonly class="form-control" id="facturaCaiCierre" name="facturaCaiCierre" >
-
-                                                <input type="hidden" id="idFacturaCierre" name="idFacturaCierre" >
+                                            <div class="col-12 col-md-6 mb-3">
+                                                <label class="font-weight-bold">
+                                                    Factura
+                                                </label>
+                                                <input required
+                                                    type="text"
+                                                    readonly
+                                                    class="form-control"
+                                                    id="facturaCaiCierre"
+                                                    name="facturaCaiCierre">
+                                                <input type="hidden"
+                                                    id="idFacturaCierre"
+                                                    name="idFacturaCierre">
                                             </div>
 
-                                            <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                                <label for="exampleFormControlTextarea1"> <b>Nota de cierre:</b></label>
-
-                                                <textarea required class="form-control"   id="comentarioCierre" name="comentarioCierre" cols="30" rows="5"></textarea>
-
+                                            <div class="col-12 mb-3">
+                                                <label class="font-weight-bold">
+                                                    Nota de cierre
+                                                </label>
+                                                <textarea required
+                                                        class="form-control"
+                                                        id="comentarioCierre"
+                                                        name="comentarioCierre"
+                                                        rows="4"
+                                                        placeholder="Ingrese la nota de cierre de la factura"></textarea>
                                             </div>
 
                                         </div>
+
+                                        <hr class="my-3">
+
+                                        <div class="row">
+                                            <div class="col-12 text-right">
+                                                <button id="btn_cierreFact"
+                                                        class="btn btn-dark btn-lg px-4">
+                                                    <strong>Gestionar</strong>
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                    </form>
+
                                 </div>
-                                <br>
-                                <div class="row">
-                                    <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                        <button id="btn_cierreFact" class="btn  btn-dark btn-lg btn-block float-left m-t-n-xs">
-                                            <strong>
-                                                Gestionar
-                                            </strong>
-                                        </button>
-                                    </div>
-                                </div>
-                                </form>
                             </div>
                         </div>
                     </div>
                 </div>
+
             </div>
-        </div>
         </div>
     </div>
     {{--  FIN DEL MODAL APLICAR CREDITOS/ABONOS  --}}
+
 
 
     {{-- ================= TABLA PRINCIPAL DE REGISTRO ================= --}}
