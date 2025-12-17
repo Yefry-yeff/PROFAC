@@ -171,6 +171,16 @@ class DistribucionEntrega extends Component
                     ];
                     return $estados[$datos->estado_id] ?? '<span class="badge badge-secondary">DESCONOCIDO</span>';
                 })
+                ->editColumn('observaciones', function ($datos) {
+                    if (empty($datos->observaciones)) {
+                        return '<span class="text-muted">Sin descripción</span>';
+                    }
+                    $texto = htmlspecialchars($datos->observaciones);
+                    if (strlen($texto) > 50) {
+                        return '<span title="' . $texto . '">' . substr($texto, 0, 50) . '...</span>';
+                    }
+                    return $texto;
+                })
                 ->addColumn('progreso', function ($datos) {
                     $total = $datos->total_facturas;
                     $entregadas = $datos->facturas_entregadas;
@@ -227,7 +237,7 @@ class DistribucionEntrega extends Component
                         ';
                     }
                 })
-                ->rawColumns(['estado', 'progreso', 'opciones'])
+                ->rawColumns(['estado', 'observaciones', 'progreso', 'opciones'])
                 ->make(true);
 
         } catch (\Exception $e) {

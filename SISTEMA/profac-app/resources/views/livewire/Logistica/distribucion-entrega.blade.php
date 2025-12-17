@@ -58,7 +58,8 @@
                                 <th>ID</th>
                                 <th>Fecha</th>
                                 <th>Equipo</th>
-                                <th>Progreso</th>
+                                <th>Descripción</th>
+                                <th></th>Progreso</th>
                                 <th>Estado</th>
                                 <th>Creador</th>
                                 <th>Opciones</th>
@@ -307,6 +308,7 @@ $(document).ready(() => {
             {data: 'id'},
             {data: 'fecha_programada'},
             {data: 'nombre_equipo'},
+            {data: 'observaciones'},
             {data: 'progreso'},
             {data: 'estado'},
             {data: 'creador'},
