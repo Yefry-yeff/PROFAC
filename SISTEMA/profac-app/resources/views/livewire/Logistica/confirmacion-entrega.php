@@ -312,11 +312,13 @@
 
                     let html = '<div class="rounded shadow-sm list-group list-group-flush">';
                     distribuciones.forEach(d => {
-                        const progreso = d.total_facturas ? Math.round((d.facturas_entregadas / d.total_facturas) * 100) : 0;
+                        // Calcular progreso basado en estados: entregado o parcial = 100%, sin_entrega = 0%
+                        const facturasCompletadas = d.facturas_completadas || 0;
+                        const progreso = d.total_facturas ? Math.round((facturasCompletadas / d.total_facturas) * 100) : 0;
                         html += `<button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center btn-distribucion ${confirmacionState.distribucionActual === d.id ? 'active' : ''}" data-distribucion="${d.id}">
                             <div>
                                 <div class="mb-0 font-weight-bold">${d.nombre_equipo}</div>
-                                <small class="text-muted">${d.facturas_entregadas}/${d.total_facturas} facturas</small>
+                                <small class="text-muted">${facturasCompletadas}/${d.total_facturas} facturas</small>
                             </div>
                             <div class="text-right" style="min-width:80px;">
                                 <span class="badge badge-${progreso === 100 ? 'success' : 'secondary'}">${progreso}%</span>

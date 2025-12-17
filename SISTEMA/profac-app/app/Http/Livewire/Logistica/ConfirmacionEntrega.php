@@ -36,7 +36,7 @@ class ConfirmacionEntrega extends Component
                     d.observaciones,
                     e.nombre_equipo,
                     (SELECT COUNT(*) FROM distribuciones_entrega_facturas WHERE distribucion_entrega_id = d.id) as total_facturas,
-                    (SELECT COUNT(*) FROM distribuciones_entrega_facturas WHERE distribucion_entrega_id = d.id AND estado_entrega = 'entregado') as facturas_entregadas
+                    (SELECT COUNT(*) FROM distribuciones_entrega_facturas WHERE distribucion_entrega_id = d.id AND estado_entrega IN ('entregado', 'parcial')) as facturas_completadas
                 FROM distribuciones_entrega d
                 INNER JOIN equipos_entrega e ON d.equipo_entrega_id = e.id
                 WHERE d.estado_id = 2
@@ -70,14 +70,14 @@ class ConfirmacionEntrega extends Component
                     df.factura_id,
                     df.orden_entrega,
                     df.estado_entrega,
-                    f.numero_factura,
+                    f.cai,
                     f.total,
                     c.nombre AS cliente,
                     c.direccion,
-                       c.telefono_empresa
+                    c.telefono_empresa
                 FROM distribuciones_entrega_facturas df
-                   INNER JOIN factura f ON df.factura_id = f.id
-                   INNER JOIN cliente c ON f.cliente_id = c.id
+                INNER JOIN factura f ON df.factura_id = f.id
+                INNER JOIN cliente c ON f.cliente_id = c.id
                 WHERE df.distribucion_entrega_id = ?
                 ORDER BY df.orden_entrega ASC
             ", [$distribucionId]);
