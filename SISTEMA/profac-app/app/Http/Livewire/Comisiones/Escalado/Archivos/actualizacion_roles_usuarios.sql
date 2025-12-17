@@ -119,6 +119,56 @@ FROM users A
 inner join rol B on B.id = A.rol_id
 WHERE B.id != 10;
 
+
+---------------INSERCIÓN MESES 2025--------------------------------
+INSERT INTO comision_empleado (
+    comision_acumulada,
+    fecha_ult_modificacion,
+    mes_comision,
+    nombre_empleado,
+    users_comision,
+    rol_id,
+    estado_id
+)
+SELECT
+    0.00,
+    NOW(),
+    meses.mes_comision,
+    u.name,
+    u.id AS users_comision,
+    r.id AS rol_id,
+    1 AS estado_id
+FROM users u
+INNER JOIN rol r ON r.id = u.rol_id
+
+-- Generador de los 12 meses del 2025
+CROSS JOIN (
+    SELECT DATE('2025-01-01') AS mes_comision UNION ALL
+    SELECT DATE('2025-02-01') UNION ALL
+    SELECT DATE('2025-03-01') UNION ALL
+    SELECT DATE('2025-04-01') UNION ALL
+    SELECT DATE('2025-05-01') UNION ALL
+    SELECT DATE('2025-06-01') UNION ALL
+    SELECT DATE('2025-07-01') UNION ALL
+    SELECT DATE('2025-08-01') UNION ALL
+    SELECT DATE('2025-09-01') UNION ALL
+    SELECT DATE('2025-10-01') UNION ALL
+    SELECT DATE('2025-11-01') UNION ALL
+    SELECT DATE('2025-12-01')
+) meses
+
+WHERE r.id != 10
+
+-- 🔒 Evita duplicados
+AND NOT EXISTS (
+    SELECT 1
+    FROM comision_empleado ce
+    WHERE ce.users_comision = u.id
+      AND ce.mes_comision = meses.mes_comision
+);
+
+
+
 -------------------------ACTUALIZACIÓN DE SP DE APLICACION DE PAGOS/ REGISTRANDO FECHA EXACTA DE CIERRE PARA REFERENCIA DE COMISIÓN--------------
 BEGIN
   DECLARE EXIT HANDLER FOR SQLEXCEPTION
