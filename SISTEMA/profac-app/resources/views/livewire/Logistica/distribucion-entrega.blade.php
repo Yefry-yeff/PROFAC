@@ -614,13 +614,15 @@ function verFacturas(id) {
                             <th>Factura</th>
                             <th>Cliente</th>
                             <th width="100">Estado</th>
+                            <th width="80" class="text-center">Incidencias</th>
+                            <th width="80" class="text-center">Tratadas</th>
                             <th width="200">Opciones</th>
                         </tr>
                     </thead>
                     <tbody>`;
         
         if (r.facturas.length === 0) {
-            html += '<tr><td colspan="5" class="text-center py-4 text-muted">No hay facturas asignadas</td></tr>';
+            html += '<tr><td colspan="7" class="text-center py-4 text-muted">No hay facturas asignadas</td></tr>';
         } else {
             // Verificar si la distribución está completada o cancelada
             const soloLectura = distribucion.estado_id === 3 || distribucion.estado_id === 4;
@@ -630,17 +632,27 @@ function verFacturas(id) {
                                    f.estado_entrega === 'parcial' ? 'warning' : 'secondary';
                 const estadoTexto = f.estado_entrega === 'sin_entrega' ? 'Sin Entrega' : 
                                    f.estado_entrega.charAt(0).toUpperCase() + f.estado_entrega.slice(1);
-                const bloqueado = f.confirmada == 1;
+                // Considerar bloqueada si ya fue entregada (completa o parcial)
+                const bloqueado = f.estado_entrega === 'entregado' || f.estado_entrega === 'parcial';
+                const totalIncidencias = parseInt(f.total_incidencias) || 0;
+                const incidenciasTratadas = parseInt(f.incidencias_tratadas) || 0;
+                const todasTratadas = totalIncidencias > 0 && totalIncidencias === incidenciasTratadas;
+                const tieneIncidenciasSinTratar = totalIncidencias > 0 && incidenciasTratadas < totalIncidencias;
                 
                 html += `<tr>
                     <td>${f.orden_entrega}</td>
                     <td><strong>#${f.numero_factura}</strong></td>
                     <td>${f.cliente}</td>
                     <td><span class="badge badge-${estadoBadge}">${estadoTexto}</span></td>
+                    <td class="text-center">${totalIncidencias > 0 ? `<span class="badge badge-${tieneIncidenciasSinTratar ? 'warning' : 'info'}">${totalIncidencias}</span>` : '<span class="text-muted">0</span>'}</td>
+                    <td class="text-center">${totalIncidencias > 0 ? (todasTratadas ? '<span class="badge badge-success"><i class="fas fa-check"></i> Sí</span>' : '<span class="badge badge-danger"><i class="fas fa-times"></i> No</span>') : '<span class="text-muted">N/A</span>'}</td>
                     <td>
                         <div class="btn-group btn-group-sm" role="group">
                             ${!soloLectura && bloqueado ? `<button class="btn btn-warning" onclick="desbloquearFactura(${f.id})" title="Desbloquear">
                                 <i class="fas fa-unlock"></i>
+                            </button>` : ''}
+                            ${!soloLectura && f.estado_entrega === 'sin_entrega' && !bloqueado ? `<button class="btn btn-danger" onclick="anularEntrega(${f.id})" title="Cancelar Entrega">
+                                <i class="fas fa-times"></i>
                             </button>` : ''}
                             ${!soloLectura && f.estado_entrega !== 'sin_entrega' && !bloqueado ? `<button class="btn btn-danger" onclick="anularEntrega(${f.id})" title="Anular Entrega">
                                 <i class="fas fa-times"></i>
@@ -648,7 +660,7 @@ function verFacturas(id) {
                             <button class="btn btn-info" onclick="verIncidencias(${f.id})" title="Ver Incidencias">
                                 <i class="fas fa-exclamation-circle"></i>
                             </button>
-                            ${!soloLectura && f.estado_entrega !== 'entregado' && !bloqueado ? `<button class="btn btn-success" onclick="confirmarEntregaFactura(${f.id})" title="Confirmar Entrega">
+                            ${!soloLectura && f.estado_entrega === 'sin_entrega' && !bloqueado ? `<button class="btn btn-success" onclick="confirmarEntregaFactura(${f.id}, ${distribucion.id})" title="Confirmar Entrega">
                                 <i class="fas fa-check"></i>
                             </button>` : ''}
                         </div>
@@ -687,40 +699,66 @@ function cancelarDistribucion(id) {
 }
 
 function abrirConfirmacion(id) {
-    Swal.fire({
-        title: '¿Completar distribución?',
-        text: 'Esto cambiará el estado de la distribución a "Completada".',
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonColor: '#28a745',
-        cancelButtonColor: '#6c757d',
-        confirmButtonText: 'Sí, completar',
-        cancelButtonText: 'Cancelar'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            $.ajax({
-                url: "{{ url('/logistica/distribuciones/completar') }}/" + id,
-                type: 'POST',
-                data: {
-                    _token: $('meta[name="csrf-token"]').attr('content')
-                },
-                success: function(r) {
-                    Swal.fire({
-                        icon: r.icon || 'success',
-                        title: r.title || 'Completada',
-                        text: r.text || 'La distribución ha sido completada correctamente',
-                        confirmButtonColor: '#28a745'
-                    });
-                    tablaDistribuciones.ajax.reload(null, false);
-                },
-                error: function(x) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: x.responseJSON?.title || 'Error',
-                        text: x.responseJSON?.text || 'No se pudo completar la distribución',
-                        confirmButtonColor: '#dc3545'
+    // Primero validar que todas las facturas estén entregadas y que no haya incidencias sin tratar
+    $.ajax({
+        url: "{{ url('/logistica/distribuciones/validar-completar') }}/" + id,
+        type: 'GET',
+        success: function(validacion) {
+            if (!validacion.puede_completar) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'No se puede completar',
+                    html: validacion.mensaje,
+                    confirmButtonColor: '#f0ad4e'
+                });
+                return;
+            }
+            
+            // Si pasa todas las validaciones, mostrar confirmación
+            Swal.fire({
+                title: '¿Completar distribución?',
+                text: 'Esto cambiará el estado de la distribución a "Completada".',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#28a745',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Sí, completar',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.ajax({
+                        url: "{{ url('/logistica/distribuciones/completar') }}/" + id,
+                        type: 'POST',
+                        data: {
+                            _token: $('meta[name="csrf-token"]').attr('content')
+                        },
+                        success: function(r) {
+                            Swal.fire({
+                                icon: r.icon || 'success',
+                                title: r.title || 'Completada',
+                                text: r.text || 'La distribución ha sido completada correctamente',
+                                confirmButtonColor: '#28a745'
+                            });
+                            tablaDistribuciones.ajax.reload(null, false);
+                        },
+                        error: function(x) {
+                            Swal.fire({
+                                icon: 'error',
+                                title: x.responseJSON?.title || 'Error',
+                                text: x.responseJSON?.text || 'No se pudo completar la distribución',
+                                confirmButtonColor: '#dc3545'
+                            });
+                        }
                     });
                 }
+            });
+        },
+        error: function(x) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error de validación',
+                text: x.responseJSON?.message || 'No se pudo validar la distribución',
+                confirmButtonColor: '#dc3545'
             });
         }
     });
@@ -1051,47 +1089,73 @@ function guardarTratamiento(facturaId) {
     });
 }
 
-function confirmarEntregaFactura(facturaId) {
-    Swal.fire({
-        title: '¿Confirmar entrega completa?',
-        text: 'Esto cambiará el estado de la factura a "Entregado".',
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonColor: '#28a745',
-        cancelButtonColor: '#6c757d',
-        confirmButtonText: 'Sí, confirmar',
-        cancelButtonText: 'Cancelar'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            $.ajax({
-                url: "{{ url('/logistica/facturas/confirmar-entrega') }}/" + facturaId,
-                type: 'POST',
-                data: {
-                    _token: $('meta[name="csrf-token"]').attr('content')
-                },
-                success: function(r) {
-                    Swal.fire({
-                        icon: r.icon || 'success',
-                        title: r.title || 'Confirmada',
-                        text: r.text || 'La entrega ha sido confirmada como completa',
-                        confirmButtonColor: '#28a745'
-                    });
-                    // Recargar el modal de detalle
-                    const distribucionId = $('#modalDetalleDistribucion').data('distribucion-id');
-                    if (distribucionId) {
-                        verFacturas(distribucionId);
-                    }
-                    // Recargar la tabla principal
-                    tablaDistribuciones.ajax.reload(null, false);
-                },
-                error: function(x) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: x.responseJSON?.title || 'Error',
-                        text: x.responseJSON?.text || 'No se pudo confirmar la entrega',
-                        confirmButtonColor: '#dc3545'
+function confirmarEntregaFactura(facturaId, distribucionId) {
+    // Primero validar si hay incidencias sin tratamiento en toda la distribución
+    $.ajax({
+        url: "{{ url('/logistica/distribuciones/validar-incidencias') }}/" + distribucionId,
+        type: 'GET',
+        success: function(validacion) {
+            if (!validacion.puede_confirmar) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Incidencias pendientes',
+                    html: validacion.mensaje,
+                    confirmButtonColor: '#f0ad4e'
+                });
+                return;
+            }
+            
+            // Si pasa la validación, proceder con la confirmación
+            Swal.fire({
+                title: '¿Confirmar entrega completa?',
+                text: 'Esto cambiará el estado de la factura a "Entregado".',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#28a745',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Sí, confirmar',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.ajax({
+                        url: "{{ url('/logistica/facturas/confirmar-entrega') }}/" + facturaId,
+                        type: 'POST',
+                        data: {
+                            _token: $('meta[name="csrf-token"]').attr('content')
+                        },
+                        success: function(r) {
+                            Swal.fire({
+                                icon: r.icon || 'success',
+                                title: r.title || 'Confirmada',
+                                text: r.text || 'La entrega ha sido confirmada como completa',
+                                confirmButtonColor: '#28a745'
+                            });
+                            // Recargar el modal de detalle
+                            const modalDistribucionId = $('#modalDetalleDistribucion').data('distribucion-id');
+                            if (modalDistribucionId) {
+                                verFacturas(modalDistribucionId);
+                            }
+                            // Recargar la tabla principal
+                            tablaDistribuciones.ajax.reload(null, false);
+                        },
+                        error: function(x) {
+                            Swal.fire({
+                                icon: 'error',
+                                title: x.responseJSON?.title || 'Error',
+                                text: x.responseJSON?.text || 'No se pudo confirmar la entrega',
+                                confirmButtonColor: '#dc3545'
+                            });
+                        }
                     });
                 }
+            });
+        },
+        error: function(x) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error de validación',
+                text: x.responseJSON?.message || 'No se pudo validar las incidencias',
+                confirmButtonColor: '#dc3545'
             });
         }
     });

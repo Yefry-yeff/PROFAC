@@ -1030,10 +1030,13 @@ Route::post('/reporte/Libroventarep/exportar-excel/{tipo}/{fechaInicio}/{fechaFi
     Route::post('/logistica/distribuciones/iniciar/{distribucionId}', [DistribucionEntrega::class, 'iniciarDistribucion']);
     Route::post('/logistica/distribuciones/cancelar/{distribucionId}', [DistribucionEntrega::class, 'cancelarDistribucion']);
     Route::post('/logistica/distribuciones/completar/{distribucionId}', [DistribucionEntrega::class, 'completarDistribucion']);
+    Route::get('/logistica/distribuciones/validar-completar/{distribucionId}', [DistribucionEntrega::class, 'validarCompletarDistribucion']);
     Route::get('/logistica/facturas/incidencias/{facturaId}', [DistribucionEntrega::class, 'obtenerIncidenciasFactura']);
     Route::post('/logistica/facturas/incidencias/tratamiento', [DistribucionEntrega::class, 'guardarTratamientoIncidencias']);
     Route::post('/logistica/facturas/anular-entrega/{facturaId}', [DistribucionEntrega::class, 'anularEntrega']);
     Route::post('/logistica/facturas/confirmar-entrega/{facturaId}', [DistribucionEntrega::class, 'confirmarEntregaFactura']);
+    Route::post('/logistica/facturas/desbloquear/{facturaId}', [DistribucionEntrega::class, 'desbloquearFactura']);
+    Route::get('/logistica/distribuciones/validar-incidencias/{distribucionId}', [DistribucionEntrega::class, 'validarIncidenciasSinTratamiento']);
 
     // Confirmacion de Entregas
     Route::get('/logistica/confirmacion', ConfirmacionEntrega::class);
@@ -1044,6 +1047,7 @@ Route::post('/reporte/Libroventarep/exportar-excel/{tipo}/{fechaInicio}/{fechaFi
     Route::get('/logistica/confirmacion/evidencias/{distribucionFacturaId}', [ConfirmacionEntrega::class, 'obtenerEvidencias']);
     Route::get('/logistica/confirmacion/productos/{productoId}/incidencias', [ConfirmacionEntrega::class, 'listarIncidenciasProducto']);
     Route::post('/logistica/confirmacion/productos/{productoId}/incidencias', [ConfirmacionEntrega::class, 'registrarIncidenciaProducto']);
+    Route::post('/logistica/confirmacion/productos/incidencias/{incidenciaId}/eliminar', [ConfirmacionEntrega::class, 'eliminarIncidenciaProducto']);
     Route::get('/logistica/confirmacion/incidencias/{incidenciaId}/evidencias', [ConfirmacionEntrega::class, 'obtenerEvidenciasIncidencia']);
     Route::post('/logistica/confirmacion/marcar-todos/{distribucionFacturaId}', [ConfirmacionEntrega::class, 'marcarTodosEntregados']);
     Route::get('/logistica/confirmacion/reporte/{distribucionId}', [ConfirmacionEntrega::class, 'obtenerReporteDistribucion']);

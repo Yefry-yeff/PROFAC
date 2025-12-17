@@ -191,7 +191,9 @@
                     facturas: [],
                     productosPendientes: [],
                     productoIncidencia: null,
-                    productoIncidenciaNombre: ''
+                    productoIncidenciaNombre: '',
+                    incidenciasPendientes: [], // Incidencias que se guardarán al confirmar
+                    incidenciaEditando: null // ID temporal de incidencia en edición
                 };
 
                 $(function () {
@@ -352,6 +354,8 @@
                 }
 
                 function cargarConfirmacion(distribucionId, facturaAnterior = null) {
+                    // Limpiar incidencias pendientes al cambiar de distribuci\u00f3n
+                    confirmacionState.incidenciasPendientes = [];
                     $('#contenedorFacturas').html(skeleton('Cargando facturas...'));
                     $.get(`${rutasConfirmacion.facturas}/${distribucionId}`)
                         .done(resp => {
@@ -726,7 +730,7 @@
                     enviarConfirmacion(hora);
                 }
 
-                function enviarConfirmacion(horaEntrega) {
+                async function enviarConfirmacion(horaEntrega) {
                     const productos = confirmacionState.productosPendientes.slice();
                     if (!productos.length) {
                         return;
@@ -734,17 +738,45 @@
                     const boton = $('#btnConfirmarEntrega');
                     boton.prop('disabled', true).html('<span class="mr-2 spinner-border spinner-border-sm"></span>Guardando...');
 
+                    // Preparar incidencias con evidencias en base64
+                    const incidenciasPrepararadas = [];
+                    for (const inc of confirmacionState.incidenciasPendientes) {
+                        const incidenciaData = {
+                            producto_id: inc.producto_id,
+                            tipo: inc.tipo,
+                            descripcion: inc.descripcion,
+                            evidencias: []
+                        };
+
+                        // Convertir evidencias a base64
+                        if (inc.evidencias && inc.evidencias.length > 0) {
+                            for (const file of inc.evidencias) {
+                                try {
+                                    const base64 = await convertirArchivoABase64(file);
+                                    incidenciaData.evidencias.push(base64);
+                                } catch (error) {
+                                    console.error('Error al convertir evidencia:', error);
+                                }
+                            }
+                        }
+
+                        incidenciasPrepararadas.push(incidenciaData);
+                    }
+
                     $.ajax({
                         url: rutasConfirmacion.guardar,
                         type: 'POST',
                         data: {
                             productos,
                             hora_entrega: horaEntrega,
+                            incidencias: incidenciasPrepararadas,
                             _token: csrfToken
                         }
                     })
                         .done(resp => {
                             Swal.fire(resp.title, resp.text, resp.icon);
+                            // Limpiar incidencias pendientes
+                            confirmacionState.incidenciasPendientes = [];
                             if (confirmacionState.distribucionActual) {
                                 // Recargar la lista de distribuciones para actualizar los porcentajes
                                 actualizarDistribuciones();
@@ -760,6 +792,15 @@
                             confirmacionState.productosPendientes = [];
                             boton.prop('disabled', false).html('<i class="mr-1 fas fa-save"></i>Confirmar entrega');
                         });
+                }
+
+                function convertirArchivoABase64(file) {
+                    return new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = () => resolve(reader.result);
+                        reader.onerror = reject;
+                        reader.readAsDataURL(file);
+                    });
                 }
 
                 let evidenciasPendientes = [];
@@ -799,18 +840,11 @@
                     evidenciasPendientes = [];
                     // Limpiar previews
                     $('#previewEvidencias').html('');
-                    cargarIncidenciasProducto(productoId);
-                }
-
-                function cargarIncidenciasProducto(productoId) {
-                    $('#listaIncidenciasProducto').html(skeleton('Cargando incidencias...'));
-                    $.get(`${rutasConfirmacion.incidencias}/${productoId}/incidencias`)
-                        .done(resp => {
-                            renderListaIncidencias(resp.incidencias || []);
-                        })
-                        .fail(() => {
-                            $('#listaIncidenciasProducto').html('<div class="mb-0 alert alert-danger">No se pudieron cargar las incidencias.</div>');
-                        });
+                    // Resetear botón si estaba en modo edición
+                    confirmacionState.incidenciaEditando = null;
+                    $('#btnIncidenciaGuardar').html('<i class="mr-1 fas fa-plus-circle"></i>Agregar incidencia');
+                    // Cargar incidencias existentes de la BD + las pendientes locales
+                    window.cargarIncidenciasProducto(productoId);
                 }
 
                 function renderListaIncidencias(incidencias) {
@@ -941,39 +975,192 @@
                         return;
                     }
 
-                    const boton = $('#btnIncidenciaGuardar');
-                    boton.prop('disabled', true).html('<span class="mr-1 spinner-border spinner-border-sm"></span>Guardando');
+                    // Guardar localmente en lugar de enviar al servidor
+                    const incidencia = {
+                        id: confirmacionState.incidenciaEditando || Date.now(), // ID temporal
+                        producto_id: productoId,
+                        producto_nombre: confirmacionState.productoIncidenciaNombre,
+                        tipo: tipo,
+                        descripcion: descripcion,
+                        evidencias: evidenciasPendientes.slice(), // Clonar array de evidencias
+                        estado: 'pendiente' // Marca que está pendiente de guardar
+                    };
 
-                    $.ajax({
-                        url: `${rutasConfirmacion.incidencias}/${productoId}/incidencias`,
-                        type: 'POST',
-                        data: {
-                            tipo,
-                            descripcion,
-                            _token: csrfToken
+                    if (confirmacionState.incidenciaEditando) {
+                        // Actualizar incidencia existente
+                        const index = confirmacionState.incidenciasPendientes.findIndex(i => i.id === confirmacionState.incidenciaEditando);
+                        if (index !== -1) {
+                            confirmacionState.incidenciasPendientes[index] = incidencia;
+                            toastr.success('Incidencia actualizada (pendiente de guardar)');
                         }
-                    })
+                        confirmacionState.incidenciaEditando = null;
+                    } else {
+                        // Agregar nueva incidencia
+                        confirmacionState.incidenciasPendientes.push(incidencia);
+                        toastr.success('Incidencia agregada (pendiente de guardar)');
+                    }
+
+                    // Limpiar formulario
+                    $('#descripcionIncidencia').val('');
+                    $('#tipoIncidencia').val('producto_danado');
+                    evidenciasPendientes = [];
+                    $('#previewEvidencias').empty();
+                    $('#inputEvidencias').val('');
+                    $('.custom-file-label').text('Seleccionar imágenes...');
+                    $('#btnIncidenciaGuardar').html('<i class="mr-1 fas fa-plus-circle"></i>Agregar incidencia');
+
+                    // Recargar todas las incidencias (guardadas + pendientes)
+                    window.cargarIncidenciasProducto(productoId);
+                    
+                    // Actualizar contador en la tabla
+                    actualizarContadorIncidencias(productoId);
+                }
+
+                function renderIncidenciasPendientes(productoId) {
+                    const incidencias = confirmacionState.incidenciasPendientes.filter(i => i.producto_id === productoId);
+                    
+                    if (incidencias.length === 0) {
+                        $('#listaIncidenciasProducto').html('<p class="mb-0 text-muted">No hay incidencias agregadas para este producto.</p>');
+                        return;
+                    }
+
+                    let html = '<div class="list-group">';
+                    incidencias.forEach((inc, index) => {
+                        const tipoLabel = {
+                            'producto_danado': 'Producto da\u00f1ado',
+                            'cantidad_incorrecta': 'Cantidad incorrecta',
+                            'cliente_rechazo': 'Cliente rechaz\u00f3',
+                            'direccion_incorrecta': 'Direcci\u00f3n incorrecta',
+                            'otro': 'Otro'
+                        }[inc.tipo] || inc.tipo;
+
+                        html += `<div class="mb-2 list-group-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <span class="badge badge-warning">${tipoLabel}</span>
+                                    <span class="badge badge-info">Pendiente de guardar</span>
+                                    <p class="mt-2 mb-1">${inc.descripcion}</p>
+                                    ${inc.evidencias.length > 0 ? `<small class="text-muted"><i class="fas fa-images"></i> ${inc.evidencias.length} evidencia(s)</small>` : ''}
+                                </div>
+                                <div class="ml-2 btn-group-vertical btn-group-sm">
+                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="editarIncidenciaPendiente(${inc.id})" title="Editar">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="eliminarIncidenciaPendiente(${inc.id})" title="Eliminar">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>`;
+                    });
+                    html += '</div>';
+                    $('#listaIncidenciasProducto').html(html);
+                }
+
+                window.editarIncidenciaPendiente = function(incidenciaId) {
+                    const incidencia = confirmacionState.incidenciasPendientes.find(i => i.id === incidenciaId);
+                    if (!incidencia) return;
+
+                    // Cargar datos en el formulario
+                    $('#tipoIncidencia').val(incidencia.tipo);
+                    $('#descripcionIncidencia').val(incidencia.descripcion);
+                    evidenciasPendientes = incidencia.evidencias.slice();
+                    
+                    // Marcar como editando
+                    confirmacionState.incidenciaEditando = incidenciaId;
+                    
+                    // Actualizar bot\u00f3n
+                    $('#btnIncidenciaGuardar').html('<i class="mr-1 fas fa-save"></i>Actualizar incidencia');
+                    
+                    // Mostrar preview de evidencias
+                    $('#previewEvidencias').empty();
+                    evidenciasPendientes.forEach((ev, idx) => {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            const preview = `<div class="m-1 position-relative" style="width:80px;height:80px;">
+                                <img src="${e.target.result}" class="rounded" style="width:100%;height:100%;object-fit:cover;">
+                                <button type="button" class="btn btn-sm btn-danger position-absolute" 
+                                        style="top:2px;right:2px;padding:2px 6px;" 
+                                        onclick="window.eliminarEvidenciaTemporal(${idx})">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>`;
+                            $('#previewEvidencias').append(preview);
+                        };
+                        reader.readAsDataURL(ev);
+                    });
+
+                    toastr.info('Modifica la incidencia y presiona \"Actualizar incidencia\"');
+                }
+
+                window.eliminarEvidenciaTemporal = function(index) {
+                    if (evidenciasPendientes[index]) {
+                        evidenciasPendientes.splice(index, 1);
+                        // Re-renderizar previews
+                        $('#previewEvidencias').empty();
+                        evidenciasPendientes.forEach((ev, idx) => {
+                            const reader = new FileReader();
+                            reader.onload = function(e) {
+                                const preview = `<div class="m-1 position-relative" style="width:80px;height:80px;">
+                                    <img src="${e.target.result}" class="rounded" style="width:100%;height:100%;object-fit:cover;">
+                                    <button type="button" class="btn btn-sm btn-danger position-absolute" 
+                                            style="top:2px;right:2px;padding:2px 6px;" 
+                                            onclick="window.eliminarEvidenciaTemporal(${idx})">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>`;
+                                $('#previewEvidencias').append(preview);
+                            };
+                            reader.readAsDataURL(ev);
+                        });
+                        toastr.info('Evidencia eliminada');
+                    }
+                }
+
+                window.eliminarIncidenciaPendiente = function(incidenciaId) {
+                    Swal.fire({
+                        title: '\u00bfEliminar incidencia?',
+                        text: 'Esta acci\u00f3n no se puede deshacer',
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#dc3545',
+                        cancelButtonColor: '#6c757d',
+                        confirmButtonText: 'S\u00ed, eliminar',
+                        cancelButtonText: 'Cancelar'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            const index = confirmacionState.incidenciasPendientes.findIndex(i => i.id === incidenciaId);
+                            if (index !== -1) {
+                                const incidencia = confirmacionState.incidenciasPendientes[index];
+                                confirmacionState.incidenciasPendientes.splice(index, 1);
+                                toastr.success('Incidencia eliminada');
+                                
+                                // Recargar todas las incidencias
+                                window.cargarIncidenciasProducto(incidencia.producto_id);
+                                
+                                // Actualizar contador
+                                actualizarContadorIncidencias(incidencia.producto_id);
+                            }
+                        }
+                    });
+                }
+
+                function actualizarContadorIncidencias(productoId) {
+                    // Contar incidencias pendientes locales
+                    const countPendientes = confirmacionState.incidenciasPendientes.filter(i => i.producto_id === productoId).length;
+                    
+                    // Obtener incidencias guardadas del servidor
+                    $.get(`${rutasConfirmacion.incidencias}/${productoId}/incidencias`)
                         .done(resp => {
-                            const incidenciaId = resp?.incidencia?.id;
-                            // Subir evidencias acumuladas después de registrar la incidencia
-                            subirEvidenciasPendientes(incidenciaId, ({ subidas, fallidas }) => {
-                            $('#descripcionIncidencia').val('');
-                            renderListaIncidencias(resp.incidencias || []);
-                            actualizarProductoEnState(productoId, resp.incidencias ? resp.incidencias.length : 1);
-                            renderDetalleFactura(confirmacionState.facturaSeleccionada);
-                                if (fallidas) {
-                                    toastr.error(`${fallidas} evidencia(s) no se pudieron subir`);
-                                } else if (subidas) {
-                                    toastr.success('Evidencias subidas');
-                                }
-                            });
-                        })
-                        .fail(xhr => {
-                            const r = xhr.responseJSON || {};
-                            Swal.fire(r.title || 'Error', r.text || 'No se pudo registrar la incidencia.', r.icon || 'error');
-                        })
-                        .always(() => {
-                            boton.prop('disabled', false).html('<i class="mr-1 fas fa-plus-circle"></i>Agregar incidencia');
+                            const countGuardadas = (resp.incidencias || []).length;
+                            const total = countGuardadas + countPendientes;
+                            
+                            const badge = $(`.btn-incidencia[data-producto="${productoId}"] .badge`);
+                            if (total > 0) {
+                                badge.text(total).removeClass('badge-secondary').addClass(countPendientes > 0 ? 'badge-warning' : 'badge-info');
+                            } else {
+                                badge.text('0').removeClass('badge-warning badge-info').addClass('badge-secondary');
+                            }
                         });
                 }
 
@@ -1044,6 +1231,140 @@
                     // Restore body scroll
                     $('body').removeClass('modal-open').css('padding-right', '');
                 });
+
+                // Redefinir cargarIncidenciasProducto para incluir guardadas
+                window.cargarIncidenciasProducto = function(productoId) {
+                    $('#listaIncidenciasProducto').html(skeleton('Cargando incidencias...'));
+                    
+                    $.get(`${rutasConfirmacion.incidencias}/${productoId}/incidencias`)
+                        .done(resp => {
+                            const incidenciasGuardadas = resp.incidencias || [];
+                            renderTodasIncidencias(productoId, incidenciasGuardadas);
+                        })
+                        .fail(() => {
+                            $('#listaIncidenciasProducto').html('<div class="mb-0 alert alert-danger">No se pudieron cargar las incidencias.</div>');
+                        });
+                };
+
+                // Nueva función para renderizar todas las incidencias
+                window.renderTodasIncidencias = function(productoId, incidenciasGuardadas = []) {
+                    const incidenciasPendientes = confirmacionState.incidenciasPendientes.filter(i => i.producto_id === productoId);
+                    
+                    const facturaActual = confirmacionState.facturas.find(f => f.distribucion_factura_id === confirmacionState.facturaSeleccionada);
+                    const puedeEditar = facturaActual && facturaActual.estado_entrega === 'sin_entrega';
+                    
+                    if (incidenciasGuardadas.length === 0 && incidenciasPendientes.length === 0) {
+                        $('#listaIncidenciasProducto').html('<p class="mb-0 text-muted">No hay incidencias para este producto.</p>');
+                        return;
+                    }
+
+                    let html = '<div class="list-group">';
+                    
+                    // Renderizar incidencias guardadas
+                    incidenciasGuardadas.forEach((inc) => {
+                        const tipoLabel = {
+                            'producto_danado': 'Producto dañado',
+                            'cantidad_incorrecta': 'Cantidad incorrecta',
+                            'cliente_rechazo': 'Cliente rechazó',
+                            'direccion_incorrecta': 'Dirección incorrecta',
+                            'otro': 'Otro'
+                        }[inc.tipo] || inc.tipo;
+
+                        const evidenciasCount = inc.evidencias_count || 0;
+                        const botonesEdicion = puedeEditar ? `<button type="button" class="btn btn-sm btn-outline-danger" onclick="window.eliminarIncidenciaGuardada(${inc.id}, ${productoId})" title="Eliminar"><i class="fas fa-trash"></i></button>` : '';
+                        
+                        html += `<div class="mb-2 list-group-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <span class="badge badge-success">Guardada</span>
+                                    <span class="badge badge-warning">${tipoLabel}</span>
+                                    <p class="mt-2 mb-1">${inc.descripcion || ''}</p>
+                                    ${evidenciasCount > 0 ? `<a href="#" onclick="verEvidenciasIncidencia(${inc.id}); return false;" class="btn btn-sm btn-link p-0"><i class="fas fa-images"></i> ${evidenciasCount} evidencia(s)</a>` : '<small class="text-muted">Sin evidencias</small>'}
+                                </div>
+                                <div class="ml-2">
+                                    ${botonesEdicion}
+                                </div>
+                            </div>
+                        </div>`;
+                    });
+                    
+                    // Renderizar incidencias pendientes
+                    incidenciasPendientes.forEach((inc) => {
+                        const tipoLabel = {
+                            'producto_danado': 'Producto dañado',
+                            'cantidad_incorrecta': 'Cantidad incorrecta',
+                            'cliente_rechazo': 'Cliente rechazó',
+                            'direccion_incorrecta': 'Dirección incorrecta',
+                            'otro': 'Otro'
+                        }[inc.tipo] || inc.tipo;
+                        
+                        html += `<div class="mb-2 list-group-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <span class="badge badge-info">Pendiente</span>
+                                    <span class="badge badge-warning">${tipoLabel}</span>
+                                    <p class="mt-2 mb-1">${inc.descripcion}</p>
+                                    ${inc.evidencias && inc.evidencias.length > 0 ? `<small class="text-muted"><i class="fas fa-images"></i> ${inc.evidencias.length} evidencia(s)</small>` : ''}
+                                </div>
+                                <div class="ml-2 btn-group-vertical btn-group-sm">
+                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="window.editarIncidenciaPendiente(${inc.id})" title="Editar">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="window.eliminarIncidenciaPendiente(${inc.id})" title="Eliminar">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>`;
+                    });
+                    
+                    html += '</div>';
+                    $('#listaIncidenciasProducto').html(html);
+                };
+
+                // Función para eliminar incidencias guardadas
+                window.eliminarIncidenciaGuardada = function(incidenciaId, productoId) {
+                    const facturaActual = confirmacionState.facturas.find(f => f.distribucion_factura_id === confirmacionState.facturaSeleccionada);
+                    if (!facturaActual || facturaActual.estado_entrega !== 'sin_entrega') {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'No permitido',
+                            text: 'Solo se pueden eliminar incidencias cuando la factura está en estado "Sin Entrega"',
+                            confirmButtonText: 'Entendido'
+                        });
+                        return;
+                    }
+
+                    Swal.fire({
+                        title: '¿Eliminar incidencia guardada?',
+                        text: 'Esta acción no se puede deshacer',
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#dc3545',
+                        cancelButtonColor: '#6c757d',
+                        confirmButtonText: 'Sí, eliminar',
+                        cancelButtonText: 'Cancelar'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            $.ajax({
+                                url: `${rutasConfirmacion.incidencias}/${incidenciaId}/eliminar`,
+                                type: 'POST',
+                                data: {
+                                    _token: csrfToken
+                                },
+                                success: function(resp) {
+                                    toastr.success('Incidencia eliminada correctamente');
+                                    window.cargarIncidenciasProducto(productoId);
+                                    actualizarContadorIncidencias(productoId);
+                                },
+                                error: function(xhr) {
+                                    const r = xhr.responseJSON || {};
+                                    Swal.fire('Error', r.message || 'No se pudo eliminar la incidencia', 'error');
+                                }
+                            });
+                        }
+                    });
+                };
         });
     </script>
 </div>

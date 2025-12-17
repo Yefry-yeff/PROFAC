@@ -203,6 +203,10 @@ class ConfirmacionEntrega extends Component
                 'productos.*.tipo_incidencia' => 'nullable|string',
                 'productos.*.descripcion_incidencia' => 'nullable|string',
                 'hora_entrega' => 'required|date_format:H:i',
+                'incidencias' => 'nullable|array',
+                'incidencias.*.producto_id' => 'required|exists:entregas_productos,id',
+                'incidencias.*.tipo' => 'required|string',
+                'incidencias.*.descripcion' => 'required|string|min:5',
             ]);
 
             $productosIds = collect($request->productos)->pluck('id')->unique()->values();
@@ -240,6 +244,27 @@ class ConfirmacionEntrega extends Component
                 $producto->user_id_registro = Auth::id();
                 $producto->fecha_registro = $fechaRegistro;
                 $producto->save();
+            }
+
+            // Guardar incidencias pendientes si existen
+            if ($request->has('incidencias') && is_array($request->incidencias)) {
+                foreach ($request->incidencias as $incidenciaData) {
+                    $incidencia = new EntregaProductoIncidencia();
+                    $incidencia->entrega_producto_id = $incidenciaData['producto_id'];
+                    $incidencia->tipo = $incidenciaData['tipo'];
+                    $incidencia->descripcion = $incidenciaData['descripcion'];
+                    $incidencia->user_id_registro = Auth::id();
+                    $incidencia->save();
+
+                    // Guardar evidencias si existen
+                    if (isset($incidenciaData['evidencias']) && is_array($incidenciaData['evidencias'])) {
+                        foreach ($incidenciaData['evidencias'] as $evidenciaBase64) {
+                            if (!empty($evidenciaBase64)) {
+                                $this->guardarEvidenciaBase64($incidencia->id, $evidenciaBase64);
+                            }
+                        }
+                    }
+                }
             }
 
             // Los triggers actualizarán automáticamente el estado_entrega de la factura
@@ -507,6 +532,50 @@ class ConfirmacionEntrega extends Component
     }
 
     /**
+     * Guardar evidencia desde base64
+     */
+    private function guardarEvidenciaBase64($incidenciaId, $base64Data)
+    {
+        try {
+            // Extraer el tipo de imagen y los datos
+            if (preg_match('/^data:image\/(\w+);base64,/', $base64Data, $type)) {
+                $data = substr($base64Data, strpos($base64Data, ',') + 1);
+                $type = strtolower($type[1]); // jpg, png, gif
+
+                $data = base64_decode($data);
+                if ($data === false) {
+                    return false;
+                }
+
+                // Generar nombre único para el archivo
+                $nombreArchivo = 'evidencia_' . time() . '_' . uniqid() . '.' . $type;
+                $ruta = public_path('incidencia_entrega/' . $nombreArchivo);
+
+                // Crear directorio si no existe
+                if (!file_exists(public_path('incidencia_entrega'))) {
+                    mkdir(public_path('incidencia_entrega'), 0777, true);
+                }
+
+                // Guardar archivo
+                file_put_contents($ruta, $data);
+
+                // Guardar en base de datos
+                $evidencia = new EntregaEvidencia();
+                $evidencia->entrega_producto_incidencia_id = $incidenciaId;
+                $evidencia->ruta_archivo = 'incidencia_entrega/' . $nombreArchivo;
+                $evidencia->user_id_registro = Auth::id();
+                $evidencia->save();
+
+                return true;
+            }
+            return false;
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Error al guardar evidencia base64: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
      * Obtener reporte de entregas por distribución
      */
     public function obtenerReporteDistribucion($distribucionId)
@@ -541,6 +610,81 @@ class ConfirmacionEntrega extends Component
             return response()->json([
                 'success' => false,
                 'message' => 'Error al obtener reporte',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Eliminar incidencia de producto
+     * Solo permite eliminar si la factura está en estado 'sin_entrega'
+     */
+    public function eliminarIncidenciaProducto($incidenciaId)
+    {
+        try {
+            // Obtener la incidencia con sus relaciones
+            $incidencia = DB::table('entregas_productos_incidencias as epi')
+                ->join('entregas_productos as ep', 'epi.entrega_producto_id', '=', 'ep.id')
+                ->join('distribuciones_entrega_facturas as def', 'ep.distribucion_factura_id', '=', 'def.id')
+                ->where('epi.id', $incidenciaId)
+                ->select('epi.id', 'def.estado_entrega', 'def.id as factura_id', 'epi.entrega_producto_id')
+                ->first();
+
+            if (!$incidencia) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Incidencia no encontrada'
+                ], 404);
+            }
+
+            // Verificar que la factura esté en estado sin_entrega
+            if ($incidencia->estado_entrega !== 'sin_entrega') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se puede eliminar la incidencia. La factura ya no está en estado "sin entrega"'
+                ], 422);
+            }
+
+            DB::beginTransaction();
+
+            // Eliminar evidencias asociadas primero (por foreign key)
+            DB::table('entregas_evidencias')
+                ->where('incidencia_id', $incidenciaId)
+                ->delete();
+
+            // Eliminar tratamientos asociados
+            DB::table('entregas_incidencias_tratamientos')
+                ->where('incidencia_id', $incidenciaId)
+                ->delete();
+
+            // Eliminar la incidencia
+            DB::table('entregas_productos_incidencias')
+                ->where('id', $incidenciaId)
+                ->delete();
+
+            // Actualizar el estado de tiene_incidencia en entregas_productos
+            $totalIncidencias = DB::table('entregas_productos_incidencias')
+                ->where('entrega_producto_id', $incidencia->entrega_producto_id)
+                ->count();
+
+            if ($totalIncidencias === 0) {
+                DB::table('entregas_productos')
+                    ->where('id', $incidencia->entrega_producto_id)
+                    ->update(['tiene_incidencia' => 0]);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Incidencia eliminada exitosamente'
+            ], 200);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al eliminar la incidencia',
                 'error' => $e->getMessage()
             ], 500);
         }

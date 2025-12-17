@@ -259,7 +259,18 @@ class DistribucionEntrega extends Component
                     c.nombre AS cliente,
                     c.direccion,
                     (SELECT COUNT(*) FROM entregas_productos WHERE distribucion_factura_id = df.id AND entregado = 1) as productos_entregados,
-                    (SELECT COUNT(*) FROM entregas_productos WHERE distribucion_factura_id = df.id) as total_productos
+                    (SELECT COUNT(*) FROM entregas_productos WHERE distribucion_factura_id = df.id) as total_productos,
+                    (SELECT COUNT(DISTINCT i.id) 
+                     FROM entregas_productos ep
+                     INNER JOIN entregas_productos_incidencias i ON i.entrega_producto_id = ep.id
+                     WHERE ep.distribucion_factura_id = df.id
+                    ) as total_incidencias,
+                    (SELECT COUNT(DISTINCT i.id)
+                     FROM entregas_productos ep
+                     INNER JOIN entregas_productos_incidencias i ON i.entrega_producto_id = ep.id
+                     INNER JOIN entregas_incidencias_tratamientos t ON t.entrega_producto_incidencia_id = i.id
+                     WHERE ep.distribucion_factura_id = df.id
+                    ) as incidencias_tratadas
                 FROM distribuciones_entrega_facturas df
                 INNER JOIN factura f ON df.factura_id = f.id
                 INNER JOIN cliente c ON f.cliente_id = c.id
@@ -819,6 +830,99 @@ class DistribucionEntrega extends Component
     }
 
     /**
+     * Validar que una distribución pueda ser completada
+     */
+    public function validarCompletarDistribucion($distribucionId)
+    {
+        try {
+            Log::info("=== Validando si se puede completar distribución ID: {$distribucionId} ===");
+            
+            $errores = [];
+            
+            // Validar que no haya facturas con estado "sin_entrega"
+            $facturasSinEntrega = DB::select("
+                SELECT 
+                    df.id,
+                    f.numero_factura
+                FROM distribuciones_entrega_facturas df
+                INNER JOIN factura f ON df.factura_id = f.id
+                WHERE df.distribucion_entrega_id = ?
+                    AND df.estado_entrega = 'sin_entrega'
+            ", [$distribucionId]);
+
+            if (count($facturasSinEntrega) > 0) {
+                $listaFacturas = array_map(function($f) {
+                    return "Factura #{$f->numero_factura}";
+                }, $facturasSinEntrega);
+                
+                $errores[] = '<strong>Facturas sin entrega:</strong><ul class="mb-2">' . 
+                            implode('', array_map(fn($f) => "<li>{$f}</li>", $listaFacturas)) . 
+                            '</ul>';
+            }
+            
+            // Validar que no haya incidencias sin tratamiento
+            $facturasConIncidenciasSinTratamiento = DB::select("
+                SELECT DISTINCT
+                    def.id as factura_distribucion_id,
+                    f.numero_factura,
+                    COUNT(DISTINCT i.id) as total_incidencias
+                FROM distribuciones_entrega_facturas def
+                INNER JOIN factura f ON def.factura_id = f.id
+                INNER JOIN entregas_productos ep ON ep.distribucion_factura_id = def.id
+                INNER JOIN entregas_productos_incidencias i ON i.entrega_producto_id = ep.id
+                LEFT JOIN entregas_incidencias_tratamientos t ON t.entrega_producto_incidencia_id = i.id
+                WHERE def.distribucion_entrega_id = ?
+                    AND t.id IS NULL
+                GROUP BY def.id, f.numero_factura
+            ", [$distribucionId]);
+            
+            if (count($facturasConIncidenciasSinTratamiento) > 0) {
+                $listaIncidencias = array_map(function($f) {
+                    return "Factura #{$f->numero_factura} ({$f->total_incidencias} incidencia(s) sin tratar)";
+                }, $facturasConIncidenciasSinTratamiento);
+                
+                $errores[] = '<strong>Facturas con incidencias sin tratamiento:</strong><ul class="mb-2">' . 
+                            implode('', array_map(fn($f) => "<li>{$f}</li>", $listaIncidencias)) . 
+                            '</ul>';
+            }
+            
+            if (count($errores) > 0) {
+                $mensaje = '<div class="text-left">';
+                $mensaje .= '<p class="mb-2">No se puede completar la distribución por los siguientes motivos:</p>';
+                $mensaje .= implode('', $errores);
+                $mensaje .= '<p class="mb-0 mt-2"><strong>Por favor, corrija estos problemas antes de completar la distribución.</strong></p>';
+                $mensaje .= '</div>';
+                
+                Log::info("Validación fallida. Errores encontrados: " . count($errores));
+                
+                return response()->json([
+                    'puede_completar' => false,
+                    'mensaje' => $mensaje
+                ], 200);
+            }
+            
+            Log::info("Validación exitosa. La distribución puede ser completada.");
+            
+            return response()->json([
+                'puede_completar' => true,
+                'mensaje' => 'Todas las validaciones pasaron correctamente'
+            ], 200);
+            
+        } catch (\Exception $e) {
+            Log::error("Error al validar distribución:", [
+                'distribucion_id' => $distribucionId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al validar la distribución: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Completar distribución manualmente
      */
     public function completarDistribucion($distribucionId)
@@ -844,6 +948,71 @@ class DistribucionEntrega extends Component
                     'icon' => 'warning',
                     'title' => 'Estado inválido',
                     'text' => 'Solo se pueden completar distribuciones en proceso',
+                ], 422);
+            }
+
+            // Validar que no haya facturas con estado "sin_entrega"
+            $facturasSinEntrega = DB::select("
+                SELECT 
+                    df.id,
+                    f.numero_factura
+                FROM distribuciones_entrega_facturas df
+                INNER JOIN factura f ON df.factura_id = f.id
+                WHERE df.distribucion_entrega_id = ?
+                    AND df.estado_entrega = 'sin_entrega'
+            ", [$distribucionId]);
+
+            if (count($facturasSinEntrega) > 0) {
+                $listaFacturas = array_map(function($f) {
+                    return "Factura #{$f->numero_factura}";
+                }, $facturasSinEntrega);
+                
+                Log::warning("Intento de completar distribución con facturas sin entrega:", [
+                    'distribucion_id' => $distribucion->id,
+                    'facturas_sin_entrega' => $listaFacturas
+                ]);
+                
+                $mensaje = 'Las siguientes facturas aún están sin entrega: ' . implode(', ', $listaFacturas);
+                
+                return response()->json([
+                    'icon' => 'warning',
+                    'title' => 'Facturas pendientes',
+                    'text' => $mensaje,
+                ], 422);
+            }
+
+            // Validar que no haya incidencias sin tratamiento
+            $facturasConIncidenciasSinTratamiento = DB::select("
+                SELECT DISTINCT
+                    def.id as factura_distribucion_id,
+                    f.numero_factura,
+                    COUNT(DISTINCT i.id) as total_incidencias
+                FROM distribuciones_entrega_facturas def
+                INNER JOIN factura f ON def.factura_id = f.id
+                INNER JOIN entregas_productos ep ON ep.distribucion_factura_id = def.id
+                INNER JOIN entregas_productos_incidencias i ON i.entrega_producto_id = ep.id
+                LEFT JOIN entregas_incidencias_tratamientos t ON t.entrega_producto_incidencia_id = i.id
+                WHERE def.distribucion_entrega_id = ?
+                    AND t.id IS NULL
+                GROUP BY def.id, f.numero_factura
+            ", [$distribucionId]);
+
+            if (count($facturasConIncidenciasSinTratamiento) > 0) {
+                $listaIncidencias = array_map(function($f) {
+                    return "Factura #{$f->numero_factura} ({$f->total_incidencias} incidencia(s))";
+                }, $facturasConIncidenciasSinTratamiento);
+                
+                Log::warning("Intento de completar distribución con incidencias sin tratamiento:", [
+                    'distribucion_id' => $distribucion->id,
+                    'facturas_con_incidencias' => $listaIncidencias
+                ]);
+                
+                $mensaje = 'Las siguientes facturas tienen incidencias sin tratamiento: ' . implode(', ', $listaIncidencias);
+                
+                return response()->json([
+                    'icon' => 'warning',
+                    'title' => 'Incidencias pendientes',
+                    'text' => $mensaje,
                 ], 422);
             }
 
@@ -1040,6 +1209,53 @@ class DistribucionEntrega extends Component
     }
 
     /**
+     * Desbloquear factura (cambiar estado a sin_entrega)
+     */
+    public function desbloquearFactura($facturaId)
+    {
+        try {
+            Log::info("=== Desbloqueando factura ID: {$facturaId} ===");
+            
+            $factura = DistribucionEntregaFactura::findOrFail($facturaId);
+            Log::info("Factura encontrada:", [
+                'id' => $factura->id,
+                'estado_actual' => $factura->estado_entrega
+            ]);
+            
+            // Cambiar estado a sin_entrega para desbloquear
+            $factura->estado_entrega = 'sin_entrega';
+            $factura->fecha_entrega_real = null;
+            $factura->save();
+            
+            Log::info("Factura desbloqueada exitosamente:", [
+                'factura_id' => $factura->id,
+                'nuevo_estado' => $factura->estado_entrega
+            ]);
+            
+            return response()->json([
+                'success' => true,
+                'icon' => 'success',
+                'title' => 'Desbloqueada',
+                'text' => 'La factura ha sido cambiada a estado "Sin Entrega"'
+            ], 200);
+            
+        } catch (\Exception $e) {
+            Log::error("Error al desbloquear factura:", [
+                'factura_id' => $facturaId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'icon' => 'error',
+                'title' => 'Error',
+                'text' => 'No se pudo desbloquear la factura: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Anular entrega de una factura
      */
     public function anularEntrega($facturaId)
@@ -1130,6 +1346,75 @@ class DistribucionEntrega extends Component
                 'icon' => 'error',
                 'title' => 'Error',
                 'text' => 'No se pudo confirmar la entrega: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Validar que no existan incidencias sin tratamiento en la distribución
+     */
+    public function validarIncidenciasSinTratamiento($distribucionId)
+    {
+        try {
+            Log::info("=== Validando incidencias sin tratamiento para distribución ID: {$distribucionId} ===");
+            
+            // Obtener todas las facturas de la distribución que tienen incidencias sin tratamiento
+            $facturasConIncidenciasSinTratamiento = DB::select("
+                SELECT DISTINCT
+                    def.id as factura_distribucion_id,
+                    f.numero_factura,
+                    COUNT(DISTINCT i.id) as total_incidencias
+                FROM distribuciones_entrega_facturas def
+                INNER JOIN factura f ON def.factura_id = f.id
+                INNER JOIN entregas_productos ep ON ep.distribucion_factura_id = def.id
+                INNER JOIN entregas_productos_incidencias i ON i.entrega_producto_id = ep.id
+                LEFT JOIN entregas_incidencias_tratamientos t ON t.entrega_producto_incidencia_id = i.id
+                WHERE def.distribucion_entrega_id = ?
+                    AND t.id IS NULL
+                GROUP BY def.id, f.numero_factura
+            ", [$distribucionId]);
+            
+            if (count($facturasConIncidenciasSinTratamiento) > 0) {
+                $listaFacturas = array_map(function($f) {
+                    return "Factura #{$f->numero_factura} ({$f->total_incidencias} incidencia(s))";
+                }, $facturasConIncidenciasSinTratamiento);
+                
+                $mensaje = '<div class="text-left">';
+                $mensaje .= '<p class="mb-2">Las siguientes facturas tienen incidencias sin tratamiento:</p>';
+                $mensaje .= '<ul class="mb-2">';
+                foreach ($listaFacturas as $item) {
+                    $mensaje .= "<li>{$item}</li>";
+                }
+                $mensaje .= '</ul>';
+                $mensaje .= '<p class="mb-0"><strong>Debe registrar el tratamiento de las incidencias antes de confirmar la entrega.</strong></p>';
+                $mensaje .= '</div>';
+                
+                Log::info("Facturas con incidencias sin tratamiento encontradas: " . count($facturasConIncidenciasSinTratamiento));
+                
+                return response()->json([
+                    'puede_confirmar' => false,
+                    'mensaje' => $mensaje,
+                    'facturas_pendientes' => $facturasConIncidenciasSinTratamiento
+                ], 200);
+            }
+            
+            Log::info("No hay incidencias sin tratamiento. Puede confirmar entrega.");
+            
+            return response()->json([
+                'puede_confirmar' => true,
+                'mensaje' => 'No hay incidencias pendientes de tratamiento'
+            ], 200);
+            
+        } catch (\Exception $e) {
+            Log::error("Error al validar incidencias sin tratamiento:", [
+                'distribucion_id' => $distribucionId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al validar incidencias: ' . $e->getMessage()
             ], 500);
         }
     }
