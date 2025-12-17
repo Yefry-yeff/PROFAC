@@ -41,32 +41,113 @@
 
     <div class="row">
         <div class="col-md-12">
-            <div class="card">
+            <div class="text-right mb-3">
+                <a href="{{ route('logistica.distribuciones.nueva') }}" class="btn btn-primary">
+                    <i class="fa fa-plus"></i> Nueva Distribución
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Distribuciones Pendientes -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card card-warning collapsed-card">
                 <div class="card-header">
-                    <h3 class="card-title">Distribuciones de Entrega</h3>
+                    <h3 class="card-title"><i class="fas fa-clock"></i> Distribuciones que aun no han iniciado</h3>
                     <div class="card-tools">
-                        <a href="{{ route('logistica.distribuciones.nueva') }}" class="btn btn-primary btn-sm">
-                            <i class="fa fa-plus"></i> Nueva Distribucion
-                        </a>
+                        <button type="button" class="btn btn-tool" data-card-widget="collapse">
+                            <i class="fas fa-plus"></i>
+                        </button>
                     </div>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
-                    <table id="tablaDistribuciones" class="table table-bordered table-striped table-sm mb-0">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Fecha</th>
-                                <th>Equipo</th>
-                                <th>Descripción</th>
-                                <th></th>Progreso</th>
-                                <th>Estado</th>
-                                <th>Creador</th>
-                                <th>Opciones</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
+                        <table id="tablaPendientes" class="table table-bordered table-striped table-sm mb-0">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Fecha</th>
+                                    <th>Equipo</th>
+                                    <th>Descripción</th>
+                                    <th>Progreso</th>
+                                    <th>Estado</th>
+                                    <th>Creador</th>
+                                    <th>Opciones</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Distribuciones En Proceso -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card card-info">
+                <div class="card-header">
+                    <h3 class="card-title"><i class="fas fa-truck"></i> Distribuciones en espera de ser confirmadas</h3>
+                    <div class="card-tools">
+                        <button type="button" class="btn btn-tool" data-card-widget="collapse">
+                            <i class="fas fa-minus"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table id="tablaEnProceso" class="table table-bordered table-striped table-sm mb-0">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Fecha</th>
+                                    <th>Equipo</th>
+                                    <th>Descripción</th>
+                                    <th>Progreso</th>
+                                    <th>Estado</th>
+                                    <th>Creador</th>
+                                    <th>Opciones</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Distribuciones Completadas -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card card-success collapsed-card">
+                <div class="card-header">
+                    <h3 class="card-title"><i class="fas fa-check-circle"></i> Distribuciones completadas</h3>
+                    <div class="card-tools">
+                        <button type="button" class="btn btn-tool" data-card-widget="collapse">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table id="tablaCompletadas" class="table table-bordered table-striped table-sm mb-0">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Fecha</th>
+                                    <th>Equipo</th>
+                                    <th>Descripción</th>
+                                    <th>Progreso</th>
+                                    <th>Estado</th>
+                                    <th>Creador</th>
+                                    <th>Opciones</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -297,13 +378,13 @@
 
 @push('scripts')
 <script>
-let tablaDistribuciones, facturasSelTmp = [];
+let tablaPendientes, tablaEnProceso, tablaCompletadas, facturasSelTmp = [];
 
 $(document).ready(() => {
-    tablaDistribuciones = $('#tablaDistribuciones').DataTable({
+    // Configuración común de DataTables
+    const configComun = {
         processing: true,
         serverSide: true,
-        ajax: "{{ route('logistica.distribuciones.listar') }}",
         columns: [
             {data: 'id'},
             {data: 'fecha_programada'},
@@ -316,14 +397,31 @@ $(document).ready(() => {
         ],
         language: {url: '//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json'},
         order: [[1, 'desc']],
-        pageLength: 25,
-        lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
+        pageLength: 10,
+        lengthMenu: [[5, 10, 25, 50], [5, 10, 25, 50]],
         deferRender: true,
         dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>rtip',
         drawCallback: function() {
-            // Reinicializar tooltips después de cada recarga
             $('[data-toggle="tooltip"]').tooltip();
         }
+    };
+
+    // Tabla Pendientes (estado_id = 1)
+    tablaPendientes = $('#tablaPendientes').DataTable({
+        ...configComun,
+        ajax: "{{ route('logistica.distribuciones.listar') }}?estado=1"
+    });
+
+    // Tabla En Proceso (estado_id = 2)
+    tablaEnProceso = $('#tablaEnProceso').DataTable({
+        ...configComun,
+        ajax: "{{ route('logistica.distribuciones.listar') }}?estado=2"
+    });
+
+    // Tabla Completadas (estado_id = 3)
+    tablaCompletadas = $('#tablaCompletadas').DataTable({
+        ...configComun,
+        ajax: "{{ route('logistica.distribuciones.listar') }}?estado=3"
     });
 
     // Prevenir warning de aria-hidden en modal de incidencias
@@ -350,6 +448,19 @@ $(document).ready(() => {
         }
     });
 });
+
+// ========== FUNCIÓN HELPER ==========
+function recargarTodasLasTablas(mantenerPaginacion = true) {
+    if (mantenerPaginacion) {
+        tablaPendientes.ajax.reload(null, false);
+        tablaEnProceso.ajax.reload(null, false);
+        tablaCompletadas.ajax.reload(null, false);
+    } else {
+        tablaPendientes.ajax.reload();
+        tablaEnProceso.ajax.reload();
+        tablaCompletadas.ajax.reload();
+    }
+}
 
 // ========== MODAL Y BÚSQUEDA ==========
 
@@ -552,7 +663,7 @@ function guardarDistribucion() {
                 confirmButtonColor: '#28a745'
             });
             $('#modalNuevaDistribucion').modal('hide');
-            tablaDistribuciones.ajax.reload();
+            recargarTodasLasTablas(false);
         },
         error: function(x) {
             Swal.fire({
@@ -683,7 +794,7 @@ function iniciarDistribucion(id) {
         if (r.isConfirmed) {
             $.post("{{ url('/logistica/distribuciones/iniciar') }}/" + id, {_token: $('meta[name="csrf-token"]').attr('content')}, r => {
                 Swal.fire(r.title, r.text, r.icon);
-                tablaDistribuciones.ajax.reload();
+                recargarTodasLasTablas(false);
             }).fail(x => Swal.fire(x.responseJSON.title, x.responseJSON.text, x.responseJSON.icon));
         }
     });
@@ -694,7 +805,7 @@ function cancelarDistribucion(id) {
         if (r.isConfirmed) {
             $.post("{{ url('/logistica/distribuciones/cancelar') }}/" + id, {_token: $('meta[name="csrf-token"]').attr('content')}, r => {
                 Swal.fire(r.title, r.text, r.icon);
-                tablaDistribuciones.ajax.reload();
+                recargarTodasLasTablas(false);
             }).fail(x => Swal.fire(x.responseJSON.title, x.responseJSON.text, x.responseJSON.icon));
         }
     });
@@ -741,7 +852,7 @@ function abrirConfirmacion(id) {
                                 text: r.text || 'La distribución ha sido completada correctamente',
                                 confirmButtonColor: '#28a745'
                             });
-                            tablaDistribuciones.ajax.reload(null, false);
+                            recargarTodasLasTablas(true);
                         },
                         error: function(x) {
                             Swal.fire({
@@ -1150,7 +1261,7 @@ function confirmarEntregaFactura(facturaId, distribucionId) {
                                 verFacturas(modalDistribucionId);
                             }
                             // Recargar la tabla principal
-                            tablaDistribuciones.ajax.reload(null, false);
+                            recargarTodasLasTablas(true);
                         },
                         error: function(x) {
                             Swal.fire({

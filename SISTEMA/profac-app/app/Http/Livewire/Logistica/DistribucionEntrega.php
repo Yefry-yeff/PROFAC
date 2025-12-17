@@ -140,9 +140,17 @@ class DistribucionEntrega extends Component
     /**
      * Listar distribuciones
      */
-    public function listarDistribuciones()
+    public function listarDistribuciones(Request $request)
     {
         try {
+            // Obtener filtro de estado si existe
+            $estadoFiltro = $request->get('estado');
+            
+            $whereEstado = '';
+            if ($estadoFiltro) {
+                $whereEstado = " WHERE d.estado_id = " . intval($estadoFiltro);
+            }
+            
             $datos = DB::select("
                 SELECT 
                     d.id,
@@ -158,6 +166,7 @@ class DistribucionEntrega extends Component
                 FROM distribuciones_entrega d
                 INNER JOIN equipos_entrega e ON d.equipo_entrega_id = e.id
                 INNER JOIN users u ON d.users_id_creador = u.id
+                {$whereEstado}
                 ORDER BY d.fecha_programada DESC, d.id DESC
             ");
 
