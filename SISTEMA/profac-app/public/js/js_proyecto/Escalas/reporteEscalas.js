@@ -107,23 +107,10 @@ $(document).ready(function () {
     }
   });
 
-  // === Select2 dentro del modal (categoría de cliente)
-  // Se especifica dropdownParent para asegurar el correcto renderizado dentro del modal.
-  /* $('#categoria_cliente_id').select2({
-    theme: 'bootstrap4',
-    placeholder: 'Seleccione una categoría...',
-    allowClear: true,
-    minimumResultsForSearch: 0,
-    dropdownParent: $('#modalCategoriasPrecios')
-  }); */
-
-  // === Listeners para mantener la lógica actual del botón "Descargar"
-  // Recalcula el estado del botón al cambiar filtros críticos.
   $('#listaTipoFiltro, #tipoCategoria').on('change', toggleDescargarCompleto);
     toggleDescargarCompleto(); // estado inicial
   });
 
-// Listeners globales fuera del DOM ready para cobertura total de cambios.
 $('#tipoCategoria, #tipoFiltro, #listaTipoFiltro, #listaTipoFiltroCatPrecios')
   .on('change', toggleDescargarCompleto);
 
@@ -131,10 +118,6 @@ $('#tipoCategoria, #tipoFiltro, #listaTipoFiltro, #listaTipoFiltroCatPrecios')
 toggleDescargarCompleto();
 
 
-
-// === DataTable principal de categorías de precios
-// Consume el endpoint /listar/categoria/precios y pinta columnas predefinidas.
-// Maneja errores de red y configura idioma, paginación y responsividad.
 function listarCategorias() {
   $('#tbl_listaCategoria').DataTable({
     destroy: true,

@@ -851,12 +851,12 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 
 
 
-    Route::get('/comisiones', ComisionesPrincipal::class);
+/*     Route::get('/comisiones', ComisionesPrincipal::class);
     Route::get('/comisiones/facturas/buscar/{mes}/{idVendedor}', [ComisionesPrincipal::class, 'obtenerFacturas']);
 
     Route::get('/existencia/techo/{mest}/{idVendedort}', [ComisionesPrincipal::class, 'existenciaTecho']);
 
-    Route::get('/comisiones/facturas/buscar2/{mes}/{idVendedor}', [ComisionesPrincipal::class, 'obtenerFacturasSinCerrar']);
+    Route::get('/comisiones/facturas/buscar2/{mes}/{idVendedor}', [ComisionesPrincipal::class, 'obtenerFacturasSinCerrar']); */
 
 
     Route::post('/techo/guardar', [ComisionesGestiones::class, 'guardarTechoMasivo']);
