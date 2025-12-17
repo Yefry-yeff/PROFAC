@@ -896,13 +896,29 @@ class DistribucionEntrega extends Component
                     i.created_at,
                     p.id as producto_id,
                     p.nombre as producto_nombre,
-                    ep.id as entrega_producto_id
+                    ep.id as entrega_producto_id,
+                    (SELECT COUNT(*) FROM entregas_evidencias ee WHERE ee.entrega_producto_incidencia_id = i.id) as evidencias_count
                 FROM entregas_productos_incidencias i
                 INNER JOIN entregas_productos ep ON i.entrega_producto_id = ep.id
                 INNER JOIN distribuciones_entrega_facturas def ON ep.distribucion_factura_id = def.id
                 INNER JOIN producto p ON ep.producto_id = p.id
                 WHERE def.id = ?
                 ORDER BY i.created_at DESC
+            ", [$facturaId]);
+            
+            // Verificar si ya existe tratamiento para las incidencias de esta factura
+            $tratamiento = DB::selectOne("
+                SELECT 
+                    t.tratamiento,
+                    t.created_at as tratamiento_fecha,
+                    u.name as usuario_registro
+                FROM entregas_incidencias_tratamientos t
+                INNER JOIN entregas_productos_incidencias i ON t.entrega_producto_incidencia_id = i.id
+                INNER JOIN entregas_productos ep ON i.entrega_producto_id = ep.id
+                INNER JOIN users u ON t.user_id_registro = u.id
+                WHERE ep.distribucion_factura_id = ?
+                ORDER BY t.created_at DESC
+                LIMIT 1
             ", [$facturaId]);
             
             Log::info("Total de incidencias encontradas: " . count($incidencias));
@@ -915,6 +931,7 @@ class DistribucionEntrega extends Component
                     'cliente' => $factura->factura->cliente->nombre_completo ?? 'N/A',
                 ],
                 'incidencias' => $incidencias,
+                'tratamiento' => $tratamiento,
             ], 200);
             
         } catch (\Exception $e) {
@@ -928,6 +945,96 @@ class DistribucionEntrega extends Component
                 'success' => false,
                 'message' => 'Error al obtener incidencias',
                 'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Guardar tratamiento para todas las incidencias de una factura
+     */
+    public function guardarTratamientoIncidencias(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'factura_id' => 'required|exists:distribuciones_entrega_facturas,id',
+                'tratamiento' => 'required|string|min:5',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Datos inválidos',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $facturaId = $request->factura_id;
+            $tratamiento = $request->tratamiento;
+
+            // Verificar si ya existe un tratamiento para esta factura
+            $tratamientoExistente = DB::selectOne("
+                SELECT t.id
+                FROM entregas_incidencias_tratamientos t
+                INNER JOIN entregas_productos_incidencias i ON t.entrega_producto_incidencia_id = i.id
+                INNER JOIN entregas_productos ep ON i.entrega_producto_id = ep.id
+                WHERE ep.distribucion_factura_id = ?
+                LIMIT 1
+            ", [$facturaId]);
+
+            if ($tratamientoExistente) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Ya existe un tratamiento registrado para las incidencias de esta factura'
+                ], 422);
+            }
+
+            // Obtener todas las incidencias de esta factura
+            $incidencias = DB::select("
+                SELECT i.id
+                FROM entregas_productos_incidencias i
+                INNER JOIN entregas_productos ep ON i.entrega_producto_id = ep.id
+                WHERE ep.distribucion_factura_id = ?
+            ", [$facturaId]);
+
+            if (empty($incidencias)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se encontraron incidencias para esta factura'
+                ], 404);
+            }
+
+            $userId = Auth::id();
+            $registrados = 0;
+
+            // Insertar tratamiento para cada incidencia
+            foreach ($incidencias as $inc) {
+                DB::table('entregas_incidencias_tratamientos')->insert([
+                    'entrega_producto_incidencia_id' => $inc->id,
+                    'tratamiento' => $tratamiento,
+                    'user_id_registro' => $userId,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+                $registrados++;
+            }
+
+            Log::info("Tratamiento registrado para {$registrados} incidencias de factura {$facturaId}");
+
+            return response()->json([
+                'success' => true,
+                'message' => "Tratamiento registrado para {$registrados} incidencia(s)",
+                'registrados' => $registrados
+            ], 200);
+
+        } catch (\Exception $e) {
+            Log::error("Error al guardar tratamiento de incidencias:", [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al guardar el tratamiento: ' . $e->getMessage(),
             ], 500);
         }
     }

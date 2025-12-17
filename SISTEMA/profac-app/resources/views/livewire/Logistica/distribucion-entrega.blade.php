@@ -267,6 +267,31 @@
             </div>
         </div>
     </div>
+
+    <!-- Modal: Ver Imágenes de Incidencia -->
+    <div class="modal fade" id="modalImagenesIncidencia" tabindex="-1" role="dialog" style="z-index: 1060;">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title mb-0">
+                        <i class="fas fa-images"></i> Evidencias Fotográficas
+                    </h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body" id="bodyImagenesIncidencia">
+                    <div class="text-center py-4">
+                        <i class="fas fa-spinner fa-spin fa-2x text-muted"></i>
+                        <p class="mt-2 text-muted">Cargando imágenes...</p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 @push('scripts')
@@ -809,6 +834,54 @@ function anularEntrega(facturaId) {
     }, 300);
 }
 
+// Handle nested modals properly
+$('#modalImagenesIncidencia').on('show.bs.modal', function () {
+    // Increase z-index of the backdrop for this modal
+    setTimeout(function() {
+        $('.modal-backdrop').last().css('z-index', 1055);
+    }, 0);
+});
+
+$('#modalImagenesIncidencia').on('hidden.bs.modal', function () {
+    // Ensure body stays with modal-open class if another modal is still open
+    if ($('.modal:visible').length > 0) {
+        $('body').addClass('modal-open');
+    }
+});
+
+function verImagenesIncidenciaDistribucion(incidenciaId) {
+    $('#modalImagenesIncidencia').modal('show');
+    $('#bodyImagenesIncidencia').html('<div class="text-center py-4"><i class="fas fa-spinner fa-spin fa-2x text-muted"></i><p class="mt-2 text-muted">Cargando imágenes...</p></div>');
+    
+    const url = "{{ url('/logistica/confirmacion/incidencias') }}/" + incidenciaId + "/evidencias";
+    
+    $.get(url)
+        .done(resp => {
+            const evidencias = resp.evidencias || [];
+            if (!evidencias.length) {
+                $('#bodyImagenesIncidencia').html('<div class="alert alert-info mb-0"><i class="fas fa-info-circle"></i> Esta incidencia no tiene evidencias fotográficas.</div>');
+                return;
+            }
+            
+            let grid = '<div class="row">';
+            evidencias.forEach(e => {
+                grid += `<div class="col-6 col-md-4 mb-3">
+                    <div class="border rounded p-2" style="height:200px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f8f9fa;">
+                        <a href="${e.url}" target="_blank" title="Ver imagen completa">
+                            <img src="${e.url}" alt="evidencia" class="img-fluid" style="max-height:180px;max-width:100%;object-fit:contain;">
+                        </a>
+                    </div>
+                    ${e.descripcion ? `<small class="text-muted d-block mt-1">${e.descripcion}</small>` : ''}
+                </div>`;
+            });
+            grid += '</div>';
+            $('#bodyImagenesIncidencia').html(grid);
+        })
+        .fail(() => {
+            $('#bodyImagenesIncidencia').html('<div class="alert alert-danger mb-0"><i class="fas fa-exclamation-triangle"></i> Error al cargar las imágenes.</div>');
+        });
+}
+
 function verIncidencias(facturaId) {
     console.log('Cargando incidencias para factura ID:', facturaId);
     $('#modalIncidencias').modal('show');
@@ -840,24 +913,59 @@ function verIncidencias(facturaId) {
                                 <th>Tipo</th>
                                 <th>Descripción</th>
                                 <th width="150">Fecha</th>
+                                <th width="120" class="text-center">Imágenes</th>
                             </tr>
                         </thead>
                         <tbody>`;
                 
                 r.incidencias.forEach((inc, index) => {
+                    const imagenCount = inc.evidencias_count || 0;
+                    const btnImagenes = imagenCount > 0 
+                        ? `<button type="button" class="btn btn-sm btn-info" onclick="verImagenesIncidenciaDistribucion(${inc.id})" title="Ver imágenes">
+                            <i class="fas fa-images"></i> ${imagenCount}
+                           </button>`
+                        : '<span class="text-muted"><i class="fas fa-image-slash"></i> Sin imágenes</span>';
+                    
                     html += `<tr>
                         <td>${index + 1}</td>
                         <td><strong>#${inc.producto_id || 'N/A'}</strong> - ${inc.producto_nombre || 'N/A'}</td>
                         <td><span class="badge badge-warning">${inc.tipo || 'N/A'}</span></td>
                         <td>${inc.descripcion || 'Sin descripción'}</td>
                         <td>${inc.created_at ? new Date(inc.created_at).toLocaleString('es-HN') : 'N/A'}</td>
+                        <td class="text-center">${btnImagenes}</td>
                     </tr>`;
                 });
                 
                 html += `</tbody></table></div>
                 <div class="alert alert-light mt-3">
                     <strong>Total de incidencias:</strong> ${r.incidencias.length}
-                </div>`;
+                </div>
+                <hr>
+                <div class="mt-3">
+                    <h6 class="mb-2"><i class="fas fa-clipboard-check"></i> Tratamiento de Incidencias</h6>`;
+                
+                // Verificar si ya existe tratamiento
+                if (r.tratamiento) {
+                    html += `
+                        <div class="alert alert-success">
+                            <h6><i class="fas fa-check-circle"></i> Tratamiento Registrado</h6>
+                            <p class="mb-1"><strong>Tratamiento:</strong></p>
+                            <p class="mb-2" style="white-space: pre-wrap;">${r.tratamiento.tratamiento}</p>
+                            <small class="text-muted">
+                                <i class="fas fa-user"></i> ${r.tratamiento.usuario_registro} · 
+                                <i class="fas fa-calendar"></i> ${new Date(r.tratamiento.tratamiento_fecha).toLocaleString('es-HN')}
+                            </small>
+                        </div>`;
+                } else {
+                    html += `
+                        <p class="text-muted small">Registra el tratamiento que se dará a estas incidencias. El mismo tratamiento se aplicará a todas las incidencias de esta factura.</p>
+                        <textarea id="tratamientoIncidencias" class="form-control" rows="3" placeholder="Describe el tratamiento o solución aplicada..."></textarea>
+                        <button type="button" class="btn btn-success btn-sm mt-2" onclick="guardarTratamiento(${facturaId})">
+                            <i class="fas fa-save"></i> Guardar Tratamiento
+                        </button>`;
+                }
+                
+                html += `</div>`;
             }
             
             $('#bodyIncidencias').html(html);
@@ -882,6 +990,63 @@ function verIncidencias(facturaId) {
                 <i class="fas fa-exclamation-triangle"></i> ${errorMsg}
                 <br><small class="text-muted">Código: ${xhr.status} | Ver consola para más detalles</small>
             </div>`);
+        }
+    });
+}
+
+function guardarTratamiento(facturaId) {
+    const tratamiento = $('#tratamientoIncidencias').val().trim();
+    
+    if (!tratamiento) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Tratamiento requerido',
+            text: 'Por favor describe el tratamiento que se aplicará a estas incidencias.',
+            confirmButtonColor: '#f0ad4e'
+        });
+        return;
+    }
+
+    Swal.fire({
+        title: '¿Guardar tratamiento?',
+        text: 'Este tratamiento se aplicará a todas las incidencias de esta factura.',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#28a745',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sí, guardar',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const url = "{{ url('/logistica/facturas/incidencias/tratamiento') }}";
+            
+            $.ajax({
+                url: url,
+                type: 'POST',
+                data: {
+                    factura_id: facturaId,
+                    tratamiento: tratamiento,
+                    _token: '{{ csrf_token() }}'
+                },
+                success: function(response) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Tratamiento guardado',
+                        text: response.message || 'El tratamiento ha sido registrado exitosamente.',
+                        confirmButtonColor: '#28a745'
+                    });
+                    $('#tratamientoIncidencias').val('');
+                },
+                error: function(xhr) {
+                    const errorMsg = xhr.responseJSON?.message || 'No se pudo guardar el tratamiento';
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: errorMsg,
+                        confirmButtonColor: '#dc3545'
+                    });
+                }
+            });
         }
     });
 }

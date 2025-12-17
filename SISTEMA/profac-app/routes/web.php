@@ -1031,6 +1031,7 @@ Route::post('/reporte/Libroventarep/exportar-excel/{tipo}/{fechaInicio}/{fechaFi
     Route::post('/logistica/distribuciones/cancelar/{distribucionId}', [DistribucionEntrega::class, 'cancelarDistribucion']);
     Route::post('/logistica/distribuciones/completar/{distribucionId}', [DistribucionEntrega::class, 'completarDistribucion']);
     Route::get('/logistica/facturas/incidencias/{facturaId}', [DistribucionEntrega::class, 'obtenerIncidenciasFactura']);
+    Route::post('/logistica/facturas/incidencias/tratamiento', [DistribucionEntrega::class, 'guardarTratamientoIncidencias']);
     Route::post('/logistica/facturas/anular-entrega/{facturaId}', [DistribucionEntrega::class, 'anularEntrega']);
     Route::post('/logistica/facturas/confirmar-entrega/{facturaId}', [DistribucionEntrega::class, 'confirmarEntregaFactura']);
 
