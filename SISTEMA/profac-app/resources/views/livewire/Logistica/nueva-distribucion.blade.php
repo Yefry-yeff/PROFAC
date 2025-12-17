@@ -481,7 +481,7 @@ function verDetalleFactura(facturaId) {
             const formatoMoneda = new Intl.NumberFormat('es-HN', { style: 'currency', currency: 'HNL' });
             
             // Datos de la factura
-            $('#detalleNumeroFactura').text('#' + f.numero_factura);
+            $('#detalleNumeroFactura').text('#' + f.cai);
             $('#detalleFechaFactura').text(f.fecha_factura);
             $('#detalleCliente').text(f.cliente);
             
@@ -590,12 +590,12 @@ function seleccionarCliente(clienteId, nombreCliente, facturas) {
                     <td class="text-center">
                         <input type="checkbox" class="check-factura" ${checkDisabled} 
                                data-id="${f.id}" 
-                               data-numero="${f.numero_factura}" 
+                               data-numero="${f.cai}" 
                                data-total="${f.total}"
                                data-productos="${f.cantidad_productos || 0}">
                     </td>
                     <td>
-                        <strong>#${f.numero_factura}</strong>
+                        <strong>#${f.cai}</strong>
                         <a href="javascript:void(0)" onclick="verDetalleFactura(${f.id})" class="ml-2 text-info" title="Ver detalle">
                             <i class="fas fa-eye"></i>
                         </a>
@@ -831,13 +831,13 @@ function mostrarResultadosFacturas(facturas) {
             <td class="text-center">
                 <input type="checkbox" class="check-factura-busqueda" ${checkDisabled}
                        data-id="${f.id}"
-                       data-numero="${f.numero_factura}"
+                       data-numero="${f.cai}"
                        data-cliente="${f.cliente.replace(/"/g, '&quot;')}"
                        data-total="${f.total}"
                        data-productos="${f.cantidad_productos || 0}">
             </td>
             <td>
-                <strong>#${f.numero_factura}</strong>
+                <strong>#${f.cai}</strong>
                 <a href="javascript:void(0)" onclick="verDetalleFactura(${f.id})" class="ml-2 text-info" title="Ver detalle">
                     <i class="fas fa-eye"></i>
                 </a>
@@ -971,7 +971,7 @@ function mostrarFacturasCliente(facturas, nombreCliente) {
             <div class="card h-100 ${yaAgregada ? 'border-success' : ''}">
                 <div class="card-body p-3">
                     <h6 class="card-title text-primary mb-2">
-                        <i class="fas fa-file-invoice"></i> #${f.numero_factura}
+                        <i class="fas fa-file-invoice"></i> #${f.cai}
                     </h6>
                     <p class="card-text mb-1">
                         <small class="text-muted"><i class="fas fa-calendar"></i> ${f.fecha_factura}</small>
@@ -982,7 +982,7 @@ function mostrarFacturasCliente(facturas, nombreCliente) {
                     <div class="d-flex justify-content-between align-items-center">
                         <span class="h6 mb-0 text-success">Q${parseFloat(f.total).toFixed(2)}</span>
                         <button class="btn btn-sm ${btnClass}" ${disabled}
-                                onclick="agregarFactura(${f.id}, '${f.numero_factura}', '${nombreCliente.replace(/'/g, "\\'")}', '${f.direccion || ''}', ${f.total})">
+                                onclick="agregarFactura(${f.id}, '${f.cai}', '${nombreCliente.replace(/'/g, "\\'")}', '${f.direccion || ''}', ${f.total})">
                             ${btnText}
                         </button>
                     </div>

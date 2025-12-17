@@ -254,7 +254,7 @@ class DistribucionEntrega extends Component
                     df.orden_entrega,
                     df.estado_entrega,
                     df.fecha_entrega_real,
-                    f.numero_factura,
+                    f.cai,
                     f.total,
                     c.nombre AS cliente,
                     c.direccion,
@@ -309,7 +309,7 @@ class DistribucionEntrega extends Component
             $facturas = DB::select("
                 SELECT 
                     f.id,
-                    f.numero_factura,
+                    f.cai,
                     f.total,
                     f.fecha_factura,
                     c.nombre AS cliente,
@@ -332,7 +332,7 @@ class DistribucionEntrega extends Component
                 INNER JOIN clientes c ON f.cliente_id = c.id
                 WHERE f.estado_id = 1
                 AND (
-                    f.numero_factura LIKE ?
+                    f.cai LIKE ?
                     OR c.nombre LIKE ?
                     OR c.telefono LIKE ?
                 )
@@ -366,7 +366,7 @@ class DistribucionEntrega extends Component
             $factura = DB::select("
                 SELECT 
                     f.id,
-                    f.numero_factura,
+                    f.cai,
                     f.total,
                     f.fecha_emision as fecha_factura,
                     c.nombre AS cliente,
@@ -374,7 +374,7 @@ class DistribucionEntrega extends Component
                 FROM factura f
                 INNER JOIN cliente c ON f.cliente_id = c.id
                 WHERE f.estado_factura_id = 1
-                AND f.numero_factura = ?
+                AND f.cai = ?
                 AND f.fecha_emision >= '2025-08-01'
                 AND NOT EXISTS (
                     SELECT 1 FROM distribuciones_entrega_facturas def
@@ -391,7 +391,7 @@ class DistribucionEntrega extends Component
                 ], 200);
             } else {
                 // Verificar si existe pero no cumple condiciones
-                $facturaExiste = DB::select("SELECT id FROM factura WHERE numero_factura = ? LIMIT 1", [$numero]);
+                $facturaExiste = DB::select("SELECT id FROM factura WHERE cai = ? LIMIT 1", [$numero]);
                 
                 if (!empty($facturaExiste)) {
                     // Verificar por qué no es válida
@@ -403,7 +403,7 @@ class DistribucionEntrega extends Component
                                 WHERE def.factura_id = f.id AND def.estado_entrega = 'entregado'
                             ) THEN 1 ELSE 0 END as ya_entregada
                         FROM factura f
-                        WHERE f.numero_factura = ?
+                        WHERE f.cai = ?
                     ", [$numero]);
                     
                     if ($facturaInfo[0]->ya_entregada) {
@@ -453,7 +453,7 @@ class DistribucionEntrega extends Component
             $facturas = DB::select("
                 SELECT 
                     f.id,
-                    f.numero_factura,
+                    f.cai,
                     f.total,
                     DATE_FORMAT(f.fecha_emision, '%d/%m/%Y') as fecha_factura,
                     c.nombre AS cliente,
@@ -468,7 +468,7 @@ class DistribucionEntrega extends Component
                     WHERE def.factura_id = f.id
                     AND def.estado_entrega = 'entregado'
                 )
-                ORDER BY f.fecha_emision DESC, f.numero_factura DESC
+                ORDER BY f.fecha_emision DESC, f.cai DESC
                 LIMIT 50
             ", ["%{$termino}%"]);
 
@@ -510,7 +510,7 @@ class DistribucionEntrega extends Component
             $facturas = DB::select("
                 SELECT 
                     f.id,
-                    f.numero_factura,
+                    f.cai,
                     f.total,
                     f.fecha_emision,
                     f.estado_factura_id AS estado_id,
@@ -520,13 +520,13 @@ class DistribucionEntrega extends Component
                 INNER JOIN cliente c ON f.cliente_id = c.id
                 WHERE f.estado_factura_id = 1
                 AND f.fecha_emision >= '2025-08-01'
-                AND f.numero_factura LIKE ?
+                AND f.cai LIKE ?
                 AND NOT EXISTS (
                     SELECT 1 FROM distribuciones_entrega_facturas def
                     WHERE def.factura_id = f.id
                     AND def.estado_entrega = 'entregado'
                 )
-                ORDER BY f.numero_factura DESC
+                ORDER BY f.cai DESC
                 LIMIT 20
             ", ["%{$termino}%"]);
 
@@ -651,7 +651,7 @@ class DistribucionEntrega extends Component
             $facturas = DB::select("
                 SELECT 
                     f.id,
-                    f.numero_factura,
+                    f.cai,
                     f.total,
                     DATE_FORMAT(f.fecha_emision, '%d/%m/%Y') as fecha_factura,
                     (SELECT COUNT(*) FROM venta_has_producto vhp WHERE vhp.factura_id = f.id) as cantidad_productos
@@ -664,7 +664,7 @@ class DistribucionEntrega extends Component
                     WHERE def.factura_id = f.id
                     AND def.estado_entrega = 'entregado'
                 )
-                ORDER BY f.fecha_emision DESC, f.numero_factura DESC
+                ORDER BY f.fecha_emision DESC, f.cai DESC
             ", [$clienteId]);
 
             Log::info('Facturas del cliente encontradas', [
@@ -708,7 +708,7 @@ class DistribucionEntrega extends Component
             $factura = DB::selectOne("
                 SELECT 
                     f.id,
-                    f.numero_factura,
+                    f.cai,
                     f.total,
                     f.sub_total as subtotal,
                     0 as descuento,
@@ -843,7 +843,7 @@ class DistribucionEntrega extends Component
             $facturasSinEntrega = DB::select("
                 SELECT 
                     df.id,
-                    f.numero_factura
+                    f.cai
                 FROM distribuciones_entrega_facturas df
                 INNER JOIN factura f ON df.factura_id = f.id
                 WHERE df.distribucion_entrega_id = ?
@@ -852,7 +852,7 @@ class DistribucionEntrega extends Component
 
             if (count($facturasSinEntrega) > 0) {
                 $listaFacturas = array_map(function($f) {
-                    return "Factura #{$f->numero_factura}";
+                    return "Factura #{$f->cai}";
                 }, $facturasSinEntrega);
                 
                 $errores[] = '<strong>Facturas sin entrega:</strong><ul class="mb-2">' . 
@@ -864,7 +864,7 @@ class DistribucionEntrega extends Component
             $facturasConIncidenciasSinTratamiento = DB::select("
                 SELECT DISTINCT
                     def.id as factura_distribucion_id,
-                    f.numero_factura,
+                    f.cai,
                     COUNT(DISTINCT i.id) as total_incidencias
                 FROM distribuciones_entrega_facturas def
                 INNER JOIN factura f ON def.factura_id = f.id
@@ -873,12 +873,12 @@ class DistribucionEntrega extends Component
                 LEFT JOIN entregas_incidencias_tratamientos t ON t.entrega_producto_incidencia_id = i.id
                 WHERE def.distribucion_entrega_id = ?
                     AND t.id IS NULL
-                GROUP BY def.id, f.numero_factura
+                GROUP BY def.id, f.cai
             ", [$distribucionId]);
             
             if (count($facturasConIncidenciasSinTratamiento) > 0) {
                 $listaIncidencias = array_map(function($f) {
-                    return "Factura #{$f->numero_factura} ({$f->total_incidencias} incidencia(s) sin tratar)";
+                    return "Factura #{$f->cai} ({$f->total_incidencias} incidencia(s) sin tratar)";
                 }, $facturasConIncidenciasSinTratamiento);
                 
                 $errores[] = '<strong>Facturas con incidencias sin tratamiento:</strong><ul class="mb-2">' . 
@@ -955,7 +955,7 @@ class DistribucionEntrega extends Component
             $facturasSinEntrega = DB::select("
                 SELECT 
                     df.id,
-                    f.numero_factura
+                    f.cai
                 FROM distribuciones_entrega_facturas df
                 INNER JOIN factura f ON df.factura_id = f.id
                 WHERE df.distribucion_entrega_id = ?
@@ -964,7 +964,7 @@ class DistribucionEntrega extends Component
 
             if (count($facturasSinEntrega) > 0) {
                 $listaFacturas = array_map(function($f) {
-                    return "Factura #{$f->numero_factura}";
+                    return "Factura #{$f->cai}";
                 }, $facturasSinEntrega);
                 
                 Log::warning("Intento de completar distribución con facturas sin entrega:", [
@@ -985,7 +985,7 @@ class DistribucionEntrega extends Component
             $facturasConIncidenciasSinTratamiento = DB::select("
                 SELECT DISTINCT
                     def.id as factura_distribucion_id,
-                    f.numero_factura,
+                    f.cai,
                     COUNT(DISTINCT i.id) as total_incidencias
                 FROM distribuciones_entrega_facturas def
                 INNER JOIN factura f ON def.factura_id = f.id
@@ -994,12 +994,12 @@ class DistribucionEntrega extends Component
                 LEFT JOIN entregas_incidencias_tratamientos t ON t.entrega_producto_incidencia_id = i.id
                 WHERE def.distribucion_entrega_id = ?
                     AND t.id IS NULL
-                GROUP BY def.id, f.numero_factura
+                GROUP BY def.id, f.cai
             ", [$distribucionId]);
 
             if (count($facturasConIncidenciasSinTratamiento) > 0) {
                 $listaIncidencias = array_map(function($f) {
-                    return "Factura #{$f->numero_factura} ({$f->total_incidencias} incidencia(s))";
+                    return "Factura #{$f->cai} ({$f->total_incidencias} incidencia(s))";
                 }, $facturasConIncidenciasSinTratamiento);
                 
                 Log::warning("Intento de completar distribución con incidencias sin tratamiento:", [
@@ -1054,7 +1054,7 @@ class DistribucionEntrega extends Component
             Log::info("=== Obteniendo incidencias para factura ID: {$facturaId} ===");
             
             $factura = DistribucionEntregaFactura::with('factura')->findOrFail($facturaId);
-            Log::info("Factura encontrada:", ['factura_id' => $factura->id, 'numero_factura' => $factura->factura->numero_factura ?? 'N/A']);
+            Log::info("Factura encontrada:", ['factura_id' => $factura->id, 'cai' => $factura->factura->cai ?? 'N/A']);
             
             // Obtener todos los productos de entrega de esta factura con sus incidencias
             $incidencias = DB::select("
@@ -1096,8 +1096,9 @@ class DistribucionEntrega extends Component
                 'success' => true,
                 'factura' => [
                     'id' => $factura->id,
-                    'numero_factura' => $factura->factura->numero_factura ?? 'N/A',
+                    'cai' => $factura->factura->cai ?? 'N/A',
                     'cliente' => $factura->factura->cliente->nombre_completo ?? 'N/A',
+                    'estado_entrega' => $factura->estado_entrega,
                 ],
                 'incidencias' => $incidencias,
                 'tratamiento' => $tratamiento,
@@ -1139,6 +1140,15 @@ class DistribucionEntrega extends Component
 
             $facturaId = $request->factura_id;
             $tratamiento = $request->tratamiento;
+
+            // Verificar que la factura NO esté en estado 'sin_entrega'
+            $factura = DistribucionEntregaFactura::findOrFail($facturaId);
+            if ($factura->estado_entrega === 'sin_entrega') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se puede registrar tratamiento mientras la factura esté en estado "Sin Entrega". Primero debe confirmar la entrega.'
+                ], 422);
+            }
 
             // Verificar si ya existe un tratamiento para esta factura
             $tratamientoExistente = DB::selectOne("
@@ -1362,7 +1372,7 @@ class DistribucionEntrega extends Component
             $facturasConIncidenciasSinTratamiento = DB::select("
                 SELECT DISTINCT
                     def.id as factura_distribucion_id,
-                    f.numero_factura,
+                    f.cai,
                     COUNT(DISTINCT i.id) as total_incidencias
                 FROM distribuciones_entrega_facturas def
                 INNER JOIN factura f ON def.factura_id = f.id
@@ -1371,12 +1381,12 @@ class DistribucionEntrega extends Component
                 LEFT JOIN entregas_incidencias_tratamientos t ON t.entrega_producto_incidencia_id = i.id
                 WHERE def.distribucion_entrega_id = ?
                     AND t.id IS NULL
-                GROUP BY def.id, f.numero_factura
+                GROUP BY def.id, f.cai
             ", [$distribucionId]);
             
             if (count($facturasConIncidenciasSinTratamiento) > 0) {
                 $listaFacturas = array_map(function($f) {
-                    return "Factura #{$f->numero_factura} ({$f->total_incidencias} incidencia(s))";
+                    return "Factura #{$f->cai} ({$f->total_incidencias} incidencia(s))";
                 }, $facturasConIncidenciasSinTratamiento);
                 
                 $mensaje = '<div class="text-left">';

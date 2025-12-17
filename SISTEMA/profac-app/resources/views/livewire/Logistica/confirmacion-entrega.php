@@ -420,7 +420,7 @@
 
                     const filtroLower = filtro.toLowerCase().trim();
                     const facturasFiltradas = filtro ? confirmacionState.facturas.filter(f =>
-                        f.numero_factura.toLowerCase().includes(filtroLower)
+                        f.cai.toLowerCase().includes(filtroLower)
                     ) : confirmacionState.facturas;
 
                     if (!facturasFiltradas.length) {
@@ -434,10 +434,10 @@
                         const isActive = confirmacionState.facturaSeleccionada === f.distribucion_factura_id;
                         const progreso = calcularProgresoFactura(f);
                         const incidencias = (f.productos || []).filter(p => Number(p.tiene_incidencia) === 1).length;
-                        html += `<button type="button" class="list-group-item list-group-item-action factura-item ${isActive ? 'active' : ''}" data-factura="${f.distribucion_factura_id}" data-numero="${f.numero_factura}">
+                        html += `<button type="button" class="list-group-item list-group-item-action factura-item ${isActive ? 'active' : ''}" data-factura="${f.distribucion_factura_id}" data-numero="${f.cai}">
                             <div class="d-flex justify-content-between">
                                 <div>
-                                    <div class="font-weight-bold">Factura #${f.numero_factura}</div>
+                                    <div class="font-weight-bold">Factura #${f.cai}</div>
                                     <small class="d-block text-muted">${f.cliente}</small>
                                     ${incidencias ? `<small class="text-danger">${incidencias} incidencia${incidencias > 1 ? 's' : ''}</small>` : ''}
                                 </div>
@@ -546,7 +546,7 @@
                     const header = `
                         <div class="mb-3 d-flex justify-content-between align-items-center">
                             <div>
-                                <h5 class="mb-0">Factura #${factura.numero_factura}</h5>
+                                <h5 class="mb-0">Factura #${factura.cai}</h5>
                                 <small class="text-muted d-block">${factura.cliente} ${factura.telefono_empresa ? '· ' + factura.telefono_empresa : ''}</small>
                                 <small class="text-muted">${factura.direccion || 'Sin dirección registrada'}</small>
                             </div>

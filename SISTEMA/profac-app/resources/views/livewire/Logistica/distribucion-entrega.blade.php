@@ -421,7 +421,7 @@ function mostrarResultadosFacturas(facturas) {
             <div class="card h-100 shadow-sm ${yaAgregada ? 'border-success' : ''}">
                 <div class="card-body p-3">
                     <h6 class="card-title text-primary mb-2">
-                        <i class="fas fa-file-invoice"></i> #${f.numero_factura}
+                        <i class="fas fa-file-invoice"></i> #${f.cai}
                     </h6>
                     <p class="card-text mb-2">
                         <small class="text-muted"><i class="fas fa-user"></i> ${f.cliente}</small>
@@ -429,7 +429,7 @@ function mostrarResultadosFacturas(facturas) {
                     <div class="d-flex justify-content-between align-items-center">
                         <span class="h6 mb-0 text-success">Q${parseFloat(f.total).toFixed(2)}</span>
                         <button class="btn btn-sm ${btnClass}" ${disabled}
-                                onclick="agregarFactura(${f.id}, '${f.numero_factura}', '${f.cliente.replace(/'/g, "\\'")}', '${f.direccion || ''}', ${f.total})">
+                                onclick="agregarFactura(${f.id}, '${f.cai}', '${f.cliente.replace(/'/g, "\\'")}', '${f.direccion || ''}', ${f.total})">
                             ${btnText}
                         </button>
                     </div>
@@ -641,7 +641,7 @@ function verFacturas(id) {
                 
                 html += `<tr>
                     <td>${f.orden_entrega}</td>
-                    <td><strong>#${f.numero_factura}</strong></td>
+                    <td><strong>#${f.cai}</strong></td>
                     <td>${f.cliente}</td>
                     <td><span class="badge badge-${estadoBadge}">${estadoTexto}</span></td>
                     <td class="text-center">${totalIncidencias > 0 ? `<span class="badge badge-${tieneIncidenciasSinTratar ? 'warning' : 'info'}">${totalIncidencias}</span>` : '<span class="text-muted">0</span>'}</td>
@@ -939,7 +939,7 @@ function verIncidencias(facturaId) {
                 html = '<div class="alert alert-info"><i class="fas fa-info-circle"></i> Esta factura no tiene incidencias registradas.</div>';
             } else {
                 html = `<div class="mb-3">
-                    <h6>Factura: <strong>#${r.factura?.numero_factura || 'N/A'}</strong></h6>
+                    <h6>Factura: <strong>#${r.factura?.cai || 'N/A'}</strong></h6>
                     <p class="text-muted mb-0">Cliente: ${r.factura?.cliente || 'N/A'}</p>
                 </div>
                 <div class="table-responsive">
@@ -982,8 +982,19 @@ function verIncidencias(facturaId) {
                 <div class="mt-3">
                     <h6 class="mb-2"><i class="fas fa-clipboard-check"></i> Tratamiento de Incidencias</h6>`;
                 
-                // Verificar si ya existe tratamiento
-                if (r.tratamiento) {
+                // Verificar el estado de la factura
+                const estadoEntrega = r.factura?.estado_entrega || '';
+                
+                if (estadoEntrega === 'sin_entrega') {
+                    // Si está en sin_entrega, no permitir dar tratamiento
+                    html += `
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle"></i> <strong>Tratamiento No Disponible</strong>
+                            <p class="mb-0 mt-2">No se puede registrar el tratamiento mientras la factura esté en estado <strong>"Sin Entrega"</strong>.</p>
+                            <p class="mb-0">Primero debe confirmar la entrega de la factura para poder registrar el tratamiento de las incidencias.</p>
+                        </div>`;
+                } else if (r.tratamiento) {
+                    // Si ya existe tratamiento, mostrarlo
                     html += `
                         <div class="alert alert-success">
                             <h6><i class="fas fa-check-circle"></i> Tratamiento Registrado</h6>
@@ -995,6 +1006,7 @@ function verIncidencias(facturaId) {
                             </small>
                         </div>`;
                 } else {
+                    // Si no está en sin_entrega y no hay tratamiento, permitir registrarlo
                     html += `
                         <p class="text-muted small">Registra el tratamiento que se dará a estas incidencias. El mismo tratamiento se aplicará a todas las incidencias de esta factura.</p>
                         <textarea id="tratamientoIncidencias" class="form-control" rows="3" placeholder="Describe el tratamiento o solución aplicada..."></textarea>
