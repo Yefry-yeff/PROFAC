@@ -22,7 +22,7 @@ class MisComisiones extends Component
                     'A.users_comision',
                     'A.comision_acumulada',
                     'A.mes_comision',
-                    'A.fecha_ult_modificacion'
+                    'A.fecha_ult_modificacion',
                     DB::raw("
                         CONCAT(
                             CASE MONTH(A.mes_comision)
@@ -44,11 +44,12 @@ class MisComisiones extends Component
                         ) AS mes_anio
                     ")
                 )
-                ->orderBy('A.mes_comision')
+                ->where('A.users_comision', Auth::user()->id)
+                ->orderBy('A.mes_comision', 'desc')
                 ->get();
 
 
 
-        return view('livewire.comisiones.escalado.mis-comisiones', compact('info'));
+        return view('livewire.comisiones.escalado.mis-comisiones', compact('info', 'meses'));
     }
 }
