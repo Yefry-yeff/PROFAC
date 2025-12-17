@@ -37,6 +37,20 @@
         .swal2-popup {
             z-index: 10001 !important;
         }
+
+        /* Ocultar card-body de cards colapsadas al cargar */
+        .collapsed-card .card-body {
+            display: none;
+        }
+
+        /* Asegurar que las tablas ocupen todo el ancho */
+        .table-responsive {
+            width: 100%;
+        }
+        
+        .table {
+            width: 100% !important;
+        }
     </style>
 
     <div class="row">
@@ -73,6 +87,8 @@
                                     <th>Progreso</th>
                                     <th>Estado</th>
                                     <th>Creador</th>
+                                    <th>F. Actualización</th>
+                                    <th>Usuario Autorizó</th>
                                     <th>Opciones</th>
                                 </tr>
                             </thead>
@@ -87,12 +103,12 @@
     <!-- Distribuciones Sin Finalizar -->
     <div class="row">
         <div class="col-md-12">
-            <div class="card card-info">
+            <div class="card card-info collapsed-card">
                 <div class="card-header">
                     <h3 class="card-title"><i class="fas fa-truck"></i> Distribuciones Sin Finalizar</h3>
                     <div class="card-tools">
                         <button type="button" class="btn btn-tool" data-card-widget="collapse">
-                            <i class="fas fa-minus"></i>
+                            <i class="fas fa-plus"></i>
                         </button>
                     </div>
                 </div>
@@ -381,20 +397,41 @@
 let tablaPendientes, tablaEnProceso, tablaCompletadas, facturasSelTmp = [];
 
 $(document).ready(() => {
-    // Configuración común de DataTables
-    const configComun = {
+    // Agregar easing personalizado para animaciones más suaves
+    $.easing.easeInOutCubic = function(x) {
+        return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+    };
+    
+    // Manejador manual para colapsar/expandir las tarjetas con animaciones suaves y elegantes
+    $('[data-card-widget="collapse"]').on('click', function(e) {
+        e.preventDefault();
+        const $card = $(this).closest('.card');
+        const $cardBody = $card.find('.card-body');
+        const $icon = $(this).find('i');
+        
+        if ($card.hasClass('collapsed-card')) {
+            // Expandir con animación suave y elegante
+            $card.removeClass('collapsed-card');
+            $cardBody.stop(true, true).slideDown({
+                duration: 600,
+                easing: 'easeInOutCubic'
+            });
+            $icon.removeClass('fa-plus').addClass('fa-minus');
+        } else {
+            // Colapsar con animación suave y elegante
+            $card.addClass('collapsed-card');
+            $cardBody.stop(true, true).slideUp({
+                duration: 500,
+                easing: 'easeInOutCubic'
+            });
+            $icon.removeClass('fa-minus').addClass('fa-plus');
+        }
+    });
+    
+    // Configuración base común de DataTables
+    const configBase = {
         processing: true,
         serverSide: true,
-        columns: [
-            {data: 'id'},
-            {data: 'fecha_programada'},
-            {data: 'nombre_equipo'},
-            {data: 'observaciones'},
-            {data: 'progreso'},
-            {data: 'estado'},
-            {data: 'creador'},
-            {data: 'opciones', orderable: false}
-        ],
         language: {url: '//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json'},
         order: [[1, 'desc']],
         pageLength: 10,
@@ -406,22 +443,54 @@ $(document).ready(() => {
         }
     };
 
-    // Tabla Pendientes de Tratar
+    // Tabla Pendientes de Tratar (10 columnas)
     tablaPendientes = $('#tablaPendientes').DataTable({
-        ...configComun,
-        ajax: "{{ route('logistica.distribuciones.listar') }}?tipo=pendientes"
+        ...configBase,
+        ajax: "{{ route('logistica.distribuciones.listar') }}?tipo=pendientes",
+        columns: [
+            {data: 'id'},
+            {data: 'fecha_programada'},
+            {data: 'nombre_equipo'},
+            {data: 'observaciones'},
+            {data: 'progreso'},
+            {data: 'estado'},
+            {data: 'creador'},
+            {data: 'fecha_actualizacion', defaultContent: '-'},
+            {data: 'usuario_autorizacion', defaultContent: '-'},
+            {data: 'opciones', orderable: false}
+        ]
     });
 
-    // Tabla Sin Finalizar
+    // Tabla Sin Finalizar (8 columnas)
     tablaEnProceso = $('#tablaEnProceso').DataTable({
-        ...configComun,
-        ajax: "{{ route('logistica.distribuciones.listar') }}?tipo=sin_finalizar"
+        ...configBase,
+        ajax: "{{ route('logistica.distribuciones.listar') }}?tipo=sin_finalizar",
+        columns: [
+            {data: 'id'},
+            {data: 'fecha_programada'},
+            {data: 'nombre_equipo'},
+            {data: 'observaciones'},
+            {data: 'progreso'},
+            {data: 'estado'},
+            {data: 'creador'},
+            {data: 'opciones', orderable: false}
+        ]
     });
 
-    // Tabla Completadas
+    // Tabla Completadas (8 columnas)
     tablaCompletadas = $('#tablaCompletadas').DataTable({
-        ...configComun,
-        ajax: "{{ route('logistica.distribuciones.listar') }}?tipo=completadas"
+        ...configBase,
+        ajax: "{{ route('logistica.distribuciones.listar') }}?tipo=completadas",
+        columns: [
+            {data: 'id'},
+            {data: 'fecha_programada'},
+            {data: 'nombre_equipo'},
+            {data: 'observaciones'},
+            {data: 'progreso'},
+            {data: 'estado'},
+            {data: 'creador'},
+            {data: 'opciones', orderable: false}
+        ]
     });
 
     // Prevenir warning de aria-hidden en modal de incidencias

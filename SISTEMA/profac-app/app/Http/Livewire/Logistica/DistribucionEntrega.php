@@ -156,10 +156,25 @@ class DistribucionEntrega extends Component
                     e.nombre_equipo,
                     u.name AS creador,
                     d.created_at,
+                    d.updated_at,
                     (SELECT COUNT(*) FROM distribuciones_entrega_facturas WHERE distribucion_entrega_id = d.id) as total_facturas,
                     (SELECT COUNT(*) FROM distribuciones_entrega_facturas WHERE distribucion_entrega_id = d.id AND estado_entrega = 'entregado') as facturas_entregadas,
                     (SELECT COUNT(*) FROM distribuciones_entrega_facturas WHERE distribucion_entrega_id = d.id AND estado_entrega = 'parcial') as facturas_parciales,
-                    (SELECT COUNT(*) FROM distribuciones_entrega_facturas WHERE distribucion_entrega_id = d.id AND estado_entrega = 'sin_entrega') as facturas_sin_entrega
+                    (SELECT COUNT(*) FROM distribuciones_entrega_facturas WHERE distribucion_entrega_id = d.id AND estado_entrega = 'sin_entrega') as facturas_sin_entrega,
+                    (SELECT MAX(df.updated_at) 
+                     FROM distribuciones_entrega_facturas df 
+                     WHERE df.distribucion_entrega_id = d.id 
+                     AND df.estado_entrega IN ('entregado', 'parcial')
+                    ) as fecha_ultima_confirmacion,
+                    (SELECT u2.name 
+                     FROM distribuciones_entrega_facturas df2
+                     LEFT JOIN entregas_productos ep ON ep.distribucion_factura_id = df2.id
+                     LEFT JOIN users u2 ON u2.id = ep.user_id_registro
+                     WHERE df2.distribucion_entrega_id = d.id 
+                     AND df2.estado_entrega IN ('entregado', 'parcial')
+                     ORDER BY df2.updated_at DESC
+                     LIMIT 1
+                    ) as usuario_confirmacion
                 FROM distribuciones_entrega d
                 INNER JOIN equipos_entrega e ON d.equipo_entrega_id = e.id
                 INNER JOIN users u ON d.users_id_creador = u.id
@@ -206,6 +221,19 @@ class DistribucionEntrega extends Component
                         4 => '<span class="badge badge-danger">CANCELADA</span>',
                     ];
                     return $estados[$datos->estado_id] ?? '<span class="badge badge-secondary">DESCONOCIDO</span>';
+                })
+                ->addColumn('fecha_actualizacion', function ($datos) {
+                    if (!empty($datos->fecha_ultima_confirmacion)) {
+                        $fecha = \Carbon\Carbon::parse($datos->fecha_ultima_confirmacion);
+                        return $fecha->format('d/m/Y H:i');
+                    }
+                    return '<span class="text-muted">-</span>';
+                })
+                ->addColumn('usuario_autorizacion', function ($datos) {
+                    if (!empty($datos->usuario_confirmacion)) {
+                        return htmlspecialchars($datos->usuario_confirmacion);
+                    }
+                    return '<span class="text-muted">-</span>';
                 })
                 ->editColumn('observaciones', function ($datos) {
                     if (empty($datos->observaciones)) {
@@ -282,7 +310,7 @@ class DistribucionEntrega extends Component
                         ';
                     }
                 })
-                ->rawColumns(['estado', 'observaciones', 'progreso', 'opciones'])
+                ->rawColumns(['estado', 'observaciones', 'progreso', 'fecha_actualizacion', 'usuario_autorizacion', 'opciones'])
                 ->make(true);
 
         } catch (\Exception $e) {
