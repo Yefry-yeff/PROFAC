@@ -609,6 +609,12 @@ class DistribucionEntrega extends Component
                     WHERE def.factura_id = f.id
                     AND def.estado_entrega = 'entregado'
                 )
+                AND NOT EXISTS (
+                    SELECT 1 FROM distribuciones_entrega_facturas def
+                    INNER JOIN distribuciones_entrega de ON def.distribucion_entrega_id = de.id
+                    WHERE def.factura_id = f.id
+                    AND de.estado_id IN (2, 3)
+                )
                 ORDER BY f.cai DESC
                 LIMIT 20
             ", ["%{$termino}%"]);
@@ -671,6 +677,12 @@ class DistribucionEntrega extends Component
                          SELECT 1 FROM distribuciones_entrega_facturas def
                          WHERE def.factura_id = f2.id
                          AND def.estado_entrega = 'entregado'
+                     )
+                     AND NOT EXISTS (
+                         SELECT 1 FROM distribuciones_entrega_facturas def
+                         INNER JOIN distribuciones_entrega de ON def.distribucion_entrega_id = de.id
+                         WHERE def.factura_id = f2.id
+                         AND de.estado_id IN (2, 3)
                      )) as facturas_disponibles
                 FROM cliente c
                 INNER JOIN factura f ON c.id = f.cliente_id
@@ -686,6 +698,12 @@ class DistribucionEntrega extends Component
                         SELECT 1 FROM distribuciones_entrega_facturas def
                         WHERE def.factura_id = f2.id
                         AND def.estado_entrega = 'entregado'
+                    )
+                    AND NOT EXISTS (
+                        SELECT 1 FROM distribuciones_entrega_facturas def
+                        INNER JOIN distribuciones_entrega de ON def.distribucion_entrega_id = de.id
+                        WHERE def.factura_id = f2.id
+                        AND de.estado_id IN (2, 3)
                     )
                 )
                 ORDER BY c.nombre
@@ -746,6 +764,12 @@ class DistribucionEntrega extends Component
                     SELECT 1 FROM distribuciones_entrega_facturas def
                     WHERE def.factura_id = f.id
                     AND def.estado_entrega = 'entregado'
+                )
+                AND NOT EXISTS (
+                    SELECT 1 FROM distribuciones_entrega_facturas def
+                    INNER JOIN distribuciones_entrega de ON def.distribucion_entrega_id = de.id
+                    WHERE def.factura_id = f.id
+                    AND de.estado_id IN (2, 3)
                 )
                 ORDER BY f.fecha_emision DESC, f.cai DESC
             ", [$clienteId]);
