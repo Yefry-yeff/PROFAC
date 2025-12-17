@@ -2,7 +2,7 @@
     <div class="row">
         <div class="col-md-12">
             <div class="card">
-                <div class="card-header">
+                <div class="card-header d-flex justify-content-between align-items-center flex-wrap">
                     <h3 class="card-title">Equipos de Entrega</h3>
                     <div class="card-tools">
                         <button type="button" class="btn btn-primary btn-sm" onclick="abrirModalNuevoEquipo()">
@@ -11,7 +11,8 @@
                     </div>
                 </div>
                 <div class="card-body">
-                    <table id="tablaEquipos" class="table table-bordered table-striped table-sm">
+                    <div class="table-responsive">
+                    <table id="tablaEquipos" class="table table-bordered table-striped table-sm mb-0">
                         <thead>
                             <tr>
                                 <th>ID</th>
@@ -26,6 +27,7 @@
                         </thead>
                         <tbody></tbody>
                     </table>
+                    </div>
                 </div>
             </div>
         </div>
@@ -51,7 +53,7 @@
                         <hr>
                         <h6>Miembros</h6>
                         <div class="row mb-2">
-                            <div class="col-8">
+                            <div class="col-12 col-md-8 mb-2 mb-md-0">
                                 <select class="form-control" id="selectUsuarioNuevo">
                                     <option value="">Seleccione...</option>
                                     @foreach($usuarios as $u)
@@ -59,10 +61,10 @@
                                     @endforeach
                                 </select>
                             </div>
-                            <div class="col-3">
+                            <div class="col-6 col-md-3 mb-2 mb-md-0">
                                 <input type="number" class="form-control" id="inputPorcentaje" min="0" max="100" step="0.01" placeholder="%">
                             </div>
-                            <div class="col-1">
+                            <div class="col-6 col-md-1 d-flex justify-content-md-end">
                                 <button type="button" class="btn btn-success" onclick="agregarMiembroTmp()"><i class="fa fa-plus"></i></button>
                             </div>
                         </div>
@@ -103,7 +105,7 @@
                         <hr>
                         <h6>Agregar Nuevo Miembro</h6>
                         <div class="row mb-2">
-                            <div class="col-8">
+                            <div class="col-12 col-md-8 mb-2 mb-md-0">
                                 <select class="form-control" id="selectUsuarioEditar">
                                     <option value="">Seleccione...</option>
                                     @foreach($usuarios as $u)
@@ -111,10 +113,10 @@
                                     @endforeach
                                 </select>
                             </div>
-                            <div class="col-3">
+                            <div class="col-6 col-md-3 mb-2 mb-md-0">
                                 <input type="number" class="form-control" id="inputPorcentajeEditar" min="0" max="100" step="0.01" placeholder="%">
                             </div>
-                            <div class="col-1">
+                            <div class="col-6 col-md-1 d-flex justify-content-md-end">
                                 <button type="button" class="btn btn-success" onclick="agregarNuevoMiembro()"><i class="fa fa-plus"></i></button>
                             </div>
                         </div>

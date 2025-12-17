@@ -36,7 +36,7 @@ class ConfirmacionEntrega extends Component
                     d.observaciones,
                     e.nombre_equipo,
                     (SELECT COUNT(*) FROM distribuciones_entrega_facturas WHERE distribucion_entrega_id = d.id) as total_facturas,
-                    (SELECT COUNT(*) FROM distribuciones_entrega_facturas WHERE distribucion_entrega_id = d.id AND estado_entrega = 'entregado') as facturas_entregadas
+                    (SELECT COUNT(*) FROM distribuciones_entrega_facturas WHERE distribucion_entrega_id = d.id AND estado_entrega IN ('entregado', 'parcial')) as facturas_completadas
                 FROM distribuciones_entrega d
                 INNER JOIN equipos_entrega e ON d.equipo_entrega_id = e.id
                 WHERE d.estado_id = 2
@@ -70,14 +70,14 @@ class ConfirmacionEntrega extends Component
                     df.factura_id,
                     df.orden_entrega,
                     df.estado_entrega,
-                    f.numero_factura,
+                    f.cai,
                     f.total,
                     c.nombre AS cliente,
                     c.direccion,
-                       c.telefono_empresa
+                    c.telefono_empresa
                 FROM distribuciones_entrega_facturas df
-                   INNER JOIN factura f ON df.factura_id = f.id
-                   INNER JOIN cliente c ON f.cliente_id = c.id
+                INNER JOIN factura f ON df.factura_id = f.id
+                INNER JOIN cliente c ON f.cliente_id = c.id
                 WHERE df.distribucion_entrega_id = ?
                 ORDER BY df.orden_entrega ASC
             ", [$distribucionId]);
@@ -195,7 +195,7 @@ class ConfirmacionEntrega extends Component
     {
         try {
             $request->validate([
-                'productos' => 'required|array|min:1',
+                'productos' => 'nullable|array',
                 'productos.*.id' => 'required|exists:entregas_productos,id',
                 'productos.*.entregado' => 'required|boolean',
                 'productos.*.cantidad_entregada' => 'nullable|numeric|min:0',
@@ -203,25 +203,41 @@ class ConfirmacionEntrega extends Component
                 'productos.*.tipo_incidencia' => 'nullable|string',
                 'productos.*.descripcion_incidencia' => 'nullable|string',
                 'hora_entrega' => 'required|date_format:H:i',
+                'incidencias' => 'nullable|array',
+                'incidencias.*.producto_id' => 'required|exists:entregas_productos,id',
+                'incidencias.*.tipo' => 'required|string',
+                'incidencias.*.descripcion' => 'required|string|min:5',
             ]);
-
-            $productosIds = collect($request->productos)->pluck('id')->unique()->values();
-
-            $facturasCerradas = DB::table('entregas_productos as ep')
-                ->join('distribuciones_entrega_facturas as df', 'ep.distribucion_factura_id', '=', 'df.id')
-                ->join('factura as f', 'df.factura_id', '=', 'f.id')
-                ->whereIn('ep.id', $productosIds)
-                ->whereIn('df.estado_entrega', ['entregado', 'parcial'])
-                ->select('f.numero_factura')
-                ->distinct()
-                ->pluck('numero_factura');
-
-            if ($facturasCerradas->isNotEmpty()) {
+            
+            // Validar que haya al menos productos o incidencias
+            if (empty($request->productos) && empty($request->incidencias)) {
                 return response()->json([
                     'icon' => 'warning',
-                    'title' => 'Factura cerrada',
-                    'text' => 'La factura #' . $facturasCerradas->first() . ' ya fue confirmada y no puede editarse.',
+                    'title' => 'Sin cambios',
+                    'text' => 'Debe haber al menos un producto o una incidencia para confirmar.',
                 ], 422);
+            }
+
+            // Verificar facturas cerradas solo si hay productos
+            if (!empty($request->productos)) {
+                $productosIds = collect($request->productos)->pluck('id')->unique()->values();
+
+                $facturasCerradas = DB::table('entregas_productos as ep')
+                    ->join('distribuciones_entrega_facturas as df', 'ep.distribucion_factura_id', '=', 'df.id')
+                    ->join('factura as f', 'df.factura_id', '=', 'f.id')
+                    ->whereIn('ep.id', $productosIds)
+                    ->whereIn('df.estado_entrega', ['entregado', 'parcial'])
+                    ->select('f.numero_factura')
+                    ->distinct()
+                    ->pluck('numero_factura');
+
+                if ($facturasCerradas->isNotEmpty()) {
+                    return response()->json([
+                        'icon' => 'warning',
+                        'title' => 'Factura cerrada',
+                        'text' => 'La factura #' . $facturasCerradas->first() . ' ya fue confirmada y no puede editarse.',
+                    ], 422);
+                }
             }
 
             [$hora, $minuto] = explode(':', $request->hora_entrega);
@@ -229,20 +245,107 @@ class ConfirmacionEntrega extends Component
 
             DB::beginTransaction();
 
-            foreach ($request->productos as $productoData) {
-                $producto = EntregaProducto::findOrFail($productoData['id']);
-                
-                $producto->entregado = $productoData['entregado'];
-                $producto->cantidad_entregada = $productoData['cantidad_entregada'] ?? 0;
-                $producto->tiene_incidencia = $productoData['tiene_incidencia'] ?? 0;
-                $producto->tipo_incidencia = $productoData['tipo_incidencia'] ?? null;
-                $producto->descripcion_incidencia = $productoData['descripcion_incidencia'] ?? null;
-                $producto->user_id_registro = Auth::id();
-                $producto->fecha_registro = $fechaRegistro;
-                $producto->save();
+            // Actualizar productos solo si existen
+            if (!empty($request->productos)) {
+                foreach ($request->productos as $productoData) {
+                    $producto = EntregaProducto::findOrFail($productoData['id']);
+                    
+                    // Verificar si el producto tiene incidencias en BD
+                    $tieneIncidenciasEnBD = DB::table('entregas_productos_incidencias')
+                        ->where('entrega_producto_id', $producto->id)
+                        ->exists();
+                    
+                    // Si el producto tiene incidencias, NO puede estar marcado como entregado
+                    if ($tieneIncidenciasEnBD || $producto->tiene_incidencia == 1) {
+                        $producto->entregado = 0;
+                        $producto->cantidad_entregada = 0;
+                    } else {
+                        $producto->entregado = $productoData['entregado'];
+                        $producto->cantidad_entregada = $productoData['cantidad_entregada'] ?? 0;
+                    }
+                    
+                    $producto->tiene_incidencia = $productoData['tiene_incidencia'] ?? $producto->tiene_incidencia;
+                    $producto->tipo_incidencia = $productoData['tipo_incidencia'] ?? null;
+                    $producto->descripcion_incidencia = $productoData['descripcion_incidencia'] ?? null;
+                    $producto->user_id_registro = Auth::id();
+                    $producto->fecha_registro = $fechaRegistro;
+                    $producto->save();
+                }
             }
 
-            // Los triggers actualizarán automáticamente el estado_entrega de la factura
+            // Guardar incidencias pendientes si existen
+            $distribucionFacturaId = null;
+            if ($request->has('incidencias') && is_array($request->incidencias)) {
+                foreach ($request->incidencias as $incidenciaData) {
+                    $incidencia = new EntregaProductoIncidencia();
+                    $incidencia->entrega_producto_id = $incidenciaData['producto_id'];
+                    $incidencia->tipo = $incidenciaData['tipo'];
+                    $incidencia->descripcion = $incidenciaData['descripcion'];
+                    $incidencia->user_id_registro = Auth::id();
+                    $incidencia->save();
+
+                    // Actualizar el campo tiene_incidencia del producto y forzar entregado=0
+                    $entregaProducto = EntregaProducto::find($incidenciaData['producto_id']);
+                    if ($entregaProducto) {
+                        $entregaProducto->tiene_incidencia = 1;
+                        $entregaProducto->entregado = 0;
+                        $entregaProducto->cantidad_entregada = 0;
+                        $entregaProducto->save();
+                        
+                        // Obtener el distribucion_factura_id para actualizar el estado después
+                        if (!$distribucionFacturaId) {
+                            $distribucionFacturaId = $entregaProducto->distribucion_factura_id;
+                        }
+                    }
+
+                    // Guardar evidencias si existen
+                    if (isset($incidenciaData['evidencias']) && is_array($incidenciaData['evidencias'])) {
+                        foreach ($incidenciaData['evidencias'] as $evidenciaBase64) {
+                            if (!empty($evidenciaBase64)) {
+                                $this->guardarEvidenciaBase64($incidencia->id, $evidenciaBase64);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Actualizar el estado de la factura después de guardar incidencias o productos
+            // Si se guardaron productos, obtener el distribucion_factura_id del primero
+            if (!$distribucionFacturaId && !empty($request->productos)) {
+                $primerProducto = EntregaProducto::find($request->productos[0]['id']);
+                if ($primerProducto) {
+                    $distribucionFacturaId = $primerProducto->distribucion_factura_id;
+                }
+            }
+            
+            // Actualizar estado de la factura basado en todos los productos
+            if ($distribucionFacturaId) {
+                $estadoCalculado = DB::selectOne("
+                    SELECT 
+                        CASE
+                            -- Si todos están entregados (y hay al menos 1) -> entregado
+                            WHEN COUNT(*) > 0 AND COUNT(*) = SUM(CASE WHEN entregado = 1 THEN 1 ELSE 0 END) THEN 'entregado'
+                            -- Si todos tienen incidencia y ninguno entregado -> parcial
+                            WHEN COUNT(*) = SUM(CASE WHEN tiene_incidencia = 1 THEN 1 ELSE 0 END) 
+                                 AND SUM(CASE WHEN entregado = 1 THEN 1 ELSE 0 END) = 0 THEN 'parcial'
+                            -- Si al menos 1 está entregado o tiene incidencia -> parcial
+                            WHEN SUM(CASE WHEN entregado = 1 OR tiene_incidencia = 1 THEN 1 ELSE 0 END) > 0 THEN 'parcial'
+                            -- Ninguno gestionado -> sin_entrega
+                            ELSE 'sin_entrega'
+                        END AS nuevo_estado
+                    FROM entregas_productos
+                    WHERE distribucion_factura_id = ?
+                ", [$distribucionFacturaId]);
+                
+                if ($estadoCalculado) {
+                    DB::table('distribuciones_entrega_facturas')
+                        ->where('id', $distribucionFacturaId)
+                        ->update([
+                            'estado_entrega' => $estadoCalculado->nuevo_estado,
+                            'updated_at' => now()
+                        ]);
+                }
+            }
 
             DB::commit();
 
@@ -269,30 +372,35 @@ class ConfirmacionEntrega extends Component
     {
         try {
             $request->validate([
-                'distribucion_factura_id' => 'required|exists:distribuciones_entrega_facturas,id',
-                'tipo_evidencia' => 'required|in:foto_entrega,firma_cliente,incidencia,otro',
+                'incidencia_id' => 'required|exists:entregas_productos_incidencias,id',
                 'archivo' => 'required|file|max:10240', // 10MB máximo
             ]);
 
             $archivo = $request->file('archivo');
             $extension = $archivo->getClientOriginalExtension();
             $nombreArchivo = 'evidencia_' . time() . '_' . uniqid() . '.' . $extension;
+
+            // Guardar directamente en public/incidencia_entrega
+            $destinoPath = public_path('incidencia_entrega');
+            if (!file_exists($destinoPath)) {
+                mkdir($destinoPath, 0755, true);
+            }
             
-            // Guardar en public/evidencias_entrega/
-            $ruta = $archivo->storeAs('evidencias_entrega', $nombreArchivo, 'public');
+            $archivo->move($destinoPath, $nombreArchivo);
+            $ruta = 'public/incidencia_entrega/' . $nombreArchivo;
 
             EntregaEvidencia::create([
-                'distribucion_factura_id' => $request->distribucion_factura_id,
-                'tipo_evidencia' => $request->tipo_evidencia,
+                'entrega_producto_incidencia_id' => $request->incidencia_id,
                 'ruta_archivo' => $ruta,
                 'user_id_registro' => Auth::id(),
+                'descripcion' => $request->input('descripcion', null),
             ]);
 
             return response()->json([
                 'icon' => 'success',
                 'title' => 'Evidencia guardada',
                 'text' => 'La evidencia ha sido registrada correctamente',
-                'ruta' => asset('storage/' . $ruta),
+                'ruta' => asset('incidencia_entrega/' . $nombreArchivo),
             ], 200);
 
         } catch (\Exception $e) {
@@ -313,6 +421,7 @@ class ConfirmacionEntrega extends Component
             $producto = EntregaProducto::findOrFail($productoId);
 
             $incidencias = EntregaProductoIncidencia::where('entrega_producto_id', $productoId)
+                ->withCount('evidencias')
                 ->orderByDesc('created_at')
                 ->get(['id', 'tipo', 'descripcion', 'created_at']);
 
@@ -346,7 +455,7 @@ class ConfirmacionEntrega extends Component
                 'descripcion' => 'required|string|min:5',
             ]);
 
-            EntregaProductoIncidencia::create([
+            $incidencia = EntregaProductoIncidencia::create([
                 'entrega_producto_id' => $productoId,
                 'tipo' => $request->tipo,
                 'descripcion' => $request->descripcion,
@@ -367,6 +476,9 @@ class ConfirmacionEntrega extends Component
                 'icon' => 'success',
                 'title' => 'Incidencia registrada',
                 'text' => 'La incidencia se guardó correctamente.',
+                'incidencia' => [
+                    'id' => $incidencia->id,
+                ],
                 'incidencias' => $incidencias,
             ], 201);
         } catch (\Exception $e) {
@@ -384,20 +496,23 @@ class ConfirmacionEntrega extends Component
     public function obtenerEvidencias($distribucionFacturaId)
     {
         try {
-            $evidencias = DB::select("
-                SELECT 
-                    id,
-                    tipo_evidencia,
-                    ruta_archivo,
-                    created_at
-                FROM entregas_evidencias
-                WHERE distribucion_factura_id = ?
-                ORDER BY created_at DESC
-            ", [$distribucionFacturaId]);
+            $evidencias = DB::select(
+                "SELECT 
+                    ee.id,
+                    ee.ruta_archivo,
+                    ee.created_at
+                FROM entregas_evidencias ee
+                INNER JOIN entregas_productos_incidencias epi ON ee.entrega_producto_incidencia_id = epi.id
+                INNER JOIN entregas_productos ep ON epi.entrega_producto_id = ep.id
+                WHERE ep.distribucion_factura_id = ?
+                ORDER BY ee.created_at DESC",
+                [$distribucionFacturaId]
+            );
 
-            // Agregar URL completa a cada evidencia
             foreach ($evidencias as &$evidencia) {
-                $evidencia->url = asset('storage/' . $evidencia->ruta_archivo);
+                // La ruta viene como "public/incidencia_entrega/archivo.jpg"
+                $nombreArchivo = basename($evidencia->ruta_archivo);
+                $evidencia->url = asset('incidencia_entrega/' . $nombreArchivo);
             }
 
             return response()->json([
@@ -409,6 +524,43 @@ class ConfirmacionEntrega extends Component
             return response()->json([
                 'success' => false,
                 'message' => 'Error al obtener evidencias',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Obtener evidencias de una incidencia específica
+     */
+    public function obtenerEvidenciasIncidencia($incidenciaId)
+    {
+        try {
+            $evidencias = DB::select(
+                "SELECT 
+                    ee.id,
+                    ee.ruta_archivo,
+                    ee.descripcion,
+                    ee.created_at
+                FROM entregas_evidencias ee
+                WHERE ee.entrega_producto_incidencia_id = ?
+                ORDER BY ee.created_at DESC",
+                [$incidenciaId]
+            );
+
+            foreach ($evidencias as &$evidencia) {
+                $nombreArchivo = basename($evidencia->ruta_archivo);
+                $evidencia->url = asset('incidencia_entrega/' . $nombreArchivo);
+            }
+
+            return response()->json([
+                'success' => true,
+                'evidencias' => $evidencias
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener evidencias de la incidencia',
                 'error' => $e->getMessage()
             ], 500);
         }
@@ -458,6 +610,50 @@ class ConfirmacionEntrega extends Component
     }
 
     /**
+     * Guardar evidencia desde base64
+     */
+    private function guardarEvidenciaBase64($incidenciaId, $base64Data)
+    {
+        try {
+            // Extraer el tipo de imagen y los datos
+            if (preg_match('/^data:image\/(\w+);base64,/', $base64Data, $type)) {
+                $data = substr($base64Data, strpos($base64Data, ',') + 1);
+                $type = strtolower($type[1]); // jpg, png, gif
+
+                $data = base64_decode($data);
+                if ($data === false) {
+                    return false;
+                }
+
+                // Generar nombre único para el archivo
+                $nombreArchivo = 'evidencia_' . time() . '_' . uniqid() . '.' . $type;
+                $ruta = public_path('incidencia_entrega/' . $nombreArchivo);
+
+                // Crear directorio si no existe
+                if (!file_exists(public_path('incidencia_entrega'))) {
+                    mkdir(public_path('incidencia_entrega'), 0777, true);
+                }
+
+                // Guardar archivo
+                file_put_contents($ruta, $data);
+
+                // Guardar en base de datos
+                $evidencia = new EntregaEvidencia();
+                $evidencia->entrega_producto_incidencia_id = $incidenciaId;
+                $evidencia->ruta_archivo = 'incidencia_entrega/' . $nombreArchivo;
+                $evidencia->user_id_registro = Auth::id();
+                $evidencia->save();
+
+                return true;
+            }
+            return false;
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Error al guardar evidencia base64: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
      * Obtener reporte de entregas por distribución
      */
     public function obtenerReporteDistribucion($distribucionId)
@@ -492,6 +688,81 @@ class ConfirmacionEntrega extends Component
             return response()->json([
                 'success' => false,
                 'message' => 'Error al obtener reporte',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Eliminar incidencia de producto
+     * Solo permite eliminar si la factura está en estado 'sin_entrega'
+     */
+    public function eliminarIncidenciaProducto($incidenciaId)
+    {
+        try {
+            // Obtener la incidencia con sus relaciones
+            $incidencia = DB::table('entregas_productos_incidencias as epi')
+                ->join('entregas_productos as ep', 'epi.entrega_producto_id', '=', 'ep.id')
+                ->join('distribuciones_entrega_facturas as def', 'ep.distribucion_factura_id', '=', 'def.id')
+                ->where('epi.id', $incidenciaId)
+                ->select('epi.id', 'def.estado_entrega', 'def.id as factura_id', 'epi.entrega_producto_id')
+                ->first();
+
+            if (!$incidencia) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Incidencia no encontrada'
+                ], 404);
+            }
+
+            // Verificar que la factura esté en estado sin_entrega
+            if ($incidencia->estado_entrega !== 'sin_entrega') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se puede eliminar la incidencia. La factura ya no está en estado "sin entrega"'
+                ], 422);
+            }
+
+            DB::beginTransaction();
+
+            // Eliminar evidencias asociadas primero (por foreign key)
+            DB::table('entregas_evidencias')
+                ->where('incidencia_id', $incidenciaId)
+                ->delete();
+
+            // Eliminar tratamientos asociados
+            DB::table('entregas_incidencias_tratamientos')
+                ->where('incidencia_id', $incidenciaId)
+                ->delete();
+
+            // Eliminar la incidencia
+            DB::table('entregas_productos_incidencias')
+                ->where('id', $incidenciaId)
+                ->delete();
+
+            // Actualizar el estado de tiene_incidencia en entregas_productos
+            $totalIncidencias = DB::table('entregas_productos_incidencias')
+                ->where('entrega_producto_id', $incidencia->entrega_producto_id)
+                ->count();
+
+            if ($totalIncidencias === 0) {
+                DB::table('entregas_productos')
+                    ->where('id', $incidencia->entrega_producto_id)
+                    ->update(['tiene_incidencia' => 0]);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Incidencia eliminada exitosamente'
+            ], 200);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al eliminar la incidencia',
                 'error' => $e->getMessage()
             ], 500);
         }

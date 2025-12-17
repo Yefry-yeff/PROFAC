@@ -163,6 +163,19 @@ Route::middleware(['auth:sanctum', 'verified'])->get('/dashboard', function () {
 
 Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 
+    //---------------------------------------GESTIÓN DE MENÚS-------------------------------//
+    Route::get('/menu/gestion', \App\Http\Livewire\Menu\GestionMenu::class)->name('menu.gestion');
+    
+    // Rutas para Menús
+    Route::post('/menu/guardar', [App\Http\Controllers\MenuController::class, 'guardarMenu']);
+    Route::get('/menu/obtener/{id}', [App\Http\Controllers\MenuController::class, 'obtenerMenu']);
+    Route::put('/menu/actualizar/{id}', [App\Http\Controllers\MenuController::class, 'actualizarMenu']);
+    
+    // Rutas para Submenus
+    Route::post('/submenu/guardar', [App\Http\Controllers\MenuController::class, 'guardarSubmenu']);
+    Route::get('/submenu/obtener/{id}', [App\Http\Controllers\MenuController::class, 'obtenerSubmenu']);
+    Route::put('/submenu/actualizar/{id}', [App\Http\Controllers\MenuController::class, 'actualizarSubmenu']);
+
     //---------------------------------------configuracion-------------------------------//
     Route::get('/configuracion/datos', [Configuracion::class, 'parametros']);
     Route::get('/configuracion/datos/compra', [Configuracion::class, 'datosCompra']);
@@ -318,12 +331,30 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('/usuario/info/{idUsuario}', [ListarUsuarios::class, 'infoUsuario']);
     Route::get('/usuario/roles/{idRol}', [ListarUsuarios::class, 'selectRoles']);
     Route::get('/usuario/baja/{idUsuario}', [ListarUsuarios::class, 'baja']);
-
+    Route::get('/usuario/activar/{idUsuario}', [ListarUsuarios::class, 'activar']);
 
     /*------------------------------------------------NUEVAS RUTAS DE ACCESO A USUARIOS  */
     Route::post('/usuario/guardar', [ListarUsuarios::class, 'guardarUsuarios']);
-
     Route::post('/usuario/actualizar', [ListarUsuarios::class, 'actualizarUsuarios']);
+
+    //-----------------------------------------------Roles-------------------------------------------------------------------------------------------//
+    Route::get('/usuarios/roles', App\Http\Livewire\Usuarios\Roles::class)->name('roles.gestion');
+    Route::get('/roles/listar', [App\Http\Livewire\Usuarios\Roles::class, 'listarRoles']);
+    Route::post('/roles/guardar', [App\Http\Livewire\Usuarios\Roles::class, 'guardarRol']);
+    Route::get('/roles/obtener/{id}', [App\Http\Livewire\Usuarios\Roles::class, 'obtenerRol']);
+    Route::put('/roles/actualizar/{id}', [App\Http\Livewire\Usuarios\Roles::class, 'actualizarRol']);
+    Route::post('/roles/cambiar-estado/{id}', [App\Http\Livewire\Usuarios\Roles::class, 'cambiarEstadoRol']);
+    Route::delete('/roles/eliminar/{id}', [App\Http\Livewire\Usuarios\Roles::class, 'eliminarRol']);
+    Route::get('/roles/estados', [App\Http\Livewire\Usuarios\Roles::class, 'listarEstados']);
+    Route::get('/roles/{id}/usuarios', [App\Http\Livewire\Usuarios\Roles::class, 'obtenerUsuariosDelRol']);
+    Route::post('/roles/{id}/agregar-usuario', [App\Http\Livewire\Usuarios\Roles::class, 'agregarUsuarioAlRol']);
+    Route::post('/roles/{id}/quitar-usuario', [App\Http\Livewire\Usuarios\Roles::class, 'quitarUsuarioDelRol']);
+    Route::get('/usuarios/todos', [App\Http\Livewire\Usuarios\Roles::class, 'listarTodosUsuarios']);
+    Route::get('/usuarios/{id}/rol-anterior', [App\Http\Livewire\Usuarios\Roles::class, 'obtenerRolAnteriorUsuario']);
+    Route::get('/roles/{id}/permisos', [App\Http\Livewire\Usuarios\Roles::class, 'obtenerPermisosDelRol']);
+    Route::get('/submenus/todos', [App\Http\Livewire\Usuarios\Roles::class, 'listarTodosSubmenus']);
+    Route::get('/roles/{id}/permisos', [App\Http\Livewire\Usuarios\Roles::class, 'obtenerPermisosDelRol']);
+    Route::get('/submenus/todos', [App\Http\Livewire\Usuarios\Roles::class, 'listarTodosSubmenus']);
 
     /*----------------------------------------------- /NUEVAS RUTAS DE ACCESO A USUARIOS  */
 
@@ -999,9 +1030,13 @@ Route::post('/reporte/Libroventarep/exportar-excel/{tipo}/{fechaInicio}/{fechaFi
     Route::post('/logistica/distribuciones/iniciar/{distribucionId}', [DistribucionEntrega::class, 'iniciarDistribucion']);
     Route::post('/logistica/distribuciones/cancelar/{distribucionId}', [DistribucionEntrega::class, 'cancelarDistribucion']);
     Route::post('/logistica/distribuciones/completar/{distribucionId}', [DistribucionEntrega::class, 'completarDistribucion']);
+    Route::get('/logistica/distribuciones/validar-completar/{distribucionId}', [DistribucionEntrega::class, 'validarCompletarDistribucion']);
     Route::get('/logistica/facturas/incidencias/{facturaId}', [DistribucionEntrega::class, 'obtenerIncidenciasFactura']);
+    Route::post('/logistica/facturas/incidencias/tratamiento', [DistribucionEntrega::class, 'guardarTratamientoIncidencias']);
     Route::post('/logistica/facturas/anular-entrega/{facturaId}', [DistribucionEntrega::class, 'anularEntrega']);
     Route::post('/logistica/facturas/confirmar-entrega/{facturaId}', [DistribucionEntrega::class, 'confirmarEntregaFactura']);
+    Route::post('/logistica/facturas/desbloquear/{facturaId}', [DistribucionEntrega::class, 'desbloquearFactura']);
+    Route::get('/logistica/distribuciones/validar-incidencias/{distribucionId}', [DistribucionEntrega::class, 'validarIncidenciasSinTratamiento']);
 
     // Confirmacion de Entregas
     Route::get('/logistica/confirmacion', ConfirmacionEntrega::class);
@@ -1012,6 +1047,8 @@ Route::post('/reporte/Libroventarep/exportar-excel/{tipo}/{fechaInicio}/{fechaFi
     Route::get('/logistica/confirmacion/evidencias/{distribucionFacturaId}', [ConfirmacionEntrega::class, 'obtenerEvidencias']);
     Route::get('/logistica/confirmacion/productos/{productoId}/incidencias', [ConfirmacionEntrega::class, 'listarIncidenciasProducto']);
     Route::post('/logistica/confirmacion/productos/{productoId}/incidencias', [ConfirmacionEntrega::class, 'registrarIncidenciaProducto']);
+    Route::post('/logistica/confirmacion/productos/incidencias/{incidenciaId}/eliminar', [ConfirmacionEntrega::class, 'eliminarIncidenciaProducto']);
+    Route::get('/logistica/confirmacion/incidencias/{incidenciaId}/evidencias', [ConfirmacionEntrega::class, 'obtenerEvidenciasIncidencia']);
     Route::post('/logistica/confirmacion/marcar-todos/{distribucionFacturaId}', [ConfirmacionEntrega::class, 'marcarTodosEntregados']);
     Route::get('/logistica/confirmacion/reporte/{distribucionId}', [ConfirmacionEntrega::class, 'obtenerReporteDistribucion']);
 

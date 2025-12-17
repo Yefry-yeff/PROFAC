@@ -90,7 +90,8 @@
                                         <th>Correo</th>
                                         <th>Identidad</th>
                                         <th>Fecha de Nacimiento</th>
-                                        <th>tipo</th>
+                                        <th>Tipo</th>
+                                        <th>Estado</th>
                                         <th>Fecha Ingreso</th>
                                         <th>Opciones</th>
 

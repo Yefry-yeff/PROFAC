@@ -58,4 +58,12 @@ class User extends Authenticatable
     protected $appends = [
         'profile_photo_url',
     ];
+
+    /**
+     * Rol asignado al usuario (FK users.rol_id)
+     */
+    public function rol()
+    {
+        return $this->belongsTo(Rol::class, 'rol_id');
+    }
 }

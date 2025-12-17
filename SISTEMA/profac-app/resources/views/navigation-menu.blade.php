@@ -24,7 +24,7 @@
                 </div>
             </div>
 
-            <div class="hidden sm:flex sm:items-center sm:ml-6">
+            <div class="hidden sm:flex sm:items-center sm:ml-6 profile-area">
                 <!-- Teams Dropdown -->
 
                 <!-- Settings Dropdown -->
@@ -34,9 +34,17 @@
                             @if (Laravel\Jetstream\Jetstream::managesProfilePhotos())
                                 <button
                                     class="flex text-sm transition border-2 border-transparent rounded-full focus:outline-none focus:border-gray-300">
-                                    <img class="object-cover w-8 h-8 rounded-full"
-                                        src="{{ asset('storage/' . Auth::user()->profile_photo_path) }}"
-                                        alt="{{ Auth::user()->name }}" />
+                                    @if (Auth::user()->profile_photo_path && file_exists(public_path('storage/' . Auth::user()->profile_photo_path)))
+                                        <img class="object-cover w-8 h-8 rounded-full"
+                                            src="{{ asset('storage/' . Auth::user()->profile_photo_path) }}"
+                                            alt="{{ Auth::user()->name }}" />
+                                        <!-- Inicial visible solo en móvil -->
+                                        <span class="mobile-initial-avatar" aria-hidden="true">{{ substr(Auth::user()->name, 0, 1) }}</span>
+                                    @else
+                                        <div class="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 font-bold">
+                                            {{ substr(Auth::user()->name, 0, 1) }}
+                                        </div>
+                                    @endif
                                 </button>
                             @else
                                 <span class="inline-flex rounded-md">
@@ -117,9 +125,15 @@
             <div class="flex items-center px-4">
                 @if (Laravel\Jetstream\Jetstream::managesProfilePhotos())
                     <div class="mr-3 shrink-0">
-                        <img class="object-cover w-10 h-10 rounded-full"
-                            src="{{ asset('storage/' . Auth::user()->profile_photo_path) }}"
-                            alt="{{ Auth::user()->name }}" />
+                        @if (Auth::user()->profile_photo_path && file_exists(public_path('storage/' . Auth::user()->profile_photo_path)))
+                            <img class="object-cover w-10 h-10 rounded-full"
+                                src="{{ asset('storage/' . Auth::user()->profile_photo_path) }}"
+                                alt="{{ Auth::user()->name }}" />
+                        @else
+                            <div class="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 font-bold text-lg">
+                                {{ substr(Auth::user()->name, 0, 1) }}
+                            </div>
+                        @endif
                     </div>
                 @endif
 
@@ -190,6 +204,62 @@
 
     <!---menu lateral de la plantilla--->
     <style>
+        /* ====== Header mobile layout: center logo, align buttons ====== */
+        @media (max-width: 768px) {
+            /* Make header row positioning context */
+            nav .flex.justify-between.h-16 { position: relative; }
+
+            /* Center logo block */
+            nav .flex.justify-between.h-16 > .flex {
+                width: 100%;
+                justify-content: center;
+            }
+
+            /* Hide Jetstream hamburger (we'll use the sidebar toggle button) */
+            nav .flex.items-center.-mr-2.sm\:hidden { display: none !important; }
+
+            /* Use the existing sidebar toggle button on the left */
+            nav .navbar-minimalize {
+                position: absolute;
+                left: 12px;
+                top: 50%;
+                transform: translateY(-50%);
+                display: inline-flex !important;
+                z-index: 10;
+                background: #1ab394 !important; /* Verde original */
+                color: #ffffff !important;
+                border: none !important;
+                width: 40px; height: 40px;
+                align-items: center; justify-content: center;
+                padding: 0 !important;
+                line-height: 1;
+                border-radius: 6px;
+                box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+            }
+            nav .navbar-minimalize i.fa { font-size: 20px; color: #ffffff !important; }
+
+            /* Show profile avatar/initial on the right in mobile */
+            nav .profile-area {
+                display: flex !important;
+                position: absolute;
+                right: 10px;
+                top: 50%;
+                transform: translateY(-50%);
+                margin-left: 0;
+            }
+
+            /* Force initial-only on mobile even if photo exists */
+            nav .profile-area img { display: none !important; }
+            nav .profile-area .mobile-initial-avatar {
+                display: inline-flex !important;
+                width: 32px; height: 32px;
+                border-radius: 9999px;
+                background: #e5e7eb; /* gray-200 */
+                color: #374151; /* gray-700 */
+                font-weight: 700;
+                align-items: center; justify-content: center;
+            }
+        }
         @media screen and (min-width: 600px) {
             .scroll-bar-sidebar {
                 overflow-y: auto;
@@ -203,808 +273,599 @@
         <div class="sidebar-collapse ">
             <ul class="nav metismenu scroll-bar-sidebar" id="side-menu" style="">
                 <li class="nav-header">
-                    <div class="dropdown profile-element">
-                        {{-- <img alt="image"  class="rounded-circle" src="" h-8 w-8 rounded-full object-cover/> --}}
-
-                        <img class="rounded-circle" style="max-width: 3.5rem"
-                            src="{{ asset('storage/' . Auth::user()->profile_photo_path) }}"
-                            alt="{{ Auth::user()->name }}" />
-
-                        <div data-toggle="dropdown" class="dropdown-toggle" href="#">
-                            <span class="block font-bold m-t-xs" style="color:#FFF;"><b> {{ Auth::user()->name }}</b></span>
-                            @php
-                                $rol = DB::SELECTONE('select nombre from rol where id = ' . Auth::user()->rol_id);
-                            @endphp
-                            <span class="block text-xs text-muted">{{ $rol->nombre }} <b class="caret"></b></span>
-                        </div>
-                        <!-- <ul class="dropdown-menu animated fadeInRight m-t-xs">
-                                        <li><a class="dropdown-item" href="profile.html">Profile</a></li>
-                                        <li><a class="dropdown-item" href="contacts.html">Contacts</a></li>s
-                                        <li><a class="dropdown-item" href="mailbox.html">Mailbox</a></li>
-                                        <li class="dropdown-divider"></li>
-                                        <li><a class="dropdown-item" href="login.html">Logout</a></li>
-                                    </ul> -->
-                    </div>
                     <div class="logo-element">
                         IN+
                     </div>
                 </li>
 
-                {{--  INICIO DE MENÚ  --}}
-            @if (Auth::user()->rol_id == '1')
-                <li>
-                    <a href="{{ route('dashboard') }}"><i class="fa fa-area-chart" style="color:#ffffff; "aria-hidden="true"></i> <span class="nav-label" style="color:#ffffff;">Dashboard</span></a>
-                <li>
-                <li>
-                    <a><i class="fa-solid fa-user" style="color:#ffffff;"></i> <span class="nav-label" style="color:#ffffff;">Usuarios</span><span class="fa arrow"></span></a>
-                    <ul class="nav nav-second-level">
-                        <li href="dashboard_2.html"><a href="/usuarios" style="color:#ffffff;">Lista de Usuarios</a></li>
-                    </ul>
-                </li>
-                    <li>
-                        <a><i class="fa-solid fa-user" style="color:#ffffff;"></i> <span class="nav-label"
-                                style="color:#ffffff;">Escala de precios</span>
-                            <span class="fa arrow"></span></a>
-                        <ul class="nav nav-second-level">
-                            <li href="dashboard_2.html"><a href="/clientes/categorias" style="color:#ffffff;">Categoría de Clientes</a></li>
-                            <li href="dashboard_2.html"><a href="/precios" style="color:#ffffff;">Gestión de precios</a></li>
-                            <li href="dashboard_2.html"><a href="/reportes/escalas" style="color:#ffffff;">Reportería Escalas</a></li>
-
-
-                        </ul>
-                    </li>
-                    <li>
-                        <a><i class="fa-solid fa-user" style="color:#ffffff;"></i> <span class="nav-label"
-                                style="color:#ffffff;">Escala de comisiones</span>
-                            <span class="fa arrow"></span></a>
-                        <ul class="nav nav-second-level">
-                            <li href="dashboard_2.html"><a href="/comisiones/configuracion" style="color:#ffffff;">Gestión de Comisiones</a></li>
-                            <li href="dashboard_2.html"><a href="/comisiones/empleado" style="color:#ffffff;">Mis comisiones</a></li>
-                            <li href="dashboard_2.html"><a href="/comisiones/general" style="color:#ffffff;">Reportes de Comisión</a></li>
-
-
-                        </ul>
-                    </li>
-            @endif
-
-
-
-                <li>
-                    <a><i class="fa-solid fa-file-invoice" style="color:#ffffff;"></i><span class="nav-label" style="color:#ffffff;">Sala de Pedidos</span><span class="fa arrow"></span></a>
-                    <ul class="nav nav-second-level">
-                        <li><a href="/expo/cotizacion/3" style="color:#ffffff;">Pedido</a></li>
-                        <li><a href="/cotizacion/listado/expo/4" style="color:#ffffff;">Lista de pedidos</a></li>
-                        @if (Auth::user()->rol_id == '1' or Auth::user()->rol_id == '5' or Auth::user()->rol_id == '8' or Auth::user()->rol_id == '9')
-                        <li><a href="/reportes/expo" style="color:#ffffff;">Reportería Pedidos</a></li>
-
-                     @endif
-                    </ul>
+                {{-- Cuadro de búsqueda en sidebar --}}
+                <li class="search-sidebar" style="padding: 15px 20px;">
+                    <div class="input-group">
+                        <input type="text" id="menu-search" class="form-control" placeholder="Buscar en menú..." 
+                               style="background: #ffffff; border: 1px solid #e7eaec; color: #333; border-radius: 4px;">
+                        <span class="input-group-addon" style="background: #ffffff; border: 1px solid #e7eaec; border-left: 0;">
+                            <i class="fa fa-search" style="color: #999;"></i>
+                        </span>
+                    </div>
                 </li>
 
-
-
-            @if (Auth::user()->rol_id == '2' or Auth::user()->rol_id == '1')
-                <a><i  style="color:#ffffff;"></i><span style="color:#ffffff;">Vendedores</span></a>
-                {{--  <li>
-                    <a><i class="fa-solid fa-file-invoice" style="color:#ffffff;"></i><span class="nav-label" style="color:#ffffff;">Sala de Ventas</span><span class="fa arrow"></span></a>
-                    <ul class="nav nav-second-level">
-                        <li><a href="/expo/cotizacion/3" style="color:#ffffff;">Expo Cotiza</a></li>
-                        <li><a href="/cotizacion/listado/expo/4" style="color:#ffffff;">Listado de Cotizaciones</a></li>
-                        <li><a href="/bodega/prod" style="color:#ffffff;">Reporte</a></li>
-                    </ul>
-                </li>  --}}
-                <li>
-                    <a><i class="fa-solid fa-file-invoice" style="color:#ffffff;"></i>
-                        {{--  <span class="nav-label" style="color:#ffffff;">Ventas Clientes B</span>  --}}
-                        <span class="nav-label" style="color:#ffffff;">Ventas Clientes A</span>
-                        <span class="fa arrow"></span></a>
-
-                    <ul class="nav nav-second-level">
-                        <li><a href="/proforma/cotizacion/2" style="color:#ffffff;">Cotización </a></li>
-                        <li><a href="/cotizacion/listado/estatal" style="color:#ffffff;">Listado de Cotizaciones</a></li>
-                    </ul>
-                </li>
-
-                <li>
-                    <a><i class="fa-solid fa-file-invoice" style="color:#ffffff;"></i>
-                        <span class="nav-label" style="color:#ffffff;">Ventas Clientes B</span>
-                        <span class="fa arrow"></span></a>
-                        <ul class="nav nav-second-level">
-                            <li><a href="/proforma/cotizacion/1" style="color:#ffffff;">Cotización </a></li>
-                            <li><a href="/cotizacion/listado/corporativo" style="color:#ffffff;">Listado de Cotizaciones</a></li>
-                        </ul>
-                </li>
-
-
-                {{--  <li>
-                    <a><i class="fa-solid fa-magnifying-glass-dollar" style="color:#ffffff;"></i><span class="nav-label"
-                            style="color:#ffffff;">Comisiones</span>
-                        <span class="fa arrow"></span></a>
-
-                    <ul class="nav nav-second-level">
-                        <li><a href="/comisiones/vendedor" style="color:#ffffff;">Comisiones Colaborador</a></li>
-                    </ul>
-                </li>  --}}
-
-                <li>
-                    <a><i class="fa-solid fa-cubes" style="color:#ffffff;">
-                        </i><span class="nav-label" style="color:#ffffff;">Inventario</span>
-                        <span class="fa arrow"></span></a>
-
-                    <ul class="nav nav-second-level">
-                        <li><a href="/producto/registro" style="color:#ffffff;">Catálogo</a></li>
-                    </ul>
-                </li>
-
-                <li>
-                    <a><i class="fa-solid fa-magnifying-glass-dollar" style="color:#ffffff;"></i><span class="nav-label" style="color:#ffffff;">Cuentas por cobrar</span><span class="fa arrow"></span></a>
-
-                    <ul class="nav nav-second-level">
-                        {{--  <li><a href="/cuentas/por/cobrar/listado" style="color:#ffffff;">Listado de Facturas</a></li>
-                        <li><a href="/ventas/cuentas_por_cobrar" style="color:#ffffff;">Cuentas Por Cobrar</a></li>  --}}
-                        <li><a href="/cuentas_por_cobrar/pagos" style="color:#ffffff;">Aplicacion de Pagos</a></li>
-                    </ul>
-                </li>
-            @endif
-
-            @if (Auth::user()->rol_id == '3' or Auth::user()->rol_id == '1')
-
-                <a><i  style="color:#ffffff;"></i><span style="color:#ffffff;">Facturadores</span></a>
-                <li>
-                    <a><i class="fa-solid fa-file-invoice" style="color:#ffffff;"></i>
-                        <span class="nav-label" style="color:#ffffff;">Ventas Clientes A</span>
-                        <span class="fa arrow"></span></a>
-
-                    <ul class="nav nav-second-level">
-                        <li><a href="/ventas/estatal" style="color:#ffffff;">Facturacion</a></li>
-                        <li><a href="/ventas/sin/restriccion/gobierno" style="color:#ffffff;">FacturacionSR/Clientes A</a></li>
-                        <li><a href="/facturas/estatal" style="color:#ffffff;">Listado de Facturas Clientes A</a> </li>
-                        <li><a href="/ventas/anulado/estatal" style="color:#ffffff;">Listado de Facturas Anuladas</a></li>
-                        <li><a href="/proforma/cotizacion/2" style="color:#ffffff;">Cotización </a></li>
-                        <li><a href="/cotizacion/listado/estatal" style="color:#ffffff;">Listado de Cotizaciones</a></li>
-                        <li><a href="/estatal/ordenes" style="color:#ffffff;">Orden de Compra</a></li>
-                    </ul>
-                </li>
-                <li>
-                    <a><i class="fa-solid fa-file-invoice" style="color:#ffffff;"></i>
-                        <span class="nav-label" style="color:#ffffff;">Ventas Clientes B</span>
-                        <span class="fa arrow"></span></a>
-                        <ul class="nav nav-second-level">
-                            <li><a href="/ventas/coporativo" style="color:#ffffff;">Facturacion</a></li>
-                            <li><a href="/ventas/sin/restriccion/precio" style="color:#ffffff;">Facturacion SR/P</a></li>
-                            <li><a href="/facturas/corporativo/lista" style="color:#ffffff;">Listado de FacturasClientes B</a></li>
-                            <li><a href="/ventas/anulado/corporativo" style="color:#ffffff;">Listado de Facturas Anuladas</a></li>
-                            <li><a href="/proforma/cotizacion/1" style="color:#ffffff;">Cotización </a></li>
-                            <li><a href="/cotizacion/listado/corporativo" style="color:#ffffff;">Listado de Cotizaciones</a></li>
-                            <li><a href="/ventas/coorporativo/orden/compra" style="color:#ffffff;">Orden de compra</a></li>
-                        </ul>
-                </li>
-
-
-                <li>
-                    <a><i class="fa-solid fa-file-invoice" style="color:#ffffff;"></i><span class="nav-label" style="color:#ffffff;">Ventas exoneradas</span>
-                        <span class="fa arrow"></span></a>
-
-                    <ul class="nav nav-second-level">
-                        <li><a href="/ventas/exonerado/factura" style="color:#ffffff;">Facturacion</a></li>
-                        <li><a href="/exonerado/ventas/lista" style="color:#ffffff;">Listado de Facturas</a></li>
-                        <li><a href="/ventas/anulado/exonerado" style="color:#ffffff;">Listado de Facturas Anuladas</a></li>
-                        <li><a href="/estatal/exonerado" style="color:#ffffff;">Registro Exonerado</a></li>
-                    </ul>
-                </li>
-
-                <li>
-                    <a><i class="fa-solid fa-file-invoice" style="color:#ffffff;"></i><span class="nav-label" style="color:#ffffff;">Precios</span><span class="fa arrow"></span></a>
-
-                    <ul class="nav nav-second-level">
-                        <li><a href="/ventas/historico_precios_cliente" style="color:#ffffff;">Historico de Precios</a></li>
-                    </ul>
-                </li>
-
-                <li>
-                    <a><i class="fa-solid fa-check-to-slot" style="color:#ffffff"></i> </i><span
-                            class="nav-label" style="color:#ffffff;">Comprobante de entrega</span>
-                        <span class="fa arrow"></span></a>
-
-                    <ul class="nav nav-second-level">
-                        {{-- <li><a href="/comprobante/entrega" style="color:#ffffff;">Crear Comprobante</a></li> --}}
-                        <li><a href="/comprovante/entrega/listado" style="color:#ffffff;">Listado de Comprobantes</a></li>
-                        <li><a href=" /comprovante/entrega/anulados" style="color:#ffffff;">Listado de Anulados</a></li>
-                    </ul>
-                </li>
-                <li>
-                    <a><i class="fa-solid fa-cubes" style="color:#ffffff;">
-                        </i><span class="nav-label" style="color:#ffffff;">Inventario</span>
-                        <span class="fa arrow"></span></a>
-
-                    <ul class="nav nav-second-level">
-                        <li><a href="/producto/registro" style="color:#ffffff;">Catálogo</a></li>
-                    </ul>
-                </li>
-                <li>
-                    <a><i class="fa-solid fa-check-to-slot" style="color:#ffffff"></i> </i><span class="nav-label" style="color:#ffffff;">Comprobante De Entrega</span><span class="fa arrow"></span></a>
-
-                    <ul class="nav nav-second-level">
-                        <li><a href="/comprobante/entrega" style="color:#ffffff;">Crear Comprobante</a></li>
-                        <li><a href="/comprovante/entrega/listado" style="color:#ffffff;">Listado de Comprobantes</a></li>
-                        <li><a href=" /comprovante/entrega/anulados" style="color:#ffffff;">Listado de Anulados</a></li>
-                    </ul>
-                </li>
-                                <li>
-                    <a><i class="fa-solid fa-truck-medical" style="color:#ffffff"></i><span class="nav-label" style="color:#ffffff;">Entregas Agendadas</span><span class="fa arrow"></span></a>
-
-                    <ul class="nav nav-second-level">
-                        <li><a href=" /listar/vale/entrega" style="color:#ffffff;">Listado de Entregas</a></li>
-                    </ul>
-                </li>
-                                <li>
-                    <a><i class="fa-solid fa-list-check" style="color:#ffffff;"></i><span class="nav-label" style="color:#ffffff;">Vale</span><span class="fa arrow"></span></a>
-
-                    <ul class="nav nav-second-level">
-                        {{-- <li><a href="/vale/listado/facturas" style="color:#ffffff;">Agregar vale a factura</a>
-                        </li> --}}
-                        <li><a href="/vale/restar/inventario" style="color:#ffffff;">Lista de vales</a></li>
-                    </ul>
-                </li>
-            @endif
-
-            @if (Auth::user()->rol_id == '4' or Auth::user()->rol_id == '1')
-                <a><i  style="color:#ffffff;"></i><span style="color:#ffffff;">Contabilidad</span></a>
-                <li>
-                    <a href="{{ route('dashboard') }}"><i class="fa fa-area-chart" style="color:#ffffff;" aria-hidden="true"></i> <span class="nav-label" style="color:#ffffff;">Dashboard</span></a>
-                </li>
-                <li>
-                    <a><i class="fa-solid fa-users" style="color:#ffffff;"></i> <span class="nav-label" style="color:#ffffff;">Clientes</span><span class="fa arrow"></span></a>
-                    <ul class="nav nav-second-level">
-                        <li><a href="/clientes" style="color:#ffffff;">Registrar cliente</a></li>
-                    </ul>
-                </li>
-                <li>
-                    <a><i class="fa-solid fa-building-columns" style="color:#ffffff;"></i><span class="nav-label" style="color:#ffffff;">Bancos</span><span class="fa arrow"></span></a>
-
-                    <ul class="nav nav-second-level">
-
-                        <li><a href="/banco/bancos" style="color:#ffffff;">Bancos</a></li>
-
-                    </ul>
-                </li>
-                <li>
-                    <a><i class="fa-solid fa-list-check" style="color:#ffffff;"></i><span class="nav-label"
-                            style="color:#ffffff;">Boleta de compra</span>
-                        <span class="fa arrow"></span></a>
-
-                    <ul class="nav nav-second-level">
-                        <li><a href="https://cadss.hn/boleta/blta_listar_boletas.php"
-                                style="color:#ffffff;">Gestión de Boleta</a>
-                        </li>
-                    </ul>
-                </li>
-
-                <li>
-                    <a><i class="text-white fa-solid fa-arrow-right-arrow-left"></i>
-                        <span class="nav-label" style="color:#ffffff;">Nota de crédito</span>
-                        <span class="fa arrow"></span></a>
-
-                    <ul class="nav nav-second-level">
-
-                        <li><a href="/nota/credito" style="color:#ffffff;">Crear devolución</a></li>
-                        <li><a href="/nota/credito/listado" style="color:#ffffff;">Listado de notas de credito Clientes A</a>
-                        <li><a href="/nota/credito/gobierno" style="color:#ffffff;">Listado de notas de credito Clientes B</a>
-                        <li><a href="/ventas/motivo_credito" style="color:#ffffff;">Motivo Nota de Crédito</a>
-                        </li>
-
-                    </ul>
-                </li>
-                <li>
-                    <a><i class="fa-solid fa-user" style="color:#ffffff;"></i> <span class="nav-label"style="color:#ffffff;">Nota de débito</span><span class="fa arrow"></span></a>
-                    <ul class="nav nav-second-level">
-                        <li><a href="/debito" style="color:#ffffff;">Gestiones</a></li>
-                        <li><a href="/nota/debito/lista/gobierno" style="color:#ffffff;">Listado notas debito Clientes A</a></li>
-                        <li><a href="/nota/debito/lista" style="color:#ffffff;">Listado notas debito Clientes B</a></li>
-                    </ul>
-                </li>
-                <li>
-                    <a><i class="fa-solid fa-magnifying-glass-dollar" style="color:#ffffff;"></i><span class="nav-label" style="color:#ffffff;">Cuentas por cobrar</span><span class="fa arrow"></span></a>
-
-                    <ul class="nav nav-second-level">
-                        <li><a href="/cuentas/por/cobrar/listado" style="color:#ffffff;">Listado de Facturas</a></li>
-                        <li><a href="/ventas/cuentas_por_cobrar" style="color:#ffffff;">Cuentas Por Cobrar</a></li>
-                        <li><a href="/cuentas_por_cobrar/pagos" style="color:#ffffff;">Aplicacion de Pagos</a></li>
-                    </ul>
-                </li>
-                <li>
-                    <a><i class="fa-solid fa-user" style="color:#ffffff;"></i> <span class="nav-label" style="color:#ffffff;">Cierre Diario</span><span class="fa arrow"></span></a>
-                    <ul class="nav nav-second-level">
-                        <li><a href="/cierre/caja" style="color:#ffffff;">Detalle de cierre</a></li>
-                        <li><a href="/cierre/historico" style="color:#ffffff;">Historico de cierre</a></li>
-                        <li><a href="/ventas/anulado/estatal" style="color:#ffffff;">Listado de Facturas Anuladas</a></li>
-                    </ul>
-                </li>
-                <li>
-                    <a><i class="fa-solid fa-user" style="color:#ffffff;"></i> <span class="nav-label" style="color:#ffffff;">Reportes</span><span class="fa arrow"></span></a>
-                    <ul class="nav nav-second-level">
-                        <li><a href="/facturaDia" style="color:#ffffff;">Reporte de ventas</a>
-                        <li ><a href="/reporte/comision" style="color:#ffffff;">Reporte comisiones</a></li>
-                        <li><a href="/reporte/reporteria" style="color:#ffffff;">Reportes Varios</a>
-                        <li ><a href="/reporte/Cierrediariorep" style="color:#ffffff;">Reporte Cierre Diario</a></li>
-                        <li ><a href="/reporte/Librocobrosrep" style="color:#ffffff;">Reporte Libro de Cobros</a></li>
-                        <li ><a href="/reporte/Libroventarep" style="color:#ffffff;">Reporte Libro de Ventas</a></li>
-                        <li ><a href="/reporte/Facturasanuladasrep" style="color:#ffffff;">Reporte Facturas Anuladas</a></li>
-                        <li ><a href="/reporte/comisiones" style="color:#ffffff;">Comisiones</a></li>
-                    </ul>
-                </li>
-            @endif
-
-            @if (Auth::user()->rol_id == '5' or Auth::user()->rol_id == '1')
-                <a><i  style="color:#ffffff;"></i><span style="color:#ffffff;">Auxiliar Administrativo</span></a>
-                <li>
-                    <a href="{{ route('dashboard') }}"><i class="fa fa-area-chart" style="color:#ffffff;" aria-hidden="true"></i> <span class="nav-label" style="color:#ffffff;">Dashboard</span></a>
-                </li>
-
-                <li>
-                    <a><i class="fa-solid fa-users" style="color:#ffffff;"></i> <span class="nav-label" style="color:#ffffff;">Clientes</span><span class="fa arrow"></span></a>
-                    <ul class="nav nav-second-level">
-                        <li><a href="/clientes" style="color:#ffffff;">Registrar cliente</a></li>
-                    </ul>
-                </li>
-                <li>
-                    <a><i class="fa-solid fa-warehouse" style="color:#ffffff;"></i> <span class="nav-label" style="color:#ffffff;">Bodega</span><span class="fa arrow"></span></a>
-                    <ul class="nav nav-second-level">
-                        <li><a href="/bodega" style="color:#ffffff;">Crear Bodega</a></li>
-                        <li><a href="/bodega/editar/screen" style="color:#ffffff;">Editar Bodega</a></li>
-                    </ul>
-                </li>
-                <li>
-                    <a><i class="fa-solid fa-dolly " style="color:#ffffff;"></i><span class="nav-label" style="color:#ffffff;">Proveedores</span> <span class="fa arrow"></span></a>
-                    <ul class="nav nav-second-level">
-                        <li><a href="/proveedores" style="color:#ffffff;">Registrar Proveedor</a></li>
-                        <li><a href="/inventario/retenciones" style="color:#ffffff;">Crear Retenciones</a></li>
-                    </ul>
-                </li>
-                <li>
-                    <a><i class="fa-solid fa-file-invoice" style="color:#ffffff;"></i>
-                        {{--  <span class="nav-label" style="color:#ffffff;">Ventas Clientes A</span>  --}}
-                        <span class="nav-label" style="color:#ffffff;">CAI - Configuracion</span>
-                        <span class="fa arrow"></span>
-                        <ul class="nav nav-second-level">
-                            <li><a href="/ventas/cai" style="color:#ffffff;">CAI</a></li>
-                        </ul>
+                {{-- Botón Dashboard - Siempre visible para todos los roles --}}
+                <li class="dashboard-btn">
+                    <a href="{{ route('dashboard') }}" class="dashboard-link">
+                        <i class="fa fa-area-chart"></i>
+                        <span class="nav-label">Dashboard</span>
                     </a>
                 </li>
-                <li>
-                    <a><i class="fa-solid fa-cubes" style="color:#ffffff;">
-                        </i><span class="nav-label" style="color:#ffffff;">Inventario</span>
-                        <span class="fa arrow"></span></a>
+                
+                <style>
+                    .dashboard-btn .dashboard-link {
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        padding: 10px 25px;
+                        color: #ffffff !important;
+                        text-decoration: none;
+                    }
+                    
+                    .dashboard-btn .dashboard-link i {
+                        font-size: 16px;
+                        margin-right: 10px;
+                        color: #ffffff !important;
+                    }
+                    
+                    .dashboard-btn .dashboard-link .nav-label {
+                        font-size: 14px;
+                        color: #ffffff !important;
+                    }
+                    
+                    /* ========== REGLAS GLOBALES PARA ICONOS (MÁXIMA PRIORIDAD) ========== */
+                    /* CRÍTICO: Sobrescribir regla de Inspinia que oculta spans en mini-navbar */
+                    body.mini-navbar .navbar-default .nav li a i,
+                    body.mini-navbar .navbar-default .nav li a i.fa,
+                    body.mini-navbar .navbar-default .nav li a i[class*="fa-"],
+                    body.mini-navbar .navbar-static-side .nav li a i,
+                    body.mini-navbar #side-menu li a i {
+                        display: inline-block !important;
+                        opacity: 1 !important;
+                        visibility: visible !important;
+                        font-size: 20px !important;
+                        color: #ffffff !important;
+                        width: auto !important;
+                        height: auto !important;
+                        margin: 0 !important;
+                    }
+                    
+                    /* Forzar iconos visibles en TODAS las dimensiones - sobrescribe estilos inline */
+                    .navbar-default .nav > li > a i,
+                    .navbar-static-side #side-menu li a i,
+                    #side-menu > li > a > i,
+                    .navbar-static-side .nav li a i[class*="fa"],
+                    nav.navbar-static-side ul#side-menu li a i {
+                        display: inline-block !important;
+                        opacity: 1 !important;
+                        visibility: visible !important;
+                        font-size: 20px !important;
+                        width: auto !important;
+                        height: auto !important;
+                    }
+                    
+                    /* Regla adicional para cuando el sidebar está minimizado */
+                    .navbar-static-side[style*="width: 70px"] li a i,
+                    .navbar-static-side[style*="width:70px"] li a i {
+                        display: inline-block !important;
+                        visibility: visible !important;
+                    }
 
-                    <ul class="nav nav-second-level">
-                        <li><a href="/marca/producto" style="color:#ffffff;">Marcas de productos</a></li>
-                        <li><a href="/producto/registro" style="color:#ffffff;">Catálogo de productos</a>
-                        </li>
-                        <li><a href="/inventario/unidades/medida" style="color:#ffffff;">Unidades de Medida</a>
-                        </li>
-                        <li><a href="/producto/compra" style="color:#ffffff;">Comprar Producto</a></li>
-                        <li><a href="/producto/listar/compras" style="color:#ffffff;">Listar Compras</a></li>
-                        <li><a href="/categoria/categorias" style="color:#ffffff;">Categorias</a></li>
-                        <li><a href="/sub_categoria/sub_categorias" style="color:#ffffff;">Sub-Categoria</a></li>
-                    </ul>
-                </li>
-                <li>
-                    <a><i class="fa-solid fa-cubes" style="color:#ffffff;">
-                        </i><span class="nav-label" style="color:#ffffff;">Traslado de productos</span><span class="fa arrow"></span></a>
+                    /* ========== ESTILOS UNIVERSALES PARA MODO MINIMIZADO ========== */
+                    /* Aplica tanto en escritorio (body.mini-navbar) como en móvil (body:not(.mini-navbar) <768px) */
+                    
+                    /* Cuando el menú está minimizado en escritorio (clase mini-navbar en body) */
+                    body.mini-navbar .navbar-static-side {
+                        width: 70px;
+                    }
+                    
+                    /* Iconos blancos en modo minimizado */
+                    body.mini-navbar .navbar-default .nav > li > a i,
+                    body.mini-navbar .nav > li > a i.fa,
+                    body.mini-navbar #side-menu > li > a > i {
+                        display: inline-block !important;
+                        font-size: 20px !important;
+                        width: 100% !important;
+                        text-align: center !important;
+                        opacity: 1 !important;
+                        visibility: visible !important;
+                        color: #ffffff !important;
+                    }
+                    
+                    /* Submenús como tooltip al hacer hover cuando está minimizado - fondo muy transparente */
+                    body.mini-navbar .nav li .nav-second-level {
+                        display: none !important;
+                        position: fixed !important;
+                        left: 70px !important;
+                        background: rgba(47, 64, 80, 0.75) !important;
+                        border: 1px solid rgba(26, 179, 148, 0.4) !important;
+                        border-radius: 8px;
+                        box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+                        width: 200px !important;
+                        z-index: 2001 !important;
+                        padding: 10px 0 !important;
+                        max-height: 400px;
+                        overflow-y: auto;
+                        backdrop-filter: blur(15px);
+                        -webkit-backdrop-filter: blur(15px);
+                    }
+                    
+                    /* Mostrar submenú al hacer hover O al hacer clic (active) cuando está minimizado */
+                    body.mini-navbar .nav > li:hover > .nav-second-level,
+                    body.mini-navbar .nav > li.active > .nav-second-level {
+                        display: block !important;
+                    }
+                    
+                    /* Estilos de items del submenu tooltip */
+                    body.mini-navbar .nav li:hover .nav-second-level li,
+                    body.mini-navbar .nav li.active .nav-second-level li {
+                        border: none !important;
+                    }
+                    
+                    /* Ocultar iconos de los submenús en modo minimizado - ESCRITORIO (MÁXIMA ESPECIFICIDAD) */
+                    body.mini-navbar .nav li .nav-second-level li a i,
+                    body.mini-navbar .nav-second-level li a i,
+                    body.mini-navbar .navbar-default .nav .nav-second-level li a i,
+                    body.mini-navbar .navbar-static-side .nav-second-level li a i,
+                    body.mini-navbar #side-menu .nav-second-level li a i,
+                    body.mini-navbar ul.nav-second-level li a i[class*="fa"] {
+                        display: none !important;
+                        visibility: hidden !important;
+                        width: 0 !important;
+                        height: 0 !important;
+                        font-size: 0 !important;
+                        opacity: 0 !important;
+                        margin: 0 !important;
+                        padding: 0 !important;
+                    }
+                    
+                    body.mini-navbar .nav li:hover .nav-second-level li a,
+                    body.mini-navbar .nav li.active .nav-second-level li a {
+                        padding: 12px 20px !important;
+                        color: #ffffff !important;
+                        display: block;
+                        transition: all 0.3s ease;
+                        border-left: 3px solid transparent;
+                        background: transparent !important;
+                    }
+                    
+                    body.mini-navbar .nav li:hover .nav-second-level li a:hover,
+                    body.mini-navbar .nav li.active .nav-second-level li a:hover {
+                        background: rgba(26, 179, 148, 0.12) !important;
+                        border-left: 3px solid #1ab394 !important;
+                        padding-left: 23px !important;
+                        transform: translateX(3px);
+                    }
+                    
+                    /* Hover en item principal minimizado - sombreado suave y casi transparente */
+                    body.mini-navbar .nav > li > a:hover {
+                        background: rgba(26, 179, 148, 0.15) !important;
+                        border-left: 3px solid #1ab394;
+                        transition: all 0.3s ease;
+                    }
+                    
+                    /* Indicador visual cuando está activo (clicked) - sombreado muy suave */
+                    body.mini-navbar .nav > li.active > a {
+                        background: rgba(26, 179, 148, 0.1) !important;
+                        border-left: 3px solid #1ab394;
+                    }
+                    
+                    /* Ocultar textos y flechas en escritorio minimizado */
+                    body.mini-navbar .nav li a span.nav-label,
+                    body.mini-navbar .nav li a .fa.arrow {
+                        display: none !important;
+                    }
+                    
+                    /* Centrar iconos */
+                    body.mini-navbar .nav > li > a {
+                        text-align: center;
+                        padding: 14px 10px !important;
+                    }
+                    
+                    /* Ocultar búsqueda */
+                    body.mini-navbar .search-sidebar {
+                        display: none !important;
+                    }
+                    
+                    /* ========== FORZAR ICONOS VISIBLES EN MÓVIL ========== */
+                    /* Reglas globales para asegurar iconos visibles en cualquier dimensión */
+                    .navbar-default #side-menu > li > a > i,
+                    .navbar-static-side .nav > li > a > i,
+                    #side-menu li a i.fa {
+                        display: inline-block !important;
+                        opacity: 1 !important;
+                        visibility: visible !important;
+                    }
 
-                    <ul class="nav nav-second-level">
-                        <li><a href="/inventario/translado" style="color:#ffffff;">Traslado de Producto</a></li>
-                        <li><a href="/translados/historial" style="color:#ffffff;">Historial de traslados</a></li>
-                    </ul>
-                </li>
-                <li>
-                    <a><i class="fa-solid fa-box-open" style="color:#ffffff;"></i>
-                        <span class="nav-label" style="color:#ffffff;">Ajustes</span>
-                        <span class="fa arrow"></span></a>
-                    <ul class="nav nav-second-level">
-                        <li><a href="/inventario/ajustes" style="color:#ffffff;">Realizar Ajustes</a></li>
-                        <li><a href="/inventario/ajuste/ingreso" style="color:#ffffff;">Ingresar Producto</a></li>
-                        <li><a href="/listado/ajustes" style="color:#ffffff;">Historial de Ajustes</a></li>
-                        <li><a href="/inventario/tipoajuste" style="color:#ffffff;">Motivos de Ajuste</a></li>
-                    </ul>
-                </li>
-                <li>
-                    <a><i class="fa-solid fa-list-check" style="color:#ffffff;"></i><span class="nav-label" style="color:#ffffff;">Compras Locales</span><span class="fa arrow"></span></a>
-                    <ul class="nav nav-second-level">
-                        <li><a href="https://cadss.hn/orden/ordn_listar_ordenes.php" style="color:#ffffff;">Orden de compra local</a></li>
-                    </ul>
-                </li>
-                <li>
-                    <a><i class="fa-solid fa-list-check" style="color:#ffffff;"></i><span class="nav-label"
-                            style="color:#ffffff;">Boleta de Compra</span>
-                        <span class="fa arrow"></span></a>
+                    /* ========== ESTILOS RESPONSIVOS PARA MÓVIL ========== */
+                    
+                    /* Ajustes específicos para móvil - aplicar los mismos estilos que escritorio */
+                    @media (max-width: 768px) {
+                        /* Habilitar scroll dentro del menú lateral */
+                        .navbar-static-side {
+                            overflow-y: auto !important;
+                            -webkit-overflow-scrolling: touch;
+                        }
+                        .scroll-bar-sidebar {
+                            overflow-y: auto !important;
+                            overflow-x: hidden !important;
+                            max-height: 100vh !important;
+                        }
+                        /* Asegurar que el sidebar esté visible en pantalla */
+                        .navbar-static-side {
+                            position: fixed !important;
+                            top: 0 !important;
+                            left: 0 !important;
+                            height: 100vh !important;
+                            display: block !important;
+                            z-index: 2000 !important;
+                        }
+                        /* Ancho minimizado por defecto en móvil */
+                        body:not(.mini-navbar) .navbar-static-side {
+                            width: 70px !important;
+                        }
+                        
+                        /* Iconos blancos en móvil - máxima especificidad */
+                        body:not(.mini-navbar) .navbar-default .nav > li > a i,
+                        body:not(.mini-navbar) .nav > li > a i.fa,
+                        body:not(.mini-navbar) #side-menu > li > a > i,
+                        body:not(.mini-navbar) .navbar-static-side .nav li a i,
+                        .navbar-default #side-menu > li > a > i[class*="fa"] {
+                            display: inline-block !important;
+                            font-size: 20px !important;
+                            width: 100% !important;
+                            text-align: center !important;
+                            margin-right: 0 !important;
+                            opacity: 1 !important;
+                            visibility: visible !important;
+                            color: #ffffff !important;
+                            min-width: 20px !important;
+                            min-height: 20px !important;
+                        }
+                        
+                        /* Submenús tooltip en móvil */
+                        body:not(.mini-navbar) .nav li .nav-second-level {
+                            display: none !important;
+                            position: fixed !important;
+                            left: 70px !important;
+                            background: rgba(47, 64, 80, 0.75) !important;
+                            border: 1px solid rgba(26, 179, 148, 0.4) !important;
+                            border-radius: 8px;
+                            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+                            width: 200px !important;
+                            z-index: 2001 !important;
+                            padding: 10px 0 !important;
+                            max-height: 400px;
+                            overflow-y: auto;
+                            backdrop-filter: blur(15px);
+                            -webkit-backdrop-filter: blur(15px);
+                        }
+                        
+                        /* Mostrar submenu en hover/clic en móvil */
+                        body:not(.mini-navbar) .nav > li:hover > .nav-second-level,
+                        body:not(.mini-navbar) .nav > li.active > .nav-second-level {
+                            display: block !important;
+                        }
+                        
+                        /* Ocultar iconos de los submenús en modo minimizado - MÓVIL */
+                        body:not(.mini-navbar) .nav li .nav-second-level li a i,
+                        body:not(.mini-navbar) .nav-second-level li a i,
+                        body:not(.mini-navbar) .navbar-default .nav .nav-second-level li a i {
+                            display: none !important;
+                            visibility: hidden !important;
+                            width: 0 !important;
+                            height: 0 !important;
+                            font-size: 0 !important;
+                        }
+                        
+                        /* Items de submenu en móvil */
+                        body:not(.mini-navbar) .nav li:hover .nav-second-level li a,
+                        body:not(.mini-navbar) .nav li.active .nav-second-level li a {
+                            padding: 12px 20px !important;
+                            color: #ffffff !important;
+                            display: block;
+                            transition: all 0.3s ease;
+                            border-left: 3px solid transparent;
+                            background: transparent !important;
+                        }
+                        
+                        body:not(.mini-navbar) .nav li:hover .nav-second-level li a:hover,
+                        body:not(.mini-navbar) .nav li.active .nav-second-level li a:hover {
+                            background: rgba(26, 179, 148, 0.12) !important;
+                            border-left: 3px solid #1ab394 !important;
+                            padding-left: 23px !important;
+                            transform: translateX(3px);
+                        }
+                        
+                        /* Hover en iconos móvil */
+                        body:not(.mini-navbar) .nav > li > a:hover {
+                            background: rgba(26, 179, 148, 0.15) !important;
+                            border-left: 3px solid #1ab394;
+                            transition: all 0.3s ease;
+                        }
+                        
+                        /* Item activo móvil */
+                        body:not(.mini-navbar) .nav > li.active > a {
+                            background: rgba(26, 179, 148, 0.1) !important;
+                            border-left: 3px solid #1ab394;
+                        }
+                        
+                        /* Ocultar textos y flechas en móvil minimizado */
+                        body:not(.mini-navbar) .nav li a span.nav-label,
+                        body:not(.mini-navbar) .nav li a .fa.arrow {
+                            display: none !important;
+                        }
+                        
+                        /* Centrar iconos */
+                        body:not(.mini-navbar) .nav > li > a {
+                            text-align: center;
+                            padding: 14px 10px !important;
+                        }
+                        
+                        /* Dashboard en móvil minimizado */
+                        body:not(.mini-navbar) .dashboard-btn .dashboard-link {
+                            justify-content: center !important;
+                            padding: 14px 10px !important;
+                        }
+                        
+                        body:not(.mini-navbar) .dashboard-btn .dashboard-link i {
+                            margin-right: 0 !important;
+                            font-size: 20px;
+                        }
+                        
+                        /* Ocultar búsqueda en móvil minimizado */
+                        body:not(.mini-navbar) .search-sidebar {
+                            display: none !important;
+                        }
+                        
+                        /* Ajustar contenido principal: sin espacio por defecto */
+                        body:not(.mini-navbar) #page-wrapper {
+                            margin-left: 0 !important;
+                        }
+                        /* Cuando el sidebar está abierto, empujar el contenido */
+                        body.mobile-sidebar-open #page-wrapper {
+                            margin-left: 70px !important;
+                        }
+                        
+                        /* FORZAR iconos visibles en móvil con máxima prioridad */
+                        .navbar-default .nav > li > a i,
+                        .navbar-static-side #side-menu li a i,
+                        body:not(.mini-navbar) li a i[class*="fa"] {
+                            display: inline-block !important;
+                            opacity: 1 !important;
+                            visibility: visible !important;
+                            color: #ffffff !important;
+                            font-size: 20px !important;
+                            min-width: 20px !important;
+                            min-height: 20px !important;
+                        }
+                    }
+                    
+                    /* Media query adicional para pantallas muy pequeñas */
+                    @media (max-width: 480px) {
+                        /* Forzar iconos con máxima especificidad */
+                        .navbar-default .nav > li > a i,
+                        #side-menu li a i,
+                        .nav li a i[class*="fa-"] {
+                            display: inline-block !important;
+                            opacity: 1 !important;
+                            visibility: visible !important;
+                            color: #ffffff !important;
+                            font-size: 20px !important;
+                        }
+                    }
 
-                    <ul class="nav nav-second-level">
-                        <li><a href="https://cadss.hn/boleta/blta_listar_boletas.php" style="color:#ffffff;">Gestión de Boleta</a></li>
-                    </ul>
-                </li>
-                <li>
-                    <a><i class="fa-solid fa-file-invoice" style="color:#ffffff;"></i>
-                        <span class="nav-label" style="color:#ffffff;">Ventas Clientes A</span>
-                        <span class="fa arrow"></span></a>
+                    /* ========== TABLET: Solo iconos (similar a móvil) ========== */
+                    @media (min-width: 769px) and (max-width: 992px) {
+                        .navbar-static-side {
+                            position: fixed !important;
+                            top: 0 !important;
+                            left: 0 !important;
+                            height: 100vh !important;
+                            display: block !important;
+                            z-index: 2000 !important;
+                            width: 70px !important;
+                            overflow-y: auto !important;
+                            -webkit-overflow-scrolling: touch;
+                        }
 
-                    <ul class="nav nav-second-level">
-                        <li><a href="/facturas/estatal" style="color:#ffffff;">Listado de Facturas Clientes A</a> </li>
-                        <li><a href="/ventas/anulado/estatal" style="color:#ffffff;">Listado de Facturas Anuladas</a></li>
-                    </ul>
-                </li>
-                <li>
-                    <a><i class="fa-solid fa-file-invoice" style="color:#ffffff;"></i>
-                        <span class="nav-label" style="color:#ffffff;">Ventas Clientes B</span>
-                        <span class="fa arrow"></span></a>
-                        <ul class="nav nav-second-level">
-                            <li><a href="/facturas/corporativo/lista" style="color:#ffffff;">Listado de FacturasClientes B</a></li>
-                            <li><a href="/ventas/anulado/corporativo" style="color:#ffffff;">Listado de Facturas Anuladas</a></li>
-                        </ul>
-                </li>
-                <li>
-                    <a><i class="fa-solid fa-clipboard-check" style="color:#ffffff;"></i><span class="nav-label"
-                            style="color:#ffffff;">Declaraciones </span>
-                        <span class="fa arrow"></span></a>
+                        .scroll-bar-sidebar {
+                            overflow-y: auto !important;
+                            overflow-x: hidden !important;
+                            max-height: 100vh !important;
+                        }
 
-                    <ul class="nav nav-second-level">
+                        /* Ocultar textos y flechas en tablet */
+                        .nav li a span.nav-label,
+                        .nav li a .fa.arrow {
+                            display: none !important;
+                        }
 
+                        /* Centrar iconos */
+                        .nav > li > a {
+                            text-align: center !important;
+                            padding: 14px 10px !important;
+                        }
 
-                        <li><a href="/ventas/Configuracion" style="color:#ffffff;">Configuración</a></li>
-                        <li><a href="/ventas/listado/comparacion" style="color:#ffffff;">Listado de Declaraciones</a></li>
-                        <li><a href="/ventas/seleccionar" style="color:#ffffff;">Seleccionar Declaraciones</a></li>
+                        /* Ocultar búsqueda en tablet */
+                        .search-sidebar {
+                            display: none !important;
+                        }
 
+                        /* Ajustar contenido principal solo cuando el sidebar esté abierto */
+                        body.mobile-sidebar-open #page-wrapper {
+                            margin-left: 70px !important;
+                        }
+                    }
+                    
+                    /* Asegurar ancho 70px en escritorio minimizado */
+                    body.mini-navbar .navbar-static-side {
+                        width: 70px !important;
+                    }
+                    
+                    /* Ocultar textos y flechas en escritorio minimizado */
+                    body.mini-navbar .nav li a span.nav-label,
+                    body.mini-navbar .nav li a .fa.arrow {
+                        display: none !important;
+                    }
+                    
+                    /* Ocultar búsqueda en escritorio minimizado */
+                    body.mini-navbar .search-sidebar {
+                        display: none !important;
+                    }
+                    
+                    /* Botón toggle para expandir/contraer en móvil */
+                    @media (max-width: 768px) {
+                        .navbar-minimalize {
+                            display: block !important;
+                            position: fixed;
+                            top: 10px;
+                            left: 10px;
+                            z-index: 2002;
+                            background: #1ab394;
+                            color: white;
+                            border: none;
+                            padding: 10px 15px;
+                            border-radius: 4px;
+                            cursor: pointer;
+                        }
 
-                    </ul>
-                </li>
-                <li>
-                    <a><i class="fa-solid fa-truck-fast" style="color:#ffffff;"></i><span class="nav-label" style="color:#ffffff;">Cardex</span><span class="fa arrow"></span></a>
+                        /* Siempre iconos en móvil (incluso si se pulsa el toggle) */
+                        body.mini-navbar .navbar-static-side {
+                            width: 70px !important;
+                        }
 
-                    <ul class="nav nav-second-level">
+                        body.mini-navbar #page-wrapper {
+                            margin-left: 70px !important;
+                        }
 
-                        <li><a href="/cardex/com" style="color:#ffffff;">Cardex Completo</a></li>
-                        <li><a href="/cardex" style="color:#ffffff;">Gestionar cardex</a></li>
-                        <li><a href="/cardex/general" style="color:#ffffff;">Cardex general</a></li>
-                    </ul>
-                </li>
-                <li>
-                    <a><i class="fa-solid fa-check-to-slot" style="color:#ffffff"></i> </i><span class="nav-label" style="color:#ffffff;">Comprobante De Entrega</span><span class="fa arrow"></span></a>
+                        body.mini-navbar .nav li a span.nav-label,
+                        body.mini-navbar .nav li a .fa.arrow {
+                            display: none !important;
+                        }
 
-                    <ul class="nav nav-second-level">
-                        <li><a href="/comprobante/entrega" style="color:#ffffff;">Crear Comprobante</a></li>
-                        <li><a href="/comprovante/entrega/listado" style="color:#ffffff;">Listado de Comprobantes</a></li>
-                        <li><a href=" /comprovante/entrega/anulados" style="color:#ffffff;">Listado de Anulados</a></li>
-                    </ul>
-                </li>
-                <li>
-                    <a><i class="fa-solid fa-truck-medical" style="color:#ffffff"></i><span class="nav-label" style="color:#ffffff;">Entregas Agendadas</span><span class="fa arrow"></span></a>
+                        body.mini-navbar .navbar-default .nav > li > a {
+                            text-align: center !important;
+                            padding: 14px 10px !important;
+                        }
 
-                    <ul class="nav nav-second-level">
-                        <li><a href=" /listar/vale/entrega" style="color:#ffffff;">Listado de Entregas</a></li>
-                    </ul>
-                </li>
-                <li>
-                    <a><i class="fa-solid fa-list-check" style="color:#ffffff;"></i><span class="nav-label" style="color:#ffffff;">Vale</span><span class="fa arrow"></span></a>
+                        body.mini-navbar .dashboard-btn .dashboard-link {
+                            justify-content: center !important;
+                        }
 
-                    <ul class="nav nav-second-level">
-                        {{-- <li><a href="/vale/listado/facturas" style="color:#ffffff;">Agregar vale a factura</a>
-                        </li> --}}
-                        <li><a href="/vale/restar/inventario" style="color:#ffffff;">Lista de vales</a></li>
-                    </ul>
-                </li>
-                <li>
-                    <a><i class="fa-solid fa-file-invoice" style="color:#ffffff;"></i><span class="nav-label" style="color:#ffffff;">Precios</span><span class="fa arrow"></span></a>
+                        body.mini-navbar .dashboard-btn .dashboard-link i {
+                            margin-right: 0 !important;
+                        }
+                    }
 
-                    <ul class="nav nav-second-level">
-                        <li><a href="/ventas/historico_precios_cliente" style="color:#ffffff;">Historico de Precios</a></li>
-                    </ul>
-                </li>
-                <li>
-                    <a><i class="fa-solid fa-user" style="color:#ffffff;"></i> <span class="nav-label" style="color:#ffffff;">Reportes</span><span class="fa arrow"></span></a>
-                    <ul class="nav nav-second-level">
-                            <li><a href="/facturaDia" style="color:#ffffff;">Reporte de ventas</a>
-                            <li ><a href="/reporte/comision" style="color:#ffffff;">Reporte comisiones</a></li>
-                            <li><a href="/reporte/reporteria" style="color:#ffffff;">Reportes Varios</a>
-                    </ul>
-                </li>
-            @endif
+                    /* ========== Off-canvas en móvil: oculto por defecto, visible al expandir ========== */
+                    @media (max-width: 768px) {
+                        .navbar-static-side {
+                            transition: left 0.25s ease;
+                            left: -80px !important; /* Oculto por defecto */
+                            width: 70px !important;
+                        }
+                        body.mobile-sidebar-open .navbar-static-side {
+                            left: 0 !important; /* Visible al expandir */
+                        }
+                    }
 
-            @if (Auth::user()->rol_id == '7' or Auth::user()->rol_id == '1')
-                <a><i  style="color:#ffffff;"></i><span style="color:#ffffff;">Auditoria y logistica</span></a>
+                    /* ========== Off-canvas en tablet: oculto por defecto, visible al expandir ========== */
+                    @media (min-width: 769px) and (max-width: 992px) {
+                        .navbar-static-side {
+                            transition: left 0.25s ease;
+                            left: -80px !important; /* Oculto por defecto */
+                            width: 70px !important;
+                        }
+                        body.mobile-sidebar-open .navbar-static-side {
+                            left: 0 !important; /* Visible al expandir */
+                        }
+                    }
+                </style>
 
-                <li>
-                    <a><i class="fa-solid fa-warehouse" style="color:#ffffff;"></i> <span class="nav-label" style="color:#ffffff;">Bodega</span><span class="fa arrow"></span></a>
-                    <ul class="nav nav-second-level">
-                        <li><a href="/bodega" style="color:#ffffff;">Crear Bodega</a></li>
-                        <li><a href="/bodega/editar/screen" style="color:#ffffff;">Editar Bodega</a></li>
-                    </ul>
-                </li>
-                <li>
-                    <a><i class="fa-solid fa-dolly " style="color:#ffffff;"></i><span class="nav-label" style="color:#ffffff;">Proveedores</span> <span class="fa arrow"></span></a>
-                    <ul class="nav nav-second-level">
-                        <li><a href="/proveedores" style="color:#ffffff;">Registrar Proveedor</a></li>
-                        <li><a href="/inventario/retenciones" style="color:#ffffff;">Crear Retenciones</a></li>
-                    </ul>
-                </li>
-                <li>
-                    <a><i class="fa-solid fa-cubes" style="color:#ffffff;">
-                        </i><span class="nav-label" style="color:#ffffff;">Inventario</span>
-                        <span class="fa arrow"></span></a>
-
-                    <ul class="nav nav-second-level">
-                        <li><a href="/marca/producto" style="color:#ffffff;">Marcas de productos</a></li>
-                        <li><a href="/producto/registro" style="color:#ffffff;">Catálogo de productos</a></li>
-                        <li><a href="/inventario/unidades/medida" style="color:#ffffff;">Unidades de Medida</a>
-                        </li>
-                        <li><a href="/producto/compra" style="color:#ffffff;">Comprar Producto</a></li>
-                        <li><a href="/producto/listar/compras" style="color:#ffffff;">Listar Compras</a></li>
-                        <li><a href="/categoria/categorias" style="color:#ffffff;">Categorias</a></li>
-                        <li><a href="/sub_categoria/sub_categorias" style="color:#ffffff;">Sub-Categoria</a></li>
-                    </ul>
-                </li>
-                <li>
-                    <a><i class="fa-solid fa-cubes" style="color:#ffffff;">
-                        </i><span class="nav-label" style="color:#ffffff;">Traslado de productos</span><span class="fa arrow"></span></a>
-
-                    <ul class="nav nav-second-level">
-                        <li><a href="/inventario/translado" style="color:#ffffff;">Traslado de Producto</a></li>
-                        <li><a href="/translados/historial" style="color:#ffffff;">Historial de traslados</a></li>
-                    </ul>
-                </li>
-                <li>
-                    <a><i class="fa-solid fa-box-open" style="color:#ffffff;"></i>
-                        <span class="nav-label" style="color:#ffffff;">Ajustes</span>
-                        <span class="fa arrow"></span></a>
-                    <ul class="nav nav-second-level">
-                        <li><a href="/inventario/ajustes" style="color:#ffffff;">Realizar Ajustes</a></li>
-                        <li><a href="/inventario/ajuste/ingreso" style="color:#ffffff;">Ingresar Producto</a></li>
-                        <li><a href="/listado/ajustes" style="color:#ffffff;">Historial de Ajustes</a></li>
-                        <li><a href="/inventario/tipoajuste" style="color:#ffffff;">Motivos de Ajuste</a></li>
-                    </ul>
-                </li>
-                <li>
-                    <a><i class="fa-solid fa-list-check" style="color:#ffffff;"></i><span class="nav-label" style="color:#ffffff;">Compras Locales</span><span class="fa arrow"></span></a>
-                    <ul class="nav nav-second-level">
-                        <li><a href="https://cadss.hn/orden/ordn_listar_ordenes.php" style="color:#ffffff;">Orden de compra local</a></li>
-                    </ul>
-                </li>
-                <li>
-                    <a><i class="fa-solid fa-file-invoice" style="color:#ffffff;"></i>
-                        <span class="nav-label" style="color:#ffffff;">Ventas Clientes A</span>
-                        <span class="fa arrow"></span></a>
-
-                    <ul class="nav nav-second-level">
-                        <li><a href="/facturas/estatal" style="color:#ffffff;">Listado de Facturas Clientes A</a> </li>
-                        <li><a href="/ventas/anulado/estatal" style="color:#ffffff;">Listado de Facturas Anuladas</a></li>
-                    </ul>
-                </li>
-                <li>
-                    <a><i class="fa-solid fa-file-invoice" style="color:#ffffff;"></i>
-                        <span class="nav-label" style="color:#ffffff;">Ventas Clientes B</span>
-                        <span class="fa arrow"></span></a>
-                        <ul class="nav nav-second-level">
-                            <li><a href="/facturas/corporativo/lista" style="color:#ffffff;">Listado de FacturasClientes B</a></li>
-                            <li><a href="/ventas/anulado/corporativo" style="color:#ffffff;">Listado de Facturas Anuladas</a></li>
-                        </ul>
-                </li>
-                <li>
-                    <a><i class="fa-solid fa-list-check" style="color:#ffffff;"></i><span class="nav-label" style="color:#ffffff;">Vale</span><span class="fa arrow"></span></a>
-
-                    <ul class="nav nav-second-level">
-                        {{-- <li><a href="/vale/listado/facturas" style="color:#ffffff;">Agregar vale a factura</a>
-                        </li> --}}
-                        <li><a href="/vale/restar/inventario" style="color:#ffffff;">Lista de vales</a></li>
-                    </ul>
-                </li>
-                <li>
-                    <a><i class="fa-solid fa-truck-fast" style="color:#ffffff;"></i><span class="nav-label" style="color:#ffffff;">Cardex</span><span class="fa arrow"></span></a>
-
-                    <ul class="nav nav-second-level">
-                        <li><a href="/cardexn" style="color:#ffffff;">Cardex 2</a></li>
-                        <li><a href="/cardex" style="color:#ffffff;">Gestionar cardex</a></li>
-                        <li><a href="/cardex/general" style="color:#ffffff;">Cardex general</a></li>
-                    </ul>
-                </li>
-                <li>
-                    <a><i class="fa-solid fa-check-to-slot" style="color:#ffffff"></i> </i><span class="nav-label" style="color:#ffffff;">Comprobante De Entrega</span><span class="fa arrow"></span></a>
-
-                    <ul class="nav nav-second-level">
-                        <li><a href="/comprobante/entrega" style="color:#ffffff;">Crear Comprobante</a></li>
-                        <li><a href="/comprovante/entrega/listado" style="color:#ffffff;">Listado de Comprobantes</a></li>
-                        <li><a href=" /comprovante/entrega/anulados" style="color:#ffffff;">Listado de Anulados</a></li>
-                    </ul>
-                </li>
-                <li>
-                    <a><i class="fa-solid fa-truck-medical" style="color:#ffffff"></i><span class="nav-label" style="color:#ffffff;">Entregas Agendadas</span><span class="fa arrow"></span></a>
-
-                    <ul class="nav nav-second-level">
-                        <li><a href=" /listar/vale/entrega" style="color:#ffffff;">Listado de Entregas</a></li>
-                    </ul>
-                </li>
-                <li>
-                    <a><i class="fa-solid fa-truck-fast" style="color:#ffffff;"></i><span class="nav-label" style="color:#ffffff;">Logistica de Entregas</span><span class="fa arrow"></span></a>
-
-                    <ul class="nav nav-second-level">
-                        <li><a href="/logistica/equipos" style="color:#ffffff;">Equipos de Entrega</a></li>
-                        <li><a href="/logistica/distribuciones" style="color:#ffffff;">Distribucion de Entregas</a></li>
-                        <li><a href="/logistica/confirmacion" style="color:#ffffff;">Confirmacion de Entregas</a></li>
-                    </ul>
-                </li>
-                <li>
-                    <a><i class="fa-solid fa-list-check" style="color:#ffffff;"></i><span class="nav-label" style="color:#ffffff;">Vale</span><span class="fa arrow"></span></a>
-
-                    <ul class="nav nav-second-level">
-                        {{-- <li><a href="/vale/listado/facturas" style="color:#ffffff;">Agregar vale a factura</a>
-                        </li> --}}
-                        <li><a href="/vale/restar/inventario" style="color:#ffffff;">Lista de vales</a></li>
-                    </ul>
-                </li>
-                <li>
-                    <a><i class="fa-solid fa-user" style="color:#ffffff;"></i> <span class="nav-label" style="color:#ffffff;">Reportes</span><span class="fa arrow"></span></a>
-                    <ul class="nav nav-second-level">
-                            <li><a href="/bodega/prod" style="color:#ffffff;">Reporte productos por bodega</a></li>
-                    </ul>
-                </li>
-            @endif
-
-            @if (Auth::user()->rol_id == '8' or Auth::user()->rol_id == '1')
-                <a><i  style="color:#ffffff;"></i><span style="color:#ffffff;">RRHH</span></a>
-                <li>
-                    <a href="{{ route('dashboard') }}"><i class="fa fa-area-chart" style="color:#ffffff;" aria-hidden="true"></i> <span class="nav-label" style="color:#ffffff;">Dashboard</span></a>
-                </li>
-
-                <li>
-                    <a><i class="fa-solid fa-users" style="color:#ffffff;"></i> <span class="nav-label" style="color:#ffffff;">Clientes</span><span class="fa arrow"></span></a>
-                    <ul class="nav nav-second-level">
-                        <li><a href="/clientes" style="color:#ffffff;">Registrar cliente</a></li>
-                    </ul>
-                </li>
-                <li>
-                    <a><i class="fa-solid fa-user" style="color:#ffffff;"></i> <span class="nav-label" style="color:#ffffff;">Reportes</span><span class="fa arrow"></span></a>
-                    <ul class="nav nav-second-level">
-                        <li><a href="/facturaDia" style="color:#ffffff;">Reporte de ventas</a>
-                        <li ><a href="/reporte/comision" style="color:#ffffff;">Reporte comisiones</a></li>
-                        <li><a href="/reporte/reporteria" style="color:#ffffff;">Reportes Varios</a>
-                            <li><a href="/bodega/prod" style="color:#ffffff;">Reporte productos por bodega</a></li>
-                    </ul>
-                </li>
-                <li>
-                    <a><i class="fa-solid fa-list-check" style="color:#ffffff;"></i><span class="nav-label"
-                            style="color:#ffffff;">Boleta de Compra</span>
-                        <span class="fa arrow"></span></a>
-
-                    <ul class="nav nav-second-level">
-                        <li><a href="https://cadss.hn/boleta/blta_listar_boletas.php" style="color:#ffffff;">Gestión de Boleta</a></li>
-                    </ul>
-                </li>
-                <li>
-                    <a><i class="fa-solid fa-list-check" style="color:#ffffff;"></i><span class="nav-label"
-                            style="color:#ffffff;">Compras Locales</span>
-                        <span class="fa arrow"></span></a>
-
-                    <ul class="nav nav-second-level">
-
-                        <li><a href="https://cadss.hn/orden/ordn_listar_ordenes.php" style="color:#ffffff;">Listar Boleta</a></li>
-
-                    </ul>
-                </li>
-                <li>
-                    <a><i class="fa-solid fa-file-invoice" style="color:#ffffff;"></i>
-                        <span class="nav-label" style="color:#ffffff;">Ventas Clientes A</span>
-                        <span class="fa arrow"></span></a>
-
-                    <ul class="nav nav-second-level">
-                        <li><a href="/facturas/estatal" style="color:#ffffff;">Listado de Facturas Clientes A</a> </li>
-                        <li><a href="/ventas/anulado/estatal" style="color:#ffffff;">Listado de Facturas Anuladas</a></li>
-                    </ul>
-                </li>
-                <li>
-                    <a><i class="fa-solid fa-file-invoice" style="color:#ffffff;"></i>
-                        <span class="nav-label" style="color:#ffffff;">Ventas Clientes B</span>
-                        <span class="fa arrow"></span></a>
-                        <ul class="nav nav-second-level">
-                            <li><a href="/facturas/corporativo/lista" style="color:#ffffff;">Listado de FacturasClientes B</a></li>
-                            <li><a href="/ventas/anulado/corporativo" style="color:#ffffff;">Listado de Facturas Anuladas</a></li>
-                        </ul>
-                </li>
-                <li>
-                    <a><i class="fa-solid fa-user" style="color:#ffffff;"></i> <span class="nav-label"
-                            style="color:#ffffff;">Nota de débito</span>
-                        <span class="fa arrow"></span></a>
-                    <ul class="nav nav-second-level">
-                        <li><a href="/debito" style="color:#ffffff;">Gestiones</a></li>
-                        <li><a href="/nota/debito/lista/gobierno" style="color:#ffffff;">Listado notas debito Clientes A</a></li>
-                        <li><a href="/nota/debito/lista" style="color:#ffffff;">Listado notas debito Clientes B</a></li>
-                    </ul>
-                </li>
-                <li>
-                    <a><i class="fa-solid fa-user" style="color:#ffffff;"></i> <span class="nav-label"
-                            style="color:#ffffff;">Cierre Diario</span>
-                        <span class="fa arrow"></span></a>
-                    <ul class="nav nav-second-level">
-                        <li><a href="/cierre/caja" style="color:#ffffff;">Detalle de cierre</a></li>
-                        <li><a href="/cierre/historico" style="color:#ffffff;">Historico de cierre</a></li>
-                    </ul>
-                </li>
-                {{--  <li>
-                    <a><i class="fa-solid fa-magnifying-glass-dollar" style="color:#ffffff;"></i><span class="nav-label"style="color:#ffffff;">Comisiones</span><span class="fa arrow"></span></a>
-
-                    <ul class="nav nav-second-level">
-                        <li><a href="/comisiones/gestion" style="color:#ffffff;">Gestion inicial</a></li>
-                        <li><a href="/comisiones" style="color:#ffffff;">Gestión de comisiones</a></li>
-                        <li><a href="/comisiones/vendedor" style="color:#ffffff;">Comisiones Colaborador</a></li>
-                        <li><a href="/comisiones/historico" style="color:#ffffff;">Hstórico de comisiones</a></li>
-                    </ul>
-                </li>  --}}
-                <li>
-                    <a><i class="fa-solid fa-file-invoice" style="color:#ffffff;"></i><span class="nav-label" style="color:#ffffff;">Precios</span><span class="fa arrow"></span></a>
-
-                    <ul class="nav nav-second-level">
-                        <li><a href="/ventas/historico_precios_cliente" style="color:#ffffff;">Historico de Precios</a></li>
-                    </ul>
-                </li>
-            @endif
-
-            @if (Auth::user()->rol_id == '9' or Auth::user()->rol_id == '1')
-                <a><i  style="color:#ffffff;"></i><span style="color:#ffffff;">Mercadeo</span></a>
-
-
-                <li>
-                    <a><i class="fa-solid fa-cubes" style="color:#ffffff;">
-                        </i><span class="nav-label" style="color:#ffffff;">Inventario</span>
-                        <span class="fa arrow"></span></a>
-
-                    <ul class="nav nav-second-level">
-                        <li><a href="/producto/registro" style="color:#ffffff;">Catálogo de productos</a>
-                    </ul>
-                </li>
-                <li>
-                    <a><i class="fa-solid fa-file-invoice" style="color:#ffffff;"></i>
-                        <span class="nav-label" style="color:#ffffff;">Cotizaciones</span>
-                        <span class="fa arrow"></span></a>
-                        <ul class="nav nav-second-level">
-
-                            <li><a href="/proforma/cotizacion/2" style="color:#ffffff;">Cotización A</a></li>
-                            <li><a href="/cotizacion/listado/estatal" style="color:#ffffff;">Listado de Cotizaciones A</a></li>
-                            <li><a href="/proforma/cotizacion/1" style="color:#ffffff;">Cotización B</a></li>
-                            <li><a href="/cotizacion/listado/corporativo" style="color:#ffffff;">Listado de Cotizaciones B</a></li>
-                            <li><a href="/expo/cotizacion/3" style="color:#ffffff;">Expo Cotiza</a></li>
-                        </ul>
-                </li>
-                <li>
-                    <a><i class="fa-solid fa-file-invoice" style="color:#ffffff;"></i>
-                        <span class="nav-label" style="color:#ffffff;">Ventas Clientes A</span>
-                        <span class="fa arrow"></span></a>
-
-                    <ul class="nav nav-second-level">
-                        <li><a href="/facturas/estatal" style="color:#ffffff;">Listado de Facturas Clientes A</a> </li>
-                        <li><a href="/ventas/anulado/estatal" style="color:#ffffff;">Listado de Facturas Anuladas</a></li>
-                    </ul>
-                </li>
-                <li>
-                    <a><i class="fa-solid fa-file-invoice" style="color:#ffffff;"></i>
-                        <span class="nav-label" style="color:#ffffff;">Ventas Clientes B</span>
-                        <span class="fa arrow"></span></a>
-                        <ul class="nav nav-second-level">
-                            <li><a href="/facturas/corporativo/lista" style="color:#ffffff;">Listado de FacturasClientes B</a></li>
-                            <li><a href="/ventas/anulado/corporativo" style="color:#ffffff;">Listado de Facturas Anuladas</a></li>
-                        </ul>
-                </li>
-                <li>
-                    <a><i class="fa-solid fa-user" style="color:#ffffff;"></i> <span class="nav-label" style="color:#ffffff;">Reportes</span><span class="fa arrow"></span></a>
-                    <ul class="nav nav-second-level">
-                            <li><a href="/facturaDia" style="color:#ffffff;">Reporte de ventas</a>
-                            <li><a href="/reporte/reporteria" style="color:#ffffff;">Reportes Varios</a>
-                    </ul>
-                </li>
-            @endif
-                 {{--  FIN DE MENÚ  --}}
+                {{--  MENÚ DINÁMICO DESDE BASE DE DATOS  --}}
+                @include('partials.menu-dinamico')
+                {{--  FIN MENÚ DINÁMICO  --}}
             </ul>
         </div>
     </nav>
-
-
-
-
-
+        <!-- Overlay para cerrar el menú en móvil/tablet -->
+        <div class="mobile-sidebar-overlay" aria-hidden="true"></div>
 </nav>
+
+<style>
+/* Overlay para mobile/tablet */
+@media (max-width: 992px) {
+    .mobile-sidebar-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.45);
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.25s ease, visibility 0.25s ease;
+        z-index: 1500; /* Debajo del sidebar (2000) */
+    }
+    body.mobile-sidebar-open .mobile-sidebar-overlay {
+        opacity: 1;
+        visibility: visible;
+    }
+}
+</style>
+
+<script>
+// Toggle del sidebar en móvil/tablet: oculto por defecto, aparece al pulsar
+document.addEventListener('DOMContentLoaded', function () {
+    const toggleBtn = document.querySelector('.navbar-minimalize');
+    const overlay = document.querySelector('.mobile-sidebar-overlay');
+    function isNonDesktop() { return window.innerWidth <= 992; }
+
+    function toggleMobileSidebar(e) {
+        if (!toggleBtn) return;
+        if (isNonDesktop()) {
+            if (e) e.preventDefault();
+            document.body.classList.toggle('mobile-sidebar-open');
+        }
+    }
+
+    if (toggleBtn) {
+        toggleBtn.addEventListener('click', toggleMobileSidebar);
+    }
+
+    // Cerrar tocando overlay
+    if (overlay) {
+        overlay.addEventListener('click', () => {
+            document.body.classList.remove('mobile-sidebar-open');
+            // Cerrar submenús activos
+            document.querySelectorAll('#side-menu > li').forEach(li => li.classList.remove('active'));
+        });
+    }
+
+    // Cerrar submenús y sidebar al hacer clic fuera del menú en móvil/tablet
+    document.addEventListener('click', (e) => {
+        if (!isNonDesktop()) return;
+        const clickedInsideMenu = e.target.closest('#side-menu');
+        const clickedToggle = e.target.closest('.navbar-minimalize');
+        const clickedOverlay = e.target.closest('.mobile-sidebar-overlay');
+        if (!clickedInsideMenu && !clickedToggle && !clickedOverlay) {
+            document.querySelectorAll('#side-menu > li').forEach(li => li.classList.remove('active'));
+            document.body.classList.remove('mobile-sidebar-open');
+        }
+    });
+
+    // Cerrar el sidebar si cambia a escritorio
+    window.addEventListener('resize', () => {
+        if (!isNonDesktop()) {
+            document.body.classList.remove('mobile-sidebar-open');
+            document.querySelectorAll('#side-menu > li').forEach(li => li.classList.remove('active'));
+        }
+    });
+});
+</script>

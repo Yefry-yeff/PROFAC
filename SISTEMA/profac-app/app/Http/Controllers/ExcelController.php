@@ -234,13 +234,13 @@ if ($zip->open($full) === true) {
     'allXmlCnt'  => count($allXml)
 ]);
 
-// 7) Importar desde disco y con lector forzado
-Excel::import(
-    $import,
-    $storedPath,
-    'local',
-    $readerType
-);
+// 7) Importar desde disco usando toCollection
+$collections = Excel::toCollection($import, $full);
+
+            // Llamar manualmente al método collection() para procesar los datos
+            foreach ($collections as $sheet) {
+                $import->collection($sheet);
+            }
 
             // Obtención de estadísticas generadas por el import (lecturas, inserciones, inactivaciones, omisiones, etc.).
             $stats = $import->getStats();
@@ -336,8 +336,15 @@ Excel::import(
 
             $readerType = ($ext === 'csv') ? ExcelFormat::CSV : ExcelFormat::XLSX;
             $storedPath = $file->storeAs('imports', 'preview_precios_' . time() . '.' . $ext, 'local');
+            $fullPath = storage_path('app/' . $storedPath);
 
-            Excel::import($import, $storedPath, 'local', $readerType);
+            // toCollection obtiene los datos sin corrupción en cPanel
+            $collections = Excel::toCollection($import, $fullPath);
+            
+            // Llamar manualmente al método collection() para procesar los datos
+            foreach ($collections as $sheet) {
+                $import->collection($sheet);
+            }
 
             $stats = $import->getStats();
 
@@ -423,12 +430,15 @@ Excel::import(
 
             config(['excel.temporary_files.local_path' => storage_path('app/excel-temp')]);
 
-            Excel::import(
-                $import,
-                $previewData['storedPath'],
-                'local',
-                $previewData['readerType']
-            );
+            $fullPath = storage_path('app/' . $previewData['storedPath']);
+
+            // toCollection obtiene los datos sin corrupción en cPanel
+            $collections = Excel::toCollection($import, $fullPath);
+            
+            // Llamar manualmente al método collection() para procesar los datos
+            foreach ($collections as $sheet) {
+                $import->collection($sheet);
+            }
 
             $stats = $import->getStats();
 

@@ -153,6 +153,12 @@
     <!--ApexChart-->
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 
+    <!-- Menu Search -->
+    <script src="{{ asset('js/js_proyecto/menu/menu-search.js') }}"></script>
+    
+    <!-- Menu Responsive -->
+    <script src="{{ asset('js/js_proyecto/menu/menu-responsive.js') }}"></script>
+
     <script>
 
     </script>

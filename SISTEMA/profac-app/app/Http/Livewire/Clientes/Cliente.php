@@ -836,6 +836,7 @@ class Cliente extends Component
             $fullPath = storage_path('app/' . $storedPath);
 
             if (!file_exists($fullPath)) {
+                session()->forget('preview_categorias_file');
                 return response()->json([
                     'icon'  => 'error',
                     'title' => 'Error',
@@ -843,9 +844,118 @@ class Cliente extends Component
                 ], 400);
             }
 
-            $import = new ClientesCategoriaMasivaImport();
-            Excel::import($import, $fullPath);
-            $resumen = $import->resumen();
+            // Validar tamaño del archivo
+            if (filesize($fullPath) == 0) {
+                session()->forget('preview_categorias_file');
+                @unlink($fullPath);
+                return response()->json([
+                    'icon'  => 'error',
+                    'title' => 'Error',
+                    'text'  => 'El archivo está vacío. Por favor, procese el archivo nuevamente.',
+                ], 400);
+            }
+
+            // USAR toCollection CON LA MISMA CLASE DEL PREVIEW
+            // Esto asegura que la lectura sea idéntica al preview (usa WithHeadingRow)
+            $data = \Maatwebsite\Excel\Facades\Excel::toCollection(new \App\Imports\Escalas\ClientesCategoriaMasivaImport(), $fullPath);
+            
+            $actualizados = 0;
+            $saltados = 0;
+            $errores = [];
+            
+            foreach ($data[0] as $rawRow) {
+                // Normalizar llaves (igual que en el preview)
+                $norm = [];
+                foreach ($rawRow as $k => $v) {
+                    $k = is_string($k) ? trim($k) : $k;
+                    $k = mb_strtolower($k, 'UTF-8');
+                    $k = str_replace(
+                        [' ', '-', 'á','é','í','ó','ú','Á','É','Í','Ó','Ú','ñ','Ñ'],
+                        ['_', '_','a','e','i','o','u','a','e','i','o','u','n','N'],
+                        $k
+                    );
+                    $norm[$k] = is_string($v) ? trim($v) : $v;
+                }
+                $row = collect($norm);
+
+                $idCliente = $row->get('id');
+                
+                // Buscar nueva categoría en múltiples campos posibles (igual que preview)
+                $nuevaCat = $row->get('nueva_categoria_id');
+                if ($nuevaCat === null || $nuevaCat === '') {
+                    $nuevaCat = $row->get('cliente_categoria_escala_id');
+                }
+                if ($nuevaCat === null || $nuevaCat === '') {
+                    $nuevaCat = $row->get('nueva_categoria');
+                }
+
+                // Saltar filas sin datos (igual que preview)
+                if ($idCliente === null || $idCliente === '' || $nuevaCat === null || $nuevaCat === '') {
+                    $saltados++;
+                    continue;
+                }
+
+                // Validaciones
+                if (!is_numeric((string)$idCliente) || !is_numeric((string)$nuevaCat)) {
+                    $errores[] = "Cliente ID '{$idCliente}': valores no numéricos";
+                    continue;
+                }
+
+                \DB::beginTransaction();
+                try {
+                    $cliente = \App\Models\ModelCliente::lockForUpdate()->find((int)$idCliente);
+                    if (!$cliente) {
+                        $errores[] = "Cliente ID {$idCliente} no existe";
+                        \DB::rollBack();
+                        continue;
+                    }
+
+                    // Verificar que la categoría exista y esté activa
+                    $categoriaInfo = DB::selectOne("SELECT id, nombre_categoria, estado_id FROM cliente_categoria_escala WHERE id = ?", [(int)$nuevaCat]);
+                    
+                    if (!$categoriaInfo) {
+                        $errores[] = "Cliente ID {$idCliente}: Categoría {$nuevaCat} no existe";
+                        \DB::rollBack();
+                        continue;
+                    }
+                    
+                    if ($categoriaInfo->estado_id == 2) {
+                        $errores[] = "Cliente ID {$idCliente}: Categoría inactiva";
+                        \DB::rollBack();
+                        continue;
+                    }
+
+                    $old = (int)($cliente->cliente_categoria_escala_id ?? 0);
+                    $new = (int)$nuevaCat;
+
+                    if ($old === $new) {
+                        $saltados++;
+                        \DB::commit();
+                        continue;
+                    }
+
+                    // Actualizar cliente
+                    $cliente->cliente_categoria_escala_id = $new;
+                    $cliente->save();
+
+                    // Registrar log
+                    DB::table('cliente_categoria_escala_logs')->insert([
+                        'cliente_id'        => $cliente->id,
+                        'antigua_categoria' => $old ?: null,
+                        'nueva_categoria'   => $new,
+                        'comentario'        => 'Actualización masiva por Excel',
+                        'users_id'          => Auth::id() ?? 1,
+                        'created_at'        => now(),
+                        'updated_at'        => now(),
+                    ]);
+
+                    \DB::commit();
+                    $actualizados++;
+                } catch (\Throwable $e) {
+                    \DB::rollBack();
+                    $errores[] = "Cliente ID {$idCliente}: {$e->getMessage()}";
+                }
+            }
 
             // Limpiar la sesión
             session()->forget('preview_categorias_file');
@@ -858,8 +968,8 @@ class Cliente extends Component
             return response()->json([
                 'icon'    => 'success',
                 'title'   => 'Importación completada',
-                'text'    => "Actualizados: {$resumen['actualizados']} | Saltados: {$resumen['saltados']} | Errores: " . count($resumen['errores']),
-                'errores' => array_slice($resumen['errores'], 0, 10),
+                'text'    => "Actualizados: {$actualizados} | Saltados: {$saltados} | Errores: " . count($errores),
+                'errores' => array_slice($errores, 0, 10),
             ], 200);
 
         } catch (\Throwable $e) {
@@ -869,10 +979,22 @@ class Cliente extends Component
             Log::error("[ImportarCategorias] Excepción: {$msg}", ['trace' => $trace]);
             file_put_contents(storage_path('logs/import_categorias_exception.log'), date('c') . " " . $msg . PHP_EOL . $trace . PHP_EOL . PHP_EOL, FILE_APPEND);
 
+            // Mensajes específicos según el error
+            $userMessage = 'Ocurrió un problema al procesar el archivo.';
+            
+            if (strpos($msg, 'Document is empty') !== false || 
+                strpos($msg, 'simplexml_load_string') !== false) {
+                $userMessage = 'El archivo Excel está vacío o corrupto. Verificá que el archivo contenga datos válidos.';
+            } elseif (strpos($msg, 'parse error') !== false) {
+                $userMessage = 'El archivo no se puede leer. Asegurate de que sea un archivo Excel válido (.xlsx).';
+            } elseif (strpos($msg, 'ZIP') !== false) {
+                $userMessage = 'El archivo no es un Excel válido. Intentá guardarlo nuevamente desde Excel.';
+            }
+
             return response()->json([
                 'icon'  => 'error',
                 'title' => 'Error',
-                'text'  => 'Ocurrió un problema al procesar el archivo.',
+                'text'  => $userMessage,
                 'error' => $msg,
             ], 500);
         }

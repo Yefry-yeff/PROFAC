@@ -5,19 +5,19 @@
         .table-responsive::-webkit-scrollbar {
             width: 8px;
         }
-        
+
         #listaFacturas::-webkit-scrollbar-track,
         .table-responsive::-webkit-scrollbar-track {
             background: #f1f1f1;
             border-radius: 10px;
         }
-        
+
         #listaFacturas::-webkit-scrollbar-thumb,
         .table-responsive::-webkit-scrollbar-thumb {
             background: #888;
             border-radius: 10px;
         }
-        
+
         #listaFacturas::-webkit-scrollbar-thumb:hover,
         .table-responsive::-webkit-scrollbar-thumb:hover {
             background: #555;
@@ -28,35 +28,35 @@
             transition: opacity 0.2s ease-in-out;
         }
     </style>
-    <div class="card shadow-sm border-0">
-        <div class="card-header border-0 bg-white d-flex justify-content-between align-items-center flex-wrap">
+    <div class="border-0 shadow-sm card">
+        <div class="flex-wrap bg-white border-0 card-header d-flex justify-content-between align-items-center">
             <div>
                 <h4 class="mb-1">Confirmación de entregas</h4>
                 <p class="mb-0 text-muted">Selecciona el equipo, luego la factura para validar los productos entregados.</p>
             </div>
             <div class="d-flex align-items-center">
-                <div class="text-right mr-3">
+                <div class="mr-3 text-right">
                     <span class="d-block text-uppercase small text-muted">Fecha programada</span>
                     <input type="date" class="form-control form-control-sm" id="fechaConfirmacion" value="<?= date('Y-m-d') ?>">
                 </div>
             </div>
         </div>
-        <div class="card-body pt-0">
+        <div class="pt-0 card-body">
             <div class="row">
                 <div class="col-lg-4 border-right">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <h6 class="text-uppercase text-muted mb-0">Equipos programados</h6>
+                    <div class="mb-2 d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0 text-uppercase text-muted">Equipos programados</h6>
                         <span class="badge badge-light" id="totalEquipos">0</span>
                     </div>
                     <div id="listaDistribuciones" class="pr-lg-3" style="min-height:250px;"></div>
                 </div>
                 <div class="col-lg-8">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <h6 class="text-uppercase text-muted mb-0">Detalle de confirmación</h6>
+                    <div class="mb-2 d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0 text-uppercase text-muted">Detalle de confirmación</h6>
                     </div>
-                    <div id="contenedorFacturas" class="border rounded bg-light p-4" style="min-height:320px;">
-                        <div class="text-center text-muted py-5">
-                            <i class="fas fa-truck-loading fa-2x mb-3"></i>
+                    <div id="contenedorFacturas" class="p-4 border rounded bg-light" style="min-height:320px;">
+                        <div class="py-5 text-center text-muted">
+                            <i class="mb-3 fas fa-truck-loading fa-2x"></i>
                             <p class="mb-0">Selecciona un equipo para ver sus facturas.</p>
                         </div>
                     </div>
@@ -70,7 +70,7 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <div>
-                        <h5 class="modal-title mb-0">Incidencias del producto</h5>
+                        <h5 class="mb-0 modal-title">Incidencias del producto</h5>
                         <small class="text-muted" id="tituloProductoIncidencia">Selecciona un producto de la tabla.</small>
                     </div>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
@@ -96,20 +96,30 @@
                             </div>
                             <div class="form-group col-md-7">
                                 <label class="small text-muted">Descripción</label>
-                                <textarea class="form-control" id="descripcionIncidencia" rows="4" placeholder="Describe lo sucedido..."></textarea>
+                                <textarea class="form-control" id="descripcionIncidencia" rows="4" placeholder="Describe lo sucedido..." required minlength="5"></textarea>
                             </div>
-                        </div>
-                        <div class="text-right">
-                            <button type="button" class="btn btn-outline-secondary btn-sm mr-2" data-dismiss="modal">Cerrar</button>
-                            <button type="submit" class="btn btn-primary btn-sm" id="btnIncidenciaGuardar">
-                                <i class="fas fa-plus-circle mr-1"></i>Agregar incidencia
-                            </button>
                         </div>
                     </form>
                     <hr>
+                    <div class="mb-3">
+                        <h6 class="mb-2 text-uppercase small text-muted">Evidencia fotográfica</h6>
+                        <div class="mb-2 custom-file">
+                            <input type="file" class="custom-file-input" id="inputEvidencias" accept="image/*" multiple>
+                            <label class="custom-file-label" for="inputEvidencias">Seleccionar imágenes...</label>
+                        </div>
+
+                        <div id="previewEvidencias" class="flex-wrap d-flex"></div>
+                    </div>
+                    <div class="text-right">
+                        <button type="button" class="mr-2 btn btn-outline-secondary btn-sm" data-dismiss="modal">Cerrar</button>
+                        <button type="submit" class="btn btn-primary btn-sm" id="btnIncidenciaGuardar" form="formIncidencia">
+                            <i class="mr-1 fas fa-plus-circle"></i>Agregar incidencia
+                        </button>
+                    </div>
+                    <hr>
                     <h6 class="text-uppercase small text-muted">Incidencias registradas</h6>
                     <div id="listaIncidenciasProducto">
-                        <p class="text-muted mb-0">No hay incidencias para este producto.</p>
+                        <p class="mb-0 text-muted">No hay incidencias para este producto.</p>
                     </div>
                 </div>
             </div>
@@ -120,7 +130,7 @@
         <div class="modal-dialog modal-sm" role="document">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title mb-0">Hora de entrega</h5>
+                    <h5 class="mb-0 modal-title">Hora de entrega</h5>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
                         <span aria-hidden="true">&times;</span>
                     </button>
@@ -137,6 +147,30 @@
         </div>
     </div>
 
+    <div class="modal fade" id="modalImagenesIncidencia" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="mb-0 modal-title">
+                        <i class="fas fa-images"></i> Evidencias Fotográficas
+                    </h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body" id="bodyImagenesIncidencia">
+                    <div class="py-4 text-center">
+                        <i class="fas fa-spinner fa-spin fa-2x text-muted"></i>
+                        <p class="mt-2 text-muted">Cargando imágenes...</p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
@@ -145,7 +179,10 @@
                     facturas: "<?= url('/logistica/confirmacion/facturas') ?>",
                     marcarTodos: "<?= url('/logistica/confirmacion/marcar-todos') ?>",
                     guardar: "<?= route('logistica.confirmacion.guardar') ?>",
-                    incidencias: "<?= url('/logistica/confirmacion/productos') ?>"
+                    incidencias: "<?= url('/logistica/confirmacion/productos') ?>",
+                    evidencia: "<?= url('/logistica/confirmacion/evidencia') ?>",
+                    evidencias: "<?= url('/logistica/confirmacion/evidencias') ?>",
+                    evidenciasIncidencia: "<?= url('/logistica/confirmacion/incidencias') ?>"
                 };
 
                 const confirmacionState = {
@@ -154,7 +191,9 @@
                     facturas: [],
                     productosPendientes: [],
                     productoIncidencia: null,
-                    productoIncidenciaNombre: ''
+                    productoIncidenciaNombre: '',
+                    incidenciasPendientes: [], // Incidencias que se guardarán al confirmar
+                    incidenciaEditando: null // ID temporal de incidencia en edición
                 };
 
                 $(function () {
@@ -201,6 +240,21 @@
                         if (facturaId) {
                             marcarTodosEntregados(facturaId);
                         }
+                    });
+                    // Event handler para actualizar el estado cuando se marca/desmarca un checkbox
+                    $(document).on('change', '.chk-producto', function () {
+                        const productoId = $(this).data('producto');
+                        const checked = $(this).is(':checked');
+                        // Actualizar el estado en memoria
+                        confirmacionState.facturas.forEach(factura => {
+                            (factura.productos || []).forEach(producto => {
+                                if (Number(producto.id) === Number(productoId)) {
+                                    producto.entregado = checked ? 1 : 0;
+                                }
+                            });
+                        });
+                        // Actualizar contador
+                        actualizarContadorProductos();
                     });
                     $('#contenedorFacturas').on('click', '#btnConfirmarEntrega', guardarConfirmacion);
                     $('#contenedorFacturas').on('input', '#filtroFacturas', function() {
@@ -258,11 +312,15 @@
 
                     let html = '<div class="rounded shadow-sm list-group list-group-flush">';
                     distribuciones.forEach(d => {
-                        const progreso = d.total_facturas ? Math.round((d.facturas_entregadas / d.total_facturas) * 100) : 0;
+                        // Calcular progreso basado en estados: entregado o parcial = 100%, sin_entrega = 0%
+                        const facturasCompletadas = d.facturas_completadas || 0;
+                        const progreso = d.total_facturas ? Math.round((facturasCompletadas / d.total_facturas) * 100) : 0;
+                        const descripcion = d.observaciones ? `<small class="text-muted d-block">${d.observaciones}</small>` : '';
                         html += `<button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center btn-distribucion ${confirmacionState.distribucionActual === d.id ? 'active' : ''}" data-distribucion="${d.id}">
                             <div>
                                 <div class="mb-0 font-weight-bold">${d.nombre_equipo}</div>
-                                <small class="text-muted">${d.facturas_entregadas}/${d.total_facturas} facturas</small>
+                                ${descripcion}
+                                <small class="text-muted">${facturasCompletadas}/${d.total_facturas} facturas</small>
                             </div>
                             <div class="text-right" style="min-width:80px;">
                                 <span class="badge badge-${progreso === 100 ? 'success' : 'secondary'}">${progreso}%</span>
@@ -300,6 +358,8 @@
                 }
 
                 function cargarConfirmacion(distribucionId, facturaAnterior = null) {
+                    // Limpiar incidencias pendientes al cambiar de distribuci\u00f3n
+                    confirmacionState.incidenciasPendientes = [];
                     $('#contenedorFacturas').html(skeleton('Cargando facturas...'));
                     $.get(`${rutasConfirmacion.facturas}/${distribucionId}`)
                         .done(resp => {
@@ -363,8 +423,8 @@
                     }
 
                     const filtroLower = filtro.toLowerCase().trim();
-                    const facturasFiltradas = filtro ? confirmacionState.facturas.filter(f => 
-                        f.numero_factura.toLowerCase().includes(filtroLower)
+                    const facturasFiltradas = filtro ? confirmacionState.facturas.filter(f =>
+                        f.cai.toLowerCase().includes(filtroLower)
                     ) : confirmacionState.facturas;
 
                     if (!facturasFiltradas.length) {
@@ -378,10 +438,10 @@
                         const isActive = confirmacionState.facturaSeleccionada === f.distribucion_factura_id;
                         const progreso = calcularProgresoFactura(f);
                         const incidencias = (f.productos || []).filter(p => Number(p.tiene_incidencia) === 1).length;
-                        html += `<button type="button" class="list-group-item list-group-item-action factura-item ${isActive ? 'active' : ''}" data-factura="${f.distribucion_factura_id}" data-numero="${f.numero_factura}">
+                        html += `<button type="button" class="list-group-item list-group-item-action factura-item ${isActive ? 'active' : ''}" data-factura="${f.distribucion_factura_id}" data-numero="${f.cai}">
                             <div class="d-flex justify-content-between">
                                 <div>
-                                    <div class="font-weight-bold">Factura #${f.numero_factura}</div>
+                                    <div class="font-weight-bold">Factura #${f.cai}</div>
                                     <small class="d-block text-muted">${f.cliente}</small>
                                     ${incidencias ? `<small class="text-danger">${incidencias} incidencia${incidencias > 1 ? 's' : ''}</small>` : ''}
                                 </div>
@@ -403,6 +463,20 @@
                     renderDetalleFactura(distribucionFacturaId);
                 }
 
+                function actualizarContadorProductos() {
+                    const facturaId = confirmacionState.facturaSeleccionada;
+                    if (!facturaId) return;
+
+                    const factura = confirmacionState.facturas.find(f => f.distribucion_factura_id === facturaId);
+                    if (!factura) return;
+
+                    const productos = factura.productos || [];
+                    const articulosEntregados = productos.filter(p => Number(p.entregado) === 1).length;
+                    const progreso = productos.length ? Math.round((articulosEntregados / productos.length) * 100) : 0;
+
+                    $('#contadorProductos').text(articulosEntregados);
+                }
+
                 function renderDetalleFactura(distribucionFacturaId) {
                     const contenedor = $('#detalleFactura');
                     if (!distribucionFacturaId) {
@@ -416,19 +490,41 @@
                         return;
                     }
 
+                    // Guardar el estado actual de los checkboxes antes de re-renderizar
+                    const estadoCheckboxes = {};
+                    $('.chk-producto').each(function() {
+                        const productoId = $(this).data('producto');
+                        estadoCheckboxes[productoId] = $(this).is(':checked');
+                    });
+
                     const productos = factura.productos || [];
                     const articulosEntregados = productos.filter(p => Number(p.entregado) === 1).length;
                     const progreso = productos.length ? Math.round((articulosEntregados / productos.length) * 100) : 0;
                     const estado = (factura.estado_entrega || '').toLowerCase();
-                    // Bloquear si está entregada, parcial, o si ya se ha confirmado al menos una vez
-                    const facturaBloqueada = estado === 'entregado' || estado === 'parcial' || (Number(factura.confirmada) === 1);
+                    // Bloquear si está entregada completamente (entregado) o si ya se ha confirmado
+                    // NOTA: 'parcial' NO bloquea para permitir agregar más incidencias después de desbloquear
+                    const facturaBloqueada = estado === 'entregado' || (Number(factura.confirmada) === 1 && estado !== 'sin_entrega');
 
                     let filas = '';
                     productos.forEach((p, index) => {
                         const tieneIncidencia = Number(p.tiene_incidencia) === 1;
-                        const checkboxDeshabilitado = facturaBloqueada || tieneIncidencia;
                         const incidenciasRegistradas = Number(p.incidencias_registradas) || 0;
+                        
+                        // El checkbox se deshabilita si:
+                        // 1. La factura está bloqueada (entregada completamente), O
+                        // 2. El producto tiene incidencia (guardada en BD)
+                        const checkboxDeshabilitado = facturaBloqueada || tieneIncidencia;
+                        
                         const nombreSafe = encodeURIComponent(p.nombre_producto || '');
+                        
+                        // Si tiene incidencia, siempre debe estar desmarcado
+                        // Si no tiene incidencia, usar el estado guardado o p.entregado
+                        const estaChecked = tieneIncidencia ? false : (estadoCheckboxes.hasOwnProperty(p.id) ? estadoCheckboxes[p.id] : p.entregado);
+                        
+                        // Actualizar el estado en memoria también
+                        if (tieneIncidencia) {
+                            p.entregado = 0;
+                        }
                         filas += `<tr>
                             <td>${index + 1}</td>
                             <td>
@@ -438,7 +534,7 @@
                             </td>
                             <td class="text-center">${p.cantidad_facturada}</td>
                             <td class="text-center">
-                                <input type="checkbox" class="form-check-input position-static chk-producto" data-producto="${p.id}" data-factura="${factura.distribucion_factura_id}" data-cantidad="${p.cantidad_facturada}" ${p.entregado ? 'checked' : ''} ${checkboxDeshabilitado ? 'disabled' : ''}>
+                                <input type="checkbox" class="form-check-input position-static chk-producto" data-producto="${p.id}" data-factura="${factura.distribucion_factura_id}" data-cantidad="${p.cantidad_facturada}" ${estaChecked ? 'checked' : ''} ${checkboxDeshabilitado ? 'disabled' : ''}>
                             </td>
                             <td class="text-center">
                                 <div class="d-flex flex-column align-items-center">
@@ -454,7 +550,7 @@
                     const header = `
                         <div class="mb-3 d-flex justify-content-between align-items-center">
                             <div>
-                                <h5 class="mb-0">Factura #${factura.numero_factura}</h5>
+                                <h5 class="mb-0">Factura #${factura.cai}</h5>
                                 <small class="text-muted d-block">${factura.cliente} ${factura.telefono_empresa ? '· ' + factura.telefono_empresa : ''}</small>
                                 <small class="text-muted">${factura.direccion || 'Sin dirección registrada'}</small>
                             </div>
@@ -465,7 +561,7 @@
                                 <div class="small text-muted"><span id="contadorProductos">${articulosEntregados}</span>/${productos.length || 0} productos · ${progreso}%</div>
                             </div>
                         </div>`;
-                    
+
                     // Mensaje dinámico según el estado
                     let mensajeBloqueo = '';
                     if (facturaBloqueada) {
@@ -477,7 +573,7 @@
                             mensajeBloqueo = '<div class="py-2 alert alert-info"><i class="mr-2 fas fa-lock"></i>Esta factura ya fue confirmada y está bloqueada.</div>';
                         }
                     }
-                    
+
                     const filtroProductos = `${mensajeBloqueo}
                         <div class="mb-2">
                             <input type="text" id="filtroProductos" class="form-control form-control-sm" placeholder="Buscar producto por nombre...">
@@ -501,7 +597,7 @@
                         : '<p class="mb-0 text-muted">La factura no tiene productos asociados.</p>';
 
                     contenedor.html(tabla);
-                    
+
                     // Configurar filtro de productos
                     $('#filtroProductos').off('input').on('input', function() {
                         filtrarProductos($(this).val());
@@ -511,10 +607,10 @@
                 function filtrarProductos(filtro) {
                     const filtroLower = filtro.toLowerCase().trim();
                     let contadorVisibles = 0;
-                    
+
                     $('#tablaProductos tbody tr:not(.no-results)').each(function() {
                         const nombreProducto = $(this).find('td:eq(1) .font-weight-bold').text().toLowerCase();
-                        
+
                         if (!filtro || nombreProducto.includes(filtroLower)) {
                             $(this).fadeIn(200);
                             contadorVisibles++;
@@ -522,11 +618,11 @@
                             $(this).fadeOut(200);
                         }
                     });
-                    
+
                     // Mostrar mensaje si no hay resultados
                     if (contadorVisibles === 0 && filtro) {
                         if ($('#tablaProductos tbody .no-results').length === 0) {
-                            $('#tablaProductos tbody').append('<tr class="no-results"><td colspan="5" class="text-center text-muted py-3"><i class="fas fa-search mr-2"></i>No se encontraron productos con ese nombre</td></tr>');
+                            $('#tablaProductos tbody').append('<tr class="no-results"><td colspan="5" class="py-3 text-center text-muted"><i class="mr-2 fas fa-search"></i>No se encontraron productos con ese nombre</td></tr>');
                         }
                         $('#tablaProductos tbody .no-results').show();
                     } else {
@@ -571,16 +667,24 @@
                         }
                     }
 
-                    $.post(`${rutasConfirmacion.marcarTodos}/${distribucionFacturaId}`, { _token: csrfToken })
-                        .done(resp => {
-                            if (confirmacionState.distribucionActual) {
-                                cargarConfirmacion(confirmacionState.distribucionActual, confirmacionState.facturaSeleccionada);
-                            }
-                        })
-                        .fail(xhr => {
-                            const r = xhr.responseJSON || {};
-                            Swal.fire(r.title || 'Error', r.text || 'No se pudieron actualizar los productos.', r.icon || 'error');
-                        });
+                    // Solo marcar checkboxes de productos sin incidencias
+                    let productosSeleccionados = 0;
+                    $('#tablaProductos .chk-producto').each(function() {
+                        const $checkbox = $(this);
+                        // Solo marcar si no está deshabilitado (significa que no tiene incidencia)
+                        if (!$checkbox.prop('disabled')) {
+                            $checkbox.prop('checked', true);
+                            const productoId = $checkbox.data('producto');
+                            estadoCheckboxes[productoId] = true;
+                            productosSeleccionados++;
+                        }
+                    });
+
+                    if (productosSeleccionados > 0) {
+                        toastr.success(`${productosSeleccionados} producto(s) marcado(s) como entregado(s)`, 'Productos seleccionados');
+                    } else {
+                        toastr.info('No hay productos disponibles para marcar', 'Información');
+                    }
                 }
 
 
@@ -590,25 +694,75 @@
                         return;
                     }
 
-                    // Verificar si la factura seleccionada ya está confirmada
+                    // Obtener factura actual y validar
                     const facturaActual = confirmacionState.facturas.find(f => f.distribucion_factura_id === confirmacionState.facturaSeleccionada);
-                    if (facturaActual) {
-                        const estado = (facturaActual.estado_entrega || '').toLowerCase();
-                        const yaConfirmada = Number(facturaActual.confirmada) === 1;
-                        if (estado === 'entregado' || estado === 'parcial' || yaConfirmada) {
-                            Swal.fire({
-                                icon: 'warning',
-                                title: 'Factura ya confirmada',
-                                text: 'Esta factura ya fue confirmada y no se puede modificar. Solo puedes consultar su historial.',
-                                confirmButtonText: 'Entendido'
-                            });
-                            return;
-                        }
+                    if (!facturaActual) {
+                        Swal.fire('Error', 'No se encontró la factura seleccionada.', 'error');
+                        return;
                     }
-
-                    const productos = recolectarProductosSeleccionados();
-                    if (!productos.length) {
-                        Swal.fire('Sin cambios', 'No hay productos habilitados para confirmar.', 'info');
+                    
+                    // Verificar si la factura está completamente bloqueada
+                    // Solo bloquear si está en 'entregado' o si fue confirmada y NO fue desbloqueada
+                    const estado = (facturaActual.estado_entrega || '').toLowerCase();
+                    const yaConfirmada = Number(facturaActual.confirmada) === 1;
+                    const estaBloqueada = estado === 'entregado' || (yaConfirmada && estado !== 'sin_entrega');
+                    
+                    if (estaBloqueada) {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Factura bloqueada',
+                            text: 'Esta factura está bloqueada y no se puede modificar. Debes desbloquearla primero desde el módulo de distribuciones.',
+                            confirmButtonText: 'Entendido'
+                        });
+                        return;
+                    }
+                    
+                    const todosLosProductos = facturaActual.productos || [];
+                    
+                    // Validar que TODOS los productos estén marcados O tengan incidencia
+                    const productosSinGestionar = [];
+                    todosLosProductos.forEach(producto => {
+                        const checkbox = $(`.chk-producto[data-producto="${producto.id}"]`);
+                        const estaMarcado = checkbox.is(':checked');
+                        const tieneIncidenciaGuardada = Number(producto.tiene_incidencia) === 1;
+                        const tieneIncidenciaPendiente = confirmacionState.incidenciasPendientes.some(i => i.producto_id === producto.id);
+                        
+                        // Si no está marcado Y no tiene incidencia guardada Y no tiene incidencia pendiente
+                        if (!estaMarcado && !tieneIncidenciaGuardada && !tieneIncidenciaPendiente) {
+                            productosSinGestionar.push(producto.nombre_producto);
+                        }
+                    });
+                    
+                    // Si hay productos sin gestionar, no permitir confirmar
+                    if (productosSinGestionar.length > 0) {
+                        const listaProductos = productosSinGestionar.map(p => `• ${p}`).join('<br>');
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Productos pendientes',
+                            html: `Los siguientes productos no están marcados como entregados ni tienen incidencias registradas:<br><br>${listaProductos}<br><br>Debes marcar cada producto como entregado o registrar una incidencia antes de confirmar.`,
+                            confirmButtonText: 'Entendido'
+                        });
+                        return;
+                    }
+                    
+                    // Recolectar productos marcados
+                    const incidenciasPendientes = confirmacionState.incidenciasPendientes.length;
+                    const productos = recolectarProductosSeleccionados(incidenciasPendientes > 0);
+                    
+                    // Si hay incidencias pero no productos habilitados, asegurarse de enviar todos los productos
+                    if (!productos.length && incidenciasPendientes > 0) {
+                        Swal.fire({
+                            icon: 'info',
+                            title: 'Solo incidencias',
+                            text: 'Se confirmarán únicamente las incidencias registradas.',
+                            confirmButtonText: 'Continuar'
+                        }).then((result) => {
+                            if (result.isConfirmed) {
+                                confirmacionState.productosPendientes = [];
+                                $('#horaEntregaInput').val(obtenerHoraActual());
+                                $('#modalHoraEntrega').modal('show');
+                            }
+                        });
                         return;
                     }
 
@@ -617,20 +771,34 @@
                     $('#modalHoraEntrega').modal('show');
                 }
 
-                function recolectarProductosSeleccionados() {
+                function recolectarProductosSeleccionados(incluirDeshabilitados = false) {
                     const productos = [];
+                    const facturaActual = confirmacionState.facturas.find(f => f.distribucion_factura_id === confirmacionState.facturaSeleccionada);
+                    const productosFactura = facturaActual ? (facturaActual.productos || []) : [];
+                    
                     $('.chk-producto').each(function () {
-                        if (this.disabled) {
+                        // Si incluirDeshabilitados es true, procesar todos los productos
+                        // Si es false, solo procesar productos habilitados (comportamiento original)
+                        if (!incluirDeshabilitados && this.disabled) {
                             return;
                         }
                         const id = $(this).data('producto');
                         if (!id) {
                             return;
                         }
+                        
+                        // Buscar el producto en la factura para verificar si tiene incidencia guardada
+                        const productoInfo = productosFactura.find(p => p.id === id);
+                        const tieneIncidenciaGuardada = productoInfo ? Number(productoInfo.tiene_incidencia) === 1 : false;
+                        const tieneIncidenciaPendiente = confirmacionState.incidenciasPendientes.some(i => i.producto_id === id);
+                        
+                        // Si el producto tiene incidencia (guardada o pendiente), SIEMPRE debe ir como entregado=0
+                        const tieneIncidencia = tieneIncidenciaGuardada || tieneIncidenciaPendiente;
+                        
                         productos.push({
                             id: id,
-                            entregado: $(this).is(':checked') ? 1 : 0,
-                            cantidad_entregada: $(this).is(':checked') ? $(this).data('cantidad') : 0
+                            entregado: tieneIncidencia ? 0 : ($(this).is(':checked') ? 1 : 0),
+                            cantidad_entregada: tieneIncidencia ? 0 : ($(this).is(':checked') ? $(this).data('cantidad') : 0)
                         });
                     });
                     return productos;
@@ -646,13 +814,42 @@
                     enviarConfirmacion(hora);
                 }
 
-                function enviarConfirmacion(horaEntrega) {
+                async function enviarConfirmacion(horaEntrega) {
                     const productos = confirmacionState.productosPendientes.slice();
-                    if (!productos.length) {
+                    const incidenciasPendientes = confirmacionState.incidenciasPendientes.length;
+                    
+                    // Permitir envío si hay productos O incidencias
+                    if (!productos.length && !incidenciasPendientes) {
                         return;
                     }
+                    
                     const boton = $('#btnConfirmarEntrega');
                     boton.prop('disabled', true).html('<span class="mr-2 spinner-border spinner-border-sm"></span>Guardando...');
+
+                    // Preparar incidencias con evidencias en base64
+                    const incidenciasPrepararadas = [];
+                    for (const inc of confirmacionState.incidenciasPendientes) {
+                        const incidenciaData = {
+                            producto_id: inc.producto_id,
+                            tipo: inc.tipo,
+                            descripcion: inc.descripcion,
+                            evidencias: []
+                        };
+
+                        // Convertir evidencias a base64
+                        if (inc.evidencias && inc.evidencias.length > 0) {
+                            for (const file of inc.evidencias) {
+                                try {
+                                    const base64 = await convertirArchivoABase64(file);
+                                    incidenciaData.evidencias.push(base64);
+                                } catch (error) {
+                                    console.error('Error al convertir evidencia:', error);
+                                }
+                            }
+                        }
+
+                        incidenciasPrepararadas.push(incidenciaData);
+                    }
 
                     $.ajax({
                         url: rutasConfirmacion.guardar,
@@ -660,11 +857,14 @@
                         data: {
                             productos,
                             hora_entrega: horaEntrega,
+                            incidencias: incidenciasPrepararadas,
                             _token: csrfToken
                         }
                     })
                         .done(resp => {
                             Swal.fire(resp.title, resp.text, resp.icon);
+                            // Limpiar incidencias pendientes
+                            confirmacionState.incidenciasPendientes = [];
                             if (confirmacionState.distribucionActual) {
                                 // Recargar la lista de distribuciones para actualizar los porcentajes
                                 actualizarDistribuciones();
@@ -682,11 +882,22 @@
                         });
                 }
 
+                function convertirArchivoABase64(file) {
+                    return new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = () => resolve(reader.result);
+                        reader.onerror = reject;
+                        reader.readAsDataURL(file);
+                    });
+                }
+
+                let evidenciasPendientes = [];
+
                 function abrirIncidencia(button) {
                     // Verificar si la factura actual está bloqueada
                     const facturaActual = confirmacionState.facturas.find(f => f.distribucion_factura_id === confirmacionState.facturaSeleccionada);
                     let facturaBloqueada = false;
-                    
+
                     if (facturaActual) {
                         const estado = (facturaActual.estado_entrega || '').toLowerCase();
                         const yaConfirmada = Number(facturaActual.confirmada) === 1;
@@ -699,33 +910,29 @@
                     confirmacionState.productoIncidenciaNombre = decodeURIComponent(nombreCodificado);
                     $('#productoIncidenciaId').val(productoId);
                     $('#tituloProductoIncidencia').text(confirmacionState.productoIncidenciaNombre || `Producto #${productoId}`);
-                    
+
                     // Deshabilitar el formulario si la factura está bloqueada
                     if (facturaBloqueada) {
                         $('#tipoIncidencia').prop('disabled', true);
                         $('#descripcionIncidencia').prop('disabled', true);
                         $('#btnIncidenciaGuardar').prop('disabled', true);
-                        $('.alert-warning').html('<i class="fas fa-lock mr-2"></i>Esta factura ya fue confirmada. Solo puedes consultar las incidencias existentes.').removeClass('alert-warning').addClass('alert-info');
+                        $('.alert-warning').html('<i class="mr-2 fas fa-lock"></i>Esta factura ya fue confirmada. Solo puedes consultar las incidencias existentes.').removeClass('alert-warning').addClass('alert-info');
                     } else {
                         $('#tipoIncidencia').prop('disabled', false);
                         $('#descripcionIncidencia').prop('disabled', false);
                         $('#btnIncidenciaGuardar').prop('disabled', false);
                         $('.alert-info').html('Cada incidencia registrada bloquea el producto hasta que logística la gestione.').removeClass('alert-info').addClass('alert-warning');
                     }
-                    
-                    $('#modalIncidencia').modal('show');
-                    cargarIncidenciasProducto(productoId);
-                }
 
-                function cargarIncidenciasProducto(productoId) {
-                    $('#listaIncidenciasProducto').html(skeleton('Cargando incidencias...'));
-                    $.get(`${rutasConfirmacion.incidencias}/${productoId}/incidencias`)
-                        .done(resp => {
-                            renderListaIncidencias(resp.incidencias || []);
-                        })
-                        .fail(() => {
-                            $('#listaIncidenciasProducto').html('<div class="mb-0 alert alert-danger">No se pudieron cargar las incidencias.</div>');
-                        });
+                    $('#modalIncidencia').modal('show');
+                    evidenciasPendientes = [];
+                    // Limpiar previews
+                    $('#previewEvidencias').html('');
+                    // Resetear botón si estaba en modo edición
+                    confirmacionState.incidenciaEditando = null;
+                    $('#btnIncidenciaGuardar').html('<i class="mr-1 fas fa-plus-circle"></i>Agregar incidencia');
+                    // Cargar incidencias existentes de la BD + las pendientes locales
+                    window.cargarIncidenciasProducto(productoId);
                 }
 
                 function renderListaIncidencias(incidencias) {
@@ -736,11 +943,19 @@
 
                     let filas = '';
                     incidencias.forEach((inc, index) => {
+                        const imagenCount = inc.evidencias_count || 0;
+                        const btnImagenes = imagenCount > 0
+                            ? `<button type="button" class="btn btn-sm btn-info" onclick="verImagenesIncidencia(${inc.id})" title="Ver imágenes">
+                                <i class="fas fa-images"></i> ${imagenCount}
+                               </button>`
+                            : '<span class="text-muted"><i class="fas fa-image-slash"></i> Sin imágenes</span>';
+
                         filas += `<tr>
                             <td>${index + 1}</td>
                             <td>${inc.tipo}</td>
                             <td>${inc.descripcion}</td>
                             <td>${formatearFecha(inc.created_at)}</td>
+                            <td class="text-center">${btnImagenes}</td>
                         </tr>`;
                     });
 
@@ -752,12 +967,70 @@
                                     <th>Tipo</th>
                                     <th>Descripción</th>
                                     <th>Registrado</th>
+                                    <th class="text-center" width="120">Imágenes</th>
                                 </tr>
                             </thead>
                             <tbody>${filas}</tbody>
                         </table>
                     </div>`;
                     $('#listaIncidenciasProducto').html(tabla);
+                }
+
+                // ==================== EVIDENCIAS (FOTOS) ====================
+                // Vista previa y subida automática
+                $(document).off('change', '#inputEvidencias').on('change', '#inputEvidencias', function() {
+                    const files = Array.from(this.files || []);
+                    if (!files.length) return;
+                    const preview = $('#previewEvidencias');
+                    files.forEach(f => {
+                        evidenciasPendientes.push(f);
+                        const reader = new FileReader();
+                        reader.onload = e => {
+                            const el = `<div class="mb-2 mr-2 border rounded" style="width:90px;height:90px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f8f9fa;">
+                                <img src="${e.target.result}" style="max-width:100%;max-height:100%;"/>
+                            </div>`;
+                            preview.append(el);
+                        };
+                        reader.readAsDataURL(f);
+                    });
+                    // Update label with cumulative count
+                    $(this).next('.custom-file-label').text(`${evidenciasPendientes.length} archivo(s) acumulado(s)`);
+                });
+
+                function subirEvidenciasPendientes(incidenciaId, callback) {
+                    const dfId = confirmacionState.facturaSeleccionada;
+                    const descripcion = $('#descripcionIncidencia').val().trim();
+                    if (!evidenciasPendientes.length) {
+                        callback && callback({ subidas: 0, fallidas: 0 });
+                        return;
+                    }
+                    let subidas = 0, fallidas = 0;
+                    const total = evidenciasPendientes.length;
+                    const subir = (file) => {
+                        const fd = new FormData();
+                        fd.append('incidencia_id', incidenciaId);
+                        fd.append('archivo', file);
+                        if (descripcion) fd.append('descripcion', descripcion);
+                        $.ajax({
+                            url: rutasConfirmacion.evidencia,
+                            type: 'POST',
+                            data: fd,
+                            processData: false,
+                            contentType: false,
+                            headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') }
+                        }).done(() => { subidas++; })
+                          .fail(() => { fallidas++; })
+                          .always(() => {
+                              if (subidas + fallidas === total) {
+                                  callback && callback({ subidas, fallidas });
+                                  evidenciasPendientes = [];
+                                  $('#inputEvidencias').val('');
+                                  $('.custom-file-label[for="inputEvidencias"]').text('Seleccionar imágenes...');
+                                  $('#previewEvidencias').html('');
+                              }
+                          });
+                    };
+                    evidenciasPendientes.forEach(subir);
                 }
 
                 function registrarIncidencia() {
@@ -790,30 +1063,232 @@
                         return;
                     }
 
-                    const boton = $('#btnIncidenciaGuardar');
-                    boton.prop('disabled', true).html('<span class="mr-1 spinner-border spinner-border-sm"></span>Guardando');
+                    // Guardar localmente en lugar de enviar al servidor
+                    const incidencia = {
+                        id: confirmacionState.incidenciaEditando || Date.now(), // ID temporal
+                        producto_id: productoId,
+                        producto_nombre: confirmacionState.productoIncidenciaNombre,
+                        tipo: tipo,
+                        descripcion: descripcion,
+                        evidencias: evidenciasPendientes.slice(), // Clonar array de evidencias
+                        estado: 'pendiente' // Marca que está pendiente de guardar
+                    };
 
-                    $.ajax({
-                        url: `${rutasConfirmacion.incidencias}/${productoId}/incidencias`,
-                        type: 'POST',
-                        data: {
-                            tipo,
-                            descripcion,
-                            _token: csrfToken
+                    if (confirmacionState.incidenciaEditando) {
+                        // Actualizar incidencia existente
+                        const index = confirmacionState.incidenciasPendientes.findIndex(i => i.id === confirmacionState.incidenciaEditando);
+                        if (index !== -1) {
+                            confirmacionState.incidenciasPendientes[index] = incidencia;
+                            toastr.success('Incidencia actualizada (pendiente de guardar)');
                         }
-                    })
+                        confirmacionState.incidenciaEditando = null;
+                    } else {
+                        // Agregar nueva incidencia
+                        confirmacionState.incidenciasPendientes.push(incidencia);
+                        toastr.success('Incidencia agregada (pendiente de guardar)');
+                    }
+
+                    // Limpiar formulario
+                    $('#descripcionIncidencia').val('');
+                    $('#tipoIncidencia').val('producto_danado');
+                    evidenciasPendientes = [];
+                    $('#previewEvidencias').empty();
+                    $('#inputEvidencias').val('');
+                    $('.custom-file-label').text('Seleccionar imágenes...');
+                    $('#btnIncidenciaGuardar').html('<i class="mr-1 fas fa-plus-circle"></i>Agregar incidencia');
+
+                    // Recargar todas las incidencias (guardadas + pendientes)
+                    window.cargarIncidenciasProducto(productoId);
+                    
+                    // Actualizar estado visual del producto
+                    actualizarEstadoProducto(productoId);
+                    
+                    // Actualizar contador en la tabla
+                    actualizarContadorIncidencias(productoId);
+                }
+
+                function renderIncidenciasPendientes(productoId) {
+                    const incidencias = confirmacionState.incidenciasPendientes.filter(i => i.producto_id === productoId);
+                    
+                    if (incidencias.length === 0) {
+                        $('#listaIncidenciasProducto').html('<p class="mb-0 text-muted">No hay incidencias agregadas para este producto.</p>');
+                        return;
+                    }
+
+                    let html = '<div class="list-group">';
+                    incidencias.forEach((inc, index) => {
+                        const tipoLabel = {
+                            'producto_danado': 'Producto da\u00f1ado',
+                            'cantidad_incorrecta': 'Cantidad incorrecta',
+                            'cliente_rechazo': 'Cliente rechaz\u00f3',
+                            'direccion_incorrecta': 'Direcci\u00f3n incorrecta',
+                            'otro': 'Otro'
+                        }[inc.tipo] || inc.tipo;
+
+                        html += `<div class="mb-2 list-group-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <span class="badge badge-warning">${tipoLabel}</span>
+                                    <span class="badge badge-info">Pendiente de guardar</span>
+                                    <p class="mt-2 mb-1">${inc.descripcion}</p>
+                                    ${inc.evidencias.length > 0 ? `<small class="text-muted"><i class="fas fa-images"></i> ${inc.evidencias.length} evidencia(s)</small>` : ''}
+                                </div>
+                                <div class="ml-2 btn-group-vertical btn-group-sm">
+                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="editarIncidenciaPendiente(${inc.id})" title="Editar">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="eliminarIncidenciaPendiente(${inc.id})" title="Eliminar">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>`;
+                    });
+                    html += '</div>';
+                    $('#listaIncidenciasProducto').html(html);
+                }
+
+                window.editarIncidenciaPendiente = function(incidenciaId) {
+                    const incidencia = confirmacionState.incidenciasPendientes.find(i => i.id === incidenciaId);
+                    if (!incidencia) return;
+
+                    // Cargar datos en el formulario
+                    $('#tipoIncidencia').val(incidencia.tipo);
+                    $('#descripcionIncidencia').val(incidencia.descripcion);
+                    evidenciasPendientes = incidencia.evidencias.slice();
+                    
+                    // Marcar como editando
+                    confirmacionState.incidenciaEditando = incidenciaId;
+                    
+                    // Actualizar bot\u00f3n
+                    $('#btnIncidenciaGuardar').html('<i class="mr-1 fas fa-save"></i>Actualizar incidencia');
+                    
+                    // Mostrar preview de evidencias
+                    $('#previewEvidencias').empty();
+                    evidenciasPendientes.forEach((ev, idx) => {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            const preview = `<div class="m-1 position-relative" style="width:80px;height:80px;">
+                                <img src="${e.target.result}" class="rounded" style="width:100%;height:100%;object-fit:cover;">
+                                <button type="button" class="btn btn-sm btn-danger position-absolute" 
+                                        style="top:2px;right:2px;padding:2px 6px;" 
+                                        onclick="window.eliminarEvidenciaTemporal(${idx})">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>`;
+                            $('#previewEvidencias').append(preview);
+                        };
+                        reader.readAsDataURL(ev);
+                    });
+
+                    toastr.info('Modifica la incidencia y presiona \"Actualizar incidencia\"');
+                }
+
+                window.eliminarEvidenciaTemporal = function(index) {
+                    if (evidenciasPendientes[index]) {
+                        evidenciasPendientes.splice(index, 1);
+                        // Re-renderizar previews
+                        $('#previewEvidencias').empty();
+                        evidenciasPendientes.forEach((ev, idx) => {
+                            const reader = new FileReader();
+                            reader.onload = function(e) {
+                                const preview = `<div class="m-1 position-relative" style="width:80px;height:80px;">
+                                    <img src="${e.target.result}" class="rounded" style="width:100%;height:100%;object-fit:cover;">
+                                    <button type="button" class="btn btn-sm btn-danger position-absolute" 
+                                            style="top:2px;right:2px;padding:2px 6px;" 
+                                            onclick="window.eliminarEvidenciaTemporal(${idx})">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>`;
+                                $('#previewEvidencias').append(preview);
+                            };
+                            reader.readAsDataURL(ev);
+                        });
+                        toastr.info('Evidencia eliminada');
+                    }
+                }
+
+                window.eliminarIncidenciaPendiente = function(incidenciaId) {
+                    Swal.fire({
+                        title: '\u00bfEliminar incidencia?',
+                        text: 'Esta acci\u00f3n no se puede deshacer',
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#dc3545',
+                        cancelButtonColor: '#6c757d',
+                        confirmButtonText: 'S\u00ed, eliminar',
+                        cancelButtonText: 'Cancelar'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            const index = confirmacionState.incidenciasPendientes.findIndex(i => i.id === incidenciaId);
+                            if (index !== -1) {
+                                const incidencia = confirmacionState.incidenciasPendientes[index];
+                                const productoId = incidencia.producto_id;
+                                confirmacionState.incidenciasPendientes.splice(index, 1);
+                                toastr.success('Incidencia eliminada');
+                                
+                                // Recargar todas las incidencias
+                                window.cargarIncidenciasProducto(productoId);
+                                
+                                // Actualizar estado visual del producto
+                                actualizarEstadoProducto(productoId);
+                                
+                                // Actualizar contador
+                                actualizarContadorIncidencias(productoId);
+                            }
+                        }
+                    });
+                }
+
+                function actualizarEstadoProducto(productoId) {
+                    const checkbox = $(`.chk-producto[data-producto="${productoId}"]`);
+                    if (!checkbox.length) return;
+                    
+                    const countPendientes = confirmacionState.incidenciasPendientes.filter(i => i.producto_id === productoId).length;
+                    
+                    // Obtener incidencias guardadas
+                    $.get(`${rutasConfirmacion.incidencias}/${productoId}/incidencias`).done(resp => {
+                        const incidenciasGuardadas = (resp.incidencias || []).length;
+                        const totalIncidencias = countPendientes + incidenciasGuardadas;
+                        
+                        const celdaAcciones = checkbox.closest('tr').find('td:last');
+                        const badgeIncidencia = celdaAcciones.find('.badge-danger');
+                        
+                        if (totalIncidencias > 0) {
+                            // Tiene incidencias: desmarcar y deshabilitar checkbox
+                            checkbox.prop('checked', false).prop('disabled', true);
+                            
+                            // Agregar badge si no existe
+                            if (badgeIncidencia.length === 0) {
+                                celdaAcciones.find('.btn-incidencia').before('<span class="mb-1 badge badge-danger">Incidencia</span><br>');
+                            }
+                        } else {
+                            // No tiene incidencias: habilitar checkbox
+                            checkbox.prop('disabled', false);
+                            
+                            // Remover badge
+                            badgeIncidencia.next('br').remove();
+                            badgeIncidencia.remove();
+                        }
+                    });
+                }
+
+                function actualizarContadorIncidencias(productoId) {
+                    // Contar incidencias pendientes locales
+                    const countPendientes = confirmacionState.incidenciasPendientes.filter(i => i.producto_id === productoId).length;
+                    
+                    // Obtener incidencias guardadas del servidor
+                    $.get(`${rutasConfirmacion.incidencias}/${productoId}/incidencias`)
                         .done(resp => {
-                            $('#descripcionIncidencia').val('');
-                            renderListaIncidencias(resp.incidencias || []);
-                            actualizarProductoEnState(productoId, resp.incidencias ? resp.incidencias.length : 1);
-                            renderDetalleFactura(confirmacionState.facturaSeleccionada);
-                        })
-                        .fail(xhr => {
-                            const r = xhr.responseJSON || {};
-                            Swal.fire(r.title || 'Error', r.text || 'No se pudo registrar la incidencia.', r.icon || 'error');
-                        })
-                        .always(() => {
-                            boton.prop('disabled', false).html('<i class="mr-1 fas fa-plus-circle"></i>Agregar incidencia');
+                            const countGuardadas = (resp.incidencias || []).length;
+                            const total = countGuardadas + countPendientes;
+                            
+                            const badge = $(`.btn-incidencia[data-producto="${productoId}"] .badge`);
+                            if (total > 0) {
+                                badge.text(total).removeClass('badge-secondary').addClass(countPendientes > 0 ? 'badge-warning' : 'badge-info');
+                            } else {
+                                badge.text('0').removeClass('badge-warning badge-info').addClass('badge-secondary');
+                            }
                         });
                 }
 
@@ -838,6 +1313,189 @@
                     }
                     return fecha.toLocaleString('es-HN', { hour12: true });
                 }
+
+                // Handle modal close properly to avoid black screen
+                $('#modalImagenesIncidencia').on('hidden.bs.modal', function () {
+                    $('.modal-backdrop').remove();
+                    $('body').removeClass('modal-open').css('padding-right', '');
+                });
+
+                window.verImagenesIncidencia = function(incidenciaId) {
+                    const modal = $('#modalImagenesIncidencia');
+                    modal.modal('show');
+                    $('#bodyImagenesIncidencia').html('<div class="py-4 text-center"><i class="fas fa-spinner fa-spin fa-2x text-muted"></i><p class="mt-2 text-muted">Cargando imágenes...</p></div>');
+
+                    $.get(`${rutasConfirmacion.evidenciasIncidencia}/${incidenciaId}/evidencias`)
+                        .done(resp => {
+                            const evidencias = resp.evidencias || [];
+                            if (!evidencias.length) {
+                                $('#bodyImagenesIncidencia').html('<div class="mb-0 alert alert-info"><i class="fas fa-info-circle"></i> Esta incidencia no tiene evidencias fotográficas.</div>');
+                                return;
+                            }
+
+                            let grid = '<div class="row">';
+                            evidencias.forEach(e => {
+                                grid += `<div class="mb-3 col-6 col-md-4">
+                                    <div class="p-2 border rounded" style="height:200px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f8f9fa;">
+                                        <a href="${e.url}" target="_blank" title="Ver imagen completa">
+                                            <img src="${e.url}" alt="evidencia" class="img-fluid" style="max-height:180px;max-width:100%;object-fit:contain;">
+                                        </a>
+                                    </div>
+                                    ${e.descripcion ? `<small class="mt-1 text-muted d-block">${e.descripcion}</small>` : ''}
+                                </div>`;
+                            });
+                            grid += '</div>';
+                            $('#bodyImagenesIncidencia').html(grid);
+                        })
+                        .fail(() => {
+                            $('#bodyImagenesIncidencia').html('<div class="mb-0 alert alert-danger"><i class="fas fa-exclamation-triangle"></i> Error al cargar las imágenes.</div>');
+                        });
+                }
+
+                // Handle modal close properly to avoid black screen
+                $('#modalImagenesIncidencia').on('hidden.bs.modal', function () {
+                    // Remove any lingering backdrops
+                    $('.modal-backdrop').remove();
+                    // Restore body scroll
+                    $('body').removeClass('modal-open').css('padding-right', '');
+                });
+
+                // Redefinir cargarIncidenciasProducto para incluir guardadas
+                window.cargarIncidenciasProducto = function(productoId) {
+                    $('#listaIncidenciasProducto').html(skeleton('Cargando incidencias...'));
+                    
+                    $.get(`${rutasConfirmacion.incidencias}/${productoId}/incidencias`)
+                        .done(resp => {
+                            const incidenciasGuardadas = resp.incidencias || [];
+                            renderTodasIncidencias(productoId, incidenciasGuardadas);
+                        })
+                        .fail(() => {
+                            $('#listaIncidenciasProducto').html('<div class="mb-0 alert alert-danger">No se pudieron cargar las incidencias.</div>');
+                        });
+                };
+
+                // Nueva función para renderizar todas las incidencias
+                window.renderTodasIncidencias = function(productoId, incidenciasGuardadas = []) {
+                    const incidenciasPendientes = confirmacionState.incidenciasPendientes.filter(i => i.producto_id === productoId);
+                    
+                    const facturaActual = confirmacionState.facturas.find(f => f.distribucion_factura_id === confirmacionState.facturaSeleccionada);
+                    const puedeEditar = facturaActual && facturaActual.estado_entrega === 'sin_entrega';
+                    
+                    if (incidenciasGuardadas.length === 0 && incidenciasPendientes.length === 0) {
+                        $('#listaIncidenciasProducto').html('<p class="mb-0 text-muted">No hay incidencias para este producto.</p>');
+                        return;
+                    }
+
+                    let html = '<div class="list-group">';
+                    
+                    // Renderizar incidencias guardadas (solo lectura)
+                    incidenciasGuardadas.forEach((inc) => {
+                        const tipoLabel = {
+                            'producto_danado': 'Producto dañado',
+                            'cantidad_incorrecta': 'Cantidad incorrecta',
+                            'cliente_rechazo': 'Cliente rechazó',
+                            'direccion_incorrecta': 'Dirección incorrecta',
+                            'otro': 'Otro'
+                        }[inc.tipo] || inc.tipo;
+
+                        const evidenciasCount = inc.evidencias_count || 0;
+                        
+                        html += `<div class="mb-2 list-group-item bg-light">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <div class="mb-1">
+                                        <span class="badge badge-secondary">ID: ${inc.id}</span>
+                                        <span class="badge badge-success">Guardada</span>
+                                        <span class="badge badge-warning">${tipoLabel}</span>
+                                        <small class="ml-2 text-muted"><i class="fas fa-lock"></i> No editable</small>
+                                    </div>
+                                    <p class="mt-2 mb-1">${inc.descripcion || ''}</p>
+                                    ${evidenciasCount > 0 ? `<a href="#" onclick="window.verImagenesIncidencia(${inc.id}); return false;" class="btn btn-sm btn-link p-0"><i class="fas fa-images"></i> ${evidenciasCount} evidencia(s)</a>` : '<small class="text-muted">Sin evidencias</small>'}
+                                </div>
+                            </div>
+                        </div>`;
+                    });
+                    
+                    // Renderizar incidencias pendientes
+                    incidenciasPendientes.forEach((inc) => {
+                        const tipoLabel = {
+                            'producto_danado': 'Producto dañado',
+                            'cantidad_incorrecta': 'Cantidad incorrecta',
+                            'cliente_rechazo': 'Cliente rechazó',
+                            'direccion_incorrecta': 'Dirección incorrecta',
+                            'otro': 'Otro'
+                        }[inc.tipo] || inc.tipo;
+                        
+                        html += `<div class="mb-2 list-group-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <div class="mb-1">
+                                        <span class="badge badge-secondary">ID: ${inc.id}</span>
+                                        <span class="badge badge-info">Pendiente</span>
+                                        <span class="badge badge-warning">${tipoLabel}</span>
+                                    </div>
+                                    <p class="mt-2 mb-1">${inc.descripcion}</p>
+                                    ${inc.evidencias && inc.evidencias.length > 0 ? `<small class="text-muted"><i class="fas fa-images"></i> ${inc.evidencias.length} evidencia(s)</small>` : ''}
+                                </div>
+                                <div class="ml-2 btn-group-vertical btn-group-sm">
+                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="window.editarIncidenciaPendiente(${inc.id})" title="Editar">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="window.eliminarIncidenciaPendiente(${inc.id})" title="Eliminar">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>`;
+                    });
+                    
+                    html += '</div>';
+                    $('#listaIncidenciasProducto').html(html);
+                };
+
+                // Función para eliminar incidencias guardadas
+                window.eliminarIncidenciaGuardada = function(incidenciaId, productoId) {
+                    const facturaActual = confirmacionState.facturas.find(f => f.distribucion_factura_id === confirmacionState.facturaSeleccionada);
+                    if (!facturaActual || facturaActual.estado_entrega !== 'sin_entrega') {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'No permitido',
+                            text: 'Solo se pueden eliminar incidencias cuando la factura está en estado "Sin Entrega"',
+                            confirmButtonText: 'Entendido'
+                        });
+                        return;
+                    }
+
+                    Swal.fire({
+                        title: '¿Eliminar incidencia guardada?',
+                        text: 'Esta acción no se puede deshacer',
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#dc3545',
+                        cancelButtonColor: '#6c757d',
+                        confirmButtonText: 'Sí, eliminar',
+                        cancelButtonText: 'Cancelar'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            $.ajax({
+                                url: `${rutasConfirmacion.incidencias}/${incidenciaId}/eliminar`,
+                                type: 'POST',
+                                data: {
+                                    _token: csrfToken
+                                },
+                                success: function(resp) {
+                                    toastr.success('Incidencia eliminada correctamente');
+                                    window.cargarIncidenciasProducto(productoId);
+                                    actualizarContadorIncidencias(productoId);
+                                },
+                                error: function(xhr) {
+                                    const r = xhr.responseJSON || {};
+                                    Swal.fire('Error', r.message || 'No se pudo eliminar la incidencia', 'error');
+                                }
+                            });
+                        }
+                    });
+                };
         });
     </script>
 </div>

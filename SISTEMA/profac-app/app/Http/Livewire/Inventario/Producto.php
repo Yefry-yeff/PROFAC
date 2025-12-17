@@ -205,35 +205,11 @@ class Producto extends Component
     }
 
 
-    public function listarProductos()
+    public function listarProductos(Request $request)
     {
         try {
-            $listaProductos = DB::SELECT("
-
-            select
-            A.id as 'codigo',
-            A.nombre,
-            A.descripcion,
-            A.isv as 'ISV',
-            C.descripcion as 'categoria',
-            @existenciaCompra := IFNULL ((select
-            sum(cantidad_disponible)
-            from recibido_bodega
-            inner join compra
-            on recibido_bodega.compra_id = compra.id
-            where compra.estado_compra_id=1 and  producto_id = A.id), 0)  as 'existenciaCompra',
-           @existenciaAjuste := IFNULL (
-           (
-            select
-            sum(cantidad_disponible)
-            from recibido_bodega  G
-            where G.compra_id is null and G.cantidad_disponible <> 0 and G.producto_id = A.id),0 ) as 'existenciaAjuste',
-            FORMAT(@existenciaCompra + @existenciaAjuste,0) as existencia,
-            A.codigo_barra
-            from producto A
-            inner join sub_categoria B on A.sub_categoria_id = B.id
-            inner join categoria_producto C on C.id = B.categoria_producto_id
-            WHERE A.id not in (
+            // IDs excluidos
+            $excluidos = [
 
                 1157,
                 1321,
@@ -296,30 +272,73 @@ class Producto extends Component
                 2417,
                 3887,
                 3888
-                        )
-            order by A.created_at DESC
-                        ");
+                        ];
+            
+            // Query rápida sin existencia inicial - sin orderBy para que DataTables lo maneje
+            $query = DB::table('producto as A')
+                ->select(
+                    'A.id as codigo',
+                    'A.nombre',
+                    'A.descripcion',
+                    'A.isv as ISV',
+                    'C.descripcion as categoria',
+                    'A.codigo_barra',
+                    'A.created_at'
+                )
+                ->join('sub_categoria as B', 'A.sub_categoria_id', '=', 'B.id')
+                ->join('categoria_producto as C', 'C.id', '=', 'B.categoria_producto_id')
+                ->whereNotIn('A.id', $excluidos);
 
-            return Datatables::of($listaProductos)
-                ->addColumn('disponibilidad', function ($listaProductos) {
-
-                    return
-
-                        '
-                <div class="btn-group">
-                <button data-toggle="dropdown" class="btn btn-warning dropdown-toggle" aria-expanded="false">Ver
-                    más</button>
-                <ul class="dropdown-menu" x-placement="bottom-start"
-                    style="position: absolute; top: 33px; left: 0px; will-change: top, left;">
-
-                    <li><a class="dropdown-item" href="/producto/detalle/' . $listaProductos->codigo . '" target="_blank"  > <i class="fa-solid fa-arrows-to-eye text-info"></i>
-                            Ver detalles </a></li>
-
-                </ul>
-            </div>
-                ';
+            return Datatables::of($query)
+                ->addColumn('existencia', function ($producto) {
+                    // Calcular existencia solo para los productos de la página actual
+                    $existenciaCompra = DB::table('recibido_bodega')
+                        ->join('compra', 'recibido_bodega.compra_id', '=', 'compra.id')
+                        ->where('compra.estado_compra_id', 1)
+                        ->where('recibido_bodega.producto_id', $producto->codigo)
+                        ->sum('recibido_bodega.cantidad_disponible');
+                    
+                    $existenciaAjuste = DB::table('recibido_bodega')
+                        ->whereNull('compra_id')
+                        ->where('cantidad_disponible', '<>', 0)
+                        ->where('producto_id', $producto->codigo)
+                        ->sum('cantidad_disponible');
+                    
+                    return number_format($existenciaCompra + $existenciaAjuste, 0);
                 })
-
+                ->addColumn('disponibilidad', function ($producto) {
+                    return '<a href="/producto/detalle/' . $producto->codigo . '" target="_blank" class="btn btn-warning btn-sm" title="Ver detalles"><i class="fa fa-eye"></i> Ver más</a>';
+                })
+                ->filter(function ($query) use ($request) {
+                    if ($request->has('search') && $request->search['value'] != '') {
+                        $search = $request->search['value'];
+                        $query->where(function($q) use ($search) {
+                            $q->where('A.id', 'LIKE', "%{$search}%")
+                              ->orWhere('A.nombre', 'LIKE', "%{$search}%")
+                              ->orWhere('A.descripcion', 'LIKE', "%{$search}%")
+                              ->orWhere('A.codigo_barra', 'LIKE', "%{$search}%")
+                              ->orWhere('C.descripcion', 'LIKE', "%{$search}%");
+                        });
+                    }
+                })
+                ->orderColumn('codigo', function ($query, $order) {
+                    $query->orderBy('A.id', $order);
+                })
+                ->orderColumn('nombre', function ($query, $order) {
+                    $query->orderBy('A.nombre', $order);
+                })
+                ->orderColumn('descripcion', function ($query, $order) {
+                    $query->orderBy('A.descripcion', $order);
+                })
+                ->orderColumn('codigo_barra', function ($query, $order) {
+                    $query->orderBy('A.codigo_barra', $order);
+                })
+                ->orderColumn('ISV', function ($query, $order) {
+                    $query->orderBy('A.isv', $order);
+                })
+                ->orderColumn('categoria', function ($query, $order) {
+                    $query->orderBy('C.descripcion', $order);
+                })
                 ->rawColumns(['disponibilidad'])
                 ->make(true);
         } catch (QueryException $e) {

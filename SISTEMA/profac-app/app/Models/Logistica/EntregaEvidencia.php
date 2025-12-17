@@ -10,8 +10,7 @@ class EntregaEvidencia extends Model
     protected $table = 'entregas_evidencias';
     
     protected $fillable = [
-        'distribucion_factura_id',
-        'tipo_evidencia',
+        'entrega_producto_incidencia_id',
         'ruta_archivo',
         'descripcion',
         'user_id_registro'
@@ -25,9 +24,10 @@ class EntregaEvidencia extends Model
     /**
      * Relación con la distribución de factura
      */
-    public function distribucionFactura()
+    // Evidencia asociada a una incidencia de producto
+    public function incidenciaProducto()
     {
-        return $this->belongsTo(DistribucionEntregaFactura::class, 'distribucion_factura_id');
+        return $this->belongsTo(EntregaProductoIncidencia::class, 'entrega_producto_incidencia_id');
     }
 
     /**

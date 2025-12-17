@@ -37,34 +37,134 @@
         .swal2-popup {
             z-index: 10001 !important;
         }
+
+        /* Ocultar card-body de cards colapsadas al cargar */
+        .collapsed-card .card-body {
+            display: none;
+        }
+
+        /* Asegurar que las tablas ocupen todo el ancho */
+        .table-responsive {
+            width: 100%;
+        }
+        
+        .table {
+            width: 100% !important;
+        }
     </style>
 
     <div class="row">
         <div class="col-md-12">
-            <div class="card">
+            <div class="text-right mb-3">
+                <a href="{{ route('logistica.distribuciones.nueva') }}" class="btn btn-primary">
+                    <i class="fa fa-plus"></i> Nueva Distribución
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Distribuciones Pendientes de Tratar -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card card-warning collapsed-card">
                 <div class="card-header">
-                    <h3 class="card-title">Distribuciones de Entrega</h3>
+                    <h3 class="card-title"><i class="fas fa-clock"></i> Distribuciones Pendientes de Tratar</h3>
                     <div class="card-tools">
-                        <a href="{{ route('logistica.distribuciones.nueva') }}" class="btn btn-primary btn-sm">
-                            <i class="fa fa-plus"></i> Nueva Distribucion
-                        </a>
+                        <button type="button" class="btn btn-tool" data-card-widget="collapse">
+                            <i class="fas fa-plus"></i>
+                        </button>
                     </div>
                 </div>
                 <div class="card-body">
-                    <table id="tablaDistribuciones" class="table table-bordered table-striped table-sm">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Fecha</th>
-                                <th>Equipo</th>
-                                <th>Progreso</th>
-                                <th>Estado</th>
-                                <th>Creador</th>
-                                <th>Opciones</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
+                    <div class="table-responsive">
+                        <table id="tablaPendientes" class="table table-bordered table-striped table-sm mb-0">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Fecha</th>
+                                    <th>Equipo</th>
+                                    <th>Descripción</th>
+                                    <th>Progreso</th>
+                                    <th>Estado</th>
+                                    <th>Creador</th>
+                                    <th>F. Actualización</th>
+                                    <th>Usuario Autorizó</th>
+                                    <th>Opciones</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Distribuciones Sin Finalizar -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card card-info collapsed-card">
+                <div class="card-header">
+                    <h3 class="card-title"><i class="fas fa-truck"></i> Distribuciones Sin Finalizar</h3>
+                    <div class="card-tools">
+                        <button type="button" class="btn btn-tool" data-card-widget="collapse">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table id="tablaEnProceso" class="table table-bordered table-striped table-sm mb-0">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Fecha</th>
+                                    <th>Equipo</th>
+                                    <th>Descripción</th>
+                                    <th>Progreso</th>
+                                    <th>Estado</th>
+                                    <th>Creador</th>
+                                    <th>Opciones</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Distribuciones Completadas -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card card-success collapsed-card">
+                <div class="card-header">
+                    <h3 class="card-title"><i class="fas fa-check-circle"></i> Distribuciones completadas</h3>
+                    <div class="card-tools">
+                        <button type="button" class="btn btn-tool" data-card-widget="collapse">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table id="tablaCompletadas" class="table table-bordered table-striped table-sm mb-0">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Fecha</th>
+                                    <th>Equipo</th>
+                                    <th>Descripción</th>
+                                    <th>Progreso</th>
+                                    <th>Estado</th>
+                                    <th>Creador</th>
+                                    <th>Opciones</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
@@ -265,36 +365,132 @@
             </div>
         </div>
     </div>
+
+    <!-- Modal: Ver Imágenes de Incidencia -->
+    <div class="modal fade" id="modalImagenesIncidencia" tabindex="-1" role="dialog" style="z-index: 1060;">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title mb-0">
+                        <i class="fas fa-images"></i> Evidencias Fotográficas
+                    </h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body" id="bodyImagenesIncidencia">
+                    <div class="text-center py-4">
+                        <i class="fas fa-spinner fa-spin fa-2x text-muted"></i>
+                        <p class="mt-2 text-muted">Cargando imágenes...</p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 @push('scripts')
 <script>
-let tablaDistribuciones, facturasSelTmp = [];
+let tablaPendientes, tablaEnProceso, tablaCompletadas, facturasSelTmp = [];
 
 $(document).ready(() => {
-    tablaDistribuciones = $('#tablaDistribuciones').DataTable({
+    // Agregar easing personalizado para animaciones más suaves
+    $.easing.easeInOutCubic = function(x) {
+        return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+    };
+    
+    // Manejador manual para colapsar/expandir las tarjetas con animaciones suaves y elegantes
+    $('[data-card-widget="collapse"]').on('click', function(e) {
+        e.preventDefault();
+        const $card = $(this).closest('.card');
+        const $cardBody = $card.find('.card-body');
+        const $icon = $(this).find('i');
+        
+        if ($card.hasClass('collapsed-card')) {
+            // Expandir con animación suave y elegante
+            $card.removeClass('collapsed-card');
+            $cardBody.stop(true, true).slideDown({
+                duration: 600,
+                easing: 'easeInOutCubic'
+            });
+            $icon.removeClass('fa-plus').addClass('fa-minus');
+        } else {
+            // Colapsar con animación suave y elegante
+            $card.addClass('collapsed-card');
+            $cardBody.stop(true, true).slideUp({
+                duration: 500,
+                easing: 'easeInOutCubic'
+            });
+            $icon.removeClass('fa-minus').addClass('fa-plus');
+        }
+    });
+    
+    // Configuración base común de DataTables
+    const configBase = {
         processing: true,
         serverSide: true,
-        ajax: "{{ route('logistica.distribuciones.listar') }}",
+        language: {url: '//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json'},
+        order: [[1, 'desc']],
+        pageLength: 10,
+        lengthMenu: [[5, 10, 25, 50], [5, 10, 25, 50]],
+        deferRender: true,
+        dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>rtip',
+        drawCallback: function() {
+            $('[data-toggle="tooltip"]').tooltip();
+        }
+    };
+
+    // Tabla Pendientes de Tratar (10 columnas)
+    tablaPendientes = $('#tablaPendientes').DataTable({
+        ...configBase,
+        ajax: "{{ route('logistica.distribuciones.listar') }}?tipo=pendientes",
         columns: [
             {data: 'id'},
             {data: 'fecha_programada'},
             {data: 'nombre_equipo'},
+            {data: 'observaciones'},
+            {data: 'progreso'},
+            {data: 'estado'},
+            {data: 'creador'},
+            {data: 'fecha_actualizacion', defaultContent: '-'},
+            {data: 'usuario_autorizacion', defaultContent: '-'},
+            {data: 'opciones', orderable: false}
+        ]
+    });
+
+    // Tabla Sin Finalizar (8 columnas)
+    tablaEnProceso = $('#tablaEnProceso').DataTable({
+        ...configBase,
+        ajax: "{{ route('logistica.distribuciones.listar') }}?tipo=sin_finalizar",
+        columns: [
+            {data: 'id'},
+            {data: 'fecha_programada'},
+            {data: 'nombre_equipo'},
+            {data: 'observaciones'},
             {data: 'progreso'},
             {data: 'estado'},
             {data: 'creador'},
             {data: 'opciones', orderable: false}
-        ],
-        language: {url: '//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json'},
-        order: [[1, 'desc']],
-        pageLength: 25,
-        lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
-        deferRender: true,
-        dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>rtip',
-        drawCallback: function() {
-            // Reinicializar tooltips después de cada recarga
-            $('[data-toggle="tooltip"]').tooltip();
-        }
+        ]
+    });
+
+    // Tabla Completadas (8 columnas)
+    tablaCompletadas = $('#tablaCompletadas').DataTable({
+        ...configBase,
+        ajax: "{{ route('logistica.distribuciones.listar') }}?tipo=completadas",
+        columns: [
+            {data: 'id'},
+            {data: 'fecha_programada'},
+            {data: 'nombre_equipo'},
+            {data: 'observaciones'},
+            {data: 'progreso'},
+            {data: 'estado'},
+            {data: 'creador'},
+            {data: 'opciones', orderable: false}
+        ]
     });
 
     // Prevenir warning de aria-hidden en modal de incidencias
@@ -321,6 +517,19 @@ $(document).ready(() => {
         }
     });
 });
+
+// ========== FUNCIÓN HELPER ==========
+function recargarTodasLasTablas(mantenerPaginacion = true) {
+    if (mantenerPaginacion) {
+        tablaPendientes.ajax.reload(null, false);
+        tablaEnProceso.ajax.reload(null, false);
+        tablaCompletadas.ajax.reload(null, false);
+    } else {
+        tablaPendientes.ajax.reload();
+        tablaEnProceso.ajax.reload();
+        tablaCompletadas.ajax.reload();
+    }
+}
 
 // ========== MODAL Y BÚSQUEDA ==========
 
@@ -394,7 +603,7 @@ function mostrarResultadosFacturas(facturas) {
             <div class="card h-100 shadow-sm ${yaAgregada ? 'border-success' : ''}">
                 <div class="card-body p-3">
                     <h6 class="card-title text-primary mb-2">
-                        <i class="fas fa-file-invoice"></i> #${f.numero_factura}
+                        <i class="fas fa-file-invoice"></i> #${f.cai}
                     </h6>
                     <p class="card-text mb-2">
                         <small class="text-muted"><i class="fas fa-user"></i> ${f.cliente}</small>
@@ -402,7 +611,7 @@ function mostrarResultadosFacturas(facturas) {
                     <div class="d-flex justify-content-between align-items-center">
                         <span class="h6 mb-0 text-success">Q${parseFloat(f.total).toFixed(2)}</span>
                         <button class="btn btn-sm ${btnClass}" ${disabled}
-                                onclick="agregarFactura(${f.id}, '${f.numero_factura}', '${f.cliente.replace(/'/g, "\\'")}', '${f.direccion || ''}', ${f.total})">
+                                onclick="agregarFactura(${f.id}, '${f.cai}', '${f.cliente.replace(/'/g, "\\'")}', '${f.direccion || ''}', ${f.total})">
                             ${btnText}
                         </button>
                     </div>
@@ -523,7 +732,7 @@ function guardarDistribucion() {
                 confirmButtonColor: '#28a745'
             });
             $('#modalNuevaDistribucion').modal('hide');
-            tablaDistribuciones.ajax.reload();
+            recargarTodasLasTablas(false);
         },
         error: function(x) {
             Swal.fire({
@@ -587,13 +796,15 @@ function verFacturas(id) {
                             <th>Factura</th>
                             <th>Cliente</th>
                             <th width="100">Estado</th>
+                            <th width="80" class="text-center">Incidencias</th>
+                            <th width="80" class="text-center">Tratadas</th>
                             <th width="200">Opciones</th>
                         </tr>
                     </thead>
                     <tbody>`;
         
         if (r.facturas.length === 0) {
-            html += '<tr><td colspan="5" class="text-center py-4 text-muted">No hay facturas asignadas</td></tr>';
+            html += '<tr><td colspan="7" class="text-center py-4 text-muted">No hay facturas asignadas</td></tr>';
         } else {
             // Verificar si la distribución está completada o cancelada
             const soloLectura = distribucion.estado_id === 3 || distribucion.estado_id === 4;
@@ -603,17 +814,27 @@ function verFacturas(id) {
                                    f.estado_entrega === 'parcial' ? 'warning' : 'secondary';
                 const estadoTexto = f.estado_entrega === 'sin_entrega' ? 'Sin Entrega' : 
                                    f.estado_entrega.charAt(0).toUpperCase() + f.estado_entrega.slice(1);
-                const bloqueado = f.confirmada == 1;
+                // Considerar bloqueada si ya fue entregada (completa o parcial)
+                const bloqueado = f.estado_entrega === 'entregado' || f.estado_entrega === 'parcial';
+                const totalIncidencias = parseInt(f.total_incidencias) || 0;
+                const incidenciasTratadas = parseInt(f.incidencias_tratadas) || 0;
+                const todasTratadas = totalIncidencias > 0 && totalIncidencias === incidenciasTratadas;
+                const tieneIncidenciasSinTratar = totalIncidencias > 0 && incidenciasTratadas < totalIncidencias;
                 
                 html += `<tr>
                     <td>${f.orden_entrega}</td>
-                    <td><strong>#${f.numero_factura}</strong></td>
+                    <td><strong>#${f.cai}</strong></td>
                     <td>${f.cliente}</td>
                     <td><span class="badge badge-${estadoBadge}">${estadoTexto}</span></td>
+                    <td class="text-center">${totalIncidencias > 0 ? `<span class="badge badge-${tieneIncidenciasSinTratar ? 'warning' : 'info'}">${totalIncidencias}</span>` : '<span class="text-muted">0</span>'}</td>
+                    <td class="text-center">${totalIncidencias > 0 ? (todasTratadas ? '<span class="badge badge-success"><i class="fas fa-check"></i> Sí</span>' : '<span class="badge badge-danger"><i class="fas fa-times"></i> No</span>') : '<span class="text-muted">N/A</span>'}</td>
                     <td>
                         <div class="btn-group btn-group-sm" role="group">
                             ${!soloLectura && bloqueado ? `<button class="btn btn-warning" onclick="desbloquearFactura(${f.id})" title="Desbloquear">
                                 <i class="fas fa-unlock"></i>
+                            </button>` : ''}
+                            ${!soloLectura && f.estado_entrega === 'sin_entrega' && !bloqueado ? `<button class="btn btn-danger" onclick="anularEntrega(${f.id})" title="Cancelar Entrega">
+                                <i class="fas fa-times"></i>
                             </button>` : ''}
                             ${!soloLectura && f.estado_entrega !== 'sin_entrega' && !bloqueado ? `<button class="btn btn-danger" onclick="anularEntrega(${f.id})" title="Anular Entrega">
                                 <i class="fas fa-times"></i>
@@ -621,7 +842,7 @@ function verFacturas(id) {
                             <button class="btn btn-info" onclick="verIncidencias(${f.id})" title="Ver Incidencias">
                                 <i class="fas fa-exclamation-circle"></i>
                             </button>
-                            ${!soloLectura && f.estado_entrega !== 'entregado' && !bloqueado ? `<button class="btn btn-success" onclick="confirmarEntregaFactura(${f.id})" title="Confirmar Entrega">
+                            ${!soloLectura && f.estado_entrega === 'sin_entrega' && !bloqueado ? `<button class="btn btn-success" onclick="confirmarEntregaFactura(${f.id}, ${distribucion.id})" title="Confirmar Entrega">
                                 <i class="fas fa-check"></i>
                             </button>` : ''}
                         </div>
@@ -642,7 +863,7 @@ function iniciarDistribucion(id) {
         if (r.isConfirmed) {
             $.post("{{ url('/logistica/distribuciones/iniciar') }}/" + id, {_token: $('meta[name="csrf-token"]').attr('content')}, r => {
                 Swal.fire(r.title, r.text, r.icon);
-                tablaDistribuciones.ajax.reload();
+                recargarTodasLasTablas(false);
             }).fail(x => Swal.fire(x.responseJSON.title, x.responseJSON.text, x.responseJSON.icon));
         }
     });
@@ -653,47 +874,73 @@ function cancelarDistribucion(id) {
         if (r.isConfirmed) {
             $.post("{{ url('/logistica/distribuciones/cancelar') }}/" + id, {_token: $('meta[name="csrf-token"]').attr('content')}, r => {
                 Swal.fire(r.title, r.text, r.icon);
-                tablaDistribuciones.ajax.reload();
+                recargarTodasLasTablas(false);
             }).fail(x => Swal.fire(x.responseJSON.title, x.responseJSON.text, x.responseJSON.icon));
         }
     });
 }
 
 function abrirConfirmacion(id) {
-    Swal.fire({
-        title: '¿Completar distribución?',
-        text: 'Esto cambiará el estado de la distribución a "Completada".',
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonColor: '#28a745',
-        cancelButtonColor: '#6c757d',
-        confirmButtonText: 'Sí, completar',
-        cancelButtonText: 'Cancelar'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            $.ajax({
-                url: "{{ url('/logistica/distribuciones/completar') }}/" + id,
-                type: 'POST',
-                data: {
-                    _token: $('meta[name="csrf-token"]').attr('content')
-                },
-                success: function(r) {
-                    Swal.fire({
-                        icon: r.icon || 'success',
-                        title: r.title || 'Completada',
-                        text: r.text || 'La distribución ha sido completada correctamente',
-                        confirmButtonColor: '#28a745'
-                    });
-                    tablaDistribuciones.ajax.reload(null, false);
-                },
-                error: function(x) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: x.responseJSON?.title || 'Error',
-                        text: x.responseJSON?.text || 'No se pudo completar la distribución',
-                        confirmButtonColor: '#dc3545'
+    // Primero validar que todas las facturas estén entregadas y que no haya incidencias sin tratar
+    $.ajax({
+        url: "{{ url('/logistica/distribuciones/validar-completar') }}/" + id,
+        type: 'GET',
+        success: function(validacion) {
+            if (!validacion.puede_completar) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'No se puede completar',
+                    html: validacion.mensaje,
+                    confirmButtonColor: '#f0ad4e'
+                });
+                return;
+            }
+            
+            // Si pasa todas las validaciones, mostrar confirmación
+            Swal.fire({
+                title: '¿Completar distribución?',
+                text: 'Esto cambiará el estado de la distribución a "Completada".',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#28a745',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Sí, completar',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.ajax({
+                        url: "{{ url('/logistica/distribuciones/completar') }}/" + id,
+                        type: 'POST',
+                        data: {
+                            _token: $('meta[name="csrf-token"]').attr('content')
+                        },
+                        success: function(r) {
+                            Swal.fire({
+                                icon: r.icon || 'success',
+                                title: r.title || 'Completada',
+                                text: r.text || 'La distribución ha sido completada correctamente',
+                                confirmButtonColor: '#28a745'
+                            });
+                            recargarTodasLasTablas(true);
+                        },
+                        error: function(x) {
+                            Swal.fire({
+                                icon: 'error',
+                                title: x.responseJSON?.title || 'Error',
+                                text: x.responseJSON?.text || 'No se pudo completar la distribución',
+                                confirmButtonColor: '#dc3545'
+                            });
+                        }
                     });
                 }
+            });
+        },
+        error: function(x) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error de validación',
+                text: x.responseJSON?.message || 'No se pudo validar la distribución',
+                confirmButtonColor: '#dc3545'
             });
         }
     });
@@ -807,6 +1054,54 @@ function anularEntrega(facturaId) {
     }, 300);
 }
 
+// Handle nested modals properly
+$('#modalImagenesIncidencia').on('show.bs.modal', function () {
+    // Increase z-index of the backdrop for this modal
+    setTimeout(function() {
+        $('.modal-backdrop').last().css('z-index', 1055);
+    }, 0);
+});
+
+$('#modalImagenesIncidencia').on('hidden.bs.modal', function () {
+    // Ensure body stays with modal-open class if another modal is still open
+    if ($('.modal:visible').length > 0) {
+        $('body').addClass('modal-open');
+    }
+});
+
+function verImagenesIncidenciaDistribucion(incidenciaId) {
+    $('#modalImagenesIncidencia').modal('show');
+    $('#bodyImagenesIncidencia').html('<div class="text-center py-4"><i class="fas fa-spinner fa-spin fa-2x text-muted"></i><p class="mt-2 text-muted">Cargando imágenes...</p></div>');
+    
+    const url = "{{ url('/logistica/confirmacion/incidencias') }}/" + incidenciaId + "/evidencias";
+    
+    $.get(url)
+        .done(resp => {
+            const evidencias = resp.evidencias || [];
+            if (!evidencias.length) {
+                $('#bodyImagenesIncidencia').html('<div class="alert alert-info mb-0"><i class="fas fa-info-circle"></i> Esta incidencia no tiene evidencias fotográficas.</div>');
+                return;
+            }
+            
+            let grid = '<div class="row">';
+            evidencias.forEach(e => {
+                grid += `<div class="col-6 col-md-4 mb-3">
+                    <div class="border rounded p-2" style="height:200px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f8f9fa;">
+                        <a href="${e.url}" target="_blank" title="Ver imagen completa">
+                            <img src="${e.url}" alt="evidencia" class="img-fluid" style="max-height:180px;max-width:100%;object-fit:contain;">
+                        </a>
+                    </div>
+                    ${e.descripcion ? `<small class="text-muted d-block mt-1">${e.descripcion}</small>` : ''}
+                </div>`;
+            });
+            grid += '</div>';
+            $('#bodyImagenesIncidencia').html(grid);
+        })
+        .fail(() => {
+            $('#bodyImagenesIncidencia').html('<div class="alert alert-danger mb-0"><i class="fas fa-exclamation-triangle"></i> Error al cargar las imágenes.</div>');
+        });
+}
+
 function verIncidencias(facturaId) {
     console.log('Cargando incidencias para factura ID:', facturaId);
     $('#modalIncidencias').modal('show');
@@ -826,7 +1121,7 @@ function verIncidencias(facturaId) {
                 html = '<div class="alert alert-info"><i class="fas fa-info-circle"></i> Esta factura no tiene incidencias registradas.</div>';
             } else {
                 html = `<div class="mb-3">
-                    <h6>Factura: <strong>#${r.factura?.numero_factura || 'N/A'}</strong></h6>
+                    <h6>Factura: <strong>#${r.factura?.cai || 'N/A'}</strong></h6>
                     <p class="text-muted mb-0">Cliente: ${r.factura?.cliente || 'N/A'}</p>
                 </div>
                 <div class="table-responsive">
@@ -838,24 +1133,87 @@ function verIncidencias(facturaId) {
                                 <th>Tipo</th>
                                 <th>Descripción</th>
                                 <th width="150">Fecha</th>
+                                <th width="120" class="text-center">Imágenes</th>
                             </tr>
                         </thead>
                         <tbody>`;
                 
                 r.incidencias.forEach((inc, index) => {
+                    const imagenCount = inc.evidencias_count || 0;
+                    const btnImagenes = imagenCount > 0 
+                        ? `<button type="button" class="btn btn-sm btn-info" onclick="verImagenesIncidenciaDistribucion(${inc.id})" title="Ver imágenes">
+                            <i class="fas fa-images"></i> ${imagenCount}
+                           </button>`
+                        : '<span class="text-muted"><i class="fas fa-image-slash"></i> Sin imágenes</span>';
+                    
                     html += `<tr>
                         <td>${index + 1}</td>
                         <td><strong>#${inc.producto_id || 'N/A'}</strong> - ${inc.producto_nombre || 'N/A'}</td>
                         <td><span class="badge badge-warning">${inc.tipo || 'N/A'}</span></td>
                         <td>${inc.descripcion || 'Sin descripción'}</td>
                         <td>${inc.created_at ? new Date(inc.created_at).toLocaleString('es-HN') : 'N/A'}</td>
+                        <td class="text-center">${btnImagenes}</td>
                     </tr>`;
                 });
                 
                 html += `</tbody></table></div>
                 <div class="alert alert-light mt-3">
                     <strong>Total de incidencias:</strong> ${r.incidencias.length}
-                </div>`;
+                </div>
+                <hr>
+                <div class="mt-3">
+                    <h6 class="mb-2"><i class="fas fa-clipboard-check"></i> Tratamiento de Incidencias</h6>`;
+                
+                // Verificar el estado de la factura
+                const estadoEntrega = r.factura?.estado_entrega || '';
+                
+                // Mostrar tratamientos existentes si hay
+                if (r.tratamientos && r.tratamientos.length > 0) {
+                    html += `<div class="mb-3">`;
+                    html += `<h6 class="text-muted small"><i class="fas fa-history"></i> Historial de Tratamientos (${r.tratamientos.length})</h6>`;
+                    r.tratamientos.forEach((t, index) => {
+                        html += `
+                            <div class="alert alert-success mb-2">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div style="flex: 1;">
+                                        <strong>Tratamiento #${r.tratamientos.length - index}:</strong>
+                                        <p class="mb-1 mt-1" style="white-space: pre-wrap;">${t.tratamiento}</p>
+                                        <small class="text-muted">
+                                            <i class="fas fa-user"></i> ${t.usuario_registro} · 
+                                            <i class="fas fa-calendar"></i> ${new Date(t.tratamiento_fecha).toLocaleString('es-HN')}
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>`;
+                    });
+                    html += `</div>`;
+                }
+                
+                // Formulario para agregar nuevo tratamiento
+                if (estadoEntrega === 'sin_entrega') {
+                    // Si está en sin_entrega, no permitir dar tratamiento
+                    html += `
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle"></i> <strong>Tratamiento No Disponible</strong>
+                            <p class="mb-0 mt-2">No se puede registrar tratamiento mientras la factura esté en estado <strong>"Sin Entrega"</strong>.</p>
+                            <p class="mb-0">Primero debe confirmar la entrega de la factura para poder registrar el tratamiento de las incidencias.</p>
+                        </div>`;
+                } else {
+                    // Siempre permitir agregar nuevo tratamiento si no está en sin_entrega
+                    html += `
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6 class="card-title"><i class="fas fa-plus-circle"></i> Agregar Nuevo Tratamiento</h6>
+                                <p class="text-muted small mb-2">Registra un nuevo tratamiento que se aplicará a todas las incidencias de esta factura.</p>
+                                <textarea id="tratamientoIncidencias" class="form-control" rows="3" placeholder="Describe el tratamiento o solución aplicada..."></textarea>
+                                <button type="button" class="btn btn-success btn-sm mt-2" onclick="guardarTratamiento(${facturaId})">
+                                    <i class="fas fa-save"></i> Guardar Tratamiento
+                                </button>
+                            </div>
+                        </div>`;
+                }
+                
+                html += `</div>`;
             }
             
             $('#bodyIncidencias').html(html);
@@ -884,47 +1242,131 @@ function verIncidencias(facturaId) {
     });
 }
 
-function confirmarEntregaFactura(facturaId) {
+function guardarTratamiento(facturaId) {
+    const tratamiento = $('#tratamientoIncidencias').val().trim();
+    
+    if (!tratamiento) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Tratamiento requerido',
+            text: 'Por favor describe el tratamiento que se aplicará a estas incidencias.',
+            confirmButtonColor: '#f0ad4e'
+        });
+        return;
+    }
+
     Swal.fire({
-        title: '¿Confirmar entrega completa?',
-        text: 'Esto cambiará el estado de la factura a "Entregado".',
+        title: '¿Guardar tratamiento?',
+        text: 'Este tratamiento se aplicará a todas las incidencias de esta factura.',
         icon: 'question',
         showCancelButton: true,
         confirmButtonColor: '#28a745',
         cancelButtonColor: '#6c757d',
-        confirmButtonText: 'Sí, confirmar',
+        confirmButtonText: 'Sí, guardar',
         cancelButtonText: 'Cancelar'
     }).then((result) => {
         if (result.isConfirmed) {
+            const url = "{{ url('/logistica/facturas/incidencias/tratamiento') }}";
+            
             $.ajax({
-                url: "{{ url('/logistica/facturas/confirmar-entrega') }}/" + facturaId,
+                url: url,
                 type: 'POST',
                 data: {
-                    _token: $('meta[name="csrf-token"]').attr('content')
+                    factura_id: facturaId,
+                    tratamiento: tratamiento,
+                    _token: '{{ csrf_token() }}'
                 },
-                success: function(r) {
+                success: function(response) {
                     Swal.fire({
-                        icon: r.icon || 'success',
-                        title: r.title || 'Confirmada',
-                        text: r.text || 'La entrega ha sido confirmada como completa',
+                        icon: 'success',
+                        title: 'Tratamiento guardado',
+                        text: response.message || 'El tratamiento ha sido registrado exitosamente.',
                         confirmButtonColor: '#28a745'
                     });
-                    // Recargar el modal de detalle
-                    const distribucionId = $('#modalDetalleDistribucion').data('distribucion-id');
-                    if (distribucionId) {
-                        verFacturas(distribucionId);
-                    }
-                    // Recargar la tabla principal
-                    tablaDistribuciones.ajax.reload(null, false);
+                    // Recargar las incidencias para mostrar el nuevo tratamiento
+                    verIncidencias(facturaId);
                 },
-                error: function(x) {
+                error: function(xhr) {
+                    const errorMsg = xhr.responseJSON?.message || 'No se pudo guardar el tratamiento';
                     Swal.fire({
                         icon: 'error',
-                        title: x.responseJSON?.title || 'Error',
-                        text: x.responseJSON?.text || 'No se pudo confirmar la entrega',
+                        title: 'Error',
+                        text: errorMsg,
                         confirmButtonColor: '#dc3545'
                     });
                 }
+            });
+        }
+    });
+}
+
+function confirmarEntregaFactura(facturaId, distribucionId) {
+    // Primero validar si hay incidencias sin tratamiento en toda la distribución
+    $.ajax({
+        url: "{{ url('/logistica/distribuciones/validar-incidencias') }}/" + distribucionId,
+        type: 'GET',
+        success: function(validacion) {
+            if (!validacion.puede_confirmar) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Incidencias pendientes',
+                    html: validacion.mensaje,
+                    confirmButtonColor: '#f0ad4e'
+                });
+                return;
+            }
+            
+            // Si pasa la validación, proceder con la confirmación
+            Swal.fire({
+                title: '¿Confirmar entrega completa?',
+                text: 'Esto cambiará el estado de la factura a "Entregado".',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#28a745',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Sí, confirmar',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.ajax({
+                        url: "{{ url('/logistica/facturas/confirmar-entrega') }}/" + facturaId,
+                        type: 'POST',
+                        data: {
+                            _token: $('meta[name="csrf-token"]').attr('content')
+                        },
+                        success: function(r) {
+                            Swal.fire({
+                                icon: r.icon || 'success',
+                                title: r.title || 'Confirmada',
+                                text: r.text || 'La entrega ha sido confirmada como completa',
+                                confirmButtonColor: '#28a745'
+                            });
+                            // Recargar el modal de detalle
+                            const modalDistribucionId = $('#modalDetalleDistribucion').data('distribucion-id');
+                            if (modalDistribucionId) {
+                                verFacturas(modalDistribucionId);
+                            }
+                            // Recargar la tabla principal
+                            recargarTodasLasTablas(true);
+                        },
+                        error: function(x) {
+                            Swal.fire({
+                                icon: 'error',
+                                title: x.responseJSON?.title || 'Error',
+                                text: x.responseJSON?.text || 'No se pudo confirmar la entrega',
+                                confirmButtonColor: '#dc3545'
+                            });
+                        }
+                    });
+                }
+            });
+        },
+        error: function(x) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error de validación',
+                text: x.responseJSON?.message || 'No se pudo validar las incidencias',
+                confirmButtonColor: '#dc3545'
             });
         }
     });
