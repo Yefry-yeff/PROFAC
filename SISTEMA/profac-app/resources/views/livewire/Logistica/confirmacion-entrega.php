@@ -1391,9 +1391,12 @@
                         html += `<div class="mb-2 list-group-item bg-light">
                             <div class="d-flex justify-content-between align-items-start">
                                 <div class="flex-grow-1">
-                                    <span class="badge badge-success">Guardada</span>
-                                    <span class="badge badge-warning">${tipoLabel}</span>
-                                    <small class="ml-2 text-muted"><i class="fas fa-lock"></i> No editable</small>
+                                    <div class="mb-1">
+                                        <span class="badge badge-secondary">ID: ${inc.id}</span>
+                                        <span class="badge badge-success">Guardada</span>
+                                        <span class="badge badge-warning">${tipoLabel}</span>
+                                        <small class="ml-2 text-muted"><i class="fas fa-lock"></i> No editable</small>
+                                    </div>
                                     <p class="mt-2 mb-1">${inc.descripcion || ''}</p>
                                     ${evidenciasCount > 0 ? `<a href="#" onclick="window.verImagenesIncidencia(${inc.id}); return false;" class="btn btn-sm btn-link p-0"><i class="fas fa-images"></i> ${evidenciasCount} evidencia(s)</a>` : '<small class="text-muted">Sin evidencias</small>'}
                                 </div>
@@ -1414,8 +1417,11 @@
                         html += `<div class="mb-2 list-group-item">
                             <div class="d-flex justify-content-between align-items-start">
                                 <div class="flex-grow-1">
-                                    <span class="badge badge-info">Pendiente</span>
-                                    <span class="badge badge-warning">${tipoLabel}</span>
+                                    <div class="mb-1">
+                                        <span class="badge badge-secondary">ID: ${inc.id}</span>
+                                        <span class="badge badge-info">Pendiente</span>
+                                        <span class="badge badge-warning">${tipoLabel}</span>
+                                    </div>
                                     <p class="mt-2 mb-1">${inc.descripcion}</p>
                                     ${inc.evidencias && inc.evidencias.length > 0 ? `<small class="text-muted"><i class="fas fa-images"></i> ${inc.evidencias.length} evidencia(s)</small>` : ''}
                                 </div>
