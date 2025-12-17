@@ -315,9 +315,11 @@
                         // Calcular progreso basado en estados: entregado o parcial = 100%, sin_entrega = 0%
                         const facturasCompletadas = d.facturas_completadas || 0;
                         const progreso = d.total_facturas ? Math.round((facturasCompletadas / d.total_facturas) * 100) : 0;
+                        const descripcion = d.observaciones ? `<small class="text-muted d-block">${d.observaciones}</small>` : '';
                         html += `<button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center btn-distribucion ${confirmacionState.distribucionActual === d.id ? 'active' : ''}" data-distribucion="${d.id}">
                             <div>
                                 <div class="mb-0 font-weight-bold">${d.nombre_equipo}</div>
+                                ${descripcion}
                                 <small class="text-muted">${facturasCompletadas}/${d.total_facturas} facturas</small>
                             </div>
                             <div class="text-right" style="min-width:80px;">
@@ -665,16 +667,24 @@
                         }
                     }
 
-                    $.post(`${rutasConfirmacion.marcarTodos}/${distribucionFacturaId}`, { _token: csrfToken })
-                        .done(resp => {
-                            if (confirmacionState.distribucionActual) {
-                                cargarConfirmacion(confirmacionState.distribucionActual, confirmacionState.facturaSeleccionada);
-                            }
-                        })
-                        .fail(xhr => {
-                            const r = xhr.responseJSON || {};
-                            Swal.fire(r.title || 'Error', r.text || 'No se pudieron actualizar los productos.', r.icon || 'error');
-                        });
+                    // Solo marcar checkboxes de productos sin incidencias
+                    let productosSeleccionados = 0;
+                    $('#tablaProductos .chk-producto').each(function() {
+                        const $checkbox = $(this);
+                        // Solo marcar si no está deshabilitado (significa que no tiene incidencia)
+                        if (!$checkbox.prop('disabled')) {
+                            $checkbox.prop('checked', true);
+                            const productoId = $checkbox.data('producto');
+                            estadoCheckboxes[productoId] = true;
+                            productosSeleccionados++;
+                        }
+                    });
+
+                    if (productosSeleccionados > 0) {
+                        toastr.success(`${productosSeleccionados} producto(s) marcado(s) como entregado(s)`, 'Productos seleccionados');
+                    } else {
+                        toastr.info('No hay productos disponibles para marcar', 'Información');
+                    }
                 }
 
 

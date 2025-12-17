@@ -884,6 +884,33 @@ class DistribucionEntrega extends Component
                 ], 422);
             }
 
+            // Validar que ninguna factura de esta distribución esté en otra distribución en proceso o completada
+            $facturasConflicto = DB::table('distribuciones_entrega_facturas as def')
+                ->join('distribuciones_entrega as de', 'def.distribucion_entrega_id', '=', 'de.id')
+                ->whereIn('def.factura_id', function($query) use ($distribucionId) {
+                    $query->select('factura_id')
+                        ->from('distribuciones_entrega_facturas')
+                        ->where('distribucion_entrega_id', $distribucionId);
+                })
+                ->where('de.id', '!=', $distribucionId)
+                ->whereIn('de.estado_id', [2, 3]) // En proceso o Completada
+                ->select('def.factura_id', 'de.id as otra_distribucion_id', 'de.estado_id')
+                ->get();
+
+            if ($facturasConflicto->count() > 0) {
+                $estadosTexto = $facturasConflicto->map(function($item) {
+                    return $item->estado_id == 2 ? 'En Proceso' : 'Completada';
+                })->unique()->implode(', ');
+                
+                return response()->json([
+                    'icon' => 'warning',
+                    'title' => 'Facturas en uso',
+                    'text' => 'Esta distribución contiene ' . $facturasConflicto->count() . 
+                             ' factura(s) que ya están en otra distribución con estado: ' . $estadosTexto . 
+                             '. No se puede iniciar hasta que esas distribuciones finalicen.',
+                ], 422);
+            }
+
             $distribucion->estado_id = 2; // En proceso
             $distribucion->save();
 
