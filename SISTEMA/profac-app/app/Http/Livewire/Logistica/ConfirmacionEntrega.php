@@ -195,7 +195,7 @@ class ConfirmacionEntrega extends Component
     {
         try {
             $request->validate([
-                'productos' => 'required|array|min:1',
+                'productos' => 'nullable|array',
                 'productos.*.id' => 'required|exists:entregas_productos,id',
                 'productos.*.entregado' => 'required|boolean',
                 'productos.*.cantidad_entregada' => 'nullable|numeric|min:0',
@@ -208,24 +208,36 @@ class ConfirmacionEntrega extends Component
                 'incidencias.*.tipo' => 'required|string',
                 'incidencias.*.descripcion' => 'required|string|min:5',
             ]);
-
-            $productosIds = collect($request->productos)->pluck('id')->unique()->values();
-
-            $facturasCerradas = DB::table('entregas_productos as ep')
-                ->join('distribuciones_entrega_facturas as df', 'ep.distribucion_factura_id', '=', 'df.id')
-                ->join('factura as f', 'df.factura_id', '=', 'f.id')
-                ->whereIn('ep.id', $productosIds)
-                ->whereIn('df.estado_entrega', ['entregado', 'parcial'])
-                ->select('f.numero_factura')
-                ->distinct()
-                ->pluck('numero_factura');
-
-            if ($facturasCerradas->isNotEmpty()) {
+            
+            // Validar que haya al menos productos o incidencias
+            if (empty($request->productos) && empty($request->incidencias)) {
                 return response()->json([
                     'icon' => 'warning',
-                    'title' => 'Factura cerrada',
-                    'text' => 'La factura #' . $facturasCerradas->first() . ' ya fue confirmada y no puede editarse.',
+                    'title' => 'Sin cambios',
+                    'text' => 'Debe haber al menos un producto o una incidencia para confirmar.',
                 ], 422);
+            }
+
+            // Verificar facturas cerradas solo si hay productos
+            if (!empty($request->productos)) {
+                $productosIds = collect($request->productos)->pluck('id')->unique()->values();
+
+                $facturasCerradas = DB::table('entregas_productos as ep')
+                    ->join('distribuciones_entrega_facturas as df', 'ep.distribucion_factura_id', '=', 'df.id')
+                    ->join('factura as f', 'df.factura_id', '=', 'f.id')
+                    ->whereIn('ep.id', $productosIds)
+                    ->whereIn('df.estado_entrega', ['entregado', 'parcial'])
+                    ->select('f.numero_factura')
+                    ->distinct()
+                    ->pluck('numero_factura');
+
+                if ($facturasCerradas->isNotEmpty()) {
+                    return response()->json([
+                        'icon' => 'warning',
+                        'title' => 'Factura cerrada',
+                        'text' => 'La factura #' . $facturasCerradas->first() . ' ya fue confirmada y no puede editarse.',
+                    ], 422);
+                }
             }
 
             [$hora, $minuto] = explode(':', $request->hora_entrega);
@@ -233,20 +245,24 @@ class ConfirmacionEntrega extends Component
 
             DB::beginTransaction();
 
-            foreach ($request->productos as $productoData) {
-                $producto = EntregaProducto::findOrFail($productoData['id']);
-                
-                $producto->entregado = $productoData['entregado'];
-                $producto->cantidad_entregada = $productoData['cantidad_entregada'] ?? 0;
-                $producto->tiene_incidencia = $productoData['tiene_incidencia'] ?? 0;
-                $producto->tipo_incidencia = $productoData['tipo_incidencia'] ?? null;
-                $producto->descripcion_incidencia = $productoData['descripcion_incidencia'] ?? null;
-                $producto->user_id_registro = Auth::id();
-                $producto->fecha_registro = $fechaRegistro;
-                $producto->save();
+            // Actualizar productos solo si existen
+            if (!empty($request->productos)) {
+                foreach ($request->productos as $productoData) {
+                    $producto = EntregaProducto::findOrFail($productoData['id']);
+                    
+                    $producto->entregado = $productoData['entregado'];
+                    $producto->cantidad_entregada = $productoData['cantidad_entregada'] ?? 0;
+                    $producto->tiene_incidencia = $productoData['tiene_incidencia'] ?? 0;
+                    $producto->tipo_incidencia = $productoData['tipo_incidencia'] ?? null;
+                    $producto->descripcion_incidencia = $productoData['descripcion_incidencia'] ?? null;
+                    $producto->user_id_registro = Auth::id();
+                    $producto->fecha_registro = $fechaRegistro;
+                    $producto->save();
+                }
             }
 
             // Guardar incidencias pendientes si existen
+            $distribucionFacturaId = null;
             if ($request->has('incidencias') && is_array($request->incidencias)) {
                 foreach ($request->incidencias as $incidenciaData) {
                     $incidencia = new EntregaProductoIncidencia();
@@ -255,6 +271,18 @@ class ConfirmacionEntrega extends Component
                     $incidencia->descripcion = $incidenciaData['descripcion'];
                     $incidencia->user_id_registro = Auth::id();
                     $incidencia->save();
+
+                    // Actualizar el campo tiene_incidencia del producto
+                    $entregaProducto = EntregaProducto::find($incidenciaData['producto_id']);
+                    if ($entregaProducto) {
+                        $entregaProducto->tiene_incidencia = 1;
+                        $entregaProducto->save();
+                        
+                        // Obtener el distribucion_factura_id para actualizar el estado después
+                        if (!$distribucionFacturaId) {
+                            $distribucionFacturaId = $entregaProducto->distribucion_factura_id;
+                        }
+                    }
 
                     // Guardar evidencias si existen
                     if (isset($incidenciaData['evidencias']) && is_array($incidenciaData['evidencias'])) {
@@ -267,7 +295,43 @@ class ConfirmacionEntrega extends Component
                 }
             }
 
-            // Los triggers actualizarán automáticamente el estado_entrega de la factura
+            // Actualizar el estado de la factura después de guardar incidencias o productos
+            // Si se guardaron productos, obtener el distribucion_factura_id del primero
+            if (!$distribucionFacturaId && !empty($request->productos)) {
+                $primerProducto = EntregaProducto::find($request->productos[0]['id']);
+                if ($primerProducto) {
+                    $distribucionFacturaId = $primerProducto->distribucion_factura_id;
+                }
+            }
+            
+            // Actualizar estado de la factura basado en todos los productos
+            if ($distribucionFacturaId) {
+                $estadoCalculado = DB::selectOne("
+                    SELECT 
+                        CASE
+                            -- Si todos están entregados (y hay al menos 1) -> entregado
+                            WHEN COUNT(*) > 0 AND COUNT(*) = SUM(CASE WHEN entregado = 1 THEN 1 ELSE 0 END) THEN 'entregado'
+                            -- Si todos tienen incidencia y ninguno entregado -> parcial
+                            WHEN COUNT(*) = SUM(CASE WHEN tiene_incidencia = 1 THEN 1 ELSE 0 END) 
+                                 AND SUM(CASE WHEN entregado = 1 THEN 1 ELSE 0 END) = 0 THEN 'parcial'
+                            -- Si al menos 1 está entregado o tiene incidencia -> parcial
+                            WHEN SUM(CASE WHEN entregado = 1 OR tiene_incidencia = 1 THEN 1 ELSE 0 END) > 0 THEN 'parcial'
+                            -- Ninguno gestionado -> sin_entrega
+                            ELSE 'sin_entrega'
+                        END AS nuevo_estado
+                    FROM entregas_productos
+                    WHERE distribucion_factura_id = ?
+                ", [$distribucionFacturaId]);
+                
+                if ($estadoCalculado) {
+                    DB::table('distribuciones_entrega_facturas')
+                        ->where('id', $distribucionFacturaId)
+                        ->update([
+                            'estado_entrega' => $estadoCalculado->nuevo_estado,
+                            'updated_at' => now()
+                        ]);
+                }
+            }
 
             DB::commit();
 

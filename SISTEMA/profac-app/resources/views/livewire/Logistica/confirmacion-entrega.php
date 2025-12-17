@@ -674,25 +674,72 @@
                         return;
                     }
 
-                    // Verificar si la factura seleccionada ya está confirmada
+                    // Obtener factura actual y validar
                     const facturaActual = confirmacionState.facturas.find(f => f.distribucion_factura_id === confirmacionState.facturaSeleccionada);
-                    if (facturaActual) {
-                        const estado = (facturaActual.estado_entrega || '').toLowerCase();
-                        const yaConfirmada = Number(facturaActual.confirmada) === 1;
-                        if (estado === 'entregado' || estado === 'parcial' || yaConfirmada) {
-                            Swal.fire({
-                                icon: 'warning',
-                                title: 'Factura ya confirmada',
-                                text: 'Esta factura ya fue confirmada y no se puede modificar. Solo puedes consultar su historial.',
-                                confirmButtonText: 'Entendido'
-                            });
-                            return;
-                        }
+                    if (!facturaActual) {
+                        Swal.fire('Error', 'No se encontró la factura seleccionada.', 'error');
+                        return;
                     }
-
-                    const productos = recolectarProductosSeleccionados();
-                    if (!productos.length) {
-                        Swal.fire('Sin cambios', 'No hay productos habilitados para confirmar.', 'info');
+                    
+                    // Verificar si la factura ya está confirmada
+                    const estado = (facturaActual.estado_entrega || '').toLowerCase();
+                    const yaConfirmada = Number(facturaActual.confirmada) === 1;
+                    if (estado === 'entregado' || estado === 'parcial' || yaConfirmada) {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Factura ya confirmada',
+                            text: 'Esta factura ya fue confirmada y no se puede modificar. Solo puedes consultar su historial.',
+                            confirmButtonText: 'Entendido'
+                        });
+                        return;
+                    }
+                    
+                    const todosLosProductos = facturaActual.productos || [];
+                    
+                    // Validar que TODOS los productos estén marcados O tengan incidencia
+                    const productosSinGestionar = [];
+                    todosLosProductos.forEach(producto => {
+                        const checkbox = $(`.chk-producto[data-producto="${producto.id}"]`);
+                        const estaMarcado = checkbox.is(':checked');
+                        const tieneIncidenciaGuardada = Number(producto.tiene_incidencia) === 1;
+                        const tieneIncidenciaPendiente = confirmacionState.incidenciasPendientes.some(i => i.producto_id === producto.id);
+                        
+                        // Si no está marcado Y no tiene incidencia guardada Y no tiene incidencia pendiente
+                        if (!estaMarcado && !tieneIncidenciaGuardada && !tieneIncidenciaPendiente) {
+                            productosSinGestionar.push(producto.nombre_producto);
+                        }
+                    });
+                    
+                    // Si hay productos sin gestionar, no permitir confirmar
+                    if (productosSinGestionar.length > 0) {
+                        const listaProductos = productosSinGestionar.map(p => `• ${p}`).join('<br>');
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Productos pendientes',
+                            html: `Los siguientes productos no están marcados como entregados ni tienen incidencias registradas:<br><br>${listaProductos}<br><br>Debes marcar cada producto como entregado o registrar una incidencia antes de confirmar.`,
+                            confirmButtonText: 'Entendido'
+                        });
+                        return;
+                    }
+                    
+                    // Recolectar productos marcados
+                    const incidenciasPendientes = confirmacionState.incidenciasPendientes.length;
+                    const productos = recolectarProductosSeleccionados(incidenciasPendientes > 0);
+                    
+                    // Si hay incidencias pero no productos habilitados, asegurarse de enviar todos los productos
+                    if (!productos.length && incidenciasPendientes > 0) {
+                        Swal.fire({
+                            icon: 'info',
+                            title: 'Solo incidencias',
+                            text: 'Se confirmarán únicamente las incidencias registradas.',
+                            confirmButtonText: 'Continuar'
+                        }).then((result) => {
+                            if (result.isConfirmed) {
+                                confirmacionState.productosPendientes = [];
+                                $('#horaEntregaInput').val(obtenerHoraActual());
+                                $('#modalHoraEntrega').modal('show');
+                            }
+                        });
                         return;
                     }
 
@@ -701,10 +748,12 @@
                     $('#modalHoraEntrega').modal('show');
                 }
 
-                function recolectarProductosSeleccionados() {
+                function recolectarProductosSeleccionados(incluirDeshabilitados = false) {
                     const productos = [];
                     $('.chk-producto').each(function () {
-                        if (this.disabled) {
+                        // Si incluirDeshabilitados es true, procesar todos los productos
+                        // Si es false, solo procesar productos habilitados (comportamiento original)
+                        if (!incluirDeshabilitados && this.disabled) {
                             return;
                         }
                         const id = $(this).data('producto');
@@ -732,9 +781,13 @@
 
                 async function enviarConfirmacion(horaEntrega) {
                     const productos = confirmacionState.productosPendientes.slice();
-                    if (!productos.length) {
+                    const incidenciasPendientes = confirmacionState.incidenciasPendientes.length;
+                    
+                    // Permitir envío si hay productos O incidencias
+                    if (!productos.length && !incidenciasPendientes) {
                         return;
                     }
+                    
                     const boton = $('#btnConfirmarEntrega');
                     boton.prop('disabled', true).html('<span class="mr-2 spinner-border spinner-border-sm"></span>Guardando...');
 
@@ -1012,6 +1065,9 @@
                     // Recargar todas las incidencias (guardadas + pendientes)
                     window.cargarIncidenciasProducto(productoId);
                     
+                    // Actualizar estado visual del producto
+                    actualizarEstadoProducto(productoId);
+                    
                     // Actualizar contador en la tabla
                     actualizarContadorIncidencias(productoId);
                 }
@@ -1132,15 +1188,52 @@
                             const index = confirmacionState.incidenciasPendientes.findIndex(i => i.id === incidenciaId);
                             if (index !== -1) {
                                 const incidencia = confirmacionState.incidenciasPendientes[index];
+                                const productoId = incidencia.producto_id;
                                 confirmacionState.incidenciasPendientes.splice(index, 1);
                                 toastr.success('Incidencia eliminada');
                                 
                                 // Recargar todas las incidencias
-                                window.cargarIncidenciasProducto(incidencia.producto_id);
+                                window.cargarIncidenciasProducto(productoId);
+                                
+                                // Actualizar estado visual del producto
+                                actualizarEstadoProducto(productoId);
                                 
                                 // Actualizar contador
-                                actualizarContadorIncidencias(incidencia.producto_id);
+                                actualizarContadorIncidencias(productoId);
                             }
+                        }
+                    });
+                }
+
+                function actualizarEstadoProducto(productoId) {
+                    const checkbox = $(`.chk-producto[data-producto="${productoId}"]`);
+                    if (!checkbox.length) return;
+                    
+                    const countPendientes = confirmacionState.incidenciasPendientes.filter(i => i.producto_id === productoId).length;
+                    
+                    // Obtener incidencias guardadas
+                    $.get(`${rutasConfirmacion.incidencias}/${productoId}/incidencias`).done(resp => {
+                        const incidenciasGuardadas = (resp.incidencias || []).length;
+                        const totalIncidencias = countPendientes + incidenciasGuardadas;
+                        
+                        const celdaAcciones = checkbox.closest('tr').find('td:last');
+                        const badgeIncidencia = celdaAcciones.find('.badge-danger');
+                        
+                        if (totalIncidencias > 0) {
+                            // Tiene incidencias: desmarcar y deshabilitar checkbox
+                            checkbox.prop('checked', false).prop('disabled', true);
+                            
+                            // Agregar badge si no existe
+                            if (badgeIncidencia.length === 0) {
+                                celdaAcciones.find('.btn-incidencia').before('<span class="mb-1 badge badge-danger">Incidencia</span><br>');
+                            }
+                        } else {
+                            // No tiene incidencias: habilitar checkbox
+                            checkbox.prop('disabled', false);
+                            
+                            // Remover badge
+                            badgeIncidencia.next('br').remove();
+                            badgeIncidencia.remove();
                         }
                     });
                 }
@@ -1260,7 +1353,7 @@
 
                     let html = '<div class="list-group">';
                     
-                    // Renderizar incidencias guardadas
+                    // Renderizar incidencias guardadas (solo lectura)
                     incidenciasGuardadas.forEach((inc) => {
                         const tipoLabel = {
                             'producto_danado': 'Producto dañado',
@@ -1271,18 +1364,15 @@
                         }[inc.tipo] || inc.tipo;
 
                         const evidenciasCount = inc.evidencias_count || 0;
-                        const botonesEdicion = puedeEditar ? `<button type="button" class="btn btn-sm btn-outline-danger" onclick="window.eliminarIncidenciaGuardada(${inc.id}, ${productoId})" title="Eliminar"><i class="fas fa-trash"></i></button>` : '';
                         
-                        html += `<div class="mb-2 list-group-item">
+                        html += `<div class="mb-2 list-group-item bg-light">
                             <div class="d-flex justify-content-between align-items-start">
                                 <div class="flex-grow-1">
                                     <span class="badge badge-success">Guardada</span>
                                     <span class="badge badge-warning">${tipoLabel}</span>
+                                    <small class="ml-2 text-muted"><i class="fas fa-lock"></i> No editable</small>
                                     <p class="mt-2 mb-1">${inc.descripcion || ''}</p>
-                                    ${evidenciasCount > 0 ? `<a href="#" onclick="verEvidenciasIncidencia(${inc.id}); return false;" class="btn btn-sm btn-link p-0"><i class="fas fa-images"></i> ${evidenciasCount} evidencia(s)</a>` : '<small class="text-muted">Sin evidencias</small>'}
-                                </div>
-                                <div class="ml-2">
-                                    ${botonesEdicion}
+                                    ${evidenciasCount > 0 ? `<a href="#" onclick="window.verImagenesIncidencia(${inc.id}); return false;" class="btn btn-sm btn-link p-0"><i class="fas fa-images"></i> ${evidenciasCount} evidencia(s)</a>` : '<small class="text-muted">Sin evidencias</small>'}
                                 </div>
                             </div>
                         </div>`;
