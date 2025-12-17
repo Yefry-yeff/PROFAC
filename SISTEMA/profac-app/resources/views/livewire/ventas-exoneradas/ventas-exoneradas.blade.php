@@ -28,40 +28,10 @@
         </style>
     @endpush
 
-    <div class="row wrapper border-bottom white-bg page-heading">
-        <div class="col-lg-8 col-xl-10 col-md-8 col-sm-8">
-            <h2>Ventas Exoneradas</h2>
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item">
-                    <div class="alert alert-info" role="alert">
-                        Clientes <b>Exonerado</b>
-                    </div>
-                </li>
-                {{-- <li class="breadcrumb-item">
-                    <a data-toggle="modal" data-target="#modal_producto_crear">Registrar</a>
-                </li> --}}
-
-            </ol>
-        </div>
-
-
-        {{-- <div class="col-lg-4 col-xl-2 col-md-4 col-sm-4">
-                <div style="margin-top: 1.5rem">
-                    <a href="#" class="btn add-btn btn-primary" data-toggle="modal" data-target="#modal_producto_crear"><i
-                            class="fa fa-plus"></i> Registrar Producto</a>
-                </div>
-            </div> --}}
-
-
-    </div>
-
     <div class="wrapper wrapper-content animated fadeInRight">
         <div class="row">
             <div class="col-lg-12">
                 <div class="ibox ">
-                    <div class="ibox-title">
-                        <h3>Datos de compra <i class="fa-solid fa-cart-shopping"></i></h3>
-                    </div>
                     <div class="ibox-content">
                         <form onkeydown="return event.key != 'Enter';" autocomplete="off" id="crear_venta"
                             name="crear_venta" data-parsley-validate>
@@ -69,28 +39,35 @@
                             <input name="idComprobante" id="idComprobante" type="hidden" value="">
                             <input type="hidden" id="tipo_venta_id" name="tipo_venta_id" value="3">
 
-                            <div class="row">
-                                <div class="col-6 col-sm-6 col-md-2 col-lg-2 col-xl-2">
-                                    <label class="col-form-label text-danger" for="numero_venta"
-                                        style="font-size: 1.5rem; font-weight:600;">Numero de Venta</label>
+                            <div class="row align-items-center">
+                                <div class="col-12 col-md-6 col-lg-6 col-xl-6">
+                                    <div class="d-flex align-items-center gap-2 flex-nowrap">
+                                        <h3 class="mb-0">
+                                            Venta exonerada:
+                                        </h3>
+                                        <input
+                                            type="text"
+                                            id="numero_venta"
+                                            name="numero_venta"
+                                            class="form-control form-control-sm"
+                                            style="max-width: 140px;"
+                                            readonly
+                                        >
+                                    </div>
                                 </div>
 
-                                <div class="col-6 col-sm-6 col-md-2 col-lg-2 col-xl-2">
-                                    <input class="form-control"
-                                        style="font-size: 1.5rem; font-weight:600; text-align:center" type="text"
-                                        id="numero_venta" name="numero_venta" value="" data-parsley-required
-                                        readonly>
+                                <div class="col-12 col-md-6 col-lg-6 col-xl-6 d-flex align-items-center gap-2">
+                                    <span class="text-muted small">Categoría del Cliente:</span>
+                                    <span
+                                        id="categoria_cliente_nombre"
+                                        class="badge badge-info px-3 py-2"
+                                    ></span>
                                 </div>
-
-
-
-
-
                             </div>
 
-                            <div class="row  mt-4 mb-4">
+                            <div class="row">
 
-                                <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6">
+                                <div class="col-12 col-md-6 col-lg-6 col-xl-6">
                                     <label for="seleccionarCliente" class="col-form-label focus-label">Seleccionar
                                         Cliente:<span class="text-danger">*</span> </label>
                                     <select id="seleccionarCliente" name="seleccionarCliente"
@@ -109,7 +86,7 @@
                                     </select>
                                 </div>
 
-                                <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6">
+                                <div class="col-12 col-md-6 col-lg-6 col-xl-6">
                                     <label for="seleccionarCliente" class="col-form-label focus-label">Seleccionar
                                         Código de exoneracion:<span class="text-danger">*</span> </label>
                                     <select name="codigo" id="codigo" class="form-group form-control">
@@ -519,9 +496,6 @@
                 }
             });
 
-
-
-
             $('#seleccionarCliente').select2({
                 ajax: {
                     url: '/exonerado/lista/clientes',
@@ -537,9 +511,6 @@
                     }
                 }
             });
-
-
-
 
             $('#seleccionarProducto').select2({
                 ajax: {
@@ -696,7 +667,7 @@
 
             function agregarProductoCarrito() {
                 let idProducto = document.getElementById('seleccionarProducto').value;
-                let idCliente = document.getElementById('seleccionarCliente').value;
+                let categoria_cliente_venta_id = document.getElementById('categoria_cliente_venta_id').value;
 
 
                 let data = $("#bodega").select2('data')[0];
@@ -707,7 +678,7 @@
 
                 axios.post('/estatal/datos/producto', {
                         idProducto: idProducto,
-                        idCliente: idCliente
+                        categoria_cliente_venta_id: categoria_cliente_venta_id
 
                     })
                     .then(response => {
@@ -746,16 +717,8 @@
 
                         numeroInputs += 1;
 
-                        //     let arraySecciones  = response.data.secciones;
-                        // htmlSelectSeccion ="<option selected disabled>--seccion--</option>";
-
-                        // arraySecciones.forEach(seccion => {
-                        //     htmlSelectSeccion += `<option values="${seccion.id}" >${seccion.descripcion}</option>`
-                        // });
-
                         htmlSelectUnidades = "";
 
-                        /*<option  value="${producto.precio_base}" data-id="pb">${producto.precio_base} - Base</option>*/
                         htmlprecios = `
                         <option  value="${producto.precio1}" data-id="p1" selectec>${producto.precio1} - A</option>
                         <option  value="${producto.precio2}" data-id="p2">${producto.precio2} - B</option>
@@ -901,13 +864,14 @@
                     })
                     .catch(err => {
 
-                        console.error(err);
+                        const mensaje = err.response?.data?.message
+                                || 'Ha ocurrido un error inesperado';
 
                         Swal.fire({
-                            icon: 'error',
-                            title: 'Error!',
-                            text: "Ha ocurrido un error al agregar el producto a la compra."
-                        })
+                                icon: 'error',
+                                title: 'Error',
+                                html: mensaje
+                        });
                     })
             }
 
@@ -1056,6 +1020,35 @@
 
             }
 
+            function obtenerCategoriasClientes() {
+
+                $('#categoria_cliente_venta_id').select2({
+                    placeholder: 'Seleccione una categoría',
+                    allowClear: true,
+                    ajax: {
+                        url: '/clientes/categorias-escala',
+                        dataType: 'json',
+                        delay: 250,
+                        data: function (params) {
+                            return {
+                                q: params.term || '',
+                                page: params.page || 1
+                            };
+                        },
+                        processResults: function (data) {
+                            return {
+                                results: data.categorias.map(function (item) {
+                                    return {
+                                        id: item.id,
+                                        text: item.nombre_categoria
+                                    };
+                                })
+                            };
+                        }
+                    }
+                });
+            }
+
             function obtenerDatosCliente() {
                 let idCliente = document.getElementById("seleccionarCliente").value;
                 axios.post("/estatal/datos/cliente", {
@@ -1072,12 +1065,20 @@
 
                                 let selectBox = document.getElementById("tipoPagoVenta");
                                 selectBox.remove(2);
+                                obtenerCategoriasClientes();
+                                $('#categoria_cliente_nombre').text(data.nombre_categoria);
+                                document.getElementById("categoria_cliente_venta_id").appendChild(new Option(data.nombre_categoria, data.idcategoriacliente, true, true));
 
                             } else {
                                 document.getElementById("nombre_cliente_ventas").readOnly = true;
                                 document.getElementById("rtn_ventas").readOnly = true;
                                 document.getElementById("nombre_cliente_ventas").value = data.nombre;
                                 document.getElementById("rtn_ventas").value = data.rtn;
+                                $('#categoria_cliente_nombre').text(data.nombre_categoria);
+
+                                document.getElementById("categoria_cliente_venta_id").appendChild(new Option(data.nombre_categoria, data.idcategoriacliente, true, true));
+
+                                obtenerCategoriasClientes();
 
                                 diasCredito = data.dias_credito;
                                 obtenerTipoPago();
@@ -1086,8 +1087,6 @@
                                 obtenerOrdenesCompra();
                             }
 
-                            // document.getElementById('fecha_vencimiento').value = "";
-                            // document.getElementById('fecha_emision').value="";
 
 
 

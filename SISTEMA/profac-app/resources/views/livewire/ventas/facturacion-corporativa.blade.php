@@ -61,7 +61,7 @@
                             <input type="hidden" id="restriccion" name="restriccion" value="1">
                             <input name="idComprobante" id="idComprobante" type="hidden" value="">
                             <input type="hidden" id="codigo_autorizacion" name="codigo_autorizacion" value="">
-                            <div class="row align-items-center">
+                            <div class="row">
                                 <div class="col-12 col-md-6 col-lg-6 col-xl-6">
                                     <div class="d-flex align-items-center gap-2 flex-nowrap">
                                         <h3 class="mb-0">
@@ -87,10 +87,7 @@
                                     ></span>
                                 </div>
 
-
-
                             </div>
-
 
                             <div class="row">
                                 <div class="col-12 col-md-6 col-lg-6 col-xl-6">
@@ -378,38 +375,7 @@
 
                             </div>
 
-                            {{-- <div class="table-responsive">
-                                <table id="tbl_productos_venta" class="table table-striped table-bordered table-hover">
-                                    <thead class="">
-                                        <tr>
-                                            <th><label class="sr-only">Total</label>
-                                                <input type="number" placeholder="Total del producto" class="form-control"
-                                                    min="1"  autocomplete="off" style="min-width: 100px">
-                                            </th>
-                                            <th><label class="sr-only">Total</label>
-                                                <input type="number" placeholder="Total del producto" class="form-control"
-                                                    min="1" disabled autocomplete="off" style="min-width: 100px">
-                                            </th>
-                                            <th><label class="sr-only">Total</label>
-                                                <input type="number" placeholder="Total del producto" class="form-control"
-                                                    min="1" disabled autocomplete="off" style="min-width: 100px">
-                                            </th>
 
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-
-                                    </tbody>
-                                </table>
-
-                            </div> --}}
-
-
-
-
-
-
-                            <hr>
                             <div class="row">
 
                                 <div class="form-group col-12 col-sm-12 col-md-2 col-lg-1 col-xl-1">
@@ -737,7 +703,6 @@
 
             }
 
-
             function obtenerTipoPago() {
 
                 axios.get('/ventas/tipo/pago')
@@ -865,8 +830,6 @@
                             let idProductoFila = document.getElementById("idProducto" + idInpunt).value;
                             let idSeccionFila = document.getElementById("idSeccion" + idInpunt).value;
 
-
-
                             if (idProducto == idProductoFila && idSeccion == idSeccionFila && !flag) {
                                 flag = true;
                             }
@@ -890,24 +853,13 @@
                         }
 
                         let producto = response.data.producto;
-                        //let precio_base = new Intl.NumberFormat('es-HN').format(producto.precio_base);
-
                         let arrayUnidades = response.data.unidades;
 
 
                         numeroInputs += 1;
 
-
-                        //     let arraySecciones  = response.data.secciones;
-                        // htmlSelectSeccion ="<option selected disabled>--seccion--</option>";
-
-                        // arraySecciones.forEach(seccion => {
-                        //     htmlSelectSeccion += `<option values="${seccion.id}" >${seccion.descripcion}</option>`
-                        // });
-
                         htmlSelectUnidades = "";
 
-                        /*<option  value="${producto.precio_base}" data-id="pb">${producto.precio_base} - Base</option>*/
                         htmlprecios = `
                         <option  value="${producto.precio1}" data-id="p1" selected>${producto.precio1} - A</option>
                         <option  value="${producto.precio2}" data-id="p2">${producto.precio2} - B</option>
@@ -1343,7 +1295,7 @@
                 function(event) {
                     event.preventDefault();
                     guardarVenta();
-                });
+            });
 
             function guardarVenta() {
 
@@ -1513,37 +1465,3 @@
 </div>
 
 
-
-
-<?php
-date_default_timezone_set('America/Tegucigalpa');
-$act_fecha = date('Y-m-d');
-$act_hora = date('H:i:s');
-$mes = date('m');
-$year = date('Y');
-$datetim = $act_fecha . ' ' . $act_hora;
-?>
-<script>
-    function mostrarHora() {
-        var fecha = new Date(); // Obtener la fecha y hora actual
-        var hora = fecha.getHours();
-        var minutos = fecha.getMinutes();
-        var segundos = fecha.getSeconds();
-
-        // A単adir un 0 delante si los minutos o segundos son menores a 10
-        minutos = minutos < 10 ? "0" + minutos : minutos;
-        segundos = segundos < 10 ? "0" + segundos : segundos;
-
-        // Mostrar la hora actual en el elemento con el id "reloj"
-        document.getElementById("reloj").innerHTML = hora + ":" + minutos + ":" + segundos;
-    }
-    // Actualizar el reloj cada segundo
-    setInterval(mostrarHora, 1000);
-</script>
-<div class="float-right">
-    <?php echo "$act_fecha"; ?> <strong id="reloj"></strong>
-</div>
-<div>
-    <strong>Copyright</strong> Distribuciones Valencia &copy; <?php echo "$year"; ?>
-</div>
-<p id="reloj"></p>

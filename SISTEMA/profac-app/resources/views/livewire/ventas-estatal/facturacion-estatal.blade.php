@@ -45,7 +45,6 @@
                                         <h3 class="mb-0">
                                             Venta Cliente A:
                                         </h3>
-
                                         <input
                                             type="text"
                                             id="numero_venta"
@@ -64,13 +63,7 @@
                                         class="badge badge-info px-3 py-2"
                                     ></span>
                                 </div>
-
-
-
                             </div>
-
-
-
 
                             <div class="row">
 
@@ -84,12 +77,10 @@
                                     </select>
                                 </div>
 
-
                                 <div class="col-12 col-md-6 col-lg-6 col-xl-6">
                                     <label class="col-form-label focus-label">Nombre del cliente: <span class="text-danger">*</span></label>
                                     <input class="form-control" required type="text" id="nombre_cliente_ventas"
                                         name="nombre_cliente_ventas" data-parsley-required readonly>
-
                                 </div>
 
                                 <div class="col-12 col-md-6 col-lg-6 col-xl-6">
@@ -98,7 +89,6 @@
                                     <select name="vendedor" id="vendedor" class="form-group form-control" required>
                                         <option value="" selected disabled>--Seleccionar un vendedor--</option>
                                     </select>
-
                                 </div>
 
 
@@ -655,7 +645,6 @@
                 });
             }
 
-
             function obtenerBodegas(id) {
 
                 document.getElementById('bodega').innerHTML = "<option  selected disabled>--Seleccione una bodega--</option>";
@@ -679,6 +668,57 @@
 
             }
 
+            function obtenerDatosCliente() {
+                let idCliente = document.getElementById("seleccionarCliente").value;
+                axios.post("/estatal/datos/cliente", {
+                        id: idCliente
+                    })
+                    .then(
+                        response => {
+
+                            let data = response.data.datos;
+
+                            if (data.id == 1) {
+                                document.getElementById("nombre_cliente_ventas").readOnly = false;
+                                document.getElementById("rtn_ventas").readOnly = false;
+
+                                let selectBox = document.getElementById("tipoPagoVenta");
+                                selectBox.remove(2);
+                                obtenerCategoriasClientes();
+                                $('#categoria_cliente_nombre').text(data.nombre_categoria);
+                                document.getElementById("categoria_cliente_venta_id").appendChild(new Option(data.nombre_categoria, data.idcategoriacliente, true, true));
+
+                            } else {
+                                document.getElementById("nombre_cliente_ventas").readOnly = true;
+                                document.getElementById("rtn_ventas").readOnly = true;
+                                document.getElementById("nombre_cliente_ventas").value = data.nombre;
+                                document.getElementById("rtn_ventas").value = data.rtn;
+                                $('#categoria_cliente_nombre').text(data.nombre_categoria);
+
+                                document.getElementById("categoria_cliente_venta_id").appendChild(new Option(data.nombre_categoria, data.idcategoriacliente, true, true));
+
+                                obtenerCategoriasClientes();
+
+                                diasCredito = data.dias_credito;
+                                obtenerTipoPago();
+                                obtenerOrdenesCompra();
+                            }
+
+                        }
+                    )
+                    .catch(err => {
+
+                        console.log(err);
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error...',
+                            text: "Ha ocurrido un error al obtener los datos del cliente"
+                        })
+
+
+                    })
+
+            }
 
             function obtenerTipoPago() {
 
@@ -836,16 +876,8 @@
 
                         numeroInputs += 1;
 
-                        //     let arraySecciones  = response.data.secciones;
-                        // htmlSelectSeccion ="<option selected disabled>--seccion--</option>";
-
-                        // arraySecciones.forEach(seccion => {
-                        //     htmlSelectSeccion += `<option values="${seccion.id}" >${seccion.descripcion}</option>`
-                        // });
-
                         htmlSelectUnidades = "";
 
-                         /*<option  value="${producto.precio_base}" data-id="pb">${producto.precio_base} - Base</option>*/
                         htmlprecios = `
                         <option  value="${producto.precio1}" data-id="p1" selected>${producto.precio1} - A</option>
                         <option  value="${producto.precio2}" data-id="p2">${producto.precio2} - B</option>
@@ -986,7 +1018,6 @@
 
                     })
                     .catch(err => {
-                        //console.error(err);
 
                             const mensaje = err.response?.data?.message
                                 || 'Ha ocurrido un error inesperado';
@@ -1193,62 +1224,7 @@
 
             }
 
-            function obtenerDatosCliente() {
-                let idCliente = document.getElementById("seleccionarCliente").value;
-                axios.post("/estatal/datos/cliente", {
-                        id: idCliente
-                    })
-                    .then(
-                        response => {
 
-                            let data = response.data.datos;
-
-                            if (data.id == 1) {
-                                document.getElementById("nombre_cliente_ventas").readOnly = false;
-                                document.getElementById("rtn_ventas").readOnly = false;
-
-                                let selectBox = document.getElementById("tipoPagoVenta");
-                                selectBox.remove(2);
-                                obtenerCategoriasClientes();
-                                $('#categoria_cliente_nombre').text(data.nombre_categoria);
-                                document.getElementById("categoria_cliente_venta_id").appendChild(new Option(data.nombre_categoria, data.idcategoriacliente, true, true));
-
-                            } else {
-                                document.getElementById("nombre_cliente_ventas").readOnly = true;
-                                document.getElementById("rtn_ventas").readOnly = true;
-                                document.getElementById("nombre_cliente_ventas").value = data.nombre;
-                                document.getElementById("rtn_ventas").value = data.rtn;
-                                $('#categoria_cliente_nombre').text(data.nombre_categoria);
-
-                                document.getElementById("categoria_cliente_venta_id").appendChild(new Option(data.nombre_categoria, data.idcategoriacliente, true, true));
-
-                                obtenerCategoriasClientes();
-
-                                diasCredito = data.dias_credito;
-                                obtenerTipoPago();
-                                obtenerOrdenesCompra();
-                            }
-
-                            // document.getElementById('fecha_vencimiento').value = "";
-                            // document.getElementById('fecha_emision').value="";
-
-
-
-                        }
-                    )
-                    .catch(err => {
-
-                        console.log(err);
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Error...',
-                            text: "Ha ocurrido un error al obtener los datos del cliente"
-                        })
-
-
-                    })
-
-            }
 
 
             $(document).on('submit', '#crear_venta',
