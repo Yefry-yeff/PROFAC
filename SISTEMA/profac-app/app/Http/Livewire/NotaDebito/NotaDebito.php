@@ -43,6 +43,7 @@ class NotaDebito extends Component
             factura.id as id,
             @i := @i + 1 as contador,
             numero_factura,
+            factura.cai,
             factura.cai as correlativo,
             fecha_emision,
             cliente.nombre,
