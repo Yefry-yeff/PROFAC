@@ -185,7 +185,12 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::post('/actualizar/parametro/comision/{id}', [confcomisiones::class,'actualizarParametro']);
 
 
+
+
     Route::get('/comisiones/empleado', MisComisiones::class);
+    Route::get('/listar/empleado/comision', [MisComisiones::class,'listarComisionesEmpleado']);
+
+
     Route::get('/comisiones/general', ReportesComisionesGenerales::class);
 
 
