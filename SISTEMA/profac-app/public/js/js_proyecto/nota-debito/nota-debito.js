@@ -117,10 +117,7 @@ $(document).ready(function() {
         "ajax": "/debito/lista/facturas",
         "columns": [
             {
-                data: 'numero_factura'
-            },
-            {
-                data: 'correlativo'
+                data: 'cai'
             },
             {
                 data: 'fecha_emision'

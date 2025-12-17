@@ -49,12 +49,14 @@ class ListadoNotasDebito extends Component
             ,cai_ndebito
             ,numeroCai
             ,correlativoND
-            ,(select name from users where id = notadebito.users_registra_id) as 'user'
+            ,users.name as 'user'
             ,notadebito.created_at
+            ,notadebito.estado_id
+            ,notadebito.estado_sumado
             from notadebito
-            inner join factura
-            on notadebito.factura_id = factura.id
+            inner join factura on notadebito.factura_id = factura.id
             inner join cliente cli on cli.id = factura.cliente_id
+            left join users on users.id = notadebito.users_registra_id
             where
             cli.tipo_cliente_id = 1
             and notadebito.created_at >= '".$fechaInicio."' and notadebito.created_at <= '".$fechaFinal."'"
@@ -66,18 +68,17 @@ class ListadoNotasDebito extends Component
 
             return Datatables::of($listanotaDebito)
             ->addColumn('estado', function ($listanotaDebito) {
-                $ESTADO = DB::SELECTONE("select estado_id from notadebito where id = ".$listanotaDebito->id);
-                if( $ESTADO->estado_id == 1){
+                if( $listanotaDebito->estado_id == 1){
 
                     return
                     '
-                    <p class="text-center" ><span class="badge badge-primary p-2" style="font-size:0.75rem">Activo</span></p>
+                    <p class="text-center" ><span class="p-2 badge badge-primary" style="font-size:0.75rem">Activo</span></p>
                     ';
 
-                }else if($ESTADO->estado_id == 2) {
+                }else if($listanotaDebito->estado_id == 2) {
                     return
                     '
-                    <p class="text-center"><span class="badge badge-danger p-2" style="font-size:0.75rem">Inactivo</span></p>
+                    <p class="text-center"><span class="p-2 badge badge-danger" style="font-size:0.75rem">Inactivo</span></p>
                     ';
                 }
 
@@ -103,8 +104,7 @@ class ListadoNotasDebito extends Component
 
             })
             ->addColumn('acciones', function ($listanotaDebito) {
-                $ESTADO = DB::SELECTONE("select estado_id, estado_sumado from notadebito where id = ".$listanotaDebito->id);
-                if( $ESTADO->estado_id == 1 && $ESTADO->estado_sumado == 2 ){
+                if( $listanotaDebito->estado_id == 1 && $listanotaDebito->estado_sumado == 2 ){
 
 
 
@@ -122,10 +122,10 @@ class ListadoNotasDebito extends Component
                     </div>
                     ';
 
-                }else if($ESTADO->estado_id == 2 ||  $ESTADO->estado_sumado == 1) {
+                }else if($listanotaDebito->estado_id == 2 ||  $listanotaDebito->estado_sumado == 1) {
                     return
                     '
-                    <p class="text-center"><span class="badge badge-danger p-2" style="font-size:0.75rem">Sin Acciones</span></p>
+                    <p class="text-center"><span class="p-2 badge badge-danger" style="font-size:0.75rem">Sin Acciones</span></p>
                     ';
                 }
 
