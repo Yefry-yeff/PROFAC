@@ -49,12 +49,12 @@
         </div>
     </div>
 
-    <!-- Distribuciones Pendientes -->
+    <!-- Distribuciones Pendientes de Tratar -->
     <div class="row">
         <div class="col-md-12">
             <div class="card card-warning collapsed-card">
                 <div class="card-header">
-                    <h3 class="card-title"><i class="fas fa-clock"></i> Distribuciones que aun no han iniciado</h3>
+                    <h3 class="card-title"><i class="fas fa-clock"></i> Distribuciones Pendientes de Tratar</h3>
                     <div class="card-tools">
                         <button type="button" class="btn btn-tool" data-card-widget="collapse">
                             <i class="fas fa-plus"></i>
@@ -84,12 +84,12 @@
         </div>
     </div>
 
-    <!-- Distribuciones En Proceso -->
+    <!-- Distribuciones Sin Finalizar -->
     <div class="row">
         <div class="col-md-12">
             <div class="card card-info">
                 <div class="card-header">
-                    <h3 class="card-title"><i class="fas fa-truck"></i> Distribuciones en espera de ser confirmadas</h3>
+                    <h3 class="card-title"><i class="fas fa-truck"></i> Distribuciones Sin Finalizar</h3>
                     <div class="card-tools">
                         <button type="button" class="btn btn-tool" data-card-widget="collapse">
                             <i class="fas fa-minus"></i>
@@ -406,22 +406,22 @@ $(document).ready(() => {
         }
     };
 
-    // Tabla Pendientes (estado_id = 1)
+    // Tabla Pendientes de Tratar
     tablaPendientes = $('#tablaPendientes').DataTable({
         ...configComun,
-        ajax: "{{ route('logistica.distribuciones.listar') }}?estado=1"
+        ajax: "{{ route('logistica.distribuciones.listar') }}?tipo=pendientes"
     });
 
-    // Tabla En Proceso (estado_id = 2)
+    // Tabla Sin Finalizar
     tablaEnProceso = $('#tablaEnProceso').DataTable({
         ...configComun,
-        ajax: "{{ route('logistica.distribuciones.listar') }}?estado=2"
+        ajax: "{{ route('logistica.distribuciones.listar') }}?tipo=sin_finalizar"
     });
 
-    // Tabla Completadas (estado_id = 3)
+    // Tabla Completadas
     tablaCompletadas = $('#tablaCompletadas').DataTable({
         ...configComun,
-        ajax: "{{ route('logistica.distribuciones.listar') }}?estado=3"
+        ajax: "{{ route('logistica.distribuciones.listar') }}?tipo=completadas"
     });
 
     // Prevenir warning de aria-hidden en modal de incidencias
@@ -1098,34 +1098,50 @@ function verIncidencias(facturaId) {
                 // Verificar el estado de la factura
                 const estadoEntrega = r.factura?.estado_entrega || '';
                 
+                // Mostrar tratamientos existentes si hay
+                if (r.tratamientos && r.tratamientos.length > 0) {
+                    html += `<div class="mb-3">`;
+                    html += `<h6 class="text-muted small"><i class="fas fa-history"></i> Historial de Tratamientos (${r.tratamientos.length})</h6>`;
+                    r.tratamientos.forEach((t, index) => {
+                        html += `
+                            <div class="alert alert-success mb-2">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div style="flex: 1;">
+                                        <strong>Tratamiento #${r.tratamientos.length - index}:</strong>
+                                        <p class="mb-1 mt-1" style="white-space: pre-wrap;">${t.tratamiento}</p>
+                                        <small class="text-muted">
+                                            <i class="fas fa-user"></i> ${t.usuario_registro} · 
+                                            <i class="fas fa-calendar"></i> ${new Date(t.tratamiento_fecha).toLocaleString('es-HN')}
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>`;
+                    });
+                    html += `</div>`;
+                }
+                
+                // Formulario para agregar nuevo tratamiento
                 if (estadoEntrega === 'sin_entrega') {
                     // Si está en sin_entrega, no permitir dar tratamiento
                     html += `
                         <div class="alert alert-warning">
                             <i class="fas fa-exclamation-triangle"></i> <strong>Tratamiento No Disponible</strong>
-                            <p class="mb-0 mt-2">No se puede registrar el tratamiento mientras la factura esté en estado <strong>"Sin Entrega"</strong>.</p>
+                            <p class="mb-0 mt-2">No se puede registrar tratamiento mientras la factura esté en estado <strong>"Sin Entrega"</strong>.</p>
                             <p class="mb-0">Primero debe confirmar la entrega de la factura para poder registrar el tratamiento de las incidencias.</p>
                         </div>`;
-                } else if (r.tratamiento) {
-                    // Si ya existe tratamiento, mostrarlo
-                    html += `
-                        <div class="alert alert-success">
-                            <h6><i class="fas fa-check-circle"></i> Tratamiento Registrado</h6>
-                            <p class="mb-1"><strong>Tratamiento:</strong></p>
-                            <p class="mb-2" style="white-space: pre-wrap;">${r.tratamiento.tratamiento}</p>
-                            <small class="text-muted">
-                                <i class="fas fa-user"></i> ${r.tratamiento.usuario_registro} · 
-                                <i class="fas fa-calendar"></i> ${new Date(r.tratamiento.tratamiento_fecha).toLocaleString('es-HN')}
-                            </small>
-                        </div>`;
                 } else {
-                    // Si no está en sin_entrega y no hay tratamiento, permitir registrarlo
+                    // Siempre permitir agregar nuevo tratamiento si no está en sin_entrega
                     html += `
-                        <p class="text-muted small">Registra el tratamiento que se dará a estas incidencias. El mismo tratamiento se aplicará a todas las incidencias de esta factura.</p>
-                        <textarea id="tratamientoIncidencias" class="form-control" rows="3" placeholder="Describe el tratamiento o solución aplicada..."></textarea>
-                        <button type="button" class="btn btn-success btn-sm mt-2" onclick="guardarTratamiento(${facturaId})">
-                            <i class="fas fa-save"></i> Guardar Tratamiento
-                        </button>`;
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6 class="card-title"><i class="fas fa-plus-circle"></i> Agregar Nuevo Tratamiento</h6>
+                                <p class="text-muted small mb-2">Registra un nuevo tratamiento que se aplicará a todas las incidencias de esta factura.</p>
+                                <textarea id="tratamientoIncidencias" class="form-control" rows="3" placeholder="Describe el tratamiento o solución aplicada..."></textarea>
+                                <button type="button" class="btn btn-success btn-sm mt-2" onclick="guardarTratamiento(${facturaId})">
+                                    <i class="fas fa-save"></i> Guardar Tratamiento
+                                </button>
+                            </div>
+                        </div>`;
                 }
                 
                 html += `</div>`;
@@ -1198,7 +1214,8 @@ function guardarTratamiento(facturaId) {
                         text: response.message || 'El tratamiento ha sido registrado exitosamente.',
                         confirmButtonColor: '#28a745'
                     });
-                    $('#tratamientoIncidencias').val('');
+                    // Recargar las incidencias para mostrar el nuevo tratamiento
+                    verIncidencias(facturaId);
                 },
                 error: function(xhr) {
                     const errorMsg = xhr.responseJSON?.message || 'No se pudo guardar el tratamiento';

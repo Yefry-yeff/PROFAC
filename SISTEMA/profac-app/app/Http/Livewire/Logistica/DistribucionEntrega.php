@@ -143,15 +143,11 @@ class DistribucionEntrega extends Component
     public function listarDistribuciones(Request $request)
     {
         try {
-            // Obtener filtro de estado si existe
-            $estadoFiltro = $request->get('estado');
+            // Obtener filtro de tipo de tabla
+            $tipoTabla = $request->get('tipo');
             
-            $whereEstado = '';
-            if ($estadoFiltro) {
-                $whereEstado = " WHERE d.estado_id = " . intval($estadoFiltro);
-            }
-            
-            $datos = DB::select("
+            // Construir la consulta base con subconsultas
+            $query = "
                 SELECT 
                     d.id,
                     d.fecha_programada,
@@ -162,13 +158,44 @@ class DistribucionEntrega extends Component
                     d.created_at,
                     (SELECT COUNT(*) FROM distribuciones_entrega_facturas WHERE distribucion_entrega_id = d.id) as total_facturas,
                     (SELECT COUNT(*) FROM distribuciones_entrega_facturas WHERE distribucion_entrega_id = d.id AND estado_entrega = 'entregado') as facturas_entregadas,
-                    (SELECT COUNT(*) FROM distribuciones_entrega_facturas WHERE distribucion_entrega_id = d.id AND estado_entrega = 'parcial') as facturas_parciales
+                    (SELECT COUNT(*) FROM distribuciones_entrega_facturas WHERE distribucion_entrega_id = d.id AND estado_entrega = 'parcial') as facturas_parciales,
+                    (SELECT COUNT(*) FROM distribuciones_entrega_facturas WHERE distribucion_entrega_id = d.id AND estado_entrega = 'sin_entrega') as facturas_sin_entrega
                 FROM distribuciones_entrega d
                 INNER JOIN equipos_entrega e ON d.equipo_entrega_id = e.id
                 INNER JOIN users u ON d.users_id_creador = u.id
-                {$whereEstado}
-                ORDER BY d.fecha_programada DESC, d.id DESC
-            ");
+            ";
+            
+            $whereConditions = [];
+            
+            if ($tipoTabla === 'pendientes') {
+                // Tabla 1: Distribuciones pendientes de tratar
+                // Estado pendiente (1) O (estado en proceso Y todas las facturas tienen estado distinto a 'sin_entrega')
+                $whereConditions[] = "(
+                    d.estado_id = 1 
+                    OR (
+                        d.estado_id = 2 
+                        AND (SELECT COUNT(*) FROM distribuciones_entrega_facturas WHERE distribucion_entrega_id = d.id AND estado_entrega = 'sin_entrega') = 0
+                        AND (SELECT COUNT(*) FROM distribuciones_entrega_facturas WHERE distribucion_entrega_id = d.id) > 0
+                    )
+                )";
+            } elseif ($tipoTabla === 'sin_finalizar') {
+                // Tabla 2: Distribuciones sin finalizar
+                // Estado en proceso (2) Y tienen una o varias facturas sin entregar
+                // EXCLUYE estado pendiente (1)
+                $whereConditions[] = "d.estado_id = 2";
+                $whereConditions[] = "(SELECT COUNT(*) FROM distribuciones_entrega_facturas WHERE distribucion_entrega_id = d.id AND estado_entrega = 'sin_entrega') > 0";
+            } elseif ($tipoTabla === 'completadas') {
+                // Tabla 3: Distribuciones completadas (sin cambios)
+                $whereConditions[] = "d.estado_id = 3";
+            }
+            
+            if (!empty($whereConditions)) {
+                $query .= " WHERE " . implode(' AND ', $whereConditions);
+            }
+            
+            $query .= " ORDER BY d.fecha_programada DESC, d.id DESC";
+            
+            $datos = DB::select($query);
 
             return Datatables::of($datos)
                 ->addColumn('estado', function ($datos) {
@@ -228,14 +255,23 @@ class DistribucionEntrega extends Component
                             </div>
                         ';
                     } elseif ($datos->estado_id == 2) {
+                        // Solo mostrar botón de confirmar si NO hay facturas sin entregar
+                        $facturasSinEntregar = $datos->facturas_sin_entrega ?? 0;
+                        $botonConfirmar = '';
+                        
+                        if ($facturasSinEntregar == 0) {
+                            $botonConfirmar = '
+                                <button type="button" class="btn btn-sm btn-primary" onclick="abrirConfirmacion(' . $datos->id . ')" title="Confirmar entregas">
+                                    <i class="fa fa-check-circle"></i>
+                                </button>';
+                        }
+                        
                         return '
                             <div class="btn-group">
                                 <button type="button" class="btn btn-sm btn-info" onclick="verFacturas(' . $datos->id . ')" title="Ver facturas">
                                     <i class="fa fa-file-text"></i>
                                 </button>
-                                <button type="button" class="btn btn-sm btn-primary" onclick="abrirConfirmacion(' . $datos->id . ')" title="Confirmar entregas">
-                                    <i class="fa fa-check-circle"></i>
-                                </button>
+                                ' . $botonConfirmar . '
                             </div>
                         ';
                     } else {
@@ -1094,8 +1130,8 @@ class DistribucionEntrega extends Component
                 ORDER BY i.created_at DESC
             ", [$facturaId]);
             
-            // Verificar si ya existe tratamiento para las incidencias de esta factura
-            $tratamiento = DB::selectOne("
+            // Obtener TODOS los tratamientos para las incidencias de esta factura
+            $tratamientos = DB::select("
                 SELECT 
                     t.tratamiento,
                     t.created_at as tratamiento_fecha,
@@ -1105,11 +1141,12 @@ class DistribucionEntrega extends Component
                 INNER JOIN entregas_productos ep ON i.entrega_producto_id = ep.id
                 INNER JOIN users u ON t.user_id_registro = u.id
                 WHERE ep.distribucion_factura_id = ?
+                GROUP BY t.tratamiento, t.created_at, u.name
                 ORDER BY t.created_at DESC
-                LIMIT 1
             ", [$facturaId]);
             
             Log::info("Total de incidencias encontradas: " . count($incidencias));
+            Log::info("Total de tratamientos encontrados: " . count($tratamientos));
             
             return response()->json([
                 'success' => true,
@@ -1120,7 +1157,7 @@ class DistribucionEntrega extends Component
                     'estado_entrega' => $factura->estado_entrega,
                 ],
                 'incidencias' => $incidencias,
-                'tratamiento' => $tratamiento,
+                'tratamientos' => $tratamientos,
             ], 200);
             
         } catch (\Exception $e) {
@@ -1169,24 +1206,8 @@ class DistribucionEntrega extends Component
                 ], 422);
             }
 
-            // Verificar si ya existe un tratamiento para esta factura
-            $tratamientoExistente = DB::selectOne("
-                SELECT t.id
-                FROM entregas_incidencias_tratamientos t
-                INNER JOIN entregas_productos_incidencias i ON t.entrega_producto_incidencia_id = i.id
-                INNER JOIN entregas_productos ep ON i.entrega_producto_id = ep.id
-                WHERE ep.distribucion_factura_id = ?
-                LIMIT 1
-            ", [$facturaId]);
-
-            if ($tratamientoExistente) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Ya existe un tratamiento registrado para las incidencias de esta factura'
-                ], 422);
-            }
-
-            // Obtener todas las incidencias de esta factura
+            // Obtener todas las incidencias de esta factura que aún no tienen tratamiento
+            // Permitir múltiples tratamientos para la misma factura
             $incidencias = DB::select("
                 SELECT i.id
                 FROM entregas_productos_incidencias i
