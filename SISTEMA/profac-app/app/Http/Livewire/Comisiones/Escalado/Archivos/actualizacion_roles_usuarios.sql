@@ -1,5 +1,401 @@
+-- iNSERTAR DATOS PARA EL MENU
+INSERT INTO `menu` (`id`, `icon`, `nombre_menu`, `orden`, `estado_id`, `created_at`, `updated_at`) VALUES
+(1, 'fa fa-area-chart', 'Dashboard', 1, 2, '2025-12-15 13:44:16', '2025-12-16 02:20:01'),
+(2, 'fa-solid fa-user', 'Usuarios', 2, 1, '2025-12-15 13:44:16', '2025-12-15 19:44:16'),
+(3, 'fa-solid fa-tags', 'Escalas de Precios', 3, 1, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(4, 'fa-solid fa-magnifying-glass-dollar', 'Escalas de Comisiones', 4, 1, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(5, 'fa-solid fa-file-invoice', 'Ventas Clientes A', 5, 1, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(6, 'fa-solid fa-file-invoice', 'Ventas Clientes B', 6, 1, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(7, 'fa-solid fa-file-invoice', 'Ventas Exoneradas', 7, 1, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(8, 'fa-solid fa-magnifying-glass-dollar', 'Comisiones', 8, 1, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(9, 'fa-solid fa-users', 'Clientes', 9, 1, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(10, 'fa-solid fa-building-columns', 'Bancos', 10, 1, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(11, 'fa-solid fa-list-check', 'Boleta de Compra', 11, 1, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(12, 'fa-solid fa-arrow-right-arrow-left', 'Notas de Crédito', 12, 1, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(13, 'fa-solid fa-file-invoice', 'Notas de Débito', 13, 1, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(14, 'fa-solid fa-magnifying-glass-dollar', 'Cuentas por Cobrar', 14, 1, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(15, 'fa-solid fa-calendar-check', 'Cierre Diario', 15, 1, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(16, 'fa-solid fa-warehouse', 'Bodega', 16, 1, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(17, 'fa-solid fa-dolly', 'Proveedores', 17, 1, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(18, 'fa-solid fa-cog', 'CAI - Configuración', 18, 1, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(19, 'fa-solid fa-cubes', 'Inventario', 19, 1, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(20, 'fa-solid fa-exchange-alt', 'Traslado de Productos', 20, 1, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(21, 'fa-solid fa-box-open', 'Ajustes de Inventario', 21, 1, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(22, 'fa-solid fa-shopping-bag', 'Compras Locales', 22, 1, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(23, 'fa-solid fa-clipboard-check', 'Declaraciones', 23, 1, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(24, 'fa-solid fa-truck-fast', 'Cardex', 24, 1, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(25, 'fa-solid fa-check-to-slot', 'Comprobantes de Entrega', 25, 1, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(26, 'fa-solid fa-truck-medical', 'Entregas Agendadas', 26, 1, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(27, 'fa-solid fa-ticket', 'Vale', 27, 1, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(28, 'fa-solid fa-dollar-sign', 'Precios', 28, 1, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(29, 'fa-solid fa-chart-bar', 'Reportes', 29, 1, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(30, 'fa-stack-exchange', 'Pruebas', 1, 2, '2025-12-15 13:50:36', '2025-12-16 17:45:57'),
+(31, 'fa fa-people-carry-box', 'Logistica de Entregas', 1, 1, '2025-12-16 11:54:14', '2025-12-16 18:02:41');
+
+
+INSERT INTO `sub_menu` (`id`, `url`, `nombre`, `menu_id`, `orden`, `estado_id`, `icono`, `created_at`, `updated_at`) VALUES
+(1, 'dashboard', 'Dashboard', 1, 1, 1, 'fa fa-area-chart', '2025-12-15 13:44:16', '2025-12-15 19:44:16'),
+(2, 'usuarios', 'Lista de Usuarios', 2, 1, 1, 'fa fa-list', '2025-12-15 13:44:16', '2025-12-15 19:44:16'),
+(3, 'menu/gestion', 'Gestión de Menús', 2, 2, 1, 'fa fa-bars', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(4, 'clientes/categorias', 'Categoria de Clientes', 3, 1, 1, 'fa fa-list', '2025-12-15 13:44:17', '2025-12-17 18:35:07'),
+(5, 'precios', 'Categorias de Precios', 3, 2, 1, 'fa fa-list', '2025-12-15 13:44:17', '2025-12-17 18:35:40'),
+(6, 'comisiones/general', 'Reporte de Comisiones', 3, 3, 1, 'fa fa-list', '2025-12-15 13:44:17', '2025-12-17 18:36:24'),
+(7, 'comisiones/escala/index', 'Escalas de Comisión', 4, 1, 1, 'fa fa-list', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(8, 'proforma/cotizacion/2', 'Cotización Clientes A', 5, 5, 1, 'fa fa-file', '2025-12-15 13:44:17', '2025-12-16 04:33:07'),
+(9, 'cotizacion/listado/estatal', 'Listado Cotizaciones Clientes A', 5, 6, 1, 'fa fa-list', '2025-12-15 13:44:17', '2025-12-16 04:33:24'),
+(10, 'ventas/estatal', 'Facturación Clientes A', 5, 1, 1, 'fa fa-file-invoice', '2025-12-15 13:44:17', '2025-12-16 04:30:42'),
+(11, 'ventas/sin/restriccion/gobierno', 'Facturación SR/Clientes A', 5, 2, 1, 'fa fa-file-invoice', '2025-12-15 13:44:17', '2025-12-16 04:31:07'),
+(12, 'facturas/estatal', 'Listado Facturas Clientes A', 5, 3, 1, 'fa fa-list', '2025-12-15 13:44:17', '2025-12-16 04:32:02'),
+(13, 'ventas/anulado/estatal', 'Facturas Anuladas Clientes A', 5, 6, 1, 'fa fa-ban', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(14, 'estatal/ordenes', 'Orden de Compra Clientes A', 5, 7, 1, 'fa fa-shopping-cart', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(15, 'proforma/cotizacion/1', 'Cotización Clientes B', 6, 1, 1, 'fa fa-file', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(16, 'cotizacion/listado/corporativo', 'Listado Cotizaciones Clientes B', 6, 2, 1, 'fa fa-list', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(17, 'ventas/coporativo', 'Facturación Clientes B', 6, 3, 1, 'fa fa-file-invoice', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(18, 'ventas/sin/restriccion/precio', 'Facturación SR/P Clientes B', 6, 4, 1, 'fa fa-file-invoice', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(19, 'facturas/corporativo/lista', 'Listado Facturas Clientes B', 6, 5, 1, 'fa fa-list', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(20, 'ventas/anulado/corporativo', 'Facturas Anuladas Clientes B', 6, 6, 1, 'fa fa-ban', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(21, 'ventas/coorporativo/orden/compra', 'Orden de Compra Clientes B', 6, 7, 1, 'fa fa-shopping-cart', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(22, 'ventas/exonerado/factura', 'Facturación Exonerada', 7, 1, 1, 'fa fa-file-invoice', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(23, 'exonerado/ventas/lista', 'Listado Facturas Exoneradas', 7, 2, 1, 'fa fa-list', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(24, 'ventas/anulado/exonerado', 'Facturas Anuladas Exoneradas', 7, 3, 1, 'fa fa-ban', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(25, 'estatal/exonerado', 'Registro Exonerado', 7, 4, 1, 'fa fa-plus', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(26, 'comisiones/vendedor', 'Comisiones Colaborador', 8, 1, 1, 'fa fa-dollar', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(27, 'comisiones/gestion', 'Gestión Inicial Comisiones', 8, 2, 1, 'fa fa-cogs', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(28, 'comisiones', 'Gestión de Comisiones', 8, 3, 1, 'fa fa-cogs', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(29, 'comisiones/historico', 'Histórico de Comisiones', 8, 4, 1, 'fa fa-history', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(30, 'clientes', 'Registrar Cliente', 9, 1, 1, 'fa fa-user-plus', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(31, 'banco/bancos', 'Gestionar Bancos', 10, 1, 1, 'fa fa-university', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(32, 'https://cadss.hn/boleta/blta_listar_boletas.php', 'Gestión de Boleta', 11, 1, 1, 'fa fa-list', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(33, 'nota/credito', 'Crear Devolución', 12, 1, 1, 'fa fa-plus', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(34, 'nota/credito/listado', 'Notas Crédito Clientes A', 12, 2, 1, 'fa fa-list', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(35, 'nota/credito/gobierno', 'Notas Crédito Clientes B', 12, 3, 1, 'fa fa-list', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(36, 'ventas/motivo_credito', 'Motivo Nota de Crédito', 12, 4, 1, 'fa fa-list-alt', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(37, 'debito', 'Gestión Notas Débito', 13, 1, 1, 'fa fa-cogs', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(38, 'nota/debito/lista/gobierno', 'Notas Débito Clientes A', 13, 2, 1, 'fa fa-list', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(39, 'nota/debito/lista', 'Notas Débito Clientes B', 13, 3, 1, 'fa fa-list', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(40, 'cuentas/por/cobrar/listado', 'Listado de Facturas CxC', 14, 1, 1, 'fa fa-list', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(41, 'ventas/cuentas_por_cobrar', 'Cuentas Por Cobrar', 14, 2, 1, 'fa fa-dollar', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(42, 'cuentas_por_cobrar/pagos', 'Aplicación de Pagos', 14, 3, 1, 'fa fa-money', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(43, 'cierre/caja', 'Detalle de Cierre', 15, 1, 1, 'fa fa-calculator', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(44, 'cierre/historico', 'Histórico de Cierre', 15, 2, 1, 'fa fa-history', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(45, 'bodega', 'Crear Bodega', 16, 1, 1, 'fa fa-plus', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(46, 'bodega/editar/screen', 'Editar Bodega', 16, 2, 1, 'fa fa-edit', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(47, 'proveedores', 'Registrar Proveedor', 17, 1, 1, 'fa fa-user-plus', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(48, 'inventario/retenciones', 'Crear Retenciones', 17, 2, 1, 'fa fa-percent', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(49, 'ventas/cai', 'Gestionar CAI', 18, 1, 1, 'fa fa-cog', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(50, 'producto/registro', 'Catálogo de Productos', 19, 1, 1, 'fa fa-book', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(51, 'marca/producto', 'Marcas de Productos', 19, 2, 1, 'fa fa-tag', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(52, 'inventario/unidades/medida', 'Unidades de Medida', 19, 3, 1, 'fa fa-balance-scale', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(53, 'producto/compra', 'Comprar Producto', 19, 4, 1, 'fa fa-shopping-cart', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(54, 'producto/listar/compras', 'Listar Compras', 19, 5, 1, 'fa fa-list', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(55, 'categoria/categorias', 'Categorías', 19, 6, 1, 'fa fa-folder', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(56, 'sub_categoria/sub_categorias', 'Sub-Categorías', 19, 7, 1, 'fa fa-folder-open', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(57, 'inventario/translado', 'Traslado de Producto', 20, 1, 1, 'fa fa-exchange', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(58, 'translados/historial', 'Historial de Traslados', 20, 2, 1, 'fa fa-history', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(59, 'inventario/ajustes', 'Realizar Ajustes', 21, 1, 1, 'fa fa-wrench', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(60, 'inventario/ajuste/ingreso', 'Ingresar Producto', 21, 2, 1, 'fa fa-plus', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(61, 'listado/ajustes', 'Historial de Ajustes', 21, 3, 1, 'fa fa-history', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(62, 'inventario/tipoajuste', 'Motivos de Ajuste', 21, 4, 1, 'fa fa-list-alt', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(63, 'https://cadss.hn/orden/ordn_listar_ordenes.php', 'Orden de Compra Local', 22, 1, 1, 'fa fa-file', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(64, 'ventas/Configuracion', 'Configuración Declaraciones', 23, 1, 1, 'fa fa-cog', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(65, 'ventas/listado/comparacion', 'Listado de Declaraciones', 23, 2, 1, 'fa fa-list', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(66, 'ventas/seleccionar', 'Seleccionar Declaraciones', 23, 3, 1, 'fa fa-check-square', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(67, 'cardex', 'Gestionar Cardex', 24, 1, 1, 'fa fa-clipboard', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(68, 'cardex/general', 'Cardex General', 24, 2, 1, 'fa fa-clipboard-list', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(69, 'comprobante/entrega', 'Crear Comprobante', 25, 1, 1, 'fa fa-plus', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(70, 'comprovante/entrega/listado', 'Listado de Comprobantes', 25, 2, 1, 'fa fa-list', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(71, 'comprovante/entrega/anulados', 'Comprobantes Anulados', 25, 3, 1, 'fa fa-ban', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(72, 'listar/vale/entrega', 'Listado de Entregas', 26, 1, 1, 'fa fa-list', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(73, 'vale/restar/inventario', 'Lista de Vales', 27, 1, 1, 'fa fa-list', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(74, 'ventas/historico_precios_cliente', 'Histórico de Precios', 28, 1, 1, 'fa fa-history', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(75, 'facturaDia', 'Reporte de Ventas', 29, 1, 1, 'fa fa-chart-line', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(76, 'reporte/reporteria', 'Reportes Varios', 29, 2, 1, 'fa fa-file-alt', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(77, 'reporte/comision', 'Reporte Comisiones', 29, 3, 1, 'fa fa-dollar', '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(78, 'pruebas/test', 'Pruebas', 30, 1, 1, NULL, '2025-12-15 13:51:37', '2025-12-15 19:51:37'),
+(79, 'reporte/Cierrediariorep', 'Reporte Cierre Diario', 29, 4, 1, 'fas fa-calendar-check', '2025-12-15 22:59:00', '2025-12-16 05:06:23'),
+(80, 'reporte/Librocobrosrep', 'Reporte de Libro de Cobros', 29, 5, 1, 'fas fa-book', '2025-12-15 23:07:35', '2025-12-16 05:07:35'),
+(81, 'reporte/Libroventarep', 'Reporte de Libro de Ventas', 29, 6, 1, 'fas fa-book-open', '2025-12-15 23:08:45', '2025-12-16 05:08:45'),
+(82, 'reporte/Facturasanuladasrep', 'Reporte de Facturas Anuladas', 29, 7, 1, 'fas fa-file-invoice', '2025-12-15 23:09:53', '2025-12-16 05:09:53'),
+(83, 'cardex/com', 'Cardex Completo', 24, 1, 1, 'fas fa-boxes', '2025-12-15 23:22:31', '2025-12-16 05:22:31'),
+(84, 'bodega/prod', 'Reporte Productos por Bodega', 29, 1, 1, 'fas fa-warehouse', '2025-12-15 23:30:52', '2025-12-16 05:30:52'),
+(85, 'usuarios/roles', 'Roles', 2, 3, 1, 'fas fa-user-shield', '2025-12-15 23:44:16', '2025-12-16 05:44:16'),
+(86, 'logistica/equipos', 'Equipos de Entrega', 31, 1, 1, 'fa fa-truck', '2025-12-16 11:55:25', '2025-12-16 17:58:08'),
+(87, 'logistica/distribuciones', 'Distribucion de Entrega', 31, 2, 1, 'fa fa-sitemap', '2025-12-16 11:58:55', '2025-12-16 17:58:55'),
+(88, 'logistica/confirmacion', 'Confirmacion de Entrega', 31, 3, 1, 'fa fa-check-circle', '2025-12-16 12:00:26', '2025-12-16 18:00:26');
+
+
+INSERT INTO `rol` (`id`, `nombre`, `estado_id`, `created_at`, `updated_at`) VALUES
+(10, 'Picking', 1, '2025-12-16 09:39:49', '2025-12-16 15:39:49'),
+(11, 'Equipo de Entregas', 1, '2025-12-16 09:39:58', '2025-12-16 15:39:58');
+
+INSERT INTO `rol_submenu` (`id`, `rol_id`, `sub_menu_id`, `created_at`, `updated_at`) VALUES
+(1, 1, 1, '2025-12-15 13:44:16', '2025-12-15 19:44:16'),
+(2, 4, 1, '2025-12-15 13:44:16', '2025-12-15 19:44:16'),
+(3, 5, 1, '2025-12-15 13:44:16', '2025-12-15 19:44:16'),
+(4, 8, 1, '2025-12-15 13:44:16', '2025-12-15 19:44:16'),
+(5, 1, 2, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(6, 1, 3, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(7, 1, 4, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(8, 1, 5, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(9, 1, 6, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(10, 1, 7, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(11, 1, 8, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(12, 2, 8, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(13, 3, 8, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(14, 1, 9, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(15, 2, 9, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(16, 3, 9, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(17, 1, 10, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(18, 3, 10, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(19, 1, 11, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(20, 3, 11, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(21, 1, 12, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(22, 3, 12, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(23, 5, 12, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(24, 7, 12, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(25, 8, 12, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(26, 1, 13, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(27, 3, 13, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(28, 5, 13, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(29, 7, 13, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(30, 8, 13, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(31, 1, 14, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(32, 3, 14, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(33, 1, 15, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(34, 2, 15, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(35, 3, 15, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(36, 1, 16, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(37, 2, 16, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(38, 3, 16, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(39, 1, 17, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(40, 3, 17, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(41, 1, 18, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(42, 3, 18, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(43, 1, 19, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(44, 3, 19, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(45, 5, 19, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(46, 7, 19, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(47, 8, 19, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(48, 1, 20, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(49, 3, 20, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(50, 5, 20, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(51, 7, 20, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(52, 8, 20, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(53, 1, 21, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(54, 3, 21, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(55, 1, 22, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(56, 3, 22, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(57, 1, 23, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(58, 3, 23, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(59, 1, 24, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(60, 3, 24, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(61, 1, 25, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(62, 3, 25, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(63, 1, 26, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(64, 2, 26, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(65, 8, 26, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(66, 1, 27, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(67, 8, 27, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(68, 1, 28, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(69, 8, 28, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(70, 1, 29, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(71, 8, 29, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(72, 1, 30, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(73, 4, 30, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(74, 1, 31, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(75, 4, 31, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(76, 1, 32, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(77, 4, 32, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(78, 5, 32, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(79, 8, 32, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(80, 1, 33, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(81, 4, 33, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(82, 1, 34, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(83, 4, 34, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(84, 1, 35, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(85, 4, 35, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(86, 1, 36, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(87, 4, 36, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(88, 1, 37, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(89, 4, 37, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(90, 8, 37, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(91, 1, 38, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(92, 4, 38, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(93, 8, 38, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(94, 1, 39, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(95, 4, 39, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(96, 8, 39, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(97, 1, 40, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(98, 4, 40, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(99, 1, 41, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(100, 4, 41, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(101, 1, 42, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(102, 4, 42, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(103, 1, 43, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(104, 4, 43, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(105, 8, 43, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(106, 1, 44, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(107, 4, 44, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(108, 8, 44, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(109, 1, 45, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(110, 5, 45, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(111, 7, 45, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(112, 1, 46, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(113, 5, 46, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(114, 7, 46, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(115, 1, 47, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(116, 5, 47, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(117, 7, 47, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(118, 1, 48, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(119, 5, 48, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(120, 7, 48, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(121, 1, 49, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(122, 5, 49, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(123, 1, 50, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(124, 2, 50, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(125, 3, 50, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(126, 5, 50, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(127, 7, 50, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(128, 1, 51, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(129, 5, 51, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(130, 7, 51, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(131, 1, 52, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(132, 5, 52, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(133, 7, 52, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(134, 1, 53, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(135, 5, 53, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(136, 7, 53, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(137, 1, 54, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(138, 5, 54, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(139, 7, 54, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(140, 1, 55, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(141, 5, 55, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(142, 7, 55, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(143, 1, 56, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(144, 5, 56, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(145, 7, 56, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(146, 1, 57, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(147, 5, 57, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(148, 7, 57, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(149, 1, 58, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(150, 5, 58, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(151, 7, 58, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(152, 1, 59, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(153, 5, 59, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(154, 7, 59, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(155, 1, 60, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(156, 5, 60, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(157, 7, 60, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(158, 1, 61, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(159, 5, 61, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(160, 7, 61, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(161, 1, 62, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(162, 5, 62, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(163, 7, 62, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(164, 1, 63, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(165, 5, 63, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(166, 7, 63, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(167, 8, 63, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(168, 1, 64, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(169, 5, 64, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(170, 1, 65, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(171, 5, 65, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(172, 1, 66, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(173, 5, 66, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(174, 1, 67, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(175, 5, 67, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(176, 7, 67, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(177, 1, 68, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(178, 5, 68, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(179, 7, 68, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(180, 1, 69, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(181, 5, 69, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(182, 7, 69, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(183, 1, 70, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(184, 3, 70, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(185, 5, 70, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(186, 7, 70, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(187, 1, 71, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(188, 3, 71, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(189, 5, 71, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(190, 7, 71, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(191, 1, 72, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(192, 5, 72, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(193, 7, 72, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(194, 1, 73, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(195, 5, 73, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(196, 7, 73, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(197, 1, 74, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(198, 3, 74, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(199, 5, 74, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(200, 8, 74, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(201, 1, 75, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(202, 4, 75, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(203, 5, 75, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(204, 8, 75, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(205, 1, 76, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(206, 4, 76, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(207, 1, 77, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(208, 8, 77, '2025-12-15 13:44:17', '2025-12-15 19:44:17'),
+(209, 3, 59, '2025-12-15 13:48:31', '2025-12-15 19:48:31'),
+(210, 9, 59, '2025-12-15 13:48:31', '2025-12-15 19:48:31'),
+(211, 1, 78, '2025-12-15 13:51:37', '2025-12-15 19:51:37'),
+(212, 2, 2, '2025-12-15 14:18:48', '2025-12-15 20:18:48'),
+(213, 3, 2, '2025-12-15 14:18:48', '2025-12-15 20:18:48'),
+(214, 4, 2, '2025-12-15 14:18:48', '2025-12-15 20:18:48'),
+(215, 5, 2, '2025-12-15 14:18:48', '2025-12-15 20:18:48'),
+(216, 6, 2, '2025-12-15 14:18:48', '2025-12-15 20:18:48'),
+(217, 7, 2, '2025-12-15 14:18:48', '2025-12-15 20:18:48'),
+(218, 8, 2, '2025-12-15 14:18:48', '2025-12-15 20:18:48'),
+(219, 9, 2, '2025-12-15 14:18:48', '2025-12-15 20:18:48'),
+(220, 2, 42, '2025-12-15 21:21:19', '2025-12-16 03:21:19'),
+(221, 2, 3, '2025-12-15 21:23:32', '2025-12-16 03:23:32'),
+(222, 3, 3, '2025-12-15 21:23:32', '2025-12-16 03:23:32'),
+(223, 4, 3, '2025-12-15 21:23:32', '2025-12-16 03:23:32'),
+(224, 5, 3, '2025-12-15 21:23:32', '2025-12-16 03:23:32'),
+(225, 6, 3, '2025-12-15 21:23:32', '2025-12-16 03:23:32'),
+(226, 7, 3, '2025-12-15 21:23:32', '2025-12-16 03:23:32'),
+(227, 8, 3, '2025-12-15 21:23:32', '2025-12-16 03:23:32'),
+(228, 9, 3, '2025-12-15 21:23:32', '2025-12-16 03:23:32'),
+(229, 3, 69, '2025-12-15 22:35:17', '2025-12-16 04:35:17'),
+(230, 3, 72, '2025-12-15 22:37:28', '2025-12-16 04:37:28'),
+(231, 3, 73, '2025-12-15 22:37:50', '2025-12-16 04:37:50'),
+(232, 4, 13, '2025-12-15 22:44:22', '2025-12-16 04:44:22'),
+(233, 4, 77, '2025-12-15 22:57:26', '2025-12-16 04:57:26'),
+(234, 4, 79, '2025-12-15 22:59:00', '2025-12-16 04:59:00'),
+(235, 1, 80, '2025-12-15 23:07:35', '2025-12-16 05:07:35'),
+(236, 4, 80, '2025-12-15 23:07:35', '2025-12-16 05:07:35'),
+(237, 1, 81, '2025-12-15 23:08:45', '2025-12-16 05:08:45'),
+(238, 4, 81, '2025-12-15 23:08:45', '2025-12-16 05:08:45'),
+(239, 1, 82, '2025-12-15 23:09:53', '2025-12-16 05:09:53'),
+(240, 4, 82, '2025-12-15 23:09:53', '2025-12-16 05:09:53'),
+(241, 5, 30, '2025-12-15 23:14:11', '2025-12-16 05:14:11'),
+(242, 1, 83, '2025-12-15 23:22:31', '2025-12-16 05:22:31'),
+(243, 5, 83, '2025-12-15 23:22:31', '2025-12-16 05:22:31'),
+(244, 5, 76, '2025-12-15 23:23:58', '2025-12-16 05:23:58'),
+(245, 1, 84, '2025-12-15 23:30:52', '2025-12-16 05:30:52'),
+(246, 7, 84, '2025-12-15 23:30:52', '2025-12-16 05:30:52'),
+(247, 8, 30, '2025-12-15 23:31:57', '2025-12-16 05:31:57'),
+(248, 8, 76, '2025-12-15 23:32:43', '2025-12-16 05:32:43'),
+(249, 8, 84, '2025-12-15 23:33:03', '2025-12-16 05:33:03'),
+(250, 1, 85, '2025-12-15 23:44:16', '2025-12-16 05:44:16'),
+(252, 11, 3, '2025-12-16 09:46:13', '2025-12-16 15:46:13'),
+(253, 11, 2, '2025-12-16 09:46:13', '2025-12-16 15:46:13'),
+(254, 11, 85, '2025-12-16 09:46:27', '2025-12-16 15:46:27'),
+(255, 1, 86, '2025-12-16 11:55:25', '2025-12-16 17:55:25'),
+(256, 7, 86, '2025-12-16 11:55:25', '2025-12-16 17:55:25'),
+(257, 1, 87, '2025-12-16 11:58:55', '2025-12-16 17:58:55'),
+(258, 7, 87, '2025-12-16 11:58:55', '2025-12-16 17:58:55'),
+(259, 1, 88, '2025-12-16 12:00:26', '2025-12-16 18:00:26'),
+(260, 7, 88, '2025-12-16 12:00:26', '2025-12-16 18:00:26');
+
+
+
+
 --USUARIOS QUE NO LABORAN EN VALENCIA
-select id from users A where A.email in (
+update users A
+set estado_id = 2
+where A.email in (
 'francis.andino@distribucionesvalencia.hn',
 'claudia.sabillon@distribucionesvalencia.hn',
 'cristian.zelaya@distribucionesvalencia.hn',
@@ -46,65 +442,6 @@ select id from users A where A.email in (
 
 );
 
---CREANDO ROL SIN ACCESO
-INSERT INTO rol (nombre)
-VALUES ('inaccesible');
-
-
-INSERT INTO rol (nombre)
-VALUES ('Equipo de Entrega');
-
---ACTUALUIZANDO TODO AL ROL SIN ACCESO
-UPDATE users
-SET rol_id = 10
-WHERE email IN (
-  'francis.andino@distribucionesvalencia.hn',
-  'claudia.sabillon@distribucionesvalencia.hn',
-  'cristian.zelaya@distribucionesvalencia.hn',
-  'michael.irias@distribucionesvalencia.hn',
-  'williams.villalta@distribucionesvalencia.hn',
-  'oficina@distribucionesvalencia.hn',
-  'edwin.godoy@distribucionesvalencia.hn',
-  'jose.hernandez@distribucionesvalencia.hn',
-  'juan.betancourth@distribucionesvalencia.hn',
-  'wendy.munguia@distribucionesvalencia.hn',
-  'lester.cruz@distribucionesvalencia.hn',
-  'mayron.cabrera@distribucionesvalencia.hn',
-  'soary.arleth@distribucionesvalencia.hn',
-  'erling.peralta@distribucionesvalencia.hn',
-  'jeymi.varela@distribucionesvalencia.hn',
-  'olga.oseguera@distribucionesvalencia.hn',
-  'zully.garcia@distribucionesvalencia.hn',
-  'carlos.ponce@distribucionesvalencia.hn',
-  'nathaly.garcia@distribucionesvalencia.hn',
-  'heather.miranda@distribucionesvalencia.hn',
-  'alba.rodas@distribucionesvalencia.hn',
-  'mercedes.barahona@distribucionesvalencia.hn',
-  'daniel.dominguez@distribucionesvalencia.hn',
-  'carlos.alfaro@distribucionesvalencia.hn',
-  'ariana.villagra@distribucionesvalencia.hn',
-  'josue.cerritos@distribucionesvalencia.hn',
-  'zoila.martinez@distribucionesvalencia.hn',
-  'evelyn.paz@distribucionesvalencia.hn',
-  'glenda.martinez@distribucionesvalencia.hn',
-  'sofia.aguilera@distribucionesvalencia.hn',
-  'erick.sierra@distribucionesvalencia.hn',
-  'christian.estrada@distribucionesvalencia.hn',
-  'claudia.arias@distribucionesvalencia.hn',
-  'leonardo.barahona@distribucionesvalencia.hn',
-  'enis.pacheco@distribucionesvalencia.hn',
-  'alex.colindres@distribucionesvalencia.hn',
-  'carolina.oyuela@distribucionesvalencia.hn',
-  'natalia.quezada@distribucionesvalencia.hn',
-  'israel.galvez@distribucionesvalencia.hn',
-  'kevin.osorio@distribucionesvalencia.hn',
-  'andre.centeno@distribucionesvalencia.hn',
-  'scarleth.zepeda@distribucionesvalencia.hn',
-  'carlos.fernandez@distribucionesvalencia.hn'
-);
-
-
-
 -----ACTUALIZACIÓN DE ROLES DE USUARIO por diferenciación en comisiones
 UPDATE rol SET nombre = 'Asesor Comercial' where id = 2;
 UPDATE rol SET nombre = 'Créditos y Cobros' where id = 4;
@@ -117,7 +454,7 @@ INSERT INTO comision_empleado (comision_acumulada, fecha_ult_modificacion, mes_c
 SELECT 0.00, NOW(), DATE_FORMAT(NOW(), '%Y-%m-01'),A.name, A.id as 'user', B.id as 'rol', 1 as 'estado'
 FROM users A
 inner join rol B on B.id = A.rol_id
-WHERE B.id != 10;
+WHERE A.estado_id != 2;
 
 
 ---------------INSERCIÓN MESES 2025--------------------------------
@@ -157,7 +494,7 @@ CROSS JOIN (
     SELECT DATE('2025-12-01')
 ) meses
 
-WHERE r.id != 10
+WHERE u.estado_id != 2
 
 -- 🔒 Evita duplicados
 AND NOT EXISTS (
@@ -170,323 +507,6 @@ AND NOT EXISTS (
 
 
 -------------------------ACTUALIZACIÓN DE SP DE APLICACION DE PAGOS/ REGISTRANDO FECHA EXACTA DE CIERRE PARA REFERENCIA DE COMISIÓN--------------
-BEGIN
-  DECLARE EXIT HANDLER FOR SQLEXCEPTION
-  BEGIN
-    ROLLBACK;
-				SET estado := -1;
-				SET msjResultado := "Se ha hecho rollback";
-
-               select estado,msjResultado;
-  END;
-
-  START TRANSACTION;
-
-          IF accion = 1 THEN
-            INSERT INTO aplicacion_pagos
-
-            (
-             cliente_id,
-             factura_id,
-             total_factura_cargo,
-             retencion_isv_factura,
-             estado_retencion_isv,
-             total_notas_credito,
-             total_nodas_debito,
-             credito_abonos,
-             movimiento_suma,
-             movimiento_resta,
-             comentario,
-             saldo,
-             ultimo_usr_actualizo,
-             estado,
-             estado_cerrado,
-             usr_cerro,
-             created_at)
-            SELECT
-                pcliente_id,
-                fa.id,
-                fa.total,
-                fa.isv,
-                1,
-                0,
-                0,
-                0,
-                0,
-                0,
-                '',
-                fa.total,
-                0,
-                1,
-                0,
-                0,
-                NOW()
-            FROM factura fa
-              inner join cliente cli on cli.id = fa.cliente_id
-            WHERE cli.id = pcliente_id and fa.estado_venta_id = 1;
-				SET estado := 1;
-				SET msjResultado := "Se ha guardado con exito";
-
-                select estado,msjResultado;
-          END IF;
-
-          IF accion = 2 THEN
-            INSERT INTO aplicacion_pagos
-
-            (
-             cliente_id,
-             factura_id,
-             total_factura_cargo,
-             retencion_isv_factura,
-             estado_retencion_isv,
-             total_notas_credito,
-             total_nodas_debito,
-             credito_abonos,
-             movimiento_suma,
-             movimiento_resta,
-             comentario,
-             saldo,
-             ultimo_usr_actualizo,
-             estado,
-             estado_cerrado,
-             usr_cerro,
-             created_at)
-            SELECT
-                pcliente_id,
-                pfactura_id,
-                fa.total,
-                fa.isv,
-                1,
-                0,
-                0,
-                0,
-                0,
-                0,
-                '',
-                fa.total,
-                0,
-                1,
-                0,
-                0,
-                NOW()
-            FROM factura fa
-            WHERE fa.estado_venta_id = 1 and fa.id = pfactura_id;
-				SET estado := 1;
-				SET msjResultado := "Se ha guardado con exito";
-
-                select estado,msjResultado;
-          END IF;
-
-          IF accion = 3 THEN
-            INSERT INTO aplicacion_pagos
-
-            (
-             cliente_id,
-             factura_id,
-             total_factura_cargo,
-             retencion_isv_factura,
-             estado_retencion_isv,
-             total_notas_credito,
-             total_nodas_debito,
-             credito_abonos,
-             movimiento_suma,
-             movimiento_resta,
-             comentario,
-             saldo,
-             ultimo_usr_actualizo,
-             estado,
-             estado_cerrado,
-             usr_cerro,
-             created_at)
-            SELECT
-                pcliente_id,
-                fa.id,
-                fa.total,
-                fa.isv,
-                1,
-                0,
-                0,
-                0,
-                0,
-                0,
-                '',
-                fa.total,
-                0,
-                1,
-                0,
-                0,
-                NOW()
-            FROM factura fa
-              inner join cliente cli on cli.id = fa.cliente_id
-            WHERE cli.id = pcliente_id
-            and fa.estado_venta_id = 1
-            and fa.id not in (
-                select aplicacion_pagos.factura_id
-                from aplicacion_pagos
-                where aplicacion_pagos.estado = 1
-            );
-				SET estado := 1;
-				SET msjResultado := "Se ha guardado con exito";
-
-                select estado,msjResultado;
-          END IF;
-
-  COMMIT;
-
-        IF accion = 4 THEN
-
-            IF ptipo = 1 THEN
-                UPDATE aplicacion_pagos
-                    SET estado_retencion_isv = ptipo,
-                     comentario_retencion = pcomentario,
-                     ultimo_usr_actualizo = usr_actual,
-                     retencion_aplicada = 1
-                WHERE aplicacion_pagos.retencion_aplicada = 0 and aplicacion_pagos.estado = 1 and aplicacion_pagos.id =  paplic_id;
-            END IF;
-
-            IF ptipo = 2 THEN
-                UPDATE aplicacion_pagos
-                    SET estado_retencion_isv = ptipo,
-                     saldo = (saldo - pmonto),
-                     comentario_retencion = pcomentario,
-                     ultimo_usr_actualizo = usr_actual,
-                     retencion_aplicada = 1
-                WHERE aplicacion_pagos.retencion_aplicada = 0 and aplicacion_pagos.estado = 1 and aplicacion_pagos.id =  paplic_id;
-            END IF;
-
-				SET estado := 1;
-				SET msjResultado := "Se ha guardado con exito";
-
-                select estado,msjResultado;
-        END IF;
-
-        IF accion = 5 THEN
-
-            IF ptipo = 1 THEN
-
-                UPDATE nota_credito
-                SET estado_rebajado = 1,
-                    user_registra_rebaja = usr_actual,
-                    fecha_rebajado = NOW(),
-                    comentario_rebajado = pcomentario
-                WHERE nota_credito.id = pcliente_id
-                and nota_credito.factura_id = pfactura_id;
-
-                UPDATE aplicacion_pagos
-                    SET total_notas_credito = (total_notas_credito + pmonto),
-                        saldo = (saldo - pmonto)
-                WHERE aplicacion_pagos.estado = 1
-                and aplicacion_pagos.factura_id = pfactura_id
-                and aplicacion_pagos.id =  paplic_id;
-
-            END IF;
-
-            IF ptipo = 2 THEN
-
-                UPDATE nota_credito
-                SET estado_rebajado = 1,
-                    user_registra_rebaja = usr_actual,
-                    fecha_rebajado = NOW(),
-                    comentario_rebajado = pcomentario
-                WHERE nota_credito.id = pcliente_id
-                and nota_credito.factura_id = pfactura_id;
-
-            END IF;
-
-				SET estado := 1;
-				SET msjResultado := "Se ha guardado con exito";
-
-                select estado,msjResultado;
-        END IF;
-
-        IF accion = 6 THEN
-
-            IF ptipo = 1 THEN
-
-                UPDATE notadebito
-                SET estado_sumado = 1,
-                    user_registra_sumado = usr_actual,
-                    fecha_sumado = NOW(),
-                    comentario_sumado = pcomentario
-                WHERE notadebito.id = pcliente_id
-                and notadebito.factura_id = pfactura_id;
-
-                UPDATE aplicacion_pagos
-                    SET total_nodas_debito = (total_nodas_debito + pmonto),
-                        saldo = (saldo + pmonto)
-                WHERE aplicacion_pagos.estado = 1
-                and aplicacion_pagos.factura_id = pfactura_id
-                and aplicacion_pagos.id =  paplic_id;
-
-            END IF;
-
-            IF ptipo = 2 THEN
-
-                UPDATE notadebito
-                SET estado_sumado = 1,
-                    user_registra_sumado = usr_actual,
-                    fecha_sumado = NOW(),
-                    comentario_sumado = pcomentario
-                WHERE notadebito.id = pcliente_id
-                and notadebito.factura_id = pfactura_id;
-
-            END IF;
-
-				SET estado := 1;
-				SET msjResultado := "Se ha guardado con exito";
-
-                select estado,msjResultado;
-        END IF;
-
-        IF accion = 7 THEN
-
-            IF ptipo = 1 THEN
-                UPDATE aplicacion_pagos
-                    SET movimiento_suma = (movimiento_suma + pmonto),
-                    ultimo_usr_actualizo = usr_actual,
-                    saldo = (saldo + pmonto),
-                    updated_at = NOW()
-                WHERE aplicacion_pagos.estado = 1
-                and aplicacion_pagos.factura_id = pfactura_id
-                and aplicacion_pagos.id =  paplic_id;
-
-            END IF;
-
-            IF ptipo = 2 THEN
-
-
-                UPDATE aplicacion_pagos
-                    SET movimiento_resta = (movimiento_resta + pmonto),
-                    ultimo_usr_actualizo = usr_actual,
-                    saldo = (saldo - pmonto),
-                    updated_at = NOW()
-                WHERE aplicacion_pagos.estado = 1
-                and aplicacion_pagos.factura_id = pfactura_id
-                and aplicacion_pagos.id =  paplic_id;
-
-            END IF;
-
-				SET estado := 1;
-				SET msjResultado := "Se ha guardado con exito";
-
-                select estado,msjResultado;
-        END IF;
-
-        IF accion = 8 THEN
-                UPDATE aplicacion_pagos
-                    SET credito_abonos = (credito_abonos + pmonto),
-                    ultimo_usr_actualizo = usr_actual,
-                    saldo = (saldo - pmonto),
-                    updated_at = NOW()
-                WHERE aplicacion_pagos.estado = 1
-                and aplicacion_pagos.factura_id = pfactura_id
-                and aplicacion_pagos.id =  paplic_id;
-
-				SET estado := 1;
-				SET msjResultado := "Se ha guardado con exito";
-
-                select estado,msjResultado;
-        END IF;
 
         IF accion = 9 THEN
 
@@ -495,7 +515,7 @@ BEGIN
                     ultimo_usr_actualizo = usr_actual,
                     usr_cerro = usr_actual,
                     estado_cerrado = 2,
-                    fecha_cierre_factura=NOW(),
+                    fecha_cierre_factura=NOW(),-- agregar
                     comentario = pcomentario,
                     updated_at = NOW()
                 WHERE aplicacion_pagos.estado = 1
@@ -508,5 +528,13 @@ BEGIN
         END IF;
 END
 
+-- INDEX precios_producto_carga
 
+// CREATE INDEX idx_ppc_cat_prod ON precios_producto_carga (categoria_precios_id, producto_id);
+// CREATE INDEX idx_ppc_estado   ON precios_producto_carga (estado_id);
 
+--TIPOS DE ESCALA
+INSERT INTO `tipo_categoria_precio` (`id`, `nombre`, `descripcion`, `comentario`, `estado_id`, `created_at`, `updated_at`)
+VALUES
+('1', 'ESCALABLE', '1 escalable Precio de escalas de porcentajes de A-D, en base al precio base del producto.', NULL, '1', '2025-12-17 17:48:10', '2025-12-17 17:48:10'),
+('2', 'MANUAL', '2 manual Precios A-D ingresados de forma manual', NULL, '1', '2025-12-17 17:48:10', '2025-12-17 17:48:10');
