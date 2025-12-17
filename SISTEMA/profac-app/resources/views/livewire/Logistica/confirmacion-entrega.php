@@ -497,18 +497,26 @@
                     const articulosEntregados = productos.filter(p => Number(p.entregado) === 1).length;
                     const progreso = productos.length ? Math.round((articulosEntregados / productos.length) * 100) : 0;
                     const estado = (factura.estado_entrega || '').toLowerCase();
-                    // Bloquear si está entregada, parcial, o si ya se ha confirmado al menos una vez
-                    const facturaBloqueada = estado === 'entregado' || estado === 'parcial' || (Number(factura.confirmada) === 1);
+                    // Bloquear si está entregada completamente (entregado) o si ya se ha confirmado
+                    // NOTA: 'parcial' NO bloquea para permitir agregar más incidencias después de desbloquear
+                    const facturaBloqueada = estado === 'entregado' || (Number(factura.confirmada) === 1 && estado !== 'sin_entrega');
 
                     let filas = '';
                     productos.forEach((p, index) => {
                         const tieneIncidencia = Number(p.tiene_incidencia) === 1;
-                        const checkboxDeshabilitado = facturaBloqueada || tieneIncidencia;
                         const incidenciasRegistradas = Number(p.incidencias_registradas) || 0;
+                        
+                        // El checkbox se deshabilita si:
+                        // 1. La factura está bloqueada (entregada completamente), O
+                        // 2. El producto tiene incidencia (guardada en BD)
+                        const checkboxDeshabilitado = facturaBloqueada || tieneIncidencia;
+                        
                         const nombreSafe = encodeURIComponent(p.nombre_producto || '');
+                        
                         // Si tiene incidencia, siempre debe estar desmarcado
                         // Si no tiene incidencia, usar el estado guardado o p.entregado
                         const estaChecked = tieneIncidencia ? false : (estadoCheckboxes.hasOwnProperty(p.id) ? estadoCheckboxes[p.id] : p.entregado);
+                        
                         // Actualizar el estado en memoria también
                         if (tieneIncidencia) {
                             p.entregado = 0;
@@ -681,14 +689,17 @@
                         return;
                     }
                     
-                    // Verificar si la factura ya está confirmada
+                    // Verificar si la factura está completamente bloqueada
+                    // Solo bloquear si está en 'entregado' o si fue confirmada y NO fue desbloqueada
                     const estado = (facturaActual.estado_entrega || '').toLowerCase();
                     const yaConfirmada = Number(facturaActual.confirmada) === 1;
-                    if (estado === 'entregado' || estado === 'parcial' || yaConfirmada) {
+                    const estaBloqueada = estado === 'entregado' || (yaConfirmada && estado !== 'sin_entrega');
+                    
+                    if (estaBloqueada) {
                         Swal.fire({
                             icon: 'warning',
-                            title: 'Factura ya confirmada',
-                            text: 'Esta factura ya fue confirmada y no se puede modificar. Solo puedes consultar su historial.',
+                            title: 'Factura bloqueada',
+                            text: 'Esta factura está bloqueada y no se puede modificar. Debes desbloquearla primero desde el módulo de distribuciones.',
                             confirmButtonText: 'Entendido'
                         });
                         return;
@@ -750,6 +761,9 @@
 
                 function recolectarProductosSeleccionados(incluirDeshabilitados = false) {
                     const productos = [];
+                    const facturaActual = confirmacionState.facturas.find(f => f.distribucion_factura_id === confirmacionState.facturaSeleccionada);
+                    const productosFactura = facturaActual ? (facturaActual.productos || []) : [];
+                    
                     $('.chk-producto').each(function () {
                         // Si incluirDeshabilitados es true, procesar todos los productos
                         // Si es false, solo procesar productos habilitados (comportamiento original)
@@ -760,10 +774,19 @@
                         if (!id) {
                             return;
                         }
+                        
+                        // Buscar el producto en la factura para verificar si tiene incidencia guardada
+                        const productoInfo = productosFactura.find(p => p.id === id);
+                        const tieneIncidenciaGuardada = productoInfo ? Number(productoInfo.tiene_incidencia) === 1 : false;
+                        const tieneIncidenciaPendiente = confirmacionState.incidenciasPendientes.some(i => i.producto_id === id);
+                        
+                        // Si el producto tiene incidencia (guardada o pendiente), SIEMPRE debe ir como entregado=0
+                        const tieneIncidencia = tieneIncidenciaGuardada || tieneIncidenciaPendiente;
+                        
                         productos.push({
                             id: id,
-                            entregado: $(this).is(':checked') ? 1 : 0,
-                            cantidad_entregada: $(this).is(':checked') ? $(this).data('cantidad') : 0
+                            entregado: tieneIncidencia ? 0 : ($(this).is(':checked') ? 1 : 0),
+                            cantidad_entregada: tieneIncidencia ? 0 : ($(this).is(':checked') ? $(this).data('cantidad') : 0)
                         });
                     });
                     return productos;

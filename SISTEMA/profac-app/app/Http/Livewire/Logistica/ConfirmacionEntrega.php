@@ -250,9 +250,21 @@ class ConfirmacionEntrega extends Component
                 foreach ($request->productos as $productoData) {
                     $producto = EntregaProducto::findOrFail($productoData['id']);
                     
-                    $producto->entregado = $productoData['entregado'];
-                    $producto->cantidad_entregada = $productoData['cantidad_entregada'] ?? 0;
-                    $producto->tiene_incidencia = $productoData['tiene_incidencia'] ?? 0;
+                    // Verificar si el producto tiene incidencias en BD
+                    $tieneIncidenciasEnBD = DB::table('entregas_productos_incidencias')
+                        ->where('entrega_producto_id', $producto->id)
+                        ->exists();
+                    
+                    // Si el producto tiene incidencias, NO puede estar marcado como entregado
+                    if ($tieneIncidenciasEnBD || $producto->tiene_incidencia == 1) {
+                        $producto->entregado = 0;
+                        $producto->cantidad_entregada = 0;
+                    } else {
+                        $producto->entregado = $productoData['entregado'];
+                        $producto->cantidad_entregada = $productoData['cantidad_entregada'] ?? 0;
+                    }
+                    
+                    $producto->tiene_incidencia = $productoData['tiene_incidencia'] ?? $producto->tiene_incidencia;
                     $producto->tipo_incidencia = $productoData['tipo_incidencia'] ?? null;
                     $producto->descripcion_incidencia = $productoData['descripcion_incidencia'] ?? null;
                     $producto->user_id_registro = Auth::id();
@@ -272,10 +284,12 @@ class ConfirmacionEntrega extends Component
                     $incidencia->user_id_registro = Auth::id();
                     $incidencia->save();
 
-                    // Actualizar el campo tiene_incidencia del producto
+                    // Actualizar el campo tiene_incidencia del producto y forzar entregado=0
                     $entregaProducto = EntregaProducto::find($incidenciaData['producto_id']);
                     if ($entregaProducto) {
                         $entregaProducto->tiene_incidencia = 1;
+                        $entregaProducto->entregado = 0;
+                        $entregaProducto->cantidad_entregada = 0;
                         $entregaProducto->save();
                         
                         // Obtener el distribucion_factura_id para actualizar el estado después
