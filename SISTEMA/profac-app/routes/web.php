@@ -198,9 +198,21 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::post('/actualizar/parametro/comision/{id}', [confcomisiones::class,'actualizarParametro']);
 
 
+
+
     Route::get('/comisiones/empleado', MisComisiones::class);
+    Route::get('/listar/empleado/comision', [MisComisiones::class,'listarComisionesEmpleado']);
+
+
     Route::get('/comisiones/general', ReportesComisionesGenerales::class);
 
+    //Route::get('/comision/reporte/empleado', [ReportesComisionesGenerales::class,'obtenerListaEmpleados'])->name('comision.reporte.empleado');
+    //Route::get('/comision/reporte/rol', [ReportesComisionesGenerales::class,'obtenerListaRoles'])->name('comision.reporte.rol');
+    Route::get('/comision/reporte/empleados-lista', function () {
+        return \App\Models\User::select('id','name')
+            ->where('rol_id','!=',10)
+            ->get();
+    })->name('comision.reporte.empleados-lista');
 
 
 
@@ -877,12 +889,12 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 
 
 
-    Route::get('/comisiones', ComisionesPrincipal::class);
+/*     Route::get('/comisiones', ComisionesPrincipal::class);
     Route::get('/comisiones/facturas/buscar/{mes}/{idVendedor}', [ComisionesPrincipal::class, 'obtenerFacturas']);
 
     Route::get('/existencia/techo/{mest}/{idVendedort}', [ComisionesPrincipal::class, 'existenciaTecho']);
 
-    Route::get('/comisiones/facturas/buscar2/{mes}/{idVendedor}', [ComisionesPrincipal::class, 'obtenerFacturasSinCerrar']);
+    Route::get('/comisiones/facturas/buscar2/{mes}/{idVendedor}', [ComisionesPrincipal::class, 'obtenerFacturasSinCerrar']); */
 
 
     Route::post('/techo/guardar', [ComisionesGestiones::class, 'guardarTechoMasivo']);

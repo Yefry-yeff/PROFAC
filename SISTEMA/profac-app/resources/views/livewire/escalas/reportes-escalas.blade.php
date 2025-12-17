@@ -205,7 +205,7 @@
             <!-- Botón alineado a la derecha SIEMPRE -->
             <div class="filtro-item ms-auto flex-grow-1 d-flex justify-content-end">
                 <button type="submit" class="btn btn-success" id="btnDescargar">
-                    📥 Descargar plantilla
+                    📥 Descargar reporte
                 </button>
             </div>
 
