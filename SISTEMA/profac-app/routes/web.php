@@ -193,6 +193,13 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 
     Route::get('/comisiones/general', ReportesComisionesGenerales::class);
 
+    //Route::get('/comision/reporte/empleado', [ReportesComisionesGenerales::class,'obtenerListaEmpleados'])->name('comision.reporte.empleado');
+    //Route::get('/comision/reporte/rol', [ReportesComisionesGenerales::class,'obtenerListaRoles'])->name('comision.reporte.rol');
+    Route::get('/comision/reporte/empleados-lista', function () {
+        return \App\Models\User::select('id','name')
+            ->where('rol_id','!=',10)
+            ->get();
+    })->name('comision.reporte.empleados-lista');
 
 
 

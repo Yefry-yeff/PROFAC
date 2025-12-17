@@ -175,7 +175,7 @@
     </div>
     <div class="card-body p-2 text-center">
 
-        <form id="formExportFiltrado" method="GET" action="{{ route('excel.productos.filtros') }}"
+        <form id="formExportFiltrado" method="GET" action="{{ route('comision.reporte.empleados-lista') }}"
             class="d-flex flex-wrap align-items-center filtro-container">
 
             <div class="filtro-item">
@@ -202,7 +202,7 @@
     </div>
     <div class="card-body p-2 text-center">
 
-        <form id="formExportFiltrado" method="GET" action="{{ route('excel.productos.filtros') }}"
+        <form id="formExportFiltrado" method="GET" {{--  action="{{ route('comision.reporte.rol') }}"  --}}
             class="d-flex flex-wrap align-items-center filtro-container">
 
             <div class="filtro-item">
@@ -222,67 +222,7 @@
     </div>
 </div>
 
-<hr>
-<div class="card shadow-sm border-0 mb-3">
-    <div class="card-header bg-light py-2 d-flex flex-wrap align-items-center justify-content-between">
-        <h3 class="mb-2 mb-md-0"><b>Comisiones por facturas cerradas</b></h3>
-        <p>Solo aplica para facturas que están pagadas en su totalidad.</p>
-    </div>
-    <div class="card-body p-2 text-center">
 
-        <form id="formExportFiltrado" method="GET" action="{{ route('excel.productos.filtros') }}"
-            class="d-flex flex-wrap align-items-center filtro-container">
-
-            <div class="filtro-item">
-                <select id="rol_id" name="rol_id" class="form-control select2bs4 filtro-select">
-                    <option value="">📂 Formato</option>
-                    <option value="1">🏷️ Marca</option>
-                    <option value="2">📂 Categoría</option>
-                </select>
-            </div>
-
-            <!-- Botón alineado a la derecha SIEMPRE -->
-            <div class="filtro-item ms-auto flex-grow-1 d-flex justify-content-end">
-                <button type="submit" class="btn btn-success" id="btnDescargar">
-                    📥 Descargar
-                </button>
-            </div>
-
-        </form>
-
-    </div>
-</div>
-
-<hr>
-<div class="card shadow-sm border-0 mb-3">
-    <div class="card-header bg-light py-2 d-flex flex-wrap align-items-center justify-content-between">
-        <h3 class="mb-2 mb-md-0"><b>Comisiones por productos</b></h3>
-        <p>Solo aplica para productos que ya tienen una comisión por factura cerrada.</p>
-    </div>
-    <div class="card-body p-2 text-center">
-
-        <form id="formExportFiltrado" method="GET" action="{{ route('excel.productos.filtros') }}"
-            class="d-flex flex-wrap align-items-center filtro-container">
-
-            <div class="filtro-item">
-                <select id="rol_id" name="rol_id" class="form-control select2bs4 filtro-select">
-                    <option value="">📂 Formato</option>
-                    <option value="1">🏷️ Marca</option>
-                    <option value="2">📂 Categoría</option>
-                </select>
-            </div>
-
-            <!-- Botón alineado a la derecha SIEMPRE -->
-            <div class="filtro-item ms-auto flex-grow-1 d-flex justify-content-end">
-                <button type="submit" class="btn btn-success" id="btnDescargar">
-                    📥 Descargar
-                </button>
-            </div>
-
-        </form>
-
-    </div>
-</div>
 
 
 

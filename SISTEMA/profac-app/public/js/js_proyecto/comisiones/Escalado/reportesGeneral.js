@@ -1,27 +1,31 @@
+$(document).ready(function () {
+    obtenerListaEmpleados();
+});
+
 function obtenerListaEmpleados() {
     $('#empleado').select2({
-        placeholder: 'Seleccione una categoría',
+        placeholder: 'Seleccione un empleado',
         allowClear: true,
         ajax: {
-            url: '/comision/reporte/empleado',
+            url: '/comision/reporte/empleados-lista',
             dataType: 'json',
             delay: 250,
-                data: function (params) {
-                    return {
-                        q: params.term || '',
-                        page: params.page || 1
-                    };
-                },
-                processResults: function (data) {
-                    return {
-                        results: data.name.map(function (item) {
-                            return {
-                                id: item.id,
-                                text: item.name
-                            };
-                        })
-                    };
-                }
+            data: function (params) {
+                return {
+                    q: params.term || '',
+                    page: params.page || 1
+                };
+            },
+            processResults: function (data) {
+                return {
+                    results: data.map(function (item) {
+                        return {
+                            id: item.id,
+                            text: item.name
+                        };
+                    })
+                };
+            }
         }
     });
 }
