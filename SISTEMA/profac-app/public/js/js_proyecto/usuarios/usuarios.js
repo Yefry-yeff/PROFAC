@@ -167,41 +167,56 @@ function selectRoles(idRol, rol){
 }
 
 function actualizarUsuario() {
-   // $('#modalSpinnerLoading').modal('show');
+    // Validar contraseñas si se proporcionan
+    var nuevaContrasena = document.getElementById('nueva_contrasena').value;
+    var confirmarContrasena = document.getElementById('confirmar_contrasena').value;
+    
+    if (nuevaContrasena || confirmarContrasena) {
+        if (nuevaContrasena !== confirmarContrasena) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Las contraseñas no coinciden.'
+            });
+            return;
+        }
+        
+        if (nuevaContrasena.length < 8) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'La contraseña debe tener al menos 8 caracteres.'
+            });
+            return;
+        }
+    }
 
     var data = new FormData($('#userEditForm').get(0));
 
-        axios.post("/usuario/actualizar", data)
-            .then(response => {
+    axios.post("/usuario/actualizar", data)
+        .then(response => {
+            $('#userEditForm').parsley().reset();
+            document.getElementById("userEditForm").reset();
+            $('#modal_usuario_rol').modal('hide');
+            $('#tbl_usuariosListar').DataTable().ajax.reload();
 
-
-                $('#userEditForm').parsley().reset();
-
-                document.getElementById("userEditForm").reset();
-                $('#modal_usuario_rol').modal('hide');
-
-                $('#tbl_usuariosListar').DataTable().ajax.reload();
-
-
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Exito!',
-                    text: "Usuario Actualizado con exito."
-                });
-                location.reload()
+            Swal.fire({
+                icon: 'success',
+                title: 'Exito!',
+                text: response.data.text
+            });
+            location.reload()
 
         }).catch(err => {
             let data = err.response.data;
-            $('#modal_usuario_crear').modal('hide');
+            $('#modal_usuario_rol').modal('hide');
             Swal.fire({
                 icon: data.icon,
                 title: data.title,
                 text: data.text
             })
             console.error(err);
-
         });
-
 }
 
 function baja(idUsuario){

@@ -55,8 +55,25 @@
                                         <select class="form-control"required id="seleccionarRol" name="seleccionarRol" data-parsley-required >
 
                                         </select>
-
                                     </div>
+
+                                    <div class="col-md-12">
+                                        <hr>
+                                        <h5 class="text-muted">Cambiar Contraseña (Opcional)</h5>
+                                        <small class="text-muted">Deje el campo vacío si no desea cambiar la contraseña</small>
+                                    </div>
+
+                                    <div class="col-md-12">
+                                        <label for="nueva_contrasena" class="col-form-label focus-label">Nueva Contraseña:</label>
+                                        <input class="form-control" type="password" id="nueva_contrasena" name="nueva_contrasena" minlength="8" placeholder="Mínimo 8 caracteres">
+                                        <small class="text-muted">Mínimo 8 caracteres</small>
+                                    </div>
+
+                                    <div class="col-md-12">
+                                        <label for="confirmar_contrasena" class="col-form-label focus-label">Confirmar Contraseña:</label>
+                                        <input class="form-control" type="password" id="confirmar_contrasena" name="confirmar_contrasena" minlength="8" placeholder="Confirme la contraseña">
+                                    </div>
+
                                 </div>
                             </form>
 

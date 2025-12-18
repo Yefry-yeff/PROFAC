@@ -162,8 +162,24 @@ class ListarUsuarios extends Component
 
     public function actualizarUsuarios(Request $request){
         try {
-            //dd($request);
-
+            // Validar que las contraseñas coincidan si se proporciona una nueva
+            if (!empty($request->nueva_contrasena)) {
+                if ($request->nueva_contrasena !== $request->confirmar_contrasena) {
+                    return response()->json([
+                        'icon'=>'error',
+                        'title'=>'Error!',
+                        'text'=>'Las contraseñas no coinciden.'
+                    ], 422);
+                }
+                
+                if (strlen($request->nueva_contrasena) < 8) {
+                    return response()->json([
+                        'icon'=>'error',
+                        'title'=>'Error!',
+                        'text'=>'La contraseña debe tener al menos 8 caracteres.'
+                    ], 422);
+                }
+            }
 
             $usuario = usuario::find($request->id_usuario);
             $usuario->identidad = $request->identidad_usuario;
@@ -171,12 +187,23 @@ class ListarUsuarios extends Component
             $usuario->rol_id = $request->seleccionarRol;
             $usuario->email = $request->correo_usuario;
             $usuario->fecha_nacimiento = $request->fenacimiento_usuario;
+            
+            // Actualizar contraseña solo si se proporciona una nueva
+            if (!empty($request->nueva_contrasena)) {
+                $usuario->password = \Hash::make($request->nueva_contrasena);
+            }
+            
             $usuario->save();
+
+            $mensaje = 'Usuario actualizado con éxito.';
+            if (!empty($request->nueva_contrasena)) {
+                $mensaje = 'Usuario y contraseña actualizados con éxito.';
+            }
 
             return response()->json([
                  'icon'=>'success',
                  'title'=>'Exito!',
-                 'text'=>'Usuario Actualizaron con exito.'
+                 'text'=> $mensaje
             ],200);
 
         } catch (QueryException $e) {
