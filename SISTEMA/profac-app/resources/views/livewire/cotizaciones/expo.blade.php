@@ -54,16 +54,6 @@
                 transform: translateX(26px);
             }
 
-
-
-
-            /* #divProductos  input {
-            font-size: 0.8rem;
-
-
-          } */
-
-
             .img-size {
                 /*width: 10rem*/
                 width: 100%;
@@ -91,14 +81,12 @@
 
             }
 
-            /* Chrome, Safari, Edge, Opera */
             input::-webkit-outer-spin-button,
             input::-webkit-inner-spin-button {
                 -webkit-appearance: none;
                 margin: 0;
             }
 
-            /* Estilos para el scanner de códigos de barras */
             #cameraContainer {
                 position: relative;
                 width: 100%;

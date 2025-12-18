@@ -5,6 +5,7 @@ namespace App\Services\Comisiones;
 use Carbon\Carbon;
 use App\Models\Comisiones\Escalado\modelcomision_empleado;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 
 class ProcesadorComisiones
 {
@@ -25,7 +26,7 @@ class ProcesadorComisiones
         if (!method_exists($this, $method)) {
             return; // o throw si preferís
         }
-
+        //dd($factura);
         $this->{$method}($factura, $contexto);
     }
 
@@ -58,11 +59,13 @@ class ProcesadorComisiones
         ->toDateString(); // YYYY-MM-01
 
 
+
         $comision = modelcomision_empleado::firstOrCreate(
             [
                 'users_comision' => $contexto['vendedor_id'],
                 'estado_id' => 1,
                 'mes_comision' => $mesComision,
+                'rol_id'         => $factura['rol_id'], // ✅ OBLIGATORIO
             ],
             ['comision_acumulada' => 0]
         );
@@ -76,32 +79,51 @@ class ProcesadorComisiones
 
     protected function procesarGlobal(array $factura, array $contexto): void
     {
+        // Blindaje extra: si por error entra un rol especial, no procesa
+        if (in_array($factura['rol_id'], [2, 3])) {
+            return;
+        }
+
         $mesComision = Carbon::parse($factura['fecha_cierre_factura'])
             ->startOfMonth()
             ->toDateString();
 
-        /* Traigo todos los usuarios de los roles que previamente están configurados en el array de la factura */
-        $usuarios = User::where('rol_id', $factura['rol_id'])
-            ->pluck('id');
+        // Obtener usuarios cuyo rol coincida con el de la factura
+        $usuarios = DB::select(
+            'SELECT id
+            FROM users
+            WHERE rol_id = ?',
+            [$factura['rol_id']]
+        );
 
-        if ($usuarios->isEmpty()) {
+        //dd($factura);
+        // Si no hay usuarios para ese rol, no hay nada que hacer
+        if (empty($usuarios)) {
             return;
         }
 
-        /* Si no los encuentra en la tabla, donde comisionan, los crea */
-        foreach ($usuarios as $userId) {
+        // Extraer IDs
+        $idsUsuarios = array_map(
+            fn ($u) => $u->id,
+            $usuarios
+        );
+
+        // Crear registros de comisión si no existen
+/*         foreach ($idsUsuarios as $userId) {
             modelcomision_empleado::firstOrCreate(
                 [
                     'users_comision' => $userId,
                     'estado_id'      => 1,
                     'mes_comision'   => $mesComision,
                 ],
-                ['comision_acumulada' => 0]
+                [
+                    'comision_acumulada' => 0,
+                ]
             );
-        }
+        } */
 
-        /* Actualización masiva de la comision para el mes donde se cierra la factura */
-        modelcomision_empleado::whereIn('users_comision', $usuarios)
+        // Sumar comisión SOLO a usuarios del rol de la factura
+        modelcomision_empleado::whereIn('users_comision', $idsUsuarios)
             ->where('estado_id', 1)
             ->where('mes_comision', $mesComision)
             ->increment(

@@ -857,34 +857,43 @@ class Pagos extends Component
                                    @estado,
                                    @msjResultado);");
 
-                                $generador = app(GeneradorFacturasComision::class);
+                                $existePrecioCargado = DB::table('venta_has_producto')
+                                    ->whereNotNull('precios_producto_carga_id')
+                                    ->where('factura_id', $request->idFacturaAbono)
+                                    ->exists();
 
-                                $arrayfacturas_comision = $generador->generar(
-                                    $request->idFacturaAbono,
-                                    $request->codAplicPagoAbono,
-                                    $creditoCli->cliente_categoria_escala_id
-                                );
+                                if ($existePrecioCargado) {
 
-                                /*recuperar factura, vendedor y teleoperacior del id factura*/
+                                    $generador = app(GeneradorFacturasComision::class);
+
+                                    $arrayfacturas_comision = $generador->generar(
+                                        $request->idFacturaAbono,
+                                        $request->codAplicPagoAbono,
+                                        $creditoCli->cliente_categoria_escala_id
+                                    );
+
+                                    /*recuperar factura, vendedor y teleoperacior del id factura*/
 
 
-                                $datos_factura = DB::SELECTONE("select users_id as 'teleoperador', vendedor from factura where id =".$request->idFacturaAbono);
+                                    $datos_factura = DB::SELECTONE("select users_id as 'teleoperador', vendedor from factura where id =".$request->idFacturaAbono);
 
-                                    /*Variables constantes porque es la estructura en duro de cualquier factura */
+                                        /*Variables constantes porque es la estructura en duro de cualquier factura */
 
-                                    $idTelevendedor = $datos_factura->teleoperador;
-                                    $idVendedor = $datos_factura->vendedor;
+                                        $idTelevendedor = $datos_factura->teleoperador;
+                                        $idVendedor = $datos_factura->vendedor;
 
-                                    $procesador = app(ProcesadorComisiones::class);
+                                        $procesador = app(ProcesadorComisiones::class);
 
-                                    $contexto = [
-                                        'televendedor_id' => $idTelevendedor,
-                                        'vendedor_id'     => $idVendedor,
-                                    ];
+                                        $contexto = [
+                                            'televendedor_id' => $idTelevendedor,
+                                            'vendedor_id'     => $idVendedor,
+                                        ];
 
-                                    foreach ($arrayfacturas_comision as $factura) {
-                                        $procesador->procesar($factura, $contexto);
-                                    }
+                                        foreach ($arrayfacturas_comision as $factura) {
+                                            $procesador->procesar($factura, $contexto);
+                                        }
+                                }
+
 
 
 
