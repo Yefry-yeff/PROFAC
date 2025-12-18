@@ -43,17 +43,6 @@ class FacturacionCorporativa extends Component
         try {
 
 
-            /* $listaClientes = DB::SELECT("
-                select
-                    id,
-                    nombre as text
-                from cliente
-                    where estado_cliente_id = 1
-                    and tipo_cliente_id=1
-                    and  (id LIKE '%" . $request->search . "%' or nombre Like '%" . $request->search . "%') limit 15
-                        ");*/
-
-
             if (Auth::user()->rol_id == 1 or Auth::user()->rol_id == 3) {
                 $listaClientes = DB::SELECT("
                 select
@@ -100,14 +89,6 @@ class FacturacionCorporativa extends Component
     public function datosCliente(Request $request)
     {
         try {
-
-            /* $datos = DB::SELECTONE("select cliente.id,cliente.nombre, cliente.rtn, cliente.dias_credito ,
-
-                    users.id as 'idVendedor',
-                    users.name as 'vendedor'
-                from cliente
-                inner join users on users.id = cliente.vendedor where cliente.id = " . $request->id); */
-
 
 
             $datos = modelCategoriaCliente::select(

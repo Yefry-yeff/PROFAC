@@ -1,23 +1,14 @@
 
 var array = [];
 var arregloIdInputs = [];
+obtenerCategoriasClientes();
 
 
-
-var retencionEstado = false; // true  aplica retencion, false no aplica retencion;
-
-
+var retencionEstado = false;
 window.onload = obtenerTipoPago;
 
 var public_path = "{{ asset('catalogo/') }}";
 
-// for (let i = 0; i < arregloIdInputsTemporal.length; i++) {
-
-//     if(!isNaN(arregloIdInputsTemporal[i]) ){
-//         arregloIdInputs.push(arregloIdInputsTemporal[i])
-//     }
-
-// }
 
 const searchRegExp = /\"/g;
 
@@ -81,9 +72,6 @@ $('#seleccionarCliente').select2({
         }
     }
 });
-
-
-
 
 $('#seleccionarProducto').select2({
     ajax: {
@@ -240,7 +228,7 @@ function obtenerImagenes() {
 
 function agregarProductoCarrito() {
     let idProducto = document.getElementById('seleccionarProducto').value;
-    let idCliente = document.getElementById('seleccionarCliente').value;
+    let categoria_cliente_venta_id = document.getElementById('categoria_cliente_venta_id').value;
 
     let data = $("#bodega").select2('data')[0];
     let bodega = data.bodegaSeccion;
@@ -250,7 +238,7 @@ function agregarProductoCarrito() {
 
     axios.post('/ventas/datos/producto', {
             idProducto: idProducto,
-            idCliente: idCliente
+            categoria_cliente_venta_id: categoria_cliente_venta_id
 
         })
         .then(response => {
@@ -292,14 +280,6 @@ function agregarProductoCarrito() {
 
             numeroInputs = parseInt(ultimoElemento) + 1;
 
-
-            //     let arraySecciones  = response.data.secciones;
-            // htmlSelectSeccion ="<option selected disabled>--seccion--</option>";
-
-            // arraySecciones.forEach(seccion => {
-            //     htmlSelectSeccion += `<option values="${seccion.id}" >${seccion.descripcion}</option>`
-            // });
-
             htmlSelectUnidades = ""
             arrayUnidades.forEach(unidad => {
                 if (unidad.valor_defecto == 1) {
@@ -311,8 +291,6 @@ function agregarProductoCarrito() {
                 }
 
             });
-
-            /*SE QUITO min="${producto.precio_base}" DE LA LINEA 868*/
 
             html = `
             <div id='${numeroInputs}' class="row no-gutters">
@@ -759,6 +737,35 @@ function validarFechaPago() {
 
 }
 
+            function obtenerCategoriasClientes() {
+
+                $('#categoria_cliente_venta_id').select2({
+                    placeholder: 'Seleccione una categoría',
+                    allowClear: true,
+                    ajax: {
+                        url: '/clientes/categorias-escala',
+                        dataType: 'json',
+                        delay: 250,
+                        data: function (params) {
+                            return {
+                                q: params.term || '',
+                                page: params.page || 1
+                            };
+                        },
+                        processResults: function (data) {
+                            return {
+                                results: data.categorias.map(function (item) {
+                                    return {
+                                        id: item.id,
+                                        text: item.nombre_categoria
+                                    };
+                                })
+                            };
+                        }
+                    }
+                });
+            }
+
 function obtenerDatosCliente() {
     let idCliente = document.getElementById("seleccionarCliente").value;
     axios.post("/estatal/datos/cliente", {
@@ -775,39 +782,42 @@ function obtenerDatosCliente() {
 
                     let selectBox = document.getElementById("tipoPagoVenta");
                     selectBox.remove(2);
+                    obtenerCategoriasClientes();
+                    $('#categoria_cliente_nombre').text(data.nombre_categoria);
+                    document.getElementById("categoria_cliente_venta_id").appendChild(new Option(data.nombre_categoria, data.idcategoriacliente, true, true));
+
 
                 } else {
                     document.getElementById("nombre_cliente_ventas").readOnly = true;
                     document.getElementById("rtn_ventas").readOnly = true;
                     document.getElementById("nombre_cliente_ventas").value = data.nombre;
                     document.getElementById("rtn_ventas").value = data.rtn;
+                    $('#categoria_cliente_nombre').text(data.nombre_categoria);
+                    document.getElementById("categoria_cliente_venta_id").appendChild(new Option(data.nombre_categoria, data.idcategoriacliente, true, true));
+
+                    obtenerCategoriasClientes();
 
                     diasCredito = data.dias_credito;
                     obtenerTipoPago();
                     obtenerOrdenesCompra();
                 }
 
-                // document.getElementById('fecha_vencimiento').value = "";
-                // document.getElementById('fecha_emision').value="";
-
-
-
             }
         )
         .catch(err => {
 
-            console.log(err);
-            Swal.fire({
-                icon: 'error',
-                title: 'Error...',
-                text: "Ha ocurrido un error al obtener los datos del cliente"
-            })
+            const mensaje = err.response?.data?.message
+                                || 'Ha ocurrido un error inesperado';
 
-
+                        //console.log(err);
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error...',
+                            text: "Ha ocurrido un error al obtener los datos del cliente"
+                        })
         })
 
 }
-
 
 $(document).on('submit', '#crear_venta',
     function(event) {

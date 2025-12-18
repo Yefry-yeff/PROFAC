@@ -910,9 +910,6 @@
                     guardarVenta();
             });
 
-
-
-
             function guardarVenta() {
 
                 document.getElementById("guardar_cotizacion_btn").disabled = true;

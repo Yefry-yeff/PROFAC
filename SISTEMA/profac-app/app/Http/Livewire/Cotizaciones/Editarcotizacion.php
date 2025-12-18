@@ -15,6 +15,7 @@ use Luecano\NumeroALetras\NumeroALetras;
 
 use App\Models\ModelCotizacion;
 use App\Models\ModelCotizacionProducto;
+use App\Models\Escalas\modelCategoriaCliente;
 
 class Editarcotizacion extends Component
 {
@@ -62,6 +63,22 @@ class Editarcotizacion extends Component
         on A.cliente_id = B.id
         where A.id =' . $idCotizacion);
 
+            $datos = modelCategoriaCliente::select(
+                'cliente.id',
+                'cliente.nombre',
+                'cliente.rtn',
+                'cliente.dias_credito',
+                'cliente_categoria_escala.nombre_categoria',
+                'cliente_categoria_escala.id as idcategoriacliente',
+            )
+            ->join(
+                'cliente',
+                'cliente.cliente_categoria_escala_id',
+                '=',
+                'cliente_categoria_escala.id'
+            )
+            ->where('cliente.id', $cotizacion->cliente_id)
+            ->first();
 
 
 
@@ -70,7 +87,7 @@ class Editarcotizacion extends Component
         $urlGuardarVenta = $this->obtenerURL($cotizacion->tipo_venta_id);
 
 
-        return view('livewire.cotizaciones.editarcotizacion', compact('cotizacion', 'htmlProductos', 'urlGuardarVenta'));
+        return view('livewire.cotizaciones.editarcotizacion', compact('cotizacion', 'htmlProductos', 'urlGuardarVenta','datos'));
 
     }
 
