@@ -38,7 +38,7 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
 
     // Registro de motivos por los cuales se omiten filas
     protected array $skippedReasons = [];
-    
+
     // Registro detallado de productos procesados
     protected array $productosInsertados = [];
     protected array $productosInactivados = [];
@@ -123,14 +123,14 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
                 ->whereIn('id', $productoIds)
                 ->pluck('unidad_medida_compra_id', 'id')
                 ->toArray();
-                
+
             // Obtener información completa de productos para usar en skip()
             // Ajustar nombres de columnas según la estructura real de la tabla
             $productosInfo = DB::table(self::PRODUCTOS_TABLE)
                 ->select('id', 'nombre')  // Solo nombre, sin codigo por ahora
                 ->whereIn('id', $productoIds)
                 ->get();
-                
+
             foreach ($productosInfo as $prod) {
                 $productoInfoMap[$prod->id] = [
                     'codigo' => $prod->id,  // Usar ID como codigo si no existe la columna
@@ -138,7 +138,7 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
                 ];
             }
         }
-        
+
         // Guardar el mapeo en la propiedad de clase para usar en skip()
         $this->productoInfoMap = $productoInfoMap;
 
@@ -147,10 +147,10 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
          * En cada vuelta se valida la información y se construye un array estructurado
          * con la información que será insertada en la tabla `precios_producto_carga`.
          */
-       $actualizados = DB::table('precios_producto_carga')
+/*        $actualizados = DB::table('precios_producto_carga')
         ->where('categoria_precios_id', $this->categoriaPrecioId)
         ->where('estado_id', 1)
-        ->update(['estado_id' => 2]);
+        ->update(['estado_id' => 2]); */
 
 
 
@@ -243,7 +243,7 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
 
                 // 2) Tomar base desde el Excel (asegura encabezado correcto)
                 $precioBase = $this->asFloat($row['precio_base_venta']);
-                
+
                 // Validar que tenga precio base
                 if ($precioBase === null || $precioBase <= 0) {
                     $this->skip("Producto sin precio_base_venta válido", $row->toArray());
@@ -287,7 +287,7 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
             }else{
                 // Modo manual - validar que tenga precio base
                 $precioBase = $this->asFloat($row['precio_base_venta']);
-                
+
                 if ($precioBase === null || $precioBase <= 0) {
                     $this->skip("Producto sin precio_base_venta válido (modo manual)", $row->toArray());
                     continue;
@@ -342,7 +342,7 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
                 ->whereIn('id', $productoIds)
                 ->get()
                 ->keyBy('id');
-            
+
             // Guardar detalles de productos a procesar para mostrar en frontend
             foreach ($batch as $item) {
                 $producto = $productos[$item['producto_id']] ?? null;
@@ -357,7 +357,7 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
                     'precio_d' => number_format($item['precio_d'], 2),
                 ];
             }
-            
+
             $this->rowsToProcess += count($batch);
             return; // NO ejecutar la transacción en modo preview
         }
@@ -390,14 +390,14 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
                 // Paso 3: actualizar las métricas del proceso
                 $this->rowsInactivated += $totalInactivated;
                 $this->rowsInserted += count($batch);
-                
+
                 // Paso 4: Obtener información detallada de los productos insertados
                 $productoIds = array_column($batch, 'producto_id');
                 $productos = DB::table('producto')
                     ->whereIn('id', $productoIds)
                     ->get()
                     ->keyBy('id');
-                
+
                 // Guardar detalles de productos insertados para mostrar en frontend
                 foreach ($batch as $item) {
                     $producto = $productos[$item['producto_id']] ?? null;
@@ -445,13 +445,13 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
     protected function skip(string $reason, array $rowData = []): void
     {
         $this->rowsSkipped++;
-        
+
         // Si tenemos datos de la fila, creamos un objeto con detalles
         if (!empty($rowData)) {
             $productoId = $rowData['producto_id'] ?? null;
             $codigo = 'N/A';
             $descripcion = 'N/A';
-            
+
             // Usar el mapeo precargado en lugar de consultar cada vez
             if ($productoId && isset($this->productoInfoMap[$productoId])) {
                 $codigo = $this->productoInfoMap[$productoId]['codigo'] ?? $productoId;
@@ -463,7 +463,7 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
                         ->select('id', 'nombre')
                         ->where('id', $productoId)
                         ->first();
-                        
+
                     if ($producto) {
                         $codigo = $producto->id;
                         $descripcion = $producto->nombre ?? 'Producto #' . $productoId;
@@ -476,7 +476,7 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
                     $descripcion = 'Producto #' . $productoId;
                 }
             }
-            
+
             $this->skippedReasons[] = [
                 'fila' => $this->rowsRead + 1,  // +1 para no contar el encabezado
                 'codigo' => $codigo,
