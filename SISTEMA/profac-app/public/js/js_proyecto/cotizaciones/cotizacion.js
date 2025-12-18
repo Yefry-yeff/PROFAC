@@ -106,11 +106,6 @@
                 }
             });
 
-
-
-
-
-
             $('#seleccionarProducto').select2({
                 ajax: {
                     url: '/ventas/listar',
@@ -157,7 +152,6 @@
                 });
 
             }
-
 
             function obtenerTipoPago() {
 
@@ -265,12 +259,38 @@
             }
 
 
+            function obtenerCategoriasClientes() {
 
+                $('#categoria_cliente_venta_id').select2({
+                    placeholder: 'Seleccione una categoría',
+                    allowClear: true,
+                    ajax: {
+                        url: '/clientes/categorias-escala',
+                        dataType: 'json',
+                        delay: 250,
+                        data: function (params) {
+                            return {
+                                q: params.term || '',
+                                page: params.page || 1
+                            };
+                        },
+                        processResults: function (data) {
+                            return {
+                                results: data.categorias.map(function (item) {
+                                    return {
+                                        id: item.id,
+                                        text: item.nombre_categoria
+                                    };
+                                })
+                            };
+                        }
+                    }
+                });
+            }
 
             function agregarProductoCarrito() {
                 let idProducto = document.getElementById('seleccionarProducto').value;
-                let idCliente = document.getElementById('seleccionarCliente').value;
-
+                let categoria_cliente_venta_id = document.getElementById('categoria_cliente_venta_id').value;
 
                 let data = $("#bodega").select2('data')[0];
                 let bodega = data.bodegaSeccion;
@@ -280,7 +300,7 @@
 
                 axios.post('/ventas/datos/producto', {
                         idProducto: idProducto,
-                        idCliente: idCliente
+                        categoria_cliente_venta_id: categoria_cliente_venta_id
 
                     })
                     .then(response => {
@@ -318,23 +338,9 @@
 
 
                         numeroInputs += 1;
-
-                        //     let arraySecciones  = response.data.secciones;
-                        // htmlSelectSeccion ="<option selected disabled>--seccion--</option>";
-
-                        // arraySecciones.forEach(seccion => {
-                        //     htmlSelectSeccion += `<option values="${seccion.id}" >${seccion.descripcion}</option>`
-                        // });
-
-                        htmlSelectUnidades = ""
-
-
-
-                         /*<option  value="${producto.precio_base}" data-id="pb">${producto.precio_base} - Base</option>*/
+                        htmlSelectUnidades = "";
                         htmlprecios = `
-                        <option data-id="0" selected>--Seleccione precio--</option>
-
-                        <option  value="${producto.precio1}" data-id="p1">${producto.precio1} - A</option>
+                        <option  value="${producto.precio1}" data-id="p1" selected>${producto.precio1} - A</option>
                         <option  value="${producto.precio2}" data-id="p2">${producto.precio2} - B</option>
                         <option  value="${producto.precio3}" data-id="p3">${producto.precio3} - C</option>
                         <option  value="${producto.precio4}" data-id="p4">${producto.precio4} - D</option>
@@ -507,7 +513,6 @@
 
              }
 
-
             function eliminarInput(id) {
                 const element = document.getElementById(id);
                 element.remove();
@@ -520,6 +525,7 @@
                 }
 
             }
+
             function myRound(num, dec) {
                 var exp = Math.pow(10, dec || 2); // 2 decimales por defecto
                 return parseInt(num * exp, 10) / exp;
@@ -617,7 +623,7 @@
                     return 0;
 
 
-                }
+            }
 
             function calcularTotales(idPrecio, idCantidad, isvProducto, idUnidad, id, idRestaInventario) {
 
@@ -857,6 +863,10 @@
                                 document.getElementById("rtn_ventas").value = '';
                                 let selectBox = document.getElementById("tipoPagoVenta");
                                 selectBox.remove(2);
+                                obtenerCategoriasClientes();
+                                $('#categoria_cliente_nombre').text(data.nombre_categoria);
+                                document.getElementById("categoria_cliente_venta_id").appendChild(new Option(data.nombre_categoria, data.idcategoriacliente, true, true));
+
 
                             } else {
                                 document.getElementById("nombre_cliente_ventas").readOnly = true;
@@ -864,6 +874,11 @@
 
                                 document.getElementById("nombre_cliente_ventas").value = data.nombre;
                                 document.getElementById("rtn_ventas").value = data.rtn;
+                                $('#categoria_cliente_nombre').text(data.nombre_categoria);
+
+                                document.getElementById("categoria_cliente_venta_id").appendChild(new Option(data.nombre_categoria, data.idcategoriacliente, true, true));
+
+                                obtenerCategoriasClientes();
                                 obtenerTipoPago();
                                 diasCredito = data.dias_credito;
                             }
@@ -874,13 +889,15 @@
                     )
                     .catch(err => {
 
-                        console.log(err);
+                            const mensaje = err.response?.data?.message
+                                || 'Ha ocurrido un error inesperado';
+
+                        //console.log(err);
                         Swal.fire({
                             icon: 'error',
                             title: 'Error...',
                             text: "Ha ocurrido un error al obtener los datos del cliente"
                         })
-
 
                     })
 
