@@ -27,7 +27,7 @@ class NumOrdenCompra extends Component
         $num_orden_compras = DB::table('numero_orden_compra')
                                 ->join('cliente', 'numero_orden_compra.cliente_id', '=', 'cliente.id')
                                 ->join('users', 'numero_orden_compra.users_id', '=', 'users.id')
-                                ->select('numero_orden_compra.id', 'numero_orden_compra.numero_orden','cliente.nombre', 'users.name','estado_id')
+                                ->select('numero_orden_compra.id', 'numero_orden_compra.numero_orden','cliente.nombre', 'users.name','numero_orden_compra.estado_id')
                                 ->where('numero_orden_compra.estado_id', '=', '1')
                                 ->where('cliente.tipo_cliente_id', '=', '2')
                                 ->get();
@@ -49,7 +49,7 @@ class NumOrdenCompra extends Component
                             </ul>
                         </div>
                             ';
-                    }{
+                    }else{
                         return
 
                                     '

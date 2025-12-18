@@ -48,7 +48,7 @@ class NumOrdenCompra extends Component
                             </ul>
                         </div>
                             ';
-                    }{
+                    }else{
                         return
 
                                     '

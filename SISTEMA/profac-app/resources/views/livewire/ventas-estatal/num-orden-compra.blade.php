@@ -360,7 +360,19 @@
                             }
                         }
                     ],
-                    "ajax": "/estatal/ordenes/listar",
+                    "ajax": {
+                        "url": "/estatal/ordenes/listar",
+                        "error": function (xhr, error, code) {
+                            console.log('Error en Ajax:', xhr);
+                            console.log('Estado:', xhr.status);
+                            console.log('Respuesta:', xhr.responseText);
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error al cargar datos',
+                                text: 'Error: ' + xhr.status + ' - ' + error
+                            });
+                        }
+                    },
                     "columns": [{
                             data: 'id'
                         },
