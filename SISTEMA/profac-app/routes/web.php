@@ -491,7 +491,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     //---------------------------------------------------------------------VENTAS ESTATAL--------------------------------------------------------------------------------//
 
 
-    Route::get('/ventas/estatal', FacturacionEstatal::class);
+    Route::get('/ventas/estatal/{id?}', FacturacionEstatal::class);
     Route::get('/ventas/estatal/vendedor', LitsadoFacturasEstatalVendedor::class);
     Route::get('/listado/ventas/estatal/vendedor', [LitsadoFacturasEstatalVendedor::class, 'listarFacturasEstatalVendedor']);
     Route::get('/estatal/lista/clientes', [FacturacionEstatal::class, 'listarClientes']);
