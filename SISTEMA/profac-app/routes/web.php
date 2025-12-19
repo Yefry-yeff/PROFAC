@@ -165,12 +165,12 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 
     //---------------------------------------GESTIÓN DE MENÚS-------------------------------//
     Route::get('/menu/gestion', \App\Http\Livewire\Menu\GestionMenu::class)->name('menu.gestion');
-    
+
     // Rutas para Menús
     Route::post('/menu/guardar', [App\Http\Controllers\MenuController::class, 'guardarMenu']);
     Route::get('/menu/obtener/{id}', [App\Http\Controllers\MenuController::class, 'obtenerMenu']);
     Route::put('/menu/actualizar/{id}', [App\Http\Controllers\MenuController::class, 'actualizarMenu']);
-    
+
     // Rutas para Submenus
     Route::post('/submenu/guardar', [App\Http\Controllers\MenuController::class, 'guardarSubmenu']);
     Route::get('/submenu/obtener/{id}', [App\Http\Controllers\MenuController::class, 'obtenerSubmenu']);
@@ -438,6 +438,15 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::post('/producto/compra/pagos/comprobar', [PagosCompra::class, 'comprobarRetencion']);
     Route::get('/compra/retencion/documento/{idCompra}', [PagosCompra::class, 'retencionDocumentoPDF']);
 
+    // Redirección a sistema externo de boletas de compra
+    Route::get('/boleta/compra', function () {
+        return redirect()->away('https://cadss.hn/orden/ordn_new_product.php');
+    });
+
+    // Redirección a sistema externo de boletas de compra
+    Route::get('/orden/compra', function () {
+        return redirect()->away('https://cadss.hn/orden/ordn_listar_ordenes.php');
+    });
 
     Route::get('/translado/imprimir/{id}', [Translados::class, 'imprimirTranslado']);
 

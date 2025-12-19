@@ -160,7 +160,7 @@ class MenuSeeder extends Seeder
                 'orden' => 10,
                 'estado_id' => 1,
                 'submenus' => [
-                    ['nombre' => 'Gestión de Boleta', 'url' => 'https://cadss.hn/boleta/blta_listar_boletas.php', 'icono' => 'fa fa-list', 'orden' => 1, 'roles' => [1, 4, 5, 8]],
+                    ['nombre' => 'Gestión de Boleta', 'url' => 'boleta/compra', 'icono' => 'fa fa-list', 'orden' => 1, 'roles' => [1, 4, 5, 8]],
                 ]
             ],
 
