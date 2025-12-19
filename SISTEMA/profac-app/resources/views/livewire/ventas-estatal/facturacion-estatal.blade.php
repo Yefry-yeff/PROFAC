@@ -331,7 +331,9 @@
                             </div>
 
                             <div id="divProductos">
-
+                                @if(isset($htmlProductosCotizacion) && $htmlProductosCotizacion)
+                                    {!! $htmlProductosCotizacion !!}
+                                @endif
                             </div>
                             <hr>
                             <div class="row">
@@ -458,7 +460,38 @@
             var retencionEstado = false; // true  aplica retencion, false no aplica retencion;
             var diasCredito = 0;
 
-            window.onload = obtenerTipoPago;
+            // Datos de cotización precargada
+            @if(isset($cotizacion) && $cotizacion)
+                var cotizacionData = {
+                    id: {{ $cotizacion->id }},
+                    cliente_id: {{ $cotizacion->cliente_id }},
+                    nombre_cliente: "{{ $cotizacion->nombre_cliente }}",
+                    RTN: "{{ $cotizacion->RTN }}",
+                    vendedor: {{ $cotizacion->vendedor }},
+                    dias_credito: {{ $cotizacion->dias_credito }},
+                    fecha_emision: "{{ $cotizacion->fecha_emision }}",
+                    fecha_vencimiento: "{{ $cotizacion->fecha_vencimiento }}",
+                    porDescuento: {{ $cotizacion->porc_descuento }},
+                    descuentoGeneral: {{ $cotizacion->monto_descuento }},
+                    subTotal: {{ $cotizacion->sub_total }},
+                    subTotalGrabado: {{ $cotizacion->sub_total_grabado }},
+                    subTotalExcento: {{ $cotizacion->sub_total_excento }},
+                    isv: {{ $cotizacion->isv }},
+                    total: {{ $cotizacion->total }},
+                    numeroInputs: {{ $cotizacion->numeroInputs }},
+                    arregloIdInputs: "{{ $cotizacion->arregloIdInputs }}"
+                };
+            @else
+                var cotizacionData = null;
+            @endif
+
+            window.onload = function() {
+                obtenerTipoPago();
+                if (cotizacionData) {
+                    cargarDatosCotizacion();
+                }
+            };
+            
             var public_path = "{{ asset('catalogo/') }}";
 
 
@@ -751,6 +784,81 @@
                         })
                     })
 
+            }
+
+            function cargarDatosCotizacion() {
+                if (!cotizacionData) return;
+
+                // Cargar datos del cliente
+                let newOption = new Option(cotizacionData.nombre_cliente, cotizacionData.cliente_id, true, true);
+                $('#seleccionarCliente').append(newOption).trigger('change');
+                
+                document.getElementById('nombre_cliente_ventas').value = cotizacionData.nombre_cliente;
+                document.getElementById('rtn_ventas').value = cotizacionData.RTN;
+                
+                // Cargar vendedor
+                let vendedorOption = new Option('Vendedor', cotizacionData.vendedor, true, true);
+                $('#vendedor').append(vendedorOption).trigger('change');
+                
+                // Cargar fechas
+                document.getElementById('fecha_emision').value = cotizacionData.fecha_emision;
+                document.getElementById('fecha_vencimiento').value = cotizacionData.fecha_vencimiento;
+                
+                // Cargar descuento
+                document.getElementById('porDescuento').value = cotizacionData.porDescuento;
+                document.getElementById('porDescuentoCalculado').value = cotizacionData.porDescuento;
+                
+                // Cargar arrays de inputs
+                arregloIdInputs = cotizacionData.arregloIdInputs.split(',');
+                numeroInputs = parseInt(cotizacionData.numeroInputs);
+                
+                // Cargar totales
+                setTimeout(() => {
+                    document.getElementById('subTotalGeneralGrabado').value = cotizacionData.subTotalGrabado.toFixed(2);
+                    document.getElementById('subTotalGeneralGrabadoMostrar').value = new Intl.NumberFormat('es-HN', {
+                        style: 'currency',
+                        currency: 'HNL',
+                        minimumFractionDigits: 2,
+                    }).format(cotizacionData.subTotalGrabado);
+
+                    document.getElementById('subTotalGeneralExcento').value = cotizacionData.subTotalExcento.toFixed(2);
+                    document.getElementById('subTotalGeneralExcentoMostrar').value = new Intl.NumberFormat('es-HN', {
+                        style: 'currency',
+                        currency: 'HNL',
+                        minimumFractionDigits: 2,
+                    }).format(cotizacionData.subTotalExcento);
+
+                    document.getElementById('subTotalGeneral').value = cotizacionData.subTotal.toFixed(2);
+                    document.getElementById('subTotalGeneralMostrar').value = new Intl.NumberFormat('es-HN', {
+                        style: 'currency',
+                        currency: 'HNL',
+                        minimumFractionDigits: 2,
+                    }).format(cotizacionData.subTotal);
+
+                    document.getElementById('descuentoGeneral').value = cotizacionData.descuentoGeneral.toFixed(2);
+                    document.getElementById('descuentoMostrar').value = new Intl.NumberFormat('es-HN', {
+                        style: 'currency',
+                        currency: 'HNL',
+                        minimumFractionDigits: 2,
+                    }).format(cotizacionData.descuentoGeneral);
+
+                    document.getElementById('isvGeneral').value = cotizacionData.isv.toFixed(2);
+                    document.getElementById('isvGeneralMostrar').value = new Intl.NumberFormat('es-HN', {
+                        style: 'currency',
+                        currency: 'HNL',
+                        minimumFractionDigits: 2,
+                    }).format(cotizacionData.isv);
+
+                    document.getElementById('totalGeneral').value = cotizacionData.total.toFixed(2);
+                    document.getElementById('totalGeneralMostrar').value = new Intl.NumberFormat('es-HN', {
+                        style: 'currency',
+                        currency: 'HNL',
+                        minimumFractionDigits: 2,
+                    }).format(cotizacionData.total);
+
+                    diasCredito = cotizacionData.dias_credito;
+                    obtenerDatosCliente();
+                }, 500);
             }
 
             function obtenerImagenes() {
