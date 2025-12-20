@@ -23,6 +23,7 @@ use App\Http\Livewire\Bodega;
 use App\Http\Livewire\BodegaComponent\BodegaEditar;
 use App\Http\Livewire\Proveedores;
 use App\Http\Livewire\Usuarios\ListarUsuarios;
+use App\Http\Livewire\Registro\Login as RegistroLogin;
 use App\Http\Livewire\Inventario\Producto;
 use App\Http\Livewire\Inventario\Retenciones;
 use App\Http\Livewire\Inventario\DetalleProducto;
@@ -370,6 +371,8 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 
     /*----------------------------------------------- /NUEVAS RUTAS DE ACCESO A USUARIOS  */
 
+    //-----------------------------------------------Bitácora de Login-------------------------------------------------------------------------------------------//
+    Route::get('/registro/login', RegistroLogin::class)->name('registro.login');
 
 
     //--------------------------------------------Inventario--------------------------------------------------------------------------------------------//
