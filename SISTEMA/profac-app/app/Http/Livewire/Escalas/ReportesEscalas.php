@@ -26,10 +26,14 @@ class ReportesEscalas extends Component
         $tipoFiltro = $request->input('tipoFiltro');
         $valorFiltro = $request->input('listaTipoFiltro');
         $valorCategoria = $request->input('listaTipoFiltroCatPrecios');
+        
+        // Generar nombre de archivo con fecha
+        $fecha = now()->format('Y-m-d_His');
+        $nombreArchivo = "reporte_precios_productos_{$fecha}.xlsx";
 
         return Excel::download(
             new ReporteProductosPreciosFiltro($tipoFiltro, $valorFiltro, $valorCategoria),
-            'reporte_precios_productos_escalados.xlsx'
+            $nombreArchivo
         );
     }
 

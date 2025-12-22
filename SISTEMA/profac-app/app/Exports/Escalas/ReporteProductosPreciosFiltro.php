@@ -71,10 +71,18 @@ class ReporteProductosPreciosFiltro implements FromQuery, WithHeadings, WithMapp
 
 
         if ($this->tipoFiltro == 1 && $this->valorFiltro) {
+            // Filtrar por marca
             $query->where('A.marca_id', $this->valorFiltro);
         } elseif ($this->tipoFiltro == 2 && $this->valorFiltro) {
-            $query->where('D.id', $this->valorFiltro);
+            // Filtrar por categoría de producto (CORREGIDO: usar G.id)
+            $query->where('G.id', $this->valorFiltro);
         }
+        
+        // Filtrar por categoría de precios si está presente
+        if ($this->valorCategoria) {
+            $query->where('C.id', $this->valorCategoria);
+        }
+        
         return $query;
     }
 
