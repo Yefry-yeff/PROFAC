@@ -33,11 +33,13 @@
         }
 
         .select2-container--bootstrap4 .select2-selection--single {
-            height: 40px;
-            padding: 6px 12px;
+            height: 40px !important;
+            padding: 0 !important;
             border-radius: 0.35rem;
             border: 1px solid #ced4da;
             transition: all 0.2s ease;
+            display: flex !important;
+            align-items: center !important;
         }
 
         .select2-container--bootstrap4 .select2-selection--single:focus,
@@ -47,17 +49,51 @@
         }
 
         .select2-container--bootstrap4 .select2-selection__rendered {
-            line-height: 28px;
-            padding-left: 12px;
+            line-height: 40px !important;
+            padding-left: 12px !important;
+            padding-right: 30px !important;
+            display: block !important;
+            width: 100% !important;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .select2-container--bootstrap4 .select2-selection__arrow {
-            height: 38px;
-            right: 8px;
+            height: 40px !important;
+            position: absolute !important;
+            top: 0 !important;
+            right: 8px !important;
+            width: 20px !important;
+        }
+
+        .select2-container--bootstrap4 .select2-selection__arrow b {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
         }
 
         .select2-container--bootstrap4 .select2-selection__placeholder {
             color: #6c757d;
+            line-height: 40px !important;
+        }
+
+        .select2-container--bootstrap4 .select2-selection__clear {
+            position: absolute;
+            right: 30px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 18px;
+        }
+
+        /* Asegurar que el contenedor tenga la altura correcta */
+        .select2-container {
+            display: block !important;
+        }
+
+        .select2-container .select2-selection {
+            position: relative;
         }
 
         .btn-success, .btn-primary, .btn-outline-secondary {
