@@ -267,6 +267,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 
     Route::get('/reportes/escalas', ReportesEscalas::class);
     Route::get('/descargar/productos/filtros', [ReportesEscalas::class, 'descargarPrecios'])->name('excel.productos.filtros');
+    Route::get('/escalas/productos/filtrados', [ReportesEscalas::class, 'listarProductosFiltrados']);
 
 
     //-----------------------Bodega---------------------------------------------------------------------------------------------------------------------//

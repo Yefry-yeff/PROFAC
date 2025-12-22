@@ -14,6 +14,9 @@ function toggleDescargarCompleto() {
   //$('#btnDescargar').prop('disabled', !habilitado);
 }
 
+// Variable global para almacenar la instancia de DataTable
+let tablaProductos = null;
+
 $(document).ready(function () {
   // Configuración básica para Axios:
   // - Define header X-Requested-With para solicitudes AJAX.
@@ -26,6 +29,9 @@ $(document).ready(function () {
 
   // === Inicialización de la tabla principal de categorías (DataTable)
   listarCategorias();
+  
+  // === Inicialización de la tabla de productos con lazy loading
+  inicializarTablaProductos();
 
   // === Inicialización de Select2 para los filtros superiores
   // Mejora UX con tema bootstrap4 y placeholders.
@@ -109,6 +115,19 @@ $(document).ready(function () {
 
   $('#listaTipoFiltro, #tipoCategoria').on('change', toggleDescargarCompleto);
     toggleDescargarCompleto(); // estado inicial
+    
+  // === Actualizar tabla cuando cambian los filtros
+  $('#tipoFiltro, #listaTipoFiltro, #listaTipoFiltroCatPrecios').on('change', function() {
+    actualizarTablaProductos();
+  });
+  
+  // === Interceptar submit del formulario de descarga para asegurar que usa los filtros actuales
+  $('#formExportFiltrado').on('submit', function(e) {
+    // Asegurar que los valores actuales de los filtros se envíen
+    $('#tipoFiltro').attr('name', 'tipoFiltro');
+    $('#listaTipoFiltro').attr('name', 'listaTipoFiltro');
+    $('#listaTipoFiltroCatPrecios').attr('name', 'listaTipoFiltroCatPrecios');
+  });
   });
 
 $('#tipoCategoria, #tipoFiltro, #listaTipoFiltro, #listaTipoFiltroCatPrecios')
@@ -147,6 +166,74 @@ function listarCategorias() {
       { data: 'opciones' }
     ]
   });
+}
+
+// === Inicializar tabla de productos con lazy loading (server-side processing)
+function inicializarTablaProductos() {
+  tablaProductos = $('#tbl_productos').DataTable({
+    processing: true,
+    serverSide: true, // Activar procesamiento del lado del servidor (lazy loading)
+    deferRender: true,
+    language: {
+      "url": "https://cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json",
+      "processing": '<i class="fa fa-spinner fa-spin fa-3x fa-fw"></i><span class="sr-only">Cargando...</span>'
+    },
+    ajax: {
+      url: '/escalas/productos/filtrados',
+      type: 'GET',
+      data: function(d) {
+        // Enviar parámetros de filtro
+        d.tipoFiltro = $('#tipoFiltro').val();
+        d.listaTipoFiltro = $('#listaTipoFiltro').val();
+        d.listaTipoFiltroCatPrecios = $('#listaTipoFiltroCatPrecios').val();
+        
+        // Debug: ver qué valores se están enviando
+        console.log('Filtros enviados:', {
+          tipoFiltro: d.tipoFiltro,
+          listaTipoFiltro: d.listaTipoFiltro,
+          listaTipoFiltroCatPrecios: d.listaTipoFiltroCatPrecios
+        });
+      },
+      error: function(xhr, error, thrown) {
+        console.error('Error al cargar productos:', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'No se pudo cargar la tabla de productos.'
+        });
+      }
+    },
+    columns: [
+      { data: 'id', width: '50px' },
+      { data: 'codigo', width: '100px' },
+      { data: 'producto' },
+      { data: 'marca' },
+      { data: 'categoria' },
+      { data: 'escala_precio' },
+      { data: 'categoria_cliente' },
+      { data: 'precio_A_formatted', className: 'text-right' },
+      { data: 'precio_B_formatted', className: 'text-right' },
+      { data: 'precio_C_formatted', className: 'text-right' },
+      { data: 'precio_D_formatted', className: 'text-right' }
+    ],
+    order: [[0, 'desc']],
+    pageLength: 10,
+    lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "Todos"]],
+    responsive: true,
+    dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>rtip',
+    drawCallback: function() {
+      // Callback después de cada dibujado de la tabla
+      console.log('Tabla de productos actualizada');
+    }
+  });
+}
+
+// === Actualizar tabla de productos cuando cambian los filtros
+function actualizarTablaProductos() {
+  if (tablaProductos) {
+    // Recargar datos con los nuevos filtros
+    tablaProductos.ajax.reload(null, false); // false para mantener la paginación actual
+  }
 }
 
 

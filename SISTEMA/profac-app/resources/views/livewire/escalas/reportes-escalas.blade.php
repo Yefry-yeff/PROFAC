@@ -214,6 +214,37 @@
     </div>
 </div>
 
+<!-- Tabla de productos -->
+<div class="card shadow-sm border-0 mt-3">
+    <div class="card-header bg-light py-2">
+        <h5 class="mb-0"><b>📋 Listado de Productos Activos</b></h5>
+    </div>
+    <div class="card-body p-2">
+        <div class="table-responsive">
+            <table id="tbl_productos" class="table table-striped table-bordered table-hover" style="width:100%">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Código</th>
+                        <th>Producto</th>
+                        <th>Marca</th>
+                        <th>Categoría</th>
+                        <th>Escala Precio</th>
+                        <th>Cat. Cliente</th>
+                        <th>Precio A</th>
+                        <th>Precio B</th>
+                        <th>Precio C</th>
+                        <th>Precio D</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Se llena dinámicamente con DataTables -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
