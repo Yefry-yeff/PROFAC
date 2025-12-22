@@ -508,7 +508,8 @@ class FacturacionEstatal extends Component
                     ppc.precio_a AS precio1,
                     ppc.precio_b AS precio2,
                     ppc.precio_c AS precio3,
-                    ppc.precio_d AS precio4
+                    ppc.precio_d AS precio4,
+                    ppc.id AS precios_producto_carga_id
                 FROM producto p
                 JOIN cliente_categoria_escala cce
                     ON cce.id = :categoria_cliente_venta_id
@@ -563,7 +564,7 @@ class FacturacionEstatal extends Component
     public function guardarVenta(Request $request)
     {
 
-
+        //dd($request);
         $validator = Validator::make($request->all(), [
 
             'fecha_vencimiento' => 'required',
@@ -791,6 +792,7 @@ class FacturacionEstatal extends Component
                 $keyunidad = 'unidad' . $arrayInputs[$i];
                 $keyidPrecioSeleccionado = 'idPrecioSeleccionado'.$arrayInputs[$i];
                 $keyprecioSeleccionado = 'precios'.$arrayInputs[$i];
+                $keyprecios_producto_carga_id = 'precios_producto_carga_id'.$arrayInputs[$i];
 
                 $restaInventario = $request->$keyRestaInventario;
                 $idSeccion = $request->$keyIdSeccion;
@@ -801,13 +803,15 @@ class FacturacionEstatal extends Component
                 $idPrecioSeleccionado = $request->$keyidPrecioSeleccionado;
                 $precioSeleccionado = $request->$keyprecioSeleccionado;
 
+                $precios_producto_carga_id = $request->$keyprecios_producto_carga_id;
+
                 $precio = $request->$keyPrecio;
                 $cantidad = $request->$keyCantidad;
                 $subTotal = $request->$keySubTotal;
                 $isv = $request->$keyIsv;
                 $total = $request->$keyTotal;
 
-                $this->restarUnidadesInventario($request->seleccionarCliente, $idPrecioSeleccionado,$precioSeleccionado ,$restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $arrayInputs[$i]);
+                $this->restarUnidadesInventario($precios_producto_carga_id, $idPrecioSeleccionado,$precioSeleccionado ,$restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $arrayInputs[$i]);
             };
 
 
@@ -851,15 +855,17 @@ class FacturacionEstatal extends Component
         }
     }
 
-    public function restarUnidadesInventario($clienteSeleccionadoId, $idPrecioSeleccionado,$precioSeleccionado ,$unidadesRestarInv, $idProducto, $idSeccion, $idFactura, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $indice)
+    public function restarUnidadesInventario($precios_producto_carga_id,$idPrecioSeleccionado,$precioSeleccionado ,$unidadesRestarInv, $idProducto, $idSeccion, $idFactura, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $indice)
     {
-
+        //dd("Categoria Cliente primer producto : ".$categoriaClientePrecio);
         try {
             $precioUnidad = $subTotal / $unidadesRestarInv;
             //dd($idFactura);
             //dd("PRUEBA");
             $unidadesRestar = $unidadesRestarInv;  //es la cantidad ingresada por el usuario multiplicado por unidades de venta del producto
             $registroResta = 0;
+
+                       // dd("Producto: ".$idProducto." Seccion: ".$idSeccion);
             while (!($unidadesRestar <= 0)) {
 
                 $unidadesDisponibles = DB::SELECTONE("
@@ -873,6 +879,7 @@ class FacturacionEstatal extends Component
                             order by created_at asc
                         limit 1
                         ");
+
 
                 if ($unidadesDisponibles->cantidad_disponible == $unidadesRestar) {
 
@@ -925,25 +932,6 @@ class FacturacionEstatal extends Component
                     $cantidadSeccion = $registroResta / $unidad;
                 };
 
-
-                /* $precioProductoCargaId = DB::table('precios_producto_carga as E')
-                ->join('categoria_precios as D', 'D.id', '=', 'E.categoria_precios_id')
-                ->join('cliente_categoria_escala as C', 'C.id', '=', 'D.cliente_categoria_escala_id')
-                ->join('cliente as B', 'B.cliente_categoria_escala_id', '=', 'C.id')
-                ->where([
-                    ['B.id', '=', $clienteSeleccionadoId],
-                    ['E.producto_id', '=', $idProducto],
-                    ['E.estado_id', '=', 1],
-                    ['D.estado_id', '=', 1],
-                    ['C.estado_id', '=', 1],
-                ])
-                ->value('E.id'); */
-
-                    $precioProductoCargaId =
-                    DB::select('select * from precios_producto_carga where producto_id = ?', [$idProducto]);
-
-                    dd($precioProductoCargaId);
-                    //dd($precio_producto_carga);
                 array_push($this->arrayProductos, [
                     "factura_id" => $idFactura,
                     "producto_id" => $idProducto,
@@ -970,7 +958,7 @@ class FacturacionEstatal extends Component
                     "idPrecioSeleccionado"=>$idPrecioSeleccionado,
                     "precioSeleccionado"=>$precioSeleccionado,
 
-                    "precios_producto_carga_id" => $precio_producto_carga->id,
+                    "precios_producto_carga_id" => $precios_producto_carga_id,
                     "created_at" => now(),
                     "updated_at" => now(),
                 ]);
@@ -987,13 +975,6 @@ class FacturacionEstatal extends Component
                 ]);
 
             };
-
-
-
-            //dd($arrarVentasProducto);
-            //ModelVentaProducto::created($arrarVentasProducto);
-            //ModelVentaProducto::insert($arrarVentasProducto);
-            //DB::table('venta_has_producto')->insert($arrarVentasProducto);
 
 
             return;

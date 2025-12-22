@@ -653,21 +653,21 @@
 
             function cargarCategoriasProducto() {
                 let productoId = $('#seleccionarProducto').val();
-                
+
                 if (productoId) {
                     // Limpiar y deshabilitar categoría mientras se carga
                     $('#categoria_cliente_venta_id').prop('disabled', true);
                     $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>Cargando categorías...</option>');
-                    
+
                     // Cargar categorías del producto
                     axios.post('/producto/categorias-disponibles', {
                         producto_id: productoId
                     })
                     .then(response => {
                         let categorias = response.data.categorias;
-                        
+
                         $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>--Seleccione una categoría--</option>');
-                        
+
                         if (categorias.length > 0) {
                             categorias.forEach(categoria => {
                                 let option = new Option(categoria.nombre_categoria, categoria.id, false, false);
@@ -692,7 +692,7 @@
                         });
                         $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>Error al cargar categorías</option>');
                     });
-                    
+
                     // Continuar con las imágenes del producto
                     obtenerImagenes();
                 } else {
@@ -704,7 +704,7 @@
             function habilitarBodega() {
                 let categoriaId = $('#categoria_cliente_venta_id').val();
                 let productoId = $('#seleccionarProducto').val();
-                
+
                 if (categoriaId && productoId) {
                     // Habilitar bodega
                     $('#bodega').prop('disabled', false);
@@ -923,12 +923,16 @@
 
                         htmlSelectUnidades = "";
 
-                        htmlprecios = `
+
+
+                        /*htmlprecios = `
                         <option  value="${producto.precio1}" data-id="p1" selected>${producto.precio1} - A</option>
                         <option  value="${producto.precio2}" data-id="p2">${producto.precio2} - B</option>
                         <option  value="${producto.precio3}" data-id="p3">${producto.precio3} - C</option>
                         <option  value="${producto.precio4}" data-id="p4">${producto.precio4} - D</option>
-                        `;
+                        `;*/
+                        htmlprecios = `
+                        <option  value="${producto.precio1}" data-id="p1" selected>${producto.precio1} - A</option>`;
                         arrayUnidades.forEach(unidad => {
                             if (unidad.valor_defecto == 1) {
                                 htmlSelectUnidades +=
@@ -951,6 +955,7 @@
                                                     </button>
 
                                                     <input id="idProducto${numeroInputs}" name="idProducto${numeroInputs}" type="hidden" value="${producto.id}">
+                                                    <input id="precios_producto_carga_id${numeroInputs}" name="precios_producto_carga_id${numeroInputs}" type="hidden" value="${producto.precios_producto_carga_id}">
 
                                                     <div style="width:100%">
                                                         <label for="nombre${numeroInputs}" class="sr-only">Nombre del producto</label>
