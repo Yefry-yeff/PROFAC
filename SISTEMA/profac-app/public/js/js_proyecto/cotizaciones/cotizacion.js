@@ -123,6 +123,12 @@
                 }
             });
 
+            function listaCategoríaClientes() {
+                let idProducto = document.getElementById('seleccionarProducto').value;
+                document.getElementById('bodega').disabled = false;
+                obtenerBodegas(idProducto);
+            }
+
             function prueba() {
 
                 var element = document.getElementById('botonAdd');
@@ -184,6 +190,41 @@
                         })
                     })
 
+            }
+
+            function cargarCategoriasProducto() {
+                let idProducto = document.getElementById('seleccionarProducto').value;
+                
+                document.getElementById('categoria_cliente_venta_id').innerHTML = "<option value='' selected disabled>--Cargando categorías--</option>";
+                document.getElementById('categoria_cliente_venta_id').disabled = true;
+                document.getElementById('bodega').innerHTML = "<option value='' selected disabled>--Seleccione una categoría--</option>";
+                document.getElementById('bodega').disabled = true;
+                
+                axios.post('/producto/categorias-disponibles', {
+                    producto_id: idProducto
+                })
+                .then(response => {
+                    let categorias = response.data.categorias;
+                    let htmlCategorias = '<option value="" selected disabled>--Seleccione una categoría--</option>';
+                    
+                    categorias.forEach(categoria => {
+                        htmlCategorias += `<option value="${categoria.id}">${categoria.nombre_categoria}</option>`;
+                    });
+                    
+                    document.getElementById('categoria_cliente_venta_id').innerHTML = htmlCategorias;
+                    document.getElementById('categoria_cliente_venta_id').disabled = false;
+                    
+                    obtenerImagenes();
+                })
+                .catch(err => {
+                    console.error(err);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'No se pudieron cargar las categorías disponibles para este producto'
+                    });
+                    document.getElementById('categoria_cliente_venta_id').innerHTML = "<option value='' selected disabled>--Error al cargar--</option>";
+                });
             }
 
             function obtenerImagenes() {
@@ -364,7 +405,7 @@
 
                         html = `
                         <div id='${numeroInputs}' class="row no-gutters">
-                                            <div class="form-group col-3">
+                                            <div class="form-group col-12 col-md-2">
                                                 <div class="d-flex">
 
                                                     <button class="btn btn-danger" type="button" style="display: inline" onclick="eliminarInput(${numeroInputs})"><i
@@ -386,7 +427,7 @@
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div class="form-group col-1">
+                                            <div class="form-group col-6 col-md-1">
                                                 <label for="" class="sr-only">cantidad</label>
                                                 <input type="text" value="${bodega}" placeholder="bodega-seccion" id="bodega${numeroInputs}"
                                                     name="bodega${numeroInputs}" class="form-control"
@@ -394,7 +435,7 @@
                                             </div>
 
 
-                                            <div class="form-group col-2">
+                                            <div class="form-group col-6 col-md-2">
                                                 <label for="" class="sr-only">precios</label>
                                                 <select class="form-control" name="precios${numeroInputs}" id="precios${numeroInputs}"
                                                     data-parsley-required style="height:35.7px;"
@@ -406,21 +447,21 @@
 
                                             </div>
 
-                                            <div class="form-group col-1">
+                                            <div class="form-group col-6 col-md-2">
                                                 <label for="precio${numeroInputs}" class="sr-only">Precio</label>
                                                 <input type="number" placeholder="Precio Unidad" id="precio${numeroInputs}"
                                                     name="precio${numeroInputs}" value="${producto.precio1}" class="form-control"  data-parsley-required step="any"
                                                     autocomplete="off" onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
                                             </div>
 
-                                            <div class="form-group col-1">
+                                            <div class="form-group col-4 col-md-1">
                                                 <label for="cantidad${numeroInputs}" class="sr-only">cantidad</label>
                                                 <input type="number" placeholder="Cantidad" id="cantidad${numeroInputs}"
                                                     name="cantidad${numeroInputs}" class="form-control" min="1" data-parsley-required
                                                     autocomplete="off" onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
                                             </div>
 
-                                            <div class="form-group col-1">
+                                            <div class="form-group col-4 col-md-1">
                                                 <label for="" class="sr-only">unidad</label>
                                                 <select class="form-control" name="unidad${numeroInputs}" id="unidad${numeroInputs}"
                                                     data-parsley-required style="height:35.7px;"
@@ -434,7 +475,7 @@
 
 
 
-                                            <div class="form-group col-1">
+                                            <div class="form-group col-4 col-md-1">
                                                 <label for="subTotalMostrar${numeroInputs}" class="sr-only">Sub Total</label>
                                                 <input type="text" placeholder="Sub total producto" id="subTotalMostrar${numeroInputs}"
                                                     name="subTotalMostrar${numeroInputs}" class="form-control"
@@ -445,7 +486,7 @@
                                                 <input type="hidden" id="acumuladoDescuento${numeroInputs}" name="acumuladoDescuento${numeroInputs}" >
                                             </div>
 
-                                            <div class="form-group col-1">
+                                            <div class="form-group col-4 col-md-1">
                                                 <label for="isvProductoMostrar${numeroInputs}" class="sr-only">ISV</label>
                                                 <input type="text" placeholder="ISV" id="isvProductoMostrar${numeroInputs}"
                                                     name="isvProductoMostrar${numeroInputs}" class="form-control"
@@ -455,7 +496,7 @@
                                                     <input id="isvProducto${numeroInputs}" name="isvProducto${numeroInputs}" type="hidden" value="" required>
                                             </div>
 
-                                            <div class="form-group col-1">
+                                            <div class="form-group col-4 col-md-1">
                                                 <label for="totalMostrar${numeroInputs}" class="sr-only">Total</label>
                                                 <input type="text" placeholder="Total del producto" id="totalMostrar${numeroInputs}"
                                                     name="totalMostrar${numeroInputs}" class="form-control"

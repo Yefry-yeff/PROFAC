@@ -239,7 +239,7 @@
                                     <label for="seleccionarProducto" class="col-form-label focus-label">Seleccionar
                                         Producto:<span class="text-danger">*</span></label>
                                     <select id="seleccionarProducto" name="seleccionarProducto"
-                                        class="form-group form-control" style="" onchange="obtenerImagenes()">
+                                        class="form-group form-control" style="" onchange="cargarCategoriasProducto()">
                                         <option value="" selected disabled>--Seleccione un producto--</option>
                                     </select>
 
@@ -248,13 +248,21 @@
 
                                 </div>
 
-                                <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6 ">
+                                <div class="col-12 col-md-4 col-lg-4 col-xl-4">
+                                    <label for="categoriaCliente" class="col-form-label focus-label">Categoría / Cliente:<span class="text-danger">*</span></label>
+                                    <select id="categoriaCliente" name="categoriaCliente" class="form-group form-control" 
+                                        onchange="habilitarBodega()" disabled>
+                                        <option value="" selected disabled>--Seleccione un producto--</option>
+                                    </select>
+                                </div>
+
+                                <div class="col-12 col-md-4 col-lg-4 col-xl-4">
 
                                     <label for="bodega" class="col-form-label focus-label">Seleccionar
                                         bodega:</label>
                                     <select id="bodega" name="bodega" class="form-group form-control"
                                         style="" onchange="prueba()" disabled>
-                                        <option value="" selected disabled>--Seleccione un producto--</option>
+                                        <option value="" selected disabled>--Seleccione una categoría--</option>
                                     </select>
 
 
@@ -319,7 +327,7 @@
                                     seguido del numero de unidades a restar del inventario</p>
                                 <div class="row no-gutters ">
 
-                                    <div class="form-group col-12 col-sm-12 col-md-2 col-lg-2 col-xl-2">
+                                    <div class="form-group col-12 col-md-2 col-lg-2 col-xl-2">
                                         <div class="d-flex">
 
 
@@ -333,25 +341,25 @@
                                         </div>
                                     </div>
 
-                                    <div class="form-group col-12 col-sm-12 col-md-1 col-lg- col-xl-1">
+                                    <div class="form-group col-6 col-md-1 col-lg- col-xl-1">
                                         <label class="sr-only">Bodega</label>
                                         <input type="number" placeholder="Bodega" class="form-control"
                                             autocomplete="off" disabled>
                                     </div>
 
-                                    <div class="form-group col-12 col-sm-12 col-md-1 col-lg- col-xl-1">
+                                    <div class="form-group col-6 col-md-2 col-lg- col-xl-1">
                                         <label class="sr-only">Precio</label>
                                         <input type="number" placeholder="Precio Unidad" class="form-control"
                                             min="1" autocomplete="off" disabled>
                                     </div>
 
-                                    <div class="form-group col-12 col-sm-12 col-md-1 col-lg-1 col-xl-1">
+                                    <div class="form-group col-4 col-md-1 col-lg-1 col-xl-1">
                                         <label class="sr-only">cantidad</label>
                                         <input type="text" placeholder="Cantidad" class="form-control"
                                             min="1" autocomplete="off" disabled>
                                     </div>
 
-                                    <div class="form-group col-12 col-sm-12 col-md-1 col-lg-1 col-xl-1 ">
+                                    <div class="form-group col-4 col-md-1 col-lg-1 col-xl-1 ">
 
                                         <label class="sr-only">Unidad</label>
                                         <input type="text" placeholder="Unidad " class="form-control"
@@ -364,19 +372,19 @@
 
 
 
-                                    <div class="form-group col-12 col-sm-12 col-md-2 col-lg-2 col-xl-2">
+                                    <div class="form-group col-4 col-md-1 col-lg-2 col-xl-2">
                                         <label class="sr-only">Sub Total</label>
                                         <input type="number" placeholder="Sub total del producto"
                                             class="form-control" min="1" autocomplete="off" disabled>
                                     </div>
 
-                                    <div class="form-group col-12 col-sm-12 col-md-2 col-lg-2 col-xl-2">
+                                    <div class="form-group col-4 col-md-1 col-lg-2 col-xl-2">
                                         <label class="sr-only">ISV</label>
                                         <input type="number" placeholder="ISV" class="form-control" min="1"
                                             autocomplete="off" disabled>
                                     </div>
 
-                                    <div class="form-group col-12 col-sm-12 col-md-2 col-lg-2 col-xl-2">
+                                    <div class="form-group col-4 col-md-1 col-lg-2 col-xl-2">
                                         <label class="sr-only">Total</label>
                                         <input type="number" placeholder="Total del producto" class="form-control"
                                             min="1" disabled autocomplete="off">
