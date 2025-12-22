@@ -118,7 +118,8 @@ class Editarcotizacion extends Component
         B.precio_base as precio_base,
         B.isv as isvTblProducto,
         C.arregloIdInputs,
-        A.monto_descProducto
+        A.monto_descProducto,
+        A.precios_producto_carga_id
         from cotizacion_has_producto A
         inner join producto B
         on A.producto_id = B.id
@@ -172,6 +173,7 @@ class Editarcotizacion extends Component
                             </button>
 
                             <input id="idProducto' . $i . '" name="idProducto' . $i . '" type="hidden" value="' . $producto->producto_id . '">
+                            <input id="precios_producto_carga_id' . $i . '" name="precios_producto_carga_id' . $i . '" type="hidden" value="' . $producto->precios_producto_carga_id. '">
 
                             <div style="width:100%">
                                 <label for="nombre' . $i . '" class="sr-only">Nombre del producto</label>

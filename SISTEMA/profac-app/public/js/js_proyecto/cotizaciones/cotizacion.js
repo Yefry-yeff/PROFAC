@@ -123,7 +123,7 @@
                 }
             });
 
-            function listaCategoríaClientes() {
+            function listaCategoriaClientes() {
                 let categoriaId = $('#categoria_cliente_venta_id').val();
                 let productoId = $('#seleccionarProducto').val();
 

@@ -326,7 +326,7 @@ function agregarProductoCarrito() {
                                 <div class="form-group col-12 col-sm-12 col-md-1 col-lg-1 col-xl-1">
                                     <label for="precio${numeroInputs}" class="sr-only">Precio</label>
                                     <input type="number" placeholder="Precio Unidad" id="precio${numeroInputs}"
-                                                    name="cantidad${numeroInputs}" class="form-control" min="${producto.precio1}" data-parsley-required
+                                                    name="cantidad${numeroInputs}" class="form-control" value="${producto.precio1}" min="${producto.precio1}" data-parsley-required
                                         autocomplete="off"  onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
                                 </div>
 
@@ -737,7 +737,7 @@ function validarFechaPago() {
 
 }
 
-            function obtenerCategoriasClientes() {
+function obtenerCategoriasClientes() {
 
                 $('#categoria_cliente_venta_id').select2({
                     placeholder: 'Seleccione una categoría',
@@ -764,8 +764,18 @@ function validarFechaPago() {
                         }
                     }
                 });
-            }
+}
+function listaCategoriaClientes() {
+                let categoriaId = $('#categoria_cliente_venta_id').val();
+                let productoId = $('#seleccionarProducto').val();
 
+                if (categoriaId && productoId) {
+                    // Habilitar bodega
+                    $('#bodega').prop('disabled', false);
+                    // Cargar bodegas del producto
+                    obtenerBodegas(productoId);
+                }
+            }
 function obtenerDatosCliente() {
     let idCliente = document.getElementById("seleccionarCliente").value;
     axios.post("/estatal/datos/cliente", {
