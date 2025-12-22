@@ -330,7 +330,8 @@ class FacturacionCorporativa extends Component
                     ppc.precio_a AS precio1,
                     ppc.precio_b AS precio2,
                     ppc.precio_c AS precio3,
-                    ppc.precio_d AS precio4
+                    ppc.precio_d AS precio4,
+                    ppc.id AS precios_producto_carga_id
                 FROM producto p
                 JOIN cliente_categoria_escala cce
                     ON cce.id = :categoria_cliente_venta_id
