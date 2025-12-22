@@ -42,13 +42,13 @@ class FacturacionEstatal extends Component
     {
         $cotizacion = null;
         $htmlProductosCotizacion = '';
-        
+
         if ($this->idCotizacion) {
             $datoCotizacion = $this->cargarDatosCotizacion($this->idCotizacion);
             $cotizacion = $datoCotizacion['cotizacion'];
             $htmlProductosCotizacion = $datoCotizacion['html'];
         }
-        
+
         return view('livewire.ventas-estatal.facturacion-estatal', [
             'cotizacion' => $cotizacion,
             'htmlProductosCotizacion' => $htmlProductosCotizacion
@@ -97,7 +97,7 @@ class FacturacionEstatal extends Component
         if ($cotizacion) {
             $html = $this->generarHTMLProductosCotizacion($idCotizacion);
         }
-        
+
         return [
             'cotizacion' => $cotizacion,
             'html' => $html
@@ -205,7 +205,7 @@ class FacturacionEstatal extends Component
 
                 <div class="form-group col-2">
                     <label for="precios' . $i . '" class="sr-only">Precios</label>
-                    <select class="form-control" name="precios' . $i . '" id="precios' . $i . '"  style="height:35.7px;" 
+                    <select class="form-control" name="precios' . $i . '" id="precios' . $i . '"  style="height:35.7px;"
                         onchange="obtenerPrecio(' . $i . ')">
                         <option value="" selected disabled>--Seleccionar precio--</option>
                     </select>
@@ -650,6 +650,7 @@ class FacturacionEstatal extends Component
             }
         }
 
+
         if ($flag) {
             return response()->json([
                 'icon' => "warning",
@@ -759,26 +760,6 @@ class FacturacionEstatal extends Component
             $caiUpdated->save();
 
 
-            /* $aplicacionPagos = DB::select("
-
-            CALL sp_aplicacion_pagos('2','".$factura->cliente_id."', '".Auth::user()->id."', '".$factura->id."','na','0','0','0', @estado, @msjResultado);");
-
-
-            if ($aplicacionPagos[0]->estado == -1) {
-                return response()->json([
-                    "text" => "Ha ocurrido un error al insertar factura ".$factura->id."en aplicacion de pagos.",
-                    "icon" => "error",
-                    "title"=>"Error!"
-                ],400);
-            } */
-            //Tabla de listado
-            // DB::INSERT("INSERT INTO listado(
-            //          numero, secuencia, numero_inicial, numero_final, cantidad_otorgada, cai_id, created_at, updated_at, eliminado) VALUES
-            //         ('" . $numeroCAI . "','" . $numeroSecuencia . "','" . $cai->numero_inicial . "','" . $cai->numero_final . "','" . $cai->cantidad_otorgada . "','" . $cai->id . "','" . NOW() . "','" . NOW() . "',0)");
-
-
-
-
             if(!empty($request->ordenCompra))
             {
                 $ordeCompra = ModelNumOrdenCompra::find($request->ordenCompra);
@@ -826,8 +807,9 @@ class FacturacionEstatal extends Component
                 $isv = $request->$keyIsv;
                 $total = $request->$keyTotal;
 
-                $this->restarUnidadesInventario($idPrecioSeleccionado,$precioSeleccionado ,$restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $arrayInputs[$i]);
+                $this->restarUnidadesInventario($request->seleccionarCliente, $idPrecioSeleccionado,$precioSeleccionado ,$restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $arrayInputs[$i]);
             };
+
 
             if ($request->tipoPagoVenta == 2) { //si el tipo de pago es credito
                 $this->restarCreditoCliente($request->seleccionarCliente, $request->totalGeneral, $factura->id);
@@ -869,11 +851,12 @@ class FacturacionEstatal extends Component
         }
     }
 
-    public function restarUnidadesInventario($idPrecioSeleccionado,$precioSeleccionado ,$unidadesRestarInv, $idProducto, $idSeccion, $idFactura, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $indice)
+    public function restarUnidadesInventario($clienteSeleccionadoId, $idPrecioSeleccionado,$precioSeleccionado ,$unidadesRestarInv, $idProducto, $idSeccion, $idFactura, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $indice)
     {
+
         try {
             $precioUnidad = $subTotal / $unidadesRestarInv;
-
+            //dd($idFactura);
             //dd("PRUEBA");
             $unidadesRestar = $unidadesRestarInv;  //es la cantidad ingresada por el usuario multiplicado por unidades de venta del producto
             $registroResta = 0;
@@ -891,8 +874,8 @@ class FacturacionEstatal extends Component
                         limit 1
                         ");
 
-
                 if ($unidadesDisponibles->cantidad_disponible == $unidadesRestar) {
+
 
                     $diferencia = $unidadesDisponibles->cantidad_disponible - $unidadesRestar;
                     $lote = ModelRecibirBodega::find($unidadesDisponibles->id);
@@ -911,10 +894,10 @@ class FacturacionEstatal extends Component
 
                     $diferencia = $unidadesDisponibles->cantidad_disponible - $unidadesRestar;
 
-
                     $lote = ModelRecibirBodega::find($unidadesDisponibles->id);
                     $lote->cantidad_disponible = $diferencia;
                     $lote->save();
+
 
                     $registroResta = $unidadesRestar;
                     $unidadesRestar = 0;
@@ -924,6 +907,7 @@ class FacturacionEstatal extends Component
                     $totalSecccionado = round(($isvSecccionado + $subTotalSecccionado), 2);
 
                     $cantidadSeccion = $registroResta / $unidad;
+
                 } else if ($unidadesDisponibles->cantidad_disponible < $unidadesRestar) {
 
                     $diferencia = $unidadesRestar - $unidadesDisponibles->cantidad_disponible;
@@ -942,24 +926,24 @@ class FacturacionEstatal extends Component
                 };
 
 
-                $precio_producto_carga = DB::table('factura as A')
-                    ->join('cliente as B', 'B.id', '=', 'A.cliente_id')
-                    ->join('cliente_categoria_escala as C', function ($join) {
-                        $join->on('C.id', '=', 'B.cliente_categoria_escala_id')
-                            ->where('C.estado_id', 1);
-                    })
-                    ->join('categoria_precios as D', function ($join) {
-                        $join->on('D.cliente_categoria_escala_id', '=', 'C.id')
-                            ->where('D.estado_id', 1);
-                    })
-                    ->join('precios_producto_carga as E', function ($join) {
-                        $join->on('E.categoria_precios_id', '=', 'D.id')
-                            ->where('E.estado_id', 1);
-                    })
-                    ->where('A.id', $idFactura)
-                    ->where('E.producto_id', $idProducto)
-                    ->select('E.id')
-                    ->first();
+                /* $precioProductoCargaId = DB::table('precios_producto_carga as E')
+                ->join('categoria_precios as D', 'D.id', '=', 'E.categoria_precios_id')
+                ->join('cliente_categoria_escala as C', 'C.id', '=', 'D.cliente_categoria_escala_id')
+                ->join('cliente as B', 'B.cliente_categoria_escala_id', '=', 'C.id')
+                ->where([
+                    ['B.id', '=', $clienteSeleccionadoId],
+                    ['E.producto_id', '=', $idProducto],
+                    ['E.estado_id', '=', 1],
+                    ['D.estado_id', '=', 1],
+                    ['C.estado_id', '=', 1],
+                ])
+                ->value('E.id'); */
+
+                    $precioProductoCargaId =
+                    DB::select('select * from precios_producto_carga where producto_id = ?', [$idProducto]);
+
+                    dd($precioProductoCargaId);
+                    //dd($precio_producto_carga);
                 array_push($this->arrayProductos, [
                     "factura_id" => $idFactura,
                     "producto_id" => $idProducto,
@@ -1003,6 +987,8 @@ class FacturacionEstatal extends Component
                 ]);
 
             };
+
+
 
             //dd($arrarVentasProducto);
             //ModelVentaProducto::created($arrarVentasProducto);
