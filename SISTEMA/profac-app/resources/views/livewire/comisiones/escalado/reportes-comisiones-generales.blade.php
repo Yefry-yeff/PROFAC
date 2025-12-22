@@ -12,189 +12,219 @@
             width: 1px !important;
         }
         
+        .filtro-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(102, 126, 234, 0.3);
+        }
+
+        .filtro-body {
+            background: white;
+            border-radius: 0 0 15px 15px;
+        }
+
+        .filtro-item {
+            flex: 1 1 200px;
+            min-width: 200px;
+        }
+
+        .filtro-item label {
+            font-weight: 600;
+            color: #4a5568;
+            font-size: 0.875rem;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+
+        .form-control, .select2-container--bootstrap4 .select2-selection--single {
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            height: 42px;
+            transition: all 0.3s ease;
+            font-size: 0.95rem;
+        }
+
+        .form-control:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
         .select2-container--bootstrap4 .select2-selection--single .select2-selection__rendered {
-            line-height: 28px;
-            padding-left: 0.5rem;
-            padding-right: 2rem;
+            line-height: 38px;
+            padding-left: 12px;
         }
 
-        .select2-container--bootstrap4 .select2-selection--single .select2-selection__clear {
-            position: absolute;
-            right: 10px;
-            top: 50%;
-            transform: translateY(-50%);
-        }
-
-        .page-heading, .d-flex.bg-light {
-            background-color: #f8f9fa;
-            border-radius: 0.35rem;
-            padding: 0.5rem 1rem;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-        }
-
-        .select2-container {
-            z-index: 999 !important;
-            width: 100% !important;
-            font-size: 0.9rem;
-        }
-
-        .select2-dropdown {
-            z-index: 3050 !important;
-            max-height: 200px;
-            overflow-y: auto;
-        }
-
-        .select2-container--bootstrap4 .select2-selection--single {
-            height: 38px;
-            padding: 6px 12px;
-            border-radius: 0.35rem;
-            border: 1px solid #ced4da;
-        }
-
-        .select2-container--bootstrap4 .select2-selection__rendered {
-            line-height: 28px;
-        }
-
-        .select2-container--bootstrap4 .select2-selection__arrow {
-            height: 34px;
-            right: 8px;
-        }
-
-        .select2-container--bootstrap4 .select2-selection__placeholder {
-            color: #6c757d;
-        }
-
-        .btn-success, .btn-primary, .btn-outline-secondary {
-            font-weight: 500;
-            padding: 0.35rem 0.9rem;
-            border-radius: 0.35rem;
-        }
-
-        .filtro-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-            align-items: center;
-        }
-
-        .filtro-select, .filtro-input {
-            min-width: 150px;
-            flex: 1 1 150px;
+        .select2-container--bootstrap4 .select2-selection--single .select2-selection__arrow {
             height: 38px;
         }
 
         .btn-filtrar {
-            height: 38px;
-            flex: 0 0 auto;
+            height: 42px;
+            min-width: 140px;
+            font-weight: 600;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
         }
 
-        textarea.form-control, input.form-control {
-            border-radius: 0.35rem;
-            border: 1px solid #ced4da;
-            font-size: 0.9rem;
-            padding: 6px 12px;
+        .btn-filtrar:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
         }
 
-        .modal .select2-container {
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            border: none;
+        }
+
+        .tabla-card {
+            border-radius: 15px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        }
+
+        .tabla-card .card-header {
+            background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+            border-radius: 15px 15px 0 0;
+            border-bottom: 3px solid #667eea;
+        }
+
+        #tbl_comisiones {
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        #tbl_comisiones thead th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: 600;
+            border: none;
+            padding: 15px 10px;
+        }
+
+        #tbl_comisiones tbody tr {
+            transition: all 0.2s ease;
+        }
+
+        #tbl_comisiones tbody tr:hover {
+            background-color: #f7fafc;
+            transform: scale(1.01);
+        }
+
+        .select2-container {
             width: 100% !important;
         }
 
-        @media (max-width: 576px) {
-            form.d-flex {
-                flex-direction: column;
+        .select2-dropdown {
+            z-index: 3050 !important;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        @media (max-width: 768px) {
+            .filtro-item {
+                min-width: 100%;
+                flex: 1 1 100%;
             }
 
-            form.d-flex > * {
-                margin-bottom: 0.5rem;
-            }
-
-            .filtro-container {
+            .btn-actions {
                 flex-direction: column;
-                margin-left: 0;
-                gap: 0.5rem;
+                width: 100%;
             }
 
             .btn-filtrar {
                 width: 100%;
-            }
-
-            .card-header .d-flex > div,
-            .card-header .d-flex > button {
-                width: 100%;
-            }
-
-            .card-header .d-flex {
-                flex-direction: column;
-                gap: 0.5rem;
-            }
-        }
-
-        @media (min-width: 992px) {
-            .filtro-select, .filtro-input {
-                min-width: 180px;
-                flex: 1 1 180px;
             }
         }
     </style>
 @endpush
 
 <!-- Filtros Generales -->
-<div class="card shadow-sm border-0 mb-3">
-    <div class="card-header bg-primary text-white py-2">
-        <h5 class="mb-0"><b>📊 FILTROS GENERALES DE REPORTES</b></h5>
+<div class="card filtro-card shadow-lg border-0 mb-4">
+    <div class="card-header text-white py-3 border-0">
+        <h5 class="mb-0 fw-bold">
+            <i class="fas fa-filter me-2"></i>FILTROS DE REPORTES DE COMISIONES
+        </h5>
     </div>
-    <div class="card-body p-3">
-        <div class="d-flex flex-wrap align-items-center filtro-container">
+    <div class="card-body filtro-body p-4">
+        <div class="row g-3">
             <!-- Tipo de Reporte -->
-            <div class="filtro-item">
-                <label class="small mb-1">Tipo de Reporte</label>
-                <select id="tipoReporte" class="form-control select2bs4 filtro-select">
-                    <option value="">Seleccione tipo...</option>
-                    <option value="empleado">👤 Por Empleado</option>
-                    <option value="rol">👥 Por Rol</option>
-                    <option value="usuarios">🔐 General de Usuarios</option>
-                    <option value="productos">📦 General por Producto</option>
-                    <option value="facturas">🧾 General por Factura</option>
-                </select>
+            <div class="col-lg-3 col-md-6">
+                <div class="filtro-item">
+                    <label for="tipoReporte">
+                        <i class="fas fa-chart-bar text-primary me-1"></i>Tipo de Reporte
+                    </label>
+                    <select id="tipoReporte" class="form-control select2bs4">
+                        <option value="">Seleccione tipo...</option>
+                        <option value="empleado">👤 Por Empleado</option>
+                        <option value="rol">👥 Por Rol</option>
+                        <option value="usuarios">🔐 General de Usuarios</option>
+                        <option value="productos">📦 General por Producto</option>
+                        <option value="facturas">🧾 General por Factura</option>
+                    </select>
+                </div>
             </div>
 
             <!-- Fecha Inicio -->
-            <div class="filtro-item">
-                <label class="small mb-1">Fecha Inicio</label>
-                <input type="date" id="fechaInicio" class="form-control filtro-input">
+            <div class="col-lg-3 col-md-6">
+                <div class="filtro-item">
+                    <label for="fechaInicio">
+                        <i class="fas fa-calendar-alt text-success me-1"></i>Fecha Inicio
+                    </label>
+                    <input type="date" id="fechaInicio" class="form-control" required>
+                </div>
             </div>
 
             <!-- Fecha Fin -->
-            <div class="filtro-item">
-                <label class="small mb-1">Fecha Fin</label>
-                <input type="date" id="fechaFin" class="form-control filtro-input">
+            <div class="col-lg-3 col-md-6">
+                <div class="filtro-item">
+                    <label for="fechaFin">
+                        <i class="fas fa-calendar-check text-danger me-1"></i>Fecha Fin
+                    </label>
+                    <input type="date" id="fechaFin" class="form-control" required>
+                </div>
             </div>
 
             <!-- Selector Específico (Empleado/Rol) -->
-            <div class="filtro-item" id="containerFiltroEspecifico" style="display: none;">
-                <label class="small mb-1" id="labelFiltroEspecifico">Seleccionar</label>
-                <select id="filtroEspecifico" class="form-control select2bs4 filtro-select"></select>
+            <div class="col-lg-3 col-md-6" id="containerFiltroEspecifico" style="display: none;">
+                <div class="filtro-item">
+                    <label for="filtroEspecifico" id="labelFiltroEspecifico">
+                        <i class="fas fa-user-check text-info me-1"></i>Seleccionar
+                    </label>
+                    <select id="filtroEspecifico" class="form-control select2bs4"></select>
+                </div>
             </div>
+        </div>
 
-            <!-- Botones -->
-            <div class="filtro-item ms-auto d-flex gap-2">
-                <button type="button" id="btnFiltrar" class="btn btn-primary btn-filtrar">
-                    🔍 Filtrar
-                </button>
-                <button type="button" id="btnDescargar" class="btn btn-success btn-filtrar">
-                    📥 Descargar Excel
-                </button>
+        <!-- Botones de Acción -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="btn-actions d-flex gap-3 justify-content-end">
+                    <button type="button" id="btnFiltrar" class="btn btn-primary btn-filtrar">
+                        <i class="fas fa-search me-2"></i>Generar Reporte
+                    </button>
+                    <button type="button" id="btnDescargar" class="btn btn-success btn-filtrar">
+                        <i class="fas fa-file-excel me-2"></i>Exportar Excel
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
 <!-- Tabla de Resultados -->
-<div class="card shadow-sm border-0 mt-3">
-    <div class="card-header bg-light py-2">
-        <h5 class="mb-0"><b>📋 <span id="tituloTabla">Resultados</span></b></h5>
+<div class="card tabla-card shadow border-0">
+    <div class="card-header py-3">
+        <h5 class="mb-0 fw-bold text-dark">
+            <i class="fas fa-table me-2 text-primary"></i><span id="tituloTabla">Resultados del Reporte</span>
+        </h5>
     </div>
-    <div class="card-body p-2">
+    <div class="card-body p-3">
         <div class="table-responsive">
             <table id="tbl_comisiones" class="table table-striped table-bordered table-hover" style="width:100%">
                 <thead id="theadComisiones">
@@ -215,5 +245,3 @@
 @push('scripts')
     <script src="{{ asset('js/js_proyecto/comisiones/Escalado/reportesGeneral.js') }}"></script>
 @endpush
-
-

@@ -53,11 +53,12 @@ class ReportesComisionesGenerales extends Component
 
     /**
      * Reporte de comisiones por empleado
+     * Filtra comisiones ENTRE las fechas especificadas
      */
     public function reporteEmpleado(Request $request)
     {
-        $fechaInicio = $request->input('fechaInicio');
-        $fechaFin = $request->input('fechaFin');
+        $fechaInicio = $request->input('fechaInicio') . ' 00:00:00';
+        $fechaFin = $request->input('fechaFin') . ' 23:59:59';
         $empleadoId = $request->input('filtroEspecifico');
 
         $query = DB::table('comision_empleado as ce')
@@ -74,11 +75,11 @@ class ReportesComisionesGenerales extends Component
                 DB::raw('COALESCE(pc.id, ce.id) as id'),
                 'u.id as empleado_id',
                 'u.name as empleado',
-                'f.cai as factura',
-                'p.nombre as producto',
+                DB::raw('COALESCE(f.cai, "N/A") as factura'),
+                DB::raw('COALESCE(p.nombre, "N/A") as producto'),
                 DB::raw('COALESCE(pc.cantidad, 0) as cantidad'),
                 DB::raw('COALESCE(pc.monto_comision, 0) as monto_comision'),
-                DB::raw('DATE_FORMAT(fc.created_at, "%Y-%m-%d") as fecha')
+                DB::raw('COALESCE(DATE_FORMAT(fc.created_at, "%Y-%m-%d"), "N/A") as fecha')
             )
             ->where('ce.estado_id', 1);
 
@@ -91,11 +92,12 @@ class ReportesComisionesGenerales extends Component
 
     /**
      * Reporte de comisiones por rol
+     * Filtra comisiones ENTRE las fechas especificadas
      */
     public function reporteRol(Request $request)
     {
-        $fechaInicio = $request->input('fechaInicio');
-        $fechaFin = $request->input('fechaFin');
+        $fechaInicio = $request->input('fechaInicio') . ' 00:00:00';
+        $fechaFin = $request->input('fechaFin') . ' 23:59:59';
         $rolId = $request->input('filtroEspecifico');
 
         $query = DB::table('rol as r')
@@ -125,11 +127,12 @@ class ReportesComisionesGenerales extends Component
 
     /**
      * Reporte general de comisiones por usuario
+     * Filtra comisiones ENTRE las fechas especificadas
      */
     public function reporteUsuarios(Request $request)
     {
-        $fechaInicio = $request->input('fechaInicio');
-        $fechaFin = $request->input('fechaFin');
+        $fechaInicio = $request->input('fechaInicio') . ' 00:00:00';
+        $fechaFin = $request->input('fechaFin') . ' 23:59:59';
 
         $query = DB::table('facturas_comision as fc')
             ->join('comision_empleado as ce', 'ce.rol_id', '=', 'fc.rol_id')
@@ -137,6 +140,8 @@ class ReportesComisionesGenerales extends Component
             ->leftJoin('rol as r', 'r.id', '=', 'fc.rol_id')
             ->join('producto_comision as pc', 'pc.facturas_comision_id', '=', 'fc.id')
             ->whereBetween('fc.created_at', [$fechaInicio, $fechaFin])
+            ->where('fc.estado_id', 1)
+            ->where('ce.estado_id', 1)
             ->select(
                 'u.id',
                 'u.name as usuario',
@@ -152,17 +157,20 @@ class ReportesComisionesGenerales extends Component
 
     /**
      * Reporte general de comisiones por producto
+     * Filtra comisiones ENTRE las fechas especificadas
      */
     public function reporteProductos(Request $request)
     {
-        $fechaInicio = $request->input('fechaInicio');
-        $fechaFin = $request->input('fechaFin');
+        $fechaInicio = $request->input('fechaInicio') . ' 00:00:00';
+        $fechaFin = $request->input('fechaFin') . ' 23:59:59';
 
         $query = DB::table('producto_comision as pc')
             ->join('facturas_comision as fc', 'fc.id', '=', 'pc.facturas_comision_id')
             ->join('producto as p', 'p.id', '=', 'pc.producto_id')
             ->join('comision_empleado as ce', 'ce.rol_id', '=', 'fc.rol_id')
             ->whereBetween('fc.created_at', [$fechaInicio, $fechaFin])
+            ->where('fc.estado_id', 1)
+            ->where('ce.estado_id', 1)
             ->select(
                 'p.id',
                 'p.nombre as producto',
@@ -178,11 +186,12 @@ class ReportesComisionesGenerales extends Component
 
     /**
      * Reporte general de comisiones por factura
+     * Filtra comisiones ENTRE las fechas especificadas
      */
     public function reporteFacturas(Request $request)
     {
-        $fechaInicio = $request->input('fechaInicio');
-        $fechaFin = $request->input('fechaFin');
+        $fechaInicio = $request->input('fechaInicio') . ' 00:00:00';
+        $fechaFin = $request->input('fechaFin') . ' 23:59:59';
 
         $query = DB::table('facturas_comision as fc')
             ->join('comision_empleado as ce', 'ce.rol_id', '=', 'fc.rol_id')
@@ -190,6 +199,8 @@ class ReportesComisionesGenerales extends Component
             ->join('factura as v', 'v.id', '=', 'fc.factura_id')
             ->join('cliente as cl', 'cl.id', '=', 'v.cliente_id')
             ->whereBetween('fc.created_at', [$fechaInicio, $fechaFin])
+            ->where('fc.estado_id', 1)
+            ->where('ce.estado_id', 1)
             ->select(
                 'fc.id',
                 'v.cai as factura',
