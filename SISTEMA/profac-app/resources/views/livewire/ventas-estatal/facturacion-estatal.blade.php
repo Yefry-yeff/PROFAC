@@ -166,6 +166,13 @@
 
                             <div class="row">
                                 <div class="col-12 col-md-6 col-lg-6 col-xl-6">
+                                    <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
+                                        <label for="bodega" class="col-form-label focus-label">Categoría/Cliente Venta:<span class="text-danger">*</span></label>
+                                        <select id="categoria_cliente_venta_id" name="categoria_cliente_venta_id" class="form-group form-control"style="" onchange="listaCategoríaClientes()">
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-md-6 col-lg-6 col-xl-6">
 
                                     <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
                                         <label for="seleccionarProducto"
@@ -180,13 +187,6 @@
 
                                 </div>
 
-                                <div class="col-12 col-md-6 col-lg-6 col-xl-6">
-                                    <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                        <label for="bodega" class="col-form-label focus-label">Categoría/Cliente Venta:<span class="text-danger">*</span></label>
-                                        <select id="categoria_cliente_venta_id" name="categoria_cliente_venta_id" class="form-group form-control"style="" onchange="listaCategoríaClientes()">
-                                        </select>
-                                    </div>
-                                </div>
 
                                 <div class="col-12 col-md-6 col-lg-6 col-xl-6">
                                     <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
@@ -491,7 +491,7 @@
                     cargarDatosCotizacion();
                 }
             };
-            
+
             var public_path = "{{ asset('catalogo/') }}";
 
 
@@ -531,23 +531,24 @@
 
 
 
+            function obtenerProductosCategoria(){
 
-            $('#seleccionarProducto').select2({
-                ajax: {
-                    url: '/ventas/listar',
-                    data: function(params) {
-                        var query = {
-                            search: params.term,
-                            type: 'public',
-                            page: params.page || 1
+                let categoriaClienteSeleccionado = document.getElementById("categoria_cliente_venta_id").value;
+                $('#seleccionarProducto').select2({
+                    ajax: {
+                        url: '/ventas/listar/'+ categoriaClienteSeleccionado,
+                        data: function(params) {
+                            var query = {
+                                search: params.term,
+                                type: 'public',
+                                page: params.page || 1
+                            }
+                            return query;
                         }
-
-                        // Query parameters will be ?search=[term]&type=public
-
-                        return query;
                     }
-                }
-            });
+                });
+            }
+
 
             function prueba() {
 
@@ -676,6 +677,7 @@
                         }
                     }
                 });
+                obtenerProductosCategoria();
             }
 
             function obtenerBodegas(id) {
@@ -737,6 +739,8 @@
                                 obtenerOrdenesCompra();
                             }
 
+                            //seleccionarProducto
+                            obtenerProductosCategoria();
                         }
                     )
                     .catch(err => {
@@ -792,26 +796,26 @@
                 // Cargar datos del cliente
                 let newOption = new Option(cotizacionData.nombre_cliente, cotizacionData.cliente_id, true, true);
                 $('#seleccionarCliente').append(newOption).trigger('change');
-                
+
                 document.getElementById('nombre_cliente_ventas').value = cotizacionData.nombre_cliente;
                 document.getElementById('rtn_ventas').value = cotizacionData.RTN;
-                
+
                 // Cargar vendedor
                 let vendedorOption = new Option('Vendedor', cotizacionData.vendedor, true, true);
                 $('#vendedor').append(vendedorOption).trigger('change');
-                
+
                 // Cargar fechas
                 document.getElementById('fecha_emision').value = cotizacionData.fecha_emision;
                 document.getElementById('fecha_vencimiento').value = cotizacionData.fecha_vencimiento;
-                
+
                 // Cargar descuento
                 document.getElementById('porDescuento').value = cotizacionData.porDescuento;
                 document.getElementById('porDescuentoCalculado').value = cotizacionData.porDescuento;
-                
+
                 // Cargar arrays de inputs
                 arregloIdInputs = cotizacionData.arregloIdInputs.split(',');
                 numeroInputs = parseInt(cotizacionData.numeroInputs);
-                
+
                 // Cargar totales
                 setTimeout(() => {
                     document.getElementById('subTotalGeneralGrabado').value = cotizacionData.subTotalGrabado.toFixed(2);

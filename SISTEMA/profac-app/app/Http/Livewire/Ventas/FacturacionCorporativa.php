@@ -172,7 +172,7 @@ class FacturacionCorporativa extends Component
         }
     }
 
-    public function productoBodega(Request $request)
+    public function productoBodega(Request $request, $categoriaClienteSeleccionado)
     {
         try {
 
@@ -182,15 +182,10 @@ class FacturacionCorporativa extends Component
             B.id,
             concat('cod ',B.id,' - ',B.nombre,' - ',B.codigo_barra,' - ','cantidad ',sum(A.cantidad_disponible)) as text
          from
-            recibido_bodega A
-            inner join producto B
-            on A.producto_id = B.id
-            inner join seccion
-            on A.seccion_id = seccion.id
-            inner join segmento
-            on seccion.segmento_id = segmento.id
-            inner join bodega
-            on segmento.bodega_id = bodega.id
+            recibido_bodega A inner join producto B on A.producto_id = B.id
+            inner join seccion on A.seccion_id = seccion.id
+            inner join segmento on seccion.segmento_id = segmento.id
+            inner join bodega on segmento.bodega_id = bodega.id
          where
 
          (B.nombre LIKE '%" . $request->search . "%' or B.id LIKE '%" . $request->search . "%' or B.codigo_barra Like '%" . $request->search . "%')
@@ -260,6 +255,10 @@ class FacturacionCorporativa extends Component
             3887,
             3888
                     )
+            and A.producto_id in (
+            select B.producto_id from categoria_precios A
+            inner join precios_producto_carga B on B.categoria_precios_id = A.id and B.estado_id = 1
+            where A.estado_id = 1 and A.cliente_categoria_escala_id =".$categoriaClienteSeleccionado." )
          group by A.producto_id
          limit 15
          ");

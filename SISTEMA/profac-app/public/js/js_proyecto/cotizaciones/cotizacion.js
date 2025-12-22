@@ -884,6 +884,7 @@
                             }
 
 
+                            obtenerProductosCategoria();
 
                         }
                     )
