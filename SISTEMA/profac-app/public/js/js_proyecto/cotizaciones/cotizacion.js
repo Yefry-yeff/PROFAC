@@ -124,9 +124,15 @@
             });
 
             function listaCategoríaClientes() {
-                let idProducto = document.getElementById('seleccionarProducto').value;
-                document.getElementById('bodega').disabled = false;
-                obtenerBodegas(idProducto);
+                let categoriaId = $('#categoria_cliente_venta_id').val();
+                let productoId = $('#seleccionarProducto').val();
+                
+                if (categoriaId && productoId) {
+                    // Habilitar bodega
+                    $('#bodega').prop('disabled', false);
+                    // Cargar bodegas del producto
+                    obtenerBodegas(productoId);
+                }
             }
 
             function prueba() {
@@ -193,38 +199,53 @@
             }
 
             function cargarCategoriasProducto() {
-                let idProducto = document.getElementById('seleccionarProducto').value;
+                let productoId = $('#seleccionarProducto').val();
                 
-                document.getElementById('categoria_cliente_venta_id').innerHTML = "<option value='' selected disabled>--Cargando categorías--</option>";
-                document.getElementById('categoria_cliente_venta_id').disabled = true;
-                document.getElementById('bodega').innerHTML = "<option value='' selected disabled>--Seleccione una categoría--</option>";
-                document.getElementById('bodega').disabled = true;
-                
-                axios.post('/producto/categorias-disponibles', {
-                    producto_id: idProducto
-                })
-                .then(response => {
-                    let categorias = response.data.categorias;
-                    let htmlCategorias = '<option value="" selected disabled>--Seleccione una categoría--</option>';
+                if (productoId) {
+                    // Limpiar y deshabilitar categoría mientras se carga
+                    $('#categoria_cliente_venta_id').prop('disabled', true);
+                    $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>Cargando categorías...</option>');
                     
-                    categorias.forEach(categoria => {
-                        htmlCategorias += `<option value="${categoria.id}">${categoria.nombre_categoria}</option>`;
+                    // Cargar categorías del producto
+                    axios.post('/producto/categorias-disponibles', {
+                        producto_id: productoId
+                    })
+                    .then(response => {
+                        let categorias = response.data.categorias;
+                        
+                        $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>--Seleccione una categoría--</option>');
+                        
+                        if (categorias.length > 0) {
+                            categorias.forEach(categoria => {
+                                let option = new Option(categoria.nombre_categoria, categoria.id, false, false);
+                                $('#categoria_cliente_venta_id').append(option);
+                            });
+                            $('#categoria_cliente_venta_id').prop('disabled', false);
+                        } else {
+                            $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>No hay categorías disponibles para este producto</option>');
+                            Swal.fire({
+                                icon: 'warning',
+                                title: 'Advertencia',
+                                text: 'Este producto no tiene escalas de precio asignadas en ninguna categoría.'
+                            });
+                        }
+                    })
+                    .catch(err => {
+                        console.log(err);
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'Ha ocurrido un error al cargar las categorías del producto.'
+                        });
+                        $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>Error al cargar categorías</option>');
                     });
                     
-                    document.getElementById('categoria_cliente_venta_id').innerHTML = htmlCategorias;
-                    document.getElementById('categoria_cliente_venta_id').disabled = false;
-                    
+                    // Continuar con las imágenes del producto
                     obtenerImagenes();
-                })
-                .catch(err => {
-                    console.error(err);
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: 'No se pudieron cargar las categorías disponibles para este producto'
-                    });
-                    document.getElementById('categoria_cliente_venta_id').innerHTML = "<option value='' selected disabled>--Error al cargar--</option>";
-                });
+                } else {
+                    $('#categoria_cliente_venta_id').prop('disabled', true);
+                    $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>--Seleccione primero un producto--</option>');
+                }
             }
 
             function obtenerImagenes() {
