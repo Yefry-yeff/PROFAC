@@ -12,19 +12,6 @@
             width: 1px !important;
         }
         
-        .select2-container--bootstrap4 .select2-selection--single .select2-selection__rendered {
-            line-height: 28px;
-            padding-left: 0.5rem;
-            padding-right: 2rem;
-        }
-
-        .select2-container--bootstrap4 .select2-selection--single .select2-selection__clear {
-            position: absolute;
-            right: 10px;
-            top: 50%;
-            transform: translateY(-50%);
-        }
-
         .page-heading, .d-flex.bg-light {
             background-color: #f8f9fa;
             border-radius: 0.35rem;
@@ -40,23 +27,32 @@
 
         .select2-dropdown {
             z-index: 3050 !important;
-            max-height: 200px;
+            max-height: 300px;
             overflow-y: auto;
+            border-radius: 0.35rem;
         }
 
         .select2-container--bootstrap4 .select2-selection--single {
-            height: 38px;
+            height: 40px;
             padding: 6px 12px;
             border-radius: 0.35rem;
             border: 1px solid #ced4da;
+            transition: all 0.2s ease;
+        }
+
+        .select2-container--bootstrap4 .select2-selection--single:focus,
+        .select2-container--bootstrap4.select2-container--focus .select2-selection--single {
+            border-color: #80bdff;
+            box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
         }
 
         .select2-container--bootstrap4 .select2-selection__rendered {
             line-height: 28px;
+            padding-left: 12px;
         }
 
         .select2-container--bootstrap4 .select2-selection__arrow {
-            height: 34px;
+            height: 38px;
             right: 8px;
         }
 
@@ -66,73 +62,85 @@
 
         .btn-success, .btn-primary, .btn-outline-secondary {
             font-weight: 500;
-            padding: 0.35rem 0.9rem;
+            padding: 0.5rem 1rem;
             border-radius: 0.35rem;
+            transition: all 0.2s ease;
+        }
+
+        .btn-filtrar:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 3px 8px rgba(0,0,0,0.15);
         }
 
         .filtro-container {
             display: flex;
             flex-wrap: wrap;
-            gap: 0.5rem;
-            align-items: center;
+            gap: 1rem;
+            align-items: end;
         }
 
-        .filtro-select, .filtro-input {
-            min-width: 150px;
-            flex: 1 1 150px;
-            height: 38px;
+        .filtro-item {
+            flex: 1 1 220px;
+            min-width: 220px;
         }
 
-        .btn-filtrar {
-            height: 38px;
-            flex: 0 0 auto;
+        .filtro-item label {
+            font-weight: 600;
+            color: #495057;
+            font-size: 0.9rem;
+            margin-bottom: 0.4rem;
+            display: block;
         }
 
-        textarea.form-control, input.form-control {
+        .filtro-item label i {
+            margin-right: 5px;
+        }
+
+        .form-control {
             border-radius: 0.35rem;
             border: 1px solid #ced4da;
             font-size: 0.9rem;
-            padding: 6px 12px;
+            padding: 0.5rem 0.75rem;
+            height: 40px;
+            transition: all 0.2s ease;
         }
 
-        .modal .select2-container {
-            width: 100% !important;
+        .form-control:focus {
+            border-color: #80bdff;
+            box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
         }
 
-        @media (max-width: 576px) {
-            form.d-flex {
-                flex-direction: column;
-            }
+        .btn-actions {
+            display: flex;
+            gap: 0.75rem;
+            margin-top: auto;
+        }
 
-            form.d-flex > * {
-                margin-bottom: 0.5rem;
-            }
-
+        @media (max-width: 768px) {
             .filtro-container {
                 flex-direction: column;
-                margin-left: 0;
-                gap: 0.5rem;
+                gap: 0.75rem;
+            }
+
+            .filtro-item {
+                min-width: 100%;
+                flex: 1 1 100%;
+            }
+
+            .btn-actions {
+                flex-direction: column;
+                width: 100%;
             }
 
             .btn-filtrar {
                 width: 100%;
             }
-
-            .card-header .d-flex > div,
-            .card-header .d-flex > button {
-                width: 100%;
-            }
-
-            .card-header .d-flex {
-                flex-direction: column;
-                gap: 0.5rem;
-            }
         }
 
         @media (min-width: 992px) {
-            .filtro-select, .filtro-input {
-                min-width: 180px;
-                flex: 1 1 180px;
+            .filtro-item {
+                min-width: 200px;
+                flex: 1 1 200px;
             }
         }
     </style>
@@ -140,15 +148,17 @@
 
 <!-- Filtros Generales -->
 <div class="card shadow-sm border-0 mb-3">
-    <div class="card-header bg-primary text-white py-2">
-        <h5 class="mb-0"><b>📊 FILTROS GENERALES DE REPORTES</b></h5>
+    <div class="card-header bg-light py-2">
+        <h5 class="mb-0"><b>🔍 FILTROS DE REPORTES DE COMISIONES</b></h5>
     </div>
     <div class="card-body p-3">
-        <div class="d-flex flex-wrap align-items-center filtro-container">
+        <div class="filtro-container">
             <!-- Tipo de Reporte -->
             <div class="filtro-item">
-                <label class="small mb-1">Tipo de Reporte</label>
-                <select id="tipoReporte" class="form-control select2bs4 filtro-select">
+                <label for="tipoReporte">
+                    <i class="fas fa-chart-bar"></i>Tipo de Reporte
+                </label>
+                <select id="tipoReporte" class="form-control select2bs4">
                     <option value="">Seleccione tipo...</option>
                     <option value="empleado">👤 Por Empleado</option>
                     <option value="rol">👥 Por Rol</option>
@@ -160,30 +170,38 @@
 
             <!-- Fecha Inicio -->
             <div class="filtro-item">
-                <label class="small mb-1">Fecha Inicio</label>
-                <input type="date" id="fechaInicio" class="form-control filtro-input">
+                <label for="fechaInicio">
+                    <i class="fas fa-calendar-alt"></i>Fecha Inicio
+                </label>
+                <input type="date" id="fechaInicio" class="form-control" required>
             </div>
 
             <!-- Fecha Fin -->
             <div class="filtro-item">
-                <label class="small mb-1">Fecha Fin</label>
-                <input type="date" id="fechaFin" class="form-control filtro-input">
+                <label for="fechaFin">
+                    <i class="fas fa-calendar-check"></i>Fecha Fin
+                </label>
+                <input type="date" id="fechaFin" class="form-control" required>
             </div>
 
             <!-- Selector Específico (Empleado/Rol) -->
             <div class="filtro-item" id="containerFiltroEspecifico" style="display: none;">
-                <label class="small mb-1" id="labelFiltroEspecifico">Seleccionar</label>
-                <select id="filtroEspecifico" class="form-control select2bs4 filtro-select"></select>
+                <label for="filtroEspecifico" id="labelFiltroEspecifico">
+                    <i class="fas fa-user-check"></i>Seleccionar
+                </label>
+                <select id="filtroEspecifico" class="form-control select2bs4"></select>
             </div>
 
-            <!-- Botones -->
-            <div class="filtro-item ms-auto d-flex gap-2">
-                <button type="button" id="btnFiltrar" class="btn btn-primary btn-filtrar">
-                    🔍 Filtrar
-                </button>
-                <button type="button" id="btnDescargar" class="btn btn-success btn-filtrar">
-                    📥 Descargar Excel
-                </button>
+            <!-- Botones de Acción -->
+            <div class="filtro-item ms-auto">
+                <div class="btn-actions">
+                    <button type="button" id="btnFiltrar" class="btn btn-primary btn-filtrar">
+                        <i class="fas fa-search me-1"></i>Generar Reporte
+                    </button>
+                    <button type="button" id="btnDescargar" class="btn btn-success btn-filtrar">
+                        <i class="fas fa-file-excel me-1"></i>Descargar Excel
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -192,7 +210,7 @@
 <!-- Tabla de Resultados -->
 <div class="card shadow-sm border-0 mt-3">
     <div class="card-header bg-light py-2">
-        <h5 class="mb-0"><b>📋 <span id="tituloTabla">Resultados</span></b></h5>
+        <h5 class="mb-0"><b>📋 <span id="tituloTabla">Resultados del Reporte</span></b></h5>
     </div>
     <div class="card-body p-2">
         <div class="table-responsive">
@@ -215,5 +233,3 @@
 @push('scripts')
     <script src="{{ asset('js/js_proyecto/comisiones/Escalado/reportesGeneral.js') }}"></script>
 @endpush
-
-

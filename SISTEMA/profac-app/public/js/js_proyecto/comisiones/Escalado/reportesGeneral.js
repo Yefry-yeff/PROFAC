@@ -160,11 +160,14 @@ function cargarReporte() {
         return;
     }
     
-    // Destruir tabla existente
+    // Destruir tabla existente completamente
     if (tablaComisiones) {
         tablaComisiones.destroy();
         tablaComisiones = null;
     }
+    
+    // Limpiar completamente el tbody
+    $('#tbl_comisiones tbody').empty();
     
     // Configurar encabezados según tipo
     let columns = [];
@@ -247,7 +250,7 @@ function cargarReporte() {
             columns = [
                 { data: 'id', width: '50px' },
                 { data: 'producto' },
-                { data: 'categoria' },
+                { data: 'codigo_barra' },
                 { data: 'cantidad_vendida', className: 'text-right' },
                 { data: 'total_comisiones', className: 'text-right' },
                 { data: 'num_empleados', className: 'text-center' }
@@ -256,7 +259,7 @@ function cargarReporte() {
                 <tr>
                     <th>ID</th>
                     <th>Producto</th>
-                    <th>Categoría</th>
+                    <th>Código Barra</th>
                     <th>Cantidad Vendida</th>
                     <th>Total Comisiones</th>
                     <th># Empleados</th>
@@ -292,16 +295,19 @@ function cargarReporte() {
     
     $('#tituloTabla').text(titulo);
     
-    // Inicializar DataTable
-    tablaComisiones = $('#tbl_comisiones').DataTable({
-        processing: true,
-        serverSide: true,
-        deferRender: true,
-        language: {
-            url: "https://cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json",
-            processing: '<i class="fa fa-spinner fa-spin fa-3x fa-fw"></i><span class="sr-only">Cargando...</span>'
-        },
-        ajax: {
+    // Asegurarse de que el DOM está listo antes de inicializar DataTable
+    setTimeout(function() {
+        // Inicializar DataTable
+        tablaComisiones = $('#tbl_comisiones').DataTable({
+            processing: true,
+            serverSide: true,
+            deferRender: true,
+            destroy: true, // Asegurar destrucción automática
+            language: {
+                url: "https://cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json",
+                processing: '<i class="fa fa-spinner fa-spin fa-3x fa-fw"></i><span class="sr-only">Cargando...</span>'
+            },
+            ajax: {
             url: endpoint,
             type: 'GET',
             data: function(d) {
@@ -323,7 +329,8 @@ function cargarReporte() {
         pageLength: 10,
         lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "Todos"]],
         responsive: true
-    });
+        });
+    }, 100); // Pequeño delay para asegurar que el thead se actualice
 }
 
 // Descargar Excel
