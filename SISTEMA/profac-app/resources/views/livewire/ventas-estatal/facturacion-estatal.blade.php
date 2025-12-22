@@ -166,13 +166,12 @@
 
                             <div class="row">
                                 <div class="col-12 col-md-6 col-lg-6 col-xl-6">
-
                                     <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
                                         <label for="seleccionarProducto"
                                             class="col-form-label focus-label">Seleccionar Producto:<span class="text-danger">*</span></label>
                                         <select id="seleccionarProducto" name="seleccionarProducto"
                                             class="form-group form-control" style=""
-                                            onchange="obtenerImagenes()">
+                                            onchange="cargarCategoriasProducto()">
                                             <option value="" selected disabled>--Seleccione un producto--
                                             </option>
                                         </select>
@@ -183,7 +182,8 @@
                                 <div class="col-12 col-md-6 col-lg-6 col-xl-6">
                                     <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
                                         <label for="bodega" class="col-form-label focus-label">Categoría/Cliente Venta:<span class="text-danger">*</span></label>
-                                        <select id="categoria_cliente_venta_id" name="categoria_cliente_venta_id" class="form-group form-control"style="" onchange="listaCategoríaClientes()">
+                                        <select id="categoria_cliente_venta_id" name="categoria_cliente_venta_id" class="form-group form-control" style="" onchange="habilitarBodega()" disabled>
+                                            <option value="" selected disabled>--Seleccione primero un producto--</option>
                                         </select>
                                     </div>
                                 </div>
@@ -678,6 +678,68 @@
                 });
             }
 
+            function cargarCategoriasProducto() {
+                let productoId = $('#seleccionarProducto').val();
+                
+                if (productoId) {
+                    // Limpiar y deshabilitar categoría mientras se carga
+                    $('#categoria_cliente_venta_id').prop('disabled', true);
+                    $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>Cargando categorías...</option>');
+                    
+                    // Cargar categorías del producto
+                    axios.post('/producto/categorias-disponibles', {
+                        producto_id: productoId
+                    })
+                    .then(response => {
+                        let categorias = response.data.categorias;
+                        
+                        $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>--Seleccione una categoría--</option>');
+                        
+                        if (categorias.length > 0) {
+                            categorias.forEach(categoria => {
+                                let option = new Option(categoria.nombre_categoria, categoria.id, false, false);
+                                $('#categoria_cliente_venta_id').append(option);
+                            });
+                            $('#categoria_cliente_venta_id').prop('disabled', false);
+                        } else {
+                            $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>No hay categorías disponibles para este producto</option>');
+                            Swal.fire({
+                                icon: 'warning',
+                                title: 'Advertencia',
+                                text: 'Este producto no tiene escalas de precio asignadas en ninguna categoría.'
+                            });
+                        }
+                    })
+                    .catch(err => {
+                        console.log(err);
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'Ha ocurrido un error al cargar las categorías del producto.'
+                        });
+                        $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>Error al cargar categorías</option>');
+                    });
+                    
+                    // Continuar con las imágenes del producto
+                    obtenerImagenes();
+                } else {
+                    $('#categoria_cliente_venta_id').prop('disabled', true);
+                    $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>--Seleccione primero un producto--</option>');
+                }
+            }
+
+            function habilitarBodega() {
+                let categoriaId = $('#categoria_cliente_venta_id').val();
+                let productoId = $('#seleccionarProducto').val();
+                
+                if (categoriaId && productoId) {
+                    // Habilitar bodega
+                    $('#bodega').prop('disabled', false);
+                    // Cargar bodegas del producto
+                    obtenerBodegas(productoId);
+                }
+            }
+
             function obtenerBodegas(id) {
 
                 document.getElementById('bodega').innerHTML = "<option  selected disabled>--Seleccione una bodega--</option>";
@@ -864,7 +926,8 @@
             function obtenerImagenes() {
                 let id = document.getElementById('seleccionarProducto').value;
 
-                document.getElementById("bodega").disabled = false;
+                // No habilitar bodega automáticamente
+                // document.getElementById("bodega").disabled = false;
                 let htmlImagenes = '';
                 axios.post('/producto/listar/imagenes', {
                         id: id,

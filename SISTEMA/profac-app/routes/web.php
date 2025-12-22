@@ -469,6 +469,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('/ventas/listar/', [FacturacionCorporativa::class, 'productoBodega']);
 
     Route::post('/ventas/datos/producto', [FacturacionCorporativa::class, 'obtenerDatosProducto']);
+    Route::post('/producto/categorias-disponibles', [FacturacionCorporativa::class, 'obtenerCategoriasProducto']);
 
     Route::post('/ventas/corporativo/guardar', [FacturacionCorporativa::class, 'guardarVenta']);
     Route::get('/ventas/corporativo/vendedores', [FacturacionCorporativa::class, 'listadoVendedores']);

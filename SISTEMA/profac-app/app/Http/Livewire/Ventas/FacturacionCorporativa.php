@@ -176,7 +176,6 @@ class FacturacionCorporativa extends Component
     {
         try {
 
-
             $listaProductos = DB::SELECT("
          select
             B.id,
@@ -381,6 +380,41 @@ class FacturacionCorporativa extends Component
             return response()->json([
                 'message' => 'ERROR AL OBTENER PRODUCTO PARA EL CARRITO.',
                 'error' => $e,
+            ], 402);
+        }
+    }
+
+    public function obtenerCategoriasProducto(Request $request)
+    {
+        try {
+            $productoId = $request->producto_id;
+
+            $categorias = DB::SELECT("
+                SELECT DISTINCT
+                    cce.id,
+                    cce.nombre_categoria
+                FROM
+                    precios_producto_carga ppc
+                INNER JOIN
+                    categoria_precios cp ON ppc.categoria_precios_id = cp.id
+                INNER JOIN
+                    cliente_categoria_escala cce ON cp.cliente_categoria_escala_id = cce.id
+                WHERE
+                    ppc.producto_id = ?
+                    AND ppc.estado_id = 1
+                    AND cp.estado_id = 1
+                    AND cce.estado_id = 1
+                ORDER BY
+                    cce.nombre_categoria ASC
+            ", [$productoId]);
+
+            return response()->json([
+                'categorias' => $categorias
+            ], 200);
+        } catch (QueryException $e) {
+            return response()->json([
+                'message' => 'Ha ocurrido un error al obtener las categorías del producto.',
+                'error' => $e
             ], 402);
         }
     }
