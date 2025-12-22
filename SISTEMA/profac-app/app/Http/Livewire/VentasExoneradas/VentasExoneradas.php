@@ -283,35 +283,11 @@ class VentasExoneradas extends Component
             $caiUpdated->cantidad_no_utilizada = $cai->cantidad_otorgada - $numeroSecuencia;
             $caiUpdated->save();
 
-            //Tabla de listado
-
-            // DB::INSERT("INSERT INTO listado(
-            //          numero, secuencia, numero_inicial, numero_final, cantidad_otorgada, cai_id, created_at, updated_at, eliminado) VALUES
-            //         ('" . $numeroCAI . "','" . $numeroSecuencia . "','" . $cai->numero_inicial . "','" . $cai->numero_final . "','" . $cai->cantidad_otorgada . "','" . $cai->id . "','" . NOW() . "','" . NOW() . "',0)");
-
-
-
 
             $codigoExoneracion = ModelCodigoExoneracion::find($request->codigo);
             $codigoExoneracion->estado_id = 2;
             $codigoExoneracion->save();
 
-            // //dd( $guardarCompra);
-
-
-
-            /* $aplicacionPagos = DB::select("
-
-            CALL sp_aplicacion_pagos('2','".$factura->cliente_id."', '".Auth::user()->id."', '".$factura->id."','na','0','0','0', @estado, @msjResultado);");
-
-
-            if ($aplicacionPagos[0]->estado == -1) {
-                return response()->json([
-                    "text" => "Ha ocurrido un error al insertar factura ".$factura->id."en aplicacion de pagos.",
-                    "icon" => "error",
-                    "title"=>"Error!"
-                ],400);
-            } */
             for ($i = 0; $i < count($arrayInputs); $i++) {
 
                 $keyRestaInventario = "restaInventario" . $arrayInputs[$i];
@@ -328,7 +304,7 @@ class VentasExoneradas extends Component
                 $keyunidad = 'unidad' . $arrayInputs[$i];
                 $keyidPrecioSeleccionado = 'idPrecioSeleccionado'.$arrayInputs[$i];
                 $keyprecioSeleccionado = 'precios'.$arrayInputs[$i];
-                $keyidCategoriaSeleccionada = 'idCategoriaSeleccionada'.$arrayInputs[$i];
+                $keyprecios_producto_carga_id = 'precios_producto_carga_id'.$arrayInputs[$i];
 
                 $restaInventario = $request->$keyRestaInventario;
                 $idSeccion = $request->$keyIdSeccion;
@@ -339,7 +315,7 @@ class VentasExoneradas extends Component
 
                 $idPrecioSeleccionado = $request->$keyidPrecioSeleccionado;
                 $precioSeleccionado = $request->$keyprecioSeleccionado;
-                $categoriaClientePrecio = $request->$keyidCategoriaSeleccionada;
+                $precios_producto_carga_id = $request->$keyprecios_producto_carga_id;
 
                 $precio = $request->$keyPrecio;
                 $cantidad = $request->$keyCantidad;
@@ -349,7 +325,7 @@ class VentasExoneradas extends Component
 
                 //dd($factura);
 
-                $this->restarUnidadesInventario($categoriaClientePrecio, $idPrecioSeleccionado,$precioSeleccionado,$restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad,$arrayInputs[$i]);
+                $this->restarUnidadesInventario($precios_producto_carga_id, $idPrecioSeleccionado,$precioSeleccionado,$restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad,$arrayInputs[$i]);
             };
 
             if ($request->tipoPagoVenta == 2) { //si el tipo de pago es credito
@@ -393,7 +369,7 @@ class VentasExoneradas extends Component
         }
     }
 
-    public function restarUnidadesInventario($idPrecioSeleccionado,$precioSeleccionado,$unidadesRestarInv, $idProducto, $idSeccion, $idFactura, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $indice)
+    public function restarUnidadesInventario($precios_producto_carga_id,$idPrecioSeleccionado,$precioSeleccionado,$unidadesRestarInv, $idProducto, $idSeccion, $idFactura, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $indice)
     {
         try {
 
@@ -466,13 +442,6 @@ class VentasExoneradas extends Component
                 };
 
 
-                $precioProductoCargaId = DB::SELECTONE("
-
-                select A.id from precios_producto_carga A
-                inner join categoria_precios B on B.id = A.categoria_precios_id and B.estado_id = 1
-                inner join cliente_categoria_escala C on C.id = B.cliente_categoria_escala_id and C.estado_id = 1
-                where A.estado_id = 1 and A.producto_id = ? and C.id = ?", [$idProducto,$categoriaClientePrecio]);
-
                 array_push($this->arrayProductos, [
                     "factura_id" => $idFactura,
                     "producto_id" => $idProducto,
@@ -497,7 +466,7 @@ class VentasExoneradas extends Component
                     "total_s" => $totalSecccionado,
                     "idPrecioSeleccionado"=>$idPrecioSeleccionado,
                     "precioSeleccionado"=>$precioSeleccionado,
-                    "precios_producto_carga_id" => $precioProductoCargaId->id,
+                    "precios_producto_carga_id" => $precios_producto_carga_id,
                     "created_at" => now(),
                     "updated_at" => now(),
                 ]);

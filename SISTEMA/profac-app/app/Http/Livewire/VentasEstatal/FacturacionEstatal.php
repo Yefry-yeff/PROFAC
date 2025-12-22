@@ -508,7 +508,8 @@ class FacturacionEstatal extends Component
                     ppc.precio_a AS precio1,
                     ppc.precio_b AS precio2,
                     ppc.precio_c AS precio3,
-                    ppc.precio_d AS precio4
+                    ppc.precio_d AS precio4,
+                    ppc.id AS precios_producto_carga_id
                 FROM producto p
                 JOIN cliente_categoria_escala cce
                     ON cce.id = :categoria_cliente_venta_id
@@ -791,7 +792,7 @@ class FacturacionEstatal extends Component
                 $keyunidad = 'unidad' . $arrayInputs[$i];
                 $keyidPrecioSeleccionado = 'idPrecioSeleccionado'.$arrayInputs[$i];
                 $keyprecioSeleccionado = 'precios'.$arrayInputs[$i];
-                $keyidCategoriaSeleccionada = 'idCategoriaSeleccionada'.$arrayInputs[$i];
+                $keyprecios_producto_carga_id = 'precios_producto_carga_id'.$arrayInputs[$i];
 
                 $restaInventario = $request->$keyRestaInventario;
                 $idSeccion = $request->$keyIdSeccion;
@@ -802,7 +803,7 @@ class FacturacionEstatal extends Component
                 $idPrecioSeleccionado = $request->$keyidPrecioSeleccionado;
                 $precioSeleccionado = $request->$keyprecioSeleccionado;
 
-                $categoriaClientePrecio = $request->$keyidCategoriaSeleccionada;
+                $precios_producto_carga_id = $request->$keyprecios_producto_carga_id;
 
                 $precio = $request->$keyPrecio;
                 $cantidad = $request->$keyCantidad;
@@ -810,7 +811,7 @@ class FacturacionEstatal extends Component
                 $isv = $request->$keyIsv;
                 $total = $request->$keyTotal;
 
-                $this->restarUnidadesInventario($categoriaClientePrecio, $idPrecioSeleccionado,$precioSeleccionado ,$restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $arrayInputs[$i]);
+                $this->restarUnidadesInventario($precios_producto_carga_id, $idPrecioSeleccionado,$precioSeleccionado ,$restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $arrayInputs[$i]);
             };
 
 
@@ -854,7 +855,7 @@ class FacturacionEstatal extends Component
         }
     }
 
-    public function restarUnidadesInventario($categoriaClientePrecio,$idPrecioSeleccionado,$precioSeleccionado ,$unidadesRestarInv, $idProducto, $idSeccion, $idFactura, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $indice)
+    public function restarUnidadesInventario($precios_producto_carga_id,$idPrecioSeleccionado,$precioSeleccionado ,$unidadesRestarInv, $idProducto, $idSeccion, $idFactura, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $indice)
     {
         //dd("Categoria Cliente primer producto : ".$categoriaClientePrecio);
         try {
@@ -931,15 +932,6 @@ class FacturacionEstatal extends Component
                     $cantidadSeccion = $registroResta / $unidad;
                 };
 
-
-                $precioProductoCargaId = DB::SELECTONE("
-
-                select A.id from precios_producto_carga A
-                inner join categoria_precios B on B.id = A.categoria_precios_id and B.estado_id = 1
-                inner join cliente_categoria_escala C on C.id = B.cliente_categoria_escala_id and C.estado_id = 1
-                where A.estado_id = 1 and A.producto_id = ? and C.id = ?", [$idProducto,$categoriaClientePrecio]);
-                    //dd($precioProductoCargaId);
-                    //dd($precio_producto_carga);
                 array_push($this->arrayProductos, [
                     "factura_id" => $idFactura,
                     "producto_id" => $idProducto,
@@ -966,7 +958,7 @@ class FacturacionEstatal extends Component
                     "idPrecioSeleccionado"=>$idPrecioSeleccionado,
                     "precioSeleccionado"=>$precioSeleccionado,
 
-                    "precios_producto_carga_id" => $precioProductoCargaId->id,
+                    "precios_producto_carga_id" => $precios_producto_carga_id,
                     "created_at" => now(),
                     "updated_at" => now(),
                 ]);

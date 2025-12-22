@@ -790,7 +790,7 @@
 
                         htmlSelectUnidades = "";
 
-                        htmlprecios = `
+                        /*htmlprecios = `
                         <option  value="${producto.precio1}" data-id="p1" selectec>${producto.precio1} - A</option>
                         <option  value="${producto.precio2}" data-id="p2">${producto.precio2} - B</option>
                         <option  value="${producto.precio3}" data-id="p3">${producto.precio3} - C</option>
@@ -799,7 +799,10 @@
 
 
 
-                        `;
+                        `;*/
+
+                          htmlprecios = `
+                        <option  value="${producto.precio1}" data-id="p1" selectec>${producto.precio1} - A</option> `;
                         arrayUnidades.forEach(unidad => {
                             if (unidad.valor_defecto == 1) {
                                 htmlSelectUnidades +=
@@ -822,7 +825,7 @@
                                                     </button>
 
                                                     <input id="idProducto${numeroInputs}" name="idProducto${numeroInputs}" type="hidden" value="${producto.id}">
-                                                    <input id="idCategoriaSeleccionada${numeroInputs}" name="idCategoriaSeleccionada${numeroInputs}" type="hidden" value="${categoria_cliente_venta_id}">
+                                                    <input id="precios_producto_carga_id${numeroInputs}" name="precios_producto_carga_id${numeroInputs}" type="hidden" value="${producto.precios_producto_carga_id}">
 
                                                     <div style="width:100%">
                                                         <label for="nombre${numeroInputs}" class="sr-only">Producto</label>
