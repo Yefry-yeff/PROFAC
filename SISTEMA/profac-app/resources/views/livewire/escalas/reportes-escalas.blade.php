@@ -230,7 +230,6 @@
                         <th>Marca</th>
                         <th>Categoría</th>
                         <th>Escala Precio</th>
-                        <th>Cat. Cliente</th>
                         <th>Precio A</th>
                         <th>Precio B</th>
                         <th>Precio C</th>

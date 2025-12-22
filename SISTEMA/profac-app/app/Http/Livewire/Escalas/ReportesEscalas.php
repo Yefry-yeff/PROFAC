@@ -53,7 +53,6 @@ class ReportesEscalas extends Component
                 'm.nombre as marca',
                 'c.descripcion as categoria',
                 'cp.nombre as escala_precio',
-                'cce.nombre_categoria as categoria_cliente',
                 'ppc.precio_A',
                 'ppc.precio_B',
                 'ppc.precio_C',
@@ -70,8 +69,8 @@ class ReportesEscalas extends Component
         }
 
         if ($categoriaPrecios) {
-            // Filtrar por categoría de precios
-            $query->where('cce.id', $categoriaPrecios);
+            // Filtrar por categoría de precios - CORREGIDO para usar cp.id
+            $query->where('cp.id', $categoriaPrecios);
         }
 
         return DataTables::of($query)
@@ -92,9 +91,6 @@ class ReportesEscalas extends Component
             })
             ->filterColumn('escala_precio', function($query, $keyword) {
                 $query->whereRaw("cp.nombre LIKE ?", ["%{$keyword}%"]);
-            })
-            ->filterColumn('categoria_cliente', function($query, $keyword) {
-                $query->whereRaw("cce.nombre_categoria LIKE ?", ["%{$keyword}%"]);
             })
             ->addColumn('precio_A_formatted', function ($row) {
                 return 'L. ' . number_format($row->precio_A, 2);
