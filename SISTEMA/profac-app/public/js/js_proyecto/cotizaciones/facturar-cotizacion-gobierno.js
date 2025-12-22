@@ -100,6 +100,47 @@ $('#seleccionarProducto').select2({
     }
 });
 
+function cargarCategoriasProducto() {
+    let idProducto = document.getElementById('seleccionarProducto').value;
+    
+    document.getElementById('categoriaCliente').innerHTML = "<option value='' selected disabled>--Cargando categorías--</option>";
+    document.getElementById('categoriaCliente').disabled = true;
+    document.getElementById('bodega').innerHTML = "<option value='' selected disabled>--Seleccione una categoría--</option>";
+    document.getElementById('bodega').disabled = true;
+    
+    axios.post('/producto/categorias-disponibles', {
+        producto_id: idProducto
+    })
+    .then(response => {
+        let categorias = response.data.categorias;
+        let htmlCategorias = '<option value="" selected disabled>--Seleccione una categoría--</option>';
+        
+        categorias.forEach(categoria => {
+            htmlCategorias += `<option value="${categoria.id}">${categoria.nombre_categoria}</option>`;
+        });
+        
+        document.getElementById('categoriaCliente').innerHTML = htmlCategorias;
+        document.getElementById('categoriaCliente').disabled = false;
+        
+        obtenerImagenes();
+    })
+    .catch(err => {
+        console.error(err);
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'No se pudieron cargar las categorías disponibles para este producto'
+        });
+        document.getElementById('categoriaCliente').innerHTML = "<option value='' selected disabled>--Error al cargar--</option>";
+    });
+}
+
+function habilitarBodega() {
+    let idProducto = document.getElementById('seleccionarProducto').value;
+    document.getElementById('bodega').disabled = false;
+    obtenerBodegas(idProducto);
+}
+
 function prueba() {
 
     var element = document.getElementById('botonAdd');

@@ -194,33 +194,34 @@
                             </div>
 
                             <div class="row">
-                                <div class="col-12 col-md-6 col-lg-6 col-xl-6">
-                                    <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                        <label for="bodega" class="col-form-label focus-label">Categoría/Cliente Venta:<span class="text-danger">*</span></label>
-                                        <select id="categoria_cliente_venta_id" name="categoria_cliente_venta_id" class="form-group form-control"style="" onchange="listaCategoríaClientes()">
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="col-12 col-md-6 col-lg-6 col-xl-6">
+                                <div class="col-12 col-md-4 col-lg-4 col-xl-4">
 
                                     <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
                                         <label for="seleccionarProducto" class="col-form-label focus-label">Seleccionar
                                             Producto:<span class="text-danger">*</span></label>
                                         <select id="seleccionarProducto" name="seleccionarProducto"
-                                            class="form-group form-control" style="" onchange="obtenerImagenes()">
+                                            class="form-group form-control" style="" onchange="cargarCategoriasProducto()">
                                             <option value="" selected disabled>--Seleccione un producto--</option>
                                         </select>
                                     </div>
                                 </div>
 
+                                <div class="col-12 col-md-4 col-lg-4 col-xl-4">
+                                    <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
+                                        <label for="categoria_cliente_venta_id" class="col-form-label focus-label">Categoría/Cliente Venta:<span class="text-danger">*</span></label>
+                                        <select id="categoria_cliente_venta_id" name="categoria_cliente_venta_id" class="form-group form-control"style="" onchange="listaCategoríaClientes()" disabled>
+                                            <option value="" selected disabled>--Seleccione primero un producto--</option>
+                                        </select>
+                                    </div>
+                                </div>
 
-                                <div class="col-12 col-md-6 col-lg-6 col-xl-6 ">
+                                <div class="col-12 col-md-4 col-lg-4 col-xl-4">
                                     <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
                                         <label for="bodega" class="col-form-label focus-label">Seleccionar
                                             bodega:<span class="text-danger">*</span></label>
                                         <select id="bodega" name="bodega" class="form-group form-control"
                                             style="" onchange="prueba()" disabled>
-                                            <option value="" selected disabled>--Seleccione un producto--</option>
+                                            <option value="" selected disabled>--Seleccione una categoría--</option>
                                         </select>
                                     </div>
 
@@ -289,7 +290,7 @@
                                 <p>Nota:El campo "Unidad" describe la unidad de medida para la venta del producto -
                                     seguido del numero de unidades a restar del inventario</p>
                                 <div class="row no-gutters ">
-                                    <div class="form-group col-3">
+                                    <div class="form-group col-12 col-md-2">
                                         <div class="d-flex">
                                             <div style="width:100%">
                                                 <label class="sr-only">Nombre del
@@ -300,49 +301,49 @@
                                         </div>
                                     </div>
 
-                                    <div class="form-group col-1">
+                                    <div class="form-group col-6 col-md-1">
                                         <label class="sr-only">Bodega</label>
                                         <input type="number" placeholder="Bodega" class="form-control"
                                             autocomplete="off" disabled>
                                     </div>
 
 
-                                    <div class="form-group col-2">
+                                    <div class="form-group col-6 col-md-2">
                                         <label class="sr-only">Precios</label>
                                         <input type="number" placeholder="Opciones" class="form-control"
                                             min="1" autocomplete="off" disabled>
                                     </div>
-                                    <div class="form-group col-1">
+                                    <div class="form-group col-6 col-md-2">
                                         <label class="sr-only">Precio</label>
                                         <input type="number" placeholder="Precio" class="form-control"
                                             min="1" autocomplete="off" disabled>
                                     </div>
 
-                                    <div class="form-group col-1">
+                                    <div class="form-group col-4 col-md-1">
                                         <label class="sr-only">cantidad</label>
                                         <input type="text" placeholder="Cantidad" class="form-control"
                                             min="1" autocomplete="off" disabled>
                                     </div>
 
-                                    <div class="form-group col-1 ">
+                                    <div class="form-group col-4 col-md-1 ">
 
                                         <label class="sr-only">Unidad</label>
                                         <input type="text" placeholder="Unidad " class="form-control"
                                             min="1" autocomplete="off" disabled>
                                     </div>
-                                    <div class="form-group col-1">
+                                    <div class="form-group col-4 col-md-1">
                                         <label class="sr-only">Sub Total</label>
                                         <input type="number" placeholder="Sub total"
                                             class="form-control" min="1" autocomplete="off" disabled>
                                     </div>
 
-                                    <div class="form-group col-1">
+                                    <div class="form-group col-4 col-md-1">
                                         <label class="sr-only">ISV</label>
                                         <input type="number" placeholder="ISV" class="form-control" min="1"
                                             autocomplete="off" disabled>
                                     </div>
 
-                                    <div class="form-group col-1">
+                                    <div class="form-group col-4 col-md-1">
                                         <label class="sr-only">Total</label>
                                         <input type="number" placeholder="Total" class="form-control"
                                             min="1" disabled autocomplete="off">

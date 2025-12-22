@@ -120,27 +120,41 @@ class CategoriaPrecios extends Component
 
         public function desactivarCategoria($idCategoria){
             try {
-
-
-                    $Categoria =  modelCategoriaPrecios::find($idCategoria);
-                    $Categoria->estado_id =  2;
-                    $Categoria->save();
-
+                DB::beginTransaction();
+                
+                // Desactivar la categoría de precios
+                $Categoria = modelCategoriaPrecios::find($idCategoria);
+                $Categoria->estado_id = 2;
+                $Categoria->save();
+                
+                // Inactivar todos los precios de productos ligados a esta categoría
+                $preciosInactivados = DB::table('precios_producto_carga')
+                    ->where('categoria_precios_id', $idCategoria)
+                    ->where('estado_id', 1) // Solo los activos
+                    ->update([
+                        'estado_id' => 2,
+                        'updated_at' => now()
+                    ]);
+                
+                DB::commit();
+                
                 return response()->json([
-                    "text" => "Desactivado con éxito.",
+                    "text" => "Categoría desactivada con éxito. Se inactivaron {$preciosInactivados} precios de productos.",
                     "icon" => "success",
-                    "title"=>"Exito!"
-                ],200);
+                    "title" => "Éxito!"
+                ], 200);
+                
             } catch (QueryException $e) {
+                DB::rollback();
+                
                 return response()->json([
                     'message' => 'Ha ocurrido un error',
                     'error' => $e,
-                    "text" => "Ha ocurrido un error.",
+                    "text" => "Ha ocurrido un error al desactivar la categoría.",
                     "icon" => "error",
-                    "title"=>"Error!"
-                ],402);
+                    "title" => "Error!"
+                ], 402);
             }
-
         }
 
         public function listaPrecioEscala(){

@@ -324,9 +324,11 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
                     'created_at'             => now(),
                     'updated_at'             => now(),
                 ];
-
-                // Se agrupan los productos por categoría para poder inactivar los registros anteriores antes de insertar los nuevos.
-                $groupForInactivate[$catPrecioId][] = $productoId;                        }
+            }
+            
+            // Se agrupan los productos por categoría para poder inactivar los registros anteriores antes de insertar los nuevos.
+            // Esto se hace SIEMPRE, independientemente del modo (escalable o manual)
+            $groupForInactivate[$catPrecioId][] = $productoId;
         }
 
         // Si no hay registros válidos en el bloque, termina aquí.

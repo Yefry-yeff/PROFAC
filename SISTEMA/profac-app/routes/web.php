@@ -207,14 +207,19 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 
     Route::get('/comisiones/general', ReportesComisionesGenerales::class);
 
-    //Route::get('/comision/reporte/empleado', [ReportesComisionesGenerales::class,'obtenerListaEmpleados'])->name('comision.reporte.empleado');
-    //Route::get('/comision/reporte/rol', [ReportesComisionesGenerales::class,'obtenerListaRoles'])->name('comision.reporte.rol');
-    Route::get('/comision/reporte/empleados-lista', function () {
-        return \App\Models\User::select('id','name')
-            ->where('rol_id','!=',10)
-            ->get();
-    })->name('comision.reporte.empleados-lista');
-
+    // Rutas para listas de empleados y roles
+    Route::get('/comision/empleados/lista', [ReportesComisionesGenerales::class, 'listarEmpleados']);
+    Route::get('/comision/roles/lista', [ReportesComisionesGenerales::class, 'listarRoles']);
+    
+    // Rutas para los 5 tipos de reportes
+    Route::get('/comision/reporte/empleado', [ReportesComisionesGenerales::class, 'reporteEmpleado']);
+    Route::get('/comision/reporte/rol', [ReportesComisionesGenerales::class, 'reporteRol']);
+    Route::get('/comision/reporte/usuarios', [ReportesComisionesGenerales::class, 'reporteUsuarios']);
+    Route::get('/comision/reporte/productos', [ReportesComisionesGenerales::class, 'reporteProductos']);
+    Route::get('/comision/reporte/facturas', [ReportesComisionesGenerales::class, 'reporteFacturas']);
+    
+    // Ruta para descarga de Excel
+    Route::get('/comision/reporte/excel', [ReportesComisionesGenerales::class, 'descargarExcel']);
 
 
     Route::get('/precios', CategoriaPrecios::class);
@@ -267,6 +272,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 
     Route::get('/reportes/escalas', ReportesEscalas::class);
     Route::get('/descargar/productos/filtros', [ReportesEscalas::class, 'descargarPrecios'])->name('excel.productos.filtros');
+    Route::get('/escalas/productos/filtrados', [ReportesEscalas::class, 'listarProductosFiltrados']);
 
 
     //-----------------------Bodega---------------------------------------------------------------------------------------------------------------------//
@@ -371,6 +377,8 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 
     /*----------------------------------------------- /NUEVAS RUTAS DE ACCESO A USUARIOS  */
 
+    //-----------------------------------------------Bitácora de Login-------------------------------------------------------------------------------------------//
+    Route::get('/registro/login', RegistroLogin::class)->name('registro.login');
 
 
     //--------------------------------------------Inventario--------------------------------------------------------------------------------------------//
@@ -467,6 +475,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('/ventas/listar/{categoriaClienteSeleccionado}', [FacturacionCorporativa::class, 'productoBodega']);
 
     Route::post('/ventas/datos/producto', [FacturacionCorporativa::class, 'obtenerDatosProducto']);
+    Route::post('/producto/categorias-disponibles', [FacturacionCorporativa::class, 'obtenerCategoriasProducto']);
 
     Route::post('/ventas/corporativo/guardar', [FacturacionCorporativa::class, 'guardarVenta']);
     Route::get('/ventas/corporativo/vendedores', [FacturacionCorporativa::class, 'listadoVendedores']);

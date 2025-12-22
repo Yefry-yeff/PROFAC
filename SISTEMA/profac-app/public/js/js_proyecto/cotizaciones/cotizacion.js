@@ -123,6 +123,18 @@
                 }
             });
 
+            function listaCategoríaClientes() {
+                let categoriaId = $('#categoria_cliente_venta_id').val();
+                let productoId = $('#seleccionarProducto').val();
+                
+                if (categoriaId && productoId) {
+                    // Habilitar bodega
+                    $('#bodega').prop('disabled', false);
+                    // Cargar bodegas del producto
+                    obtenerBodegas(productoId);
+                }
+            }
+
             function prueba() {
 
                 var element = document.getElementById('botonAdd');
@@ -184,6 +196,56 @@
                         })
                     })
 
+            }
+
+            function cargarCategoriasProducto() {
+                let productoId = $('#seleccionarProducto').val();
+                
+                if (productoId) {
+                    // Limpiar y deshabilitar categoría mientras se carga
+                    $('#categoria_cliente_venta_id').prop('disabled', true);
+                    $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>Cargando categorías...</option>');
+                    
+                    // Cargar categorías del producto
+                    axios.post('/producto/categorias-disponibles', {
+                        producto_id: productoId
+                    })
+                    .then(response => {
+                        let categorias = response.data.categorias;
+                        
+                        $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>--Seleccione una categoría--</option>');
+                        
+                        if (categorias.length > 0) {
+                            categorias.forEach(categoria => {
+                                let option = new Option(categoria.nombre_categoria, categoria.id, false, false);
+                                $('#categoria_cliente_venta_id').append(option);
+                            });
+                            $('#categoria_cliente_venta_id').prop('disabled', false);
+                        } else {
+                            $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>No hay categorías disponibles para este producto</option>');
+                            Swal.fire({
+                                icon: 'warning',
+                                title: 'Advertencia',
+                                text: 'Este producto no tiene escalas de precio asignadas en ninguna categoría.'
+                            });
+                        }
+                    })
+                    .catch(err => {
+                        console.log(err);
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'Ha ocurrido un error al cargar las categorías del producto.'
+                        });
+                        $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>Error al cargar categorías</option>');
+                    });
+                    
+                    // Continuar con las imágenes del producto
+                    obtenerImagenes();
+                } else {
+                    $('#categoria_cliente_venta_id').prop('disabled', true);
+                    $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>--Seleccione primero un producto--</option>');
+                }
             }
 
             function obtenerImagenes() {
@@ -364,7 +426,7 @@
 
                         html = `
                         <div id='${numeroInputs}' class="row no-gutters">
-                                            <div class="form-group col-3">
+                                            <div class="form-group col-12 col-md-2">
                                                 <div class="d-flex">
 
                                                     <button class="btn btn-danger" type="button" style="display: inline" onclick="eliminarInput(${numeroInputs})"><i
@@ -386,7 +448,7 @@
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div class="form-group col-1">
+                                            <div class="form-group col-6 col-md-1">
                                                 <label for="" class="sr-only">cantidad</label>
                                                 <input type="text" value="${bodega}" placeholder="bodega-seccion" id="bodega${numeroInputs}"
                                                     name="bodega${numeroInputs}" class="form-control"
@@ -394,7 +456,7 @@
                                             </div>
 
 
-                                            <div class="form-group col-2">
+                                            <div class="form-group col-6 col-md-2">
                                                 <label for="" class="sr-only">precios</label>
                                                 <select class="form-control" name="precios${numeroInputs}" id="precios${numeroInputs}"
                                                     data-parsley-required style="height:35.7px;"
@@ -406,21 +468,21 @@
 
                                             </div>
 
-                                            <div class="form-group col-1">
+                                            <div class="form-group col-6 col-md-2">
                                                 <label for="precio${numeroInputs}" class="sr-only">Precio</label>
                                                 <input type="number" placeholder="Precio Unidad" id="precio${numeroInputs}"
                                                     name="precio${numeroInputs}" value="${producto.precio1}" class="form-control"  data-parsley-required step="any"
                                                     autocomplete="off" onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
                                             </div>
 
-                                            <div class="form-group col-1">
+                                            <div class="form-group col-4 col-md-1">
                                                 <label for="cantidad${numeroInputs}" class="sr-only">cantidad</label>
                                                 <input type="number" placeholder="Cantidad" id="cantidad${numeroInputs}"
                                                     name="cantidad${numeroInputs}" class="form-control" min="1" data-parsley-required
                                                     autocomplete="off" onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
                                             </div>
 
-                                            <div class="form-group col-1">
+                                            <div class="form-group col-4 col-md-1">
                                                 <label for="" class="sr-only">unidad</label>
                                                 <select class="form-control" name="unidad${numeroInputs}" id="unidad${numeroInputs}"
                                                     data-parsley-required style="height:35.7px;"
@@ -434,7 +496,7 @@
 
 
 
-                                            <div class="form-group col-1">
+                                            <div class="form-group col-4 col-md-1">
                                                 <label for="subTotalMostrar${numeroInputs}" class="sr-only">Sub Total</label>
                                                 <input type="text" placeholder="Sub total producto" id="subTotalMostrar${numeroInputs}"
                                                     name="subTotalMostrar${numeroInputs}" class="form-control"
@@ -445,7 +507,7 @@
                                                 <input type="hidden" id="acumuladoDescuento${numeroInputs}" name="acumuladoDescuento${numeroInputs}" >
                                             </div>
 
-                                            <div class="form-group col-1">
+                                            <div class="form-group col-4 col-md-1">
                                                 <label for="isvProductoMostrar${numeroInputs}" class="sr-only">ISV</label>
                                                 <input type="text" placeholder="ISV" id="isvProductoMostrar${numeroInputs}"
                                                     name="isvProductoMostrar${numeroInputs}" class="form-control"
@@ -455,7 +517,7 @@
                                                     <input id="isvProducto${numeroInputs}" name="isvProducto${numeroInputs}" type="hidden" value="" required>
                                             </div>
 
-                                            <div class="form-group col-1">
+                                            <div class="form-group col-4 col-md-1">
                                                 <label for="totalMostrar${numeroInputs}" class="sr-only">Total</label>
                                                 <input type="text" placeholder="Total del producto" id="totalMostrar${numeroInputs}"
                                                     name="totalMostrar${numeroInputs}" class="form-control"
