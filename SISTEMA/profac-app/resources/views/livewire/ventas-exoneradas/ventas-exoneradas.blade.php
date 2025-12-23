@@ -193,8 +193,7 @@
                                         <label for="seleccionarProducto"
                                             class="col-form-label focus-label">Seleccionar Producto:</label>
                                         <select id="seleccionarProducto" name="seleccionarProducto"
-                                            class="form-group form-control" style=""
-                                            onchange="cargarCategoriasProducto()">
+                                            class="form-group form-control">
                                             <option value="" selected disabled>--Seleccione un producto--
                                             </option>
                                         </select>
