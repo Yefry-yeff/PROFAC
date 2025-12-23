@@ -7,6 +7,18 @@ define('LARAVEL_START', microtime(true));
 
 /*
 |--------------------------------------------------------------------------
+| Optimizaciones de PHP para procesos largos
+|--------------------------------------------------------------------------
+|
+| Aumentar límites de tiempo y memoria para importaciones grandes
+|
+*/
+@ini_set('max_execution_time', 600); // 10 minutos
+@ini_set('memory_limit', '512M');
+@ini_set('max_input_time', 600);
+
+/*
+|--------------------------------------------------------------------------
 | Check If The Application Is Under Maintenance
 |--------------------------------------------------------------------------
 |
