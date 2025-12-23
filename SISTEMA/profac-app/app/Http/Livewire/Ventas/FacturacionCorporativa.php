@@ -351,11 +351,7 @@ class FacturacionCorporativa extends Component
 
             ]);
 
-
-
-
             if (!$producto) {
-                dd("Entro a este if");
                 $nombreProducto = DB::table('producto')
                     ->where('id', $request['idProducto'])
                     ->value('nombre');
@@ -364,12 +360,9 @@ class FacturacionCorporativa extends Component
                     ->where('id', $request['categoria_cliente_venta_id'])
                     ->value('nombre_categoria');
 
-               if (!$producto) {
-                    return response()->json([
-                        'message' => "El producto <b>{$nombreProducto}</b> no tiene una escala de precios asignada para la categoría de cliente <b>{$nombreCategoria}</b>."
-                    ], 404);
-                }
-
+                return response()->json([
+                    'message' => "El producto <b>{$nombreProducto}</b> no tiene una escala de precios asignada para la categoría de cliente <b>{$nombreCategoria}</b>."
+                ], 404);
             }
 
             return response()->json([
