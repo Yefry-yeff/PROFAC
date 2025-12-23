@@ -549,6 +549,11 @@
                 }
             });
 
+            // Evento para cargar categorías cuando se selecciona un producto
+            $('#seleccionarProducto').on('select2:select', function(e) {
+                cargarCategoriasProducto();
+            });
+
             function prueba() {
 
                 var element = document.getElementById('botonAdd');
@@ -680,6 +685,7 @@
 
             function cargarCategoriasProducto() {
                 let productoId = $('#seleccionarProducto').val();
+                let clienteId = $('#seleccionarCliente').val();
 
                 if (productoId) {
                     // Limpiar y deshabilitar categoría mientras se carga
@@ -693,15 +699,48 @@
                     .then(response => {
                         let categorias = response.data.categorias;
 
-                        $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>--Seleccione una categoría--</option>');
-
                         if (categorias.length > 0) {
-                            categorias.forEach(categoria => {
-                                let option = new Option(categoria.nombre_categoria, categoria.id, false, false);
-                                $('#categoria_cliente_venta_id').append(option);
-                            });
-                            $('#categoria_cliente_venta_id').prop('disabled', false);
+                            // Si hay un cliente seleccionado
+                            if (clienteId) {
+                                let categoriaClienteId = $('#categoria_cliente_venta_id').data('categoria-cliente-id');
+                                let categoriaEncontrada = categorias.find(c => c.id == categoriaClienteId);
+                                
+                                if (categoriaEncontrada) {
+                                    // El producto SÍ tiene escala para la categoría del cliente
+                                    // Mantener solo la categoría del cliente
+                                    $('#categoria_cliente_venta_id').empty();
+                                    let option = new Option(categoriaEncontrada.nombre_categoria, categoriaEncontrada.id, true, true);
+                                    $('#categoria_cliente_venta_id').append(option);
+                                    $('#categoria_cliente_venta_id').prop('disabled', true);
+                                } else {
+                                    // El producto NO tiene escala para la categoría del cliente
+                                    // Permitir seleccionar cualquier categoría disponible
+                                    let nombreCategoriaCliente = $('#categoria_cliente_nombre').text();
+                                    
+                                    Swal.fire({
+                                        icon: 'info',
+                                        title: 'Categoría no disponible',
+                                        text: `Este producto no tiene escala de precios para la categoría "${nombreCategoriaCliente}". Puede seleccionar otra categoría disponible.`
+                                    });
+
+                                    $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>--Seleccione una categoría--</option>');
+                                    categorias.forEach(categoria => {
+                                        let option = new Option(categoria.nombre_categoria, categoria.id, false, false);
+                                        $('#categoria_cliente_venta_id').append(option);
+                                    });
+                                    $('#categoria_cliente_venta_id').prop('disabled', false);
+                                }
+                            } else {
+                                // No hay cliente seleccionado, mostrar todas las categorías
+                                $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>--Seleccione una categoría--</option>');
+                                categorias.forEach(categoria => {
+                                    let option = new Option(categoria.nombre_categoria, categoria.id, false, false);
+                                    $('#categoria_cliente_venta_id').append(option);
+                                });
+                                $('#categoria_cliente_venta_id').prop('disabled', false);
+                            }
                         } else {
+                            // No hay categorías disponibles para este producto
                             $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>No hay categorías disponibles para este producto</option>');
                             Swal.fire({
                                 icon: 'warning',
@@ -779,9 +818,13 @@
 
                                 let selectBox = document.getElementById("tipoPagoVenta");
                                 selectBox.remove(2);
-                                obtenerCategoriasClientes();
+                                // No llamar a obtenerCategoriasClientes() para cliente genérico
+                                // Simplemente establecer la categoría
                                 $('#categoria_cliente_nombre').text(data.nombre_categoria);
-                                document.getElementById("categoria_cliente_venta_id").appendChild(new Option(data.nombre_categoria, data.idcategoriacliente, true, true));
+                                $('#categoria_cliente_venta_id').data('categoria-cliente-id', data.idcategoriacliente);
+                                $('#categoria_cliente_venta_id').empty();
+                                $('#categoria_cliente_venta_id').append(new Option(data.nombre_categoria, data.idcategoriacliente, true, true));
+                                $('#categoria_cliente_venta_id').prop('disabled', true);
 
                             } else {
                                 document.getElementById("nombre_cliente_ventas").readOnly = true;
@@ -789,10 +832,13 @@
                                 document.getElementById("nombre_cliente_ventas").value = data.nombre;
                                 document.getElementById("rtn_ventas").value = data.rtn;
                                 $('#categoria_cliente_nombre').text(data.nombre_categoria);
+                                $('#categoria_cliente_venta_id').data('categoria-cliente-id', data.idcategoriacliente);
 
-                                document.getElementById("categoria_cliente_venta_id").appendChild(new Option(data.nombre_categoria, data.idcategoriacliente, true, true));
-
-                                obtenerCategoriasClientes();
+                                // No llamar a obtenerCategoriasClientes() para clientes normales
+                                // Simplemente establecer la categoría del cliente
+                                $('#categoria_cliente_venta_id').empty();
+                                $('#categoria_cliente_venta_id').append(new Option(data.nombre_categoria, data.idcategoriacliente, true, true));
+                                $('#categoria_cliente_venta_id').prop('disabled', true);
 
                                 diasCredito = data.dias_credito;
                                 obtenerTipoPago();
