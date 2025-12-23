@@ -72,7 +72,7 @@ class ReportesComisionesGenerales extends Component
             ->leftJoin('producto as p', 'p.id', '=', 'pc.producto_id')
             ->leftJoin('factura as f', 'f.id', '=', 'fc.factura_id')
             ->select(
-                DB::raw('COALESCE(pc.id, ce.id) as id'),
+                DB::raw('COALESCE(pc.id, ce.id) as registro_id'),
                 'u.id as empleado_id',
                 'u.name as empleado',
                 DB::raw('COALESCE(f.cai, "N/A") as factura'),

@@ -22,27 +22,31 @@ class ExcelController extends Controller
      */
     public function descargarPlantilla(Request $request)
     {
-        // Parámetros de la UI: tipo de categoría (escalable/manual), filtros y categoría de precios seleccionada.
-         $tipoCategoria = $request->input('tipoCategoria'); // escalable o manual
+        // Parámetros de la UI: tipo de plantilla (categoria/general), tipo de categoría (escalable/manual), filtros y categoría de precios seleccionada.
+        $tipoPlantilla = $request->input('tipoPlantilla'); // categoria o general
+        $tipoCategoria = $request->input('tipoCategoria'); // escalable o manual
         $tipoFiltro = $request->input('tipoFiltro');
         $valorFiltro = $request->input('listaTipoFiltro');
-        $valorCategoria = $request->input('listaTipoFiltroCatPrecios');
+        $valorCategoria = $request->input('listaTipoFiltroCatPrecios'); // null si es general
 
         // Generar fecha para el nombre del archivo
         $fecha = date('Y-m-d_H-i-s');
+
+        // Determinar nombre del archivo según el tipo de plantilla
+        $sufijo = $tipoPlantilla === 'general' ? 'general' : 'categoria';
 
         // En caso de "manual", se usa el export específico con encabezados/estructura manual.
         if ($tipoCategoria === 'manual') {
             return Excel::download(
                 new ProductosPlantillaExportManual($tipoFiltro, $valorFiltro, $valorCategoria),
-                'plantilla_productos_manual_' . $fecha . '.xlsx'
+                'plantilla_productos_manual_' . $sufijo . '_' . $fecha . '.xlsx'
             );
         }
 
         // Por defecto (o si es "escalable"), se usa el export escalable.
         return Excel::download(
             new ProductosPlantillaExport($tipoFiltro, $valorFiltro, $valorCategoria),
-            'plantilla_productos_escalable_' . $fecha . '.xlsx'
+            'plantilla_productos_escalable_' . $sufijo . '_' . $fecha . '.xlsx'
         );
     }
 
@@ -287,10 +291,11 @@ $collections = Excel::toCollection($import, $full);
     {
         $v = Validator::make($request->all(), [
             'archivo_excel'      => 'required|file|max:20480',
+            'tipoPlantilla'      => 'required|in:categoria,general',
             'tipoCategoria'      => 'required|in:escalable,manual',
             'tipoFiltro'         => 'required|in:1,2',
             'valorFiltro'        => 'required|integer',
-            'categoriaPrecioId'  => 'required|exists:categoria_precios,id',
+            'categoriaPrecioId'  => 'nullable|exists:categoria_precios,id',
             'defaultUnidadMedidaId' => 'nullable|integer|exists:unidad_medida_venta,id',
         ], [
             'archivo_excel.required' => 'Subí un archivo.',
@@ -308,16 +313,29 @@ $collections = Excel::toCollection($import, $full);
 
         try {
             $userId = auth()->id() ?? 1;
+            $tipoPlantilla = $request->input('tipoPlantilla');
+            $categoriaPrecioId = $request->input('categoriaPrecioId');
+
+            // Si es general, categoriaPrecioId puede ser null
+            // Si es categoria, categoriaPrecioId es requerido
+            if ($tipoPlantilla === 'categoria' && !$categoriaPrecioId) {
+                return response()->json([
+                    'icon'  => 'error',
+                    'title' => 'Validación',
+                    'text'  => 'La categoría de precios es requerida para el modo "Por Categoría".',
+                ], 422);
+            }
 
             // Crear importador en MODO PREVIEW (solo validación, sin insertar)
             $import = new PreciosProductoCargaImport(
                 $request->input('tipoCategoria'),
                 (int)$request->input('tipoFiltro'),
                 (int)$request->input('valorFiltro'),
-                (int)$request->input('categoriaPrecioId'),
+                $categoriaPrecioId ? (int)$categoriaPrecioId : null,
                 (int)$userId,
                 $request->input('defaultUnidadMedidaId') ? (int)$request->input('defaultUnidadMedidaId') : null,
-                true // MODO PREVIEW
+                true, // MODO PREVIEW
+                $tipoPlantilla // Pasar el tipo de plantilla
             );
 
             config(['excel.temporary_files.local_path' => storage_path('app/excel-temp')]);
@@ -360,10 +378,11 @@ $collections = Excel::toCollection($import, $full);
             // Guardar datos del preview en sesión para usar en finalizar
             session([
                 'preview_precios_data' => [
+                    'tipoPlantilla' => $tipoPlantilla,
                     'tipoCategoria' => $request->input('tipoCategoria'),
                     'tipoFiltro' => (int)$request->input('tipoFiltro'),
                     'valorFiltro' => (int)$request->input('valorFiltro'),
-                    'categoriaPrecioId' => (int)$request->input('categoriaPrecioId'),
+                    'categoriaPrecioId' => $categoriaPrecioId ? (int)$categoriaPrecioId : null,
                     'userId' => (int)$userId,
                     'defaultUnidadMedidaId' => $request->input('defaultUnidadMedidaId') ? (int)$request->input('defaultUnidadMedidaId') : null,
                     'storedPath' => $storedPath,
@@ -405,6 +424,10 @@ $collections = Excel::toCollection($import, $full);
      */
     public function finalizarExcelPrecios(Request $request)
     {
+        // Aumentar límites para procesos largos
+        @set_time_limit(600); // 10 minutos
+        @ini_set('memory_limit', '512M');
+        
         try {
             // Recuperar datos del preview desde la sesión
             $previewData = session('preview_precios_data');
@@ -417,6 +440,12 @@ $collections = Excel::toCollection($import, $full);
                 ], 422);
             }
 
+            \Log::info('[finalizarExcelPrecios] Iniciando proceso final', [
+                'tipo_plantilla' => $previewData['tipoPlantilla'] ?? 'desconocido',
+                'tipo_categoria' => $previewData['tipoCategoria'],
+                'file' => $previewData['storedPath'],
+            ]);
+
             // Crear importador en MODO FINAL (con inserción)
             $import = new PreciosProductoCargaImport(
                 $previewData['tipoCategoria'],
@@ -425,15 +454,20 @@ $collections = Excel::toCollection($import, $full);
                 $previewData['categoriaPrecioId'],
                 $previewData['userId'],
                 $previewData['defaultUnidadMedidaId'],
-                false // MODO FINAL - SÍ INSERTAR
+                false, // MODO FINAL - SÍ INSERTAR
+                $previewData['tipoPlantilla'] ?? 'categoria' // Tipo de plantilla
             );
 
             config(['excel.temporary_files.local_path' => storage_path('app/excel-temp')]);
 
             $fullPath = storage_path('app/' . $previewData['storedPath']);
+            
+            \Log::info('[finalizarExcelPrecios] Iniciando importación', ['path' => $fullPath]);
 
             // toCollection obtiene los datos sin corrupción en cPanel
             $collections = Excel::toCollection($import, $fullPath);
+            
+            \Log::info('[finalizarExcelPrecios] Colecciones obtenidas', ['count' => $collections->count()]);
             
             // Llamar manualmente al método collection() para procesar los datos
             foreach ($collections as $sheet) {
@@ -441,6 +475,8 @@ $collections = Excel::toCollection($import, $full);
             }
 
             $stats = $import->getStats();
+            
+            \Log::info('[finalizarExcelPrecios] Proceso completado', $stats);
 
             // Limpiar sesión
             session()->forget('preview_precios_data');
@@ -460,6 +496,7 @@ $collections = Excel::toCollection($import, $full);
                 'msg' => $e->getMessage(),
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([

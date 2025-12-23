@@ -12,9 +12,10 @@ return [
         |
         | When using FromQuery, the query is automatically chunked.
         | Here you can specify how big the chunk should be.
+        | Aumentado a 5000 para mejorar rendimiento en importaciones grandes
         |
         */
-        'chunk_size'             => 1000,
+        'chunk_size'             => 5000,
 
         /*
         |--------------------------------------------------------------------------
