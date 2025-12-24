@@ -41,7 +41,7 @@
 
                             <div class="row align-items-center">
                                 <div class="col-12 col-md-6 col-lg-6 col-xl-6">
-                                    <div class="d-flex align-items-center gap-2 flex-nowrap">
+                                    <div class="gap-2 d-flex align-items-center flex-nowrap">
                                         <h3 class="mb-0">
                                             Venta Cliente A:
                                         </h3>
@@ -56,11 +56,11 @@
                                     </div>
                                 </div>
 
-                                <div class="col-12 col-md-6 col-lg-6 col-xl-6 d-flex align-items-center gap-2">
+                                <div class="gap-2 col-12 col-md-6 col-lg-6 col-xl-6 d-flex align-items-center">
                                     <span class="text-muted small">Categoría del Cliente:</span>
                                     <span
                                         id="categoria_cliente_nombre"
-                                        class="badge badge-info px-3 py-2"
+                                        class="px-3 py-2 badge badge-info"
                                     ></span>
                                 </div>
                             </div>
@@ -180,8 +180,8 @@
 
                                 <div class="col-12 col-md-6 col-lg-6 col-xl-6">
                                     <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                        <label for="bodega" class="col-form-label focus-label">Categoría/Cliente Venta:<span class="text-danger">*</span></label>
-                                        <select id="categoria_cliente_venta_id" name="categoria_cliente_venta_id" class="form-group form-control" style="" onchange="habilitarBodega()" disabled>
+                                        <label for="bodega" class="col-form-label focus-label">Categoría Precio Producto:<span class="text-danger">*</span></label>
+                                        <select id="categoria_cliente_venta_id" name="categoria_cliente_venta_id" class="form-group form-control" style="" onchange="habilitarBodega()">
                                             <option value="" selected disabled>--Seleccione primero un producto--</option>
                                         </select>
                                     </div>
@@ -192,8 +192,8 @@
                                         <label for="bodega" class="col-form-label focus-label">Seleccionar
                                             bodega:<span class="text-danger">*</span></label>
                                         <select id="bodega" name="bodega" class="form-group form-control"
-                                            style="" onchange="prueba()" disabled>
-                                            <option value="" selected disabled>--Seleccione un producto--
+                                            style="" onchange="prueba()">
+                                            <option value="" selected disabled>--Seleccione una categoría primero--
                                             </option>
                                         </select>
                                     </div>
@@ -205,15 +205,15 @@
                             <div class="row">
 
 
-                                <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6 mt-4">
+                                <div class="mt-4 col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6">
                                     <div class="text-center">
                                         <a id="detalleProducto" href=""
-                                            class="font-bold h3  d-none text-success" style="" target="_blank">
+                                            class="font-bold h3 d-none text-success" style="" target="_blank">
                                             <i class="fa-solid fa-circle-info"></i> Ver Detalles De Producto </a>
                                     </div>
 
 
-                                    <div id="carouselProducto" class="carousel slide mt-2" data-ride="carousel">
+                                    <div id="carouselProducto" class="mt-2 carousel slide" data-ride="carousel">
                                         <div id="bloqueImagenes" class="carousel-inner ">
 
 
@@ -239,8 +239,8 @@
 
                                 <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6 ">
                                     <div id="botonAdd"
-                                        class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12 my-4 text-center d-none">
-                                        <button type="button" class="btn-rounded btn btn-success p-3"
+                                        class="my-4 text-center col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12 d-none">
+                                        <button type="button" class="p-3 btn-rounded btn btn-success"
                                             style="font-weight: 900; " onclick="agregarProductoCarrito()">Añadir
                                             Producto a venta <i class="fa-solid fa-cart-plus"></i> </button>
 
@@ -438,7 +438,7 @@
                             <div class="row">
                                 <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
                                     <button id="btn_venta_coorporativa"
-                                        class="btn btn-sm btn-primary float-left m-t-n-xs"><strong>
+                                        class="float-left btn btn-sm btn-primary m-t-n-xs"><strong>
                                             Realizar Venta</strong></button>
                                 </div>
                             </div>
@@ -687,8 +687,7 @@
                 let clienteId = $('#seleccionarCliente').val();
 
                 if (productoId) {
-                    // Limpiar y deshabilitar categoría mientras se carga
-                    $('#categoria_cliente_venta_id').prop('disabled', true);
+                    // Limpiar mientras se carga (pero NO deshabilitar)
                     $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>Cargando categorías...</option>');
 
                     // Cargar categorías del producto
@@ -699,48 +698,25 @@
                         let categorias = response.data.categorias;
 
                         if (categorias.length > 0) {
-                            // Si hay un cliente seleccionado
-                            if (clienteId) {
-                                let categoriaClienteId = $('#categoria_cliente_venta_id').data('categoria-cliente-id');
-                                let categoriaEncontrada = categorias.find(c => c.id == categoriaClienteId);
-                                
-                                if (categoriaEncontrada) {
-                                    // El producto SÍ tiene escala para la categoría del cliente
-                                    // Mantener solo la categoría del cliente
-                                    $('#categoria_cliente_venta_id').empty();
-                                    let option = new Option(categoriaEncontrada.nombre_categoria, categoriaEncontrada.id, true, true);
-                                    $('#categoria_cliente_venta_id').append(option);
-                                    $('#categoria_cliente_venta_id').prop('disabled', true);
-                                } else {
-                                    // El producto NO tiene escala para la categoría del cliente
-                                    // Permitir seleccionar cualquier categoría disponible
-                                    let nombreCategoriaCliente = $('#categoria_cliente_nombre').text();
-                                    
-                                    Swal.fire({
-                                        icon: 'info',
-                                        title: 'Categoría no disponible',
-                                        text: `Este producto no tiene escala de precios para la categoría "${nombreCategoriaCliente}". Puede seleccionar otra categoría disponible.`
-                                    });
+                            // SIEMPRE mostrar TODAS las categorías disponibles del producto
+                            // El usuario puede elegir libremente cualquiera
+                            $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>--Seleccione una categoría--</option>');
 
-                                    $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>--Seleccione una categoría--</option>');
-                                    categorias.forEach(categoria => {
-                                        let option = new Option(categoria.nombre_categoria, categoria.id, false, false);
-                                        $('#categoria_cliente_venta_id').append(option);
-                                    });
-                                    $('#categoria_cliente_venta_id').prop('disabled', false);
-                                }
-                            } else {
-                                // No hay cliente seleccionado, mostrar todas las categorías
-                                $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>--Seleccione una categoría--</option>');
-                                categorias.forEach(categoria => {
-                                    let option = new Option(categoria.nombre_categoria, categoria.id, false, false);
-                                    $('#categoria_cliente_venta_id').append(option);
-                                });
-                                $('#categoria_cliente_venta_id').prop('disabled', false);
-                            }
+                            let categoriaClienteId = $('#categoria_cliente_venta_id').data('categoria-cliente-id');
+
+                            categorias.forEach(categoria => {
+                                // Si es la categoría del cliente, pre-seleccionarla
+                                let isSelected = (clienteId && categoria.id == categoriaClienteId);
+                                let option = new Option(categoria.nombre_categoria, categoria.id, isSelected, isSelected);
+                                $('#categoria_cliente_venta_id').append(option);
+                            });
+
+                            // NUNCA deshabilitar - el usuario siempre puede elegir
+                            $('#categoria_cliente_venta_id').prop('disabled', false);
                         } else {
                             // No hay categorías disponibles para este producto
                             $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>No hay categorías disponibles para este producto</option>');
+                            $('#categoria_cliente_venta_id').prop('disabled', false);
                             Swal.fire({
                                 icon: 'warning',
                                 title: 'Advertencia',
@@ -761,7 +737,6 @@
                     // Continuar con las imágenes del producto
                     obtenerImagenes();
                 } else {
-                    $('#categoria_cliente_venta_id').prop('disabled', true);
                     $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>--Seleccione primero un producto--</option>');
                 }
             }
@@ -817,13 +792,12 @@
 
                                 let selectBox = document.getElementById("tipoPagoVenta");
                                 selectBox.remove(2);
-                                // No llamar a obtenerCategoriasClientes() para cliente genérico
-                                // Simplemente establecer la categoría
+                                // Establecer la categoría del cliente pero NO bloquear
                                 $('#categoria_cliente_nombre').text(data.nombre_categoria);
                                 $('#categoria_cliente_venta_id').data('categoria-cliente-id', data.idcategoriacliente);
                                 $('#categoria_cliente_venta_id').empty();
                                 $('#categoria_cliente_venta_id').append(new Option(data.nombre_categoria, data.idcategoriacliente, true, true));
-                                $('#categoria_cliente_venta_id').prop('disabled', true);
+                                // NO deshabilitar - permitir que el usuario elija otra categoría si lo desea
 
                             } else {
                                 document.getElementById("nombre_cliente_ventas").readOnly = true;
@@ -833,11 +807,10 @@
                                 $('#categoria_cliente_nombre').text(data.nombre_categoria);
                                 $('#categoria_cliente_venta_id').data('categoria-cliente-id', data.idcategoriacliente);
 
-                                // No llamar a obtenerCategoriasClientes() para clientes normales
-                                // Simplemente establecer la categoría del cliente
+                                // Establecer la categoría del cliente pero NO bloquear
                                 $('#categoria_cliente_venta_id').empty();
                                 $('#categoria_cliente_venta_id').append(new Option(data.nombre_categoria, data.idcategoriacliente, true, true));
-                                $('#categoria_cliente_venta_id').prop('disabled', true);
+                                // NO deshabilitar - permitir que el usuario elija otra categoría si lo desea
 
                                 diasCredito = data.dias_credito;
                                 obtenerTipoPago();
@@ -987,7 +960,7 @@
                             console.log("entro")
                             htmlImagenes += `
                             <div class="carousel-item active " >
-                                <img class="d-block  " src="${public_path+'/'+'noimage.png'}" alt="noimage.png" style="width: 100%; height:20rem" >
+                                <img class="d-block " src="${public_path+'/'+'noimage.png'}" alt="noimage.png" style="width: 100%; height:20rem" >
                             </div>`
 
                             document.getElementById('bloqueImagenes').innerHTML = htmlImagenes;
@@ -1001,13 +974,13 @@
                                 if (element.contador == 1) {
                                     htmlImagenes += `
                             <div class="carousel-item active " >
-                                <img class="d-block  " src="${public_path+'/'+element.url_img}" alt="imagen ${element.contador}" style="width: 100%; height:30rem" >
+                                <img class="d-block " src="${public_path+'/'+element.url_img}" alt="imagen ${element.contador}" style="width: 100%; height:30rem" >
                             </div>`
                                 } else {
 
                                     htmlImagenes += `
-                            <div class="carousel-item  " >
-                                <img class="d-block  " src="${public_path+'/'+element.url_img}" alt="imagen ${element.contador}" style="width: 100%; height:30rem" >
+                            <div class="carousel-item " >
+                                <img class="d-block " src="${public_path+'/'+element.url_img}" alt="imagen ${element.contador}" style="width: 100%; height:30rem" >
                             </div>`
 
                                 }

@@ -213,7 +213,9 @@
 
                                 <div class="col-12 col-md-6 col-lg-6 col-xl-6">
                                     <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                        <label for="bodega" class="col-form-label focus-label">Categoría/Cliente Venta:<span class="text-danger">*</span></label>
+                                        <label for="bodega" class="col-form-label focus-label">
+                                            Categoría Precio Producto:<span class="text-danger">*</span>
+                                        </label>
                                         <select id="categoria_cliente_venta_id" name="categoria_cliente_venta_id" class="form-group form-control"style="" onchange="listaCategoríaClientes()">
                                         </select>
                                     </div>
@@ -653,10 +655,10 @@
 
             function cargarCategoriasProducto() {
                 let productoId = $('#seleccionarProducto').val();
+                let clienteId = $('#seleccionarCliente').val();
 
                 if (productoId) {
-                    // Limpiar y deshabilitar categoría mientras se carga
-                    $('#categoria_cliente_venta_id').prop('disabled', true);
+                    // Limpiar mientras se carga (pero NO deshabilitar)
                     $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>Cargando categorías...</option>');
 
                     // Cargar categorías del producto
@@ -666,16 +668,26 @@
                     .then(response => {
                         let categorias = response.data.categorias;
 
-                        $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>--Seleccione una categoría--</option>');
-
                         if (categorias.length > 0) {
+                            // SIEMPRE mostrar TODAS las categorías disponibles del producto
+                            // El usuario puede elegir libremente cualquiera
+                            $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>--Seleccione una categoría--</option>');
+                            
+                            let categoriaClienteId = $('#categoria_cliente_venta_id').data('categoria-cliente-id');
+                            
                             categorias.forEach(categoria => {
-                                let option = new Option(categoria.nombre_categoria, categoria.id, false, false);
+                                // Si es la categoría del cliente, pre-seleccionarla
+                                let isSelected = (clienteId && categoria.id == categoriaClienteId);
+                                let option = new Option(categoria.nombre_categoria, categoria.id, isSelected, isSelected);
                                 $('#categoria_cliente_venta_id').append(option);
                             });
+                            
+                            // NUNCA deshabilitar - el usuario siempre puede elegir
                             $('#categoria_cliente_venta_id').prop('disabled', false);
                         } else {
+                            // No hay categorías disponibles para este producto
                             $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>No hay categorías disponibles para este producto</option>');
+                            $('#categoria_cliente_venta_id').prop('disabled', false);
                             Swal.fire({
                                 icon: 'warning',
                                 title: 'Advertencia',
@@ -696,7 +708,6 @@
                     // Continuar con las imágenes del producto
                     obtenerImagenes();
                 } else {
-                    $('#categoria_cliente_venta_id').prop('disabled', true);
                     $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>--Seleccione primero un producto--</option>');
                 }
             }
@@ -1314,10 +1325,12 @@
                                 document.getElementById("rtn_ventas").value = '';
                                 let selectBox = document.getElementById("tipoPagoVenta");
                                 selectBox.remove(2);
-                                obtenerCategoriasClientes();
+                                // Establecer la categoría del cliente pero NO bloquear
                                 $('#categoria_cliente_nombre').text(data.nombre_categoria);
-                                document.getElementById("categoria_cliente_venta_id").appendChild(new Option(data.nombre_categoria, data.idcategoriacliente, true, true));
-
+                                $('#categoria_cliente_venta_id').data('categoria-cliente-id', data.idcategoriacliente);
+                                $('#categoria_cliente_venta_id').empty();
+                                $('#categoria_cliente_venta_id').append(new Option(data.nombre_categoria, data.idcategoriacliente, true, true));
+                                // NO deshabilitar - permitir que el usuario elija otra categoría si lo desea
 
                             } else {
                                 document.getElementById("nombre_cliente_ventas").readOnly = true;
@@ -1326,10 +1339,12 @@
                                 document.getElementById("nombre_cliente_ventas").value = data.nombre;
                                 document.getElementById("rtn_ventas").value = data.rtn;
                                 $('#categoria_cliente_nombre').text(data.nombre_categoria);
+                                $('#categoria_cliente_venta_id').data('categoria-cliente-id', data.idcategoriacliente);
 
-                                document.getElementById("categoria_cliente_venta_id").appendChild(new Option(data.nombre_categoria, data.idcategoriacliente, true, true));
-
-                                obtenerCategoriasClientes();
+                                // Establecer la categoría del cliente pero NO bloquear
+                                $('#categoria_cliente_venta_id').empty();
+                                $('#categoria_cliente_venta_id').append(new Option(data.nombre_categoria, data.idcategoriacliente, true, true));
+                                // NO deshabilitar - permitir que el usuario elija otra categoría si lo desea
 
                                 obtenerTipoPago();
 
