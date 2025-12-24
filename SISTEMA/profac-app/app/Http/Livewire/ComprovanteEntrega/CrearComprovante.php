@@ -188,8 +188,13 @@ class CrearComprovante extends Component
             $comprovante->monto_descuento = $request->porDescuentoCalculado;
             $comprovante->save();
 
+            \Log::info('=== INICIO PROCESAMIENTO COMPROBANTE ===');
+            \Log::info('Total de productos a procesar: ' . count($arrayInputs));
+            \Log::info('Array de inputs: ' . json_encode($arrayInputs));
+
             for ($i = 0; $i < count($arrayInputs); $i++) {
 
+                \Log::info('--- Procesando producto ' . ($i + 1) . ' ---');
                 $keyRestaInventario = "restaInventario" . $arrayInputs[$i];
 
                 $keyIdSeccion = "idSeccion" . $arrayInputs[$i];
@@ -203,6 +208,7 @@ class CrearComprovante extends Component
                 $keyISV = "isv" . $arrayInputs[$i];
                 $keyunidad = 'unidad' . $arrayInputs[$i];
                 $keyacumuladoDescuento = 'acumuladoDescuento' . $arrayInputs[$i];
+                $keyprecios_producto_carga_id = 'precios_producto_carga_id' . $arrayInputs[$i];
 
                 $restaInventario = $request->$keyRestaInventario;
                 $idSeccion = $request->$keyIdSeccion;
@@ -217,13 +223,59 @@ class CrearComprovante extends Component
                 $isv = $request->$keyIsv;
                 $total = $request->$keyTotal;
                 $acumuladoDescuento = $request->$keyacumuladoDescuento;
+                $precios_producto_carga_id = $request->$keyprecios_producto_carga_id;
 
-                $this->restarUnidadesInventario($restaInventario, $idProducto, $idSeccion, $comprovante->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad,$acumuladoDescuento);
+                \Log::info('Datos capturados del request:', [
+                    'idProducto' => $idProducto,
+                    'idSeccion' => $idSeccion,
+                    'precio' => $precio,
+                    'cantidad' => $cantidad,
+                    'precios_producto_carga_id' => $precios_producto_carga_id,
+                    'acumuladoDescuento' => $acumuladoDescuento
+                ]);
+
+                $this->restarUnidadesInventario($precios_producto_carga_id, $restaInventario, $idProducto, $idSeccion, $comprovante->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad,$acumuladoDescuento);
             };
 
-            ModelComprovanteHasProducto::insert($this->arrayProductos);
+            \Log::info('=== ANTES DE INSERT ===');
+            \Log::info('Total de registros a insertar: ' . count($this->arrayProductos));
+            if (count($this->arrayProductos) > 0) {
+                \Log::info('Estructura del primer registro:', $this->arrayProductos[0]);
+                \Log::info('Columnas en el array: ' . implode(', ', array_keys($this->arrayProductos[0])));
+                \Log::info('Total de columnas: ' . count(array_keys($this->arrayProductos[0])));
+            }
+
+            try {
+                ModelComprovanteHasProducto::insert($this->arrayProductos);
+                \Log::info('INSERT exitoso en comprovante_has_producto');
+            } catch (\Exception $e) {
+                \Log::error('ERROR en INSERT comprovante_has_producto: ' . $e->getMessage());
+                \Log::error('SQL State: ' . ($e->errorInfo[0] ?? 'N/A'));
+                \Log::error('Error Code: ' . ($e->errorInfo[1] ?? 'N/A'));
+                \Log::error('Error Message: ' . ($e->errorInfo[2] ?? 'N/A'));
+                throw $e;
+            }
+            
             //dd("prueba");
-            ModelLogTranslados::insert($this->arrayLogs);
+            
+            \Log::info('=== ANTES DE INSERT LOG_TRANSLADO ===');
+            \Log::info('Total de registros a insertar en log_translado: ' . count($this->arrayLogs));
+            if (count($this->arrayLogs) > 0) {
+                \Log::info('Estructura del primer log:', $this->arrayLogs[0]);
+                \Log::info('Columnas en el array: ' . implode(', ', array_keys($this->arrayLogs[0])));
+                \Log::info('Total de columnas: ' . count(array_keys($this->arrayLogs[0])));
+            }
+            
+            try {
+                DB::table('log_translado')->insert($this->arrayLogs);
+                \Log::info('INSERT exitoso en log_translado');
+            } catch (\Exception $e) {
+                \Log::error('ERROR en INSERT log_translado: ' . $e->getMessage());
+                \Log::error('SQL State: ' . ($e->errorInfo[0] ?? 'N/A'));
+                \Log::error('Error Code: ' . ($e->errorInfo[1] ?? 'N/A'));
+                \Log::error('Error Message: ' . ($e->errorInfo[2] ?? 'N/A'));
+                throw $e;
+            }
 
 
             DB::commit();
@@ -254,7 +306,7 @@ class CrearComprovante extends Component
         }
     }
 
-    public function restarUnidadesInventario($unidadesRestarInv, $idProducto, $idSeccion, $idOrdenEntrega, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad,$acumuladoDescuento)
+    public function restarUnidadesInventario($precios_producto_carga_id, $unidadesRestarInv, $idProducto, $idSeccion, $idOrdenEntrega, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad,$acumuladoDescuento)
     {
 
 
@@ -327,7 +379,7 @@ class CrearComprovante extends Component
                 };
 
 
-                array_push($this->arrayProductos, [
+                $productoData = [
                     "comprovante_id" => $idOrdenEntrega,
                     "producto_id" => $idProducto,
                     "lote_id" => $unidadesDisponibles->id,
@@ -336,7 +388,7 @@ class CrearComprovante extends Component
                     "sub_total" => $subTotal,
                     "isv" => $isv,
                     "total" => $total,
-                    "monto_descProducto"=>$acumuladoDescuento,
+                    "monto_descProducto" => $acumuladoDescuento,
                     "resta_inventario_total" => $unidadesRestarInv,
                     "unidad_medida_venta_id" => $idUnidadVenta,
                     "precio_unidad" => $precio,
@@ -346,19 +398,30 @@ class CrearComprovante extends Component
                     "sub_total_s" => $subTotalSecccionado,
                     "isv_s" => $isvSecccionado,
                     "total_s" => $totalSecccionado,
+                    "precios_producto_carga_id" => $precios_producto_carga_id,
                     "created_at" => now(),
                     "updated_at" => now(),
-                ]);
+                ];
+                
+                \Log::info('Agregando registro a arrayProductos con ' . count($productoData) . ' columnas');
+                array_push($this->arrayProductos, $productoData);
 
                 array_push($this->arrayLogs, [
                     "origen" => $unidadesDisponibles->id,
-                    "comprovante_entrega_id" => $idOrdenEntrega,
+                    "destino" => null,
                     "cantidad" => $registroResta,
-                    "unidad_medida_venta_id" => $idUnidadVenta,
                     "users_id" => Auth::user()->id,
                     "descripcion" => "Orden de Entrega",
-                    "created_at" => now(),
-                    "updated_at" => now(),
+                    "factura_id" => null,
+                    "ajuste_id" => null,
+                    "compra_id" => null,
+                    "unidad_medida_venta_id" => $idUnidadVenta,
+                    "comprovante_entrega_id" => $idOrdenEntrega,
+                    "vale_id" => null,
+                    "nota_credito_id" => null,
+                    "translado_id" => null,
+                    "created_at" => date('Y-m-d H:i:s'),
+                    "updated_at" => date('Y-m-d H:i:s'),
                 ]);
             };
 

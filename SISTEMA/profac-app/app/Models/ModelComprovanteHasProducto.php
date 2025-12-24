@@ -27,7 +27,8 @@ class ModelComprovanteHasProducto extends Model
         'sub_total_s',
         'isv_s',
         'total_s',
-       
+        'monto_descProducto',
+        'precios_producto_carga_id',
 
         ];
   
