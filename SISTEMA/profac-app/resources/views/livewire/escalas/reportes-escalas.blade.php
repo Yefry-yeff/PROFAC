@@ -225,6 +225,7 @@
                 <thead>
                     <tr>
                         <th>ID</th>
+                        <th>Categoría Cliente</th>
                         <th>Código</th>
                         <th>Producto</th>
                         <th>Marca</th>

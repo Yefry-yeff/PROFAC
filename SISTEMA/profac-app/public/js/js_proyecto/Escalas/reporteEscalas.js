@@ -205,6 +205,7 @@ function inicializarTablaProductos() {
     },
     columns: [
       { data: 'id', width: '50px' },
+      { data: 'categoria_cliente', width: '150px' },
       { data: 'codigo', width: '100px' },
       { data: 'producto' },
       { data: 'marca' },
