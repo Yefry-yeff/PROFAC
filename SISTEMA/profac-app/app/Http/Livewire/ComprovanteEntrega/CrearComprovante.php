@@ -58,7 +58,6 @@ class CrearComprovante extends Component
 
         $validator = Validator::make($request->all(), [
 
-            'fecha_vencimiento' => 'required',
             'subTotalGeneral' => 'required',
             'isvGeneral' => 'required',
             'totalGeneral' => 'required',
@@ -130,6 +129,7 @@ class CrearComprovante extends Component
 
            $tipoVenta = DB::SELECTONE("select tipo_cliente_id from cliente where id =".$request->seleccionarCliente);
 
+        $comprovante = null;
         try {
 
 
@@ -249,7 +249,7 @@ class CrearComprovante extends Component
                 'icon' => "error",
                 'text' => 'Ha ocurrido un error.',
                 'title' => 'Error!',
-                'idFactura' => $comprovante->id,
+                'idComprobante' => $comprovante ? $comprovante->id : 0,
             ], 402);
         }
     }
