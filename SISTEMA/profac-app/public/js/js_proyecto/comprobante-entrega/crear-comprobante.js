@@ -47,6 +47,35 @@ $('#seleccionarProducto').select2({
     }
 });
 
+function obtenerCategoriasClientes() {
+
+    $('#categoria_cliente_venta_id').select2({
+        placeholder: 'Seleccione una categoría',
+        allowClear: true,
+        ajax: {
+            url: '/clientes/categorias-escala',
+            dataType: 'json',
+            delay: 250,
+            data: function (params) {
+                return {
+                    q: params.term || '',
+                    page: params.page || 1
+                };
+            },
+            processResults: function (data) {
+                return {
+                    results: data.categorias.map(function (item) {
+                        return {
+                            id: item.id,
+                            text: item.nombre_categoria
+                        };
+                    })
+                };
+            }
+        }
+    });
+}
+
 function prueba() {
 
     var element = document.getElementById('botonAdd');
@@ -261,8 +290,76 @@ function obtenerImagenes() {
     obtenerBodegas(id);
 }
 
+function cargarCategoriasProducto() {
+    let productoId = $('#seleccionarProducto').val();
+    let clienteId = $('#seleccionarCliente').val();
+
+    if (productoId) {
+        // Limpiar categoría mientras se carga
+        $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>Cargando categorías...</option>');
+
+        // Cargar categorías del producto
+        axios.post('/producto/categorias-disponibles', {
+            producto_id: productoId
+        })
+        .then(response => {
+            let categorias = response.data.categorias;
+
+            if (categorias.length > 0) {
+                $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>--Seleccione una categoría--</option>');
+                
+                // Si hay un cliente seleccionado, obtener su categoría
+                let categoriaClienteId = null;
+                if (clienteId) {
+                    categoriaClienteId = $('#categoria_cliente_venta_id').data('categoria-cliente-id');
+                }
+
+                // Mostrar todas las categorías disponibles
+                categorias.forEach(categoria => {
+                    let isSelected = (categoriaClienteId && categoria.id == categoriaClienteId);
+                    let option = new Option(categoria.nombre_categoria, categoria.id, isSelected, isSelected);
+                    $('#categoria_cliente_venta_id').append(option);
+                });
+                
+                // SIEMPRE mantener habilitado el select
+                $('#categoria_cliente_venta_id').prop('disabled', false);
+            } else {
+                // No hay categorías disponibles para este producto
+                $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>No hay categorías disponibles para este producto</option>');
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Advertencia',
+                    text: 'Este producto no tiene escalas de precio asignadas en ninguna categoría.'
+                });
+            }
+        })
+        .catch(err => {
+            console.log(err);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Ha ocurrido un error al cargar las categorías del producto.'
+            });
+            $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>Error al cargar categorías</option>');
+        });
+    } else {
+        $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>--Seleccione un producto primero--</option>');
+    }
+}
+
 function agregarProductoCarrito() {
     let idProducto = document.getElementById('seleccionarProducto').value;
+    let categoria_cliente_venta_id = document.getElementById('categoria_cliente_venta_id').value;
+
+    // Validar que se haya seleccionado una categoría
+    if (!categoria_cliente_venta_id) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Advertencia',
+            text: 'Por favor seleccione una categoría de precio antes de agregar el producto.'
+        });
+        return;
+    }
 
     let data = $("#bodega").select2('data')[0];
     let bodega = data.bodegaSeccion;
@@ -272,6 +369,7 @@ function agregarProductoCarrito() {
 
     axios.post('/ventas/datos/producto', {
             idProducto: idProducto,
+            categoria_cliente_venta_id: categoria_cliente_venta_id
 
         })
         .then(response => {
@@ -364,8 +462,8 @@ function agregarProductoCarrito() {
                                 <div class="form-group col-12 col-sm-12 col-md-1 col-lg-1 col-xl-1">
                                     <label for="precio${numeroInputs}" class="sr-only">Precio</label>
                                     <input type="number" placeholder="Precio Unidad" id="precio${numeroInputs}"
-                                        name="precio${numeroInputs}" value="${producto.precio1}" class="form-control"  data-parsley-required step="any"
-                                        autocomplete="off" min="${producto.precio1}" onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
+                                        name="precio${numeroInputs}" value="${producto.precio_base}" class="form-control"  data-parsley-required step="any"
+                                        autocomplete="off" min="${producto.precio_base}" onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
 
 
                                 </div>
@@ -430,6 +528,7 @@ function agregarProductoCarrito() {
                                 <input id="idSeccion${numeroInputs}" name="idSeccion${numeroInputs}" type="hidden" value="${idSeccion}">
                                 <input id="restaInventario${numeroInputs}" name="restaInventario${numeroInputs}" type="hidden" value="">
                                 <input id="isv${numeroInputs}" name="isv${numeroInputs}" type="hidden" value="${producto.isv}">
+                                <input id="precios_producto_carga_id${numeroInputs}" name="precios_producto_carga_id${numeroInputs}" type="hidden" value="${producto.precios_producto_carga_id}">
 
 
 
@@ -632,14 +731,16 @@ function validarFechaPago() {
 
     if (tipoPago == 2) {
 
-        // document.getElementById('fecha_vencimiento').value = "empty";
+        // Es crédito - habilitar y requerir fecha de vencimiento
         document.getElementById('fecha_vencimiento').readOnly = false;
+        document.getElementById('fecha_vencimiento').setAttribute('data-parsley-required', 'true');
         this.sumarDiasCredito();
 
     } else {
+        // Es contado - deshabilitar y no requerir fecha de vencimiento
         document.getElementById('fecha_vencimiento').value = "{{ date('Y-m-d') }}";
-
         document.getElementById('fecha_vencimiento').readOnly = true;
+        document.getElementById('fecha_vencimiento').removeAttribute('data-parsley-required');
 
     }
 
@@ -666,6 +767,13 @@ function obtenerDatosCliente() {
                     document.getElementById("rtn_ventas").value = '';
                     let selectBox = document.getElementById("tipoPagoVenta");
                     selectBox.remove(2);
+                    
+                    // Establecer categoría del cliente genérico
+                    $('#categoria_cliente_nombre').text(data.nombre_categoria);
+                    $('#categoria_cliente_venta_id').data('categoria-cliente-id', data.idcategoriacliente);
+                    $('#categoria_cliente_venta_id').empty();
+                    $('#categoria_cliente_venta_id').append(new Option(data.nombre_categoria, data.idcategoriacliente, true, true));
+                    // NO deshabilitar el select - el usuario puede cambiar la categoría
 
                 } else {
                     document.getElementById("nombre_cliente_ventas").readOnly = true;
@@ -673,6 +781,14 @@ function obtenerDatosCliente() {
 
                     document.getElementById("nombre_cliente_ventas").value = data.nombre;
                     document.getElementById("rtn_ventas").value = data.rtn;
+                    
+                    // Establecer categoría del cliente
+                    $('#categoria_cliente_nombre').text(data.nombre_categoria);
+                    $('#categoria_cliente_venta_id').data('categoria-cliente-id', data.idcategoriacliente);
+                    $('#categoria_cliente_venta_id').empty();
+                    $('#categoria_cliente_venta_id').append(new Option(data.nombre_categoria, data.idcategoriacliente, true, true));
+                    // NO deshabilitar el select - el usuario puede cambiar la categoría
+                    
                     obtenerTipoPago();
                     diasCredito = data.dias_credito;
                 }

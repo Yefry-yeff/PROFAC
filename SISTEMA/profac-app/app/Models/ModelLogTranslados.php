@@ -10,6 +10,7 @@ class ModelLogTranslados extends Model
     use HasFactory;
     protected $table = 'log_translado';
     protected $primaryKey = 'id';
+    public $timestamps = false;
     protected $fillable = [
         'id',
         'origen',

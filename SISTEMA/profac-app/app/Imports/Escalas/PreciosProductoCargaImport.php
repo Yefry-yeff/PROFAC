@@ -20,10 +20,11 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
     protected string $tipoCategoria;
     protected int $tipoFiltro;
     protected int $valorFiltro;
-    protected int $categoriaPrecioId;
+    protected ?int $categoriaPrecioId;  // Ahora puede ser null en modo general
     protected int $userId;
     protected ?int $defaultUnidadMedidaId;
     protected bool $previewMode;  // Modo preview: solo validar, no insertar
+    protected string $tipoPlantilla;  // 'categoria' o 'general'
 
     // Contadores y variables de control para estadísticas de proceso
     protected int $rowsRead = 0;
@@ -49,7 +50,7 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
      * Constructor: inicializa los parámetros requeridos para el proceso.
      * Se reciben directamente desde el controlador.
      */
-    public function __construct(string $tipoCategoria, int $tipoFiltro, int $valorFiltro, int $categoriaPrecioId, int $userId, ?int $defaultUnidadMedidaId = null, bool $previewMode = false)
+    public function __construct(string $tipoCategoria, int $tipoFiltro, int $valorFiltro, ?int $categoriaPrecioId, int $userId, ?int $defaultUnidadMedidaId = null, bool $previewMode = false, string $tipoPlantilla = 'categoria')
     {
         $this->tipoCategoria         = $tipoCategoria;
         $this->tipoFiltro            = $tipoFiltro;
@@ -58,15 +59,17 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
         $this->userId                = $userId;
         $this->defaultUnidadMedidaId = $defaultUnidadMedidaId;
         $this->previewMode           = $previewMode;
+        $this->tipoPlantilla         = $tipoPlantilla;
     }
 
     /**
      * Define el tamaño de los bloques (chunks) a leer desde el archivo Excel.
      * Procesar en bloques evita desbordar memoria con archivos grandes.
+     * Aumentado a 5000 para mejorar rendimiento en archivos grandes.
      */
     public function chunkSize(): int
     {
-        return 1000;
+        return 5000;
     }
 
     /**
@@ -160,11 +163,45 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
 
             // Se obtienen y validan los IDs principales requeridos.
             $productoId   = $this->asInt($row['producto_id'] ?? null);
-            $catPrecioId  = $this->asInt($row['categoria_precios_id'] ?? $this->categoriaPrecioId);
+            
+            // En modo general, obtenemos todas las categorías activas
+            // En modo categoría, usamos la categoría especificada
+            $categoriasPrecios = [];
+            if ($this->tipoPlantilla === 'general') {
+                // Obtener todas las categorías de precios activas
+                $categoriasPrecios = DB::table('categoria_precios')
+                    ->where('estado_id', 1)
+                    ->get();
+                    
+                if ($categoriasPrecios->isEmpty()) {
+                    $this->skip("No hay categorías de precios activas en el sistema", $row->toArray());
+                    continue;
+                }
+            } else {
+                // Modo categoría: usar la categoría especificada
+                $catPrecioId = $this->asInt($row['categoria_precios_id'] ?? $this->categoriaPrecioId);
+                if (!$catPrecioId) {
+                    $this->skip("Falta categoria_precios_id", $row->toArray());
+                    continue;
+                }
+                
+                // Crear un objeto similar para mantener compatibilidad
+                $categoria = DB::table('categoria_precios')
+                    ->where('id', $catPrecioId)
+                    ->where('estado_id', 1)
+                    ->first();
+                    
+                if (!$categoria) {
+                    $this->skip("Categoría de precios no existe o está inactiva: {$catPrecioId}", $row->toArray());
+                    continue;
+                }
+                
+                $categoriasPrecios = collect([$categoria]);
+            }
 
             // Si faltan datos críticos, la fila se omite.
-            if (!$productoId || !$catPrecioId) {
-                $this->skip("Falta producto_id o categoria_precios_id", $row->toArray());
+            if (!$productoId) {
+                $this->skip("Falta producto_id", $row->toArray());
                 continue;
             }
 
@@ -230,18 +267,7 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
             }
 
             if ((int)$tipoCategoriaId === 1) {
-                // 1) Traer porcentajes correctamente (un solo registro)
-                $cat = DB::table('categoria_precios')
-                    ->select('porc_precio_a','porc_precio_b','porc_precio_c','porc_precio_d')
-                    ->where('id', $catPrecioId)
-                    ->first();
-
-                if (!$cat) {
-                    $this->skip("Categoría de precios no existe: {$catPrecioId}", $row->toArray());
-                    continue;
-                }
-
-                // 2) Tomar base desde el Excel (asegura encabezado correcto)
+                // Modo escalable: calcular precios según porcentajes de cada categoría
                 $precioBase = $this->asFloat($row['precio_base_venta']);
 
                 // Validar que tenga precio base
@@ -250,40 +276,46 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
                     continue;
                 }
 
-                // 3) Calcular precios
-                $precioA = $precioBase + (($cat->porc_precio_a/100)*$precioBase);
-                $precioB = $precioBase + (($cat->porc_precio_b/100)*$precioBase);
-                $precioC = $precioBase + (($cat->porc_precio_c/100)*$precioBase);
-                $precioD = $precioBase + (($cat->porc_precio_d/100)*$precioBase);
+                // Procesar para cada categoría de precios
+                foreach ($categoriasPrecios as $cat) {
+                    // Calcular precios según porcentajes
+                    $precioA = $precioBase + (($cat->porc_precio_a/100)*$precioBase);
+                    $precioB = $precioBase + (($cat->porc_precio_b/100)*$precioBase);
+                    $precioC = $precioBase + (($cat->porc_precio_c/100)*$precioBase);
+                    $precioD = $precioBase + (($cat->porc_precio_d/100)*$precioBase);
 
-                // 4) Usar los calculados en el batch (no los del Excel)
-                $batch[] = [
-                    'categoria_precios_id'   => $catPrecioId,
-                    'comentario'             => $this->asStr($row['comentario'] ?? null),
-                    'producto_id'            => $productoId,
-                    'estado_id'              => 1,
-                    'precio_a'               => $precioA,
-                    'precio_b'               => $precioB,
-                    'precio_c'               => $precioC,
-                    'precio_d'               => $precioD,
-                    'precio_base_venta'      => $precioBase,
-                    'categoria_producto_id'    => $categoriaProductoId,
-                    'sub_categoria_id'    => $subcategoriaProductoId,
-                    'marca_id'    => $marca_idProductoId,
-                    'tipo_categoria_precio_id'=> $tipoCategoriaId,
-                    'users_id_creador'       => $this->userId,
-                    'precio_compra_usd'      => $this->asFloat($row['precio_compra_usd'] ?? null),
-                    'tipo_cambio_usd'        => $this->asFloat($row['tipo_cambio_usd'] ?? null),
-                    'flete'                  => $this->asFloat($row['flete'] ?? null),
-                    'arancel'                => $this->asFloat($row['arancel'] ?? null),
-                    'porc_flete'                => $this->asFloat($row['porc_flete'] ?? null),
-                    'porc_arancel'                => $this->asFloat($row['porc_arancel'] ?? null),
-                    'costoproducto'                => $this->asFloat($row['costoproducto'] ?? null),
-                    'unidad_medida_compra_id'   => $this->asFloat($row['unidad_medida_compra_id'] ?? null),
-                    'precio_hnl'   => $this->asFloat($row['precio_hnl'] ?? null),
-                    'created_at'             => now(),
-                    'updated_at'             => now(),
-                ];
+                    // Agregar registro al batch
+                    $batch[] = [
+                        'categoria_precios_id'   => $cat->id,
+                        'comentario'             => $this->asStr($row['comentario'] ?? null),
+                        'producto_id'            => $productoId,
+                        'estado_id'              => 1,
+                        'precio_a'               => $precioA,
+                        'precio_b'               => $precioB,
+                        'precio_c'               => $precioC,
+                        'precio_d'               => $precioD,
+                        'precio_base_venta'      => $precioBase,
+                        'categoria_producto_id'    => $categoriaProductoId,
+                        'sub_categoria_id'    => $subcategoriaProductoId,
+                        'marca_id'    => $marca_idProductoId,
+                        'tipo_categoria_precio_id'=> $tipoCategoriaId,
+                        'users_id_creador'       => $this->userId,
+                        'precio_compra_usd'      => $this->asFloat($row['precio_compra_usd'] ?? null),
+                        'tipo_cambio_usd'        => $this->asFloat($row['tipo_cambio_usd'] ?? null),
+                        'flete'                  => $this->asFloat($row['flete'] ?? null),
+                        'arancel'                => $this->asFloat($row['arancel'] ?? null),
+                        'porc_flete'                => $this->asFloat($row['porc_flete'] ?? null),
+                        'porc_arancel'                => $this->asFloat($row['porc_arancel'] ?? null),
+                        'costoproducto'                => $this->asFloat($row['costoproducto'] ?? null),
+                        'unidad_medida_compra_id'   => $this->asFloat($row['unidad_medida_compra_id'] ?? null),
+                        'precio_hnl'   => $this->asFloat($row['precio_hnl'] ?? null),
+                        'created_at'             => now(),
+                        'updated_at'             => now(),
+                    ];
+                    
+                    // Agrupar para inactivar registros antiguos
+                    $groupForInactivate[$cat->id][] = $productoId;
+                }
             }else{
                 // Modo manual - validar que tenga precio base
                 $precioBase = $this->asFloat($row['precio_base_venta']);
@@ -297,38 +329,39 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
                  * Se prepara la estructura de datos lista para insertar en la base.
                  * Los campos faltantes o vacíos se manejan de forma segura con valores por defecto o nulos.
                  */
-                $batch[] = [
-                    'categoria_precios_id'   => $catPrecioId,
-                    'comentario'             => $this->asStr($row['comentario'] ?? null),
-                    'producto_id'            => $productoId,
-                    'estado_id'              => 1,
-                    'precio_a'                 => $this->numOrZero($row['precio_a'] ?? null),
-                    'precio_b'                 => $this->numOrZero($row['precio_b'] ?? null),
-                    'precio_c'                 => $this->numOrZero($row['precio_c'] ?? null),
-                    'precio_d'                 => $this->numOrZero($row['precio_d'] ?? null),
-                    'precio_base_venta'      => $precioBase,
-                    'categoria_producto_id'    => $categoriaProductoId,
-                    'sub_categoria_id'    => $subcategoriaProductoId,
-                    'marca_id'    => $marca_idProductoId,
-                    'tipo_categoria_precio_id'=> $tipoCategoriaId,
-                    'users_id_creador'       => $this->userId,
-                    'precio_compra_usd'      => $this->asFloat($row['precio_compra_usd'] ?? null),
-                    'tipo_cambio_usd'        => $this->asFloat($row['tipo_cambio_usd'] ?? null),
-                    'flete'                  => $this->asFloat($row['flete'] ?? null),
-                    'arancel'                => $this->asFloat($row['arancel'] ?? null),
-                    'porc_flete'                => $this->asFloat($row['porc_flete'] ?? null),
-                    'porc_arancel'                => $this->asFloat($row['porc_arancel'] ?? null),
-                    'costoproducto'                => $this->asFloat($row['costoproducto'] ?? null),
-                    'unidad_medida_compra_id'   => $this->asFloat($row['unidad_medida_compra_id'] ?? null),
-                    'precio_hnl'   => $this->asFloat($row['precio_hnl'] ?? null),
-                    'created_at'             => now(),
-                    'updated_at'             => now(),
-                ];
+                foreach ($categoriasPrecios as $cat) {
+                    $batch[] = [
+                        'categoria_precios_id'   => $cat->id,
+                        'comentario'             => $this->asStr($row['comentario'] ?? null),
+                        'producto_id'            => $productoId,
+                        'estado_id'              => 1,
+                        'precio_a'                 => $this->numOrZero($row['precio_a'] ?? null),
+                        'precio_b'                 => $this->numOrZero($row['precio_b'] ?? null),
+                        'precio_c'                 => $this->numOrZero($row['precio_c'] ?? null),
+                        'precio_d'                 => $this->numOrZero($row['precio_d'] ?? null),
+                        'precio_base_venta'      => $precioBase,
+                        'categoria_producto_id'    => $categoriaProductoId,
+                        'sub_categoria_id'    => $subcategoriaProductoId,
+                        'marca_id'    => $marca_idProductoId,
+                        'tipo_categoria_precio_id'=> $tipoCategoriaId,
+                        'users_id_creador'       => $this->userId,
+                        'precio_compra_usd'      => $this->asFloat($row['precio_compra_usd'] ?? null),
+                        'tipo_cambio_usd'        => $this->asFloat($row['tipo_cambio_usd'] ?? null),
+                        'flete'                  => $this->asFloat($row['flete'] ?? null),
+                        'arancel'                => $this->asFloat($row['arancel'] ?? null),
+                        'porc_flete'                => $this->asFloat($row['porc_flete'] ?? null),
+                        'porc_arancel'                => $this->asFloat($row['porc_arancel'] ?? null),
+                        'costoproducto'                => $this->asFloat($row['costoproducto'] ?? null),
+                        'unidad_medida_compra_id'   => $this->asFloat($row['unidad_medida_compra_id'] ?? null),
+                        'precio_hnl'   => $this->asFloat($row['precio_hnl'] ?? null),
+                        'created_at'             => now(),
+                        'updated_at'             => now(),
+                    ];
+                    
+                    // Agrupar para inactivar registros antiguos
+                    $groupForInactivate[$cat->id][] = $productoId;
+                }
             }
-            
-            // Se agrupan los productos por categoría para poder inactivar los registros anteriores antes de insertar los nuevos.
-            // Esto se hace SIEMPRE, independientemente del modo (escalable o manual)
-            $groupForInactivate[$catPrecioId][] = $productoId;
         }
 
         // Si no hay registros válidos en el bloque, termina aquí.
@@ -345,13 +378,23 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
                 ->get()
                 ->keyBy('id');
 
+            // Obtener información de las categorías de precios
+            $categoriasIds = array_unique(array_column($batch, 'categoria_precios_id'));
+            $categorias = DB::table('categoria_precios')
+                ->whereIn('id', $categoriasIds)
+                ->get()
+                ->keyBy('id');
+
             // Guardar detalles de productos a procesar para mostrar en frontend
             foreach ($batch as $item) {
                 $producto = $productos[$item['producto_id']] ?? null;
+                $categoria = $categorias[$item['categoria_precios_id']] ?? null;
+                
                 $this->productosParaProcesar[] = [
                     'producto_id' => $item['producto_id'],
                     'codigo' => $producto->id ?? $item['producto_id'],
                     'descripcion' => $producto->nombre ?? 'Producto #' . $item['producto_id'],
+                    'categoria_precio' => $categoria->nombre ?? 'Categoría #' . $item['categoria_precios_id'],
                     'precio_base' => number_format($item['precio_base_venta'], 2),
                     'precio_a' => number_format($item['precio_a'], 2),
                     'precio_b' => number_format($item['precio_b'], 2),
@@ -374,45 +417,58 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
             DB::transaction(function () use ($groupForInactivate, $batch, $now) {
                 $totalInactivated = 0;
 
-                // Paso 1: inactivar registros antiguos
+                // Paso 1: inactivar registros antiguos - OPTIMIZADO
+                // Usar una sola query por categoría con todos los productos
                 foreach ($groupForInactivate as $catId => $prodIds) {
-                    $affected = DB::table('precios_producto_carga')
-                        ->where('categoria_precios_id', $catId)
-                        ->whereIn('producto_id', array_unique($prodIds))
-                        ->update([
-                            'estado_id'   => 2,
-                            'updated_at'  => $now,
-                        ]);
-                    $totalInactivated += (int)$affected;
+                    $uniqueProdIds = array_unique($prodIds);
+                    
+                    // Si hay muchos productos, dividir en lotes de 1000 para evitar límites de SQL
+                    $chunks = array_chunk($uniqueProdIds, 1000);
+                    
+                    foreach ($chunks as $chunk) {
+                        $affected = DB::table('precios_producto_carga')
+                            ->where('categoria_precios_id', $catId)
+                            ->where('estado_id', 1)  // Solo inactivar los que están activos
+                            ->whereIn('producto_id', $chunk)
+                            ->update([
+                                'estado_id'   => 2,
+                                'updated_at'  => $now,
+                            ]);
+                        $totalInactivated += (int)$affected;
+                    }
                 }
 
-                // Paso 2: insertar los nuevos registros en bloque
-                DB::table('precios_producto_carga')->insert($batch);
+                // Paso 2: insertar los nuevos registros en bloque - OPTIMIZADO
+                // Dividir inserciones grandes en chunks de 1000 para evitar límites de MySQL
+                $insertChunks = array_chunk($batch, 1000);
+                foreach ($insertChunks as $chunk) {
+                    DB::table('precios_producto_carga')->insert($chunk);
+                }
 
                 // Paso 3: actualizar las métricas del proceso
                 $this->rowsInactivated += $totalInactivated;
                 $this->rowsInserted += count($batch);
 
-                // Paso 4: Obtener información detallada de los productos insertados
-                $productoIds = array_column($batch, 'producto_id');
-                $productos = DB::table('producto')
-                    ->whereIn('id', $productoIds)
-                    ->get()
-                    ->keyBy('id');
-
+                // Paso 4: Usar el mapeo precargado en lugar de hacer otra consulta
                 // Guardar detalles de productos insertados para mostrar en frontend
+                $productosUnicos = [];
                 foreach ($batch as $item) {
-                    $producto = $productos[$item['producto_id']] ?? null;
-                    $this->productosInsertados[] = [
-                        'producto_id' => $item['producto_id'],
-                        'codigo' => $producto->id ?? $item['producto_id'],
-                        'descripcion' => $producto->nombre ?? 'Producto #' . $item['producto_id'],
-                        'precio_base' => number_format($item['precio_base_venta'], 2),
-                        'precio_a' => number_format($item['precio_a'], 2),
-                        'precio_b' => number_format($item['precio_b'], 2),
-                        'precio_c' => number_format($item['precio_c'], 2),
-                        'precio_d' => number_format($item['precio_d'], 2),
-                    ];
+                    $productoId = $item['producto_id'];
+                    // Evitar duplicados en el reporte
+                    if (!isset($productosUnicos[$productoId])) {
+                        $producto = $this->productoInfoMap[$productoId] ?? null;
+                        $this->productosInsertados[] = [
+                            'producto_id' => $productoId,
+                            'codigo' => $producto['codigo'] ?? $productoId,
+                            'descripcion' => $producto['nombre'] ?? 'Producto #' . $productoId,
+                            'precio_base' => number_format($item['precio_base_venta'], 2),
+                            'precio_a' => number_format($item['precio_a'], 2),
+                            'precio_b' => number_format($item['precio_b'], 2),
+                            'precio_c' => number_format($item['precio_c'], 2),
+                            'precio_d' => number_format($item['precio_d'], 2),
+                        ];
+                        $productosUnicos[$productoId] = true;
+                    }
                 }
             });
         } catch (QueryException $e) {

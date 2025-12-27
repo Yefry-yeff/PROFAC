@@ -329,7 +329,8 @@ class FacturacionCorporativa extends Component
                     ppc.precio_a AS precio1,
                     ppc.precio_b AS precio2,
                     ppc.precio_c AS precio3,
-                    ppc.precio_d AS precio4
+                    ppc.precio_d AS precio4,
+                    ppc.id AS precios_producto_carga_id
                 FROM producto p
                 JOIN cliente_categoria_escala cce
                     ON cce.id = :categoria_cliente_venta_id
@@ -349,11 +350,7 @@ class FacturacionCorporativa extends Component
 
             ]);
 
-
-
-
             if (!$producto) {
-                dd("Entro a este if");
                 $nombreProducto = DB::table('producto')
                     ->where('id', $request['idProducto'])
                     ->value('nombre');
@@ -362,12 +359,9 @@ class FacturacionCorporativa extends Component
                     ->where('id', $request['categoria_cliente_venta_id'])
                     ->value('nombre_categoria');
 
-               if (!$producto) {
-                    return response()->json([
-                        'message' => "El producto <b>{$nombreProducto}</b> no tiene una escala de precios asignada para la categoría de cliente <b>{$nombreCategoria}</b>."
-                    ], 404);
-                }
-
+                return response()->json([
+                    'message' => "El producto <b>{$nombreProducto}</b> no tiene una escala de precios asignada para la categoría de cliente <b>{$nombreCategoria}</b>."
+                ], 404);
             }
 
             return response()->json([
@@ -698,7 +692,7 @@ class FacturacionCorporativa extends Component
 
                 $keyidPrecioSeleccionado = 'idPrecioSeleccionado'.$arrayInputs[$i];
                 $keyprecioSeleccionado = 'precios'.$arrayInputs[$i];
-                $keyidCategoriaSeleccionada = 'idCategoriaSeleccionada'.$arrayInputs[$i];
+                $keyprecios_producto_carga_id = 'precios_producto_carga_id'.$arrayInputs[$i];
 
                 $restaInventario = $request->$keyRestaInventario;
                 $idSeccion = $request->$keyIdSeccion;
@@ -709,7 +703,7 @@ class FacturacionCorporativa extends Component
                 $idPrecioSeleccionado = $request->$keyidPrecioSeleccionado;
                 $precioSeleccionado = $request->$keyprecioSeleccionado;
 
-                $categoriaClientePrecio = $request->$keyidCategoriaSeleccionada;
+                $precios_producto_carga_id = $request->$keyprecios_producto_carga_id;
                 $precio = $request->$keyPrecio;
                 $cantidad = $request->$keyCantidad;
                 $subTotal = $request->$keySubTotal;
@@ -718,7 +712,7 @@ class FacturacionCorporativa extends Component
 
                 // dd($factura);
 
-                $this->restarUnidadesInventario($categoriaClientePrecio, $precioSeleccionado,$idPrecioSeleccionado,$restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $arrayInputs[$i]);
+                $this->restarUnidadesInventario($precios_producto_carga_id, $precioSeleccionado,$idPrecioSeleccionado,$restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $arrayInputs[$i]);
             };
 
             if ($request->tipoPagoVenta == 2) { //si el tipo de pago es credito
@@ -1261,7 +1255,7 @@ class FacturacionCorporativa extends Component
         }
     }
 
-    public function restarUnidadesInventario($unidadesRestarInv, $idProducto, $idSeccion, $idFactura, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $indice)
+    public function restarUnidadesInventario($precios_producto_carga_id,$idPrecioSeleccionado,$precioSeleccionado , $unidadesRestarInv, $idProducto, $idSeccion, $idFactura, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $indice)
     {
         try {
 
@@ -1338,14 +1332,6 @@ class FacturacionCorporativa extends Component
 
 
 
-                $precioProductoCargaId = DB::SELECTONE("
-
-                select A.id from precios_producto_carga A
-                inner join categoria_precios B on B.id = A.categoria_precios_id and B.estado_id = 1
-                inner join cliente_categoria_escala C on C.id = B.cliente_categoria_escala_id and C.estado_id = 1
-                where A.estado_id = 1 and A.producto_id = ? and C.id = ?", [$idProducto,$categoriaClientePrecio]);
-
-
                 array_push($this->arrayProductos, [
                     "factura_id" => $idFactura,
                     "producto_id" => $idProducto,
@@ -1370,7 +1356,7 @@ class FacturacionCorporativa extends Component
                     "total_s" => $totalSecccionado,
                     "precioSeleccionado" => $precioSeleccionado,
                     "idPrecioSeleccionado" => $idPrecioSeleccionado,
-                    "precios_producto_carga_id" => $precioProductoCargaId->id,
+                    "precios_producto_carga_id" => $precios_producto_carga_id,
                     "created_at" => now(),
                     "updated_at" => now(),
                 ]);

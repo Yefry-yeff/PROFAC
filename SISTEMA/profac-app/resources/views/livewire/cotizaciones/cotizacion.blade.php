@@ -200,7 +200,7 @@
                                         <label for="seleccionarProducto" class="col-form-label focus-label">Seleccionar
                                             Producto:<span class="text-danger">*</span></label>
                                         <select id="seleccionarProducto" name="seleccionarProducto"
-                                            class="form-group form-control" style="" onchange="cargarCategoriasProducto()">
+                                            class="form-group form-control">
                                             <option value="" selected disabled>--Seleccione un producto--</option>
                                         </select>
                                     </div>
@@ -208,8 +208,10 @@
 
                                 <div class="col-12 col-md-4 col-lg-4 col-xl-4">
                                     <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                        <label for="categoria_cliente_venta_id" class="col-form-label focus-label">Categoría/Cliente Venta:<span class="text-danger">*</span></label>
-                                        <select id="categoria_cliente_venta_id" name="categoria_cliente_venta_id" class="form-group form-control"style="" onchange="listaCategoríaClientes()" disabled>
+                                        <label for="categoria_cliente_venta_id" class="col-form-label focus-label">
+                                            Categoría Precio Producto:<span class="text-danger">*</span>
+                                        </label>
+                                        <select id="categoria_cliente_venta_id" name="categoria_cliente_venta_id" class="form-group form-control"style="" onchange="listaCategoríaClientes()">
                                             <option value="" selected disabled>--Seleccione primero un producto--</option>
                                         </select>
                                     </div>
@@ -220,8 +222,8 @@
                                         <label for="bodega" class="col-form-label focus-label">Seleccionar
                                             bodega:<span class="text-danger">*</span></label>
                                         <select id="bodega" name="bodega" class="form-group form-control"
-                                            style="" onchange="prueba()" disabled>
-                                            <option value="" selected disabled>--Seleccione una categoría--</option>
+                                            style="" onchange="prueba()">
+                                            <option value="" selected disabled>--Seleccione una categoría primero--</option>
                                         </select>
                                     </div>
 

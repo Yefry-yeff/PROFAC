@@ -198,6 +198,29 @@ textarea.form-control, input.form-control {
     z-index: 10;
 }
 
+/* Overlay de carga */
+#overlayProcesandoPrecios {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 9999;
+    display: none;
+    justify-content: center;
+    align-items: center;
+}
+
+#overlayProcesandoPrecios .overlay-content {
+    background: white;
+    padding: 30px;
+    border-radius: 10px;
+    text-align: center;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    min-width: 300px;
+}
+
 </style>
 @endpush
 
@@ -251,8 +274,17 @@ textarea.form-control, input.form-control {
         <h6 class="mb-2 mb-md-0"><b>PLANTILLA DE PRECIOS POR PRODUCTOS</b></h6>
 
         <form id="formExport" method="GET" action="{{ route('excel.plantilla') }}" class="flex-wrap d-flex align-items-center filtro-container">
-            <!-- Tipo de categoría -->
+            <!-- Tipo de plantilla: Categoría o General -->
             <div class="filtro-item">
+                <select id="tipoPlantilla" name="tipoPlantilla" class="form-control select2bs4 filtro-select">
+                    <option value="">🎯 Tipo de plantilla</option>
+                    <option value="categoria">📋 Por Categoría</option>
+                    <option value="general">🌐 General</option>
+                </select>
+            </div>
+
+            <!-- Tipo de categoría -->
+            <div class="filtro-item" id="containerTipoCategoria" style="display:none;">
                 <select id="tipoCategoria" name="tipoCategoria" class="form-control select2bs4 filtro-select">
                     <option value="">🧾 Tipo de categoría</option>
                     <option value="escalable">📈 Escalable</option>
@@ -261,7 +293,7 @@ textarea.form-control, input.form-control {
             </div>
 
             <!-- Tipo de filtro -->
-            <div class="filtro-item">
+            <div class="filtro-item" id="containerTipoFiltro" style="display:none;">
                 <select id="tipoFiltro" name="tipoFiltro" class="form-control select2bs4 filtro-select">
                     <option value="">📂 Formato</option>
                     <option value="1">🏷️ Marca</option>
@@ -270,16 +302,15 @@ textarea.form-control, input.form-control {
             </div>
 
             <!-- Lista de filtro -->
-            <div class="filtro-item">
+            <div class="filtro-item" id="containerListaFiltro" style="display:none;">
                 <select id="listaTipoFiltro" name="listaTipoFiltro" class="form-control select2bs4 filtro-select">
                     <option value="">Seleccione filtro</option>
                 </select>
             </div>
 
-            <!-- Categoria de precios -->
-            <div class="filtro-item">
-                <select id="listaTipoFiltroCatPrecios" name="listaTipoFiltroCatPrecios" class="form-control select2bs4 filtro-select" required>
-
+            <!-- Categoria de precios (solo visible en modo "Categoría") -->
+            <div class="filtro-item" id="containerCatPrecios" style="display:none;">
+                <select id="listaTipoFiltroCatPrecios" name="listaTipoFiltroCatPrecios" class="form-control select2bs4 filtro-select">
                     <option value="">Seleccione Categoría de precio</option>
                 </select>
             </div>
@@ -299,6 +330,12 @@ textarea.form-control, input.form-control {
         <h6 class="mb-0"><b>IMPORTACIÓN DE LA PLANTILLA DE PRECIOS DE PRODUCTO</b></h6>
     </div>
     <div class="p-2 card-body">
+        <!-- Mensaje informativo dinámico -->
+        <div id="mensajeInfoImport" class="alert alert-info mb-3" style="display:none;">
+            <i class="bi bi-info-circle"></i> <strong id="tituloInfoImport"></strong>
+            <p class="mb-0 mt-2" id="descripcionInfoImport"></p>
+        </div>
+        
         <div class="d-flex justify-content-center align-items-center">
             <form id="formSubirExcel" class="d-flex align-items-center" enctype="multipart/form-data">
                 @csrf
@@ -333,7 +370,8 @@ textarea.form-control, input.form-control {
                         <tr>
                             <th>Código</th>
                             <th>Descripción</th>
-                            <th>Precio Base</th>
+                            <th>Categoría Precio</th>
+                            <th></th>Precio Base</th>
                             <th>Precio A</th>
                             <th>Precio B</th>
                             <th>Precio C</th>
@@ -364,6 +402,17 @@ textarea.form-control, input.form-control {
                 </table>
             </div>
         </div>
+    </div>
+</div>
+
+<!-- Overlay de carga para procesamiento -->
+<div id="overlayProcesandoPrecios">
+    <div class="overlay-content">
+        <div class="spinner-border text-primary" role="status" style="width:3rem; height:3rem; margin-bottom:20px;">
+            <span class="sr-only">Cargando...</span>
+        </div>
+        <h5 class="mb-2"><strong id="tituloOverlayPrecios">Procesando archivo...</strong></h5>
+        <p class="text-muted mb-0" id="mensajeOverlayPrecios">Por favor espere mientras se validan los datos</p>
     </div>
 </div>
 
@@ -473,6 +522,114 @@ textarea.form-control, input.form-control {
         const msgImportPrecios = $('#msgImportPrecios');
         const formSubirExcel = $('#formSubirExcel');
 
+        // Gestión dinámica de filtros según tipo de plantilla
+        $('#tipoPlantilla').on('change', function() {
+            const tipoPlantilla = $(this).val();
+            
+            // Resetear todos los filtros
+            $('#tipoCategoria').val('').trigger('change');
+            $('#tipoFiltro').val('').trigger('change');
+            $('#listaTipoFiltro').val('').trigger('change');
+            $('#listaTipoFiltroCatPrecios').val('').trigger('change');
+            $('#btnDescargar').prop('disabled', true);
+            
+            // Ocultar todos los contenedores
+            $('#containerTipoCategoria').hide();
+            $('#containerTipoFiltro').hide();
+            $('#containerListaFiltro').hide();
+            $('#containerCatPrecios').hide();
+            
+            // Limpiar archivo y mensajes
+            fileInputPrecios.val('');
+            btnLimpiarPrecios.hide();
+            btnFinalizarPrecios.hide();
+            btnProcesarPrecios.show();
+            $('#previewActualizablesPrecios').hide();
+            $('#previewNoActualizablesPrecios').hide();
+            barProgressPrecios.css('width', '0%');
+            msgImportPrecios.text('');
+            
+            // Actualizar mensaje informativo
+            if (tipoPlantilla === 'categoria') {
+                // Modo Categoría: mostrar todos los filtros
+                $('#containerTipoCategoria').show();
+                $('#tituloInfoImport').text('Modo: Por Categoría');
+                $('#descripcionInfoImport').html('Los precios se actualizarán <strong>solo para la categoría de precios seleccionada</strong>. El archivo debe contener los productos filtrados por marca o categoría.');
+                $('#mensajeInfoImport').removeClass('alert-warning').addClass('alert-info').show();
+            } else if (tipoPlantilla === 'general') {
+                // Modo General: mostrar filtros excepto categoría de precios
+                $('#containerTipoCategoria').show();
+                $('#tituloInfoImport').text('Modo: General');
+                $('#descripcionInfoImport').html('Los precios se actualizarán <strong>para TODAS las categorías de precios activas</strong> del sistema. No necesita seleccionar una categoría específica.');
+                $('#mensajeInfoImport').removeClass('alert-info').addClass('alert-warning').show();
+            } else {
+                $('#mensajeInfoImport').hide();
+            }
+        });
+
+        // Al cambiar tipo de categoría
+        $('#tipoCategoria').on('change', function() {
+            const tipoPlantilla = $('#tipoPlantilla').val();
+            if ($(this).val()) {
+                $('#containerTipoFiltro').show();
+            } else {
+                $('#containerTipoFiltro').hide();
+                $('#containerListaFiltro').hide();
+                $('#containerCatPrecios').hide();
+            }
+            validarFormularioDescarga();
+        });
+
+        // Al cambiar tipo de filtro
+        $('#tipoFiltro').on('change', function() {
+            if ($(this).val()) {
+                $('#containerListaFiltro').show();
+            } else {
+                $('#containerListaFiltro').hide();
+                $('#containerCatPrecios').hide();
+            }
+            validarFormularioDescarga();
+        });
+
+        // Al cambiar lista de filtro
+        $('#listaTipoFiltro').on('change', function() {
+            const tipoPlantilla = $('#tipoPlantilla').val();
+            if ($(this).val()) {
+                if (tipoPlantilla === 'categoria') {
+                    $('#containerCatPrecios').show();
+                }
+            } else {
+                $('#containerCatPrecios').hide();
+            }
+            validarFormularioDescarga();
+        });
+
+        // Al cambiar categoría de precios
+        $('#listaTipoFiltroCatPrecios').on('change', function() {
+            validarFormularioDescarga();
+        });
+
+        // Validar formulario para habilitar/deshabilitar botón de descarga
+        function validarFormularioDescarga() {
+            const tipoPlantilla = $('#tipoPlantilla').val();
+            const tipoCategoria = $('#tipoCategoria').val();
+            const tipoFiltro = $('#tipoFiltro').val();
+            const valorFiltro = $('#listaTipoFiltro').val();
+            const categoriaPrecioId = $('#listaTipoFiltroCatPrecios').val();
+            
+            let valido = false;
+            
+            if (tipoPlantilla === 'categoria') {
+                // Modo Categoría: requiere todos los campos
+                valido = tipoCategoria && tipoFiltro && valorFiltro && categoriaPrecioId;
+            } else if (tipoPlantilla === 'general') {
+                // Modo General: requiere todo excepto categoría de precios
+                valido = tipoCategoria && tipoFiltro && valorFiltro;
+            }
+            
+            $('#btnDescargar').prop('disabled', !valido);
+        }
+
         // Resetear cuando se cambie el archivo
         fileInputPrecios.on('change', function() {
             // Ocultar previews
@@ -543,12 +700,14 @@ textarea.form-control, input.form-control {
             }
 
             // Obtener valores de los filtros
+            const tipoPlantilla = $('#tipoPlantilla').val();
             const tipoCategoria = $('#tipoCategoria').val();
             const tipoFiltro = $('#tipoFiltro').val();
             const valorFiltro = $('#listaTipoFiltro').val();
             const categoriaPrecioId = $('#listaTipoFiltroCatPrecios').val();
 
-            if (!tipoCategoria || !tipoFiltro || !valorFiltro || !categoriaPrecioId) {
+            // Validar según el tipo de plantilla
+            if (!tipoPlantilla || !tipoCategoria || !tipoFiltro || !valorFiltro) {
                 Swal.fire({
                     icon: 'warning',
                     title: 'Campos requeridos',
@@ -557,16 +716,34 @@ textarea.form-control, input.form-control {
                 return;
             }
 
+            // Si es por categoría, validar que se haya seleccionado una categoría de precios
+            if (tipoPlantilla === 'categoria' && !categoriaPrecioId) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Categoría de precios requerida',
+                    text: 'Debe seleccionar una categoría de precios para el modo "Por Categoría".',
+                });
+                return;
+            }
+
             const formData = new FormData(formSubirExcel[0]);
+            formData.append('tipoPlantilla', tipoPlantilla);
             formData.append('tipoCategoria', tipoCategoria);
             formData.append('tipoFiltro', tipoFiltro);
             formData.append('valorFiltro', valorFiltro);
-            formData.append('categoriaPrecioId', categoriaPrecioId);
+            if (tipoPlantilla === 'categoria') {
+                formData.append('categoriaPrecioId', categoriaPrecioId);
+            }
             
             // Ocultar previews anteriores
             $('#previewActualizablesPrecios').hide();
             $('#previewNoActualizablesPrecios').hide();
             btnFinalizarPrecios.hide();
+
+            // Mostrar overlay de carga
+            $('#overlayProcesandoPrecios').css('display', 'flex');
+            $('#tituloOverlayPrecios').text('Procesando archivo...');
+            $('#mensajeOverlayPrecios').text('Por favor espere mientras se validan los datos');
 
             barProgressPrecios.removeClass('bg-success bg-danger').addClass('bg-info').css('width', '0%');
             msgImportPrecios.removeClass('text-danger').text('Validando archivo...');
@@ -590,6 +767,9 @@ textarea.form-control, input.form-control {
                     return xhr;
                 },
                 success: function(res) {
+                    // Ocultar overlay
+                    $('#overlayProcesandoPrecios').hide();
+                    
                     barProgressPrecios.addClass('bg-info').css('width', '100%');
                     msgImportPrecios.text('Preview generado - Revise los productos');
 
@@ -609,6 +789,7 @@ textarea.form-control, input.form-control {
                                 <tr>
                                     <td>${item.codigo || item.producto_id || 'N/A'}</td>
                                     <td>${item.descripcion || item.nombre || 'N/A'}</td>
+                                    <td class="font-weight-bold text-info">${item.categoria_precio || 'N/A'}</td>
                                     <td>${item.precio_base || 'N/A'}</td>
                                     <td class="text-success font-weight-bold">${item.precio_a || 'N/A'}</td>
                                     <td class="text-success font-weight-bold">${item.precio_b || 'N/A'}</td>
@@ -700,6 +881,9 @@ textarea.form-control, input.form-control {
                     }
                 },
                 error: function(xhr) {
+                    // Ocultar overlay
+                    $('#overlayProcesandoPrecios').hide();
+                    
                     barProgressPrecios.addClass('bg-danger').css('width', '100%');
                     let t = 'Error al procesar el archivo.';
                     let debugInfo = '';
@@ -732,9 +916,16 @@ textarea.form-control, input.form-control {
         btnFinalizarPrecios.on('click', function(e) {
             e.preventDefault();
 
+            const tipoPlantilla = $('#tipoPlantilla').val();
+            let mensajeConfirmacion = 'Se actualizarán los precios de los productos mostrados en el preview.';
+            
+            if (tipoPlantilla === 'general') {
+                mensajeConfirmacion = 'Se actualizarán los precios para TODAS las categorías activas del sistema.';
+            }
+
             Swal.fire({
                 title: '¿Confirmar actualización?',
-                text: 'Se actualizarán los precios de los productos mostrados en el preview.',
+                text: mensajeConfirmacion,
                 icon: 'question',
                 showCancelButton: true,
                 confirmButtonColor: '#28a745',
@@ -743,13 +934,24 @@ textarea.form-control, input.form-control {
                 cancelButtonText: 'Cancelar'
             }).then((result) => {
                 if (result.isConfirmed) {
+                    // Mostrar overlay de carga
+                    $('#overlayProcesandoPrecios').css('display', 'flex');
+                    $('#tituloOverlayPrecios').text('Finalizando actualización...');
+                    $('#mensajeOverlayPrecios').text('Actualizando precios en la base de datos');
+                    
                     barProgressPrecios.removeClass('bg-info bg-danger').addClass('bg-success').css('width', '0%');
                     msgImportPrecios.text('Finalizando actualización...');
                     btnFinalizarPrecios.prop('disabled', true);
 
+                    const formData = new FormData();
+                    formData.append('tipoPlantilla', tipoPlantilla);
+
                     $.ajax({
                         url: "{{ route('finalizar.excel.precios') }}",
                         method: 'POST',
+                        data: formData,
+                        contentType: false,
+                        processData: false,
                         headers: {'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')},
                         xhr: function() {
                             const xhr = $.ajaxSettings.xhr();
@@ -764,6 +966,9 @@ textarea.form-control, input.form-control {
                             return xhr;
                         },
                         success: function(res) {
+                            // Ocultar overlay
+                            $('#overlayProcesandoPrecios').hide();
+                            
                             barProgressPrecios.css('width', '100%');
                             msgImportPrecios.text('Actualización completada exitosamente');
 
@@ -791,6 +996,9 @@ textarea.form-control, input.form-control {
                             });
                         },
                         error: function(xhr) {
+                            // Ocultar overlay
+                            $('#overlayProcesandoPrecios').hide();
+                            
                             barProgressPrecios.removeClass('bg-success').addClass('bg-danger').css('width', '100%');
                             let t = 'Error al finalizar la actualización.';
                             if (xhr.responseJSON && xhr.responseJSON.text) t = xhr.responseJSON.text;

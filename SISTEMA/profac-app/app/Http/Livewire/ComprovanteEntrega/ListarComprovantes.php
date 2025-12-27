@@ -43,7 +43,7 @@ class ListarComprovantes extends Component
         from comprovante_entrega
         inner join users
         on comprovante_entrega.users_id = users.id
-        where estado_id = 1
+        where comprovante_entrega.estado_id = 1
         ");
             return Datatables::of($listadoComprobantesActivos)
                 ->addColumn('opciones', function ($comprobante) {

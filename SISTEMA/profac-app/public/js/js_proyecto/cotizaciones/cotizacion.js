@@ -123,10 +123,15 @@
                 }
             });
 
+            // Evento para cargar categorías cuando se selecciona un producto
+            $('#seleccionarProducto').on('select2:select', function(e) {
+                cargarCategoriasProducto();
+            });
+
             function listaCategoríaClientes() {
                 let categoriaId = $('#categoria_cliente_venta_id').val();
                 let productoId = $('#seleccionarProducto').val();
-                
+
                 if (categoriaId && productoId) {
                     // Habilitar bodega
                     $('#bodega').prop('disabled', false);
@@ -200,28 +205,39 @@
 
             function cargarCategoriasProducto() {
                 let productoId = $('#seleccionarProducto').val();
-                
+                let clienteId = $('#seleccionarCliente').val();
+
                 if (productoId) {
-                    // Limpiar y deshabilitar categoría mientras se carga
-                    $('#categoria_cliente_venta_id').prop('disabled', true);
+                    // Limpiar categoría mientras se carga
                     $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>Cargando categorías...</option>');
-                    
+
                     // Cargar categorías del producto
                     axios.post('/producto/categorias-disponibles', {
                         producto_id: productoId
                     })
                     .then(response => {
                         let categorias = response.data.categorias;
-                        
-                        $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>--Seleccione una categoría--</option>');
-                        
+
                         if (categorias.length > 0) {
+                            $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>--Seleccione una categoría--</option>');
+                            
+                            // Si hay un cliente seleccionado, obtener su categoría
+                            let categoriaClienteId = null;
+                            if (clienteId) {
+                                categoriaClienteId = $('#categoria_cliente_venta_id').data('categoria-cliente-id');
+                            }
+
+                            // Mostrar todas las categorías disponibles
                             categorias.forEach(categoria => {
-                                let option = new Option(categoria.nombre_categoria, categoria.id, false, false);
+                                let isSelected = (categoriaClienteId && categoria.id == categoriaClienteId);
+                                let option = new Option(categoria.nombre_categoria, categoria.id, isSelected, isSelected);
                                 $('#categoria_cliente_venta_id').append(option);
                             });
+                            
+                            // SIEMPRE mantener habilitado el select
                             $('#categoria_cliente_venta_id').prop('disabled', false);
                         } else {
+                            // No hay categorías disponibles para este producto
                             $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>No hay categorías disponibles para este producto</option>');
                             Swal.fire({
                                 icon: 'warning',
@@ -239,7 +255,7 @@
                         });
                         $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>Error al cargar categorías</option>');
                     });
-                    
+
                     // Continuar con las imágenes del producto
                     obtenerImagenes();
                 } else {
@@ -401,7 +417,7 @@
 
                         numeroInputs += 1;
                         htmlSelectUnidades = "";
-                        htmlprecios = `
+                        /*htmlprecios = `
                         <option  value="${producto.precio1}" data-id="p1" selected>${producto.precio1} - A</option>
                         <option  value="${producto.precio2}" data-id="p2">${producto.precio2} - B</option>
                         <option  value="${producto.precio3}" data-id="p3">${producto.precio3} - C</option>
@@ -410,7 +426,10 @@
 
 
 
-                        `;
+                        `;*/
+
+
+                        htmlprecios = `<option  value="${producto.precio1}" data-id="p1" selected>${producto.precio1} - A</option>`;
 
                         arrayUnidades.forEach(unidad => {
                             if (unidad.valor_defecto == 1) {
@@ -434,6 +453,7 @@
                                                     </button>
 
                                                     <input id="idProducto${numeroInputs}" name="idProducto${numeroInputs}" type="hidden" value="${producto.id}">
+                                                    <input id="precios_producto_carga_id${numeroInputs}" name="precios_producto_carga_id${numeroInputs}" type="hidden" value="${producto.precios_producto_carga_id}">
 
                                                     <div style="width:100%">
                                                         <label for="nombre${numeroInputs}" class="sr-only">Nombre del producto</label>
@@ -925,9 +945,13 @@
                                 document.getElementById("rtn_ventas").value = '';
                                 let selectBox = document.getElementById("tipoPagoVenta");
                                 selectBox.remove(2);
-                                obtenerCategoriasClientes();
+                                // No llamar a obtenerCategoriasClientes() para cliente genérico
+                                // Simplemente establecer la categoría
                                 $('#categoria_cliente_nombre').text(data.nombre_categoria);
-                                document.getElementById("categoria_cliente_venta_id").appendChild(new Option(data.nombre_categoria, data.idcategoriacliente, true, true));
+                                $('#categoria_cliente_venta_id').data('categoria-cliente-id', data.idcategoriacliente);
+                                $('#categoria_cliente_venta_id').empty();
+                                $('#categoria_cliente_venta_id').append(new Option(data.nombre_categoria, data.idcategoriacliente, true, true));
+                                // NO deshabilitar el select - el usuario puede cambiar la categoría
 
 
                             } else {
@@ -937,10 +961,14 @@
                                 document.getElementById("nombre_cliente_ventas").value = data.nombre;
                                 document.getElementById("rtn_ventas").value = data.rtn;
                                 $('#categoria_cliente_nombre').text(data.nombre_categoria);
+                                $('#categoria_cliente_venta_id').data('categoria-cliente-id', data.idcategoriacliente);
 
-                                document.getElementById("categoria_cliente_venta_id").appendChild(new Option(data.nombre_categoria, data.idcategoriacliente, true, true));
+                                // No llamar a obtenerCategoriasClientes() para clientes normales
+                                // Simplemente establecer la categoría del cliente
+                                $('#categoria_cliente_venta_id').empty();
+                                $('#categoria_cliente_venta_id').append(new Option(data.nombre_categoria, data.idcategoriacliente, true, true));
+                                // NO deshabilitar el select - el usuario puede cambiar la categoría
 
-                                obtenerCategoriasClientes();
                                 obtenerTipoPago();
                                 diasCredito = data.dias_credito;
                             }

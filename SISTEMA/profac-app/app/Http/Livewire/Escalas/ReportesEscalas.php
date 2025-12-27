@@ -52,6 +52,7 @@ class ReportesEscalas extends Component
             ->where('ppc.estado_id', 1) // Solo precios activos
             ->select(
                 'p.id',
+                'cce.nombre_categoria as categoria_cliente',
                 'p.nombre as producto',
                 'p.codigo_barra as codigo',
                 'm.nombre as marca',
@@ -80,6 +81,9 @@ class ReportesEscalas extends Component
         return DataTables::of($query)
             ->filterColumn('id', function($query, $keyword) {
                 $query->whereRaw("CAST(p.id AS CHAR) LIKE ?", ["%{$keyword}%"]);
+            })
+            ->filterColumn('categoria_cliente', function($query, $keyword) {
+                $query->whereRaw("cce.nombre_categoria LIKE ?", ["%{$keyword}%"]);
             })
             ->filterColumn('codigo', function($query, $keyword) {
                 $query->whereRaw("p.codigo_barra LIKE ?", ["%{$keyword}%"]);
