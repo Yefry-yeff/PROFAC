@@ -256,6 +256,12 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::post('/procesar-excel-precios', [App\Http\Controllers\ExcelController::class, 'procesarExcelPrecios'])
     ->name('procesar.excel.precios');
 
+    // Ruta para debugging de JavaScript
+    Route::post('/log-debug', function(\Illuminate\Http\Request $request) {
+        \Illuminate\Support\Facades\Log::info('[JS DEBUG] ' . ($request->mensaje ?? 'Sin mensaje'), $request->datos ?? []);
+        return response()->json(['ok' => true]);
+    });
+
     /* Gestión masiva de clientes */
 
         Route::get('/clientes/plantilla-categorias', [ClienteLW::class,'descargarPlantillaCategoriaClientes'])

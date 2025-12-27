@@ -478,7 +478,7 @@
                     isv: {{ $cotizacion->isv }},
                     total: {{ $cotizacion->total }},
                     numeroInputs: {{ $cotizacion->numeroInputs }},
-                    arregloIdInputs: "{{ $cotizacion->arregloIdInputs }}"
+                    arregloIdInputs: {!! json_encode($cotizacion->arregloIdInputs) !!}
                 };
             @else
                 var cotizacionData = null;
@@ -817,6 +817,11 @@
                                 obtenerOrdenesCompra();
                             }
 
+                            // Si venimos de una cotización, cargar los precios de los productos
+                            if (cotizacionData && arregloIdInputs && arregloIdInputs.length > 0) {
+                                cargarPreciosProductosCotizacion(data.idcategoriacliente);
+                            }
+
                         }
                     )
                     .catch(err => {
@@ -888,49 +893,76 @@
                 document.getElementById('porDescuento').value = cotizacionData.porDescuento;
                 document.getElementById('porDescuentoCalculado').value = cotizacionData.porDescuento;
 
-                // Cargar arrays de inputs
-                arregloIdInputs = cotizacionData.arregloIdInputs.split(',');
+                // Cargar arrays de inputs - limpiar entidades HTML y comillas
+                let arregloString = cotizacionData.arregloIdInputs;
+                if (typeof arregloString === 'string') {
+                    // Remover comillas y entidades HTML
+                    arregloString = arregloString.replace(/&quot;/g, '').replace(/"/g, '');
+                    arregloIdInputs = arregloString.split(',').map(id => id.trim());
+                } else {
+                    arregloIdInputs = arregloString;
+                }
                 numeroInputs = parseInt(cotizacionData.numeroInputs);
+                
+                console.log('arregloIdInputs procesado:', arregloIdInputs);
 
                 // Cargar totales
                 setTimeout(() => {
-                    document.getElementById('subTotalGeneralGrabado').value = cotizacionData.subTotalGrabado.toFixed(2);
-                    document.getElementById('subTotalGeneralGrabadoMostrar').value = new Intl.NumberFormat('es-HN', {
+                    let elem = document.getElementById('subTotalGeneralGrabado');
+                    if (elem) elem.value = cotizacionData.subTotalGrabado.toFixed(2);
+                    
+                    elem = document.getElementById('subTotalGeneralGrabadoMostrar');
+                    if (elem) elem.value = new Intl.NumberFormat('es-HN', {
                         style: 'currency',
                         currency: 'HNL',
                         minimumFractionDigits: 2,
                     }).format(cotizacionData.subTotalGrabado);
 
-                    document.getElementById('subTotalGeneralExcento').value = cotizacionData.subTotalExcento.toFixed(2);
-                    document.getElementById('subTotalGeneralExcentoMostrar').value = new Intl.NumberFormat('es-HN', {
+                    elem = document.getElementById('subTotalGeneralExcento');
+                    if (elem) elem.value = cotizacionData.subTotalExcento.toFixed(2);
+                    
+                    elem = document.getElementById('subTotalGeneralExcentoMostrar');
+                    if (elem) elem.value = new Intl.NumberFormat('es-HN', {
                         style: 'currency',
                         currency: 'HNL',
                         minimumFractionDigits: 2,
                     }).format(cotizacionData.subTotalExcento);
 
-                    document.getElementById('subTotalGeneral').value = cotizacionData.subTotal.toFixed(2);
-                    document.getElementById('subTotalGeneralMostrar').value = new Intl.NumberFormat('es-HN', {
+                    elem = document.getElementById('subTotalGeneral');
+                    if (elem) elem.value = cotizacionData.subTotal.toFixed(2);
+                    
+                    elem = document.getElementById('subTotalGeneralMostrar');
+                    if (elem) elem.value = new Intl.NumberFormat('es-HN', {
                         style: 'currency',
                         currency: 'HNL',
                         minimumFractionDigits: 2,
                     }).format(cotizacionData.subTotal);
 
-                    document.getElementById('descuentoGeneral').value = cotizacionData.descuentoGeneral.toFixed(2);
-                    document.getElementById('descuentoMostrar').value = new Intl.NumberFormat('es-HN', {
+                    elem = document.getElementById('descuentoGeneral');
+                    if (elem) elem.value = cotizacionData.descuentoGeneral.toFixed(2);
+                    
+                    elem = document.getElementById('descuentoMostrar');
+                    if (elem) elem.value = new Intl.NumberFormat('es-HN', {
                         style: 'currency',
                         currency: 'HNL',
                         minimumFractionDigits: 2,
                     }).format(cotizacionData.descuentoGeneral);
 
-                    document.getElementById('isvGeneral').value = cotizacionData.isv.toFixed(2);
-                    document.getElementById('isvGeneralMostrar').value = new Intl.NumberFormat('es-HN', {
+                    elem = document.getElementById('isvGeneral');
+                    if (elem) elem.value = cotizacionData.isv.toFixed(2);
+                    
+                    elem = document.getElementById('isvGeneralMostrar');
+                    if (elem) elem.value = new Intl.NumberFormat('es-HN', {
                         style: 'currency',
                         currency: 'HNL',
                         minimumFractionDigits: 2,
                     }).format(cotizacionData.isv);
 
-                    document.getElementById('totalGeneral').value = cotizacionData.total.toFixed(2);
-                    document.getElementById('totalGeneralMostrar').value = new Intl.NumberFormat('es-HN', {
+                    elem = document.getElementById('totalGeneral');
+                    if (elem) elem.value = cotizacionData.total.toFixed(2);
+                    
+                    elem = document.getElementById('totalGeneralMostrar');
+                    if (elem) elem.value = new Intl.NumberFormat('es-HN', {
                         style: 'currency',
                         currency: 'HNL',
                         minimumFractionDigits: 2,
@@ -939,6 +971,166 @@
                     diasCredito = cotizacionData.dias_credito;
                     obtenerDatosCliente();
                 }, 500);
+            }
+
+            function cargarPreciosProductosCotizacion(categoriaClienteId) {
+                // Log inicial
+                axios.post('/log-debug', {
+                    mensaje: '=== Iniciando carga de precios ===',
+                    datos: {
+                        cotizacionId: cotizacionData?.id,
+                        arregloIdInputs: arregloIdInputs,
+                        categoriaClienteId: categoriaClienteId
+                    }
+                });
+                
+                if (!cotizacionData || !arregloIdInputs || arregloIdInputs.length === 0) {
+                    axios.post('/log-debug', { mensaje: 'No hay datos de cotización o productos' });
+                    return;
+                }
+
+                // Para cada producto en la cotización, cargar sus precios
+                arregloIdInputs.forEach(id => {
+                    axios.post('/log-debug', { mensaje: 'Procesando producto con id: ' + id });
+                    
+                    let productoId = document.getElementById('idProducto' + id)?.value;
+                    let idPrecioSeleccionado = document.getElementById('idPrecioSeleccionado' + id)?.value;
+                    let precioSeleccionado = document.getElementById('precioSeleccionado' + id)?.value;
+                    // Obtener la categoría específica que se usó para este producto en la cotización
+                    let categoriaProducto = document.getElementById('categoria_cliente_venta_id_producto' + id)?.value;
+                    
+                    axios.post('/log-debug', {
+                        mensaje: 'Datos del producto ' + id,
+                        datos: {
+                            id: id,
+                            productoId: productoId,
+                            idPrecioSeleccionado: idPrecioSeleccionado,
+                            precioSeleccionado: precioSeleccionado,
+                            categoriaProducto: categoriaProducto,
+                            elementoExiste: !!document.getElementById('idProducto' + id)
+                        }
+                    });
+                    
+                    if (!productoId) {
+                        axios.post('/log-debug', { mensaje: 'ERROR: No se encontró idProducto' + id });
+                        return;
+                    }
+                    
+                    // Usar la categoría del producto si existe, sino usar la del cliente
+                    let categoriaAUsar = categoriaProducto && categoriaProducto !== '' ? categoriaProducto : categoriaClienteId;
+                    
+                    if (!categoriaAUsar) {
+                        axios.post('/log-debug', { mensaje: 'ERROR: No hay categoría para producto ' + id });
+                        return;
+                    }
+                    
+                    axios.post('/log-debug', { 
+                        mensaje: 'Usando categoría para producto ' + id,
+                        datos: { categoriaProducto: categoriaProducto, categoriaCliente: categoriaClienteId, categoriaFinal: categoriaAUsar }
+                    });
+                    
+                    // Guardar ambas categorías para este producto
+                    let campoCategoria = document.getElementById('categoria_cliente_venta_id_producto' + id);
+                    if (campoCategoria && !campoCategoria.value) {
+                        // Solo actualizar si no tiene valor (para no sobrescribir la categoría de la cotización)
+                        campoCategoria.value = categoriaAUsar;
+                    }
+                    
+                    // Usar una función con closure para mantener las variables
+                    (function(currentId, currentProductoId, currentIdPrecioSeleccionado, currentPrecioSeleccionado, currentCategoria) {
+                        // Cargar los precios del producto
+                        axios.post('/log-debug', {
+                            mensaje: 'Solicitando precios para id: ' + currentId,
+                            datos: { 
+                                id: currentId,
+                                productoId: currentProductoId, 
+                                categoriaClienteId: currentCategoria
+                            }
+                        });
+                        
+                        axios.post('/estatal/datos/producto', {
+                            idProducto: currentProductoId,
+                            categoria_cliente_venta_id: currentCategoria
+                        })
+                        .then(response => {
+                            axios.post('/log-debug', {
+                                mensaje: 'Respuesta recibida para producto ' + currentProductoId + ' (id: ' + currentId + ')',
+                                datos: {
+                                    id: currentId,
+                                    precio1: response.data.producto.precio1
+                                }
+                            });
+                            
+                            let producto = response.data.producto;
+                            
+                            // Construir las opciones del select de precios
+                            let htmlPrecios = '';
+                            
+                            // Agregar precio A
+                            if (producto.precio1) {
+                                let selected = (currentIdPrecioSeleccionado === 'p1') ? 'selected' : '';
+                                htmlPrecios += `<option value="${producto.precio1}" data-id="p1" ${selected}>${producto.precio1} - A</option>`;
+                            }
+                            
+                            // Agregar precio B
+                            if (producto.precio2) {
+                                let selected = (currentIdPrecioSeleccionado === 'p2') ? 'selected' : '';
+                                htmlPrecios += `<option value="${producto.precio2}" data-id="p2" ${selected}>${producto.precio2} - B</option>`;
+                            }
+                            
+                            // Agregar precio C
+                            if (producto.precio3) {
+                                let selected = (currentIdPrecioSeleccionado === 'p3') ? 'selected' : '';
+                                htmlPrecios += `<option value="${producto.precio3}" data-id="p3" ${selected}>${producto.precio3} - C</option>`;
+                            }
+                            
+                            // Agregar precio D
+                            if (producto.precio4) {
+                                let selected = (currentIdPrecioSeleccionado === 'p4') ? 'selected' : '';
+                                htmlPrecios += `<option value="${producto.precio4}" data-id="p4" ${selected}>${producto.precio4} - D</option>`;
+                            }
+                            
+                            axios.post('/log-debug', {
+                                mensaje: 'HTML generado para id: ' + currentId,
+                                datos: { id: currentId, htmlLength: htmlPrecios.length }
+                            });
+                            
+                            // Actualizar el select de precios
+                            let selectPrecios = document.getElementById('precios' + currentId);
+                            if (selectPrecios) {
+                                selectPrecios.innerHTML = htmlPrecios;
+                                axios.post('/log-debug', { mensaje: 'Select precios' + currentId + ' actualizado' });
+                            } else {
+                                axios.post('/log-debug', { mensaje: 'ERROR: No se encontró precios' + currentId });
+                            }
+                            
+                            // Si había un precio seleccionado, asegurarse de que el valor esté correcto
+                            if (currentPrecioSeleccionado && currentIdPrecioSeleccionado) {
+                                if (selectPrecios) {
+                                    selectPrecios.value = currentPrecioSeleccionado;
+                                }
+                                let inputPrecio = document.getElementById('precio' + currentId);
+                                if (inputPrecio) {
+                                    inputPrecio.value = currentPrecioSeleccionado;
+                                    inputPrecio.setAttribute('min', producto.precio_base || producto.precio1);
+                                }
+                                axios.post('/log-debug', {
+                                    mensaje: 'Precio configurado id: ' + currentId,
+                                    datos: { precio: currentPrecioSeleccionado }
+                                });
+                            }
+                        })
+                        .catch(err => {
+                            axios.post('/log-debug', {
+                                mensaje: 'ERROR producto ' + currentProductoId + ' (id: ' + currentId + ')',
+                                datos: {
+                                    error: err.message,
+                                    status: err.response?.status
+                                }
+                            });
+                        });
+                    })(id, productoId, idPrecioSeleccionado, precioSeleccionado, categoriaAUsar); // Pasar la categoría correcta
+                });
             }
 
             function obtenerImagenes() {
@@ -1607,37 +1799,42 @@
                 });
             }
         </script>
+        
+        <script>
+            <?php
+            date_default_timezone_set('America/Tegucigalpa');
+            $act_fecha = date('Y-m-d');
+            $act_hora = date('H:i:s');
+            $mes = date('m');
+            $year = date('Y');
+            $datetim = $act_fecha . ' ' . $act_hora;
+            ?>
+            
+            function mostrarHora() {
+                var fecha = new Date();
+                var hora = fecha.getHours();
+                var minutos = fecha.getMinutes();
+                var segundos = fecha.getSeconds();
+
+                minutos = minutos < 10 ? "0" + minutos : minutos;
+                segundos = segundos < 10 ? "0" + segundos : segundos;
+
+                var elementoReloj = document.getElementById("reloj");
+                if (elementoReloj) {
+                    elementoReloj.innerHTML = hora + ":" + minutos + ":" + segundos;
+                }
+            }
+            setInterval(mostrarHora, 1000);
+        </script>
     @endpush
+    
+    <div class="mt-3">
+        <div class="float-right">
+            <?php echo "$act_fecha"; ?> <strong id="reloj"></strong>
+        </div>
+        <div>
+            <strong>Copyright</strong> Distribuciones Valencia &copy; <?php echo "$year"; ?>
+        </div>
+        <div style="clear: both;"></div>
+    </div>
 </div>
-<?php
-date_default_timezone_set('America/Tegucigalpa');
-$act_fecha = date('Y-m-d');
-$act_hora = date('H:i:s');
-$mes = date('m');
-$year = date('Y');
-$datetim = $act_fecha . ' ' . $act_hora;
-?>
-<script>
-    function mostrarHora() {
-        var fecha = new Date(); // Obtener la fecha y hora actual
-        var hora = fecha.getHours();
-        var minutos = fecha.getMinutes();
-        var segundos = fecha.getSeconds();
-
-        // A単adir un 0 delante si los minutos o segundos son menores a 10
-        minutos = minutos < 10 ? "0" + minutos : minutos;
-        segundos = segundos < 10 ? "0" + segundos : segundos;
-
-        // Mostrar la hora actual en el elemento con el id "reloj"
-        document.getElementById("reloj").innerHTML = hora + ":" + minutos + ":" + segundos;
-    }
-    // Actualizar el reloj cada segundo
-    setInterval(mostrarHora, 1000);
-</script>
-<div class="float-right">
-    <?php echo "$act_fecha"; ?> <strong id="reloj"></strong>
-</div>
-<div>
-    <strong>Copyright</strong> Distribuciones Valencia &copy; <?php echo "$year"; ?>
-</div>
-<p id="reloj"></p>

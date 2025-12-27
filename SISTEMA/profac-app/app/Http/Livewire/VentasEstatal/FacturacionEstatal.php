@@ -132,12 +132,19 @@ class FacturacionEstatal extends Component
         C.arregloIdInputs,
         A.monto_descProducto,
         A.idPrecioSeleccionado,
-        A.precioSeleccionado
+        A.precioSeleccionado,
+        A.precios_producto_carga_id,
+        PPC.categoria_precios_id,
+        CP.cliente_categoria_escala_id
         from cotizacion_has_producto A
         inner join producto B
         on A.producto_id = B.id
         inner join cotizacion C
         on A.cotizacion_id = C.id
+        left join precios_producto_carga PPC
+        on A.precios_producto_carga_id = PPC.id
+        left join categoria_precios CP
+        on PPC.categoria_precios_id = CP.id
         where A.cotizacion_id = " . $idCotizacion . "
         order by A.indice asc
         ");
@@ -206,10 +213,13 @@ class FacturacionEstatal extends Component
                 <div class="form-group col-2">
                     <label for="precios' . $i . '" class="sr-only">Precios</label>
                     <select class="form-control" name="precios' . $i . '" id="precios' . $i . '"  style="height:35.7px;"
-                        onchange="obtenerPrecio(' . $i . ')">
+                        onchange="validacionPrecio(precios' . $i . ', precio' . $i . ')">
                         <option value="" selected disabled>--Seleccionar precio--</option>
                     </select>
                     <input type="hidden" id="idPrecioSeleccionado' . $i . '" name="idPrecioSeleccionado' . $i . '" value="' . ($producto->idPrecioSeleccionado ?? '') . '">
+                    <input type="hidden" id="precioSeleccionado' . $i . '" name="precioSeleccionado' . $i . '" value="' . ($producto->precioSeleccionado ?? '') . '">
+                    <input type="hidden" id="categoria_cliente_venta_id_producto' . $i . '" name="categoria_cliente_venta_id_producto' . $i . '" value="' . ($producto->cliente_categoria_escala_id ?? '') . '">
+                    <input type="hidden" id="precios_producto_carga_id' . $i . '" name="precios_producto_carga_id' . $i . '" value="' . ($producto->precios_producto_carga_id ?? '') . '">
                 </div>
 
                 <div class="form-group col-1">
