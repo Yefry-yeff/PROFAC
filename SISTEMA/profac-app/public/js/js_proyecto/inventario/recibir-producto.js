@@ -481,6 +481,9 @@ $(document).ready(function() {
                 "data": "cantidad_sin_asignar"
             },
             {
+                "data": "unidad"
+            },
+            {
                 "data": "sub_total_producto"
             },
             {
