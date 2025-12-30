@@ -56,20 +56,10 @@
                 <li class="breadcrumb-item">
                     <a>Código de Factura: {{ $datosFactura->numero_factura }}</a>
                 </li>
-                {{-- <li class="breadcrumb-item">
-                    <a data-toggle="modal" data-target="#modal_producto_crear">Registrar</a>
-                </li> --}}
 
             </ol>
         </div>
 
-
-        {{-- <div class="col-lg-4 col-xl-2 col-md-4 col-sm-4">
-                <div style="margin-top: 1.5rem">
-                    <a href="#" class="btn add-btn btn-primary" data-toggle="modal" data-target="#modal_producto_crear"><i
-                            class="fa fa-plus"></i> Registrar Producto</a>
-                </div>
-            </div> --}}
 
 
     </div>
