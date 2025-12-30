@@ -132,12 +132,19 @@ class FacturacionEstatal extends Component
         C.arregloIdInputs,
         A.monto_descProducto,
         A.idPrecioSeleccionado,
-        A.precioSeleccionado
+        A.precioSeleccionado,
+        A.precios_producto_carga_id,
+        PPC.categoria_precios_id,
+        CP.cliente_categoria_escala_id
         from cotizacion_has_producto A
         inner join producto B
         on A.producto_id = B.id
         inner join cotizacion C
         on A.cotizacion_id = C.id
+        left join precios_producto_carga PPC
+        on A.precios_producto_carga_id = PPC.id
+        left join categoria_precios CP
+        on PPC.categoria_precios_id = CP.id
         where A.cotizacion_id = " . $idCotizacion . "
         order by A.indice asc
         ");
@@ -163,6 +170,58 @@ class FacturacionEstatal extends Component
                 on A.unidad_medida_id = B.id
                 where A.producto_id = " . $producto->producto_id
             );
+            
+            // Obtener los precios del producto usando la categoría correcta
+            $preciosProducto = DB::selectOne("
+                SELECT
+                    ppc.precio_base_venta AS precio_base,
+                    ppc.precio_a AS precio1,
+                    ppc.precio_b AS precio2,
+                    ppc.precio_c AS precio3,
+                    ppc.precio_d AS precio4
+                FROM precios_producto_carga ppc
+                WHERE ppc.id = " . ($producto->precios_producto_carga_id ?? 0) . "
+                LIMIT 1
+            ");
+            
+            // Si no se encontraron precios, intentar con la categoría del cliente
+            if (!$preciosProducto && $producto->cliente_categoria_escala_id) {
+                $preciosProducto = DB::selectOne("
+                    SELECT
+                        ppc.precio_base_venta AS precio_base,
+                        ppc.precio_a AS precio1,
+                        ppc.precio_b AS precio2,
+                        ppc.precio_c AS precio3,
+                        ppc.precio_d AS precio4
+                    FROM precios_producto_carga ppc
+                    JOIN categoria_precios cp ON ppc.categoria_precios_id = cp.id
+                    WHERE ppc.producto_id = " . $producto->producto_id . "
+                    AND cp.cliente_categoria_escala_id = " . $producto->cliente_categoria_escala_id . "
+                    AND ppc.estado_id = 1
+                    LIMIT 1
+                ");
+            }
+            
+            // Construir HTML de opciones de precios
+            $htmlPrecios = '';
+            if ($preciosProducto) {
+                if ($preciosProducto->precio1) {
+                    $selected = ($producto->idPrecioSeleccionado === 'p1') ? 'selected' : '';
+                    $htmlPrecios .= '<option value="' . $preciosProducto->precio1 . '" data-id="p1" ' . $selected . '>' . $preciosProducto->precio1 . ' - A</option>';
+                }
+                if ($preciosProducto->precio2) {
+                    $selected = ($producto->idPrecioSeleccionado === 'p2') ? 'selected' : '';
+                    $htmlPrecios .= '<option value="' . $preciosProducto->precio2 . '" data-id="p2" ' . $selected . '>' . $preciosProducto->precio2 . ' - B</option>';
+                }
+                if ($preciosProducto->precio3) {
+                    $selected = ($producto->idPrecioSeleccionado === 'p3') ? 'selected' : '';
+                    $htmlPrecios .= '<option value="' . $preciosProducto->precio3 . '" data-id="p3" ' . $selected . '>' . $preciosProducto->precio3 . ' - C</option>';
+                }
+                if ($preciosProducto->precio4) {
+                    $selected = ($producto->idPrecioSeleccionado === 'p4') ? 'selected' : '';
+                    $htmlPrecios .= '<option value="' . $preciosProducto->precio4 . '" data-id="p4" ' . $selected . '>' . $preciosProducto->precio4 . ' - D</option>';
+                }
+            }
 
             foreach ($unidadesVenta as $unidad) {
                 if ($producto->unidad_medida_venta_id == $unidad->idUnidadVenta) {
@@ -206,10 +265,13 @@ class FacturacionEstatal extends Component
                 <div class="form-group col-2">
                     <label for="precios' . $i . '" class="sr-only">Precios</label>
                     <select class="form-control" name="precios' . $i . '" id="precios' . $i . '"  style="height:35.7px;"
-                        onchange="obtenerPrecio(' . $i . ')">
-                        <option value="" selected disabled>--Seleccionar precio--</option>
+                        onchange="validacionPrecio(precios' . $i . ', precio' . $i . ')">
+                        ' . $htmlPrecios . '
                     </select>
                     <input type="hidden" id="idPrecioSeleccionado' . $i . '" name="idPrecioSeleccionado' . $i . '" value="' . ($producto->idPrecioSeleccionado ?? '') . '">
+                    <input type="hidden" id="precioSeleccionado' . $i . '" name="precioSeleccionado' . $i . '" value="' . ($producto->precioSeleccionado ?? '') . '">
+                    <input type="hidden" id="categoria_cliente_venta_id_producto' . $i . '" name="categoria_cliente_venta_id_producto' . $i . '" value="' . ($producto->cliente_categoria_escala_id ?? '') . '">
+                    <input type="hidden" id="precios_producto_carga_id' . $i . '" name="precios_producto_carga_id' . $i . '" value="' . ($producto->precios_producto_carga_id ?? '') . '">
                 </div>
 
                 <div class="form-group col-1">

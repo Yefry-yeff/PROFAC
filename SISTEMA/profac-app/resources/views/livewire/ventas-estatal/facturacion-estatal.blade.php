@@ -478,7 +478,7 @@
                     isv: {{ $cotizacion->isv }},
                     total: {{ $cotizacion->total }},
                     numeroInputs: {{ $cotizacion->numeroInputs }},
-                    arregloIdInputs: "{{ $cotizacion->arregloIdInputs }}"
+                    arregloIdInputs: {!! json_encode($cotizacion->arregloIdInputs) !!}
                 };
             @else
                 var cotizacionData = null;
@@ -888,49 +888,76 @@
                 document.getElementById('porDescuento').value = cotizacionData.porDescuento;
                 document.getElementById('porDescuentoCalculado').value = cotizacionData.porDescuento;
 
-                // Cargar arrays de inputs
-                arregloIdInputs = cotizacionData.arregloIdInputs.split(',');
+                // Cargar arrays de inputs - limpiar entidades HTML y comillas
+                let arregloString = cotizacionData.arregloIdInputs;
+                if (typeof arregloString === 'string') {
+                    // Remover comillas y entidades HTML
+                    arregloString = arregloString.replace(/&quot;/g, '').replace(/"/g, '');
+                    arregloIdInputs = arregloString.split(',').map(id => id.trim());
+                } else {
+                    arregloIdInputs = arregloString;
+                }
                 numeroInputs = parseInt(cotizacionData.numeroInputs);
+                
+                console.log('arregloIdInputs procesado:', arregloIdInputs);
 
                 // Cargar totales
                 setTimeout(() => {
-                    document.getElementById('subTotalGeneralGrabado').value = cotizacionData.subTotalGrabado.toFixed(2);
-                    document.getElementById('subTotalGeneralGrabadoMostrar').value = new Intl.NumberFormat('es-HN', {
+                    let elem = document.getElementById('subTotalGeneralGrabado');
+                    if (elem) elem.value = cotizacionData.subTotalGrabado.toFixed(2);
+                    
+                    elem = document.getElementById('subTotalGeneralGrabadoMostrar');
+                    if (elem) elem.value = new Intl.NumberFormat('es-HN', {
                         style: 'currency',
                         currency: 'HNL',
                         minimumFractionDigits: 2,
                     }).format(cotizacionData.subTotalGrabado);
 
-                    document.getElementById('subTotalGeneralExcento').value = cotizacionData.subTotalExcento.toFixed(2);
-                    document.getElementById('subTotalGeneralExcentoMostrar').value = new Intl.NumberFormat('es-HN', {
+                    elem = document.getElementById('subTotalGeneralExcento');
+                    if (elem) elem.value = cotizacionData.subTotalExcento.toFixed(2);
+                    
+                    elem = document.getElementById('subTotalGeneralExcentoMostrar');
+                    if (elem) elem.value = new Intl.NumberFormat('es-HN', {
                         style: 'currency',
                         currency: 'HNL',
                         minimumFractionDigits: 2,
                     }).format(cotizacionData.subTotalExcento);
 
-                    document.getElementById('subTotalGeneral').value = cotizacionData.subTotal.toFixed(2);
-                    document.getElementById('subTotalGeneralMostrar').value = new Intl.NumberFormat('es-HN', {
+                    elem = document.getElementById('subTotalGeneral');
+                    if (elem) elem.value = cotizacionData.subTotal.toFixed(2);
+                    
+                    elem = document.getElementById('subTotalGeneralMostrar');
+                    if (elem) elem.value = new Intl.NumberFormat('es-HN', {
                         style: 'currency',
                         currency: 'HNL',
                         minimumFractionDigits: 2,
                     }).format(cotizacionData.subTotal);
 
-                    document.getElementById('descuentoGeneral').value = cotizacionData.descuentoGeneral.toFixed(2);
-                    document.getElementById('descuentoMostrar').value = new Intl.NumberFormat('es-HN', {
+                    elem = document.getElementById('descuentoGeneral');
+                    if (elem) elem.value = cotizacionData.descuentoGeneral.toFixed(2);
+                    
+                    elem = document.getElementById('descuentoMostrar');
+                    if (elem) elem.value = new Intl.NumberFormat('es-HN', {
                         style: 'currency',
                         currency: 'HNL',
                         minimumFractionDigits: 2,
                     }).format(cotizacionData.descuentoGeneral);
 
-                    document.getElementById('isvGeneral').value = cotizacionData.isv.toFixed(2);
-                    document.getElementById('isvGeneralMostrar').value = new Intl.NumberFormat('es-HN', {
+                    elem = document.getElementById('isvGeneral');
+                    if (elem) elem.value = cotizacionData.isv.toFixed(2);
+                    
+                    elem = document.getElementById('isvGeneralMostrar');
+                    if (elem) elem.value = new Intl.NumberFormat('es-HN', {
                         style: 'currency',
                         currency: 'HNL',
                         minimumFractionDigits: 2,
                     }).format(cotizacionData.isv);
 
-                    document.getElementById('totalGeneral').value = cotizacionData.total.toFixed(2);
-                    document.getElementById('totalGeneralMostrar').value = new Intl.NumberFormat('es-HN', {
+                    elem = document.getElementById('totalGeneral');
+                    if (elem) elem.value = cotizacionData.total.toFixed(2);
+                    
+                    elem = document.getElementById('totalGeneralMostrar');
+                    if (elem) elem.value = new Intl.NumberFormat('es-HN', {
                         style: 'currency',
                         currency: 'HNL',
                         minimumFractionDigits: 2,
@@ -1607,37 +1634,42 @@
                 });
             }
         </script>
+        
+        <script>
+            <?php
+            date_default_timezone_set('America/Tegucigalpa');
+            $act_fecha = date('Y-m-d');
+            $act_hora = date('H:i:s');
+            $mes = date('m');
+            $year = date('Y');
+            $datetim = $act_fecha . ' ' . $act_hora;
+            ?>
+            
+            function mostrarHora() {
+                var fecha = new Date();
+                var hora = fecha.getHours();
+                var minutos = fecha.getMinutes();
+                var segundos = fecha.getSeconds();
+
+                minutos = minutos < 10 ? "0" + minutos : minutos;
+                segundos = segundos < 10 ? "0" + segundos : segundos;
+
+                var elementoReloj = document.getElementById("reloj");
+                if (elementoReloj) {
+                    elementoReloj.innerHTML = hora + ":" + minutos + ":" + segundos;
+                }
+            }
+            setInterval(mostrarHora, 1000);
+        </script>
     @endpush
+    
+    <div class="mt-3">
+        <div class="float-right">
+            <?php echo "$act_fecha"; ?> <strong id="reloj"></strong>
+        </div>
+        <div>
+            <strong>Copyright</strong> Distribuciones Valencia &copy; <?php echo "$year"; ?>
+        </div>
+        <div style="clear: both;"></div>
+    </div>
 </div>
-<?php
-date_default_timezone_set('America/Tegucigalpa');
-$act_fecha = date('Y-m-d');
-$act_hora = date('H:i:s');
-$mes = date('m');
-$year = date('Y');
-$datetim = $act_fecha . ' ' . $act_hora;
-?>
-<script>
-    function mostrarHora() {
-        var fecha = new Date(); // Obtener la fecha y hora actual
-        var hora = fecha.getHours();
-        var minutos = fecha.getMinutes();
-        var segundos = fecha.getSeconds();
-
-        // A単adir un 0 delante si los minutos o segundos son menores a 10
-        minutos = minutos < 10 ? "0" + minutos : minutos;
-        segundos = segundos < 10 ? "0" + segundos : segundos;
-
-        // Mostrar la hora actual en el elemento con el id "reloj"
-        document.getElementById("reloj").innerHTML = hora + ":" + minutos + ":" + segundos;
-    }
-    // Actualizar el reloj cada segundo
-    setInterval(mostrarHora, 1000);
-</script>
-<div class="float-right">
-    <?php echo "$act_fecha"; ?> <strong id="reloj"></strong>
-</div>
-<div>
-    <strong>Copyright</strong> Distribuciones Valencia &copy; <?php echo "$year"; ?>
-</div>
-<p id="reloj"></p>
