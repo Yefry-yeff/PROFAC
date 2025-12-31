@@ -472,7 +472,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('/ventas/tipo/pago', [FacturacionCorporativa::class, 'tipoPagoVenta']);
 
     Route::get('/ventas/listar/bodegas/{idProducto}', [FacturacionCorporativa::class, 'listarBodegas']);
-    Route::get('/ventas/listar/{categoriaClienteSeleccionado}', [FacturacionCorporativa::class, 'productoBodega']);
+    Route::get('/ventas/listar/', [FacturacionCorporativa::class, 'productoBodega']);
 
     Route::post('/ventas/datos/producto', [FacturacionCorporativa::class, 'obtenerDatosProducto']);
     Route::post('/producto/categorias-disponibles', [FacturacionCorporativa::class, 'obtenerCategoriasProducto']);
@@ -1086,7 +1086,7 @@ Route::post('/reporte/Libroventarep/exportar-excel/{tipo}/{fechaInicio}/{fechaFi
 
 
     //------------------------------------------establecer links de storage---------------------------//
-    Route::get('/linkstorage', function () {
+  Route::get('/linkstorage', function () {
         Artisan::call('storage:link'); // this will do the command line job
         Artisan::call('config:clear');
         Artisan::call('cache:clear');
@@ -1094,7 +1094,7 @@ Route::post('/reporte/Libroventarep/exportar-excel/{tipo}/{fechaInicio}/{fechaFi
 
     });
 
-    //Route::get('/registro/login', RegistroLogin::class)->name('registro.login');
+
 
     return redirect('/login');
 });

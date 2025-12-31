@@ -81,7 +81,6 @@
                                         <th>Precio</th>
                                         <th>Cantidad</th>
                                         <th>Cantidad sin asignar</th>
-                                        <th>Unidad</th>
                                         <th>Sub Total</th>
                                         <th>ISV</th>
                                         <th>Total</th>

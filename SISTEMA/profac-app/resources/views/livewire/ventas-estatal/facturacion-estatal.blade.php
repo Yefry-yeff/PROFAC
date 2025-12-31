@@ -898,14 +898,14 @@
                     arregloIdInputs = arregloString;
                 }
                 numeroInputs = parseInt(cotizacionData.numeroInputs);
-                
+
                 console.log('arregloIdInputs procesado:', arregloIdInputs);
 
                 // Cargar totales
                 setTimeout(() => {
                     let elem = document.getElementById('subTotalGeneralGrabado');
                     if (elem) elem.value = cotizacionData.subTotalGrabado.toFixed(2);
-                    
+
                     elem = document.getElementById('subTotalGeneralGrabadoMostrar');
                     if (elem) elem.value = new Intl.NumberFormat('es-HN', {
                         style: 'currency',
@@ -915,7 +915,7 @@
 
                     elem = document.getElementById('subTotalGeneralExcento');
                     if (elem) elem.value = cotizacionData.subTotalExcento.toFixed(2);
-                    
+
                     elem = document.getElementById('subTotalGeneralExcentoMostrar');
                     if (elem) elem.value = new Intl.NumberFormat('es-HN', {
                         style: 'currency',
@@ -925,7 +925,7 @@
 
                     elem = document.getElementById('subTotalGeneral');
                     if (elem) elem.value = cotizacionData.subTotal.toFixed(2);
-                    
+
                     elem = document.getElementById('subTotalGeneralMostrar');
                     if (elem) elem.value = new Intl.NumberFormat('es-HN', {
                         style: 'currency',
@@ -935,7 +935,7 @@
 
                     elem = document.getElementById('descuentoGeneral');
                     if (elem) elem.value = cotizacionData.descuentoGeneral.toFixed(2);
-                    
+
                     elem = document.getElementById('descuentoMostrar');
                     if (elem) elem.value = new Intl.NumberFormat('es-HN', {
                         style: 'currency',
@@ -945,7 +945,7 @@
 
                     elem = document.getElementById('isvGeneral');
                     if (elem) elem.value = cotizacionData.isv.toFixed(2);
-                    
+
                     elem = document.getElementById('isvGeneralMostrar');
                     if (elem) elem.value = new Intl.NumberFormat('es-HN', {
                         style: 'currency',
@@ -955,7 +955,7 @@
 
                     elem = document.getElementById('totalGeneral');
                     if (elem) elem.value = cotizacionData.total.toFixed(2);
-                    
+
                     elem = document.getElementById('totalGeneralMostrar');
                     if (elem) elem.value = new Intl.NumberFormat('es-HN', {
                         style: 'currency',
@@ -1634,7 +1634,7 @@
                 });
             }
         </script>
-        
+
         <script>
             <?php
             date_default_timezone_set('America/Tegucigalpa');
@@ -1644,7 +1644,7 @@
             $year = date('Y');
             $datetim = $act_fecha . ' ' . $act_hora;
             ?>
-            
+
             function mostrarHora() {
                 var fecha = new Date();
                 var hora = fecha.getHours();
@@ -1662,7 +1662,7 @@
             setInterval(mostrarHora, 1000);
         </script>
     @endpush
-    
+
     <div class="mt-3">
         <div class="float-right">
             <?php echo "$act_fecha"; ?> <strong id="reloj"></strong>

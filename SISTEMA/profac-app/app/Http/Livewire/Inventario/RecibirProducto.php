@@ -66,15 +66,14 @@ class RecibirProducto extends Component
             A.sub_total_producto,
             A.isv,
             A.precio_total,
-            B.nombre as unidad,
             if(A.fecha_expiracion is null, 'No definido',A.fecha_expiracion) as fecha_expiracion,
             (select sum(cantidad_inicial_seccion) from recibido_bodega where producto_id = A.producto_id and compra_id = A.compra_id ) as 'cantidad_ingresada_bodega',
             A.unidades_compra
 
         from
             compra_has_producto A
-            inner join producto on producto.id = A.producto_id
-            inner join unidad_medida B on B.id = A.unidad_compra_id
+            inner join producto
+            on producto.id = A.producto_id
             cross join (select @i := 0) r
             where A.compra_id = ".$id."
 

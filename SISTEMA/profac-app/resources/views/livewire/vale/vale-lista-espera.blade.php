@@ -56,10 +56,15 @@
                 <li class="breadcrumb-item">
                     <a>Código de Factura: {{ $datosFactura->numero_factura }}</a>
                 </li>
+                <li class="breadcrumb-item">
+                    <a>Categoría Cliente: <input class="form-control" type="text" id="categoria_cliente_nombre" name="categoria_cliente_nombre" disabled value="{{ $datosCliente->nombre_categoria }}"> </a>
+
+                    <input type="hidden" id="categoria_cliente_id" name="categoria_cliente_id" disabled value="{{ $datosCliente->idcategoriacliente }}">
+                </li>
+
 
             </ol>
         </div>
-
 
 
     </div>
@@ -85,7 +90,7 @@
                     </div>
 
                     <div class="row ">
-                        <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6 ">
+                        <div class="col-12 col-md-6 col-lg-6 col-xl-6">
 
 
                             <label for="seleccionarProductoVale" class="col-form-label focus-label">Seleccionar Producto
@@ -99,7 +104,15 @@
 
 
                         </div>
-                        <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6 ">
+                                <div class="col-12 col-md-6 col-lg-6 col-xl-6">
+                                    <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
+                                        <label for="bodega" class="col-form-label focus-label">Categoría Precio Producto:<span class="text-danger">*</span></label>
+                                        <select id="categoria_cliente_venta_id" name="categoria_cliente_venta_id" class="form-group form-control" style="" onchange="habilitarBodega()">
+                                            <option value="" selected disabled>--Seleccione primero un producto--</option>
+                                        </select>
+                                    </div>
+                                </div>
+                        <div class="col-12 col-md-6 col-lg-6 col-xl-6">
 
 
                             <label for="porDescuento" class="col-form-label focus-label">Descuento aplicado %
@@ -382,6 +395,93 @@
             var diasCredito = 0;
 
 
+            function obtenerCategoriasClientes() {
+
+                $('#categoria_cliente_venta_id').select2({
+                    placeholder: 'Seleccione una categoría',
+                    allowClear: true,
+                    ajax: {
+                        url: '/clientes/categorias-escala',
+                        dataType: 'json',
+                        delay: 250,
+                        data: function (params) {
+                            return {
+                                q: params.term || '',
+                                page: params.page || 1
+                            };
+                        },
+                        processResults: function (data) {
+                            return {
+                                results: data.categorias.map(function (item) {
+                                    return {
+                                        id: item.id,
+                                        text: item.nombre_categoria
+                                    };
+                                })
+                            };
+                        }
+                    }
+                });
+            }
+
+            function cargarCategoriasProducto() {
+                let productoId = $('#seleccionarProductoVale').val();
+                let clienteId = $('#seleccionarCliente').val();
+
+                if (productoId) {
+                    // Limpiar mientras se carga (pero NO deshabilitar)
+                    $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>Cargando categorías...</option>');
+
+                    // Cargar categorías del producto
+                    axios.post('/producto/categorias-disponibles', {
+                        producto_id: productoId
+                    })
+                    .then(response => {
+                        let categorias = response.data.categorias;
+
+                        if (categorias.length > 0) {
+                            // SIEMPRE mostrar TODAS las categorías disponibles del producto
+                            // El usuario puede elegir libremente cualquiera
+                            $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>--Seleccione una categoría--</option>');
+
+                            let categoriaClienteId = $('#categoria_cliente_venta_id').data('categoria-cliente-id');
+
+                            categorias.forEach(categoria => {
+                                // Si es la categoría del cliente, pre-seleccionarla
+                                let isSelected = (clienteId && categoria.id == categoriaClienteId);
+                                let option = new Option(categoria.nombre_categoria, categoria.id, isSelected, isSelected);
+                                $('#categoria_cliente_venta_id').append(option);
+                            });
+
+                            // NUNCA deshabilitar - el usuario siempre puede elegir
+                            $('#categoria_cliente_venta_id').prop('disabled', false);
+                        } else {
+                            // No hay categorías disponibles para este producto
+                            $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>No hay categorías disponibles para este producto</option>');
+                            $('#categoria_cliente_venta_id').prop('disabled', false);
+                            Swal.fire({
+                                icon: 'warning',
+                                title: 'Advertencia',
+                                text: 'Este producto no tiene escalas de precio asignadas en ninguna categoría.'
+                            });
+                        }
+                    })
+                    .catch(err => {
+                        console.log(err);
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'Ha ocurrido un error al cargar las categorías del producto.'
+                        });
+                        $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>Error al cargar categorías</option>');
+                    });
+
+                    // Continuar con las imágenes del producto
+                    obtenerImagenes();
+                } else {
+                    $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>--Seleccione primero un producto--</option>');
+                }
+            }
 
             $('#seleccionarProductoVale').select2({
                 ajax: {
@@ -478,7 +578,8 @@
                         a.href = url;
                         a.classList.remove("d-none");
 
-                        return;
+
+                cargarCategoriasProducto();
 
 
 
@@ -496,9 +597,11 @@
 
             function agregarProductoVale() {
                 let idProducto = document.getElementById('seleccionarProductoVale').value;
+                let categoria_cliente_venta_id = document.getElementById('categoria_cliente_venta_id').value;
 
-                axios.post('/ventas/datos/producto', {
+                axios.post('/estatal/datos/producto', {
                         idProducto: idProducto,
+                        categoria_cliente_venta_id: categoria_cliente_venta_id
 
                     })
                     .then(response => {
@@ -548,13 +651,7 @@
                         htmlSelectUnidades = "";
 
                          /*<option  value="${producto.precio_base}" data-id="pb">${producto.precio_base} - Base</option>*/
-                        htmlprecios = `
-                        <option data-id="0" selected>--Seleccione precio--</option>
-
-                        <option  value="${producto.precio1}" data-id="p1">${producto.precio1} - A</option>
-                        <option  value="${producto.precio2}" data-id="p2">${producto.precio2} - B</option>
-                        <option  value="${producto.precio3}" data-id="p3">${producto.precio3} - C</option>
-                        <option  value="${producto.precio4}" data-id="p4">${producto.precio4} - D</option>
+                        htmlprecios = ` <option  value="${producto.precio1}" selected data-id="p1">${producto.precio1} - A</option>
 
 
 

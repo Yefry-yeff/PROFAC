@@ -28,6 +28,7 @@ use App\Models\User;
 use App\Models\ModelVale;
 use App\Models\ModelValeHasProducto;
 use App\Models\ModelEsperaProducto;
+use App\Models\Escalas\modelCategoriaCliente;
 
 
 
@@ -46,9 +47,20 @@ class ValeListaEspera extends Component
        $idFactura = $this->idFactura;
 
        $datosFactura = DB::SELECTONE("select numero_factura, porc_descuento  from factura where id =".$idFactura);
+       $datosCliente = DB::SELECTONE("
+       select
+            cliente.id,
+            cliente.nombre,
+            cliente.rtn,
+            cliente.dias_credito,
+            cliente_categoria_escala.nombre_categoria,
+            cliente_categoria_escala.id as idcategoriacliente
+       from cliente
+       inner join cliente_categoria_escala on cliente_categoria_escala_id = cliente.cliente_categoria_escala_id
+       inner join factura on factura.cliente_id = cliente.id
+       where factura.id = ".$idFactura);
 
-
-        return view('livewire.vale.vale-lista-espera',compact("idFactura","datosFactura"));
+        return view('livewire.vale.vale-lista-espera',compact("idFactura","datosFactura", "datosCliente"));
     }
 
     public function obtenerProductosVale(Request $request){
