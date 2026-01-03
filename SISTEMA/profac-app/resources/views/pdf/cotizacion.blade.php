@@ -109,10 +109,9 @@
                 <br>
                 <br>
 
-                <p class="card-text" style="position:absolute;left:20px;  top:75px;"><b>Correo:</b> {{$datos->correo}}
-                </p>{{--
-                        <p class="card-text" style="position:absolute;left:20px;  top:70px;"><b>Notas:</b> </p>
-                    --}}
+                <p class="card-text" style="position:absolute;left:20px;  top:60px;"><b>Correo:</b> {{$datos->correo}}
+                </p>
+
                 <p class="card-text" style="position:absolute;left:540px;  top:10px;"><b>Fecha:</b> {{$datos->fecha_emision}} </p>
                 <p class="card-text" style="position:absolute;left:540px;  top:25px;"><b>Hora:</b> {{$datos->hora}}</p>
                 <p class="card-text" style="position:absolute;left:540px;  top:40px;"><b>Vence:</b> {{$datos->fecha_vencimiento}}</p>
@@ -122,7 +121,8 @@
 
 
 
-                <p class="card-text" style="position:absolute;left:300px;  top:75px;"><b>Teléfono:</b> {{ $datos->telefono_empresa}}
+                <p class="card-text" style="position:absolute;left:300px;  top:60px;"><b>Teléfono:</b> {{ $datos->telefono_empresa}}
+
                 </p>
             </div>
         </div>

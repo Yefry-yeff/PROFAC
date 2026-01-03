@@ -220,7 +220,7 @@
 
                         if (categorias.length > 0) {
                             $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>--Seleccione una categoría--</option>');
-                            
+
                             // Si hay un cliente seleccionado, obtener su categoría
                             let categoriaClienteId = null;
                             if (clienteId) {
@@ -233,7 +233,7 @@
                                 let option = new Option(categoria.nombre_categoria, categoria.id, isSelected, isSelected);
                                 $('#categoria_cliente_venta_id').append(option);
                             });
-                            
+
                             // SIEMPRE mantener habilitado el select
                             $('#categoria_cliente_venta_id').prop('disabled', false);
                         } else {
@@ -928,6 +928,7 @@
             }
 
             function obtenerDatosCliente() {
+
                 let idCliente = document.getElementById("seleccionarCliente").value;
                 axios.post("/ventas/datos/cliente", {
                         id: idCliente
@@ -973,14 +974,15 @@
                                 diasCredito = data.dias_credito;
                             }
 
-
-                            obtenerProductosCategoria();
+                            //console.log("Antes de solicitar productos");
+                            //obtenerProductosCategoria();
+                            //console.log("Despues de solicitar productos");
 
                         }
                     )
                     .catch(err => {
 
-                            const mensaje = err.response?.data?.message
+                        const mensaje = err.response?.data?.message
                                 || 'Ha ocurrido un error inesperado';
 
                         //console.log(err);

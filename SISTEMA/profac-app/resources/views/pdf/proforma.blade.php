@@ -183,6 +183,7 @@
 
 
 
+
                     <p class="card-text" style="position:absolute;left:0px;  top:28px; font-size:11px;">
                         ____________________________________________________________________</p>
                     <p class="card-text" style="position:absolute;left:10px;  top:40px; font-size:11px;">Nota: {{ $datos->nota }} </p>
