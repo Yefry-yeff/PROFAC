@@ -454,6 +454,7 @@
 
     @push('scripts')
         <script>
+
             var numeroInputs = 0;
             var arregloIdInputs = [];
             var retencionEstado = false; // true  aplica retencion, false no aplica retencion;
@@ -1134,8 +1135,8 @@
                                                             autocomplete="off"
                                                             readonly
                                                             value='${producto.nombre}'
-
                                                             >
+
                                                     </div>
                                                 </div>
                                             </div>

@@ -119,12 +119,12 @@ class CrearVale extends Component
         concat(B.id,'-',B.nombre) as nombre,
         B.isv,
         ultimo_costo_compra as ultimo_costo_compra,
-        A.precio_unidad as precio_base
+        A.precio_unidad as precio_unidad
 
         from venta_has_producto A
         inner join producto B
         on A.producto_id = B.id
-        where A.factura_id = " . $request->idFactura . " and A.producto_id = " . $request->idProducto . " and A.seccion_id=" . $request->idSeccion
+        where A.factura_id = " . $request->idFactura . " and A.producto_id = " . $request->idProducto
             );
 
             $cantidad = DB::SELECTONE("
