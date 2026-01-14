@@ -46,7 +46,7 @@
             </ol>
         </div>
 
-        @if (Auth::user()->rol_id == '1' || Auth::user()->rol_id == '5' || Auth::user()->rol_id == '7' || Auth::user()->rol_id == '9')
+        @if (Auth::user()->rol_id == '1')
             <div class="col-lg-4 col-xl-2 col-md-4 col-sm-4">
                 <div style="margin-top: 1.5rem" mr-auto>
                     <a href="#" class="btn add-btn btn-warning" data-toggle="modal"
@@ -234,7 +234,7 @@
 
 
 
-                        @if (Auth::user()->rol_id != '2' && Auth::user()->rol_id != '3')
+                        @if (Auth::user()->rol_id == '1' )
                             @foreach ($precios as $precio)
                                 <p class="mt-2 mb-2 d-block"> <strong> <i class="fa-solid fa-caret-right"></i> Precio
                                         {{ $precio->contador }} de venta :</strong> {{ $precio->precio }} Lps</small>

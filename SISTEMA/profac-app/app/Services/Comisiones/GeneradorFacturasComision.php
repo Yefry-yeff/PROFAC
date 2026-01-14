@@ -28,7 +28,7 @@ class GeneradorFacturasComision
 
         [$productosComision, $facturasComision] =
             $this->calcularComisiones($parametros, $productos, $facturaId, $aplicacionPagoId);
-
+        dd($productosComision);
         modelproducto_comision::insert($productosComision);
         modelfacturas_comision::insert($facturasComision);
 
@@ -75,6 +75,8 @@ class GeneradorFacturasComision
                 'aplicacion_pagos_id' => $aplicacionPagoId,
                 'rol_id' => $param->rol_id,
                 'estado_id' => 1,
+                 'created_at' => now(),
+                 'updated_at' => now(),
             ];
         }
 

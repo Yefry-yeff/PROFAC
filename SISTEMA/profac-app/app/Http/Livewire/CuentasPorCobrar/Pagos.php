@@ -843,7 +843,7 @@ class Pagos extends Component
 
                        if($saldoActual2->saldo == 0){
                             //dd("Prueba de que llega aqui esta mierda");
-                           $cuentas22 = DB::select("
+                           /* $cuentas22 = DB::select("
 
                                CALL sp_aplicacion_pagos(
                                    '9',
@@ -855,7 +855,7 @@ class Pagos extends Component
                                    '0',
                                    '0',
                                    @estado,
-                                   @msjResultado);");
+                                   @msjResultado);"); */
 
                                 $existePrecioCargado = DB::table('venta_has_producto')
                                     ->whereNotNull('precios_producto_carga_id')

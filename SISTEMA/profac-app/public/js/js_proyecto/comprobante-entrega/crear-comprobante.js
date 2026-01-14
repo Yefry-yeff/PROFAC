@@ -307,7 +307,7 @@ function cargarCategoriasProducto() {
 
             if (categorias.length > 0) {
                 $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>--Seleccione una categoría--</option>');
-                
+
                 // Si hay un cliente seleccionado, obtener su categoría
                 let categoriaClienteId = null;
                 if (clienteId) {
@@ -320,7 +320,7 @@ function cargarCategoriasProducto() {
                     let option = new Option(categoria.nombre_categoria, categoria.id, isSelected, isSelected);
                     $('#categoria_cliente_venta_id').append(option);
                 });
-                
+
                 // SIEMPRE mantener habilitado el select
                 $('#categoria_cliente_venta_id').prop('disabled', false);
             } else {
@@ -462,8 +462,8 @@ function agregarProductoCarrito() {
                                 <div class="form-group col-12 col-sm-12 col-md-1 col-lg-1 col-xl-1">
                                     <label for="precio${numeroInputs}" class="sr-only">Precio</label>
                                     <input type="number" placeholder="Precio Unidad" id="precio${numeroInputs}"
-                                        name="precio${numeroInputs}" value="${producto.precio_base}" class="form-control"  data-parsley-required step="any"
-                                        autocomplete="off" min="${producto.precio_base}" onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
+                                        name="precio${numeroInputs}" value="${producto.precio1}" class="form-control"  data-parsley-required step="any"
+                                        autocomplete="off" min="${producto.precio1}" onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
 
 
                                 </div>
@@ -767,7 +767,7 @@ function obtenerDatosCliente() {
                     document.getElementById("rtn_ventas").value = '';
                     let selectBox = document.getElementById("tipoPagoVenta");
                     selectBox.remove(2);
-                    
+
                     // Establecer categoría del cliente genérico
                     $('#categoria_cliente_nombre').text(data.nombre_categoria);
                     $('#categoria_cliente_venta_id').data('categoria-cliente-id', data.idcategoriacliente);
@@ -781,14 +781,14 @@ function obtenerDatosCliente() {
 
                     document.getElementById("nombre_cliente_ventas").value = data.nombre;
                     document.getElementById("rtn_ventas").value = data.rtn;
-                    
+
                     // Establecer categoría del cliente
                     $('#categoria_cliente_nombre').text(data.nombre_categoria);
                     $('#categoria_cliente_venta_id').data('categoria-cliente-id', data.idcategoriacliente);
                     $('#categoria_cliente_venta_id').empty();
                     $('#categoria_cliente_venta_id').append(new Option(data.nombre_categoria, data.idcategoriacliente, true, true));
                     // NO deshabilitar el select - el usuario puede cambiar la categoría
-                    
+
                     obtenerTipoPago();
                     diasCredito = data.dias_credito;
                 }
