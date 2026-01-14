@@ -183,11 +183,11 @@
 @endpush
 
 <!-- Filtros Generales -->
-<div class="card shadow-sm border-0 mb-3">
-    <div class="card-header bg-light py-2">
+<div class="mb-3 border-0 shadow-sm card">
+    <div class="py-2 card-header bg-light">
         <h5 class="mb-0"><b>🔍 FILTROS DE REPORTES DE COMISIONES</b></h5>
     </div>
-    <div class="card-body p-3">
+    <div class="p-3 card-body">
         <div class="filtro-container">
             <!-- Tipo de Reporte -->
             <div class="filtro-item">
@@ -244,11 +244,11 @@
 </div>
 
 <!-- Tabla de Resultados -->
-<div class="card shadow-sm border-0 mt-3">
-    <div class="card-header bg-light py-2">
+<div class="mt-3 border-0 shadow-sm card">
+    <div class="py-2 card-header bg-light">
         <h5 class="mb-0"><b>📋 <span id="tituloTabla">Resultados del Reporte</span></b></h5>
     </div>
-    <div class="card-body p-2">
+    <div class="p-2 card-body">
         <div class="table-responsive">
             <table id="tbl_comisiones" class="table table-striped table-bordered table-hover" style="width:100%">
                 <thead id="theadComisiones">
