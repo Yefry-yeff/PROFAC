@@ -1,3 +1,258 @@
+# REVISIÓN: Scripts de Reportes de Comisiones
+
+## 1. CONTROLADOR PHP
+**Archivo:** `app/Http/Livewire/Comisiones/Escalado/ReportesComisionesGenerales.php`
+
+```php
+<?php
+
+namespace App\Http\Livewire\Comisiones\Escalado;
+
+use Livewire\Component;
+use App\Models\Escalas\modelCategoriaCliente;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Http\Request;
+use DataTables;
+use Auth;
+use Maatwebsite\Excel\Facades\Excel;
+
+class ReportesComisionesGenerales extends Component
+{
+    public function render()
+    {
+        return view('livewire.comisiones.escalado.reportes-comisiones-generales');
+    }
+
+    /**
+     * Lista de empleados para selector
+     */
+    public function listarEmpleados(Request $request)
+    {
+        $search = $request->input('q', '');
+        
+        $empleados = DB::table('users')
+            ->select('id', 'name')
+            ->where('estado_id', 1)
+            ->where('name', 'LIKE', "%{$search}%")
+            ->limit(20)
+            ->get();
+        
+        return response()->json($empleados);
+    }
+
+    /**
+     * Lista de roles para selector
+     */
+    public function listarRoles(Request $request)
+    {
+        $search = $request->input('q', '');
+        
+        $roles = DB::table('rol')
+            ->select('id', 'nombre as name')
+            ->where('nombre', 'LIKE', "%{$search}%")
+            ->where('estado_id', 1)
+            ->limit(20)
+            ->get();
+        
+        return response()->json($roles);
+    }
+
+    /**
+     * Reporte de comisiones por empleado
+     * Filtra comisiones ENTRE las fechas especificadas
+     */
+    public function reporteEmpleado(Request $request)
+    {
+        $fechaInicio = $request->input('fechaInicio') . ' 00:00:00';
+        $fechaFin = $request->input('fechaFin') . ' 23:59:59';
+        $empleadoId = $request->input('filtroEspecifico');
+
+        $query = DB::table('producto_comision as pc')
+            ->join('facturas_comision as fc', 'fc.id', '=', 'pc.facturas_comision_id')
+            ->join('factura as f', 'f.id', '=', 'fc.factura_id')
+            ->join('producto as p', 'p.id', '=', 'pc.producto_id')
+            ->join('comision_empleado as ce', function($join) {
+                $join->on('ce.rol_id', '=', 'fc.rol_id')
+                     ->whereRaw('YEAR(ce.mes_comision) = YEAR(fc.fecha_cierre_factura)')
+                     ->whereRaw('MONTH(ce.mes_comision) = MONTH(fc.fecha_cierre_factura)')
+                     ->where('ce.estado_id', '=', 1);
+            })
+            ->join('users as u', 'u.id', '=', 'ce.users_comision')
+            ->whereBetween('fc.fecha_cierre_factura', [$fechaInicio, $fechaFin])
+            ->where('fc.estado_id', 1)
+            ->select(
+                'pc.id',
+                'pc.id as registro_id',
+                'u.id as empleado_id',
+                'u.name as empleado',
+                'f.cai as factura',
+                'p.nombre as producto',
+                'pc.cantidad',
+                'pc.monto_comision',
+                DB::raw('DATE_FORMAT(fc.fecha_cierre_factura, "%Y-%m-%d") as fecha')
+            );
+
+        if ($empleadoId) {
+            $query->where('u.id', $empleadoId);
+        }
+
+        return DataTables::of($query)->make(true);
+    }
+
+    /**
+     * Reporte de comisiones por rol
+     * Filtra comisiones ENTRE las fechas especificadas
+     */
+    public function reporteRol(Request $request)
+    {
+        $fechaInicio = $request->input('fechaInicio') . ' 00:00:00';
+        $fechaFin = $request->input('fechaFin') . ' 23:59:59';
+        $rolId = $request->input('filtroEspecifico');
+
+        $query = DB::table('rol as r')
+            ->leftJoin('comision_empleado as ce', 'ce.rol_id', '=', 'r.id')
+            ->leftJoin('users as u', 'u.id', '=', 'ce.users_comision')
+            ->leftJoin('facturas_comision as fc', function($join) use ($fechaInicio, $fechaFin) {
+                $join->on('fc.rol_id', '=', 'r.id')
+                     ->where('fc.estado_id', '=', 1)
+                     ->whereBetween('fc.fecha_cierre_factura', [$fechaInicio, $fechaFin]);
+            })
+            ->select(
+                'r.id',
+                'r.nombre as rol',
+                DB::raw('COALESCE(u.name, "Sin empleado") as empleado'),
+                DB::raw('COALESCE(SUM(fc.monto_rol), 0) as total_comisiones'),
+                DB::raw('COUNT(DISTINCT fc.id) as num_facturas')
+            )
+            ->where('r.estado_id', 1)
+            ->groupBy('r.id', 'r.nombre', 'u.id', 'u.name');
+
+        if ($rolId) {
+            $query->where('r.id', $rolId);
+        }
+
+        return DataTables::of($query)->make(true);
+    }
+
+    /**
+     * Reporte general de comisiones por usuario
+     * Filtra comisiones ENTRE las fechas especificadas
+     */
+    public function reporteUsuarios(Request $request)
+    {
+        $fechaInicio = $request->input('fechaInicio') . ' 00:00:00';
+        $fechaFin = $request->input('fechaFin') . ' 23:59:59';
+
+        $query = DB::table('facturas_comision as fc')
+            ->join('comision_empleado as ce', 'ce.rol_id', '=', 'fc.rol_id')
+            ->join('users as u', 'u.id', '=', 'ce.users_comision')
+            ->leftJoin('rol as r', 'r.id', '=', 'fc.rol_id')
+            ->join('producto_comision as pc', 'pc.facturas_comision_id', '=', 'fc.id')
+            ->whereBetween('fc.fecha_cierre_factura', [$fechaInicio, $fechaFin])
+            ->where('fc.estado_id', 1)
+            ->where('ce.estado_id', 1)
+            ->select(
+                'u.id',
+                'u.name as usuario',
+                DB::raw('COALESCE(r.nombre, "Sin rol") as rol'),
+                DB::raw('SUM(fc.monto_rol) as total_comisiones'),
+                DB::raw('COUNT(DISTINCT fc.id) as num_facturas'),
+                DB::raw('COUNT(DISTINCT pc.producto_id) as num_productos')
+            )
+            ->groupBy('u.id', 'u.name', 'r.nombre');
+
+        return DataTables::of($query)->make(true);
+    }
+
+    /**
+     * Reporte general de comisiones por producto
+     * Filtra comisiones ENTRE las fechas especificadas
+     */
+    public function reporteProductos(Request $request)
+    {
+        $fechaInicio = $request->input('fechaInicio') . ' 00:00:00';
+        $fechaFin = $request->input('fechaFin') . ' 23:59:59';
+
+        $query = DB::table('producto_comision as pc')
+            ->join('facturas_comision as fc', 'fc.id', '=', 'pc.facturas_comision_id')
+            ->join('producto as p', 'p.id', '=', 'pc.producto_id')
+            ->join('comision_empleado as ce', 'ce.rol_id', '=', 'fc.rol_id')
+            ->whereBetween('fc.fecha_cierre_factura', [$fechaInicio, $fechaFin])
+            ->where('fc.estado_id', 1)
+            ->where('ce.estado_id', 1)
+            ->select(
+                'p.id',
+                'p.nombre as producto',
+                'p.codigo_barra',
+                DB::raw('SUM(pc.cantidad) as cantidad_vendida'),
+                DB::raw('SUM(pc.monto_comision) as total_comisiones'),
+                DB::raw('COUNT(DISTINCT ce.users_comision) as num_empleados')
+            )
+            ->groupBy('p.id', 'p.nombre', 'p.codigo_barra');
+
+        return DataTables::of($query)->make(true);
+    }
+
+    /**
+     * Reporte general de comisiones por factura
+     * Filtra comisiones ENTRE las fechas especificadas
+     */
+    public function reporteFacturas(Request $request)
+    {
+        $fechaInicio = $request->input('fechaInicio') . ' 00:00:00';
+        $fechaFin = $request->input('fechaFin') . ' 23:59:59';
+
+        $query = DB::table('facturas_comision as fc')
+            ->join('comision_empleado as ce', 'ce.rol_id', '=', 'fc.rol_id')
+            ->join('users as u', 'u.id', '=', 'ce.users_comision')
+            ->join('factura as v', 'v.id', '=', 'fc.factura_id')
+            ->join('cliente as cl', 'cl.id', '=', 'v.cliente_id')
+            ->whereBetween('fc.fecha_cierre_factura', [$fechaInicio, $fechaFin])
+            ->where('fc.estado_id', 1)
+            ->where('ce.estado_id', 1)
+            ->select(
+                'fc.id',
+                'v.cai as factura',
+                'cl.nombre as cliente',
+                'u.name as empleado',
+                'v.total as total_venta',
+                'fc.monto_rol as total_comision',
+                DB::raw('DATE_FORMAT(fc.fecha_cierre_factura, "%Y-%m-%d") as fecha')
+            );
+
+        return DataTables::of($query)->make(true);
+    }
+
+    /**
+     * Descargar reporte en Excel
+     */
+    public function descargarExcel(Request $request)
+    {
+        $tipoReporte = $request->input('tipoReporte');
+        $fechaInicio = $request->input('fechaInicio');
+        $fechaFin = $request->input('fechaFin');
+        $filtroEspecifico = $request->input('filtroEspecifico');
+
+        // Generar nombre de archivo con fecha
+        $fecha = now()->format('Y-m-d_His');
+        $nombreArchivo = "reporte_comisiones_{$tipoReporte}_{$fecha}.xlsx";
+
+        // Aquí deberías crear una clase Export específica según el tipo
+        // Por ahora retorno un mensaje
+        return response()->json([
+            'message' => 'Funcionalidad de export en desarrollo',
+            'tipo' => $tipoReporte
+        ]);
+    }
+}
+```
+
+---
+
+## 2. JAVASCRIPT
+**Archivo:** `public/js/js_proyecto/comisiones/Escalado/reportesGeneral.js`
+
+```javascript
 // Variable global para la tabla
 let tablaComisiones = null;
 
@@ -61,19 +316,6 @@ $(document).ready(function () {
                 text: 'Debe seleccionar el tipo de reporte que desea generar'
             });
             return;
-        }
-
-        // Validar que se haya seleccionado empleado si es reporte por empleado
-        if (tipoReporte === 'empleado') {
-            const empleadoId = $('#filtroEspecifico').val();
-            if (!empleadoId) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Seleccione un empleado',
-                    text: 'Debe seleccionar un empleado para este tipo de reporte'
-                });
-                return;
-            }
         }
         
         cargarReporte();
@@ -315,7 +557,7 @@ function cargarReporte() {
             processing: true,
             serverSide: true,
             deferRender: true,
-            destroy: true, // Asegurar destrucción automática
+            destroy: true,
             language: {
                 url: "https://cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json",
                 processing: '<i class="fa fa-spinner fa-spin fa-3x fa-fw"></i><span class="sr-only">Cargando...</span>'
@@ -343,7 +585,7 @@ function cargarReporte() {
             lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "Todos"]],
             responsive: true
         });
-    }, 100); // Pequeño delay para asegurar que el thead se actualice
+    }, 100);
 }
 
 // Descargar Excel
@@ -390,3 +632,78 @@ function descargarExcel() {
         showConfirmButton: false
     });
 }
+```
+
+---
+
+## 3. ESTRUCTURA DE DATOS
+
+### Tablas Principales:
+- **producto_comision**: Productos con sus comisiones individuales
+- **facturas_comision**: Facturas con comisión por rol
+- **comision_empleado**: Comisiones acumuladas por empleado/mes
+- **users**: Usuarios/Empleados
+- **rol**: Roles en el sistema
+- **factura**: Facturas de venta
+- **producto**: Productos
+
+### Relaciones Clave:
+```
+producto_comision.facturas_comision_id → facturas_comision.id
+facturas_comision.factura_id → factura.id
+facturas_comision.rol_id → comision_empleado.rol_id (+ año/mes)
+comision_empleado.users_comision → users.id
+```
+
+### Problema Actual en reporteEmpleado:
+El JOIN con `comision_empleado` filtra por:
+- `ce.rol_id = fc.rol_id`
+- `YEAR(ce.mes_comision) = YEAR(fc.fecha_cierre_factura)`
+- `MONTH(ce.mes_comision) = MONTH(fc.fecha_cierre_factura)`
+
+Esto puede estar causando que no se muestren datos si no hay coincidencia exacta de mes/año.
+
+---
+
+## 4. POSIBLE SOLUCIÓN
+
+Simplificar el reporte para que muestre TODOS los productos de facturas con comisión, sin depender de la tabla `comision_empleado`:
+
+```php
+public function reporteEmpleado(Request $request)
+{
+    $fechaInicio = $request->input('fechaInicio') . ' 00:00:00';
+    $fechaFin = $request->input('fechaFin') . ' 23:59:59';
+    $empleadoId = $request->input('filtroEspecifico');
+
+    $query = DB::table('producto_comision as pc')
+        ->join('facturas_comision as fc', 'fc.id', '=', 'pc.facturas_comision_id')
+        ->join('factura as f', 'f.id', '=', 'fc.factura_id')
+        ->join('producto as p', 'p.id', '=', 'pc.producto_id')
+        ->join('rol as r', 'r.id', '=', 'fc.rol_id')
+        ->whereBetween('fc.fecha_cierre_factura', [$fechaInicio, $fechaFin])
+        ->where('fc.estado_id', 1)
+        ->select(
+            'pc.id',
+            'pc.id as registro_id',
+            'r.nombre as empleado',  // Mostrar ROL en lugar de usuario específico
+            'f.cai as factura',
+            'p.nombre as producto',
+            'pc.cantidad',
+            'pc.monto_comision',
+            DB::raw('DATE_FORMAT(fc.fecha_cierre_factura, "%Y-%m-%d") as fecha')
+        );
+
+    if ($empleadoId) {
+        // Si se selecciona empleado, filtrar por rol del empleado
+        $query->whereExists(function($q) use ($empleadoId) {
+            $q->select(DB::raw(1))
+              ->from('comision_empleado as ce2')
+              ->whereColumn('ce2.rol_id', 'fc.rol_id')
+              ->where('ce2.users_comision', $empleadoId);
+        });
+    }
+
+    return DataTables::of($query)->make(true);
+}
+```

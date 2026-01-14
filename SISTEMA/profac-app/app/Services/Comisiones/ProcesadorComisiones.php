@@ -41,6 +41,7 @@ class ProcesadorComisiones
                 'users_comision' => $contexto['televendedor_id'],
                 'estado_id' => 1,
                 'mes_comision' => $fecha,
+                'rol_id' => $factura['rol_id'],
             ],
             ['comision_acumulada' => 0]
         );
@@ -65,7 +66,7 @@ class ProcesadorComisiones
                 'users_comision' => $contexto['vendedor_id'],
                 'estado_id' => 1,
                 'mes_comision' => $mesComision,
-                'rol_id'         => $factura['rol_id'], // ✅ OBLIGATORIO
+                'rol_id'         => $factura['rol_id'],
             ],
             ['comision_acumulada' => 0]
         );

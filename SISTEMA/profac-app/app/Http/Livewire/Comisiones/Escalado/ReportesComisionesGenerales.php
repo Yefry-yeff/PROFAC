@@ -61,31 +61,42 @@ class ReportesComisionesGenerales extends Component
         $fechaFin = $request->input('fechaFin') . ' 23:59:59';
         $empleadoId = $request->input('filtroEspecifico');
 
-        $query = DB::table('comision_empleado as ce')
-            ->join('users as u', 'u.id', '=', 'ce.users_comision')
-            ->leftJoin('facturas_comision as fc', function($join) use ($fechaInicio, $fechaFin) {
-                $join->on('fc.rol_id', '=', 'ce.rol_id')
-                     ->where('fc.estado_id', '=', 1)
-                     ->whereBetween('fc.created_at', [$fechaInicio, $fechaFin]);
+        // Empleado es OBLIGATORIO
+        if (!$empleadoId) {
+            return response()->json([
+                'draw' => 0,
+                'recordsTotal' => 0,
+                'recordsFiltered' => 0,
+                'data' => [],
+                'error' => 'Debe seleccionar un empleado'
+            ]);
+        }
+
+        $query = DB::table('producto_comision as pc')
+            ->join('facturas_comision as fc', 'fc.id', '=', 'pc.facturas_comision_id')
+            ->join('factura as f', 'f.id', '=', 'fc.factura_id')
+            ->join('producto as p', 'p.id', '=', 'pc.producto_id')
+            ->join('comision_empleado as ce', function($join) use ($empleadoId) {
+                $join->on('ce.rol_id', '=', 'fc.rol_id')
+                     ->whereRaw('YEAR(ce.mes_comision) = YEAR(fc.fecha_cierre_factura)')
+                     ->whereRaw('MONTH(ce.mes_comision) = MONTH(fc.fecha_cierre_factura)')
+                     ->where('ce.estado_id', '=', 1)
+                     ->where('ce.users_comision', '=', $empleadoId);
             })
-            ->leftJoin('producto_comision as pc', 'pc.facturas_comision_id', '=', 'fc.id')
-            ->leftJoin('producto as p', 'p.id', '=', 'pc.producto_id')
-            ->leftJoin('factura as f', 'f.id', '=', 'fc.factura_id')
+            ->join('users as u', 'u.id', '=', 'ce.users_comision')
+            ->whereBetween('fc.fecha_cierre_factura', [$fechaInicio, $fechaFin])
+            ->where('fc.estado_id', 1)
             ->select(
-                DB::raw('COALESCE(pc.id, ce.id) as registro_id'),
+                'pc.id',
+                'pc.id as registro_id',
                 'u.id as empleado_id',
                 'u.name as empleado',
-                DB::raw('COALESCE(f.cai, "N/A") as factura'),
-                DB::raw('COALESCE(p.nombre, "N/A") as producto'),
-                DB::raw('COALESCE(pc.cantidad, 0) as cantidad'),
-                DB::raw('COALESCE(pc.monto_comision, 0) as monto_comision'),
-                DB::raw('COALESCE(DATE_FORMAT(fc.created_at, "%Y-%m-%d"), "N/A") as fecha')
-            )
-            ->where('ce.estado_id', 1);
-
-        if ($empleadoId) {
-            $query->where('u.id', $empleadoId);
-        }
+                'f.cai as factura',
+                'p.nombre as producto',
+                'pc.cantidad',
+                'pc.monto_comision',
+                DB::raw('DATE_FORMAT(fc.fecha_cierre_factura, "%Y-%m-%d") as fecha')
+            );
 
         return DataTables::of($query)->make(true);
     }
@@ -100,27 +111,41 @@ class ReportesComisionesGenerales extends Component
         $fechaFin = $request->input('fechaFin') . ' 23:59:59';
         $rolId = $request->input('filtroEspecifico');
 
-        $query = DB::table('rol as r')
-            ->leftJoin('comision_empleado as ce', 'ce.rol_id', '=', 'r.id')
-            ->leftJoin('users as u', 'u.id', '=', 'ce.users_comision')
-            ->leftJoin('facturas_comision as fc', function($join) use ($fechaInicio, $fechaFin) {
-                $join->on('fc.rol_id', '=', 'r.id')
-                     ->where('fc.estado_id', '=', 1)
-                     ->whereBetween('fc.created_at', [$fechaInicio, $fechaFin]);
+        $subquery = DB::table('facturas_comision as fc')
+            ->join('rol as r', 'r.id', '=', 'fc.rol_id')
+            ->join('comision_empleado as ce', function($join) {
+                $join->on('ce.rol_id', '=', 'fc.rol_id')
+                     ->whereRaw('YEAR(ce.mes_comision) = YEAR(fc.fecha_cierre_factura)')
+                     ->whereRaw('MONTH(ce.mes_comision) = MONTH(fc.fecha_cierre_factura)')
+                     ->where('ce.estado_id', '=', 1);
             })
-            ->select(
-                'r.id',
-                'r.nombre as rol',
-                DB::raw('COALESCE(u.name, "Sin empleado") as empleado'),
-                DB::raw('COALESCE(SUM(fc.monto_rol), 0) as total_comisiones'),
-                DB::raw('COUNT(DISTINCT fc.id) as num_facturas')
-            )
+            ->join('users as u', 'u.id', '=', 'ce.users_comision')
+            ->whereBetween('fc.fecha_cierre_factura', [$fechaInicio, $fechaFin])
+            ->where('fc.estado_id', 1)
             ->where('r.estado_id', 1)
-            ->groupBy('r.id', 'r.nombre', 'u.id', 'u.name');
+            ->select(
+                'r.id as rol_id',
+                'r.nombre as rol',
+                'u.id as user_id',
+                'u.name as empleado',
+                'fc.id as factura_id',
+                'fc.monto_rol'
+            );
 
         if ($rolId) {
-            $query->where('r.id', $rolId);
+            $subquery->where('r.id', $rolId);
         }
+
+        $query = DB::table(DB::raw("({$subquery->toSql()}) as sub"))
+            ->mergeBindings($subquery)
+            ->select(
+                DB::raw('CONCAT(sub.rol_id, "-", sub.user_id) as id'),
+                'sub.rol',
+                'sub.empleado',
+                DB::raw('SUM(sub.monto_rol) as total_comisiones'),
+                DB::raw('COUNT(DISTINCT sub.factura_id) as num_facturas')
+            )
+            ->groupBy('sub.rol_id', 'sub.rol', 'sub.user_id', 'sub.empleado');
 
         return DataTables::of($query)->make(true);
     }
@@ -134,23 +159,39 @@ class ReportesComisionesGenerales extends Component
         $fechaInicio = $request->input('fechaInicio') . ' 00:00:00';
         $fechaFin = $request->input('fechaFin') . ' 23:59:59';
 
-        $query = DB::table('facturas_comision as fc')
-            ->join('comision_empleado as ce', 'ce.rol_id', '=', 'fc.rol_id')
+        $subquery = DB::table('facturas_comision as fc')
+            ->join('comision_empleado as ce', function($join) {
+                $join->on('ce.rol_id', '=', 'fc.rol_id')
+                     ->whereRaw('YEAR(ce.mes_comision) = YEAR(fc.fecha_cierre_factura)')
+                     ->whereRaw('MONTH(ce.mes_comision) = MONTH(fc.fecha_cierre_factura)')
+                     ->where('ce.estado_id', '=', 1);
+            })
             ->join('users as u', 'u.id', '=', 'ce.users_comision')
-            ->leftJoin('rol as r', 'r.id', '=', 'fc.rol_id')
+            ->join('rol as r', 'r.id', '=', 'ce.rol_id')
             ->join('producto_comision as pc', 'pc.facturas_comision_id', '=', 'fc.id')
-            ->whereBetween('fc.created_at', [$fechaInicio, $fechaFin])
+            ->whereBetween('fc.fecha_cierre_factura', [$fechaInicio, $fechaFin])
             ->where('fc.estado_id', 1)
-            ->where('ce.estado_id', 1)
             ->select(
-                'u.id',
+                'u.id as user_id',
                 'u.name as usuario',
-                DB::raw('COALESCE(r.nombre, "Sin rol") as rol'),
-                DB::raw('SUM(fc.monto_rol) as total_comisiones'),
-                DB::raw('COUNT(DISTINCT fc.id) as num_facturas'),
-                DB::raw('COUNT(DISTINCT pc.producto_id) as num_productos')
+                'r.id as rol_id',
+                'r.nombre as rol',
+                'fc.id as factura_id',
+                'fc.monto_rol',
+                'pc.producto_id'
+            );
+
+        $query = DB::table(DB::raw("({$subquery->toSql()}) as sub"))
+            ->mergeBindings($subquery)
+            ->select(
+                'sub.user_id as id',
+                'sub.usuario',
+                'sub.rol',
+                DB::raw('SUM(sub.monto_rol) as total_comisiones'),
+                DB::raw('COUNT(DISTINCT sub.factura_id) as num_facturas'),
+                DB::raw('COUNT(DISTINCT sub.producto_id) as num_productos')
             )
-            ->groupBy('u.id', 'u.name', 'r.nombre');
+            ->groupBy('sub.user_id', 'sub.usuario', 'sub.rol_id', 'sub.rol');
 
         return DataTables::of($query)->make(true);
     }
@@ -167,17 +208,32 @@ class ReportesComisionesGenerales extends Component
         $query = DB::table('producto_comision as pc')
             ->join('facturas_comision as fc', 'fc.id', '=', 'pc.facturas_comision_id')
             ->join('producto as p', 'p.id', '=', 'pc.producto_id')
-            ->join('comision_empleado as ce', 'ce.rol_id', '=', 'fc.rol_id')
-            ->whereBetween('fc.created_at', [$fechaInicio, $fechaFin])
+            ->whereBetween('fc.fecha_cierre_factura', [$fechaInicio, $fechaFin])
             ->where('fc.estado_id', 1)
-            ->where('ce.estado_id', 1)
+            ->whereExists(function($query) {
+                $query->select(DB::raw(1))
+                      ->from('comision_empleado as ce')
+                      ->whereColumn('ce.rol_id', 'fc.rol_id')
+                      ->whereRaw('YEAR(ce.mes_comision) = YEAR(fc.fecha_cierre_factura)')
+                      ->whereRaw('MONTH(ce.mes_comision) = MONTH(fc.fecha_cierre_factura)')
+                      ->where('ce.estado_id', 1);
+            })
             ->select(
                 'p.id',
                 'p.nombre as producto',
                 'p.codigo_barra',
                 DB::raw('SUM(pc.cantidad) as cantidad_vendida'),
                 DB::raw('SUM(pc.monto_comision) as total_comisiones'),
-                DB::raw('COUNT(DISTINCT ce.users_comision) as num_empleados')
+                DB::raw('(SELECT COUNT(DISTINCT ce2.users_comision) 
+                         FROM comision_empleado ce2 
+                         INNER JOIN facturas_comision fc2 ON fc2.rol_id = ce2.rol_id 
+                         INNER JOIN producto_comision pc2 ON pc2.facturas_comision_id = fc2.id 
+                         WHERE pc2.producto_id = p.id 
+                         AND fc2.fecha_cierre_factura BETWEEN "' . $fechaInicio . '" AND "' . $fechaFin . '"
+                         AND YEAR(ce2.mes_comision) = YEAR(fc2.fecha_cierre_factura)
+                         AND MONTH(ce2.mes_comision) = MONTH(fc2.fecha_cierre_factura)
+                         AND ce2.estado_id = 1
+                         AND fc2.estado_id = 1) as num_empleados')
             )
             ->groupBy('p.id', 'p.nombre', 'p.codigo_barra');
 
@@ -194,22 +250,27 @@ class ReportesComisionesGenerales extends Component
         $fechaFin = $request->input('fechaFin') . ' 23:59:59';
 
         $query = DB::table('facturas_comision as fc')
-            ->join('comision_empleado as ce', 'ce.rol_id', '=', 'fc.rol_id')
+            ->join('comision_empleado as ce', function($join) {
+                $join->on('ce.rol_id', '=', 'fc.rol_id')
+                     ->whereRaw('YEAR(ce.mes_comision) = YEAR(fc.fecha_cierre_factura)')
+                     ->whereRaw('MONTH(ce.mes_comision) = MONTH(fc.fecha_cierre_factura)')
+                     ->where('ce.estado_id', '=', 1);
+            })
             ->join('users as u', 'u.id', '=', 'ce.users_comision')
             ->join('factura as v', 'v.id', '=', 'fc.factura_id')
             ->join('cliente as cl', 'cl.id', '=', 'v.cliente_id')
-            ->whereBetween('fc.created_at', [$fechaInicio, $fechaFin])
+            ->whereBetween('fc.fecha_cierre_factura', [$fechaInicio, $fechaFin])
             ->where('fc.estado_id', 1)
-            ->where('ce.estado_id', 1)
             ->select(
-                'fc.id',
+                DB::raw('CONCAT(fc.id, "-", u.id) as id'),
                 'v.cai as factura',
                 'cl.nombre as cliente',
                 'u.name as empleado',
                 'v.total as total_venta',
                 'fc.monto_rol as total_comision',
-                DB::raw('DATE_FORMAT(fc.created_at, "%Y-%m-%d") as fecha')
-            );
+                DB::raw('DATE_FORMAT(fc.fecha_cierre_factura, "%Y-%m-%d") as fecha')
+            )
+            ->distinct();
 
         return DataTables::of($query)->make(true);
     }
