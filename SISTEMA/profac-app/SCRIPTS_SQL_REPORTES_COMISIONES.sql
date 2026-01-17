@@ -111,15 +111,21 @@ FROM (
         fc.monto_rol,
         pc.producto_id
     FROM facturas_comision fc
-    INNER JOIN comision_empleado ce ON ce.rol_id = fc.rol_id
-        AND YEAR(ce.mes_comision) = YEAR(fc.fecha_cierre_factura)
-        AND MONTH(ce.mes_comision) = MONTH(fc.fecha_cierre_factura)
-        AND ce.estado_id = 1
+    INNER JOIN rol r ON r.id = fc.rol_id
+    INNER JOIN comision_empleado ce
+        ON ce.id = (
+            SELECT MAX(ce2.id)
+            FROM comision_empleado ce2
+            WHERE ce2.rol_id = fc.rol_id
+              AND ce2.estado_id = 1
+              AND YEAR(ce2.mes_comision) = YEAR(fc.fecha_cierre_factura)
+              AND MONTH(ce2.mes_comision) = MONTH(fc.fecha_cierre_factura)
+        )
     INNER JOIN users u ON u.id = ce.users_comision
-    INNER JOIN rol r ON r.id = ce.rol_id
     INNER JOIN producto_comision pc ON pc.facturas_comision_id = fc.id
     WHERE fc.fecha_cierre_factura BETWEEN @fechaInicio AND @fechaFin
         AND fc.estado_id = 1
+        AND r.estado_id = 1
 ) AS sub
 GROUP BY sub.user_id, sub.usuario, sub.rol_id, sub.rol
 ORDER BY sub.user_id;
@@ -128,42 +134,32 @@ ORDER BY sub.user_id;
 -- ============================================================================
 -- 4. REPORTE POR PRODUCTO
 -- ============================================================================
--- Descripción: Muestra cada producto con su cantidad total vendida, total de
---              comisiones acumuladas y número de empleados que lo vendieron.
+-- Descripción: Muestra cada producto con su cantidad total vendida y total de
+--              comisiones acumuladas.
 -- Agrupación: SOLO por producto (no multiplica filas por empleados)
 -- ============================================================================
 
-SELECT 
+SELECT
     p.id,
     p.nombre AS producto,
     p.codigo_barra,
-    SUM(pc.cantidad) AS cantidad_vendida,
-    SUM(pc.monto_comision) AS total_comisiones,
-    (SELECT COUNT(DISTINCT ce2.users_comision) 
-     FROM comision_empleado ce2 
-     INNER JOIN facturas_comision fc2 ON fc2.rol_id = ce2.rol_id 
-     INNER JOIN producto_comision pc2 ON pc2.facturas_comision_id = fc2.id 
-     WHERE pc2.producto_id = p.id 
-         AND fc2.fecha_cierre_factura BETWEEN @fechaInicio AND @fechaFin
-         AND YEAR(ce2.mes_comision) = YEAR(fc2.fecha_cierre_factura)
-         AND MONTH(ce2.mes_comision) = MONTH(fc2.fecha_cierre_factura)
-         AND ce2.estado_id = 1
-         AND fc2.estado_id = 1
-    ) AS num_empleados
+    MAX(pc.cantidad) AS cantidad_vendida,
+    SUM(pc.cantidad * pc.monto_comision) AS total_comisiones
+
 FROM producto_comision pc
-INNER JOIN facturas_comision fc ON fc.id = pc.facturas_comision_id
-INNER JOIN producto p ON p.id = pc.producto_id
+INNER JOIN facturas_comision fc
+    ON fc.id = pc.facturas_comision_id
+INNER JOIN producto p
+    ON p.id = pc.producto_id
+
 WHERE fc.fecha_cierre_factura BETWEEN @fechaInicio AND @fechaFin
-    AND fc.estado_id = 1
-    AND EXISTS (
-        SELECT 1
-        FROM comision_empleado ce
-        WHERE ce.rol_id = fc.rol_id
-            AND YEAR(ce.mes_comision) = YEAR(fc.fecha_cierre_factura)
-            AND MONTH(ce.mes_comision) = MONTH(fc.fecha_cierre_factura)
-            AND ce.estado_id = 1
-    )
-GROUP BY p.id, p.nombre, p.codigo_barra
+  AND fc.estado_id = 1
+
+GROUP BY
+    p.id,
+    p.nombre,
+    p.codigo_barra
+
 ORDER BY total_comisiones DESC;
 
 
@@ -176,7 +172,7 @@ ORDER BY total_comisiones DESC;
 -- Nota: Una factura puede aparecer varias veces si comisionó más de un empleado
 -- ============================================================================
 
-SELECT DISTINCT
+SELECT 
     CONCAT(fc.id, '-', u.id) AS id,
     v.cai AS factura,
     cl.nombre AS cliente,
@@ -185,10 +181,15 @@ SELECT DISTINCT
     fc.monto_rol AS total_comision,
     DATE_FORMAT(fc.fecha_cierre_factura, '%Y-%m-%d') AS fecha
 FROM facturas_comision fc
-INNER JOIN comision_empleado ce ON ce.rol_id = fc.rol_id
-    AND YEAR(ce.mes_comision) = YEAR(fc.fecha_cierre_factura)
-    AND MONTH(ce.mes_comision) = MONTH(fc.fecha_cierre_factura)
-    AND ce.estado_id = 1
+INNER JOIN comision_empleado ce
+    ON ce.id = (
+        SELECT MAX(ce2.id)
+        FROM comision_empleado ce2
+        WHERE ce2.rol_id = fc.rol_id
+          AND ce2.estado_id = 1
+          AND YEAR(ce2.mes_comision) = YEAR(fc.fecha_cierre_factura)
+          AND MONTH(ce2.mes_comision) = MONTH(fc.fecha_cierre_factura)
+    )
 INNER JOIN users u ON u.id = ce.users_comision
 INNER JOIN factura v ON v.id = fc.factura_id
 INNER JOIN cliente cl ON cl.id = v.cliente_id

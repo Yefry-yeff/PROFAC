@@ -113,12 +113,25 @@ class ReportesComisionesGenerales extends Component
 
         $subquery = DB::table('facturas_comision as fc')
             ->join('rol as r', 'r.id', '=', 'fc.rol_id')
-            ->join('comision_empleado as ce', function($join) {
-                $join->on('ce.rol_id', '=', 'fc.rol_id')
-                     ->whereRaw('YEAR(ce.mes_comision) = YEAR(fc.fecha_cierre_factura)')
-                     ->whereRaw('MONTH(ce.mes_comision) = MONTH(fc.fecha_cierre_factura)')
-                     ->where('ce.estado_id', '=', 1);
-            })
+            ->joinSub(
+                DB::table('comision_empleado as ce2')
+                    ->select('ce2.*')
+                    ->whereRaw('ce2.id = (
+                        SELECT MAX(ce3.id)
+                        FROM comision_empleado ce3
+                        WHERE ce3.rol_id = ce2.rol_id
+                          AND ce3.estado_id = 1
+                          AND YEAR(ce3.mes_comision) = YEAR(ce2.mes_comision)
+                          AND MONTH(ce3.mes_comision) = MONTH(ce2.mes_comision)
+                    )'),
+                'ce',
+                function($join) {
+                    $join->on('ce.rol_id', '=', 'fc.rol_id')
+                         ->whereRaw('YEAR(ce.mes_comision) = YEAR(fc.fecha_cierre_factura)')
+                         ->whereRaw('MONTH(ce.mes_comision) = MONTH(fc.fecha_cierre_factura)')
+                         ->where('ce.estado_id', '=', 1);
+                }
+            )
             ->join('users as u', 'u.id', '=', 'ce.users_comision')
             ->whereBetween('fc.fecha_cierre_factura', [$fechaInicio, $fechaFin])
             ->where('fc.estado_id', 1)
@@ -160,17 +173,31 @@ class ReportesComisionesGenerales extends Component
         $fechaFin = $request->input('fechaFin') . ' 23:59:59';
 
         $subquery = DB::table('facturas_comision as fc')
-            ->join('comision_empleado as ce', function($join) {
-                $join->on('ce.rol_id', '=', 'fc.rol_id')
-                     ->whereRaw('YEAR(ce.mes_comision) = YEAR(fc.fecha_cierre_factura)')
-                     ->whereRaw('MONTH(ce.mes_comision) = MONTH(fc.fecha_cierre_factura)')
-                     ->where('ce.estado_id', '=', 1);
-            })
+            ->join('rol as r', 'r.id', '=', 'fc.rol_id')
+            ->joinSub(
+                DB::table('comision_empleado as ce2')
+                    ->select('ce2.*')
+                    ->whereRaw('ce2.id = (
+                        SELECT MAX(ce3.id)
+                        FROM comision_empleado ce3
+                        WHERE ce3.rol_id = ce2.rol_id
+                          AND ce3.estado_id = 1
+                          AND YEAR(ce3.mes_comision) = YEAR(ce2.mes_comision)
+                          AND MONTH(ce3.mes_comision) = MONTH(ce2.mes_comision)
+                    )'),
+                'ce',
+                function($join) {
+                    $join->on('ce.rol_id', '=', 'fc.rol_id')
+                         ->whereRaw('YEAR(ce.mes_comision) = YEAR(fc.fecha_cierre_factura)')
+                         ->whereRaw('MONTH(ce.mes_comision) = MONTH(fc.fecha_cierre_factura)')
+                         ->where('ce.estado_id', '=', 1);
+                }
+            )
             ->join('users as u', 'u.id', '=', 'ce.users_comision')
-            ->join('rol as r', 'r.id', '=', 'ce.rol_id')
             ->join('producto_comision as pc', 'pc.facturas_comision_id', '=', 'fc.id')
             ->whereBetween('fc.fecha_cierre_factura', [$fechaInicio, $fechaFin])
             ->where('fc.estado_id', 1)
+            ->where('r.estado_id', 1)
             ->select(
                 'u.id as user_id',
                 'u.name as usuario',
@@ -210,30 +237,12 @@ class ReportesComisionesGenerales extends Component
             ->join('producto as p', 'p.id', '=', 'pc.producto_id')
             ->whereBetween('fc.fecha_cierre_factura', [$fechaInicio, $fechaFin])
             ->where('fc.estado_id', 1)
-            ->whereExists(function($query) {
-                $query->select(DB::raw(1))
-                      ->from('comision_empleado as ce')
-                      ->whereColumn('ce.rol_id', 'fc.rol_id')
-                      ->whereRaw('YEAR(ce.mes_comision) = YEAR(fc.fecha_cierre_factura)')
-                      ->whereRaw('MONTH(ce.mes_comision) = MONTH(fc.fecha_cierre_factura)')
-                      ->where('ce.estado_id', 1);
-            })
             ->select(
                 'p.id',
                 'p.nombre as producto',
                 'p.codigo_barra',
-                DB::raw('SUM(pc.cantidad) as cantidad_vendida'),
-                DB::raw('SUM(pc.monto_comision) as total_comisiones'),
-                DB::raw('(SELECT COUNT(DISTINCT ce2.users_comision) 
-                         FROM comision_empleado ce2 
-                         INNER JOIN facturas_comision fc2 ON fc2.rol_id = ce2.rol_id 
-                         INNER JOIN producto_comision pc2 ON pc2.facturas_comision_id = fc2.id 
-                         WHERE pc2.producto_id = p.id 
-                         AND fc2.fecha_cierre_factura BETWEEN "' . $fechaInicio . '" AND "' . $fechaFin . '"
-                         AND YEAR(ce2.mes_comision) = YEAR(fc2.fecha_cierre_factura)
-                         AND MONTH(ce2.mes_comision) = MONTH(fc2.fecha_cierre_factura)
-                         AND ce2.estado_id = 1
-                         AND fc2.estado_id = 1) as num_empleados')
+                DB::raw('MAX(pc.cantidad) as cantidad_vendida'),
+                DB::raw('SUM(pc.cantidad * pc.monto_comision) as total_comisiones')
             )
             ->groupBy('p.id', 'p.nombre', 'p.codigo_barra');
 
@@ -250,12 +259,25 @@ class ReportesComisionesGenerales extends Component
         $fechaFin = $request->input('fechaFin') . ' 23:59:59';
 
         $query = DB::table('facturas_comision as fc')
-            ->join('comision_empleado as ce', function($join) {
-                $join->on('ce.rol_id', '=', 'fc.rol_id')
-                     ->whereRaw('YEAR(ce.mes_comision) = YEAR(fc.fecha_cierre_factura)')
-                     ->whereRaw('MONTH(ce.mes_comision) = MONTH(fc.fecha_cierre_factura)')
-                     ->where('ce.estado_id', '=', 1);
-            })
+            ->joinSub(
+                DB::table('comision_empleado as ce2')
+                    ->select('ce2.*')
+                    ->whereRaw('ce2.id = (
+                        SELECT MAX(ce3.id)
+                        FROM comision_empleado ce3
+                        WHERE ce3.rol_id = ce2.rol_id
+                          AND ce3.estado_id = 1
+                          AND YEAR(ce3.mes_comision) = YEAR(ce2.mes_comision)
+                          AND MONTH(ce3.mes_comision) = MONTH(ce2.mes_comision)
+                    )'),
+                'ce',
+                function($join) {
+                    $join->on('ce.rol_id', '=', 'fc.rol_id')
+                         ->whereRaw('YEAR(ce.mes_comision) = YEAR(fc.fecha_cierre_factura)')
+                         ->whereRaw('MONTH(ce.mes_comision) = MONTH(fc.fecha_cierre_factura)')
+                         ->where('ce.estado_id', '=', 1);
+                }
+            )
             ->join('users as u', 'u.id', '=', 'ce.users_comision')
             ->join('factura as v', 'v.id', '=', 'fc.factura_id')
             ->join('cliente as cl', 'cl.id', '=', 'v.cliente_id')
@@ -269,8 +291,7 @@ class ReportesComisionesGenerales extends Component
                 'v.total as total_venta',
                 'fc.monto_rol as total_comision',
                 DB::raw('DATE_FORMAT(fc.fecha_cierre_factura, "%Y-%m-%d") as fecha')
-            )
-            ->distinct();
+            );
 
         return DataTables::of($query)->make(true);
     }

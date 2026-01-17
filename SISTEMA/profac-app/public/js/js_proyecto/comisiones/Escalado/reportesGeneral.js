@@ -265,8 +265,7 @@ function cargarReporte() {
                 { data: 'producto' },
                 { data: 'codigo_barra' },
                 { data: 'cantidad_vendida', className: 'text-right' },
-                { data: 'total_comisiones', className: 'text-right' },
-                { data: 'num_empleados', className: 'text-center' }
+                { data: 'total_comisiones', className: 'text-right' }
             ];
             $('#theadComisiones').html(`
                 <tr>
@@ -275,7 +274,6 @@ function cargarReporte() {
                     <th>Código Barra</th>
                     <th>Cantidad Vendida</th>
                     <th>Total Comisiones</th>
-                    <th># Empleados</th>
                 </tr>
             `);
             break;
