@@ -174,7 +174,7 @@
                                             aplicado %
                                             :<span class="text-danger">*</span></label>
 
-                                        <input class="form-control" type="number" min="0" max="35"
+                                        <input class="form-control" type="number" min="0" max="50"
                                             value="0" id="porDescuento" name="porDescuento"
                                             onchange="calcularTotalesInicioPagina()" data-parsley-required>
 
@@ -672,16 +672,16 @@
                             // SIEMPRE mostrar TODAS las categorías disponibles del producto
                             // El usuario puede elegir libremente cualquiera
                             $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>--Seleccione una categoría--</option>');
-                            
+
                             let categoriaClienteId = $('#categoria_cliente_venta_id').data('categoria-cliente-id');
-                            
+
                             categorias.forEach(categoria => {
                                 // Si es la categoría del cliente, pre-seleccionarla
                                 let isSelected = (clienteId && categoria.id == categoriaClienteId);
                                 let option = new Option(categoria.nombre_categoria, categoria.id, isSelected, isSelected);
                                 $('#categoria_cliente_venta_id').append(option);
                             });
-                            
+
                             // NUNCA deshabilitar - el usuario siempre puede elegir
                             $('#categoria_cliente_venta_id').prop('disabled', false);
                         } else {
