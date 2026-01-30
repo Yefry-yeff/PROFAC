@@ -46,13 +46,16 @@
             </ol>
         </div>
 
-        @if (Auth::user()->rol_id == '1')
+        @if (Auth::user()->rol_id == '1' )
             <div class="col-lg-4 col-xl-2 col-md-4 col-sm-4">
                 <div style="margin-top: 1.5rem" mr-auto>
                     <a href="#" class="btn add-btn btn-warning" data-toggle="modal"
                         data-target="#modal_producto_editar"><i class="fa fa-plus"></i>Editar Producto</a>
                 </div>
             </div>
+        @endif
+
+        @if (Auth::user()->rol_id == '1' || Auth::user()->rol_id == '10' )
 
             <div style="margin-top: 1.5rem; margin-left:auto; ">
                 <a href="#" class="btn add-btn btn-info" data-toggle="modal" data-target="#modal_foto_producto"><i
@@ -103,7 +106,7 @@
                                 @if ($imagen->contador == 1)
                                     <div class="carousel-item active row w-100 align-items-center">
 
-                                        @if (Auth::user()->rol_id == '1' || Auth::user()->rol_id == '5' || Auth::user()->rol_id == '7' || Auth::user()->rol_id == '9')
+                                        @if (Auth::user()->rol_id == '1' || Auth::user()->rol_id == '5' || Auth::user()->rol_id == '7' || Auth::user()->rol_id == '9' || Auth::user()->rol_id == '10')
                                             <div class="col text-center">
                                                 <button class="btn btn-danger regular-button "
                                                     onclick="eliminar({{ $comillas . $imagen->url_img . $comillas }})"
@@ -119,7 +122,7 @@
                                 @else
                                     <div class="carousel-item row w-100 align-items-center">
 
-                                        @if (Auth::user()->rol_id == '1' || Auth::user()->rol_id == '5'  || Auth::user()->rol_id == '9')
+                                        @if (Auth::user()->rol_id == '1' || Auth::user()->rol_id == '5'  || Auth::user()->rol_id == '9' || Auth::user()->rol_id == '10')
                                             <div class="col text-center">
                                                 <button class="btn btn-danger regular-button "
                                                     onclick="eliminar({{ $comillas . $imagen->url_img . $comillas }})"
@@ -204,6 +207,7 @@
         <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6">
             <div class="wrapper wrapper-content animated fadeInRight">
 
+                        @if (Auth::user()->rol_id == '1' )
 
                 <div class="ibox mb-0">
                     <div class="ibox-title">
@@ -234,7 +238,6 @@
 
 
 
-                        @if (Auth::user()->rol_id == '1' )
                             @foreach ($precios as $precio)
                                 <p class="mt-2 mb-2 d-block"> <strong> <i class="fa-solid fa-caret-right"></i> Precio
                                         {{ $precio->contador }} de venta :</strong> {{ $precio->precio }} Lps</small>
@@ -449,6 +452,12 @@
                                 <label for="precio4" class="col-form-label focus-label">Precio D:<span class="text-danger">*</span></label>
                                 <input class="form-group form-control" step="any"  type="number" name="precio4" id="precio4" data-parsley-required disabled >
                             </div>
+
+
+
+
+
+
 
                             <div class="col-md-4">
                                 <label for="marca_producto_editar" class="col-form-label focus-label">Marca de
