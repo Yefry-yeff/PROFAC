@@ -47,9 +47,6 @@
     <!--select2-->
     <link href="{{ asset('css/plugins/select2/select2.min.css') }}" rel="stylesheet">
 
-    <!-- Scripts -->
-    <script src="{{ mix('js/app.js') }}" defer></script>
-
 
 
 </head>

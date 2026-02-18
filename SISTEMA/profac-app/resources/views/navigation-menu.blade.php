@@ -1,3 +1,4 @@
+<div>
 <nav x-data="{ open: false }" class="sticky bg-white border-b border-gray-100" style=" ">
     <a class="navbar-minimalize minimalize-styl-2 btn btn-primary " href="#"><i class="fa fa-bars"></i></a>
 
@@ -794,10 +795,12 @@
             </ul>
         </div>
     </nav>
-        <!-- Overlay para cerrar el menú en móvil/tablet -->
-        <div class="mobile-sidebar-overlay" aria-hidden="true"></div>
+    <!-- Overlay para cerrar el menú en móvil/tablet -->
+    <div class="mobile-sidebar-overlay" aria-hidden="true"></div>
 </nav>
+</div>
 
+@push('styles')
 <style>
 /* Overlay para mobile/tablet */
 @media (max-width: 992px) {
@@ -819,7 +822,9 @@
     }
 }
 </style>
+@endpush
 
+@push('scripts')
 <script>
 // Toggle del sidebar en móvil/tablet: oculto por defecto, aparece al pulsar
 document.addEventListener('DOMContentLoaded', function () {
@@ -869,3 +874,4 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 });
 </script>
+@endpush
