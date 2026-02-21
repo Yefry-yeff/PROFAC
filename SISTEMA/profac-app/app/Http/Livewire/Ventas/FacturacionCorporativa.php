@@ -384,9 +384,10 @@ class FacturacionCorporativa extends Component
             $productoId = $request->producto_id;
 
             $categorias = DB::SELECT("
-                SELECT DISTINCT
+                SELECT
                     cce.id,
-                    cce.nombre_categoria
+                    cce.nombre_categoria,
+                    MAX(ppc.precio_a) as precio_a
                 FROM
                     precios_producto_carga ppc
                 INNER JOIN
@@ -398,8 +399,10 @@ class FacturacionCorporativa extends Component
                     AND ppc.estado_id = 1
                     AND cp.estado_id = 1
                     AND cce.estado_id = 1
+                GROUP BY
+                    cce.id, cce.nombre_categoria
                 ORDER BY
-                    cce.nombre_categoria ASC
+                    precio_a DESC
             ", [$productoId]);
 
             return response()->json([
@@ -408,7 +411,7 @@ class FacturacionCorporativa extends Component
         } catch (QueryException $e) {
             return response()->json([
                 'message' => 'Ha ocurrido un error al obtener las categorías del producto.',
-                'error' => $e
+                'error' => $e->getMessage()
             ], 402);
         }
     }
