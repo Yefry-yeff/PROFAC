@@ -478,6 +478,8 @@
 
 
     @push('scripts')
+        <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
         <script>
             var numeroInputs = 0;
             var arregloIdInputs = [];
@@ -566,6 +568,13 @@
                         let categorias = response.data.categorias;
 
                         if (categorias.length > 0) {
+                            // Ordenar categorías por precio_a de mayor a menor
+                            categorias.sort((a, b) => {
+                                let precioA = parseFloat(a.precio_a) || 0;
+                                let precioB = parseFloat(b.precio_a) || 0;
+                                return precioB - precioA;
+                            });
+
                             // SIEMPRE mostrar TODAS las categorías disponibles del producto
                             // El usuario puede elegir libremente cualquiera
                             $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>--Seleccione una categoría--</option>');
@@ -573,9 +582,20 @@
                             let categoriaClienteId = $('#categoria_cliente_venta_id').data('categoria-cliente-id');
                             
                             categorias.forEach(categoria => {
+                                // Formatear el precio
+                                let precio = parseFloat(categoria.precio_a) || 0;
+                                let precioFormateado = new Intl.NumberFormat('es-HN', {
+                                    style: 'currency',
+                                    currency: 'HNL',
+                                    minimumFractionDigits: 2,
+                                }).format(precio);
+
+                                // Crear el texto de la opción: "Categoría A - L. 33.33"
+                                let textoOpcion = `${categoria.nombre_categoria} - ${precioFormateado}`;
+
                                 // Si es la categoría del cliente, pre-seleccionarla
                                 let isSelected = (clienteId && categoria.id == categoriaClienteId);
-                                let option = new Option(categoria.nombre_categoria, categoria.id, isSelected, isSelected);
+                                let option = new Option(textoOpcion, categoria.id, isSelected, isSelected);
                                 $('#categoria_cliente_venta_id').append(option);
                             });
                             
