@@ -44,6 +44,11 @@ function guardarUsuario() {
 
 $(document).ready(function()
 {
+    // Cargar roles cuando se abre el modal de crear usuario
+    $('#modal_usuario_crear').on('show.bs.modal', function () {
+        cargarRolesParaNuevoUsuario();
+    });
+
     $('#tbl_usuariosListar').DataTable({
         "order": [0, 'desc'],
         "language": {
@@ -162,6 +167,27 @@ function selectRoles(idRol, rol){
             icon: 'error',
             title: 'Error...',
             text: "Ha ocurrido un error"
+        })
+    });
+}
+
+function cargarRolesParaNuevoUsuario(){
+    axios.get('/usuario/roles/todos').then(function(response) {
+        let array = response.data;
+        let html = '<option value="" selected>-- Seleccione un rol --</option>';
+
+        array.forEach(rol => {
+            html += `<option value="${rol.id}">${rol.nombre}</option>`;
+        });
+
+        document.getElementById("rol_user").innerHTML = html;
+    })
+    .catch(function(error) {
+        console.log(error);
+        Swal.fire({
+            icon: 'error',
+            title: 'Error...',
+            text: "Ha ocurrido un error al cargar los roles"
         })
     });
 }

@@ -348,6 +348,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('/usuarios', ListarUsuarios::class);
     Route::get('/usuarios/listar/usuarios', [ListarUsuarios::class, 'listarUsuarios']);
     Route::get('/usuario/info/{idUsuario}', [ListarUsuarios::class, 'infoUsuario']);
+    Route::get('/usuario/roles/todos', [ListarUsuarios::class, 'getAllRoles']);
     Route::get('/usuario/roles/{idRol}', [ListarUsuarios::class, 'selectRoles']);
     Route::get('/usuario/baja/{idUsuario}', [ListarUsuarios::class, 'baja']);
     Route::get('/usuario/activar/{idUsuario}', [ListarUsuarios::class, 'activar']);

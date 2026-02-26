@@ -3,24 +3,13 @@
 namespace App\Http\Livewire\Usuarios;
 
 use Livewire\Component;
-
-
 use Illuminate\Http\Request;
-use Auth;
 use Illuminate\Database\QueryException;
-use Throwable;
 use App\Models\usuario;
-
-use App\Models\Team;
-use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
-use Laravel\Fortify\Contracts\CreatesNewUsers;
-use Laravel\Jetstream\Jetstream;
-use DataTables;
-
-
+use Yajra\DataTables\Facades\DataTables;
 
 class ListarUsuarios extends Component
 {
@@ -56,7 +45,7 @@ class ListarUsuarios extends Component
 
             ");
 
-            return Datatables::of($listaUsuarios)
+            return DataTables::of($listaUsuarios)
             ->addColumn('opciones', function ($nota) {
                 $opciones = '
                     <div class="btn-group">
@@ -190,7 +179,7 @@ class ListarUsuarios extends Component
             
             // Actualizar contraseña solo si se proporciona una nueva
             if (!empty($request->nueva_contrasena)) {
-                $usuario->password = \Hash::make($request->nueva_contrasena);
+                $usuario->password = Hash::make($request->nueva_contrasena);
             }
             
             $usuario->save();
@@ -277,5 +266,10 @@ class ListarUsuarios extends Component
              'title'=>'Exito!',
              'text'=>'Usuario activado con éxito.'
         ],200);
+    }
+
+    public function getAllRoles(){
+        $roles = DB::SELECT("SELECT id, nombre FROM rol");
+        return $roles;
     }
 }
