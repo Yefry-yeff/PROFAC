@@ -3,6 +3,70 @@ var contador = 1;
 var arrayInputs = [];
 var productoSeccion = [];
 
+// ========== FUNCIONES AUXILIARES PARA MODALES ==========
+function abrirModal(modalId) {
+    try {
+        if (typeof jQuery !== 'undefined' && jQuery.fn.modal) {
+            $('#' + modalId).modal('show');
+        } else {
+            const modalElement = document.getElementById(modalId);
+            if (modalElement) {
+                // Crear o actualizar el backdrop
+                let backdrop = document.querySelector('.modal-backdrop');
+                if (!backdrop) {
+                    backdrop = document.createElement('div');
+                    backdrop.className = 'modal-backdrop fade show';
+                    document.body.appendChild(backdrop);
+                }
+                
+                modalElement.classList.add('show');
+                modalElement.setAttribute('aria-hidden', 'false');
+                modalElement.style.display = 'block';
+                document.body.classList.add('modal-open');
+                document.body.style.overflow = 'hidden';
+            }
+        }
+    } catch (e) {
+        console.error('Error al abrir modal ' + modalId + ':', e);
+        const modalElement = document.getElementById(modalId);
+        if (modalElement) {
+            modalElement.classList.add('show');
+            modalElement.style.display = 'block';
+        }
+    }
+}
+
+function cerrarModal(modalId) {
+    try {
+        if (typeof jQuery !== 'undefined' && jQuery.fn.modal) {
+            $('#' + modalId).modal('hide');
+        } else {
+            const modalElement = document.getElementById(modalId);
+            if (modalElement) {
+                // Remover el backdrop
+                const backdrop = document.querySelector('.modal-backdrop');
+                if (backdrop) {
+                    backdrop.remove();
+                }
+                
+                modalElement.classList.remove('show');
+                modalElement.setAttribute('aria-hidden', 'true');
+                modalElement.style.display = 'none';
+                document.body.classList.remove('modal-open');
+                document.body.style.overflow = '';
+            }
+        }
+    } catch (e) {
+        console.error('Error al cerrar modal ' + modalId + ':', e);
+        const modalElement = document.getElementById(modalId);
+        if (modalElement) {
+            modalElement.classList.remove('show');
+            modalElement.style.display = 'none';
+        }
+    }
+}
+// ===================================================
+
 $('#cliente').select2({
     ajax: {
         url: '/nota/credito/clientes',
@@ -257,7 +321,7 @@ function infoProducto(facturaId, productoId, seccionId) {
             document.getElementById('segmento').innerHTML = htmlSegmento;
             document.getElementById('seccion').innerHTML = htmlSeccion;
 
-            $('#modal_devolver_producto').modal('show');
+            abrirModal('modal_devolver_producto');
 
         })
         .catch(err => {
@@ -299,7 +363,7 @@ function agregarProductoLista() {
             title: "Advertencia!",
             text: "El producto con la sección correspondiente ya se encuentra en la lista.",
         })
-        $('#modal_devolver_producto').modal('hide')
+        cerrarModal('modal_devolver_producto');
         return;
     }
     //****************Comprueba si el producto con la seccion se repite************************/
@@ -307,7 +371,7 @@ function agregarProductoLista() {
 
 
     if (+cantidad == 0 || !cantidad) {
-        $('#modal_devolver_producto').modal('hide')
+        cerrarModal('modal_devolver_producto');
         Swal.fire({
             icon: "warning",
             title: "Advertencia",
@@ -318,7 +382,7 @@ function agregarProductoLista() {
 
 
     if (+cantidad > +cantidadMaxima) {
-        $('#modal_devolver_producto').modal('hide')
+        cerrarModal('modal_devolver_producto');
         Swal.fire({
             icon: "warning",
             title: "Advertencia",
@@ -411,7 +475,7 @@ function agregarProductoLista() {
 
     let idCuerpoLista = document.getElementById("cuerpoLista");
 
-    $('#modal_devolver_producto').modal('hide')
+    cerrarModal('modal_devolver_producto');
     idCuerpoLista.insertAdjacentHTML('beforeend', html);
     document.getElementById("form_producto_devolver").reset();
     $('#form_producto_devolver').parsley().reset();
@@ -706,27 +770,53 @@ function guardarNotaCredito() {
 
             //Eliminar DIVS y que muestre alert para imprimir
             //Agregar funcion para anular
-            if (typeof Swal !== 'undefined') {
-                Swal.fire({
-                    icon: data.icon,
-                    title: data.title,
-                    html: data.text,
-                });
-            }
-
-            if(data.icon === 'warning'){
+            console.log('Respuesta del servidor:', data);
+            
+            try {
+                if (typeof Swal !== 'undefined' && Swal !== null) {
+                    Swal.fire({
+                        icon: data.icon || 'info',
+                        title: data.title || 'Resultado',
+                        html: data.text || 'Operación completada',
+                        allowOutsideClick: false,
+                        allowEscapeKey: false,
+                        didOpen: () => {
+                            console.log('Alerta mostrada exitosamente');
+                        }
+                    }).then((result) => {
+                        // Recargar después de que el usuario cierre el alert
+                        console.log('Recargando página...');
+                        if(data.icon === 'warning'){
+                            setTimeout(function(){
+                                location.reload();
+                            }, 1500);
+                        } else {
+                            setTimeout(function(){
+                                location.reload();
+                            }, 1000);
+                        }
+                    });
+                } else {
+                    // Fallback si Swal no está disponible
+                    console.warn('Swal no disponible, usando alert nativo');
+                    alert((data.title || '') + '\n' + (data.text || ''));
+                    if(data.icon === 'warning'){
+                        setTimeout(function(){
+                            location.reload();
+                        }, 1500);
+                    } else {
+                        setTimeout(function(){
+                            location.reload();
+                        }, 1000);
+                    }
+                }
+            } catch (e) {
+                console.error('Error al mostrar alerta:', e);
+                alert('Operación completada. Se recargará la página.');
                 setTimeout(function(){
                     location.reload();
-                }, 3000)
-            }else{
-                location.reload();
+                }, 1500);
             }
-
-
-
-
-           // location.reload()
-
 
             return;
 
@@ -735,8 +825,8 @@ function guardarNotaCredito() {
         .catch(err => {
             //console.log(err)
             document.getElementById("btn_guardar_nota_credito").disabled = false;
-            console.log(err);
-            $('#modal_transladar_producto').modal('hide');
+            console.error('Error al guardar nota de crédito:', err);
+            cerrarModal('modal_transladar_producto');
 
             // Intentar obtener el mensaje del servidor
             let errorMessage = "Ha ocurrido un error, reporte con soporte.";
@@ -753,16 +843,31 @@ function guardarNotaCredito() {
                 if (err.response.data.error && err.response.data.error.errorInfo) {
                     errorMessage += "<br><small>" + err.response.data.error.errorInfo[2] + "</small>";
                 }
+            } else if (err.message) {
+                errorMessage = err.message;
             }
 
-            if (typeof Swal !== 'undefined') {
-                Swal.fire({
-                    icon: "error",
-                    title: errorTitle,
-                    html: errorMessage,
-                });
-            } else {
-                alert(errorMessage.replace(/<[^>]*>/g, ''));
+            console.log('Mostrando error:', errorTitle, errorMessage);
+
+            try {
+                if (typeof Swal !== 'undefined' && Swal !== null) {
+                    Swal.fire({
+                        icon: "error",
+                        title: errorTitle,
+                        html: errorMessage,
+                        allowOutsideClick: false,
+                        allowEscapeKey: false,
+                        didOpen: () => {
+                            console.log('Error mostrado');
+                        }
+                    });
+                } else {
+                    console.warn('Swal no disponible para mostrar error');
+                    alert(errorTitle + '\n' + errorMessage.replace(/<[^>]*>/g, ''));
+                }
+            } catch (e) {
+                console.error('Error al mostrar alerta de error:', e);
+                alert(errorTitle + '\n' + errorMessage.replace(/<[^>]*>/g, ''));
             }
 
         })

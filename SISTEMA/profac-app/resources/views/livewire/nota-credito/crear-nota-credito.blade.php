@@ -500,7 +500,7 @@
                 <div class="modal-content">
                     <div class="modal-header">
                         <h4 class="" id="">Datos de Producto</h4>
-                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close" onclick="cerrarModal('modal_devolver_producto')">
                             <span aria-hidden="true">&times;</span>
                         </button>
                     </div>
@@ -600,7 +600,7 @@
                         </form>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal" onclick="cerrarModal('modal_devolver_producto')">Cerrar</button>
                         <button type="button" class="btn btn-primary" onclick="agregarProductoLista()">Agregar a
                             Nota de Credito</button>
                     </div>
@@ -614,7 +614,19 @@
 
     @push('scripts')
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="{{ asset('js/js_proyecto/nota-credito/crear-nota-credito.js') }}"></script>
+    <style>
+        /* Asegurar que los modales se muestren correctamente */
+        .modal.show {
+            display: block !important;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+        .modal-dialog {
+            position: relative;
+        }
+    </style>
     <script>
 
     function obtenerProductos(idFactura) {
