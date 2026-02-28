@@ -1,4 +1,4 @@
-// Variable global para la tabla
+﻿// Variable global para la tabla
 let tablaComisiones = null;
 
 $(document).ready(function () {
@@ -315,7 +315,7 @@ function cargarReporte() {
             deferRender: true,
             destroy: true, // Asegurar destrucción automática
             language: {
-                url: "https://cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json",
+                url: "/js/plugins/dataTables/i18n/Spanish.json",
                 processing: '<i class="fa fa-spinner fa-spin fa-3x fa-fw"></i><span class="sr-only">Cargando...</span>'
             },
             ajax: {

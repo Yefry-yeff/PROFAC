@@ -1,10 +1,10 @@
-
+﻿
 $( document ).ready(function() {
 
     $('#tbl_facturasVendedor_cerradas').DataTable({
         "order": [1, 'asc'],
         "language": {
-            "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
+            "url": "/js/plugins/dataTables/i18n/Spanish.json"
         },
         pageLength: 10,
         responsive: true,
@@ -80,7 +80,7 @@ $( document ).ready(function() {
     $('#tbl_facturasVendedor_sinCerrar').DataTable({
         "order": [1, 'asc'],
         "language": {
-            "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
+            "url": "/js/plugins/dataTables/i18n/Spanish.json"
         },
         pageLength: 10,
         responsive: true,
@@ -156,7 +156,7 @@ $( document ).ready(function() {
     $('#tbl_historico_comisionesPagadas').DataTable({
         "order": [0, 'desc'],
         "language": {
-            "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
+            "url": "/js/plugins/dataTables/i18n/Spanish.json"
         },
         pageLength: 10,
         responsive: true,

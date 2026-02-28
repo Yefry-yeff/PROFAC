@@ -1,4 +1,4 @@
-<div>
+﻿<div>
     <style>
         /* Estilos para scroll en tabla de detalle */
         #bodyDetalleDistribucion .table-responsive::-webkit-scrollbar {
@@ -432,7 +432,7 @@ $(document).ready(() => {
     const configBase = {
         processing: true,
         serverSide: true,
-        language: {url: '//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json'},
+        language: {url: '/js/plugins/dataTables/i18n/Spanish.json'},
         order: [[1, 'desc']],
         pageLength: 10,
         lengthMenu: [[5, 10, 25, 50], [5, 10, 25, 50]],

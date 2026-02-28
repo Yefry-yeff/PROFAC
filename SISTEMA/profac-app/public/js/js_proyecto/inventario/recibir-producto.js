@@ -1,4 +1,4 @@
-
+﻿
 function mostratModal(compraId, productoId) {
 
 
@@ -456,7 +456,7 @@ $(document).ready(function() {
 
     $('#tbl_recibir_compra').DataTable({
         "language": {
-            "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
+            "url": "/js/plugins/dataTables/i18n/Spanish.json"
         },
         pageLength: 10,
         responsive: true,
@@ -509,7 +509,7 @@ $(document).ready(function() {
 
     $('#tbl_producto_bodega').DataTable({
         "language": {
-            "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
+            "url": "/js/plugins/dataTables/i18n/Spanish.json"
         },
         pageLength: 10,
         responsive: true,

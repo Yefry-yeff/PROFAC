@@ -1,4 +1,4 @@
-<div>
+﻿<div>
     @push('styles')
         <style>
             @media (max-width: 600px) {
@@ -326,7 +326,7 @@
                 $('#tbl_numero_ordenes_listar').DataTable({
                     "order": [0, 'desc'],
                     "language": {
-                        "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
+                        "url": "/js/plugins/dataTables/i18n/Spanish.json"
                     },
                     pageLength: 10,
                     responsive: true,

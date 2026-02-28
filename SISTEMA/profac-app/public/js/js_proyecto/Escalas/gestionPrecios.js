@@ -1,4 +1,4 @@
-
+﻿
 
 function cargarCategoriasClienteEnModal() {
   const $sel = $('#categoria_cliente_id');
@@ -228,7 +228,7 @@ function listarCategorias() {
   $('#tbl_listaCategoria').DataTable({
     destroy: true,
     order: [0, 'desc'],
-    language: { "url": "https://cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json" },
+    language: { "url": "/js/plugins/dataTables/i18n/Spanish.json" },
     pageLength: 5,
     responsive: true,
     deferRender: true,
@@ -340,7 +340,7 @@ function renderPreviewTable(rows) {
     columns: columns,
     pageLength: 25,
     responsive: true,
-    language: { url: "https://cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json" },
+    language: { url: "/js/plugins/dataTables/i18n/Spanish.json" },
     deferRender: true
   });
 

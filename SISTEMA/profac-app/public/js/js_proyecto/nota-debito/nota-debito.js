@@ -1,4 +1,4 @@
-
+﻿
 $(document).on('submit', '#montoAddForm', function(event) {
     event.preventDefault();
     guardarMonto();
@@ -107,7 +107,7 @@ $(document).ready(function() {
     $('#tbl_listar_facturas').DataTable({
         "order": [3, 'desc'],
         "language": {
-            "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
+            "url": "/js/plugins/dataTables/i18n/Spanish.json"
         },
         "order": [3, 'desc'],
         pageLength: 10,
@@ -161,7 +161,7 @@ $(document).ready(function() {
     $('#tbl_listar_monto_debito').DataTable({
         "order": [3, 'desc'],
         "language": {
-            "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
+            "url": "/js/plugins/dataTables/i18n/Spanish.json"
         },
         "order": [3, 'asc'],
         pageLength: 10,
@@ -194,7 +194,7 @@ $(document).ready(function() {
     $('#tbl_listar_notas_debito').DataTable({
         "order": [3, 'desc'],
         "language": {
-            "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
+            "url": "/js/plugins/dataTables/i18n/Spanish.json"
         },
         "order": [3, 'asc'],
         pageLength: 10,

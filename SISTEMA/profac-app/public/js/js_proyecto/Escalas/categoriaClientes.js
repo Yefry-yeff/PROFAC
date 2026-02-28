@@ -1,4 +1,4 @@
-  $('#modalCategoriasClientes').on('hidden.bs.modal', function () {
+﻿  $('#modalCategoriasClientes').on('hidden.bs.modal', function () {
     $('#formComentarioCatCliente')[0].reset();
   });
 
@@ -51,7 +51,7 @@
             $('#tbl_listaCategoria').DataTable({
                 destroy: true,
                 order: [0, 'desc'],
-                language: {"url": "https://cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"},
+                language: {"url": "/js/plugins/dataTables/i18n/Spanish.json"},
                 pageLength: 5,
                 responsive: true,
                 ajax: "/listar/categoria/cliente",

@@ -1,4 +1,4 @@
-
+﻿
 
 
 // === Habilitar/Deshabilitar botón "Descargar" (MISMA lógica actual)
@@ -141,7 +141,7 @@ function listarCategorias() {
   $('#tbl_listaCategoria').DataTable({
     destroy: true,
     order: [0, 'desc'],
-    language: { "url": "https://cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json" },
+    language: { "url": "/js/plugins/dataTables/i18n/Spanish.json" },
     pageLength: 5,
     responsive: true,
     deferRender: true,
@@ -175,7 +175,7 @@ function inicializarTablaProductos() {
     serverSide: true, // Activar procesamiento del lado del servidor (lazy loading)
     deferRender: true,
     language: {
-      "url": "https://cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json",
+      "url": "/js/plugins/dataTables/i18n/Spanish.json",
       "processing": '<i class="fa fa-spinner fa-spin fa-3x fa-fw"></i><span class="sr-only">Cargando...</span>'
     },
     ajax: {

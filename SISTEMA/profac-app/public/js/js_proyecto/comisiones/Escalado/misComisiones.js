@@ -1,11 +1,11 @@
-listaParametroComision();
+﻿listaParametroComision();
 
 
 function listaParametroComision() {
   $('#tbl_comisiones_empleado').DataTable({
     destroy: true,
     order: [0, 'desc'],
-    language: { "url": "https://cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json" },
+    language: { "url": "/js/plugins/dataTables/i18n/Spanish.json" },
     pageLength: 5,
     responsive: true,
     deferRender: true,

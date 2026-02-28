@@ -37,6 +37,82 @@ $('#motivo_nota').select2({
     }
 });
 
+// =====================================================================
+// Lógica de pestañas: Por Producto / Por Descuento
+// =====================================================================
+
+function cambiarTipoNota(tipo) {
+    var tipoAnterior = document.getElementById('tipo_nota_credito').value;
+
+    if (tipo === tipoAnterior) return;
+
+    // Si se intenta salir de "producto" con filas ya añadidas, bloquear
+    if (tipoAnterior === 'producto' && arrayInputs.length > 0) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Advertencia',
+            text: 'Ya tiene productos agregados en la nota. Elimínelos antes de cambiar el tipo.',
+        });
+        // Revertir la pestaña visualmente
+        $('#tab-producto-link').tab('show');
+        return;
+    }
+
+    // Si se sale de "descuento", limpiar campos de descuento y totales
+    if (tipoAnterior === 'descuento') {
+        document.getElementById('monto_descuento_mostrar').value = '';
+        document.getElementById('monto_descuento').value = '0';
+        resetearTotalesCredito();
+    }
+
+    // Si se entra a "descuento" con un monto ya ingresado, recalcular
+    if (tipo === 'descuento') {
+        var monto = document.getElementById('monto_descuento_mostrar').value;
+        if (monto && +monto > 0) {
+            calcularDescuento(monto);
+        } else {
+            resetearTotalesCredito();
+        }
+    }
+
+    document.getElementById('tipo_nota_credito').value = tipo;
+}
+
+function resetearTotalesCredito() {
+    document.getElementById('subTotalGeneralCredito').value        = '0';
+    document.getElementById('subTotalGeneralGrabadoCredito').value = '0';
+    document.getElementById('subTotalGeneralExcentoCredito').value = '0';
+    document.getElementById('isvGeneralCredito').value             = '0';
+    document.getElementById('totalGeneralCredito').value           = '0';
+    document.getElementById('subTotalGeneralCreditoMostrar').value        = '';
+    document.getElementById('subTotalGeneralGrabadoCreditoMostrar').value = '';
+    document.getElementById('subTotalGeneralExcentoCreditoMostrar').value = '';
+    document.getElementById('isvGeneralCreditoMostrar').value             = '';
+    document.getElementById('totalGeneralCreditoMostrar').value           = '';
+}
+
+function calcularDescuento(monto) {
+    monto = parseFloat(monto) || 0;
+
+    // Actualizar hidden
+    document.getElementById('monto_descuento').value = monto;
+
+    // Para nota por descuento: sub_total = monto, grabado = 0, excento = monto, ISV = 0, total = monto
+    document.getElementById('subTotalGeneralCredito').value        = monto;
+    document.getElementById('subTotalGeneralGrabadoCredito').value = 0;
+    document.getElementById('subTotalGeneralExcentoCredito').value = monto;
+    document.getElementById('isvGeneralCredito').value             = 0;
+    document.getElementById('totalGeneralCredito').value           = monto;
+
+    document.getElementById('subTotalGeneralCreditoMostrar').value        = monedaLempiras(monto);
+    document.getElementById('subTotalGeneralGrabadoCreditoMostrar').value = monedaLempiras(0);
+    document.getElementById('subTotalGeneralExcentoCreditoMostrar').value = monedaLempiras(monto);
+    document.getElementById('isvGeneralCreditoMostrar').value             = monedaLempiras(0);
+    document.getElementById('totalGeneralCreditoMostrar').value           = monedaLempiras(monto);
+}
+
+// =====================================================================
+
 function obtenerFacturasDeCliente() {
     document.getElementById('factura').innerHTML =
         ' <option value="" selected disabled>--Seleccionar una factura--</option>';
@@ -529,6 +605,39 @@ $(document).on('submit', '#guardar_devolucion', function(event) {
 });
 
 function guardarNotaCredito() {
+    var tipoNota = document.getElementById('tipo_nota_credito').value;
+
+    // Validaciones según tipo
+    if (tipoNota === 'producto') {
+        if (arrayInputs.length === 0) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Advertencia',
+                text: 'Debe agregar al menos un producto a la nota de crédito.',
+            });
+            return;
+        }
+    } else if (tipoNota === 'descuento') {
+        var monto = parseFloat(document.getElementById('monto_descuento').value) || 0;
+        var comentarioDesc = document.getElementById('comentario_descuento').value.trim();
+        if (monto <= 0) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Advertencia',
+                text: 'Debe ingresar un monto de descuento mayor a cero.',
+            });
+            return;
+        }
+        if (!comentarioDesc) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Advertencia',
+                text: 'Debe ingresar un comentario para la nota de crédito por descuento.',
+            });
+            return;
+        }
+    }
+
     let idFactura = document.getElementById("idFactura").value;
     document.getElementById("btn_guardar_nota_credito").disabled = true;
 
@@ -536,11 +645,7 @@ function guardarNotaCredito() {
 
     let longitudArreglo = arrayInputs.length;
     for (var i = 0; i < longitudArreglo; i++) {
-
-
-
         dataForm.append("arregloIdInputs[]", arrayInputs[i]);
-
     }
 
     dataForm.append("idFactura", idFactura);

@@ -1,4 +1,4 @@
-<div>
+﻿<div>
     @push('styles')
     @endpush
 
@@ -66,7 +66,7 @@
             $('#tbl_listar_compras').DataTable({
                 "order": [12, 'desc'],
                 "language": {
-                    "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
+                    "url": "/js/plugins/dataTables/i18n/Spanish.json"
                 },
 
                 pageLength: 11,

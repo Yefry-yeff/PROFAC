@@ -1,4 +1,4 @@
-
+﻿
 
 $(document).on('submit', '#crearTipoAjusteForm', function(event) {
     event.preventDefault();
@@ -49,7 +49,7 @@ $(document).on('submit', '#crearTipoAjusteForm', function(event) {
         $('#tbl_tipos_listar').DataTable({
             "order": [0, 'desc'],
             "language": {
-                "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
+                "url": "/js/plugins/dataTables/i18n/Spanish.json"
             },
             pageLength: 10,
             responsive: true,

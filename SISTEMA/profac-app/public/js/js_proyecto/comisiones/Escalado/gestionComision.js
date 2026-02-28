@@ -1,4 +1,4 @@
-function cargarCategoriasClienteEnModal(selected = null) {
+﻿function cargarCategoriasClienteEnModal(selected = null) {
   const $sel = $('#categoria_cliente_id');
   const url  = $sel.data('url');
 
@@ -147,7 +147,7 @@ function listaParametroComision() {
   $('#tbl_listaParametroComision').DataTable({
     destroy: true,
     order: [0, 'desc'],
-    language: { "url": "https://cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json" },
+    language: { "url": "/js/plugins/dataTables/i18n/Spanish.json" },
     pageLength: 5,
     responsive: true,
     deferRender: true,

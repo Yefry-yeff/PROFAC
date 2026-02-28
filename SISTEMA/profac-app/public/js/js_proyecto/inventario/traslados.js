@@ -1,4 +1,4 @@
-
+﻿
 var contador = 1;
 var arrayInputs = [];
 var idProductoArray = [];
@@ -73,7 +73,7 @@ function obtenerListaBodega() {
 
     $('#tbl_translados').DataTable({
         "language": {
-            "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
+            "url": "/js/plugins/dataTables/i18n/Spanish.json"
         },
         pageLength: 10,
         responsive: true,
@@ -424,7 +424,7 @@ function listadoBodegaDestino(contadorTranslados) {
     $('#tbl_translados_destino').DataTable({
         "order": [6, 'desc'],
         "language": {
-            "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
+            "url": "/js/plugins/dataTables/i18n/Spanish.json"
         },
         pageLength: 10,
         responsive: true,

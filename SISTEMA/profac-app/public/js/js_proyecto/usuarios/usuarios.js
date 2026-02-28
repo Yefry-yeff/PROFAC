@@ -1,4 +1,4 @@
-
+﻿
 $(document).on('submit', '#userEditForm', function(event) {
     event.preventDefault();
     actualizarUsuario();
@@ -52,7 +52,7 @@ $(document).ready(function()
     $('#tbl_usuariosListar').DataTable({
         "order": [0, 'desc'],
         "language": {
-            "url": "https://cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
+            "url": "/js/plugins/dataTables/i18n/Spanish.json"
         },
         pageLength: 10,
         responsive: true,

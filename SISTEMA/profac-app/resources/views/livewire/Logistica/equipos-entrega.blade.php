@@ -1,4 +1,4 @@
-<div>
+﻿<div>
     <div class="row">
         <div class="col-md-12">
             <div class="card">
@@ -150,7 +150,7 @@ $(document).ready(() => {
             {data: 'created_at'},
             {data: 'opciones', orderable: false}
         ],
-        language: {url: '//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json'}
+        language: {url: '/js/plugins/dataTables/i18n/Spanish.json'}
     });
 });
 

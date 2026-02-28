@@ -1,9 +1,9 @@
-// Gestión de Menús y Submenus
+﻿// Gestión de Menús y Submenus
 $(document).ready(function() {
     // Inicializar DataTables
     $('#tablaMenus').DataTable({
         "language": {
-            "url": "https://cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
+            "url": "/js/plugins/dataTables/i18n/Spanish.json"
         },
         "order": [[3, 'asc']], // Ordenar por columna Orden
         "pageLength": 10,
@@ -12,7 +12,7 @@ $(document).ready(function() {
 
     $('#tablaSubmenus').DataTable({
         "language": {
-            "url": "https://cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
+            "url": "/js/plugins/dataTables/i18n/Spanish.json"
         },
         "order": [[1, 'asc'], [5, 'asc']], // Ordenar por Menú y Orden
         "pageLength": 10,

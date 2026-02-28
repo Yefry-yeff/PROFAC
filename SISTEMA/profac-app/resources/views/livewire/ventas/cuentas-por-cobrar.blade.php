@@ -1,4 +1,4 @@
-<div>
+﻿<div>
     <div class="row wrapper border-bottom white-bg page-heading d-flex align-items-center">
         <div class="col-lg-12 col-xl-12 col-md-12 col-sm-12">
             <h2>Cuentas por Cobrar</h2>
@@ -182,7 +182,7 @@
         $('#tbl_cuentas_por_cobrar').DataTable({
                     "order": [0, 'desc'],
                     "language": {
-                        "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
+                        "url": "/js/plugins/dataTables/i18n/Spanish.json"
                     },
                     pageLength: 10,
                     responsive: true,
@@ -280,7 +280,7 @@
         $('#tbl_cuentas_por_cobrar_intereses').DataTable({
                     "order": [0, 'desc'],
                     "language": {
-                        "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
+                        "url": "/js/plugins/dataTables/i18n/Spanish.json"
                     },
                     pageLength: 10,
                     responsive: true,

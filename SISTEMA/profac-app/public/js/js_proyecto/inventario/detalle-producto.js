@@ -1,4 +1,4 @@
-
+﻿
 const $foto_producto = document.querySelector("#foto_producto_edit"),
 $imagenPrevisualizacion = document.querySelector("#imagenPrevisualizacion");
 
@@ -74,7 +74,7 @@ obtenerDatosProductoEditar(idProducto_edit);
 
 $('#tbl_lotes_listar').DataTable({
     "language": {
-        "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
+        "url": "/js/plugins/dataTables/i18n/Spanish.json"
     },
     pageLength: 10,
     responsive: true,
@@ -96,7 +96,7 @@ $('#tbl_lotes_listar').DataTable({
 $('#tbl_unidades_listar').DataTable({
 
     "language": {
-        "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
+        "url": "/js/plugins/dataTables/i18n/Spanish.json"
     },
 
     pageLength: 10,

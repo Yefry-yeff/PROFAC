@@ -299,93 +299,148 @@
             <div class="col-lg-12">
                 <div class="ibox ">
                     <div class="ibox-title">
-                        <h3>Listado de Productos en Nota de Crédito</h3>
+                        <h3>Nota de Crédito</h3>
                     </div>
 
                     <div class="ibox-content">
-                        <form onkeydown="return event.key != 'Enter';" autocomplete="off" id="guardar_devolucion"
-                            name="guardar_devolucion" data-parsley-validate>
 
-                            <div class="row">
-                                <div class="col-12 col-sm-12 col-md-6">
-                                    <label for="motivo_nota" class="col-form-label focus-label">
-                                        Seleccionar motivo de nota de credito:</label>
-                                    <select id="motivo_nota" name="motivo_nota" class="form-group form-control"
-                                        style="" data-parsley-required form="guardar_devolucion">
-                                        <option value="" selected disabled>--Seleccionar Motivo--</option>
-                                    </select>
+                        {{-- Campo oculto: tipo de nota de crédito --}}
+                        <input type="hidden" id="tipo_nota_credito" name="tipo_nota_credito" value="producto"
+                            form="guardar_devolucion">
+
+                        {{-- Pestañas --}}
+                        <ul class="nav nav-tabs" id="tabs_tipo_nota" role="tablist">
+                            <li class="nav-item">
+                                <a class="nav-link active" id="tab-producto-link" data-toggle="tab"
+                                    href="#tab_producto" role="tab"
+                                    onclick="cambiarTipoNota('producto')">
+                                    <i class="fa fa-boxes"></i> Por Producto
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" id="tab-descuento-link" data-toggle="tab"
+                                    href="#tab_descuento" role="tab"
+                                    onclick="cambiarTipoNota('descuento')">
+                                    <i class="fa fa-tag"></i> Por Descuento
+                                </a>
+                            </li>
+                        </ul>
+
+                        <div class="tab-content mt-3">
+
+                            {{-- ===== TAB: POR PRODUCTO ===== --}}
+                            <div class="tab-pane fade show active" id="tab_producto" role="tabpanel">
+
+                                <form onkeydown="return event.key != 'Enter';" autocomplete="off"
+                                    id="guardar_devolucion" name="guardar_devolucion" data-parsley-validate>
+
+                                    <div class="row">
+                                        <div class="col-12 col-sm-12 col-md-6">
+                                            <label for="motivo_nota" class="col-form-label focus-label">
+                                                Seleccionar motivo de nota de credito:</label>
+                                            <select id="motivo_nota" name="motivo_nota"
+                                                class="form-group form-control" style=""
+                                                data-parsley-required form="guardar_devolucion">
+                                                <option value="" selected disabled>--Seleccionar Motivo--</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="col-12 col-sm-12 col-md-6">
+                                            <label for="comentario" class="col-form-label focus-label">
+                                                Comentario de nota de crédito:</label>
+                                            <textarea class="form-group form-control" name="comentario"
+                                                id="comentario" cols="30" rows="4"></textarea>
+                                        </div>
+                                    </div>
+
+                                </form>
+
+                                <div class="table-responsive mt-4">
+                                    <table id="tbl_productos_lista"
+                                        class="table table-striped table-bordered table-hover">
+                                        <thead class="">
+                                            <tr>
+                                                <th>Producto</th>
+                                                <th>Bodega</th>
+                                                <th>Seccion</th>
+                                                <th>Precio Unidad en Lps</th>
+                                                <th>Cantidad</th>
+                                                <th>Unidad de medida</th>
+                                                <th>Sub total</th>
+                                                <th>ISV</th>
+                                                <th>Total</th>
+                                                <th>Opciones</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="cuerpoLista">
+                                        </tbody>
+                                    </table>
                                 </div>
 
-                                <div class="col-12 col-sm-12 col-md-6">
-                                    <label for="comentario_nota" class="col-form-label focus-label">
-                                        Comentario de nota de crédito:</label>
-                                    <textarea class="form-group form-control" name="comentario" id="comentario" cols="30" rows="10"></textarea>
+                            </div>
+
+                            {{-- ===== TAB: POR DESCUENTO ===== --}}
+                            <div class="tab-pane fade" id="tab_descuento" role="tabpanel">
+
+                                <div class="row mt-2">
+                                    <div class="col-12 col-sm-12 col-md-8">
+                                        <div class="form-group">
+                                            <label for="comentario_descuento" class="col-form-label focus-label">
+                                                Comentario del descuento:<span class="text-danger">*</span></label>
+                                            <textarea class="form-control" name="comentario_descuento"
+                                                id="comentario_descuento" rows="5"
+                                                placeholder="Describa el motivo del descuento..."
+                                                form="guardar_devolucion"></textarea>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-12 col-sm-12 col-md-4">
+                                        <div class="form-group">
+                                            <label for="monto_descuento_mostrar" class="col-form-label focus-label">
+                                                Monto del descuento (L.):<span
+                                                    class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" min="0" class="form-control"
+                                                id="monto_descuento_mostrar" name="monto_descuento_mostrar"
+                                                placeholder="0.00"
+                                                oninput="calcularDescuento(this.value)">
+                                            <input type="hidden" id="monto_descuento" name="monto_descuento"
+                                                value="0" form="guardar_devolucion">
+                                        </div>
+                                    </div>
                                 </div>
+
                             </div>
 
-                        </form>
+                        </div>{{-- fin tab-content --}}
 
-
-
-                        <div class="table-responsive mt-4">
-
-
-
-
-
-                            <table id="tbl_productos_lista" class="table table-striped table-bordered table-hover">
-                                <thead class="">
-                                    <tr>
-                                        <th>Producto</th>
-                                        <th>Bodega</th>
-                                        <th>Seccion</th>
-                                        <th>Precio Unidad en Lps</th>
-                                        <th>Cantidad</th>
-                                        <th>Unidad de medida</th>
-                                        <th>Sub total</th>
-                                        <th>ISV</th>
-                                        <th>Total</th>
-                                        <th>Opciones</th>
-
-                                    </tr>
-                                </thead>
-                                <tbody id="cuerpoLista">
-
-                                </tbody>
-                            </table>
-                        </div>
-                        <br>
-                        <div class="row">
-
-                            <div class="form-group col-12 col-sm-12 col-md-2 col-lg-1 col-xl-1">
-                                <label class="col-form-label" for="subTotalGeneralCreditoMostrar">Sub Total L.<span
-                                        class="text-danger">*</span></label>
-                            </div>
-
-                            <div class="form-group col-12 col-sm-12 col-md-3 col-lg-2 col-xl-2">
-
-                                <input id="subTotalGeneralCreditoMostrar" class="form-control" type="text"
-                                    placeholder="Sub total " disabled>
-
-                                <input type="hidden" step="any" placeholder="Sub total "
-                                    id="subTotalGeneralCredito" name="subTotalGeneralCredito" class="form-control"
-                                    value="0" min="0" data-parsley-required autocomplete="off"
-                                    form="guardar_devolucion">
-                            </div>
-                        </div>
+                        {{-- ===== TOTALES COMPARTIDOS ===== --}}
+                        <hr>
+                        <h5 class="text-muted mb-3">Resumen de Totales</h5>
 
                         <div class="row">
-
                             <div class="form-group col-12 col-sm-12 col-md-2 col-lg-1 col-xl-1">
-                                <label class="col-form-label" for="subTotalGeneralCreditoMostrar">Sub Total Grabado
+                                <label class="col-form-label" for="subTotalGeneralCreditoMostrar">Sub Total
                                     L.<span class="text-danger">*</span></label>
                             </div>
-
                             <div class="form-group col-12 col-sm-12 col-md-3 col-lg-2 col-xl-2">
-
-                                <input id="subTotalGeneralGrabadoCreditoMostrar" class="form-control" type="text"
+                                <input id="subTotalGeneralCreditoMostrar" class="form-control" type="text"
                                     placeholder="Sub total " disabled>
+                                <input type="hidden" step="any" placeholder="Sub total "
+                                    id="subTotalGeneralCredito" name="subTotalGeneralCredito"
+                                    class="form-control" value="0" min="0" data-parsley-required
+                                    autocomplete="off" form="guardar_devolucion">
+                            </div>
+                        </div>
 
+                        <div class="row">
+                            <div class="form-group col-12 col-sm-12 col-md-2 col-lg-1 col-xl-1">
+                                <label class="col-form-label"
+                                    for="subTotalGeneralGrabadoCreditoMostrar">Sub Total Grabado L.<span
+                                        class="text-danger">*</span></label>
+                            </div>
+                            <div class="form-group col-12 col-sm-12 col-md-3 col-lg-2 col-xl-2">
+                                <input id="subTotalGeneralGrabadoCreditoMostrar" class="form-control"
+                                    type="text" placeholder="Sub total " disabled>
                                 <input type="hidden" step="any" placeholder="Sub total "
                                     id="subTotalGeneralGrabadoCredito" name="subTotalGeneralGrabadoCredito"
                                     class="form-control" value="0" min="0" data-parsley-required
@@ -394,17 +449,14 @@
                         </div>
 
                         <div class="row">
-
                             <div class="form-group col-12 col-sm-12 col-md-2 col-lg-1 col-xl-1">
-                                <label class="col-form-label" for="subTotalGeneralCreditoMostrar">Sub Total Excento
-                                    L.<span class="text-danger">*</span></label>
+                                <label class="col-form-label"
+                                    for="subTotalGeneralExcentoCreditoMostrar">Sub Total Excento L.<span
+                                        class="text-danger">*</span></label>
                             </div>
-
                             <div class="form-group col-12 col-sm-12 col-md-3 col-lg-2 col-xl-2">
-
-                                <input id="subTotalGeneralExcentoCreditoMostrar" class="form-control" type="text"
-                                    placeholder="Sub total " disabled>
-
+                                <input id="subTotalGeneralExcentoCreditoMostrar" class="form-control"
+                                    type="text" placeholder="Sub total " disabled>
                                 <input type="hidden" step="any" placeholder="Sub total "
                                     id="subTotalGeneralExcentoCredito" name="subTotalGeneralExcentoCredito"
                                     class="form-control" value="0" min="0" data-parsley-required
@@ -413,33 +465,27 @@
                         </div>
 
                         <div class="row">
-
                             <div class="form-group col-12 col-sm-12 col-md-2 col-lg-1 col-xl-1">
                                 <label class="col-form-label" for="isvGeneralCreditoMostrar">ISV L.<span
                                         class="text-danger">*</span></label>
                             </div>
-
                             <div class="form-group col-12 col-sm-12 col-md-3 col-lg-2 col-xl-2">
                                 <input id="isvGeneralCreditoMostrar" type="text" class="form-control"
                                     placeholder="ISV " disabled>
-
-                                <input type="hidden" step="any" id="isvGeneralCredito" name="isvGeneralCredito"
-                                    class="form-control" min="0" value="0" data-parsley-required
-                                    autocomplete="off" form="guardar_devolucion">
+                                <input type="hidden" step="any" id="isvGeneralCredito"
+                                    name="isvGeneralCredito" class="form-control" min="0" value="0"
+                                    data-parsley-required autocomplete="off" form="guardar_devolucion">
                             </div>
                         </div>
 
                         <div class="row">
-
                             <div class="form-group col-12 col-sm-12 col-md-2 col-lg-1 col-xl-1">
                                 <label class="col-form-label" for="totalGeneralCreditoMostrar">Total L.<span
                                         class="text-danger">*</span></label>
                             </div>
-
                             <div class="form-group col-12 col-sm-12 col-md-3 col-lg-2 col-xl-2">
                                 <input id="totalGeneralCreditoMostrar" class="form-control" type="text"
                                     placeholder="Total " disabled>
-
                                 <input type="hidden" step="any" id="totalGeneralCredito"
                                     name="totalGeneralCredito" min="0" value="0" data-parsley-required
                                     autocomplete="off" form="guardar_devolucion">
@@ -450,7 +496,6 @@
 
                         <button type="submit" id="btn_guardar_nota_credito" form="guardar_devolucion"
                             class="btn btn-success">Cerrar Nota de Credito</button>
-
 
                     </div>
                 </div>
@@ -578,6 +623,7 @@
 
 
     @push('scripts')
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script src="{{ asset('js/js_proyecto/nota-credito/crear-nota-credito.js') }}"></script>
     <script>
 
@@ -591,7 +637,7 @@
         $('#tbl_productos').DataTable({
 
             "language": {
-                "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
+                "url": "/js/plugins/dataTables/i18n/Spanish.json"
             },
             pageLength: 10,
             responsive: true,

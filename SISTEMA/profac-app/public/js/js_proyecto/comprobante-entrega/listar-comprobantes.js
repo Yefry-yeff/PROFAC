@@ -1,9 +1,9 @@
-
+﻿
 $(document).ready(function() {
     $('#tbl_listar_comprobantes').DataTable({
         "order": [3, 'desc'],
         "language": {
-            "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
+            "url": "/js/plugins/dataTables/i18n/Spanish.json"
         },
         "order": [9, 'desc'],
         pageLength: 10,

@@ -1,4 +1,4 @@
-
+﻿
 
 const $foto_producto = document.querySelector("#foto_producto"),
 $imagenPrevisualizacion = document.querySelector("#imagenPrevisualizacion");
@@ -89,7 +89,7 @@ $(document).ready(function() {
         "serverSide": true,
         "order": [[0, 'desc']],
         "language": {
-            "url": "https://cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json",
+            "url": "/js/plugins/dataTables/i18n/Spanish.json",
             "processing": '<i class="fa fa-spinner fa-spin fa-3x fa-fw"></i><span class="sr-only">Cargando...</span>'
         },
         "pageLength": 10,
