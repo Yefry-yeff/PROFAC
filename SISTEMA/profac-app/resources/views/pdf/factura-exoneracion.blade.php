@@ -97,7 +97,7 @@
 
         <div class="card border border-dark"   style="margin-left:44px; margin-top:10px; width:45rem; height:10.5rem;">
             <div class="card-body">
-                <p class="card-text" style="position:absolute;left:20px;  top:10px;"><b>Cliente: </b>{{$cliente->nombre}}</p>
+                <p class="card-text" style="position:absolute;left:20px;  top:10px;"><b>Cliente: </b>{{$cliente->nombre}} - ({{ $cliente->clienteId }})</p>
                 <p class="card-text" style="position:absolute;left:20px;  top:29px; font-size: 11 px; max-width:500px"><b>Dirección:</b> {{$cliente->direccion}}</p>
 
                 <p class="card-text" style="position:absolute;left:20px;  top:54px;"><b>Correo:</b> {{$cliente->correo}}

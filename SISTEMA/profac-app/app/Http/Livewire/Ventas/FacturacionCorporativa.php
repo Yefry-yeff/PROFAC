@@ -1428,6 +1428,7 @@ class FacturacionCorporativa extends Component
 
         $cliente = DB::SELECTONE("
        select
+        cliente.id as clienteId,
         factura.nombre_cliente as nombre,
         cliente.direccion,
         cliente.correo,
@@ -1579,6 +1580,7 @@ class FacturacionCorporativa extends Component
 
         $cliente = DB::SELECTONE("
        select
+        cliente.id as clienteId,
         factura.nombre_cliente as nombre,
         cliente.direccion,
         cliente.correo,
@@ -2137,6 +2139,7 @@ class FacturacionCorporativa extends Component
 
         $cliente = DB::SELECTONE("
        select
+        cliente.id as clienteId,
         factura.nombre_cliente as nombre,
         cliente.direccion,
         cliente.correo,

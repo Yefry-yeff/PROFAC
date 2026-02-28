@@ -97,7 +97,7 @@
 
         <div class="card border border-dark"   style="margin-left:44px; margin-top:10px; width:45rem; height:10.5rem;">
             <div class="card-body">
-                <p class="card-text" style="position:absolute;left:20px;  top:10px;"><b>Cliente: </b>{{$cliente->nombre}}</p>
+                <p class="card-text" style="position:absolute;left:20px;  top:10px;"><b>Cliente: </b>{{$cliente->nombre}} - ({{ $cliente->clienteId }})</p>
                 <p class="card-text" style="position:absolute;left:20px;  top:29px; font-size: 11 px; max-width:500px"><b>Dirección:</b> {{$cliente->direccion}}</p>
 
                 <p class="card-text" style="position:absolute;left:20px;  top:47px;"><b>Correo:</b> {{$cliente->correo}}
@@ -303,8 +303,10 @@
                             _______________________________________</p>
                         <p class="card-text" style="position:absolute;left:50px;  top:-130px;">
                             _______________________________________</p>
-                        <p class="card-text" style="position:absolute;left:50px;  top:-220px; max-width:350px;  ">
-                            {{ strtoupper($cliente->nombre) }}</p>
+                        <p class="card-text" style="position:absolute;left:20px;  top:25px; max-width:250px;  ">Cliente: {{ strtoupper($cliente->nombre) }}</p>
+                        <p class="card-text" style="position:absolute;left:20px;  top:40px; max-width:250px;  ">Recibido por: </p>
+                        <p class="card-text" style="position:absolute;left:20px;  top:55px; max-width:250px;  ">Telefono: </p>
+                        <p class="card-text" style="position:absolute;left:20px;  top:70px; max-width:250px;  "><b>*Se requiere firma y sello de recibido.*</b></p>
                         <p class="card-text" style="position:absolute;left:50px;  top:-115px;">DISTRIBUCIONES VALENCIA</p>
                     </div>
 
