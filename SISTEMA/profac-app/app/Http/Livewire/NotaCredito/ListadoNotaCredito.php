@@ -360,39 +360,58 @@ class ListadoNotaCredito extends Component
 
 
             $productos = DB::SELECT("
-
             select * from (
                 select
-            D.id AS codigo,
-            D.nombre as descripcion,
-            F.nombre as medida,
-            H.nombre AS bodega,
-            FF.descripcion as seccion,
-            FORMAT(C.precio_unidad,2) as precio,
-            FORMAT(C.cantidad,2) as cantidad,
-            FORMAT(C.sub_total,2) as sub_total,
-            C.indice
-        from factura A
-        inner join nota_credito B
-        on A.id = B.factura_id
-        inner join nota_credito_has_producto C
-        on B.id = C.nota_credito_id
-        inner join producto D
-        on C.producto_id = D.id
-        inner join unidad_medida_venta E
-        on C.unidad_medida_venta_id = E.id
-        inner join unidad_medida F
-        on F.id = E.unidad_medida_id
-        inner join seccion FF
-        on C.seccion_id = FF.id
-        inner join segmento G
-        on FF.segmento_id = G.id
-        inner join bodega H
-        on G.bodega_id = H.id
-        where B.estado_nota_id=1 and B.id = ".$idNota."
-        group by  codigo ,descripcion, medida,bodega, seccion, precio, cantidad,sub_total,C.indice
-        ) A
-        order by A.indice asc
+                D.id AS codigo,
+                D.nombre as descripcion,
+                F.nombre as medida,
+                H.nombre AS bodega,
+                FF.descripcion as seccion,
+                FORMAT(C.precio_unidad,2) as precio,
+                FORMAT(C.cantidad,2) as cantidad,
+                FORMAT(C.sub_total,2) as sub_total,
+                C.indice
+            from factura A
+            inner join nota_credito B
+            on A.id = B.factura_id
+            inner join nota_credito_has_producto C
+            on B.id = C.nota_credito_id
+            inner join producto D
+            on C.producto_id = D.id
+            inner join unidad_medida_venta E
+            on C.unidad_medida_venta_id = E.id
+            inner join unidad_medida F
+            on F.id = E.unidad_medida_id
+            inner join seccion FF
+            on C.seccion_id = FF.id
+            inner join segmento G
+            on FF.segmento_id = G.id
+            inner join bodega H
+            on G.bodega_id = H.id
+            where B.estado_nota_id=1 and B.id = ".$idNota."
+            group by  codigo ,descripcion, medida,bodega, seccion, precio, cantidad,sub_total,C.indice
+            
+            UNION
+            
+            select
+                '' AS codigo,
+                CONCAT('DESCUENTO - ', IFNULL(M.descripcion, B.comentario)) as descripcion,
+                '' as medida,
+                '' AS bodega,
+                '' as seccion,
+                FORMAT(B.total,2) as precio,
+                '1.00' as cantidad,
+                FORMAT(B.total,2) as sub_total,
+                1 as indice
+            from nota_credito B
+            left join motivo_nota_credito M on B.motivo_nota_credito_id = M.id
+            where B.estado_nota_id=1 
+            and B.id = ".$idNota."
+            and NOT EXISTS (
+                select 1 from nota_credito_has_producto C where C.nota_credito_id = B.id
+            )
+            ) A
+            order by A.indice asc
                 "
             );
 
@@ -487,39 +506,58 @@ class ListadoNotaCredito extends Component
 
 
             $productos = DB::SELECT("
-
             select * from (
                 select
-            D.id AS codigo,
-            D.nombre as descripcion,
-            F.nombre as medida,
-            H.nombre AS bodega,
-            FF.descripcion as seccion,
-            FORMAT(C.precio_unidad,2) as precio,
-            FORMAT(C.cantidad,2) as cantidad,
-            FORMAT(C.sub_total,2) as sub_total,
-            C.indice
-        from factura A
-        inner join nota_credito B
-        on A.id = B.factura_id
-        inner join nota_credito_has_producto C
-        on B.id = C.nota_credito_id
-        inner join producto D
-        on C.producto_id = D.id
-        inner join unidad_medida_venta E
-        on C.unidad_medida_venta_id = E.id
-        inner join unidad_medida F
-        on F.id = E.unidad_medida_id
-        inner join seccion FF
-        on C.seccion_id = FF.id
-        inner join segmento G
-        on FF.segmento_id = G.id
-        inner join bodega H
-        on G.bodega_id = H.id
-        where B.estado_nota_id=1 and B.id = ".$idNota."
-        group by  codigo ,descripcion, medida,bodega, seccion, precio, cantidad,sub_total,C.indice
-        ) A
-        order by A.indice asc
+                D.id AS codigo,
+                D.nombre as descripcion,
+                F.nombre as medida,
+                H.nombre AS bodega,
+                FF.descripcion as seccion,
+                FORMAT(C.precio_unidad,2) as precio,
+                FORMAT(C.cantidad,2) as cantidad,
+                FORMAT(C.sub_total,2) as sub_total,
+                C.indice
+            from factura A
+            inner join nota_credito B
+            on A.id = B.factura_id
+            inner join nota_credito_has_producto C
+            on B.id = C.nota_credito_id
+            inner join producto D
+            on C.producto_id = D.id
+            inner join unidad_medida_venta E
+            on C.unidad_medida_venta_id = E.id
+            inner join unidad_medida F
+            on F.id = E.unidad_medida_id
+            inner join seccion FF
+            on C.seccion_id = FF.id
+            inner join segmento G
+            on FF.segmento_id = G.id
+            inner join bodega H
+            on G.bodega_id = H.id
+            where B.estado_nota_id=1 and B.id = ".$idNota."
+            group by  codigo ,descripcion, medida,bodega, seccion, precio, cantidad,sub_total,C.indice
+            
+            UNION
+            
+            select
+                '' AS codigo,
+                CONCAT('DESCUENTO - ', IFNULL(M.descripcion, B.comentario)) as descripcion,
+                '' as medida,
+                '' AS bodega,
+                '' as seccion,
+                FORMAT(B.total,2) as precio,
+                '1.00' as cantidad,
+                FORMAT(B.total,2) as sub_total,
+                1 as indice
+            from nota_credito B
+            left join motivo_nota_credito M on B.motivo_nota_credito_id = M.id
+            where B.estado_nota_id=1 
+            and B.id = ".$idNota."
+            and NOT EXISTS (
+                select 1 from nota_credito_has_producto C where C.nota_credito_id = B.id
+            )
+            ) A
+            order by A.indice asc
                 "
             );
 

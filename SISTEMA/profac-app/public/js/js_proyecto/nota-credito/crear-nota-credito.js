@@ -65,14 +65,22 @@ function cambiarTipoNota(tipo) {
         resetearTotalesCredito();
     }
 
-    // Si se entra a "descuento" con un monto ya ingresado, recalcular
+    // Si se entra a "descuento": ocultar lista de productos y resumen de factura; recalcular si ya hay monto
     if (tipo === 'descuento') {
+        document.getElementById('seccion_lista_productos').style.display = 'none';
+        document.getElementById('seccion_resumen_factura').style.display = 'none';
         var monto = document.getElementById('monto_descuento_mostrar').value;
         if (monto && +monto > 0) {
             calcularDescuento(monto);
         } else {
             resetearTotalesCredito();
         }
+    }
+
+    // Si se entra a "producto": mostrar lista de productos y resumen de factura
+    if (tipo === 'producto') {
+        document.getElementById('seccion_lista_productos').style.display = '';
+        document.getElementById('seccion_resumen_factura').style.display = '';
     }
 
     document.getElementById('tipo_nota_credito').value = tipo;
@@ -638,7 +646,33 @@ function guardarNotaCredito() {
         }
     }
 
-    let idFactura = document.getElementById("idFactura").value;
+    let idFactura;
+    
+    // Obtener idFactura según el tipo de nota
+    if (tipoNota === 'descuento') {
+        // En modo descuento, obtenemos directamente del select de factura
+        idFactura = document.getElementById('factura').value;
+        if (!idFactura) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Advertencia',
+                text: 'Debe seleccionar una factura.',
+            });
+            return;
+        }
+    } else {
+        // En modo producto, obtenemos del campo oculto
+        idFactura = document.getElementById("idFactura").value;
+        if (!idFactura) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Advertencia',
+                text: 'Debe seleccionar los productos de la factura.',
+            });
+            return;
+        }
+    }
+    
     document.getElementById("btn_guardar_nota_credito").disabled = true;
 
     var dataForm = new FormData($('#guardar_devolucion').get(0));
@@ -649,6 +683,15 @@ function guardarNotaCredito() {
     }
 
     dataForm.append("idFactura", idFactura);
+    
+    // Debug temporal
+    console.log('Tipo de nota:', tipoNota);
+    console.log('ID Factura:', idFactura);
+    console.log('Array Inputs:', arrayInputs);
+    console.log('Valores del form:');
+    for (var pair of dataForm.entries()) {
+        console.log(pair[0] + ': ' + pair[1]);
+    }
 
     // let table = $('#tbl_translados_destino').DataTable();
     // table.destroy();
@@ -663,14 +706,15 @@ function guardarNotaCredito() {
 
             //Eliminar DIVS y que muestre alert para imprimir
             //Agregar funcion para anular
-            Swal.fire({
-                icon: data.icon,
-                title: data.title,
-                html: data.text,
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: data.icon,
+                    title: data.title,
+                    html: data.text,
+                });
+            }
 
-            })
-
-            if(data.icon = 'warning'){
+            if(data.icon === 'warning'){
                 setTimeout(function(){
                     location.reload();
                 }, 3000)
@@ -692,15 +736,34 @@ function guardarNotaCredito() {
             //console.log(err)
             document.getElementById("btn_guardar_nota_credito").disabled = false;
             console.log(err);
-            $('#modal_transladar_producto').modal('hide')
+            $('#modal_transladar_producto').modal('hide');
 
+            // Intentar obtener el mensaje del servidor
+            let errorMessage = "Ha ocurrido un error, reporte con soporte.";
+            let errorTitle = "Error";
+            
+            if (err.response && err.response.data) {
+                if (err.response.data.text) {
+                    errorMessage = err.response.data.text;
+                }
+                if (err.response.data.title) {
+                    errorTitle = err.response.data.title;
+                }
+                // Si hay información del error de la base de datos
+                if (err.response.data.error && err.response.data.error.errorInfo) {
+                    errorMessage += "<br><small>" + err.response.data.error.errorInfo[2] + "</small>";
+                }
+            }
 
-
-            Swal.fire({
-                icon: "error",
-                title: "Error",
-                text: "Ha ocurrido un error, reporte con soporte.",
-            })
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: "error",
+                    title: errorTitle,
+                    html: errorMessage,
+                });
+            } else {
+                alert(errorMessage.replace(/<[^>]*>/g, ''));
+            }
 
         })
 }
