@@ -166,6 +166,23 @@ function resetearTotalesCredito() {
 function calcularDescuento(monto) {
     monto = parseFloat(monto) || 0;
 
+    // Obtener el total de la factura original
+    let totalFactura = parseFloat(document.getElementById('totalGeneralMostrar').value.replace(/[^\d.-]/g, '')) || 0;
+
+    // Validar que el monto no exceda el total de la factura
+    if (monto > totalFactura) {
+        document.getElementById('monto_descuento_mostrar').value = '';
+        document.getElementById('monto_descuento').value = 0;
+        resetearTotalesCredito();
+        
+        Swal.fire({
+            icon: 'warning',
+            title: 'Advertencia',
+            text: `El monto del descuento no puede ser mayor al total de la factura (L. ${monedaLempiras(totalFactura)})`,
+        });
+        return;
+    }
+
     // Actualizar hidden
     document.getElementById('monto_descuento').value = monto;
 
@@ -265,6 +282,35 @@ function datosFactura() {
                 currency: 'HNL',
                 minimumFractionDigits: 2,
             }).format(data.total);
+
+            // También llenar los campos de la pestaña de descuento
+            document.getElementById('subTotalGeneralMostrar_desc').value = new Intl.NumberFormat('es-HN', {
+                style: 'currency',
+                currency: 'HNL',
+                minimumFractionDigits: 2,
+            }).format(data.sub_total);
+            document.getElementById('subTotalGeneralGrabadoMostrar_desc').value = new Intl.NumberFormat('es-HN', {
+                style: 'currency',
+                currency: 'HNL',
+                minimumFractionDigits: 2,
+            }).format(data.sub_total_grabado);
+            document.getElementById('subTotalGeneralExcentoMostrar_desc').value = new Intl.NumberFormat('es-HN', {
+                style: 'currency',
+                currency: 'HNL',
+                minimumFractionDigits: 2,
+            }).format(data.sub_total_excento);
+
+            document.getElementById('isvGeneralMostrar_desc').value = new Intl.NumberFormat('es-HN', {
+                style: 'currency',
+                currency: 'HNL',
+                minimumFractionDigits: 2,
+            }).format(data.isv);
+            document.getElementById('totalGeneralMostrar_desc').value = new Intl.NumberFormat('es-HN', {
+                style: 'currency',
+                currency: 'HNL',
+                minimumFractionDigits: 2,
+            }).format(data.total);
+
         })
 
     $('#tbl_productos').DataTable().clear().destroy();
@@ -780,41 +826,38 @@ function guardarNotaCredito() {
                         html: data.text || 'Operación completada',
                         allowOutsideClick: false,
                         allowEscapeKey: false,
+                        confirmButtonText: 'Aceptar',
+                        confirmButtonColor: '#3085d6',
                         didOpen: () => {
                             console.log('Alerta mostrada exitosamente');
                         }
                     }).then((result) => {
-                        // Recargar después de que el usuario cierre el alert
-                        console.log('Recargando página...');
-                        if(data.icon === 'warning'){
+                        // Si fue exitoso, mostrar modal de impresión
+                        if(data.icon === 'success' || data.icon === undefined) {
+                            console.log('Mostrando modal de impresión...');
+                            setTimeout(() => {
+                                abrirModal('modal_imprimir_nota_credito');
+                            }, 500);
+                        } else {
+                            // Si fue warning, recargar normalmente
                             setTimeout(function(){
                                 location.reload();
                             }, 1500);
-                        } else {
-                            setTimeout(function(){
-                                location.reload();
-                            }, 1000);
                         }
                     });
                 } else {
                     // Fallback si Swal no está disponible
                     console.warn('Swal no disponible, usando alert nativo');
                     alert((data.title || '') + '\n' + (data.text || ''));
-                    if(data.icon === 'warning'){
-                        setTimeout(function(){
-                            location.reload();
-                        }, 1500);
-                    } else {
-                        setTimeout(function(){
-                            location.reload();
-                        }, 1000);
-                    }
+                    setTimeout(() => {
+                        abrirModal('modal_imprimir_nota_credito');
+                    }, 500);
                 }
             } catch (e) {
                 console.error('Error al mostrar alerta:', e);
-                alert('Operación completada. Se recargará la página.');
-                setTimeout(function(){
-                    location.reload();
+                alert('Operación completada. Abriendo opciones de impresión...');
+                setTimeout(() => {
+                    abrirModal('modal_imprimir_nota_credito');
                 }, 1500);
             }
 
@@ -872,3 +915,128 @@ function guardarNotaCredito() {
 
         })
 }
+// ====== FUNCIONES PARA IMPRESIÓN ======
+
+function imprimirNotaCredito(tipo) {
+    // Obtener valores para mostrar en la impresión
+    let tipoNota = document.getElementById('tipo_nota_credito').value;
+    let motivo = document.getElementById('motivo_nota').value || 'No especificado';
+    let comentario = document.getElementById('comentario').value || 'Sin comentario';
+    
+    let cliente = document.getElementById('nombre_cliente').value;
+    let rtn = document.getElementById('rtn').value;
+    let codigo_factura = document.getElementById('codigo_factura').value;
+    
+    let subTotal = document.getElementById('subTotalGeneralCreditoMostrar').value;
+    let grabado = document.getElementById('subTotalGeneralGrabadoCreditoMostrar').value;
+    let excento = document.getElementById('subTotalGeneralExcentoCreditoMostrar').value;
+    let isv = document.getElementById('isvGeneralCreditoMostrar').value;
+    let total = document.getElementById('totalGeneralCreditoMostrar').value;
+    
+    let fecha = new Date();
+    let fechaFormato = fecha.toLocaleDateString('es-HN', { year: 'numeric', month: '2-digit', day: '2-digit' });
+    
+    let contenidoHtml = `
+        <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto;">
+            <!-- Encabezado -->
+            <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 15px;">
+                <h2 style="margin: 0; color: #2c3e50;">NOTA DE CRÉDITO</h2>
+                <p style="margin: 5px 0; font-size: 12px;">DISTRIBUIDORA VALENCIA, S.A.</p>
+                <p style="margin: 5px 0; font-size: 11px; color: #666;">Documento ${tipo === 'original' ? 'Original' : 'Copia'}</p>
+            </div>
+
+            <!-- Información del Cliente -->
+            <table width="100%" style="margin-bottom: 20px; font-size: 12px;">
+                <tr>
+                    <td width="50%" style="border: 1px solid #ddd; padding: 8px;">
+                        <strong>Cliente:</strong> ${cliente}
+                    </td>
+                    <td width="50%" style="border: 1px solid #ddd; padding: 8px;">
+                        <strong>RTN:</strong> ${rtn}
+                    </td>
+                </tr>
+                <tr>
+                    <td width="50%" style="border: 1px solid #ddd; padding: 8px;">
+                        <strong>Factura Original:</strong> ${codigo_factura}
+                    </td>
+                    <td width="50%" style="border: 1px solid #ddd; padding: 8px;">
+                        <strong>Fecha:</strong> ${fechaFormato}
+                    </td>
+                </tr>
+            </table>
+
+            <!-- Motivo y Comentario -->
+            <table width="100%" style="margin-bottom: 20px; font-size: 12px;">
+                <tr>
+                    <td style="border: 1px solid #ddd; padding: 8px;">
+                        <strong>Motivo:</strong> ${motivo}
+                    </td>
+                </tr>
+                <tr>
+                    <td style="border: 1px solid #ddd; padding: 8px;">
+                        <strong>Comentario:</strong> ${comentario}
+                    </td>
+                </tr>
+            </table>
+
+            <!-- Totales -->
+            <table width="100%" style="margin-bottom: 20px; font-size: 12px;">
+                <tr>
+                    <td width="70%" style="text-align: right; padding: 5px;"><strong>Sub Total:</strong></td>
+                    <td width="30%" style="border: 1px solid #ddd; padding: 5px; text-align: right;">${subTotal}</td>
+                </tr>
+                <tr>
+                    <td width="70%" style="text-align: right; padding: 5px;"><strong>Sub Total Grabado:</strong></td>
+                    <td width="30%" style="border: 1px solid #ddd; padding: 5px; text-align: right;">${grabado}</td>
+                </tr>
+                <tr>
+                    <td width="70%" style="text-align: right; padding: 5px;"><strong>Sub Total Excento:</strong></td>
+                    <td width="30%" style="border: 1px solid #ddd; padding: 5px; text-align: right;">${excento}</td>
+                </tr>
+                <tr>
+                    <td width="70%" style="text-align: right; padding: 5px;"><strong>ISV:</strong></td>
+                    <td width="30%" style="border: 1px solid #ddd; padding: 5px; text-align: right;">${isv}</td>
+                </tr>
+                <tr style="background-color: #f8f9fa;">
+                    <td width="70%" style="text-align: right; padding: 8px;"><strong style="font-size: 14px;">TOTAL:</strong></td>
+                    <td width="30%" style="border: 2px solid #333; padding: 8px; text-align: right; font-weight: bold; font-size: 14px;">${total}</td>
+                </tr>
+            </table>
+
+            <!-- Pie de página -->
+            <div style="text-align: center; margin-top: 40px; border-top: 1px solid #ddd; padding-top: 15px; font-size: 11px; color: #666;">
+                <p style="margin: 0;">Documento generado por sistema.</p>
+                <p style="margin: 0;">Distribuidor Autorizado</p>
+            </div>
+        </div>
+    `;
+
+    // Mostrar en elemento temporal para impresión
+    let ventanaImpresion = window.open('', '', 'width=900,height=600');
+    ventanaImpresion.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8">');
+    ventanaImpresion.document.write('<title>Nota de Crédito</title>');
+    ventanaImpresion.document.write('<style>');
+    ventanaImpresion.document.write('body { font-family: Arial, sans-serif; margin: 0; padding: 10px; }');
+    ventanaImpresion.document.write('table { width: 100%; border-collapse: collapse; }');
+    ventanaImpresion.document.write('@media print { body { margin: 0; padding: 0; } }');
+    ventanaImpresion.document.write('</style>');
+    ventanaImpresion.document.write('</head><body>');
+    ventanaImpresion.document.write(contenidoHtml);
+    ventanaImpresion.document.write('</body></html>');
+    ventanaImpresion.document.close();
+    
+    // Esperar a que cargue y luego imprimir
+    setTimeout(() => {
+        ventanaImpresion.print();
+    }, 500);
+}
+
+function finalizarYContinuar() {
+    cerrarModal('modal_imprimir_nota_credito');
+    // Recargar la página
+    setTimeout(() => {
+        location.reload();
+    }, 500);
+}
+
+// ======================================
