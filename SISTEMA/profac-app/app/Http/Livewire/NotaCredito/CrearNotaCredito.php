@@ -401,10 +401,13 @@ class CrearNotaCredito extends Component
         $notaCredito->estado_nota_id = 1;
         $notaCredito->estado_nota_dec = $estado;
         
-        // Si es nota por descuento, usar comentario_descuento; si no, usar comentario
-        // Asegurar que siempre haya un valor (nunca NULL)
+        // Para descuento: guardar descripcion y notas como JSON { descripcion, notas }
+        // Para producto: guardar solo el comentario general
         if ($esNotaPorDescuento) {
-            $notaCredito->comentario = $request->comentario_descuento ?? '';
+            $notaCredito->comentario = json_encode([
+                'descripcion' => $request->comentario_descuento ?? '',
+                'notas'       => $request->comentario ?? ''
+            ]);
         } else {
             $notaCredito->comentario = $request->comentario ?? '';
         }

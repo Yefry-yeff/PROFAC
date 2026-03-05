@@ -678,21 +678,30 @@
         aria-labelledby="modal_imprimir_nota_credito" aria-hidden="true">
         <div class="modal-dialog modal-lg" role="document">
             <div class="modal-content">
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title" id="modal_titulo_impresion">
-                        <i class="fa fa-print"></i> Imprimir Nota de Crédito
-                    </h5>
-                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close" onclick="cerrarModal('modal_imprimir_nota_credito')">
+                <div class="modal-header bg-success text-white border-bottom-0">
+                    <div>
+                        <h4 class="modal-title mb-0">
+                            <i class="fa fa-check-circle"></i> Nota de Crédito Registrada
+                        </h4>
+                        <p class="modal-text-small text-light mb-0 mt-1" style="font-size: 0.9rem;">
+                            La nota de crédito ha sido creada exitosamente en el sistema
+                        </p>
+                    </div>
+                    <button type="button" class="close text-white" aria-label="Close" onclick="finalizarYContinuar()">
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
-                <div class="modal-body">
-                    <div class="row">
+                <div class="modal-body" style="background-color: #f8f9fa;">
+                    <div class="row mb-4">
                         <div class="col-12">
-                            <p class="text-muted"><i class="fa fa-check-circle text-success"></i> 
-                                <strong>Nota de crédito registrada exitosamente</strong>
+                            <h5 class="text-dark mb-3">
+                                <i class="fa fa-print text-primary"></i> 
+                                <strong>Seleccione las opciones de impresión</strong>
+                            </h5>
+                            <p class="text-muted small">
+                                Puede imprimir el original y copia de la nota de crédito. 
+                                Se abrirá una nueva ventana con el documento listo para imprimir.
                             </p>
-                            <hr>
                         </div>
                     </div>
 
@@ -701,41 +710,48 @@
                     </div>
 
                     <div class="row">
-                        <div class="col-12">
-                            <h6><i class="fa fa-print"></i> Selecciones las copias a imprimir:</h6>
+                        <div class="col-12 col-sm-6 mb-3">
+                            <button type="button" class="btn btn-primary btn-block py-3" onclick="imprimirNotaCredito('original')">
+                                <div>
+                                    <i class="fa fa-print fa-lg"></i>
+                                </div>
+                                <div style="margin-top: 8px;">
+                                    <strong>Imprimir Original</strong>
+                                    <br>
+                                    <small class="text-muted">Copia oficial</small>
+                                </div>
+                            </button>
+                        </div>
+                        <div class="col-12 col-sm-6 mb-3">
+                            <button type="button" class="btn btn-info btn-block py-3" onclick="imprimirNotaCredito('copia')">
+                                <div>
+                                    <i class="fa fa-copy fa-lg"></i>
+                                </div>
+                                <div style="margin-top: 8px;">
+                                    <strong>Imprimir Copia</strong>
+                                    <br>
+                                    <small class="text-muted">Copia de archivo</small>
+                                </div>
+                            </button>
                         </div>
                     </div>
 
                     <div class="row mt-3">
-                        <div class="col-12 col-md-6 mb-2">
-                            <button type="button" class="btn btn-info btn-block" onclick="imprimirNotaCredito('original')">
-                                <i class="fa fa-print"></i> Imprimir Original
-                            </button>
-                        </div>
-                        <div class="col-12 col-md-6 mb-2">
-                            <button type="button" class="btn btn-info btn-block" onclick="imprimirNotaCredito('copia')">
-                                <i class="fa fa-copy"></i> Imprimir Copia
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="row mt-3">
                         <div class="col-12">
-                            <div class="alert alert-info" role="alert">
-                                <small>
-                                    <strong>Nota:</strong> Seleccione qué copias desea imprimir. 
-                                    Se abrirá la ventana de impresión de su navegador.
-                                </small>
+                            <div class="alert alert-info border-left-4" style="border-left: 4px solid #17a2b8;">
+                                <i class="fa fa-info-circle"></i> 
+                                <strong>Información:</strong> 
+                                Seleccione qué copia desea imprimir. Se abrirá en una nueva ventana del navegador.
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal" onclick="cerrarModal('modal_imprimir_nota_credito')">
-                        Cerrar
+                <div class="modal-footer bg-light border-top">
+                    <button type="button" class="btn btn-secondary" onclick="finalizarYContinuar()">
+                        <i class="fa fa-times"></i> Cerrar
                     </button>
-                    <button type="button" class="btn btn-primary" onclick="finalizarYContinuar()">
-                        Finalizar
+                    <button type="button" class="btn btn-success" onclick="finalizarYContinuar()">
+                        <i class="fa fa-check"></i> Finalizar
                     </button>
                 </div>
             </div>
@@ -757,6 +773,53 @@
         }
         .modal-dialog {
             position: relative;
+        }
+
+        /* Estilos para modal de impresión */
+        #modal_imprimir_nota_credito .modal-header {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            border-radius: 0.5rem 0.5rem 0 0;
+            padding: 1.5rem;
+        }
+
+        #modal_imprimir_nota_credito .modal-body {
+            background-color: #f8f9fa;
+            padding: 2rem;
+        }
+
+        #modal_imprimir_nota_credito .btn {
+            border-radius: 0.5rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        #modal_imprimir_nota_credito .btn:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            transform: translateY(-2px);
+        }
+
+        #modal_imprimir_nota_credito .btn-primary {
+            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+            border: none;
+        }
+
+        #modal_imprimir_nota_credito .btn-primary:hover {
+            background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
+        }
+
+        #modal_imprimir_nota_credito .btn-info {
+            background: linear-gradient(135deg, #17a2b8 0%, #117a8b 100%);
+            border: none;
+        }
+
+        #modal_imprimir_nota_credito .btn-info:hover {
+            background: linear-gradient(135deg, #117a8b 0%, #0c5460 100%);
+        }
+
+        #modal_imprimir_nota_credito .btn i {
+            display: block;
+            margin-bottom: 0.5rem;
         }
 
         /* Estilos para SweetAlert2 */
@@ -790,6 +853,22 @@
                 display: block !important;
                 width: 100% !important;
             }
+        }
+
+        /* Mejoras visuales para el alert */
+        .alert-info.border-left-4 {
+            border-radius: 0.25rem;
+            padding: 0.75rem 1rem;
+            margin-bottom: 0;
+        }
+
+        .alert-info.border-left-4 i {
+            margin-right: 0.5rem;
+        }
+
+        /* Estilos para textos en el header */
+        .modal-text-small {
+            opacity: 0.9;
         }
     </style>
     <script>

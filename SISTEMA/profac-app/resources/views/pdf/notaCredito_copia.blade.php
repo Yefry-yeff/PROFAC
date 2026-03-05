@@ -93,7 +93,7 @@
 
                 <p class="card-text" style="position:absolute;left:20px;  top:47px;"><b>Correo:</b> {{$cliente->correo}}
                 </p>
-                <p class="card-text" style="position:absolute;left:20px;  top:70px;"><b>Notas:</b> </p>
+                <p class="card-text" style="position:absolute;left:20px;  top:70px;"><b>Notas:</b> {{ $notas }}</p>
 
 
                 <p class="card-text "  style="position:absolute;left:20px;  top:120px;"><b>Correlativo de Ord. exenta</b>

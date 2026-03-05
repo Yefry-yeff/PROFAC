@@ -360,17 +360,16 @@ class ListadoNotaCredito extends Component
 
 
             $productos = DB::SELECT("
-            select * from (
-                select
-                D.id AS codigo,
-                D.nombre as descripcion,
-                F.nombre as medida,
-                H.nombre AS bodega,
-                FF.descripcion as seccion,
-                FORMAT(C.precio_unidad,2) as precio,
-                FORMAT(C.cantidad,2) as cantidad,
-                FORMAT(C.sub_total,2) as sub_total,
-                C.indice
+            select
+            D.id AS codigo,
+            D.nombre as descripcion,
+            F.nombre as medida,
+            H.nombre AS bodega,
+            FF.descripcion as seccion,
+            FORMAT(C.precio_unidad,2) as precio,
+            FORMAT(C.cantidad,2) as cantidad,
+            FORMAT(C.sub_total,2) as sub_total,
+            C.indice
             from factura A
             inner join nota_credito B
             on A.id = B.factura_id
@@ -390,29 +389,26 @@ class ListadoNotaCredito extends Component
             on G.bodega_id = H.id
             where B.estado_nota_id=1 and B.id = ".$idNota."
             group by  codigo ,descripcion, medida,bodega, seccion, precio, cantidad,sub_total,C.indice
-            
             UNION
             
             select
-                '' AS codigo,
-                CONCAT('DESCUENTO - ', IFNULL(M.descripcion, B.comentario)) as descripcion,
-                '' as medida,
-                '' AS bodega,
-                '' as seccion,
-                FORMAT(B.total,2) as precio,
-                '1.00' as cantidad,
-                FORMAT(B.total,2) as sub_total,
-                1 as indice
-            from nota_credito B
-            left join motivo_nota_credito M on B.motivo_nota_credito_id = M.id
-            where B.estado_nota_id=1 
-            and B.id = ".$idNota."
-            and NOT EXISTS (
-                select 1 from nota_credito_has_producto C where C.nota_credito_id = B.id
-            )
-            ) A
-            order by A.indice asc
-                "
+            0 as codigo,
+            CONCAT('DESCUENTO - ', IFNULL(M.descripcion, B.comentario)) as descripcion,
+            '' as medida,
+            '' as bodega,
+            '' as seccion,
+            FORMAT(B.total,2) as precio,
+            FORMAT(1,0) as cantidad,
+            FORMAT(B.total,2) as sub_total,
+            99999 as indice
+            from factura A
+            inner join nota_credito B
+            on A.id = B.factura_id
+            left join motivo_nota_credito M
+            on B.motivo_nota_credito_id = M.id
+            where B.estado_nota_id=1 and B.id = ".$idNota."
+            order by indice asc
+            "  
             );
 
 
@@ -427,7 +423,33 @@ class ListadoNotaCredito extends Component
             $formatter->apocope = true;
             $numeroLetras = $formatter->toMoney($importes->total, 2, 'LEMPIRAS', 'CENTAVOS');
 
-            $pdf = PDF::loadView('/pdf/notaCredito', compact('cai', 'cliente','importes','productos','numeroLetras','importesConCentavos','flagCentavos'))->setPaper('letter');
+            $comentario = DB::SELECTONE("SELECT comentario FROM nota_credito WHERE id = " . $idNota);
+
+            // Parsear comentario: JSON (tipo descuento) contiene descripcion + notas; texto plano = solo notas
+            $descripcion = '';
+            $notas = $comentario->comentario ?? 'N/A';
+            $decoded = json_decode($notas, true);
+            if (json_last_error() === JSON_ERROR_NONE && isset($decoded['notas'])) {
+                $descripcion = $decoded['descripcion'] ?? '';
+                $notas = $decoded['notas'] ?? '';
+            }
+
+            if ($descripcion) {
+                // Nota por descuento: reemplazar descripcion del row DESCUENTO con el comentario_descuento
+                foreach ($productos as $producto) {
+                    if ($producto->indice == 99999) {
+                        $producto->descripcion = $descripcion;
+                        break;
+                    }
+                }
+            } else {
+                // Nota por producto: eliminar el row DESCUENTO que no corresponde
+                $productos = array_values(array_filter($productos, function($p) {
+                    return $p->indice != 99999;
+                }));
+            }
+
+            $pdf = PDF::loadView('/pdf/notaCredito', compact('cai', 'cliente','importes','productos','numeroLetras','importesConCentavos','flagCentavos','comentario','descripcion','notas'))->setPaper('letter');
 
             return $pdf->stream("nota_credito" . $cai->nota_credito_cai.".pdf");
 
@@ -506,17 +528,16 @@ class ListadoNotaCredito extends Component
 
 
             $productos = DB::SELECT("
-            select * from (
-                select
-                D.id AS codigo,
-                D.nombre as descripcion,
-                F.nombre as medida,
-                H.nombre AS bodega,
-                FF.descripcion as seccion,
-                FORMAT(C.precio_unidad,2) as precio,
-                FORMAT(C.cantidad,2) as cantidad,
-                FORMAT(C.sub_total,2) as sub_total,
-                C.indice
+            select
+            D.id AS codigo,
+            D.nombre as descripcion,
+            F.nombre as medida,
+            H.nombre AS bodega,
+            FF.descripcion as seccion,
+            FORMAT(C.precio_unidad,2) as precio,
+            FORMAT(C.cantidad,2) as cantidad,
+            FORMAT(C.sub_total,2) as sub_total,
+            C.indice
             from factura A
             inner join nota_credito B
             on A.id = B.factura_id
@@ -536,29 +557,26 @@ class ListadoNotaCredito extends Component
             on G.bodega_id = H.id
             where B.estado_nota_id=1 and B.id = ".$idNota."
             group by  codigo ,descripcion, medida,bodega, seccion, precio, cantidad,sub_total,C.indice
-            
             UNION
             
             select
-                '' AS codigo,
-                CONCAT('DESCUENTO - ', IFNULL(M.descripcion, B.comentario)) as descripcion,
-                '' as medida,
-                '' AS bodega,
-                '' as seccion,
-                FORMAT(B.total,2) as precio,
-                '1.00' as cantidad,
-                FORMAT(B.total,2) as sub_total,
-                1 as indice
-            from nota_credito B
-            left join motivo_nota_credito M on B.motivo_nota_credito_id = M.id
-            where B.estado_nota_id=1 
-            and B.id = ".$idNota."
-            and NOT EXISTS (
-                select 1 from nota_credito_has_producto C where C.nota_credito_id = B.id
-            )
-            ) A
-            order by A.indice asc
-                "
+            0 as codigo,
+            CONCAT('DESCUENTO - ', IFNULL(M.descripcion, B.comentario)) as descripcion,
+            '' as medida,
+            '' as bodega,
+            '' as seccion,
+            FORMAT(B.total,2) as precio,
+            FORMAT(1,0) as cantidad,
+            FORMAT(B.total,2) as sub_total,
+            99999 as indice
+            from factura A
+            inner join nota_credito B
+            on A.id = B.factura_id
+            left join motivo_nota_credito M
+            on B.motivo_nota_credito_id = M.id
+            where B.estado_nota_id=1 and B.id = ".$idNota."
+            order by indice asc
+            "  
             );
 
 
@@ -573,7 +591,33 @@ class ListadoNotaCredito extends Component
             $formatter->apocope = true;
             $numeroLetras = $formatter->toMoney($importes->total, 2, 'LEMPIRAS', 'CENTAVOS');
 
-            $pdf = PDF::loadView('/pdf/notaCredito_copia', compact('cai', 'cliente','importes','productos','numeroLetras','importesConCentavos','flagCentavos'))->setPaper('letter');
+            $comentario = DB::SELECTONE("SELECT comentario FROM nota_credito WHERE id = " . $idNota);
+
+            // Parsear comentario: JSON (tipo descuento) contiene descripcion + notas; texto plano = solo notas
+            $descripcion = '';
+            $notas = $comentario->comentario ?? 'N/A';
+            $decoded = json_decode($notas, true);
+            if (json_last_error() === JSON_ERROR_NONE && isset($decoded['notas'])) {
+                $descripcion = $decoded['descripcion'] ?? '';
+                $notas = $decoded['notas'] ?? '';
+            }
+
+            if ($descripcion) {
+                // Nota por descuento: reemplazar descripcion del row DESCUENTO con el comentario_descuento
+                foreach ($productos as $producto) {
+                    if ($producto->indice == 99999) {
+                        $producto->descripcion = $descripcion;
+                        break;
+                    }
+                }
+            } else {
+                // Nota por producto: eliminar el row DESCUENTO que no corresponde
+                $productos = array_values(array_filter($productos, function($p) {
+                    return $p->indice != 99999;
+                }));
+            }
+
+            $pdf = PDF::loadView('/pdf/notaCredito_copia', compact('cai', 'cliente','importes','productos','numeroLetras','importesConCentavos','flagCentavos','comentario','descripcion','notas'))->setPaper('letter');
 
             return $pdf->stream("nota_credito" . $cai->nota_credito_cai.".pdf");
 
@@ -584,3 +628,7 @@ class ListadoNotaCredito extends Component
 
     }
 }
+
+
+
+

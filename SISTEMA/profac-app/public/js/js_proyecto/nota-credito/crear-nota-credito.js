@@ -811,12 +811,17 @@ function guardarNotaCredito() {
 
             let data = response.data;
             let contador = data.contadorTranslados;
+            let idNotaCredito = data.idNota || 0;
 
             // document.getElementById("btn_guardar_nota_credito").disabled = false;
 
             //Eliminar DIVS y que muestre alert para imprimir
             //Agregar funcion para anular
             console.log('Respuesta del servidor:', data);
+            console.log('ID Nota Crédito:', idNotaCredito);
+            
+            // Guardar el ID en el modal para usarlo en la impresión
+            document.getElementById('modal_imprimir_nota_credito').setAttribute('data-id-nota', idNotaCredito);
             
             try {
                 if (typeof Swal !== 'undefined' && Swal !== null) {
@@ -918,117 +923,30 @@ function guardarNotaCredito() {
 // ====== FUNCIONES PARA IMPRESIÓN ======
 
 function imprimirNotaCredito(tipo) {
-    // Obtener valores para mostrar en la impresión
-    let tipoNota = document.getElementById('tipo_nota_credito').value;
-    let motivo = document.getElementById('motivo_nota').value || 'No especificado';
-    let comentario = document.getElementById('comentario').value || 'Sin comentario';
+    // Obtener el ID de la nota crédito del atributo data del modal
+    let idNotaCredito = document.getElementById('modal_imprimir_nota_credito').getAttribute('data-id-nota');
     
-    let cliente = document.getElementById('nombre_cliente').value;
-    let rtn = document.getElementById('rtn').value;
-    let codigo_factura = document.getElementById('codigo_factura').value;
+    if (!idNotaCredito || idNotaCredito === '0') {
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'No se encontró el ID de la nota de crédito. Intente nuevamente.'
+        });
+        return;
+    }
     
-    let subTotal = document.getElementById('subTotalGeneralCreditoMostrar').value;
-    let grabado = document.getElementById('subTotalGeneralGrabadoCreditoMostrar').value;
-    let excento = document.getElementById('subTotalGeneralExcentoCreditoMostrar').value;
-    let isv = document.getElementById('isvGeneralCreditoMostrar').value;
-    let total = document.getElementById('totalGeneralCreditoMostrar').value;
+    let url = '';
     
-    let fecha = new Date();
-    let fechaFormato = fecha.toLocaleDateString('es-HN', { year: 'numeric', month: '2-digit', day: '2-digit' });
+    if (tipo === 'original') {
+        url = `/nota/credito/imprimir/${idNotaCredito}`;
+    } else if (tipo === 'copia') {
+        url = `/nota/credito/imprimir/copia/${idNotaCredito}`;
+    }
     
-    let contenidoHtml = `
-        <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto;">
-            <!-- Encabezado -->
-            <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 15px;">
-                <h2 style="margin: 0; color: #2c3e50;">NOTA DE CRÉDITO</h2>
-                <p style="margin: 5px 0; font-size: 12px;">DISTRIBUIDORA VALENCIA, S.A.</p>
-                <p style="margin: 5px 0; font-size: 11px; color: #666;">Documento ${tipo === 'original' ? 'Original' : 'Copia'}</p>
-            </div>
-
-            <!-- Información del Cliente -->
-            <table width="100%" style="margin-bottom: 20px; font-size: 12px;">
-                <tr>
-                    <td width="50%" style="border: 1px solid #ddd; padding: 8px;">
-                        <strong>Cliente:</strong> ${cliente}
-                    </td>
-                    <td width="50%" style="border: 1px solid #ddd; padding: 8px;">
-                        <strong>RTN:</strong> ${rtn}
-                    </td>
-                </tr>
-                <tr>
-                    <td width="50%" style="border: 1px solid #ddd; padding: 8px;">
-                        <strong>Factura Original:</strong> ${codigo_factura}
-                    </td>
-                    <td width="50%" style="border: 1px solid #ddd; padding: 8px;">
-                        <strong>Fecha:</strong> ${fechaFormato}
-                    </td>
-                </tr>
-            </table>
-
-            <!-- Motivo y Comentario -->
-            <table width="100%" style="margin-bottom: 20px; font-size: 12px;">
-                <tr>
-                    <td style="border: 1px solid #ddd; padding: 8px;">
-                        <strong>Motivo:</strong> ${motivo}
-                    </td>
-                </tr>
-                <tr>
-                    <td style="border: 1px solid #ddd; padding: 8px;">
-                        <strong>Comentario:</strong> ${comentario}
-                    </td>
-                </tr>
-            </table>
-
-            <!-- Totales -->
-            <table width="100%" style="margin-bottom: 20px; font-size: 12px;">
-                <tr>
-                    <td width="70%" style="text-align: right; padding: 5px;"><strong>Sub Total:</strong></td>
-                    <td width="30%" style="border: 1px solid #ddd; padding: 5px; text-align: right;">${subTotal}</td>
-                </tr>
-                <tr>
-                    <td width="70%" style="text-align: right; padding: 5px;"><strong>Sub Total Grabado:</strong></td>
-                    <td width="30%" style="border: 1px solid #ddd; padding: 5px; text-align: right;">${grabado}</td>
-                </tr>
-                <tr>
-                    <td width="70%" style="text-align: right; padding: 5px;"><strong>Sub Total Excento:</strong></td>
-                    <td width="30%" style="border: 1px solid #ddd; padding: 5px; text-align: right;">${excento}</td>
-                </tr>
-                <tr>
-                    <td width="70%" style="text-align: right; padding: 5px;"><strong>ISV:</strong></td>
-                    <td width="30%" style="border: 1px solid #ddd; padding: 5px; text-align: right;">${isv}</td>
-                </tr>
-                <tr style="background-color: #f8f9fa;">
-                    <td width="70%" style="text-align: right; padding: 8px;"><strong style="font-size: 14px;">TOTAL:</strong></td>
-                    <td width="30%" style="border: 2px solid #333; padding: 8px; text-align: right; font-weight: bold; font-size: 14px;">${total}</td>
-                </tr>
-            </table>
-
-            <!-- Pie de página -->
-            <div style="text-align: center; margin-top: 40px; border-top: 1px solid #ddd; padding-top: 15px; font-size: 11px; color: #666;">
-                <p style="margin: 0;">Documento generado por sistema.</p>
-                <p style="margin: 0;">Distribuidor Autorizado</p>
-            </div>
-        </div>
-    `;
-
-    // Mostrar en elemento temporal para impresión
-    let ventanaImpresion = window.open('', '', 'width=900,height=600');
-    ventanaImpresion.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8">');
-    ventanaImpresion.document.write('<title>Nota de Crédito</title>');
-    ventanaImpresion.document.write('<style>');
-    ventanaImpresion.document.write('body { font-family: Arial, sans-serif; margin: 0; padding: 10px; }');
-    ventanaImpresion.document.write('table { width: 100%; border-collapse: collapse; }');
-    ventanaImpresion.document.write('@media print { body { margin: 0; padding: 0; } }');
-    ventanaImpresion.document.write('</style>');
-    ventanaImpresion.document.write('</head><body>');
-    ventanaImpresion.document.write(contenidoHtml);
-    ventanaImpresion.document.write('</body></html>');
-    ventanaImpresion.document.close();
-    
-    // Esperar a que cargue y luego imprimir
-    setTimeout(() => {
-        ventanaImpresion.print();
-    }, 500);
+    if (url) {
+        // Abrir en nueva ventana para que el usuario pueda imprimir
+        window.open(url, '_blank');
+    }
 }
 
 function finalizarYContinuar() {
