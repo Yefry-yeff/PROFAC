@@ -156,13 +156,20 @@ Route::get('/', function () {
     return redirect('/login');
 });
 
-Route::middleware(['auth:sanctum', 'verified'])->get('/dashboard', function () {
+Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->get('/dashboard', function () {
     return view('/dashboard');
     //return redirect('/bodega');
 })->name('dashboard');
 
-
+// Rutas de cambio obligatorio de contraseña (fuera del grupo protegido para evitar bucle)
 Route::middleware(['auth:sanctum', 'verified'])->group(function () {
+    Route::get('/cambiar-contrasena', function () {
+        return view('auth.cambiar-contrasena');
+    });
+    Route::post('/cambiar-contrasena/guardar', [\App\Http\Livewire\Usuarios\ListarUsuarios::class, 'forzarCambioContrasena']);
+});
+
+Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(function () {
 
     //---------------------------------------GESTIÓN DE MENÚS-------------------------------//
     Route::get('/menu/gestion', \App\Http\Livewire\Menu\GestionMenu::class)->name('menu.gestion');
@@ -356,6 +363,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     /*------------------------------------------------NUEVAS RUTAS DE ACCESO A USUARIOS  */
     Route::post('/usuario/guardar', [ListarUsuarios::class, 'guardarUsuarios']);
     Route::post('/usuario/actualizar', [ListarUsuarios::class, 'actualizarUsuarios']);
+    Route::post('/usuario/cambiar-contrasena', [ListarUsuarios::class, 'cambiarContrasenaUsuario']);
 
     //-----------------------------------------------Roles-------------------------------------------------------------------------------------------//
     Route::get('/usuarios/roles', App\Http\Livewire\Usuarios\Roles::class)->name('roles.gestion');

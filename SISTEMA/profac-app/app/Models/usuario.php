@@ -10,7 +10,7 @@ class usuario extends Model
     use HasFactory;
     protected $table = 'users';
     protected $primaryKey = 'id';
-    protected $fillable = ['id', 'identidad','name','email', 'password', 'rol_id', 'estado_id'];
+    protected $fillable = ['id', 'identidad','name','email', 'password', 'rol_id', 'estado_id', 'telefono', 'must_change_password'];
 
     /**
      * Relación con el estado del usuario

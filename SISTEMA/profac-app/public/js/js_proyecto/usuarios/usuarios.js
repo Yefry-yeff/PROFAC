@@ -5,28 +5,37 @@ $(document).on('submit', '#userEditForm', function(event) {
 });
 
 function guardarUsuario() {
+    // Validar que las contraseñas coincidan
+    var pass = document.getElementById('pass_user').value;
+    var confirmPass = document.getElementById('confirmar_pass').value;
+
+    if (pass !== confirmPass) {
+        document.getElementById('msg_pass_no_coincide').style.display = 'block';
+        Swal.fire({ icon: 'error', title: 'Error', text: 'Las contraseñas no coinciden.' });
+        return;
+    }
+    document.getElementById('msg_pass_no_coincide').style.display = 'none';
+
+    if (pass.length < 8) {
+        Swal.fire({ icon: 'error', title: 'Error', text: 'La contraseña debe tener al menos 8 caracteres.' });
+        return;
+    }
+
     $('#modalSpinnerLoading').modal('show');
 
     var data = new FormData($('#userAddForm').get(0));
 
         axios.post("/usuario/guardar", data)
             .then(response => {
-
-
                 $('#userAddForm').parsley().reset();
-
                 document.getElementById("userAddForm").reset();
                 $('#modal_usuario_crear').modal('hide');
-
                 $('#tbl_usuariosListar').DataTable().ajax.reload();
-
-
                 Swal.fire({
                     icon: 'success',
                     title: 'Exito!',
-                    text: "Usuario Creado con exito."
+                    text: response.data.text
                 })
-
         })
         .catch(err => {
             let data = err.response.data;
@@ -37,9 +46,7 @@ function guardarUsuario() {
                 text: data.text
             })
             console.error(err);
-
         })
-
 }
 
 $(document).ready(function()
@@ -56,6 +63,8 @@ $(document).ready(function()
         },
         pageLength: 10,
         responsive: true,
+        autoWidth: false,
+        scrollX: false,
         dom: '<"html5buttons"B>lTfgitp',
         buttons: [
             {
@@ -65,32 +74,17 @@ $(document).ready(function()
         ],
         "ajax": "/usuarios/listar/usuarios",
         "columns": [
-            {
-                data: 'contador'
-            },
-            {
-                data: 'id'
-            },
-            {
-                data: 'nombre'
-            },
-            {
-                data: 'telefono'
-            },
-            {
-                data: 'email'
-            },
-            {
-                data: 'identidad'
-            },
-            {
-                data: 'fecha_nacimiento'
-            },
-            {
-                data: 'tipo_usuario'
-            },
+            { data: 'contador',      width: '4%'  },
+            { data: 'id',            width: '5%'  },
+            { data: 'nombre',        width: '18%' },
+            { data: 'telefono',      width: '10%' },
+            { data: 'email',         width: '18%' },
+            { data: 'identidad',     width: '10%' },
+            { data: 'fecha_nacimiento', width: '10%', responsivePriority: 4 },
+            { data: 'tipo_usuario',  width: '8%'  },
             {
                 data: 'estado',
+                width: '7%',
                 render: function(data, type, row) {
                     if (row.estado_id == 1) {
                         return '<span class="badge badge-success">'+data+'</span>';
@@ -99,13 +93,8 @@ $(document).ready(function()
                     }
                 }
             },
-            {
-                data: 'fecha_registro'
-            },
-            {
-                data: 'opciones'
-            }
-
+            { data: 'fecha_registro', width: '10%', responsivePriority: 5 },
+            { data: 'opciones',       width: '10%', orderable: false }
         ]
 
 
@@ -117,27 +106,59 @@ function infoUsuario(idUsuario){
         axios.get('/usuario/info/'+idUsuario).then(function(response) {
             document.getElementById('id_usuario').value = response.data[0].id;
             document.getElementById('nombre_usuario').value = response.data[0].name;
-            document.getElementById('identidad_usuario').value = response.data[0].identidad;
+            document.getElementById('identidad_usuario').value = response.data[0].identidad ?? '';
             document.getElementById('correo_usuario').value = response.data[0].email;
-            document.getElementById('fenacimiento_usuario').value = response.data[0].fecha_nacimiento;
-
-
-
+            document.getElementById('fenacimiento_usuario').value = response.data[0].fecha_nacimiento ?? '';
+            document.getElementById('telefono_usuario').value = response.data[0].telefono ?? '';
 
             selectRoles(response.data[0].rol_id, response.data[0].rol);
-
 
             $("#modal_usuario_rol").modal("show");
         })
         .catch(function(error) {
-            // handle error
             console.log(error);
+            Swal.fire({ icon: 'error', title: 'Error...', text: "Ha ocurrido un error" });
+        });
+}
 
-            Swal.fire({
-                icon: 'error',
-                title: 'Error...',
-                text: "Ha ocurrido un error"
-            })
+function abrirModalContrasena(idUsuario) {
+    document.getElementById('id_usuario_pwd').value = idUsuario;
+    document.getElementById('nueva_contrasena').value = '';
+    document.getElementById('confirmar_contrasena').value = '';
+    document.getElementById('msg_pwd_no_coincide').style.display = 'none';
+    $('#modal_cambiar_contrasena').modal('show');
+}
+
+function guardarContrasena() {
+    var nueva    = document.getElementById('nueva_contrasena').value;
+    var confirmar = document.getElementById('confirmar_contrasena').value;
+    var msg = document.getElementById('msg_pwd_no_coincide');
+
+    if (!nueva || nueva.length < 8) {
+        Swal.fire({ icon: 'error', title: 'Error', text: 'La contraseña debe tener al menos 8 caracteres.' });
+        return;
+    }
+    if (nueva !== confirmar) {
+        msg.style.display = 'block';
+        return;
+    }
+    msg.style.display = 'none';
+
+    var data = new FormData();
+    data.append('id_usuario', document.getElementById('id_usuario_pwd').value);
+    data.append('nueva_contrasena', nueva);
+    data.append('confirmar_contrasena', confirmar);
+
+    axios.post('/usuario/cambiar-contrasena', data)
+        .then(response => {
+            $('#modal_cambiar_contrasena').modal('hide');
+            document.getElementById('formCambiarContrasena').reset();
+            Swal.fire({ icon: 'success', title: 'Éxito!', text: response.data.text });
+        })
+        .catch(err => {
+            let d = err.response ? err.response.data : {};
+            $('#modal_cambiar_contrasena').modal('hide');
+            Swal.fire({ icon: d.icon || 'error', title: d.title || 'Error', text: d.text || 'Ha ocurrido un error.' });
         });
 }
 
@@ -193,30 +214,6 @@ function cargarRolesParaNuevoUsuario(){
 }
 
 function actualizarUsuario() {
-    // Validar contraseñas si se proporcionan
-    var nuevaContrasena = document.getElementById('nueva_contrasena').value;
-    var confirmarContrasena = document.getElementById('confirmar_contrasena').value;
-    
-    if (nuevaContrasena || confirmarContrasena) {
-        if (nuevaContrasena !== confirmarContrasena) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: 'Las contraseñas no coinciden.'
-            });
-            return;
-        }
-        
-        if (nuevaContrasena.length < 8) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: 'La contraseña debe tener al menos 8 caracteres.'
-            });
-            return;
-        }
-    }
-
     var data = new FormData($('#userEditForm').get(0));
 
     axios.post("/usuario/actualizar", data)
@@ -225,22 +222,11 @@ function actualizarUsuario() {
             document.getElementById("userEditForm").reset();
             $('#modal_usuario_rol').modal('hide');
             $('#tbl_usuariosListar').DataTable().ajax.reload();
-
-            Swal.fire({
-                icon: 'success',
-                title: 'Exito!',
-                text: response.data.text
-            });
-            location.reload()
-
+            Swal.fire({ icon: 'success', title: 'Exito!', text: response.data.text });
         }).catch(err => {
             let data = err.response.data;
             $('#modal_usuario_rol').modal('hide');
-            Swal.fire({
-                icon: data.icon,
-                title: data.title,
-                text: data.text
-            })
+            Swal.fire({ icon: data.icon, title: data.title, text: data.text });
             console.error(err);
         });
 }
