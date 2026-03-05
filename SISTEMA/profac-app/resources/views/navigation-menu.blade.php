@@ -5,27 +5,16 @@
     <!-- Primary Navigation Menu -->
     <div class="px-4 sm:px-6 lg:px-8" style="width:100vw">
 
-        <div class="flex justify-between h-16">
-            <div class="flex">
-                <!-- Logo -->
-                <div class="flex items-center shrink-0">
-                    <a href="{{ route('dashboard') }}">
-                        {{-- <x-jet-application-mark class="block w-auto h-9" /> --}}
-                        <img class="object-cover rounded-full animate__animated animate__bounceIn " style="width:5rem"
-                            src="{{ asset('img/LOGO_VALENCIA.jpg') }}" />
-                    </a>
-
-                </div>
-
-                <!-- Navigation Links -->
-                <div class="hidden space-x-8 sm:-my-px sm:ml-10 sm:flex">
-                    <x-jet-nav-link href="{{ route('dashboard') }}" :active="request()->routeIs('dashboard')">
-                       <b>{{ __('PROCADSS v5.0.0.1') }}</b>
-                    </x-jet-nav-link>
-                </div>
+        <div class="relative flex items-center justify-center h-16">
+            <!-- Logo centrado -->
+            <div class="flex items-center">
+                <a href="{{ route('dashboard') }}">
+                    <img class="object-cover rounded-full animate__animated animate__bounceIn" style="width:4.5rem"
+                        src="{{ asset('img/LOGO_VALENCIA.jpg') }}" />
+                </a>
             </div>
 
-            <div class="hidden sm:flex sm:items-center sm:ml-6 profile-area">
+            <div class="absolute right-0 hidden sm:flex sm:items-center sm:mr-3 profile-area">
                 <!-- Teams Dropdown -->
 
                 <!-- Settings Dropdown -->
@@ -215,6 +204,57 @@
             z-index: 9999 !important;
         }
 
+        /* ====== Eliminar franja naranja del sidebar (INSPINIA hereda #EC401B en li.active) ====== */
+        .navbar-default .nav > li.active,
+        .nav > li.active {
+            background: transparent !important;
+            border-left: 4px solid #1ab394 !important;
+        }
+        /* Submenú tooltip cuando navbar minimizado: quitar fondo naranja (#F15533) */
+        .mini-navbar .nav .nav-second-level {
+            background-color: #2f4050 !important;
+        }
+        /* Footer anclado del sidebar */
+        .sidebar-collapse {
+            display: flex !important;
+            flex-direction: column !important;
+            height: 100% !important;
+        }
+        .scroll-bar-sidebar {
+            flex: 1 1 auto !important;
+            min-height: 0 !important;
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+            max-height: none !important;
+        }
+        .sidebar-footer-info {
+            flex-shrink: 0;
+            border-top: 1px solid rgba(255,255,255,0.08);
+            padding: 10px 14px;
+            text-align: center;
+            background: #2f4050;
+        }
+        .sidebar-footer-info .sf-sistema {
+            font-size: 12px;
+            font-weight: 700;
+            color: #1ab394;
+            letter-spacing: 0.5px;
+            display: block;
+            margin-bottom: 2px;
+        }
+        .sidebar-footer-info .sf-copy {
+            font-size: 10px;
+            color: rgba(255,255,255,0.45);
+            display: block;
+        }
+        /* Ocultar footer en modo mini-navbar (sidebar 70px) y en móvil/tablet */
+        body.mini-navbar .sidebar-footer-info {
+            display: none !important;
+        }
+        @media (max-width: 992px) {
+            .sidebar-footer-info { display: none !important; }
+        }
+
         /* ====== Header mobile layout: center logo, align buttons ====== */
         @media (max-width: 768px) {
             /* Make header row positioning context */
@@ -275,7 +315,7 @@
             .scroll-bar-sidebar {
                 overflow-y: auto;
                 overflow-x: hidden;
-                max-height: 92.7vh
+                /* max-height controlado por flexbox del sidebar-collapse */
             }
         }
     </style>
@@ -803,6 +843,13 @@
                 @include('partials.menu-dinamico')
                 {{--  FIN MENÚ DINÁMICO  --}}
             </ul>
+
+            {{-- Footer anclado al sidebar --}}
+            <div class="sidebar-footer-info">
+                <span class="sf-sistema">PROFAC Sistema</span>
+                <span class="sf-copy">&copy; {{ date('Y') }} D. Valencia &mdash; Todos los derechos reservados</span>
+            </div>
+
         </div>
     </nav>
     <!-- Overlay para cerrar el menú en móvil/tablet -->
