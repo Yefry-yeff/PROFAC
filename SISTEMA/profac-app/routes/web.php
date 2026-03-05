@@ -40,6 +40,7 @@ use App\Http\Livewire\Inventario\UnidadesMedida;
 use App\Http\Livewire\Inventario\Ajustes;
 use App\Http\Livewire\Clientes\Cliente;
 use App\Http\Livewire\Ventas\ListadoFacturas;
+use App\Http\Controllers\BusquedaProductoController;
 use App\Http\Livewire\Ventas\FacturacionCorporativa;
 use App\Http\Livewire\Ventas\DetalleVenta;
 use App\Http\Livewire\Ventas\Cobros;
@@ -484,6 +485,10 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
 
     Route::get('/ventas/listar/bodegas/{idProducto}', [FacturacionCorporativa::class, 'listarBodegas']);
     Route::get('/ventas/listar/', [FacturacionCorporativa::class, 'productoBodega']);
+    Route::get('/productos/buscar', [BusquedaProductoController::class, 'buscar']);
+    Route::get('/productos/buscar/categorias', [BusquedaProductoController::class, 'categorias']);
+    Route::get('/productos/buscar/marcas', [BusquedaProductoController::class, 'marcas']);
+    Route::get('/productos/buscar/top-vendidos', [BusquedaProductoController::class, 'topVendidos']);
 
     Route::post('/ventas/datos/producto', [FacturacionCorporativa::class, 'obtenerDatosProducto']);
     Route::post('/producto/categorias-disponibles', [FacturacionCorporativa::class, 'obtenerCategoriasProducto']);

@@ -167,12 +167,22 @@
                             <div class="row">
                                 <div class="col-12 col-md-6 col-lg-6 col-xl-6">
                                     <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                        <label for="seleccionarProducto"
-                                            class="col-form-label focus-label">Seleccionar Producto:<span class="text-danger">*</span></label>
-                                        <select id="seleccionarProducto" name="seleccionarProducto"
-                                            class="form-group form-control">
-                                            <option value="" selected disabled>--Seleccione un producto--
-                                            </option>
+                                        <label class="col-form-label focus-label">Seleccionar Producto:<span class="text-danger">*</span></label>
+                                        <div class="input-group">
+                                            <input type="text" id="codigoProductoEstatal" class="form-control"
+                                                   placeholder="ID o nombre del producto…" autocomplete="off"
+                                                   onkeydown="if(event.key==='Enter'){buscarPorCodigoEstatal(this.value);return false;}">
+                                            <div class="input-group-append">
+                                                <button type="button" class="btn btn-primary" title="Buscar producto"
+                                                        onclick="limpiarProductoEstatal(); window['abrirBuscador_buscadorProductoEstatal'](document.getElementById('codigoProductoEstatal').value||'')">
+                                                    <i class="fa fa-search"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <small id="productoSeleccionadoEstatal" class="text-success font-weight-bold mt-1 d-block d-none"></small>
+                                        {{-- Hidden select conserva la compatibilidad con el JS existente --}}
+                                        <select id="seleccionarProducto" name="seleccionarProducto" class="d-none">
+                                            <option value="" selected disabled></option>
                                         </select>
                                     </div>
 
@@ -451,6 +461,8 @@
         </div>
     </div>
 
+    {{-- Buscador de producto reutilizable --}}
+    <x-buscador-producto id-modal="buscadorProductoEstatal" callback="alSeleccionarProductoEstatal" />
 
     @push('scripts')
         <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
@@ -534,27 +546,41 @@
 
 
 
-            $('#seleccionarProducto').select2({
-                ajax: {
-                    url: '/ventas/listar',
-                    data: function(params) {
-                        var query = {
-                            search: params.term,
-                            type: 'public',
-                            page: params.page || 1
-                        }
 
-                        // Query parameters will be ?search=[term]&type=public
 
-                        return query;
-                    }
-                }
-            });
+            /* ---------- Buscador de producto (callback del componente) ---------- */
+            function limpiarProductoEstatal() {
+                document.getElementById('seleccionarProducto').innerHTML =
+                    '<option value="" selected disabled></option>';
+                document.getElementById('codigoProductoEstatal').value = '';
+                var lbl = document.getElementById('productoSeleccionadoEstatal');
+                lbl.classList.add('d-none');
+                lbl.textContent = '';
+            }
 
-            // Evento para cargar categorías cuando se selecciona un producto
-            $('#seleccionarProducto').on('select2:select', function(e) {
+            function alSeleccionarProductoEstatal(producto) {
+                var select = document.getElementById('seleccionarProducto');
+                select.innerHTML = '<option value="' + producto.id + '" selected>' + producto.nombre + '</option>';
+                document.getElementById('codigoProductoEstatal').value = producto.nombre;
+                var label = document.getElementById('productoSeleccionadoEstatal');
+                label.textContent = '✓ ' + producto.nombre + ' (ID: ' + producto.id + ')';
+                label.classList.remove('d-none');
                 cargarCategoriasProducto();
-            });
+            }
+
+            function buscarPorCodigoEstatal(cod) {
+                cod = String(cod).trim();
+                if (!cod) { window['abrirBuscador_buscadorProductoEstatal'](''); return; }
+                axios.get('/productos/buscar', { params: { q: cod, page: 1 } })
+                    .then(function(r) {
+                        var items = r.data.data;
+                        var exact = items.find(function(p) { return String(p.id) === cod; });
+                        if (exact) { alSeleccionarProductoEstatal(exact); }
+                        else if (items.length === 1) { alSeleccionarProductoEstatal(items[0]); }
+                        else { window['abrirBuscador_buscadorProductoEstatal'](cod); }
+                    });
+            }
+            /* -------------------------------------------------------------------- */
 
             function prueba() {
 
@@ -1585,6 +1611,10 @@
 
                         document.getElementById('seleccionarProducto').innerHTML =
                             '<option value="" selected disabled>--Seleccione un producto--</option>';
+                        document.getElementById('codigoProductoEstatal').value = '';
+                        var lblProd = document.getElementById('productoSeleccionadoEstatal');
+                        lblProd.classList.add('d-none');
+                        lblProd.textContent = '';
                         document.getElementById('bodega').innerHTML =
                             '<option value="" selected disabled>--Seleccione un producto--</option>';
                         document.getElementById("bodega").disabled = true;
