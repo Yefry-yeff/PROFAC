@@ -916,7 +916,11 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!toggleBtn) return;
         if (isNonDesktop()) {
             if (e) e.preventDefault();
-            document.body.classList.toggle('mobile-sidebar-open');
+            const isOpen = document.body.classList.toggle('mobile-sidebar-open');
+            // Al cerrar, limpiar submenús activos para que no queden flotando
+            if (!isOpen) {
+                document.querySelectorAll('#side-menu > li').forEach(li => li.classList.remove('active'));
+            }
         }
     }
 
