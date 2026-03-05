@@ -198,26 +198,46 @@
         nav.sticky {
             z-index: 3000;
             position: sticky !important;
+            /* Forzar borde inferior gris – INSPINIA sobreescribía a naranja (#F15533) */
+            border-bottom: 1px solid #e5e7eb !important;
         }
         .profile-area .relative > div:last-child,
         nav.sticky [x-show] {
             z-index: 9999 !important;
         }
 
-        /* ====== Eliminar franja naranja del sidebar (INSPINIA hereda #EC401B en li.active) ====== */
+        /* ====== Eliminar TODO rastro naranja del sidebar ====== */
+        /* 1. Quitar borde naranja del sidebar (.navbar-default { border-color:#F15533 } en style.css) */
+        nav.navbar-static-side,
+        .navbar-default.navbar-static-side {
+            border: none !important;
+        }
+        /* 2. Quitar fondo naranja en li.active (INSPINIA: background:#EC401B) */
         .navbar-default .nav > li.active,
         .nav > li.active {
             background: transparent !important;
             border-left: 4px solid #1ab394 !important;
         }
-        /* Submenú tooltip cuando navbar minimizado: quitar fondo naranja (#F15533) */
+        /* 3. Submenú tooltip minimizado: quitar fondo naranja (#F15533) */
         .mini-navbar .nav .nav-second-level {
             background-color: #2f4050 !important;
         }
-        /* Footer anclado del sidebar */
-        .sidebar-collapse {
+
+        /* ====== Sidebar: flex column height:100vh → menú scrolleable, footer siempre al fondo ====== */
+        nav.navbar-static-side {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            height: 100vh !important;
             display: flex !important;
             flex-direction: column !important;
+            overflow: hidden !important;
+        }
+        .sidebar-collapse {
+            flex: 1 1 auto !important;
+            display: flex !important;
+            flex-direction: column !important;
+            overflow: hidden !important;
             height: 100% !important;
         }
         .scroll-bar-sidebar {
@@ -225,7 +245,7 @@
             min-height: 0 !important;
             overflow-y: auto !important;
             overflow-x: hidden !important;
-            max-height: none !important;
+            /* Dejar espacio para el footer anclado */
         }
         .sidebar-footer-info {
             flex-shrink: 0;
@@ -539,13 +559,11 @@
                     @media (max-width: 768px) {
                         /* Habilitar scroll dentro del menú lateral */
                         .navbar-static-side {
-                            overflow-y: auto !important;
                             -webkit-overflow-scrolling: touch;
                         }
                         .scroll-bar-sidebar {
                             overflow-y: auto !important;
                             overflow-x: hidden !important;
-                            max-height: 100vh !important;
                         }
                         /* Asegurar que el sidebar esté visible en pantalla */
                         .navbar-static-side {
@@ -553,7 +571,7 @@
                             top: 0 !important;
                             left: 0 !important;
                             height: 100vh !important;
-                            display: block !important;
+                            display: flex !important;
                             z-index: 2000 !important;
                         }
                         /* Ancho minimizado por defecto en móvil */
@@ -718,17 +736,15 @@
                             top: 0 !important;
                             left: 0 !important;
                             height: 100vh !important;
-                            display: block !important;
+                            display: flex !important;
                             z-index: 2000 !important;
                             width: 70px !important;
-                            overflow-y: auto !important;
                             -webkit-overflow-scrolling: touch;
                         }
 
                         .scroll-bar-sidebar {
                             overflow-y: auto !important;
                             overflow-x: hidden !important;
-                            max-height: 100vh !important;
                         }
 
                         /* Ocultar textos y flechas en tablet */
