@@ -70,7 +70,7 @@
         <div id="wrapper" class="" >
 
             <!-- Page Content -->
-            <div id="page-wrapper" class="gray-bg" style="margin-top:65px">
+            <div id="page-wrapper" class="gray-bg" style="margin-top:65px; padding-top:0;">
 
                 <div class="wrapper wrapper-content animated fadeInRight">
 

@@ -194,41 +194,48 @@
 
     <!---menu lateral de la plantilla--->
     <style>
-        /* ====== Dropdown z-index: must be above INSPINIA sidebar (z-index:2001) ====== */
+        /* ====== HEADER: fijo en la parte superior, nunca se mueve ====== */
         nav.sticky {
-            z-index: 3000;
-            position: sticky !important;
-            /* Forzar borde inferior gris – INSPINIA sobreescribía a naranja (#F15533) */
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            width: 100% !important;
+            z-index: 4000 !important;
+            background: #ffffff !important;
             border-bottom: 1px solid #e5e7eb !important;
         }
+        /* Dropdown del perfil: por encima de todo */
         .profile-area .relative > div:last-child,
         nav.sticky [x-show] {
             z-index: 9999 !important;
         }
 
-        /* ====== Eliminar TODO rastro naranja del sidebar ====== */
-        /* 1. Quitar borde naranja del sidebar (.navbar-default { border-color:#F15533 } en style.css) */
+        /* ====== Eliminar TODO rastro naranja ====== */
+        /* Franja naranja: .nav-header li de INSPINIA y li.active con fondo #EC401B */
+        li.nav-header {
+            display: none !important;
+        }
         nav.navbar-static-side,
         .navbar-default.navbar-static-side {
             border: none !important;
         }
-        /* 2. Quitar fondo naranja en li.active (INSPINIA: background:#EC401B) */
         .navbar-default .nav > li.active,
         .nav > li.active {
             background: transparent !important;
             border-left: 4px solid #1ab394 !important;
         }
-        /* 3. Submenú tooltip minimizado: quitar fondo naranja (#F15533) */
         .mini-navbar .nav .nav-second-level {
             background-color: #2f4050 !important;
         }
 
-        /* ====== Sidebar: flex column height:100vh → menú scrolleable, footer siempre al fondo ====== */
+        /* ====== SIDEBAR: empieza debajo del header, scroll interno, footer anclado ====== */
         nav.navbar-static-side {
             position: fixed !important;
-            top: 0 !important;
+            top: 65px !important;          /* igual a la altura del header */
             left: 0 !important;
-            height: 100vh !important;
+            height: calc(100vh - 65px) !important;
+            z-index: 2000 !important;      /* siempre por debajo del header (4000) */
             display: flex !important;
             flex-direction: column !important;
             overflow: hidden !important;
@@ -568,9 +575,9 @@
                         /* Asegurar que el sidebar esté visible en pantalla */
                         .navbar-static-side {
                             position: fixed !important;
-                            top: 0 !important;
+                            top: 65px !important;
                             left: 0 !important;
-                            height: 100vh !important;
+                            height: calc(100vh - 65px) !important;
                             display: flex !important;
                             z-index: 2000 !important;
                         }
@@ -733,9 +740,9 @@
                     @media (min-width: 769px) and (max-width: 992px) {
                         .navbar-static-side {
                             position: fixed !important;
-                            top: 0 !important;
+                            top: 65px !important;
                             left: 0 !important;
-                            height: 100vh !important;
+                            height: calc(100vh - 65px) !important;
                             display: flex !important;
                             z-index: 2000 !important;
                             width: 70px !important;
