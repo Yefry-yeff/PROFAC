@@ -25,29 +25,25 @@ class BusquedaProductoController extends Controller
             ? array_values(array_filter(array_map('trim', explode(' ', $q))))
             : [];
 
-        // ── Base query (SIN ORDER BY, para que el COUNT sea correcto) ──
+        // ── Query principal SIN GROUP BY ────────────────────────────
+        // recibido_bodega e img_producto se consultan aparte SOLO para los ~12
+        // resultados de la página, evitando el costoso JOIN+GROUP BY global.
         $query = DB::table('producto as p')
-            ->leftJoin('recibido_bodega as rb', 'rb.producto_id', '=', 'p.id')
             ->leftJoin('marca as m', 'm.id', '=', 'p.marca_id')
             ->select([
-                'p.id',
-                'p.nombre',
-                'p.codigo_barra',
-                'p.codigo_estatal',
-                'p.isv',
-                'm.nombre as marca_nombre',
-                DB::raw('COALESCE(SUM(rb.cantidad_disponible), 0) as stock'),
-                DB::raw('(SELECT url_img FROM img_producto WHERE producto_id = p.id ORDER BY id ASC LIMIT 1) as imagen'),
-            ])
-            ->groupBy('p.id', 'p.nombre', 'p.codigo_barra', 'p.codigo_estatal', 'p.isv', 'm.nombre');
+                'p.id', 'p.nombre', 'p.codigo_barra', 'p.codigo_estatal',
+                'p.isv', 'm.nombre as marca_nombre',
+            ]);
 
         // Filtro multi-palabra
         foreach ($words as $word) {
             $query->where(function ($q) use ($word) {
                 $q->whereRaw('p.nombre LIKE ?', ["%{$word}%"])
                   ->orWhereRaw('p.codigo_barra LIKE ?', ["%{$word}%"])
-                  ->orWhereRaw('p.codigo_estatal LIKE ?', ["%{$word}%"])
-                  ->orWhereRaw('p.id = ?', [$word]);
+                  ->orWhereRaw('p.codigo_estatal LIKE ?', ["%{$word}%"]);
+                if (is_numeric($word) && ctype_digit($word)) {
+                    $q->orWhere('p.id', (int) $word);
+                }
             });
         }
 
@@ -62,18 +58,20 @@ class BusquedaProductoController extends Controller
             $query->where('p.marca_id', (int) $marcaId);
         }
 
-        // Filtro de stock
+        // Filtro de stock: WHERE EXISTS (más rápido que JOIN+GROUP BY+HAVING)
         if ($conStock) {
-            $query->havingRaw('stock > 0');
+            $query->whereExists(function ($sub) {
+                $sub->select(DB::raw(1))
+                    ->from('recibido_bodega')
+                    ->whereColumn('producto_id', 'p.id')
+                    ->whereRaw('cantidad_disponible > 0');
+            });
         }
 
-        // ── COUNT antes de agregar ORDER BY (evita el mismatch de bindings en MySQL 8) ──
-        $countBindings = $query->getBindings();
-        $countSql      = "SELECT COUNT(*) as aggregate FROM ({$query->toSql()}) as cnt_tbl";
-        $countResult   = DB::selectOne($countSql, $countBindings);
-        $total         = $countResult ? (int) $countResult->aggregate : 0;
+        // ── COUNT simple: sin subquery envuelta, sin GROUP BY ──────────────
+        $total = (clone $query)->count('p.id');
 
-        // ── ORDER BY solo para la consulta de datos paginados ──
+        // ── ORDER BY ──────────────────────────────────────
         if ($q !== '') {
             if (is_numeric($q) && ctype_digit($q)) {
                 $query->orderByRaw('(p.id = ?) DESC', [(int) $q]);
@@ -84,6 +82,28 @@ class BusquedaProductoController extends Controller
         $query->orderBy('p.nombre');
 
         $items = $query->offset(($page - 1) * $perPage)->limit($perPage)->get();
+
+        // ── Stock + imágenes: solo para los ~12 resultados paginados ───────
+        if ($items->isNotEmpty()) {
+            $ids = $items->pluck('id')->all();
+
+            $stockMap = DB::table('recibido_bodega')
+                ->select('producto_id', DB::raw('SUM(cantidad_disponible) as stock'))
+                ->whereIn('producto_id', $ids)
+                ->groupBy('producto_id')
+                ->get()->keyBy('producto_id');
+
+            $imgMap = DB::table('img_producto')
+                ->select('producto_id', 'url_img')
+                ->whereIn('producto_id', $ids)
+                ->orderBy('producto_id')->orderBy('id')
+                ->get()->unique('producto_id')->keyBy('producto_id');
+
+            $items->each(function ($item) use ($stockMap, $imgMap) {
+                $item->stock  = isset($stockMap[$item->id]) ? (float) $stockMap[$item->id]->stock : 0;
+                $item->imagen = isset($imgMap[$item->id])  ? $imgMap[$item->id]->url_img : null;
+            });
+        }
 
         return response()->json([
             'data'         => $items,
@@ -125,24 +145,42 @@ class BusquedaProductoController extends Controller
      */
     public function topVendidos()
     {
+        // Solo JOIN con venta_has_producto (necesario para SUM+GROUP BY de ventas)
+        // recibido_bodega e img_producto se consultan aparte para evitar producto
+        // cartesiano entre vhp y rb que infla el SUM incorrecto.
         $items = DB::table('producto as p')
             ->join('venta_has_producto as vhp', 'vhp.producto_id', '=', 'p.id')
             ->leftJoin('marca as m', 'm.id', '=', 'p.marca_id')
             ->select([
-                'p.id',
-                'p.nombre',
-                'p.codigo_barra',
-                'p.codigo_estatal',
-                'p.isv',
+                'p.id', 'p.nombre', 'p.codigo_barra', 'p.codigo_estatal', 'p.isv',
                 'm.nombre as marca_nombre',
-                DB::raw('(SELECT COALESCE(SUM(cantidad_disponible),0) FROM recibido_bodega WHERE producto_id = p.id) as stock'),
-                DB::raw('(SELECT url_img FROM img_producto WHERE producto_id = p.id ORDER BY id ASC LIMIT 1) as imagen'),
                 DB::raw('SUM(vhp.cantidad) as total_vendido'),
             ])
             ->groupBy('p.id', 'p.nombre', 'p.codigo_barra', 'p.codigo_estatal', 'p.isv', 'm.nombre')
             ->orderByDesc('total_vendido')
             ->limit(12)
             ->get();
+
+        if ($items->isNotEmpty()) {
+            $ids = $items->pluck('id')->all();
+
+            $stockMap = DB::table('recibido_bodega')
+                ->select('producto_id', DB::raw('SUM(cantidad_disponible) as stock'))
+                ->whereIn('producto_id', $ids)
+                ->groupBy('producto_id')
+                ->get()->keyBy('producto_id');
+
+            $imgMap = DB::table('img_producto')
+                ->select('producto_id', 'url_img')
+                ->whereIn('producto_id', $ids)
+                ->orderBy('producto_id')->orderBy('id')
+                ->get()->unique('producto_id')->keyBy('producto_id');
+
+            $items->each(function ($item) use ($stockMap, $imgMap) {
+                $item->stock  = isset($stockMap[$item->id]) ? (float) $stockMap[$item->id]->stock : 0;
+                $item->imagen = isset($imgMap[$item->id])  ? $imgMap[$item->id]->url_img : null;
+            });
+        }
 
         return response()->json($items);
     }

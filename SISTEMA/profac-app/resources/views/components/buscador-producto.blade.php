@@ -121,6 +121,13 @@
             <div class="modal-body p-0"
                  style="flex: 1 1 auto; overflow: hidden; display: flex; flex-direction: column; min-height: 0;">
 
+                {{-- Barra de progreso animada durante la búsqueda --}}
+                <div id="{{ $suf }}_loadbar" class="d-none"
+                     style="height:3px; flex-shrink:0;
+                            background: linear-gradient(90deg, #1a73e8 0%, #4dabf7 40%, #1a73e8 80%);
+                            background-size: 200% 100%;
+                            animation: bsp_loadbar 1s linear infinite;"></div>
+
                 <div id="{{ $suf }}_grid"
                      style="flex: 1 1 auto; overflow-y: auto; overflow-x: hidden; padding: .5rem;">
                     {{-- Label dinámico de sección (ej: Más vendidos / resultados) --}}
@@ -151,8 +158,19 @@
 @push('styles')
 <style>
 /* Buscador de producto: z-index por encima del sidebar (max z-index sidebar = 10000) */
-#{{ $idModal }}                              { z-index: 20050 !important; }
-.modal-backdrop                             { z-index: 20040 !important; }
+#{{ $idModal }}  { z-index: 20050 !important; }
+.modal-backdrop  { z-index: 20040 !important; }
+/* Barra de carga animada — @@keyframes evita que Blade interprete el @ */
+@@keyframes bsp_loadbar {
+    0%   { background-position: 100% 0; }
+    100% { background-position: -100% 0; }
+}
+/* Pulso de los skeleton cards */
+@@keyframes bsp_pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: .45; }
+}
+.bsp-skeleton { animation: bsp_pulse 1.2s ease-in-out infinite; }
 </style>
 @endpush
 
@@ -173,8 +191,41 @@
     var conStock      = false;
     var timer         = null;
     var filtersLoaded = false;
-    var abortCtrl     = null;   // cancelación de petición en vuelo
+    var reqSeq        = 0;      // contador de peticiones; la respuesta sólo se procesa si coincide
     var isPreview     = false;  // true cuando se muestran los más vendidos
+
+    /* ── loading helpers ────────────────────── */
+    function showLoading() {
+        var lb  = el(S + '_loadbar');
+        var sp  = el(S + '_spinner');
+        var inf = el(S + '_info');
+        var pg  = el(S + '_pagination');
+        if (lb)  lb.classList.remove('d-none');
+        if (sp)  sp.classList.remove('d-none');
+        if (inf) inf.textContent = '';
+        if (pg)  pg.innerHTML = '';
+        // Skeleton placeholder — respuesta visual inmediata
+        var cont = el(S + '_results');
+        if (cont) {
+            var sk = '';
+            for (var i = 0; i < 6; i++) {
+                sk += '<div class="col-6 col-sm-4 col-md-3 col-lg-2 p-1">' +
+                      '<div class="card border-0 h-100 bsp-skeleton" style="border-radius:10px;overflow:hidden;background:#f0f2f5;">' +
+                      '<div style="height:78px;background:#dde1e8;"></div>' +
+                      '<div class="p-2">' +
+                      '<div style="height:11px;background:#dde1e8;border-radius:4px;margin-bottom:5px;"></div>' +
+                      '<div style="height:9px;background:#e5e8ee;border-radius:4px;width:65%;"></div>' +
+                      '</div></div></div>';
+            }
+            cont.innerHTML = sk;
+        }
+    }
+    function hideLoading() {
+        var lb = el(S + '_loadbar');
+        var sp = el(S + '_spinner');
+        if (lb) lb.classList.add('d-none');
+        if (sp) sp.classList.add('d-none');
+    }
 
     /* ── helpers ────────────────────────────── */
     function el(id) { return document.getElementById(id); }
@@ -221,22 +272,16 @@
 
     function loadTopVendidos() {
         isPreview = true;
-        if (abortCtrl) { try { abortCtrl.abort(); } catch(e) {} }
-        abortCtrl = new AbortController();
-        el(S + '_spinner').classList.remove('d-none');
-        el(S + '_info').textContent = '';
-        axios.get('/productos/buscar/top-vendidos', { signal: abortCtrl.signal })
+        var mySeq = ++reqSeq;
+        showLoading();
+        axios.get('/productos/buscar/top-vendidos')
             .then(function (r) {
-                abortCtrl = null;
-                el(S + '_spinner').classList.add('d-none');
+                if (reqSeq !== mySeq) return;   // petición obsoleta, ignorar
+                hideLoading();
                 renderPreview(r.data);
-            }).catch(function (err) {
-                if (err.name === 'CanceledError' || err.name === 'AbortError'
-                        || err.code === 'ERR_CANCELED') return;
-                abortCtrl = null;
-                el(S + '_spinner').classList.add('d-none');
-                // Si falla el top-vendidos, caer en búsqueda normal
-                doSearch();
+            }).catch(function () {
+                if (reqSeq !== mySeq) return;
+                hideLoading();
             });
     }
 
@@ -274,17 +319,10 @@
         } else {
             sec.classList.add('d-none');
         }
-        // Cancelar petición anterior si sigue activa
-        if (abortCtrl) {
-            try { abortCtrl.abort(); } catch (e) {}
-        }
-        abortCtrl = new AbortController();
-
-        el(S + '_spinner').classList.remove('d-none');
-        el(S + '_info').textContent = '…';
+        var mySeq = ++reqSeq;   // incrementar ANTES de lanzar la petición
+        showLoading();
 
         axios.get('/productos/buscar', {
-            signal: abortCtrl.signal,
             params: {
                 q:            query,
                 categoria_id: catId,
@@ -293,20 +331,17 @@
                 page:         page
             }
         }).then(function (r) {
-            abortCtrl = null;
-            el(S + '_spinner').classList.add('d-none');
+            if (reqSeq !== mySeq) return;   // el usuario ya escribió algo más, ignorar
+            hideLoading();
             renderResults(r.data);
-        }).catch(function (err) {
-            // Ignorar si fue cancelada (el usuario siguió escribiendo)
-            if (err.name === 'CanceledError' || err.name === 'AbortError'
-                    || err.code === 'ERR_CANCELED') return;
-            abortCtrl = null;
-            el(S + '_spinner').classList.add('d-none');
-            el(S + '_info').textContent = '-';
+        }).catch(function () {
+            if (reqSeq !== mySeq) return;
+            hideLoading();
+            el(S + '_info').textContent = '';
             el(S + '_results').innerHTML =
                 '<div class="col-12 text-center py-5 text-danger">' +
                 '<i class="fa fa-exclamation-circle fa-2x mb-2 d-block"></i>' +
-                'Error al realizar la búsqueda. Intente de nuevo.</div>';
+                '<span>Error al realizar la búsqueda. Intente de nuevo.</span></div>';
             el(S + '_pagination').innerHTML = '';
         });
     }
@@ -454,9 +489,9 @@
         el(S + '_info').textContent = '…';
         if (query === '' && catId === '' && marcaId === '' && !conStock) {
             // Volver a mostrar los más vendidos si se borraron todos los filtros
-            timer = setTimeout(loadTopVendidos, 450);
+            timer = setTimeout(loadTopVendidos, 300);
         } else {
-            timer = setTimeout(doSearch, 450);
+            timer = setTimeout(doSearch, 300);
         }
     });
 
@@ -504,10 +539,11 @@
         setTimeout(function () { var inp = el(S + '_input'); if (inp) inp.focus(); }, 350);
     });
 
-    // Al cerrar, cancelar cualquier petición pendiente
+    // Al cerrar: invalidar peticiones pendientes y ocultar barra de carga
     $('#' + MODAL_ID).on('hidden.bs.modal', function () {
         clearTimeout(timer);
-        if (abortCtrl) { try { abortCtrl.abort(); } catch (e) {} abortCtrl = null; }
+        ++reqSeq;       // cualquier respuesta en vuelo será ignorada
+        hideLoading();
     });
 
 })();
