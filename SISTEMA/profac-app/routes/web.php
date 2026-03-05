@@ -352,6 +352,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/facturas/corporativo/lista/nd', [ListadoFacturasND::class, 'listarFacturas']);
 
     //-----------------------------------------------Usuarios-------------------------------------------------------------------------------------------//
+    Route::get('/usuarios/dashboard', App\Http\Livewire\Usuarios\Dashboard::class)->name('usuarios.dashboard');
     Route::get('/usuarios', ListarUsuarios::class);
     Route::get('/usuarios/listar/usuarios', [ListarUsuarios::class, 'listarUsuarios']);
     Route::get('/usuario/info/{idUsuario}', [ListarUsuarios::class, 'infoUsuario']);
