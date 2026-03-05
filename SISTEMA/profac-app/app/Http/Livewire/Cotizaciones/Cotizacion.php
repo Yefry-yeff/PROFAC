@@ -325,6 +325,7 @@ class Cotizacion extends Component
 
         $datos = DB::SELECTONE("
             select
+            A.cliente_id as clienteId,
             concat(YEAR(NOW()),'-',A.id) as codigo,
             B.nombre,
             B.direccion,
@@ -462,6 +463,7 @@ class Cotizacion extends Component
 
         $datos = DB::SELECTONE("
             select
+            A.cliente_id AS clienteId,
             concat(YEAR(NOW()),'-',A.id) as codigo,
             B.nombre,
             B.direccion,

@@ -517,6 +517,7 @@ class expo extends Component
 
         $datos = DB::SELECTONE("
             select
+            A.cliente_id AS clienteId,
             concat(YEAR(NOW()),'-',A.id) as codigo,
             B.nombre,
             B.direccion,
@@ -610,6 +611,7 @@ class expo extends Component
         $datos = DB::SELECT(
             "
                 select
+            A.cliente_id AS clienteId,
                       C.id as codigoProducto,
                     C.nombre as nombre1,
                     C.descripcion as nombre,
@@ -653,6 +655,7 @@ class expo extends Component
 
         $datos = DB::SELECTONE("
             select
+            A.cliente_id AS clienteId,
             concat(YEAR(NOW()),'-',A.id) as codigo,
             B.nombre,
             B.direccion,

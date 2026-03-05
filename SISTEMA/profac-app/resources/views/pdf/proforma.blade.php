@@ -90,7 +90,7 @@
 
         <div class="card "   style="margin-left:44px; margin-top:10px; width:45rem; height:6.5rem;">
             <div class="card-body">
-                <p class="card-text" style="position:absolute;left:20px;  top:10px; max-width:500px"><b>Cliente: </b>{{$datos->nombre}}</p>
+                <p class="card-text" style="position:absolute;left:20px;  top:10px; max-width:500px"><b>Cliente: </b>{{$datos->nombre}} - ({{ $datos->clienteId }})</p>
 
                 <br>
                 <br>
@@ -264,13 +264,19 @@
                 </div>
             </div>
 
-            <div style="position:absolute;left:0px;  margin-top:{{$altura2}}px;  width:45rem;">
-                <p class="card-text" style="position:absolute;left:20px;  top:10px;">
-                    _______________________________________</p>
 
-                <p class="card-text" style="position:absolute;left:120px;  top:25px; ">Firma y Sello</p>
-
-            </div>
+                    <div style="position:absolute; left:0px;   width:45rem; margin-top:300px">
+                        <p class="card-text" style="position:absolute;left:20px;  top:10px;">
+                            _______________________________________</p>
+                        <p class="card-text" style="position:absolute;left:450px;  top:10px;">
+                            _______________________________________</p>
+                        <p class="card-text" style="position:absolute;left:20px;  top:25px; max-width:250px;  ">Cliente: {{ strtoupper($datos->nombre) }}</p>
+                        <p class="card-text" style="position:absolute;left:20px;  top:40px; max-width:250px;  ">Recibido por: </p>
+                        <p class="card-text" style="position:absolute;left:20px;  top:55px; max-width:250px;  ">Telefono: </p>
+                        <p class="card-text" style="position:absolute;left:20px;  top:70px; max-width:250px;  "><b>*Se requiere firma y sello de recibido.*</b></p>
+                        <p class="card-text" style="position:absolute;left:495px;  top:25px;">DISTRIBUCIONES VALENCIA</p>
+                        <p class="card-text" style="position:absolute;left:460px;  top:-60px;">Original: Cliente, Copia obligado tributario emisor. </p>
+                    </div>
         </div>
 
 
