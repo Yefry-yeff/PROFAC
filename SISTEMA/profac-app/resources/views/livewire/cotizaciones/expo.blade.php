@@ -795,6 +795,7 @@
         <!-- Librería QuaggaJS para scanner de códigos de barras -->
         <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
 
+        <script>var public_path = "{{ asset('catalogo/') }}";</script>
         <script src="{{ asset('js/js_proyecto/cotizaciones/expo.js') }}"></script>
 
     @endpush

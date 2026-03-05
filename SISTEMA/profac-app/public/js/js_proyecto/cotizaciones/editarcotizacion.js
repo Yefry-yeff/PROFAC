@@ -7,8 +7,6 @@ obtenerCategoriasClientes();
 var retencionEstado = false;
 window.onload = obtenerTipoPago;
 
-var public_path = "{{ asset('catalogo/') }}";
-
 
 const searchRegExp = /\"/g;
 

@@ -72,7 +72,6 @@
             var retencionEstado = false; // true  aplica retencion, false no aplica retencion;
 
             window.onload = obtenerTipoPago;
-            var public_path = "{{ asset('catalogo/') }}";
             var diasCredito = 0;
 
             //validando que no escriban un numero que no este entre 0 y 25

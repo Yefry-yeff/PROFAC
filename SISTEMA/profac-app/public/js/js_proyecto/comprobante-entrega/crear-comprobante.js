@@ -4,7 +4,6 @@ var arregloIdInputs = [];
 var retencionEstado = false; // true  aplica retencion, false no aplica retencion;
 
 window.onload = obtenerTipoPago;
-var public_path = "{{ asset('catalogo/') }}";
 var diasCredito = 0;
 
 

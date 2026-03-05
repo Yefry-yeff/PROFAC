@@ -536,7 +536,7 @@
 
 
     @push('scripts')
-
+        <script>var public_path = "{{ asset('catalogo/') }}";</script>
         <script src="{{ asset('js/js_proyecto/comprobante-entrega/crear-comprobante.js') }}"></script>
     @endpush
 </div>

@@ -7,8 +7,6 @@ var retencionEstado = false; // true  aplica retencion, false no aplica retencio
 
 window.onload = obtenerTipoPago;
 
-var public_path = "{{ asset('catalogo/') }}";
-
 // for (let i = 0; i < arregloIdInputsTemporal.length; i++) {
 
 //     if(!isNaN(arregloIdInputsTemporal[i]) ){

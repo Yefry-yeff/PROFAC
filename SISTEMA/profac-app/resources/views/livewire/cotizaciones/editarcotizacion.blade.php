@@ -453,6 +453,7 @@
 
 
         </script>
+        <script>var public_path = "{{ asset('catalogo/') }}";</script>
         <script src="{{ asset('js/js_proyecto/cotizaciones/editarcotizacion.js') }}"></script>
     @endpush
 </div>
