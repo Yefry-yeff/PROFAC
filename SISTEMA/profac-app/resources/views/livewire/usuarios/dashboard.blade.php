@@ -2,6 +2,7 @@
     {{-- ══════════════════════════════════════════════════════════════
          PANEL DE CONFIGURACIÓN DE WIDGETS
     ══════════════════════════════════════════════════════════════ --}}
+    @if($showConfigPanel)
     <div class="row">
         <div class="col-lg-12">
             <div class="ibox" style="margin-bottom:14px;">
@@ -47,7 +48,7 @@
             </div>
         </div>
     </div>
-
+    @endif
 
     {{-- ══════════════════════════════════════════════════════════════
          WIDGETS — Contenedor único con drag-and-drop por título

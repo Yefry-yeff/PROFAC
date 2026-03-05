@@ -59,7 +59,7 @@
          WIDGETS DEL DASHBOARD (métricas, gráficos, tablas)
     ══════════════════════════════════════════════════════════════════ --}}
     <div style="margin-top:24px;">
-        @livewire('usuarios.dashboard')
+        @livewire('usuarios.dashboard', ['showConfigPanel' => false])
     </div>
   </div>
 

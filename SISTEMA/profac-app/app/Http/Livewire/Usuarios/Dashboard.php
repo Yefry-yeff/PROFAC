@@ -11,6 +11,9 @@ class Dashboard extends Component
     /** widget_key => visible (bool), loaded from DB prefs */
     public $widgetPrefs = [];
 
+    /** Whether to show the config panel (hidden when embedded in main dashboard) */
+    public $showConfigPanel = true;
+
     /** widget_key => row from dashboard_widgets (as array) */
     protected $widgetCatalog = null;
 

@@ -109,8 +109,8 @@
 
     {{-- ══════════  MODAL CREAR / EDITAR WIDGET  ══════════════════════════ --}}
     @if($modalAbierto)
-    <div class="modal fade show" style="display:block; background:rgba(0,0,0,.5); z-index:9000;" tabindex="-1">
-        <div class="modal-dialog" style="max-width:640px; margin-top:60px;">
+    <div class="modal fade show" style="display:block; background:rgba(0,0,0,.5); z-index:9000; overflow-x:hidden; overflow-y:auto;" tabindex="-1">
+        <div class="modal-dialog" style="max-width:640px; margin:30px auto;">
             <div class="modal-content">
 
                 <div class="modal-header" style="background:#1ab394;">
@@ -123,7 +123,7 @@
                     </button>
                 </div>
 
-                <div class="modal-body" style="padding:20px 24px;">
+                <div class="modal-body" style="padding:20px 24px; max-height:calc(100vh - 180px); overflow-y:auto;">
 
                     {{-- Nombre --}}
                     <div class="form-group">
