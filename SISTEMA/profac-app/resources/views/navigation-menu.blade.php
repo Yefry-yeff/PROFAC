@@ -839,25 +839,25 @@
 
                     /* ========== Off-canvas en móvil: oculto por defecto, visible al expandir ========== */
                     @media (max-width: 768px) {
-                        .navbar-static-side {
+                        nav.navbar-static-side {
                             transition: left 0.25s ease;
-                            left: -80px !important; /* Oculto por defecto */
+                            left: -80px !important;
                             width: 70px !important;
                         }
-                        body.mobile-sidebar-open .navbar-static-side {
-                            left: 0 !important; /* Visible al expandir */
+                        body.mobile-sidebar-open nav.navbar-static-side {
+                            left: 0 !important;
                         }
                     }
 
                     /* ========== Off-canvas en tablet: oculto por defecto, visible al expandir ========== */
                     @media (min-width: 769px) and (max-width: 992px) {
-                        .navbar-static-side {
+                        nav.navbar-static-side {
                             transition: left 0.25s ease;
-                            left: -80px !important; /* Oculto por defecto */
+                            left: -80px !important;
                             width: 70px !important;
                         }
-                        body.mobile-sidebar-open .navbar-static-side {
-                            left: 0 !important; /* Visible al expandir */
+                        body.mobile-sidebar-open nav.navbar-static-side {
+                            left: 0 !important;
                         }
                     }
                 </style>
