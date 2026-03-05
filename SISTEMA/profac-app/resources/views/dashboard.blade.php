@@ -54,6 +54,13 @@
         </div>
       </div>
     </div>
+
+    {{-- ══════════════════════════════════════════════════════════════════
+         WIDGETS DEL DASHBOARD (métricas, gráficos, tablas)
+    ══════════════════════════════════════════════════════════════════ --}}
+    <div style="margin-top:24px;">
+        @livewire('usuarios.dashboard')
+    </div>
   </div>
 
   <script>
