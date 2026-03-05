@@ -205,6 +205,16 @@
 
     <!---menu lateral de la plantilla--->
     <style>
+        /* ====== Dropdown z-index: must be above INSPINIA sidebar (z-index:2001) ====== */
+        nav.sticky {
+            z-index: 3000;
+            position: sticky !important;
+        }
+        .profile-area .relative > div:last-child,
+        nav.sticky [x-show] {
+            z-index: 9999 !important;
+        }
+
         /* ====== Header mobile layout: center logo, align buttons ====== */
         @media (max-width: 768px) {
             /* Make header row positioning context */
