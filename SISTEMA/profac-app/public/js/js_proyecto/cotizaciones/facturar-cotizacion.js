@@ -763,30 +763,22 @@ function obtenerDatosCliente() {
                     let selectBox = document.getElementById("tipoPagoVenta");
                     selectBox.remove(2);
 
+                    $('#categoriaCliente').data('categoria-cliente-id', data.idcategoriacliente);
+                    if (document.getElementById('seleccionarProducto').value) {
+                        cargarCategoriasProducto();
+                    }
+
                 } else {
                     document.getElementById("nombre_cliente_ventas").readOnly = true;
                     document.getElementById("rtn_ventas").readOnly = true;
 
                     document.getElementById("nombre_cliente_ventas").value = data.nombre;
                     document.getElementById("rtn_ventas").value = data.rtn;
-                    obtenerTipoPago();
-                    diasCredito = data.dias_credito;
-                    cargarHistorialPreciosFacturaCoti();
-                }
 
-
-
-            }
-        )
-        .catch(err => {
-
-            console.log(err);
-            Swal.fire({
-                icon: 'error',
-                title: 'Error...',
-                text: "Ha ocurrido un error al obtener los datos del cliente"
-            })
-
+                    $('#categoriaCliente').data('categoria-cliente-id', data.idcategoriacliente);
+                    if (document.getElementById('seleccionarProducto').value) {
+                        cargarCategoriasProducto();
+                    }
 
         })
 

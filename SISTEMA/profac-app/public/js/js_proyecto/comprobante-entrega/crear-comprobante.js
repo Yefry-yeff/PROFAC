@@ -296,10 +296,20 @@ function cargarCategoriasProducto() {
                     categoriaClienteId = $('#categoria_cliente_venta_id').data('categoria-cliente-id');
                 }
 
-                // Mostrar todas las categorías disponibles
+                // Ordenar categorías por precio_a de mayor a menor
+                categorias.sort((a, b) => (parseFloat(b.precio_a) || 0) - (parseFloat(a.precio_a) || 0));
+
+                // Mostrar todas las categorías disponibles con precio
                 categorias.forEach(categoria => {
+                    let precio = parseFloat(categoria.precio_a) || 0;
+                    let precioFormateado = new Intl.NumberFormat('es-HN', {
+                        style: 'currency',
+                        currency: 'HNL',
+                        minimumFractionDigits: 2,
+                    }).format(precio);
+                    let textoOpcion = `${categoria.nombre_categoria} - ${precioFormateado}`;
                     let isSelected = (categoriaClienteId && categoria.id == categoriaClienteId);
-                    let option = new Option(categoria.nombre_categoria, categoria.id, isSelected, isSelected);
+                    let option = new Option(textoOpcion, categoria.id, isSelected, isSelected);
                     $('#categoria_cliente_venta_id').append(option);
                 });
 
@@ -750,12 +760,17 @@ function obtenerDatosCliente() {
                     let selectBox = document.getElementById("tipoPagoVenta");
                     selectBox.remove(2);
 
-                    // Establecer categoría del cliente genérico
                     $('#categoria_cliente_nombre').text(data.nombre_categoria);
                     $('#categoria_cliente_venta_id').data('categoria-cliente-id', data.idcategoriacliente);
-                    $('#categoria_cliente_venta_id').empty();
-                    $('#categoria_cliente_venta_id').append(new Option(data.nombre_categoria, data.idcategoriacliente, true, true));
-                    // NO deshabilitar el select - el usuario puede cambiar la categoría
+
+                    // Si ya hay un producto seleccionado, recargar todas sus categorías
+                    // con la nueva categoría del cliente pre-seleccionada
+                    if ($('#seleccionarProducto').val()) {
+                        cargarCategoriasProducto();
+                    } else {
+                        $('#categoria_cliente_venta_id').empty();
+                        $('#categoria_cliente_venta_id').append(new Option(data.nombre_categoria, data.idcategoriacliente, true, true));
+                    }
 
                 } else {
                     document.getElementById("nombre_cliente_ventas").readOnly = true;
@@ -764,12 +779,17 @@ function obtenerDatosCliente() {
                     document.getElementById("nombre_cliente_ventas").value = data.nombre;
                     document.getElementById("rtn_ventas").value = data.rtn;
 
-                    // Establecer categoría del cliente
                     $('#categoria_cliente_nombre').text(data.nombre_categoria);
                     $('#categoria_cliente_venta_id').data('categoria-cliente-id', data.idcategoriacliente);
-                    $('#categoria_cliente_venta_id').empty();
-                    $('#categoria_cliente_venta_id').append(new Option(data.nombre_categoria, data.idcategoriacliente, true, true));
-                    // NO deshabilitar el select - el usuario puede cambiar la categoría
+
+                    // Si ya hay un producto seleccionado, recargar todas sus categorías
+                    // con la nueva categoría del cliente pre-seleccionada
+                    if ($('#seleccionarProducto').val()) {
+                        cargarCategoriasProducto();
+                    } else {
+                        $('#categoria_cliente_venta_id').empty();
+                        $('#categoria_cliente_venta_id').append(new Option(data.nombre_categoria, data.idcategoriacliente, true, true));
+                    }
 
                     obtenerTipoPago();
                     diasCredito = data.dias_credito;

@@ -1476,9 +1476,15 @@
                                 // Establecer la categoría del cliente pero NO bloquear
                                 $('#categoria_cliente_nombre').text(data.nombre_categoria);
                                 $('#categoria_cliente_venta_id').data('categoria-cliente-id', data.idcategoriacliente);
-                                $('#categoria_cliente_venta_id').empty();
-                                $('#categoria_cliente_venta_id').append(new Option(data.nombre_categoria, data.idcategoriacliente, true, true));
-                                // NO deshabilitar - permitir que el usuario elija otra categoría si lo desea
+
+                                // Si ya hay un producto seleccionado, recargar todas sus categorías
+                                // con la nueva categoría del cliente pre-seleccionada
+                                if ($('#seleccionarProducto').val()) {
+                                    cargarCategoriasProducto();
+                                } else {
+                                    $('#categoria_cliente_venta_id').empty();
+                                    $('#categoria_cliente_venta_id').append(new Option(data.nombre_categoria, data.idcategoriacliente, true, true));
+                                }
 
                             } else {
                                 document.getElementById("nombre_cliente_ventas").readOnly = true;
@@ -1488,10 +1494,14 @@
                                 $('#categoria_cliente_nombre').text(data.nombre_categoria);
                                 $('#categoria_cliente_venta_id').data('categoria-cliente-id', data.idcategoriacliente);
 
-                                // Establecer la categoría del cliente pero NO bloquear
-                                $('#categoria_cliente_venta_id').empty();
-                                $('#categoria_cliente_venta_id').append(new Option(data.nombre_categoria, data.idcategoriacliente, true, true));
-                                // NO deshabilitar - permitir que el usuario elija otra categoría si lo desea
+                                // Si ya hay un producto seleccionado, recargar todas sus categorías
+                                // con la nueva categoría del cliente pre-seleccionada
+                                if ($('#seleccionarProducto').val()) {
+                                    cargarCategoriasProducto();
+                                } else {
+                                    $('#categoria_cliente_venta_id').empty();
+                                    $('#categoria_cliente_venta_id').append(new Option(data.nombre_categoria, data.idcategoriacliente, true, true));
+                                }
 
                                 diasCredito = data.dias_credito;
                                 obtenerTipoPago();
