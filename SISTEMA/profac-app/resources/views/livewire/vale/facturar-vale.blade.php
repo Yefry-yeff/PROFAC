@@ -191,33 +191,51 @@
 
 
                                             <label class="col-form-label focus-label">Seleccionar Producto:<span class="text-danger">*</span></label>
-                                            <select id="seleccionarProducto" name="seleccionarProducto" class="form-group form-control d-none">
-                                                <option value="" selected disabled>--Seleccione un producto--</option>
-                                            </select>
                                             <div class="input-group">
-                                                <input type="text" id="bsp_display_facturarVale"
-                                                       class="form-control" readonly
-                                                       placeholder="-- Ningún producto seleccionado --"
-                                                       style="background:#fff; cursor:pointer;"
-                                                       onclick="window['abrirBuscador_buscadorProductoFacturarVale']('')">
+                                                <input type="text" id="codigoProductoFacturarVale" class="form-control"
+                                                       placeholder="ID o nombre del producto…" autocomplete="off"
+                                                       onkeydown="if(event.key==='Enter'){buscarPorCodigoFacturarVale(this.value);return false;}">
                                                 <div class="input-group-append">
-                                                    <button type="button" class="btn btn-primary"
-                                                            onclick="window['abrirBuscador_buscadorProductoFacturarVale']('')"
-                                                            title="Buscar producto">
+                                                    <button type="button" class="btn btn-primary" title="Buscar producto"
+                                                            onclick="limpiarProductoFacturarVale(); window['abrirBuscador_buscadorProductoFacturarVale'](document.getElementById('codigoProductoFacturarVale').value||'')">
                                                         <i class="fa fa-search"></i>
                                                     </button>
                                                 </div>
                                             </div>
+                                            <small id="productoSeleccionadoFacturarVale" class="text-success font-weight-bold mt-1 d-block d-none"></small>
+                                            {{-- Hidden select conserva la compatibilidad con el JS existente --}}
+                                            <select id="seleccionarProducto" name="seleccionarProducto" class="d-none">
+                                                <option value="" selected disabled></option>
+                                            </select>
                                             <x-buscador-producto id-modal="buscadorProductoFacturarVale" callback="alSeleccionarProductoFacturarVale" />
                                             @push('scripts')
                                             <script>
+                                            function limpiarProductoFacturarVale() {
+                                                document.getElementById('seleccionarProducto').innerHTML = '<option value="" selected disabled></option>';
+                                                document.getElementById('codigoProductoFacturarVale').value = '';
+                                                var lbl = document.getElementById('productoSeleccionadoFacturarVale');
+                                                lbl.classList.add('d-none'); lbl.textContent = '';
+                                            }
                                             function alSeleccionarProductoFacturarVale(producto) {
-                                                document.getElementById('bsp_display_facturarVale').value =
-                                                    producto.nombre + (producto.marca_nombre ? ' | ' + producto.marca_nombre : '');
-                                                var sel = document.getElementById('seleccionarProducto');
-                                                while (sel.options.length > 1) sel.remove(1);
-                                                sel.add(new Option(producto.nombre, producto.id, true, true));
+                                                var select = document.getElementById('seleccionarProducto');
+                                                select.innerHTML = '<option value="' + producto.id + '" selected>' + producto.nombre + '</option>';
+                                                document.getElementById('codigoProductoFacturarVale').value = producto.nombre;
+                                                var label = document.getElementById('productoSeleccionadoFacturarVale');
+                                                label.textContent = '✓ ' + producto.nombre + ' (ID: ' + producto.id + ')';
+                                                label.classList.remove('d-none');
                                                 cargarCategoriasProducto();
+                                            }
+                                            function buscarPorCodigoFacturarVale(cod) {
+                                                cod = String(cod).trim();
+                                                if (!cod) { window['abrirBuscador_buscadorProductoFacturarVale'](''); return; }
+                                                axios.get('/productos/buscar', { params: { q: cod, page: 1 } })
+                                                    .then(function(r) {
+                                                        var items = r.data.data;
+                                                        var exact = items.find(function(p) { return String(p.id) === cod; });
+                                                        if (exact) { alSeleccionarProductoFacturarVale(exact); }
+                                                        else if (items.length === 1) { alSeleccionarProductoFacturarVale(items[0]); }
+                                                        else { window['abrirBuscador_buscadorProductoFacturarVale'](cod); }
+                                                    });
                                             }
                                             </script>
                                             @endpush
@@ -1164,8 +1182,10 @@
 
                         document.getElementById("seleccionarCliente").innerHTML='<option value="" selected disabled>--Seleccionar un cliente--</option>';
 
-                        document.getElementById('seleccionarProducto').innerHTML='<option value="" selected disabled>--Seleccione un producto--</option>';
-                        document.getElementById('bsp_display_facturarVale').value = '';
+                        document.getElementById('seleccionarProducto').innerHTML='<option value="" selected disabled></option>';
+                        document.getElementById('codigoProductoFacturarVale').value = '';
+                        var lbl_p = document.getElementById('productoSeleccionadoFacturarVale');
+                        if (lbl_p) { lbl_p.classList.add('d-none'); lbl_p.textContent = ''; }
                         document.getElementById('bodega').innerHTML='<option value="" selected disabled>--Seleccione un producto--</option>';
                         document.getElementById("bodega").disabled = true;
 

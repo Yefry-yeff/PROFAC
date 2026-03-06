@@ -95,34 +95,51 @@
 
                             <label class="col-form-label focus-label">Seleccionar Producto
                                 Para Vale:<span class="text-danger">*</span></label>
-                            <select id="seleccionarProductoVale" name="seleccionarProductoVale"
-                                class="form-group form-control d-none">
-                                <option value="" selected disabled>--Seleccione un producto--</option>
-                            </select>
                             <div class="input-group">
-                                <input type="text" id="bsp_display_valeListaEspera"
-                                       class="form-control" readonly
-                                       placeholder="-- Ningún producto seleccionado --"
-                                       style="background:#fff; cursor:pointer;"
-                                       onclick="window['abrirBuscador_buscadorProductoValeListaEspera']('')">
+                                <input type="text" id="codigoProductoValeListaEspera" class="form-control"
+                                       placeholder="ID o nombre del producto…" autocomplete="off"
+                                       onkeydown="if(event.key==='Enter'){buscarPorCodigoValeListaEspera(this.value);return false;}">
                                 <div class="input-group-append">
-                                    <button type="button" class="btn btn-primary"
-                                            onclick="window['abrirBuscador_buscadorProductoValeListaEspera']('')"
-                                            title="Buscar producto">
+                                    <button type="button" class="btn btn-primary" title="Buscar producto"
+                                            onclick="limpiarProductoValeListaEspera(); window['abrirBuscador_buscadorProductoValeListaEspera'](document.getElementById('codigoProductoValeListaEspera').value||'')">
                                         <i class="fa fa-search"></i>
                                     </button>
                                 </div>
                             </div>
+                            <small id="productoSeleccionadoValeListaEspera" class="text-success font-weight-bold mt-1 d-block d-none"></small>
+                            {{-- Hidden select conserva la compatibilidad con el JS existente --}}
+                            <select id="seleccionarProductoVale" name="seleccionarProductoVale" class="d-none">
+                                <option value="" selected disabled></option>
+                            </select>
                             <x-buscador-producto id-modal="buscadorProductoValeListaEspera" callback="alSeleccionarProductoValeListaEspera" />
                             @push('scripts')
                             <script>
+                            function limpiarProductoValeListaEspera() {
+                                document.getElementById('seleccionarProductoVale').innerHTML = '<option value="" selected disabled></option>';
+                                document.getElementById('codigoProductoValeListaEspera').value = '';
+                                var lbl = document.getElementById('productoSeleccionadoValeListaEspera');
+                                lbl.classList.add('d-none'); lbl.textContent = '';
+                            }
                             function alSeleccionarProductoValeListaEspera(producto) {
-                                document.getElementById('bsp_display_valeListaEspera').value =
-                                    producto.nombre + (producto.marca_nombre ? ' | ' + producto.marca_nombre : '');
-                                var sel = document.getElementById('seleccionarProductoVale');
-                                while (sel.options.length > 1) sel.remove(1);
-                                sel.add(new Option(producto.nombre, producto.id, true, true));
+                                var select = document.getElementById('seleccionarProductoVale');
+                                select.innerHTML = '<option value="' + producto.id + '" selected>' + producto.nombre + '</option>';
+                                document.getElementById('codigoProductoValeListaEspera').value = producto.nombre;
+                                var label = document.getElementById('productoSeleccionadoValeListaEspera');
+                                label.textContent = '✓ ' + producto.nombre + ' (ID: ' + producto.id + ')';
+                                label.classList.remove('d-none');
                                 obtenerImagenesVale();
+                            }
+                            function buscarPorCodigoValeListaEspera(cod) {
+                                cod = String(cod).trim();
+                                if (!cod) { window['abrirBuscador_buscadorProductoValeListaEspera'](''); return; }
+                                axios.get('/productos/buscar', { params: { q: cod, page: 1 } })
+                                    .then(function(r) {
+                                        var items = r.data.data;
+                                        var exact = items.find(function(p) { return String(p.id) === cod; });
+                                        if (exact) { alSeleccionarProductoValeListaEspera(exact); }
+                                        else if (items.length === 1) { alSeleccionarProductoValeListaEspera(items[0]); }
+                                        else { window['abrirBuscador_buscadorProductoValeListaEspera'](cod); }
+                                    });
                             }
                             </script>
                             @endpush

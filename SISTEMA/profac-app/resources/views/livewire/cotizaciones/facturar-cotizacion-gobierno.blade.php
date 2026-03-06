@@ -221,35 +221,53 @@
 
                                     <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
                                         <label class="col-form-label focus-label">Seleccionar Producto:</label>
-                                        <select id="seleccionarProducto" name="seleccionarProducto"
-                                            class="form-group form-control d-none">
-                                            <option value="" selected disabled>--Seleccione un producto--</option>
-                                        </select>
-                                        <div class="input-group mt-1">
-                                            <input type="text" id="bsp_display_facturaCotiGob" class="form-control"
-                                                   readonly placeholder="-- Ningún producto seleccionado --"
-                                                   style="background:#fff; cursor:pointer;"
-                                                   onclick="window['abrirBuscador_buscadorProductoFacturaCotiGob']('')">
+                                        <div class="input-group">
+                                            <input type="text" id="codigoProductoFacturaCotiGob" class="form-control"
+                                                   placeholder="ID o nombre del producto…" autocomplete="off"
+                                                   onkeydown="if(event.key==='Enter'){buscarPorCodigoFacturaCotiGob(this.value);return false;}">
                                             <div class="input-group-append">
-                                                <button type="button" class="btn btn-primary"
-                                                        onclick="window['abrirBuscador_buscadorProductoFacturaCotiGob']('')"
-                                                        title="Buscar producto">
+                                                <button type="button" class="btn btn-primary" title="Buscar producto"
+                                                        onclick="limpiarProductoFacturaCotiGob(); window['abrirBuscador_buscadorProductoFacturaCotiGob'](document.getElementById('codigoProductoFacturaCotiGob').value||'')">
                                                     <i class="fa fa-search"></i>
                                                 </button>
                                             </div>
                                         </div>
+                                        <small id="productoSeleccionadoFacturaCotiGob" class="text-success font-weight-bold mt-1 d-block d-none"></small>
+                                        {{-- Hidden select conserva la compatibilidad con el JS existente --}}
+                                        <select id="seleccionarProducto" name="seleccionarProducto" class="d-none">
+                                            <option value="" selected disabled></option>
+                                        </select>
                                         <x-buscador-producto id-modal="buscadorProductoFacturaCotiGob" callback="alSeleccionarProductoFacturaCotiGob" />
                                         @push('scripts')
                                         <script>
+                                        function limpiarProductoFacturaCotiGob() {
+                                            document.getElementById('seleccionarProducto').innerHTML = '<option value="" selected disabled></option>';
+                                            document.getElementById('codigoProductoFacturaCotiGob').value = '';
+                                            var lbl = document.getElementById('productoSeleccionadoFacturaCotiGob');
+                                            lbl.classList.add('d-none'); lbl.textContent = '';
+                                        }
                                         function alSeleccionarProductoFacturaCotiGob(producto) {
-                                            document.getElementById('bsp_display_facturaCotiGob').value =
-                                                producto.nombre + (producto.marca_nombre ? ' | ' + producto.marca_nombre : '');
-                                            var sel = document.getElementById('seleccionarProducto');
-                                            while (sel.options.length > 1) sel.remove(1);
-                                            sel.add(new Option(producto.nombre, producto.id, true, true));
+                                            var select = document.getElementById('seleccionarProducto');
+                                            select.innerHTML = '<option value="' + producto.id + '" selected>' + producto.nombre + '</option>';
+                                            document.getElementById('codigoProductoFacturaCotiGob').value = producto.nombre;
+                                            var label = document.getElementById('productoSeleccionadoFacturaCotiGob');
+                                            label.textContent = '✓ ' + producto.nombre + ' (ID: ' + producto.id + ')';
+                                            label.classList.remove('d-none');
                                             cargarCategoriasProducto();
                                         }
-                                        <\/script>
+                                        function buscarPorCodigoFacturaCotiGob(cod) {
+                                            cod = String(cod).trim();
+                                            if (!cod) { window['abrirBuscador_buscadorProductoFacturaCotiGob'](''); return; }
+                                            axios.get('/productos/buscar', { params: { q: cod, page: 1 } })
+                                                .then(function(r) {
+                                                    var items = r.data.data;
+                                                    var exact = items.find(function(p) { return String(p.id) === cod; });
+                                                    if (exact) { alSeleccionarProductoFacturaCotiGob(exact); }
+                                                    else if (items.length === 1) { alSeleccionarProductoFacturaCotiGob(items[0]); }
+                                                    else { window['abrirBuscador_buscadorProductoFacturaCotiGob'](cod); }
+                                                });
+                                        }
+                                        </script>
                                         @endpush
                                     </div>
 

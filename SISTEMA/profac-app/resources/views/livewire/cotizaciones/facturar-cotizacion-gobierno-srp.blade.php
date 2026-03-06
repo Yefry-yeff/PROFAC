@@ -238,35 +238,53 @@
 
                                     <label class="col-form-label focus-label">Seleccionar
                                         Producto:<span class="text-danger">*</span></label>
-                                    <select id="seleccionarProducto" name="seleccionarProducto"
-                                        class="form-group form-control d-none">
-                                        <option value="" selected disabled>--Seleccione un producto--</option>
-                                    </select>
-                                    <div class="input-group mt-1">
-                                        <input type="text" id="bsp_display_facturaCotiGobSrp" class="form-control"
-                                               readonly placeholder="-- Ningún producto seleccionado --"
-                                               style="background:#fff; cursor:pointer;"
-                                               onclick="window['abrirBuscador_buscadorProductoFacturaCotiGobSrp']('')">
+                                    <div class="input-group">
+                                        <input type="text" id="codigoProductoFacturaCotiGobSrp" class="form-control"
+                                               placeholder="ID o nombre del producto…" autocomplete="off"
+                                               onkeydown="if(event.key==='Enter'){buscarPorCodigoFacturaCotiGobSrp(this.value);return false;}">
                                         <div class="input-group-append">
-                                            <button type="button" class="btn btn-primary"
-                                                    onclick="window['abrirBuscador_buscadorProductoFacturaCotiGobSrp']('')"
-                                                    title="Buscar producto">
+                                            <button type="button" class="btn btn-primary" title="Buscar producto"
+                                                    onclick="limpiarProductoFacturaCotiGobSrp(); window['abrirBuscador_buscadorProductoFacturaCotiGobSrp'](document.getElementById('codigoProductoFacturaCotiGobSrp').value||'')">
                                                 <i class="fa fa-search"></i>
                                             </button>
                                         </div>
                                     </div>
+                                    <small id="productoSeleccionadoFacturaCotiGobSrp" class="text-success font-weight-bold mt-1 d-block d-none"></small>
+                                    {{-- Hidden select conserva la compatibilidad con el JS existente --}}
+                                    <select id="seleccionarProducto" name="seleccionarProducto" class="d-none">
+                                        <option value="" selected disabled></option>
+                                    </select>
                                     <x-buscador-producto id-modal="buscadorProductoFacturaCotiGobSrp" callback="alSeleccionarProductoFacturaCotiGobSrp" />
                                     @push('scripts')
                                     <script>
+                                    function limpiarProductoFacturaCotiGobSrp() {
+                                        document.getElementById('seleccionarProducto').innerHTML = '<option value="" selected disabled></option>';
+                                        document.getElementById('codigoProductoFacturaCotiGobSrp').value = '';
+                                        var lbl = document.getElementById('productoSeleccionadoFacturaCotiGobSrp');
+                                        lbl.classList.add('d-none'); lbl.textContent = '';
+                                    }
                                     function alSeleccionarProductoFacturaCotiGobSrp(producto) {
-                                        document.getElementById('bsp_display_facturaCotiGobSrp').value =
-                                            producto.nombre + (producto.marca_nombre ? ' | ' + producto.marca_nombre : '');
-                                        var sel = document.getElementById('seleccionarProducto');
-                                        while (sel.options.length > 1) sel.remove(1);
-                                        sel.add(new Option(producto.nombre, producto.id, true, true));
+                                        var select = document.getElementById('seleccionarProducto');
+                                        select.innerHTML = '<option value="' + producto.id + '" selected>' + producto.nombre + '</option>';
+                                        document.getElementById('codigoProductoFacturaCotiGobSrp').value = producto.nombre;
+                                        var label = document.getElementById('productoSeleccionadoFacturaCotiGobSrp');
+                                        label.textContent = '✓ ' + producto.nombre + ' (ID: ' + producto.id + ')';
+                                        label.classList.remove('d-none');
                                         cargarCategoriasProducto();
                                     }
-                                    <\/script>
+                                    function buscarPorCodigoFacturaCotiGobSrp(cod) {
+                                        cod = String(cod).trim();
+                                        if (!cod) { window['abrirBuscador_buscadorProductoFacturaCotiGobSrp'](''); return; }
+                                        axios.get('/productos/buscar', { params: { q: cod, page: 1 } })
+                                            .then(function(r) {
+                                                var items = r.data.data;
+                                                var exact = items.find(function(p) { return String(p.id) === cod; });
+                                                if (exact) { alSeleccionarProductoFacturaCotiGobSrp(exact); }
+                                                else if (items.length === 1) { alSeleccionarProductoFacturaCotiGobSrp(items[0]); }
+                                                else { window['abrirBuscador_buscadorProductoFacturaCotiGobSrp'](cod); }
+                                            });
+                                    }
+                                    </script>
                                     @endpush
 
 

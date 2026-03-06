@@ -893,8 +893,10 @@ function guardarVenta() {
                 '<option value="" selected disabled>--Seleccionar un cliente--</option>';
 
             document.getElementById('seleccionarProducto').innerHTML =
-                '<option value="" selected disabled>--Seleccione un producto--</option>';
-            document.getElementById('bsp_display_facturaCoti').value = '';
+                '<option value="" selected disabled></option>';
+            document.getElementById('codigoProductoFacturaCoti').value = '';
+            var lbl_p = document.getElementById('productoSeleccionadoFacturaCoti');
+            if (lbl_p) { lbl_p.classList.add('d-none'); lbl_p.textContent = ''; }
             document.getElementById('bodega').innerHTML =
                 '<option value="" selected disabled>--Seleccione un producto--</option>';
             document.getElementById("bodega").disabled = true;

@@ -199,34 +199,51 @@
                                     <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
                                         <label class="col-form-label focus-label">Seleccionar
                                             Producto:<span class="text-danger">*</span></label>
-                                        <select id="seleccionarProducto" name="seleccionarProducto"
-                                            class="form-group form-control d-none">
-                                            <option value="" selected disabled>--Seleccione un producto--</option>
-                                        </select>
                                         <div class="input-group">
-                                            <input type="text" id="bsp_display_cotizacion"
-                                                   class="form-control" readonly
-                                                   placeholder="-- Ningún producto seleccionado --"
-                                                   style="background:#fff; cursor:pointer;"
-                                                   onclick="window['abrirBuscador_buscadorProductoCotizacion']('')">
+                                            <input type="text" id="codigoProductoCotizacion" class="form-control"
+                                                   placeholder="ID o nombre del producto…" autocomplete="off"
+                                                   onkeydown="if(event.key==='Enter'){buscarPorCodigoCotizacion(this.value);return false;}">
                                             <div class="input-group-append">
-                                                <button type="button" class="btn btn-primary"
-                                                        onclick="window['abrirBuscador_buscadorProductoCotizacion']('')"
-                                                        title="Buscar producto">
+                                                <button type="button" class="btn btn-primary" title="Buscar producto"
+                                                        onclick="limpiarProductoCotizacion(); window['abrirBuscador_buscadorProductoCotizacion'](document.getElementById('codigoProductoCotizacion').value||'')">
                                                     <i class="fa fa-search"></i>
                                                 </button>
                                             </div>
                                         </div>
+                                        <small id="productoSeleccionadoCotizacion" class="text-success font-weight-bold mt-1 d-block d-none"></small>
+                                        {{-- Hidden select conserva la compatibilidad con el JS existente --}}
+                                        <select id="seleccionarProducto" name="seleccionarProducto" class="d-none">
+                                            <option value="" selected disabled></option>
+                                        </select>
                                         <x-buscador-producto id-modal="buscadorProductoCotizacion" callback="alSeleccionarProductoCotizacion" />
                                         @push('scripts')
                                         <script>
+                                        function limpiarProductoCotizacion() {
+                                            document.getElementById('seleccionarProducto').innerHTML = '<option value="" selected disabled></option>';
+                                            document.getElementById('codigoProductoCotizacion').value = '';
+                                            var lbl = document.getElementById('productoSeleccionadoCotizacion');
+                                            lbl.classList.add('d-none'); lbl.textContent = '';
+                                        }
                                         function alSeleccionarProductoCotizacion(producto) {
-                                            document.getElementById('bsp_display_cotizacion').value =
-                                                producto.nombre + (producto.marca_nombre ? ' | ' + producto.marca_nombre : '');
-                                            var sel = document.getElementById('seleccionarProducto');
-                                            while (sel.options.length > 1) sel.remove(1);
-                                            sel.add(new Option(producto.nombre, producto.id, true, true));
+                                            var select = document.getElementById('seleccionarProducto');
+                                            select.innerHTML = '<option value="' + producto.id + '" selected>' + producto.nombre + '</option>';
+                                            document.getElementById('codigoProductoCotizacion').value = producto.nombre;
+                                            var label = document.getElementById('productoSeleccionadoCotizacion');
+                                            label.textContent = '✓ ' + producto.nombre + ' (ID: ' + producto.id + ')';
+                                            label.classList.remove('d-none');
                                             cargarCategoriasProducto();
+                                        }
+                                        function buscarPorCodigoCotizacion(cod) {
+                                            cod = String(cod).trim();
+                                            if (!cod) { window['abrirBuscador_buscadorProductoCotizacion'](''); return; }
+                                            axios.get('/productos/buscar', { params: { q: cod, page: 1 } })
+                                                .then(function(r) {
+                                                    var items = r.data.data;
+                                                    var exact = items.find(function(p) { return String(p.id) === cod; });
+                                                    if (exact) { alSeleccionarProductoCotizacion(exact); }
+                                                    else if (items.length === 1) { alSeleccionarProductoCotizacion(items[0]); }
+                                                    else { window['abrirBuscador_buscadorProductoCotizacion'](cod); }
+                                                });
                                         }
                                         </script>
                                         @endpush
