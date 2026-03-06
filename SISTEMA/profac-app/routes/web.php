@@ -534,6 +534,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/estatal/tipo/pago', [FacturacionEstatal::class, 'tipoPagoVenta']);
     Route::get('/estatal/listar/bodegas/{idProducto}', [FacturacionEstatal::class, 'listarBodegas']);
     Route::post('/estatal/datos/producto', [FacturacionEstatal::class, 'obtenerDatosProducto']);
+    Route::post('/estatal/historial/precios', [FacturacionEstatal::class, 'historialPreciosCliente']);
 
     Route::post('/ventas/estatal/guardar', [FacturacionEstatal::class, 'guardarVenta']);
     Route::get('/ventas/numero/orden', [FacturacionEstatal::class, 'obtenerOrdenCompra']);

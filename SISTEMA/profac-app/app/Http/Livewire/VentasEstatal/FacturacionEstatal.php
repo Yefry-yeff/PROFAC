@@ -1136,4 +1136,39 @@ class FacturacionEstatal extends Component
         ],200);
 
     }
+
+    public function historialPreciosCliente(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'cliente_id'  => 'required|integer',
+            'producto_id' => 'required|integer',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['message' => 'Datos inválidos'], 422);
+        }
+
+        try {
+            $historial = DB::select("
+                SELECT
+                    f.fecha_emision,
+                    f.numero_factura,
+                    vhp.precio_unidad,
+                    vhp.cantidad,
+                    vhp.total,
+                    COALESCE(cp.nombre, 'Sin categoría') AS categoria
+                FROM factura f
+                INNER JOIN venta_has_producto vhp ON f.id = vhp.factura_id
+                LEFT JOIN precios_producto_carga ppc ON vhp.precios_producto_carga_id = ppc.id
+                LEFT JOIN categoria_precios cp ON ppc.categoria_precios_id = cp.id
+                WHERE f.cliente_id = ? AND vhp.producto_id = ?
+                ORDER BY f.fecha_emision DESC, f.id DESC
+                LIMIT 5
+            ", [$request->cliente_id, $request->producto_id]);
+
+            return response()->json(['historial' => $historial], 200);
+        } catch (QueryException $e) {
+            return response()->json(['message' => 'Error al consultar historial', 'error' => $e->getMessage()], 500);
+        }
+    }
 }
