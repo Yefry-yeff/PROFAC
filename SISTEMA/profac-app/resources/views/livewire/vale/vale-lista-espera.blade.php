@@ -517,10 +517,17 @@
 
                             let categoriaClienteId = $('#categoria_cliente_venta_id').data('categoria-cliente-id');
 
+                            categorias.sort((a, b) => (parseFloat(b.precio_a) || 0) - (parseFloat(a.precio_a) || 0));
+
                             categorias.forEach(categoria => {
+                                let precio = parseFloat(categoria.precio_a) || 0;
+                                let precioFormateado = new Intl.NumberFormat('es-HN', {
+                                    style: 'currency', currency: 'HNL', minimumFractionDigits: 2,
+                                }).format(precio);
+                                let textoOpcion = `${categoria.nombre_categoria} - ${precioFormateado}`;
                                 // Si es la categoría del cliente, pre-seleccionarla
                                 let isSelected = (clienteId && categoria.id == categoriaClienteId);
-                                let option = new Option(categoria.nombre_categoria, categoria.id, isSelected, isSelected);
+                                let option = new Option(textoOpcion, categoria.id, isSelected, isSelected);
                                 $('#categoria_cliente_venta_id').append(option);
                             });
 
