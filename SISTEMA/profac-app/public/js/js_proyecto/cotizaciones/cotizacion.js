@@ -951,6 +951,7 @@
                                 diasCredito = data.dias_credito;
                             }
 
+                            cargarHistorialPrecosCotizacion();
                             //console.log("Antes de solicitar productos");
                             //obtenerProductosCategoria();
                             //console.log("Despues de solicitar productos");

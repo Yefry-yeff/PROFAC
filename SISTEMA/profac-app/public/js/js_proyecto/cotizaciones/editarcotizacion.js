@@ -781,6 +781,7 @@ function obtenerDatosCliente() {
                     diasCredito = data.dias_credito;
                     obtenerTipoPago();
                     obtenerOrdenesCompra();
+                    cargarHistorialPreciosEditarCoti();
                 }
 
             }

@@ -771,6 +771,7 @@ function obtenerDatosCliente() {
                     document.getElementById("rtn_ventas").value = data.rtn;
                     obtenerTipoPago();
                     diasCredito = data.dias_credito;
+                    cargarHistorialPreciosFacturaCoti();
                 }
 
 

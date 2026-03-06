@@ -808,6 +808,7 @@ function obtenerDatosCliente() {
                     diasCredito = data.dias_credito;
                     obtenerTipoPago();
                     obtenerOrdenesCompra();
+                    cargarHistorialPreciosFacturaCotiGob();
                 }
 
                 // document.getElementById('fecha_vencimiento').value = "";

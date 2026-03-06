@@ -773,6 +773,7 @@ function obtenerDatosCliente() {
 
                     obtenerTipoPago();
                     diasCredito = data.dias_credito;
+                    cargarHistorialPreciosCrearComprobante();
                 }
 
 

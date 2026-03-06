@@ -215,6 +215,7 @@
                                             document.getElementById('codigoProductoVentasExon').value = '';
                                             var lbl = document.getElementById('productoSeleccionadoVentasExon');
                                             lbl.classList.add('d-none'); lbl.textContent = '';
+                                            document.getElementById('historialPreciosPanel').classList.add('d-none');
                                         }
                                         function alSeleccionarProductoVentasExon(producto) {
                                             var select = document.getElementById('seleccionarProducto');
@@ -224,6 +225,7 @@
                                             label.textContent = '✓ ' + producto.nombre + ' (ID: ' + producto.id + ')';
                                             label.classList.remove('d-none');
                                             cargarCategoriasProducto();
+                                            cargarHistorialPreciosVentasExon();
                                         }
                                         function buscarPorCodigoVentasExon(cod) {
                                             cod = String(cod).trim();
@@ -236,6 +238,25 @@
                                                     else if (items.length === 1) { alSeleccionarProductoVentasExon(items[0]); }
                                                     else { window['abrirBuscador_buscadorProductoVentasExon'](cod); }
                                                 });
+                                        }
+                                        function cargarHistorialPreciosVentasExon() {
+                                            var productoId = $('#seleccionarProducto').val();
+                                            var clienteId  = $('#seleccionarCliente').val();
+                                            var panel  = document.getElementById('historialPreciosPanel');
+                                            var cuerpo = document.getElementById('historialPreciosCuerpo');
+                                            if (!productoId || !clienteId) { panel.classList.add('d-none'); return; }
+                                            cuerpo.innerHTML = '<p class="text-muted small"><i class="fa fa-spinner fa-spin"></i> Cargando historial...</p>';
+                                            panel.classList.remove('d-none');
+                                            axios.post('/estatal/historial/precios', { cliente_id: clienteId, producto_id: productoId })
+                                            .then(function(response) {
+                                                var rows = response.data.historial;
+                                                if (!rows || rows.length === 0) { cuerpo.innerHTML = '<p class="text-muted small">No hay ventas previas de este producto a este cliente.</p>'; return; }
+                                                var fmt = new Intl.NumberFormat('es-HN', { style: 'currency', currency: 'HNL', minimumFractionDigits: 2 });
+                                                var html = '<div class="table-responsive"><table class="table table-sm table-bordered table-hover mb-0" style="font-size:0.82rem;"><thead class="thead-light"><tr><th>Fecha</th><th>Factura</th><th>Precio Unit.</th><th>Cant.</th><th>Total</th><th>Categoría</th></tr></thead><tbody>';
+                                                rows.forEach(function(r) { html += '<tr><td>' + r.fecha_emision + '</td><td>' + r.numero_factura + '</td><td class="text-right font-weight-bold text-success">' + fmt.format(r.precio_unidad) + '</td><td class="text-center">' + r.cantidad + '</td><td class="text-right">' + fmt.format(r.total) + '</td><td><span class="badge badge-secondary">' + r.categoria + '</span></td></tr>'; });
+                                                html += '</tbody></table></div>';
+                                                cuerpo.innerHTML = html;
+                                            }).catch(function() { cuerpo.innerHTML = '<p class="text-danger small">Error al cargar el historial.</p>'; });
                                         }
                                         </script>
                                         @endpush
@@ -322,6 +343,12 @@
                                             style="font-weight: 900; " onclick="agregarProductoCarrito()">Añadir
                                             Producto a venta <i class="fa-solid fa-cart-plus"></i> </button>
 
+                                    </div>
+
+                                    {{-- Historial de precios del producto para este cliente --}}
+                                    <div id="historialPreciosPanel" class="d-none mt-3">
+                                        <h5 class="mb-2 text-dark"><i class="fa fa-history text-info"></i> Últimas 5 ventas a este cliente</h5>
+                                        <div id="historialPreciosCuerpo"><p class="text-muted small">Cargando...</p></div>
                                     </div>
 
                                 </div>
@@ -1220,6 +1247,7 @@
                                 obtenerCodigosExoneracion();
 
                                 obtenerOrdenesCompra();
+                                cargarHistorialPreciosVentasExon();
                             }
 
 
