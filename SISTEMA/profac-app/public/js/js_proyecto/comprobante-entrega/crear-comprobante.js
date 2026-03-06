@@ -899,6 +899,7 @@ function guardarVenta() {
 
             document.getElementById('seleccionarProducto').innerHTML =
                 '<option value="" selected disabled>--Seleccione un producto--</option>';
+            document.getElementById('bsp_display_crearComprobante').value = '';
             document.getElementById('bodega').innerHTML =
                 '<option value="" selected disabled>--Seleccione un producto--</option>';
             document.getElementById("bodega").disabled = true;

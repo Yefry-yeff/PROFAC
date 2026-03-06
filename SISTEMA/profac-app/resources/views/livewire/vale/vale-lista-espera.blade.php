@@ -93,12 +93,39 @@
                         <div class="col-12 col-md-6 col-lg-6 col-xl-6">
 
 
-                            <label for="seleccionarProductoVale" class="col-form-label focus-label">Seleccionar Producto
+                            <label class="col-form-label focus-label">Seleccionar Producto
                                 Para Vale:<span class="text-danger">*</span></label>
                             <select id="seleccionarProductoVale" name="seleccionarProductoVale"
-                                class="form-group form-control" style="" onchange="obtenerImagenesVale()">
+                                class="form-group form-control d-none">
                                 <option value="" selected disabled>--Seleccione un producto--</option>
                             </select>
+                            <div class="input-group">
+                                <input type="text" id="bsp_display_valeListaEspera"
+                                       class="form-control" readonly
+                                       placeholder="-- Ningún producto seleccionado --"
+                                       style="background:#fff; cursor:pointer;"
+                                       onclick="window['abrirBuscador_buscadorProductoValeListaEspera']('')">
+                                <div class="input-group-append">
+                                    <button type="button" class="btn btn-primary"
+                                            onclick="window['abrirBuscador_buscadorProductoValeListaEspera']('')"
+                                            title="Buscar producto">
+                                        <i class="fa fa-search"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <x-buscador-producto id-modal="buscadorProductoValeListaEspera" callback="alSeleccionarProductoValeListaEspera" />
+                            @push('scripts')
+                            <script>
+                            function alSeleccionarProductoValeListaEspera(producto) {
+                                document.getElementById('bsp_display_valeListaEspera').value =
+                                    producto.nombre + (producto.marca_nombre ? ' | ' + producto.marca_nombre : '');
+                                var sel = document.getElementById('seleccionarProductoVale');
+                                while (sel.options.length > 1) sel.remove(1);
+                                sel.add(new Option(producto.nombre, producto.id, true, true));
+                                obtenerImagenesVale();
+                            }
+                            </script>
+                            @endpush
 
 
 

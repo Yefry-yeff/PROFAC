@@ -190,13 +190,38 @@
                                 <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6 ">
 
                                     <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                        <label for="seleccionarProducto"
-                                            class="col-form-label focus-label">Seleccionar Producto:</label>
+                                        <label class="col-form-label focus-label">Seleccionar Producto:</label>
                                         <select id="seleccionarProducto" name="seleccionarProducto"
-                                            class="form-group form-control">
-                                            <option value="" selected disabled>--Seleccione un producto--
-                                            </option>
+                                            class="form-group form-control d-none">
+                                            <option value="" selected disabled>--Seleccione un producto--</option>
                                         </select>
+                                        <div class="input-group">
+                                            <input type="text" id="bsp_display_ventasExon"
+                                                   class="form-control" readonly
+                                                   placeholder="-- Ningún producto seleccionado --"
+                                                   style="background:#fff; cursor:pointer;"
+                                                   onclick="window['abrirBuscador_buscadorProductoVentasExon']('')">
+                                            <div class="input-group-append">
+                                                <button type="button" class="btn btn-primary"
+                                                        onclick="window['abrirBuscador_buscadorProductoVentasExon']('')"
+                                                        title="Buscar producto">
+                                                    <i class="fa fa-search"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <x-buscador-producto id-modal="buscadorProductoVentasExon" callback="alSeleccionarProductoVentasExon" />
+                                        @push('scripts')
+                                        <script>
+                                        function alSeleccionarProductoVentasExon(producto) {
+                                            document.getElementById('bsp_display_ventasExon').value =
+                                                producto.nombre + (producto.marca_nombre ? ' | ' + producto.marca_nombre : '');
+                                            var sel = document.getElementById('seleccionarProducto');
+                                            while (sel.options.length > 1) sel.remove(1);
+                                            sel.add(new Option(producto.nombre, producto.id, true, true));
+                                            cargarCategoriasProducto();
+                                        }
+                                        </script>
+                                        @endpush
                                     </div>
 
 
@@ -1334,6 +1359,7 @@
 
                         document.getElementById('seleccionarProducto').innerHTML =
                             '<option value="" selected disabled>--Seleccione un producto--</option>';
+                        document.getElementById('bsp_display_ventasExon').value = '';
                         document.getElementById('bodega').innerHTML =
                             '<option value="" selected disabled>--Seleccione un producto--</option>';
                         document.getElementById("bodega").disabled = true;
