@@ -100,7 +100,7 @@
                 const mensajeError = document.getElementById('mensajeError');
                 const numero = parseFloat(numeroInput.value);
 
-                if (isNaN(numero) || numero < 0 || numero > 100) {
+                if (isNaN(numero) || numero < 0 || numero > 50) {
                     mensajeError.textContent = 'Este campo solo admite un valor entre 0 a 100';
                     numeroInput.value = '';
                 } else {

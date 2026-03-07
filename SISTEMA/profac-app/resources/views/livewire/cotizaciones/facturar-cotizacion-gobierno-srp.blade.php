@@ -162,7 +162,7 @@
                                             <label for="porDescuento" class="col-form-label focus-label">Descuento aplicado
                                                 %
                                                 :<span class="text-danger">*</span></label>
-                                            <input class="form-control" type="number" min="0" max="35"
+                                            <input class="form-control" type="number" min="0" max="50"
                                                 value="{{ $cotizacion->porc_descuento }}" minlength="1" maxlength="2"
                                                 id="porDescuento" name="porDescuento" data-parsley-required
                                                 onchange="calcularTotalesInicioPagina()" >
@@ -315,7 +315,7 @@
 
                                 <div class="col-12 col-md-4 col-lg-4 col-xl-4">
                                     <label for="categoriaCliente" class="col-form-label focus-label">Categoría / Cliente:<span class="text-danger">*</span></label>
-                                    <select id="categoriaCliente" name="categoriaCliente" class="form-group form-control" 
+                                    <select id="categoriaCliente" name="categoriaCliente" class="form-group form-control"
                                         onchange="habilitarBodega()" disabled>
                                         <option value="" selected disabled>--Seleccione un producto--</option>
                                     </select>

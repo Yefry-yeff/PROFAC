@@ -647,9 +647,9 @@
                             // SIEMPRE mostrar TODAS las categorías disponibles del producto
                             // El usuario puede elegir libremente cualquiera
                             $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>--Seleccione una categoría--</option>');
-                            
+
                             let categoriaClienteId = $('#categoria_cliente_venta_id').data('categoria-cliente-id');
-                            
+
                             categorias.forEach(categoria => {
                                 // Formatear el precio
                                 let precio = parseFloat(categoria.precio_a) || 0;
@@ -667,7 +667,7 @@
                                 let option = new Option(textoOpcion, categoria.id, isSelected, isSelected);
                                 $('#categoria_cliente_venta_id').append(option);
                             });
-                            
+
                             // NUNCA deshabilitar - el usuario siempre puede elegir
                             $('#categoria_cliente_venta_id').prop('disabled', false);
                         } else {

@@ -33,7 +33,7 @@ function validarDescuento() {
     const mensajeError = document.getElementById('mensajeError');
     const numero = parseFloat(numeroInput.value);
 
-    if (isNaN(numero) || numero < 0 || numero > 25) {
+    if (isNaN(numero) || numero < 0 || numero > 50) {
         mensajeError.textContent = 'Este campo solo admite un valor entre 0 a 25';
         numeroInput.value = '';
     } else {
@@ -100,26 +100,26 @@ $('#seleccionarProducto').select2({
 
 function cargarCategoriasProducto() {
     let idProducto = document.getElementById('seleccionarProducto').value;
-    
+
     document.getElementById('categoriaCliente').innerHTML = "<option value='' selected disabled>--Cargando categorías--</option>";
     document.getElementById('categoriaCliente').disabled = true;
     document.getElementById('bodega').innerHTML = "<option value='' selected disabled>--Seleccione una categoría--</option>";
     document.getElementById('bodega').disabled = true;
-    
+
     axios.post('/producto/categorias-disponibles', {
         producto_id: idProducto
     })
     .then(response => {
         let categorias = response.data.categorias;
         let htmlCategorias = '<option value="" selected disabled>--Seleccione una categoría--</option>';
-        
+
         categorias.forEach(categoria => {
             htmlCategorias += `<option value="${categoria.id}">${categoria.nombre_categoria}</option>`;
         });
-        
+
         document.getElementById('categoriaCliente').innerHTML = htmlCategorias;
         document.getElementById('categoriaCliente').disabled = false;
-        
+
         obtenerImagenes();
     })
     .catch(err => {
