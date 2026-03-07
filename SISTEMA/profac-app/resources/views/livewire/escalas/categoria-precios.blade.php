@@ -405,6 +405,65 @@ textarea.form-control, input.form-control {
     </div>
 </div>
 
+<!-- Modal: Seleccionar categorías a excluir (solo modo General) -->
+<div class="modal fade" id="modalSeleccionarCategoriasGeneral" tabindex="-1" role="dialog"
+     aria-labelledby="modalSelCatTitle" aria-hidden="true"
+     data-backdrop="static" data-keyboard="false">
+  <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+    <div class="border-0 rounded shadow-lg modal-content">
+      <div class="modal-header bg-warning">
+        <h5 class="modal-title font-weight-bold" id="modalSelCatTitle">
+          <i class="bi bi-funnel-fill mr-2"></i> Categorías a Actualizar — Modo General
+        </h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body px-4 py-3">
+        <div class="alert alert-warning mb-3">
+          <i class="bi bi-exclamation-triangle mr-1"></i>
+          <strong>Modo General:</strong> Se actualizarán <strong>todas</strong> las categorías de precios activas.
+          Desmarca las categorías que <strong>NO</strong> deseas actualizar.
+        </div>
+        <div id="loadingCategoriasModal" class="text-center py-4">
+          <div class="spinner-border text-warning" role="status">
+            <span class="sr-only">Cargando...</span>
+          </div>
+          <p class="mt-2 text-muted">Cargando categorías...</p>
+        </div>
+        <div id="listaCategoriasModal" style="display:none;">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="mb-0 font-weight-bold">Categorías de precios activas:</h6>
+            <div>
+              <button type="button" class="btn btn-sm btn-outline-success mr-1" id="btnSeleccionarTodasCat">
+                <i class="bi bi-check-all"></i> Seleccionar todas
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-danger" id="btnDeseleccionarTodasCat">
+                <i class="bi bi-x-square"></i> Deseleccionar todas
+              </button>
+            </div>
+          </div>
+          <div id="checkboxCategoriasContainer" class="row px-2"></div>
+        </div>
+        <div id="errorCargaCategoriasModal" class="alert alert-danger mb-0" style="display:none;">
+          <i class="bi bi-exclamation-circle mr-1"></i> No se pudieron cargar las categorías. Intente nuevamente.
+        </div>
+      </div>
+      <div class="modal-footer border-0 bg-light">
+        <span class="mr-auto small text-muted">
+          <span id="contadorCatSeleccionadas">0</span> categoría(s) seleccionada(s) para actualizar
+        </span>
+        <button type="button" class="btn btn-outline-secondary" data-dismiss="modal" id="btnCancelarSelCat">
+          Cancelar
+        </button>
+        <button type="button" class="btn btn-warning font-weight-bold" id="btnConfirmarProcesarGeneral" disabled>
+          <i class="bi bi-check-circle mr-1"></i> Confirmar y Procesar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Overlay de carga para procesamiento -->
 <div id="overlayProcesandoPrecios">
     <div class="overlay-content">
@@ -673,58 +732,15 @@ textarea.form-control, input.form-control {
             msgImportPrecios.removeClass('text-danger').text('');
         });
 
-        // Procesar archivo para PREVIEW
-        btnProcesarPrecios.on('click', function(e) {
-            e.preventDefault();
-
-            // Validar que el archivo sea .xlsx
-            if (fileInputPrecios[0].files.length > 0) {
-                const fileName = fileInputPrecios[0].files[0].name;
-                const fileExt = fileName.split('.').pop().toLowerCase();
-                
-                if (fileExt !== 'xlsx') {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Archivo inválido',
-                        text: 'Solo se permiten archivos con extensión .xlsx'
-                    });
-                    return;
-                }
-            } else {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Advertencia',
-                    text: 'Debe seleccionar un archivo'
-                });
-                return;
-            }
-
-            // Obtener valores de los filtros
+        // =============================================
+        // Función centralizada para ejecutar el AJAX de preview
+        // =============================================
+        function ejecutarPreviewPrecios(categoriasExcluidas) {
             const tipoPlantilla = $('#tipoPlantilla').val();
             const tipoCategoria = $('#tipoCategoria').val();
-            const tipoFiltro = $('#tipoFiltro').val();
-            const valorFiltro = $('#listaTipoFiltro').val();
+            const tipoFiltro    = $('#tipoFiltro').val();
+            const valorFiltro   = $('#listaTipoFiltro').val();
             const categoriaPrecioId = $('#listaTipoFiltroCatPrecios').val();
-
-            // Validar según el tipo de plantilla
-            if (!tipoPlantilla || !tipoCategoria || !tipoFiltro || !valorFiltro) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Campos requeridos',
-                    text: 'Por favor complete todos los filtros antes de procesar el archivo.',
-                });
-                return;
-            }
-
-            // Si es por categoría, validar que se haya seleccionado una categoría de precios
-            if (tipoPlantilla === 'categoria' && !categoriaPrecioId) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Categoría de precios requerida',
-                    text: 'Debe seleccionar una categoría de precios para el modo "Por Categoría".',
-                });
-                return;
-            }
 
             const formData = new FormData(formSubirExcel[0]);
             formData.append('tipoPlantilla', tipoPlantilla);
@@ -734,7 +750,12 @@ textarea.form-control, input.form-control {
             if (tipoPlantilla === 'categoria') {
                 formData.append('categoriaPrecioId', categoriaPrecioId);
             }
-            
+            if (categoriasExcluidas && categoriasExcluidas.length > 0) {
+                categoriasExcluidas.forEach(function(id) {
+                    formData.append('categoriasExcluidas[]', id);
+                });
+            }
+
             // Ocultar previews anteriores
             $('#previewActualizablesPrecios').hide();
             $('#previewNoActualizablesPrecios').hide();
@@ -767,9 +788,7 @@ textarea.form-control, input.form-control {
                     return xhr;
                 },
                 success: function(res) {
-                    // Ocultar overlay
                     $('#overlayProcesandoPrecios').hide();
-                    
                     barProgressPrecios.addClass('bg-info').css('width', '100%');
                     msgImportPrecios.text('Preview generado - Revise los productos');
 
@@ -779,11 +798,9 @@ textarea.form-control, input.form-control {
                     const skippedReasons = debug.skipped_reasons || [];
                     const productosParaProcesar = debug.productos_para_procesar || [];
 
-                    // Mostrar productos a procesar
                     if (rowsToProcess > 0 && productosParaProcesar.length > 0) {
                         $('#countActualizablesPrecios').text(productosParaProcesar.length);
                         let htmlActualizables = '';
-                        
                         productosParaProcesar.forEach(function(item) {
                             htmlActualizables += `
                                 <tr>
@@ -798,27 +815,21 @@ textarea.form-control, input.form-control {
                                 </tr>
                             `;
                         });
-                        
                         $('#tablaActualizablesPrecios').html(htmlActualizables);
                         $('#previewActualizablesPrecios').show();
-                        
-                        // Mostrar botón de finalizar
                         btnProcesarPrecios.hide();
                         btnFinalizarPrecios.show();
                     }
 
-                    // Mostrar productos NO procesados
                     if (skippedReasons.length > 0) {
                         $('#countNoActualizablesPrecios').text(skippedReasons.length);
                         let htmlNoActualizables = '';
                         let tieneErroresFiltros = false;
-                        
                         skippedReasons.forEach(function(item, index) {
                             if (typeof item === 'object') {
                                 if (item.motivo && (item.motivo.includes('no pertenece a la marca') || item.motivo.includes('no pertenece a la categoría'))) {
                                     tieneErroresFiltros = true;
                                 }
-                                
                                 htmlNoActualizables += `
                                     <tr>
                                         <td>${item.fila || index + 1}</td>
@@ -831,7 +842,6 @@ textarea.form-control, input.form-control {
                                 if (typeof item === 'string' && (item.includes('no pertenece a la marca') || item.includes('no pertenece a la categoría'))) {
                                     tieneErroresFiltros = true;
                                 }
-                                
                                 htmlNoActualizables += `
                                     <tr>
                                         <td>${index + 1}</td>
@@ -842,11 +852,8 @@ textarea.form-control, input.form-control {
                                 `;
                             }
                         });
-                        
                         $('#tablaNoActualizablesPrecios').html(htmlNoActualizables);
                         $('#previewNoActualizablesPrecios').show();
-                        
-                        // Si hay errores de filtros, mostrar alerta
                         if (tieneErroresFiltros) {
                             Swal.fire({
                                 icon: 'warning',
@@ -881,13 +888,10 @@ textarea.form-control, input.form-control {
                     }
                 },
                 error: function(xhr) {
-                    // Ocultar overlay
                     $('#overlayProcesandoPrecios').hide();
-                    
                     barProgressPrecios.addClass('bg-danger').css('width', '100%');
                     let t = 'Error al procesar el archivo.';
                     let debugInfo = '';
-                    
                     if (xhr.responseJSON) {
                         if (xhr.responseJSON.text) t = xhr.responseJSON.text;
                         if (xhr.responseJSON.debug) {
@@ -899,17 +903,131 @@ textarea.form-control, input.form-control {
                             }
                         }
                     }
-                    
                     msgImportPrecios.addClass('text-danger').text(t);
-                    
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        html: t + debugInfo
-                    });
+                    Swal.fire({ icon: 'error', title: 'Error', html: t + debugInfo });
                 },
                 headers: {'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')}
             });
+        }
+
+        // =============================================
+        // Procesar archivo para PREVIEW
+        // =============================================
+        btnProcesarPrecios.on('click', function(e) {
+            e.preventDefault();
+
+            // Validar archivo
+            if (fileInputPrecios[0].files.length > 0) {
+                const fileName = fileInputPrecios[0].files[0].name;
+                const fileExt = fileName.split('.').pop().toLowerCase();
+                if (fileExt !== 'xlsx') {
+                    Swal.fire({ icon: 'error', title: 'Archivo inválido', text: 'Solo se permiten archivos con extensión .xlsx' });
+                    return;
+                }
+            } else {
+                Swal.fire({ icon: 'warning', title: 'Advertencia', text: 'Debe seleccionar un archivo' });
+                return;
+            }
+
+            const tipoPlantilla  = $('#tipoPlantilla').val();
+            const tipoCategoria  = $('#tipoCategoria').val();
+            const tipoFiltro     = $('#tipoFiltro').val();
+            const valorFiltro    = $('#listaTipoFiltro').val();
+            const categoriaPrecioId = $('#listaTipoFiltroCatPrecios').val();
+
+            if (!tipoPlantilla || !tipoCategoria || !tipoFiltro || !valorFiltro) {
+                Swal.fire({ icon: 'warning', title: 'Campos requeridos', text: 'Por favor complete todos los filtros antes de procesar el archivo.' });
+                return;
+            }
+
+            if (tipoPlantilla === 'categoria' && !categoriaPrecioId) {
+                Swal.fire({ icon: 'warning', title: 'Categoría de precios requerida', text: 'Debe seleccionar una categoría de precios para el modo "Por Categoría".' });
+                return;
+            }
+
+            // Modo General: mostrar modal de selección de categorías
+            if (tipoPlantilla === 'general') {
+                cargarCategoriasEnModalGeneral();
+                $('#modalSeleccionarCategoriasGeneral').modal('show');
+                return;
+            }
+
+            // Modo Categoría: procesar directamente
+            ejecutarPreviewPrecios([]);
+        });
+
+        // =============================================
+        // Lógica del modal de selección de categorías (Modo General)
+        // =============================================
+        function cargarCategoriasEnModalGeneral() {
+            $('#loadingCategoriasModal').show();
+            $('#listaCategoriasModal').hide();
+            $('#errorCargaCategoriasModal').hide();
+            $('#btnConfirmarProcesarGeneral').prop('disabled', true);
+            $('#checkboxCategoriasContainer').html('');
+
+            $.ajax({
+                url: '/filtros/categoria/precios',
+                method: 'GET',
+                dataType: 'json',
+                success: function(data) {
+                    $('#loadingCategoriasModal').hide();
+                    if (!data || data.length === 0) {
+                        $('#errorCargaCategoriasModal').text('No hay categorías de precios activas en el sistema.').show();
+                        return;
+                    }
+                    let html = '';
+                    data.forEach(function(cat) {
+                        html += `
+                            <div class="col-md-4 col-sm-6 mb-2">
+                                <div class="custom-control custom-checkbox border rounded p-2 bg-white">
+                                    <input type="checkbox" class="custom-control-input cat-precio-check"
+                                           id="cat_check_${cat.id}" value="${cat.id}" checked>
+                                    <label class="custom-control-label font-weight-bold" for="cat_check_${cat.id}">
+                                        ${cat.nombre}
+                                    </label>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    $('#checkboxCategoriasContainer').html(html);
+                    $('#listaCategoriasModal').show();
+                    actualizarContadorCategorias();
+                },
+                error: function() {
+                    $('#loadingCategoriasModal').hide();
+                    $('#errorCargaCategoriasModal').show();
+                }
+            });
+        }
+
+        function actualizarContadorCategorias() {
+            const total = $('.cat-precio-check:checked').length;
+            $('#contadorCatSeleccionadas').text(total);
+            $('#btnConfirmarProcesarGeneral').prop('disabled', total === 0);
+        }
+
+        $(document).on('change', '.cat-precio-check', function() {
+            actualizarContadorCategorias();
+        });
+
+        $('#btnSeleccionarTodasCat').on('click', function() {
+            $('.cat-precio-check').prop('checked', true);
+            actualizarContadorCategorias();
+        });
+
+        $('#btnDeseleccionarTodasCat').on('click', function() {
+            $('.cat-precio-check').prop('checked', false);
+            actualizarContadorCategorias();
+        });
+
+        $('#btnConfirmarProcesarGeneral').on('click', function() {
+            const todasLasIds = $('.cat-precio-check').map(function() { return parseInt($(this).val()); }).get();
+            const seleccionadas = $('.cat-precio-check:checked').map(function() { return parseInt($(this).val()); }).get();
+            const excluidas = todasLasIds.filter(function(id) { return !seleccionadas.includes(id); });
+
+            $('#modalSeleccionarCategoriasGeneral').modal('hide');
+            ejecutarPreviewPrecios(excluidas);
         });
 
         // FINALIZAR actualización de precios

@@ -290,13 +290,15 @@ $collections = Excel::toCollection($import, $full);
     public function previewExcelPrecios(Request $request)
     {
         $v = Validator::make($request->all(), [
-            'archivo_excel'      => 'required|file|max:20480',
-            'tipoPlantilla'      => 'required|in:categoria,general',
-            'tipoCategoria'      => 'required|in:escalable,manual',
-            'tipoFiltro'         => 'required|in:1,2',
-            'valorFiltro'        => 'required|integer',
-            'categoriaPrecioId'  => 'nullable|exists:categoria_precios,id',
+            'archivo_excel'       => 'required|file|max:20480',
+            'tipoPlantilla'       => 'required|in:categoria,general',
+            'tipoCategoria'       => 'required|in:escalable,manual',
+            'tipoFiltro'          => 'required|in:1,2',
+            'valorFiltro'         => 'required|integer',
+            'categoriaPrecioId'   => 'nullable|exists:categoria_precios,id',
             'defaultUnidadMedidaId' => 'nullable|integer|exists:unidad_medida_venta,id',
+            'categoriasExcluidas'   => 'nullable|array',
+            'categoriasExcluidas.*' => 'integer|exists:categoria_precios,id',
         ], [
             'archivo_excel.required' => 'Subí un archivo.',
             'archivo_excel.file'     => 'Archivo inválido.',
@@ -315,6 +317,8 @@ $collections = Excel::toCollection($import, $full);
             $userId = auth()->id() ?? 1;
             $tipoPlantilla = $request->input('tipoPlantilla');
             $categoriaPrecioId = $request->input('categoriaPrecioId');
+            $categoriasExcluidas = $request->input('categoriasExcluidas', []);
+            $categoriasExcluidas = array_map('intval', (array) $categoriasExcluidas);
 
             // Si es general, categoriaPrecioId puede ser null
             // Si es categoria, categoriaPrecioId es requerido
@@ -335,7 +339,8 @@ $collections = Excel::toCollection($import, $full);
                 (int)$userId,
                 $request->input('defaultUnidadMedidaId') ? (int)$request->input('defaultUnidadMedidaId') : null,
                 true, // MODO PREVIEW
-                $tipoPlantilla // Pasar el tipo de plantilla
+                $tipoPlantilla, // Pasar el tipo de plantilla
+                $categoriasExcluidas // Categorías a excluir (solo modo general)
             );
 
             config(['excel.temporary_files.local_path' => storage_path('app/excel-temp')]);
@@ -387,6 +392,7 @@ $collections = Excel::toCollection($import, $full);
                     'defaultUnidadMedidaId' => $request->input('defaultUnidadMedidaId') ? (int)$request->input('defaultUnidadMedidaId') : null,
                     'storedPath' => $storedPath,
                     'readerType' => $readerType,
+                    'categoriasExcluidas' => $categoriasExcluidas,
                 ]
             ]);
 
@@ -455,7 +461,8 @@ $collections = Excel::toCollection($import, $full);
                 $previewData['userId'],
                 $previewData['defaultUnidadMedidaId'],
                 false, // MODO FINAL - SÍ INSERTAR
-                $previewData['tipoPlantilla'] ?? 'categoria' // Tipo de plantilla
+                $previewData['tipoPlantilla'] ?? 'categoria', // Tipo de plantilla
+                $previewData['categoriasExcluidas'] ?? [] // Categorías excluidas
             );
 
             config(['excel.temporary_files.local_path' => storage_path('app/excel-temp')]);

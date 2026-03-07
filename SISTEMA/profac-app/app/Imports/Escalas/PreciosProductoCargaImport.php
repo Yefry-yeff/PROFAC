@@ -25,6 +25,7 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
     protected ?int $defaultUnidadMedidaId;
     protected bool $previewMode;  // Modo preview: solo validar, no insertar
     protected string $tipoPlantilla;  // 'categoria' o 'general'
+    protected array $categoriasExcluidas;  // IDs de categorías a excluir en modo general
 
     // Contadores y variables de control para estadísticas de proceso
     protected int $rowsRead = 0;
@@ -50,7 +51,7 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
      * Constructor: inicializa los parámetros requeridos para el proceso.
      * Se reciben directamente desde el controlador.
      */
-    public function __construct(string $tipoCategoria, int $tipoFiltro, int $valorFiltro, ?int $categoriaPrecioId, int $userId, ?int $defaultUnidadMedidaId = null, bool $previewMode = false, string $tipoPlantilla = 'categoria')
+    public function __construct(string $tipoCategoria, int $tipoFiltro, int $valorFiltro, ?int $categoriaPrecioId, int $userId, ?int $defaultUnidadMedidaId = null, bool $previewMode = false, string $tipoPlantilla = 'categoria', array $categoriasExcluidas = [])
     {
         $this->tipoCategoria         = $tipoCategoria;
         $this->tipoFiltro            = $tipoFiltro;
@@ -60,6 +61,7 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
         $this->defaultUnidadMedidaId = $defaultUnidadMedidaId;
         $this->previewMode           = $previewMode;
         $this->tipoPlantilla         = $tipoPlantilla;
+        $this->categoriasExcluidas   = $categoriasExcluidas;
     }
 
     /**
@@ -172,6 +174,11 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
                 $categoriasPrecios = DB::table('categoria_precios')
                     ->where('estado_id', 1)
                     ->get();
+
+                // Excluir las categorías seleccionadas por el usuario
+                if (!empty($this->categoriasExcluidas)) {
+                    $categoriasPrecios = $categoriasPrecios->whereNotIn('id', $this->categoriasExcluidas)->values();
+                }
                     
                 if ($categoriasPrecios->isEmpty()) {
                     $this->skip("No hay categorías de precios activas en el sistema", $row->toArray());
