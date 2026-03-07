@@ -138,7 +138,7 @@
                                     <label for="tipoPagoVenta" class="col-form-label focus-label">Seleccionar tipo de
                                         pago:<span class="text-danger">*</span></label>
                                     <select class="form-group form-control " name="tipoPagoVenta" id="tipoPagoVenta"
-                                        data-parsley-required onchange="validarFechaPago()">
+                                        data-parsley-required >
                                     </select>
                                 </div>
 
@@ -162,7 +162,7 @@
                                         </label>
                                         <input class="form-control" type="date" id="fecha_vencimiento"
                                             name="fecha_vencimiento" value="" data-parsley-required
-                                            min="{{ date('Y-m-d') }}" readonly>
+                                            min="{{ date('Y-m-d') }}">
                                     </div>
                                 </div>
 
