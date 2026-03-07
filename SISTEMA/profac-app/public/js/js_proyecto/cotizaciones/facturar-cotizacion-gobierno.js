@@ -81,6 +81,23 @@ $('#seleccionarCliente').select2({
 
 
 
+$('#seleccionarProducto').select2({
+    ajax: {
+        url: '/ventas/listar',
+        data: function(params) {
+            var query = {
+                search: params.term,
+                type: 'public',
+                page: params.page || 1
+            }
+
+            // Query parameters will be ?search=[term]&type=public
+
+            return query;
+        }
+    }
+});
+
 function cargarCategoriasProducto() {
     let idProducto = document.getElementById('seleccionarProducto').value;
     

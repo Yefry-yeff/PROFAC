@@ -561,6 +561,29 @@
                 }
             }
 
+            $('#seleccionarProductoVale').select2({
+                ajax: {
+                    type: "POST",
+                    url: '/crear/vale/lista/espera/obtenerProductos',
+                    headers: {
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    },
+                    data: function(params) {
+                        var query = {
+                            search: params.term,
+                            type: 'public',
+                            page: params.page || 1
+                        }
+
+                        // Query parameters will be ?search=[term]&type=public
+
+                        return query;
+                    }
+                }
+            });
+
+
+
 
 
             function validacionPrecio(idPrecios, idprecio){
