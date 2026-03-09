@@ -275,7 +275,7 @@
                             _______________________________________</p>
                         <p class="card-text" style="position:absolute;left:450px;  top:10px;">
                             _______________________________________</p>
-                        <p class="card-text" style="position:absolute;left:20px;  top:25px; max-width:250px;  ">Cliente: {{ strtoupper($datos->nombre) }}</p>
+                        <p class="card-text" style="position:absolute;left:20px;  top:25px; max-width:500px;  ">Cliente: {{ strtoupper($datos->nombre) }}</p>
                         <p class="card-text" style="position:absolute;left:20px;  top:40px; max-width:250px;  ">Recibido por: </p>
                         <p class="card-text" style="position:absolute;left:20px;  top:55px; max-width:250px;  ">Telefono: </p>
                         <p class="card-text" style="position:absolute;left:20px;  top:70px; max-width:250px;  "><b>*Se requiere firma y sello de recibido.*</b></p>
