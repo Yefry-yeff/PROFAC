@@ -100,17 +100,15 @@
     @push('scripts')
         <script>
             var fechaInicio = "{{ $fechaInicio }}";
-            var fechaFinal = "{{ date('Y-m-t') }}";
+            var fechaFinal  = "{{ date('Y-m-t') }}";
+            var tblTranslados = null;
 
             $(document).ready(function() {
                 tablas();
-            })
+            });
 
-            function tablas()
-            {
-
-                $('#tbl_listar_ajustes').DataTable({
-
+            function tablas() {
+                tblTranslados = $('#tbl_listar_ajustes').DataTable({
                     "order": [4, 'desc'],
                     "language": {
                         "url": "/js/plugins/dataTables/i18n/Spanish.json"
@@ -119,66 +117,46 @@
                     responsive: true,
                     'ajax': {
                         'url': "/translados/obtener/listado",
-                        'data': {
-                            'fechaInicio': fechaInicio,
-                            'fechaFinal': fechaFinal,
-                            "_token": "{{ csrf_token() }}"
+                        'data': function(d) {
+                            d.fechaInicio = fechaInicio;
+                            d.fechaFinal  = fechaFinal;
+                            d._token      = "{{ csrf_token() }}";
                         },
-                        'type': 'post'
+                        'type': 'post',
+                        'error': function(xhr, error, thrown) {
+                            console.error('Error DataTable traslados:', xhr.status, xhr.responseText);
+                            alert('Error al cargar el historial de traslados (HTTP ' + xhr.status + '). Revise la consola del navegador.');
+                        }
                     },
                     "columns": [
-
-                        {
-                            data: 'codigo'
-                        },
-                        {
-                            data: 'nombre'
-                        },
-                        {
-                            data: 'cantidad'
-                        },
-                        {
-                            data: 'name'
-                        },
-                        {
-                            data: 'created_at'
-                        },
-                        {
-                            data: 'opciones'
-                        },
-
-
+                        { data: 'codigo' },
+                        { data: 'nombre' },
+                        { data: 'cantidad' },
+                        { data: 'name' },
+                        { data: 'created_at' },
+                        { data: 'opciones', orderable: false, searchable: false },
                     ]
-
-
                 });
-
-
-
             }
 
-
-            function ajustesPorfecha(){
+            function ajustesPorfecha() {
                 let inicio = document.getElementById('fechaInicio').value;
-                let final = document.getElementById('fechaFinal').value;
+                let final  = document.getElementById('fechaFinal').value;
 
+                if (!inicio || !final) {
+                    alert('Seleccione un rango de fechas válido.');
+                    return;
+                }
 
                 fechaInicio = inicio;
-                fechaFinal = final;
+                fechaFinal  = final;
 
-                $('#tbl_listar_ajustes').DataTable().clear().destroy();
-               // $('#tbl_listar_ventas_dos').DataTable().clear().destroy();
-                //$('#tbl_listar_ventas_uno').DataTable().ajax.reload();
+                if ($.fn.DataTable.isDataTable('#tbl_listar_ajustes')) {
+                    $('#tbl_listar_ajustes').DataTable().clear().destroy();
+                }
 
-                this.tablas();
-
-                //$('#tbl_listar_ventas_uno').DataTable().ajax.reload();
-                //$('#tbl_listar_ventas_dos').DataTable().ajax.reload();
+                tablas();
             }
-
-
-
-
         </script>
     @endpush
 </div>

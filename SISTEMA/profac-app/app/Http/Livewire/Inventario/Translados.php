@@ -256,6 +256,8 @@ class Translados extends Component
                 $logTranslados->users_id= Auth::user()->id;
                 $logTranslados->descripcion="Translado de bodega";
                 $logTranslados->translado_id= $IDtraslado;
+                $logTranslados->created_at = now();
+                $logTranslados->updated_at = now();
                 $logTranslados->save();
 
 

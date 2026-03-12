@@ -33,6 +33,13 @@ class HistorialTranslados extends Component
     public function historialTranslados(Request $request){
        try {
 
+        $fechaInicio = $request->fechaInicio;
+        $fechaFinal  = $request->fechaFinal;
+
+        if (empty($fechaInicio) || empty($fechaFinal)) {
+            return response()->json(['error' => 'Fechas requeridas'], 400);
+        }
+
         $listado = DB::SELECT("
         select
         D.id,
@@ -51,8 +58,8 @@ class HistorialTranslados extends Component
         on B.producto_id = C.id
         inner join users
         on A.users_id = users.id
-        where A.descripcion='Translado de bodega' and DATE(A.created_at) BETWEEN '".$request->fechaInicio."' and '".$request->fechaFinal."'
-        ");
+        where A.descripcion='Translado de bodega' and DATE(A.created_at) BETWEEN ? and ?
+        ", [$fechaInicio, $fechaFinal]);
 
         return Datatables::of($listado)
         ->addColumn('opciones', function ($translado) {
@@ -71,14 +78,12 @@ class HistorialTranslados extends Component
         ->rawColumns(['opciones',])
         ->make(true);
 
-       } catch (QueryException $e) {
+       } catch (\Exception $e) {
+       \Log::error('Error historialTranslados: '.$e->getMessage());
        return response()->json([
-        'icon' => '',
-        'text' => '',
-        'title' => '',
-        'message' => 'Ha ocurrido un error',
-        'error' => $e,
-       ],402);
+        'error'   => $e->getMessage(),
+        'message' => 'Ha ocurrido un error al cargar el historial de traslados',
+       ],500);
        }
     }
 
