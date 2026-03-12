@@ -215,17 +215,17 @@
         li.nav-header {
             display: none !important;
         }
-        /* Fondo naranja para TODO el sidebar */
+        /* Fondo degradado para TODO el sidebar (colores del logo Valencia) */
         nav.navbar-static-side,
         .navbar-default.navbar-static-side {
             border: none !important;
-            background: #2f4050 !important;
+            background: linear-gradient(180deg, #F06030 0%, #D02010 55%, #8C1208 100%) !important;
         }
-        /* Submenús segundo nivel: mismo naranja */
+        /* Submenús segundo nivel: oscurecer ligeramente sobre el gradiente */
         .mini-navbar .nav .nav-second-level,
         .navbar-default .nav .nav-second-level,
         .nav-second-level {
-            background-color: #2f4050 !important;
+            background: rgba(0,0,0,0.18) !important;
         }
         /* Ítems activos: realce blanco semitransparente */
         .navbar-default .nav > li.active,
@@ -271,7 +271,7 @@
             border-top: 1px solid rgba(255,255,255,0.2);
             padding: 10px 14px;
             text-align: center;
-            background: #2f4050;
+            background: #8C1208;
         }
         .sidebar-footer-info .sf-sistema {
             font-size: 12px;
@@ -469,12 +469,12 @@
                         color: #ffffff !important;
                     }
                     
-                    /* Submenús como tooltip al hacer hover cuando está minimizado - naranja */
+                    /* Submenús como tooltip al hacer hover cuando está minimizado - rojo oscuro */
                     body.mini-navbar .nav li .nav-second-level {
                         display: none !important;
                         position: fixed !important;
                         left: 70px !important;
-                        background: rgba(47, 64, 80, 0.97) !important;
+                        background: rgba(140, 18, 8, 0.96) !important;
                         border: 1px solid rgba(255, 255, 255, 0.25) !important;
                         border-radius: 8px;
                         box-shadow: 0 4px 20px rgba(0,0,0,0.2);
@@ -634,7 +634,7 @@
                             display: none !important;
                             position: fixed !important;
                             left: 70px !important;
-                            background: rgba(47, 64, 80, 0.97) !important;
+                            background: rgba(140, 18, 8, 0.96) !important;
                             border: 1px solid rgba(255, 255, 255, 0.25) !important;
                             border-radius: 8px;
                             box-shadow: 0 4px 20px rgba(0,0,0,0.25);
@@ -864,14 +864,14 @@
                         position: sticky;
                         top: 0;
                         z-index: 20;
-                        background: #2f4050;
+                        background: linear-gradient(135deg, #F06030, #E04820);
                     }
 
                     #side-menu .dashboard-btn {
                         position: sticky;
                         top: 64px; /* altura del search-sidebar */
                         z-index: 19;
-                        background: #2f4050;
+                        background: linear-gradient(135deg, #E04820, #D02010);
                     }
 
                     /* Mini-navbar: search oculto → dashboard sube al tope */
@@ -942,7 +942,7 @@
                             display: none !important;
                             position: fixed !important;
                             left: 70px !important;
-                            background: rgba(47, 64, 80, 0.97) !important;
+                            background: rgba(140, 18, 8, 0.96) !important;
                             border: 1px solid rgba(255,255,255,0.25) !important;
                             border-radius: 8px;
                             box-shadow: 0 4px 20px rgba(0,0,0,0.25);
