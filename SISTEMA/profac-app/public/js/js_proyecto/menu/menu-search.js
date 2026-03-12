@@ -23,19 +23,20 @@ document.addEventListener('DOMContentLoaded', function() {
             const subMenuContainer = menuItem.querySelector('.nav-second-level');
             const subMenuItems = subMenuContainer ? subMenuContainer.querySelectorAll('li') : [];
             
-            // Si no hay término de búsqueda, mostrar todo normal y cerrar menús
+            // Si no hay término de búsqueda, restaurar estado normal (sin active de búsqueda)
             if (searchTerm === '') {
                 menuItem.style.display = '';
+                // Solo quitar si fue añadido por la búsqueda, no por el menú normal
+                menuItem.classList.remove('search-active');
                 menuItem.classList.remove('active');
                 
-                // Mostrar todos los submenús
                 subMenuItems.forEach(function(subItem) {
                     subItem.style.display = '';
                 });
                 
-                // Ocultar el contenedor de submenús para que no se vea expandido
                 if (subMenuContainer) {
                     subMenuContainer.style.display = '';
+                    subMenuContainer.style.position = '';
                 }
                 return;
             }
@@ -61,17 +62,22 @@ document.addEventListener('DOMContentLoaded', function() {
             // Mostrar/ocultar el menú principal según si tiene submenús visibles
             if (visibleSubmenus > 0) {
                 menuItem.style.display = '';
-                // Forzar expansión del menú si tiene resultados
-                if (!menuItem.classList.contains('active')) {
-                    menuItem.classList.add('active');
-                }
-                // Asegurar que el contenedor de submenús esté visible
+                menuItem.classList.add('search-active');
+                // Expandir el submenú inline (sin depender del class 'active' de MetisMenu)
                 if (subMenuContainer) {
                     subMenuContainer.style.display = 'block';
+                    // En modo mini-navbar los submenús son position:fixed; aquí los forzamos inline
+                    subMenuContainer.style.position = 'static';
+                    subMenuContainer.style.width = '';
+                    subMenuContainer.style.left = '';
                 }
             } else {
                 menuItem.style.display = 'none';
-                menuItem.classList.remove('active');
+                menuItem.classList.remove('search-active');
+                if (subMenuContainer) {
+                    subMenuContainer.style.display = '';
+                    subMenuContainer.style.position = '';
+                }
             }
         });
         
