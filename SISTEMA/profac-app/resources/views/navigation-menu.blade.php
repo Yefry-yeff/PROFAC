@@ -245,12 +245,17 @@
         nav.navbar-static-side {
             position: fixed !important;
             top: 65px !important;          /* igual a la altura del header */
-            left: 0 !important;
             height: calc(100vh - 65px) !important;
             z-index: 2000 !important;      /* siempre por debajo del header (4000) */
             display: flex !important;
             flex-direction: column !important;
             overflow: hidden !important;
+        }
+        /* Solo en escritorio el sidebar está siempre visible a la izquierda */
+        @media (min-width: 993px) {
+            nav.navbar-static-side {
+                left: 0 !important;
+            }
         }
         .sidebar-collapse {
             flex: 1 1 auto !important;
@@ -294,6 +299,41 @@
         @media (max-width: 992px) {
             .sidebar-footer-info { display: none !important; }
             body.mobile-sidebar-open .sidebar-footer-info { display: block !important; }
+        }
+
+        /* ====== Header tablet layout: igual que móvil ====== */
+        @media (min-width: 769px) and (max-width: 992px) {
+            nav .flex.justify-between.h-16 { position: relative; }
+            nav .flex.justify-between.h-16 > .flex {
+                width: 100%;
+                justify-content: center;
+            }
+            nav .navbar-minimalize {
+                position: absolute;
+                left: 12px;
+                top: 50%;
+                transform: translateY(-50%);
+                display: inline-flex !important;
+                z-index: 10;
+                background: #1ab394 !important;
+                color: #ffffff !important;
+                border: none !important;
+                width: 44px; height: 44px;
+                align-items: center; justify-content: center;
+                padding: 0 !important;
+                line-height: 1;
+                border-radius: 6px;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+            }
+            nav .navbar-minimalize i.fa { font-size: 22px; color: #ffffff !important; }
+            nav .profile-area {
+                display: flex !important;
+                position: absolute;
+                right: 14px;
+                top: 50%;
+                transform: translateY(-50%);
+                margin-left: 0;
+            }
         }
 
         /* ====== Header mobile layout: center logo, align buttons ====== */
@@ -904,16 +944,19 @@
                         padding: 8px 20px 8px 35px !important;
                     }
 
-                    /* ========== TABLET: iconos en cerrado, icono+nombre al abrir ========== */
+                    /* ========== TABLET: igual comportamiento que móvil, adaptado ========== */
                     @media (min-width: 769px) and (max-width: 992px) {
-                        .navbar-static-side {
+
+                        /* Sidebar fuera de pantalla por defecto */
+                        nav.navbar-static-side {
                             position: fixed !important;
                             top: 65px !important;
-                            left: 0 !important;
+                            left: -300px !important;
                             height: calc(100vh - 65px) !important;
                             display: flex !important;
                             z-index: 2000 !important;
-                            width: 70px !important;
+                            width: 260px !important;
+                            transition: left 0.3s ease, width 0.3s ease;
                             -webkit-overflow-scrolling: touch;
                         }
 
@@ -922,73 +965,61 @@
                             overflow-x: hidden !important;
                         }
 
-                        /* Cerrado: ocultar textos, flechas, búsqueda; centrar iconos */
-                        body:not(.mini-navbar):not(.mobile-sidebar-open) .nav li a span.nav-label,
-                        body:not(.mini-navbar):not(.mobile-sidebar-open) .nav li a .fa.arrow {
-                            display: none !important;
+                        /* Página ocupa todo el ancho cuando sidebar cerrado */
+                        body:not(.mobile-sidebar-open) #page-wrapper {
+                            margin-left: 0 !important;
                         }
 
-                        body:not(.mini-navbar):not(.mobile-sidebar-open) .nav > li > a {
-                            text-align: center !important;
-                            padding: 14px 10px !important;
-                        }
-
-                        body:not(.mini-navbar):not(.mobile-sidebar-open) .search-sidebar {
-                            display: none !important;
-                        }
-
-                        /* Submenús tooltip en tablet cerrado */
-                        body:not(.mini-navbar):not(.mobile-sidebar-open) .nav li .nav-second-level {
-                            display: none !important;
-                            position: fixed !important;
-                            left: 70px !important;
-                            background: rgba(140, 18, 8, 0.96) !important;
-                            border: 1px solid rgba(255,255,255,0.25) !important;
-                            border-radius: 8px;
-                            box-shadow: 0 4px 20px rgba(0,0,0,0.25);
-                            width: 200px !important;
-                            z-index: 2001 !important;
-                            padding: 10px 0 !important;
-                            max-height: 400px;
-                            overflow-y: auto;
-                        }
-                        body:not(.mini-navbar):not(.mobile-sidebar-open) .nav > li:hover > .nav-second-level,
-                        body:not(.mini-navbar):not(.mobile-sidebar-open) .nav > li.active > .nav-second-level {
+                        /* Botón toggle: fijo en esquina superior izquierda */
+                        .navbar-minimalize {
                             display: block !important;
-                        }
-                        body:not(.mini-navbar):not(.mobile-sidebar-open) .nav li .nav-second-level li a i {
-                            display: none !important; visibility: hidden !important;
-                            width: 0 !important; height: 0 !important; font-size: 0 !important;
-                        }
-                        body:not(.mini-navbar):not(.mobile-sidebar-open) .nav li .nav-second-level li a {
-                            padding: 12px 20px !important;
-                            color: #ffffff !important;
-                            border-left: 3px solid transparent;
-                        }
-                        body:not(.mini-navbar):not(.mobile-sidebar-open) .nav li .nav-second-level li a:hover {
-                            background: rgba(255,255,255,0.15) !important;
-                            border-left-color: rgba(255,255,255,0.7) !important;
+                            position: fixed !important;
+                            top: 12px !important;
+                            left: 12px !important;
+                            z-index: 2002 !important;
+                            background: #1ab394 !important;
+                            color: white !important;
+                            border: none !important;
+                            padding: 0 !important;
+                            width: 44px !important; height: 44px !important;
+                            border-radius: 6px !important;
+                            cursor: pointer !important;
+                            display: inline-flex !important;
+                            align-items: center !important;
+                            justify-content: center !important;
                         }
 
-                        /* === TABLET ABIERTO: icono + nombre === */
+                        /* ---- CERRADO: sidebar fuera de pantalla, el contenido no necesita estilos
+                                especiales porque el sidebar es invisible ---- */
+
+                        /* ---- ABIERTO: icono + nombre ---- */
                         body.mobile-sidebar-open nav.navbar-static-side {
-                            width: 220px !important;
+                            left: 0 !important;
+                            width: 260px !important;
+                        }
+                        body.mobile-sidebar-open #side-menu,
+                        body.mobile-sidebar-open #side-menu > li {
+                            padding-left: 0 !important;
+                            margin-left: 0 !important;
                         }
                         body.mobile-sidebar-open .nav > li > a {
                             text-align: left !important;
-                            padding: 10px 10px 10px 12px !important;
+                            padding: 11px 12px !important;
                             display: flex !important;
                             align-items: center !important;
+                            margin: 0 !important;
                         }
                         body.mobile-sidebar-open .nav > li > a i {
-                            font-size: 16px !important;
-                            width: 20px !important; min-width: 20px !important;
+                            font-size: 18px !important;
+                            width: 22px !important; min-width: 22px !important;
+                            flex-shrink: 0 !important;
                             text-align: center !important;
-                            margin-right: 8px !important;
+                            margin-right: 10px !important;
+                            margin-left: 0 !important;
                         }
                         body.mobile-sidebar-open .nav li a span.nav-label {
                             display: inline !important;
-                            font-size: 13px !important;
+                            font-size: 14px !important;
                             color: #ffffff !important;
                         }
                         body.mobile-sidebar-open .nav li a .fa.arrow {
@@ -1008,8 +1039,8 @@
                             display: block !important;
                         }
                         body.mobile-sidebar-open .nav li .nav-second-level li a {
-                            padding: 8px 10px 8px 40px !important;
-                            font-size: 12px !important;
+                            padding: 9px 12px 9px 45px !important;
+                            font-size: 13px !important;
                             color: rgba(255,255,255,0.9) !important;
                             border-left: 3px solid transparent !important;
                         }
@@ -1020,16 +1051,20 @@
                         }
                         body.mobile-sidebar-open .dashboard-btn .dashboard-link {
                             justify-content: flex-start !important;
-                            padding: 10px 10px 10px 12px !important;
+                            padding: 11px 12px !important;
                         }
                         body.mobile-sidebar-open .dashboard-btn .dashboard-link i {
-                            margin-right: 8px !important; font-size: 16px !important;
+                            margin-right: 10px !important; font-size: 18px !important;
+                        }
+                        body.mobile-sidebar-open .dashboard-btn .dashboard-link .nav-label {
+                            display: inline !important;
+                            font-size: 14px !important;
                         }
                         body.mobile-sidebar-open .search-sidebar {
                             display: block !important;
                         }
                         body.mobile-sidebar-open #page-wrapper {
-                            margin-left: 220px !important;
+                            margin-left: 260px !important;
                         }
                     }
                     
@@ -1106,18 +1141,6 @@
                         }
                     }
 
-                    /* ========== Off-canvas en tablet: oculto por defecto, visible al expandir ========== */
-                    @media (min-width: 769px) and (max-width: 992px) {
-                        nav.navbar-static-side {
-                            transition: left 0.25s ease, width 0.25s ease;
-                            left: -240px !important;
-                            width: 70px !important;
-                        }
-                        body.mobile-sidebar-open nav.navbar-static-side {
-                            left: 0 !important;
-                            width: 220px !important;
-                        }
-                    }
                 </style>
 
                 {{--  MENÚ DINÁMICO DESDE BASE DE DATOS  --}}
