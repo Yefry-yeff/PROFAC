@@ -105,7 +105,7 @@
                 }
             });
 
-            $('#seleccionarProducto').select2({
+            /*$('#seleccionarProducto').select2({
                 ajax: {
                     url: '/ventas/listar',
                     data: function(params) {
@@ -120,7 +120,7 @@
                         return query;
                     }
                 }
-            });
+            });**/
 
             // Evento para cargar categorías cuando se selecciona un producto
             $('#seleccionarProducto').on('select2:select', function(e) {
