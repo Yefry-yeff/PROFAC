@@ -100,7 +100,7 @@
 
                     {{-- Solo con stock --}}
                     <div class="custom-control custom-switch ml-1">
-                        <input type="checkbox" class="custom-control-input"
+                        <input type="checkbox" class="custom-control-input" checked
                                id="{{ $suf }}_conStock">
                         <label class="custom-control-label"
                                for="{{ $suf }}_conStock"
@@ -198,7 +198,7 @@
     var query         = '';
     var catId         = '';
     var marcaId       = '';
-    var conStock      = false;
+    var conStock      = true;
     var timer         = null;
     var filtersLoaded        = false;
     var filtersLoadedBodega  = '';   // rastrea para qué bodega se cargaron los filtros
