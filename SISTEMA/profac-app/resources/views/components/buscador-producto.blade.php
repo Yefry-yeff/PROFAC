@@ -1,6 +1,11 @@
 @props([
-    'idModal'  => 'buscadorProductoModal',
-    'callback' => 'onProductoSeleccionado',
+    'idModal'     => 'buscadorProductoModal',
+    'callback'    => 'onProductoSeleccionado',
+    'bodegaIdVar' => '',
+    'urlBuscar'   => '/productos/buscar',
+    'urlTop'      => '/productos/buscar/top-vendidos',
+    'urlFiltros'  => '/productos/buscar',
+    'topLabel'    => '',
 ])
 @php
     $suf = preg_replace('/[^a-zA-Z0-9]/', '_', $idModal);
@@ -183,6 +188,11 @@
     var CB            = '{{ $callback }}';
     var IMG           = '{{ asset('catalogo') }}';
     var S             = '{{ $suf }}';
+    var BVAR          = '{{ $bodegaIdVar }}';   // nombre de var JS global que contiene el bodega_id (solo traslados)
+    var URL_BUSCAR    = '{{ $urlBuscar }}';
+    var URL_TOP       = '{{ $urlTop }}';
+    var URL_FILTROS   = '{{ $urlFiltros }}';
+    var TOP_LABEL     = '{{ $topLabel }}';
 
     var page          = 1;
     var query         = '';
@@ -190,7 +200,8 @@
     var marcaId       = '';
     var conStock      = false;
     var timer         = null;
-    var filtersLoaded = false;
+    var filtersLoaded        = false;
+    var filtersLoadedBodega  = '';   // rastrea para qué bodega se cargaron los filtros
     var reqSeq        = 0;      // contador de peticiones; la respuesta sólo se procesa si coincide
     var isPreview     = false;  // true cuando se muestran los más vendidos
 
@@ -274,7 +285,9 @@
         isPreview = true;
         var mySeq = ++reqSeq;
         showLoading();
-        axios.get('/productos/buscar/top-vendidos')
+        var tvParams = {};
+        if (BVAR) { var bvId = window[BVAR]; if (bvId) tvParams.bodega_id = bvId; }
+        axios.get(URL_TOP, { params: tvParams })
             .then(function (r) {
                 if (reqSeq !== mySeq) return;   // petición obsoleta, ignorar
                 hideLoading();
@@ -291,7 +304,9 @@
         var sec   = el(S + '_seccion');
         var secTxt = el(S + '_seccion_txt');
         sec.classList.remove('d-none');
-        secTxt.innerHTML = '<i class="fa fa-fire mr-1" style="color:#e53935;"></i> Más vendidos';
+        secTxt.innerHTML = TOP_LABEL
+            ? '<i class="fa fa-exchange mr-1" style="color:#1AA689;"></i> ' + TOP_LABEL
+            : '<i class="fa fa-fire mr-1" style="color:#e53935;"></i> Más vendidos';
         el(S + '_info').textContent = '';
         el(S + '_pagination').innerHTML = '';
 
@@ -322,15 +337,15 @@
         var mySeq = ++reqSeq;   // incrementar ANTES de lanzar la petición
         showLoading();
 
-        axios.get('/productos/buscar', {
-            params: {
-                q:            query,
-                categoria_id: catId,
-                marca_id:     marcaId,
-                con_stock:    conStock ? 1 : 0,
-                page:         page
-            }
-        }).then(function (r) {
+        var srchParams = {
+            q:            query,
+            categoria_id: catId,
+            marca_id:     marcaId,
+            con_stock:    conStock ? 1 : 0,
+            page:         page
+        };
+        if (BVAR) { var bvId2 = window[BVAR]; if (bvId2) srchParams.bodega_id = bvId2; }
+        axios.get(URL_BUSCAR, { params: srchParams }).then(function (r) {
             if (reqSeq !== mySeq) return;   // el usuario ya escribió algo más, ignorar
             hideLoading();
             renderResults(r.data);
@@ -529,8 +544,11 @@
             var bd = document.querySelector('.modal-backdrop:last-of-type');
             if (bd) bd.style.zIndex = '20040';
         }, 10);
+        // Si cambió la bodega, invalidar caché de filtros para recargarlos
+        var currentBodega = BVAR ? (window[BVAR] || '') : '';
+        if (filtersLoadedBodega !== currentBodega) filtersLoaded = false;
         loadFilters();
-        // Si no hay query ni filtros activos → mostrar más vendidos como preview
+        // Si no hay query ni filtros activos → mostrar top preview
         if (query === '' && catId === '' && marcaId === '' && !conStock) {
             loadTopVendidos();
         } else {

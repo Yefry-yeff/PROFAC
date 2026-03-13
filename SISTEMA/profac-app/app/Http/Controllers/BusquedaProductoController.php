@@ -18,6 +18,7 @@ class BusquedaProductoController extends Controller
         $catId    = $request->get('categoria_id', '');
         $marcaId  = $request->get('marca_id', '');
         $conStock = (bool) $request->get('con_stock', 0);
+        $bodegaId = $request->get('bodega_id', '');
         $page     = max(1, (int) $request->get('page', 1));
         $perPage  = 12;
 
@@ -68,6 +69,19 @@ class BusquedaProductoController extends Controller
             });
         }
 
+        // Filtro por bodega (opcional — solo cuando se pasa bodega_id explícitamente)
+        if ($bodegaId !== '' && $bodegaId !== null) {
+            $query->whereExists(function ($sub) use ($bodegaId) {
+                $sub->select(DB::raw(1))
+                    ->from('recibido_bodega as rb_bq')
+                    ->join('seccion as sc_bq', 'sc_bq.id', '=', 'rb_bq.seccion_id')
+                    ->join('segmento as sg_bq', 'sg_bq.id', '=', 'sc_bq.segmento_id')
+                    ->whereColumn('rb_bq.producto_id', 'p.id')
+                    ->whereRaw('rb_bq.cantidad_disponible > 0')
+                    ->where('sg_bq.bodega_id', (int) $bodegaId);
+            });
+        }
+
         // ── COUNT simple: sin subquery envuelta, sin GROUP BY ──────────────
         $total = (clone $query)->count('p.id');
 
@@ -83,15 +97,20 @@ class BusquedaProductoController extends Controller
 
         $items = $query->offset(($page - 1) * $perPage)->limit($perPage)->get();
 
-        // ── Stock + imágenes: solo para los ~12 resultados paginados ───────
+        // ── Stock (filtrado por bodega si corresponde) ──────────────────────
         if ($items->isNotEmpty()) {
             $ids = $items->pluck('id')->all();
 
-            $stockMap = DB::table('recibido_bodega')
+            $stockQ = DB::table('recibido_bodega')
                 ->select('producto_id', DB::raw('SUM(cantidad_disponible) as stock'))
                 ->whereIn('producto_id', $ids)
-                ->groupBy('producto_id')
-                ->get()->keyBy('producto_id');
+                ->whereRaw('cantidad_disponible > 0');
+            if ($bodegaId !== '' && $bodegaId !== null) {
+                $stockQ->join('seccion as sc_sk', 'sc_sk.id', '=', 'recibido_bodega.seccion_id')
+                       ->join('segmento as sg_sk', 'sg_sk.id', '=', 'sc_sk.segmento_id')
+                       ->where('sg_sk.bodega_id', (int) $bodegaId);
+            }
+            $stockMap = $stockQ->groupBy('producto_id')->get()->keyBy('producto_id');
 
             $imgMap = DB::table('img_producto')
                 ->select('producto_id', 'url_img')
@@ -143,12 +162,14 @@ class BusquedaProductoController extends Controller
     /**
      * Devuelve los 12 productos más vendidos (por cantidad en venta_has_producto).
      */
-    public function topVendidos()
+    public function topVendidos(Request $request)
     {
+        $bodegaId = $request->get('bodega_id', '');
+
         // Solo JOIN con venta_has_producto (necesario para SUM+GROUP BY de ventas)
         // recibido_bodega e img_producto se consultan aparte para evitar producto
         // cartesiano entre vhp y rb que infla el SUM incorrecto.
-        $items = DB::table('producto as p')
+        $tvQuery = DB::table('producto as p')
             ->join('venta_has_producto as vhp', 'vhp.producto_id', '=', 'p.id')
             ->leftJoin('marca as m', 'm.id', '=', 'p.marca_id')
             ->select([
@@ -158,8 +179,22 @@ class BusquedaProductoController extends Controller
             ])
             ->groupBy('p.id', 'p.nombre', 'p.codigo_barra', 'p.codigo_estatal', 'p.isv', 'm.nombre')
             ->orderByDesc('total_vendido')
-            ->limit(12)
-            ->get();
+            ->limit(12);
+
+        // Filtro por bodega (solo en traslados)
+        if ($bodegaId !== '' && $bodegaId !== null) {
+            $tvQuery->whereExists(function ($sub) use ($bodegaId) {
+                $sub->select(DB::raw(1))
+                    ->from('recibido_bodega as rb_tv')
+                    ->join('seccion as sc_tv', 'sc_tv.id', '=', 'rb_tv.seccion_id')
+                    ->join('segmento as sg_tv', 'sg_tv.id', '=', 'sc_tv.segmento_id')
+                    ->whereColumn('rb_tv.producto_id', 'p.id')
+                    ->whereRaw('rb_tv.cantidad_disponible > 0')
+                    ->where('sg_tv.bodega_id', (int) $bodegaId);
+            });
+        }
+
+        $items = $tvQuery->get();
 
         if ($items->isNotEmpty()) {
             $ids = $items->pluck('id')->all();

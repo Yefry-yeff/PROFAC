@@ -455,6 +455,11 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/translado/producto/lista/{idBodega}/{idProducto}', [Translados::class, 'productoBodega']);
     Route::get('/translado/destino/lista/{numeroFilas}', [Translados::class, 'productoGeneralBodega']);
     Route::post('/translado/producto/bodega', [Translados::class, 'ejectarTranslado']);
+    // Endpoints optimizados del buscador de productos (filtrados por bodega, solo vista traslados)
+    Route::get('/translado/buscar/productos',      [Translados::class, 'buscarProductos']);
+    Route::get('/translado/buscar/top-trasladados',[Translados::class, 'topTrasladados']);
+    Route::get('/translado/buscar/categorias',     [Translados::class, 'categoriasBodega']);
+    Route::get('/translado/buscar/marcas',         [Translados::class, 'marcasBodega']);
     Route::post('/producto/compra/pagos/eliminar', [PagosCompra::class, 'eliminarPago']);
     Route::post('/producto/compra/pagos/comprobar', [PagosCompra::class, 'comprobarRetencion']);
     Route::get('/compra/retencion/documento/{idCompra}', [PagosCompra::class, 'retencionDocumentoPDF']);

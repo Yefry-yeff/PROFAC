@@ -47,13 +47,21 @@
 
                                 <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6">
 
-                                    <label for="selectProducto" class="col-form-label focus-label">Seleccionar
+                                    <label class="col-form-label focus-label">Seleccionar
                                         Producto:</label>
-                                    <select id="selectProducto" class="form-group form-control" style=""
-                                        data-parsley-required disabled >
-                                        <option value="" selected disabled>--Seleccionar un producto por codigo ó
-                                            nombre--</option>
-                                    </select>
+                                    <div class="input-group">
+                                        <input type="text" id="productoTraslado_nombre"
+                                               class="form-control" readonly
+                                               placeholder="-- Seleccionar un producto --"
+                                               data-parsley-required>
+                                        <input type="hidden" id="selectProducto" value="">
+                                            <button type="button" id="btn_abrir_buscador_traslado"
+                                                    class="btn btn-info" disabled
+                                                    onclick="window['abrirBuscador_buscadorProductoTraslados']('')">
+                                                <i class="fa fa-search"></i> Buscar
+                                            </button>
+                                        </div>
+                                    </div>
 
                                 </div>
 
@@ -281,6 +289,11 @@
         </div>
     </div>
 
+
+    {{-- Buscador de productos filtrado por bodega (solo traslados) --}}
+    <x-buscador-producto id-modal="buscadorProductoTraslados"
+                         callback="alSeleccionarProductoTraslado"
+                         bodega-id-var="__traslados_bodega_id" />
 
     <!-- Modal para motivo del traslado (obligatorio al guardar) -->
     <div class="modal fade" id="modal_motivo_traslado" tabindex="-1" role="dialog"

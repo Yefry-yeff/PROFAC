@@ -3,30 +3,22 @@ var contador = 1;
 var arrayInputs = [];
 var idProductoArray = [];
 var idRecibidoArray = [];
-
 var idRecibido = null;
+window.__traslados_bodega_id = '';   // usado por el buscador-producto para filtrar por bodega
+
 $(document).ready(function() {
-
     listarBodegas();
-
-
 });
-
-
-
 
 $('#selectBodega').select2({
     ajax: {
         url: '/translado/lista/bodegas',
-
     }
 });
 
 $(document).on('submit', '#selec_data_form', function(event) {
-
     event.preventDefault();
     obtenerListaBodega();
-
 });
 
 function limpiar(){
@@ -35,25 +27,20 @@ function limpiar(){
 
 
 
+// Al cambiar bodega: actualiza la variable global que usa el buscador y habilita el botón de buscar
 function obteneProducto() {
     let idBodega = document.getElementById('selectBodega').value;
-    document.getElementById('selectProducto').disabled = false;
-    $('#selectProducto').select2({
-        ajax: {
-            url: '/translado/lista/productos',
-            data: function(params) {
-                var query = {
-                    search: params.term,
-                    idBodega: idBodega,
-                    type: 'public',
-                    page: params.page || 1
-                }
+    window.__traslados_bodega_id = idBodega;
+    // Limpiar producto seleccionado anterior
+    document.getElementById('selectProducto').value = '';
+    document.getElementById('productoTraslado_nombre').value = '';
+    document.getElementById('btn_abrir_buscador_traslado').disabled = false;
+}
 
-                // Query parameters will be ?search=[term]&type=public
-                return query;
-            }
-        }
-    });
+// Callback invocado por el buscador-producto cuando el usuario selecciona un producto
+function alSeleccionarProductoTraslado(producto) {
+    document.getElementById('selectProducto').value = producto.id;
+    document.getElementById('productoTraslado_nombre').value = producto.id + ' - ' + producto.nombre;
 }
 
 function obtenerListaBodega() {
