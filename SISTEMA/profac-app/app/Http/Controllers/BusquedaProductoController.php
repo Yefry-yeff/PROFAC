@@ -14,6 +14,7 @@ class BusquedaProductoController extends Controller
      */
     public function buscar(Request $request)
     {
+        session()->save(); // Libera el lock del archivo de sesión para no bloquear otras peticiones
         $q        = trim($request->get('q', ''));
         $catId    = $request->get('categoria_id', '');
         $marcaId  = $request->get('marca_id', '');
@@ -138,6 +139,7 @@ class BusquedaProductoController extends Controller
      */
     public function categorias()
     {
+        session()->save();
         $cats = DB::table('categoria_producto')
             ->select('id', DB::raw('descripcion as text'))
             ->orderBy('descripcion')
@@ -151,6 +153,7 @@ class BusquedaProductoController extends Controller
      */
     public function marcas()
     {
+        session()->save();
         $marcas = DB::table('marca')
             ->select('id', DB::raw('nombre as text'))
             ->orderBy('nombre')
@@ -164,6 +167,7 @@ class BusquedaProductoController extends Controller
      */
     public function topVendidos(Request $request)
     {
+        session()->save();
         $bodegaId = $request->get('bodega_id', '');
 
         // Solo JOIN con venta_has_producto (necesario para SUM+GROUP BY de ventas)

@@ -293,7 +293,11 @@
     {{-- Buscador de productos filtrado por bodega (solo traslados) --}}
     <x-buscador-producto id-modal="buscadorProductoTraslados"
                          callback="alSeleccionarProductoTraslado"
-                         bodega-id-var="__traslados_bodega_id" />
+                         bodega-id-var="__traslados_bodega_id"
+                         url-buscar="/translado/buscar/productos"
+                         url-top="/translado/buscar/top-trasladados"
+                         url-filtros="/translado/buscar"
+                         top-label="Más trasladados" />
 
     <!-- Modal para motivo del traslado (obligatorio al guardar) -->
     <div class="modal fade" id="modal_motivo_traslado" tabindex="-1" role="dialog"

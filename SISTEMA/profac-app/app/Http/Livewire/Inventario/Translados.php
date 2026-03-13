@@ -56,6 +56,7 @@ class Translados extends Component
      */
     public function buscarProductos(Request $request)
     {
+        session()->save();
         $q        = trim($request->get('q', ''));
         $catId    = $request->get('categoria_id', '');
         $marcaId  = $request->get('marca_id', '');
@@ -142,6 +143,7 @@ class Translados extends Component
      */
     public function topTrasladados(Request $request)
     {
+        session()->save();
         $bodegaId = (int) $request->get('bodega_id', 0);
 
         if (!$bodegaId) return response()->json([]);
@@ -197,6 +199,7 @@ class Translados extends Component
      */
     public function categoriasBodega(Request $request)
     {
+        session()->save();
         $bodegaId = (int) $request->get('bodega_id', 0);
 
         $cats = DB::table('categoria_producto as cp')
@@ -223,6 +226,7 @@ class Translados extends Component
      */
     public function marcasBodega(Request $request)
     {
+        session()->save();
         $bodegaId = (int) $request->get('bodega_id', 0);
 
         $marcas = DB::table('marca as m')
