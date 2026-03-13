@@ -35,7 +35,7 @@
                                         <label for="selectBodega" class="col-form-label focus-label">Seleccionar
                                             Bodega:</label>
                                         <select id="selectBodega" class="form-group form-control" style=""
-                                            data-parsley-required onchange="obteneProducto()">
+                                            data-parsley-required>
                                             <option value="" selected disabled>--Seleccionar una Bodega--</option>
                                         </select>
 

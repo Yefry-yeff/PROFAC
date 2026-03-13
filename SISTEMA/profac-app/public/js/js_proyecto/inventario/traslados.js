@@ -14,6 +14,8 @@ $('#selectBodega').select2({
     ajax: {
         url: '/translado/lista/bodegas',
     }
+}).on('change', function () {
+    obteneProducto();
 });
 
 $(document).on('submit', '#selec_data_form', function(event) {
