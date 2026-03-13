@@ -71,7 +71,7 @@ $('#seleccionarCliente').select2({
     }
 });
 
-$('#seleccionarProducto').select2({
+/*$('#seleccionarProducto').select2({
     ajax: {
         url: '/ventas/listar',
         data: function(params) {
@@ -86,7 +86,7 @@ $('#seleccionarProducto').select2({
             return query;
         }
     }
-});
+});*/
 
 function prueba() {
 

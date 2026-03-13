@@ -212,7 +212,7 @@
                                         </div>
                                         <small id="productoSeleccionadoCotizacion" class="text-success font-weight-bold mt-1 d-block d-none"></small>
                                         {{-- Hidden select conserva la compatibilidad con el JS existente --}}
-                                        <select id="seleccionarProducto" name="seleccionarProducto" class="d-none">
+                                        <select id="seleccionarProducto" name="seleccionarProducto" hidden>
                                             <option value="" selected disabled></option>
                                         </select>
                                         <x-buscador-producto id-modal="buscadorProductoCotizacion" callback="alSeleccionarProductoCotizacion" />

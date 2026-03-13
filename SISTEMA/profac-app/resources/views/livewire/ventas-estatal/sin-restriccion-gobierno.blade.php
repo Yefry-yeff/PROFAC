@@ -199,7 +199,7 @@
                                         </div>
                                         <small id="productoSeleccionadoSinRestGobierno" class="text-success font-weight-bold mt-1 d-block d-none"></small>
                                         {{-- Hidden select conserva la compatibilidad con el JS existente --}}
-                                        <select id="seleccionarProducto" name="seleccionarProducto" class="d-none">
+                                        <select id="seleccionarProducto" name="seleccionarProducto" hidden>
                                             <option value="" selected disabled></option>
                                         </select>
                                         <x-buscador-producto id-modal="buscadorProductoSinRestGobierno" callback="alSeleccionarProductoSinRestGobierno" />
@@ -651,7 +651,7 @@
                 }
             });
 
-            $('#seleccionarProducto').select2({
+            /*$('#seleccionarProducto').select2({
                 ajax: {
                     url: '/ventas/listar',
                     data: function(params) {
@@ -666,7 +666,7 @@
                         return query;
                     }
                 }
-            });
+            });*/
 
             function solicitarCodigo() {
                 axios.get('/ventas/solicitud/codigo')
