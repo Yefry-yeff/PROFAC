@@ -477,7 +477,9 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/translado/imprimir/{id}', [Translados::class, 'imprimirTranslado']);
 
     Route::get('/translados/historial', HistorialTranslados::class);
-    Route::post('/translados/obtener/listado', [HistorialTranslados::class, 'historialTranslados']);
+    Route::post('/translados/obtener/listado',      [HistorialTranslados::class, 'historialTranslados']);
+    Route::post('/translados/obtener/por-traslado', [HistorialTranslados::class, 'historialPorTraslado']);
+    Route::get('/translados/bodegas',               [HistorialTranslados::class, 'listarBodegas']);
 
 
     //---------------------------------------------------------------------VENTAS--------------------------------------------------------------------------------//
