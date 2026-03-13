@@ -249,12 +249,17 @@
     /* ── cargar filtros (una sola vez) ──────── */
     function loadFilters() {
         if (filtersLoaded) return;
+        var filterParams = {};
+        if (BVAR) { var bvId = window[BVAR]; if (bvId) filterParams.bodega_id = bvId; }
         Promise.all([
-            axios.get('/productos/buscar/categorias'),
-            axios.get('/productos/buscar/marcas')
+            axios.get(URL_FILTROS + '/categorias', { params: filterParams }),
+            axios.get(URL_FILTROS + '/marcas',     { params: filterParams })
         ]).then(function (rs) {
             var selCat   = el(S + '_filtroCategoria');
             var selMarca = el(S + '_filtroMarca');
+            // Limpiar opciones existentes (excepto la primera "Todas")
+            while (selCat.options.length > 1)   selCat.remove(1);
+            while (selMarca.options.length > 1) selMarca.remove(1);
             rs[0].data.forEach(function (c) {
                 var o = document.createElement('option');
                 o.value = c.id; o.textContent = c.text;
@@ -266,6 +271,7 @@
                 selMarca.appendChild(o);
             });
             filtersLoaded = true;
+            filtersLoadedBodega = BVAR ? (window[BVAR] || '') : '';
         }).catch(function () { /* silencioso */ });
     }
 
