@@ -8,15 +8,28 @@ window.__traslados_bodega_id = '';   // usado por el buscador-producto para filt
 
 $(document).ready(function() {
     listarBodegas();
+
+    inicializarSelect2Bodega();
+
+    // Delegación de evento — funciona aunque Livewire re-morfee el DOM
+    $(document).on('select2:select', '#selectBodega', function () {
+        obteneProducto();
+    });
 });
 
-$('#selectBodega').select2({
-    ajax: {
-        url: '/translado/lista/bodegas',
+function inicializarSelect2Bodega() {
+    var $sel = $('#selectBodega');
+    if (!$sel.length) return;
+    // Destruir instancia previa si ya existe (evita doble init)
+    if ($sel.hasClass('select2-hidden-accessible')) {
+        $sel.select2('destroy');
     }
-}).on('change', function () {
-    obteneProducto();
-});
+    $sel.select2({
+        ajax: {
+            url: '/translado/lista/bodegas',
+        }
+    });
+}
 
 $(document).on('submit', '#selec_data_form', function(event) {
     event.preventDefault();
@@ -31,7 +44,9 @@ function limpiar(){
 
 // Al cambiar bodega: actualiza la variable global que usa el buscador y habilita el botón de buscar
 function obteneProducto() {
-    let idBodega = document.getElementById('selectBodega').value;
+    var selectedData = $('#selectBodega').select2('data');
+    var idBodega = (selectedData && selectedData.length > 0) ? selectedData[0].id : document.getElementById('selectBodega').value;
+    if (!idBodega) return;
     window.__traslados_bodega_id = idBodega;
     // Limpiar producto seleccionado anterior
     document.getElementById('selectProducto').value = '';
@@ -47,9 +62,8 @@ function alSeleccionarProductoTraslado(producto) {
 
 function obtenerListaBodega() {
 
-
-
-    let idBodega = document.getElementById('selectBodega').value;
+    var selectedData = $('#selectBodega').select2('data');
+    let idBodega = (selectedData && selectedData.length > 0) ? selectedData[0].id : document.getElementById('selectBodega').value;
     let idProducto = document.getElementById('selectProducto').value;
     //let data = {'idBodega':idBodega, 'idProducto',idProducto};
 
