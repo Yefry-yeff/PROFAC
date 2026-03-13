@@ -105,9 +105,9 @@
 
 
     <!-- Modal para transferir producto a otra bodega-->
-    <div class="modal fade" id="modal_transladar_producto" tabindex="-22" role="dialog"
+    <div class="modal fade" id="modal_transladar_producto" tabindex="-1" role="dialog"
         aria-labelledby="modal_transladar_productoLabel" aria-hidden="true">
-        <div class="modal-dialog" role="document">
+        <div class="modal-dialog modal-dialog-centered" role="document">
             <div class="modal-content">
                 <div class="modal-header">
                     <h3 class="modal-title" id="modal_transladar_productoLabel"> Transladar a otra bodega </h3>
@@ -172,6 +172,12 @@
                                     </select>
                                 </div>
 
+                                <div class="form-group">
+                                    <label for="comentario_item">Comentario (opcional)</label>
+                                    <textarea id="comentario_item" name="comentario_item" class="form-control"
+                                        rows="2" placeholder="Ingrese un comentario (opcional)"></textarea>
+                                </div>
+
                                 <input id="idProducto" type="hidden" value="">
 
                             </form>
@@ -213,6 +219,7 @@
                                                 <th>Seccion</th>
                                                 <th>Cantidad</th>
                                                 <th>Uniad de medida</th>
+                                                <th>Comentario</th>
                                             </tr>
                                         </thead>
 
@@ -224,7 +231,7 @@
 
                                     </table>
 
-                                    <button id="btn_guardar_translado" type="submit" form="guardar_translados"   class="btn btn-primary btn-lg mb-4 mt-3" >Guardar Translado</button>
+                                    <button id="btn_guardar_translado" type="button" onclick="abrirModalMotivo()"   class="btn btn-primary btn-lg mb-4 mt-3" >Guardar Translado</button>
                                 </div>
                             </div>
                     </div>
@@ -274,6 +281,35 @@
         </div>
     </div>
 
+
+    <!-- Modal para motivo del traslado (obligatorio al guardar) -->
+    <div class="modal fade" id="modal_motivo_traslado" tabindex="-1" role="dialog"
+        aria-labelledby="modal_motivo_trasladoLabel" aria-hidden="true" data-backdrop="static" data-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 class="modal-title" id="modal_motivo_trasladoLabel">Motivo del Traslado</h3>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="motivo_traslado">
+                            Motivo del traslado <span class="text-danger">*</span>
+                        </label>
+                        <textarea id="motivo_traslado" class="form-control" rows="3"
+                            placeholder="Ingrese el motivo del traslado..."></textarea>
+                        <small id="motivo_error" class="text-danger d-none">El motivo del traslado es obligatorio.</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Cancelar</button>
+                    <button id="btn_confirmar_traslado" type="button" class="btn btn-primary">Confirmar Traslado</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
 @push('scripts')
 <script src="{{ asset('js/js_proyecto/inventario/traslados.js') }}"></script>

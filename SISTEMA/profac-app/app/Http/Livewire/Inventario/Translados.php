@@ -74,12 +74,13 @@ class Translados extends Component
     public function listarProductos(Request $request){
        try {
 
+        $search = '%' . $request->search . '%';
         $listaProductos = DB::select("
         select
-            B.id ,
+            B.id,
             B.nombre,
-            concat(B.id,' - ',B.nombre) as text
-
+            SUM(A.cantidad_disponible) as cantidad_total,
+            CONCAT(B.id, ' - ', B.nombre, '  (Disp: ', SUM(A.cantidad_disponible), ')') as text
         from recibido_bodega A
             inner join producto B
             on A.producto_id = B.id
@@ -89,8 +90,11 @@ class Translados extends Component
             on seccion.segmento_id = segmento.id
             inner join bodega
             on segmento.bodega_id = bodega.id
-            where bodega.id=".$request->idBodega." and (B.nombre like '%".$request->search."%' or B.id like '%".$request->search."%') limit 15
-        ");
+        where bodega.id = ? and A.cantidad_disponible > 0
+            and (B.nombre like ? or CAST(B.id AS CHAR) like ?)
+        group by B.id, B.nombre
+        limit 15
+        ", [$request->idBodega, $search, $search]);
 
        return response()->json([
            "results" => $listaProductos
@@ -208,6 +212,7 @@ class Translados extends Component
         DB::beginTransaction();
 
         $trasladoID = new ModelTranslado();
+        $trasladoID->comentario = $request->motivo ?? '';
         $trasladoID->save();
         $IDtraslado = $trasladoID->id;
 
@@ -217,11 +222,13 @@ class Translados extends Component
         $keyUnidadMedidaId = "unidadMedidaId".$arregloIdInputs[$i];
         $keyCantidad = "cantidad".$arregloIdInputs[$i];
         $keyIdSeccion = "idSeccion".$arregloIdInputs[$i];
+        $keyComentarioItem = "comentarioItem".$arregloIdInputs[$i];
 
         $idRecibido = $request->$keyIdRecibido;
         $unidadMedidaId = $request->$keyUnidadMedidaId;
         $cantidad = $request->$keyCantidad;
         $idSeccion = $request->$keyIdSeccion;
+        $comentarioItem = $request->$keyComentarioItem ?? '';
 
 
         $productoEnBodega = ModelRecibirBodega::find($idRecibido);
@@ -255,6 +262,7 @@ class Translados extends Component
                 $logTranslados->unidad_medida_venta_id =  $unidadMedidaId;
                 $logTranslados->users_id= Auth::user()->id;
                 $logTranslados->descripcion="Translado de bodega";
+                $logTranslados->comentario = $comentarioItem;
                 $logTranslados->translado_id= $IDtraslado;
                 $logTranslados->created_at = now();
                 $logTranslados->updated_at = now();

@@ -344,6 +344,8 @@ function transladoProducto() {
     let medidaNombre = medidaSelect.options[medidaSelect.selectedIndex].text
     let medidaId = medidaSelect.value;
 
+    let comentario_item = document.getElementById("comentario_item").value;
+
     let comprobarIdRecibido = idRecibidoArray.find(element => element == ('' + idProducto + seccionId));
 
     if (comprobarIdRecibido) {
@@ -395,7 +397,11 @@ function transladoProducto() {
                                         <input id="unidadMedida${contador}" name="unidadMedida${contador}" type="text" value="${medidaNombre}" disabled class="form-control" form="guardar_translados">
                                         <input id="unidadMedidaId${contador}" name="unidadMedidaId${contador}" type="hidden" value="${medidaId}" readonly form="guardar_translados">
                                         <input id="idRecibido${contador}" name="idRecibido${contador}" type="hidden" value="${idRecibido}" readonly form="guardar_translados">
+                                        <input id="comentarioItem${contador}" name="comentarioItem${contador}" type="hidden" value="${comentario_item}" form="guardar_translados">
+                                    </td>
 
+                                    <td>
+                                        <span>${comentario_item}</span>
                                     </td>
 
                                 </tr>
@@ -485,14 +491,37 @@ function eliminarInput(id, productoSeccion) {
 
 
 $(document).on('submit', '#guardar_translados', function(event) {
-
     event.preventDefault();
-    guardarTranslado();
+});
 
+function abrirModalMotivo() {
+    if (arrayInputs.length === 0) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Advertencia!',
+            text: 'No hay productos en la lista para transladar.',
+            confirmButtonColor: '#1AA689',
+        });
+        return;
+    }
+    document.getElementById('motivo_traslado').value = '';
+    document.getElementById('motivo_error').classList.add('d-none');
+    $('#modal_motivo_traslado').modal('show');
+}
+
+$(document).on('click', '#btn_confirmar_traslado', function() {
+    let motivo = document.getElementById('motivo_traslado').value.trim();
+    if (!motivo) {
+        document.getElementById('motivo_error').classList.remove('d-none');
+        return;
+    }
+    document.getElementById('motivo_error').classList.add('d-none');
+    $('#modal_motivo_traslado').modal('hide');
+    guardarTranslado(motivo);
 });
 
 
-function guardarTranslado() {
+function guardarTranslado(motivo) {
     document.getElementById("btn_guardar_translado").disabled = true;
 
     var dataForm = new FormData($('#guardar_translados').get(0));
@@ -509,6 +538,7 @@ function guardarTranslado() {
 
         let text = arrayInputs.toString();
         dataForm.append("arregloIdInputs", text);
+        dataForm.append("motivo", motivo);
 
         const formDataObj = {};
 

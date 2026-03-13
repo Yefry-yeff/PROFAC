@@ -21,6 +21,7 @@ class ModelLogTranslados extends Model
         'unidad_medida_venta_id',
         'nota_credito_id',
         'descripcion',
+        'comentario',
         'translado_id'
 
     ];
