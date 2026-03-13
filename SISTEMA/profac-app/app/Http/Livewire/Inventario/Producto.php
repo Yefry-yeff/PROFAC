@@ -287,6 +287,7 @@ class Producto extends Component
                 )
                 ->join('sub_categoria as B', 'A.sub_categoria_id', '=', 'B.id')
                 ->join('categoria_producto as C', 'C.id', '=', 'B.categoria_producto_id')
+                ->leftJoin('marca as M', 'M.id', '=', 'A.marca_id')
                 ->whereNotIn('A.id', $excluidos);
 
             return Datatables::of($query)
@@ -310,15 +311,42 @@ class Producto extends Component
                     return '<a href="/producto/detalle/' . $producto->codigo . '" target="_blank" class="btn btn-warning btn-sm" title="Ver detalles"><i class="fa fa-eye"></i> Ver más</a>';
                 })
                 ->filter(function ($query) use ($request) {
-                    if ($request->has('search') && $request->search['value'] != '') {
-                        $search = $request->search['value'];
-                        $query->where(function($q) use ($search) {
-                            $q->where('A.id', 'LIKE', "%{$search}%")
-                              ->orWhere('A.nombre', 'LIKE', "%{$search}%")
-                              ->orWhere('A.descripcion', 'LIKE', "%{$search}%")
-                              ->orWhere('A.codigo_barra', 'LIKE', "%{$search}%")
-                              ->orWhere('C.descripcion', 'LIKE', "%{$search}%");
-                        });
+                    $q            = trim($request->get('filtro_q', ''));
+                    $desc         = trim($request->get('filtro_descripcion', ''));
+                    $isv          = $request->get('filtro_isv', '');
+                    $categoriaId  = (int) $request->get('filtro_categoria_id', 0);
+                    $marcaId      = (int) $request->get('filtro_marca_id', 0);
+
+                    if ($q !== '') {
+                        $words = array_values(array_filter(array_map('trim', explode(' ', $q))));
+                        foreach ($words as $word) {
+                            $query->where(function ($wq) use ($word) {
+                                $wq->where('A.nombre', 'LIKE', "%{$word}%")
+                                   ->orWhere('A.codigo_barra', 'LIKE', "%{$word}%")
+                                   ->orWhere('A.codigo_estatal', 'LIKE', "%{$word}%");
+                                if (is_numeric($word) && ctype_digit($word)) {
+                                    $wq->orWhere('A.id', (int) $word);
+                                }
+                            });
+                        }
+                    }
+
+                    if ($desc !== '') {
+                        $query->where('A.descripcion', 'LIKE', "%{$desc}%");
+                    }
+
+                    if ($isv === '0') {
+                        $query->where('A.isv', 0);
+                    } elseif ($isv === 'con') {
+                        $query->where('A.isv', '>', 0);
+                    }
+
+                    if ($categoriaId) {
+                        $query->where('C.id', $categoriaId);
+                    }
+
+                    if ($marcaId) {
+                        $query->where('A.marca_id', $marcaId);
                     }
                 })
                 ->orderColumn('codigo', function ($query, $order) {
@@ -608,21 +636,24 @@ class Producto extends Component
 
     }
 
-    public function export(){
+    public function export(Request $request){
         try {
-
-            return Excel::download(new ProductosExport, 'DatosProductos.xlsx');
-
+            $filtros = [
+                'q'            => trim($request->get('filtro_q', '')),
+                'descripcion'  => trim($request->get('filtro_descripcion', '')),
+                'isv'          => $request->get('filtro_isv', ''),
+                'categoria_id' => (int) $request->get('filtro_categoria_id', 0),
+                'marca_id'     => (int) $request->get('filtro_marca_id', 0),
+            ];
+            return Excel::download(new ProductosExport($filtros), 'DatosProductos.xlsx');
         } catch (QueryException $e) {
             return response()->json([
-
                 'error' => $e,
                 "text" => "Ha ocurrido un error.",
                 "icon" => "error",
                 "title"=>"Error!"
             ],402);
         }
-
     }
 
 

@@ -83,7 +83,14 @@ function guardarProducto(){
 
 }
 
+var filtroQ           = '';
+var filtroDescripcion = '';
+var filtroIsv         = '';
+var filtroCategoriaId = '';
+var filtroMarcaId     = '';
+
 $(document).ready(function() {
+    cargarFiltros();
     $('#tbl_productosListar').DataTable({
         "processing": true,
         "serverSide": true,
@@ -95,12 +102,16 @@ $(document).ready(function() {
         "pageLength": 10,
         "lengthMenu": [[10, 25, 50, 100], [10, 25, 50, 100]],
         "responsive": true,
-        "dom": 'lfrtip',
+        "dom": 'lrtip',
         "ajax": {
             "url": "/producto/listar/productos",
             "type": "GET",
             "data": function(d) {
-                // Parámetros adicionales si es necesario
+                d.filtro_q           = filtroQ;
+                d.filtro_descripcion = filtroDescripcion;
+                d.filtro_isv         = filtroIsv;
+                d.filtro_categoria_id = filtroCategoriaId;
+                d.filtro_marca_id    = filtroMarcaId;
             }
         },
         "columns": [
@@ -115,6 +126,54 @@ $(document).ready(function() {
         ]
     });
 })
+
+function cargarFiltros() {
+    axios.get('/productos/buscar/categorias').then(function(r) {
+        var opts = '<option value="">-- Todas --<\/option>';
+        r.data.forEach(function(c) {
+            opts += '<option value="' + c.id + '">' + c.text + '<\/option>';
+        });
+        document.getElementById('fprod_categoria').innerHTML = opts;
+    }).catch(function() {});
+
+    axios.get('/productos/buscar/marcas').then(function(r) {
+        var opts = '<option value="">-- Todas --<\/option>';
+        r.data.forEach(function(m) {
+            opts += '<option value="' + m.id + '">' + m.text + '<\/option>';
+        });
+        document.getElementById('fprod_marca').innerHTML = opts;
+    }).catch(function() {});
+}
+
+function aplicarFiltros() {
+    filtroQ           = document.getElementById('fprod_q').value.trim();
+    filtroDescripcion = document.getElementById('fprod_descripcion').value.trim();
+    filtroIsv         = document.getElementById('fprod_isv').value;
+    filtroCategoriaId = document.getElementById('fprod_categoria').value;
+    filtroMarcaId     = document.getElementById('fprod_marca').value;
+    $('#tbl_productosListar').DataTable().ajax.reload();
+}
+
+function limpiarFiltros() {
+    document.getElementById('fprod_q').value           = '';
+    document.getElementById('fprod_descripcion').value = '';
+    document.getElementById('fprod_isv').value         = '';
+    document.getElementById('fprod_categoria').value   = '';
+    document.getElementById('fprod_marca').value       = '';
+    filtroQ = ''; filtroDescripcion = ''; filtroIsv = ''; filtroCategoriaId = ''; filtroMarcaId = '';
+    $('#tbl_productosListar').DataTable().ajax.reload();
+}
+
+function exportarExcel() {
+    var params = new URLSearchParams({
+        filtro_q:            filtroQ,
+        filtro_descripcion:  filtroDescripcion,
+        filtro_isv:          filtroIsv,
+        filtro_categoria_id: filtroCategoriaId,
+        filtro_marca_id:     filtroMarcaId,
+    });
+    window.location.href = '/producto/excel?' + params.toString();
+}
 
 function disponibilidadProducto(id){
     axios.post("/producto/detalle", {"id":id})

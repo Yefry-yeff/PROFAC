@@ -118,7 +118,7 @@
                         class="fa fa-plus"></i> Registrar Producto</a>
             </div>
             <div style="margin-top: 1.5rem">
-                <a href="/producto/excel" class="btn add-btn btn-success"><i class="fa fa-plus"></i> Exportar Excel</a>
+                <button onclick="exportarExcel()" class="btn add-btn btn-success"><i class="fa fa-file-excel-o"></i> Exportar Excel</button>
             </div>
         </div>
         @endif
@@ -129,6 +129,58 @@
     </div>
 
     <div class="wrapper wrapper-content animated fadeInRight">
+        <div class="row">
+            <div class="col-lg-12">
+                <div class="ibox" style="margin-bottom:0;">
+                    <div class="ibox-title"><h3><i class="fa fa-filter mr-1"></i> Filtros</h3></div>
+                    <div class="ibox-content" style="padding-bottom:8px;">
+                        <div class="row align-items-end">
+                            <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                                <label class="col-form-label">Nombre / ID / Cód. Barra</label>
+                                <input type="text" id="fprod_q" class="form-control"
+                                       placeholder="Ej: bolsa concept (palabras separadas)">
+                            </div>
+                            <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                                <label class="col-form-label">Descripción</label>
+                                <input type="text" id="fprod_descripcion" class="form-control"
+                                       placeholder="Buscar en descripción…">
+                            </div>
+                            <div class="col-12 col-sm-6 col-md-2 col-lg-2">
+                                <label class="col-form-label">ISV</label>
+                                <select id="fprod_isv" class="form-control">
+                                    <option value="">-- Todos --</option>
+                                    <option value="con">Con ISV</option>
+                                    <option value="0">Exento</option>
+                                </select>
+                            </div>
+                            <div class="col-12 col-sm-6 col-md-4 col-lg-2">
+                                <label class="col-form-label">Categoría</label>
+                                <select id="fprod_categoria" class="form-control">
+                                    <option value="">-- Todas --</option>
+                                </select>
+                            </div>
+                            <div class="col-12 col-sm-6 col-md-4 col-lg-2">
+                                <label class="col-form-label">Marca</label>
+                                <select id="fprod_marca" class="form-control">
+                                    <option value="">-- Todas --</option>
+                                </select>
+                            </div>
+                            <div class="col-12 col-sm-12 col-md-12 col-lg-12 mt-2" style="display:flex; gap:8px;">
+                                <button onclick="aplicarFiltros()" class="btn btn-info btn-sm">
+                                    <i class="fa fa-filter"></i> Filtrar
+                                </button>
+                                <button onclick="limpiarFiltros()" class="btn btn-default btn-sm">
+                                    <i class="fa fa-times"></i> Limpiar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="wrapper wrapper-content animated fadeInRight" style="padding-top:0;">
         <div class="row">
             <div class="col-lg-12">
                 <div class="ibox ">
