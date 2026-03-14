@@ -36,7 +36,7 @@
 @php
     $contadorFilas = 0;
     $altura  = 20;
-    $altura2 = 320;
+    $altura2 = 190;
 @endphp
 
 <div class="pruebaFondo">
@@ -45,9 +45,9 @@
 
     <b style="position:absolute; right:100px; top:50px;">*Original*</b>
 
-    {{-- Encabezado de la boleta --}}
+    {{-- Encabezado CAI --}}
     <div class="card border border-dark"
-         style="margin-left:44px; margin-top:150px; width:45rem; height:4rem;">
+         style="margin-left:44px; margin-top:150px; width:45rem; height:5.5rem;">
         <div class="card-header">
             <b>Boleta de Compra No. {{ $boleta->numero_boleta }}</b>
             <b style="position:absolute; right:10px;">
@@ -55,24 +55,45 @@
             </b>
         </div>
         <div class="card-body">
-            <p class="card-text" style="position:absolute; left:20px; top:40px;">
+            <p class="card-text" style="position:absolute; left:20px; top:50px;">
                 <b>Registro tributario: 08011986138652</b>
             </p>
+            @if($caiBoleta)
+            <p class="card-text" style="position:absolute; left:420px; top:50px;">
+                <b>CAI: {{ $caiBoleta->cai }}</b>
+            </p>
+            <p class="card-text" style="position:absolute; left:20px; top:65px;">
+                <b>Fecha límite de emisión: {{ $caiBoleta->fecha_limite_emision }}</b>
+            </p>
+            <p class="card-text" style="position:absolute; left:340px; top:65px;">
+                <b>Rango autorizado: {{ $caiBoleta->numero_inicial }} - {{ $caiBoleta->numero_final }}</b>
+            </p>
+            @endif
         </div>
     </div>
 
     {{-- Datos del cliente --}}
     <div class="card border border-dark"
-         style="margin-left:44px; margin-top:10px; width:45rem; height:5rem;">
+         style="margin-left:44px; margin-top:10px; width:45rem; height:8rem;">
         <div class="card-body">
             <p class="card-text" style="position:absolute; left:20px; top:10px;">
                 <b>Cliente: </b>{{ $boleta->cliente }}
             </p>
-            <p class="card-text" style="position:absolute; left:20px; top:30px; font-size:10px; max-width:550px;">
+            <p class="card-text" style="position:absolute; left:20px; top:28px; font-size:10px; max-width:430px;">
                 <b>Dirección:</b> {{ $boleta->direccion }}
             </p>
-            <p class="card-text" style="position:absolute; left:500px; top:10px;">
-                <b>Registrado por:</b> {{ $boleta->registrado_por }}
+            @if(!empty($boleta->rtn_dni))
+            <p class="card-text" style="position:absolute; left:20px; top:46px; font-size:10px;">
+                <b>RTN/DNI:</b> {{ $boleta->rtn_dni }}
+            </p>
+            @endif
+            @if(!empty($boleta->telefono))
+            <p class="card-text" style="position:absolute; left:20px; top:62px; font-size:10px;">
+                <b>Teléfono:</b> {{ $boleta->telefono }}
+            </p>
+            @endif
+            <p class="card-text" style="position:absolute; left:520px; top:10px;">
+                <b>Hora:</b> {{ \Carbon\Carbon::parse($boleta->created_at)->format('H:i') }}
             </p>
         </div>
     </div>
@@ -108,51 +129,57 @@
     </div>
 
     @if($contadorFilas > 4 && $contadorFilas < 24)
-        @php $altura = 170; $altura2 = 530; @endphp
+        @php $altura = 170; $altura2 = 340; @endphp
         <div style="page-break-after: always"></div>
     @else
         @php $altura = 20; @endphp
     @endif
 
-    {{-- Totales --}}
+    {{-- Sección inferior --}}
     <div style="position:relative; margin-left:44px;">
 
+        {{-- Tarjeta izquierda: Comentario + Registrado por --}}
         <div class="card border border-dark"
-             style="position:absolute; left:0px; margin-top:{{ $altura }}px; width:26rem; height:10rem;">
+             style="position:absolute; left:0px; margin-top:{{ $altura }}px; width:26rem; height:8rem;">
             <div class="card-body">
-                <p class="card-text" style="position:absolute; left:10px; top:5px; font-size:14px;">
-                    <b>Registrado por: </b>{{ $boleta->registrado_por }}
-                </p>
-
-                @if($flagCentavos == false)
-                <p class="card-text"
-                   style="position:absolute; left:35px; top:130px; font-size:12px;">
-                    "{{ $numeroLetras . ' CON CERO CENTAVOS' }}"
-                </p>
-                @else
-                <p class="card-text"
-                   style="position:absolute; left:35px; top:130px; font-size:12px;">
-                    "{{ $numeroLetras }}"
+                @if(!empty($boleta->comentario))
+                <p class="card-text" style="position:absolute; left:10px; top:5px; font-size:11px; max-width:390px;">
+                    <b>Comentario:</b> {{ $boleta->comentario }}
                 </p>
                 @endif
+                <p class="card-text" style="position:absolute; left:10px; bottom:8px; font-size:12px;">
+                    <b>Registrado por: </b>{{ $boleta->registrado_por }}
+                </p>
             </div>
         </div>
 
+        {{-- Tarjeta derecha: Totales --}}
         <div class="card border border-dark"
-             style="position:absolute; left:430px; margin-top:{{ $altura }}px; width:18rem; height:10rem;">
+             style="position:absolute; left:430px; margin-top:{{ $altura }}px; width:18rem; height:8rem;">
             <div class="card-body">
                 <p class="card-text" style="position:absolute; left:10px; top:10px; font-size:14px;">Sub Total:</p>
                 <p class="card-text" style="position:absolute; right:10px; top:10px; font-size:14px;">
                     L. {{ number_format($boleta->sub_total, 2) }}
                 </p>
-
-                <p class="card-text" style="position:absolute; left:10px; top:72px; font-size:16px;"><b>Total a Pagar:</b></p>
-                <p class="card-text" style="position:absolute; right:10px; top:72px; font-size:16px;">
+                <p class="card-text" style="position:absolute; left:10px; top:55px; font-size:16px;"><b>Total a Pagar:</b></p>
+                <p class="card-text" style="position:absolute; right:10px; top:55px; font-size:16px;">
                     <b>L. {{ number_format($boleta->total, 2) }}</b>
                 </p>
             </div>
         </div>
 
+        {{-- Valor en letras (debajo de los dos recuadros) --}}
+        <div style="position:absolute; left:0px; margin-top:{{ $altura + 140 }}px; width:45rem;">
+            <p class="card-text" style="font-size:11px; padding:4px 10px;">
+                @if($flagCentavos == false)
+                    <b>"{{ $numeroLetras . ' CON CERO CENTAVOS' }}"</b>
+                @else
+                    <b>"{{ $numeroLetras }}"</b>
+                @endif
+            </p>
+        </div>
+
+        {{-- Firmas --}}
         <div style="position:absolute; left:0px; margin-top:{{ $altura2 }}px; width:45rem;">
             <p class="card-text" style="position:absolute; left:20px; top:10px;">
                 _______________________________________
@@ -160,11 +187,14 @@
             <p class="card-text" style="position:absolute; left:450px; top:10px;">
                 _______________________________________
             </p>
-            <p class="card-text" style="position:absolute; left:80px; top:25px;">
-                {{ strtoupper($boleta->cliente) }}
+            <p class="card-text" style="position:absolute; left:22px; top:28px; font-size:10px;">
+                <b>Comprador:</b> {{ strtoupper($boleta->cliente) }}
+                @if(!empty($boleta->rtn_dni)) | RTN/DNI: {{ $boleta->rtn_dni }} @endif
+                @if(!empty($boleta->telefono)) | Tel: {{ $boleta->telefono }} @endif
             </p>
-            <p class="card-text" style="position:absolute; left:495px; top:25px;">DISTRIBUCIONES VALENCIA</p>
+            <p class="card-text" style="position:absolute; left:470px; top:28px;">DISTRIBUCIONES VALENCIA</p>
         </div>
+
     </div>
 
 </div>

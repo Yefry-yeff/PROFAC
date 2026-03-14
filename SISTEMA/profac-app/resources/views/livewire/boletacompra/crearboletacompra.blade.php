@@ -42,6 +42,33 @@
                                 </div>
                             </div>
 
+                            <div class="row mt-2">
+                                <div class="col-12 col-sm-12 col-md-4">
+                                    <div class="form-group">
+                                        <label for="bc_rtn_dni">RTN / DNI: <small class="text-muted">(opcional)</small></label>
+                                        <input type="text" id="bc_rtn_dni" name="bc_rtn_dni" class="form-control"
+                                               placeholder="RTN o DNI del cliente" maxlength="50">
+                                    </div>
+                                </div>
+                                <div class="col-12 col-sm-12 col-md-4">
+                                    <div class="form-group">
+                                        <label for="bc_telefono">Teléfono: <small class="text-muted">(opcional)</small></label>
+                                        <input type="text" id="bc_telefono" name="bc_telefono" class="form-control"
+                                               placeholder="Teléfono del cliente" maxlength="50">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row mt-2">
+                                <div class="col-12">
+                                    <div class="form-group">
+                                        <label for="bc_comentario">Comentario general: <small class="text-muted">(opcional)</small></label>
+                                        <textarea id="bc_comentario" name="bc_comentario" class="form-control" rows="3"
+                                                  placeholder="Observaciones o comentarios generales de la boleta..."></textarea>
+                                    </div>
+                                </div>
+                            </div>
+
                         </form>
                     </div>
                 </div>

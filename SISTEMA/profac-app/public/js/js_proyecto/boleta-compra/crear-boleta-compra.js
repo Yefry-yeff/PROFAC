@@ -186,12 +186,15 @@ function guardarBoletaCompra() {
         );
 
         axios.post('/boleta/compra/guardar', {
-            cliente:   cliente,
-            direccion: direccion,
-            fecha:     fecha,
-            conceptos: JSON.stringify(conceptos),
-            total:     total,
-            _token:    $('meta[name="csrf-token"]').attr('content')
+            cliente:    cliente,
+            direccion:  direccion,
+            fecha:      fecha,
+            conceptos:  JSON.stringify(conceptos),
+            total:      total,
+            rtn_dni:    $('#bc_rtn_dni').val().trim(),
+            telefono:   $('#bc_telefono').val().trim(),
+            comentario: $('#bc_comentario').val().trim(),
+            _token:     $('meta[name="csrf-token"]').attr('content')
         }).then(function(response) {
             var data = response.data;
 

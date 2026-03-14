@@ -19,10 +19,13 @@ class CrearBoletaCompra extends Component
     public function guardarBoletaCompra(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'cliente'   => 'required|string|max:255',
-            'fecha'     => 'required|date',
-            'conceptos' => 'required|string',
-            'total'     => 'required|numeric|min:0.01',
+            'cliente'    => 'required|string|max:255',
+            'fecha'      => 'required|date',
+            'conceptos'  => 'required|string',
+            'total'      => 'required|numeric|min:0.01',
+            'rtn_dni'    => 'nullable|string|max:50',
+            'telefono'   => 'nullable|string|max:50',
+            'comentario' => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
@@ -42,25 +45,44 @@ class CrearBoletaCompra extends Component
             ], 422);
         }
 
+        // Obtener CAI activo para boletas
+        $caiBoleta = DB::table('cai_boleta_compra')
+            ->where('estado', 1)
+            ->first();
+
+        if (!$caiBoleta) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'No hay un CAI activo configurado para boletas de compra.',
+            ], 422);
+        }
+
         DB::beginTransaction();
         try {
-            $idBoleta = DB::table('boleta_compra')->insertGetId([
-                'numero_boleta' => '',
-                'cliente'       => $request->cliente,
-                'direccion'     => $request->direccion ?? '',
-                'fecha'         => $request->fecha,
-                'sub_total'     => $request->total,
-                'total'         => $request->total,
-                'estado'        => 1,
-                'users_id'      => Auth::id(),
-                'created_at'    => now(),
-                'updated_at'    => now(),
-            ]);
+            // Incrementar contador del CAI
+            DB::table('cai_boleta_compra')
+                ->where('id', $caiBoleta->id)
+                ->increment('contador');
 
-            $numeroBoleta = 'BC-' . str_pad($idBoleta, 4, '0', STR_PAD_LEFT);
-            DB::table('boleta_compra')
-                ->where('id', $idBoleta)
-                ->update(['numero_boleta' => $numeroBoleta]);
+            $nuevoContador = $caiBoleta->contador + 1;
+            $numeroBoleta  = $caiBoleta->prefijo . str_pad($nuevoContador, 8, '0', STR_PAD_LEFT);
+
+            $idBoleta = DB::table('boleta_compra')->insertGetId([
+                'numero_boleta'  => $numeroBoleta,
+                'cliente'        => $request->cliente,
+                'direccion'      => $request->direccion ?? '',
+                'rtn_dni'        => $request->rtn_dni ?: null,
+                'telefono'       => $request->telefono ?: null,
+                'comentario'     => $request->comentario ?: null,
+                'fecha'          => $request->fecha,
+                'sub_total'      => $request->total,
+                'total'          => $request->total,
+                'estado'         => 1,
+                'cai_boleta_id'  => $caiBoleta->id,
+                'users_id'       => Auth::id(),
+                'created_at'     => now(),
+                'updated_at'     => now(),
+            ]);
 
             foreach ($conceptos as $index => $concepto) {
                 DB::table('boleta_compra_detalle')->insert([

@@ -76,7 +76,7 @@ class HistorialBoletaCompra extends Component
         }
     }
 
-    public function imprimirOriginal($id)
+    private function _datosBoleta($id)
     {
         $boleta = DB::SELECTONE("
             SELECT b.*, u.name AS registrado_por
@@ -93,6 +93,17 @@ class HistorialBoletaCompra extends Component
             WHERE boleta_compra_id = " . (int)$id . "
             ORDER BY linea ASC");
 
+        $caiBoleta = null;
+        if (!empty($boleta->cai_boleta_id)) {
+            $caiBoleta = DB::SELECTONE("
+                SELECT cai,
+                       DATE_FORMAT(fecha_limite_emision, '%d/%m/%Y') AS fecha_limite_emision,
+                       numero_inicial,
+                       numero_final
+                FROM cai_boleta_compra
+                WHERE id = " . (int)$boleta->cai_boleta_id);
+        }
+
         $total        = (float)$boleta->total;
         $flagCentavos = (fmod($total, 1) != 0.0);
 
@@ -100,39 +111,20 @@ class HistorialBoletaCompra extends Component
         $formatter->apocope = true;
         $numeroLetras       = $formatter->toMoney($total, 2, 'LEMPIRAS', 'CENTAVOS');
 
-        $pdf = PDF::loadView('/pdf/boletaCompra', compact('boleta', 'detalles', 'numeroLetras', 'flagCentavos'))
-                   ->setPaper('letter');
+        return compact('boleta', 'detalles', 'caiBoleta', 'numeroLetras', 'flagCentavos');
+    }
 
-        return $pdf->stream('boleta_compra_' . $boleta->numero_boleta . '.pdf');
+    public function imprimirOriginal($id)
+    {
+        $data = $this->_datosBoleta($id);
+        $pdf  = PDF::loadView('/pdf/boletaCompra', $data)->setPaper('letter');
+        return $pdf->stream('boleta_compra_' . $data['boleta']->numero_boleta . '.pdf');
     }
 
     public function imprimirCopia($id)
     {
-        $boleta = DB::SELECTONE("
-            SELECT b.*, u.name AS registrado_por
-            FROM boleta_compra b
-            INNER JOIN users u ON b.users_id = u.id
-            WHERE b.id = " . (int)$id);
-
-        $detalles = DB::SELECT("
-            SELECT linea, descripcion,
-                   FORMAT(precio,   2) AS precio,
-                   FORMAT(cantidad, 2) AS cantidad,
-                   FORMAT(importe,  2) AS importe
-            FROM boleta_compra_detalle
-            WHERE boleta_compra_id = " . (int)$id . "
-            ORDER BY linea ASC");
-
-        $total        = (float)$boleta->total;
-        $flagCentavos = (fmod($total, 1) != 0.0);
-
-        $formatter          = new NumeroALetras();
-        $formatter->apocope = true;
-        $numeroLetras       = $formatter->toMoney($total, 2, 'LEMPIRAS', 'CENTAVOS');
-
-        $pdf = PDF::loadView('/pdf/boletaCompra_copia', compact('boleta', 'detalles', 'numeroLetras', 'flagCentavos'))
-                   ->setPaper('letter');
-
-        return $pdf->stream('boleta_compra_copia_' . $boleta->numero_boleta . '.pdf');
+        $data = $this->_datosBoleta($id);
+        $pdf  = PDF::loadView('/pdf/boletaCompra_copia', $data)->setPaper('letter');
+        return $pdf->stream('boleta_compra_copia_' . $data['boleta']->numero_boleta . '.pdf');
     }
 }

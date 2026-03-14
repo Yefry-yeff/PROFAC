@@ -16,10 +16,14 @@ class ModelBoletaCompra extends Model
         'numero_boleta',
         'cliente',
         'direccion',
+        'rtn_dni',
+        'telefono',
+        'comentario',
         'fecha',
         'sub_total',
         'total',
         'estado',
+        'cai_boleta_id',
         'users_id',
     ];
 }
