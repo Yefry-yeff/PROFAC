@@ -76,6 +76,8 @@ use App\Http\Livewire\Inventario\TipoAjuste;
 use App\Http\Livewire\Ventas\MotivoNotaCredito;
 use App\Http\Livewire\NotaCredito\CrearNotaCredito;
 use App\Http\Livewire\NotaCredito\ListadoNotaCredito;
+use App\Http\Livewire\BoletaCompra\CrearBoletaCompra;
+use App\Http\Livewire\BoletaCompra\HistorialBoletaCompra;
 use App\Http\Livewire\Inventario\Categoria;
 use App\Http\Livewire\Inventario\SubCategoria;
 use App\Http\Livewire\Ventas\SinRestriccionPrecio;
@@ -468,6 +470,15 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/boleta/compra', function () {
         return redirect()->away('https://cadss.hn/orden/ordn_new_product.php');
     });
+
+    //---------------------------------------------------------------------BOLETA DE COMPRA (módulo interno)--------------------------------------------------------------//
+    Route::get('/boleta/compra/crear',               CrearBoletaCompra::class);
+    Route::post('/boleta/compra/guardar',            [CrearBoletaCompra::class,    'guardarBoletaCompra']);
+    Route::post('/boleta/compra/anular',             [CrearBoletaCompra::class,    'anularBoletaCompra']);
+    Route::get('/boleta/compra/historial',           HistorialBoletaCompra::class);
+    Route::post('/boleta/compra/listar',             [HistorialBoletaCompra::class,'listadoBoletaCompra']);
+    Route::get('/boleta/compra/imprimir/{id}',       [HistorialBoletaCompra::class,'imprimirOriginal']);
+    Route::get('/boleta/compra/imprimir/copia/{id}', [HistorialBoletaCompra::class,'imprimirCopia']);
 
     // Redirección a sistema externo de boletas de compra
     Route::get('/orden/compra', function () {
