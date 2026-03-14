@@ -35,8 +35,7 @@
 
 @php
     $contadorFilas = 0;
-    $altura  = 20;
-    $altura2 = 190;
+    $altura = 20;
 @endphp
 
 <div class="pruebaFondo">
@@ -72,29 +71,22 @@
         </div>
     </div>
 
-    {{-- Datos del cliente --}}
+    {{-- Datos del cliente: Fila 1: Nombre | RTN/DNI | Dirección — Fila 2: Teléfono --}}
     <div class="card border border-dark"
-         style="margin-left:44px; margin-top:10px; width:45rem; height:8rem;">
-        <div class="card-body">
-            <p class="card-text" style="position:absolute; left:20px; top:10px;">
-                <b>Cliente: </b>{{ $boleta->cliente }}
-            </p>
-            <p class="card-text" style="position:absolute; left:20px; top:28px; font-size:10px; max-width:430px;">
-                <b>Dirección:</b> {{ $boleta->direccion }}
-            </p>
-            @if(!empty($boleta->rtn_dni))
-            <p class="card-text" style="position:absolute; left:20px; top:46px; font-size:10px;">
-                <b>RTN/DNI:</b> {{ $boleta->rtn_dni }}
-            </p>
-            @endif
-            @if(!empty($boleta->telefono))
-            <p class="card-text" style="position:absolute; left:20px; top:62px; font-size:10px;">
-                <b>Teléfono:</b> {{ $boleta->telefono }}
-            </p>
-            @endif
-            <p class="card-text" style="position:absolute; left:520px; top:10px;">
-                <b>Hora:</b> {{ \Carbon\Carbon::parse($boleta->created_at)->format('H:i') }}
-            </p>
+         style="margin-left:44px; margin-top:10px; width:45rem;">
+        <div class="card-body" style="padding:8px 12px;">
+            <table style="width:100%; font-size:11px; border:none;" cellspacing="0" cellpadding="3">
+                <tr>
+                    <td style="width:35%; border:none;"><b>Cliente:</b> {{ $boleta->cliente }}</td>
+                    <td style="width:25%; border:none;"><b>RTN/DNI:</b> {{ $boleta->rtn_dni ?? '' }}</td>
+                    <td style="width:40%; border:none;"><b>Dirección:</b> {{ $boleta->direccion }}</td>
+                </tr>
+                @if(!empty($boleta->telefono))
+                <tr>
+                    <td colspan="3" style="border:none;"><b>Teléfono:</b> {{ $boleta->telefono }}</td>
+                </tr>
+                @endif
+            </table>
         </div>
     </div>
 
@@ -129,7 +121,7 @@
     </div>
 
     @if($contadorFilas > 4 && $contadorFilas < 24)
-        @php $altura = 170; $altura2 = 340; @endphp
+        @php $altura = 170; @endphp
         <div style="page-break-after: always"></div>
     @else
         @php $altura = 20; @endphp
@@ -140,7 +132,7 @@
 
         {{-- Tarjeta izquierda: Comentario + Registrado por --}}
         <div class="card border border-dark"
-             style="position:absolute; left:0px; margin-top:{{ $altura }}px; width:26rem; height:8rem;">
+             style="position:absolute; left:0px; margin-top:{{ $altura }}px; width:26rem; height:14rem;">
             <div class="card-body">
                 @if(!empty($boleta->comentario))
                 <p class="card-text" style="position:absolute; left:10px; top:5px; font-size:11px; max-width:390px;">
@@ -155,21 +147,51 @@
 
         {{-- Tarjeta derecha: Totales --}}
         <div class="card border border-dark"
-             style="position:absolute; left:430px; margin-top:{{ $altura }}px; width:18rem; height:8rem;">
-            <div class="card-body">
-                <p class="card-text" style="position:absolute; left:10px; top:10px; font-size:14px;">Sub Total:</p>
-                <p class="card-text" style="position:absolute; right:10px; top:10px; font-size:14px;">
-                    L. {{ number_format($boleta->sub_total, 2) }}
-                </p>
-                <p class="card-text" style="position:absolute; left:10px; top:55px; font-size:16px;"><b>Total a Pagar:</b></p>
-                <p class="card-text" style="position:absolute; right:10px; top:55px; font-size:16px;">
-                    <b>L. {{ number_format($boleta->total, 2) }}</b>
-                </p>
+             style="position:absolute; left:430px; margin-top:{{ $altura }}px; width:18rem; height:14rem;">
+            <div class="card-body" style="padding:6px 10px;">
+                <table style="width:100%; font-size:10px; border:none;" cellspacing="0" cellpadding="2">
+                    <tr>
+                        <td style="border:none;">Importe exonerado:</td>
+                        <td style="border:none; text-align:right;">L. 0.00</td>
+                    </tr>
+                    <tr>
+                        <td style="border:none;">Importe Gravado 15%:</td>
+                        <td style="border:none; text-align:right;">L. 0.00</td>
+                    </tr>
+                    <tr>
+                        <td style="border:none;">Importe Gravado 18%:</td>
+                        <td style="border:none; text-align:right;">L. 0.00</td>
+                    </tr>
+                    <tr>
+                        <td style="border:none;">Importe Exento:</td>
+                        <td style="border:none; text-align:right;">L. {{ number_format($boleta->sub_total, 2) }}</td>
+                    </tr>
+                    <tr>
+                        <td style="border:none;">Desc. y Rebajas:</td>
+                        <td style="border:none; text-align:right;">L. 0.00</td>
+                    </tr>
+                    <tr>
+                        <td style="border:none; padding-top:4px;"><b>Sub Total:</b></td>
+                        <td style="border:none; text-align:right; padding-top:4px;"><b>L. {{ number_format($boleta->sub_total, 2) }}</b></td>
+                    </tr>
+                    <tr>
+                        <td style="border:none;">Impuesto sobre venta 15%:</td>
+                        <td style="border:none; text-align:right;">L. 0.00</td>
+                    </tr>
+                    <tr>
+                        <td style="border:none;">Impuesto sobre venta 18%:</td>
+                        <td style="border:none; text-align:right;">L. 0.00</td>
+                    </tr>
+                    <tr style="font-size:12px;">
+                        <td style="border:none; padding-top:4px;"><b>Total a Pagar:</b></td>
+                        <td style="border:none; text-align:right; padding-top:4px;"><b>L. {{ number_format($boleta->total, 2) }}</b></td>
+                    </tr>
+                </table>
             </div>
         </div>
 
         {{-- Valor en letras (debajo de los dos recuadros) --}}
-        <div style="position:absolute; left:0px; margin-top:{{ $altura + 140 }}px; width:45rem;">
+        <div style="position:absolute; left:0px; margin-top:{{ $altura + 234 }}px; width:45rem;">
             <p class="card-text" style="font-size:11px; padding:4px 10px;">
                 @if($flagCentavos == false)
                     <b>"{{ $numeroLetras . ' CON CERO CENTAVOS' }}"</b>
@@ -179,22 +201,22 @@
             </p>
         </div>
 
-        {{-- Firmas --}}
-        <div style="position:absolute; left:0px; margin-top:{{ $altura2 }}px; width:45rem;">
-            <p class="card-text" style="position:absolute; left:20px; top:10px;">
-                _______________________________________
-            </p>
-            <p class="card-text" style="position:absolute; left:450px; top:10px;">
-                _______________________________________
-            </p>
-            <p class="card-text" style="position:absolute; left:22px; top:28px; font-size:10px;">
-                <b>Comprador:</b> {{ strtoupper($boleta->cliente) }}
-                @if(!empty($boleta->rtn_dni)) | RTN/DNI: {{ $boleta->rtn_dni }} @endif
-                @if(!empty($boleta->telefono)) | Tel: {{ $boleta->telefono }} @endif
-            </p>
-            <p class="card-text" style="position:absolute; left:470px; top:28px;">DISTRIBUCIONES VALENCIA</p>
-        </div>
+    </div>
 
+    {{-- Firmas: fijas en la parte inferior de la página --}}
+    <div style="position:fixed; bottom:50px; left:44px; width:45rem;">
+        <p class="card-text" style="position:absolute; left:20px; top:10px;">
+            _______________________________________
+        </p>
+        <p class="card-text" style="position:absolute; left:450px; top:10px;">
+            _______________________________________
+        </p>
+        <p class="card-text" style="position:absolute; left:22px; top:28px; font-size:10px;">
+            <b>Comprador:</b> {{ strtoupper($boleta->cliente) }}
+            @if(!empty($boleta->rtn_dni)) | RTN/DNI: {{ $boleta->rtn_dni }} @endif
+            @if(!empty($boleta->telefono)) | Tel: {{ $boleta->telefono }} @endif
+        </p>
+        <p class="card-text" style="position:absolute; left:470px; top:28px;">DISTRIBUCIONES VALENCIA</p>
     </div>
 
 </div>
