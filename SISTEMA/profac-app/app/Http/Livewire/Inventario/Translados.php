@@ -496,7 +496,8 @@ class Translados extends Component
                 "text" =>  $text2,
                 "icon" => "warning",
                 "title"=>"Advertencia!",
-                "contadorTranslados" => $contadorTranslados
+                "contadorTranslados" => $contadorTranslados,
+                "trasladoId" => $IDtraslado
             ], 200);
 
 
@@ -505,7 +506,8 @@ class Translados extends Component
                  "text" => "El producto ha sido transladado de bodega con éxito.",
                  "icon" => "success",
                  "title"=>"Exito!",
-                 "contadorTranslados" => $contadorTranslados
+                 "contadorTranslados" => $contadorTranslados,
+                 "trasladoId" => $IDtraslado
              ], 200);
         }
 

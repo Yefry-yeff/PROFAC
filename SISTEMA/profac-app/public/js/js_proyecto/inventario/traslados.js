@@ -4,6 +4,7 @@ var arrayInputs = [];
 var idProductoArray = [];
 var idRecibidoArray = [];
 var idRecibido = null;
+var _trasladoIdActual = null;  // ID del traslado guardado (para impresión)
 window.__traslados_bodega_id = '';   // usado por el buscador-producto para filtrar por bodega
 
 $(document).ready(function() {
@@ -558,15 +559,11 @@ function guardarTranslado(motivo) {
             let data = response.data;
             let contador = data.contadorTranslados;
 
+            _trasladoIdActual = data.trasladoId || null;
 
-
-
-            Swal.fire({
-                icon: data.icon,
-                title: data.title,
-                html: data.text,
-
-            })
+            if (_trasladoIdActual) {
+                $('#modal_imprimir_traslado').modal('show');
+            }
 
 
 
@@ -606,4 +603,15 @@ function guardarTranslado(motivo) {
         })
 
 
+}
+
+function imprimirTrasladoPDF() {
+    if (_trasladoIdActual) {
+        window.open('/translado/imprimir/' + _trasladoIdActual, '_blank');
+    }
+}
+
+function cerrarModalImpresionTraslado() {
+    $('#modal_imprimir_traslado').modal('hide');
+    window.location.reload();
 }
