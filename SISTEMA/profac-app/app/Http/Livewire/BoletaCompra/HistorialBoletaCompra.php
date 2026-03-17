@@ -99,7 +99,9 @@ class HistorialBoletaCompra extends Component
                 SELECT cai,
                        DATE_FORMAT(fecha_limite_emision, '%d/%m/%Y') AS fecha_limite_emision,
                        numero_inicial,
-                       numero_final
+                       numero_final,
+                       prefijo,
+                       punto_de_emision
                 FROM cai_boleta_compra
                 WHERE id = " . (int)$boleta->cai_boleta_id);
         }

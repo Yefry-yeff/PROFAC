@@ -45,8 +45,8 @@
     <b style="position:absolute; right:100px; top:50px;">*Original*</b>
 
     {{-- Encabezado CAI --}}
-    <div class="card border border-dark"
-         style="margin-left:44px; margin-top:150px; width:45rem; height:5.5rem;">
+    <div class="border card border-dark"
+         style="margin-left:44px; margin-top:150px; width:45rem; height:6.5rem;">
         <div class="card-header">
             <b>Boleta de Compra No. {{ $boleta->numero_boleta }}</b>
             <b style="position:absolute; right:10px;">
@@ -67,12 +67,13 @@
             <p class="card-text" style="position:absolute; left:340px; top:65px;">
                 <b>Rango autorizado: {{ $caiBoleta->numero_inicial }} - {{ $caiBoleta->numero_final }}</b>
             </p>
+           
             @endif
         </div>
     </div>
 
     {{-- Datos del cliente: Fila 1: Nombre | RTN/DNI | Dirección — Fila 2: Teléfono --}}
-    <div class="card border border-dark"
+    <div class="border card border-dark"
          style="margin-left:44px; margin-top:10px; width:45rem;">
         <div class="card-body" style="padding:8px 12px;">
             <table style="width:100%; font-size:11px; border:none;" cellspacing="0" cellpadding="3">
@@ -91,7 +92,7 @@
     </div>
 
     {{-- Tabla de productos --}}
-    <div class="card border border-dark"
+    <div class="border card border-dark"
          style="position:relative; margin-left:44px; margin-top:10px; width:45rem; page-break-inside:auto;">
         <div>
             <table style="font-size:11px;">
@@ -131,7 +132,7 @@
     <div style="position:relative; margin-left:44px;">
 
         {{-- Tarjeta izquierda: Comentario + Registrado por --}}
-        <div class="card border border-dark"
+        <div class="border card border-dark"
              style="position:absolute; left:0px; margin-top:{{ $altura }}px; width:26rem; height:14rem;">
             <div class="card-body">
                 @if(!empty($boleta->comentario))
@@ -146,7 +147,7 @@
         </div>
 
         {{-- Tarjeta derecha: Totales --}}
-        <div class="card border border-dark"
+        <div class="border card border-dark"
              style="position:absolute; left:430px; margin-top:{{ $altura }}px; width:18rem; height:14rem;">
             <div class="card-body" style="padding:6px 10px;">
                 <table style="width:100%; font-size:10px; border:none;" cellspacing="0" cellpadding="2">

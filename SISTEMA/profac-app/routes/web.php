@@ -676,6 +676,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/ventas/cai', Cai::class);
     Route::get('/ventas/cai/listar', [Cai::class, 'listarCAI']);
     Route::post('/ventas/cai/guardar', [Cai::class, 'guardarCAI']);
+    Route::post('/ventas/cai/boleta/guardar', [Cai::class, 'guardarCAIBoleta']);
     Route::post('/ventas/cai/datos', [Cai::class, 'datosCAI']);
     Route::post('/ventas/cai/editar', [Cai::class, 'editarCAI']);
 

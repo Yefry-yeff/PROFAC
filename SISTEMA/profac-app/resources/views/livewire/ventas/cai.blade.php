@@ -112,43 +112,19 @@
                     <li class="breadcrumb-item">
                         <a>Listar</a>
                     </li>
-                    <li class="breadcrumb-item">
-                        <a data-toggle="modal" data-target="#modal_cai_crear_facturacion">Facturación</a>
+                    <li class="breadcrumb-item active">
+                        <a>Crear</a>
                     </li>
-                    <li class="breadcrumb-item">
-                        <a data-toggle="modal" data-target="#modal_cai_crear_credito">Crédito</a>
-                    </li>
-                    <li class="breadcrumb-item">
-                        <a data-toggle="modal" data-target="#modal_cai_crear_debito">Débito</a>
-                    </li>
-                    <li class="breadcrumb-item">
-                        <a data-toggle="modal" data-target="#modal_cai_crear_devolucion">Crédito</a>
-                    </li>
-
                 </ol>
             </div>
         </div>
 
         <hr>
-        <div class="d-flex justify-content-around mt-2">
-
-            <div style="">
-                <a href="#" class="btn add-btn btn-primary" data-toggle="modal"
-                    data-target="#modal_cai_crear_facturacion"><i class="fa fa-plus"></i> Añadir CAI Facturación</a>
-            </div>
-            <div style="">
-                <a href="#" class="btn add-btn btn-primary" data-toggle="modal"
-                    data-target="#modal_cai_crear_credito"><i class="fa fa-plus"></i> Añadir CAI Nota Crédito</a>
-            </div>
-            <div style="">
-                <a href="#" class="btn add-btn btn-primary" data-toggle="modal"
-                    data-target="#modal_cai_crear_debito"><i class="fa fa-plus"></i> Añadir CAI Nota Débito</a>
-            </div>
-           {{--   <div style="">
-                <a href="#" class="btn add-btn btn-primary" data-toggle="modal"
-                    data-target="#modal_cai_crear_devolucion"><i class="fa fa-plus"></i> Añadir CAI Devolución Crédito</a>
-            </div>  --}}
-
+        <div class="mt-2">
+            <a href="#" class="btn add-btn btn-primary" data-toggle="modal"
+                data-target="#modal_cai_crear_unificado">
+                <i class="fa fa-plus"></i> Añadir CAI
+            </a>
         </div>
 
     </div>
@@ -262,6 +238,80 @@
                 </div>
             </div>
 
+            <!-- Modal unificado para registro de CAI -->
+            <div class="modal fade" id="modal_cai_crear_unificado" tabindex="-1" role="dialog"
+                aria-labelledby="modal_cai_crear_unificadoLabel" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered" role="document">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h3 class="modal-title" id="modal_cai_crear_unificadoLabel">Registro de CAI</h3>
+                            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <form id="crearCAIUnificadoForm" name="crearCAIUnificadoForm" data-parsley-validate>
+                                <input id="unif_tipo_documento_fiscal_id" name="tipo_documento_fiscal_id" type="hidden" value="">
+                                <div class="row">
+
+                                    <div class="col-md-12">
+                                        <label class="col-form-label focus-label">Tipo de Documento: <span class="text-danger">*</span></label>
+                                        <select id="sel_tipo_cai" name="tipo_cai" class="form-control" required data-parsley-required>
+                                            <option value="">-- Seleccione --</option>
+                                            <option value="1">FACTURACIÓN</option>
+                                            <option value="3">NOTA CRÉDITO</option>
+                                            <option value="4">NOTA DÉBITO</option>
+                                            <option value="boleta">BOLETA DE COMPRAS</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="col-md-12">
+                                        <label for="unif_cai" class="col-form-label focus-label">CAI: <span class="text-danger">*</span></label>
+                                        <input class="form-control" required type="text" id="unif_cai" name="cai" data-parsley-required>
+                                    </div>
+
+                                    <div class="col-md-12">
+                                        <label for="unif_fecha_limite" class="col-form-label focus-label">Fecha Límite: <span class="text-danger">*</span></label>
+                                        <input class="form-control" required type="date" id="unif_fecha_limite" name="fecha_limite" data-parsley-required>
+                                    </div>
+
+                                    <div id="row_cantidades_unif">
+                                        <div class="col-md-12">
+                                            <label for="unif_cantidad_otorgada" class="col-form-label focus-label">Cantidad Otorgada: <span class="text-danger">*</span></label>
+                                            <input class="form-control" required type="number" id="unif_cantidad_otorgada" name="cantidad_otorgada" data-parsley-required>
+                                        </div>
+                                        <div class="col-md-12">
+                                            <label for="unif_cantidad_solicitada" class="col-form-label focus-label">Cantidad Solicitada: <span class="text-danger">*</span></label>
+                                            <input class="form-control" required type="number" id="unif_cantidad_solicitada" name="cantidad_solicitada" data-parsley-required>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-12">
+                                        <label for="unif_numero_inicial" class="col-form-label focus-label">Número Inicial: <span class="text-danger">*</span></label>
+                                        <input class="form-control" required type="text" id="unif_numero_inicial" name="numero_inicial" data-parsley-required>
+                                    </div>
+
+                                    <div class="col-md-12">
+                                        <label for="unif_numero_final" class="col-form-label focus-label">Número Final: <span class="text-danger">*</span></label>
+                                        <input class="form-control" required type="text" id="unif_numero_final" name="numero_final" data-parsley-required>
+                                    </div>
+
+                                    <div class="col-md-12">
+                                        <label id="lbl_punto_emision_unif" for="unif_punto_emision" class="col-form-label focus-label">Punto de Emisión: <span class="text-danger">*</span></label>
+                                        <input class="form-control" required type="text" id="unif_punto_emision" name="punto_emision" data-parsley-required>
+                                    </div>
+
+                                </div>
+                            </form>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-default" data-dismiss="modal">Cerrar</button>
+                            <button type="submit" form="crearCAIUnificadoForm" class="btn btn-primary">Guardar CAI</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
                         <!-- Modal para editar CAI -->
                         <div class="modal fade" id="modal_cai_editar" tabindex="-1" role="dialog"
                         aria-labelledby="exampleModalLabel" aria-hidden="true">
@@ -360,11 +410,50 @@
     @push('scripts')
         <script>
 
-         $(document).on('submit', '#crearCAIFacturacionForm', function(event) {
+        $(document).on('submit', '#crearCAIUnificadoForm', function(event) {
+            event.preventDefault();
+            guardarCAIUnificado();
+        });
+
+        $(document).on('change', '#sel_tipo_cai', function() {
+            // Todos los tipos usan los mismos campos
+        });
+
+        function guardarCAIUnificado() {
+            const tipo = document.getElementById('sel_tipo_cai').value;
+            if (!tipo) {
+                Swal.fire({ icon: 'warning', title: 'Advertencia!', text: 'Seleccione el tipo de documento.' });
+                return;
+            }
+            let url;
+            if (tipo === 'boleta') {
+                url = '/ventas/cai/boleta/guardar';
+            } else {
+                document.getElementById('unif_tipo_documento_fiscal_id').value = tipo;
+                url = '/ventas/cai/guardar';
+            }
+            $('#modalSpinnerLoading').modal('show');
+            var formData = new FormData(document.getElementById('crearCAIUnificadoForm'));
+            axios.post(url, formData)
+                .then(response => {
+                    $('#modalSpinnerLoading').modal('hide');
+                    $('#crearCAIUnificadoForm').parsley().reset();
+                    document.getElementById('crearCAIUnificadoForm').reset();
+                    $('#modal_cai_crear_unificado').modal('hide');
+                    $('#tbl_cai_listar').DataTable().ajax.reload();
+                    Swal.fire({ icon: response.data.icon, title: response.data.title, text: response.data.text });
+                })
+                .catch(err => {
+                    $('#modalSpinnerLoading').modal('hide');
+                    $('#modal_cai_crear_unificado').modal('hide');
+                    let d = err.response ? err.response.data : {};
+                    Swal.fire({ icon: d.icon || 'error', title: d.title || 'Error', text: d.text || 'Error al guardar CAI' });
+                });
+        }
+
+        $(document).on('submit', '#crearCAIFacturacionForm', function(event) {
             event.preventDefault();
             guardarCaiFacturacion();
-            {{--  $('#modal_cai_crear_facturacion').modal('hide');  --}}
-
         });
 
             function guardarCaiFacturacion() {
