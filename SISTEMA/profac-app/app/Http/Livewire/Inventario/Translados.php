@@ -633,7 +633,8 @@ class Translados extends Component
         CONCAT(A.origen,A.destino,'-' ,A.id) as codigo,
         DATE_FORMAT(tr.created_at,'%d/%m/%Y') as fecha,
         B.name,
-        A.descripcion
+        A.descripcion,
+        tr.comentario
 
         from log_translado A
         inner join translado tr on A.translado_id = tr.id

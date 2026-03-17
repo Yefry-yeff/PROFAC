@@ -80,14 +80,14 @@ $altura =20;
 
         </div>
 
-        <div class="card border border-dark"   style="margin-left:44px; margin-top:10px; width:45rem; height:7rem;">
+        <div class="card border border-dark"   style="margin-left:44px; margin-top:10px; width:45rem; min-height:7rem;">
             <div class="card-body">
 
                 <p class="card-text "  style="position:absolute;left:20px;  top:10px;"><b>Fecha de translado: </b>{{$datos->fecha}}
                 </p>
                 <p class="card-text" style="position:absolute;left:390px;  top:10px;"><b>Realizado por: </b>{{$datos->name}} </p>
 
-                {{--  <p class="card-text" style="position:absolute;left:20px;  top:70px;"><b>Comentario: </b>{{$datos->descripcion}}</p>  --}}
+                <p class="card-text" style="position:absolute;left:20px;  top:35px;"><b>Comentario: </b>{{$datos->comentario}}</p>
 
 
 
