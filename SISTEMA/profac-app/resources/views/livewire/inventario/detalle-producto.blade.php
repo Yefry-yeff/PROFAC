@@ -46,7 +46,7 @@
             </ol>
         </div>
 
-        @if (Auth::user()->rol_id == '1' )
+        @if (Auth::user()->rol_id == '1' || Auth::user()->rol_id == '10')
             <div class="col-lg-4 col-xl-2 col-md-4 col-sm-4">
                 <div style="margin-top: 1.5rem" mr-auto>
                     <a href="#" class="btn add-btn btn-warning" data-toggle="modal"
@@ -72,7 +72,7 @@
 
 
 
-    <div class="row mt-6 wrapper white-bg animated fadeInRight  ">
+    <div class="mt-6 row wrapper white-bg animated fadeInRight ">
         <div class="col-lg-12 col-xl-12 col-md-12 col-sm-12">
             <div class="ibox">
                 <div class="ibox-title">
@@ -107,7 +107,7 @@
                                     <div class="carousel-item active row w-100 align-items-center">
 
                                         @if (Auth::user()->rol_id == '1' || Auth::user()->rol_id == '5' || Auth::user()->rol_id == '7' || Auth::user()->rol_id == '9' || Auth::user()->rol_id == '10')
-                                            <div class="col text-center">
+                                            <div class="text-center col">
                                                 <button class="btn btn-danger regular-button "
                                                     onclick="eliminar({{ $comillas . $imagen->url_img . $comillas }})"
                                                     type="button">Eliminar imagen</button>
@@ -123,7 +123,7 @@
                                     <div class="carousel-item row w-100 align-items-center">
 
                                         @if (Auth::user()->rol_id == '1' || Auth::user()->rol_id == '5'  || Auth::user()->rol_id == '9' || Auth::user()->rol_id == '10')
-                                            <div class="col text-center">
+                                            <div class="text-center col">
                                                 <button class="btn btn-danger regular-button "
                                                     onclick="eliminar({{ $comillas . $imagen->url_img . $comillas }})"
                                                     type="button">Eliminar imagen</button>
@@ -161,12 +161,12 @@
 
 
 
-    <div class="row mt-2">
+    <div class="mt-2 row">
         <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6">
             <div class="wrapper wrapper-content animated fadeInRight">
 
 
-                <div class="ibox mb-0">
+                <div class="mb-0 ibox">
                     <div class="ibox-title">
                         <h3>Informacion General <i class="fa-solid fa-pen-to-square"></i></h3>
                     </div>
@@ -209,7 +209,7 @@
 
                         @if (Auth::user()->rol_id == '1' )
 
-                <div class="ibox mb-0">
+                <div class="mb-0 ibox">
                     <div class="ibox-title">
                         <h3>Precios e Impuestos <i class="fa-solid fa-sack-dollar"></i></h3>
 
@@ -260,7 +260,7 @@
         </div>
     </div>
 
-    <div class="wrapper wrapper-content animated fadeInRight pt-0">
+    <div class="pt-0 wrapper wrapper-content animated fadeInRight">
         <div class="row">
             <div class="col-lg-12">
                 <div class="ibox ">
@@ -268,7 +268,7 @@
                         <h3>Disponibilidad de producto <i class="fa-solid fa-boxes-packing"></i> </h3>
                     </div>
                     <div class="ibox-content">
-                        <h3 class=""><i class="fa-solid fa-warehouse  m-0 p-0" style="color: #1AA689"></i>
+                        <h3 class=""><i class="p-0 m-0 fa-solid fa-warehouse" style="color: #1AA689"></i>
                             <span id="total_lotes"></span></h3>
                         <div class="table-responsive">
                             <table id="tbl_lotes_listar" class="table table-striped table-bordered table-hover">
@@ -314,7 +314,7 @@
         </div>
     </div>
 
-    <div class="wrapper wrapper-content animated fadeInRight pt-0">
+    <div class="pt-0 wrapper wrapper-content animated fadeInRight">
         <div class="row">
             <div class="col-lg-12">
                 <div class="ibox ">
@@ -506,8 +506,8 @@
                                 <input class="form-group form-control" required min="1" type="number" name="precio_edit[]" id="precio3_edit">
                             </div> --}}
 
-                            <div class="text-center col-md-12 mt-2">
-                                <p class="font-weight-bold text-center">Unidades De Medida Para Compra</p>
+                            <div class="mt-2 text-center col-md-12">
+                                <p class="text-center font-weight-bold">Unidades De Medida Para Compra</p>
                                 <hr>
                             </div>
 
