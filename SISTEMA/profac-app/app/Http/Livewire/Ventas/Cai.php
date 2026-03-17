@@ -26,25 +26,52 @@ class Cai extends Component
 
         try{
 
-            $cais = DB::SELECT("select
-            cai.id,
-            cai.cai,
-            cai.fecha_limite_emision,
-            tipo_documento_fiscal.descripcion,
-            cai.cantidad_otorgada,
-            cai.numero_inicial,
-            cai.numero_final
-            from cai
-            inner join tipo_documento_fiscal
-            on cai.tipo_documento_fiscal_id = tipo_documento_fiscal.id
-            where cai.estado_id = 1
+            $cais = DB::SELECT("
+            SELECT
+                cai.id,
+                cai.cai,
+                DATE_FORMAT(cai.fecha_limite_emision, '%Y-%m-%d') AS fecha_limite_emision,
+                tipo_documento_fiscal.descripcion,
+                cai.cantidad_otorgada,
+                cai.numero_inicial,
+                cai.numero_final,
+                'normal' AS tipo
+            FROM cai
+            INNER JOIN tipo_documento_fiscal
+                ON cai.tipo_documento_fiscal_id = tipo_documento_fiscal.id
+            WHERE cai.estado_id = 1
+
+            UNION ALL
+
+            SELECT
+                cb.id,
+                cb.cai,
+                DATE_FORMAT(cb.fecha_limite_emision, '%Y-%m-%d') AS fecha_limite_emision,
+                'BOLETA DE COMPRAS' AS descripcion,
+                cb.cantidad_otorgada,
+                cb.numero_inicial,
+                cb.numero_final,
+                'boleta' AS tipo
+            FROM cai_boleta_compra cb
+            WHERE cb.estado = 1
             ");
 
             return Datatables::of($cais)
                     ->addColumn('opciones', function ($cai) {
 
-                        return
+                        if ($cai->tipo === 'boleta') {
+                            return '
+                            <div class="btn-group">
+                                <button data-toggle="dropdown" class="btn btn-warning dropdown-toggle" aria-expanded="false">Ver más</button>
+                                <ul class="dropdown-menu">
+                                    <li>
+                                        <a class="dropdown-item text-muted"><i class="fa-solid fa-xmark text-danger"></i> Desactivar</a>
+                                    </li>
+                                </ul>
+                            </div>';
+                        }
 
+                        return
                         '
                         <div class="btn-group ">
                             <button data-toggle="dropdown" class="btn btn-warning dropdown-toggle" aria-expanded="false">Ver más</button>
