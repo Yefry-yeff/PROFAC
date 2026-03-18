@@ -555,6 +555,81 @@ class Cotizacion extends Component
 
     }
 
+    public function validarProforma(Request $request, $id)
+    {
+        try {
+            $idCotizacion = (int) $id;
+
+            $cotizacion = DB::selectOne(
+                "SELECT cliente_id, total FROM cotizacion WHERE id = ?",
+                [$idCotizacion]
+            );
+
+            if (!$cotizacion) {
+                return response()->json([
+                    'valido' => false,
+                    'icon'   => 'error',
+                    'titulo' => 'Error',
+                    'mensaje' => 'La cotización no fue encontrada.',
+                ], 404);
+            }
+
+            $idCliente = (int) $cotizacion->cliente_id;
+            $total     = $cotizacion->total;
+
+            $cliente = DB::selectOne(
+                "SELECT nombre, credito FROM cliente WHERE id = ?",
+                [$idCliente]
+            );
+
+            $nombreCliente = $cliente ? $cliente->nombre : '';
+
+            // Validación 1: facturas vencidas (misma lógica que comprobarFacturaVencida en FacturacionEstatal)
+            $facturasVencidas = DB::select(
+                "SELECT fa.id
+                 FROM factura fa
+                 INNER JOIN aplicacion_pagos ap ON ap.factura_id = fa.id
+                 WHERE ap.estado_cerrado <> 2
+                   AND ap.saldo <> 0
+                   AND ap.estado = 1
+                   AND fa.fecha_vencimiento < CURDATE()
+                   AND fa.estado_venta_id = 1
+                   AND fa.tipo_pago_id = 2
+                   AND fa.cliente_id = ?",
+                [$idCliente]
+            );
+
+            if (!empty($facturasVencidas)) {
+                return response()->json([
+                    'valido'  => false,
+                    'icon'    => 'warning',
+                    'titulo'  => 'Advertencia!',
+                    'mensaje' => 'El cliente ' . $nombreCliente . ' cuenta con facturas vencidas. Por el momento no se puede imprimir la proforma.',
+                ]);
+            }
+
+            // Validación 2: crédito insuficiente (misma lógica que comprobarCreditoCliente en FacturacionEstatal)
+            if ($cliente && $total > $cliente->credito) {
+                return response()->json([
+                    'valido'  => false,
+                    'icon'    => 'warning',
+                    'titulo'  => 'Advertencia!',
+                    'mensaje' => 'El cliente ' . $nombreCliente . ' no cuenta con crédito suficiente. Por el momento no se puede imprimir la proforma.',
+                ]);
+            }
+
+            return response()->json(['valido' => true]);
+
+        } catch (QueryException $e) {
+            return response()->json([
+                'valido'  => false,
+                'icon'    => 'error',
+                'titulo'  => 'Error',
+                'mensaje' => 'Ha ocurrido un error al validar la proforma.',
+            ], 500);
+        }
+    }
+
     public function listarBodegas(Request $request)
     {
         try {

@@ -149,5 +149,36 @@
 
         </script>
         <script src="{{ asset('js/js_proyecto/cotizaciones/listar-cotizaciones.js') }}"></script>
+        <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+        <script>
+            function imprimirProformaConValidacion(event, idCotizacion) {
+                event.preventDefault();
+                axios.get('/cotizacion/validar-proforma/' + idCotizacion)
+                    .then(function(response) {
+                        var data = response.data;
+                        if (data.valido) {
+                            window.open('/proforma/imprimir/' + idCotizacion, '_blank');
+                        } else {
+                            Swal.fire({
+                                icon: data.icon,
+                                title: data.titulo,
+                                text: data.mensaje,
+                            });
+                        }
+                    })
+                    .catch(function(err) {
+                        var mensaje = 'Ha ocurrido un error al validar la proforma.';
+                        if (err.response && err.response.data && err.response.data.mensaje) {
+                            mensaje = err.response.data.mensaje;
+                        }
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: mensaje,
+                        });
+                    });
+            }
+        </script>
     @endpush
 </div>

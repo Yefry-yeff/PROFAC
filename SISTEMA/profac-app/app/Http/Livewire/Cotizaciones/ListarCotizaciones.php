@@ -211,7 +211,7 @@ class ListarCotizaciones extends Component
                             </li>
 
                             <li>
-                            <a class="dropdown-item" target="_blank"  href="/proforma/imprimir/'.$cotizacion->id.'"> <i class="fa-solid fa-print text-success"></i> Imprimir Proforma </a>
+                            <a class="dropdown-item" href="#" onclick="imprimirProformaConValidacion(event,'.$cotizacion->id.')"> <i class="fa-solid fa-print text-success"></i> Imprimir Proforma </a>
                             </li>
 
                             <li>
@@ -243,7 +243,7 @@ class ListarCotizaciones extends Component
                         </li>
 
                         <li>
-                        <a class="dropdown-item" target="_blank"  href="/proforma/imprimir/'.$cotizacion->id.'"> <i class="fa-solid fa-print text-success"></i> Imprimir Proforma </a>
+                        <a class="dropdown-item" href="#" onclick="imprimirProformaConValidacion(event,'.$cotizacion->id.')"> <i class="fa-solid fa-print text-success"></i> Imprimir Proforma </a>
                         </li>
 
 
