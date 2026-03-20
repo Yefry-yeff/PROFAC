@@ -72,7 +72,7 @@
         <span style = "font-size: 10px; position:absolute;left:500px;  top:105px;">Documento: N{{$cliente->numero_factura}}-CF12</span></p>
         @endif  --}}
     <div class="pruebaFondo">
-        <img src="img/membrete/Logo3.png" width="800rem"
+        <img src="{{ public_path('img/membrete/Logo3.png') }}" width="800rem"
         style="margin-left:3%; margin-top:25px; position:absolute;"
          alt="">
 

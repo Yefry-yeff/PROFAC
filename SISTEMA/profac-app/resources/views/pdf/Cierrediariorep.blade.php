@@ -75,7 +75,7 @@
 </head>
 <body>
     <div class="header">
-        <img src="img/membrete/Logo3.png" style="margin-left:10%; margin-top:-25px; position:absolute;"alt="">
+        <img src="{{ public_path('img/membrete/Logo3.png') }}" style="margin-left:10%; margin-top:-25px; position:absolute;"alt="">
         <div class="header-text"style="margin-left:10%;  margin-top:60px; width:45rem; height:5.5rem;">
             <p>RTN: 08011986138652</p>
             <p>CIERRE DE CAJA</p>

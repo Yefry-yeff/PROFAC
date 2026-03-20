@@ -73,7 +73,7 @@
     @endphp
 
     <div class="pruebaFondo">
-        <img src="img/membrete/Logo3.png" width="900rem" style="margin-left:13%; margin-top:-25px; position:absolute;"alt="">
+        <img src="{{ public_path('img/membrete/Logo3.png') }}" width="900rem" style="margin-left:13%; margin-top:-25px; position:absolute;"alt="">
 
         <div class="card border border-dark" style="margin-left:72px;  margin-top:105px; width:60rem; height:4rem;">
             <div class="card-header">

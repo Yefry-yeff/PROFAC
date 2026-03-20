@@ -47,7 +47,7 @@
 
 <body>
 
-    <img src="img/membrete/Logo3.png" width="800rem" style="margin-left:2%; margin-top:-70px; position:absolute;"alt="">
+    <img src="{{ public_path('img/membrete/Logo3.png') }}" width="800rem" style="margin-left:2%; margin-top:-70px; position:absolute;"alt="">
                 <div class="container">
 
 
