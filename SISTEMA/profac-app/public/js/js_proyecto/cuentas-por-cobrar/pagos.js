@@ -5,6 +5,13 @@ $('#tbl_principal_div').addClass('d-none');
 $('#tbl_movimientos_div').addClass('d-none');
 $('#tbl_creditos_abonos_div').addClass('d-none');
 
+// Fix: prevent aria-hidden focus warning when Bootstrap modals close
+$(document).on('hide.bs.modal', '.modal', function () {
+    if (document.activeElement && $.contains(this, document.activeElement)) {
+        document.activeElement.blur();
+    }
+});
+
 
     $('#cliente').select2({
         ajax: {
@@ -317,34 +324,27 @@ function listarCuentasPorCobrar() {
 
 
                 ],initComplete: function () {
-                    var r = $('#tbl_cuentas_facturas_cliente tfoot tr');
-                    r.find('th').each(function(){
-                      $(this).css('padding', 8);
-                    });
-                    $('#tbl_cuentas_facturas_cliente thead').append(r);
-                    $('#search_0').css('text-align', 'center');
                     this.api()
                         .columns()
                         .every(function () {
                             let column = this;
-                            let title = column.footer().textContent;
+                            let footer = column.footer();
+                            if (!footer) return;
+                            let title = footer.textContent;
 
                             // Create input element
                             let input = document.createElement('input');
                             input.placeholder = title;
-                            column.footer().replaceChildren(input);
+                            input.style.width = '100%';
+                            footer.replaceChildren(input);
 
                             // Event listener for user input
                             input.addEventListener('keyup', () => {
-                                if (column.search() !== this.value) {
+                                if (column.search() !== input.value) {
                                     column.search(input.value).draw();
                                 }
                             });
                         });
-
-
-
-
                 }
 
             });
@@ -423,34 +423,27 @@ function listarMovimientos() {
                     }
 
                 ],initComplete: function () {
-                    var r = $('#tbl_tipo_movimientos_cliente tfoot tr');
-                    r.find('th').each(function(){
-                      $(this).css('padding', 8);
-                    });
-                    $('#tbl_tipo_movimientos_cliente thead').append(r);
-                    $('#search_0').css('text-align', 'center');
                     this.api()
                         .columns()
                         .every(function () {
                             let column = this;
-                            let title = column.footer().textContent;
+                            let footer = column.footer();
+                            if (!footer) return;
+                            let title = footer.textContent;
 
                             // Create input element
                             let input = document.createElement('input');
                             input.placeholder = title;
-                            column.footer().replaceChildren(input);
+                            input.style.width = '100%';
+                            footer.replaceChildren(input);
 
                             // Event listener for user input
                             input.addEventListener('keyup', () => {
-                                if (column.search() !== this.value) {
+                                if (column.search() !== input.value) {
                                     column.search(input.value).draw();
                                 }
                             });
                         });
-
-
-
-
                 }
 
             });
@@ -513,34 +506,27 @@ function listarAbonos() {
 
 
                 ],initComplete: function () {
-                    var r = $('#tbl_abonos_cliente tfoot tr');
-                    r.find('th').each(function(){
-                      $(this).css('padding', 8);
-                    });
-                    $('#tbl_abonos_cliente thead').append(r);
-                    $('#search_0').css('text-align', 'center');
                     this.api()
                         .columns()
                         .every(function () {
                             let column = this;
-                            let title = column.footer().textContent;
+                            let footer = column.footer();
+                            if (!footer) return;
+                            let title = footer.textContent;
 
                             // Create input element
                             let input = document.createElement('input');
                             input.placeholder = title;
-                            column.footer().replaceChildren(input);
+                            input.style.width = '100%';
+                            footer.replaceChildren(input);
 
                             // Event listener for user input
                             input.addEventListener('keyup', () => {
-                                if (column.search() !== this.value) {
+                                if (column.search() !== input.value) {
                                     column.search(input.value).draw();
                                 }
                             });
                         });
-
-
-
-
                 }
 
             });
@@ -817,6 +803,17 @@ function AnularOtroMov(idOtroMov){
 
     })
 
+}
+
+function metodoPago() {
+    var metodo = document.getElementById('selectMetodoPago').value;
+    var selectBanco = document.getElementById('selectBanco');
+    // EFECTIVO (1) does not require a bank; all other methods do
+    if (metodo == '1') {
+        selectBanco.removeAttribute('required');
+    } else {
+        selectBanco.setAttribute('required', 'required');
+    }
 }
 
 function datosBanco(){

@@ -897,17 +897,6 @@ class Pagos extends Component
 
 
 
-                           if ($cuentas22[0]->estado == -1) {
-
-                               return response()->json([
-                                   "text" => "Ha ocurrido un error en el procedimiento almacenado.",
-                                   "icon" => "error",
-                                   "title"=>"Error!"
-                               ],402);
-                           }
-
-
-
                        }
 
 

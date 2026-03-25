@@ -776,28 +776,28 @@
                                         <th>Movimiento</th>
                                         <th>Comentario</th>
                                         <th>Estado</th>
-                                        <th>Registrado por/th>
+                                        <th>Registrado por</th>
                                         <th>Fecha de registro</th>
                                         <th>Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tfoot>
-                                        <tr>
-                                            <th>Codigo Movimiento</th>
-                                            <th>Codigo Pagos</th>
-                                            <th>Código Factura</th>
-                                            <th>Monto</th>
-                                            <th>Movimiento</th>
-                                            <th>Comentario</th>
-                                            <th>Estado</th>
-                                            <th>Registrado por/th>
-                                            <th>Fecha de registro</th>
-                                            <th>Acciones</th>
-                                        </tr>
-                                    </tfoot>
-
                                 </tbody>
+
+                                <tfoot>
+                                    <tr>
+                                        <th>Codigo Movimiento</th>
+                                        <th>Codigo Pagos</th>
+                                        <th>Código Factura</th>
+                                        <th>Monto</th>
+                                        <th>Movimiento</th>
+                                        <th>Comentario</th>
+                                        <th>Estado</th>
+                                        <th>Registrado por</th>
+                                        <th>Fecha de registro</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </tfoot>
                             </table>
 
                         </div>
@@ -826,27 +826,27 @@
                                         <th>Monto</th>
                                         <th>Comentario</th>
                                         <th>Estado</th>
-                                        <th>Registrado por/th>
+                                        <th>Registrado por</th>
                                         <th>Fecha de registro</th>
                                         <th>Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tfoot>
-                                        <tr>
-                                            <th>Codigo Abono</th>
-                                            <th>Codigo Pagos</th>
-                                            <th>Factura</th>
-                                            <th>Monto</th>
-                                            <th>Comentario</th>
-                                            <th>Estado</th>
-                                            <th>Registrado por/th>
-                                            <th>Fecha de registro</th>
-                                            <th>Acciones</th>
-                                        </tr>
-                                    </tfoot>
-
                                 </tbody>
+
+                                <tfoot>
+                                    <tr>
+                                        <th>Codigo Abono</th>
+                                        <th>Codigo Pagos</th>
+                                        <th>Factura</th>
+                                        <th>Monto</th>
+                                        <th>Comentario</th>
+                                        <th>Estado</th>
+                                        <th>Registrado por</th>
+                                        <th>Fecha de registro</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </tfoot>
                             </table>
                         </div>
                     </div>
@@ -859,5 +859,5 @@
 </div>
 @push('scripts')
 
-<script src="{{ asset('js/js_proyecto/cuentas-por-cobrar/pagos.js') }}"></script>
+<script src="{{ asset('js/js_proyecto/cuentas-por-cobrar/pagos.js') }}?v={{ filemtime(public_path('js/js_proyecto/cuentas-por-cobrar/pagos.js')) }}"></script>
 @endpush
