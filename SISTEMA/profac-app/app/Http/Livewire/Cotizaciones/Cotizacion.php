@@ -608,15 +608,7 @@ class Cotizacion extends Component
                 ]);
             }
 
-            // Validación 2: crédito insuficiente (misma lógica que comprobarCreditoCliente en FacturacionEstatal)
-            if ($cliente && $total > $cliente->credito) {
-                return response()->json([
-                    'valido'  => false,
-                    'icon'    => 'warning',
-                    'titulo'  => 'Advertencia!',
-                    'mensaje' => 'El cliente ' . $nombreCliente . ' no cuenta con crédito suficiente. Por el momento no se puede imprimir la proforma.',
-                ]);
-            }
+            // Validación 2: crédito insuficiente — omitida intencionalmente (la proforma sí se puede imprimir)
 
             return response()->json(['valido' => true]);
 
