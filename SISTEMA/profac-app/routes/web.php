@@ -124,6 +124,7 @@ use App\Http\Livewire\Reportes\Comisiones;
 use App\Http\Livewire\Reportes\Facturasanuladasrep;
 use App\Http\Livewire\Reportes\Librocobrosrep;
 use App\Http\Livewire\Reportes\Libroventarep;
+use App\Http\Livewire\Clientes\ReporteClientes;
 
 
 use App\Http\Livewire\Escalas\CategoriaPrecios;
@@ -1097,6 +1098,14 @@ Route::post('/reporte/Libroventarep/exportar-pdf/{tipo}/{fechaInicio}/{fechaFina
     ->name('reporte.libro_venta.pdf');
 Route::post('/reporte/Libroventarep/exportar-excel/{tipo}/{fechaInicio}/{fechaFinal}', [Libroventarep::class, 'exportarExcel'])
     ->name('reporte.libro_venta.excel');
+
+//------------------------------- Reporte de Clientes ----------------------------//
+Route::get('/reporte/clientes',                                     ReporteClientes::class);
+Route::get('/reporte/clientes/consulta-general/{vendedorId}/{estado}',   [ReporteClientes::class, 'consultaGeneral']);
+Route::get('/reporte/clientes/consulta-sincredito/{vendedorId}/{estado}',[ReporteClientes::class, 'consultaSinCredito']);
+Route::get('/reporte/clientes/consulta-gobierno/{vendedorId}/{estado}',  [ReporteClientes::class, 'consultaGobierno']);
+Route::post('/reporte/clientes/exportar-pdf/{vendedorId}/{estado}',      [ReporteClientes::class, 'exportarPdf'])->name('reporte.clientes.pdf');
+Route::post('/reporte/clientes/exportar-excel/{vendedorId}/{estado}',    [ReporteClientes::class, 'exportarExcel'])->name('reporte.clientes.excel');
 
   //------------------------------- Logistica de Entregas ----------------------------//
 
