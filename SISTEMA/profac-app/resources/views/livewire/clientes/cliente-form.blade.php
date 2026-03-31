@@ -1,0 +1,404 @@
+<x-app-layout>
+@push('styles')
+<style>
+    .nav-tabs .nav-link { font-weight: 600; color: #555; }
+    .nav-tabs .nav-link.active { color: #1a7abf; border-bottom: 3px solid #1a7abf; }
+    .tab-section { padding: 20px 0; }
+    .form-section-title { font-size: 0.85rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: .08em; color: #1a7abf; border-bottom: 2px solid #e3e8ef;
+        padding-bottom: 6px; margin-bottom: 16px; }
+    .sticky-repo { position: sticky; top: 70px; }
+    .doc-item { display: flex; align-items: center; justify-content: space-between;
+        padding: 8px 12px; border: 1px solid #dee2e6; border-radius: 6px; margin-bottom: 6px;
+        background: #f8f9fc; }
+    .doc-item .doc-name { font-size: 0.82rem; color: #333; flex: 1; overflow: hidden;
+        text-overflow: ellipsis; white-space: nowrap; }
+    .doc-item .doc-actions { display: flex; gap: 4px; flex-shrink: 0; }
+    .historico-item { background: #f0f4ff; border-left: 4px solid #1a7abf;
+        padding: 10px 14px; border-radius: 0 6px 6px 0; margin-bottom: 10px; }
+    .historico-item .hi-meta { font-size: 0.75rem; color: #888; margin-top: 4px; }
+    .obs-item { background: #fffbe6; border-left: 4px solid #f5a623;
+        padding: 10px 14px; border-radius: 0 6px 6px 0; margin-bottom: 10px; }
+    .obs-item .obs-meta { font-size: 0.75rem; color: #888; margin-top: 4px; }
+    .credito-badge { font-size: 0.7rem; padding: 3px 8px; border-radius: 12px; }
+    .credito-activo   { background: #d4edda; color: #155724; }
+    .credito-inactivo { background: #f8d7da; color: #721c24; }
+    .repo-header { background: #1a7abf; color: #fff; padding: 10px 16px; border-radius: 6px 6px 0 0;
+        font-weight: 700; font-size: 0.9rem; }
+    .repo-body { border: 1px solid #dee2e6; border-top: none; border-radius: 0 0 6px 6px;
+        padding: 14px; background: #fff; }
+    .tipo-doc-label { font-size: 0.78rem; font-weight: 600; color: #555; margin-bottom: 4px;
+        text-transform: uppercase; letter-spacing: .04em; }
+    .doc-upload-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .doc-upload-row input[type=file] { flex: 1; font-size: 0.82rem; }
+</style>
+@endpush
+
+<div class="row wrapper border-bottom white-bg page-heading d-flex align-items-center">
+    <div class="col-lg-8">
+        <h2 id="page-title">{{ $id ? 'Editar Cliente' : 'Registrar Cliente' }}</h2>
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/clientes">Clientes</a></li>
+            <li class="breadcrumb-item active">{{ $id ? 'Editar' : 'Registrar' }}</li>
+        </ol>
+    </div>
+    <div class="col-lg-4 text-right">
+        <a href="/clientes" class="btn btn-secondary mt-3"><i class="fa fa-arrow-left"></i> Volver</a>
+    </div>
+</div>
+
+<div class="wrapper wrapper-content animated fadeInRight">
+    <input type="hidden" id="cliente_id_form" value="{{ $id }}">
+    <input type="hidden" name="_token" id="csrf_token" value="{!! csrf_token() !!}">
+
+    <div class="row">
+        {{-- ============ TABS LEFT ============ --}}
+        <div class="col-lg-8 col-xl-9">
+            <div class="ibox">
+                <div class="ibox-content" style="padding-top:0">
+                    <ul class="nav nav-tabs" id="clienteTabs" role="tablist">
+                        <li class="nav-item">
+                            <a class="nav-link active" id="tab-datos-tab" data-toggle="tab" href="#tab-datos" role="tab">
+                                <i class="fa fa-user"></i> Datos Principales
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="tab-contacto-tab" data-toggle="tab" href="#tab-contacto" role="tab">
+                                <i class="fa fa-phone"></i> Contacto
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="tab-direccion-tab" data-toggle="tab" href="#tab-direccion" role="tab">
+                                <i class="fa fa-map-marker"></i> Dirección
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="tab-credito-tab" data-toggle="tab" href="#tab-credito" role="tab">
+                                <i class="fa fa-credit-card"></i> Crédito
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="tab-obs-tab" data-toggle="tab" href="#tab-obs" role="tab">
+                                <i class="fa fa-comment"></i> Observaciones
+                            </a>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content" id="clienteTabsContent">
+
+                        {{-- ===== TAB 1: DATOS PRINCIPALES ===== --}}
+                        <div class="tab-pane fade show active tab-section" id="tab-datos" role="tabpanel">
+                            <p class="form-section-title">Información General</p>
+                            <div class="row">
+                                <div class="col-md-12 col-lg-8">
+                                    <div class="form-group">
+                                        <label>Nombre del Cliente <span class="text-danger">*</span></label>
+                                        <input type="text" id="dp_nombre" class="form-control" maxlength="500" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 col-lg-4">
+                                    <div class="form-group">
+                                        <label>RTN <span class="text-danger">*</span></label>
+                                        <input type="text" id="dp_rtn" class="form-control" maxlength="14" pattern="[0-9]{14}">
+                                    </div>
+                                </div>
+                                <div class="col-md-6 col-lg-4">
+                                    <div class="form-group">
+                                        <label>Categoría de Cliente / Escala <span class="text-danger">*</span></label>
+                                        <select id="dp_escala" class="form-control">
+                                            <option value="" disabled selected>-- Seleccione --</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 col-lg-4">
+                                    <div class="form-group">
+                                        <label>Tipo de Cliente <span class="text-danger">*</span></label>
+                                        <select id="dp_tipo_cliente" class="form-control">
+                                            <option value="" disabled selected>-- Seleccione --</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 col-lg-4">
+                                    <div class="form-group">
+                                        <label>Tipo de Personalidad <span class="text-danger">*</span></label>
+                                        <select id="dp_tipo_personalidad" class="form-control">
+                                            <option value="" disabled selected>-- Seleccione --</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 col-lg-4">
+                                    <div class="form-group">
+                                        <label>Año de Operación</label>
+                                        <input type="number" id="dp_ano_operacion" class="form-control" min="1900" max="2100">
+                                    </div>
+                                </div>
+                                <div class="col-md-6 col-lg-4">
+                                    <div class="form-group">
+                                        <label>DNI Representante Legal</label>
+                                        <input type="text" id="dp_dni" class="form-control" maxlength="20">
+                                    </div>
+                                </div>
+                                <div class="col-md-12 col-lg-4 d-flex align-items-center" style="margin-top: 10px">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="dp_estado" checked>
+                                        <label class="form-check-label ml-2" for="dp_estado"><strong>Cliente Activo</strong></label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-3" id="btn-guardar-datos-wrap">
+                                <button class="btn btn-primary" id="btn_guardar_datos" onclick="guardarDatosPrincipales()">
+                                    <i class="fa fa-save"></i> {{ $id ? 'Guardar Cambios' : 'Registrar Cliente' }}
+                                </button>
+                            </div>
+                        </div>
+
+                        {{-- ===== TAB 2: CONTACTO ===== --}}
+                        <div class="tab-pane fade tab-section" id="tab-contacto" role="tabpanel">
+                            <p class="form-section-title">Datos de Contacto</p>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Correo Electrónico</label>
+                                        <input type="email" id="ct_correo" class="form-control" maxlength="100">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Teléfono Empresa</label>
+                                        <input type="text" id="ct_telefono" class="form-control" maxlength="20">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Nombre Contacto 1</label>
+                                        <input type="text" id="ct_nombre1" class="form-control" maxlength="100">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Teléfono Contacto 1</label>
+                                        <input type="text" id="ct_telefono1" class="form-control" maxlength="20">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Nombre Contacto 2</label>
+                                        <input type="text" id="ct_nombre2" class="form-control" maxlength="100">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Teléfono Contacto 2</label>
+                                        <input type="text" id="ct_telefono2" class="form-control" maxlength="20">
+                                    </div>
+                                </div>
+                            </div>
+                            <button class="btn btn-primary mt-2" onclick="guardarContacto()" id="btn_guardar_contacto">
+                                <i class="fa fa-save"></i> Guardar Contacto
+                            </button>
+                        </div>
+
+                        {{-- ===== TAB 3: DIRECCIÓN ===== --}}
+                        <div class="tab-pane fade tab-section" id="tab-direccion" role="tabpanel">
+                            <p class="form-section-title">Dirección</p>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label>País <span class="text-danger">*</span></label>
+                                        <select id="dir_pais" class="form-control" onchange="cargarDeptosForm()">
+                                            <option value="" disabled selected>-- Seleccione --</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label>Departamento <span class="text-danger">*</span></label>
+                                        <select id="dir_depto" class="form-control" onchange="cargarMunicipiosForm()">
+                                            <option value="" disabled selected>-- Seleccione --</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label>Municipio <span class="text-danger">*</span></label>
+                                        <select id="dir_municipio" class="form-control">
+                                            <option value="" disabled selected>-- Seleccione --</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-12">
+                                    <div class="form-group">
+                                        <label>Dirección Completa <span class="text-danger">*</span></label>
+                                        <textarea id="dir_direccion" class="form-control" rows="3" maxlength="500"></textarea>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Latitud</label>
+                                        <input type="text" id="dir_latitud" class="form-control">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Longitud</label>
+                                        <input type="text" id="dir_longitud" class="form-control">
+                                    </div>
+                                </div>
+                            </div>
+                            <button class="btn btn-primary mt-2" onclick="guardarDireccion()" id="btn_guardar_direccion">
+                                <i class="fa fa-save"></i> Guardar Dirección
+                            </button>
+                        </div>
+
+                        {{-- ===== TAB 4: CRÉDITO ===== --}}
+                        <div class="tab-pane fade tab-section" id="tab-credito" role="tabpanel">
+                            <div class="row">
+                                <div class="col-md-12 mb-3">
+                                    <p class="form-section-title mb-1">Datos de Crédito</p>
+                                    <small class="text-muted">Cada modificación quedará registrada en el historial.</small>
+                                </div>
+                                <div class="col-md-12 d-flex align-items-center mb-3">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="cred_activo">
+                                        <label class="form-check-label ml-2" for="cred_activo"><strong>Crédito Disponible</strong></label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Monto de Crédito <span class="text-danger">*</span></label>
+                                        <input type="text" id="cred_monto" class="form-control" data-type="currency">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Días de Crédito</label>
+                                        <input type="number" id="cred_dias" class="form-control" min="0" max="365">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Vendedor</label>
+                                        <select id="cred_vendedor" class="form-control">
+                                            <option value="" disabled selected>-- Seleccione --</option>
+                                            @foreach($clientes as $v)
+                                            <option value="{{ $v->id }}">{{ $v->name }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Método de Pago</label>
+                                        <input type="text" id="cred_metodo_pago" class="form-control" maxlength="100">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Referencias Bancarias</label>
+                                        <textarea id="cred_ref_bancarias" class="form-control" rows="2"></textarea>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Referencias Comerciales</label>
+                                        <textarea id="cred_ref_comerciales" class="form-control" rows="2"></textarea>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Letra de Cambio</label>
+                                        <input type="text" id="cred_letra_cambio" class="form-control" maxlength="150">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Aval Solidario</label>
+                                        <input type="text" id="cred_aval_solidario" class="form-control" maxlength="150">
+                                    </div>
+                                </div>
+                                <div class="col-md-12">
+                                    <div class="form-group">
+                                        <label>Autorización de Gerencia <small class="text-muted">(observación)</small></label>
+                                        <textarea id="cred_autorizacion" class="form-control" rows="2" maxlength="500"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                            <button class="btn btn-primary mt-2" onclick="guardarCredito()" id="btn_guardar_credito">
+                                <i class="fa fa-save"></i> Guardar Crédito
+                            </button>
+
+                            {{-- Historial de crédito --}}
+                            <div class="mt-4">
+                                <p class="form-section-title">Historial de Modificaciones</p>
+                                <div id="historico_credito_container">
+                                    <p class="text-muted text-center" id="historico_credito_empty">Sin historial.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- ===== TAB 5: OBSERVACIONES ===== --}}
+                        <div class="tab-pane fade tab-section" id="tab-obs" role="tabpanel">
+                            <p class="form-section-title">Observaciones</p>
+                            <div class="form-group">
+                                <label>Nueva Observación</label>
+                                <textarea id="obs_texto" class="form-control" rows="3" maxlength="1000" placeholder="Escriba una observación..."></textarea>
+                            </div>
+                            <button class="btn btn-primary mb-4" onclick="guardarObservacion()" id="btn_guardar_obs">
+                                <i class="fa fa-plus"></i> Agregar Observación
+                            </button>
+                            <div id="observaciones_container">
+                                <p class="text-muted text-center" id="obs_empty">Sin observaciones registradas.</p>
+                            </div>
+                        </div>
+
+                    </div>{{-- /tab-content --}}
+                </div>
+            </div>
+        </div>
+
+        {{-- ============ REPOSITORIO DE DOCUMENTOS (STICKY, DERECHA) ============ --}}
+        <div class="col-lg-4 col-xl-3">
+            <div class="sticky-repo">
+                <div class="repo-header">
+                    <i class="fa fa-folder-open"></i> Repositorio de Documentos
+                </div>
+                <div class="repo-body">
+                    @php
+                    $tiposDoc = [
+                        'escritura_empresa'      => 'Escritura de la Empresa',
+                        'dni_representante'      => 'DNI del Representante Legal',
+                        'rtn'                    => 'RTN',
+                        'permiso_operacion'      => 'Permiso de Operación',
+                        'croquis'                => 'Croquis',
+                        'contrato_arrendamiento' => 'Contrato de Arrendamiento',
+                        'foto_establecimiento'   => 'Fotos de Establecimiento',
+                    ];
+                    @endphp
+
+                    @foreach($tiposDoc as $slug => $label)
+                    <div class="mb-3" id="repo_tipo_{{ $slug }}">
+                        <div class="tipo-doc-label">{{ $label }}</div>
+                        <div id="docs_list_{{ $slug }}"></div>
+                        <div class="doc-upload-row">
+                            <input type="file" id="file_{{ $slug }}" class="form-control-file"
+                                accept=".pdf,.png,.jpg,.jpeg,.gif,.doc,.docx">
+                            <button class="btn btn-sm btn-outline-primary" onclick="subirDocumento('{{ $slug }}')">
+                                <i class="fa fa-upload"></i>
+                            </button>
+                        </div>
+                    </div>
+                    @endforeach
+
+                    <div id="repo_aviso" class="alert alert-info mt-2 py-2" style="font-size:0.8rem; display:none;">
+                        <i class="fa fa-info-circle"></i> Guarde primero el cliente para subir documentos.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>{{-- /row --}}
+</div>
+
+@push('scripts')
+<script src="{{ asset('js/js_proyecto/cliente/cliente-form.js') }}"></script>
+@endpush
+</x-app-layout>

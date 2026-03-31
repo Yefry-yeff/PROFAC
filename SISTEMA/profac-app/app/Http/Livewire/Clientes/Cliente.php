@@ -17,6 +17,9 @@ use App\Models\Escalas\clienteCategoriaEscalaLog;
 use App\Models\ModelCliente;
 use App\Models\ModelContacto;
 use App\Models\logCredito;
+use App\Models\ClienteCredito;
+use App\Models\ClienteObservacion;
+use App\Models\ClienteDocumento;
 
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\ClientesExport;
@@ -276,7 +279,7 @@ class Cliente extends Component
                         <ul class="dropdown-menu" x-placement="bottom-start" style="position: absolute; top: 33px; left: 0px; will-change: top, left;">
 
                             <li>
-                                <a class="dropdown-item" onclick="modalEditarCliente('.$cliente->idCliente.')" > <i class="fa fa-pencil m-r-5 text-warning"></i> Editar Cliente </a>
+                                <a class="dropdown-item" href="/clientes/form/'.$cliente->idCliente.'" > <i class="fa fa-pencil m-r-5 text-warning"></i> Editar Cliente </a>
                                 <a class="dropdown-item" onclick="modalEditarFotografia('.$cliente->idCliente.')" > <i class="fa-solid fa-camera  m-r-5 text-success"></i> Cambiar Fotografia del cliente </a>
                                 <a class="dropdown-item" onclick="desactivarClienteModal('.$cliente->idCliente.')" > <i class="fa fa-times text-danger" aria-hidden="true"></i> Desactivar Cliente </a>
 
@@ -294,7 +297,7 @@ class Cliente extends Component
                         <ul class="dropdown-menu" x-placement="bottom-start" style="position: absolute; top: 33px; left: 0px; will-change: top, left;">
 
                             <li>
-                                <a class="dropdown-item" onclick="modalEditarCliente('.$cliente->idCliente.')" > <i class="fa fa-pencil m-r-5 text-warning"></i> Editar Cliente </a>
+                                <a class="dropdown-item" href="/clientes/form/'.$cliente->idCliente.'" > <i class="fa fa-pencil m-r-5 text-warning"></i> Editar Cliente </a>
                                 <a class="dropdown-item" onclick="modalEditarFotografia('.$cliente->idCliente.')" > <i class="fa-solid fa-camera  m-r-5 text-success"></i> Cambiar Fotografia del cliente </a>
                                 <a class="dropdown-item" onclick="activarCliente('.$cliente->idCliente.')" > <i class="fa fa-check-circle text-info" aria-hidden="true"></i> Activar Cliente </a>
 
@@ -1006,6 +1009,374 @@ class Cliente extends Component
      * @param string $ext  extensión (xlsx|xls|csv)
      * @return string|null Mensaje de error o null si OK
      */
+    /**
+     * GET /clientes/form/datos/{id}  — datos completos para la vista de formulario
+     */
+    public function datosFormCliente(Request $request)
+    {
+        try {
+            $id = $request->route('id');
+            $datosCliente = DB::selectOne("
+                SELECT c.*,
+                       (SELECT nombre_categoria FROM cliente_categoria_escala WHERE id = c.cliente_categoria_escala_id) AS nombre_cat_escala
+                FROM cliente c
+                WHERE c.id = ?", [$id]);
+
+            if (!$datosCliente) {
+                return response()->json(['message' => 'Cliente no encontrado'], 404);
+            }
+
+            $contactos = DB::select("SELECT id, nombre, telefono FROM contacto WHERE estado_id = 1 AND cliente_id = ? ORDER BY id ASC LIMIT 2", [$id]);
+
+            $ubicacion = $datosCliente->municipio_id
+                ? DB::selectOne("SELECT C.id as idPais, A.id as idDepto, B.id as idMunicipio
+                    FROM departamento A
+                    INNER JOIN municipio B ON A.id = B.departamento_id
+                    INNER JOIN pais C ON C.id = A.pais_id
+                    WHERE B.id = ?", [$datosCliente->municipio_id])
+                : (object)['idPais' => null, 'idDepto' => null, 'idMunicipio' => null];
+
+            $paises     = DB::select("SELECT id, nombre FROM pais ORDER BY nombre ASC");
+            $deptos     = $ubicacion->idPais   ? DB::select("SELECT id, nombre FROM departamento WHERE pais_id = ? ORDER BY nombre ASC", [$ubicacion->idPais])   : [];
+            $municipios = $ubicacion->idDepto  ? DB::select("SELECT id, nombre FROM municipio WHERE departamento_id = ? ORDER BY nombre ASC", [$ubicacion->idDepto]) : [];
+
+            $tipoPersonalidad = DB::select("SELECT id, nombre FROM tipo_personalidad");
+            $tipoCliente      = DB::select("SELECT id, descripcion FROM tipo_cliente");
+            $vendedores       = DB::select("SELECT id, name FROM users WHERE rol_id = 2 ORDER BY name ASC");
+
+            $credito = DB::selectOne("SELECT * FROM cliente_credito WHERE cliente_id = ? ORDER BY id DESC LIMIT 1", [$id]);
+            $historicoCredito = DB::select("SELECT cc.*, u.name as usuario FROM cliente_credito cc LEFT JOIN users u ON u.id = cc.users_id WHERE cc.cliente_id = ? ORDER BY cc.id DESC", [$id]);
+
+            $observaciones = DB::select("SELECT co.*, u.name as usuario FROM cliente_observaciones co LEFT JOIN users u ON u.id = co.users_id WHERE co.cliente_id = ? ORDER BY co.id DESC", [$id]);
+
+            $documentos = DB::select("SELECT * FROM cliente_documentos WHERE cliente_id = ? ORDER BY tipo_documento ASC, id DESC", [$id]);
+
+            return response()->json([
+                'datosCliente'     => $datosCliente,
+                'contactos'        => $contactos,
+                'ubicacion'        => $ubicacion,
+                'paises'           => $paises,
+                'deptos'           => $deptos,
+                'municipios'       => $municipios,
+                'tipoPersonalidad' => $tipoPersonalidad,
+                'tipoCliente'      => $tipoCliente,
+                'vendedores'       => $vendedores,
+                'credito'          => $credito,
+                'historicoCredito' => $historicoCredito,
+                'observaciones'    => $observaciones,
+                'documentos'       => $documentos,
+            ], 200);
+        } catch (QueryException $e) {
+            return response()->json(['message' => 'Error', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * POST /clientes/crear-completo — crear cliente con todos los tabs
+     */
+    public function crearClienteCompleto(Request $request)
+    {
+        try {
+            DB::beginTransaction();
+
+            // ---- foto ----
+            $nombreImagen = null;
+            if ($request->hasFile('foto_cliente')) {
+                $archivo = $request->file('foto_cliente');
+                $nombreImagen = 'IMG_' . time() . '.' . $archivo->getClientOriginalExtension();
+                $archivo->move(public_path('img_cliente'), $nombreImagen);
+            }
+
+            $nombre = trim(str_replace(["'", '"', '´'], ' ', $request->nombre_cliente));
+
+            $cliente = new ModelCliente;
+            $cliente->nombre                     = $nombre;
+            $cliente->rtn                        = trim($request->rtn_cliente ?? '');
+            $cliente->tipo_personalidad_id       = $request->tipo_personalidad_id;
+            $cliente->tipo_cliente_id            = $request->tipo_cliente_id;
+            $cliente->categoria_id               = $request->tipo_cliente_id;
+            $cliente->ano_operacion              = $request->ano_operacion ?? null;
+            $cliente->dni_representante_legal    = trim($request->dni_representante ?? '');
+            $cliente->estado_cliente_id          = $request->estado_activo ? 1 : 2;
+            $cliente->correo                     = trim($request->correo ?? '');
+            $cliente->telefono_empresa           = trim($request->telefono ?? '');
+            $cliente->direccion                  = trim($request->direccion ?? '');
+            $cliente->municipio_id               = $request->municipio_id ?? 1;
+            $cliente->vendedor                   = $request->vendedor_id ?? Auth::user()->id;
+            $cliente->credito_inicial            = str_replace(',', '', $request->credito ?? '0');
+            $cliente->credito                    = str_replace(',', '', $request->credito ?? '0');
+            $cliente->dias_credito               = $request->dias_credito ?? 0;
+            $cliente->latitud                    = trim($request->latitud ?? '');
+            $cliente->longitud                   = trim($request->longitud ?? '');
+            $cliente->users_id                   = Auth::user()->id;
+            $cliente->cliente_categoria_escala_id = $request->cliente_categoria_escala_id ?? null;
+            if ($nombreImagen) $cliente->url_imagen = $nombreImagen;
+            $cliente->save();
+
+            // ---- contactos ----
+            foreach ([
+                ['nombre' => 'nombre_contacto1', 'telefono' => 'telefono_contacto1'],
+                ['nombre' => 'nombre_contacto2', 'telefono' => 'telefono_contacto2'],
+            ] as $c) {
+                $nom = trim($request->input($c['nombre'], ''));
+                $tel = trim($request->input($c['telefono'], ''));
+                if ($nom !== '' || $tel !== '') {
+                    ModelContacto::create(['nombre' => $nom, 'telefono' => $tel, 'cliente_id' => $cliente->id, 'estado_id' => 1]);
+                }
+            }
+
+            // ---- crédito ----
+            if ($request->filled('credito')) {
+                ClienteCredito::create([
+                    'cliente_id'              => $cliente->id,
+                    'credito_activo'          => $request->credito_activo ? 1 : 0,
+                    'credito'                 => str_replace(',', '', $request->credito ?? '0'),
+                    'dias_credito'            => $request->dias_credito ?? 0,
+                    'vendedor_id'             => $request->vendedor_id,
+                    'referencias_bancarias'   => trim($request->referencias_bancarias ?? ''),
+                    'referencias_comerciales' => trim($request->referencias_comerciales ?? ''),
+                    'metodo_pago'             => trim($request->metodo_pago ?? ''),
+                    'letra_cambio'            => trim($request->letra_cambio ?? ''),
+                    'aval_solidario'          => trim($request->aval_solidario ?? ''),
+                    'autorizacion_gerencia'   => trim($request->autorizacion_gerencia ?? ''),
+                    'users_id'               => Auth::user()->id,
+                ]);
+            }
+
+            DB::commit();
+            return response()->json(['icon' => 'success', 'title' => 'Éxito', 'text' => 'Cliente registrado con éxito.', 'id' => $cliente->id], 200);
+
+        } catch (QueryException $e) {
+            DB::rollBack();
+            return response()->json(['icon' => 'error', 'title' => 'Error', 'text' => 'Error al registrar el cliente.', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * POST /clientes/editar-completo — editar datos principales + contacto + dirección
+     */
+    public function editarClienteCompleto(Request $request)
+    {
+        try {
+            DB::beginTransaction();
+
+            $id     = $request->cliente_id;
+            $cliente = ModelCliente::findOrFail($id);
+
+            $nombre = trim(str_replace(["'", '"', '´'], ' ', $request->nombre_cliente));
+            $cliente->nombre                     = $nombre;
+            $cliente->rtn                        = trim($request->rtn_cliente ?? '');
+            $cliente->tipo_personalidad_id       = $request->tipo_personalidad_id;
+            $cliente->tipo_cliente_id            = $request->tipo_cliente_id;
+            $cliente->categoria_id               = $request->tipo_cliente_id;
+            $cliente->ano_operacion              = $request->ano_operacion ?? null;
+            $cliente->dni_representante_legal    = trim($request->dni_representante ?? '');
+            $cliente->estado_cliente_id          = $request->estado_activo ? 1 : 2;
+            $cliente->correo                     = trim($request->correo ?? '');
+            $cliente->telefono_empresa           = trim($request->telefono ?? '');
+            $cliente->direccion                  = trim($request->direccion ?? '');
+            $cliente->municipio_id               = $request->municipio_id ?? $cliente->municipio_id;
+            $cliente->vendedor                   = $request->vendedor_id ?? $cliente->vendedor;
+            $cliente->users_id                   = Auth::user()->id;
+            $cliente->cliente_categoria_escala_id = $request->cliente_categoria_escala_id ?? $cliente->cliente_categoria_escala_id;
+            $cliente->save();
+
+            // ---- contactos ----
+            ModelContacto::where('cliente_id', $id)->update(['estado_id' => 2]);
+            foreach ([
+                ['nombre' => 'nombre_contacto1', 'telefono' => 'telefono_contacto1'],
+                ['nombre' => 'nombre_contacto2', 'telefono' => 'telefono_contacto2'],
+            ] as $c) {
+                $nom = trim($request->input($c['nombre'], ''));
+                $tel = trim($request->input($c['telefono'], ''));
+                if ($nom !== '' || $tel !== '') {
+                    ModelContacto::create(['nombre' => $nom, 'telefono' => $tel, 'cliente_id' => $id, 'estado_id' => 1]);
+                }
+            }
+
+            DB::commit();
+            return response()->json(['icon' => 'success', 'title' => 'Éxito', 'text' => 'Cliente actualizado con éxito.'], 200);
+
+        } catch (QueryException $e) {
+            DB::rollBack();
+            return response()->json(['icon' => 'error', 'title' => 'Error', 'text' => 'Error al actualizar el cliente.', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * POST /clientes/credito/guardar
+     */
+    public function guardarCredito(Request $request)
+    {
+        try {
+            DB::beginTransaction();
+            $id = $request->cliente_id;
+
+            // Actualizar crédito en tabla cliente
+            $cliente = ModelCliente::findOrFail($id);
+            $credito = str_replace(',', '', $request->credito ?? '0');
+            $cliente->credito         = $credito;
+            $cliente->credito_inicial = $credito;
+            $cliente->dias_credito    = $request->dias_credito ?? $cliente->dias_credito;
+            $cliente->vendedor        = $request->vendedor_id ?? $cliente->vendedor;
+            $cliente->save();
+
+            // Guardar historial de crédito
+            ClienteCredito::create([
+                'cliente_id'              => $id,
+                'credito_activo'          => $request->credito_activo ? 1 : 0,
+                'credito'                 => $credito,
+                'dias_credito'            => $request->dias_credito ?? 0,
+                'vendedor_id'             => $request->vendedor_id,
+                'referencias_bancarias'   => trim($request->referencias_bancarias ?? ''),
+                'referencias_comerciales' => trim($request->referencias_comerciales ?? ''),
+                'metodo_pago'             => trim($request->metodo_pago ?? ''),
+                'letra_cambio'            => trim($request->letra_cambio ?? ''),
+                'aval_solidario'          => trim($request->aval_solidario ?? ''),
+                'autorizacion_gerencia'   => trim($request->autorizacion_gerencia ?? ''),
+                'users_id'               => Auth::user()->id,
+            ]);
+
+            DB::commit();
+            return response()->json(['icon' => 'success', 'title' => 'Éxito', 'text' => 'Crédito actualizado con éxito.'], 200);
+
+        } catch (QueryException $e) {
+            DB::rollBack();
+            return response()->json(['icon' => 'error', 'title' => 'Error', 'text' => 'Error al guardar crédito.', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * GET /clientes/credito/historico/{id}
+     */
+    public function historicoCredito(Request $request)
+    {
+        $id   = $request->route('id');
+        $rows = DB::select("SELECT cc.*, u.name as usuario FROM cliente_credito cc LEFT JOIN users u ON u.id = cc.users_id WHERE cc.cliente_id = ? ORDER BY cc.id DESC", [$id]);
+        return response()->json(['historico' => $rows], 200);
+    }
+
+    /**
+     * POST /clientes/observacion/guardar
+     */
+    public function guardarObservacion(Request $request)
+    {
+        try {
+            $obs = ClienteObservacion::create([
+                'cliente_id' => $request->cliente_id,
+                'observacion' => trim($request->observacion),
+                'users_id'   => Auth::user()->id,
+            ]);
+            $obs->usuario = Auth::user()->name;
+            return response()->json(['icon' => 'success', 'title' => 'Éxito', 'text' => 'Observación guardada.', 'observacion' => $obs], 200);
+        } catch (QueryException $e) {
+            return response()->json(['icon' => 'error', 'title' => 'Error', 'text' => 'Error al guardar observación.'], 500);
+        }
+    }
+
+    /**
+     * GET /clientes/observaciones/{id}
+     */
+    public function listarObservaciones(Request $request)
+    {
+        $id   = $request->route('id');
+        $rows = DB::select("SELECT co.*, u.name as usuario FROM cliente_observaciones co LEFT JOIN users u ON u.id = co.users_id WHERE co.cliente_id = ? ORDER BY co.id DESC", [$id]);
+        return response()->json(['observaciones' => $rows], 200);
+    }
+
+    /**
+     * POST /clientes/documento/subir
+     */
+    public function subirDocumento(Request $request)
+    {
+        try {
+            $tiposPermitidos = array_keys(ClienteDocumento::$tipos);
+            if (!in_array($request->tipo_documento, $tiposPermitidos, true)) {
+                return response()->json(['icon' => 'error', 'title' => 'Error', 'text' => 'Tipo de documento inválido.'], 422);
+            }
+
+            if (!$request->hasFile('documento')) {
+                return response()->json(['icon' => 'error', 'title' => 'Error', 'text' => 'No se recibió ningún archivo.'], 422);
+            }
+
+            $archivo    = $request->file('documento');
+            $ext        = strtolower($archivo->getClientOriginalExtension());
+            $permitidos = ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'doc', 'docx', 'xlsx', 'xls'];
+
+            if (!in_array($ext, $permitidos)) {
+                return response()->json(['icon' => 'error', 'title' => 'Error', 'text' => 'Extensión de archivo no permitida.'], 422);
+            }
+
+            $carpeta       = public_path('documentos_clientes');
+            if (!is_dir($carpeta)) mkdir($carpeta, 0755, true);
+
+            $nombreArchivo = 'DOC_' . $request->cliente_id . '_' . time() . '.' . $ext;
+            $archivo->move($carpeta, $nombreArchivo);
+
+            $doc = ClienteDocumento::create([
+                'cliente_id'      => $request->cliente_id,
+                'tipo_documento'  => $request->tipo_documento,
+                'nombre_original' => $archivo->getClientOriginalName(),
+                'ruta_archivo'    => $nombreArchivo,
+                'users_id'        => Auth::user()->id,
+            ]);
+
+            return response()->json(['icon' => 'success', 'title' => 'Éxito', 'text' => 'Documento subido.', 'documento' => $doc], 200);
+
+        } catch (\Exception $e) {
+            return response()->json(['icon' => 'error', 'title' => 'Error', 'text' => 'Error al subir documento.', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * GET /clientes/documentos/{id}
+     */
+    public function listarDocumentos(Request $request)
+    {
+        $id   = $request->route('id');
+        $rows = DB::select("SELECT * FROM cliente_documentos WHERE cliente_id = ? ORDER BY tipo_documento ASC, id DESC", [$id]);
+        return response()->json(['documentos' => $rows], 200);
+    }
+
+    /**
+     * DELETE /clientes/documento/{id}
+     */
+    public function eliminarDocumento(Request $request)
+    {
+        try {
+            $id  = $request->route('id');
+            $doc = ClienteDocumento::findOrFail($id);
+            $ruta = public_path('documentos_clientes/' . $doc->ruta_archivo);
+            if (file_exists($ruta)) @unlink($ruta);
+            $doc->delete();
+            return response()->json(['icon' => 'success', 'title' => 'Éxito', 'text' => 'Documento eliminado.'], 200);
+        } catch (\Exception $e) {
+            return response()->json(['icon' => 'error', 'title' => 'Error', 'text' => 'Error al eliminar.'], 500);
+        }
+    }
+
+    /**
+     * GET /clientes/documento/descargar/{id}
+     */
+    public function descargarDocumento(Request $request)
+    {
+        $id  = $request->route('id');
+        $doc = ClienteDocumento::findOrFail($id);
+        $ruta = public_path('documentos_clientes/' . $doc->ruta_archivo);
+        if (!file_exists($ruta)) abort(404);
+        return response()->download($ruta, $doc->nombre_original);
+    }
+
+    /**
+     * GET /clientes/form/{id?} — vista de formulario (crear o editar)
+     */
+    public function vistaFormCliente(Request $request)
+    {
+        $id = $request->route('id');
+        $clientes = DB::select("SELECT id, name FROM users WHERE rol_id = 2 ORDER BY name ASC");
+        return view('livewire.clientes.cliente-form', compact('id', 'clientes'));
+    }
+
     private function assertExcelPathIsReadable(string $path, string $ext): ?string
     {
         // 1) existe y legible

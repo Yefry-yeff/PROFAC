@@ -339,6 +339,27 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::post('/clientes/desactivar', [Cliente::class, 'desactivarCliente']);
     Route::post('/clientes/activar', [Cliente::class, 'activarCliente']);
 
+    /* ---- Formulario completo de cliente (crear / editar) ---- */
+    Route::get('/clientes/form',              [Cliente::class, 'vistaFormCliente'])->name('clientes.form.crear');
+    Route::get('/clientes/form/datos/{id}',   [Cliente::class, 'datosFormCliente'])->name('clientes.form.datos');
+    Route::get('/clientes/form/{id}',         [Cliente::class, 'vistaFormCliente'])->name('clientes.form.editar');
+    Route::post('/clientes/crear-completo',  [Cliente::class, 'crearClienteCompleto'])->name('clientes.crear.completo');
+    Route::post('/clientes/editar-completo', [Cliente::class, 'editarClienteCompleto'])->name('clientes.editar.completo');
+
+    /* ---- Crédito ---- */
+    Route::post('/clientes/credito/guardar',       [Cliente::class, 'guardarCredito'])->name('clientes.credito.guardar');
+    Route::get('/clientes/credito/historico/{id}', [Cliente::class, 'historicoCredito'])->name('clientes.credito.historico');
+
+    /* ---- Observaciones ---- */
+    Route::post('/clientes/observacion/guardar',  [Cliente::class, 'guardarObservacion'])->name('clientes.observacion.guardar');
+    Route::get('/clientes/observaciones/{id}',    [Cliente::class, 'listarObservaciones'])->name('clientes.observaciones');
+
+    /* ---- Documentos ---- */
+    Route::post('/clientes/documento/subir',           [Cliente::class, 'subirDocumento'])->name('clientes.documento.subir');
+    Route::get('/clientes/documentos/{id}',            [Cliente::class, 'listarDocumentos'])->name('clientes.documentos');
+    Route::delete('/clientes/documento/{id}',          [Cliente::class, 'eliminarDocumento'])->name('clientes.documento.eliminar');
+    Route::get('/clientes/documento/descargar/{id}',   [Cliente::class, 'descargarDocumento'])->name('clientes.documento.descargar');
+
 
 
     //----------------------------------------------FACTURACIONES---------------------------------------------------------------------------------------//
