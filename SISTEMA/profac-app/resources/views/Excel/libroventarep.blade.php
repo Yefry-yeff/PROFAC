@@ -1,65 +1,14 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
     <title>Libro de Ventas</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            font-size: 12px;
-        }
-
-        h1 {
-            text-align: center;
-            font-size: 16px;
-            margin-bottom: 20px;
-        }
-
-        p {
-            text-align: center;
-            margin: 0;
-            font-size: 12px;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 20px 0;
-            font-size: 10px;
-            border: 1px solid #ddd;
-        }
-
-        table th,
-        table td {
-            border: 1px solid #ddd;
-            padding: 5px;
-            text-align: center;
-        }
-
-        table thead {
-            background-color: #f2f2f2;
-        }
-
-        .footer {
-            margin-top: 50px;
-            text-align: center;
-        }
-
-        .footer .signature {
-            display: inline-block;
-            width: 45%;
-            margin: 0 2.5%;
-            text-align: center;
-            vertical-align: top;
-        }
-
-        .signature p {
-            margin: 5px 0;
-        }
-    </style>
 </head>
 <body>
-    <h1>Libro de Ventas</h1>
-    <p>Desde: {{ $fechaInicio }} Hasta: {{ $fechaFinal }}</p>
+    <h2>DISTRIBUCIONES VALENCIA, S.A. &nbsp;&nbsp;&nbsp; RTN: 08011986138652</h2>
+    <p>LIBRO GENERAL DE VENTAS DE GOBIERNO</p>
+    @php use Carbon\Carbon; @endphp
+    <p>Período: {{ Carbon::parse($fechaInicio)->format('d/m/Y') }} al {{ Carbon::parse($fechaFinal)->format('d/m/Y') }}</p>
     <table>
         <thead>
             <tr>
@@ -77,58 +26,32 @@
         </thead>
         <tbody>
             @foreach($data as $row)
-                <tr>
-                    <td>{{ $row['VENDEDOR'] }}</td>
-                    <td>{{ $row['CLIENTE'] }}</td>
-                    <td>{{ $row['FACTURA'] }}</td>
-                    <td>{{ number_format((float) $row['EXONERADO'], 2) }}</td>
-                    <td>{{ number_format((float) $row['GRAVADO'], 2) }}</td>
-                    <td>{{ number_format((float) $row['EXCENTO'], 2) }}</td>
-                    <td>{{ number_format((float) $row['SUBTOTAL'], 2) }}</td>
-                    <td>{{ number_format((float) $row['ISV'], 2) }}</td>
-                    <td>{{ number_format((float) $row['TOTAL'], 2) }}</td>
-                    <td>{{ $row['FECHA COMPRA'] }}</td>
-                </tr>
+            <tr>
+                <td>{{ $row['VENDEDOR'] }}</td>
+                <td>{{ $row['CLIENTE'] }}</td>
+                <td>{{ $row['FACTURA'] }}</td>
+                <td>{{ number_format((float) $row['EXONERADO'], 2, '.', '') }}</td>
+                <td>{{ number_format((float) $row['GRAVADO'], 2, '.', '') }}</td>
+                <td>{{ number_format((float) $row['EXCENTO'], 2, '.', '') }}</td>
+                <td>{{ number_format((float) $row['SUBTOTAL'], 2, '.', '') }}</td>
+                <td>{{ number_format((float) $row['ISV'], 2, '.', '') }}</td>
+                <td>{{ number_format((float) $row['TOTAL'], 2, '.', '') }}</td>
+                <td>{{ $row['FECHA COMPRA'] }}</td>
+            </tr>
             @endforeach
         </tbody>
         <tfoot>
             <tr>
-                <th colspan="3" style="text-align: center;">Totales:</th>
-                <th style="text-align: center;">{{ number_format((float) collect($data)->sum(fn($row) => (float) $row['EXONERADO']), 2) }}</th>
-                <th style="text-align: center;">{{ number_format((float) collect($data)->sum(fn($row) => (float) $row['GRAVADO']), 2) }}</th>
-                <th style="text-align: center;">{{ number_format((float) collect($data)->sum(fn($row) => (float) $row['EXCENTO']), 2) }}</th>
-                <th style="text-align: center;">{{ number_format((float) collect($data)->sum(fn($row) => (float) $row['SUBTOTAL']), 2) }}</th>
-                <th style="text-align: center;">{{ number_format((float) collect($data)->sum(fn($row) => (float) $row['ISV']), 2) }}</th>
-                <th style="text-align: center;">{{ number_format((float) collect($data)->sum(fn($row) => (float) $row['TOTAL']), 2) }}</th>
+                <th colspan="3">TOTALES:</th>
+                <th>{{ number_format(collect($data)->sum(fn($r) => (float) $r['EXONERADO']), 2, '.', '') }}</th>
+                <th>{{ number_format(collect($data)->sum(fn($r) => (float) $r['GRAVADO']), 2, '.', '') }}</th>
+                <th>{{ number_format(collect($data)->sum(fn($r) => (float) $r['EXCENTO']), 2, '.', '') }}</th>
+                <th>{{ number_format(collect($data)->sum(fn($r) => (float) $r['SUBTOTAL']), 2, '.', '') }}</th>
+                <th>{{ number_format(collect($data)->sum(fn($r) => (float) $r['ISV']), 2, '.', '') }}</th>
+                <th>{{ number_format(collect($data)->sum(fn($r) => (float) $r['TOTAL']), 2, '.', '') }}</th>
                 <th></th>
             </tr>
         </tfoot>
     </table>
-
-    <div class="footer">
-
-        <div class="signature">
-            <tr></tr>
-            <tr></tr>
-        </div>
-        <div class="signature">
-            <tfoot>
-                <tr>
-                    <th colspan="2" style="text-align: center;">___________________________________</th>
-                    <th colspan="5" style="text-align: center;">___________________________________</th>
-                    <th colspan="3" style="text-align: center;">___________________________________</th>
-                </tr>
-            </tfoot>
-        </div>
-        <div class="signature">
-            <tfoot>
-                <tr>
-                    <th colspan="2" style="text-align: center;">CREDITOS Y COBROS: {{ strtoupper(Auth::user()->name) }}</</th>
-                    <th colspan="5" style="text-align: center;">GERENCIA GENERAL: ING. DANILO MORALES</th>
-                    <th colspan="3" style="text-align: center;">GERENTE ADMINISTRATIVO: LIC. EILEEN RODRIGUEZ</th>
-                </tr>
-            </tfoot>
-        </div>
-    </div>
 </body>
 </html>
