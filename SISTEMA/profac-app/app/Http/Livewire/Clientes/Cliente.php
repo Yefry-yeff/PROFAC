@@ -1491,6 +1491,48 @@ class Cliente extends Component
         ]);
     }
 
+    /**
+     * POST /clientes/referencias/guardar
+     */
+    public function guardarReferencias(Request $request)
+    {
+        try {
+            $id      = $request->cliente_id;
+            $cliente = ModelCliente::findOrFail($id);
+            $cliente->ref_referencias    = trim($request->ref_referencias ?? '');
+            $cliente->ref_tiempo_relacion = trim($request->ref_tiempo_relacion ?? '');
+            $cliente->ref_tiempo_credito  = trim($request->ref_tiempo_credito ?? '');
+            $cliente->ref_limite_credito  = $request->ref_limite_credito ? str_replace(',', '', $request->ref_limite_credito) : null;
+            $cliente->ref_observaciones   = trim($request->ref_observaciones ?? '');
+            $cliente->save();
+            try { $this->logHistorial($id, 'Comentarios/Referencias actualizados', null); } catch (\Throwable $e) {}
+            return response()->json(['icon' => 'success', 'title' => 'Éxito', 'text' => 'Comentarios/Referencias guardados.'], 200);
+        } catch (\Exception $e) {
+            return response()->json(['icon' => 'error', 'title' => 'Error', 'text' => 'Error al guardar referencias.', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * POST /clientes/autorizacion/guardar
+     * Actualiza solo autorizacion_gerencia en el registro de crédito activo
+     */
+    public function guardarAutorizacionGerencia(Request $request)
+    {
+        try {
+            $id      = $request->cliente_id;
+            $credito = ClienteCredito::where('cliente_id', $id)->where('activo', 1)->first();
+            if (!$credito) {
+                return response()->json(['icon' => 'warning', 'title' => 'Sin crédito activo', 'text' => 'Debe guardar un registro de crédito primero.'], 422);
+            }
+            $credito->autorizacion_gerencia = trim($request->autorizacion_gerencia ?? '');
+            $credito->save();
+            try { $this->logHistorial($id, 'Autorización de Gerencia actualizada', null); } catch (\Throwable $e) {}
+            return response()->json(['icon' => 'success', 'title' => 'Éxito', 'text' => 'Autorización de Gerencia guardada.'], 200);
+        } catch (\Exception $e) {
+            return response()->json(['icon' => 'error', 'title' => 'Error', 'text' => 'Error al guardar autorización.', 'error' => $e->getMessage()], 500);
+        }
+    }
+
     private function assertExcelPathIsReadable(string $path, string $ext): ?string
     {
         // 1) existe y legible

@@ -100,6 +100,16 @@
                                 <i class="fa fa-comment"></i> Observaciones
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="tab-refs-tab" data-toggle="tab" href="#tab-refs" role="tab">
+                                <i class="fa fa-users"></i> Comentarios Referencias
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="tab-og-tab" data-toggle="tab" href="#tab-og" role="tab">
+                                <i class="fa fa-shield"></i> Observación Gerencia
+                            </a>
+                        </li>
                     </ul>
 
                     <div class="tab-content" id="clienteTabsContent">
@@ -362,12 +372,6 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="col-md-12">
-                                    <div class="form-group">
-                                        <label>Autorización de Gerencia <small class="text-muted">(observación)</small></label>
-                                        <textarea id="cred_autorizacion" class="form-control" rows="2" maxlength="500"></textarea>
-                                    </div>
-                                </div>
                                 </div>{{-- /credito_campos_condicionales --}}
                             </div>
                             <button class="btn btn-primary mt-2" onclick="guardarCredito()" id="btn_guardar_credito">
@@ -397,6 +401,67 @@
                             </button>
                             <div id="observaciones_container">
                                 <p class="text-muted text-center" id="obs_empty">Sin observaciones registradas.</p>
+                            </div>
+                        </div>
+
+                        {{-- ===== TAB 6: COMENTARIOS REFERENCIAS ===== --}}
+                        <div class="tab-pane fade tab-section" id="tab-refs" role="tabpanel">
+                            <p class="form-section-title">Comentarios y Referencias</p>
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div class="form-group">
+                                        <label>Referencias</label>
+                                        <textarea id="ref_referencias" class="form-control" rows="3" maxlength="1000" placeholder="Ingrese referencias del cliente..."></textarea>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Tiempo de Relación</label>
+                                        <input type="text" id="ref_tiempo_relacion" class="form-control" maxlength="100" placeholder="Ej. 2 años">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Tiempo de Crédito</label>
+                                        <input type="text" id="ref_tiempo_credito" class="form-control" maxlength="100" placeholder="Ej. 1 año">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Límite de Crédito</label>
+                                        <div class="input-group">
+                                            <div class="input-group-prepend"><span class="input-group-text">L</span></div>
+                                            <input type="text" id="ref_limite_credito" class="form-control" placeholder="0.00" data-type="currency">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">&nbsp;</div>
+                                <div class="col-md-12">
+                                    <div class="form-group">
+                                        <label>Observaciones</label>
+                                        <textarea id="ref_observaciones" class="form-control" rows="3" maxlength="1000" placeholder="Observaciones adicionales..."></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                            <button class="btn btn-primary mt-2" onclick="guardarReferencias()" id="btn_guardar_refs">
+                                <i class="fa fa-save"></i> Guardar Comentarios/Referencias
+                            </button>
+                        </div>
+
+                        {{-- ===== TAB 7: OBSERVACIÓN GERENCIA ===== --}}
+                        <div class="tab-pane fade tab-section" id="tab-og" role="tabpanel">
+                            <p class="form-section-title">Autorización / Observación de Gerencia</p>
+                            <div class="form-group">
+                                <label>Autorización de Gerencia <small class="text-muted">(se guarda en el registro de crédito activo)</small></label>
+                                <textarea id="og_autorizacion" class="form-control" rows="4" maxlength="1000" placeholder="Escriba la autorización o comentario de gerencia..."></textarea>
+                            </div>
+                            <button class="btn btn-primary mb-4" onclick="guardarAutorizacionGerencia()" id="btn_guardar_og">
+                                <i class="fa fa-save"></i> Guardar Autorización Gerencia
+                            </button>
+
+                            <p class="form-section-title mt-3">Historial de Autorizaciones</p>
+                            <div id="og_historial_container">
+                                <p class="text-muted text-center" style="font-size:0.85rem">Sin historial disponible.</p>
                             </div>
                         </div>
 

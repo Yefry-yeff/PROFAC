@@ -364,6 +364,10 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     /* ---- Historial ---- */
     Route::get('/clientes/historial/{id}',             [Cliente::class, 'historialCambios'])->name('clientes.historial');
 
+    /* ---- Referencias / Autorización Gerencia ---- */
+    Route::post('/clientes/referencias/guardar',    [Cliente::class, 'guardarReferencias'])->name('clientes.referencias.guardar');
+    Route::post('/clientes/autorizacion/guardar',   [Cliente::class, 'guardarAutorizacionGerencia'])->name('clientes.autorizacion.guardar');
+
 
 
     //----------------------------------------------FACTURACIONES---------------------------------------------------------------------------------------//

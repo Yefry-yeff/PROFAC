@@ -26,8 +26,8 @@ $(document).ready(function () {
         toggleCreditoCampos();
     }
 
-    // Formato moneda en campo crédito
-    $('#cred_monto').on('keyup blur', function () {
+    // Formato moneda en campo crédito y límite referencia
+    $('#cred_monto, #ref_limite_credito').on('keyup blur', function () {
         formatCurrencyInput($(this));
     });
 });
@@ -143,14 +143,26 @@ function cargarDatosCliente(id) {
                 $('#cred_aval_solidario').prop('checked', avalMarcado);
                 $('#obs_aval_solidario').val(cr.obs_aval_solidario || '');
                 toggleObs('obs_aval_solidario_wrap', avalMarcado);
-                $('#cred_autorizacion').val(cr.autorizacion_gerencia);
+                // Autorización en tab OG
+                $('#og_autorizacion').val(cr.autorizacion_gerencia || '');
             }
+
+            // Tab Comentarios Referencias
+            var cli2 = d.datosCliente;
+            $('#ref_referencias').val(cli2.ref_referencias || '');
+            $('#ref_tiempo_relacion').val(cli2.ref_tiempo_relacion || '');
+            $('#ref_tiempo_credito').val(cli2.ref_tiempo_credito || '');
+            $('#ref_limite_credito').val(cli2.ref_limite_credito ? parseFloat(cli2.ref_limite_credito).toFixed(2) : '');
+            $('#ref_observaciones').val(cli2.ref_observaciones || '');
 
             // Historial crédito
             renderHistoricoCredito(d.historicoCredito || []);
 
             // Tab Observaciones
             renderObservaciones(d.observaciones || []);
+
+            // Tab Observación Gerencia — historial
+            renderOgHistorial(d.historicoCredito || []);
 
             // Repositorio
             renderDocumentos(d.documentos || []);
@@ -347,7 +359,7 @@ function guardarCredito() {
         obs_letra_cambio:         $('#obs_letra_cambio').val().trim(),
         aval_solidario:           $('#cred_aval_solidario').is(':checked') ? 1 : 0,
         obs_aval_solidario:       $('#obs_aval_solidario').val().trim(),
-        autorizacion_gerencia:    $('#cred_autorizacion').val().trim(),
+        autorizacion_gerencia:    ($('#og_autorizacion').val() || '').trim(),
     };
 
     $('#btn_guardar_credito').prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i>');
@@ -367,7 +379,10 @@ function guardarCredito() {
 function recargarHistoricoCredito() {
     if (!clienteIdActual) return;
     axios.get('/clientes/credito/historico/' + clienteIdActual)
-        .then(r => renderHistoricoCredito(r.data.historico || []));
+        .then(r => {
+            renderHistoricoCredito(r.data.historico || []);
+            renderOgHistorial(r.data.historico || []);
+        });
 }
 
 function renderHistoricoCredito(rows) {
@@ -456,6 +471,85 @@ function renderObservaciones(rows) {
             '<div style="font-size:0.9rem">' + escapeHtml(o.observacion) + '</div>' +
             '<div class="obs-meta">' +
             'Por: ' + escapeHtml(o.usuario || '—') + ' · ' + formatFecha(o.created_at) +
+            '</div>' +
+            '</div>';
+    });
+    cont.innerHTML = html;
+}
+
+/* ============================================================
+   COMENTARIOS / REFERENCIAS
+   ============================================================ */
+function guardarReferencias() {
+    if (!checkClienteCreado()) return;
+    var payload = {
+        _token:              document.getElementById('csrf_token').value,
+        cliente_id:          clienteIdActual,
+        ref_referencias:     $('#ref_referencias').val().trim(),
+        ref_tiempo_relacion: $('#ref_tiempo_relacion').val().trim(),
+        ref_tiempo_credito:  $('#ref_tiempo_credito').val().trim(),
+        ref_limite_credito:  ($('#ref_limite_credito').val() || '').replace(/,/g, ''),
+        ref_observaciones:   $('#ref_observaciones').val().trim(),
+    };
+    $('#btn_guardar_refs').prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i>');
+    axios.post('/clientes/referencias/guardar', payload)
+        .then(r => {
+            mostrarAlerta(r.data.icon, r.data.title, r.data.text);
+            if (clienteIdActual) cargarHistorialCambios(clienteIdActual);
+        })
+        .catch(err => {
+            var d = err.response ? err.response.data : {};
+            mostrarAlerta(d.icon || 'error', d.title || 'Error', d.text || 'Error al guardar.');
+        })
+        .finally(() => $('#btn_guardar_refs').prop('disabled', false).html('<i class="fa fa-save"></i> Guardar Comentarios/Referencias'));
+}
+
+/* ============================================================
+   OBSERVACIÓN GERENCIA
+   ============================================================ */
+function guardarAutorizacionGerencia() {
+    if (!checkClienteCreado()) return;
+    var texto = $('#og_autorizacion').val().trim();
+    if (!texto) { mostrarAlerta('warning', 'Falta', 'Escriba la autorización o comentario de gerencia.'); return; }
+
+    $('#btn_guardar_og').prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i>');
+    axios.post('/clientes/autorizacion/guardar', {
+        _token:                  document.getElementById('csrf_token').value,
+        cliente_id:              clienteIdActual,
+        autorizacion_gerencia:   texto,
+    })
+    .then(r => {
+        mostrarAlerta(r.data.icon, r.data.title, r.data.text);
+        recargarHistoricoCredito();
+        if (clienteIdActual) cargarHistorialCambios(clienteIdActual);
+    })
+    .catch(err => {
+        var d = err.response ? err.response.data : {};
+        mostrarAlerta(d.icon || 'error', d.title || 'Error', d.text || 'Error al guardar.');
+    })
+    .finally(() => $('#btn_guardar_og').prop('disabled', false).html('<i class="fa fa-save"></i> Guardar Autorización Gerencia'));
+}
+
+function renderOgHistorial(rows) {
+    var cont = document.getElementById('og_historial_container');
+    if (!cont) return;
+    var conAuth = (rows || []).filter(function (h) { return h.autorizacion_gerencia && h.autorizacion_gerencia.trim() !== ''; });
+    if (conAuth.length === 0) {
+        cont.innerHTML = '<p class="text-muted text-center" style="font-size:0.85rem">Sin historial disponible.</p>';
+        return;
+    }
+    var html = '';
+    conAuth.forEach(function (h) {
+        var badge = h.activo == 1
+            ? '<span class="badge" style="background:#1ab394;color:#fff;font-size:0.7rem">Vigente</span>'
+            : '<span class="badge badge-light text-muted" style="font-size:0.7rem">Histórico</span>';
+        html += '<div class="obs-item">' +
+            '<div class="d-flex justify-content-between align-items-start">' +
+            '<span>' + badge + '</span>' +
+            '</div>' +
+            '<div style="font-size:0.9rem; margin-top:6px;">' + escapeHtml(h.autorizacion_gerencia) + '</div>' +
+            '<div class="obs-meta">' +
+            'Registrado por: ' + escapeHtml(h.usuario || '—') + ' · ' + formatFecha(h.created_at) +
             '</div>' +
             '</div>';
     });
