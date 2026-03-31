@@ -10,9 +10,10 @@ class ClienteCredito extends Model
     protected $primaryKey = 'id';
 
     protected $fillable = [
-        'cliente_id', 'credito_activo', 'credito', 'dias_credito',
-        'vendedor_id', 'referencias_bancarias', 'referencias_comerciales',
-        'metodo_pago', 'letra_cambio', 'aval_solidario',
+        'cliente_id', 'activo', 'credito_activo', 'credito', 'dias_credito',
+        'fecha_vigencia', 'vendedor_id', 'referencias_bancarias', 'referencias_comerciales',
+        'metodo_pago', 'letra_cambio', 'obs_letra_cambio',
+        'aval_solidario', 'obs_aval_solidario',
         'autorizacion_gerencia', 'users_id',
     ];
 }

@@ -19,9 +19,11 @@ $(document).ready(function () {
     if (modoEdicion) {
         cargarDatosCliente(clienteIdActual);
         cargarRepositorioDocumentos(clienteIdActual);
+        cargarHistorialCambios(clienteIdActual);
     } else {
         // Modo crear: repositorio deshabilitado hasta tener ID
         mostrarAvisoRepo(true);
+        toggleCreditoCampos();
     }
 
     // Formato moneda en campo crédito
@@ -47,6 +49,12 @@ function cargarCatalogos() {
             sel.appendChild(new Option(c.nombre_categoria, c.id));
         });
     });
+    // Vendedores en datos principales (usa datos blade)
+    if (window._vendedoresData) {
+        // Options already rendered server-side in select#dp_vendedor
+    }
+    // Métodos de pago (options rendered server-side; sync both selects)
+    // cred_metodo_pago options also rendered server-side
 }
 
 function cargarPaises() {
@@ -78,6 +86,7 @@ function cargarMunicipiosForm() {
    CARGAR DATOS (MODO EDICIÓN)
    ============================================================ */
 function cargarDatosCliente(id) {
+    document.getElementById('form_loading_overlay').style.display = '';
     axios.get('/clientes/form/datos/' + id)
         .then(r => {
             var d   = r.data;
@@ -89,6 +98,8 @@ function cargarDatosCliente(id) {
             $('#dp_ano_operacion').val(cli.ano_operacion);
             $('#dp_dni').val(cli.dni_representante_legal);
             $('#dp_estado').prop('checked', cli.estado_cliente_id == 1);
+            $('#dp_vendedor').val(cli.vendedor);
+            $('#dp_metodo_pago').val(cli.metodo_pago);
             setSelectValue('dp_tipo_personalidad', cli.tipo_personalidad_id, d.tipoPersonalidad, 'id', 'nombre');
             setSelectValue('dp_tipo_cliente', cli.tipo_cliente_id, d.tipoCliente, 'id', 'descripcion');
             setSelectValById('dp_escala', cli.cliente_categoria_escala_id, cli.nombre_cat_escala);
@@ -116,15 +127,22 @@ function cargarDatosCliente(id) {
             // Tab Crédito
             if (d.credito) {
                 var cr = d.credito;
-                $('#cred_activo').prop('checked', cr.credito_activo == 1);
+                var creditoActivo = cr.credito_activo == 1;
+                $('#cred_activo').prop('checked', creditoActivo);
+                toggleCreditoCampos();
                 $('#cred_monto').val(parseFloat(cr.credito || 0).toFixed(2));
                 $('#cred_dias').val(cr.dias_credito);
-                $('#cred_vendedor').val(cr.vendedor_id);
-                $('#cred_metodo_pago').val(cr.metodo_pago);
+                $('#cred_fecha_vigencia').val(cr.fecha_vigencia || '');
                 $('#cred_ref_bancarias').val(cr.referencias_bancarias);
                 $('#cred_ref_comerciales').val(cr.referencias_comerciales);
-                $('#cred_letra_cambio').val(cr.letra_cambio);
-                $('#cred_aval_solidario').val(cr.aval_solidario);
+                var letraMarcada = cr.letra_cambio == 1;
+                var avalMarcado  = cr.aval_solidario == 1;
+                $('#cred_letra_cambio').prop('checked', letraMarcada);
+                $('#obs_letra_cambio').val(cr.obs_letra_cambio || '');
+                toggleObs('obs_letra_cambio_wrap', letraMarcada);
+                $('#cred_aval_solidario').prop('checked', avalMarcado);
+                $('#obs_aval_solidario').val(cr.obs_aval_solidario || '');
+                toggleObs('obs_aval_solidario_wrap', avalMarcado);
                 $('#cred_autorizacion').val(cr.autorizacion_gerencia);
             }
 
@@ -140,6 +158,9 @@ function cargarDatosCliente(id) {
         .catch(err => {
             console.error(err);
             mostrarAlerta('error', 'Error', 'No se pudieron cargar los datos del cliente.');
+        })
+        .finally(() => {
+            document.getElementById('form_loading_overlay').style.display = 'none';
         });
 }
 
@@ -160,6 +181,8 @@ function guardarDatosPrincipales() {
         ano_operacion:             $('#dp_ano_operacion').val(),
         dni_representante:         $('#dp_dni').val().trim(),
         estado_activo:             $('#dp_estado').is(':checked') ? 1 : 0,
+        dp_vendedor_id:            $('#dp_vendedor').val(),
+        dp_metodo_pago:            $('#dp_metodo_pago').val(),
         // contacto (tab 2) – se incluye si ya fue llenado
         correo:                    $('#ct_correo').val().trim(),
         telefono:                  $('#ct_telefono').val().trim(),
@@ -172,16 +195,18 @@ function guardarDatosPrincipales() {
         direccion:                 $('#dir_direccion').val().trim(),
         latitud:                   $('#dir_latitud').val().trim(),
         longitud:                  $('#dir_longitud').val().trim(),
-        vendedor_id:               $('#cred_vendedor').val(),
+        // crédito (sólo usado en modo crear)
+        vendedor_id:               $('#dp_vendedor').val(),
         credito:                   $('#cred_monto').val().replace(/,/g, ''),
         dias_credito:              $('#cred_dias').val(),
         credito_activo:            $('#cred_activo').is(':checked') ? 1 : 0,
-        referencias_bancarias:     $('#cred_ref_bancarias').val().trim(),
-        referencias_comerciales:   $('#cred_ref_comerciales').val().trim(),
-        metodo_pago:               $('#cred_metodo_pago').val().trim(),
-        letra_cambio:              $('#cred_letra_cambio').val().trim(),
-        aval_solidario:            $('#cred_aval_solidario').val().trim(),
-        autorizacion_gerencia:     $('#cred_autorizacion').val().trim(),
+        referencias_bancarias:     ($('#cred_ref_bancarias').val() || '').trim(),
+        referencias_comerciales:   ($('#cred_ref_comerciales').val() || '').trim(),
+        letra_cambio:              $('#cred_letra_cambio').is(':checked') ? 1 : 0,
+        obs_letra_cambio:          ($('#obs_letra_cambio').val() || '').trim(),
+        aval_solidario:            $('#cred_aval_solidario').is(':checked') ? 1 : 0,
+        obs_aval_solidario:        ($('#obs_aval_solidario').val() || '').trim(),
+        autorizacion_gerencia:     ($('#cred_autorizacion').val() || '').trim(),
     };
 
     $('#btn_guardar_datos').prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Guardando...');
@@ -204,8 +229,7 @@ function guardarDatosPrincipales() {
                 history.replaceState(null, '', '/clientes/form/' + clienteIdActual);
                 $('#page-title').text('Editar Cliente');
                 $('#btn_guardar_datos').html('<i class="fa fa-save"></i> Guardar Cambios');
-            }
-        })
+            }            if (clienteIdActual) cargarHistorialCambios(clienteIdActual);        })
         .catch(err => {
             var data = err.response ? err.response.data : {};
             mostrarAlerta(data.icon || 'error', data.title || 'Error', data.text || 'Error al guardar.');
@@ -231,6 +255,8 @@ function guardarContacto() {
         ano_operacion:      $('#dp_ano_operacion').val(),
         dni_representante:  $('#dp_dni').val().trim(),
         estado_activo:      $('#dp_estado').is(':checked') ? 1 : 0,
+        dp_vendedor_id:     $('#dp_vendedor').val(),
+        dp_metodo_pago:     $('#dp_metodo_pago').val(),
         correo:             $('#ct_correo').val().trim(),
         telefono:           $('#ct_telefono').val().trim(),
         nombre_contacto1:   $('#ct_nombre1').val().trim(),
@@ -241,11 +267,10 @@ function guardarContacto() {
         direccion:          $('#dir_direccion').val().trim(),
         latitud:            $('#dir_latitud').val().trim(),
         longitud:           $('#dir_longitud').val().trim(),
-        vendedor_id:        $('#cred_vendedor').val(),
     };
     $('#btn_guardar_contacto').prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i>');
     axios.post('/clientes/editar-completo', payload)
-        .then(r => mostrarAlerta(r.data.icon, r.data.title, r.data.text))
+        .then(r => { mostrarAlerta(r.data.icon, r.data.title, r.data.text); if (clienteIdActual) cargarHistorialCambios(clienteIdActual); })
         .catch(err => {
             var d = err.response ? err.response.data : {};
             mostrarAlerta(d.icon || 'error', d.title || 'Error', d.text || 'Error al guardar.');
@@ -269,6 +294,8 @@ function guardarDireccion() {
         ano_operacion:    $('#dp_ano_operacion').val(),
         dni_representante: $('#dp_dni').val().trim(),
         estado_activo:    $('#dp_estado').is(':checked') ? 1 : 0,
+        dp_vendedor_id:   $('#dp_vendedor').val(),
+        dp_metodo_pago:   $('#dp_metodo_pago').val(),
         correo:           $('#ct_correo').val().trim(),
         telefono:         $('#ct_telefono').val().trim(),
         nombre_contacto1: $('#ct_nombre1').val().trim(),
@@ -279,11 +306,10 @@ function guardarDireccion() {
         direccion:        $('#dir_direccion').val().trim(),
         latitud:          $('#dir_latitud').val().trim(),
         longitud:         $('#dir_longitud').val().trim(),
-        vendedor_id:      $('#cred_vendedor').val(),
     };
     $('#btn_guardar_direccion').prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i>');
     axios.post('/clientes/editar-completo', payload)
-        .then(r => mostrarAlerta(r.data.icon, r.data.title, r.data.text))
+        .then(r => { mostrarAlerta(r.data.icon, r.data.title, r.data.text); if (clienteIdActual) cargarHistorialCambios(clienteIdActual); })
         .catch(err => {
             var d = err.response ? err.response.data : {};
             mostrarAlerta(d.icon || 'error', d.title || 'Error', d.text || 'Error.');
@@ -296,21 +322,31 @@ function guardarDireccion() {
    ============================================================ */
 function guardarCredito() {
     if (!checkClienteCreado()) return;
-    var monto = $('#cred_monto').val().replace(/,/g, '');
-    if (!monto || isNaN(monto)) { mostrarAlerta('warning', 'Falta', 'Ingrese el monto de crédito.'); return; }
+
+    var creditoActivo = $('#cred_activo').is(':checked');
+    if (!creditoActivo) {
+        mostrarAlerta('warning', 'Crédito no habilitado', 'Debe marcar la casilla "Crédito Disponible" para guardar.');
+        return;
+    }
+    var monto = parseFloat($('#cred_monto').val().replace(/,/g, ''));
+    if (!monto || monto <= 0) { mostrarAlerta('warning', 'Falta', 'El monto de crédito no puede ser 0 o estar vacío.'); return; }
+    var dias = parseInt($('#cred_dias').val());
+    if (!dias || dias <= 0) { mostrarAlerta('warning', 'Falta', 'Los días de crédito no pueden ser 0 o estar vacíos.'); return; }
 
     var payload = {
         _token:                   document.getElementById('csrf_token').value,
         cliente_id:               clienteIdActual,
-        credito_activo:           $('#cred_activo').is(':checked') ? 1 : 0,
-        credito:                  monto,
+        credito_activo:           1,
+        credito:                  $('#cred_monto').val().replace(/,/g, ''),
         dias_credito:             $('#cred_dias').val(),
-        vendedor_id:              $('#cred_vendedor').val(),
+        fecha_vigencia:           $('#cred_fecha_vigencia').val(),
+        vendedor_id:              $('#dp_vendedor').val(),
         referencias_bancarias:    $('#cred_ref_bancarias').val().trim(),
         referencias_comerciales:  $('#cred_ref_comerciales').val().trim(),
-        metodo_pago:              $('#cred_metodo_pago').val().trim(),
-        letra_cambio:             $('#cred_letra_cambio').val().trim(),
-        aval_solidario:           $('#cred_aval_solidario').val().trim(),
+        letra_cambio:             $('#cred_letra_cambio').is(':checked') ? 1 : 0,
+        obs_letra_cambio:         $('#obs_letra_cambio').val().trim(),
+        aval_solidario:           $('#cred_aval_solidario').is(':checked') ? 1 : 0,
+        obs_aval_solidario:       $('#obs_aval_solidario').val().trim(),
         autorizacion_gerencia:    $('#cred_autorizacion').val().trim(),
     };
 
@@ -319,6 +355,7 @@ function guardarCredito() {
         .then(r => {
             mostrarAlerta(r.data.icon, r.data.title, r.data.text);
             recargarHistoricoCredito();
+            if (clienteIdActual) cargarHistorialCambios(clienteIdActual);
         })
         .catch(err => {
             var d = err.response ? err.response.data : {};
@@ -346,16 +383,27 @@ function renderHistoricoCredito(rows) {
         var badge = h.credito_activo == 1
             ? '<span class="credito-badge credito-activo">Activo</span>'
             : '<span class="credito-badge credito-inactivo">Inactivo</span>';
+        var letraTxt = h.letra_cambio == 1
+            ? '<span class="badge badge-success">Sí</span>' + (h.obs_letra_cambio ? ' <small>' + escapeHtml(h.obs_letra_cambio) + '</small>' : '')
+            : '<span class="badge badge-secondary">No</span>';
+        var avalTxt = h.aval_solidario == 1
+            ? '<span class="badge badge-success">Sí</span>' + (h.obs_aval_solidario ? ' <small>' + escapeHtml(h.obs_aval_solidario) + '</small>' : '')
+            : '<span class="badge badge-secondary">No</span>';
+        var activoBadge = h.activo == 1
+            ? '<span class="badge" style="background:#1ab394;color:#fff">Vigente</span>'
+            : '<span class="badge badge-light text-muted">Histórico</span>';
         html += '<div class="historico-item">' +
             '<div class="d-flex justify-content-between align-items-start">' +
-            '<div><strong>L ' + parseFloat(h.credito || 0).toLocaleString('es-HN', {minimumFractionDigits:2}) + '</strong> &nbsp;' + badge + '</div>' +
+            '<div><strong>L ' + parseFloat(h.credito || 0).toLocaleString('es-HN', {minimumFractionDigits:2}) + '</strong> &nbsp;' + badge + ' &nbsp;' + activoBadge + '</div>' +
             '</div>' +
             '<div class="mt-1" style="font-size:0.85rem">' +
             (h.autorizacion_gerencia ? '<em>"' + escapeHtml(h.autorizacion_gerencia) + '"</em>' : '') +
             '</div>' +
+            '<div class="mt-1" style="font-size:0.82rem">Letra de cambio: ' + letraTxt + ' &nbsp;|&nbsp; Aval solidario: ' + avalTxt + '</div>' +
             '<div class="hi-meta">' +
             'Días crédito: ' + (h.dias_credito || 0) +
-            ' · Vendedor ID: ' + (h.vendedor_id || '—') +
+            (h.fecha_vigencia ? ' · Vigente hasta: ' + h.fecha_vigencia : '') +
+            ' · Vendedor: ' + escapeHtml(h.nombre_vendedor || ('ID ' + (h.vendedor_id || '—'))) +
             ' · Por: ' + escapeHtml(h.usuario || '—') +
             ' · ' + formatFecha(h.created_at) +
             '</div>' +
@@ -463,18 +511,23 @@ function renderDocumentos(rows) {
         var cont = document.getElementById('docs_list_' + slug);
         if (!cont) return;
         var docs = grupos[slug] || [];
-        if (docs.length === 0) { cont.innerHTML = ''; return; }
+        if (docs.length === 0) {
+            cont.innerHTML = '<span class="text-muted" style="font-size:0.78rem">Sin documento cargado</span>';
+            return;
+        }
         var html = '';
         docs.forEach(function (doc) {
-            html += '<div class="doc-item">' +
-                '<span class="doc-name" title="' + escapeHtml(doc.nombre_original) + '">' +
-                '<i class="fa fa-file-o mr-1"></i>' + escapeHtml(doc.nombre_original) +
-                '</span>' +
+            var ext = (doc.ruta_archivo || '').split('.').pop().toLowerCase();
+            var iconClass = ['pdf'].includes(ext) ? 'fa-file-pdf-o text-danger' :
+                           ['png','jpg','jpeg','gif'].includes(ext) ? 'fa-file-image-o text-success' :
+                           'fa-file-o text-secondary';
+            html += '<div class="doc-item" style="cursor:pointer;" onclick="abrirPreviewDoc(' + doc.id + ',\'' + slug + '\',\'' + escapeAttr(doc.nombre_original) + '\',\'' + ext + '\')">' +
+                '<span class="doc-name"><i class="fa ' + iconClass + ' mr-1"></i>' + escapeHtml(doc.nombre_original) + '</span>' +
                 '<div class="doc-actions">' +
-                '<a href="/clientes/documento/descargar/' + doc.id + '" class="btn btn-xs btn-success" title="Descargar" target="_blank">' +
+                '<a href="/clientes/documento/descargar/' + doc.id + '" class="btn btn-xs btn-success" title="Descargar" target="_blank" onclick="event.stopPropagation()">' +
                 '<i class="fa fa-download"></i></a>' +
-                '<button class="btn btn-xs btn-danger" title="Eliminar" onclick="confirmarEliminarDoc(' + doc.id + ')">' +
-                '<i class="fa fa-trash"></i></button>' +
+                '<button class="btn btn-xs btn-info" title="Ver" onclick="event.stopPropagation();abrirPreviewDoc(' + doc.id + ',\'' + slug + '\',\'' + escapeAttr(doc.nombre_original) + '\',\'' + ext + '\')"><i class="fa fa-eye"></i></button>' +
+                '<button class="btn btn-xs btn-danger" title="Eliminar" onclick="event.stopPropagation();confirmarEliminarDoc(' + doc.id + ')"><i class="fa fa-trash"></i></button>' +
                 '</div>' +
                 '</div>';
         });
@@ -502,11 +555,118 @@ function eliminarDocumento(docId) {
     .then(r => {
         mostrarAlerta(r.data.icon, r.data.title, r.data.text);
         cargarRepositorioDocumentos(clienteIdActual);
+        if (clienteIdActual) cargarHistorialCambios(clienteIdActual);
     })
     .catch(err => {
         var d = err.response ? err.response.data : {};
         mostrarAlerta(d.icon || 'error', d.title || 'Error', d.text || 'Error al eliminar.');
     });
+}
+
+/* ============================================================
+   VISTA PREVIA DE DOCUMENTO
+   ============================================================ */
+var _docPreviewTipo = null;
+
+function abrirPreviewDoc(docId, tipo, nombreOriginal, extension) {
+    _docPreviewTipo = tipo;
+    document.getElementById('modalDocPreviewLabel').textContent = nombreOriginal;
+    var previewArea = document.getElementById('doc_preview_area');
+    previewArea.innerHTML = '<div class="text-center p-4"><i class="fa fa-spinner fa-spin fa-2x text-muted"></i></div>';
+
+    var url = '/clientes/documento/ver/' + docId;
+    var ext = (extension || '').toLowerCase();
+
+    if (ext === 'pdf') {
+        previewArea.innerHTML = '<iframe src="' + url + '" width="100%" height="520" style="border:none; display:block;"></iframe>';
+    } else if (['png','jpg','jpeg','gif'].includes(ext)) {
+        previewArea.innerHTML = '<img src="' + url + '" class="img-fluid" style="max-height:520px; display:block; margin:0 auto; padding:10px;">';
+    } else {
+        previewArea.innerHTML = '<div class="text-center p-4">' +
+            '<i class="fa fa-file fa-3x text-muted mb-3 d-block"></i>' +
+            '<p class="text-muted">Vista previa no disponible para este tipo de archivo.</p>' +
+            '<a href="/clientes/documento/descargar/' + docId + '" class="btn btn-primary" target="_blank">' +
+            '<i class="fa fa-download"></i> Descargar archivo</a></div>';
+    }
+
+    document.getElementById('btn_modal_descargar').href = '/clientes/documento/descargar/' + docId;
+    document.getElementById('btn_modal_eliminar').onclick = function () {
+        Swal.fire({
+            title: '¿Eliminar documento?',
+            text: 'Esta acción no se puede deshacer.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, eliminar',
+            cancelButtonText: 'Cancelar',
+        }).then(function (result) {
+            if (result.isConfirmed) {
+                $('#modalDocPreview').modal('hide');
+                eliminarDocumento(docId);
+            }
+        });
+    };
+    document.getElementById('file_modal_reemplazar').value = '';
+    document.getElementById('btn_modal_reemplazar').onclick = function () {
+        subirDocumentoDesdeModal(tipo);
+    };
+    $('#modalDocPreview').modal('show');
+}
+
+function subirDocumentoDesdeModal(tipo) {
+    if (!checkClienteCreado()) return;
+    var fileInput = document.getElementById('file_modal_reemplazar');
+    if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+        mostrarAlerta('warning', 'Falta', 'Seleccione un archivo para subir.');
+        return;
+    }
+    var formData = new FormData();
+    formData.append('_token',         document.getElementById('csrf_token').value);
+    formData.append('cliente_id',     clienteIdActual);
+    formData.append('tipo_documento', tipo);
+    formData.append('documento',      fileInput.files[0]);
+    $('#btn_modal_reemplazar').prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i>');
+    axios.post('/clientes/documento/subir', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
+        .then(function (r) {
+            mostrarAlerta(r.data.icon, r.data.title, r.data.text);
+            $('#modalDocPreview').modal('hide');
+            cargarRepositorioDocumentos(clienteIdActual);
+            if (clienteIdActual) cargarHistorialCambios(clienteIdActual);
+        })
+        .catch(function (err) {
+            var d = err.response ? err.response.data : {};
+            mostrarAlerta(d.icon || 'error', d.title || 'Error', d.text || 'Error al subir.');
+        })
+        .finally(function () {
+            $('#btn_modal_reemplazar').prop('disabled', false).html('<i class="fa fa-upload"></i> Reemplazar');
+        });
+}
+
+/* ============================================================
+   HISTORIAL DE CAMBIOS
+   ============================================================ */
+function cargarHistorialCambios(id) {
+    if (!id) return;
+    axios.get('/clientes/historial/' + id)
+        .then(function (r) { renderHistorialCambios(r.data.historial || []); })
+        .catch(function () {});
+}
+
+function renderHistorialCambios(rows) {
+    var cont = document.getElementById('historial_cambios_container');
+    if (!cont) return;
+    if (!rows || rows.length === 0) {
+        cont.innerHTML = '<p class="text-muted text-center" style="font-size:0.8rem">Sin historial de cambios.</p>';
+        return;
+    }
+    var html = '';
+    rows.forEach(function (h) {
+        html += '<div class="historico-item mb-2">' +
+            '<div style="font-size:0.82rem;font-weight:600;">' + escapeHtml(h.accion) + '</div>' +
+            (h.descripcion ? '<div style="font-size:0.78rem;color:#555;margin-top:2px;">' + escapeHtml(h.descripcion) + '</div>' : '') +
+            '<div class="hi-meta">' + escapeHtml(h.usuario || '—') + ' · ' + formatFecha(h.created_at) + '</div>' +
+            '</div>';
+    });
+    cont.innerHTML = html;
 }
 
 function mostrarAvisoRepo(show) {
@@ -575,6 +735,21 @@ function setSelectValById(id, selectedVal, currentText) {
     }
 }
 
+/* muestra/oculta el textarea de observación vinculado a un checkbox */
+function toggleObs(wrapId, show) {
+    var el = document.getElementById(wrapId);
+    if (el) el.style.display = show ? '' : 'none';
+}
+
+function toggleCreditoCampos() {
+    var activo = $('#cred_activo').is(':checked');
+    var wrap = document.getElementById('credito_campos_condicionales');
+    if (wrap) wrap.style.display = activo ? '' : 'none';
+    // El boton guardar solo enabled cuando activo
+    var btn = document.getElementById('btn_guardar_credito');
+    if (btn) btn.disabled = !activo;
+}
+
 function formatFecha(dateStr) {
     if (!dateStr) return '—';
     try {
@@ -594,8 +769,18 @@ function escapeHtml(str) {
         .replace(/'/g, '&#39;');
 }
 
+function escapeAttr(str) {
+    if (str === null || str === undefined) return '';
+    return String(str).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"');
+}
+
 function mostrarAlerta(icon, title, text) {
-    Swal.fire({ icon: icon || 'info', title: title || '', text: text || '' });
+    Swal.fire({
+        icon: icon || 'info',
+        title: title || '',
+        text: text || '',
+        customClass: { container: 'swal-over-modal' }
+    });
 }
 
 function formatCurrencyInput($input) {

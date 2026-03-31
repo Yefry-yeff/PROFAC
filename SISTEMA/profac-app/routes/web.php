@@ -357,8 +357,12 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     /* ---- Documentos ---- */
     Route::post('/clientes/documento/subir',           [Cliente::class, 'subirDocumento'])->name('clientes.documento.subir');
     Route::get('/clientes/documentos/{id}',            [Cliente::class, 'listarDocumentos'])->name('clientes.documentos');
-    Route::delete('/clientes/documento/{id}',          [Cliente::class, 'eliminarDocumento'])->name('clientes.documento.eliminar');
+    Route::get('/clientes/documento/ver/{id}',         [Cliente::class, 'verDocumento'])->name('clientes.documento.ver');
     Route::get('/clientes/documento/descargar/{id}',   [Cliente::class, 'descargarDocumento'])->name('clientes.documento.descargar');
+    Route::delete('/clientes/documento/{id}',          [Cliente::class, 'eliminarDocumento'])->name('clientes.documento.eliminar');
+
+    /* ---- Historial ---- */
+    Route::get('/clientes/historial/{id}',             [Cliente::class, 'historialCambios'])->name('clientes.historial');
 
 
 

@@ -2,10 +2,10 @@
 @push('styles')
 <style>
     .nav-tabs .nav-link { font-weight: 600; color: #555; }
-    .nav-tabs .nav-link.active { color: #1a7abf; border-bottom: 3px solid #1a7abf; }
+    .nav-tabs .nav-link.active { color: #1ab394; border-bottom: 3px solid #1ab394; }
     .tab-section { padding: 20px 0; }
     .form-section-title { font-size: 0.85rem; font-weight: 700; text-transform: uppercase;
-        letter-spacing: .08em; color: #1a7abf; border-bottom: 2px solid #e3e8ef;
+        letter-spacing: .08em; color: #1ab394; border-bottom: 2px solid #e3e8ef;
         padding-bottom: 6px; margin-bottom: 16px; }
     .sticky-repo { position: sticky; top: 70px; }
     .doc-item { display: flex; align-items: center; justify-content: space-between;
@@ -14,7 +14,7 @@
     .doc-item .doc-name { font-size: 0.82rem; color: #333; flex: 1; overflow: hidden;
         text-overflow: ellipsis; white-space: nowrap; }
     .doc-item .doc-actions { display: flex; gap: 4px; flex-shrink: 0; }
-    .historico-item { background: #f0f4ff; border-left: 4px solid #1a7abf;
+    .historico-item { background: #eaf7f4; border-left: 4px solid #1ab394;
         padding: 10px 14px; border-radius: 0 6px 6px 0; margin-bottom: 10px; }
     .historico-item .hi-meta { font-size: 0.75rem; color: #888; margin-top: 4px; }
     .obs-item { background: #fffbe6; border-left: 4px solid #f5a623;
@@ -23,16 +23,34 @@
     .credito-badge { font-size: 0.7rem; padding: 3px 8px; border-radius: 12px; }
     .credito-activo   { background: #d4edda; color: #155724; }
     .credito-inactivo { background: #f8d7da; color: #721c24; }
-    .repo-header { background: #1a7abf; color: #fff; padding: 10px 16px; border-radius: 6px 6px 0 0;
+    .repo-header { background: #1ab394; color: #fff; padding: 10px 16px; border-radius: 6px 6px 0 0;
         font-weight: 700; font-size: 0.9rem; }
     .repo-body { border: 1px solid #dee2e6; border-top: none; border-radius: 0 0 6px 6px;
         padding: 14px; background: #fff; }
+    .doc-repo-card { border: 1px solid #dee2e6; border-radius: 6px; overflow: hidden; height: 100%; display:flex; flex-direction:column; }
+    .doc-repo-card-header { background: #e6f5f2; color: #1ab394; font-size: 0.78rem; font-weight: 700;
+        padding: 8px 12px; text-transform: uppercase; letter-spacing: .04em;
+        border-bottom: 1px solid #b2ddd5; display:flex; align-items:center; gap:6px; }
+    .doc-repo-card-body { padding: 10px 12px; background: #fff; flex:1; }
     .tipo-doc-label { font-size: 0.78rem; font-weight: 600; color: #555; margin-bottom: 4px;
         text-transform: uppercase; letter-spacing: .04em; }
     .doc-upload-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
     .doc-upload-row input[type=file] { flex: 1; font-size: 0.82rem; }
+    #modalDocPreview .modal-header { background:#1ab394; }
+    #modalDocPreview .modal-title { color:#fff; }
+    #modalDocPreview .close { color:#fff; opacity:1; }
+    .swal-over-modal { z-index: 99999 !important; }
+    .historial-resize { resize: vertical; overflow-y: auto; height: 168px; min-height: 100px; }
+    .credito-hist-wrap { resize: vertical; overflow-y: auto; height: 110px; min-height: 80px;
+        border: 1px solid #dee2e6; border-radius: 4px; padding: 6px; background: #fafafa; }
 </style>
 @endpush
+
+{{-- Loading overlay --}}
+<div id="form_loading_overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.78); z-index:9000; text-align:center; padding-top:18%;">
+    <i class="fa fa-spinner fa-spin fa-3x" style="color:#1ab394;"></i>
+    <p class="mt-3" style="color:#555; font-size:1rem;">Cargando datos del cliente...</p>
+</div>
 
 <div class="row wrapper border-bottom white-bg page-heading d-flex align-items-center">
     <div class="col-lg-8">
@@ -136,6 +154,28 @@
                                     <div class="form-group">
                                         <label>DNI Representante Legal</label>
                                         <input type="text" id="dp_dni" class="form-control" maxlength="20">
+                                    </div>
+                                </div>
+                                <div class="col-md-6 col-lg-4">
+                                    <div class="form-group">
+                                        <label>Vendedor</label>
+                                        <select id="dp_vendedor" class="form-control">
+                                            <option value="" disabled selected>-- Seleccione --</option>
+                                            @foreach($clientes as $v)
+                                            <option value="{{ $v->id }}">{{ $v->name }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 col-lg-4">
+                                    <div class="form-group">
+                                        <label>Método de Pago</label>
+                                        <select id="dp_metodo_pago" class="form-control">
+                                            <option value="" disabled selected>-- Seleccione --</option>
+                                            @foreach($metodosPago as $mp)
+                                            <option value="{{ $mp->descripcion }}">{{ $mp->descripcion }}</option>
+                                            @endforeach
+                                        </select>
                                     </div>
                                 </div>
                                 <div class="col-md-12 col-lg-4 d-flex align-items-center" style="margin-top: 10px">
@@ -259,10 +299,13 @@
                                 </div>
                                 <div class="col-md-12 d-flex align-items-center mb-3">
                                     <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" id="cred_activo">
+                                        <input class="form-check-input" type="checkbox" id="cred_activo"
+                                            onchange="toggleCreditoCampos()">
                                         <label class="form-check-label ml-2" for="cred_activo"><strong>Crédito Disponible</strong></label>
                                     </div>
                                 </div>
+                                {{-- Campos condicionales: solo visibles cuando crédito está activo --}}
+                                <div id="credito_campos_condicionales" style="display:none; width:100%" class="col-md-12 row">
                                 <div class="col-md-6">
                                     <div class="form-group">
                                         <label>Monto de Crédito <span class="text-danger">*</span></label>
@@ -271,25 +314,8 @@
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group">
-                                        <label>Días de Crédito</label>
-                                        <input type="number" id="cred_dias" class="form-control" min="0" max="365">
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-group">
-                                        <label>Vendedor</label>
-                                        <select id="cred_vendedor" class="form-control">
-                                            <option value="" disabled selected>-- Seleccione --</option>
-                                            @foreach($clientes as $v)
-                                            <option value="{{ $v->id }}">{{ $v->name }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-group">
-                                        <label>Método de Pago</label>
-                                        <input type="text" id="cred_metodo_pago" class="form-control" maxlength="100">
+                                        <label>Días de Crédito <span class="text-danger">*</span></label>
+                                        <input type="number" id="cred_dias" class="form-control" min="1" max="365">
                                     </div>
                                 </div>
                                 <div class="col-md-6">
@@ -304,16 +330,36 @@
                                         <textarea id="cred_ref_comerciales" class="form-control" rows="2"></textarea>
                                     </div>
                                 </div>
-                                <div class="col-md-6">
+                                <div class="col-md-6" style="display:none;">
                                     <div class="form-group">
-                                        <label>Letra de Cambio</label>
-                                        <input type="text" id="cred_letra_cambio" class="form-control" maxlength="150">
+                                        <label>Fecha de Vigencia del Crédito</label>
+                                        <input type="date" id="cred_fecha_vigencia" class="form-control">
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group">
-                                        <label>Aval Solidario</label>
-                                        <input type="text" id="cred_aval_solidario" class="form-control" maxlength="150">
+                                        <div class="form-check form-switch mb-1">
+                                            <input class="form-check-input" type="checkbox" id="cred_letra_cambio"
+                                                onchange="toggleObs('obs_letra_cambio_wrap', this.checked)">
+                                            <label class="form-check-label ml-2" for="cred_letra_cambio"><strong>Letra de Cambio</strong></label>
+                                        </div>
+                                        <div id="obs_letra_cambio_wrap" style="display:none;">
+                                            <textarea id="obs_letra_cambio" class="form-control mt-1" rows="2"
+                                                maxlength="500" placeholder="Observación de letra de cambio..."></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <div class="form-check form-switch mb-1">
+                                            <input class="form-check-input" type="checkbox" id="cred_aval_solidario"
+                                                onchange="toggleObs('obs_aval_solidario_wrap', this.checked)">
+                                            <label class="form-check-label ml-2" for="cred_aval_solidario"><strong>Aval Solidario</strong></label>
+                                        </div>
+                                        <div id="obs_aval_solidario_wrap" style="display:none;">
+                                            <textarea id="obs_aval_solidario" class="form-control mt-1" rows="2"
+                                                maxlength="500" placeholder="Observación de aval solidario..."></textarea>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="col-md-12">
@@ -322,6 +368,7 @@
                                         <textarea id="cred_autorizacion" class="form-control" rows="2" maxlength="500"></textarea>
                                     </div>
                                 </div>
+                                </div>{{-- /credito_campos_condicionales --}}
                             </div>
                             <button class="btn btn-primary mt-2" onclick="guardarCredito()" id="btn_guardar_credito">
                                 <i class="fa fa-save"></i> Guardar Crédito
@@ -330,8 +377,10 @@
                             {{-- Historial de crédito --}}
                             <div class="mt-4">
                                 <p class="form-section-title">Historial de Modificaciones</p>
-                                <div id="historico_credito_container">
-                                    <p class="text-muted text-center" id="historico_credito_empty">Sin historial.</p>
+                                <div class="credito-hist-wrap">
+                                    <div id="historico_credito_container">
+                                        <p class="text-muted text-center" id="historico_credito_empty">Sin historial.</p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -356,49 +405,112 @@
             </div>
         </div>
 
-        {{-- ============ REPOSITORIO DE DOCUMENTOS (STICKY, DERECHA) ============ --}}
+        {{-- ============ HISTORIAL DE CAMBIOS (STICKY, DERECHA) ============ --}}
         <div class="col-lg-4 col-xl-3">
             <div class="sticky-repo">
                 <div class="repo-header">
-                    <i class="fa fa-folder-open"></i> Repositorio de Documentos
+                    <i class="fa fa-history"></i> Historial de Cambios
                 </div>
-                <div class="repo-body">
-                    @php
-                    $tiposDoc = [
-                        'escritura_empresa'      => 'Escritura de la Empresa',
-                        'dni_representante'      => 'DNI del Representante Legal',
-                        'rtn'                    => 'RTN',
-                        'permiso_operacion'      => 'Permiso de Operación',
-                        'croquis'                => 'Croquis',
-                        'contrato_arrendamiento' => 'Contrato de Arrendamiento',
-                        'foto_establecimiento'   => 'Fotos de Establecimiento',
-                    ];
-                    @endphp
-
-                    @foreach($tiposDoc as $slug => $label)
-                    <div class="mb-3" id="repo_tipo_{{ $slug }}">
-                        <div class="tipo-doc-label">{{ $label }}</div>
-                        <div id="docs_list_{{ $slug }}"></div>
-                        <div class="doc-upload-row">
-                            <input type="file" id="file_{{ $slug }}" class="form-control-file"
-                                accept=".pdf,.png,.jpg,.jpeg,.gif,.doc,.docx">
-                            <button class="btn btn-sm btn-outline-primary" onclick="subirDocumento('{{ $slug }}')">
-                                <i class="fa fa-upload"></i>
-                            </button>
-                        </div>
-                    </div>
-                    @endforeach
-
-                    <div id="repo_aviso" class="alert alert-info mt-2 py-2" style="font-size:0.8rem; display:none;">
-                        <i class="fa fa-info-circle"></i> Guarde primero el cliente para subir documentos.
+                <div class="repo-body historial-resize" style="overflow-y:auto;">
+                    <div id="historial_cambios_container">
+                        <p class="text-muted text-center" style="font-size:0.8rem">Sin historial de cambios.</p>
                     </div>
                 </div>
             </div>
         </div>
     </div>{{-- /row --}}
+
+    {{-- ============ REPOSITORIO DE DOCUMENTOS (ABAJO, ANCHO COMPLETO) ============ --}}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="ibox">
+                <div class="ibox-title" style="background:#1ab394; border-radius:6px 6px 0 0; padding:10px 16px;">
+                    <h5 style="color:#fff; margin:0;"><i class="fa fa-folder-open mr-2"></i>Repositorio de Documentos</h5>
+                    <div class="ibox-tools">
+                        <div id="repo_aviso" class="badge badge-warning" style="display:none; font-size:0.75rem; padding:5px 10px;">
+                            <i class="fa fa-exclamation-triangle"></i> Guarde el cliente primero
+                        </div>
+                    </div>
+                </div>
+                <div class="ibox-content">
+                    @php
+                    $tiposDoc = [
+                        'escritura_empresa'      => ['label' => 'Escritura de la Empresa',      'icon' => 'fa-building'],
+                        'dni_representante'      => ['label' => 'DNI del Representante Legal',  'icon' => 'fa-id-card'],
+                        'rtn'                    => ['label' => 'RTN',                          'icon' => 'fa-file-text-o'],
+                        'permiso_operacion'      => ['label' => 'Permiso de Operación',         'icon' => 'fa-certificate'],
+                        'croquis'                => ['label' => 'Croquis',                      'icon' => 'fa-map-o'],
+                        'contrato_arrendamiento' => ['label' => 'Contrato de Arrendamiento',    'icon' => 'fa-handshake-o'],
+                        'foto_establecimiento'   => ['label' => 'Fotos de Establecimiento',     'icon' => 'fa-camera'],
+                    ];
+                    @endphp
+                    <div class="row">
+                        @foreach($tiposDoc as $slug => $info)
+                        <div class="col-md-6 col-lg-3 mb-3">
+                            <div class="doc-repo-card">
+                                <div class="doc-repo-card-header">
+                                    <i class="fa {{ $info['icon'] }}"></i> {{ $info['label'] }}
+                                </div>
+                                <div class="doc-repo-card-body">
+                                    <div id="docs_list_{{ $slug }}" class="mb-2">
+                                        <span class="text-muted" style="font-size:0.78rem">Sin documento cargado</span>
+                                    </div>
+                                    <div class="mt-1">
+                                        <input type="file" id="file_{{ $slug }}" class="form-control-file mb-1"
+                                            accept=".pdf,.png,.jpg,.jpeg,.gif,.doc,.docx" style="font-size:0.78rem;">
+                                        <button class="btn btn-xs btn-outline-primary w-100" onclick="subirDocumento('{{ $slug }}')">
+                                            <i class="fa fa-upload"></i> Subir documento
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        @endforeach
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- ============ MODAL VISTA PREVIA ============ --}}
+    <div class="modal fade" id="modalDocPreview" tabindex="-1" role="dialog" aria-labelledby="modalDocPreviewLabel">
+        <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalDocPreviewLabel">Vista Previa</h5>
+                    <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+                </div>
+                <div class="modal-body p-0">
+                    <div id="doc_preview_area" style="min-height:300px; background:#f5f5f5; display:flex; align-items:center; justify-content:center;">
+                        <span class="text-muted">Cargando vista previa...</span>
+                    </div>
+                </div>
+                <div class="modal-footer flex-wrap" style="gap:6px;">
+                    <a href="#" id="btn_modal_descargar" class="btn btn-success" target="_blank">
+                        <i class="fa fa-download"></i> Descargar
+                    </a>
+                    <button type="button" class="btn btn-danger" id="btn_modal_eliminar">
+                        <i class="fa fa-trash"></i> Eliminar
+                    </button>
+                    <div class="d-flex align-items-center" style="flex:1; gap:6px; min-width:260px;">
+                        <input type="file" id="file_modal_reemplazar" class="form-control-file"
+                            accept=".pdf,.png,.jpg,.jpeg,.gif,.doc,.docx" style="font-size:0.82rem; flex:1;">
+                        <button type="button" class="btn btn-primary btn-sm" id="btn_modal_reemplazar">
+                            <i class="fa fa-upload"></i> Reemplazar
+                        </button>
+                    </div>
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 @push('scripts')
+<script>
+    window._vendedoresData = {!! json_encode($clientes) !!};
+    window._metodosPagoData = {!! json_encode($metodosPago) !!};
+</script>
 <script src="{{ asset('js/js_proyecto/cliente/cliente-form.js') }}"></script>
 @endpush
 </x-app-layout>

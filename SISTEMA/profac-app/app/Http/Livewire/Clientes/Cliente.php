@@ -1043,9 +1043,10 @@ class Cliente extends Component
             $tipoPersonalidad = DB::select("SELECT id, nombre FROM tipo_personalidad");
             $tipoCliente      = DB::select("SELECT id, descripcion FROM tipo_cliente");
             $vendedores       = DB::select("SELECT id, name FROM users WHERE rol_id = 2 ORDER BY name ASC");
+            $metodosPago      = DB::select("SELECT id, descripcion FROM tipo_pago_cobro ORDER BY id ASC");
 
             $credito = DB::selectOne("SELECT * FROM cliente_credito WHERE cliente_id = ? ORDER BY id DESC LIMIT 1", [$id]);
-            $historicoCredito = DB::select("SELECT cc.*, u.name as usuario FROM cliente_credito cc LEFT JOIN users u ON u.id = cc.users_id WHERE cc.cliente_id = ? ORDER BY cc.id DESC", [$id]);
+            $historicoCredito = DB::select("SELECT cc.*, u.name as usuario, v.name as nombre_vendedor FROM cliente_credito cc LEFT JOIN users u ON u.id = cc.users_id LEFT JOIN users v ON v.id = cc.vendedor_id WHERE cc.cliente_id = ? ORDER BY cc.id DESC", [$id]);
 
             $observaciones = DB::select("SELECT co.*, u.name as usuario FROM cliente_observaciones co LEFT JOIN users u ON u.id = co.users_id WHERE co.cliente_id = ? ORDER BY co.id DESC", [$id]);
 
@@ -1061,6 +1062,7 @@ class Cliente extends Component
                 'tipoPersonalidad' => $tipoPersonalidad,
                 'tipoCliente'      => $tipoCliente,
                 'vendedores'       => $vendedores,
+                'metodosPago'      => $metodosPago,
                 'credito'          => $credito,
                 'historicoCredito' => $historicoCredito,
                 'observaciones'    => $observaciones,
@@ -1108,6 +1110,7 @@ class Cliente extends Component
             $cliente->dias_credito               = $request->dias_credito ?? 0;
             $cliente->latitud                    = trim($request->latitud ?? '');
             $cliente->longitud                   = trim($request->longitud ?? '');
+            $cliente->metodo_pago                = trim($request->dp_metodo_pago ?? '');
             $cliente->users_id                   = Auth::user()->id;
             $cliente->cliente_categoria_escala_id = $request->cliente_categoria_escala_id ?? null;
             if ($nombreImagen) $cliente->url_imagen = $nombreImagen;
@@ -1127,8 +1130,10 @@ class Cliente extends Component
 
             // ---- crédito ----
             if ($request->filled('credito')) {
+                ClienteCredito::where('cliente_id', $cliente->id)->update(['activo' => 0]);
                 ClienteCredito::create([
                     'cliente_id'              => $cliente->id,
+                    'activo'                  => 1,
                     'credito_activo'          => $request->credito_activo ? 1 : 0,
                     'credito'                 => str_replace(',', '', $request->credito ?? '0'),
                     'dias_credito'            => $request->dias_credito ?? 0,
@@ -1136,14 +1141,17 @@ class Cliente extends Component
                     'referencias_bancarias'   => trim($request->referencias_bancarias ?? ''),
                     'referencias_comerciales' => trim($request->referencias_comerciales ?? ''),
                     'metodo_pago'             => trim($request->metodo_pago ?? ''),
-                    'letra_cambio'            => trim($request->letra_cambio ?? ''),
-                    'aval_solidario'          => trim($request->aval_solidario ?? ''),
+                    'letra_cambio'            => $request->boolean('letra_cambio') ? 1 : 0,
+                    'obs_letra_cambio'        => trim($request->obs_letra_cambio ?? ''),
+                    'aval_solidario'          => $request->boolean('aval_solidario') ? 1 : 0,
+                    'obs_aval_solidario'      => trim($request->obs_aval_solidario ?? ''),
                     'autorizacion_gerencia'   => trim($request->autorizacion_gerencia ?? ''),
                     'users_id'               => Auth::user()->id,
                 ]);
             }
 
             DB::commit();
+            try { $this->logHistorial($cliente->id, 'Cliente registrado', $cliente->nombre); } catch (\Throwable $e) {}
             return response()->json(['icon' => 'success', 'title' => 'Éxito', 'text' => 'Cliente registrado con éxito.', 'id' => $cliente->id], 200);
 
         } catch (QueryException $e) {
@@ -1176,9 +1184,24 @@ class Cliente extends Component
             $cliente->telefono_empresa           = trim($request->telefono ?? '');
             $cliente->direccion                  = trim($request->direccion ?? '');
             $cliente->municipio_id               = $request->municipio_id ?? $cliente->municipio_id;
-            $cliente->vendedor                   = $request->vendedor_id ?? $cliente->vendedor;
+            $cliente->vendedor                   = $request->dp_vendedor_id ?? $request->vendedor_id ?? $cliente->vendedor;
+            $cliente->metodo_pago                = trim($request->dp_metodo_pago ?? $cliente->metodo_pago ?? '');
             $cliente->users_id                   = Auth::user()->id;
             $cliente->cliente_categoria_escala_id = $request->cliente_categoria_escala_id ?? $cliente->cliente_categoria_escala_id;
+
+            // Track exact fields changed using Laravel dirty detection
+            $fieldLabels = [
+                'nombre' => 'Nombre', 'rtn' => 'RTN', 'tipo_personalidad_id' => 'Tipo Personalidad',
+                'tipo_cliente_id' => 'Tipo Cliente', 'cliente_categoria_escala_id' => 'Categoría',
+                'ano_operacion' => 'Año Operación', 'dni_representante_legal' => 'DNI Representante',
+                'estado_cliente_id' => 'Estado', 'correo' => 'Correo', 'telefono_empresa' => 'Teléfono',
+                'direccion' => 'Dirección', 'municipio_id' => 'Municipio',
+                'vendedor' => 'Vendedor', 'metodo_pago' => 'Método de Pago',
+            ];
+            $dirty = $cliente->getDirty();
+            $changed = array_values(array_filter(array_map(fn($f, $l) => array_key_exists($f, $dirty) ? $l : null, array_keys($fieldLabels), $fieldLabels)));
+            $logDesc = count($changed) > 0 ? 'Campos: ' . implode(', ', $changed) : 'Sin cambios en datos principales';
+
             $cliente->save();
 
             // ---- contactos ----
@@ -1195,6 +1218,7 @@ class Cliente extends Component
             }
 
             DB::commit();
+            try { $this->logHistorial($id, 'Cliente actualizado', $logDesc); } catch (\Throwable $e) {}
             return response()->json(['icon' => 'success', 'title' => 'Éxito', 'text' => 'Cliente actualizado con éxito.'], 200);
 
         } catch (QueryException $e) {
@@ -1221,23 +1245,29 @@ class Cliente extends Component
             $cliente->vendedor        = $request->vendedor_id ?? $cliente->vendedor;
             $cliente->save();
 
-            // Guardar historial de crédito
+            // Inactivar registro anterior y guardar nuevo historial de crédito
+            ClienteCredito::where('cliente_id', $id)->update(['activo' => 0]);
             ClienteCredito::create([
                 'cliente_id'              => $id,
+                'activo'                  => 1,
                 'credito_activo'          => $request->credito_activo ? 1 : 0,
                 'credito'                 => $credito,
                 'dias_credito'            => $request->dias_credito ?? 0,
+                'fecha_vigencia'          => $request->fecha_vigencia ?: null,
                 'vendedor_id'             => $request->vendedor_id,
                 'referencias_bancarias'   => trim($request->referencias_bancarias ?? ''),
                 'referencias_comerciales' => trim($request->referencias_comerciales ?? ''),
                 'metodo_pago'             => trim($request->metodo_pago ?? ''),
-                'letra_cambio'            => trim($request->letra_cambio ?? ''),
-                'aval_solidario'          => trim($request->aval_solidario ?? ''),
+                'letra_cambio'            => $request->boolean('letra_cambio') ? 1 : 0,
+                'obs_letra_cambio'        => trim($request->obs_letra_cambio ?? ''),
+                'aval_solidario'          => $request->boolean('aval_solidario') ? 1 : 0,
+                'obs_aval_solidario'      => trim($request->obs_aval_solidario ?? ''),
                 'autorizacion_gerencia'   => trim($request->autorizacion_gerencia ?? ''),
                 'users_id'               => Auth::user()->id,
             ]);
 
             DB::commit();
+            try { $this->logHistorial($id, 'Crédito actualizado', 'Monto: L ' . number_format((float)$credito, 2) . ' | Días: ' . ($request->dias_credito ?? 0)); } catch (\Throwable $e) {}
             return response()->json(['icon' => 'success', 'title' => 'Éxito', 'text' => 'Crédito actualizado con éxito.'], 200);
 
         } catch (QueryException $e) {
@@ -1252,7 +1282,7 @@ class Cliente extends Component
     public function historicoCredito(Request $request)
     {
         $id   = $request->route('id');
-        $rows = DB::select("SELECT cc.*, u.name as usuario FROM cliente_credito cc LEFT JOIN users u ON u.id = cc.users_id WHERE cc.cliente_id = ? ORDER BY cc.id DESC", [$id]);
+        $rows = DB::select("SELECT cc.*, u.name as usuario, v.name as nombre_vendedor FROM cliente_credito cc LEFT JOIN users u ON u.id = cc.users_id LEFT JOIN users v ON v.id = cc.vendedor_id WHERE cc.cliente_id = ? ORDER BY cc.id DESC", [$id]);
         return response()->json(['historico' => $rows], 200);
     }
 
@@ -1307,19 +1337,50 @@ class Cliente extends Component
                 return response()->json(['icon' => 'error', 'title' => 'Error', 'text' => 'Extensión de archivo no permitida.'], 422);
             }
 
-            $carpeta       = public_path('documentos_clientes');
+            $carpeta = public_path('archivo_clientes');
             if (!is_dir($carpeta)) mkdir($carpeta, 0755, true);
 
-            $nombreArchivo = 'DOC_' . $request->cliente_id . '_' . time() . '.' . $ext;
-            $archivo->move($carpeta, $nombreArchivo);
+            // Nombre: {nombre_cliente}_{id}_{tipo}.{ext}
+            $cliente = ModelCliente::findOrFail($request->cliente_id);
+            $nombreSanitizado = mb_strtolower($cliente->nombre, 'UTF-8');
+            $nombreSanitizado = str_replace(
+                ['á','é','í','ó','ú','ñ','ü','Á','É','Í','Ó','Ú','Ñ','Ü',' '],
+                ['a','e','i','o','u','n','u','a','e','i','o','u','n','u','_'],
+                $nombreSanitizado
+            );
+            $nombreSanitizado = preg_replace('/[^a-z0-9_]/', '', $nombreSanitizado);
+            $nombreSanitizado = substr(preg_replace('/_+/', '_', trim($nombreSanitizado, '_')), 0, 50);
+            $nombreArchivo    = $nombreSanitizado . '_' . $cliente->id . '_' . $request->tipo_documento . '.' . $ext;
 
-            $doc = ClienteDocumento::create([
-                'cliente_id'      => $request->cliente_id,
-                'tipo_documento'  => $request->tipo_documento,
-                'nombre_original' => $archivo->getClientOriginalName(),
-                'ruta_archivo'    => $nombreArchivo,
-                'users_id'        => Auth::user()->id,
-            ]);
+            $nombreOriginal = $archivo->getClientOriginalName();
+
+            // Reemplazar si ya existe un documento de este tipo para este cliente
+            $docExistente = ClienteDocumento::where('cliente_id', $request->cliente_id)
+                ->where('tipo_documento', $request->tipo_documento)
+                ->first();
+
+            if ($docExistente) {
+                $rutaAntigua = public_path('archivo_clientes/' . $docExistente->ruta_archivo);
+                if (file_exists($rutaAntigua)) @unlink($rutaAntigua);
+                $archivo->move($carpeta, $nombreArchivo);
+                $docExistente->update([
+                    'nombre_original' => $nombreOriginal,
+                    'ruta_archivo'    => $nombreArchivo,
+                    'users_id'        => Auth::user()->id,
+                ]);
+                $doc = $docExistente->fresh();
+            } else {
+                $archivo->move($carpeta, $nombreArchivo);
+                $doc = ClienteDocumento::create([
+                    'cliente_id'      => $request->cliente_id,
+                    'tipo_documento'  => $request->tipo_documento,
+                    'nombre_original' => $nombreOriginal,
+                    'ruta_archivo'    => $nombreArchivo,
+                    'users_id'        => Auth::user()->id,
+                ]);
+            }
+
+            try { $this->logHistorial($request->cliente_id, 'Documento subido', ClienteDocumento::$tipos[$request->tipo_documento] ?? $request->tipo_documento); } catch (\Throwable $e) {}
 
             return response()->json(['icon' => 'success', 'title' => 'Éxito', 'text' => 'Documento subido.', 'documento' => $doc], 200);
 
@@ -1346,9 +1407,12 @@ class Cliente extends Component
         try {
             $id  = $request->route('id');
             $doc = ClienteDocumento::findOrFail($id);
-            $ruta = public_path('documentos_clientes/' . $doc->ruta_archivo);
+            $ruta = public_path('archivo_clientes/' . $doc->ruta_archivo);
             if (file_exists($ruta)) @unlink($ruta);
+            $clienteId = $doc->cliente_id;
+            $tipoLabel = ClienteDocumento::$tipos[$doc->tipo_documento] ?? $doc->tipo_documento;
             $doc->delete();
+            try { $this->logHistorial($clienteId, 'Documento eliminado', $tipoLabel); } catch (\Throwable $e) {}
             return response()->json(['icon' => 'success', 'title' => 'Éxito', 'text' => 'Documento eliminado.'], 200);
         } catch (\Exception $e) {
             return response()->json(['icon' => 'error', 'title' => 'Error', 'text' => 'Error al eliminar.'], 500);
@@ -1362,9 +1426,46 @@ class Cliente extends Component
     {
         $id  = $request->route('id');
         $doc = ClienteDocumento::findOrFail($id);
-        $ruta = public_path('documentos_clientes/' . $doc->ruta_archivo);
+        $ruta = public_path('archivo_clientes/' . $doc->ruta_archivo);
         if (!file_exists($ruta)) abort(404);
         return response()->download($ruta, $doc->nombre_original);
+    }
+
+    /**
+     * GET /clientes/documento/ver/{id}  — sirve el archivo en línea (para vista previa)
+     */
+    public function verDocumento(Request $request)
+    {
+        $id  = $request->route('id');
+        $doc = ClienteDocumento::findOrFail($id);
+        $ruta = public_path('archivo_clientes/' . $doc->ruta_archivo);
+        if (!file_exists($ruta)) abort(404);
+        $ext = strtolower(pathinfo($doc->ruta_archivo, PATHINFO_EXTENSION));
+        $mimes = [
+            'pdf'  => 'application/pdf',
+            'png'  => 'image/png',
+            'jpg'  => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'gif'  => 'image/gif',
+        ];
+        $mime = $mimes[$ext] ?? 'application/octet-stream';
+        return response()->file($ruta, [
+            'Content-Type'        => $mime,
+            'Content-Disposition' => 'inline; filename="' . addslashes($doc->nombre_original) . '"',
+        ]);
+    }
+
+    /**
+     * GET /clientes/historial/{id}  — historial de cambios del cliente
+     */
+    public function historialCambios(Request $request)
+    {
+        $id   = $request->route('id');
+        $rows = DB::select(
+            "SELECT ch.*, u.name as usuario FROM cliente_historial ch LEFT JOIN users u ON u.id = ch.users_id WHERE ch.cliente_id = ? ORDER BY ch.id DESC LIMIT 100",
+            [$id]
+        );
+        return response()->json(['historial' => $rows], 200);
     }
 
     /**
@@ -1373,8 +1474,21 @@ class Cliente extends Component
     public function vistaFormCliente(Request $request)
     {
         $id = $request->route('id');
-        $clientes = DB::select("SELECT id, name FROM users WHERE rol_id = 2 ORDER BY name ASC");
-        return view('livewire.clientes.cliente-form', compact('id', 'clientes'));
+        $clientes     = DB::select("SELECT id, name FROM users WHERE rol_id = 2 ORDER BY name ASC");
+        $metodosPago  = DB::select("SELECT id, descripcion FROM tipo_pago_cobro ORDER BY id ASC");
+        return view('livewire.clientes.cliente-form', compact('id', 'clientes', 'metodosPago'));
+    }
+
+    private function logHistorial(int $clienteId, string $accion, ?string $descripcion = null): void
+    {
+        DB::table('cliente_historial')->insert([
+            'cliente_id'  => $clienteId,
+            'accion'      => $accion,
+            'descripcion' => $descripcion,
+            'users_id'    => Auth::id(),
+            'created_at'  => now(),
+            'updated_at'  => now(),
+        ]);
     }
 
     private function assertExcelPathIsReadable(string $path, string $ext): ?string
