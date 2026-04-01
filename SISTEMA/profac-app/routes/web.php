@@ -125,6 +125,7 @@ use App\Http\Livewire\Reportes\Facturasanuladasrep;
 use App\Http\Livewire\Reportes\Librocobrosrep;
 use App\Http\Livewire\Reportes\Libroventarep;
 use App\Http\Livewire\Clientes\ReporteClientes;
+use App\Http\Livewire\Reportes\ReporteVentasCobros;
 
 
 use App\Http\Livewire\Escalas\CategoriaPrecios;
@@ -1106,6 +1107,12 @@ Route::get('/reporte/clientes/consulta-sincredito/{vendedorId}/{estado}',[Report
 Route::get('/reporte/clientes/consulta-gobierno/{vendedorId}/{estado}',  [ReporteClientes::class, 'consultaGobierno']);
 Route::post('/reporte/clientes/exportar-pdf/{vendedorId}/{estado}',      [ReporteClientes::class, 'exportarPdf'])->name('reporte.clientes.pdf');
 Route::post('/reporte/clientes/exportar-excel/{vendedorId}/{estado}',    [ReporteClientes::class, 'exportarExcel'])->name('reporte.clientes.excel');
+
+//------------------------------- Reporte de Ventas y Cobros ----------------------------//
+Route::get('/reporte/ventas-cobros',                                                                ReporteVentasCobros::class);
+Route::get('/reporte/ventas-cobros/consulta/{vendedorId}/{clienteId}/{mes}/{anio}',                 [ReporteVentasCobros::class, 'consulta']);
+Route::post('/reporte/ventas-cobros/exportar-pdf/{vendedorId}/{clienteId}/{mes}/{anio}',            [ReporteVentasCobros::class, 'exportarPdf'])->name('reporte.ventas_cobros.pdf');
+Route::post('/reporte/ventas-cobros/exportar-excel/{vendedorId}/{clienteId}/{mes}/{anio}',          [ReporteVentasCobros::class, 'exportarExcel'])->name('reporte.ventas_cobros.excel');
 
   //------------------------------- Logistica de Entregas ----------------------------//
 

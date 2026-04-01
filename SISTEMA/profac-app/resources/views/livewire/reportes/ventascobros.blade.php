@@ -1,64 +1,149 @@
 <div>
-    <div class="row wrapper border-bottom white-bg page-heading">
-        <div class="col-lg-10">
-            <h2>Reporte de ventas y cobros</h2>
+@push('styles')
+<style>
+    .btn-export-pdf   { background:#c0392b; color:#fff; border:none; }
+    .btn-export-pdf:hover   { background:#a93226; color:#fff; }
+    .btn-export-excel { background:#1e7e34; color:#fff; border:none; }
+    .btn-export-excel:hover { background:#155724; color:#fff; }
+    .badge-vigente  { background:#1ab394; color:#fff; }
+    .badge-vencida  { background:#e74c3c; color:#fff; }
+    .badge-cancelada{ background:#27ae60; color:#fff; }
+    .badge-contado  { background:#2980b9; color:#fff; }
+    td.readonly-col { background:#f4f4f4 !important; color:#555; font-style:italic; }
+</style>
+@endpush
+
+    <div class="row wrapper border-bottom white-bg page-heading d-flex align-items-center">
+        <div class="col-lg-9">
+            <h2>Reporte de Ventas y Cobros</h2>
             <ol class="breadcrumb">
-                <li class="breadcrumb-item">
-                    <a href="{{ route('dashboard') }}">Inicio</a>
-                </li>
-                <li class="breadcrumb-item active">
-                    <strong>Reporte de ventas y cobros</strong>
-                </li>
+                <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Inicio</a></li>
+                <li class="breadcrumb-item active"><strong>Reporte de Ventas y Cobros</strong></li>
             </ol>
+        </div>
+        <div class="col-lg-3 text-right" style="margin-top:1.2rem">
+            <button class="btn btn-export-pdf mr-1" onclick="exportarPdf()">
+                <i class="fa fa-file-pdf-o"></i> PDF
+            </button>
+            <button class="btn btn-export-excel" onclick="exportarExcel()">
+                <i class="fa fa-file-excel-o"></i> Excel
+            </button>
         </div>
     </div>
 
     <div class="wrapper wrapper-content animated fadeInRight">
-        
-        @if (session()->has('success'))
-            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                {{ session('success') }}
-                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-        @endif
 
-        @if (session()->has('error'))
-            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                {{ session('error') }}
-                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-        @endif
+        {{-- ═══════ FILTROS ═══════ --}}
+        <div class="row mb-3">
+            <div class="col-lg-12">
+                <div class="ibox">
+                    <div class="ibox-content">
+                        <div class="row align-items-end">
 
-        <!-- Contenido Principal -->
+                            <div class="col-md-3">
+                                <label class="col-form-label">Vendedor</label>
+                                <select id="fil_vendedor" class="form-control">
+                                    <option value="">-- Todos --</option>
+                                    @foreach($vendedores as $v)
+                                        <option value="{{ $v->id }}">{{ $v->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div class="col-md-3">
+                                <label class="col-form-label">Cliente</label>
+                                <select id="fil_cliente" class="form-control">
+                                    <option value="">-- Todos --</option>
+                                    @foreach($clientes as $cl)
+                                        <option value="{{ $cl->id }}">{{ $cl->nombre }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div class="col-md-2">
+                                <label class="col-form-label">Mes</label>
+                                <select id="fil_mes" class="form-control">
+                                    <option value="">-- Todos --</option>
+                                    <option value="1">Enero</option>
+                                    <option value="2">Febrero</option>
+                                    <option value="3">Marzo</option>
+                                    <option value="4">Abril</option>
+                                    <option value="5">Mayo</option>
+                                    <option value="6">Junio</option>
+                                    <option value="7">Julio</option>
+                                    <option value="8">Agosto</option>
+                                    <option value="9">Septiembre</option>
+                                    <option value="10">Octubre</option>
+                                    <option value="11">Noviembre</option>
+                                    <option value="12">Diciembre</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-2">
+                                <label class="col-form-label">Año</label>
+                                <select id="fil_anio" class="form-control">
+                                    <option value="">-- Todos --</option>
+                                    @for($y = date('Y'); $y >= 2020; $y--)
+                                        <option value="{{ $y }}" {{ $y == date('Y') ? 'selected' : '' }}>{{ $y }}</option>
+                                    @endfor
+                                </select>
+                            </div>
+
+                            <div class="col-md-2">
+                                <button class="btn btn-success w-100" onclick="cargarTabla()">
+                                    <i class="fa fa-search"></i> Consultar
+                                </button>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- ═══════ TABLA ═══════ --}}
         <div class="row">
             <div class="col-lg-12">
                 <div class="ibox">
-                    <div class="ibox-title">
-                        <h5>Reporte de ventas y cobros</h5>
-                        <div class="ibox-tools">
-                            <button type="button" class="btn btn-primary btn-sm" onclick="abrirModal()">
-                                <i class="fa fa-plus"></i> Nuevo
-                            </button>
-                        </div>
-                    </div>
                     <div class="ibox-content">
                         <div class="table-responsive">
-                            <table class="table table-striped table-bordered table-hover" id="tablaData">
+                            <table class="table table-striped table-bordered table-hover" id="tbl_ventas_cobros" style="font-size:12px">
                                 <thead>
                                     <tr>
-                                        <th>ID</th>
-                                        <th>Nombre</th>
-                                        <th>Estado</th>
-                                        <th>Acciones</th>
+                                        {{-- Identificación --}}
+                                        <th>#</th>
+                                        <th>MES</th>
+                                        <th>VENDEDOR</th>
+                                        <th>CLIENTE</th>
+                                        <th>FACTURA</th>
+                                        <th>OBSERVACIÓN</th>
+                                        <th>ORDEN COMPRA</th>
+                                        {{-- Clasificación fiscal --}}
+                                        <th>MODO PAGO</th>
+                                        <th>ESTADO F01</th>
+                                        {{-- Montos --}}
+                                        <th>EXONERADO</th>
+                                        <th>GRAVADO</th>
+                                        <th>EXENTO</th>
+                                        <th>ABONOS</th>
+                                        <th>SUBTOTAL</th>
+                                        <th>ISV</th>
+                                        <th>TOTAL</th>
+                                        {{-- Cartera --}}
+                                        <th>SALDO PENDIENTE</th>
+                                        <th>MONTO PAGADO</th>
+                                        <th>FECHA VENTA</th>
+                                        <th>FECHA VCTO.</th>
+                                        <th>DÍAS VCTOS.</th>
+                                        <th>ESTADO CRÉDITO</th>
+                                        <th>FECHA PAGO</th>
+                                        <th>FORMA DE PAGO</th>
+                                        <th>CUENTA/BANCO</th>
+                                        <th>FECHA ENTREGA</th>
+                                        <th>RECIBO</th>
                                     </tr>
                                 </thead>
-                                <tbody>
-                                    {{-- Los datos se cargarán vía AJAX/Livewire --}}
-                                </tbody>
+                                <tbody></tbody>
                             </table>
                         </div>
                     </div>
@@ -70,8 +155,5 @@
 </div>
 
 @push('scripts')
-    <script>
-        // TODO: Implementar lógica JavaScript si es necesaria
-        console.log('Reporte de ventas y cobros - Vista cargada');
-    </script>
+<script src="/js/js_proyecto/reportes/ventascobros.js"></script>
 @endpush
