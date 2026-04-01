@@ -109,7 +109,7 @@ function cargarSinCredito() {
     });
 }
 
-/* ── Hoja 3: Corporativo B ───────────────────────────────────────── */
+/* ── Hoja 3: Gobierno ───────────────────────────────────────── */
 function cargarGobierno() {
     if (tblGobierno) { tblGobierno.destroy(); }
 

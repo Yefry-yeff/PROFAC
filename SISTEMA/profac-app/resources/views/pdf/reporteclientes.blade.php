@@ -175,8 +175,8 @@
         </tbody>
     </table>
 
-    {{-- ═══════════════════ HOJA 3 – CORPORATIVO B ══════════════════ --}}
-    <div class="section-title">CLIENTES CORPORATIVO (B)</div>
+    {{-- ═══════════════════ HOJA 3 – GOBIERNO ══════════════════════ --}}
+    <div class="section-title">CLIENTES GOBIERNO</div>
     <table>
         <thead>
             <tr>

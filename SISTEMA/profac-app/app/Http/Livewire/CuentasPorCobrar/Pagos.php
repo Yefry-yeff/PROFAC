@@ -798,6 +798,7 @@ class Pagos extends Component
                         $abonos->comentario = $request->comentarioAbono;
                         $abonos->url_documento = $path;
                         $abonos->fecha_pago = $request->fecha_pago;
+                        $abonos->numero_recibo = $request->numero_recibo;
 
                        $abonos->save();
 

@@ -174,7 +174,7 @@ class ReporteClientes extends Component
 
     private function sqlGobierno($vendedorId = null, $estado = null)
     {
-        $where = "c.tipo_cliente_id = 1";   /* Corporativo (B) */
+        $where = "c.tipo_cliente_id = 3";   /* Gobierno */
         $params = [];
         if ($vendedorId) { $where .= " AND c.vendedor = ?"; $params[] = $vendedorId; }
         if ($estado)     { $where .= " AND c.estado_cliente_id = ?"; $params[] = $estado; }

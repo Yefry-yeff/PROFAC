@@ -85,7 +85,7 @@
                             </li>
                             <li class="nav-item">
                                 <a class="nav-link" id="tab-gobierno-tab" data-toggle="tab" href="#tab-gobierno">
-                                    <i class="fa fa-building"></i> Corporativo (B)
+                                    <i class="fa fa-building"></i> Gobierno
                                 </a>
                             </li>
                         </ul>
@@ -158,7 +158,7 @@
                                 </div>
                             </div>
 
-                            {{-- Hoja 3: Corporativo B --}}
+                            {{-- Hoja 3: Gobierno --}}
                             <div class="tab-pane fade" id="tab-gobierno">
                                 <div class="table-responsive">
                                     <table id="tbl_rep_gobierno" class="table table-striped table-bordered table-hover nowrap" style="font-size:11px">

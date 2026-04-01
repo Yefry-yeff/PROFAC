@@ -536,6 +536,18 @@
                                                     data-parsley-required>
                                             </div>
 
+                                            <div class="col-12 col-md-6 mb-3">
+                                                <label class="font-weight-bold">
+                                                    Número de Recibo
+                                                </label>
+                                                <input class="form-control"
+                                                    type="text"
+                                                    maxlength="100"
+                                                    id="numero_recibo"
+                                                    name="numero_recibo"
+                                                    placeholder="Ingrese el número de recibo">
+                                            </div>
+
                                             <div class="col-12 mb-3">
                                                 <label class="font-weight-bold">
                                                     Documento de Pago <span class="text-danger">*</span>

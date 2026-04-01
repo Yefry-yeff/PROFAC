@@ -25,7 +25,7 @@ class ReporteClientesHoja3 implements FromArray, WithTitle, WithStyles, WithDraw
         $this->rows    = $rows;
         $this->usuario = $usuario;
     }
-    public function title(): string { return 'Corporativo (B)'; }
+    public function title(): string { return 'Gobierno'; }
 
     public function array(): array
     {
@@ -35,7 +35,7 @@ class ReporteClientesHoja3 implements FromArray, WithTitle, WithStyles, WithDraw
         $out[] = ['DISTRIBUCIONES VALENCIA S.A. DE C.V.   |   RTN: 08011986138652', '', '', '', '', ''];
 
         // Row 2: report title
-        $out[] = ['REPORTE DE CLIENTES CORPORATIVO (B)', '', '', '', '', ''];
+        $out[] = ['REPORTE DE CLIENTES GOBIERNO', '', '', '', '', ''];
 
         // Row 3: date + user
         $out[] = ['Generado: ' . now()->format('d/m/Y H:i') . '   |   Descargado por: ' . $this->usuario, '', '', '', '', ''];
