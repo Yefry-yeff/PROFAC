@@ -1,4 +1,10 @@
 <div>
+{{-- Loading overlay --}}
+<div id="tbl_loading_overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.78); z-index:9000; text-align:center; padding-top:18%;">
+    <i class="fa fa-spinner fa-spin fa-3x" style="color:#1ab394;"></i>
+    <p class="mt-3" style="color:#555; font-size:1rem;">Cargando reporte...</p>
+</div>
+
 @push('styles')
 <style>
     .btn-export-pdf   { background:#c0392b; color:#fff; border:none; }

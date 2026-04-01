@@ -127,7 +127,7 @@
                 <td>{{ $r->item }}</td>
                 <td class="text-left">{{ $r->vendedor }}</td>
                 <td class="text-left">{{ $r->cliente }}</td>
-                <td>{{ $r->factura }}</td>
+                <td>{{ $r->numero_secuencia_cai }}</td>
                 <td class="text-left">{{ $r->observacion }}</td>
                 <td>{{ $r->orden_compra }}</td>
                 <td>{{ $r->modo_pago }}</td>

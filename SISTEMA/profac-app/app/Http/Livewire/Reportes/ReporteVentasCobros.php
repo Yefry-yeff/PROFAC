@@ -25,7 +25,7 @@ class ReporteVentasCobros extends Component
      * ───────────────────────────────────────────────────────────────── */
     private function sqlReporte($vendedorId = null, $clienteId = null, $mes = null, $anio = null)
     {
-        $where  = "f.estado_venta_id <> 2";            // excluir anuladas
+        $where  = "1=1";            // mostrar todos los estados
         $params = [];
 
         if ($vendedorId) {
@@ -48,20 +48,27 @@ class ReporteVentasCobros extends Component
         $sql = "
         SELECT
             f.id                                                        AS factura_id,
-            MONTHNAME(f.fecha_emision)                                  AS mes,
+            CASE MONTH(f.fecha_emision)
+                WHEN 1  THEN 'Enero'     WHEN 2  THEN 'Febrero'
+                WHEN 3  THEN 'Marzo'     WHEN 4  THEN 'Abril'
+                WHEN 5  THEN 'Mayo'      WHEN 6  THEN 'Junio'
+                WHEN 7  THEN 'Julio'     WHEN 8  THEN 'Agosto'
+                WHEN 9  THEN 'Septiembre' WHEN 10 THEN 'Octubre'
+                WHEN 11 THEN 'Noviembre' WHEN 12 THEN 'Diciembre'
+            END                                                         AS mes,
             MONTH(f.fecha_emision)                                      AS mes_num,
             YEAR(f.fecha_emision)                                       AS anio,
 
             /* ── Identificación ── */
             COALESCE(u.name, '')                                        AS vendedor,
             c.nombre                                                    AS cliente,
-            f.numero_factura                                            AS factura,
+            f.numero_secuencia_cai,
             COALESCE(f.comentario, '')                                  AS observacion,
             COALESCE(noc.numero_orden, '')                              AS orden_compra,
 
             /* ── Clasificación fiscal ── */
             COALESCE(tpv.descripcion, '')                               AS modo_pago,
-            ''                                                          AS estado_f01,
+            UPPER(ev.descripcion)                                       AS estado_f01,
 
             /* ── Montos factura ── */
             GREATEST(
@@ -173,11 +180,12 @@ class ReporteVentasCobros extends Component
 
         FROM factura f
         INNER JOIN cliente c            ON c.id  = f.cliente_id
-        INNER JOIN users u              ON u.id  = f.vendedor
+        LEFT  JOIN users u              ON u.id  = f.vendedor
+        LEFT  JOIN estado_venta ev      ON ev.id = f.estado_venta_id
         LEFT  JOIN tipo_pago_venta tpv  ON tpv.id = f.tipo_pago_id
         LEFT  JOIN numero_orden_compra noc ON noc.id = f.numero_orden_compra_id
         WHERE {$where}
-        ORDER BY f.fecha_emision DESC, c.nombre ASC
+        ORDER BY f.numero_secuencia_cai ASC
         ";
 
         return DB::select($sql, $params);

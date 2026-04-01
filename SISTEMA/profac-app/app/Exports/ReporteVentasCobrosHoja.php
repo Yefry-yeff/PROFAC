@@ -81,23 +81,14 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
             'RECIBO',
         ];
 
-        // Filas de datos (agrupadas por mes)
-        $meActual = null;
+        // Filas de datos
         foreach ($this->rows as $r) {
-            // Fila de agrupación por mes
-            if ($r->mes !== $meActual) {
-                $meActual = $r->mes;
-                $gr = array_fill(0, self::COL_COUNT, '');
-                $gr[0] = strtoupper($r->mes . ' ' . $r->anio);
-                $out[] = $gr;
-            }
-
             $out[] = [
                 $r->item,
                 strtoupper($r->mes),
                 $r->vendedor,
                 $r->cliente,
-                $r->factura,
+                $r->numero_secuencia_cai,
                 $r->observacion,
                 $r->orden_compra,
                 $r->modo_pago,
@@ -141,7 +132,9 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
     {
         $lc = self::LAST_COL;
 
-        // Fila 1 – empresa
+        $lc = self::LAST_COL;
+
+        // Fila 1 – empresa (merge seguro: está sobre el AutoFilter de fila 4)
         $sheet->mergeCells("A1:{$lc}1");
         $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(12);
         $sheet->getStyle('A1')->getFont()->getColor()->setRGB('1F3864');
@@ -191,54 +184,59 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
                 $lastRow = $sheet->getHighestRow();
                 $lc      = self::LAST_COL;
 
-                // Columnas de moneda (J..R = índices 9..17 → J,K,L,M,N,O,P,Q,R)
-                $moneyCols = ['J','K','L','M','N','O','P','Q','R'];
-                // Columnas de fecha
-                $dateCols  = ['S','T','W','Z'];
-                // Columnas de texto izquierda
-                $leftCols  = ['C','D','F','G','H','I','V','X','Y','AA'];
+                if ($lastRow < 5) return;
 
+                // AutoFilter en cabecera para que el filtro funcione directamente
+                $sheet->setAutoFilter("A4:{$lc}4");
+
+                // Congelar fila de cabeceras
+                $sheet->freezePane('A5');
+
+                // ── Estilos por rango (mucho más rápido que por fila) ──
+
+                // Alineación centro para todo el bloque de datos
+                $sheet->getStyle("A5:{$lc}{$lastRow}")->getAlignment()
+                    ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+                    ->setVertical(Alignment::VERTICAL_CENTER);
+
+                // Alinear izquierda las columnas de texto
+                foreach (['C','D','F','G','H','I','V','X','Y','AA'] as $c) {
+                    $sheet->getStyle("{$c}5:{$c}{$lastRow}")->getAlignment()
+                        ->setHorizontal(Alignment::HORIZONTAL_LEFT);
+                }
+
+                // Alinear derecha y formato moneda para columnas J..R
+                foreach (['J','K','L','M','N','O','P','Q','R'] as $c) {
+                    $sheet->getStyle("{$c}5:{$c}{$lastRow}")
+                        ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+                    $sheet->getStyle("{$c}5:{$c}{$lastRow}")
+                        ->getNumberFormat()->setFormatCode('"L" #,##0.00');
+                }
+
+                // Formato días vencidos (columna U)
+                $sheet->getStyle("U5:U{$lastRow}")
+                    ->getNumberFormat()->setFormatCode('0" días"');
+
+                // ── Loop por fila solo para colores (mínimo necesario) ──
                 for ($row = 5; $row <= $lastRow; $row++) {
-                    $cellA = $sheet->getCell("A{$row}")->getValue();
+                    // Detectar si la fila es anulada (columna I = estado_f01, índice 8 → col I)
+                    $estadoF01 = $sheet->getCell("I{$row}")->getValue();
+                    $esAnulada = (strtoupper((string)$estadoF01) === 'ANULADO');
 
-                    // Fila de agrupación por mes
-                    if (!is_numeric($cellA)) {
-                        $sheet->mergeCells("A{$row}:{$lc}{$row}");
+                    if ($esAnulada) {
+                        // Fila anulada: gris claro + tachado
                         $sheet->getStyle("A{$row}:{$lc}{$row}")->getFill()
-                            ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('1F3864');
+                            ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('EBEBEB');
                         $sheet->getStyle("A{$row}:{$lc}{$row}")->getFont()
-                            ->setBold(true)->setSize(9)->getColor()->setRGB('FFFFFF');
-                        $sheet->getStyle("A{$row}:{$lc}{$row}")->getAlignment()
-                            ->setHorizontal(Alignment::HORIZONTAL_CENTER);
-                        $sheet->getRowDimension($row)->setRowHeight(16);
-                        continue;
+                            ->setStrikethrough(true)->getColor()->setRGB('999999');
+                    } else {
+                        // Colores alternados de fila
+                        $bg = ($row % 2 === 0) ? 'E8F7F5' : 'FFFFFF';
+                        $sheet->getStyle("A{$row}:{$lc}{$row}")->getFill()
+                            ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB($bg);
                     }
 
-                    // Alinear centro por defecto
-                    $sheet->getStyle("A{$row}:{$lc}{$row}")->getAlignment()
-                        ->setHorizontal(Alignment::HORIZONTAL_CENTER)
-                        ->setVertical(Alignment::VERTICAL_CENTER);
-
-                    // Alinear izquierda texto
-                    foreach ($leftCols as $c) {
-                        $sheet->getStyle("{$c}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
-                    }
-
-                    // Formato moneda
-                    foreach ($moneyCols as $c) {
-                        $val = $sheet->getCell("{$c}{$row}")->getValue();
-                        if ($val !== '' && $val !== null) {
-                            $sheet->getStyle("{$c}{$row}")->getNumberFormat()->setFormatCode('"L" #,##0.00');
-                        }
-                    }
-
-                    // Formato días vencidos (columna U = índice 21)
-                    $diasVal = $sheet->getCell("U{$row}")->getValue();
-                    if ($diasVal !== '' && $diasVal !== null) {
-                        $sheet->getStyle("U{$row}")->getNumberFormat()->setFormatCode('0" días"');
-                    }
-
-                    // Colorear estado crédito (columna V = índice 22)
+                    // Colorear estado crédito (columna V)
                     $estado = $sheet->getCell("V{$row}")->getValue();
                     $bgEstado = match($estado) {
                         'Vencida'   => 'FADBD8',
@@ -248,11 +246,6 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
                     };
                     $sheet->getStyle("V{$row}")->getFill()
                         ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB($bgEstado);
-
-                    // Colores alternados de fila
-                    $bg = ($row % 2 === 0) ? 'E8F7F5' : 'FFFFFF';
-                    $sheet->getStyle("A{$row}:{$lc}{$row}")->getFill()
-                        ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB($bg);
 
                     $sheet->getRowDimension($row)->setRowHeight(15);
                 }

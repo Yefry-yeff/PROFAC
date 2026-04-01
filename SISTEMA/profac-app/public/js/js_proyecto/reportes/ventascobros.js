@@ -34,18 +34,22 @@ function cargarTabla() {
         tblVentasCobros = null;
     }
 
+    $('#tbl_loading_overlay').show();
+
     tblVentasCobros = $('#tbl_ventas_cobros').DataTable({
         processing  : true,
         serverSide  : true,
-        order       : [[18, 'desc']],   /* fecha_venta desc */
+        order       : [[4, 'asc']],    /* numero_secuencia_cai asc */
         scrollX     : true,
         language    : { url: '/js/plugins/dataTables/i18n/Spanish.json' },
-        pageLength  : 25,
+        pageLength  : 5,
+        lengthMenu  : [[5, 10, 25, 50, -1], [5, 10, 25, 50, 'Todos']],
         dom         : 'lTfgitp',
         ajax: {
             url  : '/reporte/ventas-cobros/consulta/' + getVendedor() + '/' + getCliente() + '/' + getMes() + '/' + getAnio(),
             type : 'GET',
             error: function (xhr) {
+                $('#tbl_loading_overlay').hide();
                 Swal.fire('Error', 'No se pudo cargar el reporte.', 'error');
             }
         },
@@ -54,7 +58,7 @@ function cargarTabla() {
             /* #1 */  { data: 'mes',               className: 'text-center' },
             /* #2 */  { data: 'vendedor',           className: 'text-left'  },
             /* #3 */  { data: 'cliente',            className: 'text-left'  },
-            /* #4 */  { data: 'factura',            className: 'text-center' },
+            /* #4 */  { data: 'numero_secuencia_cai', className: 'text-center' },
             /* #5 */  { data: 'observacion',        className: 'text-left'  },
             /* #6 */  { data: 'orden_compra',       className: 'text-center' },
             /* #7 */  { data: 'modo_pago',          className: 'text-center' },
@@ -80,8 +84,12 @@ function cargarTabla() {
         ],
         /* Colorear filas según estado */
         createdRow: function(row, data) {
+            if (data.estado_f01 === 'ANULADO')   { $(row).css({ 'background': '#f5f5f5', 'color': '#aaa', 'text-decoration': 'line-through' }); }
             if (data.creditos_vencidos === 'Vencida')   { $(row).css('background', '#fdf2f0'); }
             if (data.creditos_vencidos === 'Cancelada') { $(row).css('background', '#f0faf3'); }
+        },
+        initComplete: function() {
+            $('#tbl_loading_overlay').hide();
         }
     });
 }
