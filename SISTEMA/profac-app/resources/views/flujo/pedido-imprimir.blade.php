@@ -25,7 +25,7 @@
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            border-bottom: 3px solid #1a7efb;
+            border-bottom: 3px solid #e07b00;
             padding-bottom: 16px;
             margin-bottom: 20px;
         }
@@ -33,7 +33,7 @@
         .print-header .company {
             font-size: 20px;
             font-weight: 700;
-            color: #1a7efb;
+            color: #e07b00;
             letter-spacing: 1px;
         }
 
@@ -44,7 +44,7 @@
         .print-header .doc-title h1 {
             font-size: 22px;
             font-weight: 800;
-            color: #1a7efb;
+            color: #e07b00;
         }
 
         .print-header .doc-title .doc-num {
@@ -113,7 +113,7 @@
         }
 
         table.productos thead tr {
-            background: linear-gradient(135deg, #1a7efb, #1ab394);
+            background: linear-gradient(135deg, #e07b00, #f39c12);
             color: #fff;
         }
 
@@ -140,8 +140,8 @@
         .total-row td {
             font-weight: 700;
             font-size: 14px;
-            border-top: 2px solid #1a7efb !important;
-            background: #f0f7ff !important;
+            border-top: 2px solid #e07b00 !important;
+            background: #fff8f0 !important;
         }
 
         /* ── Pie de página ── */
@@ -162,7 +162,7 @@
         }
 
         .btn-print {
-            background: #1a7efb;
+            background: #e07b00;
             color: #fff;
             border: none;
             padding: 10px 32px;
@@ -172,7 +172,7 @@
             margin-right: 8px;
         }
 
-        .btn-print:hover { background: #155ec7; }
+        .btn-print:hover { background: #c06600; }
 
         .btn-close-print {
             background: #6c757d;
@@ -213,8 +213,9 @@
         {{-- ── Encabezado ── --}}
         <div class="print-header">
             <div>
-                <div class="company">PROFAC</div>
-                <div style="font-size:12px; color:#888; margin-top:4px;">Sistema de Gestión</div>
+                <img src="{{ asset('img/membrete/Logo3.png') }}" alt="PROFAC"
+                     style="max-height:55px; display:block; margin-bottom:4px;">
+                <div style="font-size:11px; color:#888;">Sistema de Gestión</div>
             </div>
             <div class="doc-title">
                 <h1>PEDIDO</h1>

@@ -98,6 +98,41 @@ class Pedido extends Component
     }
 
     // ── Búsqueda ───────────────────────────────────────────────────────────
+
+    /** Se dispara automáticamente al cambiar $busqueda (live search mientras escribe) */
+    public function updatedBusqueda()
+    {
+        // Si ya hay un cliente seleccionado no interferimos
+        if ($this->clienteSeleccionado !== null) return;
+
+        $this->hasBuscado         = false;
+        $this->mensajeExito       = '';
+        $this->mensajeError       = '';
+
+        $term = trim($this->busqueda);
+        if (strlen($term) < 2) {
+            $this->resultadosBusqueda = [];
+            return;
+        }
+
+        $this->resultadosBusqueda = $this->ejecutarBusqueda($term);
+    }
+
+    private function ejecutarBusqueda(string $term): array
+    {
+        $resultados = DB::table('cliente')
+            ->select('id', 'nombre', 'rtn', 'correo', 'telefono_empresa', 'direccion',
+                     'credito', 'dias_credito')
+            ->where(function($q) use ($term) {
+                $q->where('nombre', 'LIKE', '%' . $term . '%')
+                  ->orWhere('rtn', 'LIKE', '%' . $term . '%');
+            })
+            ->limit(5)
+            ->get();
+
+        return $resultados->map(fn($r) => (array) $r)->toArray();
+    }
+
     public function buscarCliente()
     {
         $this->clienteSeleccionado  = null;
@@ -107,21 +142,9 @@ class Pedido extends Component
         $this->mensajeError         = '';
 
         $term = trim($this->busqueda);
-        if (strlen($term) < 2) {
-            return;
-        }
+        if (strlen($term) < 2) return;
 
-        $resultados = DB::table('cliente')
-            ->select('id', 'nombre', 'rtn', 'correo', 'telefono_empresa', 'direccion',
-                     'credito', 'dias_credito')
-            ->where(function($q) use ($term) {
-                $q->where('nombre', 'LIKE', '%' . $term . '%')
-                  ->orWhere('rtn', 'LIKE', '%' . $term . '%');
-            })
-            ->limit(10)
-            ->get();
-
-        $this->resultadosBusqueda = $resultados->map(fn($r) => (array) $r)->toArray();
+        $this->resultadosBusqueda = $this->ejecutarBusqueda($term);
     }
 
     public function seleccionarCliente(int $id)
@@ -363,7 +386,7 @@ class Pedido extends Component
             $pedidoId = DB::table('pedido')->insertGetId([
                 'cliente_id'    => $this->clienteSeleccionado['id'],
                 'users_id'      => Auth::id(),
-                'estado'        => 'pendiente',
+                'estado'        => 'pedido',
                 'observaciones' => $this->observaciones ?: null,
                 'created_at'    => now(),
                 'updated_at'    => now(),
@@ -387,6 +410,9 @@ class Pedido extends Component
             $this->limpiarCliente();
             $this->items        = [['nombre_producto' => '', 'cantidad' => 1]];
             $this->observaciones = '';
+
+            // Desplazar al principio de la página para mostrar el panel de acciones
+            $this->dispatchBrowserEvent('scroll-top');
 
         } catch (\Exception $e) {
             DB::rollBack();

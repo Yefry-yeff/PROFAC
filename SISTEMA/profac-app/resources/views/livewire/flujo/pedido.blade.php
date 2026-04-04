@@ -1,4 +1,103 @@
 <div>
+
+{{-- ===== ESTILOS Y ANIMACIONES ===== --}}
+<style>
+    /* ── Keyframes ── */
+    @keyframes popIn {
+        0%   { transform: scale(0.75) translateY(12px); opacity: 0; }
+        70%  { transform: scale(1.04) translateY(-2px); }
+        100% { transform: scale(1)    translateY(0);    opacity: 1; }
+    }
+    @keyframes slideDown {
+        from { transform: translateY(-8px); opacity: 0; }
+        to   { transform: translateY(0);   opacity: 1; }
+    }
+    @keyframes pulseRing {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(26,126,251,.35); }
+        50%       { box-shadow: 0 0 0 7px rgba(26,126,251,.0); }
+    }
+    @keyframes shimmer {
+        0%   { background-position: -400px 0; }
+        100% { background-position: 400px 0; }
+    }
+    @keyframes fadeInUp {
+        from { transform: translateY(16px); opacity: 0; }
+        to   { transform: translateY(0);    opacity: 1; }
+    }
+
+    /* ── Badge numerado animado ── */
+    .step-badge {
+        animation: pulseRing 2.5s ease-in-out infinite;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 26px; height: 26px;
+        font-size: 12px;
+        border-radius: 50%;
+        font-weight: 700;
+        flex-shrink: 0;
+    }
+
+    /* ── Botones de acción post-guardado ── */
+    .accion-row {
+        display: flex;
+        flex-wrap: nowrap;
+        margin: 0 -6px;
+    }
+    .accion-col {
+        flex: 1;
+        padding: 0 6px;
+        display: flex;
+        flex-direction: column;
+    }
+    .accion-btn {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        border-radius: 10px;
+        padding: 11px 8px;
+        text-align: center;
+        text-decoration: none !important;
+        transition: transform .2s cubic-bezier(.34,1.56,.64,1), box-shadow .2s ease;
+        position: relative;
+        overflow: hidden;
+        min-height: 68px;
+    }
+    .accion-btn::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: rgba(255,255,255,.12);
+        transform: translateX(-100%) skewX(-15deg);
+        transition: transform .35s ease;
+    }
+    .accion-btn:hover::after  { transform: translateX(120%) skewX(-15deg); }
+    .accion-btn:hover {
+        transform: translateY(-4px) scale(1.04);
+    }
+    .accion-btn:active { transform: translateY(-1px) scale(.98); }
+
+    /* ── Sugerencias live search ── */
+    .sugerencia-item {
+        transition: background .12s, padding-left .12s;
+        cursor: pointer;
+    }
+    .sugerencia-item:hover { background: #f0f7ff !important; padding-left: 20px !important; }
+
+    /* ── Tarjeta cliente seleccionado ── */
+    .cliente-card {
+        animation: fadeInUp .35s ease both;
+    }
+
+    /* ── Filas de la tabla de productos ── */
+    .item-row { transition: background .15s ease; }
+
+    /* ── Panel de éxito ── */
+    .panel-exito { animation: fadeInUp .4s ease both; }
+</style>
+
     {{-- ===== ENCABEZADO ===== --}}
     <div class="row wrapper border-bottom white-bg page-heading">
         <div class="col-lg-10">
@@ -18,73 +117,90 @@
 
         {{-- ===== PANEL DE ACCIONES POST-GUARDADO ===== --}}
         @if ($pedidoGuardadoId)
-            <div class="row">
+            <div class="row panel-exito">
                 <div class="col-lg-12">
-                    <div class="ibox" style="border-radius:10px; overflow:hidden; border:2px solid #1ab394;">
-                        <div class="ibox-title"
-                             style="background:linear-gradient(135deg,#1ab394 0%,#1a7efb 100%); color:#fff; border:none;">
-                            <h5 class="m-0" style="color:#fff; font-size:16px;">
-                                <i class="fa fa-check-circle fa-lg"></i>
-                                &nbsp;¡Pedido <strong>#{{ $pedidoGuardadoId }}</strong> registrado con éxito!
-                            </h5>
-                        </div>
-                        <div class="ibox-content" style="padding:24px;">
-                            <p class="text-muted mb-3" style="font-size:14px;">
-                                ¿Qué desea hacer a continuación?
-                            </p>
-                            <div class="row">
-                                {{-- Cotizar --}}
-                                <div class="col-sm-3 col-xs-6 mb-2">
-                                    <a href="/proforma/cotizacion/1"
-                                       class="btn btn-block btn-lg"
-                                       style="background:#1a7efb; color:#fff; border-radius:10px; padding:18px 12px;">
-                                        <i class="fa fa-file-text-o fa-2x d-block mb-1"></i>
-                                        <span style="font-size:13px; font-weight:600;">Cotizar</span>
-                                    </a>
-                                </div>
-                                {{-- Imprimir --}}
-                                <div class="col-sm-3 col-xs-6 mb-2">
-                                    <a href="/flujo/pedido/imprimir/{{ $pedidoGuardadoId }}"
-                                       target="_blank"
-                                       class="btn btn-block btn-lg"
-                                       style="background:#1ab394; color:#fff; border-radius:10px; padding:18px 12px;">
-                                        <i class="fa fa-print fa-2x d-block mb-1"></i>
-                                        <span style="font-size:13px; font-weight:600;">Imprimir</span>
-                                    </a>
-                                </div>
-                                {{-- Exportar Excel --}}
-                                <div class="col-sm-3 col-xs-6 mb-2">
-                                    <a href="/flujo/pedido/exportar/{{ $pedidoGuardadoId }}"
-                                       class="btn btn-block btn-lg"
-                                       style="background:#217346; color:#fff; border-radius:10px; padding:18px 12px;">
-                                        <i class="fa fa-file-excel-o fa-2x d-block mb-1"></i>
-                                        <span style="font-size:13px; font-weight:600;">Exportar Excel</span>
-                                    </a>
-                                </div>
-                                {{-- Historial --}}
-                                <div class="col-sm-3 col-xs-6 mb-2">
-                                    <a href="/flujo/pedidos"
-                                       class="btn btn-block btn-lg"
-                                       style="background:#6c5ce7; color:#fff; border-radius:10px; padding:18px 12px;">
-                                        <i class="fa fa-list-alt fa-2x d-block mb-1"></i>
-                                        <span style="font-size:13px; font-weight:600;">Ver Historial</span>
-                                    </a>
-                                </div>
+                    <div class="ibox mb-0" style="border-radius:12px; overflow:hidden; border:2px solid #1ab394; box-shadow:0 6px 28px rgba(26,179,148,.18);">
+
+                        {{-- Header compacto --}}
+                        <div class="ibox-title py-2 px-3" style="background:linear-gradient(135deg,#1ab394 0%,#1a7efb 100%); border:none;">
+                            <div class="d-flex align-items-center justify-content-between">
+                                <span style="color:#fff; font-size:14px; font-weight:600;">
+                                    <i class="fa fa-check-circle mr-1"></i>
+                                    ¡Pedido <strong>#{{ $pedidoGuardadoId }}</strong> registrado con éxito!
+                                </span>
+                                <span style="color:rgba(255,255,255,.8); font-size:12px;">¿Qué desea hacer?</span>
                             </div>
-                            <hr class="my-3">
-                            <div class="text-center">
+                        </div>
+
+                        <div class="ibox-content py-3 px-3">
+                            <div class="accion-row">
+
+                                {{-- Crear Oferta ─ delay 0.1s --}}
+                                <div class="accion-col">
+                                    <div style="animation:popIn .4s ease .08s both; flex:1; display:flex; flex-direction:column;">
+                                        <a href="/proforma/cotizacion/1"
+                                           class="accion-btn"
+                                           style="background:linear-gradient(135deg,#1a7efb,#0d6efd); color:#fff; box-shadow:0 4px 14px rgba(26,126,251,.35);">
+                                            <i class="fa fa-file-text-o d-block mb-1" style="font-size:18px;"></i>
+                                            <span style="font-size:11px; font-weight:700; letter-spacing:.3px;">CREAR OFERTA</span>
+                                        </a>
+                                    </div>
+                                </div>
+
+                                {{-- Imprimir ─ delay 0.2s --}}
+                                <div class="accion-col">
+                                    <div style="animation:popIn .4s ease .18s both; flex:1; display:flex; flex-direction:column;">
+                                        <a href="/flujo/pedido/imprimir/{{ $pedidoGuardadoId }}"
+                                           target="_blank"
+                                           class="accion-btn"
+                                           style="background:linear-gradient(135deg,#1ab394,#0fa37a); color:#fff; box-shadow:0 4px 14px rgba(26,179,148,.35);">
+                                            <i class="fa fa-print d-block mb-1" style="font-size:18px;"></i>
+                                            <span style="font-size:11px; font-weight:700; letter-spacing:.3px;">IMPRIMIR</span>
+                                        </a>
+                                    </div>
+                                </div>
+
+                                {{-- Exportar Excel ─ delay 0.3s --}}
+                                <div class="accion-col">
+                                    <div style="animation:popIn .4s ease .28s both; flex:1; display:flex; flex-direction:column;">
+                                        <a href="/flujo/pedido/exportar/{{ $pedidoGuardadoId }}"
+                                           class="accion-btn"
+                                           style="background:linear-gradient(135deg,#217346,#1a5c38); color:#fff; box-shadow:0 4px 14px rgba(33,115,70,.35);">
+                                            <i class="fa fa-file-excel-o d-block mb-1" style="font-size:18px;"></i>
+                                            <span style="font-size:11px; font-weight:700; letter-spacing:.3px;">EXCEL</span>
+                                        </a>
+                                    </div>
+                                </div>
+
+                                {{-- Historial ─ delay 0.4s --}}
+                                <div class="accion-col">
+                                    <div style="animation:popIn .4s ease .38s both; flex:1; display:flex; flex-direction:column;">
+                                        <a href="/flujo/pedidos/historico"
+                                           class="accion-btn"
+                                           style="background:linear-gradient(135deg,#6c5ce7,#5544d0); color:#fff; box-shadow:0 4px 14px rgba(108,92,231,.35);">
+                                            <i class="fa fa-list-alt d-block mb-1" style="font-size:18px;"></i>
+                                            <span style="font-size:11px; font-weight:700; letter-spacing:.3px;">HISTORIAL</span>
+                                        </a>
+                                    </div>
+                                </div>
+
+                            </div>
+
+                            <div class="text-center mt-2">
                                 <button
                                     type="button"
                                     wire:click="nuevoPedido"
-                                    class="btn btn-default btn-sm"
-                                    style="border-radius:8px;">
-                                    <i class="fa fa-plus"></i> &nbsp;Registrar otro pedido
+                                    class="btn btn-default btn-xs"
+                                    style="border-radius:20px; font-size:11px; padding:4px 14px; color:#888;">
+                                    <i class="fa fa-plus-circle mr-1"></i>Registrar otro pedido
                                 </button>
                             </div>
                         </div>
+
                     </div>
                 </div>
             </div>
+            <div style="height:16px;"></div>
         @endif
 
         @if ($mensajeError)
@@ -108,37 +224,40 @@
                         {{-- ==================== SECCIÓN 1: CLIENTE ==================== --}}
                         <div class="row mb-2">
                             <div class="col-12">
-                                <div class="d-flex align-items-center mb-3">
-                                    <span class="badge badge-primary mr-2" style="font-size:14px; width:28px; height:28px; line-height:20px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center;">1</span>
-                                    <h4 class="m-0 text-dark">Información del Cliente</h4>
+                                <div class="d-flex align-items-center mb-2">
+                                    <span class="badge badge-primary step-badge mr-2">1</span>
+                                    <h5 class="m-0 text-dark" style="font-size:15px;">Información del Cliente</h5>
                                 </div>
                             </div>
                         </div>
 
                         @if (!$clienteSeleccionado)
-                        {{-- Buscador --}}
-                        <div class="row mb-3">
-                            <div class="col-lg-7">
-                                <div class="input-group shadow-sm">
+                        {{-- ── Buscador live ── --}}
+                        <div class="row mb-2">
+                            <div class="col-lg-6">
+                                <div class="input-group" style="box-shadow:0 2px 8px rgba(26,126,251,.10); border-radius:8px; overflow:hidden;">
                                     <div class="input-group-prepend">
-                                        <span class="input-group-text bg-white border-right-0">
-                                            <i class="fa fa-search text-muted"></i>
+                                        <span class="input-group-text bg-white border-right-0" style="border-right:none;">
+                                            <i class="fa fa-search" style="color:#1a7efb; font-size:12px;"></i>
                                         </span>
                                     </div>
                                     <input
                                         type="text"
-                                        wire:model.lazy="busqueda"
-                                        wire:keydown.enter="buscarCliente"
+                                        wire:model.debounce.350ms="busqueda"
                                         class="form-control border-left-0"
-                                        style="font-size:15px; height:46px;"
-                                        placeholder="Buscar por nombre o RTN del cliente..."
+                                        style="font-size:13px; border-color:#e0e9ff; border-left:none;"
+                                        placeholder="Nombre o RTN — escribe para buscar..."
                                         autocomplete="off"
                                     >
                                     <div class="input-group-append">
-                                        <button class="btn btn-primary px-4" wire:click="buscarCliente" style="height:46px;">
-                                            <i class="fa fa-search"></i> Buscar
-                                            <span wire:loading wire:target="buscarCliente" class="ml-1"><i class="fa fa-spinner fa-spin"></i></span>
-                                        </button>
+                                        <span class="input-group-text bg-white" style="border-left:none; border-color:#e0e9ff; padding:0 10px;">
+                                            <span wire:loading wire:target="updatedBusqueda,buscarCliente">
+                                                <i class="fa fa-spinner fa-spin" style="color:#1a7efb; font-size:11px;"></i>
+                                            </span>
+                                            <span wire:loading.remove wire:target="updatedBusqueda,buscarCliente">
+                                                <i class="fa fa-user" style="color:#ccd; font-size:11px;"></i>
+                                            </span>
+                                        </span>
                                     </div>
                                 </div>
                                 @error('clienteSeleccionado')
@@ -147,47 +266,58 @@
                             </div>
                         </div>
 
-                        {{-- Lista desplegable de resultados --}}
+                        {{-- ── Sugerencias (dropdown live) ── --}}
                         @if (count($resultadosBusqueda) > 0)
-                        <div class="row mb-3">
-                            <div class="col-lg-7">
-                                <div class="list-group" style="border-radius:8px; box-shadow:0 4px 15px rgba(0,0,0,.12);">
+                        <div class="row mb-2">
+                            <div class="col-lg-6">
+                                <div style="border-radius:8px; box-shadow:0 6px 20px rgba(26,126,251,.15); border:1px solid #e0e9ff; background:#fff; animation:slideDown .2s ease both; overflow:hidden;">
                                     @foreach ($resultadosBusqueda as $r)
                                     <button
                                         type="button"
-                                        class="list-group-item list-group-item-action"
+                                        class="sugerencia-item list-group-item list-group-item-action border-0 py-2 px-3"
                                         wire:click="seleccionarCliente({{ $r['id'] }})"
-                                        style="cursor:pointer;"
                                     >
                                         <div class="d-flex justify-content-between align-items-center">
                                             <div>
-                                                <i class="fa fa-user-circle-o text-primary mr-1"></i>
-                                                <strong>{{ $r['nombre'] }}</strong>
+                                                <i class="fa fa-user-circle-o text-primary mr-1" style="font-size:12px;"></i>
+                                                <strong style="font-size:13px;">{{ $r['nombre'] }}</strong>
                                             </div>
-                                            <span class="badge badge-secondary">RTN: {{ $r['rtn'] ?? '—' }}</span>
+                                            @if ($r['rtn'])
+                                            <span class="badge badge-light border" style="font-size:10px; color:#666;">{{ $r['rtn'] }}</span>
+                                            @endif
                                         </div>
                                         @if (!empty($r['direccion']))
-                                        <small class="text-muted"><i class="fa fa-map-marker mr-1"></i>{{ $r['direccion'] }}</small>
+                                        <small class="text-muted d-block" style="font-size:11px; margin-top:1px;"><i class="fa fa-map-marker mr-1"></i>{{ Str::limit($r['direccion'], 55) }}</small>
                                         @endif
                                     </button>
                                     @endforeach
+                                    {{-- Opción: crear cliente nuevo --}}
+                                    <button
+                                        type="button"
+                                        class="list-group-item list-group-item-action border-0 py-2 px-3 text-success"
+                                        wire:click="abrirModalCrearCliente"
+                                        style="font-size:12px; background:#f0fdf4; border-top:1px solid #dcfce7 !important;"
+                                    >
+                                        <i class="fa fa-plus-circle mr-1"></i>
+                                        No lo veo — <strong>Crear nuevo cliente</strong>
+                                    </button>
                                 </div>
                             </div>
                         </div>
 
-                        {{-- Sin resultados --}}
+                        {{-- Sin resultados tras búsqueda explícita --}}
                         @elseif ($hasBuscado && strlen(trim($busqueda)) >= 2)
-                        <div class="row mb-3">
-                            <div class="col-lg-7">
-                                <div class="alert mb-0 d-flex align-items-center justify-content-between"
-                                     style="background:#fff8e1; border:1px solid #ffc107; border-radius:8px;">
+                        <div class="row mb-2">
+                            <div class="col-lg-6">
+                                <div class="d-flex align-items-center justify-content-between"
+                                     style="background:#fff8e1; border:1px solid #ffc107; border-radius:8px; padding:8px 12px; font-size:13px;">
                                     <div>
                                         <i class="fa fa-info-circle text-warning mr-1"></i>
-                                        No se encontró ningún cliente con
-                                        <strong>"{{ $busqueda }}"</strong>
+                                        Sin resultados para <strong>"{{ $busqueda }}"</strong>
                                     </div>
-                                    <button type="button" class="btn btn-success btn-sm ml-3" wire:click="abrirModalCrearCliente">
-                                        <i class="fa fa-plus"></i> Crear cliente
+                                    <button type="button" class="btn btn-success btn-xs ml-2" wire:click="abrirModalCrearCliente"
+                                            style="border-radius:20px; font-size:11px;">
+                                        <i class="fa fa-plus"></i> Crear
                                     </button>
                                 </div>
                             </div>
@@ -256,14 +386,14 @@
                         </div>
                         @endif
 
-                        <hr class="my-4">
+                        <hr class="my-3" style="border-color:#edf1f9;">
 
                         {{-- ==================== SECCIÓN 2: PRODUCTOS ==================== --}}
-                        <div class="row mb-3">
+                        <div class="row mb-2">
                             <div class="col-12">
-                                <div class="d-flex align-items-center mb-3">
-                                    <span class="badge badge-primary mr-2" style="font-size:14px; width:28px; height:28px; line-height:20px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center;">2</span>
-                                    <h4 class="m-0 text-dark">Productos del Pedido</h4>
+                                <div class="d-flex align-items-center mb-2">
+                                    <span class="badge badge-primary step-badge mr-2">2</span>
+                                    <h5 class="m-0 text-dark" style="font-size:15px;">Productos del Pedido</h5>
                                 </div>
                             </div>
                         </div>
@@ -556,46 +686,54 @@
 
                         </div>{{-- /row dos columnas --}}
 
-                        <hr class="my-4">
+                        <hr class="my-3" style="border-color:#edf1f9;">
 
-                        {{-- ==================== SECCIÓN 3: OBSERVACIONES ==================== --}}
-                        <div class="row mb-2">
-                            <div class="col-12">
-                                <div class="d-flex align-items-center mb-3">
-                                    <span class="badge badge-primary mr-2" style="font-size:14px; width:28px; height:28px; line-height:20px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center;">3</span>
-                                    <h4 class="m-0 text-dark">Observaciones</h4>
+                        {{-- ==================== SECCIÓN 3: OBSERVACIONES + BOTÓN ==================== --}}
+                        <div class="row align-items-end">
+
+                            {{-- Título sección --}}
+                            <div class="col-12 mb-2">
+                                <div class="d-flex align-items-center">
+                                    <span class="badge badge-primary step-badge mr-2">3</span>
+                                    <h5 class="m-0 text-dark" style="font-size:15px;">Observaciones</h5>
                                 </div>
                             </div>
-                            <div class="col-lg-8">
+
+                            {{-- Textarea --}}
+                            <div class="col-lg-7">
                                 <textarea
                                     wire:model.lazy="observaciones"
                                     class="form-control"
                                     rows="3"
-                                    style="border-radius:8px; resize:vertical;"
+                                    style="border-radius:8px; resize:vertical; font-size:13px; border-color:#dce3f0;"
                                     placeholder="Notas u observaciones adicionales del pedido (opcional)..."
                                 ></textarea>
                             </div>
-                        </div>
 
-                        <hr class="my-4">
-
-                        {{-- Botón guardar --}}
-                        <div class="row">
-                            <div class="col-12 text-right">
+                            {{-- Botón guardar (a la par) --}}
+                            <div class="col-lg-5 text-right mt-2 mt-lg-0">
                                 <button
                                     type="button"
-                                    class="btn btn-primary btn-lg px-5"
+                                    class="btn btn-primary btn-lg"
                                     wire:click="guardarPedido"
-                                    style="border-radius:8px; font-size:16px;"
+                                    style="border-radius:10px; font-size:15px; padding:12px 32px;
+                                           background:linear-gradient(135deg,#1a7efb,#1ab394);
+                                           border:none;
+                                           box-shadow:0 4px 16px rgba(26,126,251,.35);
+                                           transition:transform .15s, box-shadow .15s;"
+                                    onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 24px rgba(26,126,251,.45)';"
+                                    onmouseout="this.style.transform='';this.style.boxShadow='0 4px 16px rgba(26,126,251,.35)';"
+                                    onmousedown="this.style.transform='translateY(0)';"
                                 >
                                     <span wire:loading.remove wire:target="guardarPedido">
-                                        <i class="fa fa-save"></i> &nbsp;Registrar Pedido
+                                        <i class="fa fa-save mr-1"></i> Registrar Pedido
                                     </span>
                                     <span wire:loading wire:target="guardarPedido">
-                                        <i class="fa fa-spinner fa-spin"></i> &nbsp;Registrando...
+                                        <i class="fa fa-spinner fa-spin mr-1"></i> Registrando...
                                     </span>
                                 </button>
                             </div>
+
                         </div>
 
                     </div>{{-- /ibox-content --}}
@@ -604,6 +742,13 @@
         </div>
 
     </div>{{-- /wrapper-content --}}
+
+    {{-- ===== SCROLL TO TOP ON SAVE ===== --}}
+    <script>
+        window.addEventListener('scroll-top', function() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+    </script>
 
     {{-- ==================== MODAL: CREAR NUEVO CLIENTE ==================== --}}
     @if ($showModalCliente)

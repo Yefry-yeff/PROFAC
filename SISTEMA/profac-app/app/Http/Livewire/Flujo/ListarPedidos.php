@@ -15,13 +15,19 @@ class ListarPedidos extends Component
     public $filtroFecha     = '';
 
     // ── Paginación simple ──────────────────────────────────────────────────
-    public $pagina     = 1;
-    public $porPagina  = 15;
+    public $pagina       = 1;
+    public $porPagina    = 15;
     public $totalPedidos = 0;
+    public $totalPaginas = 0;
 
-    // ── Confirmación de anulación ──────────────────────────────────────────
+    // ── Confirmación de cancelación ──────────────────────────────────────────
     public $pedidoAnularId   = null;
     public $showModalAnular  = false;
+
+    // ── Modal de flujo del pedido ──────────────────────────────────────────
+    public $showModalFlujo  = false;
+    public $pedidoFlujoId   = null;
+    public $pedidoFlujoData = null;
 
     // ── Mensaje ────────────────────────────────────────────────────────────
     public $mensajeExito = '';
@@ -85,12 +91,12 @@ class ListarPedidos extends Component
     public function paginaAnterior() { if ($this->pagina > 1) $this->pagina--; }
     public function paginaSiguiente()
     {
-        if ($this->pagina < $this->totalPaginasProperty) $this->pagina++;
+        if ($this->pagina < $this->totalPaginas) $this->pagina++;
     }
 
     public function irPagina(int $p)
     {
-        if ($p >= 1 && $p <= $this->totalPaginasProperty) {
+        if ($p >= 1 && $p <= $this->totalPaginas) {
             $this->pagina = $p;
         }
     }
@@ -123,19 +129,62 @@ class ListarPedidos extends Component
 
         DB::table('pedido')
             ->where('id', $this->pedidoAnularId)
-            ->update(['estado' => 'anulado', 'updated_at' => now()]);
+            ->update(['estado' => 'cancelado', 'updated_at' => now()]);
 
         $this->pedidoAnularId  = null;
         $this->showModalAnular = false;
-        $this->mensajeExito    = 'Pedido anulado correctamente.';
+        $this->mensajeExito    = 'Pedido cancelado correctamente.';
+    }
+
+    // ── Modal flujo del pedido ─────────────────────────────────────────────
+    public function verFlujo(int $id)
+    {
+        $pedido = DB::table('pedido as p')
+            ->join('cliente as c', 'c.id', '=', 'p.cliente_id')
+            ->join('users as u', 'u.id', '=', 'p.users_id')
+            ->select(
+                'p.id', 'p.estado', 'p.observaciones',
+                'p.created_at', 'p.updated_at',
+                'c.nombre as cliente',
+                'u.name as registrado_por'
+            )
+            ->where('p.id', $id)
+            ->first();
+
+        if ($pedido) {
+            $ofertas = DB::table('oferta')
+                ->where('pedido_id', $id)
+                ->select('id', 'nombre_cliente', 'total', 'created_at')
+                ->orderBy('id')
+                ->limit(10)
+                ->get();
+
+            $this->pedidoFlujoId   = $id;
+            $this->pedidoFlujoData = array_merge((array) $pedido, [
+                'ofertas' => $ofertas->toArray(),
+            ]);
+            $this->showModalFlujo  = true;
+        }
+    }
+
+    public function cerrarFlujo()
+    {
+        $this->showModalFlujo  = false;
+        $this->pedidoFlujoId   = null;
+        $this->pedidoFlujoData = null;
     }
 
     // ── Render ─────────────────────────────────────────────────────────────
     public function render()
     {
+        $this->totalPedidos  = $this->query()->count();
+        $this->totalPaginas  = (int) ceil($this->totalPedidos / $this->porPagina);
+        $offset  = ($this->pagina - 1) * $this->porPagina;
+        $pedidos = $this->query()->skip($offset)->take($this->porPagina)->get();
+
         return view('livewire.flujo.listar-pedidos', [
-            'pedidos'       => $this->pedidosProperty,
-            'totalPaginas'  => $this->totalPaginasProperty,
+            'pedidos'      => $pedidos,
+            'totalPaginas' => $this->totalPaginas,
         ]);
     }
 }

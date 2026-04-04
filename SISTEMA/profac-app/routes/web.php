@@ -1172,9 +1172,17 @@ Route::post('/reporte/ventas-cobros/exportar-excel/{vendedorId}/{clienteId}/{mes
 
     //------------------------------------------Flujo------------------------------------------//
     Route::get('/flujo/pedido', FlujoPedido::class);
-    Route::get('/flujo/pedidos', \App\Http\Livewire\Flujo\ListarPedidos::class);
+    Route::get('/flujo/pedidos/historico', \App\Http\Livewire\Flujo\ListarPedidos::class);
     Route::get('/flujo/pedido/imprimir/{id}', [\App\Http\Controllers\Flujo\PedidoController::class, 'imprimir']);
     Route::get('/flujo/pedido/exportar/{id}', [\App\Http\Controllers\Flujo\PedidoController::class, 'exportarExcel']);
+    Route::get('/flujo/pedido/editar/{id}', \App\Http\Livewire\Flujo\EditarPedido::class);
+
+    // Oferta de Pedido
+    Route::get('/flujo/oferta/crear/{pedidoId}', \App\Http\Livewire\Flujo\OfertaPedido::class);
+    Route::get('/oferta/clientes', [\App\Http\Livewire\Flujo\OfertaPedido::class, 'listarClientes']);
+    Route::post('/guardar/oferta', [\App\Http\Livewire\Flujo\OfertaPedido::class, 'guardarOferta']);
+    Route::get('/oferta/imprimir/{id}', [\App\Http\Livewire\Flujo\OfertaPedido::class, 'imprimirOferta']);
+    Route::get('/flujo/ofertas', \App\Http\Livewire\Flujo\ListarOfertas::class);
 
     //------------------------------------------establecer links de storage---------------------------//
   Route::get('/linkstorage', function () {
