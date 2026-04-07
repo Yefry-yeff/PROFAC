@@ -39,7 +39,7 @@
                 <div class="ibox">
                     {{-- ── Encabezado del ibox ── --}}
                     <div class="ibox-title"
-                         style="background: linear-gradient(135deg,#1a7efb 0%,#1ab394 100%);
+                         style="background:linear-gradient(135deg,#f39c12 0%,#e67e22 100%);
                                 color:#fff; border-radius:4px 4px 0 0;">
                         <h5 class="m-0" style="color:#fff;">
                             <i class="fa fa-list-alt"></i> &nbsp;Pedidos Registrados
@@ -81,8 +81,8 @@
                                         style="border-radius:8px;">
                                     <option value="">Todos</option>
                                     <option value="pedido">Pedido</option>
-                                    <option value="cotizado">Cotizado</option>
-                                    <option value="facturado">Facturado</option>
+                                    <option value="cotizado">Factura</option>
+                                    <option value="facturado">Cobro</option>
                                     <option value="cancelado">Cancelado</option>
                                 </select>
                             </div>
@@ -168,17 +168,33 @@
                                             {{-- Estado --}}
                                             <td class="text-center">
                                                 @php
-                                                    $estadoMap = [
-                                                        'pedido'    => ['label-primary',  'fa-shopping-cart', 'Pedido'],
-                                                        'cotizado'  => ['label-info',     'fa-file-text-o',   'Cotizado'],
-                                                        'facturado' => ['label-success',  'fa-check-circle',  'Facturado'],
-                                                        'cancelado' => ['label-danger',   'fa-ban',           'Cancelado'],
-                                                    ];
-                                                    $eInfo = $estadoMap[$pedido->estado] ?? ['label-default','fa-question','Desconocido'];
+                                                    // Determinar el paso visual igual que el mapa del flujo
+                                                    if ($pedido->estado === 'cancelado') {
+                                                        $eLabel = 'Cancelado';
+                                                        $eIcon  = 'fa-ban';
+                                                        $eBg    = '#e74c3c';
+                                                    } elseif ($pedido->estado === 'facturado') {
+                                                        $eLabel = 'Cobro';
+                                                        $eIcon  = 'fa-money';
+                                                        $eBg    = '#6c5ce7';
+                                                    } elseif ($pedido->has_ganadora > 0 || $pedido->estado === 'cotizado') {
+                                                        $eLabel = 'Factura';
+                                                        $eIcon  = 'fa-file-text';
+                                                        $eBg    = '#1a7efb';
+                                                    } elseif ($pedido->has_ofertas > 0) {
+                                                        $eLabel = 'Ofertas';
+                                                        $eIcon  = 'fa-tag';
+                                                        $eBg    = '#f39c12';
+                                                    } else {
+                                                        $eLabel = 'Pedido';
+                                                        $eIcon  = 'fa-shopping-cart';
+                                                        $eBg    = '#1ab394';
+                                                    }
                                                 @endphp
-                                                <span class="label {{ $eInfo[0] }}"
-                                                      style="font-size:11px; padding:4px 8px; border-radius:12px; white-space:nowrap;">
-                                                    <i class="fa {{ $eInfo[1] }}"></i> {{ $eInfo[2] }}
+                                                <span style="display:inline-block; background:{{ $eBg }};
+                                                             color:#fff; border-radius:20px; font-size:11px;
+                                                             font-weight:700; padding:3px 10px; white-space:nowrap;">
+                                                    <i class="fa {{ $eIcon }}"></i> {{ $eLabel }}
                                                 </span>
                                             </td>
 
@@ -235,7 +251,7 @@
                                                         <i class="fa fa-pencil"></i>
                                                     </a>
                                                     {{-- Crear Oferta --}}
-                                                    @if ($pedido->estado !== 'cancelado')
+                                                    @if ($pedido->estado !== 'cancelado' && $pedido->estado !== 'cotizado')
                                                         <a href="/flujo/oferta/crear/{{ $pedido->id }}"
                                                            class="btn btn-xs btn-primary"
                                                            title="Crear oferta para este pedido"
@@ -244,7 +260,8 @@
                                                         </a>
                                                     @else
                                                         <button type="button" class="btn btn-xs btn-default"
-                                                                disabled style="cursor:not-allowed;opacity:.45;">
+                                                                disabled style="cursor:not-allowed;opacity:.45;"
+                                                                title="{{ $pedido->estado === 'cotizado' ? 'Ya existe una oferta ganadora' : 'Pedido cancelado' }}">
                                                             <i class="fa fa-tag text-muted"></i>
                                                         </button>
                                                     @endif
@@ -329,7 +346,7 @@
     >
         <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
             <div class="modal-content" style="border-radius:12px; border:none; box-shadow:0 10px 40px rgba(0,0,0,.25);">
-                <div class="modal-header" style="background:#e74c3c; border:none;">
+                <div class="modal-header" style="background:linear-gradient(135deg,#f39c12 0%,#e67e22 100%); border:none;">
                     <h5 class="modal-title text-white m-0">
                         <i class="fa fa-ban"></i> &nbsp;Cancelar Pedido
                     </h5>
@@ -360,13 +377,18 @@
     {{-- ===== MODAL DE FLUJO DEL PEDIDO ===== --}}
     @if ($showModalFlujo && $pedidoFlujoData)
     @php
-        $fEstado   = $pedidoFlujoData['estado'] ?? 'pedido';
-        $fCancelado = ($fEstado === 'cancelado');
-        $fPaso = match($fEstado) {
-            'pedido'    => 1,
-            'cotizado'  => 2,
-            'facturado' => 3,
-            default     => ($fCancelado ? 0 : 1),
+        $fEstado      = $pedidoFlujoData['estado'] ?? 'pedido';
+        $fCancelado   = ($fEstado === 'cancelado');
+        $fOfertas     = $pedidoFlujoData['ofertas'] ?? [];
+        $tieneOfertas  = count($fOfertas) > 0;
+        $tieneGanadora = collect($fOfertas)->contains(fn($o) => ((array)$o)['estado'] === 'ganadora');
+        $yaGanadoraExists = $tieneGanadora;
+        $fPaso = match(true) {
+            $fCancelado                        => 0,
+            $fEstado === 'facturado'            => 4,
+            $tieneGanadora                     => 3,
+            $tieneOfertas                      => 2,
+            default                            => 1,
         };
         $fPasos = [
             1 => ['icon' => 'fa-shopping-cart', 'title' => 'Pedido',   'color' => '#1a7efb', 'glow' => 'rgba(26,126,251,.45)'],
@@ -383,7 +405,7 @@
                         box-shadow:0 20px 60px rgba(0,0,0,.35);">
 
                 {{-- Header --}}
-                <div class="modal-header" style="background:linear-gradient(135deg,#1a7efb 0%,#6c5ce7 100%);
+                <div class="modal-header" style="background:linear-gradient(135deg,#f39c12 0%,#e67e22 100%);
                             border:none; padding:18px 24px;">
                     <div>
                         <h5 class="modal-title m-0" style="color:#fff; font-size:17px; font-weight:700;">
@@ -406,7 +428,7 @@
                     </button>
                 </div>
 
-                <div class="modal-body" style="padding:32px 28px; background:#f8f9fc;">
+                <div class="modal-body" style="padding:16px 28px 28px; background:#f8f9fc;">
 
                     @if ($fCancelado)
                     {{-- Estado cancelado: banner rojo --}}
@@ -424,59 +446,68 @@
                     @else
                     {{-- Pipeline de estados --}}
                     <div style="display:flex; align-items:center; justify-content:center;
-                                gap:0; flex-wrap:nowrap; overflow-x:auto; padding-bottom:8px;">
+                                gap:0; flex-wrap:nowrap; overflow-x:auto;
+                                padding: 20px 8px 12px;">
 
                         @foreach($fPasos as $paso => $info)
 
                         @php
-                            $completado = (!$fCancelado && $paso < $fPaso);
-                            $activo     = (!$fCancelado && $paso === $fPaso);
-                            $pendiente  = (!$fCancelado && $paso > $fPaso);
-                            $delay      = ($paso - 1) * 120;
+                            $completado  = (!$fCancelado && $paso < $fPaso);
+                            $activo      = (!$fCancelado && $paso === $fPaso);
+                            $pendiente   = (!$fCancelado && $paso > $fPaso);
+                            $delay       = ($paso - 1) * 120;
+
+                            // Colores fijos: completado=verde, activo=azul
+                            $circleColor = $completado ? '#1ab394' : ($activo ? '#1a7efb' : '#e8eaf0');
+                            $glowColor   = $completado ? 'rgba(26,179,148,.45)' : 'rgba(26,126,251,.45)';
+                            $labelColor  = $completado ? '#1ab394' : ($activo ? '#1a7efb' : '#aab');
                         @endphp
 
                         {{-- Step card --}}
-                        <div style="display:flex; flex-direction:column; align-items:center; min-width:100px;
+                        <div style="display:flex; flex-direction:column; align-items:center; min-width:110px;
                                     animation:stepIn .5s cubic-bezier(.34,1.56,.64,1) {{ $delay }}ms both;">
 
                             {{-- Circle --}}
-                            <div style="
-                                width:64px; height:64px; border-radius:50%;
-                                display:flex; align-items:center; justify-content:center;
-                                font-size:22px; margin-bottom:10px; position:relative;
-                                transition:all .3s ease;
-                                @if($completado)
-                                    background:linear-gradient(135deg,{{ $info['color'] }},{{ $info['color'] }}cc);
-                                    color:#fff;
-                                    box-shadow:0 6px 20px {{ $info['glow'] }};
-                                @elseif($activo)
-                                    background:linear-gradient(135deg,{{ $info['color'] }},{{ $info['color'] }}cc);
-                                    color:#fff;
-                                    box-shadow:0 6px 24px {{ $info['glow'] }}, 0 0 0 6px {{ $info['color'] }}22;
-                                    animation:stepPulse 2s ease-in-out infinite;
-                                @else
-                                    background:#e8eaf0;
-                                    color:#aab;
-                                    box-shadow:none;
-                                @endif
-                            ">
-                                @if($completado)
-                                    <i class="fa fa-check" style="animation:checkPop .4s cubic-bezier(.34,1.56,.64,1) {{ $delay + 200 }}ms both; display:block;"></i>
-                                @else
-                                    <i class="fa {{ $info['icon'] }}"></i>
-                                @endif
+                            @if($completado)
+                            <div style="width:64px; height:64px; border-radius:50%;
+                                        background:linear-gradient(135deg,#1ab394,#0fa37a);
+                                        color:#fff; margin-bottom:10px;
+                                        box-shadow:0 6px 20px rgba(26,179,148,.45);
+                                        display:flex; align-items:center; justify-content:center;
+                                        font-size:24px; flex-shrink:0;">
+                                <i class="fa fa-check" style="animation:checkPop .4s cubic-bezier(.34,1.56,.64,1) {{ $delay + 200 }}ms both;"></i>
                             </div>
+                            @elseif($activo)
+                            <div style="width:64px; height:64px; border-radius:50%;
+                                        background:linear-gradient(135deg,#1a7efb,#0d6efd);
+                                        color:#fff; margin-bottom:10px;
+                                        box-shadow:0 6px 24px rgba(26,126,251,.5), 0 0 0 6px rgba(26,126,251,.15);
+                                        display:flex; align-items:center; justify-content:center;
+                                        font-size:24px; flex-shrink:0;
+                                        animation:stepPulse 2s ease-in-out infinite;">
+                                <i class="fa {{ $info['icon'] }}"></i>
+                            </div>
+                            @else
+                            <div style="width:64px; height:64px; border-radius:50%;
+                                        background:#e8eaf0; color:#c0c2cc; margin-bottom:10px;
+                                        display:flex; align-items:center; justify-content:center;
+                                        font-size:24px; flex-shrink:0;">
+                                <i class="fa {{ $info['icon'] }}"></i>
+                            </div>
+                            @endif
 
                             {{-- Label --}}
                             <div style="text-align:center;">
-                                <div style="font-size:13px; font-weight:700;
-                                            color:{{ $completado || $activo ? $info['color'] : '#aab' }};">
+                                <div style="font-size:13px; font-weight:700; color:{{ $labelColor }};">
                                     {{ $info['title'] }}
                                 </div>
-                                <div style="font-size:11px; color:{{ $completado ? '#1ab394' : ($activo ? $info['color'] : '#ccc') }};">
-                                    @if($completado) <i class="fa fa-check-circle"></i> Completado
-                                    @elseif($activo) <i class="fa fa-circle" style="animation:dotBlink 1s ease-in-out infinite;"></i> En curso
-                                    @else <i class="fa fa-clock-o"></i> Pendiente
+                                <div style="font-size:11px; color:{{ $labelColor }}; opacity:{{ $pendiente ? '.5' : '1' }};">
+                                    @if($completado)
+                                        <i class="fa fa-check-circle"></i> Completado
+                                    @elseif($activo)
+                                        <i class="fa fa-circle" style="animation:dotBlink 1s ease-in-out infinite;"></i> En curso
+                                    @else
+                                        <i class="fa fa-clock-o"></i> Pendiente
                                     @endif
                                 </div>
                             </div>
@@ -487,12 +518,10 @@
                         @if($paso < 4)
                         @php $connDelay = $delay + 80; @endphp
                         <div style="flex:1; min-width:24px; max-width:48px; height:4px; border-radius:4px;
-                                    margin-bottom:28px;
-                                    position:relative; overflow:hidden;
-                                    background:#e0e3ee;">
-                            @if($completado || ($activo && $paso < $fPaso + 1))
-                            <div style="position:absolute; top:0; left:0; height:100%;
-                                        background:linear-gradient(90deg,{{ $info['color'] }},{{ $fPasos[$paso+1]['color'] }});
+                                    margin-bottom:28px; position:relative; overflow:hidden; background:#e0e3ee;">
+                            @if($completado)
+                            <div style="position:absolute; top:0; left:0; width:100%; height:100%;
+                                        background:linear-gradient(90deg,#1ab394,#1a7efb);
                                         animation:connFill .6s ease {{ $connDelay }}ms both;
                                         border-radius:4px;"></div>
                             @endif
@@ -523,28 +552,15 @@
                     </div>
 
                     {{-- Panel dinámico de ofertas --}}
-                    @php $fOfertas = $pedidoFlujoData['ofertas'] ?? []; @endphp
                     <div style="margin-top:14px; border-radius:12px; overflow:hidden; border:1px solid #ede9f7;">
-                        <div style="background:linear-gradient(135deg,#f39c12 0%,#6c5ce7 100%);
-                                    padding:10px 18px; display:flex; justify-content:space-between; align-items:center;">
+                        <div style="background:linear-gradient(135deg,#f39c12 0%,#e67e22 100%);
+                                    padding:10px 18px;">
                             <span style="color:#fff; font-size:13px; font-weight:700;">
                                 <i class="fa fa-tag mr-1"></i>
-                                Ofertas asociadas ({{ count($fOfertas) }}/10)
+                                Ofertas asociadas
                             </span>
-                            @if (!$fCancelado && count($fOfertas) < 10)
-                                <a href="/flujo/oferta/crear/{{ $pedidoFlujoData['id'] }}"
-                                   class="btn btn-xs"
-                                   style="background:#fff; color:#6c5ce7; border-radius:20px;
-                                          font-weight:700; font-size:11px; padding:3px 12px;">
-                                    <i class="fa fa-plus mr-1"></i> Crear oferta
-                                </a>
-                            @elseif (count($fOfertas) >= 10)
-                                <span style="color:#fff; font-size:11px; opacity:.8;">
-                                    <i class="fa fa-lock mr-1"></i> Máximo alcanzado
-                                </span>
-                            @endif
                         </div>
-                        <div style="background:#fff; padding:12px 18px; max-height:180px; overflow-y:auto;">
+                        <div style="background:#fff; padding:12px 18px; max-height:200px; overflow-y:auto;">
                             @if (count($fOfertas) === 0)
                                 <div class="text-center py-3 text-muted" style="font-size:12px;">
                                     <i class="fa fa-inbox fa-lg d-block mb-1" style="opacity:.3;"></i>
@@ -558,17 +574,24 @@
                                             <th style="padding:4px 8px; text-align:left;">Cliente</th>
                                             <th style="padding:4px 8px; text-align:right;">Total</th>
                                             <th style="padding:4px 8px; text-align:center;">Fecha</th>
+                                            <th style="padding:4px 8px; text-align:center;">Estado</th>
                                             <th style="padding:4px 8px; text-align:center;">Acción</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         @foreach ($fOfertas as $fo)
-                                        @php $foArr = (array) $fo; @endphp
-                                        <tr style="border-bottom:1px solid #f0f0f0;">
-                                            <td style="padding:5px 8px; font-weight:700; color:#f39c12;">
+                                        @php
+                                            $foArr     = (array) $fo;
+                                            $foEstado  = $foArr['estado'] ?? 'activa';
+                                        @endphp
+                                        <tr style="border-bottom:1px solid #f0f0f0; opacity:{{ $foEstado === 'cancelada' ? '.5' : '1' }};">
+                                            <td style="padding:5px 8px; font-weight:700; color:{{ $foEstado === 'ganadora' ? '#1ab394' : ($foEstado === 'cancelada' ? '#aaa' : '#f39c12') }};">
                                                 #{{ $foArr['id'] }}
+                                                @if($foEstado === 'ganadora')
+                                                    <i class="fa fa-trophy ml-1" style="color:#f39c12;"></i>
+                                                @endif
                                             </td>
-                                            <td style="padding:5px 8px; color:#555;">
+                                            <td style="padding:5px 8px; color:#555; text-decoration:{{ $foEstado === 'cancelada' ? 'line-through' : 'none' }};">
                                                 {{ $foArr['nombre_cliente'] }}
                                             </td>
                                             <td style="padding:5px 8px; text-align:right; font-weight:700; color:#1ab394;">
@@ -578,11 +601,38 @@
                                                 {{ \Carbon\Carbon::parse($foArr['created_at'])->format('d/m/Y') }}
                                             </td>
                                             <td style="padding:5px 8px; text-align:center;">
-                                                <a href="/oferta/imprimir/{{ $foArr['id'] }}" target="_blank"
-                                                   title="Imprimir oferta"
-                                                   style="color:#1a7efb; font-size:12px;">
-                                                    <i class="fa fa-print"></i>
-                                                </a>
+                                                @if($foEstado === 'ganadora')
+                                                    <span style="background:#d4edda; color:#155724; border-radius:10px; padding:2px 8px; font-size:10px; font-weight:700;">
+                                                        <i class="fa fa-trophy"></i> Ganadora
+                                                    </span>
+                                                @elseif($foEstado === 'cancelada')
+                                                    <span style="background:#f8d7da; color:#721c24; border-radius:10px; padding:2px 8px; font-size:10px; font-weight:700;">
+                                                        <i class="fa fa-ban"></i> Cancelada
+                                                    </span>
+                                                @else
+                                                    <span style="background:#e8f0fe; color:#1a7efb; border-radius:10px; padding:2px 8px; font-size:10px; font-weight:700;">
+                                                        <i class="fa fa-circle"></i> Activa
+                                                    </span>
+                                                @endif
+                                            </td>
+                                            <td style="padding:5px 8px; text-align:center;">
+                                                <div style="display:flex; gap:4px; justify-content:center; align-items:center;">
+                                                    <a href="/oferta/imprimir/{{ $foArr['id'] }}" target="_blank"
+                                                       title="Imprimir oferta"
+                                                       style="color:#1a7efb; font-size:13px;">
+                                                        <i class="fa fa-print"></i>
+                                                    </a>
+                                                    @if($foEstado === 'activa' && !$yaGanadoraExists)
+                                                        <button type="button"
+                                                                wire:click="confirmarGanadora({{ $foArr['id'] }}, {{ $pedidoFlujoData['id'] }})"
+                                                                title="Seleccionar como oferta ganadora"
+                                                                style="background:linear-gradient(135deg,#f39c12,#e67e22); color:#fff;
+                                                                       border:none; border-radius:8px; padding:2px 8px;
+                                                                       font-size:10px; font-weight:700; cursor:pointer;">
+                                                            <i class="fa fa-trophy mr-1"></i> Ganadora
+                                                        </button>
+                                                    @endif
+                                                </div>
                                             </td>
                                         </tr>
                                         @endforeach
@@ -603,7 +653,7 @@
                        class="btn btn-warning" style="border-radius:20px; padding:6px 22px; color:#fff;">
                         <i class="fa fa-pencil mr-1"></i> Editar pedido
                     </a>
-                    @if (!($pedidoFlujoData['estado'] === 'cancelado') && count($fOfertas) < 10)
+                    @if (!$fCancelado && !$yaGanadoraExists)
                         <a href="/flujo/oferta/crear/{{ $pedidoFlujoData['id'] }}"
                            class="btn btn-primary" style="border-radius:20px; padding:6px 22px; color:#fff;">
                             <i class="fa fa-tag mr-1"></i> Crear oferta
@@ -611,6 +661,43 @@
                     @endif
                 </div>
 
+            </div>
+        </div>
+    </div>
+    @endif
+
+    {{-- ===== MODAL CONFIRMACIÓN: OFERTA GANADORA ===== --}}
+    @if ($showModalGanadora)
+    <div class="modal fade show"
+         style="display:block; background:rgba(0,0,0,.65); z-index:1080;"
+         tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
+            <div class="modal-content" style="border-radius:12px; border:none; box-shadow:0 10px 40px rgba(0,0,0,.35);">
+                <div class="modal-header" style="background:linear-gradient(135deg,#f39c12 0%,#e67e22 100%); border:none;">
+                    <h5 class="modal-title text-white m-0">
+                        <i class="fa fa-trophy"></i> &nbsp;Seleccionar Oferta Ganadora
+                    </h5>
+                    <button type="button" class="close text-white" wire:click="cancelarSeleccionGanadora" style="opacity:1;">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body p-4 text-center">
+                    <i class="fa fa-trophy fa-2x mb-2" style="color:#f39c12;"></i>
+                    <p class="mb-1">
+                        ¿Confirmar la <strong>Oferta #{{ $ofertaGanadoraId }}</strong> como ganadora?
+                    </p>
+                    <small class="text-muted">
+                        Las demás ofertas de este pedido quedarán <strong>canceladas</strong> y el pedido avanzará a la etapa de <strong>Factura</strong>.
+                    </small>
+                </div>
+                <div class="modal-footer" style="border:none; justify-content:center;">
+                    <button type="button" wire:click="cancelarSeleccionGanadora" class="btn btn-default">
+                        <i class="fa fa-times"></i> No, volver
+                    </button>
+                    <button type="button" wire:click="seleccionarGanadora" class="btn btn-warning" style="color:#fff;">
+                        <i class="fa fa-trophy"></i> &nbsp;Sí, confirmar ganadora
+                    </button>
+                </div>
             </div>
         </div>
     </div>

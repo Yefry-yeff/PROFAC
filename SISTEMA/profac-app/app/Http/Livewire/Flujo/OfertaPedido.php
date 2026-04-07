@@ -85,6 +85,20 @@ class OfertaPedido extends Component
                 ], 401);
             }
 
+            // Verificar si ya existe una oferta ganadora para este pedido
+            $tieneGanadora = DB::table('oferta')
+                ->where('pedido_id', $request->pedido_id)
+                ->where('estado', 'ganadora')
+                ->exists();
+
+            if ($tieneGanadora) {
+                return response()->json([
+                    'icon'  => 'warning',
+                    'title' => 'Oferta ganadora ya seleccionada',
+                    'text'  => 'Este pedido ya tiene una oferta ganadora. No se pueden crear más ofertas.',
+                ], 200);
+            }
+
             // Limit: max 10 ofertas per pedido
             $totalOfertas = DB::table('oferta')
                 ->where('pedido_id', $request->pedido_id)
@@ -218,7 +232,9 @@ class OfertaPedido extends Component
         $formatter->apocope = true;
         $numeroLetras = $formatter->toMoney((float) $oferta->total, 2, 'LEMPIRAS', 'CENTAVOS');
 
-        $pdf = PDF::loadView('flujo.oferta-imprimir', compact('oferta', 'productos', 'flagCentavos', 'numeroLetras'))
+        $esCancelada = isset($oferta->estado) && $oferta->estado === 'cancelada';
+
+        $pdf = PDF::loadView('flujo.oferta-imprimir', compact('oferta', 'productos', 'flagCentavos', 'numeroLetras', 'esCancelada'))
             ->setPaper('letter');
 
         return $pdf->stream('Oferta_Pedido'.$oferta->pedido_id.'_No'.$oferta->id.'.pdf');

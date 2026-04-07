@@ -122,7 +122,7 @@
                     <div class="ibox mb-0" style="border-radius:12px; overflow:hidden; border:2px solid #1ab394; box-shadow:0 6px 28px rgba(26,179,148,.18);">
 
                         {{-- Header compacto --}}
-                        <div class="ibox-title py-2 px-3" style="background:linear-gradient(135deg,#1ab394 0%,#1a7efb 100%); border:none;">
+                        <div class="ibox-title py-2 px-3" style="background:linear-gradient(135deg,#f39c12 0%,#e67e22 100%); border:none;">
                             <div class="d-flex align-items-center justify-content-between">
                                 <span style="color:#fff; font-size:14px; font-weight:600;">
                                     <i class="fa fa-check-circle mr-1"></i>
@@ -213,7 +213,7 @@
         <div class="row">
             <div class="col-lg-12">
                 <div class="ibox">
-                    <div class="ibox-title" style="background: linear-gradient(135deg,#1a7efb 0%,#1ab394 100%); color:#fff; border-radius:4px 4px 0 0;">
+                    <div class="ibox-title" style="background:linear-gradient(135deg,#f39c12 0%,#e67e22 100%); color:#fff; border-radius:4px 4px 0 0;">
                         <h5 class="m-0" style="color:#fff;">
                             <i class="fa fa-shopping-cart"></i> &nbsp;Registrar Pedido
                         </h5>
@@ -762,7 +762,7 @@
             <div class="modal-content" style="border-radius:12px; overflow:hidden; border:none; box-shadow:0 10px 40px rgba(0,0,0,.25);">
 
                 {{-- Header --}}
-                <div class="modal-header" style="background:linear-gradient(135deg,#1a7efb,#1ab394); border:none;">
+                <div class="modal-header" style="background:linear-gradient(135deg,#f39c12,#e67e22); border:none;">
                     <h5 class="modal-title text-white m-0">
                         <i class="fa fa-user-plus"></i> &nbsp;Crear Nuevo Cliente
                     </h5>

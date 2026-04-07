@@ -208,8 +208,8 @@
                                                 type="number"
                                                 wire:model.defer="items.{{ $idx }}.cantidad"
                                                 class="form-control form-control-sm qty-input @error('items.'.$idx.'.cantidad') is-invalid @enderror"
-                                                min="0.01"
-                                                step="any"
+                                                min="1"
+                                                step="1"
                                             >
                                             @error('items.'.$idx.'.cantidad')
                                                 <div class="invalid-feedback" style="font-size:11px;">{{ $message }}</div>

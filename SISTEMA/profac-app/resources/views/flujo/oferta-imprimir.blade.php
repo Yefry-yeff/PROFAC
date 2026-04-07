@@ -42,6 +42,22 @@
             font-size: 10px;
             font-weight: 700;
         }
+        .watermark-cancelada {
+            position: fixed;
+            top: 38%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-35deg);
+            font-size: 110px;
+            font-weight: 900;
+            color: rgba(200, 0, 0, 0.13);
+            border: 12px solid rgba(200, 0, 0, 0.13);
+            border-radius: 16px;
+            padding: 8px 24px;
+            pointer-events: none;
+            z-index: 9999;
+            letter-spacing: 8px;
+            white-space: nowrap;
+        }
     </style>
     <title>OFERTA DE PEDIDO #{{ $oferta->pedido_id }}</title>
 </head>
@@ -53,6 +69,10 @@
 @endphp
 
 <div class="pruebaFondo">
+
+    @if(!empty($esCancelada) && $esCancelada)
+    <div class="watermark-cancelada">CANCELADA</div>
+    @endif
 
     {{-- Company logo header --}}
     <img src="{{ public_path('img/membrete/Logo3.png') }}" width="800rem"

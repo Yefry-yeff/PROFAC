@@ -29,6 +29,11 @@ class ListarPedidos extends Component
     public $pedidoFlujoId   = null;
     public $pedidoFlujoData = null;
 
+    // ── Modal seleccionar oferta ganadora ──────────────────────────────────
+    public $showModalGanadora = false;
+    public $ofertaGanadoraId  = null;
+    public $pedidoGanadoraId  = null;
+
     // ── Mensaje ────────────────────────────────────────────────────────────
     public $mensajeExito = '';
     public $mensajeError = '';
@@ -52,7 +57,9 @@ class ListarPedidos extends Component
                 'u.name as registrado_por',
                 'p.observaciones',
                 'p.created_at',
-                DB::raw('(SELECT COUNT(*) FROM pedido_detalle pd WHERE pd.pedido_id = p.id) as total_productos')
+                DB::raw('(SELECT COUNT(*) FROM pedido_detalle pd WHERE pd.pedido_id = p.id) as total_productos'),
+                DB::raw('(SELECT COUNT(*) FROM oferta o WHERE o.pedido_id = p.id) as has_ofertas'),
+                DB::raw('(SELECT COUNT(*) FROM oferta o WHERE o.pedido_id = p.id AND o.estado = \'ganadora\') as has_ganadora')
             )
             ->orderByDesc('p.created_at');
 
@@ -154,7 +161,7 @@ class ListarPedidos extends Component
         if ($pedido) {
             $ofertas = DB::table('oferta')
                 ->where('pedido_id', $id)
-                ->select('id', 'nombre_cliente', 'total', 'created_at')
+                ->select('id', 'nombre_cliente', 'total', 'created_at', 'estado')
                 ->orderBy('id')
                 ->limit(10)
                 ->get();
@@ -172,6 +179,60 @@ class ListarPedidos extends Component
         $this->showModalFlujo  = false;
         $this->pedidoFlujoId   = null;
         $this->pedidoFlujoData = null;
+    }
+
+    // ── Seleccionar oferta ganadora ────────────────────────────────────────
+    public function confirmarGanadora(int $ofertaId, int $pedidoId)
+    {
+        $this->ofertaGanadoraId  = $ofertaId;
+        $this->pedidoGanadoraId  = $pedidoId;
+        $this->showModalGanadora = true;
+    }
+
+    public function cancelarSeleccionGanadora()
+    {
+        $this->ofertaGanadoraId  = null;
+        $this->pedidoGanadoraId  = null;
+        $this->showModalGanadora = false;
+    }
+
+    public function seleccionarGanadora()
+    {
+        if (!$this->ofertaGanadoraId || !$this->pedidoGanadoraId) return;
+
+        DB::beginTransaction();
+        try {
+            // Cancelar todas las demás ofertas del pedido
+            DB::table('oferta')
+                ->where('pedido_id', $this->pedidoGanadoraId)
+                ->where('id', '!=', $this->ofertaGanadoraId)
+                ->update(['estado' => 'cancelada', 'updated_at' => now()]);
+
+            // Marcar la seleccionada como ganadora
+            DB::table('oferta')
+                ->where('id', $this->ofertaGanadoraId)
+                ->update(['estado' => 'ganadora', 'updated_at' => now()]);
+
+            // Avanzar pedido a cotizado (= paso Factura en flujo)
+            DB::table('pedido')
+                ->where('id', $this->pedidoGanadoraId)
+                ->update(['estado' => 'cotizado', 'updated_at' => now()]);
+
+            DB::commit();
+
+            $this->showModalGanadora = false;
+            $pedidoId = $this->pedidoGanadoraId;
+            $this->ofertaGanadoraId  = null;
+            $this->pedidoGanadoraId  = null;
+
+            // Refrescar datos del modal de flujo
+            $this->verFlujo($pedidoId);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            $this->mensajeError      = 'Error al seleccionar la oferta ganadora.';
+            $this->showModalGanadora = false;
+        }
     }
 
     // ── Render ─────────────────────────────────────────────────────────────
