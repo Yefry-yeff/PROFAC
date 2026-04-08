@@ -140,10 +140,8 @@
             }
 
             function prueba() {
-
                 var element = document.getElementById('botonAdd');
-                element.classList.remove("d-none");
-
+                if (element) element.classList.remove("d-none");
             }
 
             function obtenerBodegas(id) {
@@ -297,7 +295,7 @@
                             document.getElementById('bloqueImagenes').innerHTML = htmlImagenes;
 
                             var element = document.getElementById('botonAdd');
-                            element.classList.remove("d-none");
+                            if (element) element.classList.remove("d-none");
 
                         } else {
                             imagenes.forEach(element => {
@@ -324,7 +322,7 @@
                         }
 
                         var element = document.getElementById('botonAdd');
-                        element.classList.add("d-none");
+                        if (element) element.classList.add("d-none");
 
                         let a = document.getElementById("detalleProducto");
                         let url = "/producto/detalle/" + id;
@@ -454,65 +452,71 @@
 
                         html = `
                         <div id='${numeroInputs}' class="cart-item-row">
-                            <div data-label="Producto" style="min-width:0;">
-                                <input id="idProducto${numeroInputs}" name="idProducto${numeroInputs}" type="hidden" value="${producto.id}">
-                                <input id="precios_producto_carga_id${numeroInputs}" name="precios_producto_carga_id${numeroInputs}" type="hidden" value="${producto.precios_producto_carga_id}">
-                                <input type="text" id="nombre${numeroInputs}" name="nombre${numeroInputs}"
-                                    class="form-control" style="font-size:12px;border-radius:7px;border:1.5px solid #dde2ec;padding:5px 7px;background:#f7f8fa;"
-                                    data-parsley-required autocomplete="off" readonly value='${producto.nombre}'>
+                            <div class="cir-info">
+                                <div data-label="Producto" class="of-product-name-wrap" style="min-width:0; position:relative;">
+                                    <input id="idProducto${numeroInputs}" name="idProducto${numeroInputs}" type="hidden" value="${producto.id}">
+                                    <input id="precios_producto_carga_id${numeroInputs}" name="precios_producto_carga_id${numeroInputs}" type="hidden" value="${producto.precios_producto_carga_id}">
+                                    <input type="text" id="nombre${numeroInputs}" name="nombre${numeroInputs}"
+                                        class="form-control" style="font-size:12px;border-radius:7px;border:1.5px solid #dde2ec;padding:5px 7px;background:#f7f8fa;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:default;"
+                                        data-parsley-required autocomplete="off" readonly value='${producto.nombre}'
+                                        title='${producto.nombre}'>
+                                    <div class="of-product-tooltip">${producto.nombre}</div>
+                                </div>
+                                <div data-label="Bodega">
+                                    <input type="text" value="${bodega}" id="bodega${numeroInputs}" name="bodega${numeroInputs}"
+                                        class="form-control" style="font-size:11px;border-radius:7px;border:1.5px solid #dde2ec;padding:5px 7px;background:#f7f8fa;"
+                                        autocomplete="off" readonly>
+                                </div>
                             </div>
-                            <div data-label="Bodega">
-                                <input type="text" value="${bodega}" id="bodega${numeroInputs}" name="bodega${numeroInputs}"
-                                    class="form-control" style="font-size:11px;border-radius:7px;border:1.5px solid #dde2ec;padding:5px 7px;background:#f7f8fa;"
-                                    autocomplete="off" readonly>
+                            <div class="cir-fields">
+                                <div data-label="Opciones">
+                                    <select class="form-control" name="precios${numeroInputs}" id="precios${numeroInputs}"
+                                        data-parsley-required style="font-size:12px;border-radius:7px;border:1.5px solid #dde2ec;padding:5px 7px;height:auto;"
+                                        onchange="validacionPrecio(precios${numeroInputs}, precio${numeroInputs})">
+                                        ${htmlprecios}
+                                    </select>
+                                </div>
+                                <div data-label="Precio">
+                                    <input type="number" id="precio${numeroInputs}" name="precio${numeroInputs}"
+                                        value="${producto.precio1}"
+                                        class="form-control" style="font-size:12px;border-radius:7px;border:1.5px solid #dde2ec;padding:5px 7px;"
+                                        data-parsley-required step="any" autocomplete="off"
+                                        onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
+                                </div>
+                                <div data-label="Cantidad">
+                                    <input type="number" id="cantidad${numeroInputs}" name="cantidad${numeroInputs}"
+                                        class="form-control" style="font-size:12px;border-radius:7px;border:1.5px solid #dde2ec;padding:5px 7px;"
+                                        min="1" data-parsley-required autocomplete="off" placeholder="0"
+                                        onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
+                                </div>
+                                <div data-label="Unidad">
+                                    <select class="form-control" name="unidad${numeroInputs}" id="unidad${numeroInputs}"
+                                        data-parsley-required style="font-size:12px;border-radius:7px;border:1.5px solid #dde2ec;padding:5px 7px;height:auto;"
+                                        onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
+                                        ${htmlSelectUnidades}
+                                    </select>
+                                </div>
+                                <div data-label="Sub Total">
+                                    <input type="text" id="subTotalMostrar${numeroInputs}" name="subTotalMostrar${numeroInputs}"
+                                        class="form-control" style="font-size:12px;border-radius:7px;border:1.5px solid #dde2ec;padding:5px 7px;background:#f7f8fa;color:#1ab394;font-weight:700;"
+                                        autocomplete="off" readonly placeholder="L. 0.00">
+                                    <input id="subTotal${numeroInputs}" name="subTotal${numeroInputs}" type="hidden" value="">
+                                    <input type="hidden" id="acumuladoDescuento${numeroInputs}" name="acumuladoDescuento${numeroInputs}">
+                                </div>
+                                <div data-label="ISV">
+                                    <input type="text" id="isvProductoMostrar${numeroInputs}" name="isvProductoMostrar${numeroInputs}"
+                                        class="form-control" style="font-size:12px;border-radius:7px;border:1.5px solid #dde2ec;padding:5px 7px;background:#f7f8fa;"
+                                        autocomplete="off" readonly placeholder="L. 0.00">
+                                    <input id="isvProducto${numeroInputs}" name="isvProducto${numeroInputs}" type="hidden" value="">
+                                </div>
+                                <div data-label="Total">
+                                    <input type="text" id="totalMostrar${numeroInputs}" name="totalMostrar${numeroInputs}"
+                                        class="form-control" style="font-size:12px;border-radius:7px;border:1.5px solid #dde2ec;padding:5px 7px;background:#f7f8fa;color:#6c5ce7;font-weight:700;"
+                                        autocomplete="off" readonly placeholder="L. 0.00">
+                                    <input id="total${numeroInputs}" name="total${numeroInputs}" type="hidden" value="">
+                                </div>
                             </div>
-                            <div data-label="Opciones">
-                                <select class="form-control" name="precios${numeroInputs}" id="precios${numeroInputs}"
-                                    data-parsley-required style="font-size:12px;border-radius:7px;border:1.5px solid #dde2ec;padding:5px 7px;height:auto;"
-                                    onchange="validacionPrecio(precios${numeroInputs}, precio${numeroInputs})">
-                                    ${htmlprecios}
-                                </select>
-                            </div>
-                            <div data-label="Precio">
-                                <input type="number" id="precio${numeroInputs}" name="precio${numeroInputs}"
-                                    value="${producto.precio1}"
-                                    class="form-control" style="font-size:12px;border-radius:7px;border:1.5px solid #dde2ec;padding:5px 7px;"
-                                    data-parsley-required step="any" autocomplete="off"
-                                    onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
-                            </div>
-                            <div data-label="Cantidad">
-                                <input type="number" id="cantidad${numeroInputs}" name="cantidad${numeroInputs}"
-                                    class="form-control" style="font-size:12px;border-radius:7px;border:1.5px solid #dde2ec;padding:5px 7px;"
-                                    min="1" data-parsley-required autocomplete="off" placeholder="0"
-                                    onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
-                            </div>
-                            <div data-label="Unidad">
-                                <select class="form-control" name="unidad${numeroInputs}" id="unidad${numeroInputs}"
-                                    data-parsley-required style="font-size:12px;border-radius:7px;border:1.5px solid #dde2ec;padding:5px 7px;height:auto;"
-                                    onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
-                                    ${htmlSelectUnidades}
-                                </select>
-                            </div>
-                            <div data-label="Sub Total">
-                                <input type="text" id="subTotalMostrar${numeroInputs}" name="subTotalMostrar${numeroInputs}"
-                                    class="form-control" style="font-size:12px;border-radius:7px;border:1.5px solid #dde2ec;padding:5px 7px;background:#f7f8fa;color:#1ab394;font-weight:700;"
-                                    autocomplete="off" readonly placeholder="L. 0.00">
-                                <input id="subTotal${numeroInputs}" name="subTotal${numeroInputs}" type="hidden" value="">
-                                <input type="hidden" id="acumuladoDescuento${numeroInputs}" name="acumuladoDescuento${numeroInputs}">
-                            </div>
-                            <div data-label="ISV">
-                                <input type="text" id="isvProductoMostrar${numeroInputs}" name="isvProductoMostrar${numeroInputs}"
-                                    class="form-control" style="font-size:12px;border-radius:7px;border:1.5px solid #dde2ec;padding:5px 7px;background:#f7f8fa;"
-                                    autocomplete="off" readonly placeholder="L. 0.00">
-                                <input id="isvProducto${numeroInputs}" name="isvProducto${numeroInputs}" type="hidden" value="">
-                            </div>
-                            <div data-label="Total">
-                                <input type="text" id="totalMostrar${numeroInputs}" name="totalMostrar${numeroInputs}"
-                                    class="form-control" style="font-size:12px;border-radius:7px;border:1.5px solid #dde2ec;padding:5px 7px;background:#f7f8fa;color:#6c5ce7;font-weight:700;"
-                                    autocomplete="off" readonly placeholder="L. 0.00">
-                                <input id="total${numeroInputs}" name="total${numeroInputs}" type="hidden" value="">
-                            </div>
-                            <div style="text-align:center;">
+                            <div class="cir-del">
                                 <button class="cart-del-btn" type="button" onclick="eliminarInput(${numeroInputs})" title="Eliminar">
                                     <i class="fa fa-trash"></i>
                                 </button>
@@ -526,6 +530,8 @@
 
                         arregloIdInputs.splice(numeroInputs, 0, numeroInputs);
                         document.getElementById('divProductos').insertAdjacentHTML('beforeend', html);
+                        var emptyState = document.getElementById('cart-empty-state');
+                        if (emptyState) emptyState.style.display = 'none';
 
 
                         return;
@@ -571,6 +577,10 @@
                     this.totalesGenerales();
                 }
 
+                if (arregloIdInputs.length === 0) {
+                    var emptyState = document.getElementById('cart-empty-state');
+                    if (emptyState) emptyState.style.display = '';
+                }
             }
 
             function myRound(num, dec) {
