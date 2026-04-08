@@ -213,10 +213,10 @@ class ListarPedidos extends Component
                 ->where('id', $this->ofertaGanadoraId)
                 ->update(['estado' => 'ganadora', 'updated_at' => now()]);
 
-            // Avanzar pedido a cotizado (= paso Factura en flujo)
+            // Avanzar pedido a pre_factura (paso previo a Factura)
             DB::table('pedido')
                 ->where('id', $this->pedidoGanadoraId)
-                ->update(['estado' => 'cotizado', 'updated_at' => now()]);
+                ->update(['estado' => 'pre_factura', 'updated_at' => now()]);
 
             DB::commit();
 

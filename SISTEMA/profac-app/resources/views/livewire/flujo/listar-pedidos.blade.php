@@ -81,6 +81,7 @@
                                         style="border-radius:8px;">
                                     <option value="">Todos</option>
                                     <option value="pedido">Pedido</option>
+                                    <option value="pre_factura">Pre Factura</option>
                                     <option value="cotizado">Factura</option>
                                     <option value="facturado">Cobro</option>
                                     <option value="cancelado">Cancelado</option>
@@ -177,10 +178,10 @@
                                                         $eLabel = 'Cobro';
                                                         $eIcon  = 'fa-money';
                                                         $eBg    = '#6c5ce7';
-                                                    } elseif ($pedido->has_ganadora > 0 || $pedido->estado === 'cotizado') {
-                                                        $eLabel = 'Factura';
-                                                        $eIcon  = 'fa-file-text';
-                                                        $eBg    = '#1a7efb';
+                                                    } elseif ($pedido->has_ganadora > 0 || $pedido->estado === 'pre_factura' || $pedido->estado === 'cotizado') {
+                                                        $eLabel = 'Pre Factura';
+                                                        $eIcon  = 'fa-file-o';
+                                                        $eBg    = '#00b894';
                                                     } elseif ($pedido->has_ofertas > 0) {
                                                         $eLabel = 'Ofertas';
                                                         $eIcon  = 'fa-tag';
@@ -251,7 +252,7 @@
                                                         <i class="fa fa-pencil"></i>
                                                     </a>
                                                     {{-- Crear Oferta --}}
-                                                    @if ($pedido->estado !== 'cancelado' && $pedido->estado !== 'cotizado')
+                                                    @if ($pedido->estado !== 'cancelado' && $pedido->estado !== 'cotizado' && $pedido->estado !== 'pre_factura')
                                                         <a href="/flujo/oferta/crear/{{ $pedido->id }}"
                                                            class="btn btn-xs btn-primary"
                                                            title="Crear oferta para este pedido"
@@ -261,7 +262,7 @@
                                                     @else
                                                         <button type="button" class="btn btn-xs btn-default"
                                                                 disabled style="cursor:not-allowed;opacity:.45;"
-                                                                title="{{ $pedido->estado === 'cotizado' ? 'Ya existe una oferta ganadora' : 'Pedido cancelado' }}">
+                                                                title="{{ $pedido->estado === 'cotizado' ? 'Ya existe una oferta ganadora' : ($pedido->estado === 'pre_factura' ? 'Ya existe una oferta ganadora' : 'Pedido cancelado') }}">
                                                             <i class="fa fa-tag text-muted"></i>
                                                         </button>
                                                     @endif
@@ -384,17 +385,19 @@
         $tieneGanadora = collect($fOfertas)->contains(fn($o) => ((array)$o)['estado'] === 'ganadora');
         $yaGanadoraExists = $tieneGanadora;
         $fPaso = match(true) {
-            $fCancelado                        => 0,
-            $fEstado === 'facturado'            => 4,
-            $tieneGanadora                     => 3,
-            $tieneOfertas                      => 2,
-            default                            => 1,
+            $fCancelado                                                              => 0,
+            $fEstado === 'facturado'                                                 => 6,
+            $fEstado === 'cotizado' || $fEstado === 'pre_factura' || $tieneGanadora => 3,
+            $tieneOfertas                                                            => 2,
+            default                                                                  => 1,
         };
         $fPasos = [
-            1 => ['icon' => 'fa-shopping-cart', 'title' => 'Pedido',   'color' => '#1a7efb', 'glow' => 'rgba(26,126,251,.45)'],
-            2 => ['icon' => 'fa-tag',           'title' => 'Ofertas',  'color' => '#f39c12', 'glow' => 'rgba(243,156,18,.45)'],
-            3 => ['icon' => 'fa-file-text',     'title' => 'Factura',  'color' => '#1ab394', 'glow' => 'rgba(26,179,148,.45)'],
-            4 => ['icon' => 'fa-money',          'title' => 'Cobro',    'color' => '#6c5ce7', 'glow' => 'rgba(108,92,231,.45)'],
+            1 => ['icon' => 'fa-shopping-cart', 'title' => 'Pedido',       'color' => '#1a7efb', 'glow' => 'rgba(26,126,251,.45)'],
+            2 => ['icon' => 'fa-tag',           'title' => 'Ofertas',      'color' => '#f39c12', 'glow' => 'rgba(243,156,18,.45)'],
+            3 => ['icon' => 'fa-file-o',        'title' => 'Pre Factura',  'color' => '#00b894', 'glow' => 'rgba(0,184,148,.45)'],
+            4 => ['icon' => 'fa-file-text',     'title' => 'Factura',      'color' => '#1ab394', 'glow' => 'rgba(26,179,148,.45)'],
+            5 => ['icon' => 'fa-truck',         'title' => 'Entregas',     'color' => '#e67e22', 'glow' => 'rgba(230,126,34,.45)'],
+            6 => ['icon' => 'fa-money',         'title' => 'Cobro',        'color' => '#6c5ce7', 'glow' => 'rgba(108,92,231,.45)'],
         ];
     @endphp
     <div class="modal fade show"
@@ -455,11 +458,8 @@
                             $completado  = (!$fCancelado && $paso < $fPaso);
                             $activo      = (!$fCancelado && $paso === $fPaso);
                             $pendiente   = (!$fCancelado && $paso > $fPaso);
-                            $delay       = ($paso - 1) * 120;
+                            $delay       = ($paso - 1) * 100;
 
-                            // Colores fijos: completado=verde, activo=azul
-                            $circleColor = $completado ? '#1ab394' : ($activo ? '#1a7efb' : '#e8eaf0');
-                            $glowColor   = $completado ? 'rgba(26,179,148,.45)' : 'rgba(26,126,251,.45)';
                             $labelColor  = $completado ? '#1ab394' : ($activo ? '#1a7efb' : '#aab');
                         @endphp
 
@@ -478,14 +478,14 @@
                                 <i class="fa fa-check" style="animation:checkPop .4s cubic-bezier(.34,1.56,.64,1) {{ $delay + 200 }}ms both;"></i>
                             </div>
                             @elseif($activo)
+                            {{-- Estado actual: check azul con anillo distintivo --}}
                             <div style="width:64px; height:64px; border-radius:50%;
                                         background:linear-gradient(135deg,#1a7efb,#0d6efd);
                                         color:#fff; margin-bottom:10px;
-                                        box-shadow:0 6px 24px rgba(26,126,251,.5), 0 0 0 6px rgba(26,126,251,.15);
+                                        box-shadow:0 6px 24px rgba(26,126,251,.5), 0 0 0 5px rgba(26,126,251,.2), 0 0 0 10px rgba(26,126,251,.08);
                                         display:flex; align-items:center; justify-content:center;
-                                        font-size:24px; flex-shrink:0;
-                                        animation:stepPulse 2s ease-in-out infinite;">
-                                <i class="fa {{ $info['icon'] }}"></i>
+                                        font-size:24px; flex-shrink:0;">
+                                <i class="fa fa-check" style="animation:checkPop .4s cubic-bezier(.34,1.56,.64,1) {{ $delay + 200 }}ms both;"></i>
                             </div>
                             @else
                             <div style="width:64px; height:64px; border-radius:50%;
@@ -505,17 +505,23 @@
                                     @if($completado)
                                         <i class="fa fa-check-circle"></i> Completado
                                     @elseif($activo)
-                                        <i class="fa fa-circle" style="animation:dotBlink 1s ease-in-out infinite;"></i> En curso
+                                        <i class="fa fa-map-marker" style="animation:dotBlink 1s ease-in-out infinite;"></i> Estado actual
                                     @else
                                         <i class="fa fa-clock-o"></i> Pendiente
                                     @endif
                                 </div>
+                                @if($activo && $paso === 3)
+                                <div style="font-size:10px; color:#f39c12; margin-top:4px; font-weight:700;
+                                            background:rgba(243,156,18,.12); border-radius:8px; padding:2px 7px;">
+                                    <i class="fa fa-trophy"></i> Oferta ganadora
+                                </div>
+                                @endif
                             </div>
 
                         </div>{{-- /step --}}
 
                         {{-- Connector (between steps) --}}
-                        @if($paso < 4)
+                        @if($paso < 6)
                         @php $connDelay = $delay + 80; @endphp
                         <div style="flex:1; min-width:24px; max-width:48px; height:4px; border-radius:4px;
                                     margin-bottom:28px; position:relative; overflow:hidden; background:#e0e3ee;">
@@ -687,7 +693,7 @@
                         ¿Confirmar la <strong>Oferta #{{ $ofertaGanadoraId }}</strong> como ganadora?
                     </p>
                     <small class="text-muted">
-                        Las demás ofertas de este pedido quedarán <strong>canceladas</strong> y el pedido avanzará a la etapa de <strong>Factura</strong>.
+                        Las demás ofertas de este pedido quedarán <strong>canceladas</strong> y el pedido avanzará a la etapa de <strong>Pre Factura</strong>.
                     </small>
                 </div>
                 <div class="modal-footer" style="border:none; justify-content:center;">
