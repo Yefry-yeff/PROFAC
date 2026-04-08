@@ -436,7 +436,7 @@
                         `;*/
 
 
-                        htmlprecios = `<option  value="${producto.precio1}" data-id="p1" selected>${producto.precio1} - A</option>`;
+                        htmlprecios = `<option  value="${producto.precio1}" data-id="p1" selected>A</option>`;
 
                         arrayUnidades.forEach(unidad => {
                             if (unidad.valor_defecto == 1) {
@@ -456,10 +456,10 @@
                                 <div data-label="Producto" class="of-product-name-wrap" style="min-width:0; position:relative;">
                                     <input id="idProducto${numeroInputs}" name="idProducto${numeroInputs}" type="hidden" value="${producto.id}">
                                     <input id="precios_producto_carga_id${numeroInputs}" name="precios_producto_carga_id${numeroInputs}" type="hidden" value="${producto.precios_producto_carga_id}">
-                                    <input type="text" id="nombre${numeroInputs}" name="nombre${numeroInputs}"
-                                        class="form-control" style="font-size:12px;border-radius:7px;border:1.5px solid #dde2ec;padding:5px 7px;background:#f7f8fa;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:default;"
-                                        data-parsley-required autocomplete="off" readonly value='${producto.nombre}'
-                                        title='${producto.nombre}'>
+                                    <input type="hidden" id="nombre${numeroInputs}" name="nombre${numeroInputs}" value='${producto.nombre}'>
+                                    <div class="prod-name-display"
+                                        style="font-size:12px;padding:3px 0;cursor:default;word-break:break-word;white-space:normal;line-height:1.4;"
+                                        title='${producto.nombre}'>${producto.nombre}</div>
                                     <div class="of-product-tooltip">${producto.nombre}</div>
                                 </div>
                                 <div data-label="Bodega">
@@ -469,9 +469,9 @@
                                 </div>
                             </div>
                             <div class="cir-fields">
-                                <div data-label="Opciones">
+                                <div data-label="Lista">
                                     <select class="form-control" name="precios${numeroInputs}" id="precios${numeroInputs}"
-                                        data-parsley-required style="font-size:12px;border-radius:7px;border:1.5px solid #dde2ec;padding:5px 7px;height:auto;"
+                                        data-parsley-required style="font-size:11px;border-radius:7px;border:1.5px solid #dde2ec;padding:3px 2px;height:auto;text-align:center;"
                                         onchange="validacionPrecio(precios${numeroInputs}, precio${numeroInputs})">
                                         ${htmlprecios}
                                     </select>

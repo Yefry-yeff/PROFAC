@@ -172,6 +172,11 @@
             box-shadow:0 0 0 2px rgba(26,126,251,.1);
         }
         .cart-item-row input[readonly] { background:#f1f3f7; color:#6b7280; }
+        .prod-name-display {
+            font-size:12px; color:#2d3748; font-weight:600;
+            word-break:break-word; white-space:normal; line-height:1.4;
+            cursor:default;
+        }
         .cart-del-btn {
             background:none; border:none; color:#e74c3c; cursor:pointer;
             font-size:16px; padding:4px; border-radius:6px;
@@ -208,11 +213,13 @@
             }
             .cir-info [data-label]::before { display:none !important; }
             .cir-info [data-label="Producto"] { margin-bottom:1px; }
-            .cir-info [data-label="Producto"] input[type="text"] {
+            .cir-info [data-label="Producto"] input[type="text"],
+            .cir-info [data-label="Producto"] .prod-name-display {
                 background:transparent !important; border:none !important; box-shadow:none !important;
                 color:#fff !important; font-weight:700 !important; font-size:12px !important;
-                padding:0 !important; width:100%; line-height:1.3;
-                white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+                padding:0 !important; width:100%; line-height:1.4;
+                white-space:normal; overflow:visible; word-break:break-word;
+                height:auto !important;
             }
             .cir-info [data-label="Bodega"] input[type="text"] {
                 background:transparent !important; border:none !important; box-shadow:none !important;
@@ -238,6 +245,15 @@
                 min-width:62px;
                 padding:4px 6px;
                 border-right:1px solid #e0e8f7;
+            }
+            .cir-fields [data-label="Lista"] {
+                min-width:44px;
+                max-width:52px;
+            }
+            .cir-fields [data-label="Lista"] select {
+                font-size:10px !important;
+                padding:2px 2px !important;
+                text-align:center;
             }
             .cir-fields [data-label]:last-child { border-right:none; }
 
@@ -690,7 +706,7 @@
                 <div class="cart-header-row d-none d-md-grid">
                     <div>Producto</div>
                     <div>Bodega</div>
-                    <div>Opciones</div>
+                    <div>Lista</div>
                     <div>Precio</div>
                     <div>Cantidad</div>
                     <div>Unidad</div>
