@@ -194,6 +194,7 @@
                 flex-direction:column;
                 border-radius:12px;
                 margin:0 4px 12px;
+                padding:0;
                 position:relative;
                 background:#fff;
                 box-shadow:0 2px 14px rgba(0,0,0,.1);
@@ -234,8 +235,8 @@
 
             .cir-fields [data-label] {
                 flex:0 0 auto;
-                min-width:80px;
-                padding:5px 8px;
+                min-width:62px;
+                padding:4px 6px;
                 border-right:1px solid #e0e8f7;
             }
             .cir-fields [data-label]:last-child { border-right:none; }
@@ -243,13 +244,13 @@
             .cir-fields [data-label]::before {
                 content:attr(data-label);
                 display:block;
-                font-size:8px; font-weight:800; color:#9ca3af;
-                text-transform:uppercase; letter-spacing:.3px; margin-bottom:3px;
+                font-size:7.5px; font-weight:800; color:#9ca3af;
+                text-transform:uppercase; letter-spacing:.3px; margin-bottom:2px;
             }
 
             /* Inputs/selects inside the scrollable block */
             .cir-fields input, .cir-fields select {
-                font-size:11px !important; padding:3px 5px !important;
+                font-size:10.5px !important; padding:2px 4px !important;
                 width:100% !important; min-width:0; line-height:1.2;
             }
             .cir-fields select { height:auto !important; }
