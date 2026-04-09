@@ -33,9 +33,11 @@ class FacturacionCorporativa extends Component
     public $arrayProductos = [];
     public $arrayLogs = [];
 
+    // Nota: Este componente solo se usa como controlador API.
+    // El render() no se invoca desde ninguna ruta de página.
     public function render()
     {
-        return view('livewire.ventas.facturacion-corporativa');
+        return view('livewire.ventas.facturacion-unificada');
     }
 
     public function listarClientes(Request $request)
@@ -425,7 +427,6 @@ class FacturacionCorporativa extends Component
 
                 'fecha_vencimiento' => 'required',
                 'subTotalGeneralGrabado' => 'required',
-                'subTotalGeneralGrabadoMostrar' => 'required',
                 'subTotalGeneral' => 'required',
                 'isvGeneral' => 'required',
                 'totalGeneral' => 'required',

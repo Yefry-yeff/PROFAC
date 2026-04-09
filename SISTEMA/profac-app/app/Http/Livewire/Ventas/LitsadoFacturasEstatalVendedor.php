@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Livewire\VentasEstatal;
+namespace App\Http\Livewire\Ventas;
 
 use Livewire\Component;
 use Illuminate\Database\QueryException;
@@ -17,7 +17,7 @@ class LitsadoFacturasEstatalVendedor extends Component
 {
     public function render()
     {
-        return view('livewire.ventas-estatal.litsado-facturas-estatal-vendedor');
+        return view('livewire.ventas.listado-facturas-unificado', ['tipoVenta' => 'estatal', 'nombreTipo' => 'Clientes A', 'esVendedor' => true]); // Vista unificada
     }
 
 

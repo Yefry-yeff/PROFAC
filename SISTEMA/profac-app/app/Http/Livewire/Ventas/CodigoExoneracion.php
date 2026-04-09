@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Livewire\VentasEstatal;
+namespace App\Http\Livewire\Ventas;
 
 use Livewire\Component;
 
@@ -17,7 +17,7 @@ class CodigoExoneracion extends Component
 {
     public function render()
     {
-        return view('livewire.ventas-estatal.codigo-exoneracion');
+        return view('livewire.ventas.codigo-exoneracion');
     }
 
     public function listarCodigoExoneracion(){

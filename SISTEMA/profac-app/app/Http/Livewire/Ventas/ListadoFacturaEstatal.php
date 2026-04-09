@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Livewire\VentasEstatal;
+namespace App\Http\Livewire\Ventas;
 
 use Livewire\Component;
 
@@ -26,7 +26,7 @@ class ListadoFacturaEstatal extends Component
 {
     public function render()
     {
-        return view('livewire.ventas-estatal.listado-factura-estatal');
+        return view('livewire.ventas.listado-facturas-unificado', ['tipoVenta' => 'estatal', 'nombreTipo' => 'Clientes A', 'esVendedor' => false]); // Vista unificada
     }
 
     public function listarFacturas(){

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Livewire\VentasEstatal;
+namespace App\Http\Livewire\Ventas;
 
 use Livewire\Component;
 
@@ -13,11 +13,11 @@ use Throwable;
 use DataTables;
 use App\Models\ModelNumOrdenCompra;
 
-class NumOrdenCompra extends Component
+class NumOrdenCompraEstatal extends Component
 {
     public function render()
     {
-        return view('livewire.ventas-estatal.num-orden-compra');
+        return view('livewire.ventas.num-orden-compra-unificado', ['tipoCliente' => 'estatal', 'nombreTipo' => 'Clientes A']); // Vista unificada
     }
 
     public function listarNumOrdenCompra(){

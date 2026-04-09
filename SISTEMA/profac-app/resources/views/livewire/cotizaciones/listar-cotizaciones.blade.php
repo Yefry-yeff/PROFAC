@@ -1,5 +1,9 @@
 ﻿<div>
     @push('styles')
+        <style>
+            .tipo-selector .btn { margin: 2px 4px; }
+            .tipo-selector .btn.active { box-shadow: 0 0 0 3px rgba(0,123,255,.5); }
+        </style>
     @endpush
 
     <div class="row wrapper border-bottom white-bg page-heading">
@@ -38,6 +42,26 @@
     </div>
 
     <div class="wrapper wrapper-content animated fadeInRight">
+
+        {{-- SELECTOR DE TIPO --}}
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="ibox">
+                    <div class="ibox-content py-2">
+                        <div class="d-flex align-items-center flex-wrap tipo-selector">
+                            <strong class="mr-3">Tipo:</strong>
+                            <button type="button" class="btn btn-sm {{ $idTipoVenta == 1 ? 'btn-primary active' : 'btn-outline-secondary' }}"
+                                onclick="window.location.href='/cotizacion/listado/corporativo'">Clientes B</button>
+                            <button type="button" class="btn btn-sm {{ $idTipoVenta == 2 ? 'btn-primary active' : 'btn-outline-secondary' }}"
+                                onclick="window.location.href='/cotizacion/listado/estatal'">Clientes A</button>
+                            <button type="button" class="btn btn-sm {{ $idTipoVenta == 3 ? 'btn-primary active' : 'btn-outline-secondary' }}"
+                                onclick="window.location.href='/cotizacion/listado/exonerado'">Exonerado</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="row">
             <div class="col-lg-12">
                 <div class="ibox ">

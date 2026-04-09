@@ -168,7 +168,6 @@ class Cotizacion extends Component
 
 
             'subTotalGeneralGrabado' => 'required',
-            'subTotalGeneralGrabadoMostrar' => 'required',
             'subTotalGeneral' => 'required',
             'isvGeneral' => 'required',
             'totalGeneral' => 'required',
