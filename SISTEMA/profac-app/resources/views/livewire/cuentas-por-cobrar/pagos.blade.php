@@ -56,9 +56,9 @@
     display: flex;
     align-items: flex-end;
     gap: 12px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
 }
-.ap-search-row .ap-select-wrap { flex: 1 1 340px; }
+.ap-search-row .ap-select-wrap { flex: 0 0 50%; max-width: 50%; }
 .ap-search-row .ap-select-wrap label {
     font-size: 11px;
     font-weight: 700;
@@ -69,15 +69,15 @@
     display: block;
 }
 .ap-btn-search {
-    background: linear-gradient(135deg, #1a7efb, #0d6efd);
-    color: #fff;
-    border: none;
+    background: linear-gradient(135deg, #1a7efb, #0d6efd) !important;
+    color: #fff !important;
+    border: none !important;
     border-radius: 10px;
     padding: 10px 22px;
     font-size: 13px;
     font-weight: 700;
     cursor: pointer;
-    display: flex;
+    display: flex !important;
     align-items: center;
     gap: 8px;
     transition: transform .15s, box-shadow .15s;
@@ -87,15 +87,15 @@
 }
 .ap-btn-search:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(26,126,251,.45); }
 .ap-btn-ec {
-    background: linear-gradient(135deg, #e74c3c, #c0392b);
-    color: #fff;
-    border: none;
+    background: linear-gradient(135deg, #e74c3c, #c0392b) !important;
+    color: #fff !important;
+    border: none !important;
     border-radius: 10px;
     padding: 10px 20px;
     font-size: 13px;
     font-weight: 700;
     cursor: pointer;
-    display: flex;
+    display: flex !important;
     align-items: center;
     gap: 8px;
     transition: transform .15s, box-shadow .15s;
@@ -104,7 +104,8 @@
     height: 42px;
     text-decoration: none;
 }
-.ap-btn-ec:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(231,76,60,.4); color:#fff; }
+.ap-btn-ec:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(231,76,60,.4); color:#fff !important; }
+.ap-btn-group { display: flex; gap: 12px; align-items: center; margin-left: auto; }
 
 /* ── Section tabs ── */
 .ap-tabs-row {
@@ -152,8 +153,8 @@
 /* ── Section panels ── */
 .ap-panel {
     background: #fff;
-    border-radius: 0 0 16px 16px;
-    box-shadow: 0 4px 24px rgba(0,0,0,.07);
+    border-radius: 0 0 8px 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.06);
     border: 1px solid #e2e8f0;
     border-top: none;
     padding: 24px;
@@ -180,6 +181,33 @@
 .ap-panel-icon.green { background: rgba(26,179,148,.12); color: #1ab394; }
 .ap-panel-icon.orange { background: rgba(243,156,18,.12); color: #f39c12; }
 
+/* ── Panel title — gradiente como pedidos ── */
+.ap-panel-title {
+    background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%) !important;
+    color: #fff !important;
+    border-radius: 4px 4px 0 0;
+    font-size: 14px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: -24px -24px 18px -24px;
+    padding: 14px 20px;
+    border-bottom: none !important;
+}
+.ap-panel-title .ap-panel-icon {
+    width: 30px; height: 30px;
+    border-radius: 8px;
+    background: rgba(255,255,255,.2) !important;
+    color: #fff !important;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+.ap-panel-icon.blue  { background: rgba(255,255,255,.2) !important; color: #fff !important; }
+.ap-panel-icon.green { background: rgba(255,255,255,.2) !important; color: #fff !important; }
+.ap-panel-icon.orange{ background: rgba(255,255,255,.2) !important; color: #fff !important; }
+
 /* ── DataTable overrides ── */
 .ap-panel .dataTables_wrapper .dataTables_filter input,
 .ap-panel .dataTables_wrapper .dataTables_length select {
@@ -189,30 +217,40 @@
     font-size: 12px;
 }
 .ap-panel .dataTables_wrapper .dataTables_filter input:focus {
-    border-color: #1a7efb;
+    border-color: #f39c12;
     outline: none;
-    box-shadow: 0 0 0 3px rgba(26,126,251,.1);
+    box-shadow: 0 0 0 3px rgba(243,156,18,.12);
 }
 .ap-panel table.dataTable thead th {
-    background: linear-gradient(135deg, #f7f8fa, #edf2f7);
+    background: #f5f7fb;
     color: #4a5568;
     font-size: 11px;
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: .4px;
+    border-top: none !important;
     border-bottom: 2px solid #e2e8f0 !important;
     white-space: nowrap;
     padding: 10px 12px;
 }
-.ap-panel table.dataTable tbody tr:hover { background: #f7fbff !important; }
+.ap-panel table.dataTable tbody tr:nth-child(even) { background: #f7f9fc !important; }
+.ap-panel table.dataTable tbody tr:nth-child(odd)  { background: #ffffff !important; }
+.ap-panel table.dataTable tbody tr:hover { background: #fff3e0 !important; }
 .ap-panel table.dataTable tbody td {
     font-size: 12px;
     color: #2d3748;
     padding: 9px 12px;
     vertical-align: middle;
+    border-top: 1px solid #edf2f7 !important;
+}
+.ap-panel table.dataTable {
+    border: 1.5px solid #dde2ec !important;
 }
 .ap-panel table.dataTable tfoot th {
     font-size: 10px;
+    background: #f5f7fb;
+    border-top: 2px solid #e2e8f0 !important;
+    padding: 7px 12px;
 }
 .ap-panel table.dataTable tfoot input {
     border: 1px solid #dde2ec;
@@ -367,8 +405,9 @@
 <div class="wrapper wrapper-content pb-0">
 <div class="ap-search-card">
     <div class="ap-search-title">
-        <i class="fa fa-search" style="color:#1a7efb;"></i>
-        Buscar cliente
+        <i class="fa fa-file-invoice" style="color:#f39c12;"></i>
+        <i class="fa fa-file-text-o" style="color:#f39c12;"></i>
+        Aplicación de Pagos — Buscar Cliente
     </div>
     <div class="ap-search-row">
         <div class="ap-select-wrap">
@@ -377,12 +416,14 @@
                 <option value="" disabled selected>-- Escriba para buscar un cliente --</option>
             </select>
         </div>
-        <button type="button" class="ap-btn-search" onclick="llamarTablas()">
-            <i class="fa fa-search"></i> Cargar datos
-        </button>
-        <button type="button" class="ap-btn-ec d-none" id="btnEC" onclick="pdfEstadoCuenta()">
-            <i class="fa fa-file-pdf-o"></i> Estado de Cuenta
-        </button>
+        <div class="ap-btn-group">
+            <button type="button" class="ap-btn-search" onclick="llamarTablas()">
+                <i class="fa fa-search"></i> Cargar datos
+            </button>
+            <button type="button" class="ap-btn-ec d-none" id="btnEC" onclick="pdfEstadoCuenta()">
+                <i class="fa fa-file-pdf-o"></i> Estado de Cuenta
+            </button>
+        </div>
     </div>
 </div>
 
@@ -980,6 +1021,7 @@ function switchTab(tabId, btn) {
     document.getElementById(tabId).classList.remove('d-none');
     btn.classList.add('active');
 }
+
 </script>
 @endpush
 </div>{{-- /Livewire root --}}
