@@ -33,15 +33,19 @@
                         <div class="d-flex align-items-center flex-wrap tipo-selector">
                             <strong class="mr-3">Tipo:</strong>
                             @if($esVendedor)
-                                <button type="button" class="btn btn-sm {{ $tipoVenta == 'corporativo' ? 'btn-primary active' : 'btn-outline-secondary' }}"
-                                    onclick="window.location.href='/facturas/corporativo/vendedor'">Clientes B</button>
                                 <button type="button" class="btn btn-sm {{ $tipoVenta == 'estatal' ? 'btn-primary active' : 'btn-outline-secondary' }}"
                                     onclick="window.location.href='/ventas/estatal/vendedor'">Clientes A</button>
-                            @else
                                 <button type="button" class="btn btn-sm {{ $tipoVenta == 'corporativo' ? 'btn-primary active' : 'btn-outline-secondary' }}"
-                                    onclick="window.location.href='/facturas/corporativo'">Clientes B</button>
+                                    onclick="window.location.href='/facturas/corporativo/vendedor'">Clientes B</button>
+                                <button type="button" class="btn btn-sm {{ $tipoVenta == 'exonerado' ? 'btn-primary active' : 'btn-outline-secondary' }}"
+                                    onclick="window.location.href='/exonerado/ventas/lista'">Exoneradas</button>
+                            @else
                                 <button type="button" class="btn btn-sm {{ $tipoVenta == 'estatal' ? 'btn-primary active' : 'btn-outline-secondary' }}"
                                     onclick="window.location.href='/facturas/estatal'">Clientes A</button>
+                                <button type="button" class="btn btn-sm {{ $tipoVenta == 'corporativo' ? 'btn-primary active' : 'btn-outline-secondary' }}"
+                                    onclick="window.location.href='/facturas/corporativo'">Clientes B</button>
+                                <button type="button" class="btn btn-sm {{ $tipoVenta == 'exonerado' ? 'btn-primary active' : 'btn-outline-secondary' }}"
+                                    onclick="window.location.href='/exonerado/ventas/lista'">Exoneradas</button>
                             @endif
                         </div>
                     </div>
@@ -112,6 +116,12 @@
                     listarVendedor: '/listado/ventas/estatal/vendedor',
                     anular: '/factura/estatal/anular',
                     excelTitle: 'Facturas_estatal'
+                },
+                exonerado: {
+                    listar: '/exonerado/listas/facturas',
+                    listarVendedor: '/exonerado/listas/facturas',
+                    anular: '/factura/corporativo/anular',
+                    excelTitle: 'Facturas_exonerado'
                 }
             };
 
@@ -168,7 +178,9 @@
                         "url": "/js/plugins/dataTables/i18n/Spanish.json"
                     },
                     "order": [orderCol, 'desc'],
-                    pageLength: 10,
+                    pageLength: 5,
+                    "processing": true,
+                    "serverSide": true,
                     responsive: true,
                     dom: '<"html5buttons"B>lTfgitp',
                     buttons: [

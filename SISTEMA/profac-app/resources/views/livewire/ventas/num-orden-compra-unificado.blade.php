@@ -130,10 +130,10 @@
                     <div class="ibox-content py-2">
                         <div class="d-flex align-items-center flex-wrap tipo-selector">
                             <strong class="mr-3">Tipo:</strong>
-                            <button type="button" class="btn btn-sm {{ $tipoCliente == 'corporativo' ? 'btn-primary active' : 'btn-outline-secondary' }}"
-                                onclick="window.location.href='/ventas/coorporativo/orden/compra'">Clientes B</button>
                             <button type="button" class="btn btn-sm {{ $tipoCliente == 'estatal' ? 'btn-primary active' : 'btn-outline-secondary' }}"
                                 onclick="window.location.href='/estatal/ordenes'">Clientes A</button>
+                            <button type="button" class="btn btn-sm {{ $tipoCliente == 'corporativo' ? 'btn-primary active' : 'btn-outline-secondary' }}"
+                                onclick="window.location.href='/ventas/coorporativo/orden/compra'">Clientes B</button>
                         </div>
                     </div>
                 </div>
@@ -334,7 +334,7 @@
                     "language": {
                         "url": "/js/plugins/dataTables/i18n/Spanish.json"
                     },
-                    pageLength: 10,
+                    pageLength: 5,
                     responsive: true,
                     dom: '<"html5buttons"B>lTfgitp',
                     buttons: [{

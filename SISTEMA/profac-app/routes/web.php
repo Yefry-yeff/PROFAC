@@ -613,7 +613,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     // Route::get('/ventas/exonerado/factura', VentasExoneradas::class); // Movido a Facturación Unificada
     Route::get('/exonerado/lista/clientes', [VentasExoneradas::class, 'listarClientes']);
     Route::post('/exonerado/venta/guardar', [VentasExoneradas::class, 'guardarVenta']);
-    Route::get('/exonerado/ventas/lista', ListadoFacturasExonerads::class);
+    Route::get('/exonerado/ventas/lista', ListadoFacturasUnificado::class)->defaults('tipo', 'exonerado');
     Route::get('/exonerado/listas/facturas', [ListadoFacturasExonerads::class, 'listarFacturas']);
     Route::get('/exonerado/factura/{id}', [VentasExoneradas::class, 'imprimirFacturaExonerada']);
     Route::get('/exonerado/facturaCopia/{id}', [VentasExoneradas::class, 'imprimirFacturaExoneradaCopia']);

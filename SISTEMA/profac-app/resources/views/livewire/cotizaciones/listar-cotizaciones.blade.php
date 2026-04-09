@@ -50,12 +50,12 @@
                     <div class="ibox-content py-2">
                         <div class="d-flex align-items-center flex-wrap tipo-selector">
                             <strong class="mr-3">Tipo:</strong>
-                            <button type="button" class="btn btn-sm {{ $idTipoVenta == 1 ? 'btn-primary active' : 'btn-outline-secondary' }}"
-                                onclick="window.location.href='/cotizacion/listado/corporativo'">Clientes B</button>
                             <button type="button" class="btn btn-sm {{ $idTipoVenta == 2 ? 'btn-primary active' : 'btn-outline-secondary' }}"
                                 onclick="window.location.href='/cotizacion/listado/estatal'">Clientes A</button>
+                            <button type="button" class="btn btn-sm {{ $idTipoVenta == 1 ? 'btn-primary active' : 'btn-outline-secondary' }}"
+                                onclick="window.location.href='/cotizacion/listado/corporativo'">Clientes B</button>
                             <button type="button" class="btn btn-sm {{ $idTipoVenta == 3 ? 'btn-primary active' : 'btn-outline-secondary' }}"
-                                onclick="window.location.href='/cotizacion/listado/exonerado'">Exonerado</button>
+                                onclick="window.location.href='/cotizacion/listado/exonerado'">Exoneradas</button>
                         </div>
                     </div>
                 </div>
@@ -108,7 +108,7 @@
                         "url": "/js/plugins/dataTables/i18n/Spanish.json"
                     },
 
-                    pageLength: 10,
+                    pageLength: 5,
                     responsive: true,
                     dom: '<"html5buttons"B>lTfgitp',
                     buttons: [

@@ -49,7 +49,8 @@ class ListadoFacturasExonerads extends Component
                     users.name as vendedor,
                     (select name from users where id = factura.users_id) as facturador,
                     (select if(sum(monto) is null,0,sum(monto)) from pago_venta where estado_venta_id = 1   and factura_id = factura.id ) as monto_pagado,
-                    factura.estado_venta_id
+                    factura.estado_venta_id,
+                    factura.created_at as fecha_registro
                 from factura
                     inner join cliente
                     on factura.cliente_id = cliente.id
@@ -80,7 +81,8 @@ class ListadoFacturasExonerads extends Component
                     factura.credito,
                     users.name as creado_por,
                     (select if(sum(monto) is null,0,sum(monto)) from pago_venta where estado_venta_id = 1   and factura_id = factura.id ) as monto_pagado,
-                    factura.estado_venta_id
+                    factura.estado_venta_id,
+                    factura.created_at as fecha_registro
                 from factura
                     inner join cliente
                     on factura.cliente_id = cliente.id
