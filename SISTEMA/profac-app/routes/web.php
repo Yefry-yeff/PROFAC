@@ -90,6 +90,7 @@ use App\Http\Livewire\ComprovanteEntrega\ListarComprovantes;
 use App\Http\Livewire\ComprovanteEntrega\ListarComprovantesAnulados;
 use App\Http\Livewire\ComprovanteEntrega\FacturarComprobante;
 use App\Http\Livewire\VentasEstatal\SinRestriccionGobierno;
+use App\Http\Livewire\Ventas\FacturacionUnificada;
 
 
 use App\Http\Livewire\CuentasPorCobrar\Pagos;
@@ -526,7 +527,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
 
     //---------------------------------------------------------------------VENTAS--------------------------------------------------------------------------------//
 
-    Route::get('/ventas/coporativo', FacturacionCorporativa::class);
+    // Route::get('/ventas/coporativo', FacturacionCorporativa::class); // Movido a Facturación Unificada
     Route::get('/ventas/lista/clientes', [FacturacionCorporativa::class, 'listarClientes']);
     Route::post('/ventas/datos/cliente', [FacturacionCorporativa::class, 'datosCliente']);
 
@@ -572,10 +573,17 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/coorporativo/ordenCompra/listar', [NumOrdenCompraCoorporativo::class,'listarNumOrdenCompraCoorporativo']);
     Route::get('/coorporativo/ordenCompra/clientes', [NumOrdenCompraCoorporativo::class,'listarClientesCoorporativo']);
 
+    //---------------------------------------------------------------------FACTURACIÓN UNIFICADA------------------------------------------------------------------------//
+    // Todas las rutas de facturación apuntan a la vista unificada con su código de tipo
+    Route::get('/ventas/estatal', FacturacionUnificada::class)->defaults('codigo', 'estatal');
+    Route::get('/ventas/sin/restriccion/gobierno', FacturacionUnificada::class)->defaults('codigo', 'sin_restriccion_gobierno');
+    Route::get('/ventas/coporativo', FacturacionUnificada::class)->defaults('codigo', 'corporativa');
+    Route::get('/ventas/sin/restriccion/precio', FacturacionUnificada::class)->defaults('codigo', 'sin_restriccion_precio');
+    Route::get('/ventas/exonerado/factura', FacturacionUnificada::class)->defaults('codigo', 'exoneradas');
+    Route::get('/proforma/cotizacion/2', FacturacionUnificada::class)->defaults('codigo', 'cotizacion_clientes_a');
+
     //---------------------------------------------------------------------VENTAS ESTATAL--------------------------------------------------------------------------------//
 
-
-    Route::get('/ventas/estatal/{id?}', FacturacionEstatal::class);
     Route::get('/ventas/estatal/vendedor', LitsadoFacturasEstatalVendedor::class);
     Route::get('/listado/ventas/estatal/vendedor', [LitsadoFacturasEstatalVendedor::class, 'listarFacturasEstatalVendedor']);
     Route::get('/estatal/lista/clientes', [FacturacionEstatal::class, 'listarClientes']);
@@ -599,7 +607,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/marca/producto', Marca::class);
 
     //-----------------------------------------------------------------Ventas Exoneradas----------------------------------------------------------------------------//
-    Route::get('/ventas/exonerado/factura', VentasExoneradas::class);
+    // Route::get('/ventas/exonerado/factura', VentasExoneradas::class); // Movido a Facturación Unificada
     Route::get('/exonerado/lista/clientes', [VentasExoneradas::class, 'listarClientes']);
     Route::post('/exonerado/venta/guardar', [VentasExoneradas::class, 'guardarVenta']);
     Route::get('/exonerado/ventas/lista', ListadoFacturasExonerads::class);
@@ -826,7 +834,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
 
     //---------------------------------------------------------SinRestriccionPrecio-------------------------------------------------------//
 
-    Route::get('/ventas/sin/restriccion/precio', SinRestriccionPrecio::class);
+    // Route::get('/ventas/sin/restriccion/precio', SinRestriccionPrecio::class); // Movido a Facturación Unificada
     Route::get('/ventas/solicitud/codigo', [SinRestriccionPrecio::class, 'enviarCodigo']);
     Route::post('/ventas/verificar/codigo', [SinRestriccionPrecio::class, 'verificarCodigo']);
     Route::post('/ventas/autorizacion/desactivar', [SinRestriccionPrecio::class, 'desactivarCodigo']);
@@ -904,7 +912,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
 
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    Route::get('/ventas/sin/restriccion/precio', SinRestriccionPrecio::class);
+    // Route::get('/ventas/sin/restriccion/precio', SinRestriccionPrecio::class); // Duplicado - Movido a Facturación Unificada
     Route::get('/ventas/solicitud/codigo', [SinRestriccionPrecio::class, 'enviarCodigo']);
     Route::post('/ventas/verificar/codigo', [SinRestriccionPrecio::class, 'verificarCodigo']);
     Route::post('/ventas/autorizacion/desactivar', [SinRestriccionPrecio::class, 'desactivarCodigo']);
@@ -936,7 +944,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/comprobante/entrega/anular/{idComprobante}', [ListarComprovantes::class, 'anularComprobante']);
     Route::post('/comprobante/entrega/anular', [ListarComprovantes::class, 'anularComprobante']);
 
-    Route::get('/ventas/sin/restriccion/gobierno', SinRestriccionGobierno::class);
+    // Route::get('/ventas/sin/restriccion/gobierno', SinRestriccionGobierno::class); // Movido a Facturación Unificada
 
 
 

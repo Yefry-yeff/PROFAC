@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\TipoFactura;
 
 class ModelFactura extends Model
 {
@@ -29,10 +30,16 @@ class ModelFactura extends Model
         'vendedor',
         'monto_comision',
         'tipo_venta_id',
+        'tipo_factura_id',
         'estado_factura_id',
         'estado_editar',
         'codigo_exoneracion_id',
         'comprovante_entrega_id',
         'comentario',
     ];
+
+    public function tipoFactura()
+    {
+        return $this->belongsTo(TipoFactura::class, 'tipo_factura_id');
+    }
 }
