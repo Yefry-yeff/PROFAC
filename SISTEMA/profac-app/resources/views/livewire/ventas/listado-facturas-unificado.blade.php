@@ -6,6 +6,12 @@
         </style>
     @endpush
 
+    {{-- Loading Overlay --}}
+    <div id="tbl_loading_overlay" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.78); z-index:9000; text-align:center; padding-top:18%;">
+        <i class="fa fa-spinner fa-spin fa-3x" style="color:#1ab394;"></i>
+        <p class="mt-3" style="color:#555; font-size:1rem;">Cargando datos...</p>
+    </div>
+
     <div class="row wrapper border-bottom white-bg page-heading">
         <div class="col-lg-8 col-xl-10 col-md-8 col-sm-8">
             <h2>Listado De Facturas </h2>
@@ -32,21 +38,12 @@
                     <div class="ibox-content py-2">
                         <div class="d-flex align-items-center flex-wrap tipo-selector">
                             <strong class="mr-3">Tipo:</strong>
-                            @if($esVendedor)
-                                <button type="button" class="btn btn-sm {{ $tipoVenta == 'estatal' ? 'btn-primary active' : 'btn-outline-secondary' }}"
-                                    onclick="window.location.href='/ventas/estatal/vendedor'">Clientes A</button>
-                                <button type="button" class="btn btn-sm {{ $tipoVenta == 'corporativo' ? 'btn-primary active' : 'btn-outline-secondary' }}"
-                                    onclick="window.location.href='/facturas/corporativo/vendedor'">Clientes B</button>
-                                <button type="button" class="btn btn-sm {{ $tipoVenta == 'exonerado' ? 'btn-primary active' : 'btn-outline-secondary' }}"
-                                    onclick="window.location.href='/exonerado/ventas/lista'">Exoneradas</button>
-                            @else
-                                <button type="button" class="btn btn-sm {{ $tipoVenta == 'estatal' ? 'btn-primary active' : 'btn-outline-secondary' }}"
-                                    onclick="window.location.href='/facturas/estatal'">Clientes A</button>
-                                <button type="button" class="btn btn-sm {{ $tipoVenta == 'corporativo' ? 'btn-primary active' : 'btn-outline-secondary' }}"
-                                    onclick="window.location.href='/facturas/corporativo'">Clientes B</button>
-                                <button type="button" class="btn btn-sm {{ $tipoVenta == 'exonerado' ? 'btn-primary active' : 'btn-outline-secondary' }}"
-                                    onclick="window.location.href='/exonerado/ventas/lista'">Exoneradas</button>
-                            @endif
+                            <button type="button" class="btn btn-sm {{ $tipoVenta == 'estatal' ? 'btn-primary active' : 'btn-outline-secondary' }}"
+                                onclick="cambiarTipo('estatal', this)">Clientes A</button>
+                            <button type="button" class="btn btn-sm {{ $tipoVenta == 'corporativo' ? 'btn-primary active' : 'btn-outline-secondary' }}"
+                                onclick="cambiarTipo('corporativo', this)">Clientes B</button>
+                            <button type="button" class="btn btn-sm {{ $tipoVenta == 'exonerado' ? 'btn-primary active' : 'btn-outline-secondary' }}"
+                                onclick="cambiarTipo('exonerado', this)">Exoneradas</button>
                         </div>
                     </div>
                 </div>
@@ -129,70 +126,111 @@
             var esVendedor = @json($esVendedor);
             var config = configPorTipo[tipoVenta] || configPorTipo['corporativo'];
 
-            // Columnas dinámicas según tipo y rol
-            var columnas = [];
+            var nombresTipo = { corporativo: 'Clientes B', estatal: 'Clientes A', exonerado: 'Clientes Exonerado' };
+            var urlHistoryAdmin = { corporativo: '/facturas/corporativo', estatal: '/facturas/estatal', exonerado: '/exonerado/ventas/lista' };
+            var urlHistoryVendedor = { corporativo: '/facturas/corporativo/vendedor', estatal: '/ventas/estatal/vendedor', exonerado: '/exonerado/ventas/lista' };
 
-            if (esVendedor) {
-                columnas.push({ data: 'id' });
-            }
-
-            columnas.push({ data: 'numero_factura' });
-
-            if (!esVendedor && tipoVenta === 'corporativo') {
-                columnas.push({ data: 'correlativo' });
-                columnas.push({ data: 'cai' });
-            } else if (!esVendedor) {
-                columnas.push({ data: 'cai' });
-            }
-
-            columnas.push({ data: 'fecha_emision' });
-            columnas.push({ data: 'nombre' });
-            columnas.push({ data: 'descripcion' });
-            columnas.push({ data: 'fecha_vencimiento' });
-            columnas.push({ data: 'sub_total' });
-            columnas.push({ data: 'isv' });
-            columnas.push({ data: 'total' });
-            columnas.push({ data: 'estado_cobro' });
-
-            if (esVendedor) {
-                columnas.push({ data: 'creado_por' });
-                if (tipoVenta === 'corporativo') {
-                    columnas.push({ data: 'fecha_registro' });
+            function buildColumnas(tipo, esVend) {
+                var cols = [];
+                if (esVend) cols.push({ data: 'id' });
+                cols.push({ data: 'numero_factura' });
+                if (!esVend && tipo === 'corporativo') {
+                    cols.push({ data: 'correlativo' });
+                    cols.push({ data: 'cai' });
+                } else if (!esVend) {
+                    cols.push({ data: 'cai' });
                 }
-            } else {
-                columnas.push({ data: 'vendedor' });
-                columnas.push({ data: 'facturador' });
-                columnas.push({ data: 'fecha_registro' });
+                cols.push({ data: 'fecha_emision' });
+                cols.push({ data: 'nombre' });
+                cols.push({ data: 'descripcion' });
+                cols.push({ data: 'fecha_vencimiento' });
+                cols.push({ data: 'sub_total' });
+                cols.push({ data: 'isv' });
+                cols.push({ data: 'total' });
+                cols.push({ data: 'estado_cobro' });
+                if (esVend) {
+                    cols.push({ data: 'creado_por' });
+                    if (tipo === 'corporativo') cols.push({ data: 'fecha_registro' });
+                } else {
+                    cols.push({ data: 'vendedor' });
+                    cols.push({ data: 'facturador' });
+                    cols.push({ data: 'fecha_registro' });
+                }
+                cols.push({ data: 'opciones' });
+                return cols;
             }
 
-            columnas.push({ data: 'opciones' });
+            function buildTheadHtml(tipo, esVend) {
+                var headers = [];
+                if (esVend) headers.push('Codigo Interno');
+                headers.push('N° Factura');
+                if (!esVend && tipo === 'corporativo') {
+                    headers.push('Correlativo');
+                    headers.push('CAI');
+                } else if (!esVend) {
+                    headers.push('CAI');
+                }
+                headers.push('Fecha de Emision', 'Cliente', 'Tipo de Pago', 'Fecha de Vencimiento',
+                             'Sub Total Lps.', 'ISV en Lps.', 'Total en Lps.', 'Esto de Cobro');
+                if (esVend) {
+                    headers.push('Vendedor');
+                    if (tipo === 'corporativo') headers.push('Fecha Registro');
+                } else {
+                    headers.push('Vendedor', 'Facturador', 'Fecha Registro');
+                }
+                headers.push('Opciones');
+                var html = '<tr>';
+                headers.forEach(function(h) { html += '<th>' + h + '</th>'; });
+                html += '</tr>';
+                return html;
+            }
 
-            // Calcular índice de columna para ordenamiento (fecha_registro o última columna)
-            var orderCol = columnas.length - 2;
-
-            $(document).ready(function() {
-                var ajaxUrl = esVendedor ? config.listarVendedor : config.listar;
-
-                $('#tbl_listar_compras').DataTable({
-                    "language": {
-                        "url": "/js/plugins/dataTables/i18n/Spanish.json"
-                    },
+            function initDataTable(tipo, esVend) {
+                var currentConfig = configPorTipo[tipo] || configPorTipo['corporativo'];
+                var columnas = buildColumnas(tipo, esVend);
+                var ajaxUrl = esVend ? currentConfig.listarVendedor : currentConfig.listar;
+                var orderCol = columnas.length - 2;
+                return $('#tbl_listar_compras').DataTable({
+                    "language": { "url": "/js/plugins/dataTables/i18n/Spanish.json" },
                     "order": [orderCol, 'desc'],
                     pageLength: 5,
                     "processing": true,
                     "serverSide": true,
                     responsive: true,
                     dom: '<"html5buttons"B>lTfgitp',
-                    buttons: [
-                        {
-                            extend: 'excel',
-                            title: config.excelTitle,
-                            className: 'btn btn-success'
-                        }
-                    ],
+                    buttons: [{ extend: 'excel', title: currentConfig.excelTitle, className: 'btn btn-success' }],
                     "ajax": ajaxUrl,
-                    "columns": columnas
+                    "columns": columnas,
+                    "initComplete": function() {
+                        document.getElementById('tbl_loading_overlay').style.display = 'none';
+                    }
                 });
+            }
+
+            function cambiarTipo(nuevoTipo, btnElement) {
+                if (nuevoTipo === tipoVenta) return;
+                document.getElementById('tbl_loading_overlay').style.display = '';
+                document.querySelectorAll('.tipo-selector .btn').forEach(function(btn) {
+                    btn.classList.remove('btn-primary', 'active');
+                    btn.classList.add('btn-outline-secondary');
+                });
+                btnElement.classList.remove('btn-outline-secondary');
+                btnElement.classList.add('btn-primary', 'active');
+                tipoVenta = nuevoTipo;
+                config = configPorTipo[nuevoTipo] || configPorTipo['corporativo'];
+                document.querySelector('.breadcrumb-item.active a').textContent = nombresTipo[nuevoTipo];
+                var historyUrls = esVendedor ? urlHistoryVendedor : urlHistoryAdmin;
+                history.pushState({ tipo: nuevoTipo }, '', historyUrls[nuevoTipo]);
+                if ($.fn.DataTable.isDataTable('#tbl_listar_compras')) {
+                    $('#tbl_listar_compras').DataTable().destroy();
+                    $('#tbl_listar_compras tbody').empty();
+                }
+                $('#tbl_listar_compras thead').html(buildTheadHtml(nuevoTipo, esVendedor));
+                initDataTable(nuevoTipo, esVendedor);
+            }
+
+            $(document).ready(function() {
+                initDataTable(tipoVenta, esVendedor);
             });
 
             function anularVentaConfirmar(idFactura) {

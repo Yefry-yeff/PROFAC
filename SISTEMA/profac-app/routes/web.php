@@ -192,6 +192,8 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::post('/submenu/guardar', [App\Http\Controllers\MenuController::class, 'guardarSubmenu']);
     Route::get('/submenu/obtener/{id}', [App\Http\Controllers\MenuController::class, 'obtenerSubmenu']);
     Route::put('/submenu/actualizar/{id}', [App\Http\Controllers\MenuController::class, 'actualizarSubmenu']);
+    Route::get('/menu/obtener/{id}/submenus', [App\Http\Controllers\MenuController::class, 'obtenerSubmenusDeMenu']);
+    Route::post('/submenu/toggle-estado/{id}', [App\Http\Controllers\MenuController::class, 'toggleEstadoSubmenu']);
 
     //---------------------------------------configuracion-------------------------------//
     Route::get('/configuracion/datos', [Configuracion::class, 'parametros']);
