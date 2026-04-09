@@ -1,875 +1,985 @@
 <div>
-<div class="row border-bottom white-bg page-heading align-items-center">
-    <div class="col-12 d-flex justify-content-between align-items-center">
-        <h2 class="mb-0">Aplicación de Pagos</h2>
-        <ol class="breadcrumb mb-0 bg-transparent p-0">
-            <li class="breadcrumb-item"><a href="#">Cuentas por Cobrar</a></li>
-            <li class="breadcrumb-item active">Pagos</li>
-        </ol>
-    </div></div>
+@push('styles')
+<style>
+/* ── Aplicación de Pagos — Estilos profesionales ── */
+.ap-page-header {
+    background: linear-gradient(135deg, #1a202c 0%, #2d3748 60%, #4a5568 100%);
+    padding: 22px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    border-bottom: 3px solid #f39c12;
+}
+.ap-page-header h2 {
+    color: #fff;
+    font-size: 20px;
+    font-weight: 800;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.ap-page-header .ap-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: rgba(255,255,255,.6);
+}
+.ap-page-header .ap-breadcrumb a { color: rgba(255,255,255,.75); text-decoration: none; }
+.ap-page-header .ap-breadcrumb a:hover { color: #f39c12; }
+.ap-page-header .ap-breadcrumb span { color: #f39c12; font-weight: 700; }
 
-    <div class="wrapper wrapper-content animated fadeInRight pb-0">
-        <div class="row">
-            <div class="col-12">
-                <div class="ibox">
-                    <div class="ibox-content">
+/* ── Search card ── */
+.ap-search-card {
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 4px 24px rgba(0,0,0,.08);
+    padding: 24px 28px;
+    margin: 24px 0 0;
+    border: 1px solid #edf2f7;
+}
+.ap-search-card .ap-search-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #4a5568;
+    text-transform: uppercase;
+    letter-spacing: .6px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.ap-search-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.ap-search-row .ap-select-wrap { flex: 1 1 340px; }
+.ap-search-row .ap-select-wrap label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #718096;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+    margin-bottom: 6px;
+    display: block;
+}
+.ap-btn-search {
+    background: linear-gradient(135deg, #1a7efb, #0d6efd);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 10px 22px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: transform .15s, box-shadow .15s;
+    box-shadow: 0 4px 14px rgba(26,126,251,.35);
+    white-space: nowrap;
+    height: 42px;
+}
+.ap-btn-search:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(26,126,251,.45); }
+.ap-btn-ec {
+    background: linear-gradient(135deg, #e74c3c, #c0392b);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 10px 20px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: transform .15s, box-shadow .15s;
+    box-shadow: 0 4px 14px rgba(231,76,60,.3);
+    white-space: nowrap;
+    height: 42px;
+    text-decoration: none;
+}
+.ap-btn-ec:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(231,76,60,.4); color:#fff; }
 
-                        <div class="form-row align-items-end">
+/* ── Section tabs ── */
+.ap-tabs-row {
+    display: flex;
+    gap: 4px;
+    margin: 20px 0 0;
+    border-bottom: 2px solid #e2e8f0;
+    padding-bottom: 0;
+}
+.ap-tab-btn {
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    padding: 10px 20px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #718096;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: color .15s, border-color .15s;
+    margin-bottom: -2px;
+    border-radius: 8px 8px 0 0;
+}
+.ap-tab-btn.active {
+    color: #1a7efb;
+    border-bottom-color: #1a7efb;
+    background: rgba(26,126,251,.06);
+}
+.ap-tab-btn:hover:not(.active) { color: #2d3748; background: #f7f8fa; }
+.ap-tab-badge {
+    background: #e2e8f0;
+    color: #718096;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 1px 7px;
+}
+.ap-tab-btn.active .ap-tab-badge {
+    background: rgba(26,126,251,.15);
+    color: #1a7efb;
+}
 
+/* ── Section panels ── */
+.ap-panel {
+    background: #fff;
+    border-radius: 0 0 16px 16px;
+    box-shadow: 0 4px 24px rgba(0,0,0,.07);
+    border: 1px solid #e2e8f0;
+    border-top: none;
+    padding: 24px;
+}
+.ap-panel-title {
+    font-size: 14px;
+    font-weight: 800;
+    color: #2d3748;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 18px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid #f0f2f5;
+}
+.ap-panel-title .ap-panel-icon {
+    width: 34px; height: 34px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px;
+    flex-shrink: 0;
+}
+.ap-panel-icon.blue { background: rgba(26,126,251,.12); color: #1a7efb; }
+.ap-panel-icon.green { background: rgba(26,179,148,.12); color: #1ab394; }
+.ap-panel-icon.orange { background: rgba(243,156,18,.12); color: #f39c12; }
 
-                            <!-- Solicitar -->
-                            <div class="form-group col-md-1">
-                                <label class="invisible">Acción</label>
-                                <button type="button"
-                                        class="btn btn-primary btn-block"
-                                        onclick="llamarTablas()">
-                                    <i class="fa fa-search"></i> Solicitar
-                                </button>
+/* ── DataTable overrides ── */
+.ap-panel .dataTables_wrapper .dataTables_filter input,
+.ap-panel .dataTables_wrapper .dataTables_length select {
+    border: 1.5px solid #dde2ec;
+    border-radius: 8px;
+    padding: 5px 10px;
+    font-size: 12px;
+}
+.ap-panel .dataTables_wrapper .dataTables_filter input:focus {
+    border-color: #1a7efb;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(26,126,251,.1);
+}
+.ap-panel table.dataTable thead th {
+    background: linear-gradient(135deg, #f7f8fa, #edf2f7);
+    color: #4a5568;
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+    border-bottom: 2px solid #e2e8f0 !important;
+    white-space: nowrap;
+    padding: 10px 12px;
+}
+.ap-panel table.dataTable tbody tr:hover { background: #f7fbff !important; }
+.ap-panel table.dataTable tbody td {
+    font-size: 12px;
+    color: #2d3748;
+    padding: 9px 12px;
+    vertical-align: middle;
+}
+.ap-panel table.dataTable tfoot th {
+    font-size: 10px;
+}
+.ap-panel table.dataTable tfoot input {
+    border: 1px solid #dde2ec;
+    border-radius: 6px;
+    padding: 3px 6px;
+    font-size: 10.5px;
+    width: 100%;
+}
+.ap-money { font-weight: 700; font-family: monospace; font-size: 12px; }
+.ap-money.cargo { color: #2d3748; }
+.ap-money.abono { color: #1ab394; }
+.ap-money.saldo-alto { color: #e74c3c; font-weight: 800; }
+.ap-money.saldo-bajo { color: #f39c12; font-weight: 700; }
+.ap-money.saldo-cero { color: #1ab394; font-weight: 700; }
+
+/* ── Modals — estilos generales ── */
+.ap-modal .modal-content {
+    border: none;
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.15);
+    overflow: hidden;
+}
+.ap-modal .modal-header {
+    padding: 18px 24px;
+    border-bottom: 1px solid #f0f2f5;
+}
+.ap-modal .modal-header.blue  { background: linear-gradient(135deg,#1a7efb,#0d6efd); }
+.ap-modal .modal-header.green { background: linear-gradient(135deg,#1ab394,#0fa37a); }
+.ap-modal .modal-header.orange{ background: linear-gradient(135deg,#f39c12,#e67e22); }
+.ap-modal .modal-header.red   { background: linear-gradient(135deg,#e74c3c,#c0392b); }
+.ap-modal .modal-header.dark  { background: linear-gradient(135deg,#2d3748,#4a5568); }
+.ap-modal .modal-title {
+    font-size: 15px;
+    font-weight: 800;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
+}
+.ap-modal .modal-title i { font-size: 17px; }
+.ap-modal .close { color: rgba(255,255,255,.8) !important; opacity: 1 !important; font-size: 22px; }
+.ap-modal .close:hover { color: #fff !important; }
+.ap-modal .modal-body { padding: 24px; background: #fafbfc; }
+.ap-modal .modal-footer { background: #f4f6f9; border-top: 1px solid #e2e8f0; padding: 14px 24px; }
+
+/* Modal form fields */
+.ap-form-group { margin-bottom: 18px; }
+.ap-form-group label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #718096;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+    display: block;
+    margin-bottom: 6px;
+}
+.ap-form-group .form-control {
+    border: 1.5px solid #dde2ec;
+    border-radius: 9px;
+    font-size: 13px;
+    padding: 9px 12px;
+    color: #2d3748;
+    background: #fff;
+    transition: border-color .15s, box-shadow .15s;
+}
+.ap-form-group .form-control:focus {
+    border-color: #1a7efb;
+    box-shadow: 0 0 0 3px rgba(26,126,251,.1);
+    outline: none;
+}
+.ap-form-group .form-control[readonly] { background: #f1f3f7; color: #6b7280; }
+.ap-form-group textarea.form-control { resize: vertical; min-height: 90px; }
+
+/* Info badge in modal */
+.ap-info-banner {
+    background: linear-gradient(135deg, #edf7ff, #dbeeff);
+    border: 1px solid #bee3f8;
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 12px;
+    color: #2b6cb0;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 18px;
+}
+.ap-info-banner i { font-size: 16px; margin-top: 1px; flex-shrink: 0; }
+
+/* Save / action buttons in modals */
+.ap-btn-save {
+    background: linear-gradient(135deg, #2d3748, #4a5568);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 11px 28px;
+    font-size: 13px;
+    font-weight: 800;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: transform .15s, box-shadow .15s;
+    box-shadow: 0 4px 14px rgba(0,0,0,.2);
+}
+.ap-btn-save:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,.25); }
+.ap-btn-save.blue  { background: linear-gradient(135deg,#1a7efb,#0d6efd); box-shadow:0 4px 14px rgba(26,126,251,.35); }
+.ap-btn-save.green { background: linear-gradient(135deg,#1ab394,#0fa37a); box-shadow:0 4px 14px rgba(26,179,148,.35); }
+.ap-btn-save.orange{ background: linear-gradient(135deg,#f39c12,#e67e22); box-shadow:0 4px 14px rgba(243,156,18,.35); }
+.ap-btn-save.red   { background: linear-gradient(135deg,#e74c3c,#c0392b); box-shadow:0 4px 14px rgba(231,76,60,.35); }
+
+/* Empty state */
+.ap-empty-state {
+    text-align: center;
+    padding: 48px 20px;
+    color: #a0aec0;
+}
+.ap-empty-state i { font-size: 52px; display: block; margin-bottom: 14px; opacity: .3; }
+.ap-empty-state p { font-size: 14px; }
+
+/* Select2 inside ap-form-group */
+.ap-form-group .select2-container--default .select2-selection--single {
+    border: 1.5px solid #dde2ec !important;
+    border-radius: 9px !important;
+    height: 40px !important;
+    background: #fff !important;
+}
+.ap-form-group .select2-container--default .select2-selection--single .select2-selection__rendered {
+    line-height: 38px !important; font-size: 13px; color: #2d3748;
+}
+.ap-form-group .select2-container--default .select2-selection--single .select2-selection__arrow { height: 38px !important; }
+</style>
+@endpush
+
+{{-- ===== PAGE HEADER ===== --}}
+<div class="ap-page-header">
+    <h2>
+        <i class="fa fa-money" style="color:#f39c12;"></i>
+        Aplicación de Pagos
+    </h2>
+    <div class="ap-breadcrumb">
+        <i class="fa fa-home"></i>
+        <a href="{{ route('dashboard') }}">Inicio</a>
+        <i class="fa fa-angle-right"></i>
+        <a href="#">Cuentas por Cobrar</a>
+        <i class="fa fa-angle-right"></i>
+        <span>Aplicación de Pagos</span>
+    </div>
+</div>
+
+{{-- ===== SEARCH CARD ===== --}}
+<div class="wrapper wrapper-content pb-0">
+<div class="ap-search-card">
+    <div class="ap-search-title">
+        <i class="fa fa-search" style="color:#1a7efb;"></i>
+        Buscar cliente
+    </div>
+    <div class="ap-search-row">
+        <div class="ap-select-wrap">
+            <label><i class="fa fa-building-o mr-1"></i> Cliente</label>
+            <select id="cliente" name="cliente" class="form-control" required>
+                <option value="" disabled selected>-- Escriba para buscar un cliente --</option>
+            </select>
+        </div>
+        <button type="button" class="ap-btn-search" onclick="llamarTablas()">
+            <i class="fa fa-search"></i> Cargar datos
+        </button>
+        <button type="button" class="ap-btn-ec d-none" id="btnEC" onclick="pdfEstadoCuenta()">
+            <i class="fa fa-file-pdf-o"></i> Estado de Cuenta
+        </button>
+    </div>
+</div>
+
+{{-- ===== MODAL RETENCIÓN ISV ===== --}}
+<div class="modal ap-modal fade" id="modalretencion" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header orange">
+                <h5 class="modal-title">
+                    <i class="fa fa-percent"></i> Gestionar Retención de ISV
+                </h5>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <div class="ap-info-banner">
+                    <i class="fa fa-info-circle"></i>
+                    <span>Revise la información de la factura y seleccione si la retención de ISV aplica o no para este registro.</span>
+                </div>
+                <form id="formEstadoRetencion" name="formEstadoRetencion">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="ap-form-group">
+                                <label><i class="fa fa-hashtag mr-1"></i> Código de Registro</label>
+                                <input type="text" readonly class="form-control" id="codAplicPago" name="codAplicPago">
                             </div>
-                            <!-- Cliente -->
-                            <div class="form-group col-md-4">
-                                </label>
-                                <select id="cliente"
-                                        name="cliente"
-                                        class="form-control"
-                                        required>
-                                    <option value="" disabled selected>
-                                        -- Seleccionar un Cliente --
-                                    </option>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="ap-form-group">
+                                <label><i class="fa fa-file-text-o mr-1"></i> Factura</label>
+                                <input type="text" readonly class="form-control" id="facturaCai" name="facturaCai">
+                                <input type="hidden" id="idFacturaRetencion" name="idFacturaRetencion">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="ap-form-group">
+                                <label><i class="fa fa-dollar mr-1"></i> Monto de Retención</label>
+                                <input type="text" readonly class="form-control" id="montoRetencion" name="montoRetencion">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="ap-form-group">
+                                <label><i class="fa fa-toggle-on mr-1"></i> Estado de Retención</label>
+                                <select id="selectTiporetencion" name="selectTiporetencion" class="form-control">
+                                    <option value="2">APLICA</option>
+                                    <option value="1">NO APLICA</option>
                                 </select>
                             </div>
-
-                            <div class="form-group col-md-3 ml-auto" id="btnEC">
-                                <button type="button"
-                                        class="btn btn-outline-primary btn-block"
-                                        onclick="pdfEstadoCuenta()">
-                                    <i class="fa fa-file-pdf-o"></i> Estado de Cuenta
-                                </button>
-                            </div>
-
-
                         </div>
-
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    {{--  MODAL DE RETENCION DE ISV  --}}
-    <div class="modal" id="modalretencion" tabindex="-1" role="dialog">
-        <div class="modal-dialog" role="document">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h3 class="modal-title">Seleccione accion para la retención:</h3>
-              <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                <span aria-hidden="true">&times;</span>
-              </button>
-            </div>
-            <div class="modal-body">
-                <div class="row">
-                    <div class="col-lg-12">
-                        <div class="ibox ">
-                            <div class="ibox-content">
-                                <form class="form-control" id="formEstadoRetencion" name="formEstadoRetencion" >
-                                <div class="row">
-                                        <div class="row">
-                                            <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                                <label for="exampleFormControlTextarea1"> <b>Código de Registro:</b></label>
-                                                <input type="text" readonly class="form-control" id="codAplicPago" name="codAplicPago" >
-                                            </div>
-
-                                            <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                                <label for="exampleFormControlTextarea1"> <b>Factura:</b></label>
-                                                <input type="text" readonly class="form-control" id="facturaCai" name="facturaCai" >
-
-                                                <input type="hidden" id="idFacturaRetencion" name="idFacturaRetencion" >
-                                            </div>
-
-                                            <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                                <label for="exampleFormControlTextarea1"> <b>Monto de retención:</b></label>
-                                                <input type="text" readonly class="form-control" id="montoRetencion" name="montoRetencion" >
-                                            </div>
-                                            <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                                <label for="exampleFormControlTextarea1"> <b>Nota (Obligatoria):</b></label>
-                                                <textarea required class="form-control" id="comentario_retencion" name="comentario_retencion" cols="30" rows="10"></textarea>
-                                            </div>
-
-
-                                            <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                                <label for="exampleFormControlTextarea1"> <b>Seleccione estado de retención</b></label>
-
-                                                 <select id="selectTiporetencion" name="selectTiporetencion" class="form-control form-select form-select-lg">
-
-                                                   <option class="form-control" value="2">APLICA</option>
-                                                   <option class="form-control"  value="1">NO APLICA</option>
-                                                 </select>
-                                            </div>
-                                        </div>
-                                </div>
-                                <br>
-                                <div class="row">
-                                    <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                        <button id="btn_cambioRetencion" class="btn  btn-dark btn-lg btn-block float-left m-t-n-xs">
-                                            <strong>
-                                                Guardar gestión
-                                            </strong>
-                                        </button>
-                                    </div>
-                                </div>
-                                </form>
+                        <div class="col-12">
+                            <div class="ap-form-group">
+                                <label><i class="fa fa-pencil mr-1"></i> Nota <span class="text-danger">*</span></label>
+                                <textarea required class="form-control" id="comentario_retencion" name="comentario_retencion" rows="3" placeholder="Ingrese una nota obligatoria..."></textarea>
                             </div>
                         </div>
                     </div>
-                </div>
-            </div>
-          </div>
-        </div>
-    </div>
-    {{--  FIN DEL MODAL DE RETENCION ISV  --}}
-
-    {{--  MODAL APLICAR NOTA DE CREDITO  --}}
-    <div class="modal" id="modalNC" tabindex="-1" role="dialog">
-        <div class="modal-dialog" role="document">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h3 class="modal-title">Aplicación de Nota de Crédito:</h3>
-              <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                <span aria-hidden="true">&times;</span>
-              </button>
-            </div>
-            <div class="modal-body">
-                <div class="row">
-                    <div class="col-lg-12">
-                        <div class="ibox ">
-                            <div class="ibox-content">
-                                <form class="form-control" id="formNotaCredito" name="formNotaCredito" >
-                                <div class="row">
-                                        <div class="row">
-                                            <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                                <label for="exampleFormControlTextarea1"> <b>Código de Registro:</b></label>
-                                                <input required type="text" readonly class="form-control" id="codAplicPagonc" name="codAplicPagonc" >
-                                            </div>
-
-                                            <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                                <label for="exampleFormControlTextarea1"> <b>Factura:</b></label>
-                                                <input required type="text" readonly class="form-control" id="facturaCainc" name="facturaCainc" >
-
-                                                <input type="hidden" id="idFacturaNC" name="idFacturaNC" >
-                                            </div>
-
-                                            <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                                <label for="exampleFormControlTextarea1"> <b>Selección de nota de crédito</b></label>
-
-                                                 <select required onchange="datosNotaCredito()" id="selectNotaCredito" name="selectNotaCredito" class="form-control form-select form-select-lg">
-
-                                                 </select>
-                                            </div>
-
-                                            <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                                <label for="exampleFormControlTextarea1"> <b>Monto de nota de crédito:</b></label>
-                                                <input required type="text" readonly class="form-control" id="totalNotaCredito" name="totalNotaCredito" >
-                                            </div>
-
-                                            <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                                <label for="exampleFormControlTextarea1"> <b>Motivo Nota de crédito:</b></label>
-
-                                                <textarea required readonly class="form-control"   id="motivoNotacredito" name="motivoNotacredito" cols="30" rows="5"></textarea>
-
-                                            </div>
-
-                                            <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                                <label for="exampleFormControlTextarea1"> <b>Selección Acción para Nota de crédito</b></label>
-
-                                                 <select required id="selectAplicado" name="selectAplicado" class="form-control form-select form-select-lg">
-                                                    <option  class="form-control" selected>--------------SELECCIONE-----------------</option>
-                                                    <option  class="form-control" value="1">SE APLICA</option>
-                                                    <option  class="form-control" value="2">NO SE APLICA</option>
-                                                 </select>
-                                            </div>
-
-                                            <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                                <label for="exampleFormControlTextarea1"> <b>Nota de aplicación:</b></label>
-
-                                                <textarea required class="form-control" maxlength="500"   id="comentarioRebaja" name="comentarioRebaja" cols="30" rows="5"></textarea>
-
-                                            </div>
-
-                                        </div>
-                                </div>
-                                <br>
-                                <div class="row">
-                                    <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                        <button id="btn_notacredito" class="btn  btn-dark btn-lg btn-block float-left m-t-n-xs">
-                                            <strong>
-                                                Gestionar
-                                            </strong>
-                                        </button>
-                                    </div>
-                                </div>
-                                </form>
-                            </div>
-                        </div>
+                    <div class="modal-footer px-0 pb-0">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-dismiss="modal">Cancelar</button>
+                        <button id="btn_cambioRetencion" type="submit" class="ap-btn-save orange">
+                            <i class="fa fa-save"></i> Guardar gestión
+                        </button>
                     </div>
-                </div>
-            </div>
-          </div>
-        </div>
-    </div>
-    {{--  FIN DEL MODAL APLICAR NOTA DE CREDITO  --}}
-
-    {{--  MODAL APLICAR NOTA DE DEBITO  --}}
-    <div class="modal" id="modalND" tabindex="-1" role="dialog">
-        <div class="modal-dialog" role="document">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h3 class="modal-title">Aplicación de Nota de Débito:</h3>
-              <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                <span aria-hidden="true">&times;</span>
-              </button>
-            </div>
-            <div class="modal-body">
-                <div class="row">
-                    <div class="col-lg-12">
-                        <div class="ibox ">
-                            <div class="ibox-content">
-                                <form class="form-control" id="formNotaDebito" name="formNotaDebito" >
-                                <div class="row">
-                                        <div class="row">
-                                            <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                                <label for="exampleFormControlTextarea1"> <b>Código de Registro:</b></label>
-                                                <input required type="text" readonly class="form-control" id="codAplicPagond" name="codAplicPagond" >
-                                            </div>
-
-                                            <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                                <label for="exampleFormControlTextarea1"> <b>Factura:</b></label>
-                                                <input required type="text" readonly class="form-control" id="facturaCaind" name="facturaCaind" >
-
-                                                <input type="hidden" id="idFacturaND" name="idFacturaND" >
-                                            </div>
-
-                                            <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                                <label for="exampleFormControlTextarea1"> <b>Selección de nota de dédito</b></label>
-
-                                                 <select required onchange="datosNotaDebito()" id="selectNotaDebito" name="selectNotaDebito" class="form-control form-select form-select-lg">
-
-                                                 </select>
-                                            </div>
-
-                                            <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                                <label for="exampleFormControlTextarea1"> <b>Monto de nota de dédito:</b></label>
-                                                <input required type="text" readonly class="form-control" id="totalNotaDebito" name="totalNotaDebito" >
-                                            </div>
-
-                                            <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                                <label for="exampleFormControlTextarea1"> <b>Motivo Nota de dédito:</b></label>
-
-                                                <textarea required maxlength="500" readonly class="form-control"   id="motivoNotaDebito" name="motivoNotaDebito" cols="30" rows="5"></textarea>
-
-                                            </div>
-
-                                            <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                                <label for="exampleFormControlTextarea1"> <b>Selección Acción para Nota de dédito</b></label>
-
-                                                 <select required id="selectAplicadond" name="selectAplicadond" class="form-control form-select form-select-lg">
-                                                    <option  class="form-control" selected>--------------SELECCIONE-----------------</option>
-                                                    <option  class="form-control" value="1">SE APLICA</option>
-                                                    <option  class="form-control" value="2">NO SE APLICA</option>
-                                                 </select>
-                                            </div>
-
-                                            <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                                <label for="exampleFormControlTextarea1"> <b>Nota de aplicación:</b></label>
-
-                                                <textarea required class="form-control"   id="comentarioSuma" name="comentarioSuma" cols="30" rows="5"></textarea>
-
-                                            </div>
-
-                                        </div>
-                                </div>
-                                <br>
-                                <div class="row">
-                                    <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
-                                        <button id="btn_notadebito" class="btn  btn-dark btn-lg btn-block float-left m-t-n-xs">
-                                            <strong>
-                                                Gestionar
-                                            </strong>
-                                        </button>
-                                    </div>
-                                </div>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-          </div>
-        </div>
-    </div>
-    {{--  FIN DEL MODAL APLICAR NOTA DE DEBITO  --}}
-
-
-    {{--  MODAL APLICAR OTROS MOVIMIENTOS  --}}
-    <div class="modal fade" id="modalOtrosMovimientos" tabindex="-1" role="dialog" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
-            <div class="modal-content shadow-sm">
-
-                <div class="modal-header bg-light">
-                    <h5 class="modal-title font-weight-bold">
-                        Aplicación de otros movimientos a la factura Cobro/Rebajas
-                    </h5>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
-                </div>
-
-                <div class="modal-body">
-                    <div class="row">
-                        <div class="col-lg-12">
-                            <div class="ibox mb-0">
-                                <div class="ibox-content p-3">
-
-                                    <form class="form-control border-0 p-0"
-                                        id="formOtrosMovimientos"
-                                        name="formOtrosMovimientos">
-
-                                        <div class="row">
-
-                                            <div class="col-12 col-md-6 mb-3">
-                                                <label class="font-weight-bold">
-                                                    Código de Registro
-                                                </label>
-                                                <input required
-                                                    type="text"
-                                                    readonly
-                                                    class="form-control"
-                                                    id="codAplicPagoom"
-                                                    name="codAplicPagoom">
-                                            </div>
-
-                                            <div class="col-12 col-md-6 mb-3">
-                                                <label class="font-weight-bold">
-                                                    Factura
-                                                </label>
-                                                <input required
-                                                    type="text"
-                                                    readonly
-                                                    class="form-control"
-                                                    id="facturaCaiom"
-                                                    name="facturaCaiom">
-                                                <input type="hidden"
-                                                    id="idFacturaom"
-                                                    name="idFacturaom">
-                                            </div>
-
-                                            <div class="col-12 col-md-6 mb-3">
-                                                <label class="font-weight-bold">
-                                                    Selección el tipo de Movimiento a realizar
-                                                </label>
-                                                <select required
-                                                        id="selecttipoMovimiento"
-                                                        name="selecttipoMovimiento"
-                                                        class="form-control">
-                                                    <option selected>--------SELECCIONE MOVIMIENTO----------</option>
-                                                    <option value="1">CARGO EXTRA</option>
-                                                    <option value="2">CARGO A DEDUCIR</option>
-                                                </select>
-                                            </div>
-
-                                            <div class="col-12 col-md-6 mb-3">
-                                                <label class="font-weight-bold">
-                                                    Monto por Aplicar
-                                                </label>
-                                                <input required
-                                                    type="number"
-                                                    step="any"
-                                                    min="0"
-                                                    class="form-control"
-                                                    id="montoTM"
-                                                    name="montoTM">
-                                            </div>
-
-                                            <div class="col-12 mb-3">
-                                                <label class="font-weight-bold">
-                                                    Comentario del movimiento
-                                                </label>
-                                                <textarea required
-                                                        maxlength="500"
-                                                        class="form-control"
-                                                        id="motivoMovimiento"
-                                                        name="motivoMovimiento"
-                                                        rows="4"
-                                                        placeholder="Ingrese el comentario del movimiento"></textarea>
-                                            </div>
-
-                                        </div>
-
-                                        <hr class="my-3">
-
-                                        <div class="row">
-                                            <div class="col-12 text-right">
-                                                <button id="btn_tipomov"
-                                                        class="btn btn-dark btn-lg px-4">
-                                                    <strong>Guardar Gestionar</strong>
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                    </form>
-
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
+                </form>
             </div>
         </div>
     </div>
-    {{--  FIN DEL MODAL OTROS MOVIMIENTOS  --}}
-
-
-    {{--  MODAL APLICAR CREDITOS/ABONOS  --}}
-    <div class="modal fade" id="modalAbonos" tabindex="-1" role="dialog" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
-            <div class="modal-content shadow-sm">
-
-                <div class="modal-header bg-light">
-                    <h5 class="modal-title font-weight-bold">
-                        Aplicación Créditos o Abonos al Saldo de la Factura
-                    </h5>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
-                </div>
-
-                <div class="modal-body">
-                    <div class="row">
-                        <div class="col-lg-12">
-                            <div class="ibox mb-0">
-                                <div class="ibox-content p-3">
-
-                                    <form class="form-control border-0 p-0"
-                                        id="formabonos"
-                                        name="formabonos">
-
-                                        <div class="row">
-
-                                            <div class="col-12 col-md-6 mb-3">
-                                                <label class="font-weight-bold">
-                                                    Código de Registro
-                                                </label>
-                                                <input required
-                                                    type="text"
-                                                    readonly
-                                                    class="form-control"
-                                                    id="codAplicPagoAbono"
-                                                    name="codAplicPagoAbono">
-                                            </div>
-
-                                            <div class="col-12 col-md-6 mb-3">
-                                                <label class="font-weight-bold">
-                                                    Factura
-                                                </label>
-                                                <input required
-                                                    type="text"
-                                                    readonly
-                                                    class="form-control"
-                                                    id="facturaCaiAbono"
-                                                    name="facturaCaiAbono">
-                                                <input type="hidden"
-                                                    id="idFacturaAbono"
-                                                    name="idFacturaAbono">
-                                            </div>
-
-                                            <div class="col-12 col-md-6 mb-3">
-                                                <label class="font-weight-bold">
-                                                    Monto por Aplicar
-                                                </label>
-                                                <input required
-                                                    type="number"
-                                                    min="0"
-                                                    step="any"
-                                                    class="form-control"
-                                                    id="montoAbono"
-                                                    name="montoAbono">
-                                            </div>
-
-                                            <div class="col-12 col-md-6 mb-3">
-                                                <label class="font-weight-bold">
-                                                    Selección Medio de Pago
-                                                </label>
-                                                <select required
-                                                        onchange="metodoPago()"
-                                                        id="selectMetodoPago"
-                                                        name="selectMetodoPago"
-                                                        class="form-control">
-                                                    <option selected>--------Seleccione------</option>
-                                                    <option value="1">EFECTIVO</option>
-                                                    <option value="2">TRANSFERENCIA BANCARIA</option>
-                                                    <option value="3">CHEQUE</option>
-                                                    <option value="4">LINK DE PAGO</option>
-                                                    <option value="5">POS</option>
-                                                </select>
-                                            </div>
-
-                                            <div class="col-12 col-md-6 mb-3">
-                                                <label class="font-weight-bold">
-                                                    Selección banco
-                                                </label>
-                                                <select required
-                                                        id="selectBanco"
-                                                        name="selectBanco"
-                                                        class="form-control">
-                                                </select>
-                                            </div>
-
-                                            <div class="col-12 col-md-6 mb-3">
-                                                <label class="font-weight-bold">
-                                                    Fecha que se realizó el pago <span class="text-danger">*</span>
-                                                </label>
-                                                <input class="form-control"
-                                                    required
-                                                    type="date"
-                                                    id="fecha_pago"
-                                                    name="fecha_pago"
-                                                    data-parsley-required>
-                                            </div>
-
-                                            <div class="col-12 col-md-6 mb-3">
-                                                <label class="font-weight-bold">
-                                                    Número de Recibo
-                                                </label>
-                                                <input class="form-control"
-                                                    type="text"
-                                                    maxlength="100"
-                                                    id="numero_recibo"
-                                                    name="numero_recibo"
-                                                    placeholder="Ingrese el número de recibo">
-                                            </div>
-
-                                            <div class="col-12 mb-3">
-                                                <label class="font-weight-bold">
-                                                    Documento de Pago <span class="text-danger">*</span>
-                                                </label>
-                                                <input class="form-control"
-                                                    id="doc_pago"
-                                                    name="doc_pago"
-                                                    type="file"
-                                                    accept="image/png, image/jpeg, image/jpg, application/pdf">
-                                            </div>
-
-                                            <div class="col-12 mb-3">
-                                                <label class="font-weight-bold">
-                                                    Nota de pago
-                                                </label>
-                                                <textarea required
-                                                        class="form-control"
-                                                        id="comentarioAbono"
-                                                        name="comentarioAbono"
-                                                        rows="4"
-                                                        placeholder="Ingrese la nota del pago realizado"></textarea>
-                                            </div>
-
-                                        </div>
-
-                                        <hr class="my-3">
-
-                                        <div class="row">
-                                            <div class="col-12 text-right">
-                                                <button id="btn_notaabono"
-                                                        class="btn btn-dark btn-lg px-4">
-                                                    <strong>Gestionar</strong>
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                    </form>
-
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
-        </div>
-    </div>
-    {{--  FIN DEL MODAL APLICAR CREDITOS/ABONOS  --}}
-
-
-
-    {{--  MODAL APLICAR CREDITOS/ABONOS  --}}
-    <div class="modal fade" id="modalcerrarFact" tabindex="-1" role="dialog" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
-            <div class="modal-content shadow-sm">
-
-                <div class="modal-header bg-light">
-                    <h5 class="modal-title font-weight-bold">
-                        Cerrar factura
-                    </h5>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
-                </div>
-
-                <div class="modal-body">
-                    <div class="row">
-                        <div class="col-lg-12">
-                            <div class="ibox mb-0">
-                                <div class="ibox-content p-3">
-
-                                    <form class="form-control border-0 p-0"
-                                        id="formCierrefact"
-                                        name="formCierrefact">
-
-                                        <div class="row">
-
-                                            <div class="col-12 col-md-6 mb-3">
-                                                <label class="font-weight-bold">
-                                                    Código de Registro
-                                                </label>
-                                                <input required
-                                                    type="text"
-                                                    readonly
-                                                    class="form-control"
-                                                    id="codAplicCierre"
-                                                    name="codAplicCierre">
-                                            </div>
-
-                                            <div class="col-12 col-md-6 mb-3">
-                                                <label class="font-weight-bold">
-                                                    Factura
-                                                </label>
-                                                <input required
-                                                    type="text"
-                                                    readonly
-                                                    class="form-control"
-                                                    id="facturaCaiCierre"
-                                                    name="facturaCaiCierre">
-                                                <input type="hidden"
-                                                    id="idFacturaCierre"
-                                                    name="idFacturaCierre">
-                                            </div>
-
-                                            <div class="col-12 mb-3">
-                                                <label class="font-weight-bold">
-                                                    Nota de cierre
-                                                </label>
-                                                <textarea required
-                                                        class="form-control"
-                                                        id="comentarioCierre"
-                                                        name="comentarioCierre"
-                                                        rows="4"
-                                                        placeholder="Ingrese la nota de cierre de la factura"></textarea>
-                                            </div>
-
-                                        </div>
-
-                                        <hr class="my-3">
-
-                                        <div class="row">
-                                            <div class="col-12 text-right">
-                                                <button id="btn_cierreFact"
-                                                        class="btn btn-dark btn-lg px-4">
-                                                    <strong>Gestionar</strong>
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                    </form>
-
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
-        </div>
-    </div>
-    {{--  FIN DEL MODAL APLICAR CREDITOS/ABONOS  --}}
-
-
-
-    {{-- ================= TABLA PRINCIPAL DE REGISTRO ================= --}}
-    <div class="wrapper wrapper-content animated fadeInRight" id="tbl_principal_div">
-        <div class="row">
-            <div class="col-12">
-                <div class="ibox">
-
-                    <!-- Header de la tabla -->
-                    <div class="ibox-title d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0 font-weight-bold">
-                            Registros de saldos por factura
-                        </h5>
-                        <span class="badge badge-primary">
-                            Cliente seleccionado
-                        </span>
-                    </div>
-
-                    <div class="ibox-content">
-
-                        <div class="table-responsive">
-
-                            <table id="tbl_cuentas_facturas_cliente"
-                                class="table table-sm table-striped table-bordered table-hover w-100">
-
-                                <thead class="thead-light">
-                                    <tr>
-                                        <th>Código Pago</th>
-                                        <th>Factura</th>
-                                        <th>Correlativo</th>
-                                        <th>Cargo</th>
-                                        <th>Notas Crédito</th>
-                                        <th>Notas Débito</th>
-                                        <th>Créditos / Abonos</th>
-                                        <th>Cargo Extra</th>
-                                        <th>Deducciones</th>
-                                        <th>ISV</th>
-                                        <th>Retención</th>
-                                        <th>Saldo</th>
-                                        <th>Fecha Registro</th>
-                                        <th>Última Actualización</th>
-                                        <th class="text-center">Acciones</th>
-                                    </tr>
-                                </thead>
-
-                                <tbody>
-                                    {{-- DataTables --}}
-                                </tbody>
-
-                                <tfoot class="thead-light">
-                                    <tr>
-                                        <th>Código Pago</th>
-                                        <th>Factura</th>
-                                        <th>Correlativo</th>
-                                        <th>Cargo</th>
-                                        <th>Notas Crédito</th>
-                                        <th>Notas Débito</th>
-                                        <th>Créditos / Abonos</th>
-                                        <th>Cargo Extra</th>
-                                        <th>Deducciones</th>
-                                        <th>ISV</th>
-                                        <th>Retención</th>
-                                        <th>Saldo</th>
-                                        <th>Fecha Registro</th>
-                                        <th>Última Actualización</th>
-                                        <th class="text-center">Acciones</th>
-                                    </tr>
-                                </tfoot>
-
-                            </table>
-
-                        </div>
-
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    {{-- ============== FIN TABLA PRINCIPAL DE REGISTRO ============== --}}
-
-    {{--  TABLA DE OTROS MOVIMIENTOS --}}
-    <div class="wrapper wrapper-content animated fadeInRight"  id="tbl_movimientos_div">
-        <div class="row">
-            <div class="col-lg-12">
-                <div class="ibox ">
-                    <div class="ibox-content">
-                        <div class="table-responsive">
-                            <h4>Movimientos por facturas del cliente:</h4>
-                            <table id="tbl_tipo_movimientos_cliente" class="table table-striped table-bordered table-hover">
-                                <thead class="">
-                                    <tr>
-                                        <th>Codigo Movimiento</th>
-                                        <th>Codigo Pagos</th>
-                                        <th>Factura</th>
-                                        <th>Monto</th>
-                                        <th>Movimiento</th>
-                                        <th>Comentario</th>
-                                        <th>Estado</th>
-                                        <th>Registrado por</th>
-                                        <th>Fecha de registro</th>
-                                        <th>Acciones</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                </tbody>
-
-                                <tfoot>
-                                    <tr>
-                                        <th>Codigo Movimiento</th>
-                                        <th>Codigo Pagos</th>
-                                        <th>Código Factura</th>
-                                        <th>Monto</th>
-                                        <th>Movimiento</th>
-                                        <th>Comentario</th>
-                                        <th>Estado</th>
-                                        <th>Registrado por</th>
-                                        <th>Fecha de registro</th>
-                                        <th>Acciones</th>
-                                    </tr>
-                                </tfoot>
-                            </table>
-
-                        </div>
-
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    {{-- FIN TABLA DE OTROS MOVIMIENTOS  --}}
-
-    {{--  TABLA DE CREDITOS Y ABONOS --}}
-    <div class="wrapper wrapper-content animated fadeInRight"  id="tbl_creditos_abonos_div">
-        <div class="row">
-            <div class="col-lg-12">
-                <div class="ibox ">
-                    <div class="ibox-content">
-                        <div class="table-responsive">
-                            <h4>Creditos y abonos hechos por factura:</h4>
-                            <table id="tbl_abonos_cliente" class="table table-striped table-bordered table-hover">
-                                <thead class="">
-                                    <tr>
-                                        <th>Codigo Abono</th>
-                                        <th>Codigo Pagos</th>
-                                        <th>Código Factura</th>
-                                        <th>Monto</th>
-                                        <th>Comentario</th>
-                                        <th>Estado</th>
-                                        <th>Registrado por</th>
-                                        <th>Fecha de registro</th>
-                                        <th>Acciones</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                </tbody>
-
-                                <tfoot>
-                                    <tr>
-                                        <th>Codigo Abono</th>
-                                        <th>Codigo Pagos</th>
-                                        <th>Factura</th>
-                                        <th>Monto</th>
-                                        <th>Comentario</th>
-                                        <th>Estado</th>
-                                        <th>Registrado por</th>
-                                        <th>Fecha de registro</th>
-                                        <th>Acciones</th>
-                                    </tr>
-                                </tfoot>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    {{-- FIN TABLA DE CREDITOS Y ABONOS --}}
-
 </div>
-@push('scripts')
 
+{{-- ===== MODAL NOTA DE CRÉDITO ===== --}}
+<div class="modal ap-modal fade" id="modalNC" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header green">
+                <h5 class="modal-title">
+                    <i class="fa fa-arrow-down"></i> Aplicación de Nota de Crédito
+                </h5>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <form id="formNotaCredito" name="formNotaCredito">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="ap-form-group">
+                                <label><i class="fa fa-hashtag mr-1"></i> Código de Registro</label>
+                                <input required type="text" readonly class="form-control" id="codAplicPagonc" name="codAplicPagonc">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="ap-form-group">
+                                <label><i class="fa fa-file-text-o mr-1"></i> Factura</label>
+                                <input required type="text" readonly class="form-control" id="facturaCainc" name="facturaCainc">
+                                <input type="hidden" id="idFacturaNC" name="idFacturaNC">
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="ap-form-group">
+                                <label><i class="fa fa-list mr-1"></i> Nota de Crédito a Aplicar</label>
+                                <select required onchange="datosNotaCredito()" id="selectNotaCredito" name="selectNotaCredito" class="form-control"></select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="ap-form-group">
+                                <label><i class="fa fa-dollar mr-1"></i> Monto de Nota de Crédito</label>
+                                <input required type="text" readonly class="form-control" id="totalNotaCredito" name="totalNotaCredito">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="ap-form-group">
+                                <label><i class="fa fa-toggle-on mr-1"></i> Acción</label>
+                                <select required id="selectAplicado" name="selectAplicado" class="form-control">
+                                    <option value="">— Seleccione —</option>
+                                    <option value="1">SE APLICA</option>
+                                    <option value="2">NO SE APLICA</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="ap-form-group">
+                                <label><i class="fa fa-pencil mr-1"></i> Motivo de la Nota de Crédito</label>
+                                <textarea required readonly class="form-control" id="motivoNotacredito" name="motivoNotacredito" rows="3"></textarea>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="ap-form-group">
+                                <label><i class="fa fa-comment mr-1"></i> Nota de Aplicación <span class="text-danger">*</span></label>
+                                <textarea required class="form-control" maxlength="500" id="comentarioRebaja" name="comentarioRebaja" rows="3" placeholder="Ingrese su nota..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer px-0 pb-0">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-dismiss="modal">Cancelar</button>
+                        <button id="btn_notacredito" type="submit" class="ap-btn-save green">
+                            <i class="fa fa-save"></i> Gestionar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- ===== MODAL NOTA DE DÉBITO ===== --}}
+<div class="modal ap-modal fade" id="modalND" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header red">
+                <h5 class="modal-title">
+                    <i class="fa fa-arrow-up"></i> Aplicación de Nota de Débito
+                </h5>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <form id="formNotaDebito" name="formNotaDebito">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="ap-form-group">
+                                <label><i class="fa fa-hashtag mr-1"></i> Código de Registro</label>
+                                <input required type="text" readonly class="form-control" id="codAplicPagond" name="codAplicPagond">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="ap-form-group">
+                                <label><i class="fa fa-file-text-o mr-1"></i> Factura</label>
+                                <input required type="text" readonly class="form-control" id="facturaCaind" name="facturaCaind">
+                                <input type="hidden" id="idFacturaND" name="idFacturaND">
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="ap-form-group">
+                                <label><i class="fa fa-list mr-1"></i> Nota de Débito a Aplicar</label>
+                                <select required onchange="datosNotaDebito()" id="selectNotaDebito" name="selectNotaDebito" class="form-control"></select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="ap-form-group">
+                                <label><i class="fa fa-dollar mr-1"></i> Monto de Nota de Débito</label>
+                                <input required type="text" readonly class="form-control" id="totalNotaDebito" name="totalNotaDebito">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="ap-form-group">
+                                <label><i class="fa fa-toggle-on mr-1"></i> Acción</label>
+                                <select required id="selectAplicadond" name="selectAplicadond" class="form-control">
+                                    <option value="">— Seleccione —</option>
+                                    <option value="1">SE APLICA</option>
+                                    <option value="2">NO SE APLICA</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="ap-form-group">
+                                <label><i class="fa fa-pencil mr-1"></i> Motivo de la Nota de Débito</label>
+                                <textarea required maxlength="500" readonly class="form-control" id="motivoNotaDebito" name="motivoNotaDebito" rows="3"></textarea>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="ap-form-group">
+                                <label><i class="fa fa-comment mr-1"></i> Nota de Aplicación <span class="text-danger">*</span></label>
+                                <textarea required class="form-control" id="comentarioSuma" name="comentarioSuma" rows="3" placeholder="Ingrese su nota..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer px-0 pb-0">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-dismiss="modal">Cancelar</button>
+                        <button id="btn_notadebito" type="submit" class="ap-btn-save red">
+                            <i class="fa fa-save"></i> Gestionar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+{{-- ===== MODAL OTROS MOVIMIENTOS ===== --}}
+<div class="modal ap-modal fade" id="modalOtrosMovimientos" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header blue">
+                <h5 class="modal-title">
+                    <i class="fa fa-exchange"></i> Otros Movimientos — Cobros / Rebajas
+                </h5>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <form id="formOtrosMovimientos" name="formOtrosMovimientos">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="ap-form-group">
+                                <label><i class="fa fa-hashtag mr-1"></i> Código de Registro</label>
+                                <input required type="text" readonly class="form-control" id="codAplicPagoom" name="codAplicPagoom">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="ap-form-group">
+                                <label><i class="fa fa-file-text-o mr-1"></i> Factura</label>
+                                <input required type="text" readonly class="form-control" id="facturaCaiom" name="facturaCaiom">
+                                <input type="hidden" id="idFacturaom" name="idFacturaom">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="ap-form-group">
+                                <label><i class="fa fa-random mr-1"></i> Tipo de Movimiento</label>
+                                <select required id="selecttipoMovimiento" name="selecttipoMovimiento" class="form-control">
+                                    <option value="">— Seleccione —</option>
+                                    <option value="1">CARGO EXTRA</option>
+                                    <option value="2">CARGO A DEDUCIR</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="ap-form-group">
+                                <label><i class="fa fa-dollar mr-1"></i> Monto a Aplicar</label>
+                                <input required type="number" step="any" min="0" class="form-control" id="montoTM" name="montoTM" placeholder="0.00">
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="ap-form-group">
+                                <label><i class="fa fa-comment mr-1"></i> Comentario del Movimiento <span class="text-danger">*</span></label>
+                                <textarea required maxlength="500" class="form-control" id="motivoMovimiento" name="motivoMovimiento" rows="3" placeholder="Ingrese el comentario del movimiento..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer px-0 pb-0">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-dismiss="modal">Cancelar</button>
+                        <button id="btn_tipomov" type="submit" class="ap-btn-save blue">
+                            <i class="fa fa-save"></i> Guardar Movimiento
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+{{-- ===== MODAL CRÉDITOS / ABONOS ===== --}}
+<div class="modal ap-modal fade" id="modalAbonos" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header green">
+                <h5 class="modal-title">
+                    <i class="fa fa-credit-card"></i> Aplicar Crédito / Abono
+                </h5>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <form id="formabonos" name="formabonos">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="ap-form-group">
+                                <label><i class="fa fa-hashtag mr-1"></i> Código de Registro</label>
+                                <input required type="text" readonly class="form-control" id="codAplicPagoAbono" name="codAplicPagoAbono">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="ap-form-group">
+                                <label><i class="fa fa-file-text-o mr-1"></i> Factura</label>
+                                <input required type="text" readonly class="form-control" id="facturaCaiAbono" name="facturaCaiAbono">
+                                <input type="hidden" id="idFacturaAbono" name="idFacturaAbono">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="ap-form-group">
+                                <label><i class="fa fa-dollar mr-1"></i> Monto a Abonar</label>
+                                <input required type="number" min="0" step="any" class="form-control" id="montoAbono" name="montoAbono" placeholder="0.00">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="ap-form-group">
+                                <label><i class="fa fa-credit-card mr-1"></i> Medio de Pago</label>
+                                <select required onchange="metodoPago()" id="selectMetodoPago" name="selectMetodoPago" class="form-control">
+                                    <option value="">— Seleccione —</option>
+                                    <option value="1">EFECTIVO</option>
+                                    <option value="2">TRANSFERENCIA BANCARIA</option>
+                                    <option value="3">CHEQUE</option>
+                                    <option value="4">LINK DE PAGO</option>
+                                    <option value="5">POS</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="ap-form-group">
+                                <label><i class="fa fa-bank mr-1"></i> Banco</label>
+                                <select required id="selectBanco" name="selectBanco" class="form-control"></select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="ap-form-group">
+                                <label><i class="fa fa-calendar mr-1"></i> Fecha del Pago <span class="text-danger">*</span></label>
+                                <input class="form-control" required type="date" id="fecha_pago" name="fecha_pago">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="ap-form-group">
+                                <label><i class="fa fa-ticket mr-1"></i> Número de Recibo</label>
+                                <input class="form-control" type="text" maxlength="100" id="numero_recibo" name="numero_recibo" placeholder="Ingrese el número de recibo">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="ap-form-group">
+                                <label><i class="fa fa-paperclip mr-1"></i> Documento de Pago <span class="text-danger">*</span></label>
+                                <input class="form-control" id="doc_pago" name="doc_pago" type="file" accept="image/png, image/jpeg, image/jpg, application/pdf">
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="ap-form-group">
+                                <label><i class="fa fa-comment mr-1"></i> Nota del Pago <span class="text-danger">*</span></label>
+                                <textarea required class="form-control" id="comentarioAbono" name="comentarioAbono" rows="3" placeholder="Ingrese la nota del pago realizado..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer px-0 pb-0">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-dismiss="modal">Cancelar</button>
+                        <button id="btn_notaabono" type="submit" class="ap-btn-save green">
+                            <i class="fa fa-check-circle"></i> Registrar Abono
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+{{-- ===== MODAL CERRAR FACTURA ===== --}}
+<div class="modal ap-modal fade" id="modalcerrarFact" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header dark">
+                <h5 class="modal-title">
+                    <i class="fa fa-lock"></i> Cerrar Factura
+                </h5>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <div class="ap-info-banner" style="background:linear-gradient(135deg,#fff5f5,#fed7d7);border-color:#feb2b2;color:#c53030;">
+                    <i class="fa fa-exclamation-triangle"></i>
+                    <span>Esta acción cerrará definitivamente la factura. Asegúrese de que toda la información es correcta antes de continuar.</span>
+                </div>
+                <form id="formCierrefact" name="formCierrefact">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="ap-form-group">
+                                <label><i class="fa fa-hashtag mr-1"></i> Código de Registro</label>
+                                <input required type="text" readonly class="form-control" id="codAplicCierre" name="codAplicCierre">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="ap-form-group">
+                                <label><i class="fa fa-file-text-o mr-1"></i> Factura</label>
+                                <input required type="text" readonly class="form-control" id="facturaCaiCierre" name="facturaCaiCierre">
+                                <input type="hidden" id="idFacturaCierre" name="idFacturaCierre">
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="ap-form-group">
+                                <label><i class="fa fa-comment mr-1"></i> Nota de Cierre <span class="text-danger">*</span></label>
+                                <textarea required class="form-control" id="comentarioCierre" name="comentarioCierre" rows="3" placeholder="Ingrese la nota de cierre de la factura..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer px-0 pb-0">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-dismiss="modal">Cancelar</button>
+                        <button id="btn_cierreFact" type="submit" class="ap-btn-save red">
+                            <i class="fa fa-lock"></i> Confirmar Cierre
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+    {{-- ================= TABBED TABLES SECTION ================= --}}
+    <div id="tbl_principal_div" class="d-none" style="margin-top: 20px;">
+
+        {{-- Tab navigation --}}
+        <div class="ap-tabs-row">
+            <button class="ap-tab-btn active" onclick="switchTab('tab-facturas', this)">
+                <i class="fa fa-file-text-o"></i>
+                Saldos por Factura
+                <span class="ap-tab-badge" id="badge-facturas">—</span>
+            </button>
+            <button class="ap-tab-btn" onclick="switchTab('tab-movimientos', this)">
+                <i class="fa fa-exchange"></i>
+                Movimientos
+                <span class="ap-tab-badge" id="badge-movimientos">—</span>
+            </button>
+            <button class="ap-tab-btn" onclick="switchTab('tab-abonos', this)">
+                <i class="fa fa-credit-card"></i>
+                Créditos y Abonos
+                <span class="ap-tab-badge" id="badge-abonos">—</span>
+            </button>
+        </div>
+
+        {{-- Tab: Saldos por Factura --}}
+        <div id="tab-facturas" class="ap-panel">
+            <div class="ap-panel-title">
+                <div class="ap-panel-icon blue"><i class="fa fa-file-text-o"></i></div>
+                Registros de Saldos por Factura
+            </div>
+            <div class="table-responsive">
+                <table id="tbl_cuentas_facturas_cliente"
+                       class="table table-sm table-hover w-100"
+                       style="border-collapse:collapse;">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Factura ID</th>
+                            <th>Correlativo</th>
+                            <th>Cargo</th>
+                            <th>N. Crédito</th>
+                            <th>N. Débito</th>
+                            <th>Abonos</th>
+                            <th>Cargo Extra</th>
+                            <th>Deducciones</th>
+                            <th>ISV</th>
+                            <th>Retención</th>
+                            <th>Saldo</th>
+                            <th>Registro</th>
+                            <th>Actualización</th>
+                            <th class="text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                    <tfoot>
+                        <tr>
+                            <th>#</th>
+                            <th>Factura ID</th>
+                            <th>Correlativo</th>
+                            <th>Cargo</th>
+                            <th>N. Crédito</th>
+                            <th>N. Débito</th>
+                            <th>Abonos</th>
+                            <th>Cargo Extra</th>
+                            <th>Deducciones</th>
+                            <th>ISV</th>
+                            <th>Retención</th>
+                            <th>Saldo</th>
+                            <th>Registro</th>
+                            <th>Actualización</th>
+                            <th></th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+
+        {{-- Tab: Movimientos --}}
+        <div id="tab-movimientos" class="ap-panel d-none">
+            <div class="ap-panel-title">
+                <div class="ap-panel-icon orange"><i class="fa fa-exchange"></i></div>
+                Movimientos por Facturas del Cliente
+            </div>
+            <div id="tbl_movimientos_div">
+                <div class="table-responsive">
+                    <table id="tbl_tipo_movimientos_cliente"
+                           class="table table-sm table-hover w-100"
+                           style="border-collapse:collapse;">
+                        <thead>
+                            <tr>
+                                <th>#Mov</th>
+                                <th>#Pago</th>
+                                <th>Factura</th>
+                                <th>Monto</th>
+                                <th>Tipo</th>
+                                <th>Comentario</th>
+                                <th>Estado</th>
+                                <th>Registrado por</th>
+                                <th>Fecha</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                        <tfoot>
+                            <tr>
+                                <th>#Mov</th>
+                                <th>#Pago</th>
+                                <th>Factura</th>
+                                <th>Monto</th>
+                                <th>Tipo</th>
+                                <th>Comentario</th>
+                                <th>Estado</th>
+                                <th>Registrado por</th>
+                                <th>Fecha</th>
+                                <th></th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        {{-- Tab: Créditos y Abonos --}}
+        <div id="tab-abonos" class="ap-panel d-none">
+            <div class="ap-panel-title">
+                <div class="ap-panel-icon green"><i class="fa fa-credit-card"></i></div>
+                Créditos y Abonos por Factura
+            </div>
+            <div id="tbl_creditos_abonos_div">
+                <div class="table-responsive">
+                    <table id="tbl_abonos_cliente"
+                           class="table table-sm table-hover w-100"
+                           style="border-collapse:collapse;">
+                        <thead>
+                            <tr>
+                                <th>#Abono</th>
+                                <th>#Pago</th>
+                                <th>Factura</th>
+                                <th>Monto</th>
+                                <th>Comentario</th>
+                                <th>Estado</th>
+                                <th>Registrado por</th>
+                                <th>Fecha</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                        <tfoot>
+                            <tr>
+                                <th>#Abono</th>
+                                <th>#Pago</th>
+                                <th>Factura</th>
+                                <th>Monto</th>
+                                <th>Comentario</th>
+                                <th>Estado</th>
+                                <th>Registrado por</th>
+                                <th>Fecha</th>
+                                <th></th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>{{-- /#tbl_principal_div --}}
+
+</div>{{-- /.wrapper --}}
+@push('scripts')
 <script src="{{ asset('js/js_proyecto/cuentas-por-cobrar/pagos.js') }}?v={{ filemtime(public_path('js/js_proyecto/cuentas-por-cobrar/pagos.js')) }}"></script>
+<script>
+function switchTab(tabId, btn) {
+    // Hide all panels
+    ['tab-facturas','tab-movimientos','tab-abonos'].forEach(function(id) {
+        document.getElementById(id).classList.add('d-none');
+    });
+    // Remove active from all buttons
+    document.querySelectorAll('.ap-tab-btn').forEach(function(b){ b.classList.remove('active'); });
+    // Show selected panel and activate button
+    document.getElementById(tabId).classList.remove('d-none');
+    btn.classList.add('active');
+}
+</script>
 @endpush
+</div>{{-- /Livewire root --}}
