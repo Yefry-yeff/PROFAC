@@ -16,86 +16,123 @@
         0%, 100% { box-shadow: 0 0 0 0 rgba(26,126,251,.35); }
         50%       { box-shadow: 0 0 0 7px rgba(26,126,251,.0); }
     }
-    @keyframes shimmer {
-        0%   { background-position: -400px 0; }
-        100% { background-position: 400px 0; }
-    }
     @keyframes fadeInUp {
         from { transform: translateY(16px); opacity: 0; }
         to   { transform: translateY(0);    opacity: 1; }
     }
 
-    /* ── Badge numerado animado ── */
+    /* ── Badge numerado step ── */
     .step-badge {
         animation: pulseRing 2.5s ease-in-out infinite;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 26px; height: 26px;
-        font-size: 12px;
-        border-radius: 50%;
-        font-weight: 700;
-        flex-shrink: 0;
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 28px; height: 28px; font-size: 13px;
+        border-radius: 50%; font-weight: 700; flex-shrink: 0;
+    }
+
+    /* ── Section heading ── */
+    .pedido-section-heading {
+        display: flex; align-items: center; gap: 10px;
+        padding: 10px 0 8px;
+        border-bottom: 2px solid #edf1f9;
+        margin-bottom: 16px;
+    }
+    .pedido-section-heading h5 {
+        margin: 0; font-size: 15px; color: #2c3e50; font-weight: 700;
+    }
+
+    /* ── Buscador cliente ── */
+    .pedido-search-wrap { max-width: 520px; }
+    .pedido-search-wrap .input-group {
+        box-shadow: 0 2px 10px rgba(26,126,251,.10);
+        border-radius: 10px; overflow: hidden;
+    }
+    .pedido-search-wrap .form-control {
+        font-size: 14px; border-color: #d9e4ff; border-left: none;
+        padding: 10px 12px; height: auto;
+    }
+    .pedido-search-wrap .input-group-text {
+        border-color: #d9e4ff; background: #fff; padding: 0 12px;
+    }
+
+    /* ── Dropdown sugerencias ── */
+    .sugerencias-box {
+        max-width: 520px;
+        border-radius: 10px; box-shadow: 0 8px 24px rgba(26,126,251,.15);
+        border: 1px solid #d9e4ff; background: #fff;
+        animation: slideDown .18s ease both; overflow: hidden;
+    }
+    .sugerencia-item {
+        transition: background .1s, padding-left .1s; cursor: pointer;
+    }
+    .sugerencia-item:hover { background: #f0f7ff !important; padding-left: 24px !important; }
+
+    /* ── Tarjeta cliente seleccionado ── */
+    .cliente-card { animation: fadeInUp .3s ease both; }
+    .cliente-card .card-body { padding: 16px 20px; }
+    .cliente-info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 12px 16px;
+        margin-top: 12px;
+    }
+    .cliente-info-item small { font-size: 10px; text-transform: uppercase;
+        letter-spacing: .7px; color: #9aabb8; display: block; margin-bottom: 2px; }
+    .cliente-info-item strong { font-size: 13px; color: #2c3e50; word-break: break-word; }
+
+    /* ── Tabla de productos ── */
+    .productos-card { border: 1px solid #dce3f0 !important; border-radius: 12px !important; overflow: hidden; }
+    .productos-card table { font-size: 13px; }
+    .productos-card thead tr { background: linear-gradient(90deg, #f4f6fb, #f0f4ff); }
+    .productos-card thead th { border-bottom: 2px solid #dce3f0 !important; color: #5a6e8a; font-weight: 700; padding: 10px 8px; }
+    .productos-card .form-control-sm { border-color: #dce3f0; border-radius: 6px; font-size: 13px; }
+    .productos-card .card-footer { background: #f8faff; border-top: 1px solid #e4eaf8; padding: 8px 14px; }
+
+    /* ── Tarjeta Excel ── */
+    .excel-card {
+        border: 2px dashed #93c5fd !important; border-radius: 12px !important;
+        background: linear-gradient(160deg, #f7fbff, #f0fff8) !important;
     }
 
     /* ── Botones de acción post-guardado ── */
-    .accion-row {
-        display: flex;
-        flex-wrap: nowrap;
-        margin: 0 -6px;
+    .accion-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
     }
-    .accion-col {
-        flex: 1;
-        padding: 0 6px;
-        display: flex;
-        flex-direction: column;
+    @media (max-width: 576px) {
+        .accion-grid { grid-template-columns: repeat(2, 1fr); }
     }
     .accion-btn {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        border-radius: 10px;
-        padding: 11px 8px;
-        text-align: center;
-        text-decoration: none !important;
-        transition: transform .2s cubic-bezier(.34,1.56,.64,1), box-shadow .2s ease;
-        position: relative;
-        overflow: hidden;
-        min-height: 68px;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        border-radius: 12px; padding: 14px 8px; text-align: center;
+        text-decoration: none !important; color: #fff !important;
+        transition: transform .2s cubic-bezier(.34,1.56,.64,1), box-shadow .2s;
+        position: relative; overflow: hidden; min-height: 72px; gap: 6px;
     }
     .accion-btn::after {
-        content: '';
-        position: absolute;
-        inset: 0;
-        background: rgba(255,255,255,.12);
+        content: ''; position: absolute; inset: 0;
+        background: rgba(255,255,255,.15);
         transform: translateX(-100%) skewX(-15deg);
-        transition: transform .35s ease;
+        transition: transform .3s ease;
     }
-    .accion-btn:hover::after  { transform: translateX(120%) skewX(-15deg); }
-    .accion-btn:hover {
-        transform: translateY(-4px) scale(1.04);
-    }
-    .accion-btn:active { transform: translateY(-1px) scale(.98); }
-
-    /* ── Sugerencias live search ── */
-    .sugerencia-item {
-        transition: background .12s, padding-left .12s;
-        cursor: pointer;
-    }
-    .sugerencia-item:hover { background: #f0f7ff !important; padding-left: 20px !important; }
-
-    /* ── Tarjeta cliente seleccionado ── */
-    .cliente-card {
-        animation: fadeInUp .35s ease both;
-    }
-
-    /* ── Filas de la tabla de productos ── */
-    .item-row { transition: background .15s ease; }
+    .accion-btn:hover::after { transform: translateX(120%) skewX(-15deg); }
+    .accion-btn:hover { transform: translateY(-3px) scale(1.03); }
+    .accion-btn .accion-icon { font-size: 20px; }
+    .accion-btn .accion-label { font-size: 11px; font-weight: 700; letter-spacing: .4px; }
 
     /* ── Panel de éxito ── */
     .panel-exito { animation: fadeInUp .4s ease both; }
+
+    /* ── Responsive: form content padding ── */
+    @media (max-width: 575px) {
+        .pedido-ibox-content { padding: 16px !important; }
+        .pedido-search-wrap, .sugerencias-box { max-width: 100%; }
+        .cliente-info-grid { grid-template-columns: repeat(2, 1fr); }
+        .productos-card .table-responsive { font-size: 12px; }
+    }
+    @media (min-width: 992px) {
+        .pedido-ibox-content { padding: 28px 32px !important; }
+    }
 </style>
 
     {{-- ===== ENCABEZADO ===== --}}
@@ -133,65 +170,43 @@
                         </div>
 
                         <div class="ibox-content py-3 px-3">
-                            <div class="accion-row">
+                            <div class="accion-grid">
 
-                                {{-- Crear Oferta ─ delay 0.1s --}}
-                                <div class="accion-col">
-                                    <div style="animation:popIn .4s ease .08s both; flex:1; display:flex; flex-direction:column;">
-                                        <a href="/proforma/cotizacion/1"
-                                           class="accion-btn"
-                                           style="background:linear-gradient(135deg,#1a7efb,#0d6efd); color:#fff; box-shadow:0 4px 14px rgba(26,126,251,.35);">
-                                            <i class="fa fa-file-text-o d-block mb-1" style="font-size:18px;"></i>
-                                            <span style="font-size:11px; font-weight:700; letter-spacing:.3px;">CREAR OFERTA</span>
-                                        </a>
-                                    </div>
-                                </div>
+                                <a href="/proforma/cotizacion/1" class="accion-btn"
+                                   style="background:linear-gradient(135deg,#1a7efb,#0d6efd); box-shadow:0 4px 14px rgba(26,126,251,.35);"
+                                   title="Crear Oferta">
+                                    <i class="fa fa-file-text-o accion-icon"></i>
+                                    <span class="accion-label">CREAR OFERTA</span>
+                                </a>
 
-                                {{-- Imprimir ─ delay 0.2s --}}
-                                <div class="accion-col">
-                                    <div style="animation:popIn .4s ease .18s both; flex:1; display:flex; flex-direction:column;">
-                                        <a href="/flujo/pedido/imprimir/{{ $pedidoGuardadoId }}"
-                                           target="_blank"
-                                           class="accion-btn"
-                                           style="background:linear-gradient(135deg,#1ab394,#0fa37a); color:#fff; box-shadow:0 4px 14px rgba(26,179,148,.35);">
-                                            <i class="fa fa-print d-block mb-1" style="font-size:18px;"></i>
-                                            <span style="font-size:11px; font-weight:700; letter-spacing:.3px;">IMPRIMIR</span>
-                                        </a>
-                                    </div>
-                                </div>
+                                <a href="/flujo/pedido/imprimir/{{ $pedidoGuardadoId }}" target="_blank"
+                                   class="accion-btn"
+                                   style="background:linear-gradient(135deg,#1ab394,#0fa37a); box-shadow:0 4px 14px rgba(26,179,148,.35);"
+                                   title="Imprimir">
+                                    <i class="fa fa-print accion-icon"></i>
+                                    <span class="accion-label">IMPRIMIR</span>
+                                </a>
 
-                                {{-- Exportar Excel ─ delay 0.3s --}}
-                                <div class="accion-col">
-                                    <div style="animation:popIn .4s ease .28s both; flex:1; display:flex; flex-direction:column;">
-                                        <a href="/flujo/pedido/exportar/{{ $pedidoGuardadoId }}"
-                                           class="accion-btn"
-                                           style="background:linear-gradient(135deg,#217346,#1a5c38); color:#fff; box-shadow:0 4px 14px rgba(33,115,70,.35);">
-                                            <i class="fa fa-file-excel-o d-block mb-1" style="font-size:18px;"></i>
-                                            <span style="font-size:11px; font-weight:700; letter-spacing:.3px;">EXCEL</span>
-                                        </a>
-                                    </div>
-                                </div>
+                                <a href="/flujo/pedido/exportar/{{ $pedidoGuardadoId }}" class="accion-btn"
+                                   style="background:linear-gradient(135deg,#217346,#1a5c38); box-shadow:0 4px 14px rgba(33,115,70,.35);"
+                                   title="Exportar Excel">
+                                    <i class="fa fa-file-excel-o accion-icon"></i>
+                                    <span class="accion-label">EXCEL</span>
+                                </a>
 
-                                {{-- Historial ─ delay 0.4s --}}
-                                <div class="accion-col">
-                                    <div style="animation:popIn .4s ease .38s both; flex:1; display:flex; flex-direction:column;">
-                                        <a href="/flujo/pedidos/historico"
-                                           class="accion-btn"
-                                           style="background:linear-gradient(135deg,#6c5ce7,#5544d0); color:#fff; box-shadow:0 4px 14px rgba(108,92,231,.35);">
-                                            <i class="fa fa-list-alt d-block mb-1" style="font-size:18px;"></i>
-                                            <span style="font-size:11px; font-weight:700; letter-spacing:.3px;">HISTORIAL</span>
-                                        </a>
-                                    </div>
-                                </div>
+                                <a href="/flujo/pedidos/historico" class="accion-btn"
+                                   style="background:linear-gradient(135deg,#6c5ce7,#5544d0); box-shadow:0 4px 14px rgba(108,92,231,.35);"
+                                   title="Ver historial">
+                                    <i class="fa fa-list-alt accion-icon"></i>
+                                    <span class="accion-label">HISTORIAL</span>
+                                </a>
 
                             </div>
 
-                            <div class="text-center mt-2">
-                                <button
-                                    type="button"
-                                    wire:click="nuevoPedido"
-                                    class="btn btn-default btn-xs"
-                                    style="border-radius:20px; font-size:11px; padding:4px 14px; color:#888;">
+                            <div class="text-center mt-3">
+                                <button type="button" wire:click="nuevoPedido"
+                                        class="btn btn-default btn-sm"
+                                        style="border-radius:20px; font-size:12px; color:#888;">
                                     <i class="fa fa-plus-circle mr-1"></i>Registrar otro pedido
                                 </button>
                             </div>
@@ -213,44 +228,38 @@
         <div class="row">
             <div class="col-lg-12">
                 <div class="ibox">
-                    <div class="ibox-title" style="background:linear-gradient(135deg,#f39c12 0%,#e67e22 100%); color:#fff; border-radius:4px 4px 0 0;">
+                    <div class="ibox-title pedido-main-title" style="background:linear-gradient(135deg,#f39c12 0%,#e67e22 100%); color:#fff; border-radius:4px 4px 0 0;">
                         <h5 class="m-0" style="color:#fff;">
                             <i class="fa fa-shopping-cart"></i> &nbsp;Registrar Pedido
                         </h5>
                     </div>
 
-                    <div class="ibox-content" style="padding: 30px;">
+                    <div class="ibox-content pedido-ibox-content" style="padding: 24px;">
 
                         {{-- ==================== SECCIÓN 1: CLIENTE ==================== --}}
-                        <div class="row mb-2">
-                            <div class="col-12">
-                                <div class="d-flex align-items-center mb-2">
-                                    <span class="badge badge-primary step-badge mr-2">1</span>
-                                    <h5 class="m-0 text-dark" style="font-size:15px;">Información del Cliente</h5>
-                                </div>
-                            </div>
+                        <div class="pedido-section-heading">
+                            <span class="badge badge-primary step-badge">1</span>
+                            <h5>Información del Cliente</h5>
                         </div>
 
                         @if (!$clienteSeleccionado)
                         {{-- ── Buscador live ── --}}
-                        <div class="row mb-2">
-                            <div class="col-lg-6">
-                                <div class="input-group" style="box-shadow:0 2px 8px rgba(26,126,251,.10); border-radius:8px; overflow:hidden;">
-                                    <div class="input-group-prepend">
-                                        <span class="input-group-text bg-white border-right-0" style="border-right:none;">
-                                            <i class="fa fa-search" style="color:#1a7efb; font-size:12px;"></i>
-                                        </span>
-                                    </div>
-                                    <input
-                                        type="text"
-                                        wire:model.debounce.350ms="busqueda"
-                                        class="form-control border-left-0"
-                                        style="font-size:13px; border-color:#e0e9ff; border-left:none;"
-                                        placeholder="Nombre o RTN — escribe para buscar..."
-                                        autocomplete="off"
+                        <div class="pedido-search-wrap mb-2">
+                            <div class="input-group">
+                                <div class="input-group-prepend">
+                                    <span class="input-group-text border-right-0">
+                                        <i class="fa fa-search" style="color:#1a7efb; font-size:13px;"></i>
+                                    </span>
+                                </div>
+                                <input
+                                    type="text"
+                                    wire:model.debounce.350ms="busqueda"
+                                    class="form-control border-left-0"
+                                    placeholder="Nombre o RTN — escribe para buscar..."
+                                    autocomplete="off"
                                     >
                                     <div class="input-group-append">
-                                        <span class="input-group-text bg-white" style="border-left:none; border-color:#e0e9ff; padding:0 10px;">
+                                        <span class="input-group-text border-left-0" style="padding: 0 12px;">
                                             <span wire:loading wire:target="updatedBusqueda,buscarCliente">
                                                 <i class="fa fa-spinner fa-spin" style="color:#1a7efb; font-size:11px;"></i>
                                             </span>
@@ -261,65 +270,55 @@
                                     </div>
                                 </div>
                                 @error('clienteSeleccionado')
-                                    <small class="text-danger"><i class="fa fa-exclamation-circle"></i> {{ $message }}</small>
+                                    <small class="text-danger mt-1 d-block"><i class="fa fa-exclamation-circle"></i> {{ $message }}</small>
                                 @enderror
-                            </div>
                         </div>
 
                         {{-- ── Sugerencias (dropdown live) ── --}}
                         @if (count($resultadosBusqueda) > 0)
-                        <div class="row mb-2">
-                            <div class="col-lg-6">
-                                <div style="border-radius:8px; box-shadow:0 6px 20px rgba(26,126,251,.15); border:1px solid #e0e9ff; background:#fff; animation:slideDown .2s ease both; overflow:hidden;">
-                                    @foreach ($resultadosBusqueda as $r)
-                                    <button
-                                        type="button"
-                                        class="sugerencia-item list-group-item list-group-item-action border-0 py-2 px-3"
-                                        wire:click="seleccionarCliente({{ $r['id'] }})"
-                                    >
-                                        <div class="d-flex justify-content-between align-items-center">
-                                            <div>
-                                                <i class="fa fa-user-circle-o text-primary mr-1" style="font-size:12px;"></i>
-                                                <strong style="font-size:13px;">{{ $r['nombre'] }}</strong>
-                                            </div>
-                                            @if ($r['rtn'])
-                                            <span class="badge badge-light border" style="font-size:10px; color:#666;">{{ $r['rtn'] }}</span>
-                                            @endif
-                                        </div>
-                                        @if (!empty($r['direccion']))
-                                        <small class="text-muted d-block" style="font-size:11px; margin-top:1px;"><i class="fa fa-map-marker mr-1"></i>{{ Str::limit($r['direccion'], 55) }}</small>
-                                        @endif
-                                    </button>
-                                    @endforeach
-                                    {{-- Opción: crear cliente nuevo --}}
-                                    <button
-                                        type="button"
-                                        class="list-group-item list-group-item-action border-0 py-2 px-3 text-success"
-                                        wire:click="abrirModalCrearCliente"
-                                        style="font-size:12px; background:#f0fdf4; border-top:1px solid #dcfce7 !important;"
-                                    >
-                                        <i class="fa fa-plus-circle mr-1"></i>
-                                        No lo veo — <strong>Crear nuevo cliente</strong>
-                                    </button>
+                        <div class="sugerencias-box mb-2">
+                            @foreach ($resultadosBusqueda as $r)
+                            <button type="button"
+                                    class="sugerencia-item list-group-item list-group-item-action border-0 py-2 px-3"
+                                    wire:click="seleccionarCliente({{ $r['id'] }})">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <i class="fa fa-user-circle-o text-primary mr-1" style="font-size:12px;"></i>
+                                        <strong style="font-size:13px;">{{ $r['nombre'] }}</strong>
+                                    </div>
+                                    @if ($r['rtn'])
+                                    <span class="badge badge-light border" style="font-size:10px; color:#666;">{{ $r['rtn'] }}</span>
+                                    @endif
                                 </div>
-                            </div>
+                                @if (!empty($r['direccion']))
+                                <small class="text-muted d-block" style="font-size:11px; margin-top:1px;">
+                                    <i class="fa fa-map-marker mr-1"></i>{{ Str::limit($r['direccion'], 60) }}
+                                </small>
+                                @endif
+                            </button>
+                            @endforeach
+                            <button type="button"
+                                    class="list-group-item list-group-item-action border-0 py-2 px-3 text-success"
+                                    wire:click="abrirModalCrearCliente"
+                                    style="font-size:12px; background:#f0fdf4; border-top:1px solid #dcfce7 !important;">
+                                <i class="fa fa-plus-circle mr-1"></i>
+                                No lo veo — <strong>Crear nuevo cliente</strong>
+                            </button>
                         </div>
 
                         {{-- Sin resultados tras búsqueda explícita --}}
                         @elseif ($hasBuscado && strlen(trim($busqueda)) >= 2)
-                        <div class="row mb-2">
-                            <div class="col-lg-6">
-                                <div class="d-flex align-items-center justify-content-between"
-                                     style="background:#fff8e1; border:1px solid #ffc107; border-radius:8px; padding:8px 12px; font-size:13px;">
-                                    <div>
-                                        <i class="fa fa-info-circle text-warning mr-1"></i>
-                                        Sin resultados para <strong>"{{ $busqueda }}"</strong>
-                                    </div>
-                                    <button type="button" class="btn btn-success btn-xs ml-2" wire:click="abrirModalCrearCliente"
-                                            style="border-radius:20px; font-size:11px;">
-                                        <i class="fa fa-plus"></i> Crear
-                                    </button>
+                        <div class="pedido-search-wrap mb-2">
+                            <div class="d-flex align-items-center justify-content-between"
+                                 style="background:#fff8e1; border:1px solid #ffc107; border-radius:8px; padding:10px 14px; font-size:13px;">
+                                <div>
+                                    <i class="fa fa-info-circle text-warning mr-1"></i>
+                                    Sin resultados para <strong>"{{ $busqueda }}"</strong>
                                 </div>
+                                <button type="button" class="btn btn-success btn-sm ml-2" wire:click="abrirModalCrearCliente"
+                                        style="border-radius:20px; font-size:11px;">
+                                    <i class="fa fa-plus"></i> Crear
+                                </button>
                             </div>
                         </div>
                         @endif
@@ -327,58 +326,45 @@
 
                         {{-- Tarjeta del cliente seleccionado --}}
                         @if ($clienteSeleccionado)
-                        <div class="row mb-4">
-                            <div class="col-lg-9">
-                                <div class="card mb-0" style="border:none; background:linear-gradient(135deg,#f0fff8,#e8f4ff); border-radius:12px; box-shadow:0 2px 12px rgba(26,179,148,.15);">
-                                    <div class="card-body py-3 px-4">
-                                        <div class="d-flex justify-content-between align-items-start">
-                                            <div>
-                                                <p class="mb-0 text-muted" style="font-size:11px; text-transform:uppercase; letter-spacing:1px;">Cliente seleccionado</p>
-                                                <h4 class="mb-0 mt-1" style="color:#1a7efb;">
-                                                    <i class="fa fa-user-circle"></i>
-                                                    {{ $clienteSeleccionado['nombre'] }}
-                                                </h4>
-                                            </div>
-                                            <button type="button" class="btn btn-outline-secondary btn-sm" wire:click="limpiarCliente">
-                                                <i class="fa fa-times"></i> Cambiar
-                                            </button>
+                        <div class="cliente-card mb-3" style="max-width:640px;">
+                            <div class="card mb-0" style="border:none; background:linear-gradient(135deg,#f0fff8,#e8f4ff); border-radius:12px; box-shadow:0 3px 14px rgba(26,179,148,.15);">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-1">
+                                        <div>
+                                            <p class="mb-0 text-muted" style="font-size:10px; text-transform:uppercase; letter-spacing:1px;">Cliente seleccionado</p>
+                                            <h5 class="mb-0 mt-1" style="color:#1a7efb; font-size:16px;">
+                                                <i class="fa fa-user-circle mr-1"></i>{{ $clienteSeleccionado['nombre'] }}
+                                            </h5>
                                         </div>
-                                        <hr class="my-2">
-                                        <div class="row">
-                                            <div class="col-md-3">
-                                                <p class="mb-0">
-                                                    <small class="text-muted d-block">RTN</small>
-                                                    <strong>{{ $clienteSeleccionado['rtn'] ?? '—' }}</strong>
-                                                </p>
-                                            </div>
-                                            <div class="col-md-3">
-                                                <p class="mb-0">
-                                                    <small class="text-muted d-block">Teléfono</small>
-                                                    <strong>{{ $clienteSeleccionado['telefono_empresa'] ?? '—' }}</strong>
-                                                </p>
-                                            </div>
-                                            <div class="col-md-3">
-                                                <p class="mb-0">
-                                                    <small class="text-muted d-block">Correo</small>
-                                                    <strong>{{ $clienteSeleccionado['correo'] ?? '—' }}</strong>
-                                                </p>
-                                            </div>
-                                            @if ($clienteSeleccionado['credito'])
-                                            <div class="col-md-3">
-                                                <p class="mb-0">
-                                                    <small class="text-muted d-block">Crédito</small>
-                                                    <span class="badge badge-success" style="font-size:13px;">
-                                                        L. {{ number_format($clienteSeleccionado['credito'], 2) }}
-                                                    </span>
-                                                </p>
-                                            </div>
-                                            @endif
-                                            <div class="col-md-9 mt-2">
-                                                <p class="mb-0">
-                                                    <small class="text-muted d-block">Dirección</small>
-                                                    <strong>{{ $clienteSeleccionado['direccion'] ?? '—' }}</strong>
-                                                </p>
-                                            </div>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm" wire:click="limpiarCliente"
+                                                style="border-radius:20px; font-size:11px; white-space:nowrap;">
+                                            <i class="fa fa-times mr-1"></i>Cambiar
+                                        </button>
+                                    </div>
+                                    <div class="cliente-info-grid">
+                                        <div class="cliente-info-item">
+                                            <small>RTN</small>
+                                            <strong>{{ $clienteSeleccionado['rtn'] ?? '—' }}</strong>
+                                        </div>
+                                        <div class="cliente-info-item">
+                                            <small>Teléfono</small>
+                                            <strong>{{ $clienteSeleccionado['telefono_empresa'] ?? '—' }}</strong>
+                                        </div>
+                                        <div class="cliente-info-item">
+                                            <small>Correo</small>
+                                            <strong>{{ $clienteSeleccionado['correo'] ?? '—' }}</strong>
+                                        </div>
+                                        @if ($clienteSeleccionado['credito'])
+                                        <div class="cliente-info-item">
+                                            <small>Crédito</small>
+                                            <span class="badge badge-success" style="font-size:12px;">
+                                                L. {{ number_format($clienteSeleccionado['credito'], 2) }}
+                                            </span>
+                                        </div>
+                                        @endif
+                                        <div class="cliente-info-item" style="grid-column: 1 / -1;">
+                                            <small>Dirección</small>
+                                            <strong>{{ $clienteSeleccionado['direccion'] ?? '—' }}</strong>
                                         </div>
                                     </div>
                                 </div>
@@ -389,29 +375,25 @@
                         <hr class="my-3" style="border-color:#edf1f9;">
 
                         {{-- ==================== SECCIÓN 2: PRODUCTOS ==================== --}}
-                        <div class="row mb-2">
-                            <div class="col-12">
-                                <div class="d-flex align-items-center mb-2">
-                                    <span class="badge badge-primary step-badge mr-2">2</span>
-                                    <h5 class="m-0 text-dark" style="font-size:15px;">Productos del Pedido</h5>
-                                </div>
-                            </div>
+                        <div class="pedido-section-heading">
+                            <span class="badge badge-primary step-badge">2</span>
+                            <h5>Productos del Pedido</h5>
                         </div>
 
-                        <div class="row align-items-start">
+                        <div class="row align-items-stretch">
 
                             {{-- ─────────── IZQUIERDA: lista editable de ítems ─────────── --}}
-                            <div class="col-lg-7 mb-4">
-                                <div class="card mb-0" style="border:1px solid #dce3f0; border-radius:10px; overflow:hidden; box-shadow:0 2px 10px rgba(0,0,0,.06);">
+                            <div class="col-12 col-md-7 mb-3 d-flex flex-column">
+                                <div class="card productos-card mb-0 flex-grow-1" style="box-shadow:0 2px 10px rgba(0,0,0,.06);">
                                     <div class="card-body p-0">
                                         <div class="table-responsive">
-                                            <table class="table mb-0" style="font-size:13px;">
+                                            <table class="table mb-0">
                                                 <thead>
-                                                    <tr style="background:#f0f4ff;">
-                                                        <th class="text-center py-2 pl-3" style="width:38px; border-bottom:2px solid #dce3f0; color:#8899bb; font-weight:600;">#</th>
-                                                        <th class="py-2" style="border-bottom:2px solid #dce3f0; font-weight:600;">Producto <span class="text-danger">*</span></th>
-                                                        <th class="py-2 text-center" style="width:120px; border-bottom:2px solid #dce3f0; font-weight:600;">Cantidad <span class="text-danger">*</span></th>
-                                                        <th class="py-2" style="width:44px; border-bottom:2px solid #dce3f0;"></th>
+                                                    <tr>
+                                                        <th class="text-center pl-3" style="width:38px;">#</th>
+                                                        <th>Producto <span class="text-danger">*</span></th>
+                                                        <th class="text-center" style="width:110px;">Cantidad <span class="text-danger">*</span></th>
+                                                        <th style="width:40px;"></th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -426,7 +408,6 @@
                                                                 wire:model.lazy="items.{{ $i }}.nombre_producto"
                                                                 class="form-control form-control-sm @error('items.'.$i.'.nombre_producto') is-invalid @enderror"
                                                                 placeholder="Nombre del producto..."
-                                                                style="border-radius:6px; border-color:#dce3f0;"
                                                             >
                                                             @error('items.'.$i.'.nombre_producto')
                                                                 <div class="invalid-feedback">{{ $message }}</div>
@@ -440,7 +421,6 @@
                                                                 placeholder="0"
                                                                 min="0.01"
                                                                 step="0.01"
-                                                                style="border-radius:6px; border-color:#dce3f0;"
                                                             >
                                                             @error('items.'.$i.'.cantidad')
                                                                 <div class="invalid-feedback">{{ $message }}</div>
@@ -463,7 +443,7 @@
                                             </table>
                                         </div>
                                     </div>
-                                    <div class="card-footer py-2 px-3 d-flex align-items-center" style="background:#fafbff; border-top:1px solid #e8eef8; gap:10px;">
+                                    <div class="card-footer d-flex align-items-center" style="gap:10px;">
                                         <button type="button" class="btn btn-outline-primary btn-sm" wire:click="agregarItem" style="border-radius:20px; font-size:12px;">
                                             <i class="fa fa-plus-circle mr-1"></i>Agregar fila
                                         </button>
@@ -475,8 +455,7 @@
                             </div>
 
                             {{-- ─────────── DERECHA: importar desde Excel ─────────── --}}
-                            <div class="col-lg-5 mb-4">
-
+                            <div class="col-12 col-md-5 mb-3 d-flex flex-column">
                                 {{-- ── ESTADO: ya importado ── --}}
                                 @if ($excelImportado)
                                 <div class="d-flex align-items-center justify-content-between px-3 py-3"
@@ -503,7 +482,7 @@
 
                                 {{-- ── ESTADO: zona de carga + vista previa ── --}}
                                 @else
-                                <div class="card mb-0" style="border:2px dashed #93c5fd; border-radius:12px; background:linear-gradient(160deg,#f7fbff 0%,#f0fff8 100%); overflow:hidden; box-shadow:none;">
+                                <div class="card excel-card mb-0 flex-grow-1 d-flex flex-column justify-content-center">
 
                                     {{-- Cabecera solo si no hay preview activo --}}
                                     @if (!$showExcelPreview)
@@ -689,18 +668,15 @@
                         <hr class="my-3" style="border-color:#edf1f9;">
 
                         {{-- ==================== SECCIÓN 3: OBSERVACIONES + BOTÓN ==================== --}}
+                        <div class="pedido-section-heading">
+                            <span class="badge badge-primary step-badge">3</span>
+                            <h5>Observaciones</h5>
+                        </div>
+
                         <div class="row align-items-end">
 
-                            {{-- Título sección --}}
-                            <div class="col-12 mb-2">
-                                <div class="d-flex align-items-center">
-                                    <span class="badge badge-primary step-badge mr-2">3</span>
-                                    <h5 class="m-0 text-dark" style="font-size:15px;">Observaciones</h5>
-                                </div>
-                            </div>
-
                             {{-- Textarea --}}
-                            <div class="col-lg-7">
+                            <div class="col-12 col-md-7 mb-3 mb-md-0">
                                 <textarea
                                     wire:model.lazy="observaciones"
                                     class="form-control"
@@ -710,20 +686,18 @@
                                 ></textarea>
                             </div>
 
-                            {{-- Botón guardar (a la par) --}}
-                            <div class="col-lg-5 text-right mt-2 mt-lg-0">
+                            {{-- Botón guardar --}}
+                            <div class="col-12 col-md-5 text-right">
                                 <button
                                     type="button"
-                                    class="btn btn-primary btn-lg"
+                                    class="btn btn-primary btn-block btn-lg"
                                     wire:click="guardarPedido"
-                                    style="border-radius:10px; font-size:15px; padding:12px 32px;
+                                    style="border-radius:10px; font-size:15px; padding:13px 28px;
                                            background:linear-gradient(135deg,#1a7efb,#1ab394);
-                                           border:none;
-                                           box-shadow:0 4px 16px rgba(26,126,251,.35);
+                                           border:none; box-shadow:0 4px 16px rgba(26,126,251,.35);
                                            transition:transform .15s, box-shadow .15s;"
                                     onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 24px rgba(26,126,251,.45)';"
                                     onmouseout="this.style.transform='';this.style.boxShadow='0 4px 16px rgba(26,126,251,.35)';"
-                                    onmousedown="this.style.transform='translateY(0)';"
                                 >
                                     <span wire:loading.remove wire:target="guardarPedido">
                                         <i class="fa fa-save mr-1"></i> Registrar Pedido

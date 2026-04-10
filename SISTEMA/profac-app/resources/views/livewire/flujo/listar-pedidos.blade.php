@@ -1,7 +1,7 @@
 <div>
     {{-- ===== ENCABEZADO ===== --}}
     <div class="row wrapper border-bottom white-bg page-heading">
-        <div class="col-lg-10">
+        <div class="col-lg-12">
             <h2><i class="fa fa-list-alt text-primary"></i> Historial de Pedidos</h2>
             <ol class="breadcrumb">
                 <li class="breadcrumb-item">
@@ -10,11 +10,6 @@
                 <li class="breadcrumb-item">Flujo</li>
                 <li class="breadcrumb-item active"><strong>Historial de Pedidos</strong></li>
             </ol>
-        </div>
-        <div class="col-lg-2 d-flex align-items-center justify-content-end">
-            <a href="/flujo/pedido" class="btn btn-primary btn-sm">
-                <i class="fa fa-plus"></i> &nbsp;Nuevo Pedido
-            </a>
         </div>
     </div>
 
@@ -38,12 +33,23 @@
             <div class="col-lg-12">
                 <div class="ibox">
                     {{-- ── Encabezado del ibox ── --}}
-                    <div class="ibox-title"
+                    <div class="ibox-title d-flex align-items-center justify-content-between"
                          style="background:linear-gradient(135deg,#f39c12 0%,#e67e22 100%);
-                                color:#fff; border-radius:4px 4px 0 0;">
+                                color:#fff; border-radius:4px 4px 0 0; padding:12px 20px;">
                         <h5 class="m-0" style="color:#fff;">
                             <i class="fa fa-list-alt"></i> &nbsp;Pedidos Registrados
                         </h5>
+                        <button type="button"
+                           onclick="abrirModalPedido('/flujo/pedido?embed=1','Nuevo Pedido')"
+                           style="background:#fff; color:#e67e22; border:none; border-radius:8px;
+                                  padding:7px 18px; font-size:13px; font-weight:700;
+                                  cursor:pointer; display:inline-flex; align-items:center; gap:6px;
+                                  box-shadow:0 2px 8px rgba(0,0,0,.15); transition:transform .15s, box-shadow .15s;"
+                           onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 14px rgba(0,0,0,.2)';"
+                           onmouseout="this.style.transform='';this.style.boxShadow='0 2px 8px rgba(0,0,0,.15)';"
+                        >
+                            <i class="fa fa-plus"></i> Nuevo Pedido
+                        </button>
                     </div>
 
                     <div class="ibox-content" style="padding:24px;">
@@ -183,7 +189,7 @@
                                                         $eIcon  = 'fa-file-o';
                                                         $eBg    = '#00b894';
                                                     } elseif ($pedido->has_ofertas > 0) {
-                                                        $eLabel = 'Ofertas';
+                                                        $eLabel = 'Ofertas (' . $pedido->has_ofertas . ')';
                                                         $eIcon  = 'fa-tag';
                                                         $eBg    = '#f39c12';
                                                     } else {
@@ -245,20 +251,31 @@
                                                         <i class="fa fa-file-excel-o text-success"></i>
                                                     </a>
                                                     {{-- Editar --}}
-                                                    <a href="/flujo/pedido/editar/{{ $pedido->id }}"
-                                                       class="btn btn-xs btn-warning"
-                                                       title="Editar pedido"
-                                                       style="color:#fff;">
-                                                        <i class="fa fa-pencil"></i>
-                                                    </a>
+                                                    @if ($pedido->has_ganadora > 0 || $pedido->estado === 'pre_factura' || $pedido->estado === 'cotizado')
+                                                        <button type="button" class="btn btn-xs btn-warning" disabled
+                                                                title="No se puede editar: ya existe una oferta ganadora"
+                                                                style="color:#fff; opacity:.45; cursor:not-allowed;">
+                                                            <i class="fa fa-lock"></i>
+                                                        </button>
+                                                    @else
+                                                        <button type="button"
+                                                           onclick="abrirModalPedido('/flujo/pedido/editar/{{ $pedido->id }}?embed=1','Editar Pedido #{{ $pedido->id }}')"
+                                                           class="btn btn-xs btn-warning"
+                                                           title="Editar pedido"
+                                                           style="color:#fff;">
+                                                            <i class="fa fa-pencil"></i>
+
+                                                        </button>
+                                                    @endif
                                                     {{-- Crear Oferta --}}
                                                     @if ($pedido->estado !== 'cancelado' && $pedido->estado !== 'cotizado' && $pedido->estado !== 'pre_factura')
-                                                        <a href="/flujo/oferta/crear/{{ $pedido->id }}"
+                                                        <button type="button"
+                                                           onclick="abrirModalPedido('/flujo/oferta/crear/{{ $pedido->id }}?embed=1','Crear Oferta — Pedido #{{ $pedido->id }}')"
                                                            class="btn btn-xs btn-primary"
                                                            title="Crear oferta para este pedido"
                                                            style="color:#fff;">
                                                             <i class="fa fa-tag"></i>
-                                                        </a>
+                                                        </button>
                                                     @else
                                                         <button type="button" class="btn btn-xs btn-default"
                                                                 disabled style="cursor:not-allowed;opacity:.45;"
@@ -338,14 +355,31 @@
     </div>{{-- /wrapper-content --}}
 
     {{-- ===== MODAL DE CONFIRMACIÓN: ANULAR ===== --}}
+    {{-- Global modal animation + centering (applies to all Livewire modals on this page) --}}
+    <style>
+        @keyframes lw-modal-pop {
+            from { opacity:0; transform:scale(.88) translateY(24px); }
+            to   { opacity:1; transform:scale(1)   translateY(0); }
+        }
+        .lw-modal-backdrop {
+            display:flex !important;
+            align-items:center;
+            justify-content:center;
+            position:fixed; inset:0;
+        }
+        .lw-modal-backdrop > .modal-dialog {
+            margin:0 !important;
+            width:95vw;
+        }
+        .lw-modal-backdrop .modal-content {
+            animation: lw-modal-pop .28s cubic-bezier(.34,1.56,.64,1) both;
+        }
+    </style>
     @if ($showModalAnular)
-    <div
-        class="modal fade show"
-        style="display:block; background:rgba(0,0,0,.55); z-index:1050;"
-        tabindex="-1"
-        role="dialog"
-    >
-        <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
+    <div style="position:fixed; inset:0; display:grid; place-items:center;
+                background:rgba(0,0,0,.55); z-index:1050;"
+         tabindex="-1" role="dialog">
+        <div style="width:min(420px,92vw);" role="document">
             <div class="modal-content" style="border-radius:12px; border:none; box-shadow:0 10px 40px rgba(0,0,0,.25);">
                 <div class="modal-header" style="background:linear-gradient(135deg,#f39c12 0%,#e67e22 100%); border:none;">
                     <h5 class="modal-title text-white m-0">
@@ -377,6 +411,25 @@
 
     {{-- ===== MODAL DE FLUJO DEL PEDIDO ===== --}}
     @if ($showModalFlujo && $pedidoFlujoData)
+    <style>
+        @@keyframes flujoIn {
+            from { opacity:0; transform:scale(.94) translateY(-24px); }
+            to   { opacity:1; transform:scale(1)  translateY(0);      }
+        }
+        .flujo-dlg  { max-width:900px; width:100%; animation:flujoIn .32s cubic-bezier(.34,1.28,.64,1) both; }
+        .flujo-cnt  { border-radius:18px !important; overflow:hidden !important; }
+        .flujo-hdr  { padding:16px 28px !important; }
+        .flujo-hdr h5 { font-size:17px !important; }
+        .flujo-hdr small { font-size:12px !important; }
+        .flujo-body { padding:20px 28px 24px !important; overflow-y:auto; max-height:calc(90vh - 140px); }
+        .flujo-foot { padding:12px 28px 20px !important; display:flex !important; flex-wrap:wrap !important; gap:8px !important; justify-content:flex-end !important; }
+        .flujo-pipeline { scrollbar-width:thin; scrollbar-color:#e0e3ee transparent; }
+        .flujo-pipeline::-webkit-scrollbar { height:4px; }
+        .flujo-pipeline::-webkit-scrollbar-thumb { background:#d0d4e4; border-radius:4px; }
+        .flujo-offers-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+        .flujo-offers-wrap table { min-width:480px; }
+        .flujo-info-grid { display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:#666; }
+    </style>
     @php
         $fEstado      = $pedidoFlujoData['estado'] ?? 'pedido';
         $fCancelado   = ($fEstado === 'cancelado');
@@ -400,16 +453,17 @@
             6 => ['icon' => 'fa-money',         'title' => 'Cobro',        'color' => '#6c5ce7', 'glow' => 'rgba(108,92,231,.45)'],
         ];
     @endphp
-    <div class="modal fade show"
-         style="display:block; background:rgba(10,10,30,.65); z-index:1060;"
-         tabindex="-1" role="dialog">
-        <div class="modal-dialog modal-lg" style="margin-top:60px;" role="document">
-            <div class="modal-content" style="border-radius:18px; border:none; overflow:hidden;
+    <div id="flujoModalWrap" tabindex="-1" role="dialog"
+         style="position:fixed; inset:0; z-index:1060;
+                display:flex; align-items:center; justify-content:center; padding:20px;
+                background:rgba(15,15,35,.58); backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px);">
+        <div class="flujo-dlg" role="document">
+            <div class="modal-content flujo-cnt" style="border:none; overflow:hidden;
                         box-shadow:0 20px 60px rgba(0,0,0,.35);">
 
                 {{-- Header --}}
-                <div class="modal-header" style="background:linear-gradient(135deg,#f39c12 0%,#e67e22 100%);
-                            border:none; padding:18px 24px;">
+                <div class="modal-header flujo-hdr" style="background:linear-gradient(135deg,#f39c12 0%,#e67e22 100%);
+                            border:none;">
                     <div>
                         <h5 class="modal-title m-0" style="color:#fff; font-size:17px; font-weight:700;">
                             <i class="fa fa-map-o mr-2"></i>Flujo del Pedido
@@ -431,7 +485,7 @@
                     </button>
                 </div>
 
-                <div class="modal-body" style="padding:16px 28px 28px; background:#f8f9fc;">
+                <div class="modal-body flujo-body" style="background:#f8f9fc;">
 
                     @if ($fCancelado)
                     {{-- Estado cancelado: banner rojo --}}
@@ -448,7 +502,7 @@
                     </div>
                     @else
                     {{-- Pipeline de estados --}}
-                    <div style="display:flex; align-items:center; justify-content:center;
+                    <div class="flujo-pipeline" style="display:flex; align-items:center; justify-content:center;
                                 gap:0; flex-wrap:nowrap; overflow-x:auto;
                                 padding: 20px 8px 12px;">
 
@@ -540,9 +594,8 @@
                     @endif
 
                     {{-- Info footer --}}
-                    <div style="margin-top:24px; padding:14px 18px; background:#fff;
-                                border-radius:12px; border:1px solid #e8eaf0;
-                                display:flex; gap:20px; flex-wrap:wrap; font-size:12px; color:#666;">
+                    <div class="flujo-info-grid" style="margin-top:20px; padding:14px 18px; background:#fff;
+                                border-radius:12px; border:1px solid #e8eaf0;">
                         <span><i class="fa fa-hashtag text-primary mr-1"></i>
                             <strong>Pedido #{{ $pedidoFlujoData['id'] }}</strong>
                         </span>
@@ -566,7 +619,7 @@
                                 Ofertas asociadas
                             </span>
                         </div>
-                        <div style="background:#fff; padding:12px 18px; max-height:200px; overflow-y:auto;">
+                        <div class="flujo-offers-wrap" style="background:#fff; padding:12px 18px; max-height:220px; overflow-y:auto;">
                             @if (count($fOfertas) === 0)
                                 <div class="text-center py-3 text-muted" style="font-size:12px;">
                                     <i class="fa fa-inbox fa-lg d-block mb-1" style="opacity:.3;"></i>
@@ -650,15 +703,24 @@
 
                 </div>{{-- /modal-body --}}
 
-                <div class="modal-footer" style="border:none; padding:12px 24px 20px; background:#f8f9fc;">
+                <div class="modal-footer flujo-foot" style="border:none; background:#f8f9fc;">
                     <button type="button" wire:click="cerrarFlujo" class="btn btn-default"
                             style="border-radius:20px; padding:6px 22px;">
                         <i class="fa fa-times mr-1"></i> Cerrar
                     </button>
-                    <a href="/flujo/pedido/editar/{{ $pedidoFlujoData['id'] }}"
-                       class="btn btn-warning" style="border-radius:20px; padding:6px 22px; color:#fff;">
-                        <i class="fa fa-pencil mr-1"></i> Editar pedido
-                    </a>
+                    @if ($yaGanadoraExists)
+                        <button type="button" class="btn btn-warning" disabled
+                                title="No se puede editar: ya existe una oferta ganadora para este pedido"
+                                style="border-radius:20px; padding:6px 22px; color:#fff; opacity:.45; cursor:not-allowed;">
+                            <i class="fa fa-lock mr-1"></i> Editar pedido
+                        </button>
+                    @else
+                        <button type="button"
+                               onclick="cerrarFlujoYEditar('/flujo/pedido/editar/{{ $pedidoFlujoData['id'] }}?embed=1','Editar Pedido #{{ $pedidoFlujoData['id'] }}')"
+                               class="btn btn-warning" style="border-radius:20px; padding:6px 22px; color:#fff;">
+                            <i class="fa fa-pencil mr-1"></i> Editar pedido
+                        </button>
+                    @endif
                     @if (!$fCancelado && !$yaGanadoraExists)
                         <a href="/flujo/oferta/crear/{{ $pedidoFlujoData['id'] }}"
                            class="btn btn-primary" style="border-radius:20px; padding:6px 22px; color:#fff;">
@@ -669,15 +731,15 @@
 
             </div>
         </div>
-    </div>
+    </div>{{-- /flujoModalWrap --}}
     @endif
 
     {{-- ===== MODAL CONFIRMACIÓN: OFERTA GANADORA ===== --}}
     @if ($showModalGanadora)
-    <div class="modal fade show"
-         style="display:block; background:rgba(0,0,0,.65); z-index:1080;"
+    <div style="position:fixed; inset:0; display:grid; place-items:center;
+                background:rgba(0,0,0,.65); z-index:1080;"
          tabindex="-1" role="dialog">
-        <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
+        <div style="width:min(420px,92vw);" role="document">
             <div class="modal-content" style="border-radius:12px; border:none; box-shadow:0 10px 40px rgba(0,0,0,.35);">
                 <div class="modal-header" style="background:linear-gradient(135deg,#f39c12 0%,#e67e22 100%); border:none;">
                     <h5 class="modal-title text-white m-0">
@@ -709,6 +771,74 @@
     </div>
     @endif
 
+    {{-- ===== MODAL PEDIDO FORM (Nuevo / Editar — iframe) ===== --}}
+    {{-- The modal and backdrop are scoped to the content area via CSS + JS --}}
+    <div class="modal fade" id="modalPedidoForm" tabindex="-1" role="dialog"
+         data-backdrop="false" data-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered" id="modalPedidoDialog" role="document">
+            <div class="modal-content" style="border:none; border-radius:14px; overflow:hidden;
+                        box-shadow:0 20px 60px rgba(0,0,0,.45);">
+                <div class="modal-header"
+                     style="background:linear-gradient(135deg,#f39c12 0%,#e67e22 100%);
+                            border:none; padding:13px 20px;">
+                    <h5 class="modal-title" id="modalPedidoTitulo"
+                        style="color:#fff; font-weight:800; font-size:15px; margin:0;">
+                        <i class="fa fa-shopping-cart mr-2"></i> Pedido
+                    </h5>
+                    <button type="button" onclick="cerrarModalPedido()"
+                            class="close" style="color:rgba(255,255,255,.85); opacity:1; font-size:24px; line-height:1;">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body" style="padding:0; position:relative; background:#f4f5f7;">
+                    <div id="pedidoIframeLoader"
+                         style="position:absolute;inset:0;display:flex;flex-direction:column;
+                                align-items:center;justify-content:center;
+                                background:#f4f5f7;z-index:10;gap:10px;">
+                        <i class="fa fa-spinner fa-spin fa-2x" style="color:#e67e22;"></i>
+                        <span style="font-size:13px; color:#888;">Cargando formulario...</span>
+                    </div>
+                    <iframe id="pedidoIframe" src="" frameborder="0"
+                            style="width:100%; height:75vh; display:block; background:#f4f5f7;"
+                            onload="document.getElementById('pedidoIframeLoader').style.display='none'">
+                    </iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Custom backdrop scoped to content area only --}}
+    <div id="pedidoBackdrop"
+         style="display:none; position:fixed; top:0; bottom:0; right:0;
+                background:rgba(0,0,0,.5); z-index:1050;
+                transition:opacity .15s linear;"></div>
+
+    {{-- Scoped modal CSS --}}
+    <style>
+        /* Scope modal to content area (right of sidebar) on desktop */
+        @media (min-width: 993px) {
+            #modalPedidoForm {
+                left: 220px !important;
+                width: calc(100vw - 220px) !important;
+            }
+            #modalPedidoDialog {
+                max-width: min(780px, 88%) !important;
+                width: min(780px, 88%) !important;
+                margin: 40px auto !important;
+            }
+        }
+        /* Mobile: full width */
+        @media (max-width: 992px) {
+            #modalPedidoForm { left: 0 !important; width: 100vw !important; }
+            #modalPedidoDialog { max-width: 95vw !important; width: 95vw !important; margin: 20px auto !important; }
+            #pedidoBackdrop { left: 0 !important; }
+        }
+        /* Desktop backdrop starts after sidebar */
+        @media (min-width: 993px) {
+            #pedidoBackdrop { left: 220px; }
+        }
+    </style>
+
     {{-- ===== CSS ANIMACIONES FLUJO ===== --}}
     <style>
         @keyframes stepIn {
@@ -738,3 +868,48 @@
     </style>
 
 </div>
+
+@push('scripts')
+<script>
+function cerrarFlujoYEditar(url, titulo) {
+    // Close the flujo Livewire modal, then open the edit iframe modal
+    window.livewire.emit('cerrarFlujoDesdeJS');
+    setTimeout(function() { abrirModalPedido(url, titulo); }, 350);
+}
+function abrirModalPedido(url, titulo) {
+    document.getElementById('modalPedidoTitulo').innerHTML =
+        '<i class="fa fa-shopping-cart mr-2"></i> ' + titulo;
+    var loader = document.getElementById('pedidoIframeLoader');
+    var iframe = document.getElementById('pedidoIframe');
+    loader.style.display = 'flex';
+    iframe.src = '';
+    iframe.src = url;
+    // Show custom backdrop scoped to content area
+    var bd = document.getElementById('pedidoBackdrop');
+    bd.style.display = 'block';
+    bd.style.opacity = '0';
+    setTimeout(function(){ bd.style.opacity = '1'; }, 10);
+    // Show modal without Bootstrap backdrop
+    $('#modalPedidoForm').modal({ backdrop: false, keyboard: false });
+    $('#modalPedidoForm').modal('show');
+}
+function cerrarModalPedido() {
+    var bd = document.getElementById('pedidoBackdrop');
+    bd.style.opacity = '0';
+    setTimeout(function(){ bd.style.display = 'none'; }, 150);
+    $('#modalPedidoForm').modal('hide');
+    document.getElementById('pedidoIframe').src = '';
+}
+// Close on backdrop click
+document.getElementById('pedidoBackdrop').addEventListener('click', cerrarModalPedido);
+$('#modalPedidoForm').on('hidden.bs.modal', function () {
+    window.livewire.emit('pedidoGuardado');
+});
+// Close modal when iframe signals it (e.g. after saving offer)
+window.addEventListener('message', function(e) {
+    if (e.data && e.data.action === 'cerrarModal') {
+        cerrarModalPedido();
+    }
+});
+</script>
+@endpush

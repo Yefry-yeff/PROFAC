@@ -37,7 +37,9 @@ class OfertaPedido extends Component
         $pedidoId      = $this->pedidoId;
         $pedidoCliente = $this->pedidoCliente;
         $tipoCotizacion = 1; // always corporate
-        return view('livewire.flujo.oferta-pedido', compact('pedidoId', 'pedidoCliente', 'tipoCotizacion'));
+        $layout = request()->has('embed') ? 'layouts.embed' : 'layouts.app';
+        return view('livewire.flujo.oferta-pedido', compact('pedidoId', 'pedidoCliente', 'tipoCotizacion'))
+            ->layout($layout);
     }
 
     // ── Same client list logic as Cotizacion (reused) ───────────────────────

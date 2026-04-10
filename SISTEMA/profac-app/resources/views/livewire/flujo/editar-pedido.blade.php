@@ -92,7 +92,7 @@
                 <div class="ibox" style="border-radius:12px; overflow:hidden; box-shadow:0 4px 20px rgba(0,0,0,.06);">
 
                     {{-- Encabezado del ibox --}}
-                    <div class="ibox-title py-3 px-4"
+                    <div class="ibox-title editar-main-title py-3 px-4"
                          style="background:linear-gradient(135deg,#f39c12 0%,#e67e22 100%); border:none;">
                         <h5 class="m-0" style="color:#fff; font-size:15px;">
                             <i class="fa fa-pencil mr-2"></i>

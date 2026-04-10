@@ -465,18 +465,26 @@
                 <div class="row">
                     {{-- Cliente --}}
                     <div class="col-12 col-md-6 col-lg-3 mb-3">
-                        <label class="of-label">Seleccionar cliente <span class="req">*</span></label>
-                        <select id="seleccionarCliente" name="seleccionarCliente"
-                                class="of-select" data-parsley-required
-                                onchange="obtenerDatosCliente()" style="border-radius:9px;">
-                            @if($pedidoCliente)
-                                <option value="{{ $pedidoCliente['cliente_id'] }}" selected>
+                        <label class="of-label">Cliente <span class="req">*</span></label>
+                        @if($pedidoCliente)
+                            {{-- Read-only display when client comes from a pedido --}}
+                            <div class="of-input d-flex align-items-center"
+                                 style="background:#f8f9fa; cursor:not-allowed; user-select:none; gap:6px; color:#495057; font-weight:600; font-size:13px; overflow:hidden;">
+                                <i class="fa fa-lock text-muted" style="font-size:11px; flex-shrink:0;"></i>
+                                <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="{{ $pedidoCliente['nombre_cliente'] }}">
                                     {{ $pedidoCliente['nombre_cliente'] }}
-                                </option>
-                            @else
+                                </span>
+                            </div>
+                            {{-- Hidden input keeps JS/form value working without Select2 interference --}}
+                            <input type="hidden" id="seleccionarCliente" name="seleccionarCliente"
+                                   value="{{ $pedidoCliente['cliente_id'] }}">
+                        @else
+                            <select id="seleccionarCliente" name="seleccionarCliente"
+                                    class="of-select" data-parsley-required
+                                    onchange="obtenerDatosCliente()" style="border-radius:9px;">
                                 <option value="" selected disabled>--Seleccionar cliente--</option>
-                            @endif
-                        </select>
+                            </select>
+                        @endif
                     </div>
 
                     {{-- Nombre cliente --}}
@@ -775,7 +783,14 @@
                         </div>
                     </div>
 
-                    <button id="guardar_oferta_btn" type="button" class="of-save-btn" onclick="guardarVenta()">
+                    <button id="guardar_oferta_btn" type="button" class="of-save-btn" onclick="guardarVenta()"
+                            style="background:linear-gradient(135deg,#f39c12,#e67e22) !important;
+                                   color:#fff !important; border:none !important;
+                                   border-radius:12px; font-size:15px; font-weight:800;
+                                   padding:14px 36px; cursor:pointer;
+                                   box-shadow:0 5px 20px rgba(243,156,18,.5) !important;
+                                   display:flex; align-items:center; justify-content:center;
+                                   gap:10px; width:100%;">
                         <i class="fa fa-save" style="font-size:18px;"></i>
                         Guardar Oferta
                     </button>
@@ -814,6 +829,7 @@
     </script>
     <script>
         // Init Select2 for client
+        @if(!$pedidoCliente)
         $('#seleccionarCliente').select2({
             ajax: {
                 url: '/oferta/clientes',
@@ -822,6 +838,7 @@
                 }
             }
         });
+        @endif
     </script>
     <script>var public_path = "{{ asset('catalogo/') }}";</script>
     <script src="{{ asset('js/js_proyecto/flujo/oferta.js') }}"></script>

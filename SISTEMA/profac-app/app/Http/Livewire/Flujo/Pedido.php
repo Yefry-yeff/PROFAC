@@ -432,6 +432,7 @@ class Pedido extends Component
     // ── Render ─────────────────────────────────────────────────────────────
     public function render()
     {
-        return view('livewire.flujo.pedido');
+        $layout = request()->has('embed') ? 'layouts.embed' : 'layouts.app';
+        return view('livewire.flujo.pedido')->layout($layout);
     }
 }

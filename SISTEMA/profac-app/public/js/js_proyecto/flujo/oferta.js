@@ -1057,45 +1057,25 @@
                         }
 
                         Swal.fire({
-                            confirmButtonText: 'Cerrar',
-                            confirmButtonColor: '#5A6268',
                             icon: data.icon,
                             title: data.title,
-                            html: data.text
-                        })
-
-
-                        window.location.href = '/flujo/ofertas';
-
-                        document.getElementById("crear_venta").reset();
-                        $('#crear_oferta').parsley().reset();
-
-                        var element = document.getElementById('detalleProducto');
-                        element.classList.add("d-none");
-                        element.href = "";
-
-                        document.getElementById("seleccionarCliente").innerHTML =
-                            '<option value="" selected disabled>--Seleccionar un cliente--</option>';
-
-                        document.getElementById('seleccionarProducto').innerHTML =
-                            '<option value="" selected disabled></option>';
-                        document.getElementById('codigoProductoCotizacion').value = '';
-                        var lbl_p = document.getElementById('productoSeleccionadoCotizacion');
-                        if (lbl_p) { lbl_p.classList.add('d-none'); lbl_p.textContent = ''; }
-                        document.getElementById('bodega').innerHTML =
-                            '<option value="" selected disabled>--Seleccione un producto--</option>';
-                        document.getElementById("bodega").disabled = true;
-
-
-
-                        let element2 = document.getElementById('detalleProducto');
-                        element2.classList.add("d-none");
-
-
-                        arregloIdInputs = [];
-                        numeroInputs = 0;
-                        retencionEstado = false;
-
+                            html: data.text,
+                            showCancelButton: true,
+                            confirmButtonText: '<i class="fa fa-plus mr-1"></i> Crear otra oferta',
+                            confirmButtonColor: '#f39c12',
+                            cancelButtonText: 'Cerrar',
+                            cancelButtonColor: '#6c757d',
+                            reverseButtons: true,
+                            allowOutsideClick: false,
+                        }).then(function(result) {
+                            if (result.isConfirmed) {
+                                // Reload iframe to start fresh offer for the same pedido
+                                window.location.reload();
+                            } else {
+                                // Signal parent to close the modal
+                                window.parent.postMessage({ action: 'cerrarModal' }, '*');
+                            }
+                        });
 
                         document.getElementById("guardar_oferta_btn").disabled = false;
 

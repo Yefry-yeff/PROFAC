@@ -43,6 +43,15 @@ class ListarPedidos extends Component
     public function updatedFiltroEstado()    { $this->pagina = 1; }
     public function updatedFiltroFecha()     { $this->pagina = 1; }
 
+    // ── Listeners ─────────────────────────────────────────────────────────
+    protected function getListeners()
+    {
+        return [
+            'pedidoGuardado'    => '$refresh',
+            'cerrarFlujoDesdeJS' => 'cerrarFlujo',
+        ];
+    }
+
     // ── Obtener pedidos filtrados ──────────────────────────────────────────
     private function query()
     {

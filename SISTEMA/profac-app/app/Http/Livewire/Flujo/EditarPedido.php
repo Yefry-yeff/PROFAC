@@ -83,7 +83,7 @@ class EditarPedido extends Component
 
         $this->items = $detalles->map(fn($d) => [
             'nombre_producto' => $d->nombre_producto,
-            'cantidad'        => $d->cantidad,
+            'cantidad'        => (int) $d->cantidad,
         ])->toArray();
 
         if (empty($this->items)) {
@@ -148,6 +148,7 @@ class EditarPedido extends Component
     // ── Render ─────────────────────────────────────────────────────────────
     public function render()
     {
-        return view('livewire.flujo.editar-pedido');
+        $layout = request()->has('embed') ? 'layouts.embed' : 'layouts.app';
+        return view('livewire.flujo.editar-pedido')->layout($layout);
     }
 }
