@@ -138,6 +138,9 @@ use App\Http\Livewire\Escalas\ReportesEscalas;
 
 // Logistica de Entregas
 use App\Http\Livewire\Logistica\EquiposEntrega;
+
+// Flujo
+use App\Http\Livewire\Flujo\Pedido as FlujoPedido;
 use App\Http\Livewire\Logistica\DistribucionEntrega;
 use App\Http\Livewire\Logistica\ConfirmacionEntrega;
 
@@ -228,14 +231,14 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     // Rutas para listas de empleados y roles
     Route::get('/comision/empleados/lista', [ReportesComisionesGenerales::class, 'listarEmpleados']);
     Route::get('/comision/roles/lista', [ReportesComisionesGenerales::class, 'listarRoles']);
-    
+
     // Rutas para los 5 tipos de reportes
     Route::get('/comision/reporte/empleado', [ReportesComisionesGenerales::class, 'reporteEmpleado']);
     Route::get('/comision/reporte/rol', [ReportesComisionesGenerales::class, 'reporteRol']);
     Route::get('/comision/reporte/usuarios', [ReportesComisionesGenerales::class, 'reporteUsuarios']);
     Route::get('/comision/reporte/productos', [ReportesComisionesGenerales::class, 'reporteProductos']);
     Route::get('/comision/reporte/facturas', [ReportesComisionesGenerales::class, 'reporteFacturas']);
-    
+
     // Ruta para descarga de Excel
     Route::get('/comision/reporte/excel', [ReportesComisionesGenerales::class, 'descargarExcel']);
 
@@ -1179,6 +1182,20 @@ Route::post('/reporte/ventas-cobros/exportar-excel/{vendedorId}/{clienteId}/{mes
     Route::get('/logistica/confirmacion/reporte/{distribucionId}', [ConfirmacionEntrega::class, 'obtenerReporteDistribucion']);
 
 
+
+    //------------------------------------------Flujo------------------------------------------//
+    Route::get('/flujo/pedido', FlujoPedido::class);
+    Route::get('/flujo/pedidos/historico', \App\Http\Livewire\Flujo\ListarPedidos::class);
+    Route::get('/flujo/pedido/imprimir/{id}', [\App\Http\Controllers\Flujo\PedidoController::class, 'imprimir']);
+    Route::get('/flujo/pedido/exportar/{id}', [\App\Http\Controllers\Flujo\PedidoController::class, 'exportarExcel']);
+    Route::get('/flujo/pedido/editar/{id}', \App\Http\Livewire\Flujo\EditarPedido::class);
+
+    // Oferta de Pedido
+    Route::get('/flujo/oferta/crear/{pedidoId}', \App\Http\Livewire\Flujo\OfertaPedido::class);
+    Route::get('/oferta/clientes', [\App\Http\Livewire\Flujo\OfertaPedido::class, 'listarClientes']);
+    Route::post('/guardar/oferta', [\App\Http\Livewire\Flujo\OfertaPedido::class, 'guardarOferta']);
+    Route::get('/oferta/imprimir/{id}', [\App\Http\Livewire\Flujo\OfertaPedido::class, 'imprimirOferta']);
+    Route::get('/flujo/ofertas', \App\Http\Livewire\Flujo\ListarOfertas::class);
 
     //------------------------------------------establecer links de storage---------------------------//
   Route::get('/linkstorage', function () {

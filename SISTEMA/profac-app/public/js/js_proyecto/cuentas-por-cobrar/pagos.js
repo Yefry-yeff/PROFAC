@@ -2,8 +2,6 @@
 $('#btnEC').addClass('d-none');
 
 $('#tbl_principal_div').addClass('d-none');
-$('#tbl_movimientos_div').addClass('d-none');
-$('#tbl_creditos_abonos_div').addClass('d-none');
 
 // Fix: prevent aria-hidden focus warning when Bootstrap modals close
 $(document).on('hide.bs.modal', '.modal', function () {
@@ -231,22 +229,16 @@ function modalAbonos(codigoPagoA, caiFactura, idFactura){
 
 function llamarTablas(){
     $('#tbl_principal_div').removeClass('d-none');
-    $('#tbl_movimientos_div').removeClass('d-none');
-    $('#tbl_creditos_abonos_div').removeClass('d-none');
 
     $("#tbl_cuentas_facturas_cliente").dataTable().fnDestroy();
     $("#tbl_tipo_movimientos_cliente").dataTable().fnDestroy();
     $("#tbl_abonos_cliente").dataTable().fnDestroy();
 
-
     this.listarCuentasPorCobrar();
-
     this.listarMovimientos();
-    this.listarAbonos()
+    this.listarAbonos();
 
     $('#btnEC').removeClass('d-none');
-
-
 }
 
 function listarCuentasPorCobrar() {
@@ -352,6 +344,12 @@ function listarCuentasPorCobrar() {
 
             $('#btnEC').css('display','block');
             $('#btnEC').show();
+
+            // Update badge
+            $('#tbl_cuentas_facturas_cliente').on('draw.dt', function() {
+                var info = $(this).DataTable().page.info();
+                $('#badge-facturas').text(info.recordsTotal);
+            });
 }
 
 function listarMovimientos() {
@@ -447,6 +445,12 @@ function listarMovimientos() {
                 }
 
             });
+
+            // Update badge
+            $('#tbl_tipo_movimientos_cliente').on('draw.dt', function() {
+                var info = $(this).DataTable().page.info();
+                $('#badge-movimientos').text(info.recordsTotal);
+            });
 }
 
 function listarAbonos() {
@@ -529,6 +533,12 @@ function listarAbonos() {
                         });
                 }
 
+            });
+
+            // Update badge
+            $('#tbl_abonos_cliente').on('draw.dt', function() {
+                var info = $(this).DataTable().page.info();
+                $('#badge-abonos').text(info.recordsTotal);
             });
 }
 /////////////////////////////FUNCIONALIDADES DE LAS GESTIONES

@@ -73,7 +73,7 @@ class MenuSeeder extends Seeder
                     // Vendedores (rol 2)
                     ['nombre' => 'Cotización Clientes A', 'url' => 'proforma/cotizacion/2', 'icono' => 'fa fa-file', 'orden' => 1, 'roles' => [1, 2, 3]],
                     ['nombre' => 'Listado Cotizaciones Clientes A', 'url' => 'cotizacion/listado/estatal', 'icono' => 'fa fa-list', 'orden' => 2, 'roles' => [1, 2, 3]],
-                    
+
                     // Facturadores (rol 3)
                     ['nombre' => 'Facturación Clientes A', 'url' => 'ventas/estatal', 'icono' => 'fa fa-file-invoice', 'orden' => 3, 'roles' => [1, 3]],
                     ['nombre' => 'Facturación SR/Clientes A', 'url' => 'ventas/sin/restriccion/gobierno', 'icono' => 'fa fa-file-invoice', 'orden' => 4, 'roles' => [1, 3]],
@@ -93,7 +93,7 @@ class MenuSeeder extends Seeder
                     // Vendedores (rol 2)
                     ['nombre' => 'Cotización Clientes B', 'url' => 'proforma/cotizacion/1', 'icono' => 'fa fa-file', 'orden' => 1, 'roles' => [1, 2, 3]],
                     ['nombre' => 'Listado Cotizaciones Clientes B', 'url' => 'cotizacion/listado/corporativo', 'icono' => 'fa fa-list', 'orden' => 2, 'roles' => [1, 2, 3]],
-                    
+
                     // Facturadores (rol 3)
                     ['nombre' => 'Facturación Clientes B', 'url' => 'ventas/coporativo', 'icono' => 'fa fa-file-invoice', 'orden' => 3, 'roles' => [1, 3]],
                     ['nombre' => 'Facturación SR/P Clientes B', 'url' => 'ventas/sin/restriccion/precio', 'icono' => 'fa fa-file-invoice', 'orden' => 4, 'roles' => [1, 3]],

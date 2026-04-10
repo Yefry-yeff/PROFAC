@@ -1,0 +1,1110 @@
+﻿
+
+            /*****************************************/
+                // Función a ejecutar cuando el interruptor está activado
+                function checkActivo() {
+
+                    // Variable para almacenar el código de barras actual
+                    let currentBarcode = '';
+                    // Arreglo para almacenar todos los códigos de barras leídos
+                    let barcodes = [];
+                    // Tiempo máximo para considerar una secuencia completa
+                    const MAX_TIME = 100; // en milisegundos
+                    let timer;
+
+                    // Función para manejar la entrada del teclado
+                    function handleKeyDown(event) {
+                        // Ignorar teclas especiales
+                        if (event.key.length > 1) return;
+
+                        // Append key to currentBarcode
+                        currentBarcode += event.key;
+
+                        // Reset timer
+                        clearTimeout(timer);
+
+                        // Set timeout to clear currentBarcode and process the barcodes array
+                        timer = setTimeout(() => {
+                            if (currentBarcode) {
+                                barcodes.push(currentBarcode);
+                            // console.log(`Código de barras agregado: ${currentBarcode}`);
+                                currentBarcode = ''; // Clear the currentBarcode after adding to the array
+                            }
+                            if (barcodes.length > 0) {
+                                // Process barcodes
+                            // console.log('Todos los códigos de barras leídos:');
+                                barcodes.forEach((barcode, index) => {
+                                    console.log(`Codigo agregado: ${barcode}`);
+                                });
+                                // Clear the array after processing
+                                barcodes = [];
+                            }
+                        }, MAX_TIME);
+                    }
+
+                    // Escuchar el evento keydown en el documento
+                    document.addEventListener('keydown', handleKeyDown);
+                }
+
+                // Función a ejecutar cuando el interruptor está desactivado
+                function checkInactivo() {
+                    console.log('Interruptor está desactivado.');
+                }
+
+                // Función para manejar el cambio de estado del interruptor
+                function handleSwitchChange(event) {
+                    if (event.target.checked) {
+                        checkActivo();
+                    } else {
+                        checkInactivo();
+                    }
+                }
+
+                // Obtener el elemento del interruptor y agregar el evento de cambio
+               // document.getElementById('mySwitch').addEventListener('change', handleSwitchChange);
+
+                // Ejecutar la función inicial basada en el estado actual del interruptor
+              //  handleSwitchChange({ target: document.getElementById('mySwitch') });
+            /*****************************************/
+
+            var numeroInputs = 0;
+            var arregloIdInputs = [];
+            var retencionEstado = false; // true  aplica retencion, false no aplica retencion;
+
+            window.onload = obtenerTipoPago;
+            var diasCredito = 0;
+
+            //validando que no escriban un numero que no este entre 0 y 25
+            function validarDescuento(){
+                const numeroInput = document.getElementById('porDescuento');
+                const mensajeError = document.getElementById('mensajeError');
+                const numero = parseFloat(numeroInput.value);
+
+                if (isNaN(numero) || numero < 0 || numero > 50) {
+                    mensajeError.textContent = 'Este campo solo admite un valor entre 0 a 25';
+                    numeroInput.value = '';
+                } else {
+                    mensajeError.textContent = '';
+                }
+            }
+
+            $('#vendedor').select2({
+                ajax:{
+                    url:'/ventas/corporativo/vendedores',
+                    data: function(params) {
+                        var query = {
+                            search: params.term,
+                            type: 'public',
+                            page: params.page || 1
+                        }
+
+                        // Query parameters will be ?search=[term]&type=public
+                        return query;
+                    }
+
+                }
+            });
+
+            /*$('#seleccionarProducto').select2({
+                ajax: {
+                    url: '/ventas/listar',
+                    data: function(params) {
+                        var query = {
+                            search: params.term,
+                            type: 'public',
+                            page: params.page || 1
+                        }
+
+                        // Query parameters will be ?search=[term]&type=public
+
+                        return query;
+                    }
+                }
+            });**/
+
+            // Evento para cargar categorías cuando se selecciona un producto
+            $('#seleccionarProducto').on('select2:select', function(e) {
+                cargarCategoriasProducto();
+            });
+
+            function listaCategoríaClientes() {
+                let categoriaId = $('#categoria_cliente_venta_id').val();
+                let productoId = $('#seleccionarProducto').val();
+
+                if (categoriaId && productoId) {
+                    // Habilitar bodega
+                    $('#bodega').prop('disabled', false);
+                    // Cargar bodegas del producto
+                    obtenerBodegas(productoId);
+                }
+            }
+
+            function prueba() {
+                var element = document.getElementById('botonAdd');
+                if (element) element.classList.remove("d-none");
+            }
+
+            function obtenerBodegas(id) {
+
+                document.getElementById('bodega').innerHTML = "<option  selected disabled>--Seleccione una bodega--</option>";
+                let idProducto = id;
+                $('#bodega').select2({
+                    ajax: {
+                        url: '/cotizacion/listar/bodegas/' + idProducto,
+                        data: function(params) {
+                            var query = {
+                                search: params.term,
+                                type: 'public',
+                                page: params.page || 1,
+                                idProducto: idProducto
+                            }
+
+                            // Query parameters will be ?search=[term]&type=public
+                            return query;
+                        }
+                    }
+                });
+
+            }
+
+            function obtenerTipoPago() {
+
+                axios.get('/ventas/tipo/pago')
+                    .then(response => {
+
+                        let tipoDePago = response.data.tipos;
+                        let numeroVenta = response.data.numeroVenta.numero;
+
+                        let htmlPagos = '  <option value="" selected disabled >--Seleccione una opcion--</option>';
+
+                        tipoDePago.forEach(element => {
+
+                            htmlPagos += `
+                            <option value="${element.id}" >${element.descripcion}</option>
+                            `
+                        });
+
+                        document.getElementById('tipoPagoVenta').innerHTML = htmlPagos;
+
+
+
+                    })
+                    .catch(err => {
+                        console.log(err);
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error...',
+                            text: "Ha ocurrido un error al obtener los tipos de pago"
+                        })
+                    })
+
+            }
+
+            function cargarCategoriasProducto() {
+                let productoId = $('#seleccionarProducto').val();
+                let clienteId = $('#seleccionarCliente').val();
+
+                if (productoId) {
+                    // Limpiar categoría mientras se carga
+                    $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>Cargando categorías...</option>');
+
+                    // Cargar categorías del producto
+                    axios.post('/producto/categorias-disponibles', {
+                        producto_id: productoId
+                    })
+                    .then(response => {
+                        let categorias = response.data.categorias;
+
+                        if (categorias.length > 0) {
+                            $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>--Seleccione una categoría--</option>');
+
+                            // Si hay un cliente seleccionado, obtener su categoría
+                            let categoriaClienteId = null;
+                            if (clienteId) {
+                                categoriaClienteId = $('#categoria_cliente_venta_id').data('categoria-cliente-id');
+                            }
+
+                            // Ordenar categorías por precio_a de mayor a menor
+                            categorias.sort((a, b) => (parseFloat(b.precio_a) || 0) - (parseFloat(a.precio_a) || 0));
+
+                            // Mostrar todas las categorías disponibles con precio
+                            categorias.forEach(categoria => {
+                                let precio = parseFloat(categoria.precio_a) || 0;
+                                let precioFormateado = new Intl.NumberFormat('es-HN', {
+                                    style: 'currency',
+                                    currency: 'HNL',
+                                    minimumFractionDigits: 2,
+                                }).format(precio);
+                                let textoOpcion = `${categoria.nombre_categoria} - ${precioFormateado}`;
+                                let isSelected = (categoriaClienteId && categoria.id == categoriaClienteId);
+                                let option = new Option(textoOpcion, categoria.id, isSelected, isSelected);
+                                $('#categoria_cliente_venta_id').append(option);
+                            });
+
+                            // SIEMPRE mantener habilitado el select
+                            $('#categoria_cliente_venta_id').prop('disabled', false);
+                        } else {
+                            // No hay categorías disponibles para este producto
+                            $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>No hay categorías disponibles para este producto</option>');
+                            Swal.fire({
+                                icon: 'warning',
+                                title: 'Advertencia',
+                                text: 'Este producto no tiene escalas de precio asignadas en ninguna categoría.'
+                            });
+                        }
+                    })
+                    .catch(err => {
+                        console.log(err);
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'Ha ocurrido un error al cargar las categorías del producto.'
+                        });
+                        $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>Error al cargar categorías</option>');
+                    });
+
+                    // Continuar con las imágenes del producto
+                    obtenerImagenes();
+                } else {
+                    $('#categoria_cliente_venta_id').prop('disabled', true);
+                    $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>--Seleccione primero un producto--</option>');
+                }
+            }
+
+            function obtenerImagenes() {
+                let id = document.getElementById('seleccionarProducto').value;
+
+                document.getElementById("bodega").disabled = false;
+                let htmlImagenes = '';
+                axios.post('/producto/listar/imagenes', {
+                        id: id,
+
+                    })
+                    .then(response => {
+
+                        let imagenes = response.data.imagenes;
+
+                        if (imagenes.length == 0) {
+
+
+                            htmlImagenes += `
+                            <div class="carousel-item active " >
+                                <img  class="d-block  img-size" src="${public_path+'/'+'noimage.png'}" alt="noimage.png"  >
+                            </div>`
+
+                            document.getElementById('bloqueImagenes').innerHTML = htmlImagenes;
+
+                            var element = document.getElementById('botonAdd');
+                            if (element) element.classList.remove("d-none");
+
+                        } else {
+                            imagenes.forEach(element => {
+
+                                if (element.contador == 1) {
+                                    htmlImagenes += `
+                            <div class="carousel-item active " >
+                                <img class="d-block  img-size" src="${public_path+'/'+element.url_img}" alt="imagen ${element.contador}"  >
+                            </div>`
+                                } else {
+
+                                    htmlImagenes += `
+                            <div class="carousel-item  " >
+                                <img class="d-block  img-size" src="${public_path+'/'+element.url_img}" alt="imagen ${element.contador}"  >
+                            </div>`
+
+                                }
+
+                            });
+
+                            document.getElementById('bloqueImagenes').innerHTML = htmlImagenes;
+
+
+                        }
+
+                        var element = document.getElementById('botonAdd');
+                        if (element) element.classList.add("d-none");
+
+                        let a = document.getElementById("detalleProducto");
+                        let url = "/producto/detalle/" + id;
+                        a.href = url;
+                        a.classList.remove("d-none");
+
+                        return;
+
+
+
+                    })
+                    .catch(err => {
+
+                        console.log(err);
+
+                    })
+
+                obtenerBodegas(id);
+            }
+
+
+            function obtenerCategoriasClientes() {
+
+                $('#categoria_cliente_venta_id').select2({
+                    placeholder: 'Seleccione una categoría',
+                    allowClear: true,
+                    ajax: {
+                        url: '/clientes/categorias-escala',
+                        dataType: 'json',
+                        delay: 250,
+                        data: function (params) {
+                            return {
+                                q: params.term || '',
+                                page: params.page || 1
+                            };
+                        },
+                        processResults: function (data) {
+                            return {
+                                results: data.categorias.map(function (item) {
+                                    return {
+                                        id: item.id,
+                                        text: item.nombre_categoria
+                                    };
+                                })
+                            };
+                        }
+                    }
+                });
+            }
+
+            function agregarProductoCarrito() {
+                let idProducto = document.getElementById('seleccionarProducto').value;
+                let categoria_cliente_venta_id = document.getElementById('categoria_cliente_venta_id').value;
+
+                let data = $("#bodega").select2('data')[0];
+                let bodega = data.bodegaSeccion;
+                let idBodega = data.idBodega;
+                let idSeccion = data.id
+
+
+                axios.post('/ventas/datos/producto', {
+                        idProducto: idProducto,
+                        categoria_cliente_venta_id: categoria_cliente_venta_id
+
+                    })
+                    .then(response => {
+
+                        let flag = false;
+                        arregloIdInputs.forEach(idInpunt => {
+                            let idProductoFila = document.getElementById("idProducto" + idInpunt).value;
+                            let idSeccionFila = document.getElementById("idSeccion" + idInpunt).value;
+
+                            if (idProducto == idProductoFila && idSeccion == idSeccionFila && !flag) {
+                                flag = true;
+                            }
+
+                        })
+
+                        if (flag) {
+                            Swal.fire({
+
+                                icon: 'warning',
+                                title: 'Advertencia!',
+                                html: `
+                            <p class="text-left">
+                                La sección de bodega y producto ha sido agregada anteriormente.<br><br>
+                                Por favor verificar la sección de bodega y producto sea distinto a los ya existentes en la lista de venta.<br><br>
+                                De ser necesario aumentar la cantidad de producto en la lista de productos seleccionados para la venta.
+                            </p>`
+                            })
+
+                            return;
+                        }
+
+                        let producto = response.data.producto;
+
+                        let arrayUnidades = response.data.unidades;
+
+
+                        numeroInputs += 1;
+                        htmlSelectUnidades = "";
+                        /*htmlprecios = `
+                        <option  value="${producto.precio1}" data-id="p1" selected>${producto.precio1} - A</option>
+                        <option  value="${producto.precio2}" data-id="p2">${producto.precio2} - B</option>
+                        <option  value="${producto.precio3}" data-id="p3">${producto.precio3} - C</option>
+                        <option  value="${producto.precio4}" data-id="p4">${producto.precio4} - D</option>
+
+
+
+
+                        `;*/
+
+
+                        htmlprecios = `<option  value="${producto.precio1}" data-id="p1" selected>A</option>`;
+
+                        arrayUnidades.forEach(unidad => {
+                            if (unidad.valor_defecto == 1) {
+                                htmlSelectUnidades +=
+                                    `<option selected value="${unidad.id}" data-id="${unidad.idUnidadVenta}">${unidad.nombre}</option>`;
+                            } else {
+                                htmlSelectUnidades +=
+                                    `<option  value="${unidad.id}" data-id="${unidad.idUnidadVenta}">${unidad.nombre}</option>`;
+                            }
+
+                        });
+
+
+                        html = `
+                        <div id='${numeroInputs}' class="cart-item-row">
+                            <div class="cir-info">
+                                <div data-label="Producto" class="of-product-name-wrap" style="min-width:0; position:relative;">
+                                    <input id="idProducto${numeroInputs}" name="idProducto${numeroInputs}" type="hidden" value="${producto.id}">
+                                    <input id="precios_producto_carga_id${numeroInputs}" name="precios_producto_carga_id${numeroInputs}" type="hidden" value="${producto.precios_producto_carga_id}">
+                                    <input type="hidden" id="nombre${numeroInputs}" name="nombre${numeroInputs}" value='${producto.nombre}'>
+                                    <div class="prod-name-display"
+                                        style="font-size:12px;padding:3px 0;cursor:default;word-break:break-word;white-space:normal;line-height:1.4;"
+                                        title='${producto.nombre}'>${producto.nombre}</div>
+                                    <div class="of-product-tooltip">${producto.nombre}</div>
+                                </div>
+                                <div data-label="Bodega">
+                                    <input type="text" value="${bodega}" id="bodega${numeroInputs}" name="bodega${numeroInputs}"
+                                        class="form-control" style="font-size:11px;border-radius:7px;border:1.5px solid #dde2ec;padding:5px 7px;background:#f7f8fa;"
+                                        autocomplete="off" readonly>
+                                </div>
+                            </div>
+                            <div class="cir-fields">
+                                <div data-label="Lista">
+                                    <select class="form-control" name="precios${numeroInputs}" id="precios${numeroInputs}"
+                                        data-parsley-required style="font-size:11px;border-radius:7px;border:1.5px solid #dde2ec;padding:3px 2px;height:auto;text-align:center;"
+                                        onchange="validacionPrecio(precios${numeroInputs}, precio${numeroInputs})">
+                                        ${htmlprecios}
+                                    </select>
+                                </div>
+                                <div data-label="Precio">
+                                    <input type="number" id="precio${numeroInputs}" name="precio${numeroInputs}"
+                                        value="${producto.precio1}"
+                                        class="form-control" style="font-size:12px;border-radius:7px;border:1.5px solid #dde2ec;padding:5px 7px;"
+                                        data-parsley-required step="any" autocomplete="off"
+                                        onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
+                                </div>
+                                <div data-label="Cantidad">
+                                    <input type="number" id="cantidad${numeroInputs}" name="cantidad${numeroInputs}"
+                                        class="form-control" style="font-size:12px;border-radius:7px;border:1.5px solid #dde2ec;padding:5px 7px;"
+                                        min="1" data-parsley-required autocomplete="off" placeholder="0"
+                                        onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
+                                </div>
+                                <div data-label="Unidad">
+                                    <select class="form-control" name="unidad${numeroInputs}" id="unidad${numeroInputs}"
+                                        data-parsley-required style="font-size:12px;border-radius:7px;border:1.5px solid #dde2ec;padding:5px 7px;height:auto;"
+                                        onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
+                                        ${htmlSelectUnidades}
+                                    </select>
+                                </div>
+                                <div data-label="Sub Total">
+                                    <input type="text" id="subTotalMostrar${numeroInputs}" name="subTotalMostrar${numeroInputs}"
+                                        class="form-control" style="font-size:12px;border-radius:7px;border:1.5px solid #dde2ec;padding:5px 7px;background:#f7f8fa;color:#1ab394;font-weight:700;"
+                                        autocomplete="off" readonly placeholder="L. 0.00">
+                                    <input id="subTotal${numeroInputs}" name="subTotal${numeroInputs}" type="hidden" value="">
+                                    <input type="hidden" id="acumuladoDescuento${numeroInputs}" name="acumuladoDescuento${numeroInputs}">
+                                </div>
+                                <div data-label="ISV">
+                                    <input type="text" id="isvProductoMostrar${numeroInputs}" name="isvProductoMostrar${numeroInputs}"
+                                        class="form-control" style="font-size:12px;border-radius:7px;border:1.5px solid #dde2ec;padding:5px 7px;background:#f7f8fa;"
+                                        autocomplete="off" readonly placeholder="L. 0.00">
+                                    <input id="isvProducto${numeroInputs}" name="isvProducto${numeroInputs}" type="hidden" value="">
+                                </div>
+                                <div data-label="Total">
+                                    <input type="text" id="totalMostrar${numeroInputs}" name="totalMostrar${numeroInputs}"
+                                        class="form-control" style="font-size:12px;border-radius:7px;border:1.5px solid #dde2ec;padding:5px 7px;background:#f7f8fa;color:#6c5ce7;font-weight:700;"
+                                        autocomplete="off" readonly placeholder="L. 0.00">
+                                    <input id="total${numeroInputs}" name="total${numeroInputs}" type="hidden" value="">
+                                </div>
+                            </div>
+                            <div class="cir-del">
+                                <button class="cart-del-btn" type="button" onclick="eliminarInput(${numeroInputs})" title="Eliminar">
+                                    <i class="fa fa-trash"></i>
+                                </button>
+                            </div>
+                            <input id="idBodega${numeroInputs}" name="idBodega${numeroInputs}" type="hidden" value="${idBodega}">
+                            <input id="idSeccion${numeroInputs}" name="idSeccion${numeroInputs}" type="hidden" value="${idSeccion}">
+                            <input id="restaInventario${numeroInputs}" name="restaInventario${numeroInputs}" type="hidden" value="">
+                            <input id="isv${numeroInputs}" name="isv${numeroInputs}" type="hidden" value="${producto.isv}">
+                        </div>
+                        `;
+
+                        arregloIdInputs.splice(numeroInputs, 0, numeroInputs);
+                        document.getElementById('divProductos').insertAdjacentHTML('beforeend', html);
+                        var emptyState = document.getElementById('cart-empty-state');
+                        if (emptyState) emptyState.style.display = 'none';
+
+
+                        return;
+
+                    })
+                    .catch(err => {
+
+                        console.error(err);
+
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error!',
+                            text: "Ha ocurrido un error al agregar el producto a la compra."
+                        })
+                    })
+            }
+
+
+            function validacionPrecio(idPrecios, idprecio){
+
+                var idPrecioSeleccionado = idPrecios.options[idPrecios.selectedIndex].getAttribute("data-id");
+                var precioSeleccionado = idPrecios.value;
+                var idprecioIngresado = idprecio.id;
+                var precioIngresado = idprecio.value;
+
+                if(idPrecioSeleccionado != 'pb'){
+
+                    document.getElementById(idprecioIngresado).value = precioSeleccionado;
+                    document.getElementById(idprecioIngresado).setAttribute("min",precioSeleccionado);
+                }
+
+
+             }
+
+            function eliminarInput(id) {
+                const element = document.getElementById(id);
+                element.remove();
+
+
+                var myIndex = arregloIdInputs.indexOf(id);
+                if (myIndex !== -1) {
+                    arregloIdInputs.splice(myIndex, 1);
+                    this.totalesGenerales();
+                }
+
+                if (arregloIdInputs.length === 0) {
+                    var emptyState = document.getElementById('cart-empty-state');
+                    if (emptyState) emptyState.style.display = '';
+                }
+            }
+
+            function myRound(num, dec) {
+                var exp = Math.pow(10, dec || 2); // 2 decimales por defecto
+                return parseInt(num * exp, 10) / exp;
+            }
+
+            function calcularTotalesInicioPagina() {
+
+                let arrayInputs = this.arregloIdInputs;
+
+
+                let valorInputPrecio = 0;
+                let valorInputCantidad = 0;
+                let valorSelectUnidad =0;
+                let isvProducto = 0;
+
+                let subTotal = 0;
+                let isv =0;
+                let total = 0;
+                let descuento = 0;
+                let descuentoCalculado = 0
+
+                arrayInputs.forEach(id => {
+                    // calcularTotales(idPrecio, idCantidad, isvProducto, idUnidad, id)
+                        valorInputPrecio = document.getElementById('precio' + id).value;
+                        valorInputCantidad = document.getElementById('cantidad' + id).value;
+                        valorSelectUnidad = document.getElementById('unidad' + id).value;
+                        isvProducto = document.getElementById("isv"+id).value;
+
+                            if (valorInputPrecio && valorInputCantidad) {
+
+                                descuento = document.getElementById("porDescuento").value;
+
+                               /* if (descuento > 0){
+                                    subTotal = valorInputPrecio * (valorInputCantidad * valorSelectUnidad);
+                                    descuentoCalculado = subTotal * (descuento/100);
+                                    subTotal = subTotal - descuentoCalculado;
+                                    isv = subTotal * (isvProducto / 100);
+                                    total = subTotal + (subTotal * (isvProducto / 100));
+                                }else{
+                                    descuentoCalculado = 0;
+                                    subTotal = valorInputPrecio * (valorInputCantidad * valorSelectUnidad);
+                                    isv = subTotal * (isvProducto / 100);
+                                    total = subTotal + subTotal * (isvProducto / 100);
+                                }*/
+
+                                if (descuento > 0) {
+                                    subTotal = valorInputPrecio * (valorInputCantidad * valorSelectUnidad);
+                                    descuentoCalculado = subTotal * (descuento / 100);
+                                    subTotal = subTotal - descuentoCalculado;
+                                    let isv1 = subTotal * (isvProducto / 100);
+                                    let isvSinRedondeo1 = parseFloat(isv1.toFixed(2));
+                                    isv = isvSinRedondeo1 ;
+                                    total = subTotal + (subTotal * (isvProducto / 100));
+                                } else {
+                                    descuentoCalculado = 0
+                                    subTotal = valorInputPrecio * (valorInputCantidad * valorSelectUnidad);
+                                    let isv2 = subTotal * (isvProducto / 100);
+                                    let isvSinRedondeo2 = parseFloat(isv2.toFixed(2));
+                                    isv = isvSinRedondeo2;
+                                    total = subTotal + subTotal * (isvProducto / 100);
+                                }
+
+                                document.getElementById("acumuladoDescuento"+id).value = descuentoCalculado.toFixed(2);
+
+                                document.getElementById('total' + id).value = total.toFixed(2);
+                                document.getElementById('totalMostrar' + id).value = new Intl.NumberFormat('es-HN', {
+                                    style: 'currency',
+                                    currency: 'HNL',
+                                    minimumFractionDigits: 2,
+                                }).format(total)
+
+                                document.getElementById('subTotal' + id).value = subTotal.toFixed(2);
+                                document.getElementById('subTotalMostrar' + id).value = new Intl.NumberFormat('es-HN', {
+                                    style: 'currency',
+                                    currency: 'HNL',
+                                    minimumFractionDigits: 2,
+                                }).format(subTotal)
+
+
+                                document.getElementById('isvProducto' + id).value = isv.toFixed(2);
+                                document.getElementById('isvProductoMostrar' + id).value = new Intl.NumberFormat(
+                                    'es-HN', {
+                                        style: 'currency',
+                                        currency: 'HNL',
+                                        minimumFractionDigits: 2,
+                                    }).format(isv)
+
+                            }
+
+                        });
+
+
+
+                    this.totalesGenerales();
+                    return 0;
+
+
+            }
+
+            function calcularTotales(idPrecio, idCantidad, isvProducto, idUnidad, id, idRestaInventario) {
+
+
+                    let valorInputPrecio = Number(idPrecio.value).toFixed(2);
+                    let valorInputCantidad = idCantidad.value;
+                    let valorSelectUnidad = idUnidad.value;
+
+                    let subTotal = 0;
+                    let isv = 0;
+                    let total =0;
+
+                    var descuentoCalculado = 0;
+
+                    if (valorInputPrecio && valorInputCantidad) {
+                        var descuento = $('#porDescuento').val();
+
+
+                       /* if (descuento > 0){
+                             subTotal = valorInputPrecio * (valorInputCantidad * valorSelectUnidad);
+                            descuentoCalculado = subTotal * (descuento/100);
+
+                            //$('#descuentoGeneral').val(descuentoCalculado);
+                            $('#acumuladoDescuento'+id).val(descuentoCalculado);
+
+
+                             subTotal = subTotal - descuentoCalculado;
+
+                             isv = subTotal * (isvProducto / 100);
+                             total = subTotal + (subTotal * (isvProducto / 100));
+
+
+                        }else{
+                            $('#descuentoGeneral').val(0);
+                             subTotal = valorInputPrecio * (valorInputCantidad * valorSelectUnidad);
+                             isv = subTotal * (isvProducto / 100);
+                             total = subTotal + subTotal * (isvProducto / 100);
+
+                        }*/
+                        if (descuento > 0) {
+                            subTotal = valorInputPrecio * (valorInputCantidad * valorSelectUnidad);
+                            descuentoCalculado = subTotal * (descuento / 100);
+                            $('#acumuladoDescuento'+id).val(descuentoCalculado);
+                            subTotal = subTotal - descuentoCalculado;
+                            let isv1 = subTotal * (isvProducto / 100);
+                            let isvSinRedondeo1 = parseFloat(isv1.toFixed(2));
+                            isv = isvSinRedondeo1 ;
+                            total = subTotal + (subTotal * (isvProducto / 100));
+                        } else {
+                            $('#descuentoGeneral').val(0);
+                            subTotal = valorInputPrecio * (valorInputCantidad * valorSelectUnidad);
+                            let isv2 = subTotal * (isvProducto / 100);
+                            let isvSinRedondeo2 = parseFloat(isv2.toFixed(2));
+                            isv = isvSinRedondeo2;
+                            total = subTotal + subTotal * (isvProducto / 100);
+                        }
+
+
+                        document.getElementById('total' + id).value = total.toFixed(2);
+                        document.getElementById('totalMostrar' + id).value = new Intl.NumberFormat('es-HN', {
+                            style: 'currency',
+                            currency: 'HNL',
+                            minimumFractionDigits: 2,
+                        }).format(total)
+
+                        document.getElementById('subTotal' + id).value = subTotal.toFixed(2);
+                        document.getElementById('subTotalMostrar' + id).value = new Intl.NumberFormat('es-HN', {
+                            style: 'currency',
+                            currency: 'HNL',
+                            minimumFractionDigits: 2,
+                        }).format(subTotal)
+
+
+                        document.getElementById('isvProducto' + id).value = isv.toFixed(2);
+                        document.getElementById('isvProductoMostrar' + id).value = new Intl.NumberFormat('es-HN', {
+                            style: 'currency',
+                            currency: 'HNL',
+                            minimumFractionDigits: 2,
+                        }).format(isv)
+
+
+                        idRestaInventario.value = valorInputCantidad * valorSelectUnidad;
+                        this.totalesGenerales();
+
+
+
+
+
+                    }
+
+                idPrecio.value = valorInputPrecio;
+                return 0;
+
+
+            }
+
+            function totalesGenerales() {
+
+                //console.log(arregloIdInputs);
+
+                if (numeroInputs == 0) {
+                    return;
+                }
+
+
+
+                let totalGeneralValor = new Number(0);
+                let totalISV = new Number(0);
+                let subTotalGeneralGrabadoValor = new Number(0);
+                let subTotalGeneralExcentoValor = new Number(0);
+                let subTotalGeneral = new Number(0);
+                let subTotalFila = 0;
+                let isvFila = 0;
+                let acumularDescuento = new Number(0);
+
+
+                for (let i = 0; i < arregloIdInputs.length; i++) {
+
+                    subTotalFila = new Number(document.getElementById('subTotal' + arregloIdInputs[i]).value);
+                    isvFila = new Number(document.getElementById('isvProducto' + arregloIdInputs[i]).value);
+
+                    ;
+
+                    if (isvFila == 0) {
+                        subTotalGeneralExcentoValor += new Number(document.getElementById('subTotal' + arregloIdInputs[i])
+                            .value);
+                    } else if (subTotalFila > 0) {
+                        subTotalGeneralGrabadoValor += new Number(document.getElementById('subTotal' + arregloIdInputs[i])
+                            .value);
+                    }
+
+                    subTotalGeneral += new Number(document.getElementById('subTotal' + arregloIdInputs[i]).value);
+
+
+                    totalISV += new Number(document.getElementById('isvProducto' + arregloIdInputs[i]).value);
+                    totalGeneralValor += new Number(document.getElementById('total' + arregloIdInputs[i]).value);
+
+
+                    acumularDescuento += new Number($('#acumuladoDescuento'+arregloIdInputs[i]).val());
+
+                }
+
+
+
+
+                document.getElementById('descuentoGeneral').value = acumularDescuento.toFixed(2);
+
+                document.getElementById('descuentoMostrar').value = new Intl.NumberFormat('es-HN', {
+                    style: 'currency',
+                    currency: 'HNL',
+                    minimumFractionDigits: 2,
+                }).format(acumularDescuento)
+
+                document.getElementById('subTotalGeneral').value = subTotalGeneral.toFixed(2);
+                document.getElementById('subTotalGeneralMostrar').value = new Intl.NumberFormat('es-HN', {
+                    style: 'currency',
+                    currency: 'HNL',
+                    minimumFractionDigits: 2,
+                }).format(subTotalGeneral)
+
+                document.getElementById('subTotalGeneralGrabado').value = subTotalGeneralGrabadoValor.toFixed(2);
+                document.getElementById('subTotalGeneralGrabadoMostrar').value = new Intl.NumberFormat('es-HN', {
+                    style: 'currency',
+                    currency: 'HNL',
+                    minimumFractionDigits: 2,
+                }).format(subTotalGeneralGrabadoValor)
+
+                document.getElementById('subTotalGeneralExcento').value = subTotalGeneralExcentoValor.toFixed(2);
+                document.getElementById('subTotalGeneralExcentoMostrar').value = new Intl.NumberFormat('es-HN', {
+                    style: 'currency',
+                    currency: 'HNL',
+                    minimumFractionDigits: 2,
+                }).format(subTotalGeneralExcentoValor)
+
+                document.getElementById('isvGeneral').value = totalISV.toFixed(2);
+                document.getElementById('isvGeneralMostrar').value = new Intl.NumberFormat('es-HN', {
+                    style: 'currency',
+                    currency: 'HNL',
+                    minimumFractionDigits: 2,
+                }).format(totalISV)
+
+                document.getElementById('totalGeneral').value = totalGeneralValor.toFixed(2);
+                document.getElementById('totalGeneralMostrar').value = new Intl.NumberFormat('es-HN', {
+                    style: 'currency',
+                    currency: 'HNL',
+                    minimumFractionDigits: 2,
+                }).format(totalGeneralValor)
+
+
+
+
+
+                return 0;
+
+
+            }
+
+            function validarFechaPago() {
+
+                let tipoPago;
+
+                tipoPago = document.getElementById('tipoPagoVenta').value;
+
+                if (tipoPago == 2) {
+
+                    // document.getElementById('fecha_vencimiento').value = "empty";
+                    document.getElementById('fecha_vencimiento').readOnly = false;
+                    this.sumarDiasCredito();
+
+                } else {
+                    document.getElementById('fecha_vencimiento').value = "{{ date('Y-m-d') }}";
+
+                    document.getElementById('fecha_vencimiento').readOnly = true;
+
+                }
+
+                return 0;
+
+
+            }
+
+            function obtenerDatosCliente() {
+
+                let idCliente = document.getElementById("seleccionarCliente").value;
+                axios.post("/ventas/datos/cliente", {
+                        id: idCliente
+                    })
+                    .then(
+                        response => {
+
+                            let data = response.data.datos;
+
+                            if (data.id == 1) {
+                                document.getElementById("nombre_cliente_ventas").readOnly = false;
+                                document.getElementById("nombre_cliente_ventas").value = '';
+
+                                document.getElementById("rtn_ventas").readOnly = false;
+                                document.getElementById("rtn_ventas").value = '';
+                                let selectBox = document.getElementById("tipoPagoVenta");
+                                selectBox.remove(2);
+                                $('#categoria_cliente_nombre').text(data.nombre_categoria);
+                                $('#categoria_cliente_venta_id').data('categoria-cliente-id', data.idcategoriacliente);
+
+                                // Si ya hay un producto seleccionado, recargar todas sus categorías
+                                // con la nueva categoría del cliente pre-seleccionada
+                                if ($('#seleccionarProducto').val()) {
+                                    cargarCategoriasProducto();
+                                } else {
+                                    $('#categoria_cliente_venta_id').empty();
+                                    $('#categoria_cliente_venta_id').append(new Option(data.nombre_categoria, data.idcategoriacliente, true, true));
+                                }
+
+                            } else {
+                                document.getElementById("nombre_cliente_ventas").readOnly = true;
+                                document.getElementById("rtn_ventas").readOnly = true;
+
+                                document.getElementById("nombre_cliente_ventas").value = data.nombre;
+                                document.getElementById("rtn_ventas").value = data.rtn;
+                                $('#categoria_cliente_nombre').text(data.nombre_categoria);
+                                $('#categoria_cliente_venta_id').data('categoria-cliente-id', data.idcategoriacliente);
+
+                                // Si ya hay un producto seleccionado, recargar todas sus categorías
+                                // con la nueva categoría del cliente pre-seleccionada
+                                if ($('#seleccionarProducto').val()) {
+                                    cargarCategoriasProducto();
+                                } else {
+                                    $('#categoria_cliente_venta_id').empty();
+                                    $('#categoria_cliente_venta_id').append(new Option(data.nombre_categoria, data.idcategoriacliente, true, true));
+                                }
+
+                                obtenerTipoPago();
+                                diasCredito = data.dias_credito;
+                            }
+
+                            cargarHistorialPrecosCotizacion();
+                            //console.log("Antes de solicitar productos");
+                            //obtenerProductosCategoria();
+                            //console.log("Despues de solicitar productos");
+
+                        }
+                    )
+                    .catch(err => {
+
+                        const mensaje = err.response?.data?.message
+                                || 'Ha ocurrido un error inesperado';
+
+                        //console.log(err);
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error...',
+                            text: "Ha ocurrido un error al obtener los datos del cliente"
+                        })
+
+                    })
+
+            }
+
+
+            $(document).on('submit', '#crear_oferta',
+                function(event) {
+                    event.preventDefault();
+                    guardarVenta();
+            });
+
+            function guardarVenta() {
+
+                document.getElementById("guardar_oferta_btn").disabled = true;
+
+                var data = new FormData($('#crear_oferta').get(0));
+
+                let longitudArreglo = arregloIdInputs.length;
+                for (var i = 0; i < longitudArreglo; i++) {
+
+
+                    let name = "unidad" + arregloIdInputs[i];
+                    let nameForm = "idUnidadVenta" + arregloIdInputs[i];
+
+                    let e = document.getElementById(name);
+                    let idUnidadVenta = e.options[e.selectedIndex].getAttribute("data-id");
+
+
+                    data.append(nameForm, idUnidadVenta);
+
+
+                    /**************************************************************/
+
+                    let name2 = "precios" + arregloIdInputs[i];
+                    let nameForm2 = "idPrecioSeleccionado" + arregloIdInputs[i];
+
+                    let a = document.getElementById(name2);
+
+                    let idPrecioSeleccionado = a.options[a.selectedIndex].getAttribute("data-id");
+
+
+                    data.append(nameForm2, idPrecioSeleccionado);
+
+
+
+                    /**************************************************************/
+
+
+                }
+                data.append("numeroInputs", numeroInputs);
+
+                let text = arregloIdInputs.toString();
+                data.append("arregloIdInputs", text);
+                const formDataObj = {};
+                data.forEach((value, key) => (formDataObj[key] = value));
+
+                const options = {
+                    headers: {
+                        "content-type": "application/json"
+                    }
+                }
+
+
+                axios.post('/guardar/oferta', formDataObj, options)
+                    .then(response => {
+                        let data = response.data;
+
+
+
+                        if (data.idFactura == 0) {
+
+
+                            Swal.fire({
+                                icon: data.icon,
+                                title: data.title,
+                                html: data.text,
+                            })
+                            document.getElementById("guardar_oferta_btn").disabled = false;
+                            return;
+
+                        }
+
+                        Swal.fire({
+                            icon: data.icon,
+                            title: data.title,
+                            html: data.text,
+                            showCancelButton: true,
+                            confirmButtonText: '<i class="fa fa-plus mr-1"></i> Crear otra oferta',
+                            confirmButtonColor: '#f39c12',
+                            cancelButtonText: 'Cerrar',
+                            cancelButtonColor: '#6c757d',
+                            reverseButtons: true,
+                            allowOutsideClick: false,
+                        }).then(function(result) {
+                            if (result.isConfirmed) {
+                                // Reload iframe to start fresh offer for the same pedido
+                                window.location.reload();
+                            } else {
+                                // Signal parent to close the modal
+                                window.parent.postMessage({ action: 'cerrarModal' }, '*');
+                            }
+                        });
+
+                        document.getElementById("guardar_oferta_btn").disabled = false;
+
+                    })
+                    .catch(err => {
+                        document.getElementById("guardar_oferta_btn").disabled = false;
+                        let data = err.response.data;
+                        console.log(err);
+                        Swal.fire({
+                            icon: data.icon,
+                            title: data.title,
+                            text: data.text
+                        })
+                    })
+            }
+
+            function sumarDiasCredito() {
+                tipoPago = document.getElementById('tipoPagoVenta').value;
+
+                if (tipoPago == 2) {
+
+                    let fechaEmision = document.getElementById("fecha_emision").value;
+                    let date = new Date(fechaEmision);
+                    date.setDate(date.getDate() + diasCredito);
+                    let suma = date.toISOString().split('T')[0];
+                    //console.log( diasCredito);
+
+                    document.getElementById("fecha_vencimiento").value = suma;
+
+                }
+            }
+
