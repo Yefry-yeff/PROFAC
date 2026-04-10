@@ -30,7 +30,7 @@ class LibroVentaExport implements FromView, WithStyles, WithDrawings, WithEvents
 
     public function view(): View
     {
-        return view('excel.libroventarep', [
+        return view('Excel.libroventarep', [
             'data'        => $this->data,
             'fechaInicio' => $this->fechaInicio,
             'fechaFinal'  => $this->fechaFinal,
