@@ -16,7 +16,7 @@ class NumOrdenCompra extends Component
 {
     public function render()
     {
-        return view('livewire.ventas.num-orden-compra');
+        return view('livewire.ventas.num-orden-compra-unificado', ['tipoCliente' => 'corporativo', 'nombreTipo' => 'Clientes B']); // Vista unificada
     }
 
     public function listarNumOrdenCompraCoorporativo(){

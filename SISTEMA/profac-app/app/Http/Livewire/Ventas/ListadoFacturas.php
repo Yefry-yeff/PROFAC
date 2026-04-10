@@ -22,7 +22,7 @@ class ListadoFacturas extends Component
 {
     public function render()
     {
-        return view('livewire.ventas.listado-facturas');
+        return view('livewire.ventas.listado-facturas-unificado', ['tipoVenta' => 'corporativo', 'nombreTipo' => 'Clientes B', 'esVendedor' => false]); // Vista unificada
     }
 
     public function listarFacturas(){

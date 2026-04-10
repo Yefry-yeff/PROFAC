@@ -2,7 +2,7 @@
 
 
 
-namespace App\Http\Livewire\VentasEstatal;
+namespace App\Http\Livewire\Ventas;
 
 use Livewire\Component;
 
@@ -38,21 +38,11 @@ class FacturacionEstatal extends Component
         }
     }
 
+    // Nota: Este componente solo se usa como controlador API.
+    // El render() no se invoca desde ninguna ruta de página.
     public function render()
     {
-        $cotizacion = null;
-        $htmlProductosCotizacion = '';
-
-        if ($this->idCotizacion) {
-            $datoCotizacion = $this->cargarDatosCotizacion($this->idCotizacion);
-            $cotizacion = $datoCotizacion['cotizacion'];
-            $htmlProductosCotizacion = $datoCotizacion['html'];
-        }
-
-        return view('livewire.ventas-estatal.facturacion-estatal', [
-            'cotizacion' => $cotizacion,
-            'htmlProductosCotizacion' => $htmlProductosCotizacion
-        ]);
+        return view('livewire.ventas.facturacion-unificada');
     }
 
     public $arrayProductos = [];
@@ -631,7 +621,6 @@ class FacturacionEstatal extends Component
 
             'fecha_vencimiento' => 'required',
             'subTotalGeneralGrabado' => 'required',
-            'subTotalGeneralGrabadoMostrar' => 'required',
             'subTotalGeneral' => 'required',
             'isvGeneral' => 'required',
             'totalGeneral' => 'required',

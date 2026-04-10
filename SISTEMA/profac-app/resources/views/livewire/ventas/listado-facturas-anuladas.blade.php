@@ -1,6 +1,16 @@
 ﻿<div>
     @push('styles')
+        <style>
+            .tipo-selector .btn { margin: 2px 4px; }
+            .tipo-selector .btn.active { box-shadow: 0 0 0 3px rgba(0,123,255,.5); }
+        </style>
     @endpush
+
+    {{-- Loading Overlay --}}
+    <div id="tbl_loading_overlay" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.78); z-index:9000; text-align:center; padding-top:18%;">
+        <i class="fa fa-spinner fa-spin fa-3x" style="color:#1ab394;"></i>
+        <p class="mt-3" style="color:#555; font-size:1rem;">Cargando datos...</p>
+    </div>
 
     <div class="row wrapper border-bottom white-bg page-heading">
         <div class="col-lg-8 col-xl-10 col-md-8 col-sm-8">
@@ -9,13 +19,31 @@
                 <li class="breadcrumb-item active">
                     <a>{{$nombreTipo}}</a>
                 </li>
-
-
             </ol>
         </div>
     </div>
 
     <div class="wrapper wrapper-content animated fadeInRight">
+
+        {{-- SELECTOR DE TIPO --}}
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="ibox">
+                    <div class="ibox-content py-2">
+                        <div class="d-flex align-items-center flex-wrap tipo-selector">
+                            <strong class="mr-3">Tipo:</strong>
+                            <button type="button" class="btn btn-sm {{ $idTipoVenta == 2 ? 'btn-primary active' : 'btn-outline-secondary' }}"
+                                onclick="cambiarTipoAnulada(2, this)">Clientes A</button>
+                            <button type="button" class="btn btn-sm {{ $idTipoVenta == 1 ? 'btn-primary active' : 'btn-outline-secondary' }}"
+                                onclick="cambiarTipoAnulada(1, this)">Clientes B</button>
+                            <button type="button" class="btn btn-sm {{ $idTipoVenta == 3 ? 'btn-primary active' : 'btn-outline-secondary' }}"
+                                onclick="cambiarTipoAnulada(3, this)">Exoneradas</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="row">
             <div class="col-lg-12">
                 <div class="ibox ">
@@ -115,6 +143,10 @@
 
     @push('scripts')
         <script>
+            var currentIdTipo = {{$idTipoVenta}};
+            var nombresTipoAnulada = { 1: 'Clientes B', 2: 'Clientes A', 3: 'Exonerado' };
+            var urlHistoryAnulada = { 1: '/ventas/anulado/corporativo', 2: '/ventas/anulado/estatal', 3: '/ventas/anulado/exonerado' };
+
             $(document).ready(function() {
             $('#tbl_listar_compras').DataTable({
                 "order": [0, 'desc'],
@@ -122,7 +154,7 @@
                     "url": "/js/plugins/dataTables/i18n/Spanish.json"
                 },
 
-                pageLength: 10,
+                pageLength: 5,
                 responsive: true,
 
 
@@ -138,7 +170,7 @@
                 "ajax": "/ventas/anulado/listado",
                 "ajax":{
                     'url':"/ventas/anulado/listado",
-                    'data' : {'idTipo' : {{$idTipoVenta}} },
+                    'data' : function(d) { d.idTipo = currentIdTipo; },
                     'type' : 'post',
                     'headers': {
                                 'X-CSRF-TOKEN': '{{ csrf_token() }}'
@@ -194,11 +226,29 @@
                         data: 'opciones'
                     }
 
-                ]
+                ],
+                \"initComplete\": function() {\n                    document.getElementById('tbl_loading_overlay').style.display = 'none';\n                }
 
 
             });
             })
+
+        function cambiarTipoAnulada(nuevoIdTipo, btnElement) {
+            if (nuevoIdTipo === currentIdTipo) return;
+            document.getElementById('tbl_loading_overlay').style.display = '';
+            document.querySelectorAll('.tipo-selector .btn').forEach(function(btn) {
+                btn.classList.remove('btn-primary', 'active');
+                btn.classList.add('btn-outline-secondary');
+            });
+            btnElement.classList.remove('btn-outline-secondary');
+            btnElement.classList.add('btn-primary', 'active');
+            currentIdTipo = nuevoIdTipo;
+            document.querySelector('.breadcrumb-item.active a').textContent = nombresTipoAnulada[nuevoIdTipo];
+            history.pushState({ tipo: nuevoIdTipo }, '', urlHistoryAnulada[nuevoIdTipo]);
+            $('#tbl_listar_compras').DataTable().ajax.reload(function() {
+                document.getElementById('tbl_loading_overlay').style.display = 'none';
+            });
+        }
 
         function anularVentaConfirmar(idFactura){
 
