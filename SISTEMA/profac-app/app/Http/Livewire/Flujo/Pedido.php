@@ -47,6 +47,7 @@ class Pedido extends Component
     public $mensajeExito     = '';
     public $mensajeError     = '';
     public $pedidoGuardadoId = null;   // ID del pedido recién guardado (muestra panel de acciones)
+    public $numeroPedido     = null;   // Número a asignar al próximo pedido
 
     // ── Reglas de validación para el formulario principal ─────────────────
     protected function rulesGuardar(): array
@@ -92,6 +93,7 @@ class Pedido extends Component
     // ── Ciclo de vida ──────────────────────────────────────────────────────
     public function mount()
     {
+        $this->numeroPedido = (DB::table('pedido')->max('id') ?? 0) + 1;
         $this->items = [
             ['nombre_producto' => '', 'cantidad' => 1],
         ];
@@ -401,6 +403,31 @@ class Pedido extends Component
                     'updated_at'      => now(),
                 ]);
             }
+
+            // Registrar en el sistema de flujo (tipo_flujo_id=1 = 'venta', estatus_id=1 = 'pedido')
+            $flujoId = DB::table('flujo')->insertGetId([
+                'tipo_flujo_id' => 1,
+                'identificacion'=> (string) $pedidoId,
+                'nombre'        => $this->clienteSeleccionado['nombre'],
+                'estado'        => 'activo',
+                'estatus_id'    => 1,
+                'created_by'    => Auth::id(),
+                'updated_by'    => Auth::id(),
+                'created_at'    => now(),
+                'updated_at'    => now(),
+            ]);
+
+            DB::table('historico_flujo')->insert([
+                'flujo_id'    => $flujoId,
+                'tramite_tipo'=> 'pedido',
+                'tramite_id'  => $pedidoId,
+                'estado'      => 'pendiente',
+                'observaciones'=> null,
+                'created_by'  => Auth::id(),
+                'updated_by'  => Auth::id(),
+                'created_at'  => now(),
+                'updated_at'  => now(),
+            ]);
 
             DB::commit();
 

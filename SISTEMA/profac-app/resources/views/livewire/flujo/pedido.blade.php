@@ -143,6 +143,9 @@
                 <li class="breadcrumb-item">
                     <a href="{{ route('dashboard') }}">Inicio</a>
                 </li>
+                <li class="breadcrumb-item">
+                    <a href="{{ route('flujo.ventas') }}">Ventas</a>
+                </li>
                 <li class="breadcrumb-item active">
                     <strong>Pedido</strong>
                 </li>
@@ -194,7 +197,7 @@
                                     <span class="accion-label">EXCEL</span>
                                 </a>
 
-                                <a href="/flujo/pedidos/historico" class="accion-btn"
+                                <a href="{{ route('flujo.pedidos') }}" class="accion-btn"
                                    style="background:linear-gradient(135deg,#6c5ce7,#5544d0); box-shadow:0 4px 14px rgba(108,92,231,.35);"
                                    title="Ver historial">
                                     <i class="fa fa-list-alt accion-icon"></i>
@@ -229,12 +232,24 @@
             <div class="col-lg-12">
                 <div class="ibox">
                     <div class="ibox-title pedido-main-title" style="background:linear-gradient(135deg,#f39c12 0%,#e67e22 100%); color:#fff; border-radius:4px 4px 0 0;">
-                        <h5 class="m-0" style="color:#fff;">
-                            <i class="fa fa-shopping-cart"></i> &nbsp;Registrar Pedido
-                        </h5>
+                        <div class="d-flex align-items-center justify-content-between">
+                            <h5 class="m-0" style="color:#fff;">
+                                <i class="fa fa-shopping-cart"></i> &nbsp;Registrar Pedido
+                            </h5>
+                            <a href="{{ route('flujo.ventas') }}" class="btn btn-outline-light btn-sm" style="border-radius:8px; font-size:12px; font-weight:600;">
+                                <i class="fa fa-arrow-left mr-1"></i> Volver
+                            </a>
+                        </div>
                     </div>
 
                     <div class="ibox-content pedido-ibox-content" style="padding: 24px;">
+
+                        {{-- ==================== NÚMERO DE PEDIDO ==================== --}}
+                        <div class="d-flex align-items-center mb-3">
+                            <span class="text-muted mr-2" style="font-size:13px; font-weight:600;">N° Pedido:</span>
+                            <input type="text" value="{{ $pedidoGuardadoId ?? $numeroPedido }}"
+                                class="form-control form-control-sm" style="max-width:120px; font-weight:700; font-size:14px;" readonly>
+                        </div>
 
                         {{-- ==================== SECCIÓN 1: CLIENTE ==================== --}}
                         <div class="pedido-section-heading">

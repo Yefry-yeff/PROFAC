@@ -183,7 +183,9 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     //---------------------------------------FLUJO DE VENTAS-------------------------------//
     Route::get('/flujo/ventas', \App\Http\Livewire\Flujo\Ventas::class)->name('flujo.ventas');
     Route::get('/flujo/pedido', \App\Http\Livewire\Flujo\Pedido::class)->name('flujo.pedido');
-    Route::get('/flujo/pedidos', \App\Http\Livewire\Flujo\ListarPedidos::class)->name('flujo.pedidos');
+    Route::get('/flujo/pedidos', \App\Http\Livewire\Flujo\ListarVentas::class)->name('flujo.pedidos');
+    Route::get('/flujo/pedidos/historico', \App\Http\Livewire\Flujo\ListarVentas::class); // alias legacy
+    Route::get('/flujo/ventas/historico', \App\Http\Livewire\Flujo\ListarVentas::class)->name('flujo.ventas.historico');
     Route::get('/flujo/oferta', \App\Http\Livewire\Flujo\OfertaPedido::class)->name('flujo.oferta');
     Route::get('/flujo/ofertas', \App\Http\Livewire\Flujo\ListarOfertas::class)->name('flujo.ofertas');
     Route::get('/flujo/pedido/editar/{id}', \App\Http\Livewire\Flujo\EditarPedido::class)->name('flujo.pedido.editar');

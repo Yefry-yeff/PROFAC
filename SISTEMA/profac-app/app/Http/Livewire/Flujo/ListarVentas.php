@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx as XlsxWriter;
 
-class ListarPedidos extends Component
+class ListarVentas extends Component
 {
     // ── Filtros ────────────────────────────────────────────────────────────
     public $busquedaCliente = '';
@@ -426,7 +426,7 @@ class ListarPedidos extends Component
         $offset  = ($this->pagina - 1) * $this->porPagina;
         $pedidos = $this->query()->skip($offset)->take($this->porPagina)->get();
 
-        return view('livewire.flujo.listar-pedidos', [
+        return view('livewire.flujo.listar-ventas', [
             'pedidos'      => $pedidos,
             'totalPaginas' => $this->totalPaginas,
         ]);

@@ -186,6 +186,26 @@
                     </div>
                 </div>
 
+                {{-- HISTORIAL DE VENTAS --}}
+                <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+                    <a href="{{ route('flujo.ventas.historico') }}" style="text-decoration:none; display:block;">
+                        <div class="flujo-card ibox" style="border-top:4px solid transparent; transition:border-top-color .2s;"
+                             onmouseover="this.style.borderTopColor='#6c5ce7';"
+                             onmouseout="this.style.borderTopColor='transparent';">
+                            <div class="card-icon-wrap">
+                                <div class="icon-circle" style="background:rgba(108,92,231,0.12); color:#6c5ce7;">
+                                    <i class="fa fa-history"></i>
+                                </div>
+                                <div class="card-label">Historial de Ventas</div>
+                                <div class="card-desc">Consulta y gestiona el registro histórico de ventas</div>
+                            </div>
+                            <div class="card-footer-bar" style="background:#6c5ce7;">
+                                <i class="fa fa-arrow-right mr-1"></i> Ver Historial
+                            </div>
+                        </div>
+                    </a>
+                </div>
+
             </div>
 
         @elseif($step == 'factura_options')

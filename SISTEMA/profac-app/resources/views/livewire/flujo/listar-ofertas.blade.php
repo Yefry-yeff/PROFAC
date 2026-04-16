@@ -18,7 +18,7 @@
             </ol>
         </div>
         <div class="col-lg-2 d-flex align-items-center justify-content-end">
-            <a href="/flujo/pedidos/historico" class="btn btn-default btn-sm mr-2">
+            <a href="{{ route('flujo.pedidos') }}" class="btn btn-default btn-sm mr-2">
                 <i class="fa fa-list-alt"></i> Pedidos
             </a>
         </div>
@@ -137,7 +137,7 @@
 
                                             {{-- Pedido link --}}
                                             <td>
-                                                <a href="/flujo/pedidos/historico"
+                                                <a href="{{ route('flujo.pedidos') }}"
                                                    title="Ver pedido">
                                                     <span class="oferta-badge"
                                                           style="background:#e8f0fe; color:#1a7efb;">
