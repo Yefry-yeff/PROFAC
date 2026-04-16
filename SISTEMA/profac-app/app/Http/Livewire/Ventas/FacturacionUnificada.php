@@ -10,9 +10,11 @@ class FacturacionUnificada extends Component
     public $tipoFacturaId;
     public $tipoFactura;
     public $tiposFactura;
+    public $fromFlujo = false;
 
     public function mount($codigo = null)
     {
+        $this->fromFlujo = request()->get('from') === 'flujo';
         $this->tiposFactura = TipoFactura::activos()->get();
 
         if ($codigo) {

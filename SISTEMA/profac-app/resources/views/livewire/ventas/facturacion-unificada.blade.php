@@ -33,6 +33,7 @@
         {{-- ============================================================== --}}
         {{-- SELECTOR DE TIPO DE FACTURACIÓN                                --}}
         {{-- ============================================================== --}}
+        @if(!$fromFlujo)
         <div class="row mb-3">
             <div class="col-12">
                 <div class="ibox">
@@ -54,6 +55,15 @@
                 </div>
             </div>
         </div>
+        @else
+        <div class="row mb-3">
+            <div class="col-12">
+                <a href="{{ route('flujo.ventas') }}" class="btn btn-default">
+                    <i class="fa fa-arrow-left mr-1"></i> Volver a Ventas
+                </a>
+            </div>
+        </div>
+        @endif
 
         {{-- ============================================================== --}}
         {{-- FORMULARIO PRINCIPAL DE FACTURACIÓN                            --}}

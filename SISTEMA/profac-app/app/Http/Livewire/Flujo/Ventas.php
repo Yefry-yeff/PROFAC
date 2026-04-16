@@ -23,7 +23,7 @@ class Ventas extends Component
 
     public function selectCotizacion()
     {
-        return $this->redirect('/proforma/cotizacion/2');
+        return $this->redirect('/proforma/cotizacion/2?from=flujo');
     }
 
     public function selectFactura()
@@ -34,11 +34,11 @@ class Ventas extends Component
     public function selectFacturaSubtype($subtype)
     {
         switch ($subtype) {
-            case 'clientes_a':    return $this->redirect('/ventas/estatal');
-            case 'clientes_b':    return $this->redirect('/ventas/coporativo');
-            case 'sr_clientes_a': return $this->redirect('/ventas/sin/restriccion/gobierno');
-            case 'sr_clientes_b': return $this->redirect('/ventas/sin/restriccion/precio');
-            case 'exonerada':     return $this->redirect('/ventas/exonerado/factura');
+            case 'clientes_a':    return $this->redirect('/ventas/estatal?from=flujo');
+            case 'clientes_b':    return $this->redirect('/ventas/coporativo?from=flujo');
+            case 'sr_clientes_a': return $this->redirect('/ventas/sin/restriccion/gobierno?from=flujo');
+            case 'sr_clientes_b': return $this->redirect('/ventas/sin/restriccion/precio?from=flujo');
+            case 'exonerada':     return $this->redirect('/ventas/exonerado/factura?from=flujo');
         }
     }
 
