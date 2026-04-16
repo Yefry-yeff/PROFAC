@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Auth;
 class Ventas extends Component
 {
     public $titulo = 'Ventas';
-    public $step = 'select'; // 'select' | 'factura_options'
+    public $step = 'select'; // 'select' | 'oferta' | 'prefactura' | 'factura_options'
 
     public function render()
     {
@@ -23,12 +23,17 @@ class Ventas extends Component
 
     public function selectOferta()
     {
+        $this->step = 'oferta';
+    }
+
+    public function nuevaOfertaSinPedido()
+    {
         return $this->redirect('/proforma/cotizacion/2?from=flujo');
     }
 
     public function selectPrefactura()
     {
-        return $this->redirect(route('flujo.prefactura'));
+        $this->step = 'prefactura';
     }
 
     public function selectFactura()

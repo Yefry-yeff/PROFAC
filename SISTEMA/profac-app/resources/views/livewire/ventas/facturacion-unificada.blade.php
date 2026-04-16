@@ -79,7 +79,7 @@
     @endpush
 
     {{-- ===== PAGE HEADING (solo en flujo) ===== --}}
-    @if($fromFlujo)
+    @if($fromFlujo && ($config->codigo ?? '') === 'cotizacion_clientes_a')
     <div class="row wrapper border-bottom white-bg page-heading">
         <div class="col-lg-10">
             <h2><i class="fa fa-file-text-o" style="color:#00897b;"></i> Nueva Oferta</h2>
@@ -88,6 +88,22 @@
                 <li class="breadcrumb-item"><a href="{{ route('flujo.ventas') }}">Ventas</a></li>
                 <li class="breadcrumb-item"><a href="{{ route('flujo.ofertas') }}">Ofertas</a></li>
                 <li class="breadcrumb-item active"><strong>Nueva Oferta</strong></li>
+            </ol>
+        </div>
+        <div class="col-lg-2 d-flex align-items-center justify-content-end">
+            <a href="{{ route('flujo.ventas') }}" class="btn btn-default btn-sm">
+                <i class="fa fa-arrow-left mr-1"></i> Volver
+            </a>
+        </div>
+    </div>
+    @elseif($fromFlujo)
+    <div class="row wrapper border-bottom white-bg page-heading">
+        <div class="col-lg-10">
+            <h2>{{ $config->nombre ?? 'Venta' }}</h2>
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Inicio</a></li>
+                <li class="breadcrumb-item"><a href="{{ route('flujo.ventas') }}">Ventas</a></li>
+                <li class="breadcrumb-item active"><strong>{{ $config->nombre ?? 'Factura' }}</strong></li>
             </ol>
         </div>
         <div class="col-lg-2 d-flex align-items-center justify-content-end">
@@ -120,8 +136,8 @@
         </div>
         @endif
 
-        {{-- ===== PANEL: VINCULAR A PEDIDO (solo en flujo) ===== --}}
-        @if($fromFlujo)
+        {{-- ===== PANEL: VINCULAR A PEDIDO (solo en modo oferta desde flujo) ===== --}}
+        @if($fromFlujo && ($config->codigo ?? '') === 'cotizacion_clientes_a')
         <div class="pedido-link-panel {{ $pedidoVinculado ? 'linked' : '' }}">
             @if(!$pedidoVinculado)
             <div class="mb-3">
@@ -215,7 +231,49 @@
         </div>
         @endif
 
-        {{-- ===== FORMULARIO PRINCIPAL ===== --}}
+        {{-- ===== PANEL: PRODUCTOS DEL PEDIDO CON SUGERENCIAS ===== --}}
+        @if($fromFlujo && ($config->codigo ?? '') === 'cotizacion_clientes_a' && count($productosSugeridos) > 0)
+        <div style="border:2px solid #b2ebf2; border-radius:14px; padding:20px 24px; margin-bottom:24px; background:#e0f7fa;">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <h6 style="margin:0; font-weight:800; color:#006064;">
+                    <i class="fa fa-list-ul mr-2"></i>Productos del Pedido
+                    <span style="font-size:11px; font-weight:400; color:#78909c; margin-left:8px;">Haz clic en un producto sugerido para agregarlo al formulario</span>
+                </h6>
+                <span style="background:#006064; color:#fff; border-radius:20px; padding:3px 12px; font-size:12px; font-weight:700;">{{ count($productosSugeridos) }} ítem(s)</span>
+            </div>
+            @foreach($productosSugeridos as $item)
+            <div style="background:#fff; border:1px solid #e0f2f1; border-radius:10px; padding:14px 18px; margin-bottom:10px;">
+                <div class="d-flex align-items-start justify-content-between flex-wrap gap-2">
+                    <div style="min-width:0; flex:1;">
+                        <div style="font-size:12px; color:#546e7a; text-transform:uppercase; letter-spacing:.4px; font-weight:700;">Solicitado en pedido</div>
+                        <div style="font-weight:700; color:#2c3e50; font-size:14px; margin-top:2px;">
+                            {{ $item['nombre_pedido'] }}
+                            <span style="margin-left:8px; background:#e8f5e9; color:#2e7d32; border-radius:12px; padding:2px 10px; font-size:11px;">x {{ $item['cantidad'] }}</span>
+                        </div>
+                    </div>
+                    <div style="flex:2; min-width:240px;">
+                        @if(count($item['similares']) > 0)
+                        <div style="font-size:11px; color:#546e7a; font-weight:700; text-transform:uppercase; letter-spacing:.4px; margin-bottom:6px;">Productos similares disponibles:</div>
+                        <div class="d-flex flex-wrap gap-2">
+                            @foreach($item['similares'] as $sim)
+                            @php $s = (array)$sim; @endphp
+                            <button type="button"
+                                onclick="preseleccionarProductoSugerido({{ $s['id'] }}, '{{ addslashes($s['nombre']) }}');"
+                                style="background:#e8f5e9; color:#1b5e20; border:1px solid #a5d6a7; border-radius:8px; padding:6px 14px; font-size:12px; font-weight:600; cursor:pointer; transition:all .15s;"
+                                onmouseover="this.style.background='#c8e6c9';" onmouseout="this.style.background='#e8f5e9';">
+                                <i class="fa fa-plus-circle mr-1"></i>{{ Str::limit($s['nombre'], 35) }}
+                            </button>
+                            @endforeach
+                        </div>
+                        @else
+                        <div style="font-size:12px; color:#90a4ae;"><i class="fa fa-exclamation-triangle mr-1"></i>No se encontraron productos similares en catálogo.</div>
+                        @endif
+                    </div>
+                </div>
+            </div>
+            @endforeach
+        </div>
+        @endif
         <div class="row">
             <div class="col-lg-12">
                 <div class="ibox ofr-main-ibox">
@@ -776,11 +834,48 @@
                 }
             }
         });
+
+        // ── Pre-seleccionar vendedor = usuario actual ──────────────────────
+        @if(!empty($vendedorDefault))
+        (function() {
+            var opt = new Option(
+                '{{ addslashes($vendedorDefault['name']) }}',
+                '{{ $vendedorDefault['id'] }}',
+                true, true
+            );
+            $('#vendedor').append(opt).trigger('change');
+        })();
+        @endif
+
+        // ── Pre-seleccionar cliente si viene de un pedido ─────────────────
+        @if($clientePedido)
+        (function() {
+            var opt = new Option(
+                '{{ addslashes($clientePedido['nombre']) }}',
+                '{{ $clientePedido['id'] }}',
+                true, true
+            );
+            $('#seleccionarCliente').append(opt).trigger('change');
+            setTimeout(function() { obtenerDatosCliente(); }, 300);
+        })();
+        @endif
     }
 
     // ================================================================
-    // CAMBIAR TIPO DE FACTURA (navegación con recarga completa)
+    // PRODUCTO SUGERIDO DESDE PEDIDO → Pre-selecciona en el selector
     // ================================================================
+    function preseleccionarProductoSugerido(id, nombre) {
+        if ($('#seleccionarProducto').hasClass('select2-hidden-accessible')) {
+            // Agregar opción y seleccionar
+            var opt = new Option(nombre, id, true, true);
+            $('#seleccionarProducto').append(opt).trigger('change');
+        }
+        // Disparar las mismas acciones que al elegir un producto manualmente
+        setTimeout(function() {
+            obtenerImagenes();
+            cargarCategoriasProducto();
+        }, 200);
+    }
     function cambiarTipoFactura(rutaMenu) {
         window.location.href = '/' + rutaMenu;
     }

@@ -118,6 +118,10 @@
                         <a href="javascript:void(0)" wire:click="goBack">Ventas</a>
                     </li>
                     <li class="breadcrumb-item active"><strong>Tipo de Factura</strong></li>
+                @elseif($step == 'oferta')
+                    <li class="breadcrumb-item active"><strong>Oferta</strong></li>
+                @elseif($step == 'prefactura')
+                    <li class="breadcrumb-item active"><strong>Prefactura</strong></li>
                 @else
                     <li class="breadcrumb-item active"><strong>Ventas</strong></li>
                 @endif
@@ -228,6 +232,60 @@
 
             </div>
 
+        @elseif($step == 'oferta')
+
+            {{-- Banner --}}
+            <div class="flujo-header-banner d-flex align-items-center justify-content-between"
+                 style="background: linear-gradient(135deg, #00695c 0%, #00a86b 100%);">
+                <div>
+                    <button type="button" class="btn btn-outline-light flujo-back-btn mb-3" wire:click="goBack">
+                        <i class="fa fa-arrow-left mr-1"></i> Volver
+                    </button>
+                    <h3><i class="fa fa-file-text-o mr-2"></i> Ofertas</h3>
+                    <p>Selecciona el pedido al que quieres crear una oferta, o crea una oferta libre</p>
+                </div>
+                <div class="banner-icon d-none d-md-block"><i class="fa fa-file-text-o"></i></div>
+            </div>
+
+            {{-- Componente lista de pedidos para ofertar --}}
+            <div class="ibox" style="border-radius:16px; overflow:hidden; box-shadow:0 4px 20px rgba(0,0,0,.07);">
+                <div class="ibox-title" style="background:linear-gradient(135deg,#004d40,#00695c); border:none; padding:14px 22px;">
+                    <h5 style="color:#fff; margin:0; font-weight:700;">
+                        <i class="fa fa-clipboard-list mr-2"></i> Pedidos disponibles para ofertar
+                    </h5>
+                </div>
+                <div class="ibox-content" style="padding:20px 24px;">
+                    <livewire:flujo.listar-pedidos-para-ofertar />
+                </div>
+            </div>
+
+        @elseif($step == 'prefactura')
+
+            {{-- Banner --}}
+            <div class="flujo-header-banner d-flex align-items-center justify-content-between"
+                 style="background: linear-gradient(135deg, #00838f 0%, #0097a7 100%);">
+                <div>
+                    <button type="button" class="btn btn-outline-light flujo-back-btn mb-3" wire:click="goBack">
+                        <i class="fa fa-arrow-left mr-1"></i> Volver
+                    </button>
+                    <h3><i class="fa fa-file-invoice mr-2"></i> Prefactura</h3>
+                    <p>Aprueba una oferta como ganadora para convertirla en prefactura</p>
+                </div>
+                <div class="banner-icon d-none d-md-block"><i class="fa fa-file-invoice"></i></div>
+            </div>
+
+            {{-- Componente lista de ofertas para aprobar como prefactura --}}
+            <div class="ibox" style="border-radius:16px; overflow:hidden; box-shadow:0 4px 20px rgba(0,0,0,.07);">
+                <div class="ibox-title" style="background:linear-gradient(135deg,#00838f,#0097a7); border:none; padding:14px 22px;">
+                    <h5 style="color:#fff; margin:0; font-weight:700;">
+                        <i class="fa fa-check-circle mr-2"></i> Ofertas activas — selecciona la ganadora
+                    </h5>
+                </div>
+                <div class="ibox-content" style="padding:20px 24px;">
+                    <livewire:flujo.listar-ofertas-para-prefactura />
+                </div>
+            </div>
+
         @elseif($step == 'factura_options')
 
             {{-- Banner superior --}}
@@ -243,6 +301,22 @@
                     <i class="fa fa-file-invoice-dollar"></i>
                 </div>
             </div>
+
+            {{-- Prefacturas pendientes de convertir a factura --}}
+            <div class="ibox mb-4" style="border-radius:16px; overflow:hidden; box-shadow:0 4px 20px rgba(0,0,0,.07);">
+                <div class="ibox-title" style="background:linear-gradient(135deg,#e65100,#f9a826); border:none; padding:14px 22px;">
+                    <h5 style="color:#fff; margin:0; font-weight:700;">
+                        <i class="fa fa-file-invoice mr-2"></i> Prefacturas listas para facturar
+                    </h5>
+                </div>
+                <div class="ibox-content" style="padding:20px 24px;">
+                    <livewire:flujo.listar-prefacturas-para-factura />
+                </div>
+            </div>
+
+            <h5 style="color:#546e7a; font-weight:700; margin-bottom:16px; text-align:center;">
+                <i class="fa fa-plus-circle mr-2"></i> — O crea una factura nueva —
+            </h5>
 
             <div class="row justify-content-center">
 
