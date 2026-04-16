@@ -1,38 +1,106 @@
 <div>
     @push('styles')
-        <style>
-            input::-webkit-outer-spin-button,
-            input::-webkit-inner-spin-button {
-                -webkit-appearance: none;
-                margin: 0;
-            }
-            input[type=number] {
-                -moz-appearance: textfield;
-            }
-            @media (max-width: 767.5px) {
-                .hide-container { display: none; }
-            }
-            .center-div { text-align: center }
-            .img-size {
-                width: 100%;
-                height: 20rem;
-                margin: 0 auto;
-            }
-            .tipo-factura-selector .btn {
-                margin-right: 5px;
-                margin-bottom: 5px;
-            }
-            .tipo-factura-selector .btn.active {
-                box-shadow: 0 0 0 3px rgba(0,123,255,.5);
-            }
-        </style>
+    <style>
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
+        @media (max-width: 767.5px) { .hide-container { display: none; } }
+        .center-div { text-align: center; }
+        .img-size { width: 100%; height: 16rem; margin: 0 auto; object-fit: contain; }
+        .tipo-factura-selector .btn { margin-right: 5px; margin-bottom: 5px; }
+        .tipo-factura-selector .btn.active { box-shadow: 0 0 0 3px rgba(0,123,255,.5); }
+
+        /* ── Pedido panel ─────────────────────────────────────────── */
+        .pedido-link-panel {
+            border: 2px dashed #b2dfdb;
+            border-radius: 14px;
+            padding: 20px 24px;
+            margin-bottom: 24px;
+            background: #f0fdf4;
+        }
+        .pedido-link-panel.linked { border: 2px solid #00897b; background: #e8f5e9; }
+        .ped-row {
+            display: flex; align-items: center; gap: 12px;
+            padding: 10px 14px; border-radius: 10px;
+            background: #fff; border: 1px solid #e0f2f1;
+            margin-bottom: 6px; cursor: pointer;
+            transition: box-shadow .15s, border-color .15s;
+        }
+        .ped-row:hover { box-shadow: 0 3px 12px rgba(0,0,0,.09); border-color: #80cbc4; }
+
+        /* ── Section headers ──────────────────────────────────────── */
+        .ofr-section-header {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 18px; border-radius: 10px;
+            margin: 20px 0 16px;
+            font-weight: 700; font-size: 13px;
+            letter-spacing: .4px; text-transform: uppercase;
+        }
+
+        /* ── Main ibox ────────────────────────────────────────────── */
+        .ofr-main-ibox { border-radius: 16px !important; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,.07) !important; }
+        .ofr-main-ibox > .ibox-title {
+            background: linear-gradient(135deg,#004d40 0%,#00897b 100%) !important;
+            border: none !important; padding: 16px 24px !important;
+        }
+        .ofr-main-ibox > .ibox-title h3 { color: #fff !important; margin: 0; font-size: 16px; }
+        .ofr-main-ibox > .ibox-title .badge { background: rgba(255,255,255,.2); color: #fff; }
+        .ofr-main-ibox > .ibox-content { padding: 24px 28px !important; }
+
+        /* ── Field labels ─────────────────────────────────────────── */
+        .ofr-label {
+            font-size: 11px; font-weight: 700; color: #546e7a;
+            text-transform: uppercase; letter-spacing: .5px;
+            margin-bottom: 4px; display: block;
+        }
+        .ofr-label .req { color: #e53935; margin-left: 2px; }
+        .form-control.ofr-input {
+            border-radius: 8px !important; border: 1px solid #cfd8dc !important; font-size: 13px !important;
+        }
+        .form-control.ofr-input:focus {
+            border-color: #00897b !important; box-shadow: 0 0 0 3px rgba(0,137,123,.12) !important;
+        }
+
+        /* ── Totales grid ─────────────────────────────────────────── */
+        .totales-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px; margin-bottom: 24px;
+        }
+        .total-card { border-radius: 10px; padding: 12px 16px; text-align: center; }
+        .total-card .tc-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; opacity: .75; margin-bottom: 4px; }
+        .total-card input {
+            border: none !important; background: transparent !important;
+            font-size: 18px !important; font-weight: 800 !important;
+            padding: 0 !important; text-align: center; width: 100%;
+        }
+        .total-card.total-final input { font-size: 22px !important; font-weight: 900 !important; color: #fff !important; }
+    </style>
     @endpush
+
+    {{-- ===== PAGE HEADING (solo en flujo) ===== --}}
+    @if($fromFlujo)
+    <div class="row wrapper border-bottom white-bg page-heading">
+        <div class="col-lg-10">
+            <h2><i class="fa fa-file-text-o" style="color:#00897b;"></i> Nueva Oferta</h2>
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Inicio</a></li>
+                <li class="breadcrumb-item"><a href="{{ route('flujo.ventas') }}">Ventas</a></li>
+                <li class="breadcrumb-item"><a href="{{ route('flujo.ofertas') }}">Ofertas</a></li>
+                <li class="breadcrumb-item active"><strong>Nueva Oferta</strong></li>
+            </ol>
+        </div>
+        <div class="col-lg-2 d-flex align-items-center justify-content-end">
+            <a href="{{ route('flujo.ventas') }}" class="btn btn-default btn-sm">
+                <i class="fa fa-arrow-left mr-1"></i> Volver
+            </a>
+        </div>
+    </div>
+    @endif
 
     <div class="wrapper wrapper-content animated fadeInRight">
 
-        {{-- ============================================================== --}}
-        {{-- SELECTOR DE TIPO DE FACTURACIÓN                                --}}
-        {{-- ============================================================== --}}
+        {{-- ===== SELECTOR DE TIPO (fuera de flujo) ===== --}}
         @if(!$fromFlujo)
         <div class="row mb-3">
             <div class="col-12">
@@ -41,70 +109,157 @@
                         <div class="d-flex align-items-center flex-wrap tipo-factura-selector">
                             <strong class="mr-3">Tipo de Facturación:</strong>
                             @foreach($tiposFactura as $tipo)
-                                <button
-                                    type="button"
+                                <button type="button" id="btnTipo_{{ $tipo->id }}"
                                     class="btn btn-sm {{ $config && $config->id == $tipo->id ? 'btn-primary active' : 'btn-outline-secondary' }}"
-                                    onclick="cambiarTipoFactura('{{ $tipo->ruta_menu }}')"
-                                    id="btnTipo_{{ $tipo->id }}"
-                                >
-                                    {{ $tipo->nombre }}
-                                </button>
+                                    onclick="cambiarTipoFactura('{{ $tipo->ruta_menu }}')">{{ $tipo->nombre }}</button>
                             @endforeach
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-        @else
-        <div class="row mb-3">
-            <div class="col-12">
-                <a href="{{ route('flujo.ventas') }}" class="btn btn-default">
-                    <i class="fa fa-arrow-left mr-1"></i> Volver a Ventas
-                </a>
+        @endif
+
+        {{-- ===== PANEL: VINCULAR A PEDIDO (solo en flujo) ===== --}}
+        @if($fromFlujo)
+        <div class="pedido-link-panel {{ $pedidoVinculado ? 'linked' : '' }}">
+            @if(!$pedidoVinculado)
+            <div class="mb-3">
+                <h6 style="margin:0; font-weight:800; color:#00695c;">
+                    <i class="fa fa-link mr-2"></i>Vincular a un Pedido
+                    <span style="font-size:11px; font-weight:400; color:#78909c; margin-left:8px;">(opcional — puedes crear la oferta sin pedido)</span>
+                </h6>
             </div>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="input-group">
+                        <div class="input-group-prepend">
+                            <span class="input-group-text" style="background:#00897b; color:#fff; border-color:#00897b; border-radius:8px 0 0 8px;">
+                                <i class="fa fa-search"></i>
+                            </span>
+                        </div>
+                        <input type="text"
+                               wire:model.debounce.350ms="busquedaPedido"
+                               class="form-control"
+                               placeholder="Buscar pedido por # o nombre de cliente…"
+                               style="border-radius:0 8px 8px 0;"
+                               autocomplete="off">
+                    </div>
+                    @if(strlen(trim($busquedaPedido)) > 0 && strlen(trim($busquedaPedido)) < 2)
+                        <small class="text-muted mt-1 d-block">Escribe al menos 2 caracteres</small>
+                    @endif
+                </div>
+                <div class="col-md-6 d-flex align-items-center">
+                    <small class="text-muted">
+                        <i class="fa fa-info-circle mr-1 text-info"></i>
+                        Puedes crear <strong>múltiples ofertas</strong> para el mismo pedido.
+                    </small>
+                </div>
+            </div>
+
+            @if(count($pedidosEncontrados) > 0)
+            <div style="max-height:280px; overflow-y:auto; margin-top:12px;">
+                @foreach($pedidosEncontrados as $ped)
+                @php $p = (array)$ped; @endphp
+                <div class="ped-row" wire:click="seleccionarPedido({{ $p['id'] }})">
+                    <div style="flex-shrink:0;">
+                        <span style="background:linear-gradient(135deg,#00695c,#00897b); color:#fff; border-radius:8px; padding:4px 12px; font-size:13px; font-weight:800;">#{{ $p['id'] }}</span>
+                    </div>
+                    <div style="flex:1; min-width:0;">
+                        <div style="font-weight:700; color:#2c3e50; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ $p['cliente'] }}</div>
+                        <div style="font-size:11px; color:#90a4ae;">RTN: {{ $p['rtn'] ?: '—' }} &nbsp;·&nbsp; {{ \Carbon\Carbon::parse($p['created_at'])->format('d/m/Y') }}</div>
+                    </div>
+                    <div style="flex-shrink:0; text-align:center; min-width:70px;">
+                        <div style="font-size:10px; color:#90a4ae;">Ofertas</div>
+                        <div style="font-weight:700; color:{{ $p['total_ofertas'] > 0 ? '#00897b' : '#b0bec5' }}; font-size:15px;">
+                            {{ $p['total_ofertas'] }}
+                            @if($p['has_ganadora'] > 0)<i class="fa fa-trophy text-warning" style="font-size:12px;"></i>@endif
+                        </div>
+                    </div>
+                    <div style="flex-shrink:0;">
+                        @php $estMap=['pendiente'=>['#e3f2fd','#1565c0'],'pre_factura'=>['#fff8e1','#f57f17'],'activo'=>['#e8f5e9','#2e7d32'],'cancelado'=>['#fce4ec','#b71c1c']]; $col=$estMap[$p['estado']]??['#f5f5f5','#546e7a']; @endphp
+                        <span style="background:{{ $col[0] }}; color:{{ $col[1] }}; border-radius:20px; padding:3px 10px; font-size:11px; font-weight:700;">{{ ucfirst(str_replace('_',' ',$p['estado'])) }}</span>
+                    </div>
+                    <div style="flex-shrink:0;">
+                        <span style="background:#e8f5e9; color:#2e7d32; border-radius:8px; padding:6px 14px; font-size:12px; font-weight:700;"><i class="fa fa-plus-circle mr-1"></i> Seleccionar</span>
+                    </div>
+                </div>
+                @endforeach
+            </div>
+            @elseif(strlen(trim($busquedaPedido)) >= 2)
+            <div class="text-center py-3 mt-2">
+                <i class="fa fa-search fa-2x mb-2" style="color:#b2dfdb; display:block;"></i>
+                <p style="color:#78909c; font-size:13px; margin:0;">No se encontraron pedidos activos con ese criterio.</p>
+            </div>
+            @endif
+
+            @else
+            {{-- Pedido vinculado --}}
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <div class="d-flex align-items-center gap-3">
+                    <div style="background:linear-gradient(135deg,#00695c,#00897b); color:#fff; border-radius:10px; padding:6px 16px; font-size:15px; font-weight:800;">
+                        <i class="fa fa-link mr-1"></i> Pedido #{{ $pedidoVinculado['id'] }}
+                    </div>
+                    <div>
+                        <div style="font-weight:700; color:#2c3e50; font-size:14px;">{{ $pedidoVinculado['cliente'] }}</div>
+                        <div style="font-size:12px; color:#78909c;">RTN: {{ $pedidoVinculado['rtn'] ?: '—' }} &nbsp;·&nbsp; {{ \Carbon\Carbon::parse($pedidoVinculado['created_at'])->format('d/m/Y') }}</div>
+                    </div>
+                    <span style="background:#e8f5e9; color:#2e7d32; border-radius:20px; padding:4px 14px; font-size:11px; font-weight:700;"><i class="fa fa-check-circle mr-1"></i> Vinculado</span>
+                </div>
+                <button type="button" wire:click="desvincularPedido"
+                        style="background:#fce4ec; color:#b71c1c; border:none; border-radius:8px; padding:7px 16px; font-size:12px; font-weight:700; cursor:pointer;">
+                    <i class="fa fa-times mr-1"></i> Desvincular
+                </button>
+            </div>
+            @endif
         </div>
         @endif
 
-        {{-- ============================================================== --}}
-        {{-- FORMULARIO PRINCIPAL DE FACTURACIÓN                            --}}
-        {{-- ============================================================== --}}
+        {{-- ===== FORMULARIO PRINCIPAL ===== --}}
         <div class="row">
             <div class="col-lg-12">
-                <div class="ibox">
+                <div class="ibox ofr-main-ibox">
+                    <div class="ibox-title">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <h3>
+                                <i class="fa fa-file-text-o mr-2"></i>
+                                @if($fromFlujo && ($config->codigo ?? '') === 'cotizacion_clientes_a')
+                                    Nueva Oferta
+                                @else
+                                    <span id="titulo_factura">{{ $config->nombre ?? 'Venta' }}</span>
+                                @endif
+                            </h3>
+                            <div class="d-flex align-items-center gap-3">
+                                <input type="text" id="numero_venta" name="numero_venta"
+                                    style="background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.3); color:#fff; border-radius:8px; padding:4px 10px; max-width:130px; font-size:13px;" readonly>
+                                <span class="badge" style="background:rgba(255,255,255,.2); color:#fff; font-size:12px; padding:6px 14px;">
+                                    Cat.: <strong id="categoria_cliente_nombre"></strong>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
                     <div class="ibox-content">
                         <form onkeydown="return event.key != 'Enter';" autocomplete="off" id="crear_venta"
                             name="crear_venta" data-parsley-validate>
 
                             {{-- Campos ocultos de configuración --}}
-                            <input type="hidden" id="restriccion" name="restriccion" value="{{ $config->restriccion ?? 1 }}">
-                            <input type="hidden" id="tipo_venta_id" name="tipo_venta_id" value="{{ $config->tipo_venta_id ?? 2 }}">
-                            <input type="hidden" id="tipo_factura_id" name="tipo_factura_id" value="{{ $config->id ?? '' }}">
-                            <input name="idComprobante" id="idComprobante" type="hidden" value="">
+                            <input type="hidden" id="restriccion"        name="restriccion"        value="{{ $config->restriccion ?? 1 }}">
+                            <input type="hidden" id="tipo_venta_id"      name="tipo_venta_id"      value="{{ $config->tipo_venta_id ?? 2 }}">
+                            <input type="hidden" id="tipo_factura_id"    name="tipo_factura_id"    value="{{ $config->id ?? '' }}">
+                            <input type="hidden" id="idComprobante"      name="idComprobante"      value="">
                             <input type="hidden" id="codigo_autorizacion" name="codigo_autorizacion" value="">
+                            <input type="hidden" id="pedido_vinculado_id" name="pedido_id"          value="{{ $pedidoId ?? '' }}"> {{-- vinculación a pedido --}}
 
-                            {{-- Encabezado --}}
-                            <div class="row align-items-center">
-                                <div class="col-12 col-md-6">
-                                    <div class="d-flex align-items-center gap-2 flex-nowrap">
-                                        <h3 class="mb-0" id="titulo_factura">
-                                            {{ $config->nombre ?? 'Venta Estatal' }}:
-                                        </h3>
-                                        <input type="text" id="numero_venta" name="numero_venta"
-                                            class="form-control form-control-sm" style="max-width: 140px;" readonly>
-                                    </div>
-                                </div>
-                                <div class="col-12 col-md-6 d-flex align-items-center gap-2">
-                                    <span class="text-muted small">Categoría del Cliente:</span>
-                                    <span id="categoria_cliente_nombre" class="badge badge-info px-3 py-2"></span>
-                                </div>
+                            {{-- ── SECCIÓN 1: Datos del Cliente ────────────────────────── --}}
+                            <div class="ofr-section-header" style="background:linear-gradient(135deg,#e3f2fd,#e8f5e9); color:#1a73e8;">
+                                <i class="fa fa-user"></i> 1. Datos del Cliente
                             </div>
 
-                            {{-- Campos del formulario --}}
                             <div class="row">
                                 {{-- Cliente --}}
-                                <div class="col-12 col-md-6">
-                                    <label for="seleccionarCliente" class="col-form-label focus-label">
-                                        Seleccionar Cliente:<span class="text-danger">*</span>
+                                <div class="col-12 col-md-6 mb-3">
+                                    <label for="seleccionarCliente" class="ofr-label">
+                                        Seleccionar Cliente <span class="req">*</span>
                                     </label>
                                     <select id="seleccionarCliente" name="seleccionarCliente"
                                         class="form-group form-control" data-parsley-required
@@ -215,11 +370,15 @@
                                 </div>
                             </div>
 
-                            {{-- Selección de producto --}}
+                            {{-- ── SECCIÓN 2: Agregar Producto ─────────────────────────── --}}
+                            <div class="ofr-section-header" style="background:linear-gradient(135deg,#e8f5e9,#e0f7fa); color:#00695c;">
+                                <i class="fa fa-plus-circle"></i> 2. Agregar Producto
+                            </div>
+
                             <div class="row">
-                                <div class="col-12 col-md-6">
-                                    <label class="col-form-label focus-label">
-                                        Seleccionar Producto:<span class="text-danger">*</span>
+                                <div class="col-12 col-md-6 mb-3">
+                                    <label class="ofr-label">
+                                        Seleccionar Producto <span class="req">*</span>
                                     </label>
                                     <div class="input-group">
                                         <input type="text" id="codigoProductoBuscar" class="form-control"
@@ -339,78 +498,69 @@
                                 </div>
                             </div>
 
-                            {{-- Contenedor de productos dinámicos --}}
+                            {{-- ── Lista productos ────────────────────────────────────────── --}}
                             <div id="divProductos"></div>
-                            <hr>
 
-                            {{-- Totales --}}
-                            <div class="row">
-                                <div class="form-group col-12 col-md-2 col-lg-1">
-                                    <label class="col-form-label" for="descuentoMostrar">Descuento L.<span class="text-danger">*</span></label>
-                                </div>
-                                <div class="form-group col-12 col-md-3 col-lg-2">
-                                    <input type="text" placeholder="Descuento aplicado" id="descuentoMostrar"
-                                        name="descuentoMostrar" class="form-control" value="Descuento Aplicado"
-                                        data-parsley-required autocomplete="off" readonly>
+                            {{-- ── SECCIÓN 3: Totales ───────────────────────────────────── --}}
+                            <div class="ofr-section-header" style="background:linear-gradient(135deg,#e8eaf6,#fce4ec); color:#3949ab;">
+                                <i class="fa fa-calculator"></i> 3. Totales
+                            </div>
+
+                            <div class="totales-grid">
+                                <div class="total-card" style="background:#fff3e0; color:#e65100;">
+                                    <div class="tc-label">Descuento L.</div>
+                                    <input type="text" id="descuentoMostrar" name="descuentoMostrar"
+                                           placeholder="0.00" data-parsley-required autocomplete="off" readonly
+                                           style="color:#e65100;">
                                     <input type="hidden" value="0" id="porDescuentoCalculado" name="porDescuentoCalculado">
                                 </div>
-                            </div>
-                            <div class="row">
-                                <div class="form-group col-12 col-md-2 col-lg-1">
-                                    <label class="col-form-label">Sub Total L.<span class="text-danger">*</span></label>
-                                </div>
-                                <div class="form-group col-12 col-md-3 col-lg-2">
-                                    <input type="text" placeholder="Sub total" id="subTotalGeneralMostrar"
-                                        class="form-control" autocomplete="off" readonly>
+                                <div class="total-card" style="background:#e8f5e9; color:#2e7d32;">
+                                    <div class="tc-label">Sub Total L.</div>
+                                    <input type="text" id="subTotalGeneralMostrar" placeholder="0.00" autocomplete="off" readonly style="color:#2e7d32;">
                                     <input id="subTotalGeneral" name="subTotalGeneral" type="hidden" value="" required>
                                 </div>
-                            </div>
-                            <div class="row">
-                                <div class="form-group col-12 col-md-2 col-lg-1">
-                                    <label class="col-form-label">Sub Total Grabado L.<span class="text-danger">*</span></label>
-                                </div>
-                                <div class="form-group col-12 col-md-3 col-lg-2">
-                                    <input type="text" placeholder="Sub total" id="subTotalGeneralGrabadoMostrar"
-                                        class="form-control" autocomplete="off" readonly>
+                                <div class="total-card" style="background:#e3f2fd; color:#1565c0;">
+                                    <div class="tc-label">Sub Total Grabado L.</div>
+                                    <input type="text" id="subTotalGeneralGrabadoMostrar" placeholder="0.00" autocomplete="off" readonly style="color:#1565c0;">
                                     <input id="subTotalGeneralGrabado" name="subTotalGeneralGrabado" type="hidden" value="" required>
                                 </div>
-                            </div>
-                            <div class="row">
-                                <div class="form-group col-12 col-md-2 col-lg-1">
-                                    <label class="col-form-label">Sub Total Excento L.<span class="text-danger">*</span></label>
-                                </div>
-                                <div class="form-group col-12 col-md-3 col-lg-2">
-                                    <input type="text" placeholder="Sub total" id="subTotalGeneralExcentoMostrar"
-                                        class="form-control" autocomplete="off" readonly>
+                                <div class="total-card" style="background:#f3e5f5; color:#6a1b9a;">
+                                    <div class="tc-label">Sub Total Excento L.</div>
+                                    <input type="text" id="subTotalGeneralExcentoMostrar" placeholder="0.00" autocomplete="off" readonly style="color:#6a1b9a;">
                                     <input id="subTotalGeneralExcento" name="subTotalGeneralExcento" type="hidden" value="" required>
                                 </div>
-                            </div>
-                            <div class="row" id="fila_isv" style="{{ ($config->aplica_isv ?? true) ? '' : 'display:none' }}">
-                                <div class="form-group col-12 col-md-2 col-lg-1">
-                                    <label class="col-form-label">ISV L.<span class="text-danger">*</span></label>
-                                </div>
-                                <div class="form-group col-12 col-md-3 col-lg-2">
-                                    <input type="text" placeholder="ISV" id="isvGeneralMostrar"
-                                        class="form-control" autocomplete="off" readonly>
+                                <div class="total-card" id="fila_isv" style="background:#fce4ec; color:#b71c1c; {{ ($config->aplica_isv ?? true) ? '' : 'display:none' }}">
+                                    <div class="tc-label">ISV L.</div>
+                                    <input type="text" id="isvGeneralMostrar" placeholder="0.00" autocomplete="off" readonly style="color:#b71c1c;">
                                     <input id="isvGeneral" name="isvGeneral" type="hidden" value="" required>
                                 </div>
-                            </div>
-                            <div class="row">
-                                <div class="form-group col-12 col-md-2 col-lg-1">
-                                    <label class="col-form-label">Total L.<span class="text-danger">*</span></label>
-                                </div>
-                                <div class="form-group col-12 col-md-3 col-lg-2">
-                                    <input type="text" placeholder="Total" id="totalGeneralMostrar"
-                                        class="form-control" autocomplete="off" readonly>
+                                <div class="total-card total-final" style="background:linear-gradient(135deg,#004d40,#00695c); color:#fff;">
+                                    <div class="tc-label" style="opacity:.8;">TOTAL L.</div>
+                                    <input type="text" id="totalGeneralMostrar" placeholder="0.00" autocomplete="off" readonly style="color:#fff;">
                                     <input id="totalGeneral" name="totalGeneral" type="hidden" value="" required>
                                 </div>
                             </div>
 
-                            {{-- Botón de venta --}}
+                            {{-- ── Botón principal ─────────────────────────────────────── --}}
                             <div class="row">
-                                <div class="col-12">
-                                    <button id="btn_venta_coorporativa" class="btn btn-sm btn-primary float-left m-t-n-xs">
-                                        <strong>Realizar Venta</strong>
+                                <div class="col-12 col-md-6">
+                                    @if($pedidoVinculado)
+                                    <div class="mb-3 p-3" style="background:#e8f5e9; border-radius:10px; border:1px solid #c8e6c9;">
+                                        <div style="font-size:11px; font-weight:700; color:#2e7d32; text-transform:uppercase; letter-spacing:.4px; margin-bottom:4px;">
+                                            <i class="fa fa-link mr-1"></i> Vinculado a Pedido
+                                        </div>
+                                        <div style="font-weight:700; color:#1b5e20; font-size:15px;">#{{ $pedidoVinculado['id'] }} — {{ $pedidoVinculado['cliente'] }}</div>
+                                    </div>
+                                    @endif
+                                    <button id="btn_venta_coorporativa"
+                                            style="background:linear-gradient(135deg,#00695c,#00897b); color:#fff; border:none;
+                                                   border-radius:12px; padding:14px 32px; font-size:15px; font-weight:800;
+                                                   box-shadow:0 4px 18px rgba(0,137,123,.35); width:100%; cursor:pointer;">
+                                        @if($fromFlujo && ($config->codigo ?? '') === 'cotizacion_clientes_a')
+                                            <i class="fa fa-save mr-2"></i> Guardar Oferta
+                                        @else
+                                            <i class="fa fa-check-circle mr-2"></i> Realizar Venta
+                                        @endif
                                     </button>
                                 </div>
                             </div>
