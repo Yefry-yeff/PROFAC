@@ -237,7 +237,7 @@
             {{-- Componente lista de pedidos para ofertar --}}
             <div class="ibox" style="border-radius:16px; overflow:hidden; box-shadow:0 4px 20px rgba(0,0,0,.07);">
                 <div class="ibox-title d-flex align-items-center justify-content-between"
-                     style="background:linear-gradient(135deg,#1b5e20,#2e7d32); border:none; padding:14px 22px;">
+                     style="background:linear-gradient(135deg,#e65100,#f9a826); border:none; padding:14px 22px;">
                     <h5 style="color:#fff; margin:0; font-weight:700;">
                         <i class="fa fa-file-text-o mr-2"></i> Ofertas
                     </h5>

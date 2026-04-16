@@ -290,6 +290,7 @@ class Cotizacion extends Component
             $cotizacion->porc_descuento = $request->porDescuento;
             $cotizacion->monto_descuento = $request->descuentoGeneral;
             $cotizacion->nota = $request->nota;
+            $cotizacion->pedido_id = $request->pedido_id ?: null;
             $cotizacion->save();
 
 
@@ -373,9 +374,11 @@ class Cotizacion extends Component
 
         DB::commit();
         return response()->json([
-            'icon'=>'success',
-            'text'=>'Cotización guardada con éxito.',
-            'title'=>'Exito!'
+            'icon'      => 'success',
+            'text'      => 'Cotización guardada con éxito.',
+            'title'     => 'Exito!',
+            'idFactura' => $cotizacion->id,
+            'pedidoId'  => $cotizacion->pedido_id,
         ],200);
 
         } catch (QueryException $e) {
@@ -388,6 +391,29 @@ class Cotizacion extends Component
             'error' => $e
         ],402);
         }
+    }
+
+    public function ofertasPorPedido($pedidoId)
+    {
+        $ofertas = DB::table('cotizacion')
+            ->where('pedido_id', (int) $pedidoId)
+            ->select('id', 'nombre_cliente', 'total', 'created_at')
+            ->orderByDesc('id')
+            ->get();
+
+        return response()->json($ofertas);
+    }
+
+    public function marcarGanadora(Request $request)
+    {
+        $id = (int) $request->input('cotizacion_id');
+        if (!$id) {
+            return response()->json(['error' => 'ID requerido'], 422);
+        }
+
+        DB::table('cotizacion')->where('id', $id)->update(['updated_at' => now()]);
+
+        return response()->json(['success' => true, 'cotizacion_id' => $id]);
     }
 
     public function imprimirCotizacion($idFactura)

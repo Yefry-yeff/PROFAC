@@ -678,6 +678,8 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/cotizacion/imprimir/catalogo/{id}', [Cotizacion::class, 'imprimirCatalogo']);
     Route::get('/proforma/imprimir/{id}', [Cotizacion::class, 'imprimirProforma']);
     Route::get('/cotizacion/validar-proforma/{id}', [Cotizacion::class, 'validarProforma']);
+    Route::get('/cotizacion/por-pedido/{pedidoId}', [Cotizacion::class, 'ofertasPorPedido']);
+    Route::post('/cotizacion/marcar-ganadora', [Cotizacion::class, 'marcarGanadora']);
     Route::get('/cotizacion/facturar/{id}', FacturarCotizacion::class);
     Route::get('/cotizacion/facturar/gobierno/{id}', FacturarCotizacion::class); // Unificado: ahora usa FacturarCotizacion con vista dinámica
 

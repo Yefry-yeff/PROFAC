@@ -1,13 +1,13 @@
 <div>
     {{-- ── Barra título + acción ─────────────────────────────────────── --}}
     <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
-        <span style="font-weight:700; color:#1b5e20; font-size:14px;">
+        <span style="font-weight:700; color:#e65100; font-size:14px;">
             <i class="fa fa-clipboard-list mr-1"></i> Pedidos disponibles para ofertar
         </span>
         <button type="button" wire:click="nuevaOfertaSinPedido"
-                style="background:linear-gradient(135deg,#1b5e20,#2e7d32); color:#fff; border:none;
+                style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff; border:none;
                        border-radius:8px; padding:7px 16px; font-size:13px; font-weight:700; cursor:pointer;
-                       box-shadow:0 2px 8px rgba(27,94,32,.28);">
+                       box-shadow:0 2px 8px rgba(230,81,0,.28);">
             <i class="fa fa-plus mr-1"></i> Nueva Oferta sin Pedido
         </button>
     </div>
@@ -111,9 +111,9 @@
                     </td>
                     <td>
                         <button type="button" wire:click="nuevaOferta({{ $p['id'] }})"
-                                style="background:linear-gradient(135deg,#1b5e20,#2e7d32); color:#fff; border:none;
+                                style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff; border:none;
                                        border-radius:8px; padding:7px 16px; font-size:12px; font-weight:700;
-                                       cursor:pointer; white-space:nowrap; box-shadow:0 2px 8px rgba(27,94,32,.28);">
+                                       cursor:pointer; white-space:nowrap; box-shadow:0 2px 8px rgba(230,81,0,.28);">
                             <i class="fa fa-file-text-o mr-1"></i> Nueva Oferta
                         </button>
                     </td>
