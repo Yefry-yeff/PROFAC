@@ -21,9 +21,14 @@ class Ventas extends Component
         return $this->redirect(route('flujo.pedido'));
     }
 
-    public function selectCotizacion()
+    public function selectOferta()
     {
         return $this->redirect('/proforma/cotizacion/2?from=flujo');
+    }
+
+    public function selectPrefactura()
+    {
+        return $this->redirect(route('flujo.prefactura'));
     }
 
     public function selectFactura()

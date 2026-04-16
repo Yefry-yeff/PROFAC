@@ -54,9 +54,13 @@
         .flujo-pedido   .card-footer-bar { background: #1a73e8; }
         .flujo-pedido:hover { border-top: 4px solid #1a73e8; }
 
-        .flujo-cotizacion .icon-circle { background: rgba(0, 168, 107, 0.12); color: #00a86b; }
-        .flujo-cotizacion .card-footer-bar { background: #00a86b; }
-        .flujo-cotizacion:hover { border-top: 4px solid #00a86b; }
+        .flujo-oferta .icon-circle { background: rgba(0, 168, 107, 0.12); color: #00a86b; }
+        .flujo-oferta .card-footer-bar { background: #00a86b; }
+        .flujo-oferta:hover { border-top: 4px solid #00a86b; }
+
+        .flujo-prefactura .icon-circle { background: rgba(0, 151, 167, 0.12); color: #0097a7; }
+        .flujo-prefactura .card-footer-bar { background: #0097a7; }
+        .flujo-prefactura:hover { border-top: 4px solid #0097a7; }
 
         .flujo-factura  .icon-circle { background: rgba(249, 168, 38, 0.15); color: #f9a826; }
         .flujo-factura  .card-footer-bar { background: #f9a826; }
@@ -154,18 +158,34 @@
                     </div>
                 </div>
 
-                {{-- COTIZACIÓN --}}
+                {{-- OFERTA --}}
                 <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
-                    <div class="flujo-card flujo-cotizacion ibox" wire:click="selectCotizacion">
+                    <div class="flujo-card flujo-oferta ibox" wire:click="selectOferta">
                         <div class="card-icon-wrap">
                             <div class="icon-circle">
-                                <i class="fa fa-file-signature"></i>
+                                <i class="fa fa-file-text-o"></i>
                             </div>
-                            <div class="card-label">Cotización</div>
-                            <div class="card-desc">Elabora y envía cotizaciones u ofertas</div>
+                            <div class="card-label">Oferta</div>
+                            <div class="card-desc">Elabora y envía ofertas a clientes</div>
                         </div>
                         <div class="card-footer-bar">
-                            <i class="fa fa-arrow-right mr-1"></i> Ir a Cotización
+                            <i class="fa fa-arrow-right mr-1"></i> Ir a Oferta
+                        </div>
+                    </div>
+                </div>
+
+                {{-- PREFACTURA --}}
+                <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+                    <div class="flujo-card flujo-prefactura ibox" wire:click="selectPrefactura">
+                        <div class="card-icon-wrap">
+                            <div class="icon-circle">
+                                <i class="fa fa-file-invoice"></i>
+                            </div>
+                            <div class="card-label">Prefactura</div>
+                            <div class="card-desc">Genera prefactura desde una oferta ganadora</div>
+                        </div>
+                        <div class="card-footer-bar">
+                            <i class="fa fa-arrow-right mr-1"></i> Ir a Prefactura
                         </div>
                     </div>
                 </div>
