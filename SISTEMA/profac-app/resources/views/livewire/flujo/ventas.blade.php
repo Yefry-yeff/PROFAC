@@ -234,25 +234,16 @@
 
         @elseif($step == 'oferta')
 
-            {{-- Banner --}}
-            <div class="flujo-header-banner d-flex align-items-center justify-content-between"
-                 style="background: linear-gradient(135deg, #00695c 0%, #00a86b 100%);">
-                <div>
-                    <button type="button" class="btn btn-outline-light flujo-back-btn mb-3" wire:click="goBack">
-                        <i class="fa fa-arrow-left mr-1"></i> Volver
-                    </button>
-                    <h3><i class="fa fa-file-text-o mr-2"></i> Ofertas</h3>
-                    <p>Selecciona el pedido al que quieres crear una oferta, o crea una oferta libre</p>
-                </div>
-                <div class="banner-icon d-none d-md-block"><i class="fa fa-file-text-o"></i></div>
-            </div>
-
             {{-- Componente lista de pedidos para ofertar --}}
             <div class="ibox" style="border-radius:16px; overflow:hidden; box-shadow:0 4px 20px rgba(0,0,0,.07);">
-                <div class="ibox-title" style="background:linear-gradient(135deg,#004d40,#00695c); border:none; padding:14px 22px;">
+                <div class="ibox-title d-flex align-items-center justify-content-between"
+                     style="background:linear-gradient(135deg,#1b5e20,#2e7d32); border:none; padding:14px 22px;">
                     <h5 style="color:#fff; margin:0; font-weight:700;">
-                        <i class="fa fa-clipboard-list mr-2"></i> Pedidos disponibles para ofertar
+                        <i class="fa fa-file-text-o mr-2"></i> Ofertas
                     </h5>
+                    <button type="button" class="btn btn-outline-light btn-sm flujo-back-btn" wire:click="goBack">
+                        <i class="fa fa-arrow-left mr-1"></i> Volver
+                    </button>
                 </div>
                 <div class="ibox-content" style="padding:20px 24px;">
                     <livewire:flujo.listar-pedidos-para-ofertar />

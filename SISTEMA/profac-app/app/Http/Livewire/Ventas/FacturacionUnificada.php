@@ -27,6 +27,9 @@ class FacturacionUnificada extends Component
     // ── Vendedor actual ──────────────────────────────────────────────────
     public $vendedorDefault    = [];
 
+    // ── Pedido preview (para modal de detalle) ────────────────────────────
+    public $pedidoDetalle      = null;
+
     public function mount($codigo = null)
     {
         $this->fromFlujo = request()->get('from') === 'flujo';
@@ -131,6 +134,46 @@ class FacturacionUnificada extends Component
 
         $this->busquedaPedido     = '';
         $this->pedidosEncontrados = [];
+
+        // Notificar al JS para re-llenar Select2 de cliente y vendedor
+        $this->dispatchBrowserEvent('pedido-seleccionado', [
+            'clienteId'      => $this->clientePedido['id'],
+            'clienteNombre'  => $this->clientePedido['nombre'],
+            'vendedorId'     => $this->vendedorDefault['id'] ?? null,
+            'vendedorNombre' => $this->vendedorDefault['name'] ?? null,
+        ]);
+    }
+
+    /**
+     * Carga el detalle de un pedido para mostrar en modal de preview.
+     */
+    public function verDetallePedido(int $id)
+    {
+        $p = DB::table('pedido as p')
+            ->join('cliente as c', 'c.id', '=', 'p.cliente_id')
+            ->leftJoin('users as u', 'u.id', '=', 'p.users_id')
+            ->where('p.id', $id)
+            ->select(
+                'p.id', 'p.estado', 'p.created_at', 'p.observaciones',
+                'c.nombre as cliente', 'c.rtn',
+                'u.name as vendedor_registra'
+            )
+            ->first();
+
+        if (!$p) return;
+
+        $detalles = DB::table('pedido_detalle')
+            ->where('pedido_id', $id)
+            ->select('nombre_producto', 'cantidad')
+            ->get()
+            ->toArray();
+
+        $this->pedidoDetalle = [
+            'pedido'    => (array) $p,
+            'productos' => $detalles,
+        ];
+
+        $this->dispatchBrowserEvent('mostrar-modal-detalle-pedido');
     }
 
     /**
@@ -185,6 +228,13 @@ class FacturacionUnificada extends Component
         $this->pedidosEncontrados  = [];
         $this->clientePedido       = null;
         $this->productosSugeridos  = [];
+        $this->pedidoDetalle       = null;
+
+        // Notificar al JS para restaurar campos
+        $this->dispatchBrowserEvent('pedido-desvinculado', [
+            'vendedorId'     => $this->vendedorDefault['id'] ?? null,
+            'vendedorNombre' => $this->vendedorDefault['name'] ?? null,
+        ]);
     }
 
     public function render()
