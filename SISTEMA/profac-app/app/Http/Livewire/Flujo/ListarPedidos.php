@@ -248,7 +248,7 @@ class ListarPedidos extends Component
             ->leftJoin('flujo as f', 'f.id', '=', 'hf.flujo_id')
             ->leftJoin('tipos_estatus as te', 'te.id', '=', 'f.estatus_id')
             ->select(
-                'p.id', 'p.estado', 'p.observaciones', 'p.created_at', 'p.updated_at',
+                'p.id', 'p.estado', 'p.sub_estado_entrega', 'p.observaciones', 'p.created_at', 'p.updated_at',
                 'c.nombre as cliente',
                 'u.name as registrado_por',
                 'f.id as flujo_id',
