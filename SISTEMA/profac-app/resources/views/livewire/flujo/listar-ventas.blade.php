@@ -39,17 +39,16 @@
                         <h5 class="m-0" style="color:#fff;">
                             <i class="fa fa-list-alt"></i> &nbsp;Histórico de Ventas
                         </h5>
-                        <button type="button"
-                           onclick="abrirModalPedido('/flujo/pedido?embed=1','Nuevo Pedido')"
+                        <a href="{{ route('flujo.ventas') }}"
                            style="background:#fff; color:#e67e22; border:none; border-radius:8px;
                                   padding:7px 18px; font-size:13px; font-weight:700;
-                                  cursor:pointer; display:inline-flex; align-items:center; gap:6px;
+                                  display:inline-flex; align-items:center; gap:6px; text-decoration:none;
                                   box-shadow:0 2px 8px rgba(0,0,0,.15); transition:transform .15s, box-shadow .15s;"
                            onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 14px rgba(0,0,0,.2)';"
                            onmouseout="this.style.transform='';this.style.boxShadow='0 2px 8px rgba(0,0,0,.15)';"
                         >
-                            <i class="fa fa-plus"></i> Nuevo Pedido
-                        </button>
+                            <i class="fa fa-arrow-left"></i> Volver
+                        </a>
                     </div>
 
                     <div class="ibox-content" style="padding:24px;">

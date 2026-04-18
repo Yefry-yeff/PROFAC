@@ -1,38 +1,134 @@
 <div>
     @push('styles')
-        <style>
-            input::-webkit-outer-spin-button,
-            input::-webkit-inner-spin-button {
-                -webkit-appearance: none;
-                margin: 0;
-            }
-            input[type=number] {
-                -moz-appearance: textfield;
-            }
-            @media (max-width: 767.5px) {
-                .hide-container { display: none; }
-            }
-            .center-div { text-align: center }
-            .img-size {
-                width: 100%;
-                height: 20rem;
-                margin: 0 auto;
-            }
-            .tipo-factura-selector .btn {
-                margin-right: 5px;
-                margin-bottom: 5px;
-            }
-            .tipo-factura-selector .btn.active {
-                box-shadow: 0 0 0 3px rgba(0,123,255,.5);
-            }
-        </style>
+    <style>
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
+        @media (max-width: 767.5px) { .hide-container { display: none; } }
+        .center-div { text-align: center; }
+        .img-size { width: 100%; height: 16rem; margin: 0 auto; object-fit: contain; }
+        .tipo-factura-selector .btn { margin-right: 5px; margin-bottom: 5px; }
+        .tipo-factura-selector .btn.active { box-shadow: 0 0 0 3px rgba(0,123,255,.5); }
+
+        /* ── Pedido panel ─────────────────────────────────────────── */
+        .pedido-link-panel {
+            border: 2px dashed #b2dfdb;
+            border-radius: 14px;
+            padding: 20px 24px;
+            margin-bottom: 24px;
+            background: #f0fdf4;
+        }
+        .pedido-link-panel.linked { border: 2px solid #00897b; background: #e8f5e9; }
+        .ped-row {
+            display: flex; align-items: center; gap: 12px;
+            padding: 10px 14px; border-radius: 10px;
+            background: #fff; border: 1px solid #e0f2f1;
+            margin-bottom: 6px; cursor: pointer;
+            transition: box-shadow .15s, border-color .15s;
+        }
+        .ped-row:hover { box-shadow: 0 3px 12px rgba(0,0,0,.09); border-color: #80cbc4; }
+
+        /* ── Section headers ──────────────────────────────────────── */
+        .ofr-section-header {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 18px; border-radius: 10px;
+            margin: 20px 0 16px;
+            font-weight: 700; font-size: 13px;
+            letter-spacing: .4px; text-transform: uppercase;
+        }
+
+        /* ── Main ibox ────────────────────────────────────────────── */
+        .ofr-main-ibox { border-radius: 16px !important; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,.07) !important; }
+        .ofr-main-ibox > .ibox-title {
+            background: linear-gradient(135deg,#004d40 0%,#00897b 100%) !important;
+            border: none !important; padding: 16px 24px !important;
+        }
+        .ofr-main-ibox > .ibox-title h3 { color: #fff !important; margin: 0; font-size: 16px; }
+        .ofr-main-ibox > .ibox-title .badge { background: rgba(255,255,255,.2); color: #fff; }
+        .ofr-main-ibox > .ibox-content { padding: 24px 28px !important; }
+
+        /* ── Field labels ─────────────────────────────────────────── */
+        .ofr-label {
+            font-size: 11px; font-weight: 700; color: #546e7a;
+            text-transform: uppercase; letter-spacing: .5px;
+            margin-bottom: 4px; display: block;
+        }
+        .ofr-label .req { color: #e53935; margin-left: 2px; }
+        .form-control.ofr-input {
+            border-radius: 8px !important; border: 1px solid #cfd8dc !important; font-size: 13px !important;
+        }
+        .form-control.ofr-input:focus {
+            border-color: #00897b !important; box-shadow: 0 0 0 3px rgba(0,137,123,.12) !important;
+        }
+
+        /* ── Totales grid ─────────────────────────────────────────── */
+        .totales-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px; margin-bottom: 24px;
+        }
+        .total-card { border-radius: 10px; padding: 12px 16px; text-align: center; }
+        .total-card .tc-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; opacity: .75; margin-bottom: 4px; }
+        .total-card input {
+            border: none !important; background: transparent !important;
+            font-size: 18px !important; font-weight: 800 !important;
+            padding: 0 !important; text-align: center; width: 100%;
+        }
+        .total-card.total-final input { font-size: 22px !important; font-weight: 900 !important; color: #fff !important; }
+
+        /* ── Modal centrado (compatibilidad Bootstrap 3/4) ─────────── */
+        .modal-dialog-centered {
+            display: flex !important;
+            align-items: center !important;
+            min-height: calc(100% - 3.5rem) !important;
+        }
+        /* ── Carrito items ─────────────────────────────────────────── */
+        .cart-item-card { transition: box-shadow .15s; }
+        .cart-item-card:hover { box-shadow: 0 4px 18px rgba(27,94,32,.14) !important; }
+        .cart-field-label { font-size:10px; color:#78909c; font-weight:700; text-transform:uppercase; letter-spacing:.3px; margin-bottom:3px; }
+    </style>
     @endpush
+
+    {{-- ===== PAGE HEADING (solo en flujo) ===== --}}
+    @if($fromFlujo && ($config->codigo ?? '') === 'cotizacion_clientes_a')
+    <div class="row wrapper border-bottom white-bg page-heading">
+        <div class="col-lg-10">
+            <h2><i class="fa fa-file-text-o" style="color:#00897b;"></i> Nueva Oferta</h2>
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Inicio</a></li>
+                <li class="breadcrumb-item"><a href="{{ route('flujo.ventas') }}">Ventas</a></li>
+                <li class="breadcrumb-item"><a href="{{ route('flujo.ofertas') }}">Ofertas</a></li>
+                <li class="breadcrumb-item active"><strong>Nueva Oferta</strong></li>
+            </ol>
+        </div>
+        <div class="col-lg-2 d-flex align-items-center justify-content-end">
+            <a href="{{ route('flujo.ventas') }}" class="btn btn-default btn-sm">
+                <i class="fa fa-arrow-left mr-1"></i> Volver
+            </a>
+        </div>
+    </div>
+    @elseif($fromFlujo)
+    <div class="row wrapper border-bottom white-bg page-heading">
+        <div class="col-lg-10">
+            <h2>{{ $config->nombre ?? 'Venta' }}</h2>
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Inicio</a></li>
+                <li class="breadcrumb-item"><a href="{{ route('flujo.ventas') }}">Ventas</a></li>
+                <li class="breadcrumb-item active"><strong>{{ $config->nombre ?? 'Factura' }}</strong></li>
+            </ol>
+        </div>
+        <div class="col-lg-2 d-flex align-items-center justify-content-end">
+            <a href="{{ route('flujo.ventas') }}" class="btn btn-default btn-sm">
+                <i class="fa fa-arrow-left mr-1"></i> Volver
+            </a>
+        </div>
+    </div>
+    @endif
 
     <div class="wrapper wrapper-content animated fadeInRight">
 
-        {{-- ============================================================== --}}
-        {{-- SELECTOR DE TIPO DE FACTURACIÓN                                --}}
-        {{-- ============================================================== --}}
+        {{-- ===== SELECTOR DE TIPO (fuera de flujo) ===== --}}
+        @if(!$fromFlujo)
         <div class="row mb-3">
             <div class="col-12">
                 <div class="ibox">
@@ -40,227 +136,309 @@
                         <div class="d-flex align-items-center flex-wrap tipo-factura-selector">
                             <strong class="mr-3">Tipo de Facturación:</strong>
                             @foreach($tiposFactura as $tipo)
-                                <button
-                                    type="button"
+                                <button type="button" id="btnTipo_{{ $tipo->id }}"
                                     class="btn btn-sm {{ $config && $config->id == $tipo->id ? 'btn-primary active' : 'btn-outline-secondary' }}"
-                                    onclick="cambiarTipoFactura('{{ $tipo->ruta_menu }}')"
-                                    id="btnTipo_{{ $tipo->id }}"
-                                >
-                                    {{ $tipo->nombre }}
-                                </button>
+                                    onclick="cambiarTipoFactura('{{ $tipo->ruta_menu }}')">{{ $tipo->nombre }}</button>
                             @endforeach
                         </div>
                     </div>
                 </div>
             </div>
         </div>
+        @endif
 
-        {{-- ============================================================== --}}
-        {{-- FORMULARIO PRINCIPAL DE FACTURACIÓN                            --}}
-        {{-- ============================================================== --}}
+        {{-- ===== PANEL: VINCULAR A PEDIDO (solo en modo oferta desde flujo) ===== --}}
+        @if($fromFlujo && ($config->codigo ?? '') === 'cotizacion_clientes_a')
+        <div class="pedido-link-panel {{ $pedidoVinculado ? 'linked' : '' }}">
+            @if(!$pedidoVinculado)
+            <div class="mb-3">
+                <h6 style="margin:0; font-weight:800; color:#00695c;">
+                    <i class="fa fa-link mr-2"></i>Vincular a un Pedido
+                    <span style="font-size:11px; font-weight:400; color:#78909c; margin-left:8px;">(opcional)</span>
+                </h6>
+            </div>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="input-group">
+                        <div class="input-group-prepend">
+                            <span class="input-group-text" style="background:#00897b; color:#fff; border-color:#00897b; border-radius:8px 0 0 8px;">
+                                <i class="fa fa-search"></i>
+                            </span>
+                        </div>
+                        <input type="text"
+                               wire:model.debounce.350ms="busquedaPedido"
+                               class="form-control"
+                               placeholder="Buscar pedido por # o nombre de cliente…"
+                               style="border-radius:0 8px 8px 0;"
+                               autocomplete="off">
+                    </div>
+                    @if(strlen(trim($busquedaPedido)) > 0 && strlen(trim($busquedaPedido)) < 2)
+                        <small class="text-muted mt-1 d-block">Escribe al menos 2 caracteres</small>
+                    @endif
+                </div>
+                <div class="col-md-6 d-flex align-items-center">
+                    <small class="text-muted">
+                        <i class="fa fa-info-circle mr-1 text-info"></i>
+                        Puedes crear <strong>múltiples ofertas</strong> para el mismo pedido.
+                    </small>
+                </div>
+            </div>
+
+            @if(count($pedidosEncontrados) > 0)
+            <div style="max-height:280px; overflow-y:auto; margin-top:12px;">
+                @foreach($pedidosEncontrados as $ped)
+                @php $p = (array)$ped; @endphp
+                <div class="ped-row" wire:click="seleccionarPedido({{ $p['id'] }})" style="cursor:pointer;">
+                    <div style="flex-shrink:0;">
+                        <span style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff; border-radius:8px; padding:4px 12px; font-size:13px; font-weight:800;">#{{ $p['id'] }}</span>
+                    </div>
+                    <div style="flex:1; min-width:0;">
+                        <div style="font-weight:700; color:#2c3e50; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ $p['cliente'] }}</div>
+                        <div style="font-size:11px; color:#90a4ae;">RTN: {{ $p['rtn'] ?: '—' }} &nbsp;·&nbsp; {{ \Carbon\Carbon::parse($p['created_at'])->format('d/m/Y') }}</div>
+                    </div>
+                    <div style="flex-shrink:0; text-align:center; min-width:70px;">
+                        <div style="font-size:10px; color:#90a4ae;">Ofertas</div>
+                        <div style="font-weight:700; color:{{ $p['total_ofertas'] > 0 ? '#00897b' : '#b0bec5' }}; font-size:15px;">
+                            {{ $p['total_ofertas'] }}
+                            @if($p['has_ganadora'] > 0)<i class="fa fa-trophy text-warning" style="font-size:12px;"></i>@endif
+                        </div>
+                    </div>
+                    <div style="flex-shrink:0;">
+                        @php $estMap=['pendiente'=>['#e3f2fd','#1565c0'],'pre_factura'=>['#fff8e1','#f57f17'],'activo'=>['#e8f5e9','#2e7d32'],'cancelado'=>['#fce4ec','#b71c1c']]; $col=$estMap[$p['estado']]??['#f5f5f5','#546e7a']; @endphp
+                        <span style="background:{{ $col[0] }}; color:{{ $col[1] }}; border-radius:20px; padding:3px 10px; font-size:11px; font-weight:700;">{{ ucfirst(str_replace('_',' ',$p['estado'])) }}</span>
+                    </div>
+                    <div style="flex-shrink:0;" wire:click.stop="verDetallePedido({{ $p['id'] }})">
+                        <span style="background:#1565c0; color:#fff; border-radius:8px; padding:6px 14px; font-size:12px; font-weight:700; cursor:pointer;"><i class="fa fa-eye mr-1"></i> Detalle</span>
+                    </div>
+                </div>
+                @endforeach
+            </div>
+            @elseif(strlen(trim($busquedaPedido)) >= 2)
+            <div class="text-center py-3 mt-2">
+                <i class="fa fa-search fa-2x mb-2" style="color:#b2dfdb; display:block;"></i>
+                <p style="color:#78909c; font-size:13px; margin:0;">No se encontraron pedidos activos con ese criterio.</p>
+            </div>
+            @endif
+
+            @else
+            {{-- Pedido vinculado: versión compacta con desvincular --}}
+            <div class="d-flex align-items-center justify-content-between flex-wrap" style="gap:8px;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span style="background:linear-gradient(135deg,#1b5e20,#2e7d32); color:#fff; border-radius:8px; padding:4px 14px; font-size:13px; font-weight:800;">
+                        <i class="fa fa-link mr-1"></i> Vinculado a Pedido
+                    </span>
+                    <span style="font-weight:700; color:#1b5e20; font-size:14px;">
+                        #{{ $pedidoVinculado['id'] }} — {{ $pedidoVinculado['cliente'] }}
+                    </span>
+                </div>
+                <button type="button" wire:click="desvincularPedido"
+                        style="background:#fce4ec; color:#b71c1c; border:1px solid #ffcdd2; border-radius:8px; padding:5px 14px; font-size:12px; font-weight:700; cursor:pointer;">
+                    <i class="fa fa-unlink mr-1"></i> Desvincular
+                </button>
+            </div>
+            @endif
+        </div>
+        @endif
+
         <div class="row">
             <div class="col-lg-12">
-                <div class="ibox">
+                <div class="ibox ofr-main-ibox">
+                    <div class="ibox-title">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <h3>
+                                <i class="fa fa-file-text-o mr-2"></i>
+                                @if($fromFlujo && ($config->codigo ?? '') === 'cotizacion_clientes_a')
+                                    Nueva Oferta
+                                @else
+                                    <span id="titulo_factura">{{ $config->nombre ?? 'Venta' }}</span>
+                                @endif
+                            </h3>
+                            <div class="d-flex align-items-center gap-3">
+                                <input type="text" id="numero_venta" name="numero_venta"
+                                    style="background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.3); color:#fff; border-radius:8px; padding:4px 10px; max-width:150px; font-size:13px; font-weight:700;" readonly
+                                    placeholder="# Oferta">
+                            </div>
+                        </div>
+                    </div>
                     <div class="ibox-content">
                         <form onkeydown="return event.key != 'Enter';" autocomplete="off" id="crear_venta"
                             name="crear_venta" data-parsley-validate>
 
                             {{-- Campos ocultos de configuración --}}
-                            <input type="hidden" id="restriccion" name="restriccion" value="{{ $config->restriccion ?? 1 }}">
-                            <input type="hidden" id="tipo_venta_id" name="tipo_venta_id" value="{{ $config->tipo_venta_id ?? 2 }}">
-                            <input type="hidden" id="tipo_factura_id" name="tipo_factura_id" value="{{ $config->id ?? '' }}">
-                            <input name="idComprobante" id="idComprobante" type="hidden" value="">
+                            <input type="hidden" id="restriccion"        name="restriccion"        value="{{ $config->restriccion ?? 1 }}">
+                            <input type="hidden" id="tipo_venta_id"      name="tipo_venta_id"      value="{{ $config->tipo_venta_id ?? 2 }}">
+                            <input type="hidden" id="tipo_factura_id"    name="tipo_factura_id"    value="{{ $config->id ?? '' }}">
+                            <input type="hidden" id="idComprobante"      name="idComprobante"      value="">
                             <input type="hidden" id="codigo_autorizacion" name="codigo_autorizacion" value="">
+                            <input type="hidden" id="pedido_vinculado_id" name="pedido_id"          value="{{ $pedidoId ?? '' }}"> {{-- vinculación a pedido --}}
 
-                            {{-- Encabezado --}}
-                            <div class="row align-items-center">
-                                <div class="col-12 col-md-6">
-                                    <div class="d-flex align-items-center gap-2 flex-nowrap">
-                                        <h3 class="mb-0" id="titulo_factura">
-                                            {{ $config->nombre ?? 'Venta Estatal' }}:
-                                        </h3>
-                                        <input type="text" id="numero_venta" name="numero_venta"
-                                            class="form-control form-control-sm" style="max-width: 140px;" readonly>
-                                    </div>
-                                </div>
-                                <div class="col-12 col-md-6 d-flex align-items-center gap-2">
-                                    <span class="text-muted small">Categoría del Cliente:</span>
-                                    <span id="categoria_cliente_nombre" class="badge badge-info px-3 py-2"></span>
-                                </div>
+                            {{-- ── SECCIÓN 1: Datos del Cliente ────────────────────────── --}}
+                            <div class="ofr-section-header" style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff; cursor:pointer; user-select:none;"
+                                 onclick="toggleSeccion('sec_cliente', this)">
+                                <i class="fa fa-user"></i> 1. Datos del Cliente
+                                @if($fromFlujo && ($config->codigo ?? '') === 'cotizacion_clientes_a')
+                                <span id="cat_cliente_badge" style="margin-left:auto; background:rgba(26,115,232,.12); color:#1a73e8; border-radius:20px; padding:2px 12px; font-size:11px; font-weight:700;">
+                                    <i class="fa fa-tag mr-1"></i><span id="cat_badge_text">—</span>
+                                </span>
+                                @endif
+                                <i class="fa fa-chevron-up ml-2" style="font-size:11px;" id="ico_sec_cliente"></i>
                             </div>
+                            <div id="sec_cliente">
 
-                            {{-- Campos del formulario --}}
-                            <div class="row">
+                            <div class="row" style="row-gap:10px;">
                                 {{-- Cliente --}}
-                                <div class="col-12 col-md-6">
-                                    <label for="seleccionarCliente" class="col-form-label focus-label">
-                                        Seleccionar Cliente:<span class="text-danger">*</span>
-                                    </label>
+                                <div class="col-12 col-md-4">
+                                    <label class="ofr-label">Cliente <span class="req">*</span></label>
                                     <select id="seleccionarCliente" name="seleccionarCliente"
-                                        class="form-group form-control" data-parsley-required
-                                        onchange="obtenerDatosCliente()">
-                                        <option value="" selected disabled>--Seleccionar un cliente--</option>
+                                        class="form-control form-control-sm" data-parsley-required
+                                        onchange="obtenerDatosCliente()"
+                                        {{ $pedidoVinculado ? 'disabled' : '' }}>
+                                        <option value="" selected disabled>--Seleccionar--</option>
                                     </select>
                                 </div>
-
-                                {{-- Nombre del cliente --}}
-                                <div class="col-12 col-md-6">
-                                    <label class="col-form-label focus-label">Nombre del cliente:<span class="text-danger">*</span></label>
-                                    <input class="form-control" required type="text" id="nombre_cliente_ventas"
-                                        name="nombre_cliente_ventas" data-parsley-required readonly>
+                                {{-- Nombre --}}
+                                <div class="col-12 col-md-4">
+                                    <label class="ofr-label">Nombre del Cliente <span class="req">*</span></label>
+                                    <input class="form-control form-control-sm" required type="text" id="nombre_cliente_ventas"
+                                        name="nombre_cliente_ventas" data-parsley-required readonly placeholder="(autocompletado)">
                                 </div>
-
-                                {{-- Código de exoneración (solo para exoneradas) --}}
-                                <div class="col-12 col-md-6" id="campo_codigo_exoneracion"
-                                    style="{{ ($config->requiere_codigo_exoneracion ?? false) ? '' : 'display:none' }}">
-                                    <label for="codigoExoneracion" class="col-form-label focus-label">
-                                        Código de Exoneración:<span class="text-danger">*</span>
-                                    </label>
-                                    <select id="codigoExoneracion" name="codigoExoneracion"
-                                        class="form-group form-control">
-                                        <option value="" selected disabled>--Seleccione un código--</option>
-                                    </select>
-                                </div>
-
-                                {{-- Vendedor --}}
-                                <div class="col-12 col-md-6">
-                                    <label for="vendedor" class="col-form-label focus-label">
-                                        Seleccionar Vendedor:<span class="text-danger">*</span>
-                                    </label>
-                                    <select name="vendedor" id="vendedor" class="form-group form-control" required>
-                                        <option value="" selected disabled>--Seleccionar un vendedor--</option>
-                                    </select>
-                                </div>
-
-                                {{-- Orden de compra (solo estatal y corporativa) --}}
-                                <div class="col-12 col-md-6" id="campo_orden_compra"
-                                    style="{{ ($config->requiere_orden_compra ?? false) ? '' : 'display:none' }}">
-                                    <label for="ordenCompra" class="col-form-label focus-label">
-                                        Seleccionar número de orden de compra:
-                                    </label>
-                                    <select class="form-group form-control" name="ordenCompra" id="ordenCompra">
-                                        <option value="" selected disabled>--Seleccionar un número de compra--</option>
-                                    </select>
-                                </div>
-
                                 {{-- RTN --}}
-                                <div class="col-12 col-md-6">
-                                    <label class="col-form-label focus-label">RTN:<span class="text-danger">*</span></label>
-                                    <input class="form-control" type="text" id="rtn_ventas" name="rtn_ventas" readonly>
+                                <div class="col-12 col-md-4">
+                                    <label class="ofr-label">RTN <span class="req">*</span></label>
+                                    <input class="form-control form-control-sm" type="text" id="rtn_ventas" name="rtn_ventas" readonly placeholder="(autocompletado)">
                                 </div>
-
+                                {{-- Vendedor --}}
+                                <div class="col-12 col-md-4">
+                                    <label class="ofr-label">Vendedor <span class="req">*</span></label>
+                                    <select name="vendedor" id="vendedor" class="form-control form-control-sm" required>
+                                        <option value="" selected disabled>--Seleccionar--</option>
+                                    </select>
+                                </div>
                                 {{-- Tipo de pago --}}
-                                <div class="col-12 col-md-6">
-                                    <label for="tipoPagoVenta" class="col-form-label focus-label">
-                                        Seleccionar tipo de pago:<span class="text-danger">*</span>
-                                    </label>
-                                    <select class="form-group form-control" name="tipoPagoVenta" id="tipoPagoVenta"
+                                <div class="col-12 col-md-4">
+                                    <label class="ofr-label">Tipo de Pago <span class="req">*</span></label>
+                                    <select class="form-control form-control-sm" name="tipoPagoVenta" id="tipoPagoVenta"
                                         data-parsley-required onchange="validarFechaPago()">
                                     </select>
                                 </div>
-
-                                {{-- Fecha de emisión --}}
-                                <div class="col-12 col-md-6">
-                                    <div class="form-group">
-                                        <label for="fecha_emision" class="col-form-label focus-label">
-                                            Fecha de emisión:<span class="text-danger">*</span>
-                                        </label>
-                                        <input class="form-control" type="date" id="fecha_emision"
-                                            onchange="sumarDiasCredito()" name="fecha_emision"
-                                            value="{{ date('Y-m-d') }}" data-parsley-required>
-                                    </div>
-                                </div>
-
-                                {{-- Fecha de vencimiento --}}
-                                <div class="col-12 col-md-6">
-                                    <div class="form-group">
-                                        <label for="fecha_vencimiento" class="col-form-label focus-label text-warning">
-                                            Fecha de vencimiento:
-                                        </label>
-                                        <input class="form-control" type="date" id="fecha_vencimiento"
-                                            name="fecha_vencimiento" value="" data-parsley-required
-                                            min="{{ date('Y-m-d') }}" readonly>
-                                    </div>
-                                </div>
-
                                 {{-- Descuento --}}
-                                <div class="col-12 col-md-6">
-                                    <div class="form-group">
-                                        <label for="porDescuento" class="col-form-label focus-label">
-                                            Descuento aplicado %:<span class="text-danger">*</span>
-                                        </label>
-                                        <input class="form-control" type="number" min="0"
-                                            max="{{ $config->max_descuento ?? 50 }}"
-                                            value="0" id="porDescuento" name="porDescuento"
-                                            onchange="calcularTotalesInicioPagina()" data-parsley-required>
-                                    </div>
+                                <div class="col-12 col-md-4">
+                                    <label class="ofr-label">Descuento % <span class="req">*</span></label>
+                                    <input class="form-control form-control-sm" type="number" min="0"
+                                        max="{{ $config->max_descuento ?? 50 }}"
+                                        value="0" id="porDescuento" name="porDescuento"
+                                        onchange="calcularTotalesInicioPagina()" data-parsley-required>
                                 </div>
-
+                                {{-- Fecha emisión --}}
+                                <div class="col-12 col-md-4">
+                                    <label class="ofr-label">Fecha Emisión <span class="req">*</span></label>
+                                    <input class="form-control form-control-sm" type="date" id="fecha_emision"
+                                        onchange="sumarDiasCredito()" name="fecha_emision"
+                                        value="{{ date('Y-m-d') }}" data-parsley-required>
+                                </div>
+                                {{-- Fecha vencimiento --}}
+                                <div class="col-12 col-md-4">
+                                    <label class="ofr-label" style="color:#f57f17;">Vencimiento</label>
+                                    <input class="form-control form-control-sm" type="date" id="fecha_vencimiento"
+                                        name="fecha_vencimiento" value="" data-parsley-required
+                                        min="{{ date('Y-m-d') }}" readonly>
+                                </div>
                                 {{-- Nota --}}
-                                <div class="col-12 col-md-6">
-                                    <div class="form-group">
-                                        <label for="nota" class="col-form-label focus-label">Nota:</label>
-                                        <textarea class="form-control" id="nota_comen" name="nota_comen" cols="30" rows="3" maxlength="250"></textarea>
-                                    </div>
+                                <div class="col-12 col-md-4">
+                                    <label class="ofr-label">Nota</label>
+                                    <textarea class="form-control form-control-sm" id="nota_comen" name="nota_comen" rows="1" maxlength="250"></textarea>
+                                </div>
+                                {{-- Código de exoneración (oculto por defecto) --}}
+                                <div class="col-12 col-md-4" id="campo_codigo_exoneracion"
+                                    style="{{ ($config->requiere_codigo_exoneracion ?? false) ? '' : 'display:none' }}">
+                                    <label class="ofr-label">Código Exoneración <span class="req">*</span></label>
+                                    <select id="codigoExoneracion" name="codigoExoneracion" class="form-control form-control-sm">
+                                        <option value="" selected disabled>--Seleccione--</option>
+                                    </select>
+                                </div>
+                                {{-- Orden de compra (oculto por defecto) --}}
+                                <div class="col-12 col-md-4" id="campo_orden_compra"
+                                    style="{{ ($config->requiere_orden_compra ?? false) ? '' : 'display:none' }}">
+                                    <label class="ofr-label">Orden de Compra</label>
+                                    <select class="form-control form-control-sm" name="ordenCompra" id="ordenCompra">
+                                        <option value="" selected disabled>--Seleccionar--</option>
+                                    </select>
                                 </div>
                             </div>
 
-                            {{-- Selección de producto --}}
+                            </div>{{-- /sec_cliente --}}
+
+                            {{-- ── SECCIÓN 2: Agregar Producto ─────────────────────────── --}}
+                            <div class="ofr-section-header" style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff; cursor:pointer; user-select:none;"
+                                 onclick="toggleSeccion('sec_producto', this)">
+                                <i class="fa fa-plus-circle"></i> 2. Agregar Producto
+                                <i class="fa fa-chevron-up ml-auto" style="font-size:11px;" id="ico_sec_producto"></i>
+                            </div>
+                            <div id="sec_producto">
+
                             <div class="row">
+                                {{-- LEFT: búsqueda + categoría + bodega + boton --}}
                                 <div class="col-12 col-md-6">
-                                    <label class="col-form-label focus-label">
-                                        Seleccionar Producto:<span class="text-danger">*</span>
-                                    </label>
-                                    <div class="input-group">
-                                        <input type="text" id="codigoProductoBuscar" class="form-control"
+                                    {{-- Sugerencias del pedido --}}
+                                    @if($fromFlujo && ($config->codigo ?? '') === 'cotizacion_clientes_a' && count($productosSugeridos) > 0)
+                                    <div style="border:1.5px solid #c8e6c9; border-radius:8px; padding:7px 12px; margin-bottom:10px; background:#f1f8e9; display:flex; align-items:center; justify-content:space-between;">
+                                        <span style="font-weight:700; color:#1b5e20; font-size:12px;">
+                                            <i class="fa fa-list-ul mr-1"></i> {{ count($productosSugeridos) }} ítem(s) en el pedido
+                                        </span>
+                                        <button type="button" data-toggle="modal" data-target="#modalProductosPedido"
+                                                style="background:linear-gradient(135deg,#1b5e20,#2e7d32); color:#fff; border:none; border-radius:6px; padding:4px 10px; font-size:11px; font-weight:700; cursor:pointer;">
+                                            <i class="fa fa-eye mr-1"></i> Ver Productos
+                                        </button>
+                                    </div>
+                                    @endif
+
+                                    <label class="ofr-label">Seleccionar Producto <span class="req">*</span></label>
+                                    <div class="input-group mb-1">
+                                        <input type="text" id="codigoProductoBuscar" class="form-control form-control-sm"
                                             placeholder="ID o nombre del producto…" autocomplete="off"
                                             onkeydown="if(event.key==='Enter'){buscarPorCodigo(this.value);return false;}">
                                         <div class="input-group-append">
-                                            <button type="button" class="btn btn-primary" title="Buscar producto"
+                                            <button type="button" class="btn btn-primary btn-sm" title="Buscar producto"
                                                 onclick="limpiarProducto(); window['abrirBuscador_buscadorProductoUnificado'](document.getElementById('codigoProductoBuscar').value||'')">
                                                 <i class="fa fa-search"></i>
                                             </button>
                                         </div>
                                     </div>
-                                    <small id="productoSeleccionadoLabel" class="text-success font-weight-bold mt-1 d-block d-none"></small>
+                                    <small id="productoSeleccionadoLabel" class="text-success font-weight-bold d-block d-none" style="font-size:11px; margin-bottom:6px;"></small>
                                     <select id="seleccionarProducto" name="seleccionarProducto" class="d-none">
                                         <option value="" selected disabled></option>
                                     </select>
-                                </div>
 
-                                {{-- Categoría de precio --}}
-                                <div class="col-12 col-md-6">
-                                    <label class="col-form-label focus-label">
-                                        Categoría Precio Producto:<span class="text-danger">*</span>
-                                    </label>
+                                    <label class="ofr-label mt-2">Categoría Precio <span class="req">*</span></label>
                                     <select id="categoria_cliente_venta_id" name="categoria_cliente_venta_id"
-                                        class="form-group form-control" onchange="habilitarBodega()">
+                                        class="form-control form-control-sm mb-2" onchange="habilitarBodega()">
                                         <option value="" selected disabled>--Seleccione primero un producto--</option>
                                     </select>
-                                </div>
 
-                                {{-- Bodega --}}
-                                <div class="col-12 col-md-6">
-                                    <label class="col-form-label focus-label">
-                                        Seleccionar bodega:<span class="text-danger">*</span>
-                                    </label>
-                                    <select id="bodega" name="bodega" class="form-group form-control"
-                                        onchange="prueba()">
+                                    <label class="ofr-label mt-2">Bodega <span class="req">*</span></label>
+                                    <select id="bodega" name="bodega" class="form-control form-control-sm mb-2" onchange="prueba()">
                                         <option value="" selected disabled>--Seleccione una categoría primero--</option>
                                     </select>
-                                </div>
-                            </div>
 
-                            {{-- Imágenes y botón añadir --}}
-                            <div class="row">
-                                <div class="col-12 col-md-6 mt-4">
-                                    <div class="text-center">
-                                        <a id="detalleProducto" href="" class="font-bold h3 d-none text-success" target="_blank">
-                                            <i class="fa-solid fa-circle-info"></i> Ver Detalles De Producto
+                                    <div id="botonAdd" class="d-none mt-2">
+                                        <button type="button" onclick="agregarProductoCarrito()"
+                                            style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff; border:none;
+                                                   border-radius:8px; padding:5px 14px; font-size:12px; font-weight:700;
+                                                   box-shadow:0 2px 8px rgba(230,81,0,.3); cursor:pointer;">
+                                            <i class="fa fa-shopping-cart mr-1"></i> Añadir al Carrito
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {{-- RIGHT: imagen + historial --}}
+                                <div class="col-12 col-md-6">
+                                    <div class="text-center mb-1">
+                                        <a id="detalleProducto" href="" class="font-bold d-none text-success" target="_blank" style="font-size:12px;">
+                                            <i class="fa fa-info-circle mr-1"></i> Ver Detalles del Producto
                                         </a>
                                     </div>
-                                    <div id="carouselProducto" class="carousel slide mt-2" data-ride="carousel">
-                                        <div id="bloqueImagenes" class="carousel-inner"></div>
+                                    <div id="carouselProducto" class="carousel slide" data-ride="carousel">
+                                        <div id="bloqueImagenes" class="carousel-inner" style="border-radius:10px; overflow:hidden; max-height:220px;"></div>
                                         <a class="carousel-control-prev" href="#carouselProducto" role="button" data-slide="prev">
                                             <span class="carousel-control-prev-icon" aria-hidden="true"></span>
                                             <span class="sr-only">Previous</span>
@@ -270,137 +448,122 @@
                                             <span class="sr-only">Next</span>
                                         </a>
                                     </div>
-                                </div>
-
-                                <div class="col-12 col-md-6">
-                                    <div id="botonAdd" class="my-4 text-center d-none">
-                                        <button type="button" class="p-3 btn-rounded btn btn-success"
-                                            style="font-weight: 900;" onclick="agregarProductoCarrito()">
-                                            Añadir Producto a venta <i class="fa-solid fa-cart-plus"></i>
-                                        </button>
-                                    </div>
-                                    <div id="historialPreciosPanel" class="d-none mt-3">
-                                        <h5 class="mb-2 text-dark">
-                                            <i class="fa fa-history text-info"></i> Últimas 5 ventas a este cliente
-                                        </h5>
+                                    <div id="historialPreciosPanel" class="d-none mt-2">
+                                        <div style="font-size:11px; font-weight:700; color:#546e7a; text-transform:uppercase; letter-spacing:.3px; margin-bottom:4px;">
+                                            <i class="fa fa-history text-info mr-1"></i> Últimas 5 ventas a este cliente
+                                        </div>
                                         <div id="historialPreciosCuerpo"><p class="text-muted small">Cargando...</p></div>
                                     </div>
                                 </div>
                             </div>
 
-                            <hr>
+                            <hr style="border-color:#e0f2f1; margin:16px 0 14px;">
+                            <div style="font-size:11px; font-weight:700; color:#00695c; text-transform:uppercase; letter-spacing:.5px; margin-bottom:10px;">
+                                <i class="fa fa-list mr-1"></i> Productos en el carrito
+                            </div>
 
-                            {{-- Encabezado tabla productos --}}
-                            <div class="hide-container">
-                                <p>Nota: El campo "Unidad" describe la unidad de medida para la venta del producto - seguido del numero de unidades a restar del inventario</p>
-                                <div class="row no-gutters">
-                                    <div class="form-group col-3">
-                                        <div class="d-flex">
-                                            <div style="width:100%">
-                                                <label class="sr-only">Producto</label>
-                                                <input type="text" placeholder="Producto" class="form-control" disabled>
+                            {{-- ── Lista productos ────────────────────────────────────────── --}}
+                            <div id="divProductos">
+                                <div id="carritoVacio" class="text-center py-3" style="color:#b2dfdb; font-size:12px;">
+                                    <i class="fa fa-shopping-cart fa-2x mb-1 d-block"></i> Sin productos en el carrito
+                                </div>
+                                <div id="carritoTablaWrapper" class="d-none table-responsive" style="max-height:400px; overflow-y:auto;">
+                                    <table class="table table-sm table-bordered mb-0" style="font-size:12px; min-width:900px;">
+                                        <thead style="background:linear-gradient(135deg,#e8f5e9,#e0f7fa); position:sticky; top:0; z-index:1;">
+                                            <tr style="color:#00695c; font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:.3px;">
+                                                <th style="width:36px;"></th>
+                                                <th style="min-width:150px;">Producto</th>
+                                                <th style="min-width:100px;">Bodega</th>
+                                                <th style="min-width:110px;">Precio Opc.</th>
+                                                <th style="min-width:90px;">P. Unitario</th>
+                                                <th style="min-width:70px;">Cantidad</th>
+                                                <th style="min-width:90px;">Unidad</th>
+                                                <th style="min-width:90px;">Subtotal</th>
+                                                <th style="min-width:80px;">ISV</th>
+                                                <th style="min-width:90px; background:linear-gradient(135deg,#e65100,#f9a826); color:#fff;">Total</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="carritoTbody"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            </div>{{-- /sec_producto --}}
+
+                            {{-- ── SECCIÓN 3: Totales ───────────────────────────────────── --}}
+                            <div class="ofr-section-header" style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff; cursor:pointer; user-select:none;"
+                                 onclick="toggleSeccion('sec_totales', this)">
+                                <i class="fa fa-calculator"></i> 3. Totales
+                                <i class="fa fa-chevron-up ml-auto" style="font-size:11px;" id="ico_sec_totales"></i>
+                            </div>
+                            <div id="sec_totales">
+
+                            <div style="background:#fff; border:2px solid #a5d6a7; border-radius:16px; overflow:hidden; margin-bottom:24px; box-shadow:0 4px 20px rgba(27,94,32,.08);">
+                                {{-- Header del bloque totales --}}
+                                <div style="background:linear-gradient(135deg,#e65100,#f9a826); padding:12px 22px; display:flex; align-items:center; gap:8px;">
+                                    <i class="fa fa-calculator" style="color:rgba(255,255,255,.8);"></i>
+                                    <span style="color:#fff; font-weight:700; font-size:13px; letter-spacing:.4px; text-transform:uppercase;">Resumen de Totales</span>
+                                </div>
+                                {{-- Cuerpo --}}
+                                <div style="padding:20px 24px; background:#fafffe;">
+                                    <div class="row">
+                                        <div class="col-6 col-md-4 col-lg-2 mb-3">
+                                            <div style="font-size:10px; color:#78909c; font-weight:700; text-transform:uppercase; letter-spacing:.4px; margin-bottom:4px;">Descuento</div>
+                                            <input type="text" id="descuentoMostrar" name="descuentoMostrar" placeholder="L. 0.00"
+                                                   data-parsley-required autocomplete="off" readonly
+                                                   style="border:none; background:transparent; font-size:17px; font-weight:800; color:#e65100; padding:0; width:100%; outline:none;">
+                                            <input type="hidden" value="0" id="porDescuentoCalculado" name="porDescuentoCalculado">
+                                        </div>
+                                        <div class="col-6 col-md-4 col-lg-2 mb-3">
+                                            <div style="font-size:10px; color:#78909c; font-weight:700; text-transform:uppercase; letter-spacing:.4px; margin-bottom:4px;">Sub Total</div>
+                                            <input type="text" id="subTotalGeneralMostrar" placeholder="L. 0.00" readonly autocomplete="off"
+                                                   style="border:none; background:transparent; font-size:17px; font-weight:800; color:#2e7d32; padding:0; width:100%; outline:none;">
+                                            <input id="subTotalGeneral" name="subTotalGeneral" type="hidden" value="" required>
+                                        </div>
+                                        <div class="col-6 col-md-4 col-lg-2 mb-3">
+                                            <div style="font-size:10px; color:#78909c; font-weight:700; text-transform:uppercase; letter-spacing:.4px; margin-bottom:4px;">Grabado</div>
+                                            <input type="text" id="subTotalGeneralGrabadoMostrar" placeholder="L. 0.00" readonly autocomplete="off"
+                                                   style="border:none; background:transparent; font-size:17px; font-weight:800; color:#1565c0; padding:0; width:100%; outline:none;">
+                                            <input id="subTotalGeneralGrabado" name="subTotalGeneralGrabado" type="hidden" value="" required>
+                                        </div>
+                                        <div class="col-6 col-md-4 col-lg-2 mb-3">
+                                            <div style="font-size:10px; color:#78909c; font-weight:700; text-transform:uppercase; letter-spacing:.4px; margin-bottom:4px;">Excento</div>
+                                            <input type="text" id="subTotalGeneralExcentoMostrar" placeholder="L. 0.00" readonly autocomplete="off"
+                                                   style="border:none; background:transparent; font-size:17px; font-weight:800; color:#6a1b9a; padding:0; width:100%; outline:none;">
+                                            <input id="subTotalGeneralExcento" name="subTotalGeneralExcento" type="hidden" value="" required>
+                                        </div>
+                                        <div class="col-6 col-md-4 col-lg-2 mb-3" id="fila_isv" style="{{ ($config->aplica_isv ?? true) ? '' : 'display:none' }}">
+                                            <div style="font-size:10px; color:#78909c; font-weight:700; text-transform:uppercase; letter-spacing:.4px; margin-bottom:4px;">ISV</div>
+                                            <input type="text" id="isvGeneralMostrar" placeholder="L. 0.00" readonly autocomplete="off"
+                                                   style="border:none; background:transparent; font-size:17px; font-weight:800; color:#b71c1c; padding:0; width:100%; outline:none;">
+                                            <input id="isvGeneral" name="isvGeneral" type="hidden" value="" required>
+                                        </div>
+                                        <div class="col-12 col-md-4 col-lg-2 mb-0 d-flex align-items-end">
+                                            <div style="background:linear-gradient(135deg,#e65100,#f9a826); border-radius:12px; padding:14px 18px; width:100%; text-align:center; box-shadow:0 4px 14px rgba(230,81,0,.3);">
+                                                <div style="font-size:10px; color:rgba(255,255,255,.75); font-weight:700; text-transform:uppercase; letter-spacing:.4px; margin-bottom:4px;">TOTAL</div>
+                                                <input type="text" id="totalGeneralMostrar" placeholder="L. 0.00" readonly autocomplete="off"
+                                                       style="border:none; background:transparent; font-size:22px; font-weight:900; color:#fff; padding:0; text-align:center; width:100%; outline:none;">
+                                                <input id="totalGeneral" name="totalGeneral" type="hidden" value="" required>
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="form-group col-1">
-                                        <input type="number" placeholder="Bodega" class="form-control" disabled>
-                                    </div>
-                                    <div class="form-group col-2">
-                                        <input type="number" placeholder="Opciones" class="form-control" disabled>
-                                    </div>
-                                    <div class="form-group col-1">
-                                        <input type="number" placeholder="Precio Unidad" class="form-control" disabled>
-                                    </div>
-                                    <div class="form-group col-1">
-                                        <input type="text" placeholder="Cantidad" class="form-control" disabled>
-                                    </div>
-                                    <div class="form-group col-1">
-                                        <input type="text" placeholder="Unidad" class="form-control" disabled>
-                                    </div>
-                                    <div class="form-group col-1">
-                                        <input type="number" placeholder="Sub total" class="form-control" disabled>
-                                    </div>
-                                    <div class="form-group col-1">
-                                        <input type="number" placeholder="ISV" class="form-control" disabled>
-                                    </div>
-                                    <div class="form-group col-1">
-                                        <input type="number" placeholder="Total" class="form-control" disabled>
-                                    </div>
                                 </div>
                             </div>
 
-                            {{-- Contenedor de productos dinámicos --}}
-                            <div id="divProductos"></div>
-                            <hr>
+                            </div>{{-- /sec_totales --}}
 
-                            {{-- Totales --}}
+                            {{-- ── Botón principal ─────────────────────────────────────── --}}
                             <div class="row">
-                                <div class="form-group col-12 col-md-2 col-lg-1">
-                                    <label class="col-form-label" for="descuentoMostrar">Descuento L.<span class="text-danger">*</span></label>
-                                </div>
-                                <div class="form-group col-12 col-md-3 col-lg-2">
-                                    <input type="text" placeholder="Descuento aplicado" id="descuentoMostrar"
-                                        name="descuentoMostrar" class="form-control" value="Descuento Aplicado"
-                                        data-parsley-required autocomplete="off" readonly>
-                                    <input type="hidden" value="0" id="porDescuentoCalculado" name="porDescuentoCalculado">
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="form-group col-12 col-md-2 col-lg-1">
-                                    <label class="col-form-label">Sub Total L.<span class="text-danger">*</span></label>
-                                </div>
-                                <div class="form-group col-12 col-md-3 col-lg-2">
-                                    <input type="text" placeholder="Sub total" id="subTotalGeneralMostrar"
-                                        class="form-control" autocomplete="off" readonly>
-                                    <input id="subTotalGeneral" name="subTotalGeneral" type="hidden" value="" required>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="form-group col-12 col-md-2 col-lg-1">
-                                    <label class="col-form-label">Sub Total Grabado L.<span class="text-danger">*</span></label>
-                                </div>
-                                <div class="form-group col-12 col-md-3 col-lg-2">
-                                    <input type="text" placeholder="Sub total" id="subTotalGeneralGrabadoMostrar"
-                                        class="form-control" autocomplete="off" readonly>
-                                    <input id="subTotalGeneralGrabado" name="subTotalGeneralGrabado" type="hidden" value="" required>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="form-group col-12 col-md-2 col-lg-1">
-                                    <label class="col-form-label">Sub Total Excento L.<span class="text-danger">*</span></label>
-                                </div>
-                                <div class="form-group col-12 col-md-3 col-lg-2">
-                                    <input type="text" placeholder="Sub total" id="subTotalGeneralExcentoMostrar"
-                                        class="form-control" autocomplete="off" readonly>
-                                    <input id="subTotalGeneralExcento" name="subTotalGeneralExcento" type="hidden" value="" required>
-                                </div>
-                            </div>
-                            <div class="row" id="fila_isv" style="{{ ($config->aplica_isv ?? true) ? '' : 'display:none' }}">
-                                <div class="form-group col-12 col-md-2 col-lg-1">
-                                    <label class="col-form-label">ISV L.<span class="text-danger">*</span></label>
-                                </div>
-                                <div class="form-group col-12 col-md-3 col-lg-2">
-                                    <input type="text" placeholder="ISV" id="isvGeneralMostrar"
-                                        class="form-control" autocomplete="off" readonly>
-                                    <input id="isvGeneral" name="isvGeneral" type="hidden" value="" required>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="form-group col-12 col-md-2 col-lg-1">
-                                    <label class="col-form-label">Total L.<span class="text-danger">*</span></label>
-                                </div>
-                                <div class="form-group col-12 col-md-3 col-lg-2">
-                                    <input type="text" placeholder="Total" id="totalGeneralMostrar"
-                                        class="form-control" autocomplete="off" readonly>
-                                    <input id="totalGeneral" name="totalGeneral" type="hidden" value="" required>
-                                </div>
-                            </div>
-
-                            {{-- Botón de venta --}}
-                            <div class="row">
-                                <div class="col-12">
-                                    <button id="btn_venta_coorporativa" class="btn btn-sm btn-primary float-left m-t-n-xs">
-                                        <strong>Realizar Venta</strong>
+                                <div class="col-12 col-md-6">
+                                    <button id="btn_venta_coorporativa"
+                                            style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff; border:none;
+                                                   border-radius:12px; padding:14px 32px; font-size:15px; font-weight:800;
+                                                   box-shadow:0 4px 18px rgba(230,81,0,.35); width:100%; cursor:pointer;">
+                                        @if($fromFlujo && ($config->codigo ?? '') === 'cotizacion_clientes_a')
+                                            <i class="fa fa-save mr-2"></i> Guardar Oferta
+                                        @else
+                                            <i class="fa fa-check-circle mr-2"></i> Realizar Venta
+                                        @endif
                                     </button>
                                 </div>
                             </div>
@@ -459,6 +622,220 @@
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" onclick="history.back()">Salir</button>
                         <button type="submit" form="verificarCodigoForm" class="btn btn-primary">Verificar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- MODAL: Detalle del Pedido --}}
+        <div class="modal fade" id="modalDetallePedido" tabindex="-1" role="dialog">
+            <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+                <div class="modal-content" style="border-radius:14px; overflow:hidden;">
+                    <div class="modal-header" style="background:linear-gradient(135deg,#e65100,#f9a826); border:none; padding:16px 24px;">
+                        <h5 class="modal-title" style="color:#fff; font-weight:700; margin:0;">
+                            <i class="fa fa-clipboard-list mr-2"></i>
+                            Detalle del Pedido
+                            @if($pedidoDetalle)
+                                <span style="opacity:.8;">#{{ $pedidoDetalle['pedido']['id'] }}</span>
+                            @endif
+                        </h5>
+                        <button type="button" class="close" data-dismiss="modal" style="color:#fff; opacity:1;">
+                            <span>&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body" style="padding:24px;">
+                        @if($pedidoDetalle)
+                        @php $ped = $pedidoDetalle['pedido']; @endphp
+                        {{-- Info del pedido --}}
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div style="font-size:11px; color:#78909c; font-weight:700; text-transform:uppercase;">Cliente</div>
+                                <div style="font-weight:700; color:#2c3e50;">{{ $ped['cliente'] }}</div>
+                            </div>
+                            <div class="col-md-3">
+                                <div style="font-size:11px; color:#78909c; font-weight:700; text-transform:uppercase;">RTN</div>
+                                <div style="color:#546e7a;">{{ $ped['rtn'] ?: '\u2014' }}</div>
+                            </div>
+                            <div class="col-md-3">
+                                <div style="font-size:11px; color:#78909c; font-weight:700; text-transform:uppercase;">Estado</div>
+                                <span style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff; border-radius:20px; padding:2px 10px; font-size:11px; font-weight:700;">{{ ucfirst(str_replace('_',' ',$ped['estado'])) }}</span>
+                            </div>
+                        </div>
+                        @if($ped['observaciones'])
+                        <div class="mb-3 p-2" style="background:#fff8e1; border-radius:8px; font-size:12px; color:#7b6000;">
+                            <i class="fa fa-comment mr-1"></i> {{ $ped['observaciones'] }}
+                        </div>
+                        @endif
+                        {{-- Tabla de productos del pedido --}}
+                        <div style="font-size:11px; font-weight:700; color:#546e7a; text-transform:uppercase; margin-bottom:8px;">Productos solicitados</div>
+                        @if(count($pedidoDetalle['productos']) > 0)
+                        <div class="table-responsive">
+                            <table class="table table-sm" style="font-size:13px;">
+                                <thead style="background:linear-gradient(135deg,#e65100,#f9a826);">
+                                    <tr style="color:#fff; font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:.3px;">
+                                        <th style="border:none;">Producto</th>
+                                        <th style="width:80px; text-align:center; border:none;">Cantidad</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="pdTbody">
+                                    @foreach($pedidoDetalle['productos'] as $pd)
+                                    @php $pd = (array)$pd; @endphp
+                                    <tr data-pd-idx="{{ $loop->index }}" style="{{ $loop->index >= 5 ? 'display:none;' : '' }}">
+                                        <td style="font-weight:600; vertical-align:middle;">{{ $pd['nombre_producto'] }}</td>
+                                        <td style="text-align:center; vertical-align:middle;"><span style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff; border-radius:20px; padding:2px 12px; font-weight:700;">{{ intval($pd['cantidad']) }}</span></td>
+                                    </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                        {{-- Paginación detalle --}}
+                        @if(count($pedidoDetalle['productos']) > 5)
+                        <div id="pdPaginacion" class="d-flex align-items-center justify-content-center mt-2" style="gap:10px;">
+                            <button onclick="pdChangePage(-1)" id="pdPrev" style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff; border:none; border-radius:8px; padding:4px 14px; font-size:12px; cursor:pointer; font-weight:700;">&#8592; Anterior</button>
+                            <span id="pdPageInfo" style="font-size:12px; font-weight:700; color:#546e7a;"></span>
+                            <button onclick="pdChangePage(1)" id="pdNext" style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff; border:none; border-radius:8px; padding:4px 14px; font-size:12px; cursor:pointer; font-weight:700;">Siguiente &#8594;</button>
+                        </div>
+                        @endif
+                        @else
+                        <p class="text-muted text-center">Sin productos registrados.</p>
+                        @endif
+                        @else
+                        <div class="text-center py-4">
+                            <i class="fa fa-spinner fa-spin fa-2x" style="color:#00897b;"></i>
+                        </div>
+                        @endif
+                    </div>
+                    <div class="modal-footer">
+                        @if($pedidoDetalle)
+                        <button type="button"
+                                wire:click="seleccionarPedido({{ $pedidoDetalle['pedido']['id'] }})" data-dismiss="modal"
+                                style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff; border:none; border-radius:8px; padding:8px 20px; font-weight:700; cursor:pointer;">
+                            <i class="fa fa-link mr-1"></i> Vincular este Pedido
+                        </button>
+                        @endif
+                        <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cerrar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- MODAL: Éxito guardado oferta – 4 opciones --}}
+        <div class="modal fade" id="modalExitoOferta" tabindex="-1" role="dialog" data-backdrop="static" data-keyboard="false">
+            <div class="modal-dialog modal-dialog-centered" role="document" style="max-width:500px;">
+                <div class="modal-content" style="border-radius:16px; overflow:hidden;">
+                    <div class="modal-header" style="background:linear-gradient(135deg,#e65100,#f9a826); border:none; padding:18px 24px;">
+                        <h5 class="modal-title" style="color:#fff; font-weight:800; margin:0; font-size:15px;">
+                            <i class="fa fa-check-circle mr-2"></i> Oferta guardada exitosamente
+                        </h5>
+                    </div>
+                    <div class="modal-body" style="padding:24px;">
+                        <p style="color:#546e7a; font-size:13px; margin-bottom:20px; text-align:center;">¿Qué desea hacer ahora?</p>
+                        <div class="d-flex flex-column" style="gap:12px;">
+                            <button onclick="ofertaAccion('nueva')" class="btn btn-block" style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff; font-weight:700; border:none; border-radius:10px; padding:12px 20px; text-align:left;">
+                                <i class="fa fa-plus-circle mr-2"></i> Agregar nueva oferta
+                                <div style="font-size:11px; font-weight:400; opacity:.85;">Limpiar productos y crear otra oferta para el mismo pedido</div>
+                            </button>
+                            <button onclick="ofertaAccion('ganadora')" class="btn btn-block" style="background:#fff; color:#e65100; font-weight:700; border:2px solid #f9a826; border-radius:10px; padding:12px 20px; text-align:left;">
+                                <i class="fa fa-trophy mr-2"></i> Seleccionar oferta ganadora
+                                <div style="font-size:11px; font-weight:400; color:#546e7a;">Ver todas las ofertas del pedido y elegir la ganadora</div>
+                            </button>
+                            <button onclick="ofertaAccion('prefacturar')" class="btn btn-block" style="background:#fff3e0; color:#bf360c; font-weight:700; border:none; border-radius:10px; padding:12px 20px; text-align:left;">
+                                <i class="fa fa-file-text-o mr-2"></i> Prefacturar esta oferta
+                                <div style="font-size:11px; font-weight:400; color:#546e7a;">Esta oferta se marca como ganadora y se manda a prefactura</div>
+                            </button>
+                            <button onclick="ofertaAccion('imprimir')" class="btn btn-block" style="background:#fafafa; color:#546e7a; font-weight:700; border:1px solid #e0e0e0; border-radius:10px; padding:12px 20px; text-align:left;">
+                                <i class="fa fa-print mr-2"></i> Imprimir oferta
+                                <div style="font-size:11px; font-weight:400; color:#78909c;">Abrir PDF de la oferta recién guardada</div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- MODAL: Seleccionar oferta ganadora --}}
+        <div class="modal fade" id="modalOfertasGanadoras" tabindex="-1" role="dialog">
+            <div class="modal-dialog modal-dialog-centered" role="document" style="max-width:560px;">
+                <div class="modal-content" style="border-radius:16px; overflow:hidden;">
+                    <div class="modal-header" style="background:linear-gradient(135deg,#e65100,#f9a826); border:none; padding:16px 24px;">
+                        <h5 class="modal-title" style="color:#fff; font-weight:800; margin:0; font-size:14px;">
+                            <i class="fa fa-trophy mr-2"></i> Seleccionar oferta ganadora
+                        </h5>
+                        <button type="button" class="close" data-dismiss="modal" style="color:#fff; opacity:1;"><span>&times;</span></button>
+                    </div>
+                    <div class="modal-body" style="padding:20px;">
+                        <div id="ogLoading" class="text-center py-3" style="display:none;"><i class="fa fa-spinner fa-spin fa-2x" style="color:#e65100;"></i></div>
+                        <div id="ogLista"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- MODAL: Productos del Pedido con sugerencias --}}
+        <div class="modal fade" id="modalProductosPedido" tabindex="-1" role="dialog">
+            <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+                <div class="modal-content" style="border-radius:14px; overflow:hidden;">
+                    <div class="modal-header" style="background:linear-gradient(135deg,#e65100,#f9a826); border:none; padding:14px 24px;">
+                        <h5 class="modal-title" style="color:#fff; font-weight:700; margin:0; font-size:14px;">
+                            <i class="fa fa-list-ul mr-2"></i> Productos del Pedido
+                            @if(count($productosSugeridos) > 0)
+                            <span style="background:rgba(255,255,255,.2); border-radius:20px; padding:1px 10px; font-size:12px; margin-left:6px;">{{ count($productosSugeridos) }}</span>
+                            @endif
+                        </h5>
+                        <button type="button" class="close" data-dismiss="modal" style="color:#fff; opacity:1;"><span>&times;</span></button>
+                    </div>
+                    <div class="modal-body" style="padding:16px 20px;">
+                        <p style="font-size:11px; color:#78909c; margin-bottom:12px;">
+                            <i class="fa fa-info-circle mr-1 text-info"></i>
+                            Selecciona un producto sugerido para pre-cargarlo. Luego elige la bodega y categoría.
+                        </p>
+                        @if(count($productosSugeridos) > 0)
+                        <div id="ppPagItems">
+                        @foreach($productosSugeridos as $idx => $item)
+                        <div class="pp-item" data-idx="{{ $idx }}" style="{{ $idx >= 5 ? 'display:none;' : '' }}background:#f9f9f9; border:1px solid #e0e0e0; border-radius:10px; padding:12px 16px; margin-bottom:10px;">
+                            <div class="d-flex align-items-center flex-wrap" style="gap:8px; margin-bottom:6px;">
+                                <span style="font-weight:700; color:#2c3e50; font-size:13px;">{{ $item['nombre_pedido'] }}</span>
+                                <span style="background:#e8f5e9; color:#2e7d32; border-radius:12px; padding:1px 9px; font-size:11px; font-weight:700;">x{{ $item['cantidad'] }}</span>
+                            </div>
+                            @if(count($item['similares']) > 0)
+                            <div style="font-size:10px; color:#546e7a; font-weight:700; text-transform:uppercase; letter-spacing:.3px; margin-bottom:5px;">Similares en catálogo:</div>
+                            <div class="d-flex flex-wrap" style="gap:6px;">
+                                @foreach($item['similares'] as $sim)
+                                @php $s = (array)$sim; @endphp
+                                <button type="button"
+                                    onclick="preseleccionarProductoSugerido({{ $s['id'] }}, '{{ addslashes($s['nombre']) }}');"
+                                    style="background:#e8f5e9; color:#1b5e20; border:1px solid #a5d6a7; border-radius:7px; padding:6px 12px; font-size:12px; font-weight:600; cursor:pointer;"
+                                    onmouseover="this.style.background='#c8e6c9';" onmouseout="this.style.background='#e8f5e9';">
+                                    <i class="fa fa-plus-circle mr-1"></i>{{ Str::limit($s['nombre'], 38) }}
+                                </button>
+                                @endforeach
+                            </div>
+                            @else
+                            <div style="font-size:11px; color:#90a4ae;"><i class="fa fa-exclamation-triangle mr-1"></i>Sin coincidencias en catálogo.</div>
+                            @endif
+                        </div>
+                        @endforeach
+                        </div>
+                        {{-- Paginación --}}
+                        @if(count($productosSugeridos) > 5)
+                        <div class="d-flex align-items-center justify-content-between mt-2" id="ppPagNav">
+                            <button type="button" onclick="ppChangePage(-1)"
+                                style="background:#f5f5f5; border:1px solid #e0e0e0; border-radius:7px; padding:5px 14px; font-size:12px; font-weight:600; cursor:pointer;" id="ppBtnPrev" disabled>
+                                <i class="fa fa-chevron-left mr-1"></i> Anterior
+                            </button>
+                            <span id="ppPageInfo" style="font-size:12px; color:#546e7a; font-weight:700;"></span>
+                            <button type="button" onclick="ppChangePage(1)"
+                                style="background:#1b5e20; color:#fff; border:none; border-radius:7px; padding:5px 14px; font-size:12px; font-weight:600; cursor:pointer;" id="ppBtnNext">
+                                Siguiente <i class="fa fa-chevron-right ml-1"></i>
+                            </button>
+                        </div>
+                        @endif
+                        @else
+                        <p class="text-muted text-center">No hay productos sugeridos.</p>
+                        @endif
+                    </div>
+                    <div class="modal-footer" style="padding:10px 20px;">
+                        <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cerrar</button>
                     </div>
                 </div>
             </div>
@@ -550,7 +927,7 @@
             datos_producto: '/estatal/datos/producto',
             tipo_pago: '/estatal/tipo/pago',
             bodegas: '/estatal/listar/bodegas/{idProducto}',
-            imprimir: null,
+            imprimir: '/cotizacion/imprimir/{id}',
             historial_precios: '/estatal/historial/precios',
             vendedores: '/ventas/corporativo/vendedores',
             orden_compra: null,
@@ -616,14 +993,193 @@
                 }
             }
         });
+
+        // ── Pre-seleccionar vendedor = usuario actual ──────────────────────
+        @if(!empty($vendedorDefault))
+        (function() {
+            var opt = new Option(
+                '{{ addslashes($vendedorDefault['name']) }}',
+                '{{ $vendedorDefault['id'] }}',
+                true, true
+            );
+            $('#vendedor').append(opt).trigger('change');
+        })();
+        @endif
+
+        // ── Pre-seleccionar cliente si viene de un pedido ─────────────────
+        @if($clientePedido)
+        (function() {
+            var opt = new Option(
+                '{{ addslashes($clientePedido['nombre']) }}',
+                '{{ $clientePedido['id'] }}',
+                true, true
+            );
+            $('#seleccionarCliente').append(opt).trigger('change');
+            setTimeout(function() { obtenerDatosCliente(); }, 300);
+        })();
+        @endif
     }
 
     // ================================================================
-    // CAMBIAR TIPO DE FACTURA (navegación con recarga completa)
+    // PRODUCTO SUGERIDO DESDE PEDIDO → Pre-selecciona en el selector
     // ================================================================
+    function preseleccionarProductoSugerido(id, nombre) {
+        // Cierra el modal de productos del pedido
+        $('#modalProductosPedido').modal('hide');
+
+        // Rellena el select oculto igual que alSeleccionarProducto()
+        var select = document.getElementById('seleccionarProducto');
+        select.innerHTML = '<option value="' + id + '" selected>' + nombre + '</option>';
+        document.getElementById('codigoProductoBuscar').value = nombre;
+        var label = document.getElementById('productoSeleccionadoLabel');
+        label.textContent = '\u2713 ' + nombre;
+        label.classList.remove('d-none');
+
+        // Cargar categorías e imágenes (cargarCategoriasProducto llama obtenerImagenes internamente)
+        cargarCategoriasProducto();
+    }
+
+    // ================================================================
+    // SECCIONES COLAPSABLES
+    // ================================================================
+    function toggleSeccion(id, headerEl) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        var isOpen = el.style.display !== 'none';
+        el.style.display = isOpen ? 'none' : '';
+        // Girar ícono chevron
+        var icoId = 'ico_' + id;
+        var ico = document.getElementById(icoId);
+        if (ico) {
+            if (isOpen) {
+                ico.classList.remove('fa-chevron-up');
+                ico.classList.add('fa-chevron-down');
+            } else {
+                ico.classList.remove('fa-chevron-down');
+                ico.classList.add('fa-chevron-up');
+            }
+        }
+    }
+
+    // ================================================================
+    // PAGINACIÓN MODAL PRODUCTOS PEDIDO
+    // ================================================================
+    var ppCurrentPage = 0;
+    var ppItemsPerPage = 5;
+
+    function ppChangePage(dir) {
+        var items = document.querySelectorAll('#ppPagItems .pp-item');
+        var total = items.length;
+        var totalPages = Math.ceil(total / ppItemsPerPage);
+        ppCurrentPage = Math.max(0, Math.min(ppCurrentPage + dir, totalPages - 1));
+        var from = ppCurrentPage * ppItemsPerPage;
+        var to   = from + ppItemsPerPage;
+        items.forEach(function(el, i) { el.style.display = (i >= from && i < to) ? '' : 'none'; });
+        var prev = document.getElementById('ppBtnPrev');
+        var next = document.getElementById('ppBtnNext');
+        var info = document.getElementById('ppPageInfo');
+        if (prev) prev.disabled = ppCurrentPage === 0;
+        if (next) next.disabled = ppCurrentPage >= totalPages - 1;
+        if (next) next.style.opacity = ppCurrentPage >= totalPages - 1 ? '.5' : '1';
+        if (info) info.textContent = 'Página ' + (ppCurrentPage + 1) + ' / ' + totalPages;
+    }
+
+    // Inicializar paginación cuando el modal se abre
+    $('#modalProductosPedido').on('show.bs.modal', function() {
+        ppCurrentPage = 0;
+        ppChangePage(0);
+    });
+
+    // ================================================================
+    // PAGINACIÓN MODAL DETALLE PEDIDO
+    // ================================================================
+    var pdCurrentPage = 0;
+    var pdItemsPerPage = 5;
+
+    function pdChangePage(dir) {
+        var rows = document.querySelectorAll('#pdTbody tr[data-pd-idx]');
+        var total = rows.length;
+        if (total === 0) return;
+        var totalPages = Math.ceil(total / pdItemsPerPage);
+        pdCurrentPage = Math.max(0, Math.min(pdCurrentPage + dir, totalPages - 1));
+        var from = pdCurrentPage * pdItemsPerPage;
+        var to   = from + pdItemsPerPage;
+        rows.forEach(function(el, i) { el.style.display = (i >= from && i < to) ? '' : 'none'; });
+        var prev = document.getElementById('pdPrev');
+        var next = document.getElementById('pdNext');
+        var info = document.getElementById('pdPageInfo');
+        if (prev) prev.disabled = pdCurrentPage === 0;
+        if (prev) prev.style.opacity = pdCurrentPage === 0 ? '.5' : '1';
+        if (next) next.disabled = pdCurrentPage >= totalPages - 1;
+        if (next) next.style.opacity = pdCurrentPage >= totalPages - 1 ? '.5' : '1';
+        if (info) info.textContent = 'Página ' + (pdCurrentPage + 1) + ' / ' + totalPages;
+    }
+
+    $('#modalDetallePedido').on('show.bs.modal', function() {
+        pdCurrentPage = 0;
+        pdChangePage(0);
+    });
+
     function cambiarTipoFactura(rutaMenu) {
         window.location.href = '/' + rutaMenu;
     }
+
+    // ================================================================
+    // BROWSER EVENTS: Pedido vinculado / desvinculado (Livewire → JS)
+    // ================================================================
+    window.addEventListener('pedido-seleccionado', function(e) {
+        var d = e.detail;
+        // Re-habilitar Select2 de cliente (puede estar disabled en re-render)
+        var selC = document.getElementById('seleccionarCliente');
+        if (selC) selC.removeAttribute('disabled');
+
+        // Reinicializar Select2 si es necesario
+        if (!$('#seleccionarCliente').hasClass('select2-hidden-accessible')) {
+            inicializarSelect2();
+        }
+
+        // Pre-seleccionar cliente
+        if (d.clienteId) {
+            $('#seleccionarCliente').empty();
+            var optC = new Option(d.clienteNombre, d.clienteId, true, true);
+            $('#seleccionarCliente').append(optC).trigger('change');
+            setTimeout(function() { obtenerDatosCliente(); }, 300);
+        }
+
+        // Pre-seleccionar vendedor por defecto
+        if (d.vendedorId) {
+            $('#vendedor').empty();
+            var optV = new Option(d.vendedorNombre, d.vendedorId, true, true);
+            $('#vendedor').append(optV).trigger('change');
+        }
+
+        // Bloquear cliente cuando hay pedido vinculado
+        $('#seleccionarCliente').prop('disabled', true);
+    });
+
+    window.addEventListener('pedido-desvinculado', function(e) {
+        var d = e.detail;
+        // Habilitar cliente nuevamente
+        $('#seleccionarCliente').prop('disabled', false);
+        // Limpiar cliente
+        $('#seleccionarCliente').empty().append('<option value="" selected disabled>--Seleccionar un cliente--</option>').trigger('change');
+        document.getElementById('nombre_cliente_ventas').value = '';
+        document.getElementById('rtn_ventas').value = '';
+
+        // Restaurar vendedor por defecto
+        if (d.vendedorId) {
+            $('#vendedor').empty();
+            var optV = new Option(d.vendedorNombre, d.vendedorId, true, true);
+            $('#vendedor').append(optV).trigger('change');
+        }
+
+        // Actualizar badge categoría
+        $('#cat_badge_text').text('\u2014');
+    });
+
+    window.addEventListener('mostrar-modal-detalle-pedido', function() {
+        $('#modalDetallePedido').modal('show');
+    });
 
     // ================================================================
     // CÓDIGO DE AUTORIZACIÓN (sin restricción gobierno / sin restricción precio)
@@ -714,6 +1270,7 @@
     // ================================================================
     function obtenerDatosCliente() {
         let idCliente = document.getElementById("seleccionarCliente").value;
+        if (!idCliente) return; // Evitar error al desvincular pedido
         var urlDatosCliente = urls.datos_cliente;
 
         axios.post(urlDatosCliente, { id: idCliente })
@@ -728,6 +1285,7 @@
                     if (selectBox.options.length > 2) selectBox.remove(2);
 
                     $('#categoria_cliente_nombre').text(data.nombre_categoria);
+                    $('#cat_badge_text').text(data.nombre_categoria);
                     $('#categoria_cliente_venta_id').data('categoria-cliente-id', data.idcategoriacliente);
 
                     if ($('#seleccionarProducto').val()) {
@@ -743,6 +1301,7 @@
                     document.getElementById("rtn_ventas").value = data.rtn;
 
                     $('#categoria_cliente_nombre').text(data.nombre_categoria);
+                    $('#cat_badge_text').text(data.nombre_categoria);
                     $('#categoria_cliente_venta_id').data('categoria-cliente-id', data.idcategoriacliente);
 
                     if ($('#seleccionarProducto').val()) {
@@ -938,9 +1497,7 @@
             .then(response => {
                 let imagenes = response.data.imagenes;
                 if (imagenes.length == 0) {
-                    htmlImagenes += '<div class="carousel-item active"><img class="d-block" src="' + public_path + '/noimage.png" alt="noimage.png" style="width:100%;height:20rem"></div>';
-                    document.getElementById('bloqueImagenes').innerHTML = htmlImagenes;
-                    document.getElementById('botonAdd').classList.remove("d-none");
+                    document.getElementById('bloqueImagenes').innerHTML = '<div class="carousel-item active"><div style="height:180px;display:flex;align-items:center;justify-content:center;background:#f5f5f5;border-radius:8px;"><div style="text-align:center;color:#b0bec5;"><i class="fa fa-image" style="font-size:2.5rem;display:block;margin-bottom:8px;"></i><span style="font-size:13px;">Sin imagen</span></div></div></div>';
                 } else {
                     imagenes.forEach(element => {
                         let activeClass = element.contador == 1 ? ' active' : '';
@@ -1016,73 +1573,72 @@
                 let minPrecio = (tipoFacturaConfig && tipoFacturaConfig.multiples_precios) ? '' : 'min="' + producto.precio1 + '"';
 
                 let html = `
-                <div id='${numeroInputs}' class="row no-gutters">
-                    <div class="form-group col-12 col-md-3">
-                        <div class="d-flex">
-                            <button class="btn btn-danger" type="button" onclick="eliminarInput(${numeroInputs})">
-                                <i class="fa-regular fa-rectangle-xmark"></i>
-                            </button>
-                            <input id="idProducto${numeroInputs}" name="idProducto${numeroInputs}" type="hidden" value="${producto.id}">
-                            <input id="precios_producto_carga_id${numeroInputs}" name="precios_producto_carga_id${numeroInputs}" type="hidden" value="${producto.precios_producto_carga_id || ''}">
-                            <div style="width:100%">
-                                <label for="nombre${numeroInputs}" class="sr-only">Nombre</label>
-                                <input type="text" placeholder="Nombre" id="nombre${numeroInputs}" name="nombre${numeroInputs}"
-                                    class="form-control" data-parsley-required autocomplete="off" readonly value='${producto.nombre}'>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="form-group col-6 col-md-1">
-                        <input type="text" value="${bodega}" id="bodega${numeroInputs}" name="bodega${numeroInputs}"
-                            class="form-control" autocomplete="off" readonly>
-                    </div>
-                    <div class="form-group col-6 col-md-2">
-                        <select class="form-control" name="precios${numeroInputs}" id="precios${numeroInputs}"
-                            data-parsley-required style="height:35.7px;"
+                <tr id='${numeroInputs}'>
+                    <td style="vertical-align:middle; text-align:center; padding:4px 6px;">
+                        <input id="idProducto${numeroInputs}" name="idProducto${numeroInputs}" type="hidden" value="${producto.id}">
+                        <input id="precios_producto_carga_id${numeroInputs}" name="precios_producto_carga_id${numeroInputs}" type="hidden" value="${producto.precios_producto_carga_id || ''}">
+                        <input id="isv${numeroInputs}" name="isv${numeroInputs}" type="hidden" value="${producto.isv}">
+                        <input id="idBodega${numeroInputs}" name="idBodega${numeroInputs}" type="hidden" value="${idBodega}">
+                        <input id="idSeccion${numeroInputs}" name="idSeccion${numeroInputs}" type="hidden" value="${idSeccion}">
+                        <input id="restaInventario${numeroInputs}" name="restaInventario${numeroInputs}" type="hidden" value="">
+                        <input id="subTotal${numeroInputs}" name="subTotal${numeroInputs}" type="hidden" value="" required>
+                        <input id="isvProducto${numeroInputs}" name="isvProducto${numeroInputs}" type="hidden" value="" required>
+                        <input id="acumuladoDescuento${numeroInputs}" name="acumuladoDescuento${numeroInputs}" type="hidden">
+                        <input id="total${numeroInputs}" name="total${numeroInputs}" type="hidden" value="" required>
+                        <input id="bodega${numeroInputs}" name="bodega${numeroInputs}" type="hidden" value="${bodega}">
+                        <button class="btn btn-danger btn-xs" type="button" onclick="eliminarInput(${numeroInputs})" title="Eliminar" style="padding:2px 6px; font-size:11px; border-radius:5px;">
+                            <i class="fa fa-times"></i>
+                        </button>
+                    </td>
+                    <td style="vertical-align:middle; padding:4px 6px;">
+                        <input type="text" id="nombre${numeroInputs}" name="nombre${numeroInputs}" value='${producto.nombre}' readonly data-parsley-required
+                            style="border:none; background:transparent; font-size:12px; font-weight:700; color:#1b5e20; width:100%; min-width:130px;">
+                    </td>
+                    <td style="vertical-align:middle; padding:4px 6px; white-space:nowrap;">
+                        <span style="background:#e3f2fd; color:#1565c0; border-radius:6px; padding:2px 8px; font-size:11px; font-weight:700;">
+                            <i class="fa fa-archive" style="font-size:10px;"></i> ${bodega}
+                        </span>
+                    </td>
+                    <td style="vertical-align:middle; padding:4px 6px;">
+                        <select class="form-control form-control-sm" name="precios${numeroInputs}" id="precios${numeroInputs}" data-parsley-required style="font-size:11px; min-width:100px;"
                             onchange="validacionPrecio(precios${numeroInputs}, precio${numeroInputs})">
                             ${htmlprecios}
                         </select>
-                    </div>
-                    <div class="form-group col-4 col-md-1">
-                        <input type="number" placeholder="Precio" id="precio${numeroInputs}" name="precio${numeroInputs}"
-                            value="${producto.precio1}" class="form-control" ${minPrecio} data-parsley-required step="any"
-                            autocomplete="off" onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
-                    </div>
-                    <div class="form-group col-4 col-md-1">
-                        <input type="number" placeholder="Cantidad" id="cantidad${numeroInputs}" name="cantidad${numeroInputs}"
-                            class="form-control" min="1" data-parsley-required autocomplete="off"
+                    </td>
+                    <td style="vertical-align:middle; padding:4px 6px;">
+                        <input type="number" id="precio${numeroInputs}" name="precio${numeroInputs}" value="${producto.precio1}" class="form-control form-control-sm"
+                            ${minPrecio} data-parsley-required step="any" autocomplete="off" style="min-width:80px; font-size:11px;"
                             onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
-                    </div>
-                    <div class="form-group col-4 col-md-1">
-                        <select class="form-control" name="unidad${numeroInputs}" id="unidad${numeroInputs}"
-                            data-parsley-required style="height:35.7px;"
+                    </td>
+                    <td style="vertical-align:middle; padding:4px 6px;">
+                        <input type="number" id="cantidad${numeroInputs}" name="cantidad${numeroInputs}" class="form-control form-control-sm" min="1" data-parsley-required autocomplete="off" style="min-width:60px; font-size:11px;"
+                            onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
+                    </td>
+                    <td style="vertical-align:middle; padding:4px 6px;">
+                        <select class="form-control form-control-sm" name="unidad${numeroInputs}" id="unidad${numeroInputs}" data-parsley-required style="font-size:11px; min-width:80px;"
                             onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
                             ${htmlSelectUnidades}
                         </select>
-                    </div>
-                    <div class="form-group col-4 col-md-1">
-                        <input type="text" placeholder="Sub total" id="subTotalMostrar${numeroInputs}" name="subTotalMostrar${numeroInputs}"
-                            class="form-control" autocomplete="off" readonly>
-                        <input id="subTotal${numeroInputs}" name="subTotal${numeroInputs}" type="hidden" value="" required>
-                    </div>
-                    <div class="form-group col-4 col-md-1">
-                        <input type="text" placeholder="ISV" id="isvProductoMostrar${numeroInputs}" name="isvProductoMostrar${numeroInputs}"
-                            class="form-control" autocomplete="off" readonly>
-                        <input id="isvProducto${numeroInputs}" name="isvProducto${numeroInputs}" type="hidden" value="" required>
-                        <input type="hidden" id="acumuladoDescuento${numeroInputs}" name="acumuladoDescuento${numeroInputs}">
-                    </div>
-                    <div class="form-group col-4 col-md-1">
-                        <input type="text" placeholder="Total" id="totalMostrar${numeroInputs}" name="totalMostrar${numeroInputs}"
-                            class="form-control" autocomplete="off" readonly>
-                        <input id="total${numeroInputs}" name="total${numeroInputs}" type="hidden" value="" required>
-                    </div>
-                    <input id="idBodega${numeroInputs}" name="idBodega${numeroInputs}" type="hidden" value="${idBodega}">
-                    <input id="idSeccion${numeroInputs}" name="idSeccion${numeroInputs}" type="hidden" value="${idSeccion}">
-                    <input id="restaInventario${numeroInputs}" name="restaInventario${numeroInputs}" type="hidden" value="">
-                    <input id="isv${numeroInputs}" name="isv${numeroInputs}" type="hidden" value="${producto.isv}">
-                </div>`;
+                    </td>
+                    <td style="vertical-align:middle; padding:4px 6px; text-align:right;">
+                        <input type="text" id="subTotalMostrar${numeroInputs}" name="subTotalMostrar${numeroInputs}" placeholder="0.00" readonly autocomplete="off"
+                            style="border:none; background:#f1f8e9; border-radius:5px; font-weight:700; color:#2e7d32; font-size:12px; padding:2px 6px; text-align:right; width:100%; min-width:75px;">
+                    </td>
+                    <td style="vertical-align:middle; padding:4px 6px; text-align:right;">
+                        <input type="text" id="isvProductoMostrar${numeroInputs}" name="isvProductoMostrar${numeroInputs}" placeholder="0.00" readonly autocomplete="off"
+                            style="border:none; background:#fce4ec; border-radius:5px; font-weight:700; color:#b71c1c; font-size:12px; padding:2px 6px; text-align:right; width:100%; min-width:65px;">
+                    </td>
+                    <td style="vertical-align:middle; padding:4px 6px; text-align:right;">
+                        <input type="text" id="totalMostrar${numeroInputs}" name="totalMostrar${numeroInputs}" placeholder="0.00" readonly autocomplete="off"
+                            style="border:none; background:linear-gradient(135deg,#e65100,#f9a826); border-radius:5px; font-weight:800; color:#fff; font-size:12px; padding:2px 6px; text-align:right; width:100%; min-width:80px;">
+                    </td>
+                </tr>`;
 
                 arregloIdInputs.splice(numeroInputs, 0, numeroInputs);
-                document.getElementById('divProductos').insertAdjacentHTML('beforeend', html);
+                document.getElementById('carritoTbody').insertAdjacentHTML('beforeend', html);
+                // Mostrar tabla, ocultar mensaje vacío
+                document.getElementById('carritoVacio').classList.add('d-none');
+                document.getElementById('carritoTablaWrapper').classList.remove('d-none');
             })
             .catch(err => {
                 const mensaje = err.response?.data?.message || 'Error al agregar producto';
@@ -1230,6 +1786,11 @@
             arregloIdInputs.splice(myIndex, 1);
             this.totalesGenerales();
         }
+        // Ocultar tabla si no quedan productos
+        if (arregloIdInputs.length === 0) {
+            document.getElementById('carritoTablaWrapper').classList.add('d-none');
+            document.getElementById('carritoVacio').classList.remove('d-none');
+        }
     }
 
     function validacionPrecio(idPrecios, idprecio) {
@@ -1286,6 +1847,123 @@
     // ================================================================
     // GUARDAR VENTA
     // ================================================================
+    var _ofertaGuardadaId = null;
+    var _ofertaPedidoId   = null;
+
+    function limpiarFormularioVenta(data) {
+        document.getElementById('bloqueImagenes').innerHTML = '';
+        document.getElementById('divProductos').innerHTML = '';
+        document.getElementById("crear_venta").reset();
+        $('#crear_venta').parsley().reset();
+
+        document.getElementById('detalleProducto').classList.add("d-none");
+        document.getElementById('detalleProducto').href = "";
+        document.getElementById("seleccionarCliente").innerHTML = '<option value="" selected disabled>--Seleccionar un cliente--</option>';
+        $('#seleccionarCliente').prop('disabled', false);
+        document.getElementById('seleccionarProducto').innerHTML = '<option value="" selected disabled></option>';
+        document.getElementById('codigoProductoBuscar').value = '';
+        var lblProd = document.getElementById('productoSeleccionadoLabel');
+        if (lblProd) { lblProd.classList.add('d-none'); lblProd.textContent = ''; }
+        document.getElementById('bodega').innerHTML = '<option value="" selected disabled>--Seleccione un producto--</option>';
+        document.getElementById("bodega").disabled = true;
+
+        // Ocultar tabla carrito
+        var carritoTabla = document.getElementById('carritoTablaWrapper');
+        var carritoVacio = document.getElementById('carritoVacio');
+        if (carritoTabla) carritoTabla.style.display = 'none';
+        if (carritoVacio) carritoVacio.style.display = '';
+
+        arregloIdInputs = [];
+        numeroInputs = 0;
+        retencionEstado = false;
+
+        if (data && data.numeroVenta) document.getElementById('numero_venta').value = data.numeroVenta;
+        document.getElementById("btn_venta_coorporativa").disabled = false;
+
+        document.getElementById('restriccion').value = tipoFacturaConfig ? tipoFacturaConfig.restriccion : 1;
+        document.getElementById('tipo_venta_id').value = tipoFacturaConfig ? tipoFacturaConfig.tipo_venta_id : 2;
+        document.getElementById('tipo_factura_id').value = tipoFacturaConfig ? tipoFacturaConfig.id : '';
+    }
+
+    function ofertaAccion(tipo) {
+        var idOferta  = _ofertaGuardadaId;
+        var idPedido  = _ofertaPedidoId;
+
+        if (tipo === 'nueva') {
+            // Limpiar sólo productos; mantener cliente y pedido vinculado si hay
+            document.getElementById('bloqueImagenes').innerHTML = '';
+            document.getElementById('divProductos').innerHTML = '';
+            var carritoTabla = document.getElementById('carritoTablaWrapper');
+            var carritoVacio = document.getElementById('carritoVacio');
+            if (carritoTabla) carritoTabla.style.display = 'none';
+            if (carritoVacio) carritoVacio.style.display = '';
+            arregloIdInputs = [];
+            numeroInputs = 0;
+            $('#modalExitoOferta').modal('hide');
+
+        } else if (tipo === 'ganadora') {
+            $('#modalExitoOferta').modal('hide');
+            if (!idPedido) {
+                Swal.fire({ icon: 'info', title: 'Sin pedido', text: 'Esta oferta no está vinculada a un pedido.' });
+                return;
+            }
+            document.getElementById('ogLista').innerHTML = '';
+            document.getElementById('ogLoading').style.display = '';
+            $('#modalOfertasGanadoras').modal('show');
+            axios.get('/cotizacion/por-pedido/' + idPedido)
+                .then(function(res) {
+                    document.getElementById('ogLoading').style.display = 'none';
+                    var ofertas = res.data;
+                    if (!ofertas.length) {
+                        document.getElementById('ogLista').innerHTML = '<p class="text-muted text-center">No hay ofertas para este pedido.</p>';
+                        return;
+                    }
+                    var html = '<div class="list-group">';
+                    ofertas.forEach(function(o) {
+                        var esActual = o.id == idOferta ? ' (esta oferta)' : '';
+                        html += '<button onclick="confirmarGanadora(' + o.id + ')" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" style="border-radius:8px; margin-bottom:6px; border:1px solid #f9a826;">';
+                        html += '<span><strong>Oferta #' + o.id + '</strong>' + esActual + '<br><small class="text-muted">' + (o.nombre_cliente || '') + '</small></span>';
+                        html += '<span style="font-weight:700; color:#e65100;">L ' + parseFloat(o.total).toFixed(2) + '</span>';
+                        html += '</button>';
+                    });
+                    html += '</div>';
+                    document.getElementById('ogLista').innerHTML = html;
+                })
+                .catch(function() {
+                    document.getElementById('ogLoading').style.display = 'none';
+                    document.getElementById('ogLista').innerHTML = '<p class="text-danger text-center">Error al cargar ofertas.</p>';
+                });
+
+        } else if (tipo === 'prefacturar') {
+            $('#modalExitoOferta').modal('hide');
+            axios.post('/cotizacion/marcar-ganadora', { cotizacion_id: idOferta }, { headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') } })
+                .then(function() {
+                    window.location.href = '/flujo/prefactura';
+                })
+                .catch(function() {
+                    Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo prefacturar la oferta.' });
+                });
+
+        } else if (tipo === 'imprimir') {
+            var urlImprimir = urls.imprimir;
+            if (urlImprimir && idOferta) {
+                window.open(urlImprimir.replace('{id}', idOferta), '_blank');
+            }
+            $('#modalExitoOferta').modal('hide');
+        }
+    }
+
+    function confirmarGanadora(cotizacionId) {
+        axios.post('/cotizacion/marcar-ganadora', { cotizacion_id: cotizacionId }, { headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') } })
+            .then(function() {
+                $('#modalOfertasGanadoras').modal('hide');
+                Swal.fire({ icon: 'success', title: '¡Ganadora seleccionada!', text: 'La oferta #' + cotizacionId + ' fue marcada como ganadora.' });
+            })
+            .catch(function() {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo marcar la oferta como ganadora.' });
+            });
+    }
+
     $(document).on('submit', '#crear_venta', function(event) {
         event.preventDefault();
         guardarVenta();
@@ -1295,6 +1973,9 @@
         document.getElementById("btn_venta_coorporativa").disabled = true;
 
         var data = new FormData($('#crear_venta').get(0));
+        // Forzar inclusión del cliente aunque el select esté deshabilitado (pedido vinculado)
+        var clienteVal = $('#seleccionarCliente').val();
+        if (clienteVal) data.set('seleccionarCliente', clienteVal);
 
         let longitudArreglo = arregloIdInputs.length;
         for (var i = 0; i < longitudArreglo; i++) {
@@ -1338,35 +2019,19 @@
                     return;
                 }
 
+                // Para cotizaciones, mostrar modal de opciones post-guardado
+                if (codigoActual === 'cotizacion_clientes_a') {
+                    _ofertaGuardadaId = data.idFactura;
+                    _ofertaPedidoId   = data.pedidoId || null;
+                    limpiarFormularioVenta(data);
+                    $('#modalExitoOferta').modal('show');
+                    return;
+                }
+
                 Swal.fire({ icon: data.icon, title: data.title, html: data.text });
+                limpiarFormularioVenta(data);
 
-                // Limpiar formulario
-                document.getElementById('bloqueImagenes').innerHTML = '';
-                document.getElementById('divProductos').innerHTML = '';
-                document.getElementById("crear_venta").reset();
-                $('#crear_venta').parsley().reset();
-
-                document.getElementById('detalleProducto').classList.add("d-none");
-                document.getElementById('detalleProducto').href = "";
-                document.getElementById("seleccionarCliente").innerHTML = '<option value="" selected disabled>--Seleccionar un cliente--</option>';
-                document.getElementById('seleccionarProducto').innerHTML = '<option value="" selected disabled></option>';
-                document.getElementById('codigoProductoBuscar').value = '';
-                var lblProd = document.getElementById('productoSeleccionadoLabel');
-                lblProd.classList.add('d-none'); lblProd.textContent = '';
-                document.getElementById('bodega').innerHTML = '<option value="" selected disabled>--Seleccione un producto--</option>';
-                document.getElementById("bodega").disabled = true;
-
-                arregloIdInputs = [];
-                numeroInputs = 0;
-                retencionEstado = false;
-
-                document.getElementById('numero_venta').value = data.numeroVenta;
-                document.getElementById("btn_venta_coorporativa").disabled = false;
-
-                // Restaurar campos ocultos
-                document.getElementById('restriccion').value = tipoFacturaConfig ? tipoFacturaConfig.restriccion : 1;
-                document.getElementById('tipo_venta_id').value = tipoFacturaConfig ? tipoFacturaConfig.tipo_venta_id : 2;
-                document.getElementById('tipo_factura_id').value = tipoFacturaConfig ? tipoFacturaConfig.id : '';
+                limpiarFormularioVenta(data);
 
                 // Desactivar código si aplica
                 if (tipoFacturaConfig && tipoFacturaConfig.requiere_codigo_autorizacion) {

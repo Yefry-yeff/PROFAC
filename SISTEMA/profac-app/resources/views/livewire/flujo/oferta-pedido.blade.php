@@ -413,12 +413,12 @@
             <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Inicio</a></li>
                 <li class="breadcrumb-item">Flujo</li>
-                <li class="breadcrumb-item"><a href="/flujo/pedidos/historico">Historial Pedidos</a></li>
+                <li class="breadcrumb-item"><a href="{{ route('flujo.pedidos') }}">Historial Pedidos</a></li>
                 <li class="breadcrumb-item active"><strong>Crear Oferta</strong></li>
             </ol>
         </div>
         <div class="col-lg-2 d-flex align-items-center justify-content-end">
-            <a href="/flujo/pedidos/historico" class="btn btn-default btn-sm">
+            <a href="{{ route('flujo.pedidos') }}" class="btn btn-default btn-sm">
                 <i class="fa fa-arrow-left"></i> Volver
             </a>
         </div>

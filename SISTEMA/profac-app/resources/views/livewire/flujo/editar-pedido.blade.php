@@ -47,13 +47,13 @@
                 </li>
                 <li class="breadcrumb-item">Flujo</li>
                 <li class="breadcrumb-item">
-                    <a href="/flujo/pedidos/historico">Historial</a>
+                    <a href="{{ route('flujo.pedidos') }}">Historial</a>
                 </li>
                 <li class="breadcrumb-item active"><strong>Editar Pedido</strong></li>
             </ol>
         </div>
         <div class="col-lg-2 d-flex align-items-center justify-content-end">
-            <a href="/flujo/pedidos/historico" class="btn btn-default btn-sm">
+            <a href="{{ route('flujo.pedidos') }}" class="btn btn-default btn-sm">
                 <i class="fa fa-arrow-left"></i> &nbsp;Volver
             </a>
         </div>
@@ -71,7 +71,7 @@
                 <i class="fa fa-check-circle"></i>
                 <strong>¡Guardado!</strong> {{ $mensajeExito }}
                 &nbsp;
-                <a href="/flujo/pedidos/historico" class="btn btn-xs btn-success" style="border-radius:12px;">
+                <a href="{{ route('flujo.pedidos') }}" class="btn btn-xs btn-success" style="border-radius:12px;">
                     <i class="fa fa-list-alt"></i> Ir al Historial
                 </a>
             </div>
@@ -273,7 +273,7 @@
                                             <i class="fa fa-spinner fa-spin mr-2"></i> Guardando...
                                         </span>
                                     </button>
-                                    <a href="/flujo/pedidos/historico"
+                                    <a href="{{ route('flujo.pedidos') }}"
                                        class="btn btn-default btn-block"
                                        style="border-radius:12px; font-size:13px;">
                                         <i class="fa fa-times mr-1"></i> Cancelar y volver

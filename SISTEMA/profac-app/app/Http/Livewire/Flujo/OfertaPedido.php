@@ -171,6 +171,58 @@ class OfertaPedido extends Component
 
             ModelOfertaProducto::insert($arrayProductos);
 
+            // ── Registrar/actualizar en sistema de flujo ─────────────────────────
+            $hfExistente = DB::table('historico_flujo')
+                ->where('tramite_tipo', 'pedido')
+                ->where('tramite_id', $request->pedido_id)
+                ->first();
+
+            if ($hfExistente) {
+                // Ya existe flujo del pedido → actualizar estatus a Ofertas (id=2)
+                DB::table('flujo')
+                    ->where('id', $hfExistente->flujo_id)
+                    ->update([
+                        'estatus_id' => 2,
+                        'updated_by' => Auth::id(),
+                        'updated_at' => now(),
+                    ]);
+                DB::table('historico_flujo')->insert([
+                    'flujo_id'      => $hfExistente->flujo_id,
+                    'tramite_tipo'  => 'oferta',
+                    'tramite_id'    => $oferta->id,
+                    'estado'        => 'activa',
+                    'observaciones' => 'Oferta #'.$oferta->id.' registrada para pedido #'.$request->pedido_id,
+                    'created_by'    => Auth::id(),
+                    'updated_by'    => Auth::id(),
+                    'created_at'    => now(),
+                    'updated_at'    => now(),
+                ]);
+            } else {
+                // Pedido sin flujo previo → crear flujo directamente en etapa Ofertas
+                $flujoId = DB::table('flujo')->insertGetId([
+                    'tipo_flujo_id' => 1,
+                    'identificacion'=> (string) $request->pedido_id,
+                    'nombre'        => $request->nombre_cliente_ventas,
+                    'estado'        => 'activo',
+                    'estatus_id'    => 2,
+                    'created_by'    => Auth::id(),
+                    'updated_by'    => Auth::id(),
+                    'created_at'    => now(),
+                    'updated_at'    => now(),
+                ]);
+                DB::table('historico_flujo')->insert([
+                    'flujo_id'      => $flujoId,
+                    'tramite_tipo'  => 'oferta',
+                    'tramite_id'    => $oferta->id,
+                    'estado'        => 'activa',
+                    'observaciones' => 'Oferta #'.$oferta->id.' registrada (flujo iniciado desde oferta)',
+                    'created_by'    => Auth::id(),
+                    'updated_by'    => Auth::id(),
+                    'created_at'    => now(),
+                    'updated_at'    => now(),
+                ]);
+            }
+
             DB::commit();
 
             return response()->json([
