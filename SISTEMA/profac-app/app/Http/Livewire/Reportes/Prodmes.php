@@ -102,12 +102,12 @@ class Prodmes extends Component
                     'N/A',
                     FORMAT(
                         (
-                        (A.total - B.sub_total_s)* 0.02
+                        (A.total - B.sub_total_s)* 0.03
                         ),
                         2
                     )
                     )
-                ) AS 'COMISION OTROS PRUEBA'
+                ) AS 'COMISION_MISELANEOS'
                 from
                 factura A
                 inner join venta_has_producto B on A.id = B.factura_id
