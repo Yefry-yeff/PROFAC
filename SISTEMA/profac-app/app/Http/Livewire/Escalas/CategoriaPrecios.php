@@ -63,19 +63,18 @@ class CategoriaPrecios extends Component
                         $datos = DB::SELECT("
                             SELECT
                                 A.id as 'id',
-                                A.nombre as 'categoria',
-                                A.comentario as 'comentario',
+                                A.nombre_categoria as 'categoria',
                                 A.estado_id as 'estado',
                                 B.name AS 'registro',
-                                C.nombre_categoria as 'categoriaCliente',
-                                A.porc_precio_a as 'porc_a',
-                                A.porc_precio_b as 'porc_b',
-                                A.porc_precio_c as 'porc_c',
-                                A.porc_precio_d as 'porc_d',
+                                (
+                                    SELECT COUNT(*)
+                                    FROM categoria_precios sub
+                                    WHERE sub.cliente_categoria_escala_id = A.id
+                                      AND sub.estado_id = 1
+                                ) as 'total_cat',
                                 A.created_at as 'creacion'
-                            FROM categoria_precios as A
-                                inner join users B on B.id = A.users_id_registro
-                                inner join cliente_categoria_escala C on C.id = A.cliente_categoria_escala_id
+                            FROM cliente_categoria_escala as A
+                                inner join users B on B.id = A.users_id_creador
                             order by A.id DESC;
                         ");
 
@@ -98,6 +97,12 @@ class CategoriaPrecios extends Component
                                     </button>
                                     <ul class="dropdown-menu" x-placement="bottom-start" style="position: absolute; top: 33px; left: 0px; will-change: top, left;">
                                         <li>
+                                            <a class="dropdown-item" onclick="verCategoriasPrecio('.$datos->id.',\''.addslashes($datos->categoria).'\')">
+                                                <i class="fa fa-list text-primary mr-1" aria-hidden="true"></i> Ver categorías de precio
+                                            </a>
+                                        </li>
+                                        <li role="separator" class="dropdown-divider"></li>
+                                        <li>
                                             <a class="dropdown-item" onclick="desactivarCategoria('.$datos->id.')" > <i class="fa fa-times text-danger" aria-hidden="true"></i> Desactivar</a>
                                         </li>
                                     </ul>
@@ -108,7 +113,14 @@ class CategoriaPrecios extends Component
                                         </span>';
                             }
                         })
-                        ->rawColumns(['opciones','estado'])
+                        ->addColumn('total_cat', function ($datos) {
+                            $n = (int) $datos->total_cat;
+                            $color = $n === 0 ? '#6c757d' : '#e67e22';
+                            return '<span style="display:inline-flex;align-items:center;gap:5px;font-weight:600;color:'.$color.';">
+                                        <i class="fa fa-tags"></i> '.$n.' '.($n === 1 ? 'categoría' : 'categorías').
+                                    '</span>';
+                        })
+                        ->rawColumns(['opciones','estado','total_cat'])
                         ->make(true);
                 } catch (QueryException $e) {
                 return response()->json([
@@ -163,5 +175,59 @@ class CategoriaPrecios extends Component
 
 
 
+        }
+
+        public function listarCategoriasPorCliente($id){
+            try {
+                $datos = DB::SELECT("
+                    SELECT
+                        cp.id,
+                        cp.nombre,
+                        cp.comentario,
+                        cp.estado_id,
+                        cp.porc_precio_a,
+                        cp.porc_precio_b,
+                        cp.porc_precio_c,
+                        cp.porc_precio_d,
+                        cp.created_at
+                    FROM categoria_precios cp
+                    WHERE cp.cliente_categoria_escala_id = ?
+                    ORDER BY cp.id DESC
+                ", [$id]);
+
+                return response()->json(['categorias' => $datos]);
+            } catch (\Exception $e) {
+                return response()->json(['error' => $e->getMessage()], 500);
+            }
+        }
+
+        public function actualizarCategoria(Request $request){
+            try {
+                DB::beginTransaction();
+
+                $cat = modelCategoriaPrecios::findOrFail($request->id);
+                $cat->nombre        = trim($request->nombre);
+                $cat->comentario    = trim($request->comentario ?? '');
+                $cat->porc_precio_a = $request->porc_precio_a ?? 0;
+                $cat->porc_precio_b = $request->porc_precio_b ?? 0;
+                $cat->porc_precio_c = $request->porc_precio_c ?? 0;
+                $cat->porc_precio_d = $request->porc_precio_d ?? 0;
+                $cat->save();
+
+                DB::commit();
+                return response()->json([
+                    "icon"  => "success",
+                    "title" => "\u00c9xito!",
+                    "text"  => "Categor\u00eda actualizada correctamente."
+                ], 200);
+
+            } catch (\Exception $e) {
+                DB::rollback();
+                return response()->json([
+                    "icon"  => "error",
+                    "title" => "Error!",
+                    "text"  => "No se pudo actualizar la categor\u00eda."
+                ], 402);
+            }
         }
 }

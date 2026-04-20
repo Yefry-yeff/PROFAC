@@ -233,14 +233,14 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     // Rutas para listas de empleados y roles
     Route::get('/comision/empleados/lista', [ReportesComisionesGenerales::class, 'listarEmpleados']);
     Route::get('/comision/roles/lista', [ReportesComisionesGenerales::class, 'listarRoles']);
-    
+
     // Rutas para los 5 tipos de reportes
     Route::get('/comision/reporte/empleado', [ReportesComisionesGenerales::class, 'reporteEmpleado']);
     Route::get('/comision/reporte/rol', [ReportesComisionesGenerales::class, 'reporteRol']);
     Route::get('/comision/reporte/usuarios', [ReportesComisionesGenerales::class, 'reporteUsuarios']);
     Route::get('/comision/reporte/productos', [ReportesComisionesGenerales::class, 'reporteProductos']);
     Route::get('/comision/reporte/facturas', [ReportesComisionesGenerales::class, 'reporteFacturas']);
-    
+
     // Ruta para descarga de Excel
     Route::get('/comision/reporte/excel', [ReportesComisionesGenerales::class, 'descargarExcel']);
 
@@ -268,6 +268,8 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::post('/guardar/categoria/precios', [CategoriaPrecios::class, 'guardarCtaegoria']);
     Route::get('/listar/categoria/precios', [CategoriaPrecios::class, 'listarCategorias']);
     Route::get('/desactivar/categoria/precios/{idCategoria}', [CategoriaPrecios::class, 'desactivarCategoria']);
+    Route::get('/listar/categorias/precios/por-cliente/{id}', [CategoriaPrecios::class, 'listarCategoriasPorCliente']);
+    Route::post('/actualizar/categoria/precios', [CategoriaPrecios::class, 'actualizarCategoria']);
     /*SUBIDA DE EXCEL */
     // web.php
     Route::post('/importar-excel', [App\Http\Controllers\ExcelController::class, 'importarExcel']);// routes/web.php

@@ -1,5 +1,8 @@
 ﻿
 
+// ID de categoría cliente a pre-seleccionar al abrir el modal (null = ninguno)
+let pendingClienteCatId = null;
+
 function cargarCategoriasClienteEnModal() {
   const $sel = $('#categoria_cliente_id');
   const url  = $sel.data('url');
@@ -12,6 +15,13 @@ function cargarCategoriasClienteEnModal() {
       (res.categorias || []).forEach(c => {
         $sel.append(`<option value="${c.id}">${c.nombre_categoria}</option>`);
       });
+      // Si se abrió el modal desde una fila, pre-seleccionar esa categoría
+      if (pendingClienteCatId) {
+        $sel.val(pendingClienteCatId).trigger('change');
+        pendingClienteCatId = null;
+      } else {
+        $sel.trigger('change');
+      }
     })
     .fail(() => {
       Swal.fire({ icon:'error', title:'Error', text:'No se pudo cargar Categoría de Cliente.' });
@@ -23,7 +33,7 @@ $('#modalCategoriasPrecios').on('shown.bs.modal', function () {
   cargarCategoriasClienteEnModal();
 });
 
-// (opcional) limpiar al cerrar
+// Limpiar al cerrar
 $('#modalCategoriasPrecios').on('hidden.bs.modal', function () {
   const $sel = $('#categoria_cliente_id');
   $sel.empty().append('<option value="">Seleccione una categoría...</option>');
@@ -136,17 +146,40 @@ $(document).ready(function () {
   });
 
   // === Select2 dentro del modal (categoría de cliente)
-  // Se especifica dropdownParent para asegurar el correcto renderizado dentro del modal.
-  /* $('#categoria_cliente_id').select2({
+  // dropdownParent: $('body') → el dropdown se renderiza en body, fuera del overflow del modal.
+  // z-index forzado vía inline style en el evento open (gana sobre cualquier CSS).
+  $('#categoria_cliente_id').select2({
     theme: 'bootstrap4',
-    placeholder: 'Seleccione una categoría...',
+    placeholder: 'Buscar categoría...',
     allowClear: true,
-    minimumResultsForSearch: 0,
-    dropdownParent: $('#modalCategoriasPrecios')
-  }); */
+    dropdownParent: $('body'),
+    width: '100%',
+    language: {
+      noResults: function() { return 'No se encontraron resultados'; },
+      searching: function() { return 'Buscando...'; }
+    }
+  });
+
+  // Fix Bootstrap 4 + Select2: Bootstrap tiene un listener 'focusin' en document
+  // que fuerza el foco de vuelta al modal cada vez que algo fuera de él lo toma.
+  // removeAttr('tabindex') no es suficiente — hay que detener ese handler.
+  $(document).on('focusin', function (e) {
+    if ($(e.target).closest('.select2-container').length) {
+      e.stopImmediatePropagation();
+    }
+  });
+
+  $(document).on('select2:open', '#categoria_cliente_id', function () {
+    setTimeout(function () {
+      document.querySelectorAll('body > .select2-container').forEach(function (el) {
+        el.style.setProperty('z-index', '99999', 'important');
+      });
+      var searchField = document.querySelector('body > .select2-container--open .select2-search__field');
+      if (searchField) searchField.focus();
+    }, 10);
+  });
 
   // === Resetear formulario al cerrar el modal
-  // Evita que queden valores anteriores al reabrir el modal.
   $('#modalCategoriasPrecios').on('hidden.bs.modal', function () {
     $('#CreacionCatPrecios')[0].reset();
     $('#categoria_cliente_id').val(null).trigger('change');
@@ -177,9 +210,16 @@ $(document).on('submit', '#CreacionCatPrecios', function (event) {
 function registrarCategoriaPrecios() {
   const $btn = $('#btn_guardar_categoria');
   const cat = $('#categoria_cliente_id').val();
+  const porcA = $('#porc_precio_a').val();
 
   if (!cat) {
     Swal.fire({ icon:'warning', title:'Falta categoría', text:'Seleccione una categoría de cliente.' });
+    return;
+  }
+
+  if (porcA === '' || porcA === null) {
+    Swal.fire({ icon:'warning', title:'Campo requerido', text:'El % Precio Venta es obligatorio.' });
+    $('#porc_precio_a').focus();
     return;
   }
 
@@ -234,7 +274,6 @@ function listarCategorias() {
     deferRender: true,
     ajax: {
       url: "/listar/categoria/precios",
-      // Datatables::of(...)->make(true) devuelve {data:[...]}
       dataSrc: 'data',
       error: function () {
         Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo cargar la tabla.' });
@@ -244,15 +283,21 @@ function listarCategorias() {
       { data: 'id' },
       { data: 'categoria' },
       { data: 'estado' },
-      { data: 'categoriaCliente' },
-      { data: 'porc_a' },
-      { data: 'porc_b' },
-      { data: 'porc_c' },
-      { data: 'porc_d' },
+      { data: 'total_cat' },
       { data: 'creacion' },
       { data: 'registro' },
       { data: 'opciones' }
     ]
+  });
+
+  // Click en fila: abrir modal con la categoría cliente pre-seleccionada
+  // Se ignoran clics sobre el botón de Acciones para no interferir con el dropdown
+  $('#tbl_listaCategoria tbody').off('click.rowopen').on('click.rowopen', 'tr', function (e) {
+    if ($(e.target).closest('.btn-group, .dropdown-menu, .dropdown-item').length) return;
+    const rowData = $('#tbl_listaCategoria').DataTable().row(this).data();
+    if (!rowData) return;
+    pendingClienteCatId = rowData.id;
+    $('#modalCategoriasPrecios').modal('show');
   });
 }
 
@@ -260,7 +305,7 @@ function listarCategorias() {
 // Llama al endpoint de desactivación y refresca la tabla al completar.
 // Notifica al usuario del resultado (éxito o error).
 function desactivarCategoria(idCategoria) {
-  axios.get('/desactivar/categoria/precios/' + idCategoria)
+  axios.get('/desactivar/categoria/cliente/' + idCategoria)
     .then(response => {
       let data = response.data;
       Swal.fire({
@@ -481,3 +526,196 @@ $('#btnProcesar').on('click', async function () {
 // Índices sugeridos a nivel de base de datos para mejorar performance en consultas frecuentes:
 // CREATE INDEX idx_ppc_cat_prod ON precios_producto_carga (categoria_precios_id, producto_id);
 // CREATE INDEX idx_ppc_estado   ON precios_producto_carga (estado_id);
+
+/*===================================================================================================================================*/
+/* MODAL VER / EDITAR CATEGORÍAS DE PRECIO                                                                                           */
+/*===================================================================================================================================*/
+
+// ID de categoría cliente actualmente en el modal de lista
+let currentClienteCatId = null;
+
+function verCategoriasPrecio(clienteCatId, nombreCat) {
+  currentClienteCatId = clienteCatId;
+  $('#subtitleVerCatPrecios').text('Categoría cliente: ' + nombreCat);
+  $('#loadingVerCatPrecios').show();
+  $('#wrapperVerCatPrecios').hide();
+  $('#emptyCatPrecios').hide();
+  $('#modalVerCatPrecios').modal('show');
+  reloadCatPrecios();
+}
+
+function reloadCatPrecios() {
+  if (!currentClienteCatId) return;
+  $('#loadingVerCatPrecios').show();
+  $('#wrapperVerCatPrecios').hide();
+
+  $.getJSON('/listar/categorias/precios/por-cliente/' + currentClienteCatId)
+    .done(function (res) {
+      const cats = res.categorias || [];
+      const $tbody = $('#tbody_catPrecios_lista').empty();
+
+      if (cats.length === 0) {
+        $('#emptyCatPrecios').show();
+      } else {
+        $('#emptyCatPrecios').hide();
+        cats.forEach(function (c) { $tbody.append(buildCatRow(c)); });
+      }
+
+      $('#loadingVerCatPrecios').hide();
+      $('#wrapperVerCatPrecios').show();
+    })
+    .fail(function () {
+      $('#loadingVerCatPrecios').hide();
+      Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudieron cargar las categorías de precio.' });
+    });
+}
+
+function buildCatRow(c) {
+  const estado = c.estado_id == 1
+    ? '<span class="badge badge-success" style="font-size:.72rem;padding:3px 8px;">ACTIVO</span>'
+    : '<span class="badge badge-danger" style="font-size:.72rem;padding:3px 8px;">INACTIVO</span>';
+
+  const acciones = c.estado_id == 1
+    ? `<button class="btn-edit-cat mr-1" title="Editar" onclick="activarEdicionFila(${c.id})">
+         <i class="fa fa-pencil mr-1"></i>Editar
+       </button>
+       <button class="btn-deact-cat" title="Desactivar" onclick="desactivarCatPrecioLista(${c.id})">
+         <i class="fa fa-times mr-1"></i>Desactivar
+       </button>`
+    : '<span class="text-muted small">—</span>';
+
+  return `<tr id="row_cat_${c.id}"
+              data-id="${c.id}"
+              data-nombre="${escapeHtml(c.nombre)}"
+              data-a="${c.porc_precio_a}"
+              data-b="${c.porc_precio_b || ''}"
+              data-c="${c.porc_precio_c || ''}"
+              data-d="${c.porc_precio_d || ''}">
+    <td>${c.id}</td>
+    <td>${escapeHtml(c.nombre)}</td>
+    <td class="text-center">${c.porc_precio_a}%</td>
+    <td class="text-center">${c.porc_precio_b ? c.porc_precio_b + '%' : '<span class="text-muted">—</span>'}</td>
+    <td class="text-center">${c.porc_precio_c ? c.porc_precio_c + '%' : '<span class="text-muted">—</span>'}</td>
+    <td class="text-center">${c.porc_precio_d ? c.porc_precio_d + '%' : '<span class="text-muted">—</span>'}</td>
+    <td class="text-center">${estado}</td>
+    <td class="text-center" style="white-space:nowrap;">${acciones}</td>
+  </tr>`;
+}
+
+function escapeHtml(text) {
+  if (!text) return '';
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function activarEdicionFila(id) {
+  const $row = $('#row_cat_' + id);
+  const nombre = $row.data('nombre');
+  const a = $row.data('a');
+  const b = $row.data('b');
+  const c = $row.data('c');
+  const d = $row.data('d');
+
+  $row.html(`
+    <td>${id}</td>
+    <td>
+      <input type="text" class="form-control edit-cat-input" id="edit_nombre_${id}"
+             value="${escapeHtml(nombre)}" maxlength="100" required style="min-width:140px;">
+    </td>
+    <td>
+      <input type="number" class="form-control edit-cat-input text-center" id="edit_a_${id}"
+             value="${a}" min="0" max="100" step="0.01" required style="width:68px;">
+    </td>
+    <td>
+      <input type="number" class="form-control edit-cat-input text-center" id="edit_b_${id}"
+             value="${b}" min="0" max="100" step="0.01" style="width:68px;">
+    </td>
+    <td>
+      <input type="number" class="form-control edit-cat-input text-center" id="edit_c_${id}"
+             value="${c}" min="0" max="100" step="0.01" style="width:68px;">
+    </td>
+    <td>
+      <input type="number" class="form-control edit-cat-input text-center" id="edit_d_${id}"
+             value="${d}" min="0" max="100" step="0.01" style="width:68px;">
+    </td>
+    <td></td>
+    <td class="text-center" style="white-space:nowrap;">
+      <button class="btn-save-cat mr-1" onclick="guardarEdicionCat(${id})">
+        <i class="fa fa-check mr-1"></i>Guardar
+      </button>
+      <button class="btn-cancel-cat" onclick="reloadCatPrecios()">
+        <i class="fa fa-times mr-1"></i>Cancelar
+      </button>
+    </td>
+  `);
+
+  // Foco en el nombre para edición inmediata
+  document.getElementById('edit_nombre_' + id).focus();
+}
+
+function guardarEdicionCat(id) {
+  const nombre = $('#edit_nombre_' + id).val().trim();
+  const a = $('#edit_a_' + id).val();
+
+  if (!nombre) {
+    Swal.fire({ icon: 'warning', title: 'Campo requerido', text: 'El nombre no puede estar vacío.' });
+    return;
+  }
+  if (a === '' || a === null || a === undefined) {
+    Swal.fire({ icon: 'warning', title: 'Campo requerido', text: 'El % Precio A es obligatorio.' });
+    return;
+  }
+
+  const payload = {
+    id:           id,
+    nombre:       nombre,
+    porc_precio_a: a,
+    porc_precio_b: $('#edit_b_' + id).val() || 0,
+    porc_precio_c: $('#edit_c_' + id).val() || 0,
+    porc_precio_d: $('#edit_d_' + id).val() || 0
+  };
+
+  axios.post('/actualizar/categoria/precios', payload)
+    .then(function (res) {
+      const data = res.data;
+      Swal.fire({ icon: data.icon, title: data.title, text: data.text, timer: 1800, showConfirmButton: false });
+      reloadCatPrecios();
+      // Actualizar el contador en la tabla principal sin reiniciarla
+      $('#tbl_listaCategoria').DataTable().ajax.reload(null, false);
+    })
+    .catch(function (err) {
+      const data = err.response?.data || { icon: 'error', title: 'Error', text: 'No se pudo actualizar.' };
+      Swal.fire({ icon: data.icon, title: data.title, text: data.text });
+    });
+}
+
+function desactivarCatPrecioLista(id) {
+  Swal.fire({
+    title: '¿Desactivar categoría de precio?',
+    text: 'Se inactivarán todos los precios de productos asociados a esta categoría.',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#dc3545',
+    cancelButtonColor: '#6c757d',
+    confirmButtonText: 'Sí, desactivar',
+    cancelButtonText: 'Cancelar'
+  }).then(function (result) {
+    if (result.isConfirmed) {
+      axios.get('/desactivar/categoria/precios/' + id)
+        .then(function (res) {
+          const data = res.data;
+          Swal.fire({ icon: data.icon, title: data.title, text: data.text, timer: 2200, showConfirmButton: false });
+          reloadCatPrecios();
+          $('#tbl_listaCategoria').DataTable().ajax.reload(null, false);
+        })
+        .catch(function (err) {
+          const data = err.response?.data || { icon: 'error', title: 'Error', text: 'No se pudo desactivar.' };
+          Swal.fire({ icon: data.icon, title: data.title, text: data.text });
+        });
+    }
+  });
+}

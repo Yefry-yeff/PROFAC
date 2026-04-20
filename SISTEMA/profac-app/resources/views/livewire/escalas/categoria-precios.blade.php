@@ -71,59 +71,130 @@ a.btn.btn-pf-primary:hover {
     white-space: nowrap;
 }
 #tbl_listaCategoria tbody tr:hover { background-color: #fffbf5; }
+#tbl_listaCategoria tbody tr { cursor: pointer; }
 #tbl_listaCategoria td { font-size: .83rem; vertical-align: middle; }
 
 /* ── Modal principal ── */
+/*
+ * NO tocar overflow del .modal — Bootstrap lo necesita para scroll y posicionamiento.
+ * Solo hacer overflow:visible en .modal-dialog hacia abajo para que Select2
+ * (renderizado en body con z-index alto) pueda salir sin clip.
+ */
+#modalCategoriasPrecios .modal-dialog {
+    overflow: visible !important;
+    margin-top: 60px; /* evita que se corte detrás del navbar */
+}
 #modalCategoriasPrecios .modal-content,
 #modalSeleccionarCategoriasGeneral .modal-content {
     border: none;
-    border-radius: var(--pf-radius);
-    box-shadow: 0 8px 32px rgba(0,0,0,.18);
-    overflow: hidden;
+    border-radius: 14px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.22);
+    overflow: visible !important;
 }
 #modalCategoriasPrecios .modal-header {
     background: var(--pf-grad);
-    padding: 12px 20px;
+    padding: 16px 22px 14px;
     border-bottom: none;
+    border-radius: 14px 14px 0 0; /* border-radius solo arriba */
 }
+#modalCategoriasPrecios .modal-header-inner { line-height: 1.3; }
 #modalCategoriasPrecios .modal-title {
     color: #fff;
     font-weight: 700;
-    font-size: .95rem;
+    font-size: 1rem;
     letter-spacing: .03em;
+    margin-bottom: 2px;
+}
+#modalCategoriasPrecios .modal-subtitle {
+    color: rgba(255,255,255,.78);
+    font-size: .75rem;
+    font-weight: 400;
+    margin: 0;
 }
 #modalCategoriasPrecios .close {
-    color: rgba(255,255,255,.8);
+    color: rgba(255,255,255,.85);
     text-shadow: none;
     opacity: 1;
-    font-size: 1.4rem;
+    font-size: 1.5rem;
     padding: 0; margin: 0;
+    align-self: flex-start;
+    margin-top: 2px;
 }
 #modalCategoriasPrecios .close:hover { color: #fff; }
 #modalCategoriasPrecios .modal-body {
     background: #fff;
-    padding: 20px 24px 8px;
+    padding: 22px 26px 10px;
+    overflow: visible !important;
 }
 #modalCategoriasPrecios .modal-footer {
-    background: #fafafa;
-    border-top: 1px solid #f0e8dd;
-    padding: 10px 20px;
+    background: #f8f5f0;
+    border-top: 1px solid #eddfc9;
+    padding: 12px 22px;
+    border-radius: 0 0 14px 14px; /* border-radius solo abajo */
 }
 #modalCategoriasPrecios .form-control {
-    border-radius: 6px;
+    border-radius: 7px;
     font-size: .88rem;
-    border-color: #d8cfc4;
-    transition: border-color .2s, box-shadow .2s;
+    border-color: #ddd4c8;
+    background: #fdfaf7;
+    transition: border-color .2s, box-shadow .2s, background .2s;
 }
 #modalCategoriasPrecios .form-control:focus {
     border-color: var(--pf-orange);
-    box-shadow: 0 0 0 3px rgba(243,156,18,.18);
+    box-shadow: 0 0 0 3px rgba(243,156,18,.15);
+    background: #fff;
+}
+#modalCategoriasPrecios .input-group-text {
+    background: #fef3e2;
+    border-color: #ddd4c8;
+    color: #e67e22;
+    font-weight: 700;
+    font-size: .85rem;
+    border-radius: 0 7px 7px 0;
+}
+#modalCategoriasPrecios .input-group .form-control {
+    border-radius: 7px 0 0 7px;
 }
 #modalCategoriasPrecios label {
     font-size: .8rem;
     font-weight: 600;
     color: #5a4a38;
-    margin-bottom: 4px;
+    margin-bottom: 5px;
+    display: block;
+}
+/* ── Sección divisor dentro del form ── */
+.pf-form-section {
+    font-size: .7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .09em;
+    color: #c97c20;
+    padding: 5px 0 6px;
+    border-bottom: 2px solid #fde8cc;
+    margin-bottom: 14px;
+    margin-top: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+/* ── Required hint ── */
+.pf-required-hint {
+    font-size: .73rem;
+    color: #999;
+    margin-bottom: 16px;
+    margin-top: -4px;
+}
+/* ── Select2 dentro del modal ── */
+#modalCategoriasPrecios .select2-container--bootstrap4 .select2-selection--single {
+    height: 38px;
+    background: #fdfaf7;
+    border-color: #ddd4c8;
+    border-radius: 7px;
+}
+#modalCategoriasPrecios .select2-container--bootstrap4 .select2-selection--single:focus-within,
+#modalCategoriasPrecios .select2-container--bootstrap4.select2-container--focus .select2-selection--single {
+    border-color: #e67e22;
+    box-shadow: 0 0 0 3px rgba(243,156,18,.15);
 }
 
 /* ── Modal selección categorías (modo general) ── */
@@ -136,8 +207,12 @@ a.btn.btn-pf-primary:hover {
 #modalSeleccionarCategoriasGeneral .modal-footer { background: #fafafa; border-top: 1px solid #f0e8dd; }
 
 /* ── Select2 ── */
-.select2-container { z-index: 999 !important; width: 100% !important; font-size: .9rem; }
-.select2-dropdown { z-index: 3050 !important; }
+/* NO z-index en .select2-container: el elemento dropdown tiene ambas clases
+   (.select2-container y .select2-dropdown) y si ambas tienen !important con
+   igual especificidad, gana la que aparece última en el CSS — imprevisible. */
+.select2-container { width: 100% !important; font-size: .9rem; }
+.select2-dropdown { z-index: 99999 !important; }
+.select2-container--open { z-index: 99999 !important; }
 .select2-container--bootstrap4 .select2-selection--single {
     height: 38px; padding: 6px 12px;
     border-radius: .35rem; border: 1px solid #ced4da;
@@ -185,7 +260,7 @@ a.btn.btn-pf-primary:hover {
         margin: 10px;
         max-width: calc(100% - 20px);
     }
-    #modalCategoriasPrecios .modal-body { padding: 16px 14px 6px; }
+    #modalCategoriasPrecios .modal-body { padding: 16px 14px 6px; max-height: calc(100vh - 160px); }
     #modalCategoriasPrecios .form-row > [class*="col-"] { flex: 0 0 100%; max-width: 100%; }
     #modalCategoriasPrecios .modal-footer,
     #modalSeleccionarCategoriasGeneral .modal-footer {
@@ -205,6 +280,72 @@ a.btn.btn-pf-primary:hover {
 @media (min-width: 992px) {
     .filtro-select { min-width: 240px; flex: 1 1 240px; }
 }
+
+/* ── Modal Ver / Editar Categorías de Precio ── */
+#modalVerCatPrecios .modal-content {
+    border: none;
+    border-radius: 14px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.22);
+    overflow: visible;
+}
+#modalVerCatPrecios .modal-dialog {
+    margin-top: 60px;
+    max-width: 860px;
+}
+#modalVerCatPrecios .modal-header {
+    background: var(--pf-grad);
+    padding: 16px 22px 14px;
+    border-bottom: none;
+    border-radius: 14px 14px 0 0;
+}
+#modalVerCatPrecios .modal-footer {
+    background: #f8f5f0;
+    border-top: 1px solid #eddfc9;
+    padding: 12px 22px;
+    border-radius: 0 0 14px 14px;
+}
+#tbl_catPrecios_lista thead th {
+    background: #f8f0e6;
+    color: #7d4600;
+    font-size: .76rem;
+    font-weight: 700;
+    border-bottom: 2px solid #e8c49a;
+    white-space: nowrap;
+    padding: 8px 10px;
+}
+#tbl_catPrecios_lista td {
+    font-size: .82rem;
+    vertical-align: middle;
+    padding: 6px 10px;
+}
+.btn-edit-cat {
+    background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+    color: #fff; border: none;
+    font-size: .72rem; padding: 3px 9px;
+    border-radius: 5px; font-weight: 600; cursor: pointer;
+}
+.btn-edit-cat:hover { background: linear-gradient(135deg, #2980b9 0%, #1c6fa3 100%); color: #fff; }
+.btn-save-cat {
+    background: linear-gradient(135deg, #27ae60 0%, #219a52 100%);
+    color: #fff; border: none;
+    font-size: .72rem; padding: 3px 9px;
+    border-radius: 5px; font-weight: 600; cursor: pointer;
+}
+.btn-save-cat:hover { background: linear-gradient(135deg, #219a52 0%, #1a7a41 100%); color: #fff; }
+.btn-cancel-cat {
+    background: #f0f0f0; color: #555;
+    border: 1px solid #ccc;
+    font-size: .72rem; padding: 3px 9px;
+    border-radius: 5px; font-weight: 600; cursor: pointer;
+}
+.btn-deact-cat {
+    background: transparent; color: #dc3545;
+    border: 1px solid #dc3545;
+    font-size: .72rem; padding: 3px 9px;
+    border-radius: 5px; font-weight: 600; cursor: pointer;
+}
+.btn-deact-cat:hover { background: #dc3545; color: #fff; }
+.edit-cat-input { font-size: .8rem !important; height: 28px !important; padding: 2px 6px !important; }
 </style>
 @endpush
 
@@ -225,13 +366,9 @@ a.btn.btn-pf-primary:hover {
                         <thead>
                             <tr>
                                 <th>ID</th>
-                                <th>Categoría</th>
+                                <th>Categoría Cliente</th>
                                 <th>Estado</th>
-                                <th>Categoria Cliente</th>
-                                <th>% A</th>
-                                <th>% B</th>
-                                <th>% C</th>
-                                <th>% D</th>
+                                <th>Cats. de Precio</th>
                                 <th>Creación</th>
                                 <th>Registro</th>
                                 <th>Acciones</th>
@@ -458,18 +595,21 @@ a.btn.btn-pf-primary:hover {
 
 
 
-<!-- MODAL ELEGANTE -->
+<!-- MODAL CATEGORÍA DE PRECIOS -->
 <div class="modal fade" id="modalCategoriasPrecios" tabindex="-1" role="dialog"
      aria-labelledby="modalCategoriasPreciosTitle" aria-hidden="true"
      data-backdrop="static" data-keyboard="false">
-  <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
-    <div class="border-0 rounded shadow-lg modal-content">
+  <div class="modal-dialog" style="max-width:640px;" role="document">
+    <div class="modal-content">
 
       <!-- Header -->
-      <div class="modal-header">
-        <h5 class="modal-title" id="modalCategoriasPreciosTitle">
-          <i class="fa fa-tags mr-2" style="opacity:.85;"></i>Categoría de Precios
-        </h5>
+      <div class="modal-header d-flex align-items-start justify-content-between">
+        <div class="modal-header-inner">
+          <h5 class="modal-title mb-0" id="modalCategoriasPreciosTitle">
+            <i class="fa fa-tags mr-2" style="opacity:.9;"></i>Nueva Categoría de Precios
+          </h5>
+          <p class="modal-subtitle">Complete los campos requeridos para registrar la categoría</p>
+        </div>
         <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
           <span aria-hidden="true">&times;</span>
         </button>
@@ -477,77 +617,171 @@ a.btn.btn-pf-primary:hover {
 
       <!-- Body -->
       <div class="modal-body">
+        <p class="pf-required-hint"><span class="text-danger font-weight-bold">*</span> Indica campo obligatorio</p>
+
         <form id="CreacionCatPrecios" autocomplete="off">
 
-          <!-- Primera fila: Nombre -->
+          <!-- Sección: Identificación -->
+          <div class="pf-form-section">
+            <i class="fa fa-id-card-o"></i> Identificación
+          </div>
+
           <div class="form-row">
-            <!-- Nombre de la categoría -->
             <div class="form-group col-md-6">
-                <label for="nombre_cat_precio">Nombre de la Categoría</label>
-                <input type="text" class="form-control"
-                    id="nombre_cat_precio" name="nombre_cat_precio"
-                    placeholder="Ej: Precios de Cliente estatal" maxlength="100" required>
-            </div>
-
-            <!-- Categoría de cliente -->
-            <div class="form-group col-md-6">
-                <label for="categoria_cliente_id">Categoría de Cliente</label>
-                <select id="categoria_cliente_id"
-                        name="categoria_cliente_id"
-                        class="form-control"
-                        data-url="{{ route('clientes.categorias.escala') }}"
-                        required>
-                    <option value="">Seleccione una categoría...</option>
-                </select>
-            </div>
-
-            <div class="form-group col-md-6">
-              <label for="porc_precio_a">% Precio A</label>
-              <input type="number" class="form-control" id="porc_precio_a" name="porc_precio_a"
-                placeholder="Ej: 5" min="0" max="100" step="1" inputmode="numeric">
+              <label for="nombre_cat_precio">Nombre de la Categoría <span class="text-danger">*</span></label>
+              <input type="text" class="form-control"
+                id="nombre_cat_precio" name="nombre_cat_precio"
+                placeholder="Ej: Precios Cliente Estatal" maxlength="100" required>
             </div>
             <div class="form-group col-md-6">
-              <label for="porc_precio_b">% Precio B</label>
-              <input type="number" class="form-control" id="porc_precio_b" name="porc_precio_b"
-                placeholder="Ej: 15" min="0" max="100" step="1" inputmode="numeric">
-            </div>
-            <div class="form-group col-md-6">
-              <label for="porc_precio_c">% Precio C</label>
-              <input type="number" class="form-control" id="porc_precio_c" name="porc_precio_c"
-                placeholder="Ej: 20" min="0" max="100" step="1" inputmode="numeric">
-            </div>
-            <div class="form-group col-md-6">
-              <label for="porc_precio_d">% Precio D</label>
-              <input type="number" class="form-control" id="porc_precio_d" name="porc_precio_d"
-                placeholder="Ej: 30" min="0" max="100" step="1" inputmode="numeric">
+              <label for="categoria_cliente_id">Categoría de Cliente <span class="text-danger">*</span></label>
+              <select id="categoria_cliente_id"
+                      name="categoria_cliente_id"
+                      class="form-control pf-select2-modal"
+                      data-url="{{ route('clientes.categorias.escala') }}"
+                      required>
+                <option value="">Buscar categoría...</option>
+              </select>
             </div>
           </div>
 
-          <!-- Comentario -->
-          <div class="form-group mt-1">
-            <label for="comentario_cat_precio">Comentario</label>
-            <textarea id="comentario_cat_precio" name="comentario_cat_precio" class="form-control" rows="3"
-              placeholder="Ej: Precio 1 para categoría de cliente estatal"></textarea>
+          <!-- Sección: Porcentajes de Precio -->
+          <div class="pf-form-section">
+            <i class="fa fa-percent"></i> Porcentajes de Precio
+          </div>
+
+          <div class="form-row">
+            <div class="form-group col-md-6">
+              <label for="porc_precio_a">% Precio Venta A <span class="text-danger">*</span></label>
+              <div class="input-group">
+                <input type="number" class="form-control" id="porc_precio_a" name="porc_precio_a"
+                  placeholder="Ej: 5" min="0" max="100" step="0.01" inputmode="decimal" required>
+                <div class="input-group-append"><span class="input-group-text">%</span></div>
+              </div>
+            </div>
+            <div class="form-group col-md-6">
+              <label for="porc_precio_b">% Precio Venta B <small class="text-muted font-weight-normal">(opcional)</small></label>
+              <div class="input-group">
+                <input type="number" class="form-control" id="porc_precio_b" name="porc_precio_b"
+                  placeholder="Ej: 15" min="0" max="100" step="0.01" inputmode="decimal">
+                <div class="input-group-append"><span class="input-group-text">%</span></div>
+              </div>
+            </div>
+            <div class="form-group col-md-6">
+              <label for="porc_precio_c">% Precio Venta C <small class="text-muted font-weight-normal">(opcional)</small></label>
+              <div class="input-group">
+                <input type="number" class="form-control" id="porc_precio_c" name="porc_precio_c"
+                  placeholder="Ej: 20" min="0" max="100" step="0.01" inputmode="decimal">
+                <div class="input-group-append"><span class="input-group-text">%</span></div>
+              </div>
+            </div>
+            <div class="form-group col-md-6">
+              <label for="porc_precio_d">% Precio Venta D <small class="text-muted font-weight-normal">(opcional)</small></label>
+              <div class="input-group">
+                <input type="number" class="form-control" id="porc_precio_d" name="porc_precio_d"
+                  placeholder="Ej: 30" min="0" max="100" step="0.01" inputmode="decimal">
+                <div class="input-group-append"><span class="input-group-text">%</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sección: Notas -->
+          <div class="pf-form-section">
+            <i class="fa fa-comment-o"></i> Notas adicionales
+          </div>
+
+          <div class="form-group">
+            <label for="comentario_cat_precio">Comentario <small class="text-muted font-weight-normal">(opcional)</small></label>
+            <textarea id="comentario_cat_precio" name="comentario_cat_precio" class="form-control" rows="2"
+              placeholder="Ej: Categoría para clientes institucionales del sector público"></textarea>
           </div>
 
         </form>
       </div>
 
       <!-- Footer -->
-      <div class="modal-footer">
-        <button type="button" class="btn btn-outline-secondary btn-sm" data-dismiss="modal" id="btnCancelarCategoria">
-          <i class="fa fa-times mr-1"></i>Cancelar
-        </button>
-        <button type="submit" form="CreacionCatPrecios" class="btn btn-pf-primary btn-sm" id="btn_guardar_categoria"
-                style="background:linear-gradient(135deg,#f39c12 0%,#e67e22 100%) !important;color:#fff !important;border:none;">
-          <i class="fa fa-save mr-1"></i>Guardar
-        </button>
+      <div class="modal-footer d-flex justify-content-between align-items-center">
+        <small class="text-muted"><i class="fa fa-lock mr-1"></i>Los datos se guardan de forma segura</small>
+        <div>
+          <button type="button" class="btn btn-outline-secondary btn-sm mr-2" data-dismiss="modal" id="btnCancelarCategoria">
+            <i class="fa fa-times mr-1"></i>Cancelar
+          </button>
+          <button type="submit" form="CreacionCatPrecios" class="btn btn-pf-primary" id="btn_guardar_categoria"
+                  style="background:linear-gradient(135deg,#f39c12 0%,#e67e22 100%) !important;color:#fff !important;border:none;font-size:.85rem;padding:6px 18px;">
+            <i class="fa fa-save mr-1"></i>Guardar Categoría
+          </button>
+        </div>
       </div>
 
     </div>
   </div>
 </div>
 
+
+
+<!-- MODAL: VER / EDITAR CATEGORÍAS DE PRECIO DE UNA CATEGORÍA CLIENTE -->
+<div class="modal fade" id="modalVerCatPrecios" tabindex="-1" role="dialog"
+     aria-labelledby="titleVerCatPrecios" aria-hidden="true"
+     data-backdrop="static" data-keyboard="false">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+
+      <div class="modal-header d-flex align-items-start justify-content-between">
+        <div>
+          <h5 class="modal-title mb-0" id="titleVerCatPrecios"
+              style="color:#fff;font-weight:700;font-size:1rem;">
+            <i class="fa fa-list mr-2" style="opacity:.9;"></i>Categorías de Precio
+          </h5>
+          <p id="subtitleVerCatPrecios"
+             style="color:rgba(255,255,255,.78);font-size:.75rem;margin:3px 0 0;"></p>
+        </div>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar"
+                style="color:rgba(255,255,255,.85);text-shadow:none;opacity:1;font-size:1.5rem;padding:0;margin:0;align-self:flex-start;">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+
+      <div class="modal-body p-0">
+        <!-- Spinner de carga -->
+        <div id="loadingVerCatPrecios" class="text-center py-5">
+          <div class="spinner-border text-warning" role="status"><span class="sr-only">Cargando...</span></div>
+          <p class="mt-2 text-muted small">Cargando categorías de precio...</p>
+        </div>
+        <!-- Tabla -->
+        <div id="wrapperVerCatPrecios" style="display:none;">
+          <div class="table-responsive">
+            <table class="table table-sm table-bordered table-hover mb-0" id="tbl_catPrecios_lista">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Nombre</th>
+                  <th class="text-center">% A</th>
+                  <th class="text-center">% B</th>
+                  <th class="text-center">% C</th>
+                  <th class="text-center">% D</th>
+                  <th class="text-center">Estado</th>
+                  <th class="text-center">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="tbody_catPrecios_lista"></tbody>
+            </table>
+          </div>
+          <div id="emptyCatPrecios" class="text-center text-muted py-4 small" style="display:none;">
+            <i class="fa fa-inbox fa-2x mb-2 d-block"></i>
+            No hay categorías de precio registradas para esta categoría.
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-dismiss="modal">
+          <i class="fa fa-times mr-1"></i>Cerrar
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
 
 
 @push('scripts')
