@@ -258,6 +258,10 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/filtros/categoria/precios', function() {
         return \App\Models\Escalas\modelCategoriaPrecios::select('id','nombre')->where('estado_id','=',1)->get();
     });
+    Route::get('/filtros/categoria/cliente', function() {
+        return \App\Models\Escalas\modelCategoriaCliente::select('id','nombre_categoria as nombre')
+            ->where('estado_id', 1)->orderBy('nombre_categoria')->get();
+    });
     /* Categoria de cliente */
     Route::post('/guardar/categoria/cliente', [CategoriaClientes::class, 'guardarCtaegoria']);
     Route::get('/listar/categoria/cliente', [CategoriaClientes::class, 'listarCategorias']);

@@ -5,38 +5,41 @@
     --pf-grad: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
     --pf-grad-hover: linear-gradient(135deg, #e67e22 0%, #d35400 100%);
     --pf-orange: #e67e22;
-    --pf-radius: 10px;
-    --pf-shadow: 0 2px 10px rgba(0,0,0,.10);
+    --pf-radius: 8px;
+    --pf-shadow: 0 1px 6px rgba(0,0,0,.08);
 }
 
 /* ── Tarjetas ── */
 .cat-card {
-    border: none;
+    border: 1px solid #f0e6d8;
     border-radius: var(--pf-radius);
     box-shadow: var(--pf-shadow);
-    margin-bottom: 1.25rem;
+    margin-bottom: 1rem;
     overflow: hidden;
+    background: #fff;
 }
 .cat-card-header {
     background: var(--pf-grad);
     color: #fff;
-    padding: 10px 18px;
+    padding: 8px 16px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 6px;
 }
 .cat-card-header h6 {
     margin: 0;
-    font-size: .875rem;
+    font-size: .78rem;
     font-weight: 700;
-    letter-spacing: .04em;
+    letter-spacing: .06em;
+    text-transform: uppercase;
     display: flex;
     align-items: center;
-    gap: 7px;
-    color: #fff;
+    gap: 6px;
+    color: rgba(255,255,255,.95);
 }
+.cat-card-header h6 i { font-size: .75rem; opacity: .85; }
 
 /* ── Botón principal naranja ── */
 .btn.btn-pf-primary,
@@ -44,35 +47,38 @@ a.btn.btn-pf-primary {
     background: var(--pf-grad) !important;
     color: #fff !important;
     border: none !important;
-    border-radius: 6px !important;
+    border-radius: 5px !important;
     font-weight: 600 !important;
-    font-size: .8rem;
-    padding: 5px 14px;
-    box-shadow: 0 1px 4px rgba(230,126,34,.35) !important;
-    transition: background .2s, box-shadow .2s;
+    font-size: .75rem;
+    padding: 4px 12px;
+    letter-spacing: .02em;
+    box-shadow: 0 1px 3px rgba(230,126,34,.30) !important;
+    transition: background .18s, box-shadow .18s;
 }
 .btn.btn-pf-primary:hover,
 .btn.btn-pf-primary:focus,
 a.btn.btn-pf-primary:hover {
     background: var(--pf-grad-hover) !important;
     color: #fff !important;
-    box-shadow: 0 3px 8px rgba(230,126,34,.45) !important;
+    box-shadow: 0 2px 6px rgba(230,126,34,.40) !important;
     text-decoration: none !important;
 }
 
-/* ── Tabla ── */
+/* ── Tabla principal ── */
 #tbl_listaCategoria thead th {
-    background: #f8f0e6;
+    background: #fdf4ea;
     color: #7d4600;
-    font-size: .78rem;
+    font-size: .72rem;
     font-weight: 700;
-    letter-spacing: .03em;
-    border-bottom: 2px solid #e8c49a;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    border-bottom: 2px solid #ecd5b5;
     white-space: nowrap;
+    padding: 7px 10px;
 }
-#tbl_listaCategoria tbody tr:hover { background-color: #fffbf5; }
+#tbl_listaCategoria tbody tr:hover { background-color: #fffcf7; }
 #tbl_listaCategoria tbody tr { cursor: pointer; }
-#tbl_listaCategoria td { font-size: .83rem; vertical-align: middle; }
+#tbl_listaCategoria td { font-size: .80rem; vertical-align: middle; padding: 5px 10px; }
 
 /* ── Modal principal ── */
 /*
@@ -226,9 +232,25 @@ a.btn.btn-pf-primary:hover {
 .modal .select2-container { width: 100% !important; }
 
 /* ── Filtros plantilla ── */
-.filtro-container { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
-.filtro-select { min-width: 200px; flex: 1 1 220px; height: 38px; }
-#btnDescargar { height: 38px; flex: 0 0 auto; }
+.filtro-container { display: flex; flex-wrap: wrap; gap: .4rem; align-items: flex-start; }
+.filtro-item { flex: 1 1 180px; min-width: 160px; max-width: 260px; }
+.filtro-item .select2-container { width: 100% !important; }
+.filtro-item .select2-container--bootstrap4 .select2-selection--single {
+    height: 32px;
+    font-size: .78rem;
+    border-color: #d8cfc7;
+    border-radius: 5px;
+    background: #fdfaf7;
+    color: #444;
+}
+.filtro-item .select2-container--bootstrap4 .select2-selection__rendered { line-height: 22px; padding-left: .6rem; font-size: .78rem; }
+.filtro-item .select2-container--bootstrap4 .select2-selection__arrow { height: 30px; }
+.filtro-item .select2-container--bootstrap4 .select2-selection--single:focus,
+.filtro-item .select2-container--bootstrap4.select2-container--focus .select2-selection--single {
+    border-color: #e67e22;
+    box-shadow: 0 0 0 2px rgba(243,156,18,.12);
+}
+#btnDescargar { height: 32px; flex: 0 0 auto; font-size: .75rem; padding: 0 14px; align-self: flex-start; }
 
 /* ── Limpiar archivo ── */
 #btnLimpiarArchivoPrecios {
@@ -241,6 +263,30 @@ a.btn.btn-pf-primary:hover {
 
 /* ── Sticky thead ── */
 .sticky-top { position: sticky; top: 0; z-index: 10; }
+
+/* ── SweetAlert2 sobre modales Bootstrap ── */
+.swal-sobre-modal { z-index: 99999 !important; }
+
+/* ── Select2: limitar altura del dropdown a ~7 ítems ── */
+.select2-container--bootstrap4 .select2-results__options {
+    max-height: 196px;
+    overflow-y: auto;
+}
+.select2-container--bootstrap4 .select2-results__option {
+    font-size: .8rem;
+    padding: 5px 10px;
+}
+.select2-container--bootstrap4 .select2-search--dropdown .select2-search__field {
+    font-size: .78rem;
+    border-color: #d8cfc7;
+    border-radius: 4px;
+    padding: 4px 8px;
+}
+.select2-container--bootstrap4 .select2-dropdown {
+    border-color: #d8cfc7;
+    border-radius: 5px;
+    box-shadow: 0 3px 10px rgba(0,0,0,.12);
+}
 
 /* ── Overlay ── */
 #overlayProcesandoPrecios {
@@ -351,88 +397,89 @@ a.btn.btn-pf-primary:hover {
 
 <div class="cat-card">
     <div class="cat-card-header">
-        <h6><i class="fa fa-tags"></i> CATEGORÍA DE PRECIOS DE PRODUCTO</h6>
+        <h6><i class="fa fa-tags"></i> Categoría de Precios de Producto</h6>
         <button type="button" class="btn btn-pf-primary btn-sm" data-toggle="modal" data-target="#modalCategoriasPrecios"
-                style="background:rgba(255,255,255,.18) !important;border:1.5px solid rgba(255,255,255,.55) !important;box-shadow:none !important;">
-            <i class="fa fa-plus mr-1"></i>+ Creación
+                style="background:rgba(255,255,255,.15) !important;border:1px solid rgba(255,255,255,.45) !important;box-shadow:none !important;font-size:.72rem;padding:3px 10px;">
+            <i class="fa fa-plus mr-1"></i>Nueva categoría
         </button>
     </div>
     <div class="card-body p-2">
-        <!-- TABLA -->
-        <div class="row">
-            <div class="col-lg-12">
-                <div class="table-responsive">
-                    <table id="tbl_listaCategoria" class="table table-striped table-bordered table-hover">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Categoría Cliente</th>
-                                <th>Estado</th>
-                                <th>Cats. de Precio</th>
-                                <th>Creación</th>
-                                <th>Registro</th>
-                                <th>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
-            </div>
+        <div class="table-responsive">
+            <table id="tbl_listaCategoria" class="table table-sm table-bordered table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Categoría Cliente</th>
+                        <th>Estado</th>
+                        <th>Cats. de Precio</th>
+                        <th>Creación</th>
+                        <th>Registro</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
         </div>
     </div>
 </div>
 
 <div class="cat-card">
     <div class="cat-card-header">
-        <h6><i class="fa fa-download"></i> PLANTILLA DE PRECIOS POR PRODUCTOS</h6>
+        <h6><i class="fa fa-download"></i> Plantilla de Precios por Productos</h6>
     </div>
     <div class="card-body p-3">
         <form id="formExport" method="GET" action="{{ route('excel.plantilla') }}" class="d-flex flex-wrap filtro-container">
-            <!-- Tipo de plantilla: Categoría o General -->
+            <!-- Tipo de plantilla -->
             <div class="filtro-item">
                 <select id="tipoPlantilla" name="tipoPlantilla" class="form-control select2bs4 filtro-select">
-                    <option value="">🎯 Tipo de plantilla</option>
-                    <option value="categoria">📋 Por Categoría</option>
-                    <option value="general">🌐 General</option>
+                    <option value="">Seleccionar tipo de plantilla</option>
+                    <option value="categoria">Por Categoría</option>
+                    <option value="general">Todas las categorías existentes</option>
                 </select>
             </div>
 
             <!-- Tipo de categoría -->
             <div class="filtro-item" id="containerTipoCategoria" style="display:none;">
                 <select id="tipoCategoria" name="tipoCategoria" class="form-control select2bs4 filtro-select">
-                    <option value="">🧾 Tipo de categoría</option>
-                    <option value="escalable">📈 Escalable</option>
-                    <option value="manual">✍️ Manual</option>
+                    <option value="">Tipo de categoría</option>
+                    <option value="escalable">Escalable</option>
+                    <option value="manual">Manual</option>
                 </select>
             </div>
 
             <!-- Tipo de filtro -->
             <div class="filtro-item" id="containerTipoFiltro" style="display:none;">
                 <select id="tipoFiltro" name="tipoFiltro" class="form-control select2bs4 filtro-select">
-                    <option value="">📂 Formato</option>
-                    <option value="1">🏷️ Marca</option>
-                    <option value="2">📂 Categoría</option>
+                    <option value="">Filtrar por</option>
+                    <option value="1">Marca</option>
+                    <option value="2">Categoría de producto</option>
                 </select>
             </div>
 
             <!-- Lista de filtro -->
             <div class="filtro-item" id="containerListaFiltro" style="display:none;">
                 <select id="listaTipoFiltro" name="listaTipoFiltro" class="form-control select2bs4 filtro-select">
-                    <option value="">Seleccione filtro</option>
+                    <option value="">Seleccione...</option>
                 </select>
             </div>
 
-            <!-- Categoria de precios (solo visible en modo "Categoría") -->
+            <!-- Categoría de cliente (solo en modo "Por Categoría") -->
+            <div class="filtro-item" id="containerCatCliente" style="display:none;">
+                <select id="catClienteSelect" name="catClienteId" class="form-control select2bs4 filtro-select">
+                    <option value="">Categoría de cliente</option>
+                </select>
+            </div>
+
+            <!-- Categoría de precios (dependiente de categoría de cliente) -->
             <div class="filtro-item" id="containerCatPrecios" style="display:none;">
                 <select id="listaTipoFiltroCatPrecios" name="listaTipoFiltroCatPrecios" class="form-control select2bs4 filtro-select">
-                    <option value="">Seleccione Categoría de precio</option>
+                    <option value="">Categoría de precio</option>
                 </select>
             </div>
 
             <!-- Botón -->
-            <div class="filtro-item">
-                <button type="submit" class="btn btn-pf-primary" id="btnDescargar" disabled
-                        style="background:linear-gradient(135deg,#f39c12 0%,#e67e22 100%) !important;color:#fff !important;border:none;">
+            <div style="flex:0 0 auto;align-self:flex-start;">
+                <button type="submit" class="btn btn-pf-primary" id="btnDescargar" disabled>
                     <i class="fa fa-download mr-1"></i> Descargar plantilla
                 </button>
             </div>
@@ -442,7 +489,7 @@ a.btn.btn-pf-primary:hover {
 
 <div class="cat-card">
     <div class="cat-card-header">
-        <h6><i class="fa fa-upload"></i> IMPORTACIÓN DE LA PLANTILLA DE PRECIOS DE PRODUCTO</h6>
+        <h6><i class="fa fa-upload"></i> Importación de la Plantilla de Precios</h6>
     </div>
     <div class="card-body p-3">
         <!-- Mensaje informativo dinámico -->
@@ -760,6 +807,8 @@ a.btn.btn-pf-primary:hover {
                   <th class="text-center">% C</th>
                   <th class="text-center">% D</th>
                   <th class="text-center">Estado</th>
+                  <th class="text-center">Últ. actualización</th>
+                  <th class="text-center">Actualizado por</th>
                   <th class="text-center">Acciones</th>
                 </tr>
               </thead>
@@ -815,6 +864,8 @@ a.btn.btn-pf-primary:hover {
             $('#containerTipoCategoria').hide();
             $('#containerTipoFiltro').hide();
             $('#containerListaFiltro').hide();
+            $('#containerCatCliente').hide();
+            $('#catClienteSelect').val(null).trigger('change');
             $('#containerCatPrecios').hide();
 
             // Limpiar archivo y mensajes
@@ -847,12 +898,14 @@ a.btn.btn-pf-primary:hover {
 
         // Al cambiar tipo de categoría
         $('#tipoCategoria').on('change', function() {
-            const tipoPlantilla = $('#tipoPlantilla').val();
             if ($(this).val()) {
                 $('#containerTipoFiltro').show();
             } else {
                 $('#containerTipoFiltro').hide();
                 $('#containerListaFiltro').hide();
+                $('#catClienteSelect').val(null).trigger('change');
+                $('#containerCatCliente').hide();
+                $('#listaTipoFiltroCatPrecios').empty().append(new Option('Categoría de precio', '', false, false));
                 $('#containerCatPrecios').hide();
             }
             validarFormularioDescarga();
@@ -864,6 +917,9 @@ a.btn.btn-pf-primary:hover {
                 $('#containerListaFiltro').show();
             } else {
                 $('#containerListaFiltro').hide();
+                $('#catClienteSelect').val(null).trigger('change');
+                $('#containerCatCliente').hide();
+                $('#listaTipoFiltroCatPrecios').empty().append(new Option('Categoría de precio', '', false, false));
                 $('#containerCatPrecios').hide();
             }
             validarFormularioDescarga();
@@ -872,13 +928,53 @@ a.btn.btn-pf-primary:hover {
         // Al cambiar lista de filtro
         $('#listaTipoFiltro').on('change', function() {
             const tipoPlantilla = $('#tipoPlantilla').val();
-            if ($(this).val()) {
-                if (tipoPlantilla === 'categoria') {
-                    $('#containerCatPrecios').show();
-                }
-            } else {
-                $('#containerCatPrecios').hide();
+            // Siempre resetear los dependientes
+            $('#catClienteSelect').val(null).trigger('change');
+            $('#containerCatCliente').hide();
+            $('#listaTipoFiltroCatPrecios').empty().append(new Option('Categoría de precio', '', false, false));
+            $('#containerCatPrecios').hide();
+            if ($(this).val() && tipoPlantilla === 'categoria') {
+                $('#containerCatCliente').show();
             }
+            validarFormularioDescarga();
+        });
+
+        // Al cambiar categoría de cliente → cargar categorías de precio de ese cliente
+        $('#catClienteSelect').on('change', function() {
+            const clienteId = $(this).val();
+            const $catPrecios = $('#listaTipoFiltroCatPrecios');
+
+            // Limpiar select dependiente
+            $catPrecios.empty().append(new Option('Categoría de precio', '', false, false));
+            $catPrecios.trigger('change');
+            $('#containerCatPrecios').hide();
+
+            if (!clienteId) { validarFormularioDescarga(); return; }
+
+            $.ajax({
+                url: '/listar/categorias/precios/por-cliente/' + clienteId,
+                type: 'GET',
+                dataType: 'json',
+                success: function(data) {
+                    const activos = (data.categorias || []).filter(function(c) { return c.estado_id == 1; });
+                    if (activos.length > 0) {
+                        // Primera opción: todas las categorías de precios de este cliente
+                        $catPrecios.append(new Option('★ Todas las categorías de precios', 'all', false, false));
+                        activos.forEach(function(c) {
+                            $catPrecios.append(new Option(c.nombre, c.id, false, false));
+                        });
+                        $catPrecios.trigger('change');
+                        $('#containerCatPrecios').show();
+                    } else {
+                        Swal.fire({ icon: 'info', title: 'Sin categorías', text: 'Esta categoría de cliente no tiene categorías de precio activas.', confirmButtonColor: '#e67e22' });
+                    }
+                    validarFormularioDescarga();
+                },
+                error: function() {
+                    Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudieron cargar las categorías de precio.' });
+                }
+            });
+
             validarFormularioDescarga();
         });
 
@@ -889,20 +985,21 @@ a.btn.btn-pf-primary:hover {
 
         // Validar formulario para habilitar/deshabilitar botón de descarga
         function validarFormularioDescarga() {
-            const tipoPlantilla = $('#tipoPlantilla').val();
-            const tipoCategoria = $('#tipoCategoria').val();
-            const tipoFiltro = $('#tipoFiltro').val();
-            const valorFiltro = $('#listaTipoFiltro').val();
+            const tipoPlantilla    = $('#tipoPlantilla').val();
+            const tipoCategoria    = $('#tipoCategoria').val();
+            const tipoFiltro       = $('#tipoFiltro').val();
+            const valorFiltro      = $('#listaTipoFiltro').val();
+            const catClienteId     = $('#catClienteSelect').val();
             const categoriaPrecioId = $('#listaTipoFiltroCatPrecios').val();
 
             let valido = false;
 
             if (tipoPlantilla === 'categoria') {
-                // Modo Categoría: requiere todos los campos
-                valido = tipoCategoria && tipoFiltro && valorFiltro && categoriaPrecioId;
+                // Modo Categoría: requiere categoría de cliente + categoría de precio
+                valido = !!(tipoCategoria && tipoFiltro && valorFiltro && catClienteId && categoriaPrecioId);
             } else if (tipoPlantilla === 'general') {
-                // Modo General: requiere todo excepto categoría de precios
-                valido = tipoCategoria && tipoFiltro && valorFiltro;
+                // Modo General: no requiere categoría de precio específica
+                valido = !!(tipoCategoria && tipoFiltro && valorFiltro);
             }
 
             $('#btnDescargar').prop('disabled', !valido);

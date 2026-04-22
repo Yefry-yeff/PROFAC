@@ -189,8 +189,11 @@ class CategoriaPrecios extends Component
                         cp.porc_precio_b,
                         cp.porc_precio_c,
                         cp.porc_precio_d,
-                        cp.created_at
+                        cp.created_at,
+                        cp.fecha_ultima_actualizacion,
+                        u.name AS nombre_actualizador
                     FROM categoria_precios cp
+                    LEFT JOIN users u ON u.id = cp.users_id_actualizador
                     WHERE cp.cliente_categoria_escala_id = ?
                     ORDER BY cp.id DESC
                 ", [$id]);
@@ -206,19 +209,84 @@ class CategoriaPrecios extends Component
                 DB::beginTransaction();
 
                 $cat = modelCategoriaPrecios::findOrFail($request->id);
-                $cat->nombre        = trim($request->nombre);
-                $cat->comentario    = trim($request->comentario ?? '');
-                $cat->porc_precio_a = $request->porc_precio_a ?? 0;
-                $cat->porc_precio_b = $request->porc_precio_b ?? 0;
-                $cat->porc_precio_c = $request->porc_precio_c ?? 0;
-                $cat->porc_precio_d = $request->porc_precio_d ?? 0;
+                $cat->nombre                   = trim($request->nombre);
+                $cat->comentario               = trim($request->comentario ?? '');
+                $cat->porc_precio_a            = $request->porc_precio_a ?? 0;
+                $cat->porc_precio_b            = $request->porc_precio_b ?? 0;
+                $cat->porc_precio_c            = $request->porc_precio_c ?? 0;
+                $cat->porc_precio_d            = $request->porc_precio_d ?? 0;
+                $cat->users_id_actualizador    = Auth::user()->id;
+                $cat->fecha_ultima_actualizacion = now();
                 $cat->save();
+
+                // Eliminar duplicados: si un producto tiene más de un registro activo escalable
+                // para esta categoría, inactivar los más antiguos y conservar solo el más reciente.
+                // Se incluye tipo_categoria_precio_id IS NULL para cubrir registros históricos
+                // anteriores a la existencia del campo.
+                $duplicados = DB::select("
+                    SELECT producto_id, MAX(id) as max_id
+                    FROM precios_producto_carga
+                    WHERE categoria_precios_id = ?
+                      AND estado_id = 1
+                      AND (tipo_categoria_precio_id = 1 OR tipo_categoria_precio_id IS NULL)
+                    GROUP BY producto_id
+                    HAVING COUNT(*) > 1
+                ", [$cat->id]);
+
+                foreach ($duplicados as $dup) {
+                    DB::table('precios_producto_carga')
+                        ->where('categoria_precios_id', $cat->id)
+                        ->where('producto_id', $dup->producto_id)
+                        ->where('estado_id', 1)
+                        ->where(function($q) {
+                            $q->where('tipo_categoria_precio_id', 1)
+                              ->orWhereNull('tipo_categoria_precio_id');
+                        })
+                        ->where('id', '!=', $dup->max_id)
+                        ->update(['estado_id' => 2, 'updated_at' => now()]);
+                }
+
+                // Contar productos escalables activos (tipo 1 o NULL histórico)
+                $productosActualizados = DB::table('precios_producto_carga')
+                    ->where('categoria_precios_id', $cat->id)
+                    ->where('estado_id', 1)
+                    ->where(function($q) {
+                        $q->where('tipo_categoria_precio_id', 1)
+                          ->orWhereNull('tipo_categoria_precio_id');
+                    })
+                    ->count();
+
+                // Recalcular precio_a/b/c/d usando precio_base_venta y los nuevos porcentajes
+                if ($productosActualizados > 0) {
+                    DB::update("
+                        UPDATE precios_producto_carga
+                        SET
+                            precio_a                  = precio_base_venta + ((? / 100) * precio_base_venta),
+                            precio_b                  = precio_base_venta + ((? / 100) * precio_base_venta),
+                            precio_c                  = precio_base_venta + ((? / 100) * precio_base_venta),
+                            precio_d                  = precio_base_venta + ((? / 100) * precio_base_venta),
+                            users_id_actualizador     = ?,
+                            fecha_ultima_actualizacion = NOW(),
+                            updated_at                = NOW()
+                        WHERE categoria_precios_id = ?
+                          AND estado_id = 1
+                          AND (tipo_categoria_precio_id = 1 OR tipo_categoria_precio_id IS NULL)
+                    ", [
+                        $cat->porc_precio_a,
+                        $cat->porc_precio_b,
+                        $cat->porc_precio_c,
+                        $cat->porc_precio_d,
+                        Auth::user()->id,
+                        $cat->id,
+                    ]);
+                }
 
                 DB::commit();
                 return response()->json([
-                    "icon"  => "success",
-                    "title" => "\u00c9xito!",
-                    "text"  => "Categor\u00eda actualizada correctamente."
+                    "icon"                   => "success",
+                    "title"                  => "Éxito!",
+                    "text"                   => "Categoría actualizada correctamente.",
+                    "productos_actualizados" => $productosActualizados,
                 ], 200);
 
             } catch (\Exception $e) {
@@ -226,7 +294,7 @@ class CategoriaPrecios extends Component
                 return response()->json([
                     "icon"  => "error",
                     "title" => "Error!",
-                    "text"  => "No se pudo actualizar la categor\u00eda."
+                    "text"  => "No se pudo actualizar la categoría."
                 ], 402);
             }
         }

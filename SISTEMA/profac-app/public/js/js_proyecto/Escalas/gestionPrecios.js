@@ -43,12 +43,19 @@ $('#modalCategoriasPrecios').on('hidden.bs.modal', function () {
 // Controla el estado del botón "Descargar" en función de que todos los filtros requeridos
 // tengan un valor seleccionado. Si falta alguno, deshabilita el botón para evitar acciones inválidas.
 function toggleDescargarCompleto() {
+  const tipoPlantilla = $('#tipoPlantilla').val();
   const tipoCategoria = $('#tipoCategoria').val();
-  const tipoFiltro = $('#tipoFiltro').val();
-  const lista = $('#listaTipoFiltro').val();
-  const catPrecios = $('#listaTipoFiltroCatPrecios').val();
+  const tipoFiltro    = $('#tipoFiltro').val();
+  const lista         = $('#listaTipoFiltro').val();
+  const catCliente    = $('#catClienteSelect').val();
+  const catPrecios    = $('#listaTipoFiltroCatPrecios').val();
 
-  const habilitado = !!(tipoCategoria && tipoFiltro && lista && catPrecios);
+  let habilitado = false;
+  if (tipoPlantilla === 'categoria') {
+    habilitado = !!(tipoCategoria && tipoFiltro && lista && catCliente && catPrecios);
+  } else if (tipoPlantilla === 'general') {
+    habilitado = !!(tipoCategoria && tipoFiltro && lista);
+  }
   $('#btnDescargar').prop('disabled', !habilitado);
 }
 
@@ -65,24 +72,35 @@ $(document).ready(function () {
   // === Inicialización de la tabla principal de categorías (DataTable)
   listarCategorias();
 
-  // === Inicialización de Select2 para los filtros superiores
-  // Mejora UX con tema bootstrap4 y placeholders.
+  // === Inicialización de Select2 para todos los filtros del formulario de plantilla
+  // Tema bootstrap4 + placeholder limpio + ancho 100% para homogeneidad.
+  $('#tipoPlantilla').select2({
+    theme: 'bootstrap4',
+    placeholder: 'Seleccionar tipo de plantilla',
+    allowClear: false,
+    width: '100%'
+  });
+
   $('#tipoCategoria').select2({
     theme: 'bootstrap4',
-    placeholder: '🧾 Tipo de categoría',
-    width: 'resolve'
+    placeholder: 'Tipo de categoría',
+    allowClear: false,
+    width: '100%'
   });
 
   $('#tipoFiltro').select2({
     theme: 'bootstrap4',
-    placeholder: '📂 Tipo de filtro',
-    width: 'resolve'
+    placeholder: 'Filtrar por',
+    allowClear: false,
+    width: '100%'
   });
 
   $('#listaTipoFiltro').select2({
     theme: 'bootstrap4',
     placeholder: 'Seleccione una opción',
-    width: 'resolve'
+    allowClear: false,
+    width: '100%',
+    minimumResultsForSearch: 6
   });
 
   // === Cargar opciones dinámicas de #listaTipoFiltro según el valor de #tipoFiltro
@@ -124,25 +142,36 @@ $(document).ready(function () {
     });
   });
 
-  // === Select2 - Categoría de precios (con carga AJAX)
-  // Trae categorías de precio desde el servidor con búsqueda diferida (delay).
+  // === Select2 - Categoría de cliente (carga estática + filtro en cliente)
+  // Se inicializa primero el Select2 vacío, luego se puebla con todas las categorías.
+  // Así Select2 hace el filtrado en el cliente al escribir — mucho más rápido y fiable.
+  $('#catClienteSelect').select2({
+    theme: 'bootstrap4',
+    placeholder: 'Categoría de cliente',
+    allowClear: false,
+    width: '100%',
+    minimumResultsForSearch: 0
+  });
+
+  // Cargar todas las categorías de cliente de una sola vez
+  $.ajax({
+    url: '/filtros/categoria/cliente',
+    type: 'GET',
+    dataType: 'json',
+    success: function(data) {
+      data.forEach(function(item) {
+        $('#catClienteSelect').append(new Option(item.nombre, item.id, false, false));
+      });
+    }
+  });
+
+  // === Select2 - Categoría de precios (se puebla dinámicamente por JS)
   $('#listaTipoFiltroCatPrecios').select2({
     theme: 'bootstrap4',
-    placeholder: 'Seleccione Categoría de precio',
-    allowClear: true,
-    ajax: {
-      url: '/filtros/categoria/precios',
-      dataType: 'json',
-      delay: 250,
-      processResults: function (data) {
-        return {
-          results: data.map(function (item) {
-            return { id: item.id, text: item.nombre };
-          })
-        };
-      },
-      cache: true
-    }
+    placeholder: 'Categoría de precio',
+    allowClear: false,
+    width: '100%',
+    minimumResultsForSearch: 5
   });
 
   // === Select2 dentro del modal (categoría de cliente)
@@ -192,7 +221,7 @@ $(document).ready(function () {
   });
 
 // Listeners globales fuera del DOM ready para cobertura total de cambios.
-$('#tipoCategoria, #tipoFiltro, #listaTipoFiltro, #listaTipoFiltroCatPrecios')
+$('#tipoCategoria, #tipoFiltro, #listaTipoFiltro, #catClienteSelect, #listaTipoFiltroCatPrecios')
   .on('change', toggleDescargarCompleto);
 
 // Estado inicial al cargar la página (seguridad extra si el DOM ready no alcanzó)
@@ -491,10 +520,11 @@ $('#btnProcesar').on('click', async function () {
   const tipoCategoria    = $('#tipoCategoria').val();
   const tipoFiltro       = $('#tipoFiltro').val();
   const valorFiltro      = $('#listaTipoFiltro').val();
+  const catClienteId     = $('#catClienteSelect').val();
   const categoriaPrecioId= $('#listaTipoFiltroCatPrecios').val();
 
   if (!(tipoCategoria && tipoFiltro && valorFiltro && categoriaPrecioId)) {
-    return Swal.fire({ icon:'warning', title:'Faltan filtros', text:'Completá los 4 filtros antes de procesar.' });
+    return Swal.fire({ icon:'warning', title:'Faltan filtros', text:'Completá los filtros antes de procesar.' });
   }
 
   const fd = new FormData();
@@ -503,6 +533,7 @@ $('#btnProcesar').on('click', async function () {
   fd.append('tipoFiltro', tipoFiltro);
   fd.append('valorFiltro', valorFiltro);
   fd.append('categoriaPrecioId', categoriaPrecioId);
+  if (catClienteId) fd.append('catClienteId', catClienteId);
 
   const $btn = $(this).prop('disabled', true).text('Procesando...');
   try {
@@ -584,6 +615,13 @@ function buildCatRow(c) {
        </button>`
     : '<span class="text-muted small">—</span>';
 
+  const fechaAct = c.fecha_ultima_actualizacion
+    ? '<span style="font-size:.75rem;">' + c.fecha_ultima_actualizacion + '</span>'
+    : '<span class="text-muted">\u2014</span>';
+  const usuarioAct = c.nombre_actualizador
+    ? '<span style="font-size:.75rem;"><i class="fa fa-user mr-1 text-secondary"></i>' + escapeHtml(c.nombre_actualizador) + '</span>'
+    : '<span class="text-muted">\u2014</span>';
+
   return `<tr id="row_cat_${c.id}"
               data-id="${c.id}"
               data-nombre="${escapeHtml(c.nombre)}"
@@ -594,10 +632,12 @@ function buildCatRow(c) {
     <td>${c.id}</td>
     <td>${escapeHtml(c.nombre)}</td>
     <td class="text-center">${c.porc_precio_a}%</td>
-    <td class="text-center">${c.porc_precio_b ? c.porc_precio_b + '%' : '<span class="text-muted">—</span>'}</td>
-    <td class="text-center">${c.porc_precio_c ? c.porc_precio_c + '%' : '<span class="text-muted">—</span>'}</td>
-    <td class="text-center">${c.porc_precio_d ? c.porc_precio_d + '%' : '<span class="text-muted">—</span>'}</td>
+    <td class="text-center">${c.porc_precio_b ? c.porc_precio_b + '%' : '<span class="text-muted">\u2014</span>'}</td>
+    <td class="text-center">${c.porc_precio_c ? c.porc_precio_c + '%' : '<span class="text-muted">\u2014</span>'}</td>
+    <td class="text-center">${c.porc_precio_d ? c.porc_precio_d + '%' : '<span class="text-muted">\u2014</span>'}</td>
     <td class="text-center">${estado}</td>
+    <td class="text-center">${fechaAct}</td>
+    <td class="text-center">${usuarioAct}</td>
     <td class="text-center" style="white-space:nowrap;">${acciones}</td>
   </tr>`;
 }
@@ -682,7 +722,19 @@ function guardarEdicionCat(id) {
   axios.post('/actualizar/categoria/precios', payload)
     .then(function (res) {
       const data = res.data;
-      Swal.fire({ icon: data.icon, title: data.title, text: data.text, timer: 1800, showConfirmButton: false });
+      const count = data.productos_actualizados ?? 0;
+      const htmlMsg = 'Categoría actualizada correctamente.' +
+        '<br><span class="badge badge-success mt-2" style="font-size:.82rem;padding:4px 10px;">' +
+        '<i class="fa fa-refresh mr-1"></i>' + count + ' producto' + (count !== 1 ? 's' : '') + ' recalculado' + (count !== 1 ? 's' : '') +
+        '</span>';
+      Swal.fire({
+        icon: data.icon,
+        title: data.title,
+        html: htmlMsg,
+        timer: 2500,
+        showConfirmButton: false,
+        customClass: { container: 'swal-sobre-modal' }
+      });
       reloadCatPrecios();
       // Actualizar el contador en la tabla principal sin reiniciarla
       $('#tbl_listaCategoria').DataTable().ajax.reload(null, false);

@@ -89,11 +89,11 @@ class ExcelController extends Controller
         // Validación de parámetros recibidos desde el frontend.
         // Incluye validaciones de pertenencia (in) y existencia en BD (exists).
 $v = Validator::make($request->all(), [
-    'archivo_excel'      => 'required|file|max:20480', // 20 MB
+    'archivo_excel'      => 'required|file|max:20480',
     'tipoCategoria'      => 'required|in:escalable,manual',
     'tipoFiltro'         => 'required|in:1,2',
     'valorFiltro'        => 'required|integer',
-    'categoriaPrecioId'  => 'required|exists:categoria_precios,id',
+    'categoriaPrecioId'  => 'required',
     'defaultUnidadMedidaId' => 'nullable|integer|exists:unidad_medida_venta,id',
 ], [
     'archivo_excel.required' => 'Subí un archivo.',
@@ -105,6 +105,25 @@ if ($v->fails()) {
         'icon'  => 'error',
         'title' => 'Validación',
         'text'  => $v->errors()->first(),
+    ], 422);
+}
+
+// Verificar que categoriaPrecioId sea 'all' o un ID válido en BD
+$categoriaPrecioRaw = $request->input('categoriaPrecioId');
+$modoTodas = ($categoriaPrecioRaw === 'all');
+if (!$modoTodas && !\DB::table('categoria_precios')->where('id', (int)$categoriaPrecioRaw)->exists()) {
+    return response()->json([
+        'icon'  => 'error',
+        'title' => 'Validación',
+        'text'  => 'La categoría de precios seleccionada no existe.',
+    ], 422);
+}
+$catClienteId = $request->input('catClienteId');
+if ($modoTodas && !$catClienteId) {
+    return response()->json([
+        'icon'  => 'error',
+        'title' => 'Validación',
+        'text'  => 'Se requiere la categoría de cliente para procesar todas las categorías.',
     ], 422);
 }
 
@@ -124,9 +143,13 @@ $import = new PreciosProductoCargaImport(
     $request->input('tipoCategoria'),
     (int)$request->input('tipoFiltro'),
     (int)$request->input('valorFiltro'),
-    (int)$request->input('categoriaPrecioId'),
+    $modoTodas ? null : (int)$categoriaPrecioRaw,
     (int)$userId,
-    $request->input('defaultUnidadMedidaId') ? (int)$request->input('defaultUnidadMedidaId') : null
+    $request->input('defaultUnidadMedidaId') ? (int)$request->input('defaultUnidadMedidaId') : null,
+    false,                                          // previewMode
+    $modoTodas ? 'cliente_todas' : 'categoria',     // tipoPlantilla
+    [],                                             // categoriasExcluidas
+    $modoTodas ? (int)$catClienteId : null          // clienteCategoriaId
 );
 
 
@@ -363,7 +386,7 @@ $collections = Excel::toCollection($import, $full);
 
             // toCollection obtiene los datos sin corrupción en cPanel
             $collections = Excel::toCollection($import, $fullPath);
-            
+
             // Llamar manualmente al método collection() para procesar los datos
             foreach ($collections as $sheet) {
                 $import->collection($sheet);
@@ -433,7 +456,7 @@ $collections = Excel::toCollection($import, $full);
         // Aumentar límites para procesos largos
         @set_time_limit(600); // 10 minutos
         @ini_set('memory_limit', '512M');
-        
+
         try {
             // Recuperar datos del preview desde la sesión
             $previewData = session('preview_precios_data');
@@ -468,21 +491,21 @@ $collections = Excel::toCollection($import, $full);
             config(['excel.temporary_files.local_path' => storage_path('app/excel-temp')]);
 
             $fullPath = storage_path('app/' . $previewData['storedPath']);
-            
+
             \Log::info('[finalizarExcelPrecios] Iniciando importación', ['path' => $fullPath]);
 
             // toCollection obtiene los datos sin corrupción en cPanel
             $collections = Excel::toCollection($import, $fullPath);
-            
+
             \Log::info('[finalizarExcelPrecios] Colecciones obtenidas', ['count' => $collections->count()]);
-            
+
             // Llamar manualmente al método collection() para procesar los datos
             foreach ($collections as $sheet) {
                 $import->collection($sheet);
             }
 
             $stats = $import->getStats();
-            
+
             \Log::info('[finalizarExcelPrecios] Proceso completado', $stats);
 
             // Limpiar sesión
