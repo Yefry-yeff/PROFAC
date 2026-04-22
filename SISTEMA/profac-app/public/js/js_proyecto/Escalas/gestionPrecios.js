@@ -563,17 +563,30 @@ $('#btnProcesar').on('click', async function () {
 /*===================================================================================================================================*/
 
 // ID de categoría cliente actualmente en el modal de lista
-let currentClienteCatId = null;
+let currentClienteCatId   = null;
+let currentClienteCatNombre = null;
 
 function verCategoriasPrecio(clienteCatId, nombreCat) {
-  currentClienteCatId = clienteCatId;
+  currentClienteCatId      = clienteCatId;
+  currentClienteCatNombre  = nombreCat;
   $('#subtitleVerCatPrecios').text('Categoría cliente: ' + nombreCat);
   $('#loadingVerCatPrecios').show();
   $('#wrapperVerCatPrecios').hide();
   $('#emptyCatPrecios').hide();
-  $('#modalVerCatPrecios').modal('show');
+  $('#modalVerCatPrecios').removeClass('pf-hiding').modal('show');
   reloadCatPrecios();
 }
+
+// Animación de salida del modal
+$(document).on('hide.bs.modal', '#modalVerCatPrecios', function (e) {
+  const $modal = $(this);
+  if ($modal.hasClass('pf-hiding')) return; // ya animando, dejar cerrar
+  e.preventDefault();
+  $modal.addClass('pf-hiding');
+  setTimeout(function () {
+    $modal.modal('hide');
+  }, 180);
+});
 
 function reloadCatPrecios() {
   if (!currentClienteCatId) return;
@@ -601,18 +614,64 @@ function reloadCatPrecios() {
     });
 }
 
+function descargarPreciosPorCliente() {
+  if (!currentClienteCatId) return;
+
+  const $btn = $('#btnExportarPreciosCat');
+  const originalHtml = $btn.html();
+  $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin mr-1"></i> Generando...');
+
+  const url = '/exportar/precios/por-cliente/' + currentClienteCatId;
+
+  // Descarga directa vía enlace oculto
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = '';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+
+  setTimeout(function () {
+    $btn.prop('disabled', false).html(originalHtml);
+  }, 3000);
+}
+
+function descargarPreciosPorCategoria(categoriaPrecioId) {
+  if (!currentClienteCatId || !categoriaPrecioId) return;
+
+  const url = '/exportar/precios/por-categoria/' + currentClienteCatId + '/' + categoriaPrecioId;
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = '';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
 function buildCatRow(c) {
   const estado = c.estado_id == 1
     ? '<span class="badge badge-success" style="font-size:.72rem;padding:3px 8px;">ACTIVO</span>'
     : '<span class="badge badge-danger" style="font-size:.72rem;padding:3px 8px;">INACTIVO</span>';
 
   const acciones = c.estado_id == 1
-    ? `<button class="btn-edit-cat mr-1" title="Editar" onclick="activarEdicionFila(${c.id})">
-         <i class="fa fa-pencil mr-1"></i>Editar
-       </button>
-       <button class="btn-deact-cat" title="Desactivar" onclick="desactivarCatPrecioLista(${c.id})">
-         <i class="fa fa-times mr-1"></i>Desactivar
-       </button>`
+    ? `<div class="dropdown cat-action-dropdown" style="display:inline-block;">
+         <button class="dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+           <i class="fa fa-cog"></i> Acciones
+         </button>
+         <div class="dropdown-menu dropdown-menu-right">
+           <a class="dropdown-item item-edit" href="#" onclick="activarEdicionFila(${c.id}); return false;">
+             <i class="fa fa-pencil fa-fw"></i> Editar
+           </a>
+           <a class="dropdown-item item-excel" href="#" onclick="descargarPreciosPorCategoria(${c.id}); return false;">
+             <i class="fa fa-file-excel-o fa-fw"></i> Exportar Excel
+           </a>
+           <div class="dropdown-divider"></div>
+           <a class="dropdown-item item-deact" href="#" onclick="desactivarCatPrecioLista(${c.id}); return false;">
+             <i class="fa fa-times fa-fw"></i> Desactivar
+           </a>
+         </div>
+       </div>`
     : '<span class="text-muted small">—</span>';
 
   const fechaAct = c.fecha_ultima_actualizacion
@@ -629,16 +688,16 @@ function buildCatRow(c) {
               data-b="${c.porc_precio_b || ''}"
               data-c="${c.porc_precio_c || ''}"
               data-d="${c.porc_precio_d || ''}">
-    <td>${c.id}</td>
+    <td class="col-hide-xs">${c.id}</td>
     <td>${escapeHtml(c.nombre)}</td>
     <td class="text-center">${c.porc_precio_a}%</td>
-    <td class="text-center">${c.porc_precio_b ? c.porc_precio_b + '%' : '<span class="text-muted">\u2014</span>'}</td>
-    <td class="text-center">${c.porc_precio_c ? c.porc_precio_c + '%' : '<span class="text-muted">\u2014</span>'}</td>
-    <td class="text-center">${c.porc_precio_d ? c.porc_precio_d + '%' : '<span class="text-muted">\u2014</span>'}</td>
+    <td class="text-center col-hide-xs">${c.porc_precio_b ? c.porc_precio_b + '%' : '<span class="text-muted">\u2014</span>'}</td>
+    <td class="text-center col-hide-xs">${c.porc_precio_c ? c.porc_precio_c + '%' : '<span class="text-muted">\u2014</span>'}</td>
+    <td class="text-center col-hide-xs">${c.porc_precio_d ? c.porc_precio_d + '%' : '<span class="text-muted">\u2014</span>'}</td>
     <td class="text-center">${estado}</td>
-    <td class="text-center">${fechaAct}</td>
-    <td class="text-center">${usuarioAct}</td>
-    <td class="text-center" style="white-space:nowrap;">${acciones}</td>
+    <td class="text-center col-hide-sm">${fechaAct}</td>
+    <td class="text-center col-hide-sm">${usuarioAct}</td>
+    <td class="text-center">${acciones}</td>
   </tr>`;
 }
 
@@ -661,28 +720,30 @@ function activarEdicionFila(id) {
   const d = $row.data('d');
 
   $row.html(`
-    <td>${id}</td>
+    <td class="col-hide-xs">${id}</td>
     <td>
       <input type="text" class="form-control edit-cat-input" id="edit_nombre_${id}"
-             value="${escapeHtml(nombre)}" maxlength="100" required style="min-width:140px;">
+             value="${escapeHtml(nombre)}" maxlength="100" required style="min-width:110px;">
     </td>
     <td>
       <input type="number" class="form-control edit-cat-input text-center" id="edit_a_${id}"
-             value="${a}" min="0" max="100" step="0.01" required style="width:68px;">
+             value="${a}" min="0" max="100" step="0.01" required style="width:52px;">
     </td>
-    <td>
+    <td class="col-hide-xs">
       <input type="number" class="form-control edit-cat-input text-center" id="edit_b_${id}"
-             value="${b}" min="0" max="100" step="0.01" style="width:68px;">
+             value="${b}" min="0" max="100" step="0.01" style="width:52px;">
     </td>
-    <td>
+    <td class="col-hide-xs">
       <input type="number" class="form-control edit-cat-input text-center" id="edit_c_${id}"
-             value="${c}" min="0" max="100" step="0.01" style="width:68px;">
+             value="${c}" min="0" max="100" step="0.01" style="width:52px;">
     </td>
-    <td>
+    <td class="col-hide-xs">
       <input type="number" class="form-control edit-cat-input text-center" id="edit_d_${id}"
-             value="${d}" min="0" max="100" step="0.01" style="width:68px;">
+             value="${d}" min="0" max="100" step="0.01" style="width:52px;">
     </td>
     <td></td>
+    <td class="col-hide-sm"></td>
+    <td class="text-center col-hide-sm"></td>
     <td class="text-center" style="white-space:nowrap;">
       <button class="btn-save-cat mr-1" onclick="guardarEdicionCat(${id})">
         <i class="fa fa-check mr-1"></i>Guardar
@@ -719,6 +780,12 @@ function guardarEdicionCat(id) {
     porc_precio_d: $('#edit_d_' + id).val() || 0
   };
 
+  // Spinner en el botón Guardar
+  const $btnGuardar = $('button[onclick="guardarEdicionCat(' + id + ')"]');
+  const htmlOriginal = $btnGuardar.html();
+  $btnGuardar.prop('disabled', true)
+             .html('<i class="fa fa-spinner fa-spin mr-1"></i>Guardando...');
+
   axios.post('/actualizar/categoria/precios', payload)
     .then(function (res) {
       const data = res.data;
@@ -731,8 +798,8 @@ function guardarEdicionCat(id) {
         icon: data.icon,
         title: data.title,
         html: htmlMsg,
-        timer: 2500,
-        showConfirmButton: false,
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#27ae60',
         customClass: { container: 'swal-sobre-modal' }
       });
       reloadCatPrecios();
@@ -740,6 +807,7 @@ function guardarEdicionCat(id) {
       $('#tbl_listaCategoria').DataTable().ajax.reload(null, false);
     })
     .catch(function (err) {
+      $btnGuardar.prop('disabled', false).html(htmlOriginal);
       const data = err.response?.data || { icon: 'error', title: 'Error', text: 'No se pudo actualizar.' };
       Swal.fire({ icon: data.icon, title: data.title, text: data.text });
     });

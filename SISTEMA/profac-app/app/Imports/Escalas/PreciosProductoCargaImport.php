@@ -91,12 +91,11 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
          */
         if (!$this->headersValidated) {
             $present = array_keys($rows->first()->toArray());
-            $required = ['producto_id', 'categoria_precios_id', 'precio_base_venta'];
+            $required = ['producto_id', 'precio_base_venta'];
             $missing = array_diff($required, $present);
             $this->missingHeaders = array_values($missing);
             $this->headersValidated = true;
 
-            // Si faltan encabezados esenciales, se registra un warning y se interrumpe el proceso.
             if (!empty($this->missingHeaders)) {
                 Log::warning('[Import precios] Faltan columnas requeridas', ['missing' => $this->missingHeaders]);
                 return;
@@ -105,8 +104,34 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
 
         // Variables auxiliares
         $now = now();
-        $batch = [];                // Contendrá los registros listos para insertar
-        $groupForInactivate = [];   // Agrupa productos por categoría de precios para actualizar estado a inactivo antes de insertar los nuevos
+        $batch = [];
+        $groupForInactivate = [];
+
+        /**
+         * PRE-CARGAR CATEGORÍAS DE PRECIO UNA SOLA VEZ POR CHUNK.
+         * Para modos 'general' y 'cliente_todas' evitamos N queries por fila.
+         */
+        $categoriasCache = null;
+        if ($this->tipoPlantilla === 'general') {
+            $q = DB::table('categoria_precios')->where('estado_id', 1);
+            if (!empty($this->categoriasExcluidas)) {
+                $q->whereNotIn('id', $this->categoriasExcluidas);
+            }
+            $categoriasCache = $q->get();
+            if ($categoriasCache->isEmpty()) {
+                Log::warning('[Import precios] Sin categorías activas en modo general');
+                return;
+            }
+        } elseif ($this->tipoPlantilla === 'cliente_todas') {
+            $categoriasCache = DB::table('categoria_precios')
+                ->where('estado_id', 1)
+                ->where('cliente_categoria_escala_id', $this->clienteCategoriaId)
+                ->get();
+            if ($categoriasCache->isEmpty()) {
+                Log::warning('[Import precios] Sin categorías activas para cliente_categoria_escala_id=' . $this->clienteCategoriaId);
+                return;
+            }
+        }
 
         /**
          * Se obtiene la lista de IDs de productos presentes en el chunk actual
@@ -170,33 +195,12 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
 
             // En modo general, obtenemos todas las categorías activas
             // En modo categoría, usamos la categoría especificada
+            // En modo general/cliente_todas usamos el cache pre-cargado.
+            // En modo categoría buscamos la categoría específica del row o del constructor.
             $categoriasPrecios = [];
-            if ($this->tipoPlantilla === 'general') {
-                // Obtener todas las categorías de precios activas
-                $categoriasPrecios = DB::table('categoria_precios')
-                    ->where('estado_id', 1)
-                    ->get();
-
-                // Excluir las categorías seleccionadas por el usuario
-                if (!empty($this->categoriasExcluidas)) {
-                    $categoriasPrecios = $categoriasPrecios->whereNotIn('id', $this->categoriasExcluidas)->values();
-                }
-
-                if ($categoriasPrecios->isEmpty()) {
-                    $this->skip("No hay categorías de precios activas en el sistema", $row->toArray());
-                    continue;
-                }
-            } elseif ($this->tipoPlantilla === 'cliente_todas') {
-                // Obtener todas las categorías de precios activas de la categoría de cliente
-                $categoriasPrecios = DB::table('categoria_precios')
-                    ->where('estado_id', 1)
-                    ->where('cliente_categoria_escala_id', $this->clienteCategoriaId)
-                    ->get();
-
-                if ($categoriasPrecios->isEmpty()) {
-                    $this->skip("No hay categorías de precios activas para esta categoría de cliente", $row->toArray());
-                    continue;
-                }
+            if ($this->tipoPlantilla === 'general' || $this->tipoPlantilla === 'cliente_todas') {
+                // Ya validado y pre-cargado arriba — $categoriasCache no puede ser null aquí
+                $categoriasPrecios = $categoriasCache;
             } else {
                 // Modo categoría: usar la categoría especificada
                 $catPrecioId = $this->asInt($row['categoria_precios_id'] ?? $this->categoriaPrecioId);

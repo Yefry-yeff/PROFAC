@@ -284,6 +284,10 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     ->name('finalizar.excel.precios');
     Route::post('/procesar-excel-precios', [App\Http\Controllers\ExcelController::class, 'procesarExcelPrecios'])
     ->name('procesar.excel.precios');
+    Route::get('/exportar/precios/por-cliente/{clienteCatId}', [App\Http\Controllers\ExcelController::class, 'exportarPreciosPorCliente'])
+    ->name('exportar.precios.por.cliente');
+    Route::get('/exportar/precios/por-categoria/{clienteCatId}/{categoriaPrecioId}', [App\Http\Controllers\ExcelController::class, 'exportarPreciosPorCategoriaPrecio'])
+    ->name('exportar.precios.por.categoria');
 
     /* Gestión masiva de clientes */
 

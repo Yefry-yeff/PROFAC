@@ -252,6 +252,127 @@ a.btn.btn-pf-primary:hover {
 }
 #btnDescargar { height: 32px; flex: 0 0 auto; font-size: .75rem; padding: 0 14px; align-self: flex-start; }
 
+/* ── Wizard de plantilla ── */
+.pf-wizard-card {
+    background: #fff;
+    border: 1px solid #f0e6d8;
+    border-radius: 12px;
+    box-shadow: 0 1px 6px rgba(210,150,60,.10);
+    margin-bottom: 1.5rem;
+    overflow: hidden;
+}
+.pf-wizard-header {
+    background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+    padding: 14px 22px 0;
+}
+.pf-wizard-header h6 {
+    color: #fff;
+    font-size: .82rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    margin-bottom: 12px;
+}
+.pf-wizard-tabs {
+    display: flex;
+    gap: 4px;
+}
+.pf-wizard-tab {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 20px;
+    border-radius: 8px 8px 0 0;
+    font-size: .78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    cursor: pointer;
+    border: none;
+    background: rgba(255,255,255,.18);
+    color: rgba(255,255,255,.75);
+    transition: background .2s, color .2s;
+}
+.pf-wizard-tab.active {
+    background: #fff;
+    color: #e67e22;
+}
+.pf-wizard-tab .tab-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    font-size: .72rem;
+    background: rgba(255,255,255,.25);
+    color: inherit;
+    font-weight: 800;
+    flex-shrink: 0;
+}
+.pf-wizard-tab.active .tab-num {
+    background: #f39c12;
+    color: #fff;
+}
+.pf-wizard-tab.tab-done .tab-num {
+    background: #27ae60;
+    color: #fff;
+}
+.pf-wizard-tab.tab-done {
+    color: rgba(255,255,255,.9);
+}
+.pf-wizard-body { padding: 22px 22px 18px; }
+.pf-wizard-pane { display: none; }
+.pf-wizard-pane.active { display: block; }
+.pf-step-label {
+    font-size: .7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: #c97c20;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.pf-step-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: #fde8cc;
+}
+/* Upload zone */
+.pf-upload-zone {
+    border: 2px dashed #e0cfc0;
+    border-radius: 10px;
+    background: #fdfaf7;
+    padding: 24px 20px;
+    text-align: center;
+    transition: border-color .2s, background .2s;
+    cursor: pointer;
+    position: relative;
+}
+.pf-upload-zone:hover, .pf-upload-zone.drag-over {
+    border-color: #e67e22;
+    background: #fffaf4;
+}
+.pf-upload-zone input[type=file] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+}
+.pf-upload-zone .upload-icon { font-size: 2rem; color: #e0cfc0; margin-bottom: 8px; }
+.pf-upload-zone.has-file .upload-icon { color: #27ae60; }
+.pf-upload-zone .upload-text { font-size: .8rem; color: #888; }
+.pf-upload-zone .upload-filename { font-size: .83rem; font-weight: 600; color: #444; margin-top: 4px; }
+/* Import action bar */
+.pf-import-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 14px;
+    flex-wrap: wrap;
+}
+.pf-progress-wrap { margin-top: 12px; }
+.pf-progress-wrap .progress { height: 6px; border-radius: 4px; }
+
 /* ── Limpiar archivo ── */
 #btnLimpiarArchivoPrecios {
     background: transparent; border: none; color: #dc3545;
@@ -320,14 +441,29 @@ a.btn.btn-pf-primary:hover {
     .filtro-container { flex-direction: column !important; }
     .filtro-container .btn, .filtro-container .form-control,
     .filtro-container .filtro-item, .filtro-container .filtro-select { width: 100% !important; }
-    #formSubirExcel { flex-direction: column !important; width: 100% !important; gap: 8px; }
-    #formSubirExcel .position-relative, #formSubirExcel .btn { width: 100% !important; margin-left: 0 !important; }
+    .pf-wizard-tabs { gap: 0; }
+    .pf-wizard-tab { padding: 7px 12px; font-size: .7rem; flex: 1; justify-content: center; }
+    .pf-import-bar { flex-direction: column; align-items: stretch; }
+    .pf-import-bar .btn { width: 100%; }
 }
 @media (min-width: 992px) {
     .filtro-select { min-width: 240px; flex: 1 1 240px; }
 }
 
 /* ── Modal Ver / Editar Categorías de Precio ── */
+/* ── Animaciones del modal ── */
+@keyframes pf-modal-in {
+    from { opacity: 0; transform: translateY(-28px) scale(.97); }
+    to   { opacity: 1; transform: translateY(0)   scale(1);    }
+}
+@keyframes pf-modal-out {
+    from { opacity: 1; transform: translateY(0)   scale(1);    }
+    to   { opacity: 0; transform: translateY(20px) scale(.97); }
+}
+@keyframes pf-dropdown-in {
+    from { opacity: 0; transform: translateY(-6px) scale(.97); }
+    to   { opacity: 1; transform: translateY(0)    scale(1);   }
+}
 #modalVerCatPrecios .modal-content {
     border: none;
     border-radius: 14px;
@@ -335,8 +471,17 @@ a.btn.btn-pf-primary:hover {
     overflow: visible;
 }
 #modalVerCatPrecios .modal-dialog {
-    margin-top: 60px;
-    max-width: 860px;
+    margin-top: 90px;
+    max-width: 900px;
+    width: calc(100% - 20px);
+    margin-left: auto;
+    margin-right: auto;
+}
+#modalVerCatPrecios.show .modal-dialog {
+    animation: pf-modal-in .28s cubic-bezier(.22,.68,0,1.2) both;
+}
+#modalVerCatPrecios.pf-hiding .modal-dialog {
+    animation: pf-modal-out .2s ease-in both;
 }
 #modalVerCatPrecios .modal-header {
     background: var(--pf-grad);
@@ -349,7 +494,11 @@ a.btn.btn-pf-primary:hover {
     border-top: 1px solid #eddfc9;
     padding: 12px 22px;
     border-radius: 0 0 14px 14px;
+    flex-wrap: wrap;
+    gap: 8px;
 }
+/* Tabla responsive */
+#tbl_catPrecios_lista { min-width: 480px; }
 #tbl_catPrecios_lista thead th {
     background: #f8f0e6;
     color: #7d4600;
@@ -357,40 +506,123 @@ a.btn.btn-pf-primary:hover {
     font-weight: 700;
     border-bottom: 2px solid #e8c49a;
     white-space: nowrap;
-    padding: 8px 10px;
+    padding: 8px 6px;
 }
 #tbl_catPrecios_lista td {
     font-size: .82rem;
     vertical-align: middle;
-    padding: 6px 10px;
+    padding: 5px 6px;
 }
+/* Ocultar columnas menos importantes en mobile */
+@media (max-width: 575px) {
+    #tbl_catPrecios_lista .col-hide-xs { display: none; }
+    #modalVerCatPrecios .modal-dialog { margin-top: 14px; }
+    #modalVerCatPrecios .modal-footer { flex-direction: column-reverse; }
+    #modalVerCatPrecios .modal-footer .btn { width: 100%; justify-content: center; }
+}
+@media (max-width: 767px) {
+    #tbl_catPrecios_lista .col-hide-sm { display: none; }
+}
+/* ── Dropdown de acciones por fila ── */
+.cat-action-dropdown .dropdown-toggle {
+    background: linear-gradient(135deg,#5d6d7e 0%,#4a5568 100%);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: .72rem;
+    font-weight: 600;
+    padding: 4px 10px;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0,0,0,.2);
+    transition: background .15s, box-shadow .15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.cat-action-dropdown .dropdown-toggle:hover {
+    background: linear-gradient(135deg,#4a5568 0%,#2d3748 100%);
+    box-shadow: 0 2px 6px rgba(0,0,0,.25);
+}
+.cat-action-dropdown .dropdown-toggle::after { margin-left: 2px; }
+.cat-action-dropdown .dropdown-menu {
+    border: none;
+    border-radius: 10px;
+    box-shadow: 0 6px 24px rgba(0,0,0,.14);
+    padding: 4px 0;
+    min-width: 160px;
+    font-size: .8rem;
+    transform-origin: top right;
+}
+.cat-action-dropdown .dropdown-menu.show {
+    animation: pf-dropdown-in .18s cubic-bezier(.22,.68,0,1.15) both;
+}
+.cat-action-dropdown .dropdown-item {
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+    transition: background .12s;
+}
+.cat-action-dropdown .dropdown-item:hover { background: #fdf6ee; }
+.cat-action-dropdown .dropdown-item.item-edit  { color: #2471a3; }
+.cat-action-dropdown .dropdown-item.item-excel { color: #1e8449; }
+.cat-action-dropdown .dropdown-item.item-deact { color: #c0392b; }
+.cat-action-dropdown .dropdown-divider { margin: 3px 0; }
 .btn-edit-cat {
-    background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+    display: inline-flex; align-items: center; gap: 4px;
+    background: linear-gradient(135deg, #3498db 0%, #2471a3 100%);
     color: #fff; border: none;
-    font-size: .72rem; padding: 3px 9px;
-    border-radius: 5px; font-weight: 600; cursor: pointer;
+    font-size: .72rem; padding: 4px 10px;
+    border-radius: 6px; font-weight: 600; cursor: pointer;
+    box-shadow: 0 1px 3px rgba(52,152,219,.35);
+    transition: background .15s, box-shadow .15s, transform .1s;
 }
-.btn-edit-cat:hover { background: linear-gradient(135deg, #2980b9 0%, #1c6fa3 100%); color: #fff; }
+.btn-edit-cat:hover {
+    background: linear-gradient(135deg, #2471a3 0%, #1a5276 100%);
+    box-shadow: 0 2px 6px rgba(52,152,219,.4);
+    color: #fff;
+}
+.btn-edit-cat:active { transform: scale(.96); }
 .btn-save-cat {
-    background: linear-gradient(135deg, #27ae60 0%, #219a52 100%);
+    display: inline-flex; align-items: center; gap: 4px;
+    background: linear-gradient(135deg, #27ae60 0%, #1e8449 100%);
     color: #fff; border: none;
-    font-size: .72rem; padding: 3px 9px;
-    border-radius: 5px; font-weight: 600; cursor: pointer;
+    font-size: .72rem; padding: 4px 10px;
+    border-radius: 6px; font-weight: 600; cursor: pointer;
+    box-shadow: 0 1px 3px rgba(39,174,96,.35);
+    transition: background .15s, box-shadow .15s, transform .1s;
 }
-.btn-save-cat:hover { background: linear-gradient(135deg, #219a52 0%, #1a7a41 100%); color: #fff; }
+.btn-save-cat:hover {
+    background: linear-gradient(135deg, #1e8449 0%, #186a3b 100%);
+    box-shadow: 0 2px 6px rgba(39,174,96,.4);
+    color: #fff;
+}
+.btn-save-cat:active { transform: scale(.96); }
 .btn-cancel-cat {
-    background: #f0f0f0; color: #555;
-    border: 1px solid #ccc;
-    font-size: .72rem; padding: 3px 9px;
-    border-radius: 5px; font-weight: 600; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 4px;
+    background: #f4f4f4; color: #555;
+    border: 1px solid #d0d0d0;
+    font-size: .72rem; padding: 4px 10px;
+    border-radius: 6px; font-weight: 600; cursor: pointer;
+    transition: background .15s, transform .1s;
 }
+.btn-cancel-cat:hover { background: #e8e8e8; color: #333; }
+.btn-cancel-cat:active { transform: scale(.96); }
 .btn-deact-cat {
-    background: transparent; color: #dc3545;
-    border: 1px solid #dc3545;
-    font-size: .72rem; padding: 3px 9px;
-    border-radius: 5px; font-weight: 600; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 4px;
+    background: transparent; color: #e74c3c;
+    border: 1px solid #e74c3c;
+    font-size: .72rem; padding: 4px 10px;
+    border-radius: 6px; font-weight: 600; cursor: pointer;
+    transition: background .15s, color .15s, box-shadow .15s, transform .1s;
 }
-.btn-deact-cat:hover { background: #dc3545; color: #fff; }
+.btn-deact-cat:hover {
+    background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+    color: #fff;
+    box-shadow: 0 2px 6px rgba(231,76,60,.35);
+}
+.btn-deact-cat:active { transform: scale(.96); }
 .edit-cat-input { font-size: .8rem !important; height: 28px !important; padding: 2px 6px !important; }
 </style>
 @endpush
@@ -423,150 +655,210 @@ a.btn.btn-pf-primary:hover {
     </div>
 </div>
 
-<div class="cat-card">
-    <div class="cat-card-header">
-        <h6><i class="fa fa-download"></i> Plantilla de Precios por Productos</h6>
-    </div>
-    <div class="card-body p-3">
-        <form id="formExport" method="GET" action="{{ route('excel.plantilla') }}" class="d-flex flex-wrap filtro-container">
-            <!-- Tipo de plantilla -->
-            <div class="filtro-item">
-                <select id="tipoPlantilla" name="tipoPlantilla" class="form-control select2bs4 filtro-select">
-                    <option value="">Seleccionar tipo de plantilla</option>
-                    <option value="categoria">Por Categoría</option>
-                    <option value="general">Todas las categorías existentes</option>
-                </select>
-            </div>
+{{-- ═══════════════════════════════════════════════════════
+     WIZARD: PLANTILLA E IMPORTACIÓN DE PRECIOS
+     Tab 1 → Configurar y descargar plantilla
+     Tab 2 → Subir e importar el archivo completado
+═══════════════════════════════════════════════════════ --}}
+<div class="pf-wizard-card">
 
-            <!-- Tipo de categoría -->
-            <div class="filtro-item" id="containerTipoCategoria" style="display:none;">
-                <select id="tipoCategoria" name="tipoCategoria" class="form-control select2bs4 filtro-select">
-                    <option value="">Tipo de categoría</option>
-                    <option value="escalable">Escalable</option>
-                    <option value="manual">Manual</option>
-                </select>
-            </div>
-
-            <!-- Tipo de filtro -->
-            <div class="filtro-item" id="containerTipoFiltro" style="display:none;">
-                <select id="tipoFiltro" name="tipoFiltro" class="form-control select2bs4 filtro-select">
-                    <option value="">Filtrar por</option>
-                    <option value="1">Marca</option>
-                    <option value="2">Categoría de producto</option>
-                </select>
-            </div>
-
-            <!-- Lista de filtro -->
-            <div class="filtro-item" id="containerListaFiltro" style="display:none;">
-                <select id="listaTipoFiltro" name="listaTipoFiltro" class="form-control select2bs4 filtro-select">
-                    <option value="">Seleccione...</option>
-                </select>
-            </div>
-
-            <!-- Categoría de cliente (solo en modo "Por Categoría") -->
-            <div class="filtro-item" id="containerCatCliente" style="display:none;">
-                <select id="catClienteSelect" name="catClienteId" class="form-control select2bs4 filtro-select">
-                    <option value="">Categoría de cliente</option>
-                </select>
-            </div>
-
-            <!-- Categoría de precios (dependiente de categoría de cliente) -->
-            <div class="filtro-item" id="containerCatPrecios" style="display:none;">
-                <select id="listaTipoFiltroCatPrecios" name="listaTipoFiltroCatPrecios" class="form-control select2bs4 filtro-select">
-                    <option value="">Categoría de precio</option>
-                </select>
-            </div>
-
-            <!-- Botón -->
-            <div style="flex:0 0 auto;align-self:flex-start;">
-                <button type="submit" class="btn btn-pf-primary" id="btnDescargar" disabled>
-                    <i class="fa fa-download mr-1"></i> Descargar plantilla
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<div class="cat-card">
-    <div class="cat-card-header">
-        <h6><i class="fa fa-upload"></i> Importación de la Plantilla de Precios</h6>
-    </div>
-    <div class="card-body p-3">
-        <!-- Mensaje informativo dinámico -->
-        <div id="mensajeInfoImport" class="alert alert-info mb-3" style="display:none;">
-            <i class="fa fa-info-circle mr-1"></i> <strong id="tituloInfoImport"></strong>
-            <p class="mb-0 mt-2" id="descripcionInfoImport"></p>
+    {{-- Header con tabs --}}
+    <div class="pf-wizard-header">
+        <h6><i class="fa fa-file-excel-o mr-2"></i>Gestión de Plantillas de Precios</h6>
+        <div class="pf-wizard-tabs">
+            <button class="pf-wizard-tab active" id="tabDescargar" onclick="switchWizardTab('descargar')">
+                <span class="tab-num">1</span>
+                <i class="fa fa-download mr-1"></i> Descargar Plantilla
+            </button>
+            <button class="pf-wizard-tab" id="tabImportar" onclick="switchWizardTab('importar')">
+                <span class="tab-num">2</span>
+                <i class="fa fa-upload mr-1"></i> Importar Plantilla
+            </button>
         </div>
+    </div>
 
-        <div class="d-flex justify-content-center align-items-center">
-            <form id="formSubirExcel" class="d-flex align-items-center" enctype="multipart/form-data">
-                @csrf
-                <div class="position-relative d-flex align-items-center">
-                    <input type="file" class="form-control filtro-select" name="archivo_excel" id="archivo_excel" accept=".xlsx" required>
-                    <button type="button" id="btnLimpiarArchivoPrecios" class="position-absolute" style="right: 8px; display: none; z-index: 10;" title="Quitar archivo">
-                        <i class="fa fa-times"></i>
+    {{-- Body --}}
+    <div class="pf-wizard-body">
+
+        {{-- ─── PASO 1: DESCARGA ─── --}}
+        <div class="pf-wizard-pane active" id="paneDescargar">
+
+            <div class="pf-step-label"><i class="fa fa-sliders"></i> Configurar filtros</div>
+
+            <form id="formExport" method="GET" action="{{ route('excel.plantilla') }}" class="d-flex flex-wrap filtro-container">
+                {{-- Tipo de plantilla --}}
+                <div class="filtro-item">
+                    <select id="tipoPlantilla" name="tipoPlantilla" class="form-control select2bs4 filtro-select">
+                        <option value="">Seleccionar tipo de plantilla</option>
+                        <option value="categoria">Por Categoría</option>
+                        <option value="general">Todas las categorías existentes</option>
+                    </select>
+                </div>
+
+                {{-- Tipo de categoría --}}
+                <div class="filtro-item" id="containerTipoCategoria" style="display:none;">
+                    <select id="tipoCategoria" name="tipoCategoria" class="form-control select2bs4 filtro-select">
+                        <option value="">Tipo de categoría</option>
+                        <option value="escalable">Escalable</option>
+                        <option value="manual">Manual</option>
+                    </select>
+                </div>
+
+                {{-- Filtrar por --}}
+                <div class="filtro-item" id="containerTipoFiltro" style="display:none;">
+                    <select id="tipoFiltro" name="tipoFiltro" class="form-control select2bs4 filtro-select">
+                        <option value="">Filtrar por</option>
+                        <option value="1">Marca</option>
+                        <option value="2">Categoría de producto</option>
+                    </select>
+                </div>
+
+                {{-- Lista dinámica --}}
+                <div class="filtro-item" id="containerListaFiltro" style="display:none;">
+                    <select id="listaTipoFiltro" name="listaTipoFiltro" class="form-control select2bs4 filtro-select">
+                        <option value="">Seleccione...</option>
+                    </select>
+                </div>
+
+                {{-- Categoría de cliente --}}
+                <div class="filtro-item" id="containerCatCliente" style="display:none;">
+                    <select id="catClienteSelect" name="catClienteId" class="form-control select2bs4 filtro-select">
+                        <option value="">Categoría de cliente</option>
+                    </select>
+                </div>
+
+                {{-- Categoría de precio --}}
+                <div class="filtro-item" id="containerCatPrecios" style="display:none;">
+                    <select id="listaTipoFiltroCatPrecios" name="listaTipoFiltroCatPrecios" class="form-control select2bs4 filtro-select">
+                        <option value="">Categoría de precio</option>
+                    </select>
+                </div>
+
+                {{-- Botón descargar --}}
+                <div style="flex:0 0 auto;align-self:flex-start;">
+                    <button type="submit" class="btn btn-pf-primary" id="btnDescargar" disabled>
+                        <i class="fa fa-download mr-1"></i> Descargar plantilla
                     </button>
                 </div>
-                <button type="button" id="btnProcesarArchivoPrecios" class="btn btn-pf-primary ml-2"
-                        style="background:linear-gradient(135deg,#f39c12 0%,#e67e22 100%) !important;color:#fff !important;border:none;">
-                    <i class="fa fa-search mr-1"></i> Procesar Archivo
-                </button>
-                <button type="button" id="btnFinalizarImportPrecios" class="btn btn-success ml-2" style="display:none;">
-                    <i class="fa fa-check-circle mr-1"></i> Finalizar Actualización
-                </button>
             </form>
-        </div>
 
-        <div class="progress mt-3" style="height:8px;">
-            <div id="barImportPrecios" class="progress-bar" role="progressbar" style="width:0%"></div>
-        </div>
-        <div id="msgImportPrecios" class="small mt-2 text-muted"></div>
-
-        <!-- Preview de productos a actualizar -->
-        <div id="previewActualizablesPrecios" class="mt-4" style="display:none;">
-            <div class="alert alert-success">
-                <h6><i class="fa fa-check-circle"></i> <b>Productos que se actualizarán (<span id="countActualizablesPrecios">0</span>)</b></h6>
+            {{-- Info dinámica según modo --}}
+            <div id="mensajeInfoDescarga" class="alert alert-light border mt-3 mb-0 py-2 px-3" style="display:none; font-size:.8rem;">
+                <i class="fa fa-info-circle text-warning mr-1"></i>
+                <span id="textoInfoDescarga"></span>
             </div>
-            <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
-                <table class="table table-sm table-bordered table-hover">
-                    <thead class="bg-success text-white sticky-top">
-                        <tr>
-                            <th>Código</th>
-                            <th>Descripción</th>
-                            <th>Categoría Precio</th>
-                            <th></th>Precio Base</th>
-                            <th>Precio A</th>
-                            <th>Precio B</th>
-                            <th>Precio C</th>
-                            <th>Precio D</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tablaActualizablesPrecios"></tbody>
-                </table>
+
+            <div class="d-flex justify-content-end mt-3">
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="switchWizardTab('importar')">
+                    Ir a Importar <i class="fa fa-arrow-right ml-1"></i>
+                </button>
             </div>
         </div>
 
-        <!-- Preview de productos NO actualizables -->
-        <div id="previewNoActualizablesPrecios" class="mt-4" style="display:none;">
-            <div class="alert alert-warning">
-                <h6><i class="fa fa-exclamation-triangle"></i> <b>Productos NO procesados (<span id="countNoActualizablesPrecios">0</span>)</b></h6>
+        {{-- ─── PASO 2: IMPORTACIÓN ─── --}}
+        <div class="pf-wizard-pane" id="paneImportar">
+
+            {{-- Zona de subida --}}
+            <div class="pf-step-label"><i class="fa fa-upload"></i> Seleccionar archivo</div>
+
+            <form id="formSubirExcel" enctype="multipart/form-data">
+                @csrf
+                <div class="pf-upload-zone" id="uploadZone">
+                    <input type="file" name="archivo_excel" id="archivo_excel" accept=".xlsx">
+                    <div class="upload-icon"><i class="fa fa-file-excel-o"></i></div>
+                    <div class="upload-text">Arrastrá o hacé click para seleccionar</div>
+                    <div class="upload-text" style="font-size:.72rem;color:#bbb;">Solo archivos <strong>.xlsx</strong> · Máx. 20 MB</div>
+                    <div class="upload-filename mt-1" id="uploadFilename" style="display:none;"></div>
+                </div>
+
+                {{-- Barra de acciones --}}
+                <div class="pf-import-bar">
+                    <button type="button" id="btnProcesarArchivoPrecios" class="btn btn-pf-primary" disabled>
+                        <i class="fa fa-search mr-1"></i> Validar y previsualizar
+                    </button>
+                    <button type="button" id="btnFinalizarImportPrecios" class="btn btn-success" style="display:none;">
+                        <i class="fa fa-check-circle mr-1"></i> Confirmar importación
+                    </button>
+                    <button type="button" id="btnLimpiarArchivoPrecios" class="btn btn-sm btn-outline-danger" style="display:none;">
+                        <i class="fa fa-trash mr-1"></i> Quitar archivo
+                    </button>
+                    <span id="msgImportPrecios" class="small text-muted ml-auto"></span>
+                </div>
+            </form>
+
+            {{-- Barra de progreso --}}
+            <div class="pf-progress-wrap" id="wrapProgressImport" style="display:none;">
+                <div class="progress">
+                    <div id="barImportPrecios" class="progress-bar bg-info" role="progressbar" style="width:0%;transition:width .3s;"></div>
+                </div>
             </div>
-            <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
-                <table class="table table-sm table-bordered table-hover">
-                    <thead class="bg-warning sticky-top">
-                        <tr>
-                            <th>Fila</th>
-                            <th>Código</th>
-                            <th>Descripción</th>
-                            <th>Motivo</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tablaNoActualizablesPrecios"></tbody>
-                </table>
+
+            {{-- Info de modo (viene de los filtros) --}}
+            <div id="mensajeInfoImport" class="alert alert-info mt-3 mb-0 py-2 px-3" style="display:none; font-size:.8rem;">
+                <i class="fa fa-info-circle mr-1"></i>
+                <strong id="tituloInfoImport"></strong>
+                <span id="descripcionInfoImport" class="d-block mt-1"></span>
+            </div>
+
+            {{-- Preview: productos a actualizar --}}
+            <div id="previewActualizablesPrecios" class="mt-4" style="display:none;">
+                <div class="d-flex align-items-center mb-2">
+                    <span class="badge badge-success px-2 py-1 mr-2" style="font-size:.78rem;">
+                        <i class="fa fa-check-circle mr-1"></i> <span id="countActualizablesPrecios">0</span> productos
+                    </span>
+                    <strong style="font-size:.82rem;">Se actualizarán con los nuevos precios</strong>
+                </div>
+                <div class="table-responsive" style="max-height:320px;overflow-y:auto;border:1px solid #f0e8dd;border-radius:8px;">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead style="background:#f8f0e6;position:sticky;top:0;z-index:1;">
+                            <tr>
+                                <th style="font-size:.73rem;color:#7d4600;font-weight:700;padding:7px 10px;">Código</th>
+                                <th style="font-size:.73rem;color:#7d4600;font-weight:700;padding:7px 10px;">Descripción</th>
+                                <th style="font-size:.73rem;color:#7d4600;font-weight:700;padding:7px 10px;">Categoría</th>
+                                <th style="font-size:.73rem;color:#7d4600;font-weight:700;padding:7px 10px;">Base</th>
+                                <th style="font-size:.73rem;color:#7d4600;font-weight:700;padding:7px 10px;">A</th>
+                                <th style="font-size:.73rem;color:#7d4600;font-weight:700;padding:7px 10px;">B</th>
+                                <th style="font-size:.73rem;color:#7d4600;font-weight:700;padding:7px 10px;">C</th>
+                                <th style="font-size:.73rem;color:#7d4600;font-weight:700;padding:7px 10px;">D</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaActualizablesPrecios"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            {{-- Preview: productos omitidos --}}
+            <div id="previewNoActualizablesPrecios" class="mt-3" style="display:none;">
+                <div class="d-flex align-items-center mb-2">
+                    <span class="badge badge-warning px-2 py-1 mr-2" style="font-size:.78rem;">
+                        <i class="fa fa-exclamation-triangle mr-1"></i> <span id="countNoActualizablesPrecios">0</span> omitidos
+                    </span>
+                    <strong style="font-size:.82rem;">No se procesarán</strong>
+                </div>
+                <div class="table-responsive" style="max-height:240px;overflow-y:auto;border:1px solid #f0e8dd;border-radius:8px;">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead style="background:#fefae8;position:sticky;top:0;z-index:1;">
+                            <tr>
+                                <th style="font-size:.73rem;color:#7d6000;font-weight:700;padding:7px 10px;">Fila</th>
+                                <th style="font-size:.73rem;color:#7d6000;font-weight:700;padding:7px 10px;">Código</th>
+                                <th style="font-size:.73rem;color:#7d6000;font-weight:700;padding:7px 10px;">Descripción</th>
+                                <th style="font-size:.73rem;color:#7d6000;font-weight:700;padding:7px 10px;">Motivo</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaNoActualizablesPrecios"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-start mt-3">
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="switchWizardTab('descargar')">
+                    <i class="fa fa-arrow-left mr-1"></i> Volver a Filtros
+                </button>
             </div>
         </div>
-    </div>
-</div>
+
+    </div>{{-- /pf-wizard-body --}}
+</div>{{-- /pf-wizard-card --}}
 
 <!-- Modal: Seleccionar categorías a excluir (solo modo General) -->
 <div class="modal fade" id="modalSeleccionarCategoriasGeneral" tabindex="-1" role="dialog"
@@ -796,19 +1088,19 @@ a.btn.btn-pf-primary:hover {
         </div>
         <!-- Tabla -->
         <div id="wrapperVerCatPrecios" style="display:none;">
-          <div class="table-responsive">
+          <div class="table-responsive" style="-webkit-overflow-scrolling:touch;">
             <table class="table table-sm table-bordered table-hover mb-0" id="tbl_catPrecios_lista">
               <thead>
                 <tr>
-                  <th>ID</th>
+                  <th class="col-hide-xs">ID</th>
                   <th>Nombre</th>
                   <th class="text-center">% A</th>
-                  <th class="text-center">% B</th>
-                  <th class="text-center">% C</th>
-                  <th class="text-center">% D</th>
+                  <th class="text-center col-hide-xs">% B</th>
+                  <th class="text-center col-hide-xs">% C</th>
+                  <th class="text-center col-hide-xs">% D</th>
                   <th class="text-center">Estado</th>
-                  <th class="text-center">Últ. actualización</th>
-                  <th class="text-center">Actualizado por</th>
+                  <th class="text-center col-hide-sm">Últ. actualización</th>
+                  <th class="text-center col-hide-sm">Actualizado por</th>
                   <th class="text-center">Acciones</th>
                 </tr>
               </thead>
@@ -822,8 +1114,17 @@ a.btn.btn-pf-primary:hover {
         </div>
       </div>
 
-      <div class="modal-footer">
-        <button type="button" class="btn btn-outline-secondary btn-sm" data-dismiss="modal">
+      <div class="modal-footer justify-content-between">
+        <button type="button" id="btnExportarPreciosCat"
+                class="btn btn-sm font-weight-600"
+                style="background:linear-gradient(135deg,#27ae60 0%,#1e8449 100%);color:#fff;border:none;border-radius:7px;padding:6px 16px;font-size:.78rem;box-shadow:0 1px 4px rgba(39,174,96,.3);transition:box-shadow .15s,transform .1s;"
+                onmouseover="this.style.boxShadow='0 3px 8px rgba(39,174,96,.45)'"
+                onmouseout="this.style.boxShadow='0 1px 4px rgba(39,174,96,.3)'"
+                onclick="descargarPreciosPorCliente()">
+          <i class="fa fa-file-excel-o mr-1"></i> Exportar precios a Excel
+        </button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-dismiss="modal"
+                style="border-radius:7px;font-size:.78rem;padding:6px 16px;">
           <i class="fa fa-times mr-1"></i>Cerrar
         </button>
       </div>
@@ -885,14 +1186,19 @@ a.btn.btn-pf-primary:hover {
                 $('#tituloInfoImport').text('Modo: Por Categoría');
                 $('#descripcionInfoImport').html('Los precios se actualizarán <strong>solo para la categoría de precios seleccionada</strong>. El archivo debe contener los productos filtrados por marca o categoría.');
                 $('#mensajeInfoImport').removeClass('alert-warning').addClass('alert-info').show();
+                $('#textoInfoDescarga').html('Seleccione los filtros para generar la plantilla de una <strong>categoría específica</strong>.');
+                $('#mensajeInfoDescarga').show();
             } else if (tipoPlantilla === 'general') {
                 // Modo General: mostrar filtros excepto categoría de precios
                 $('#containerTipoCategoria').show();
                 $('#tituloInfoImport').text('Modo: General');
                 $('#descripcionInfoImport').html('Los precios se actualizarán <strong>para TODAS las categorías de precios activas</strong> del sistema. No necesita seleccionar una categoría específica.');
                 $('#mensajeInfoImport').removeClass('alert-info').addClass('alert-warning').show();
+                $('#textoInfoDescarga').html('Modo <strong>general</strong>: la plantilla incluirá productos de todas las categorías activas del sistema.');
+                $('#mensajeInfoDescarga').show();
             } else {
                 $('#mensajeInfoImport').hide();
+                $('#mensajeInfoDescarga').hide();
             }
         });
 
@@ -1005,11 +1311,37 @@ a.btn.btn-pf-primary:hover {
             $('#btnDescargar').prop('disabled', !valido);
         }
 
+        // ── Upload zone: actualizar UI al seleccionar archivo ──
+        function actualizarUploadZone(hasFile, filename) {
+            const zone = $('#uploadZone');
+            const filenameLbl = $('#uploadFilename');
+            if (hasFile) {
+                zone.addClass('has-file');
+                filenameLbl.text(filename).show();
+                btnLimpiarPrecios.show();
+                btnProcesarPrecios.prop('disabled', false);
+            } else {
+                zone.removeClass('has-file');
+                filenameLbl.hide().text('');
+                btnLimpiarPrecios.hide();
+                btnProcesarPrecios.prop('disabled', true);
+            }
+        }
+
+        // Drag over / drag leave en upload zone
+        $('#uploadZone').on('dragover', function(e) {
+            e.preventDefault();
+            $(this).addClass('drag-over');
+        }).on('dragleave drop', function() {
+            $(this).removeClass('drag-over');
+        });
+
         // Resetear cuando se cambie el archivo
         fileInputPrecios.on('change', function() {
             // Ocultar previews
             $('#previewActualizablesPrecios').hide();
             $('#previewNoActualizablesPrecios').hide();
+            $('#wrapProgressImport').hide();
 
             // Ocultar botón finalizar
             btnFinalizarPrecios.hide();
@@ -1019,31 +1351,24 @@ a.btn.btn-pf-primary:hover {
             barProgressPrecios.removeClass('bg-success bg-danger bg-info').css('width', '0%');
             msgImportPrecios.removeClass('text-danger').text('');
 
-            // Mostrar u ocultar botón de limpiar
+            // Actualizar upload zone
             if (this.files.length > 0) {
-                btnLimpiarPrecios.show();
+                actualizarUploadZone(true, this.files[0].name);
             } else {
-                btnLimpiarPrecios.hide();
+                actualizarUploadZone(false, '');
             }
         });
 
         // Limpiar archivo seleccionado
         btnLimpiarPrecios.on('click', function(e) {
             e.preventDefault();
-
-            // Limpiar input
             fileInputPrecios.val('');
-
-            // Ocultar botones
-            btnLimpiarPrecios.hide();
+            actualizarUploadZone(false, '');
             btnFinalizarPrecios.hide();
             btnProcesarPrecios.show();
-
-            // Ocultar previews
             $('#previewActualizablesPrecios').hide();
             $('#previewNoActualizablesPrecios').hide();
-
-            // Limpiar barra de progreso y mensajes
+            $('#wrapProgressImport').hide();
             barProgressPrecios.removeClass('bg-success bg-danger bg-info').css('width', '0%');
             msgImportPrecios.removeClass('text-danger').text('');
         });
@@ -1052,11 +1377,12 @@ a.btn.btn-pf-primary:hover {
         // Función centralizada para ejecutar el AJAX de preview
         // =============================================
         function ejecutarPreviewPrecios(categoriasExcluidas) {
-            const tipoPlantilla = $('#tipoPlantilla').val();
-            const tipoCategoria = $('#tipoCategoria').val();
-            const tipoFiltro    = $('#tipoFiltro').val();
-            const valorFiltro   = $('#listaTipoFiltro').val();
+            const tipoPlantilla     = $('#tipoPlantilla').val();
+            const tipoCategoria     = $('#tipoCategoria').val();
+            const tipoFiltro        = $('#tipoFiltro').val();
+            const valorFiltro       = $('#listaTipoFiltro').val();
             const categoriaPrecioId = $('#listaTipoFiltroCatPrecios').val();
+            const catClienteId      = $('#catClienteSelect').val();
 
             const formData = new FormData(formSubirExcel[0]);
             formData.append('tipoPlantilla', tipoPlantilla);
@@ -1065,6 +1391,9 @@ a.btn.btn-pf-primary:hover {
             formData.append('valorFiltro', valorFiltro);
             if (tipoPlantilla === 'categoria') {
                 formData.append('categoriaPrecioId', categoriaPrecioId);
+            }
+            if (catClienteId) {
+                formData.append('catClienteId', catClienteId);
             }
             if (categoriasExcluidas && categoriasExcluidas.length > 0) {
                 categoriasExcluidas.forEach(function(id) {
@@ -1082,6 +1411,7 @@ a.btn.btn-pf-primary:hover {
             $('#tituloOverlayPrecios').text('Procesando archivo...');
             $('#mensajeOverlayPrecios').text('Por favor espere mientras se validan los datos');
 
+            $('#wrapProgressImport').show();
             barProgressPrecios.removeClass('bg-success bg-danger').addClass('bg-info').css('width', '0%');
             msgImportPrecios.removeClass('text-danger').text('Validando archivo...');
 
@@ -1420,11 +1750,12 @@ a.btn.btn-pf-primary:hover {
                             }).then(() => {
                                 // Limpiar todo
                                 fileInputPrecios.val('');
-                                btnLimpiarPrecios.hide();
+                                actualizarUploadZone(false, '');
                                 btnFinalizarPrecios.hide();
                                 btnProcesarPrecios.show();
                                 $('#previewActualizablesPrecios').hide();
                                 $('#previewNoActualizablesPrecios').hide();
+                                $('#wrapProgressImport').hide();
                                 barProgressPrecios.css('width', '0%');
                                 msgImportPrecios.text('');
                             });
@@ -1450,6 +1781,25 @@ a.btn.btn-pf-primary:hover {
             });
         });
     });
+    </script>
+
+    <script>
+    // ── Wizard tab switcher (global, usado por onclick en el HTML) ──
+    function switchWizardTab(tab) {
+        var tabs = ['descargar', 'importar'];
+        tabs.forEach(function(t) {
+            var key  = t.charAt(0).toUpperCase() + t.slice(1);
+            var btn  = document.getElementById('tab'  + key);
+            var pane = document.getElementById('pane' + key);
+            if (t === tab) {
+                btn.classList.add('active');
+                pane.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+                pane.classList.remove('active');
+            }
+        });
+    }
     </script>
 @endpush
 
