@@ -254,6 +254,10 @@ function registrarCategoriaPrecios() {
 
   var data = new FormData($('#CreacionCatPrecios').get(0));
 
+  const htmlOriginal = $btn.html();
+  $btn.prop('disabled', true)
+      .html('<i class="fa fa-spinner fa-spin mr-1"></i>Guardando...');
+
   axios.post('/guardar/categoria/precios', data)
     .then(response => {
       let data = response.data;
@@ -286,7 +290,7 @@ function registrarCategoriaPrecios() {
       });
     })
     .finally(() => {
-      $btn.prop('disabled', false);
+      $btn.prop('disabled', false).html(htmlOriginal);
     });
 }
 

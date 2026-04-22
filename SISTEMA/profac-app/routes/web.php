@@ -249,18 +249,78 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/clientes/categorias', CategoriaClientes::class);
     Route::get('/descargar-plantilla', [App\Http\Controllers\ExcelController::class, 'descargarPlantilla'])->name('excel.plantilla');
     Route::get('/filtros/marca', function() {
-        return \App\Models\ModelMarca::select('id','nombre')->get();
+        return \Illuminate\Support\Facades\Cache::remember('filtros_marca', 300, fn () =>
+            \App\Models\ModelMarca::select('id','nombre')->orderBy('nombre')->get()
+        );
     });
 
     Route::get('/filtros/categoria', function() {
-        return \App\Models\ModelCategoriaProducto::select('id','descripcion as nombre')->get();
+        return \Illuminate\Support\Facades\Cache::remember('filtros_categoria_producto', 300, fn () =>
+            \App\Models\ModelCategoriaProducto::select('id','descripcion as nombre')->orderBy('descripcion')->get()
+        );
     });
     Route::get('/filtros/categoria/precios', function() {
-        return \App\Models\Escalas\modelCategoriaPrecios::select('id','nombre')->where('estado_id','=',1)->get();
+        return \Illuminate\Support\Facades\Cache::remember('filtros_categoria_precios', 120, fn () =>
+            \App\Models\Escalas\modelCategoriaPrecios::select('id','nombre')->where('estado_id',1)->orderBy('nombre')->get()
+        );
+    });
+    Route::get('/filtros/categoria/precios/por-cliente', function(\Illuminate\Http\Request $req) {
+        $catClienteIds = array_values(array_filter(explode(',', $req->input('cat_cliente_ids', ''))));
+        $catClienteIds = array_slice(array_map('intval', $catClienteIds), 0, 20); // máx 20
+        $cacheKey = 'filtros_cat_precio_' . implode('_', $catClienteIds);
+        return \Illuminate\Support\Facades\Cache::remember($cacheKey, 120, function () use ($catClienteIds) {
+            $query = \Illuminate\Support\Facades\DB::table('categoria_precios')
+                ->select('id', 'nombre')
+                ->where('estado_id', 1)
+                ->orderBy('nombre');
+            if (!empty($catClienteIds)) {
+                $query->whereIn('cliente_categoria_escala_id', $catClienteIds);
+            }
+            return $query->get();
+        });
     });
     Route::get('/filtros/categoria/cliente', function() {
-        return \App\Models\Escalas\modelCategoriaCliente::select('id','nombre_categoria as nombre')
-            ->where('estado_id', 1)->orderBy('nombre_categoria')->get();
+        return \Illuminate\Support\Facades\Cache::remember('filtros_cat_cliente', 120, fn () =>
+            \App\Models\Escalas\modelCategoriaCliente::select('id','nombre_categoria as nombre')
+                ->where('estado_id', 1)->orderBy('nombre_categoria')->get()
+        );
+    });
+    Route::get('/filtros/marca/buscar', function(\Illuminate\Http\Request $req) {
+        $q    = $req->input('q', '');
+        $page = max(1, (int) $req->input('page', 1));
+        $per  = 20;
+        $base = \App\Models\ModelMarca::select('id', 'nombre')
+            ->when($q, fn ($b) => $b->where('nombre', 'LIKE', "%{$q}%"))
+            ->orderBy('nombre');
+        $total   = $base->count();
+        $results = $base->skip(($page - 1) * $per)->take($per)->get();
+        return response()->json([
+            'results'    => $results->map(fn ($r) => ['id' => $r->id, 'text' => $r->nombre]),
+            'pagination' => ['more' => ($page * $per) < $total],
+        ]);
+    });
+    Route::get('/filtros/categoria/buscar', function(\Illuminate\Http\Request $req) {
+        $q    = $req->input('q', '');
+        $page = max(1, (int) $req->input('page', 1));
+        $per  = 20;
+        $base = \App\Models\ModelCategoriaProducto::select('id', 'descripcion as nombre')
+            ->when($q, fn ($b) => $b->where('descripcion', 'LIKE', "%{$q}%"))
+            ->orderBy('descripcion');
+        $total   = $base->count();
+        $results = $base->skip(($page - 1) * $per)->take($per)->get();
+        return response()->json([
+            'results'    => $results->map(fn ($r) => ['id' => $r->id, 'text' => $r->nombre]),
+            'pagination' => ['more' => ($page * $per) < $total],
+        ]);
+    });
+    Route::get('/filtros/produtos', function(\Illuminate\Http\Request $req) {
+        $q = $req->input('q', '');
+        return \Illuminate\Support\Facades\DB::table('producto')
+            ->where('nombre', 'LIKE', "%{$q}%")
+            ->select('id', \Illuminate\Support\Facades\DB::raw("CONCAT(id, ' — ', nombre) as nombre"))
+            ->orderBy('nombre')
+            ->limit(40)
+            ->get();
     });
     /* Categoria de cliente */
     Route::post('/guardar/categoria/cliente', [CategoriaClientes::class, 'guardarCtaegoria']);
@@ -305,7 +365,22 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
 
     Route::get('/reportes/escalas', ReportesEscalas::class);
     Route::get('/descargar/productos/filtros', [ReportesEscalas::class, 'descargarPrecios'])->name('excel.productos.filtros');
-    Route::get('/escalas/productos/filtrados', [ReportesEscalas::class, 'listarProductosFiltrados']);
+    Route::get('/escalas/productos/filtrados', [ReportesEscalas::class, 'listarProductosFiltrados'])
+        ->middleware('throttle:40,1');
+
+    // Reportes — JSON para DataTables (client-side)
+    Route::get('/reportes/escalas/cobertura',           [ReportesEscalas::class, 'coberturaJson']);
+    Route::get('/reportes/escalas/sin-precios-cat',     [ReportesEscalas::class, 'sinPreciosCatJson']);
+    Route::get('/reportes/escalas/sin-precios-prod',    [ReportesEscalas::class, 'productosSinPreciosJson']);
+    Route::get('/reportes/escalas/comparativo',         [ReportesEscalas::class, 'comparativoJson']);
+    Route::get('/reportes/escalas/resumen-cat-precio',  [ReportesEscalas::class, 'resumenCatPrecioJson']);
+
+    // Reportes — descargas Excel
+    Route::get('/exportar/cobertura-categorias',    [ReportesEscalas::class, 'descargarCobertura'])->name('exportar.cobertura.categorias');
+    Route::get('/exportar/cat-sin-precios',         [ReportesEscalas::class, 'descargarSinPreciosCat'])->name('exportar.cat.sin.precios');
+    Route::get('/exportar/productos-sin-precios',   [ReportesEscalas::class, 'descargarProductosSinPrecios'])->name('exportar.productos.sin.precios');
+    Route::get('/exportar/comparativo-produto',     [ReportesEscalas::class, 'descargarComparativo'])->name('exportar.comparativo.produto');
+    Route::get('/exportar/resumen-cat-precio',      [ReportesEscalas::class, 'descargarResumenCatPrecio'])->name('exportar.resumen.cat.precio');
 
 
     //-----------------------Bodega---------------------------------------------------------------------------------------------------------------------//
