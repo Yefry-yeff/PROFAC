@@ -292,6 +292,28 @@ class Cotizacion extends Component
             $cotizacion->nota = $request->nota;
             $cotizacion->save();
 
+            // ── Registrar en historico_flujo si viene de un pedido vinculado ──
+            $pedidoIdVinculado = $request->pedido_id ? (int) $request->pedido_id : null;
+            $flujoIdVinculado  = null;
+            if ($pedidoIdVinculado) {
+                $flujoIdVinculado = DB::table('flujo')
+                    ->where('identificacion', (string) $pedidoIdVinculado)
+                    ->where('tipo_tramite_id', 1)
+                    ->value('id');
+                if ($flujoIdVinculado) {
+                    DB::table('historico_flujo')->insert([
+                        'flujo_id'        => $flujoIdVinculado,
+                        'tipo_tramite_id' => 2, // 'Ofertas'
+                        'tramite_id'      => $cotizacion->id,
+                        'estado_id'       => null,
+                        'observaciones'   => 'Oferta registrada para pedido #' . $pedidoIdVinculado,
+                        'created_by'      => Auth::id(),
+                        'updated_by'      => Auth::id(),
+                        'created_at'      => now(),
+                        'updated_at'      => now(),
+                    ]);
+                }
+            }
 
             for ($i = 0; $i < count($arrayInputs); $i++) {
 
@@ -377,7 +399,7 @@ class Cotizacion extends Component
             'text'      => 'Cotización guardada con éxito.',
             'title'     => 'Exito!',
             'idFactura' => $cotizacion->id,
-            'pedidoId'  => $request->pedido_id ?: null,
+            'pedidoId'  => $pedidoIdVinculado ?: null,
         ],200);
 
         } catch (QueryException $e) {
@@ -394,10 +416,22 @@ class Cotizacion extends Component
 
     public function ofertasPorPedido($pedidoId)
     {
-        $ofertas = DB::table('cotizacion')
-            ->where('pedido_id', (int) $pedidoId)
-            ->select('id', 'nombre_cliente', 'total', 'created_at')
-            ->orderByDesc('id')
+        $flujoId = DB::table('flujo')
+            ->where('identificacion', (string) (int) $pedidoId)
+            ->where('tipo_tramite_id', 1)
+            ->value('id');
+
+        if (!$flujoId) {
+            return response()->json([]);
+        }
+
+        $ofertas = DB::table('historico_flujo as hf')
+            ->join('cotizacion as c', 'c.id', '=', 'hf.tramite_id')
+            ->where('hf.flujo_id', $flujoId)
+            ->where('hf.tipo_tramite_id', 2)
+            ->select('c.id', 'c.nombre_cliente', 'c.total', 'c.created_at',
+                     DB::raw("IF(hf.observaciones = 'ganadora', 1, 0) as es_ganadora"))
+            ->orderByDesc('c.id')
             ->get();
 
         return response()->json($ofertas);
@@ -410,7 +444,25 @@ class Cotizacion extends Component
             return response()->json(['error' => 'ID requerido'], 422);
         }
 
-        DB::table('cotizacion')->where('id', $id)->update(['updated_at' => now()]);
+        // Marcar en historico_flujo: esta oferta como ganadora, el resto como no-ganadora
+        $hf = DB::table('historico_flujo')
+            ->where('tramite_id', $id)
+            ->where('tipo_tramite_id', 2)
+            ->first();
+
+        if ($hf) {
+            // Quitar 'ganadora' de las otras ofertas del mismo flujo
+            DB::table('historico_flujo')
+                ->where('flujo_id', $hf->flujo_id)
+                ->where('tipo_tramite_id', 2)
+                ->where('observaciones', 'ganadora')
+                ->update(['observaciones' => null, 'updated_at' => now()]);
+
+            // Marcar esta como ganadora
+            DB::table('historico_flujo')
+                ->where('id', $hf->id)
+                ->update(['observaciones' => 'ganadora', 'updated_at' => now()]);
+        }
 
         return response()->json(['success' => true, 'cotizacion_id' => $id]);
     }

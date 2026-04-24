@@ -1920,9 +1920,11 @@
                     }
                     var html = '<div class="list-group">';
                     ofertas.forEach(function(o) {
-                        var esActual = o.id == idOferta ? ' (esta oferta)' : '';
-                        html += '<button onclick="confirmarGanadora(' + o.id + ')" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" style="border-radius:8px; margin-bottom:6px; border:1px solid #f9a826;">';
-                        html += '<span><strong>Oferta #' + o.id + '</strong>' + esActual + '<br><small class="text-muted">' + (o.nombre_cliente || '') + '</small></span>';
+                        var esActual  = (o.id == idOferta) ? ' <span style="background:#e3f2fd;color:#1565c0;border-radius:12px;padding:1px 8px;font-size:10px;font-weight:700;">Esta oferta</span>' : '';
+                        var esGanadora = o.es_ganadora ? ' <span style="background:#fff8e1;color:#f57f17;border-radius:12px;padding:1px 8px;font-size:10px;font-weight:700;"><i class="fa fa-trophy"></i> Ganadora actual</span>' : '';
+                        var borderStyle = o.es_ganadora ? 'border:2px solid #f9a826;background:#fffde7;' : 'border:1px solid #f9a826;';
+                        html += '<button onclick="confirmarGanadora(' + o.id + ')" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" style="border-radius:8px; margin-bottom:6px; ' + borderStyle + '">';
+                        html += '<span><strong>Oferta #' + o.id + '</strong>' + esActual + esGanadora + '<br><small class="text-muted">' + (o.nombre_cliente || '') + '</small></span>';
                         html += '<span style="font-weight:700; color:#e65100;">L ' + parseFloat(o.total).toFixed(2) + '</span>';
                         html += '</button>';
                     });
@@ -1949,7 +1951,7 @@
             if (urlImprimir && idOferta) {
                 window.open(urlImprimir.replace('{id}', idOferta), '_blank');
             }
-            $('#modalExitoOferta').modal('hide');
+            // Modal permanece abierto intencionalmente
         }
     }
 

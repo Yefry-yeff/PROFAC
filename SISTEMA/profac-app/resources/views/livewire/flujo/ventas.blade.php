@@ -481,4 +481,7 @@
         @endif
 
     </div>
+
+    {{-- Modal flujo de pedido (compartido entre Historial y Oferta) --}}
+    <livewire:flujo.modal-flujo-pedido />
 </div>

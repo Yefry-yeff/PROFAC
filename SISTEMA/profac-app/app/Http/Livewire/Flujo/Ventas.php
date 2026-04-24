@@ -67,6 +67,11 @@ class Ventas extends Component
         $this->step = 'select';
     }
 
+    public function abrirModalPedido(int $pedidoId): void
+    {
+        $this->emit('abrirFlujoPedido', $pedidoId);
+    }
+
     /**
      * Ejemplo: Guardar registro
      */
