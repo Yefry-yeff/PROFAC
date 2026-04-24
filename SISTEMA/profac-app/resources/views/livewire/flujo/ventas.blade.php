@@ -122,6 +122,19 @@
                     <li class="breadcrumb-item active"><strong>Oferta</strong></li>
                 @elseif($step == 'prefactura')
                     <li class="breadcrumb-item active"><strong>Prefactura</strong></li>
+                @elseif($step == 'pedido_options')
+                    <li class="breadcrumb-item">
+                        <a href="javascript:void(0)" wire:click="goBack">Ventas</a>
+                    </li>
+                    <li class="breadcrumb-item active"><strong>Pedido</strong></li>
+                @elseif($step == 'historial_pedidos')
+                    <li class="breadcrumb-item">
+                        <a href="javascript:void(0)" wire:click="goBack">Ventas</a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="javascript:void(0)" wire:click="selectPedido">Pedido</a>
+                    </li>
+                    <li class="breadcrumb-item active"><strong>Historial de Pedidos</strong></li>
                 @else
                     <li class="breadcrumb-item active"><strong>Ventas</strong></li>
                 @endif
@@ -136,7 +149,7 @@
             {{-- Banner superior --}}
             <div class="flujo-header-banner d-flex align-items-center justify-content-between">
                 <div>
-                    <h3><i class="fa fa-exchange mr-2"></i> Ventas</h3>
+                    <h3><i class="mr-2 fa fa-exchange"></i> Ventas</h3>
                     <p>Seleccione el tipo de operación que desea realizar</p>
                 </div>
                 <div class="banner-icon d-none d-md-block">
@@ -147,7 +160,7 @@
             <div class="row justify-content-center">
 
                 {{-- PEDIDO --}}
-                <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+                <div class="mb-4 col-lg-3 col-md-4 col-sm-6">
                     <div class="flujo-card flujo-pedido ibox" wire:click="selectPedido">
                         <div class="card-icon-wrap">
                             <div class="icon-circle">
@@ -157,29 +170,29 @@
                             <div class="card-desc">Registra y gestiona pedidos de clientes</div>
                         </div>
                         <div class="card-footer-bar">
-                            <i class="fa fa-arrow-right mr-1"></i> Ir a Pedidos
+                            <i class="mr-1 fa fa-arrow-right"></i> Ir a Pedidos
                         </div>
                     </div>
                 </div>
 
                 {{-- OFERTA --}}
-                <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+                <div class="mb-4 col-lg-3 col-md-4 col-sm-6">
                     <div class="flujo-card flujo-oferta ibox" wire:click="selectOferta">
                         <div class="card-icon-wrap">
                             <div class="icon-circle">
-                                <i class="fa fa-file-text-o"></i>
+                                <i class="fa fa-tags"></i>
                             </div>
                             <div class="card-label">Oferta</div>
                             <div class="card-desc">Elabora y envía ofertas a clientes</div>
                         </div>
                         <div class="card-footer-bar">
-                            <i class="fa fa-arrow-right mr-1"></i> Ir a Oferta
+                            <i class="mr-1 fa fa-arrow-right"></i> Ir a Oferta
                         </div>
                     </div>
                 </div>
 
                 {{-- PREFACTURA --}}
-                <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+                <div class="mb-4 col-lg-3 col-md-4 col-sm-6">
                     <div class="flujo-card flujo-prefactura ibox" wire:click="selectPrefactura">
                         <div class="card-icon-wrap">
                             <div class="icon-circle">
@@ -189,13 +202,13 @@
                             <div class="card-desc">Genera prefactura desde una oferta ganadora</div>
                         </div>
                         <div class="card-footer-bar">
-                            <i class="fa fa-arrow-right mr-1"></i> Ir a Prefactura
+                            <i class="mr-1 fa fa-arrow-right"></i> Ir a Prefactura
                         </div>
                     </div>
                 </div>
 
                 {{-- FACTURA --}}
-                <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+                <div class="mb-4 col-lg-3 col-md-4 col-sm-6">
                     <div class="flujo-card flujo-factura ibox" wire:click="selectFactura">
                         <div class="card-icon-wrap">
                             <div class="icon-circle">
@@ -205,13 +218,13 @@
                             <div class="card-desc">Emite facturas para clientes A, B, SR o Exonerada</div>
                         </div>
                         <div class="card-footer-bar">
-                            <i class="fa fa-arrow-right mr-1"></i> Seleccionar Tipo
+                            <i class="mr-1 fa fa-arrow-right"></i> Seleccionar Tipo
                         </div>
                     </div>
                 </div>
 
                 {{-- HISTORIAL DE VENTAS --}}
-                <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+                <div class="mb-4 col-lg-3 col-md-4 col-sm-6">
                     <a href="{{ route('flujo.ventas.historico') }}" style="text-decoration:none; display:block;">
                         <div class="flujo-card ibox" style="border-top:4px solid transparent; transition:border-top-color .2s;"
                              onmouseover="this.style.borderTopColor='#6c5ce7';"
@@ -224,12 +237,84 @@
                                 <div class="card-desc">Consulta y gestiona el registro histórico de ventas</div>
                             </div>
                             <div class="card-footer-bar" style="background:#6c5ce7;">
-                                <i class="fa fa-arrow-right mr-1"></i> Ver Historial
+                                <i class="mr-1 fa fa-arrow-right"></i> Ver Historial
                             </div>
                         </div>
                     </a>
                 </div>
 
+            </div>
+
+        @elseif($step == 'pedido_options')
+
+            {{-- Submenu Pedido: Historial / Ingresar --}}
+            <div class="flujo-header-banner d-flex align-items-center justify-content-between"
+                 style="background: linear-gradient(135deg, #1a73e8 0%, #0d6efd 100%);">
+                <div>
+                    <button type="button" class="mb-3 btn btn-outline-light flujo-back-btn" wire:click="goBack">
+                        <i class="mr-1 fa fa-arrow-left"></i> Volver
+                    </button>
+                    <h3><i class="mr-2 fa fa-clipboard-list"></i> Pedido</h3>
+                    <p>Seleccione la opción que desea realizar</p>
+                </div>
+                <div class="banner-icon d-none d-md-block"><i class="fa fa-clipboard-list"></i></div>
+            </div>
+
+            <div class="row justify-content-center">
+
+                {{-- Historial de Pedidos --}}
+                <div class="mb-4 col-lg-3 col-md-4 col-sm-6">
+                    <div class="flujo-card ibox" style="border-top:4px solid transparent; cursor:pointer;"
+                         onmouseover="this.style.borderTopColor='#1a73e8';this.style.transform='translateY(-6px)';"
+                         onmouseout="this.style.borderTopColor='transparent';this.style.transform='';"
+                         wire:click="selectHistorialPedidos">
+                        <div class="card-icon-wrap">
+                            <div class="icon-circle" style="background:rgba(26,115,232,0.12); color:#1a73e8;">
+                                <i class="fa fa-history"></i>
+                            </div>
+                            <div class="card-label">Historial de Pedidos</div>
+                            <div class="card-desc">Consulta todos los pedidos, genera ofertas o anula</div>
+                        </div>
+                        <div class="card-footer-bar" style="background:#1a73e8;">
+                            <i class="mr-1 fa fa-arrow-right"></i> Ver Historial
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Ingresar Pedido --}}
+                <div class="mb-4 col-lg-3 col-md-4 col-sm-6">
+                    <div class="flujo-card flujo-pedido ibox" wire:click="selectIngresarPedido">
+                        <div class="card-icon-wrap">
+                            <div class="icon-circle">
+                                <i class="fa fa-plus-circle"></i>
+                            </div>
+                            <div class="card-label">Ingresar Pedido</div>
+                            <div class="card-desc">Registra un nuevo pedido de cliente</div>
+                        </div>
+                        <div class="card-footer-bar">
+                            <i class="mr-1 fa fa-arrow-right"></i> Nuevo Pedido
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+        @elseif($step == 'historial_pedidos')
+
+            {{-- Historial de todos los pedidos --}}
+            <div class="ibox" style="border-radius:16px; overflow:hidden; box-shadow:0 4px 20px rgba(0,0,0,.07);">
+                <div class="ibox-title d-flex align-items-center justify-content-between"
+                     style="background:linear-gradient(135deg,#1565c0,#1a73e8); border:none; padding:14px 22px;">
+                    <h5 style="color:#fff; margin:0; font-weight:700;">
+                        <i class="mr-2 fa fa-history"></i> Historial de Pedidos
+                    </h5>
+                    <button type="button" class="btn btn-outline-light btn-sm flujo-back-btn" wire:click="selectPedido">
+                        <i class="mr-1 fa fa-arrow-left"></i> Volver
+                    </button>
+                </div>
+                <div class="ibox-content" style="padding:20px 24px;">
+                    <livewire:flujo.listar-historial-pedidos />
+                </div>
             </div>
 
         @elseif($step == 'oferta')
@@ -239,10 +324,10 @@
                 <div class="ibox-title d-flex align-items-center justify-content-between"
                      style="background:linear-gradient(135deg,#e65100,#f9a826); border:none; padding:14px 22px;">
                     <h5 style="color:#fff; margin:0; font-weight:700;">
-                        <i class="fa fa-file-text-o mr-2"></i> Ofertas
+                        <i class="mr-2 fa fa-file-text-o"></i> Ofertas
                     </h5>
                     <button type="button" class="btn btn-outline-light btn-sm flujo-back-btn" wire:click="goBack">
-                        <i class="fa fa-arrow-left mr-1"></i> Volver
+                        <i class="mr-1 fa fa-arrow-left"></i> Volver
                     </button>
                 </div>
                 <div class="ibox-content" style="padding:20px 24px;">
@@ -256,10 +341,10 @@
             <div class="flujo-header-banner d-flex align-items-center justify-content-between"
                  style="background: linear-gradient(135deg, #00838f 0%, #0097a7 100%);">
                 <div>
-                    <button type="button" class="btn btn-outline-light flujo-back-btn mb-3" wire:click="goBack">
-                        <i class="fa fa-arrow-left mr-1"></i> Volver
+                    <button type="button" class="mb-3 btn btn-outline-light flujo-back-btn" wire:click="goBack">
+                        <i class="mr-1 fa fa-arrow-left"></i> Volver
                     </button>
-                    <h3><i class="fa fa-file-invoice mr-2"></i> Prefactura</h3>
+                    <h3><i class="mr-2 fa fa-file-invoice"></i> Prefactura</h3>
                     <p>Aprueba una oferta como ganadora para convertirla en prefactura</p>
                 </div>
                 <div class="banner-icon d-none d-md-block"><i class="fa fa-file-invoice"></i></div>
@@ -269,7 +354,7 @@
             <div class="ibox" style="border-radius:16px; overflow:hidden; box-shadow:0 4px 20px rgba(0,0,0,.07);">
                 <div class="ibox-title" style="background:linear-gradient(135deg,#00838f,#0097a7); border:none; padding:14px 22px;">
                     <h5 style="color:#fff; margin:0; font-weight:700;">
-                        <i class="fa fa-check-circle mr-2"></i> Ofertas activas — selecciona la ganadora
+                        <i class="mr-2 fa fa-check-circle"></i> Ofertas activas — selecciona la ganadora
                     </h5>
                 </div>
                 <div class="ibox-content" style="padding:20px 24px;">
@@ -282,10 +367,10 @@
             {{-- Banner superior --}}
             <div class="flujo-header-banner d-flex align-items-center justify-content-between" style="background: linear-gradient(135deg, #f9a826 0%, #e65100 100%);">
                 <div>
-                    <button type="button" class="btn btn-outline-light flujo-back-btn mb-3" wire:click="goBack">
-                        <i class="fa fa-arrow-left mr-1"></i> Volver
+                    <button type="button" class="mb-3 btn btn-outline-light flujo-back-btn" wire:click="goBack">
+                        <i class="mr-1 fa fa-arrow-left"></i> Volver
                     </button>
-                    <h3><i class="fa fa-receipt mr-2"></i> Tipo de Factura</h3>
+                    <h3><i class="mr-2 fa fa-receipt"></i> Tipo de Factura</h3>
                     <p>Seleccione la categoría de factura que desea emitir</p>
                 </div>
                 <div class="banner-icon d-none d-md-block">
@@ -294,10 +379,10 @@
             </div>
 
             {{-- Prefacturas pendientes de convertir a factura --}}
-            <div class="ibox mb-4" style="border-radius:16px; overflow:hidden; box-shadow:0 4px 20px rgba(0,0,0,.07);">
+            <div class="mb-4 ibox" style="border-radius:16px; overflow:hidden; box-shadow:0 4px 20px rgba(0,0,0,.07);">
                 <div class="ibox-title" style="background:linear-gradient(135deg,#e65100,#f9a826); border:none; padding:14px 22px;">
                     <h5 style="color:#fff; margin:0; font-weight:700;">
-                        <i class="fa fa-file-invoice mr-2"></i> Prefacturas listas para facturar
+                        <i class="mr-2 fa fa-file-invoice"></i> Prefacturas listas para facturar
                     </h5>
                 </div>
                 <div class="ibox-content" style="padding:20px 24px;">
@@ -306,13 +391,13 @@
             </div>
 
             <h5 style="color:#546e7a; font-weight:700; margin-bottom:16px; text-align:center;">
-                <i class="fa fa-plus-circle mr-2"></i> — O crea una factura nueva —
+                <i class="mr-2 fa fa-plus-circle"></i> — O crea una factura nueva —
             </h5>
 
             <div class="row justify-content-center">
 
                 {{-- CLIENTES A --}}
-                <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+                <div class="mb-4 col-lg-3 col-md-4 col-sm-6">
                     <div class="flujo-card flujo-ca ibox" wire:click="selectFacturaSubtype('clientes_a')">
                         <div class="card-icon-wrap">
                             <div class="icon-circle">
@@ -322,13 +407,13 @@
                             <div class="card-desc">Facturación estándar para clientes tipo A</div>
                         </div>
                         <div class="card-footer-bar">
-                            <i class="fa fa-arrow-right mr-1"></i> Ir a Factura
+                            <i class="mr-1 fa fa-arrow-right"></i> Ir a Factura
                         </div>
                     </div>
                 </div>
 
                 {{-- CLIENTES B --}}
-                <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+                <div class="mb-4 col-lg-3 col-md-4 col-sm-6">
                     <div class="flujo-card flujo-cb ibox" wire:click="selectFacturaSubtype('clientes_b')">
                         <div class="card-icon-wrap">
                             <div class="icon-circle">
@@ -338,13 +423,13 @@
                             <div class="card-desc">Facturación estándar para clientes tipo B</div>
                         </div>
                         <div class="card-footer-bar">
-                            <i class="fa fa-arrow-right mr-1"></i> Ir a Factura
+                            <i class="mr-1 fa fa-arrow-right"></i> Ir a Factura
                         </div>
                     </div>
                 </div>
 
                 {{-- SR / CLIENTES A --}}
-                <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+                <div class="mb-4 col-lg-3 col-md-4 col-sm-6">
                     <div class="flujo-card flujo-sra ibox" wire:click="selectFacturaSubtype('sr_clientes_a')">
                         <div class="card-icon-wrap">
                             <div class="icon-circle">
@@ -354,13 +439,13 @@
                             <div class="card-desc">Sin restricción de precio – Clientes A</div>
                         </div>
                         <div class="card-footer-bar">
-                            <i class="fa fa-arrow-right mr-1"></i> Ir a Factura
+                            <i class="mr-1 fa fa-arrow-right"></i> Ir a Factura
                         </div>
                     </div>
                 </div>
 
                 {{-- SR / CLIENTES B --}}
-                <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+                <div class="mb-4 col-lg-3 col-md-4 col-sm-6">
                     <div class="flujo-card flujo-srb ibox" wire:click="selectFacturaSubtype('sr_clientes_b')">
                         <div class="card-icon-wrap">
                             <div class="icon-circle">
@@ -370,13 +455,13 @@
                             <div class="card-desc">Sin restricción de precio – Clientes B</div>
                         </div>
                         <div class="card-footer-bar">
-                            <i class="fa fa-arrow-right mr-1"></i> Ir a Factura
+                            <i class="mr-1 fa fa-arrow-right"></i> Ir a Factura
                         </div>
                     </div>
                 </div>
 
                 {{-- EXONERADA --}}
-                <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+                <div class="mb-4 col-lg-3 col-md-4 col-sm-6">
                     <div class="flujo-card flujo-exonerada ibox" wire:click="selectFacturaSubtype('exonerada')">
                         <div class="card-icon-wrap">
                             <div class="icon-circle">
@@ -386,7 +471,7 @@
                             <div class="card-desc">Facturación para clientes exonerados de impuesto</div>
                         </div>
                         <div class="card-footer-bar">
-                            <i class="fa fa-arrow-right mr-1"></i> Ir a Factura
+                            <i class="mr-1 fa fa-arrow-right"></i> Ir a Factura
                         </div>
                     </div>
                 </div>

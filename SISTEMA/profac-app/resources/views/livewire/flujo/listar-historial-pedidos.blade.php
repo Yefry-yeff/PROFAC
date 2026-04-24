@@ -1,15 +1,9 @@
 <div>
-    {{-- ── Barra título + acción ─────────────────────────────────────── --}}
+    {{-- ── Barra título ────────────────────────────────────────────────── --}}
     <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
-        <span style="font-weight:700; color:#e65100; font-size:14px;">
-            <i class="fa fa-clipboard-list mr-1"></i> Pedidos disponibles para ofertar
+        <span style="font-weight:700; color:#1565c0; font-size:14px;">
+            <i class="fa fa-history mr-1"></i> Historial de Pedidos
         </span>
-        <button type="button" wire:click="nuevaOfertaSinPedido"
-                style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff; border:none;
-                       border-radius:8px; padding:7px 16px; font-size:13px; font-weight:700; cursor:pointer;
-                       box-shadow:0 2px 8px rgba(230,81,0,.28);">
-            <i class="fa fa-plus mr-1"></i> Nueva Oferta sin Pedido
-        </button>
     </div>
 
     {{-- ── Filtros ─────────────────────────────────────────────────────── --}}
@@ -29,7 +23,9 @@
             <option value="">Todos los estados</option>
             <option value="pendiente">Pendiente</option>
             <option value="activo">Activo</option>
+            <option value="pedido">Pedido</option>
             <option value="pre_factura">Pre-factura</option>
+            <option value="cancelado">Cancelado</option>
         </select>
     </div>
 
@@ -42,7 +38,7 @@
     @if(count($pedidos) === 0)
     <div class="text-center py-5">
         <i class="fa fa-inbox fa-3x mb-3" style="color:#b2dfdb; display:block;"></i>
-        <p style="color:#78909c; font-size:14px;">No hay pedidos activos para ofertar.</p>
+        <p style="color:#78909c; font-size:14px;">No hay pedidos registrados.</p>
     </div>
     @else
     <div class="table-responsive">
@@ -66,12 +62,15 @@
                     $estadoMap = [
                         'pendiente'   => ['#e3f2fd', '#1565c0', 'Pendiente'],
                         'activo'      => ['#e8f5e9', '#2e7d32', 'Activo'],
+                        'pedido'      => ['#e8f5e9', '#2e7d32', 'Pedido'],
                         'pre_factura' => ['#fff8e1', '#f57f17', 'Pre-factura'],
                         'cancelado'   => ['#fce4ec', '#b71c1c', 'Cancelado'],
                     ];
                     $ec = $estadoMap[$p['estado']] ?? ['#f5f5f5', '#546e7a', ucfirst($p['estado'])];
                 @endphp
-                <tr style="cursor:pointer;" wire:click="abrirModalPedido({{ $p['id'] }})" title="Ver opciones del pedido #{{ $p['id'] }}">
+                <tr style="cursor:pointer; {{ $p['estado'] === 'cancelado' ? 'opacity:.72;' : '' }}"
+                    wire:click="abrirModalPedido({{ $p['id'] }})"
+                    title="Ver opciones del pedido #{{ $p['id'] }}">
                     <td>
                         <span style="background:linear-gradient(135deg,#1565c0,#1a73e8); color:#fff;
                                      border-radius:6px; padding:3px 10px; font-weight:800; font-size:13px;">
@@ -126,7 +125,7 @@
 
     {{-- ── Loading ──────────────────────────────────────────────────────── --}}
     <div wire:loading class="text-center py-3">
-        <i class="fa fa-spinner fa-spin" style="color:#00897b; font-size:20px;"></i>
+        <i class="fa fa-spinner fa-spin" style="color:#1a73e8; font-size:20px;"></i>
     </div>
 
     {{-- ===== MODAL DETALLE / ACCIONES DE PEDIDO ===== --}}
@@ -171,7 +170,7 @@
                     <i class="fa fa-check-circle"></i> {{ $mensajeExito }}
                 </div>
                 @endif
-                @if($mensajeError)
+                @if($mensajeError && $confirmAccion !== 'anular')
                 <div style="background:#fce4ec; border:1px solid #f8bbd0; border-radius:8px;
                             padding:8px 12px; color:#b71c1c; font-weight:600; font-size:12px;
                             margin-bottom:12px; display:flex; gap:7px; align-items:center;">
@@ -189,8 +188,13 @@
                     <div style="background:#f8f9fa; border-radius:8px; padding:9px 12px;">
                         <div style="font-size:10px; color:#90a4ae; font-weight:700; text-transform:uppercase; margin-bottom:4px;">Estado</div>
                         @php
-                            $estMapM = ['pendiente'=>['#e3f2fd','#1565c0'],'pre_factura'=>['#fff8e1','#f57f17'],
-                                        'activo'=>['#e8f5e9','#2e7d32'],'pedido'=>['#e8f5e9','#2e7d32'],'cancelado'=>['#fce4ec','#b71c1c']];
+                            $estMapM = [
+                                'pendiente'   => ['#e3f2fd','#1565c0'],
+                                'pre_factura' => ['#fff8e1','#f57f17'],
+                                'activo'      => ['#e8f5e9','#2e7d32'],
+                                'pedido'      => ['#e8f5e9','#2e7d32'],
+                                'cancelado'   => ['#fce4ec','#b71c1c'],
+                            ];
                             $colM = $estMapM[$pedidoSeleccionado['estado']] ?? ['#f5f5f5','#546e7a'];
                         @endphp
                         <span style="background:{{ $colM[0] }}; color:{{ $colM[1] }};
@@ -292,6 +296,7 @@
                 @else
                 {{-- Menú de opciones --}}
                 <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:10px;">
+
                     {{-- Imprimir --}}
                     <a href="/flujo/pedido/imprimir/{{ $pedidoSeleccionado['id'] }}" target="_blank"
                        style="background:linear-gradient(135deg,#00897b,#26a69a); color:#fff;
@@ -352,9 +357,11 @@
                     <div style="background:#f5f5f5; border-radius:12px; padding:14px 6px;
                                 font-size:11px; color:#90a4ae; display:flex; flex-direction:column;
                                 align-items:center; gap:6px; text-align:center;">
-                        <i class="fa fa-lock fa-lg"></i>Ganadora
+                        <i class="fa fa-lock fa-lg"></i>
+                        {{ $pedidoSeleccionado['estado'] === 'cancelado' ? 'Cancelado' : 'Ganadora' }}
                     </div>
                     @endif
+
                 </div>
                 @endif
 

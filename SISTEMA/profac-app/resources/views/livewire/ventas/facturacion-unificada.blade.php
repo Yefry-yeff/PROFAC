@@ -40,7 +40,7 @@
         /* ── Main ibox ────────────────────────────────────────────── */
         .ofr-main-ibox { border-radius: 16px !important; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,.07) !important; }
         .ofr-main-ibox > .ibox-title {
-            background: linear-gradient(135deg,#004d40 0%,#00897b 100%) !important;
+            background: linear-gradient(135deg,#e65100 0%,#f9a826 100%) !important;
             border: none !important; padding: 16px 24px !important;
         }
         .ofr-main-ibox > .ibox-title h3 { color: #fff !important; margin: 0; font-size: 16px; }

@@ -290,7 +290,6 @@ class Cotizacion extends Component
             $cotizacion->porc_descuento = $request->porDescuento;
             $cotizacion->monto_descuento = $request->descuentoGeneral;
             $cotizacion->nota = $request->nota;
-            $cotizacion->pedido_id = $request->pedido_id ?: null;
             $cotizacion->save();
 
 
@@ -378,7 +377,7 @@ class Cotizacion extends Component
             'text'      => 'Cotización guardada con éxito.',
             'title'     => 'Exito!',
             'idFactura' => $cotizacion->id,
-            'pedidoId'  => $cotizacion->pedido_id,
+            'pedidoId'  => $request->pedido_id ?: null,
         ],200);
 
         } catch (QueryException $e) {

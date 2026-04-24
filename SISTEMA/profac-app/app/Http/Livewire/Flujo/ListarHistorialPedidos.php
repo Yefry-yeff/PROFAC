@@ -7,15 +7,14 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 
 /**
- * Lista los pedidos activos/pendientes que pueden recibir una oferta.
- * Se embebe en la pantalla de Ventas → Oferta.
+ * Historial completo de pedidos (todos los estados).
+ * Se embebe en la pantalla de Ventas → Pedido → Historial.
  */
-class ListarPedidosParaOfertar extends Component
+class ListarHistorialPedidos extends Component
 {
-    public $busqueda  = '';
+    public $busqueda     = '';
     public $filtroEstado = '';
-    public $pedidos   = [];
-    public $cargando  = false;
+    public $pedidos      = [];
 
     // ── Modal detalle / acciones de pedido ────────────────────────────────
     public $showModalPedido    = false;
@@ -28,30 +27,23 @@ class ListarPedidosParaOfertar extends Component
 
     protected $queryString = [];
 
-    public function mount()
+    public function mount(): void
     {
         $this->cargar();
     }
 
-    public function updatedBusqueda()
-    {
-        $this->cargar();
-    }
+    public function updatedBusqueda():     void { $this->cargar(); }
+    public function updatedFiltroEstado(): void { $this->cargar(); }
 
-    public function updatedFiltroEstado()
-    {
-        $this->cargar();
-    }
-
-    public function cargar()
+    public function cargar(): void
     {
         $term   = trim($this->busqueda);
         $estado = $this->filtroEstado;
 
+        // Sin filtro de estado → muestra TODOS los pedidos
         $q = DB::table('pedido as p')
             ->join('cliente as c', 'c.id', '=', 'p.cliente_id')
             ->leftJoin('users as u', 'u.id', '=', 'p.users_id')
-            ->whereNotIn('p.estado', ['cancelado'])
             ->select(
                 'p.id', 'p.estado', 'p.observaciones', 'p.created_at',
                 'c.nombre as cliente', 'c.rtn',
@@ -78,20 +70,15 @@ class ListarPedidosParaOfertar extends Component
             }
         }
 
-        $this->pedidos = $q->limit(50)->get()->toArray();
+        $this->pedidos = $q->limit(100)->get()->toArray();
     }
 
-    public function nuevaOferta(int $pedidoId)
+    public function nuevaOferta(int $pedidoId): mixed
     {
         return $this->redirect('/proforma/cotizacion/2?from=flujo&pedidoId=' . $pedidoId);
     }
 
-    public function nuevaOfertaSinPedido()
-    {
-        return $this->redirect('/proforma/cotizacion/2?from=flujo');
-    }
-
-    // ── Modal: abrir con detalle del pedido ───────────────────────────────
+    // ── Modal ─────────────────────────────────────────────────────────────
     public function abrirModalPedido(int $pedidoId): void
     {
         $pedido = DB::table('pedido as p')
@@ -133,12 +120,6 @@ class ListarPedidosParaOfertar extends Component
         $this->motivoAnulacion    = '';
     }
 
-    public function abrirConAccion(int $pedidoId, string $accion): void
-    {
-        $this->abrirModalPedido($pedidoId);
-        $this->confirmAccion = $accion;
-    }
-
     public function confirmarAccion(string $accion): void
     {
         $this->confirmAccion = $accion;
@@ -175,27 +156,25 @@ class ListarPedidosParaOfertar extends Component
             if ($hf) {
                 DB::table('historico_flujo')->where('id', $hf->id)
                     ->update([
-                        'estado_id'    => $canceladoId,
-                        'observaciones'=> 'Anulado: ' . $this->motivoAnulacion,
-                        'updated_by'   => Auth::id(),
-                        'updated_at'   => now(),
+                        'estado_id'     => $canceladoId,
+                        'observaciones' => 'Anulado: ' . $this->motivoAnulacion,
+                        'updated_by'    => Auth::id(),
+                        'updated_at'    => now(),
                     ]);
                 DB::table('flujo')->where('id', $hf->flujo_id)
                     ->update(['estado_id' => $canceladoId, 'updated_by' => Auth::id(), 'updated_at' => now()]);
             }
 
             DB::commit();
-            $this->confirmAccion = null;
-            $this->mensajeExito  = 'Pedido #'.$pedidoId.' anulado correctamente.';
-            // Recargar datos del pedido seleccionado
+            $this->confirmAccion   = null;
+            $this->motivoAnulacion = '';
             $this->abrirModalPedido($pedidoId);
-            $this->mensajeExito = 'Pedido #'.$pedidoId.' anulado correctamente.';
-            // Refrescar la lista
+            $this->mensajeExito = 'Pedido #' . $pedidoId . ' anulado correctamente.';
             $this->cargar();
         } catch (\Exception $e) {
             DB::rollBack();
             $this->confirmAccion = null;
-            $this->mensajeError  = 'Error al anular: '.$e->getMessage();
+            $this->mensajeError  = 'Error al anular: ' . $e->getMessage();
         }
     }
 
@@ -218,6 +197,6 @@ class ListarPedidosParaOfertar extends Component
 
     public function render()
     {
-        return view('livewire.flujo.listar-pedidos-para-ofertar');
+        return view('livewire.flujo.listar-historial-pedidos');
     }
 }
