@@ -513,8 +513,9 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/usuarios/{id}/rol-anterior', [App\Http\Livewire\Usuarios\Roles::class, 'obtenerRolAnteriorUsuario']);
     Route::get('/roles/{id}/permisos', [App\Http\Livewire\Usuarios\Roles::class, 'obtenerPermisosDelRol']);
     Route::get('/submenus/todos', [App\Http\Livewire\Usuarios\Roles::class, 'listarTodosSubmenus']);
-    Route::get('/roles/{id}/permisos', [App\Http\Livewire\Usuarios\Roles::class, 'obtenerPermisosDelRol']);
-    Route::get('/submenus/todos', [App\Http\Livewire\Usuarios\Roles::class, 'listarTodosSubmenus']);
+    // Catálogos de jerarquía de roles
+    Route::get('/roles/catalogos/niveles', [App\Http\Livewire\Usuarios\Roles::class, 'listarNiveles'])->name('roles.niveles');
+    Route::get('/roles/catalogos/areas',   [App\Http\Livewire\Usuarios\Roles::class, 'listarAreas'])->name('roles.areas');
 
     /*----------------------------------------------- /NUEVAS RUTAS DE ACCESO A USUARIOS  */
 
