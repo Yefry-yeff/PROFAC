@@ -118,6 +118,7 @@ class ModalFlujoPedido extends Component
 
     public function cerrar(): void
     {
+        $this->emit('pedidoActualizado');
         $this->showModal            = false;
         $this->pedidoData           = null;
         $this->pedidoDetalles       = [];
@@ -366,6 +367,30 @@ class ModalFlujoPedido extends Component
         $this->emit('pedidoActualizado');
         $this->recargar();
         $this->mensajeExito = 'Oferta #' . $cotizacionId . ' marcada como ganadora.';
+    }
+
+    public function quitarGanadora(): void
+    {
+        if (!$this->ofertaSeleccionada || !$this->flujoId) return;
+
+        $motivo = trim($this->motivoAnulOferta);
+        if ($motivo === '') {
+            $this->mensajeError = 'Debe indicar el motivo para quitar la ganadora.';
+            return;
+        }
+
+        $cotizacionId = (int) $this->ofertaSeleccionada['id'];
+
+        DB::table('historico_flujo')
+            ->where('flujo_id', $this->flujoId)
+            ->where('tipo_tramite_id', 2)
+            ->where('tramite_id', $cotizacionId)
+            ->update(['observaciones' => 'QuitadaGanadora: ' . $motivo, 'updated_at' => now()]);
+
+        $this->mensajeExito = 'Oferta #' . $cotizacionId . ' ya no es ganadora.';
+        $this->emit('pedidoActualizado');
+        $this->recargar();
+        $this->mensajeExito = 'Oferta #' . $cotizacionId . ' ya no es ganadora.';
     }
 
     public function anularOferta(): void

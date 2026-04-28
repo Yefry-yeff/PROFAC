@@ -2085,6 +2085,24 @@
     </script>
     @endpush
 
+    @if($clientePedido)
+    @push('scripts')
+    {{-- Re-despacha el evento pedido-seleccionado al cargar si el pedido ya estaba vinculado (desde URL pedidoId) --}}
+    <script>
+        document.addEventListener('livewire:load', function () {
+            window.dispatchEvent(new CustomEvent('pedido-seleccionado', {
+                detail: {
+                    clienteId:     {!! (int)$clientePedido['id'] !!},
+                    clienteNombre: {!! json_encode($clientePedido['nombre']) !!},
+                    vendedorId:    {!! (int)($vendedorDefault['id'] ?? 0) !!},
+                    vendedorNombre:{!! json_encode($vendedorDefault['name'] ?? '') !!},
+                }
+            }));
+        });
+    </script>
+    @endpush
+    @endif
+
     <div class="mt-3">
         <div class="float-right">
             <?php echo "$act_fecha"; ?> <strong id="reloj"></strong>

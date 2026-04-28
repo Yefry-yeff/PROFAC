@@ -76,7 +76,7 @@
 
 {{-- ── Overlay ─────────────────────────────────────────────────────────── --}}
 <div id="fmpModalWrap" tabindex="-1" role="dialog"
-     style="position:fixed; inset:0; z-index:1060;
+     style="position:fixed; inset:0; z-index:9999;
             display:flex; align-items:center; justify-content:center; padding:20px;
             background:rgba(15,15,35,.58); backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px);">
 
@@ -492,6 +492,14 @@
                             <i class="fa fa-trophy mr-1"></i> Ganadora
                         </button>
                         @endif
+                        @if ($esGanDet && !$esAnuDet)
+                        <button type="button" wire:click="confirmarAccionOferta('quitar_ganadora')"
+                                style="background:linear-gradient(135deg,#e67e22,#d35400); color:#fff;
+                                       border:none; border-radius:8px; padding:5px 10px;
+                                       font-size:11px; font-weight:700; cursor:pointer;">
+                            <i class="fa fa-times-circle mr-1"></i> Quitar Ganadora
+                        </button>
+                        @endif
                         @if (!$esAnuDet)
                         <button type="button" wire:click="confirmarAccionOferta('anular_oferta')"
                                 style="background:linear-gradient(135deg,#e74c3c,#c0392b); color:#fff;
@@ -533,6 +541,40 @@
                     </div>
                     @endif
 
+                    {{-- Confirmación: Quitar Ganadora --}}
+                    @if ($confirmAccionOferta === 'quitar_ganadora')
+                    <div style="margin-top:12px; background:#fff3e0; border:1px solid #ffcc80;
+                                border-radius:12px; padding:14px;">
+                        <p style="font-size:13px; color:#555; margin:0 0 8px;">
+                            <i class="fa fa-times-circle text-warning mr-1"></i>
+                            ¿Quitar el estado <strong>Ganadora</strong> de la <strong>Oferta #{{ $ofertaSeleccionada['id'] }}</strong>?
+                        </p>
+                        @if ($mensajeError)
+                        <div style="font-size:12px; color:#721c24; background:#f8d7da;
+                                    border-radius:8px; padding:6px 10px; margin-bottom:8px;">
+                            {{ $mensajeError }}
+                        </div>
+                        @endif
+                        <textarea wire:model.defer="motivoAnulOferta" rows="2"
+                                  placeholder="Motivo (obligatorio)…"
+                                  style="width:100%; border:1px solid #ddd; border-radius:8px;
+                                         padding:6px 10px; font-size:12px; resize:none;"></textarea>
+                        <div style="display:flex; gap:8px; margin-top:8px;">
+                            <button type="button" wire:click="quitarGanadora"
+                                    style="background:linear-gradient(135deg,#e67e22,#d35400); color:#fff;
+                                           border:none; border-radius:8px; padding:7px 18px;
+                                           font-size:12px; font-weight:700; cursor:pointer;">
+                                <i class="fa fa-times-circle mr-1"></i> Confirmar
+                            </button>
+                            <button type="button" wire:click="cancelarConfirmOferta"
+                                    style="background:#f0f0f0; color:#555; border:none;
+                                           border-radius:8px; padding:7px 16px; font-size:12px; cursor:pointer;">
+                                Cancelar
+                            </button>
+                        </div>
+                    </div>
+                    @endif
+
                     {{-- Confirmación: Anular oferta --}}
                     @if ($confirmAccionOferta === 'anular_oferta')
                     <div style="margin-top:12px; background:#fff5f5; border:1px solid #feb2b2;
@@ -551,7 +593,7 @@
                                   placeholder="Motivo de anulación (obligatorio)…"
                                   style="width:100%; border:1px solid #ddd; border-radius:8px;
                                          padding:6px 10px; font-size:12px; resize:none;"></textarea>
-                        @if (!$esGanDet && !$esAnuDet)
+                        @if (!$esAnuDet)
                         <div style="display:flex; gap:8px; margin-top:8px;">
                             <button type="button" wire:click="anularOferta"
                                     style="background:linear-gradient(135deg,#e74c3c,#c0392b); color:#fff;
