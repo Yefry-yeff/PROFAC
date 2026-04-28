@@ -636,7 +636,6 @@ class FacturacionCorporativa extends Component
                 $factura->comentario = $request->nota_comen;
                 $factura->porc_descuento = $request->porDescuento;
                 $factura->monto_descuento = $request->porDescuentoCalculado;
-                $factura->pedido_id = $request->pedido_id ?: null;
                 $factura->save();
 
                 $caiUpdated =  ModelCAI::find($cai->id);
@@ -733,14 +732,6 @@ class FacturacionCorporativa extends Component
 
 
             $numeroVenta = DB::selectOne("select concat(YEAR(NOW()),'-',count(id)+1)  as 'numero' from factura");
-
-            // Actualizar estado del pedido a 'facturado' si viene vinculado
-            if (!empty($request->pedido_id)) {
-                DB::table('pedido')
-                    ->where('id', $request->pedido_id)
-                    ->update(['estado' => 'facturado', 'updated_at' => now()]);
-            }
-
             DB::commit();
 
 
@@ -918,7 +909,6 @@ class FacturacionCorporativa extends Component
             $factura->codigo_autorizacion_id = $request->codigo_autorizacion;
             $factura->comprovante_entrega_id = $request->idComprobante;
             $factura->comentario = $request->nota_comen;
-            $factura->pedido_id = $request->pedido_id ?: null;
             $factura->save();
 
             if ($turno->turno == 1) {
@@ -1223,7 +1213,6 @@ class FacturacionCorporativa extends Component
             $factura->codigo_autorizacion_id = $request->codigo_autorizacion;
             $factura->comprovante_entrega_id = $request->idComprobante;
             $factura->comentario = $request->nota_comen;
-            $factura->pedido_id = $request->pedido_id ?: null;
             $factura->save();
 
 
@@ -1828,7 +1817,6 @@ class FacturacionCorporativa extends Component
             $factura->codigo_autorizacion_id = $request->codigo_autorizacion;
             $factura->comprovante_entrega_id = $request->idComprobante;
             $factura->comentario = $request->nota_comen;
-            $factura->pedido_id = $request->pedido_id ?: null;
             $factura->save();
 
 
@@ -2094,7 +2082,6 @@ class FacturacionCorporativa extends Component
         $factura->comentario = $request->nota_comen;
         $factura->porc_descuento = $request->porDescuento;
         $factura->monto_descuento = $request->porDescuentoCalculado;
-        $factura->pedido_id = $request->pedido_id ?: null;
         $factura->save();
 
 

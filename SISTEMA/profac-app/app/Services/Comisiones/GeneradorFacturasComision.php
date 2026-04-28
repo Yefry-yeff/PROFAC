@@ -28,7 +28,7 @@ class GeneradorFacturasComision
 
         [$productosComision, $facturasComision] =
             $this->calcularComisiones($parametros, $productos, $facturaId, $aplicacionPagoId);
-
+        dd($productosComision);
         modelproducto_comision::insert($productosComision);
         modelfacturas_comision::insert($facturasComision);
 
