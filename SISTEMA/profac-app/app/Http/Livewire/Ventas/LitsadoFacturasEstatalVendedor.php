@@ -17,6 +17,7 @@ class LitsadoFacturasEstatalVendedor extends Component
 {
     public function render()
     {
+        
         return view('livewire.ventas.listado-facturas-unificado', ['tipoVenta' => 'estatal', 'nombreTipo' => 'Clientes A', 'esVendedor' => true]); // Vista unificada
     }
 
@@ -118,13 +119,13 @@ class LitsadoFacturasEstatalVendedor extends Component
 
                     return
                     '
-                    <p class="text-center" ><span class="badge badge-primary p-2" style="font-size:0.75rem">Cerrada</span></p>
+                    <p class="text-center" ><span class="p-2 badge badge-primary" style="font-size:0.75rem">Cerrada</span></p>
                     ';
 
                 }else{
                     return
                     '
-                    <p class="text-center"><span class="badge badge-danger p-2" style="font-size:0.75rem">Pendiente</span></p>
+                    <p class="text-center"><span class="p-2 badge badge-danger" style="font-size:0.75rem">Pendiente</span></p>
                     ';
                 }
            })

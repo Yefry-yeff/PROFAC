@@ -11,6 +11,9 @@ class ListadoFacturasVendedorUnificado extends Component
 
     public function mount($tipo = null)
     {
+
+
+    
         $tipo = $tipo ?? request()->route()->defaults['tipo'] ?? 'corporativo';
         $this->tipoVenta = $tipo;
 

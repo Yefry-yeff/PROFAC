@@ -14,6 +14,8 @@ class ListarOfertas extends Component
     public $filtroPedido    = '';
     public $filtroEstado    = '';
 
+    
+
     // ── Estadísticas ──────────────────────────────────────────────────────
     public $statsTotal      = 0;
     public $statsGanadoras  = 0;

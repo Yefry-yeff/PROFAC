@@ -13,6 +13,8 @@ use Luecano\NumeroALetras\NumeroALetras;
 use App\Models\ModelOferta;
 use App\Models\ModelOfertaProducto;
 
+
+
 class OfertaPedido extends Component
 {
     public $pedidoId;

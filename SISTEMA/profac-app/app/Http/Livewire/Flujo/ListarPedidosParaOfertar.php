@@ -20,6 +20,7 @@ class ListarPedidosParaOfertar extends Component
     public $busquedaPed  = '';
     public $sortColPed   = 'created_at';
     public $sortDirPed   = 'desc';
+    
 
     // Filtros y sort - Pestana 2 (ofertas)
     public $busquedaOfr  = '';

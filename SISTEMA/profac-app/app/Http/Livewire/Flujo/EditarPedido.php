@@ -13,6 +13,8 @@ class EditarPedido extends Component
     // ── Cliente (solo lectura, no se puede modificar) ──────────────────────
     public $clienteSeleccionado = null;
 
+    
+
     // ── Líneas del pedido ──────────────────────────────────────────────────
     public $items = [];
     public $observaciones = '';

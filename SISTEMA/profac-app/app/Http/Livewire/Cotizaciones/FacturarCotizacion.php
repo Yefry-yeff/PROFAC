@@ -17,6 +17,8 @@ use Luecano\NumeroALetras\NumeroALetras;
 
 class FacturarCotizacion extends Component
 {
+
+
     public $idCotizacion;
 
     public function mount($id)

@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\Auth;
 
 class FacturacionUnificada extends Component
 {
+
+
     public $tipoFacturaId;
     public $tipoFactura;
     public $tiposFactura;

@@ -13,8 +13,10 @@ use Illuminate\Support\Facades\Auth;
  */
 class ModalFlujoPedido extends Component
 {
+    
     // ── Estado del modal ──────────────────────────────────────────────────
     public $showModal       = false;
+    
     public $pedidoData      = null;   // array del pedido + cliente + conteos
     public $pedidoDetalles  = [];     // productos del pedido
     public $flujoId         = null;   // flujo.id del pedido

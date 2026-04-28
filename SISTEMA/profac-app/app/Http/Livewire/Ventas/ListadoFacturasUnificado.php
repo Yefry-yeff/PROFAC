@@ -41,4 +41,8 @@ class ListadoFacturasUnificado extends Component
             'esVendedor' => $this->esVendedor,
         ]);
     }
+
+    
 }
+
+

@@ -16,7 +16,9 @@ use Luecano\NumeroALetras\NumeroALetras;
 
 class LitsadoFacturasVendedor extends Component
 {
-    public function render()
+
+
+public function render()
     {
         return view('livewire.ventas.listado-facturas-unificado', ['tipoVenta' => 'corporativo', 'nombreTipo' => 'Clientes B', 'esVendedor' => true]); // Vista unificada
     }
@@ -109,7 +111,7 @@ class LitsadoFacturasVendedor extends Component
 
                     return
                     '
-                    <p class="text-center"><span class="badge badge-danger p-2" style="font-size:0.75rem">Anulado</span></p>
+                    <p class="text-center"><span class="p-2 badge badge-danger" style="font-size:0.75rem">Anulado</span></p>
                     ';
 
                 }elseif(round($listaFacturas->monto_pagado,2) >= str_replace(",","",$listaFacturas->total)){
@@ -117,13 +119,13 @@ class LitsadoFacturasVendedor extends Component
                     return
                     '
 
-                    <p class="text-center" ><span class="badge badge-primary p-2" style="font-size:0.75rem">Completo</span></p>
+                    <p class="text-center" ><span class="p-2 badge badge-primary" style="font-size:0.75rem">Completo</span></p>
                     ';
 
                 }else{
                     return
                     '
-                    <p class="text-center"><span class="badge badge-danger p-2" style="font-size:0.75rem">Pendiente</span></p>
+                    <p class="text-center"><span class="p-2 badge badge-danger" style="font-size:0.75rem">Pendiente</span></p>
                     ';
                 } */
 
@@ -141,13 +143,13 @@ class LitsadoFacturasVendedor extends Component
                         return
                         '
 
-                        <p class="text-center" ><span class="badge badge-primary p-2" style="font-size:0.75rem">Cerrada</span></p>
+                        <p class="text-center" ><span class="p-2 badge badge-primary" style="font-size:0.75rem">Cerrada</span></p>
                         ';
 
                     }else{
                         return
                         '
-                        <p class="text-center"><span class="badge badge-danger p-2" style="font-size:0.75rem">Pendiente</span></p>
+                        <p class="text-center"><span class="p-2 badge badge-danger" style="font-size:0.75rem">Pendiente</span></p>
                         ';
                     }
            })

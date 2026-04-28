@@ -19,6 +19,8 @@ class ListarHistorialPedidos extends Component
     public $busqueda     = '';
     public $filtroEstado = '';
 
+    
+
     // ── Ordenamiento ───────────────────────────────────────────────────────
     public $sortCol = 'created_at';
     public $sortDir = 'desc';

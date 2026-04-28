@@ -13,6 +13,7 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx as XlsxWriter;
 
 class Pedido extends Component
 {
+    
     use WithFileUploads;
 
     // ── Búsqueda de cliente ────────────────────────────────────────────────

@@ -20,6 +20,8 @@ use App\Models\Escalas\modelCategoriaCliente;
 class Editarcotizacion extends Component
 {
 
+
+
     public $idCotizacion;
 
     public function mount($id)

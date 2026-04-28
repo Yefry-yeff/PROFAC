@@ -13,6 +13,7 @@ class ListarPrefacturasParaFactura extends Component
 {
     public $busqueda    = '';
     public $prefacturas = [];
+    
 
     // Subtipo de factura seleccionado antes de redirigir
     public $subtipoSeleccionado = null;

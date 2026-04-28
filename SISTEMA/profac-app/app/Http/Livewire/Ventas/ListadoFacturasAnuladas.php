@@ -15,6 +15,7 @@ use DataTables;
 
 class ListadoFacturasAnuladas extends Component
 {
+    
     public $tipoFactura;
 
     public function mount($id)
@@ -147,7 +148,7 @@ class ListadoFacturasAnuladas extends Component
 
                     return
                     '
-                    <p class="text-center"><span class="badge badge-danger p-2" style="font-size:0.75rem">Anulado</span></p>
+                    <p class="text-center"><span class="p-2 badge badge-danger" style="font-size:0.75rem">Anulado</span></p>
                     ';
 
 

@@ -14,7 +14,8 @@ class ListarVentas extends Component
     public $busquedaCliente = '';
     public $filtroEstado    = '';
     public $filtroFecha     = '';
-    public $filtroNumero    = '';   // filtro por nº de documento
+    public $filtroNumero    = ''; 
+      // filtro por nº de documento
 
     // ── Control de acceso ─────────────────────────────────────────────────
     public $esAdmin = false;

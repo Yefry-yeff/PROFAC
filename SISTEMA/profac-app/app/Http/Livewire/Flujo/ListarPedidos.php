@@ -19,6 +19,7 @@ class ListarPedidos extends Component
     // ── Control de acceso ─────────────────────────────────────────────────
     public $esAdmin = false;
 
+    
     // ── Paginación simple ──────────────────────────────────────────────────
     public $pagina       = 1;
     public $porPagina    = 15;

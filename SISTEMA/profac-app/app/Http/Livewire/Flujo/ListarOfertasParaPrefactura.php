@@ -18,6 +18,8 @@ class ListarOfertasParaPrefactura extends Component
     public $confirmandoId   = null;   // id de oferta pendiente de confirmar
     public $mensajeExito    = null;
 
+    
+
     public function mount()
     {
         $this->cargar();

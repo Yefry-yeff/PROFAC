@@ -14,6 +14,8 @@ use Throwable;
 
 class HistoricoPreciosCliente extends Component
 {
+
+
     public function render()
     {
         return view('livewire.ventas.historico-precios-cliente');

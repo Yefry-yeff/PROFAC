@@ -773,6 +773,8 @@ class Cotizacion extends Component
                 [$idCliente]
             );
 
+            
+
             $nombreCliente = $cliente ? $cliente->nombre : '';
 
             // Validación 1: facturas vencidas (misma lógica que comprobarFacturaVencida en FacturacionEstatal)
