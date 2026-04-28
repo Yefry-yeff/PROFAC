@@ -206,11 +206,17 @@ class ModalFlujoPedido extends Component
     /** Recarga los datos del pedido preservando el paso activo */
     private function recargar(): void
     {
-        if ($this->pedidoData) {
-            $pasoAnterior = $this->pasoActivo;
+        if (!$this->pedidoData) return;
+
+        if (!empty($this->pedidoData['sin_pedido'])) {
+            // Flujo originado desde cotización directa
+            $this->abrirDesdeFlujo((int) $this->flujoId);
+        } else {
+            // Flujo originado desde pedido — abrir() deriva pasoActivo del DB
             $this->abrir((int) $this->pedidoData['id']);
-            $this->pasoActivo = $pasoAnterior;
         }
+        // NO restaurar pasoActivo: abrir()/abrirDesdeFlujo() lo calculan
+        // correctamente desde flujo.tipo_tramite_id en la DB
     }
 
     public function cerrar(): void
@@ -460,6 +466,15 @@ class ModalFlujoPedido extends Component
             ->where('id', $hf->id)
             ->update(['observaciones' => 'ganadora', 'updated_at' => now()]);
 
+        // Avanzar el flujo a prefactura (tipo_tramite_id = 4)
+        DB::table('flujo')
+            ->where('id', $this->flujoId)
+            ->update([
+                'tipo_tramite_id' => 4,
+                'updated_by'      => Auth::id(),
+                'updated_at'      => now(),
+            ]);
+
         $this->mensajeExito = 'Oferta #' . $cotizacionId . ' marcada como ganadora.';
         $this->emit('pedidoActualizado');
         $this->recargar();
@@ -483,6 +498,15 @@ class ModalFlujoPedido extends Component
             ->where('tipo_tramite_id', 2)
             ->where('tramite_id', $cotizacionId)
             ->update(['observaciones' => 'QuitadaGanadora: ' . $motivo, 'updated_at' => now()]);
+
+        // Retroceder el flujo a Ofertas (tipo_tramite_id = 2)
+        DB::table('flujo')
+            ->where('id', $this->flujoId)
+            ->update([
+                'tipo_tramite_id' => 2,
+                'updated_by'      => Auth::id(),
+                'updated_at'      => now(),
+            ]);
 
         $this->mensajeExito = 'Oferta #' . $cotizacionId . ' ya no es ganadora.';
         $this->emit('pedidoActualizado');
