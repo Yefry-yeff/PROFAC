@@ -40,8 +40,8 @@ class ListarHistorialPedidos extends Component
                 'p.id', 'p.estado', 'p.observaciones', 'p.created_at',
                 'c.nombre as cliente', 'c.rtn',
                 'u.name as registrado_por',
-                DB::raw('(SELECT COUNT(*) FROM historico_flujo hf INNER JOIN flujo f ON f.id = hf.flujo_id WHERE f.identificacion = CAST(p.id AS CHAR) AND f.tipo_tramite_id = 1 AND hf.tipo_tramite_id = 2) as total_ofertas'),
-                DB::raw('(SELECT COUNT(*) FROM historico_flujo hf INNER JOIN flujo f ON f.id = hf.flujo_id WHERE f.identificacion = CAST(p.id AS CHAR) AND f.tipo_tramite_id = 1 AND hf.tipo_tramite_id = 2 AND hf.observaciones = \'ganadora\') as ofertas_ganadoras'),
+                DB::raw('(SELECT COUNT(*) FROM oferta o WHERE o.pedido_id = p.id) as total_ofertas'),
+                DB::raw('(SELECT COUNT(*) FROM oferta o WHERE o.pedido_id = p.id AND o.estado = \'ganadora\') as ofertas_ganadoras'),
                 DB::raw('(SELECT COUNT(*) FROM pedido_detalle pd WHERE pd.pedido_id = p.id) as total_productos')
             )
             ->orderByDesc('p.created_at');

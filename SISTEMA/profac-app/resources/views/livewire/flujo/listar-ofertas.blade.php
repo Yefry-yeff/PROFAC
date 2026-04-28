@@ -462,9 +462,10 @@
 
     {{-- ===== MODAL DETALLE / ACCIONES DE PEDIDO ===== --}}
     @if($showModalPedido && $pedidoSeleccionado)
-    <div style="position:fixed; inset:0; z-index:9999; display:flex; align-items:center; justify-content:center;">
+    <div style="position:fixed; inset:0; z-index:1060; display:flex; align-items:center; justify-content:center; padding:20px;
+                background:rgba(15,15,35,.58); backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px);">
         {{-- Backdrop --}}
-        <div style="position:absolute; inset:0; background:rgba(0,0,0,.55);" wire:click="cerrarModalPedido"></div>
+        <div style="position:absolute; inset:0;" wire:click="cerrarModalPedido"></div>
 
         {{-- Panel --}}
         <div style="position:relative; background:#fff; border-radius:18px; width:100%; max-width:580px;
@@ -518,15 +519,22 @@
                         <div style="font-size:11px; color:#90a4ae;">{{ $pedidoSeleccionado['rtn'] ?: '—' }}</div>
                     </div>
                     <div style="background:#f8f9fa; border-radius:10px; padding:12px 14px;">
-                        <div style="font-size:11px; color:#90a4ae; font-weight:700; text-transform:uppercase; margin-bottom:4px;">Estado</div>
+                        <div style="font-size:11px; color:#90a4ae; font-weight:700; text-transform:uppercase; margin-bottom:4px;">Estado flujo</div>
                         @php
-                            $estMapMod = ['pendiente'=>['#e3f2fd','#1565c0'],'pre_factura'=>['#fff8e1','#f57f17'],
-                                          'activo'=>['#e8f5e9','#2e7d32'],'pedido'=>['#e8f5e9','#2e7d32'],'cancelado'=>['#fce4ec','#b71c1c']];
-                            $colMod = $estMapMod[$pedidoSeleccionado['estado']] ?? ['#f5f5f5','#546e7a'];
+                            $flujoEst = $pedidoSeleccionado['estatus_flujo'] ?? null;
+                            $estMapMod = [
+                                'pedido'       => ['#e3f2fd','#1565c0','fa-shopping-cart'],
+                                'Ofertas'      => ['#fff3e0','#e65100','fa-tag'],
+                                'prefactura'   => ['#f3e5f5','#6a1b9a','fa-file-o'],
+                                'factura'      => ['#e8f5e9','#1b5e20','fa-file-text'],
+                                'Entrega Cobro'=> ['#e0f7fa','#00695c','fa-truck'],
+                                'cancelado'    => ['#fce4ec','#b71c1c','fa-ban'],
+                            ];
+                            $colMod = $estMapMod[$flujoEst] ?? ['#f5f5f5','#546e7a','fa-question-circle'];
                         @endphp
                         <span style="background:{{ $colMod[0] }}; color:{{ $colMod[1] }};
                                      border-radius:20px; padding:3px 12px; font-size:12px; font-weight:700;">
-                            {{ ucfirst(str_replace('_', ' ', $pedidoSeleccionado['estado'])) }}
+                            <i class="fa {{ $colMod[2] }} mr-1"></i>{{ $flujoEst ?: ucfirst(str_replace('_', ' ', $pedidoSeleccionado['estado'])) }}
                         </span>
                     </div>
                     <div style="background:#f8f9fa; border-radius:10px; padding:12px 14px;">
@@ -706,11 +714,10 @@
     </div>
     @endif
 
+    <script>
+        window.addEventListener('abrir-nueva-pestana', function(e) {
+            window.open(e.detail.url, '_blank');
+        });
+    </script>
 </div>
-
-<script>
-    window.addEventListener('abrir-nueva-pestana', function(e) {
-        window.open(e.detail.url, '_blank');
-    });
-</script>
 

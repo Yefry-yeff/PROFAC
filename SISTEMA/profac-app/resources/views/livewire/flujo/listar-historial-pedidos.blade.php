@@ -65,7 +65,14 @@
                         'pre_factura' => ['#fff8e1', '#f57f17', 'Pre-factura'],
                         'cancelado'   => ['#fce4ec', '#b71c1c', 'Cancelado'],
                     ];
-                    $ec = $estadoMap[$p['estado']] ?? ['#f5f5f5', '#546e7a', ucfirst($p['estado'])];
+                    // Si tiene ofertas activas, mostrar "Oferta" independientemente del campo estado
+                    if ($p['estado'] !== 'cancelado' && $p['total_ofertas'] > 0 && $p['ofertas_ganadoras'] == 0) {
+                        $ec = ['#fff3e0', '#e65100', 'Oferta'];
+                    } elseif ($p['estado'] !== 'cancelado' && $p['ofertas_ganadoras'] > 0) {
+                        $ec = ['#fff8e1', '#f57f17', 'Pre-factura'];
+                    } else {
+                        $ec = $estadoMap[$p['estado']] ?? ['#f5f5f5', '#546e7a', ucfirst($p['estado'])];
+                    }
                 @endphp
                 <tr style="cursor:pointer; {{ $p['estado'] === 'cancelado' ? 'opacity:.72;' : '' }}"
                     wire:click="abrirModalPedido({{ $p['id'] }})"
@@ -113,6 +120,7 @@
         </table>
     </div>
     @endif
+</div>
 
     {{-- ── Loading ──────────────────────────────────────────────────────── --}}
     <div wire:loading class="text-center py-3">

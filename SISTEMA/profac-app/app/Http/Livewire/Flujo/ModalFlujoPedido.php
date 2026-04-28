@@ -56,12 +56,12 @@ class ModalFlujoPedido extends Component
                 DB::raw("(SELECT COUNT(*) FROM historico_flujo hf
                            INNER JOIN flujo f ON f.id = hf.flujo_id
                            WHERE f.identificacion = CAST(p.id AS CHAR)
-                             AND f.tipo_tramite_id = 1
+                             AND f.tipo_flujo_id = 1
                              AND hf.tipo_tramite_id = 2) as total_ofertas"),
                 DB::raw("(SELECT COUNT(*) FROM historico_flujo hf
                            INNER JOIN flujo f ON f.id = hf.flujo_id
                            WHERE f.identificacion = CAST(p.id AS CHAR)
-                             AND f.tipo_tramite_id = 1
+                             AND f.tipo_flujo_id = 1
                              AND hf.tipo_tramite_id = 2
                              AND hf.observaciones = 'ganadora') as has_ganadora")
             )
@@ -80,8 +80,27 @@ class ModalFlujoPedido extends Component
 
         $this->flujoId = DB::table('flujo')
             ->where('identificacion', (string) $pedidoId)
-            ->where('tipo_tramite_id', 1)
+            ->where('tipo_flujo_id', 1)
             ->value('id');
+
+        // Derivar el paso activo del estado actual del flujo
+        $flujoTramiteNombre = $this->flujoId
+            ? DB::table('flujo as f')
+                ->join('tipos_tramites as tt', 'tt.id', '=', 'f.tipo_tramite_id')
+                ->where('f.id', $this->flujoId)
+                ->value('tt.nombre')
+            : null;
+        $tramiteStepMap = [
+            'pedido'        => 'pedido',
+            'Ofertas'       => 'ofertas',
+            'prefactura'    => 'prefactura',
+            'factura'       => 'factura',
+            'Entrega Cobro' => 'entrega',
+        ];
+        // Si el paso inicial es 'pedido' (default), auto-derivamos del flujo;
+        // si se pasó explícitamente otro paso, lo respetamos
+        $autoPaso = $tramiteStepMap[$flujoTramiteNombre] ?? 'pedido';
+        $pasoFinal = ($pasoInicial === 'pedido') ? $autoPaso : $pasoInicial;
 
         $this->flujoTipos = $this->flujoId
             ? DB::table('historico_flujo')
@@ -95,7 +114,7 @@ class ModalFlujoPedido extends Component
         $this->cargarOfertasPedido();
 
         // Resetear estado
-        $this->pasoActivo           = $pasoInicial;
+        $this->pasoActivo           = $pasoFinal;
         $this->ofertaSeleccionada   = null;
         $this->confirmAccion        = null;
         $this->confirmAccionOferta  = null;
@@ -104,6 +123,7 @@ class ModalFlujoPedido extends Component
         $this->mensajeExito         = '';
         $this->mensajeError         = '';
         $this->showModal            = true;
+        $this->dispatchBrowserEvent('fmp-show');
     }
 
     /** Recarga los datos del pedido preservando el paso activo */

@@ -1,5 +1,16 @@
 <div>
     <style>
+        /* ── Fix: fadeInRight debe terminar en transform:none para no crear
+                  un "containing block" que rompa position:fixed en modales ── */
+        @keyframes fadeInRight {
+            0%   { opacity: 0; transform: translateX(20px); }
+            100% { opacity: 1; transform: none; }
+        }
+        @-webkit-keyframes fadeInRight {
+            0%   { opacity: 0; -webkit-transform: translateX(20px); }
+            100% { opacity: 1; -webkit-transform: none; }
+        }
+
         .flujo-card {
             border: none;
             border-radius: 16px;

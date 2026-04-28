@@ -754,18 +754,83 @@
         </div>
 
         {{-- MODAL: Seleccionar oferta ganadora --}}
+        <style>
+            /* Z-index por encima de los valores de IBOX (.modal=2050, .modal-dialog=2200) */
+            #modalOfertasGanadoras { z-index: 2060 !important; }
+
+            /* Lista con scroll: altura fija para mostrar ~3 ofertas a la vez */
+            #ogLista {
+                max-height: 310px;
+                overflow-y: auto;
+                overflow-x: hidden;
+                padding-right: 2px;
+            }
+            #ogLista::-webkit-scrollbar { width: 5px; }
+            #ogLista::-webkit-scrollbar-thumb { background: #f9a826; border-radius: 4px; }
+
+            /* Accordion de productos */
+            .og-card { border-radius: 10px; margin-bottom: 10px; overflow: hidden; transition: box-shadow .2s; }
+            .og-card:hover { box-shadow: 0 4px 18px rgba(0,0,0,.10); }
+            .og-card-header {
+                display: flex; align-items: center; gap: 8px;
+                padding: 11px 14px; cursor: default;
+            }
+            .og-toggle-btn {
+                background: none; border: none; padding: 0;
+                display: flex; align-items: center; gap: 5px;
+                font-size: 11px; font-weight: 700; color: #e65100;
+                cursor: pointer; white-space: nowrap; flex-shrink: 0;
+                transition: color .15s;
+            }
+            .og-toggle-btn:hover { color: #bf360c; }
+            .og-toggle-icon {
+                display: inline-block; width: 18px; height: 18px; line-height: 16px;
+                border-radius: 50%; background: #fff3e0; border: 1.5px solid #f9a826;
+                text-align: center; font-size: 13px; font-weight: 900; color: #e65100;
+                transition: transform .3s, background .2s;
+                flex-shrink: 0;
+            }
+            .og-toggle-btn.open .og-toggle-icon {
+                transform: rotate(45deg);
+                background: #e65100; color: #fff; border-color: #e65100;
+            }
+            .og-products {
+                overflow: hidden;
+                max-height: 0;
+                transition: max-height .35s cubic-bezier(.4,0,.2,1), padding .25s;
+                padding: 0 14px;
+            }
+            .og-products.open { max-height: 600px; padding: 0 14px 10px; }
+            .og-prod-row {
+                display: flex; justify-content: space-between; align-items: center;
+                padding: 4px 0; border-bottom: 1px solid #f5f5f5;
+                font-size: 12px;
+            }
+            .og-prod-row:last-child { border-bottom: none; }
+        </style>
         <div class="modal fade" id="modalOfertasGanadoras" tabindex="-1" role="dialog">
-            <div class="modal-dialog modal-dialog-centered" role="document" style="max-width:560px;">
-                <div class="modal-content" style="border-radius:16px; overflow:hidden;">
-                    <div class="modal-header" style="background:linear-gradient(135deg,#e65100,#f9a826); border:none; padding:16px 24px;">
+            <div class="modal-dialog modal-dialog-centered" role="document"
+                 style="max-width:660px; width:94%;">
+                <div class="modal-content" style="border-radius:16px; overflow:hidden; display:flex; flex-direction:column;">
+                    <div class="modal-header" style="background:linear-gradient(135deg,#e65100,#f9a826); border:none; padding:14px 20px; flex-shrink:0;">
                         <h5 class="modal-title" style="color:#fff; font-weight:800; margin:0; font-size:14px;">
                             <i class="fa fa-trophy mr-2"></i> Seleccionar oferta ganadora
                         </h5>
                         <button type="button" class="close" data-dismiss="modal" style="color:#fff; opacity:1;"><span>&times;</span></button>
                     </div>
-                    <div class="modal-body" style="padding:20px;">
-                        <div id="ogLoading" class="text-center py-3" style="display:none;"><i class="fa fa-spinner fa-spin fa-2x" style="color:#e65100;"></i></div>
+                    <div class="modal-body" style="padding:16px 18px; overflow:hidden; display:flex; flex-direction:column; flex:1; min-height:0;">
+                        <div id="ogLoading" class="text-center py-3" style="display:none;">
+                            <i class="fa fa-spinner fa-spin fa-2x" style="color:#e65100;"></i>
+                        </div>
                         <div id="ogLista"></div>
+                    </div>
+                    <div class="modal-footer" style="border-top:1px solid #f0f0f0; padding:10px 18px; flex-shrink:0; background:#fafafa;">
+                        <button type="button" id="ogBtnVolver"
+                                style="background:#fff; color:#e65100; border:2px solid #f9a826; border-radius:9px;
+                                       padding:7px 22px; font-size:13px; font-weight:700; cursor:pointer; transition:background .15s;"
+                                onmouseover="this.style.background='#fff3e0';" onmouseout="this.style.background='#fff';">
+                            <i class="fa fa-arrow-left mr-1"></i> Volver
+                        </button>
                     </div>
                 </div>
             </div>
@@ -1890,51 +1955,87 @@
         var idPedido  = _ofertaPedidoId;
 
         if (tipo === 'nueva') {
-            // Limpiar sólo productos; mantener cliente y pedido vinculado si hay
-            document.getElementById('bloqueImagenes').innerHTML = '';
-            document.getElementById('divProductos').innerHTML = '';
-            var carritoTabla = document.getElementById('carritoTablaWrapper');
-            var carritoVacio = document.getElementById('carritoVacio');
-            if (carritoTabla) carritoTabla.style.display = 'none';
-            if (carritoVacio) carritoVacio.style.display = '';
-            arregloIdInputs = [];
-            numeroInputs = 0;
             $('#modalExitoOferta').modal('hide');
+            // Recargar la página para restaurar los datos del pedido vinculado
+            window.location.reload();
+            return;
 
         } else if (tipo === 'ganadora') {
-            $('#modalExitoOferta').modal('hide');
             if (!idPedido) {
+                $('#modalExitoOferta').modal('hide');
                 Swal.fire({ icon: 'info', title: 'Sin pedido', text: 'Esta oferta no está vinculada a un pedido.' });
                 return;
             }
             document.getElementById('ogLista').innerHTML = '';
             document.getElementById('ogLoading').style.display = '';
-            $('#modalOfertasGanadoras').modal('show');
-            axios.get('/cotizacion/por-pedido/' + idPedido)
-                .then(function(res) {
-                    document.getElementById('ogLoading').style.display = 'none';
-                    var ofertas = res.data;
-                    if (!ofertas.length) {
-                        document.getElementById('ogLista').innerHTML = '<p class="text-muted text-center">No hay ofertas para este pedido.</p>';
-                        return;
-                    }
-                    var html = '<div class="list-group">';
-                    ofertas.forEach(function(o) {
-                        var esActual  = (o.id == idOferta) ? ' <span style="background:#e3f2fd;color:#1565c0;border-radius:12px;padding:1px 8px;font-size:10px;font-weight:700;">Esta oferta</span>' : '';
-                        var esGanadora = o.es_ganadora ? ' <span style="background:#fff8e1;color:#f57f17;border-radius:12px;padding:1px 8px;font-size:10px;font-weight:700;"><i class="fa fa-trophy"></i> Ganadora actual</span>' : '';
-                        var borderStyle = o.es_ganadora ? 'border:2px solid #f9a826;background:#fffde7;' : 'border:1px solid #f9a826;';
-                        html += '<button onclick="confirmarGanadora(' + o.id + ')" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" style="border-radius:8px; margin-bottom:6px; ' + borderStyle + '">';
-                        html += '<span><strong>Oferta #' + o.id + '</strong>' + esActual + esGanadora + '<br><small class="text-muted">' + (o.nombre_cliente || '') + '</small></span>';
-                        html += '<span style="font-weight:700; color:#e65100;">L ' + parseFloat(o.total).toFixed(2) + '</span>';
-                        html += '</button>';
+            // Esperar a que el primer modal cierre completamente antes de abrir el segundo
+            $('#modalExitoOferta').one('hidden.bs.modal', function () {
+                $('#modalOfertasGanadoras').modal('show');
+                axios.get('/cotizacion/por-pedido/' + idPedido)
+                    .then(function(res) {
+                        document.getElementById('ogLoading').style.display = 'none';
+                        var ofertas = res.data;
+                        if (!ofertas.length) {
+                            document.getElementById('ogLista').innerHTML = '<p class="text-muted text-center">No hay ofertas para este pedido.</p>';
+                            return;
+                        }
+                        var fmt = new Intl.NumberFormat('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                        var html = '';
+                        ofertas.forEach(function(o, idx) {
+                            var esActual   = (o.id == idOferta) ? ' <span style="background:#e3f2fd;color:#1565c0;border-radius:12px;padding:1px 8px;font-size:10px;font-weight:700;">Esta oferta</span>' : '';
+                            var esGanadora = o.es_ganadora ? ' <span style="background:#fff8e1;color:#f57f17;border-radius:12px;padding:1px 8px;font-size:10px;font-weight:700;"><i class="fa fa-trophy"></i> Ganadora</span>' : '';
+                            var cardBorder = o.es_ganadora ? 'border:2px solid #f9a826;background:#fffde7;' : 'border:1px solid #e0e0e0;background:#fff;';
+                            var numProds   = (o.productos && o.productos.length) ? o.productos.length : 0;
+                            var cardId     = 'ogCard_' + o.id;
+
+                            html += '<div class="og-card" style="' + cardBorder + '">';
+
+                            // ── Fila principal ──────────────────────────────
+                            html += '<div class="og-card-header">';
+                            // Info izquierda
+                            html += '<div style="flex:1;min-width:0;">';
+                            html += '<div style="font-weight:800;font-size:13px;color:#2d3748;display:flex;align-items:center;flex-wrap:wrap;gap:4px;">';
+                            html += 'Oferta #' + o.id + esActual + esGanadora;
+                            html += '</div>';
+                            html += '<div style="font-size:11px;color:#90a4ae;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (o.nombre_cliente || '') + '</div>';
+                            html += '</div>';
+                            // Total + botón seleccionar
+                            html += '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0;">';
+                            html += '<span style="font-weight:800;color:#e65100;font-size:14px;">L ' + fmt.format(o.total) + '</span>';
+                            html += '<button onclick="confirmarGanadora(' + o.id + ')" style="background:linear-gradient(135deg,#e65100,#f9a826);color:#fff;border:none;border-radius:8px;padding:4px 14px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">';
+                            html += '<i class="fa fa-trophy mr-1"></i>Seleccionar</button>';
+                            html += '</div>';
+                            html += '</div>';
+
+                            // ── Toggle de productos ─────────────────────────
+                            if (numProds > 0) {
+                                html += '<div style="padding:0 14px 8px;">';
+                                html += '<button type="button" class="og-toggle-btn" id="ogToggle_' + o.id + '" onclick="ogToggle(' + o.id + ')">';
+                                html += '<span class="og-toggle-icon" id="ogIcon_' + o.id + '">+</span>';
+                                html += 'Productos (' + numProds + ')';
+                                html += '</button>';
+                                html += '</div>';
+
+                                html += '<div class="og-products" id="ogProds_' + o.id + '">';
+                                o.productos.forEach(function(p) {
+                                    html += '<div class="og-prod-row">';
+                                    html += '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#2d3748;" title="' + p.nombre + '">' + p.nombre + '</span>';
+                                    html += '<span style="margin-left:12px;white-space:nowrap;color:#546e7a;font-size:11px;font-weight:600;">x' + p.cantidad + ' &nbsp; L ' + fmt.format(p.total) + '</span>';
+                                    html += '</div>';
+                                });
+                                html += '</div>';
+                            }
+
+                            html += '</div>'; // .og-card
+                        });
+                        document.getElementById('ogLista').innerHTML = html;
+                    })
+                    .catch(function() {
+                        document.getElementById('ogLoading').style.display = 'none';
+                        document.getElementById('ogLista').innerHTML = '<p class="text-danger text-center">Error al cargar ofertas.</p>';
                     });
-                    html += '</div>';
-                    document.getElementById('ogLista').innerHTML = html;
-                })
-                .catch(function() {
-                    document.getElementById('ogLoading').style.display = 'none';
-                    document.getElementById('ogLista').innerHTML = '<p class="text-danger text-center">Error al cargar ofertas.</p>';
-                });
+            });
+            $('#modalExitoOferta').modal('hide');
 
         } else if (tipo === 'prefacturar') {
             $('#modalExitoOferta').modal('hide');
@@ -1965,6 +2066,54 @@
                 Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo marcar la oferta como ganadora.' });
             });
     }
+
+    // Accordion: abrir un panel cierra los demás
+    var _ogOpenId = null;
+    function ogToggle(ofertaId) {
+        var prods  = document.getElementById('ogProds_'  + ofertaId);
+        var toggle = document.getElementById('ogToggle_' + ofertaId);
+        if (!prods || !toggle) return;
+
+        var isOpen = prods.classList.contains('open');
+
+        // Cerrar el que estaba abierto (si era otro)
+        if (_ogOpenId && _ogOpenId !== ofertaId) {
+            var prevProds  = document.getElementById('ogProds_'  + _ogOpenId);
+            var prevToggle = document.getElementById('ogToggle_' + _ogOpenId);
+            if (prevProds)  prevProds.classList.remove('open');
+            if (prevToggle) prevToggle.classList.remove('open');
+            _ogOpenId = null;
+        }
+
+        if (isOpen) {
+            prods.classList.remove('open');
+            toggle.classList.remove('open');
+            _ogOpenId = null;
+        } else {
+            prods.classList.add('open');
+            toggle.classList.add('open');
+            _ogOpenId = ofertaId;
+        }
+    }
+
+    // Botón Volver: cierra ganadora y reabre el modal de éxito
+    document.addEventListener('DOMContentLoaded', function () {
+        // Mover el modal al <body> para evitar el offset del page-wrapper de IBOX
+        var ogModal = document.getElementById('modalOfertasGanadoras');
+        if (ogModal && ogModal.parentElement !== document.body) {
+            document.body.appendChild(ogModal);
+        }
+
+        var btnVolver = document.getElementById('ogBtnVolver');
+        if (btnVolver) {
+            btnVolver.addEventListener('click', function () {
+                $('#modalOfertasGanadoras').one('hidden.bs.modal', function () {
+                    $('#modalExitoOferta').modal('show');
+                });
+                $('#modalOfertasGanadoras').modal('hide');
+            });
+        }
+    });
 
     $(document).on('submit', '#crear_venta', function(event) {
         event.preventDefault();

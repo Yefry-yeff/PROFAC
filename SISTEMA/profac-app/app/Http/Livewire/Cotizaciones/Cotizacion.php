@@ -292,13 +292,15 @@ class Cotizacion extends Component
             $cotizacion->nota = $request->nota;
             $cotizacion->save();
 
-            // ── Registrar en historico_flujo si viene de un pedido vinculado ──
+            // ── Registrar en historico_flujo / crear flujo según si hay pedido vinculado ──
             $pedidoIdVinculado = $request->pedido_id ? (int) $request->pedido_id : null;
             $flujoIdVinculado  = null;
             if ($pedidoIdVinculado) {
+                // Buscar el flujo del pedido (por identificacion+tipo_flujo_id; no filtrar por tipo_tramite_id
+                // porque pudo ya haberse actualizado a 2 si hay otra oferta previa)
                 $flujoIdVinculado = DB::table('flujo')
                     ->where('identificacion', (string) $pedidoIdVinculado)
-                    ->where('tipo_tramite_id', 1)
+                    ->where('tipo_flujo_id', 1)
                     ->value('id');
                 if ($flujoIdVinculado) {
                     DB::table('historico_flujo')->insert([
@@ -312,7 +314,34 @@ class Cotizacion extends Component
                         'created_at'      => now(),
                         'updated_at'      => now(),
                     ]);
+                    // Avanzar el flujo al estado "Oferta" (tipo_tramite_id=2)
+                    DB::table('flujo')->where('id', $flujoIdVinculado)
+                        ->update(['tipo_tramite_id' => 2, 'updated_by' => Auth::id(), 'updated_at' => now()]);
                 }
+            } else {
+                // Sin pedido: crear un nuevo registro en flujo para esta cotizacion
+                $flujoNuevo = DB::table('flujo')->insertGetId([
+                    'tipo_flujo_id'   => 1,
+                    'identificacion'  => (string) $cotizacion->id,
+                    'nombre'          => $cotizacion->nombre_cliente ?? ('Cotizacion #' . $cotizacion->id),
+                    'estado'          => 'activo',
+                    'tipo_tramite_id' => 2, // Oferta directa (sin pedido previo)
+                    'created_by'      => Auth::id(),
+                    'updated_by'      => Auth::id(),
+                    'created_at'      => now(),
+                    'updated_at'      => now(),
+                ]);
+                DB::table('historico_flujo')->insert([
+                    'flujo_id'        => $flujoNuevo,
+                    'tipo_tramite_id' => 2,
+                    'tramite_id'      => $cotizacion->id,
+                    'estado_id'       => null,
+                    'observaciones'   => 'Oferta sin pedido',
+                    'created_by'      => Auth::id(),
+                    'updated_by'      => Auth::id(),
+                    'created_at'      => now(),
+                    'updated_at'      => now(),
+                ]);
             }
 
             for ($i = 0; $i < count($arrayInputs); $i++) {
@@ -418,7 +447,7 @@ class Cotizacion extends Component
     {
         $flujoId = DB::table('flujo')
             ->where('identificacion', (string) (int) $pedidoId)
-            ->where('tipo_tramite_id', 1)
+            ->where('tipo_flujo_id', 1)
             ->value('id');
 
         if (!$flujoId) {
@@ -434,7 +463,18 @@ class Cotizacion extends Component
             ->orderByDesc('c.id')
             ->get();
 
-        return response()->json($ofertas);
+        // Incluir productos de cada oferta para mostrar el detalle en el modal
+        $ofertasConProductos = $ofertas->map(function ($o) {
+            $o->productos = DB::table('cotizacion_has_producto as chp')
+                ->join('producto as p', 'p.id', '=', 'chp.producto_id')
+                ->where('chp.cotizacion_id', $o->id)
+                ->select('p.nombre', 'chp.cantidad', 'chp.precio_unidad', 'chp.total')
+                ->orderBy('chp.indice')
+                ->get();
+            return $o;
+        });
+
+        return response()->json($ofertasConProductos);
     }
 
     public function marcarGanadora(Request $request)
@@ -462,6 +502,10 @@ class Cotizacion extends Component
             DB::table('historico_flujo')
                 ->where('id', $hf->id)
                 ->update(['observaciones' => 'ganadora', 'updated_at' => now()]);
+
+            // Avanzar el flujo al estado "Prefactura" (tipo_tramite_id=3)
+            DB::table('flujo')->where('id', $hf->flujo_id)
+                ->update(['tipo_tramite_id' => 3, 'updated_by' => Auth::id(), 'updated_at' => now()]);
         }
 
         return response()->json(['success' => true, 'cotizacion_id' => $id]);
