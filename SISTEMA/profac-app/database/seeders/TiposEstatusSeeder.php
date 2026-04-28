@@ -16,7 +16,7 @@ class TiposEstatusSeeder extends Seeder
     {
         $estatus = ['pedido', 'Ofertas', 'factura', 'prefactura', 'Entrega Cobro'];
         foreach ($estatus as $est) {
-            \DB::table('tipos_tramites')->updateOrInsert(
+            \DB::table('tipos_estatus')->updateOrInsert(
                 ['nombre' => $est],
                 ['estado' => 'activo', 'created_by' => null, 'updated_by' => null, 'created_at' => now(), 'updated_at' => now()]
             );

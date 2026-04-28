@@ -12,22 +12,17 @@ class ReporteProductosPreciosFiltro implements FromQuery, WithHeadings, WithMapp
 {
     use Exportable;
 
+    protected $catClienteId;
+    protected $catPrecioId;
     protected $tipoFiltro;
     protected $valorFiltro;
-    protected $valorCategoria;
 
-    /**
-     * Constructor: inicializa los parámetros del exportador.
-     *
-     * @param int|null $tipoFiltro   Define si se filtra por marca o categoría.
-     * @param int|null $valorFiltro  ID del filtro seleccionado.
-     * @param int|null $valorCategoria ID de la categoría de precios seleccionada.
-     */
-    public function __construct($tipoFiltro = null, $valorFiltro = null, $valorCategoria = null)
+    public function __construct($catClienteId = null, $catPrecioId = null, $tipoFiltro = null, $valorFiltro = null)
     {
-        $this->tipoFiltro = $tipoFiltro;
-        $this->valorFiltro = $valorFiltro;
-        $this->valorCategoria = $valorCategoria;
+        $this->catClienteId = $catClienteId;
+        $this->catPrecioId  = $catPrecioId;
+        $this->tipoFiltro   = $tipoFiltro;
+        $this->valorFiltro  = $valorFiltro;
     }
 
 
@@ -70,19 +65,19 @@ class ReporteProductosPreciosFiltro implements FromQuery, WithHeadings, WithMapp
             ->orderBy('A.id', 'asc');
 
 
+        if ($this->catClienteId) {
+            $query->join('cliente_categoria_escala as CCE', 'CCE.id', '=', 'C.cliente_categoria_escala_id')
+                  ->where('CCE.id', $this->catClienteId);
+        }
+        if ($this->catPrecioId) {
+            $query->where('C.id', $this->catPrecioId);
+        }
         if ($this->tipoFiltro == 1 && $this->valorFiltro) {
-            // Filtrar por marca
             $query->where('A.marca_id', $this->valorFiltro);
         } elseif ($this->tipoFiltro == 2 && $this->valorFiltro) {
-            // Filtrar por categoría de producto (CORREGIDO: usar G.id)
             $query->where('G.id', $this->valorFiltro);
         }
-        
-        // Filtrar por categoría de precios si está presente
-        if ($this->valorCategoria) {
-            $query->where('C.id', $this->valorCategoria);
-        }
-        
+
         return $query;
     }
 

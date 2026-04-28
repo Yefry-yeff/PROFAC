@@ -16,6 +16,8 @@ class modelCategoriaPrecios extends Model
         'comentario',
         'estado_id',
         'users_id_registro',
+        'users_id_actualizador',
+        'fecha_ultima_actualizacion',
         'fecha_inactivacion',
         'cliente_categoria_escala_id',
         'porc_precio_a',
