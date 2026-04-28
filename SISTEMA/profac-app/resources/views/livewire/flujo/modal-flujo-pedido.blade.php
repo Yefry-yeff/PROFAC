@@ -88,10 +88,19 @@
                         border:none; padding:16px 24px;">
                 <div>
                     <h5 class="modal-title m-0" style="color:#fff; font-size:17px; font-weight:700;">
-                        <i class="fa fa-map-o mr-2"></i>Flujo del Pedido
+                        <i class="fa fa-map-o mr-2"></i>
+                        @if(!empty($d['sin_pedido']))
+                        Flujo de Cotización
+                        @else
+                        Flujo del Pedido
+                        @endif
                         <span style="background:rgba(255,255,255,.22); border-radius:20px;
                                      padding:2px 12px; font-size:14px; margin-left:6px;">
-                            #{{ $d['id'] }}
+                            @if(!empty($d['sin_pedido']))
+                                <i class="fa fa-times-circle mr-1"></i> Sin pedido
+                            @else
+                                #{{ $d['id'] }}
+                            @endif
                         </span>
                     </h5>
                     <small style="color:rgba(255,255,255,.85); font-size:12px;">
@@ -225,8 +234,13 @@
                 <div class="fmp-info-grid" style="margin-top:12px; padding:12px 16px; background:#fff;
                             border-radius:12px; border:1px solid #e8eaf0;">
                     <span>
+                        @if(!empty($d['sin_pedido']))
+                        <i class="fa fa-times-circle mr-1" style="color:#e74c3c;"></i>
+                        <strong style="color:#e74c3c;">Sin pedido</strong>
+                        @else
                         <i class="fa fa-hashtag text-primary mr-1"></i>
                         <strong>Pedido #{{ $d['id'] }}</strong>
+                        @endif
                     </span>
                     <span>
                         <i class="fa fa-user text-info mr-1"></i>

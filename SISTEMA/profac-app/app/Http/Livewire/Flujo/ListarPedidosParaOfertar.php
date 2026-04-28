@@ -110,6 +110,7 @@ class ListarPedidosParaOfertar extends Component
             ->where('f.tipo_flujo_id', 1)
             ->where('f.tipo_tramite_id', 1)
             ->whereNotIn('p.estado', ['cancelado'])
+            ->whereRaw('NOT EXISTS (SELECT 1 FROM historico_flujo hf WHERE hf.flujo_id = f.id AND hf.tipo_tramite_id = 2)')
             ->select(
                 'f.id as flujo_id',
                 'p.id',
@@ -294,9 +295,16 @@ class ListarPedidosParaOfertar extends Component
         $this->cargar();
     }
 
-    public function abrirModalFlujo(int $flujoId): void
+    /** Abre el modal para un flujo originado desde un pedido (pasa el pedido_id) */
+    public function abrirModalPedido(int $pedidoId): void
     {
-        $this->emit('abrirFlujoPedido', $flujoId);
+        $this->emit('abrirFlujoPedido', $pedidoId);
+    }
+
+    /** Abre el modal para un flujo originado desde una cotización sin pedido (pasa el flujo_id) */
+    public function abrirModalCotizacion(int $flujoId): void
+    {
+        $this->emit('abrirFlujoCotizacion', $flujoId);
     }
 
     public function nuevaOfertaSinPedido(): void

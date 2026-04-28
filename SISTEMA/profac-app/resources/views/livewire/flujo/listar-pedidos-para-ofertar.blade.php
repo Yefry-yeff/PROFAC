@@ -166,8 +166,8 @@
                 <tbody>
                     @foreach($pedSlice as $ped)
                     @php $p = (array) $ped; @endphp
-                    <tr class="ofp-row" wire:click="abrirModalFlujo({{ $p['flujo_id'] }})"
-                        title="Ver flujo #{{ $p['flujo_id'] }}">
+                    <tr class="ofp-row" wire:click="abrirModalPedido({{ $p['id'] }})"
+                        title="Ver flujo #{{ $p['flujo_id'] }} — Pedido #{{ $p['id'] }}">
                         <td class="text-center align-middle" style="padding:8px;">
                             <span style="background:linear-gradient(135deg,#1565c0,#1a73e8); color:#fff; border-radius:6px; padding:2px 9px; font-weight:800; font-size:13px;">
                                 #{{ $p['flujo_id'] }}
@@ -312,7 +312,12 @@
                         $ef = $o['estado_flujo'] ?? '';
                         $ec = $estadoMap[$ef] ?? ['#f5f5f5', '#78909c', ucfirst($ef), 'fa-circle'];
                     @endphp
-                    <tr class="ofp-row" wire:click="abrirModalFlujo({{ $o['flujo_id'] }})"
+                    @php
+                        $rowClick = $o['origen'] === 'pedido'
+                            ? 'abrirModalPedido('.$o['tramite_id'].')'
+                            : 'abrirModalCotizacion('.$o['flujo_id'].')';
+                    @endphp
+                    <tr class="ofp-row" wire:click="{{ $rowClick }}"
                         title="Ver flujo #{{ $o['flujo_id'] }}">
                         <td class="text-center align-middle" style="padding:8px;">
                             <span style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff; border-radius:6px; padding:2px 9px; font-weight:800; font-size:13px;">

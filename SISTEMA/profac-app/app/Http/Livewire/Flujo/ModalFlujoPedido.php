@@ -38,7 +38,7 @@ class ModalFlujoPedido extends Component
     public $mensajeError = '';
 
     // ── Listeners ─────────────────────────────────────────────────────────
-    protected $listeners = ['abrirFlujoPedido' => 'abrir'];
+    protected $listeners = ['abrirFlujoPedido' => 'abrir', 'abrirFlujoCotizacion' => 'abrirDesdeFlujo'];
 
     // ─────────────────────────────────────────────────────────────────────
     // ABRIR / CERRAR
@@ -115,6 +115,83 @@ class ModalFlujoPedido extends Component
 
         // Resetear estado
         $this->pasoActivo           = $pasoFinal;
+        $this->ofertaSeleccionada   = null;
+        $this->confirmAccion        = null;
+        $this->confirmAccionOferta  = null;
+        $this->motivoAnulacion      = '';
+        $this->motivoAnulOferta     = '';
+        $this->mensajeExito         = '';
+        $this->mensajeError         = '';
+        $this->showModal            = true;
+        $this->dispatchBrowserEvent('fmp-show');
+    }
+
+    /**
+     * Abre el modal para un flujo cuyo origen es una cotización directa (sin pedido previo).
+     * Listener: abrirFlujoCotizacion
+     */
+    public function abrirDesdeFlujo(int $flujoId): void
+    {
+        $flujo = DB::table('flujo')->where('id', $flujoId)->first();
+        if (!$flujo) return;
+
+        $cotizacion = DB::table('cotizacion')->where('id', $flujo->identificacion)->first();
+        if (!$cotizacion) return;
+
+        // Conteos de ofertas en el flujo
+        $totalOfertas = DB::table('historico_flujo')
+            ->where('flujo_id', $flujoId)
+            ->where('tipo_tramite_id', 2)
+            ->count();
+
+        $hasGanadora = DB::table('historico_flujo')
+            ->where('flujo_id', $flujoId)
+            ->where('tipo_tramite_id', 2)
+            ->where('observaciones', 'ganadora')
+            ->count();
+
+        // Construir pedidoData compatible con el blade del modal
+        $this->pedidoData = [
+            'id'             => (int) $flujo->identificacion,
+            'estado'         => 'activo',
+            'observaciones'  => $cotizacion->observaciones ?? null,
+            'created_at'     => $cotizacion->created_at,
+            'cliente'        => $cotizacion->nombre_cliente ?? '—',
+            'rtn'            => $cotizacion->RTN ?? null,
+            'cliente_id'     => $cotizacion->cliente_id ?? null,
+            'registrado_por' => null,
+            'total_ofertas'  => $totalOfertas,
+            'has_ganadora'   => $hasGanadora,
+            'sin_pedido'     => true,   // ← indica que no tiene pedido vinculado
+        ];
+
+        $this->pedidoDetalles = [];
+        $this->flujoId        = $flujoId;
+
+        $this->flujoTipos = DB::table('historico_flujo')
+            ->where('flujo_id', $flujoId)
+            ->pluck('tipo_tramite_id')
+            ->unique()
+            ->values()
+            ->toArray();
+
+        // Determinar paso activo desde el estado actual del flujo
+        $flujoTramiteNombre = DB::table('flujo as f')
+            ->join('tipos_tramites as tt', 'tt.id', '=', 'f.tipo_tramite_id')
+            ->where('f.id', $flujoId)
+            ->value('tt.nombre');
+
+        $tramiteStepMap = [
+            'pedido'        => 'ofertas',   // sin pedido, arrancamos en ofertas
+            'Ofertas'       => 'ofertas',
+            'prefactura'    => 'prefactura',
+            'factura'       => 'factura',
+            'Entrega Cobro' => 'entrega',
+        ];
+
+        $this->cargarOfertasPedido();
+
+        $this->pasoActivo           = $tramiteStepMap[$flujoTramiteNombre] ?? 'ofertas';
         $this->ofertaSeleccionada   = null;
         $this->confirmAccion        = null;
         $this->confirmAccionOferta  = null;
