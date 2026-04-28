@@ -103,7 +103,7 @@
         </div>
         <div class="col-lg-2 d-flex align-items-center justify-content-end">
             <a href="{{ route('flujo.ventas') }}" class="btn btn-default btn-sm">
-                <i class="fa fa-arrow-left mr-1"></i> Volver
+                <i class="mr-1 fa fa-arrow-left"></i> Volver
             </a>
         </div>
     </div>
@@ -119,8 +119,10 @@
         </div>
         <div class="col-lg-2 d-flex align-items-center justify-content-end">
             <a href="{{ route('flujo.ventas') }}" class="btn btn-default btn-sm">
-                <i class="fa fa-arrow-left mr-1"></i> Volver
+                <i class="mr-1 fa fa-arrow-left"></i> Volver
             </a>
+
+            
         </div>
     </div>
     @endif
@@ -129,11 +131,11 @@
 
         {{-- ===== SELECTOR DE TIPO (fuera de flujo) ===== --}}
         @if(!$fromFlujo)
-        <div class="row mb-3">
+        <div class="mb-3 row">
             <div class="col-12">
                 <div class="ibox">
-                    <div class="ibox-content py-2">
-                        <div class="d-flex align-items-center flex-wrap tipo-factura-selector">
+                    <div class="py-2 ibox-content">
+                        <div class="flex-wrap d-flex align-items-center tipo-factura-selector">
                             <strong class="mr-3">Tipo de Facturación:</strong>
                             @foreach($tiposFactura as $tipo)
                                 <button type="button" id="btnTipo_{{ $tipo->id }}"
@@ -153,7 +155,7 @@
             @if(!$pedidoVinculado)
             <div class="mb-3">
                 <h6 style="margin:0; font-weight:800; color:#00695c;">
-                    <i class="fa fa-link mr-2"></i>Vincular a un Pedido
+                    <i class="mr-2 fa fa-link"></i>Vincular a un Pedido
                     <span style="font-size:11px; font-weight:400; color:#78909c; margin-left:8px;">(opcional)</span>
                 </h6>
             </div>
@@ -173,12 +175,12 @@
                                autocomplete="off">
                     </div>
                     @if(strlen(trim($busquedaPedido)) > 0 && strlen(trim($busquedaPedido)) < 2)
-                        <small class="text-muted mt-1 d-block">Escribe al menos 2 caracteres</small>
+                        <small class="mt-1 text-muted d-block">Escribe al menos 2 caracteres</small>
                     @endif
                 </div>
                 <div class="col-md-6 d-flex align-items-center">
                     <small class="text-muted">
-                        <i class="fa fa-info-circle mr-1 text-info"></i>
+                        <i class="mr-1 fa fa-info-circle text-info"></i>
                         Puedes crear <strong>múltiples ofertas</strong> para el mismo pedido.
                     </small>
                 </div>
@@ -208,24 +210,24 @@
                         <span style="background:{{ $col[0] }}; color:{{ $col[1] }}; border-radius:20px; padding:3px 10px; font-size:11px; font-weight:700;">{{ ucfirst(str_replace('_',' ',$p['estado'])) }}</span>
                     </div>
                     <div style="flex-shrink:0;" wire:click.stop="verDetallePedido({{ $p['id'] }})">
-                        <span style="background:#1565c0; color:#fff; border-radius:8px; padding:6px 14px; font-size:12px; font-weight:700; cursor:pointer;"><i class="fa fa-eye mr-1"></i> Detalle</span>
+                        <span style="background:#1565c0; color:#fff; border-radius:8px; padding:6px 14px; font-size:12px; font-weight:700; cursor:pointer;"><i class="mr-1 fa fa-eye"></i> Detalle</span>
                     </div>
                 </div>
                 @endforeach
             </div>
             @elseif(strlen(trim($busquedaPedido)) >= 2)
-            <div class="text-center py-3 mt-2">
-                <i class="fa fa-search fa-2x mb-2" style="color:#b2dfdb; display:block;"></i>
+            <div class="py-3 mt-2 text-center">
+                <i class="mb-2 fa fa-search fa-2x" style="color:#b2dfdb; display:block;"></i>
                 <p style="color:#78909c; font-size:13px; margin:0;">No se encontraron pedidos activos con ese criterio.</p>
             </div>
             @endif
 
             @else
             {{-- Pedido vinculado: versión compacta con desvincular --}}
-            <div class="d-flex align-items-center justify-content-between flex-wrap" style="gap:8px;">
+            <div class="flex-wrap d-flex align-items-center justify-content-between" style="gap:8px;">
                 <div style="display:flex; align-items:center; gap:10px;">
                     <span style="background:linear-gradient(135deg,#1b5e20,#2e7d32); color:#fff; border-radius:8px; padding:4px 14px; font-size:13px; font-weight:800;">
-                        <i class="fa fa-link mr-1"></i> Vinculado a Pedido
+                        <i class="mr-1 fa fa-link"></i> Vinculado a Pedido
                     </span>
                     <span style="font-weight:700; color:#1b5e20; font-size:14px;">
                         #{{ $pedidoVinculado['id'] }} — {{ $pedidoVinculado['cliente'] }}
@@ -233,7 +235,7 @@
                 </div>
                 <button type="button" wire:click="desvincularPedido"
                         style="background:#fce4ec; color:#b71c1c; border:1px solid #ffcdd2; border-radius:8px; padding:5px 14px; font-size:12px; font-weight:700; cursor:pointer;">
-                    <i class="fa fa-unlink mr-1"></i> Desvincular
+                    <i class="mr-1 fa fa-unlink"></i> Desvincular
                 </button>
             </div>
             @endif
@@ -246,14 +248,14 @@
                     <div class="ibox-title">
                         <div class="d-flex align-items-center justify-content-between">
                             <h3>
-                                <i class="fa fa-file-text-o mr-2"></i>
+                                <i class="mr-2 fa fa-file-text-o"></i>
                                 @if($fromFlujo && ($config->codigo ?? '') === 'cotizacion_clientes_a')
                                     Nueva Oferta
                                 @else
                                     <span id="titulo_factura">{{ $config->nombre ?? 'Venta' }}</span>
                                 @endif
                             </h3>
-                            <div class="d-flex align-items-center gap-3">
+                            <div class="gap-3 d-flex align-items-center">
                                 <input type="text" id="numero_venta" name="numero_venta"
                                     style="background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.3); color:#fff; border-radius:8px; padding:4px 10px; max-width:150px; font-size:13px; font-weight:700;" readonly
                                     placeholder="# Oferta">
@@ -278,10 +280,10 @@
                                 <i class="fa fa-user"></i> 1. Datos del Cliente
                                 @if($fromFlujo && ($config->codigo ?? '') === 'cotizacion_clientes_a')
                                 <span id="cat_cliente_badge" style="margin-left:auto; background:rgba(26,115,232,.12); color:#1a73e8; border-radius:20px; padding:2px 12px; font-size:11px; font-weight:700;">
-                                    <i class="fa fa-tag mr-1"></i><span id="cat_badge_text">—</span>
+                                    <i class="mr-1 fa fa-tag"></i><span id="cat_badge_text">—</span>
                                 </span>
                                 @endif
-                                <i class="fa fa-chevron-up ml-2" style="font-size:11px;" id="ico_sec_cliente"></i>
+                                <i class="ml-2 fa fa-chevron-up" style="font-size:11px;" id="ico_sec_cliente"></i>
                             </div>
                             <div id="sec_cliente">
 
@@ -372,7 +374,7 @@
                             <div class="ofr-section-header" style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff; cursor:pointer; user-select:none;"
                                  onclick="toggleSeccion('sec_producto', this)">
                                 <i class="fa fa-plus-circle"></i> 2. Agregar Producto
-                                <i class="fa fa-chevron-up ml-auto" style="font-size:11px;" id="ico_sec_producto"></i>
+                                <i class="ml-auto fa fa-chevron-up" style="font-size:11px;" id="ico_sec_producto"></i>
                             </div>
                             <div id="sec_producto">
 
@@ -383,17 +385,17 @@
                                     @if($fromFlujo && ($config->codigo ?? '') === 'cotizacion_clientes_a' && count($productosSugeridos) > 0)
                                     <div style="border:1.5px solid #c8e6c9; border-radius:8px; padding:7px 12px; margin-bottom:10px; background:#f1f8e9; display:flex; align-items:center; justify-content:space-between;">
                                         <span style="font-weight:700; color:#1b5e20; font-size:12px;">
-                                            <i class="fa fa-list-ul mr-1"></i> {{ count($productosSugeridos) }} ítem(s) en el pedido
+                                            <i class="mr-1 fa fa-list-ul"></i> {{ count($productosSugeridos) }} ítem(s) en el pedido
                                         </span>
                                         <button type="button" data-toggle="modal" data-target="#modalProductosPedido"
                                                 style="background:linear-gradient(135deg,#1b5e20,#2e7d32); color:#fff; border:none; border-radius:6px; padding:4px 10px; font-size:11px; font-weight:700; cursor:pointer;">
-                                            <i class="fa fa-eye mr-1"></i> Ver Productos
+                                            <i class="mr-1 fa fa-eye"></i> Ver Productos
                                         </button>
                                     </div>
                                     @endif
 
                                     <label class="ofr-label">Seleccionar Producto <span class="req">*</span></label>
-                                    <div class="input-group mb-1">
+                                    <div class="mb-1 input-group">
                                         <input type="text" id="codigoProductoBuscar" class="form-control form-control-sm"
                                             placeholder="ID o nombre del producto…" autocomplete="off"
                                             onkeydown="if(event.key==='Enter'){buscarPorCodigo(this.value);return false;}">
@@ -409,32 +411,32 @@
                                         <option value="" selected disabled></option>
                                     </select>
 
-                                    <label class="ofr-label mt-2">Categoría Precio <span class="req">*</span></label>
+                                    <label class="mt-2 ofr-label">Categoría Precio <span class="req">*</span></label>
                                     <select id="categoria_cliente_venta_id" name="categoria_cliente_venta_id"
-                                        class="form-control form-control-sm mb-2" onchange="habilitarBodega()">
+                                        class="mb-2 form-control form-control-sm" onchange="habilitarBodega()">
                                         <option value="" selected disabled>--Seleccione primero un producto--</option>
                                     </select>
 
-                                    <label class="ofr-label mt-2">Bodega <span class="req">*</span></label>
-                                    <select id="bodega" name="bodega" class="form-control form-control-sm mb-2" onchange="prueba()">
+                                    <label class="mt-2 ofr-label">Bodega <span class="req">*</span></label>
+                                    <select id="bodega" name="bodega" class="mb-2 form-control form-control-sm" onchange="prueba()">
                                         <option value="" selected disabled>--Seleccione una categoría primero--</option>
                                     </select>
 
-                                    <div id="botonAdd" class="d-none mt-2">
+                                    <div id="botonAdd" class="mt-2 d-none">
                                         <button type="button" onclick="agregarProductoCarrito()"
                                             style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff; border:none;
                                                    border-radius:8px; padding:5px 14px; font-size:12px; font-weight:700;
                                                    box-shadow:0 2px 8px rgba(230,81,0,.3); cursor:pointer;">
-                                            <i class="fa fa-shopping-cart mr-1"></i> Añadir al Carrito
+                                            <i class="mr-1 fa fa-shopping-cart"></i> Añadir al Carrito
                                         </button>
                                     </div>
                                 </div>
 
                                 {{-- RIGHT: imagen + historial --}}
                                 <div class="col-12 col-md-6">
-                                    <div class="text-center mb-1">
+                                    <div class="mb-1 text-center">
                                         <a id="detalleProducto" href="" class="font-bold d-none text-success" target="_blank" style="font-size:12px;">
-                                            <i class="fa fa-info-circle mr-1"></i> Ver Detalles del Producto
+                                            <i class="mr-1 fa fa-info-circle"></i> Ver Detalles del Producto
                                         </a>
                                     </div>
                                     <div id="carouselProducto" class="carousel slide" data-ride="carousel">
@@ -448,9 +450,9 @@
                                             <span class="sr-only">Next</span>
                                         </a>
                                     </div>
-                                    <div id="historialPreciosPanel" class="d-none mt-2">
+                                    <div id="historialPreciosPanel" class="mt-2 d-none">
                                         <div style="font-size:11px; font-weight:700; color:#546e7a; text-transform:uppercase; letter-spacing:.3px; margin-bottom:4px;">
-                                            <i class="fa fa-history text-info mr-1"></i> Últimas 5 ventas a este cliente
+                                            <i class="mr-1 fa fa-history text-info"></i> Últimas 5 ventas a este cliente
                                         </div>
                                         <div id="historialPreciosCuerpo"><p class="text-muted small">Cargando...</p></div>
                                     </div>
@@ -459,16 +461,16 @@
 
                             <hr style="border-color:#e0f2f1; margin:16px 0 14px;">
                             <div style="font-size:11px; font-weight:700; color:#00695c; text-transform:uppercase; letter-spacing:.5px; margin-bottom:10px;">
-                                <i class="fa fa-list mr-1"></i> Productos en el carrito
+                                <i class="mr-1 fa fa-list"></i> Productos en el carrito
                             </div>
 
                             {{-- ── Lista productos ────────────────────────────────────────── --}}
                             <div id="divProductos">
-                                <div id="carritoVacio" class="text-center py-3" style="color:#b2dfdb; font-size:12px;">
-                                    <i class="fa fa-shopping-cart fa-2x mb-1 d-block"></i> Sin productos en el carrito
+                                <div id="carritoVacio" class="py-3 text-center" style="color:#b2dfdb; font-size:12px;">
+                                    <i class="mb-1 fa fa-shopping-cart fa-2x d-block"></i> Sin productos en el carrito
                                 </div>
                                 <div id="carritoTablaWrapper" class="d-none table-responsive" style="max-height:400px; overflow-y:auto;">
-                                    <table class="table table-sm table-bordered mb-0" style="font-size:12px; min-width:900px;">
+                                    <table class="table mb-0 table-sm table-bordered" style="font-size:12px; min-width:900px;">
                                         <thead style="background:linear-gradient(135deg,#e8f5e9,#e0f7fa); position:sticky; top:0; z-index:1;">
                                             <tr style="color:#00695c; font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:.3px;">
                                                 <th style="width:36px;"></th>
@@ -494,7 +496,7 @@
                             <div class="ofr-section-header" style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff; cursor:pointer; user-select:none;"
                                  onclick="toggleSeccion('sec_totales', this)">
                                 <i class="fa fa-calculator"></i> 3. Totales
-                                <i class="fa fa-chevron-up ml-auto" style="font-size:11px;" id="ico_sec_totales"></i>
+                                <i class="ml-auto fa fa-chevron-up" style="font-size:11px;" id="ico_sec_totales"></i>
                             </div>
                             <div id="sec_totales">
 
@@ -507,38 +509,38 @@
                                 {{-- Cuerpo --}}
                                 <div style="padding:20px 24px; background:#fafffe;">
                                     <div class="row">
-                                        <div class="col-6 col-md-4 col-lg-2 mb-3">
+                                        <div class="mb-3 col-6 col-md-4 col-lg-2">
                                             <div style="font-size:10px; color:#78909c; font-weight:700; text-transform:uppercase; letter-spacing:.4px; margin-bottom:4px;">Descuento</div>
                                             <input type="text" id="descuentoMostrar" name="descuentoMostrar" placeholder="L. 0.00"
                                                    data-parsley-required autocomplete="off" readonly
                                                    style="border:none; background:transparent; font-size:17px; font-weight:800; color:#e65100; padding:0; width:100%; outline:none;">
                                             <input type="hidden" value="0" id="porDescuentoCalculado" name="porDescuentoCalculado">
                                         </div>
-                                        <div class="col-6 col-md-4 col-lg-2 mb-3">
+                                        <div class="mb-3 col-6 col-md-4 col-lg-2">
                                             <div style="font-size:10px; color:#78909c; font-weight:700; text-transform:uppercase; letter-spacing:.4px; margin-bottom:4px;">Sub Total</div>
                                             <input type="text" id="subTotalGeneralMostrar" placeholder="L. 0.00" readonly autocomplete="off"
                                                    style="border:none; background:transparent; font-size:17px; font-weight:800; color:#2e7d32; padding:0; width:100%; outline:none;">
                                             <input id="subTotalGeneral" name="subTotalGeneral" type="hidden" value="" required>
                                         </div>
-                                        <div class="col-6 col-md-4 col-lg-2 mb-3">
+                                        <div class="mb-3 col-6 col-md-4 col-lg-2">
                                             <div style="font-size:10px; color:#78909c; font-weight:700; text-transform:uppercase; letter-spacing:.4px; margin-bottom:4px;">Grabado</div>
                                             <input type="text" id="subTotalGeneralGrabadoMostrar" placeholder="L. 0.00" readonly autocomplete="off"
                                                    style="border:none; background:transparent; font-size:17px; font-weight:800; color:#1565c0; padding:0; width:100%; outline:none;">
                                             <input id="subTotalGeneralGrabado" name="subTotalGeneralGrabado" type="hidden" value="" required>
                                         </div>
-                                        <div class="col-6 col-md-4 col-lg-2 mb-3">
+                                        <div class="mb-3 col-6 col-md-4 col-lg-2">
                                             <div style="font-size:10px; color:#78909c; font-weight:700; text-transform:uppercase; letter-spacing:.4px; margin-bottom:4px;">Excento</div>
                                             <input type="text" id="subTotalGeneralExcentoMostrar" placeholder="L. 0.00" readonly autocomplete="off"
                                                    style="border:none; background:transparent; font-size:17px; font-weight:800; color:#6a1b9a; padding:0; width:100%; outline:none;">
                                             <input id="subTotalGeneralExcento" name="subTotalGeneralExcento" type="hidden" value="" required>
                                         </div>
-                                        <div class="col-6 col-md-4 col-lg-2 mb-3" id="fila_isv" style="{{ ($config->aplica_isv ?? true) ? '' : 'display:none' }}">
+                                        <div class="mb-3 col-6 col-md-4 col-lg-2" id="fila_isv" style="{{ ($config->aplica_isv ?? true) ? '' : 'display:none' }}">
                                             <div style="font-size:10px; color:#78909c; font-weight:700; text-transform:uppercase; letter-spacing:.4px; margin-bottom:4px;">ISV</div>
                                             <input type="text" id="isvGeneralMostrar" placeholder="L. 0.00" readonly autocomplete="off"
                                                    style="border:none; background:transparent; font-size:17px; font-weight:800; color:#b71c1c; padding:0; width:100%; outline:none;">
                                             <input id="isvGeneral" name="isvGeneral" type="hidden" value="" required>
                                         </div>
-                                        <div class="col-12 col-md-4 col-lg-2 mb-0 d-flex align-items-end">
+                                        <div class="mb-0 col-12 col-md-4 col-lg-2 d-flex align-items-end">
                                             <div style="background:linear-gradient(135deg,#e65100,#f9a826); border-radius:12px; padding:14px 18px; width:100%; text-align:center; box-shadow:0 4px 14px rgba(230,81,0,.3);">
                                                 <div style="font-size:10px; color:rgba(255,255,255,.75); font-weight:700; text-transform:uppercase; letter-spacing:.4px; margin-bottom:4px;">TOTAL</div>
                                                 <input type="text" id="totalGeneralMostrar" placeholder="L. 0.00" readonly autocomplete="off"
@@ -560,9 +562,9 @@
                                                    border-radius:12px; padding:14px 32px; font-size:15px; font-weight:800;
                                                    box-shadow:0 4px 18px rgba(230,81,0,.35); width:100%; cursor:pointer;">
                                         @if($fromFlujo && ($config->codigo ?? '') === 'cotizacion_clientes_a')
-                                            <i class="fa fa-save mr-2"></i> Guardar Oferta
+                                            <i class="mr-2 fa fa-save"></i> Guardar Oferta
                                         @else
-                                            <i class="fa fa-check-circle mr-2"></i> Realizar Venta
+                                            <i class="mr-2 fa fa-check-circle"></i> Realizar Venta
                                         @endif
                                     </button>
                                 </div>
@@ -590,8 +592,8 @@
                                 <i class="fa-solid fa-paper-plane"></i>
                             </button>
                         </div>
-                        <div id="div_imprimir" class="text-center mt-2 d-none">
-                            <a id="btn_imprimir" target="_blank" class="btn add-btn btn-success text-white">
+                        <div id="div_imprimir" class="mt-2 text-center d-none">
+                            <a id="btn_imprimir" target="_blank" class="text-white btn add-btn btn-success">
                                 <i class="fa-solid fa-file-invoice"></i> Imprimir Factura
                             </a>
                         </div>
@@ -633,7 +635,7 @@
                 <div class="modal-content" style="border-radius:14px; overflow:hidden;">
                     <div class="modal-header" style="background:linear-gradient(135deg,#e65100,#f9a826); border:none; padding:16px 24px;">
                         <h5 class="modal-title" style="color:#fff; font-weight:700; margin:0;">
-                            <i class="fa fa-clipboard-list mr-2"></i>
+                            <i class="mr-2 fa fa-clipboard-list"></i>
                             Detalle del Pedido
                             @if($pedidoDetalle)
                                 <span style="opacity:.8;">#{{ $pedidoDetalle['pedido']['id'] }}</span>
@@ -647,7 +649,7 @@
                         @if($pedidoDetalle)
                         @php $ped = $pedidoDetalle['pedido']; @endphp
                         {{-- Info del pedido --}}
-                        <div class="row mb-3">
+                        <div class="mb-3 row">
                             <div class="col-md-6">
                                 <div style="font-size:11px; color:#78909c; font-weight:700; text-transform:uppercase;">Cliente</div>
                                 <div style="font-weight:700; color:#2c3e50;">{{ $ped['cliente'] }}</div>
@@ -662,8 +664,8 @@
                             </div>
                         </div>
                         @if($ped['observaciones'])
-                        <div class="mb-3 p-2" style="background:#fff8e1; border-radius:8px; font-size:12px; color:#7b6000;">
-                            <i class="fa fa-comment mr-1"></i> {{ $ped['observaciones'] }}
+                        <div class="p-2 mb-3" style="background:#fff8e1; border-radius:8px; font-size:12px; color:#7b6000;">
+                            <i class="mr-1 fa fa-comment"></i> {{ $ped['observaciones'] }}
                         </div>
                         @endif
                         {{-- Tabla de productos del pedido --}}
@@ -690,17 +692,17 @@
                         </div>
                         {{-- Paginación detalle --}}
                         @if(count($pedidoDetalle['productos']) > 5)
-                        <div id="pdPaginacion" class="d-flex align-items-center justify-content-center mt-2" style="gap:10px;">
+                        <div id="pdPaginacion" class="mt-2 d-flex align-items-center justify-content-center" style="gap:10px;">
                             <button onclick="pdChangePage(-1)" id="pdPrev" style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff; border:none; border-radius:8px; padding:4px 14px; font-size:12px; cursor:pointer; font-weight:700;">&#8592; Anterior</button>
                             <span id="pdPageInfo" style="font-size:12px; font-weight:700; color:#546e7a;"></span>
                             <button onclick="pdChangePage(1)" id="pdNext" style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff; border:none; border-radius:8px; padding:4px 14px; font-size:12px; cursor:pointer; font-weight:700;">Siguiente &#8594;</button>
                         </div>
                         @endif
                         @else
-                        <p class="text-muted text-center">Sin productos registrados.</p>
+                        <p class="text-center text-muted">Sin productos registrados.</p>
                         @endif
                         @else
-                        <div class="text-center py-4">
+                        <div class="py-4 text-center">
                             <i class="fa fa-spinner fa-spin fa-2x" style="color:#00897b;"></i>
                         </div>
                         @endif
@@ -710,7 +712,7 @@
                         <button type="button"
                                 wire:click="seleccionarPedido({{ $pedidoDetalle['pedido']['id'] }})" data-dismiss="modal"
                                 style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff; border:none; border-radius:8px; padding:8px 20px; font-weight:700; cursor:pointer;">
-                            <i class="fa fa-link mr-1"></i> Vincular este Pedido
+                            <i class="mr-1 fa fa-link"></i> Vincular este Pedido
                         </button>
                         @endif
                         <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cerrar</button>
@@ -725,26 +727,26 @@
                 <div class="modal-content" style="border-radius:16px; overflow:hidden;">
                     <div class="modal-header" style="background:linear-gradient(135deg,#e65100,#f9a826); border:none; padding:18px 24px;">
                         <h5 class="modal-title" style="color:#fff; font-weight:800; margin:0; font-size:15px;">
-                            <i class="fa fa-check-circle mr-2"></i> Oferta guardada exitosamente
+                            <i class="mr-2 fa fa-check-circle"></i> Oferta guardada exitosamente
                         </h5>
                     </div>
                     <div class="modal-body" style="padding:24px;">
                         <p style="color:#546e7a; font-size:13px; margin-bottom:20px; text-align:center;">¿Qué desea hacer ahora?</p>
                         <div class="d-flex flex-column" style="gap:12px;">
                             <button onclick="ofertaAccion('nueva')" class="btn btn-block" style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff; font-weight:700; border:none; border-radius:10px; padding:12px 20px; text-align:left;">
-                                <i class="fa fa-plus-circle mr-2"></i> Agregar nueva oferta
+                                <i class="mr-2 fa fa-plus-circle"></i> Agregar nueva oferta
                                 <div style="font-size:11px; font-weight:400; opacity:.85;">Limpiar productos y crear otra oferta para el mismo pedido</div>
                             </button>
                             <button onclick="ofertaAccion('ganadora')" class="btn btn-block" style="background:#fff; color:#e65100; font-weight:700; border:2px solid #f9a826; border-radius:10px; padding:12px 20px; text-align:left;">
-                                <i class="fa fa-trophy mr-2"></i> Seleccionar oferta ganadora
+                                <i class="mr-2 fa fa-trophy"></i> Seleccionar oferta ganadora
                                 <div style="font-size:11px; font-weight:400; color:#546e7a;">Ver todas las ofertas del pedido y elegir la ganadora</div>
                             </button>
                             <button onclick="ofertaAccion('prefacturar')" class="btn btn-block" style="background:#fff3e0; color:#bf360c; font-weight:700; border:none; border-radius:10px; padding:12px 20px; text-align:left;">
-                                <i class="fa fa-file-text-o mr-2"></i> Prefacturar esta oferta
+                                <i class="mr-2 fa fa-file-text-o"></i> Prefacturar esta oferta
                                 <div style="font-size:11px; font-weight:400; color:#546e7a;">Esta oferta se marca como ganadora y se manda a prefactura</div>
                             </button>
                             <button onclick="ofertaAccion('imprimir')" class="btn btn-block" style="background:#fafafa; color:#546e7a; font-weight:700; border:1px solid #e0e0e0; border-radius:10px; padding:12px 20px; text-align:left;">
-                                <i class="fa fa-print mr-2"></i> Imprimir oferta
+                                <i class="mr-2 fa fa-print"></i> Imprimir oferta
                                 <div style="font-size:11px; font-weight:400; color:#78909c;">Abrir PDF de la oferta recién guardada</div>
                             </button>
                         </div>
@@ -814,12 +816,12 @@
                 <div class="modal-content" style="border-radius:16px; overflow:hidden; display:flex; flex-direction:column;">
                     <div class="modal-header" style="background:linear-gradient(135deg,#e65100,#f9a826); border:none; padding:14px 20px; flex-shrink:0;">
                         <h5 class="modal-title" style="color:#fff; font-weight:800; margin:0; font-size:14px;">
-                            <i class="fa fa-trophy mr-2"></i> Seleccionar oferta ganadora
+                            <i class="mr-2 fa fa-trophy"></i> Seleccionar oferta ganadora
                         </h5>
                         <button type="button" class="close" data-dismiss="modal" style="color:#fff; opacity:1;"><span>&times;</span></button>
                     </div>
                     <div class="modal-body" style="padding:16px 18px; overflow:hidden; display:flex; flex-direction:column; flex:1; min-height:0;">
-                        <div id="ogLoading" class="text-center py-3" style="display:none;">
+                        <div id="ogLoading" class="py-3 text-center" style="display:none;">
                             <i class="fa fa-spinner fa-spin fa-2x" style="color:#e65100;"></i>
                         </div>
                         <div id="ogLista"></div>
@@ -829,7 +831,7 @@
                                 style="background:#fff; color:#e65100; border:2px solid #f9a826; border-radius:9px;
                                        padding:7px 22px; font-size:13px; font-weight:700; cursor:pointer; transition:background .15s;"
                                 onmouseover="this.style.background='#fff3e0';" onmouseout="this.style.background='#fff';">
-                            <i class="fa fa-arrow-left mr-1"></i> Volver
+                            <i class="mr-1 fa fa-arrow-left"></i> Volver
                         </button>
                     </div>
                 </div>
@@ -842,7 +844,7 @@
                 <div class="modal-content" style="border-radius:14px; overflow:hidden;">
                     <div class="modal-header" style="background:linear-gradient(135deg,#e65100,#f9a826); border:none; padding:14px 24px;">
                         <h5 class="modal-title" style="color:#fff; font-weight:700; margin:0; font-size:14px;">
-                            <i class="fa fa-list-ul mr-2"></i> Productos del Pedido
+                            <i class="mr-2 fa fa-list-ul"></i> Productos del Pedido
                             @if(count($productosSugeridos) > 0)
                             <span style="background:rgba(255,255,255,.2); border-radius:20px; padding:1px 10px; font-size:12px; margin-left:6px;">{{ count($productosSugeridos) }}</span>
                             @endif
@@ -851,52 +853,52 @@
                     </div>
                     <div class="modal-body" style="padding:16px 20px;">
                         <p style="font-size:11px; color:#78909c; margin-bottom:12px;">
-                            <i class="fa fa-info-circle mr-1 text-info"></i>
+                            <i class="mr-1 fa fa-info-circle text-info"></i>
                             Selecciona un producto sugerido para pre-cargarlo. Luego elige la bodega y categoría.
                         </p>
                         @if(count($productosSugeridos) > 0)
                         <div id="ppPagItems">
                         @foreach($productosSugeridos as $idx => $item)
                         <div class="pp-item" data-idx="{{ $idx }}" style="{{ $idx >= 5 ? 'display:none;' : '' }}background:#f9f9f9; border:1px solid #e0e0e0; border-radius:10px; padding:12px 16px; margin-bottom:10px;">
-                            <div class="d-flex align-items-center flex-wrap" style="gap:8px; margin-bottom:6px;">
+                            <div class="flex-wrap d-flex align-items-center" style="gap:8px; margin-bottom:6px;">
                                 <span style="font-weight:700; color:#2c3e50; font-size:13px;">{{ $item['nombre_pedido'] }}</span>
                                 <span style="background:#e8f5e9; color:#2e7d32; border-radius:12px; padding:1px 9px; font-size:11px; font-weight:700;">x{{ $item['cantidad'] }}</span>
                             </div>
                             @if(count($item['similares']) > 0)
                             <div style="font-size:10px; color:#546e7a; font-weight:700; text-transform:uppercase; letter-spacing:.3px; margin-bottom:5px;">Similares en catálogo:</div>
-                            <div class="d-flex flex-wrap" style="gap:6px;">
+                            <div class="flex-wrap d-flex" style="gap:6px;">
                                 @foreach($item['similares'] as $sim)
                                 @php $s = (array)$sim; @endphp
                                 <button type="button"
                                     onclick="preseleccionarProductoSugerido({{ $s['id'] }}, '{{ addslashes($s['nombre']) }}');"
                                     style="background:#e8f5e9; color:#1b5e20; border:1px solid #a5d6a7; border-radius:7px; padding:6px 12px; font-size:12px; font-weight:600; cursor:pointer;"
                                     onmouseover="this.style.background='#c8e6c9';" onmouseout="this.style.background='#e8f5e9';">
-                                    <i class="fa fa-plus-circle mr-1"></i>{{ Str::limit($s['nombre'], 38) }}
+                                    <i class="mr-1 fa fa-plus-circle"></i>{{ Str::limit($s['nombre'], 38) }}
                                 </button>
                                 @endforeach
                             </div>
                             @else
-                            <div style="font-size:11px; color:#90a4ae;"><i class="fa fa-exclamation-triangle mr-1"></i>Sin coincidencias en catálogo.</div>
+                            <div style="font-size:11px; color:#90a4ae;"><i class="mr-1 fa fa-exclamation-triangle"></i>Sin coincidencias en catálogo.</div>
                             @endif
                         </div>
                         @endforeach
                         </div>
                         {{-- Paginación --}}
                         @if(count($productosSugeridos) > 5)
-                        <div class="d-flex align-items-center justify-content-between mt-2" id="ppPagNav">
+                        <div class="mt-2 d-flex align-items-center justify-content-between" id="ppPagNav">
                             <button type="button" onclick="ppChangePage(-1)"
                                 style="background:#f5f5f5; border:1px solid #e0e0e0; border-radius:7px; padding:5px 14px; font-size:12px; font-weight:600; cursor:pointer;" id="ppBtnPrev" disabled>
-                                <i class="fa fa-chevron-left mr-1"></i> Anterior
+                                <i class="mr-1 fa fa-chevron-left"></i> Anterior
                             </button>
                             <span id="ppPageInfo" style="font-size:12px; color:#546e7a; font-weight:700;"></span>
                             <button type="button" onclick="ppChangePage(1)"
                                 style="background:#1b5e20; color:#fff; border:none; border-radius:7px; padding:5px 14px; font-size:12px; font-weight:600; cursor:pointer;" id="ppBtnNext">
-                                Siguiente <i class="fa fa-chevron-right ml-1"></i>
+                                Siguiente <i class="ml-1 fa fa-chevron-right"></i>
                             </button>
                         </div>
                         @endif
                         @else
-                        <p class="text-muted text-center">No hay productos sugeridos.</p>
+                        <p class="text-center text-muted">No hay productos sugeridos.</p>
                         @endif
                     </div>
                     <div class="modal-footer" style="padding:10px 20px;">
@@ -1524,7 +1526,7 @@
                     return;
                 }
                 var fmt = new Intl.NumberFormat('es-HN', { style: 'currency', currency: 'HNL', minimumFractionDigits: 2 });
-                var html = '<div class="table-responsive"><table class="table table-sm table-bordered table-hover mb-0" style="font-size:0.82rem;"><thead class="thead-light"><tr><th>Fecha</th><th>Factura</th><th>Precio Unit.</th><th>Cant.</th><th>Total</th><th>Categoría</th></tr></thead><tbody>';
+                var html = '<div class="table-responsive"><table class="table mb-0 table-sm table-bordered table-hover" style="font-size:0.82rem;"><thead class="thead-light"><tr><th>Fecha</th><th>Factura</th><th>Precio Unit.</th><th>Cant.</th><th>Total</th><th>Categoría</th></tr></thead><tbody>';
                 rows.forEach(function(r) {
                     html += '<tr><td>' + r.fecha_emision + '</td><td>' + r.numero_factura + '</td><td class="text-right font-weight-bold text-success">' + fmt.format(r.precio_unidad) + '</td><td class="text-center">' + r.cantidad + '</td><td class="text-right">' + fmt.format(r.total) + '</td><td><span class="badge badge-secondary">' + r.categoria + '</span></td></tr>';
                 });
@@ -1976,7 +1978,7 @@
                         document.getElementById('ogLoading').style.display = 'none';
                         var ofertas = res.data;
                         if (!ofertas.length) {
-                            document.getElementById('ogLista').innerHTML = '<p class="text-muted text-center">No hay ofertas para este pedido.</p>';
+                            document.getElementById('ogLista').innerHTML = '<p class="text-center text-muted">No hay ofertas para este pedido.</p>';
                             return;
                         }
                         var fmt = new Intl.NumberFormat('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -2003,7 +2005,7 @@
                             html += '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0;">';
                             html += '<span style="font-weight:800;color:#e65100;font-size:14px;">L ' + fmt.format(o.total) + '</span>';
                             html += '<button onclick="confirmarGanadora(' + o.id + ')" style="background:linear-gradient(135deg,#e65100,#f9a826);color:#fff;border:none;border-radius:8px;padding:4px 14px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">';
-                            html += '<i class="fa fa-trophy mr-1"></i>Seleccionar</button>';
+                            html += '<i class="mr-1 fa fa-trophy"></i>Seleccionar</button>';
                             html += '</div>';
                             html += '</div>';
 
@@ -2032,7 +2034,7 @@
                     })
                     .catch(function() {
                         document.getElementById('ogLoading').style.display = 'none';
-                        document.getElementById('ogLista').innerHTML = '<p class="text-danger text-center">Error al cargar ofertas.</p>';
+                        document.getElementById('ogLista').innerHTML = '<p class="text-center text-danger">Error al cargar ofertas.</p>';
                     });
             });
             $('#modalExitoOferta').modal('hide');
