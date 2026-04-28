@@ -190,7 +190,9 @@
                 <div style="max-height:340px; overflow-y:auto;">
                     @foreach($pedidosEncontrados as $ped)
                     @php $p = (array)$ped; @endphp
-                    <div class="pedido-row">
+                    <div class="pedido-row" style="cursor:pointer;" wire:click="abrirModalPedido({{ $p['id'] }})"
+                         onmouseover="this.style.boxShadow='0 4px 14px rgba(0,0,0,.08)';this.style.borderColor='#a5d6a7';"
+                         onmouseout="this.style.boxShadow='';this.style.borderColor='#e8f5e9';">
                         <div style="flex-shrink:0;">
                             <span style="background:linear-gradient(135deg,#1a73e8,#5ea3f5); color:#fff;
                                          border-radius:10px; padding:4px 12px; font-weight:800; font-size:14px;">
@@ -230,21 +232,17 @@
                         </div>
                         <div style="flex-shrink:0;">
                             @if($p['has_ganadora'] > 0)
-                                <span style="background:#f5f5f5; color:#90a4ae; border-radius:20px;
-                                             padding:7px 16px; font-size:12px; font-weight:700;
-                                             display:inline-flex; align-items:center; gap:6px;">
-                                    <i class="fa fa-lock"></i> Ganadora definida
+                                <span style="background:#fff8e1; color:#f57f17; border-radius:20px;
+                                             padding:6px 14px; font-size:11px; font-weight:700;
+                                             display:inline-flex; align-items:center; gap:5px;">
+                                    <i class="fa fa-trophy"></i> Ganadora
                                 </span>
-                            @else
-                                <a href="{{ route('flujo.oferta') }}?pedidoId={{ $p['id'] }}"
-                                   style="background:linear-gradient(135deg,#00897b,#26a69a); color:#fff;
-                                          border-radius:20px; padding:7px 18px; font-size:12px; font-weight:700;
-                                          text-decoration:none; display:inline-flex; align-items:center; gap:6px;
-                                          box-shadow:0 3px 10px rgba(0,137,123,.3);">
-                                    <i class="fa fa-plus"></i>
-                                    {{ $p['total_ofertas'] > 0 ? 'Nueva Oferta' : 'Crear Oferta' }}
-                                </a>
                             @endif
+                            <span style="background:linear-gradient(135deg,#546e7a,#78909c); color:#fff;
+                                         border-radius:20px; padding:6px 14px; font-size:11px; font-weight:700;
+                                         display:inline-flex; align-items:center; gap:5px; margin-left:4px;">
+                                <i class="fa fa-ellipsis-h"></i> Opciones
+                            </span>
                         </div>
                     </div>
                     @endforeach
@@ -337,7 +335,6 @@
                                 <th style="width:80px; text-align:center;">Desc.</th>
                                 <th>Registrado</th>
                                 <th style="width:100px;">Fecha</th>
-                                <th style="width:110px; text-align:center;">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -417,39 +414,6 @@
                                         {{ \Carbon\Carbon::parse($oferta->created_at)->format('H:i') }}
                                     </small>
                                 </td>
-                                <td class="text-center">
-                                    <div class="btn-group">
-                                        <a href="/oferta/imprimir/{{ $oferta->id }}" target="_blank"
-                                           class="btn btn-xs"
-                                           style="background:#e3f2fd; color:#1565c0; border-radius:6px 0 0 6px;
-                                                  border:1px solid #bbdefb; padding:5px 9px;"
-                                           title="Imprimir oferta">
-                                            <i class="fa fa-print"></i>
-                                        </a>
-                                        @if($oferta->pedido_id && ($oferta->estado ?? '') !== 'ganadora')
-                                            <a href="{{ route('flujo.oferta') }}?pedidoId={{ $oferta->pedido_id }}"
-                                               class="btn btn-xs"
-                                               style="background:#e8f5e9; color:#2e7d32; border-radius:0;
-                                                      border:1px solid #c8e6c9; border-left:none; padding:5px 9px;"
-                                               title="Nueva oferta para pedido #{{ $oferta->pedido_id }}">
-                                                <i class="fa fa-plus"></i>
-                                            </a>
-                                        @endif
-                                        @if($oferta->pedido_id)
-                                            <a href="/flujo/pedido/editar/{{ $oferta->pedido_id }}"
-                                               class="btn btn-xs"
-                                               style="background:#fff3e0; color:#e65100;
-                                                      border-radius:{{ ($oferta->estado ?? '') !== 'ganadora' ? '0' : '0' }} 6px 6px 0;
-                                                      border:1px solid #ffe0b2; border-left:none; padding:5px 9px;"
-                                               title="Ver pedido #{{ $oferta->pedido_id }}">
-                                                <i class="fa fa-shopping-cart"></i>
-                                            </a>
-                                        @else
-                                            <span style="display:inline-block; width:28px; border-radius:0 6px 6px 0;
-                                                         background:#f5f5f5; border:1px solid #e0e0e0; border-left:none;"></span>
-                                        @endif
-                                    </div>
-                                </td>
                             </tr>
                             @empty
                             <tr>
@@ -495,5 +459,265 @@
         </div>
 
     </div>
+
+    {{-- ===== MODAL DETALLE / ACCIONES DE PEDIDO ===== --}}
+    @if($showModalPedido && $pedidoSeleccionado)
+    <div style="position:fixed; inset:0; z-index:1060; display:flex; align-items:center; justify-content:center; padding:20px;
+                background:rgba(15,15,35,.58); backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px);">
+        {{-- Backdrop --}}
+        <div style="position:absolute; inset:0;" wire:click="cerrarModalPedido"></div>
+
+        {{-- Panel --}}
+        <div style="position:relative; background:#fff; border-radius:18px; width:100%; max-width:580px;
+                    max-height:92vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.28);
+                    margin:16px; z-index:1;">
+
+            {{-- Header --}}
+            <div style="background:linear-gradient(135deg,#1565c0,#1e88e5); padding:20px 24px;
+                        border-radius:18px 18px 0 0; display:flex; align-items:center; justify-content:space-between;">
+                <div>
+                    <h5 style="color:#fff; margin:0; font-weight:800; font-size:16px;">
+                        <i class="fa fa-shopping-cart mr-2"></i>Pedido #{{ $pedidoSeleccionado['id'] }}
+                    </h5>
+                    <div style="color:rgba(255,255,255,.8); font-size:12px; margin-top:3px;">
+                        {{ $pedidoSeleccionado['cliente'] }}
+                        &nbsp;·&nbsp;
+                        {{ \Carbon\Carbon::parse($pedidoSeleccionado['created_at'])->format('d/m/Y') }}
+                    </div>
+                </div>
+                <button type="button" wire:click="cerrarModalPedido"
+                        style="background:rgba(255,255,255,.2); border:none; color:#fff; border-radius:50%;
+                               width:32px; height:32px; font-size:16px; cursor:pointer;
+                               display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                    <i class="fa fa-times"></i>
+                </button>
+            </div>
+
+            <div style="padding:24px;">
+
+                {{-- Mensajes --}}
+                @if($mensajeExito)
+                <div style="background:#e8f5e9; border:1px solid #c8e6c9; border-radius:10px;
+                            padding:10px 14px; color:#2e7d32; font-weight:600; font-size:13px;
+                            margin-bottom:16px; display:flex; gap:8px; align-items:center;">
+                    <i class="fa fa-check-circle fa-lg"></i> {{ $mensajeExito }}
+                </div>
+                @endif
+                @if($mensajeError)
+                <div style="background:#fce4ec; border:1px solid #f8bbd0; border-radius:10px;
+                            padding:10px 14px; color:#b71c1c; font-weight:600; font-size:13px;
+                            margin-bottom:16px; display:flex; gap:8px; align-items:center;">
+                    <i class="fa fa-exclamation-circle fa-lg"></i> {{ $mensajeError }}
+                </div>
+                @endif
+
+                {{-- Info --}}
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px;">
+                    <div style="background:#f8f9fa; border-radius:10px; padding:12px 14px;">
+                        <div style="font-size:11px; color:#90a4ae; font-weight:700; text-transform:uppercase; margin-bottom:4px;">Cliente</div>
+                        <div style="font-weight:700; color:#2c3e50; font-size:13px;">{{ $pedidoSeleccionado['cliente'] }}</div>
+                        <div style="font-size:11px; color:#90a4ae;">{{ $pedidoSeleccionado['rtn'] ?: '—' }}</div>
+                    </div>
+                    <div style="background:#f8f9fa; border-radius:10px; padding:12px 14px;">
+                        <div style="font-size:11px; color:#90a4ae; font-weight:700; text-transform:uppercase; margin-bottom:4px;">Estado flujo</div>
+                        @php
+                            $flujoEst = $pedidoSeleccionado['estatus_flujo'] ?? null;
+                            $estMapMod = [
+                                'pedido'       => ['#e3f2fd','#1565c0','fa-shopping-cart'],
+                                'Ofertas'      => ['#fff3e0','#e65100','fa-tag'],
+                                'prefactura'   => ['#f3e5f5','#6a1b9a','fa-file-o'],
+                                'factura'      => ['#e8f5e9','#1b5e20','fa-file-text'],
+                                'Entrega Cobro'=> ['#e0f7fa','#00695c','fa-truck'],
+                                'cancelado'    => ['#fce4ec','#b71c1c','fa-ban'],
+                            ];
+                            $colMod = $estMapMod[$flujoEst] ?? ['#f5f5f5','#546e7a','fa-question-circle'];
+                        @endphp
+                        <span style="background:{{ $colMod[0] }}; color:{{ $colMod[1] }};
+                                     border-radius:20px; padding:3px 12px; font-size:12px; font-weight:700;">
+                            <i class="fa {{ $colMod[2] }} mr-1"></i>{{ $flujoEst ?: ucfirst(str_replace('_', ' ', $pedidoSeleccionado['estado'])) }}
+                        </span>
+                    </div>
+                    <div style="background:#f8f9fa; border-radius:10px; padding:12px 14px;">
+                        <div style="font-size:11px; color:#90a4ae; font-weight:700; text-transform:uppercase; margin-bottom:4px;">Registrado por</div>
+                        <div style="font-size:13px; color:#546e7a;">{{ $pedidoSeleccionado['registrado_por'] ?: '—' }}</div>
+                    </div>
+                    <div style="background:#f8f9fa; border-radius:10px; padding:12px 14px;">
+                        <div style="font-size:11px; color:#90a4ae; font-weight:700; text-transform:uppercase; margin-bottom:4px;">Fecha</div>
+                        <div style="font-size:13px; color:#546e7a;">
+                            {{ \Carbon\Carbon::parse($pedidoSeleccionado['created_at'])->format('d/m/Y H:i') }}
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Productos --}}
+                @if(count($pedidoDetalles) > 0)
+                <div style="margin-bottom:20px;">
+                    <h6 style="font-weight:800; color:#37474f; margin-bottom:10px; font-size:12px;
+                                text-transform:uppercase; letter-spacing:.4px;">
+                        <i class="fa fa-list mr-1 text-muted"></i>Productos ({{ count($pedidoDetalles) }})
+                    </h6>
+                    <div style="max-height:180px; overflow-y:auto; border:1px solid #eceff1; border-radius:10px;">
+                        @foreach($pedidoDetalles as $det)
+                        @php $d = (array)$det; @endphp
+                        <div style="display:flex; justify-content:space-between; align-items:center;
+                                    padding:8px 12px; font-size:12px;
+                                    {{ !$loop->last ? 'border-bottom:1px solid #f5f5f5;' : '' }}">
+                            <span style="color:#37474f; font-weight:600;">{{ $d['nombre_producto'] ?: '—' }}</span>
+                            <span style="background:#eceff1; color:#546e7a; border-radius:20px;
+                                         padding:2px 10px; font-weight:700; white-space:nowrap;">
+                                ×{{ $d['cantidad'] }}
+                            </span>
+                        </div>
+                        @endforeach
+                    </div>
+                </div>
+                @else
+                <div style="text-align:center; padding:14px; background:#f8f9fa; border-radius:10px; margin-bottom:20px;">
+                    <i class="fa fa-inbox text-muted d-block fa-lg mb-1"></i>
+                    <small style="color:#90a4ae;">Sin productos registrados</small>
+                </div>
+                @endif
+
+                {{-- Conteo de ofertas --}}
+                <div style="display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap;">
+                    <div style="background:#e3f2fd; color:#1565c0; border-radius:10px;
+                                padding:7px 14px; font-size:12px; font-weight:700;">
+                        <i class="fa fa-file-text-o mr-1"></i>{{ $pedidoSeleccionado['total_ofertas'] }} oferta(s)
+                    </div>
+                    @if($pedidoSeleccionado['has_ganadora'] > 0)
+                    <div style="background:#fff8e1; color:#f57f17; border-radius:10px;
+                                padding:7px 14px; font-size:12px; font-weight:700;">
+                        <i class="fa fa-trophy mr-1"></i>Tiene oferta ganadora
+                    </div>
+                    @endif
+                </div>
+
+                {{-- Acciones / Confirmación --}}
+                @if($confirmAccion === 'anular')
+                <div style="background:#fce4ec; border:2px solid #ef9a9a; border-radius:12px;
+                            padding:18px; text-align:center;">
+                    <i class="fa fa-exclamation-triangle fa-2x mb-2" style="color:#c62828; display:block;"></i>
+                    <p style="font-weight:700; color:#c62828; margin:0 0 4px; font-size:14px;">¿Confirmar anulación?</p>
+                    <p style="font-size:12px; color:#e57373; margin:0 0 12px;">
+                        El pedido #{{ $pedidoSeleccionado['id'] }} quedará cancelado y su flujo se actualizará.
+                    </p>
+                    <textarea wire:model.defer="motivoAnulacion"
+                              placeholder="Motivo de anulación (obligatorio)..."
+                              rows="2"
+                              style="width:100%; border-radius:8px; border:1px solid #ef9a9a;
+                                     padding:8px 12px; font-size:12px; resize:vertical;
+                                     margin-bottom:12px; outline:none;"
+                    ></textarea>
+                    @if($mensajeError)
+                    <div style="color:#c62828; font-size:12px; font-weight:700; margin-bottom:10px;">
+                        <i class="fa fa-exclamation-circle mr-1"></i>{{ $mensajeError }}
+                    </div>
+                    @endif
+                    <div style="display:flex; gap:8px; justify-content:center;">
+                        <button type="button" wire:click="cancelarConfirmacion"
+                                style="background:#f5f5f5; color:#546e7a; border:1px solid #e0e0e0;
+                                       border-radius:8px; padding:8px 22px; font-weight:700; cursor:pointer;">
+                            <i class="fa fa-arrow-left mr-1"></i>Volver
+                        </button>
+                        <button type="button" wire:click="anularPedido"
+                                style="background:#c62828; color:#fff; border:none;
+                                       border-radius:8px; padding:8px 22px; font-weight:700; cursor:pointer;">
+                            <i class="fa fa-ban mr-1"></i>Sí, Anular
+                        </button>
+                    </div>
+                </div>
+
+                @elseif($confirmAccion === 'duplicar')
+                <div style="background:#e3f2fd; border:2px solid #90caf9; border-radius:12px;
+                            padding:18px; text-align:center;">
+                    <i class="fa fa-copy fa-2x mb-2" style="color:#1565c0; display:block;"></i>
+                    <p style="font-weight:700; color:#1565c0; margin:0 0 4px; font-size:14px;">¿Duplicar este pedido?</p>
+                    <p style="font-size:12px; color:#1e88e5; margin:0 0 16px;">
+                        Se creará un nuevo pedido con los mismos productos y un flujo nuevo independiente.
+                    </p>
+                    <div style="display:flex; gap:8px; justify-content:center;">
+                        <button type="button" wire:click="cancelarConfirmacion"
+                                style="background:#f5f5f5; color:#546e7a; border:1px solid #e0e0e0;
+                                       border-radius:8px; padding:8px 22px; font-weight:700; cursor:pointer;">
+                            <i class="fa fa-arrow-left mr-1"></i>Volver
+                        </button>
+                        <button type="button" wire:click="duplicarPedido"
+                                style="background:#1565c0; color:#fff; border:none;
+                                       border-radius:8px; padding:8px 22px; font-weight:700; cursor:pointer;">
+                            <i class="fa fa-copy mr-1"></i>Sí, Duplicar
+                        </button>
+                    </div>
+                </div>
+
+                @else
+                {{-- Menú de 3 opciones --}}
+                <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px;">
+                    {{-- Anular --}}
+                    @if($pedidoSeleccionado['estado'] !== 'cancelado')
+                    <button type="button" wire:click="confirmarAccion('anular')"
+                            style="background:linear-gradient(135deg,#c62828,#e53935); color:#fff;
+                                   border:none; border-radius:14px; padding:16px 8px; cursor:pointer;
+                                   font-weight:700; font-size:13px; display:flex; flex-direction:column;
+                                   align-items:center; gap:8px; transition:transform .15s, box-shadow .15s;"
+                            onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(198,40,40,.4)';"
+                            onmouseout="this.style.transform='';this.style.boxShadow='';">
+                        <i class="fa fa-ban fa-lg"></i>
+                        Anular Pedido
+                    </button>
+                    @else
+                    <div style="background:#f5f5f5; border-radius:14px; padding:16px 8px;
+                                font-size:12px; color:#90a4ae; display:flex; flex-direction:column;
+                                align-items:center; gap:8px; text-align:center;">
+                        <i class="fa fa-ban fa-lg"></i>
+                        Ya cancelado
+                    </div>
+                    @endif
+
+                    {{-- Duplicar --}}
+                    <button type="button" wire:click="confirmarAccion('duplicar')"
+                            style="background:linear-gradient(135deg,#1565c0,#1e88e5); color:#fff;
+                                   border:none; border-radius:14px; padding:16px 8px; cursor:pointer;
+                                   font-weight:700; font-size:13px; display:flex; flex-direction:column;
+                                   align-items:center; gap:8px; transition:transform .15s, box-shadow .15s;"
+                            onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(21,101,192,.4)';"
+                            onmouseout="this.style.transform='';this.style.boxShadow='';">
+                        <i class="fa fa-copy fa-lg"></i>
+                        Duplicar Pedido
+                    </button>
+
+                    {{-- Agregar Oferta --}}
+                    @if($pedidoSeleccionado['has_ganadora'] == 0 && $pedidoSeleccionado['estado'] !== 'cancelado')
+                    <a href="{{ route('flujo.oferta') }}?pedidoId={{ $pedidoSeleccionado['id'] }}"
+                       style="background:linear-gradient(135deg,#00897b,#26a69a); color:#fff;
+                              border-radius:14px; padding:16px 8px; cursor:pointer;
+                              font-weight:700; font-size:13px; display:flex; flex-direction:column;
+                              align-items:center; gap:8px; text-decoration:none;
+                              transition:transform .15s, box-shadow .15s;"
+                       onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(0,137,123,.4)';"
+                       onmouseout="this.style.transform='';this.style.boxShadow='';">
+                        <i class="fa fa-plus fa-lg"></i>
+                        Agregar Oferta
+                    </a>
+                    @else
+                    <div style="background:#f5f5f5; border-radius:14px; padding:16px 8px;
+                                font-size:12px; color:#90a4ae; display:flex; flex-direction:column;
+                                align-items:center; gap:8px; text-align:center;">
+                        <i class="fa fa-lock fa-lg"></i>
+                        Ganadora<br>definida
+                    </div>
+                    @endif
+                </div>
+                @endif
+
+            </div>
+        </div>
+    </div>
+    @endif
+
+    <script>
+        window.addEventListener('abrir-nueva-pestana', function(e) {
+            window.open(e.detail.url, '_blank');
+        });
+    </script>
 </div>
 
