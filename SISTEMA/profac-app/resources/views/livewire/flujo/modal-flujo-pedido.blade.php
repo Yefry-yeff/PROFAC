@@ -146,8 +146,9 @@
                         $pendiente  = ($paso > $fPaso);
                         $esSeleccionado = ($info['key'] === $pasoActivo);
                         $delay      = ($paso - 1) * 100;
-                        $labelColor = $completado ? '#1ab394' : ($activo ? '#1a7efb' : '#aab');
-                        $puedeClick = ($completado || $activo);
+                        $esSinPedido = ($paso === 1 && !empty($d['sin_pedido']));
+                        $labelColor = $esSinPedido ? '#e74c3c' : ($completado ? '#1ab394' : ($activo ? '#1a7efb' : '#aab'));
+                        $puedeClick = ($completado || $activo) && !$esSinPedido;
                     @endphp
 
                     {{-- Step card --}}
@@ -158,7 +159,16 @@
                                 {{ $esSeleccionado ? 'background:rgba(26,126,251,.06); border-radius:12px; padding:4px 6px;' : 'padding:4px 6px;' }}">
 
                         {{-- Circle --}}
-                        @if ($completado)
+                        @if ($esSinPedido)
+                        <div style="width:60px; height:60px; border-radius:50%;
+                                    background:linear-gradient(135deg,#e74c3c,#c0392b); color:#fff;
+                                    margin-bottom:8px; box-shadow:0 4px 16px rgba(231,76,60,.4);
+                                    display:flex; align-items:center; justify-content:center;
+                                    font-size:24px; flex-shrink:0;">
+                            <i class="fa fa-times"
+                               style="animation:checkPop .4s cubic-bezier(.34,1.56,.64,1) {{ $delay + 200 }}ms both;"></i>
+                        </div>
+                        @elseif ($completado)
                         <div style="width:60px; height:60px; border-radius:50%;
                                     background:linear-gradient(135deg,#1ab394,#0fa37a); color:#fff;
                                     margin-bottom:8px; box-shadow:0 4px 16px rgba(26,179,148,.4);
@@ -192,10 +202,16 @@
                         <div style="text-align:center;">
                             <div style="font-size:12px; font-weight:700; color:{{ $labelColor }};
                                         {{ $esSeleccionado ? 'text-decoration:underline;' : '' }}">
+                                @if($esSinPedido)
+                                Sin pedido
+                                @else
                                 {{ $info['title'] }}
+                                @endif
                             </div>
                             <div style="font-size:10px; color:{{ $labelColor }}; opacity:{{ $pendiente ? '.5' : '1' }};">
-                                @if ($completado)
+                                @if ($esSinPedido)
+                                    <i class="fa fa-times-circle"></i> Sin pedido
+                                @elseif ($completado)
                                     <i class="fa fa-check-circle"></i> Completado
                                 @elseif ($activo)
                                     <i class="fa fa-map-marker" style="animation:dotBlink 1s ease-in-out infinite;"></i> Actual
@@ -492,7 +508,7 @@
                     {{-- Acciones de la oferta --}}
                     @if ($confirmAccionOferta === null)
                     <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:12px;">
-                        <a href="/oferta/imprimir/{{ $ofertaSeleccionada['id'] }}" target="_blank"
+                        <a href="/cotizacion/imprimir/{{ $ofertaSeleccionada['id'] }}" target="_blank"
                            style="text-align:center; background:#f8f9fc; color:#1a7efb;
                                   border:1px solid #e8eaf0; border-radius:8px; padding:5px 10px;
                                   font-size:11px; font-weight:700; text-decoration:none;">
@@ -778,6 +794,14 @@
                         style="border-radius:20px; padding:6px 20px; background:linear-gradient(135deg,#e74c3c,#c0392b);
                                color:#fff; border:none; font-size:13px; font-weight:700; cursor:pointer;">
                     <i class="fa fa-ban mr-1"></i> Anular
+                </button>
+                @endif
+
+                @if ($pasoActivo === 'ofertas' && !$tieneGanadora)
+                <button type="button" wire:click="nuevaOferta"
+                        style="border-radius:20px; padding:6px 20px; background:linear-gradient(135deg,#e65100,#f9a826);
+                               color:#fff; border:none; font-size:13px; font-weight:700; cursor:pointer;">
+                    <i class="fa fa-tag mr-1"></i> Ag. Oferta
                 </button>
                 @endif
 

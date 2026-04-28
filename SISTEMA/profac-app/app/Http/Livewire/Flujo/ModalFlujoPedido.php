@@ -531,8 +531,14 @@ class ModalFlujoPedido extends Component
     public function nuevaOferta(): void
     {
         if (!$this->pedidoData) return;
-        $pedidoId = (int) $this->pedidoData['id'];
-        $this->redirect('/proforma/cotizacion/2?from=flujo&pedidoId=' . $pedidoId);
+
+        if (!empty($this->pedidoData['sin_pedido'])) {
+            // Flujo originado desde cotización, sin pedido vinculado
+            $this->redirect('/proforma/cotizacion/2?from=flujo&flujoId=' . $this->flujoId);
+        } else {
+            $pedidoId = (int) $this->pedidoData['id'];
+            $this->redirect('/proforma/cotizacion/2?from=flujo&pedidoId=' . $pedidoId);
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────
