@@ -11,6 +11,94 @@
             100% { opacity: 1; -webkit-transform: none; }
         }
 
+        /* ── Cards de navegación principal ── */
+        .vnav-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 20px;
+            margin-top: 4px;
+        }
+        @media (max-width: 1100px) { .vnav-grid { grid-template-columns: repeat(3, 1fr); } }
+        @media (max-width:  700px) { .vnav-grid { grid-template-columns: repeat(2, 1fr); } }
+
+        .vnav-item {
+            background: #fff;
+            border-radius: 14px;
+            border-left: 5px solid transparent;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+            padding: 28px 22px 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-left-color 0.15s ease;
+            text-decoration: none;
+            position: relative;
+            overflow: hidden;
+        }
+        .vnav-item:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 28px rgba(0,0,0,0.13);
+            text-decoration: none;
+        }
+        .vnav-item::after {
+            content: "→";
+            position: absolute;
+            bottom: 18px;
+            right: 20px;
+            font-size: 16px;
+            opacity: 0;
+            transition: opacity 0.2s ease, right 0.2s ease;
+        }
+        .vnav-item:hover::after { opacity: 0.5; right: 16px; }
+
+        .vnav-icon {
+            width: 54px;
+            height: 54px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            margin-bottom: 18px;
+            flex-shrink: 0;
+        }
+        .vnav-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #1a2332;
+            margin-bottom: 4px;
+            line-height: 1.2;
+        }
+        .vnav-desc {
+            font-size: 12px;
+            color: #8a96a3;
+            line-height: 1.4;
+            margin: 0;
+        }
+
+        /* Paleta por opción */
+        .vnav-pedido    { border-left-color: #1a73e8; }
+        .vnav-pedido    .vnav-icon { background: rgba(26,115,232,0.10); color: #1a73e8; }
+        .vnav-pedido::after { color: #1a73e8; }
+
+        .vnav-oferta    { border-left-color: #00a86b; }
+        .vnav-oferta    .vnav-icon { background: rgba(0,168,107,0.10); color: #00a86b; }
+        .vnav-oferta::after { color: #00a86b; }
+
+        .vnav-prefactura{ border-left-color: #0097a7; }
+        .vnav-prefactura .vnav-icon { background: rgba(0,151,167,0.10); color: #0097a7; }
+        .vnav-prefactura::after { color: #0097a7; }
+
+        .vnav-factura   { border-left-color: #f9a826; }
+        .vnav-factura   .vnav-icon { background: rgba(249,168,38,0.12); color: #f9a826; }
+        .vnav-factura::after { color: #f9a826; }
+
+        .vnav-historial { border-left-color: #6c5ce7; }
+        .vnav-historial .vnav-icon { background: rgba(108,92,231,0.10); color: #6c5ce7; }
+        .vnav-historial::after { color: #6c5ce7; }
+
+        /* Mantener clases legacy para submenús */
         .flujo-card {
             border: none;
             border-radius: 16px;
@@ -24,40 +112,27 @@
             box-shadow: 0 12px 32px rgba(0,0,0,0.15);
         }
         .flujo-card .card-icon-wrap {
-            padding: 36px 20px 20px;
+            padding: 18px 16px 14px;
             display: flex;
             flex-direction: column;
             align-items: center;
         }
         .flujo-card .icon-circle {
-            width: 80px;
-            height: 80px;
+            width: 52px;
+            height: 52px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-bottom: 18px;
-            font-size: 32px;
+            margin-bottom: 10px;
+            font-size: 22px;
         }
         .flujo-card .card-label {
-            font-size: 18px;
+            font-size: 13px;
             font-weight: 700;
-            margin-bottom: 6px;
+            margin-bottom: 0;
             color: #2c3e50;
-        }
-        .flujo-card .card-desc {
-            font-size: 13px;
-            color: #8e9aaa;
-            margin-bottom: 20px;
             text-align: center;
-        }
-        .flujo-card .card-footer-bar {
-            padding: 14px;
-            font-size: 13px;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-            text-align: center;
-            color: #fff;
         }
 
         /* Colores por tipo */
@@ -168,91 +243,42 @@
                 </div>
             </div>
 
-            <div class="row justify-content-center">
+            <div class="vnav-grid">
 
                 {{-- PEDIDO --}}
-                <div class="mb-4 col-lg-3 col-md-4 col-sm-6">
-                    <div class="flujo-card flujo-pedido ibox" wire:click="selectPedido">
-                        <div class="card-icon-wrap">
-                            <div class="icon-circle">
-                                <i class="fa fa-clipboard-list"></i>
-                            </div>
-                            <div class="card-label">Pedido</div>
-                            <div class="card-desc">Registra y gestiona pedidos de clientes</div>
-                        </div>
-                        <div class="card-footer-bar">
-                            <i class="mr-1 fa fa-arrow-right"></i> Ir a Pedidos
-                        </div>
-                    </div>
+                <div class="vnav-item vnav-pedido" wire:click="selectPedido">
+                    <div class="vnav-icon"><i class="fa fa-clipboard-list"></i></div>
+                    <div class="vnav-title">Pedido</div>
+                    <p class="vnav-desc">Registra y gestiona pedidos de clientes</p>
                 </div>
 
                 {{-- OFERTA --}}
-                <div class="mb-4 col-lg-3 col-md-4 col-sm-6">
-                    <div class="flujo-card flujo-oferta ibox" wire:click="selectOferta">
-                        <div class="card-icon-wrap">
-                            <div class="icon-circle">
-                                <i class="fa fa-tags"></i>
-                            </div>
-                            <div class="card-label">Oferta</div>
-                            <div class="card-desc">Elabora y envía ofertas a clientes</div>
-                        </div>
-                        <div class="card-footer-bar">
-                            <i class="mr-1 fa fa-arrow-right"></i> Ir a Oferta
-                        </div>
-                    </div>
+                <div class="vnav-item vnav-oferta" wire:click="selectOferta">
+                    <div class="vnav-icon"><i class="fa fa-tags"></i></div>
+                    <div class="vnav-title">Oferta</div>
+                    <p class="vnav-desc">Elabora y envía cotizaciones a clientes</p>
                 </div>
 
                 {{-- PREFACTURA --}}
-                <div class="mb-4 col-lg-3 col-md-4 col-sm-6">
-                    <div class="flujo-card flujo-prefactura ibox" wire:click="selectPrefactura">
-                        <div class="card-icon-wrap">
-                            <div class="icon-circle">
-                                <i class="fa fa-file-invoice"></i>
-                            </div>
-                            <div class="card-label">Prefactura</div>
-                            <div class="card-desc">Genera prefactura desde una oferta ganadora</div>
-                        </div>
-                        <div class="card-footer-bar">
-                            <i class="mr-1 fa fa-arrow-right"></i> Ir a Prefactura
-                        </div>
-                    </div>
+                <div class="vnav-item vnav-prefactura" wire:click="selectPrefactura">
+                    <div class="vnav-icon"><i class="fa fa-file-invoice"></i></div>
+                    <div class="vnav-title">Prefactura</div>
+                    <p class="vnav-desc">Genera prefactura desde oferta ganadora</p>
                 </div>
 
                 {{-- FACTURA --}}
-                <div class="mb-4 col-lg-3 col-md-4 col-sm-6">
-                    <div class="flujo-card flujo-factura ibox" wire:click="selectFactura">
-                        <div class="card-icon-wrap">
-                            <div class="icon-circle">
-                                <i class="fa fa-receipt"></i>
-                            </div>
-                            <div class="card-label">Factura</div>
-                            <div class="card-desc">Emite facturas para clientes A, B, SR o Exonerada</div>
-                        </div>
-                        <div class="card-footer-bar">
-                            <i class="mr-1 fa fa-arrow-right"></i> Seleccionar Tipo
-                        </div>
-                    </div>
+                <div class="vnav-item vnav-factura" wire:click="selectFactura">
+                    <div class="vnav-icon"><i class="fa fa-receipt"></i></div>
+                    <div class="vnav-title">Factura</div>
+                    <p class="vnav-desc">Emite facturas A, B, SR o Exonerada</p>
                 </div>
 
                 {{-- HISTORIAL DE VENTAS --}}
-                <div class="mb-4 col-lg-3 col-md-4 col-sm-6">
-                    <a href="{{ route('flujo.ventas.historico') }}" style="text-decoration:none; display:block;">
-                        <div class="flujo-card ibox" style="border-top:4px solid transparent; transition:border-top-color .2s;"
-                             onmouseover="this.style.borderTopColor='#6c5ce7';"
-                             onmouseout="this.style.borderTopColor='transparent';">
-                            <div class="card-icon-wrap">
-                                <div class="icon-circle" style="background:rgba(108,92,231,0.12); color:#6c5ce7;">
-                                    <i class="fa fa-history"></i>
-                                </div>
-                                <div class="card-label">Historial de Ventas</div>
-                                <div class="card-desc">Consulta y gestiona el registro histórico de ventas</div>
-                            </div>
-                            <div class="card-footer-bar" style="background:#6c5ce7;">
-                                <i class="mr-1 fa fa-arrow-right"></i> Ver Historial
-                            </div>
-                        </div>
-                    </a>
-                </div>
+                <a href="{{ route('flujo.ventas.historico') }}" class="vnav-item vnav-historial">
+                    <div class="vnav-icon"><i class="fa fa-history"></i></div>
+                    <div class="vnav-title">Historial</div>
+                    <p class="vnav-desc">Consulta el registro histórico de ventas</p>
+                </a>
 
             </div>
 
