@@ -28,9 +28,9 @@ class ConfirmacionEntrega extends Component
     {
         try {
             $fecha = $request->input('fecha', date('Y-m-d'));
-            
+
             $distribuciones = DB::select("
-                SELECT 
+                SELECT
                     d.id,
                     d.fecha_programada,
                     d.observaciones,
@@ -65,7 +65,7 @@ class ConfirmacionEntrega extends Component
     {
         try {
             $facturas = DB::select("
-                SELECT 
+                SELECT
                     df.id as distribucion_factura_id,
                     df.factura_id,
                     df.orden_entrega,
@@ -108,7 +108,7 @@ class ConfirmacionEntrega extends Component
     {
         // Primero verificar si ya existen registros de entrega
         $productosExistentes = DB::select("
-            SELECT 
+            SELECT
                 ep.id,
                 ep.producto_id,
                 p.nombre AS nombre_producto,
@@ -135,9 +135,9 @@ class ConfirmacionEntrega extends Component
 
         // Si no existen, crear registros iniciales desde los detalles de la factura
         $distribucionFactura = DistribucionEntregaFactura::findOrFail($distribucionFacturaId);
-        
+
            $productosFactura = DB::select("
-               SELECT 
+               SELECT
                    vhp.producto_id,
                    p.nombre AS nombre_producto,
                    vhp.cantidad
@@ -166,7 +166,7 @@ class ConfirmacionEntrega extends Component
 
         // Retornar los productos recién creados
         return DB::select("
-            SELECT 
+            SELECT
                 ep.id,
                 ep.producto_id,
                 p.nombre AS nombre_producto,
@@ -208,7 +208,7 @@ class ConfirmacionEntrega extends Component
                 'incidencias.*.tipo' => 'required|string',
                 'incidencias.*.descripcion' => 'required|string|min:5',
             ]);
-            
+
             // Validar que haya al menos productos o incidencias
             if (empty($request->productos) && empty($request->incidencias)) {
                 return response()->json([
@@ -249,12 +249,12 @@ class ConfirmacionEntrega extends Component
             if (!empty($request->productos)) {
                 foreach ($request->productos as $productoData) {
                     $producto = EntregaProducto::findOrFail($productoData['id']);
-                    
+
                     // Verificar si el producto tiene incidencias en BD
                     $tieneIncidenciasEnBD = DB::table('entregas_productos_incidencias')
                         ->where('entrega_producto_id', $producto->id)
                         ->exists();
-                    
+
                     // Si el producto tiene incidencias, NO puede estar marcado como entregado
                     if ($tieneIncidenciasEnBD || $producto->tiene_incidencia == 1) {
                         $producto->entregado = 0;
@@ -263,7 +263,7 @@ class ConfirmacionEntrega extends Component
                         $producto->entregado = $productoData['entregado'];
                         $producto->cantidad_entregada = $productoData['cantidad_entregada'] ?? 0;
                     }
-                    
+
                     $producto->tiene_incidencia = $productoData['tiene_incidencia'] ?? $producto->tiene_incidencia;
                     $producto->tipo_incidencia = $productoData['tipo_incidencia'] ?? null;
                     $producto->descripcion_incidencia = $productoData['descripcion_incidencia'] ?? null;
@@ -291,7 +291,7 @@ class ConfirmacionEntrega extends Component
                         $entregaProducto->entregado = 0;
                         $entregaProducto->cantidad_entregada = 0;
                         $entregaProducto->save();
-                        
+
                         // Obtener el distribucion_factura_id para actualizar el estado después
                         if (!$distribucionFacturaId) {
                             $distribucionFacturaId = $entregaProducto->distribucion_factura_id;
@@ -317,16 +317,16 @@ class ConfirmacionEntrega extends Component
                     $distribucionFacturaId = $primerProducto->distribucion_factura_id;
                 }
             }
-            
+
             // Actualizar estado de la factura basado en todos los productos
             if ($distribucionFacturaId) {
                 $estadoCalculado = DB::selectOne("
-                    SELECT 
+                    SELECT
                         CASE
                             -- Si todos están entregados (y hay al menos 1) -> entregado
                             WHEN COUNT(*) > 0 AND COUNT(*) = SUM(CASE WHEN entregado = 1 THEN 1 ELSE 0 END) THEN 'entregado'
                             -- Si todos tienen incidencia y ninguno entregado -> parcial
-                            WHEN COUNT(*) = SUM(CASE WHEN tiene_incidencia = 1 THEN 1 ELSE 0 END) 
+                            WHEN COUNT(*) = SUM(CASE WHEN tiene_incidencia = 1 THEN 1 ELSE 0 END)
                                  AND SUM(CASE WHEN entregado = 1 THEN 1 ELSE 0 END) = 0 THEN 'parcial'
                             -- Si al menos 1 está entregado o tiene incidencia -> parcial
                             WHEN SUM(CASE WHEN entregado = 1 OR tiene_incidencia = 1 THEN 1 ELSE 0 END) > 0 THEN 'parcial'
@@ -336,7 +336,7 @@ class ConfirmacionEntrega extends Component
                     FROM entregas_productos
                     WHERE distribucion_factura_id = ?
                 ", [$distribucionFacturaId]);
-                
+
                 if ($estadoCalculado) {
                     DB::table('distribuciones_entrega_facturas')
                         ->where('id', $distribucionFacturaId)
@@ -344,6 +344,39 @@ class ConfirmacionEntrega extends Component
                             'estado_entrega' => $estadoCalculado->nuevo_estado,
                             'updated_at' => now()
                         ]);
+
+                    // Actualizar sub_estado_entrega del pedido vinculado (si existe)
+                    $facturaPedido = DB::table('distribuciones_entrega_facturas as def')
+                        ->join('factura as f', 'f.id', '=', 'def.factura_id')
+                        ->where('def.id', $distribucionFacturaId)
+                        ->whereNotNull('f.pedido_id')
+                        ->select('f.pedido_id')
+                        ->first();
+
+                    if ($facturaPedido && $facturaPedido->pedido_id) {
+                        $estadoPedidoEntrega = DB::selectOne("
+                            SELECT CASE
+                                WHEN COUNT(*) > 0
+                                     AND SUM(CASE WHEN def2.estado_entrega != 'entregado' THEN 1 ELSE 0 END) = 0
+                                     THEN 'entregado'
+                                WHEN SUM(CASE WHEN def2.estado_entrega IN ('parcial','entregado') THEN 1 ELSE 0 END) > 0
+                                     THEN 'en_camino'
+                                ELSE 'sin_entrega'
+                            END AS sub_estado
+                            FROM distribuciones_entrega_facturas def2
+                            INNER JOIN factura f2 ON f2.id = def2.factura_id
+                            WHERE f2.pedido_id = ?
+                        ", [$facturaPedido->pedido_id]);
+
+                        if ($estadoPedidoEntrega) {
+                            DB::table('pedido')
+                                ->where('id', $facturaPedido->pedido_id)
+                                ->update([
+                                    'sub_estado_entrega' => $estadoPedidoEntrega->sub_estado,
+                                    'updated_at' => now()
+                                ]);
+                        }
+                    }
                 }
             }
 
@@ -385,7 +418,7 @@ class ConfirmacionEntrega extends Component
             if (!file_exists($destinoPath)) {
                 mkdir($destinoPath, 0755, true);
             }
-            
+
             $archivo->move($destinoPath, $nombreArchivo);
             $ruta = 'public/incidencia_entrega/' . $nombreArchivo;
 
@@ -497,7 +530,7 @@ class ConfirmacionEntrega extends Component
     {
         try {
             $evidencias = DB::select(
-                "SELECT 
+                "SELECT
                     ee.id,
                     ee.ruta_archivo,
                     ee.created_at
@@ -536,7 +569,7 @@ class ConfirmacionEntrega extends Component
     {
         try {
             $evidencias = DB::select(
-                "SELECT 
+                "SELECT
                     ee.id,
                     ee.ruta_archivo,
                     ee.descripcion,
@@ -593,6 +626,23 @@ class ConfirmacionEntrega extends Component
                 ]);
 
             // El trigger actualizará el estado_entrega automáticamente
+
+            // Actualizar sub_estado_entrega del pedido vinculado (si existe)
+            $facturaPedido = DB::table('distribuciones_entrega_facturas as def')
+                ->join('factura as f', 'f.id', '=', 'def.factura_id')
+                ->where('def.id', $distribucionFacturaId)
+                ->whereNotNull('f.pedido_id')
+                ->select('f.pedido_id')
+                ->first();
+
+            if ($facturaPedido && $facturaPedido->pedido_id) {
+                DB::table('pedido')
+                    ->where('id', $facturaPedido->pedido_id)
+                    ->update([
+                        'sub_estado_entrega' => 'entregado',
+                        'updated_at' => now()
+                    ]);
+            }
 
             return response()->json([
                 'icon' => 'success',
@@ -660,7 +710,7 @@ class ConfirmacionEntrega extends Component
     {
         try {
             $reporte = DB::select("
-                SELECT 
+                SELECT
                     d.id,
                     d.fecha_programada,
                     e.nombre_equipo,
@@ -669,7 +719,7 @@ class ConfirmacionEntrega extends Component
                     (SELECT COUNT(*) FROM distribuciones_entrega_facturas WHERE distribucion_entrega_id = d.id AND estado_entrega = 'entregado') as facturas_entregadas,
                     (SELECT COUNT(*) FROM distribuciones_entrega_facturas WHERE distribucion_entrega_id = d.id AND estado_entrega = 'parcial') as facturas_parciales,
                     (SELECT COUNT(*) FROM distribuciones_entrega_facturas WHERE distribucion_entrega_id = d.id AND estado_entrega = 'sin_entrega') as facturas_sin_entrega,
-                    (SELECT COUNT(*) 
+                    (SELECT COUNT(*)
                      FROM entregas_productos ep
                      INNER JOIN distribuciones_entrega_facturas df ON ep.distribucion_factura_id = df.id
                      WHERE df.distribucion_entrega_id = d.id AND ep.tiene_incidencia = 1

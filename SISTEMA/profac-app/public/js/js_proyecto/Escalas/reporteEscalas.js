@@ -1,107 +1,180 @@
-﻿
+﻿/* ==========================================================================
+   reporteEscalas.js  —  Reportes de Precios y Escalas
+   6 tabs: Precios, Cobertura, Sin Cat., Sin Precio, Comparativo, Resumen
+========================================================================== */
 
+// Instancias de DataTable
+let dtPrecios      = null;
+let dtCobertura    = null;
+let dtSinCat       = null;
+let dtSinPrecio    = null;
+let dtComparativo  = null;
+let dtResumen      = null;
 
-// === Habilitar/Deshabilitar botón "Descargar" (MISMA lógica actual)
-// Controla el estado del botón "Descargar" en función de que todos los filtros requeridos
-// tengan un valor seleccionado. Si falta alguno, deshabilita el botón para evitar acciones inválidas.
-function toggleDescargarCompleto() {
-  const tipoCategoria = $('#tipoCategoria').val();
-  const tipoFiltro = $('#tipoFiltro').val();
-  const lista = $('#listaTipoFiltro').val();
-  const catPrecios = $('#listaTipoFiltroCatPrecios').val();
+// Producto seleccionado para comparativo
+let currentProdutoId     = null;
+let currentProdutoNombre = null;
 
-  const habilitado = !!(tipoCategoria && tipoFiltro && lista && catPrecios);
-  //$('#btnDescargar').prop('disabled', !habilitado);
+// Control de peticiones
+let _reloadTimer  = null;   // debounce timer
+let _filtersLocked = false; // evita doble-click durante carga
+
+/* Debounce: espera 600ms después del último cambio antes de recargar */
+function scheduleReloadPrecios() {
+  if (_reloadTimer) clearTimeout(_reloadTimer);
+  _reloadTimer = setTimeout(function () {
+    if (dtPrecios) {
+      setFiltersLock(true);
+      dtPrecios.ajax.reload(function () { setFiltersLock(false); }, true);
+    }
+  }, 600);
 }
 
-// Variable global para almacenar la instancia de DataTable
-let tablaProductos = null;
+/* Bloquea/desbloquea los controles de filtro durante la carga */
+function setFiltersLock(lock) {
+  _filtersLocked = lock;
+  $('#filtro-cat-cliente, #filtro-cat-precio, #tipoFiltro, #listaTipoFiltro')
+    .prop('disabled', lock);
+  if (lock) {
+    $('#btn-export-precios').prop('disabled', true)
+      .html('<i class="fa fa-spinner fa-spin mr-1"></i> Cargando...');
+  } else {
+    $('#btn-export-precios').prop('disabled', false)
+      .html('<i class="fa fa-file-excel-o mr-1"></i> Exportar a Excel');
+  }
+}
 
+/* ──────────────────────────────────────────────────────────────────────────
+   BOOTSTRAP
+────────────────────────────────────────────────────────────────────────── */
 $(document).ready(function () {
-  // Configuración básica para Axios:
-  // - Define header X-Requested-With para solicitudes AJAX.
-  // - Inyecta token CSRF (si existe en <meta>) para proteger contra ataques CSRF.
+  // CSRF para Axios
   if (typeof axios !== 'undefined') {
     axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
     const csrf = document.querySelector('meta[name="csrf-token"]')?.content;
     if (csrf) axios.defaults.headers.common['X-CSRF-TOKEN'] = csrf;
   }
 
-  // === Inicialización de la tabla principal de categorías (DataTable)
-  listarCategorias();
-  
-  // === Inicialización de la tabla de productos con lazy loading
-  inicializarTablaProductos();
+  // === Tab 1: Precios por producto ===
+  initTabPrecios();
 
-  // === Inicialización de Select2 para los filtros superiores
-  // Mejora UX con tema bootstrap4 y placeholders.
-  $('#tipoCategoria').select2({
-    theme: 'bootstrap4',
-    placeholder: '🧾 Tipo de categoría',
-    width: 'resolve'
+  // === Tabs 2-4 y 6: cargar al mostrarse por primera vez ===
+  let coberturaLoaded = false, sincatLoaded = false, sinprecioLoaded = false, resumenLoaded = false;
+
+  $('a[data-toggle="pill"]').on('shown.bs.tab', function (e) {
+    const tab = $(e.target).attr('href');
+    if (tab === '#tab-cobertura' && !coberturaLoaded)  { coberturaLoaded = true;  cargarCobertura();  }
+    if (tab === '#tab-sincat'    && !sincatLoaded)      { sincatLoaded    = true;  cargarSinCat();     }
+    if (tab === '#tab-sinprecio' && !sinprecioLoaded)   { sinprecioLoaded = true;  cargarSinPrecio();  }
+    if (tab === '#tab-resumen'   && !resumenLoaded)     { resumenLoaded   = true;  cargarResumen();    }
   });
 
-  $('#tipoFiltro').select2({
-    theme: 'bootstrap4',
-    placeholder: '📂 Tipo de filtro',
-    width: 'resolve'
-  });
+  // === Cargar contadores de alerta en badges (siempre al inicio) ===
+  cargarBadgesAlerta();
 
-  $('#listaTipoFiltro').select2({
-    theme: 'bootstrap4',
-    placeholder: 'Seleccione una opción',
-    width: 'resolve'
-  });
+  // === Select2 para los filtros del Tab 1 ===
 
-  // === Cargar opciones dinámicas de #listaTipoFiltro según el valor de #tipoFiltro
-  // Si el usuario elige filtrar por Marca (1) o Categoría (2), se consulta el endpoint correspondiente
-  // y se pobla el select con los resultados.
-  $('#tipoFiltro').on('change', function () {
-    let tipo = $(this).val();
-    let $listaTipo = $('#listaTipoFiltro');
-
-    // Limpieza del select dependiente
-    $listaTipo.val(null).trigger('change');
-    $listaTipo.empty();
-
-    // Si no hay tipo definido, sólo recalcula estado del botón y sale.
-    if (!tipo) {
-      toggleDescargarCompleto();
-      return;
+  // ── Cat. de Cliente (single, carga total) ──────────────────────────
+  $.ajax({
+    url: '/filtros/categoria/cliente', dataType: 'json',
+    success: function (data) {
+      const $sel = $('#filtro-cat-cliente');
+      data.forEach(function (item) { $sel.append(new Option(item.nombre, item.id)); });
+      $sel.select2({ theme: 'bootstrap4',
+        placeholder: 'Todas las categorías de cliente',
+        allowClear: false, width: 'resolve'
+      });
     }
+  });
 
-    // Selección del endpoint según tipo de filtro
-    let url = tipo == '1' ? '/filtros/marca' : '/filtros/categoria';
-
-    // Solicitud AJAX para poblar el select
+  // ── Cat. de Precio (single, carga total, cascading desde cliente) ──
+  function cargarCatPrecio(catClienteId) {
+    const $sel = $('#filtro-cat-precio');
+    const seleccionado = $sel.val() || '';
+    $sel.empty().append(new Option('Todas las categorías de precio', ''));
     $.ajax({
-      url: url,
-      type: 'GET',
+      url: '/filtros/categoria/precios/por-cliente',
+      data: { cat_cliente_ids: catClienteId || '' },
       dataType: 'json',
       success: function (data) {
-        $listaTipo.append(new Option('Seleccione', '', false, false));
-        data.forEach(function (item) {
-          $listaTipo.append(new Option(item.nombre, item.id, false, false));
-        });
-        $listaTipo.trigger('change');
-        toggleDescargarCompleto(); // mantener lógica actual del botón
-      },
-      error: function () {
-        Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo cargar el listado.' });
+        data.forEach(function (item) { $sel.append(new Option(item.nombre, item.id)); });
+        const idsDisponibles = data.map(function (i) { return String(i.id); });
+        const mantener = idsDisponibles.includes(String(seleccionado)) ? seleccionado : '';
+        $sel.val(mantener).trigger('change.select2');
+        scheduleReloadPrecios();
       }
     });
+  }
+  $('#filtro-cat-precio').select2({ theme: 'bootstrap4',
+    placeholder: 'Todas las categorías de precio',
+    allowClear: false, width: 'resolve'
+  });
+  cargarCatPrecio('');
+
+  // Al cambiar Cat. Cliente → cascading de Cat. Precio
+  $('#filtro-cat-cliente').on('change', function () {
+    if (_filtersLocked) return;
+    cargarCatPrecio($(this).val() || '');
+  });
+  $('#filtro-cat-precio').on('change', function () {
+    if (_filtersLocked) return;
+    scheduleReloadPrecios();
   });
 
-  // === Select2 - Categoría de precios (con carga AJAX)
-  // Trae categorías de precio desde el servidor con búsqueda diferida (delay).
-  $('#listaTipoFiltroCatPrecios').select2({
+  // ── Filtrar por (tipo único) ────────────────────────────────────
+  $('#tipoFiltro').select2({ theme: 'bootstrap4', placeholder: 'Sin filtro adicional',
+    allowClear: true, width: 'resolve'
+  });
+
+  // ── Lista de valores (multi, AJAX paginado) ────────────────────
+  function initListaFiltro(tipo) {
+    const $lista = $('#listaTipoFiltro');
+    const $wrap  = $('#wrapper-lista-filtro');
+    if ($lista.data('select2')) { $lista.select2('destroy'); }
+    $lista.empty().val(null);
+
+    if (!tipo) { $wrap.hide(); scheduleReloadPrecios(); return; }
+
+    const url   = tipo == '1' ? '/filtros/marca/buscar' : '/filtros/categoria/buscar';
+    const label = tipo == '1' ? '<i class="fa fa-trademark"></i> Marca'
+                               : '<i class="fa fa-th-large"></i> Categoría Producto';
+    $('#label-lista-filtro').html(label);
+    $wrap.show();
+
+    $lista.select2({
+      theme: 'bootstrap4', multiple: true,
+      placeholder: tipo == '1' ? 'Todas las marcas' : 'Todas las categorías',
+      allowClear: true, width: 'resolve',
+      closeOnSelect: false,
+      ajax: {
+        url: url, dataType: 'json', delay: 250,
+        data: function (params) { return { q: params.term || '', page: params.page || 1 }; },
+        processResults: function (data) { return { results: data.results, pagination: data.pagination }; },
+        cache: true
+      }
+    });
+
+    $lista.on('change', function () {
+      if (_filtersLocked) return;
+      scheduleReloadPrecios();
+    });
+  }
+
+  $('#tipoFiltro').on('change', function () {
+    if (_filtersLocked) return;
+    initListaFiltro($(this).val());
+  });
+  $('#select-produto-comparativo').select2({
     theme: 'bootstrap4',
-    placeholder: 'Seleccione Categoría de precio',
+    placeholder: 'Escriba al menos 2 caracteres...',
     allowClear: true,
+    minimumInputLength: 2,
+    width: 'resolve',
     ajax: {
-      url: '/filtros/categoria/precios',
+      url: '/filtros/produtos',
       dataType: 'json',
-      delay: 250,
+      delay: 300,
+      data: function (params) { return { q: params.term }; },
       processResults: function (data) {
         return {
           results: data.map(function (item) {
@@ -113,100 +186,89 @@ $(document).ready(function () {
     }
   });
 
-  $('#listaTipoFiltro, #tipoCategoria').on('change', toggleDescargarCompleto);
-    toggleDescargarCompleto(); // estado inicial
-    
-  // === Actualizar tabla cuando cambian los filtros
-  $('#tipoFiltro, #listaTipoFiltro, #listaTipoFiltroCatPrecios').on('change', function() {
-    actualizarTablaProductos();
-  });
-  
-  // === Interceptar submit del formulario de descarga para asegurar que usa los filtros actuales
-  $('#formExportFiltrado').on('submit', function(e) {
-    // Asegurar que los valores actuales de los filtros se envíen
-    $('#tipoFiltro').attr('name', 'tipoFiltro');
-    $('#listaTipoFiltro').attr('name', 'listaTipoFiltro');
-    $('#listaTipoFiltroCatPrecios').attr('name', 'listaTipoFiltroCatPrecios');
-  });
+  // Cuando se selecciona un producto en el comparativo
+  $('#select-produto-comparativo').on('change', function () {
+    currentProdutoId     = $(this).val();
+    currentProdutoNombre = $(this).find(':selected').text();
+    if (currentProdutoId) cargarComparativo();
   });
 
-$('#tipoCategoria, #tipoFiltro, #listaTipoFiltro, #listaTipoFiltroCatPrecios')
-  .on('change', toggleDescargarCompleto);
+  // === Select2 para filtro resumen cat cliente ===
+  $.ajax({
+    url: '/filtros/categoria/cliente',
+    success: function (data) {
+      const $sel = $('#filtro-resumen-cat-cliente');
+      data.forEach(function (item) {
+        $sel.append(new Option(item.nombre, item.id));
+      });
+    }
+  });
+  $('#filtro-resumen-cat-cliente').select2({ theme: 'bootstrap4', placeholder: 'Todas', allowClear: true, width: 'resolve' });
 
-// Estado inicial al cargar la página (seguridad extra si el DOM ready no alcanzó)
-toggleDescargarCompleto();
+});
 
+/* ──────────────────────────────────────────────────────────────────────────
+   HELPERS
+────────────────────────────────────────────────────────────────────────── */
+function badgeEstado(estado) {
+  const cls = estado === 'Activo' ? 'badge-activo' : 'badge-inactivo';
+  return '<span class="' + cls + '">' + estado + '</span>';
+}
+function fmt(val) {
+  return val !== null && val !== undefined ? 'L. ' + parseFloat(val).toFixed(2) : '—';
+}
+function fmtPct(val) {
+  return val !== null && val !== undefined && val !== '' ? parseFloat(val).toFixed(2) + '%' : '—';
+}
 
-function listarCategorias() {
-  $('#tbl_listaCategoria').DataTable({
-    destroy: true,
-    order: [0, 'desc'],
-    language: { "url": "/js/plugins/dataTables/i18n/Spanish.json" },
-    pageLength: 5,
-    responsive: true,
-    deferRender: true,
-    ajax: {
-      url: "/listar/categoria/precios",
-      dataSrc: 'data',
-      error: function () {
-        Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo cargar la tabla.' });
-      }
-    },
-    columns: [
-      { data: 'id' },
-      { data: 'categoria' },
-      { data: 'estado' },
-      { data: 'categoriaCliente' },
-      { data: 'porc_a' },
-      { data: 'porc_b' },
-      { data: 'porc_c' },
-      { data: 'porc_d' },
-      { data: 'creacion' },
-      { data: 'registro' },
-      { data: 'opciones' }
-    ]
+/* ──────────────────────────────────────────────────────────────────────────
+   BADGES DE ALERTA
+────────────────────────────────────────────────────────────────────────── */
+function cargarBadgesAlerta() {
+  $.getJSON('/reportes/escalas/sin-precios-cat', function (data) {
+    const n = data.length;
+    const $b = $('#badge-sincat');
+    $b.text(n);
+    if (n > 0) $b.css({ background: 'rgba(231,76,60,.85)', color: '#fff' });
+  });
+  $.getJSON('/reportes/escalas/sin-precios-prod', function (data) {
+    const n = data.length;
+    const $b = $('#badge-sinprecio');
+    $b.text(n);
+    if (n > 0) $b.css({ background: 'rgba(231,76,60,.85)', color: '#fff' });
   });
 }
 
-// === Inicializar tabla de productos con lazy loading (server-side processing)
-function inicializarTablaProductos() {
-  tablaProductos = $('#tbl_productos').DataTable({
+/* ──────────────────────────────────────────────────────────────────────────
+   TAB 1 — Precios por Producto (server-side)
+────────────────────────────────────────────────────────────────────────── */
+function initTabPrecios() {
+  dtPrecios = $('#tbl_precios_prod').DataTable({
     processing: true,
-    serverSide: true, // Activar procesamiento del lado del servidor (lazy loading)
-    deferRender: true,
-    language: {
-      "url": "/js/plugins/dataTables/i18n/Spanish.json",
-      "processing": '<i class="fa fa-spinner fa-spin fa-3x fa-fw"></i><span class="sr-only">Cargando...</span>'
-    },
+    serverSide: true,
+    language: { url: '/js/plugins/dataTables/i18n/Spanish.json', processing: '<i class="fa fa-spinner fa-spin fa-2x text-warning"></i>' },
     ajax: {
       url: '/escalas/productos/filtrados',
       type: 'GET',
-      data: function(d) {
-        // Enviar parámetros de filtro
-        d.tipoFiltro = $('#tipoFiltro').val();
-        d.listaTipoFiltro = $('#listaTipoFiltro').val();
-        d.listaTipoFiltroCatPrecios = $('#listaTipoFiltroCatPrecios').val();
-        
-        // Debug: ver qué valores se están enviando
-        console.log('Filtros enviados:', {
-          tipoFiltro: d.tipoFiltro,
-          listaTipoFiltro: d.listaTipoFiltro,
-          listaTipoFiltroCatPrecios: d.listaTipoFiltroCatPrecios
-        });
+      data: function (d) {
+        d.cat_cliente_ids  = $('#filtro-cat-cliente').val() || '';
+        d.cat_precio_ids   = $('#filtro-cat-precio').val()  || '';
+        d.tipoFiltro       = $('#tipoFiltro').val();
+        d.lista_filtro_ids = ($('#listaTipoFiltro').val()     || []).join(',');
       },
-      error: function(xhr, error, thrown) {
-        console.error('Error al cargar productos:', error);
-        Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: 'No se pudo cargar la tabla de productos.'
-        });
+      error: function (xhr) {
+        setFiltersLock(false);
+        if (xhr.status === 429) {
+          Swal.fire({ icon: 'warning', title: 'Demasiadas consultas',
+            text: 'Estás realizando cambios muy rápido. Espera un momento antes de seguir filtrando.',
+            confirmButtonColor: '#e67e22', timer: 4000, timerProgressBar: true });
+        }
       }
     },
     columns: [
-      { data: 'id', width: '50px' },
-      { data: 'categoria_cliente', width: '150px' },
-      { data: 'codigo', width: '100px' },
+      { data: 'id',               width: '50px' },
+      { data: 'categoria_cliente' },
+      { data: 'codigo',           width: '100px' },
       { data: 'producto' },
       { data: 'marca' },
       { data: 'categoria' },
@@ -218,28 +280,327 @@ function inicializarTablaProductos() {
     ],
     order: [[0, 'desc']],
     pageLength: 10,
-    lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "Todos"]],
-    responsive: true,
-    dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>rtip',
-    drawCallback: function() {
-      // Callback después de cada dibujado de la tabla
-      console.log('Tabla de productos actualizada');
-    }
+    lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
+    dom: '<"row"<"col-sm-6"l><"col-sm-6"f>>rtip'
   });
 }
 
-// === Actualizar tabla de productos cuando cambian los filtros
-function actualizarTablaProductos() {
-  if (tablaProductos) {
-    // Recargar datos con los nuevos filtros
-    tablaProductos.ajax.reload(null, false); // false para mantener la paginación actual
-  }
+function exportarPreciosProd() {
+  const $btn = $('#btn-export-precios');
+  const orig = $btn.html();
+  $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin mr-1"></i> Generando...');
+  const params = new URLSearchParams({
+    cat_cliente_ids:  $('#filtro-cat-cliente').val()  || '',
+    cat_precio_ids:   $('#filtro-cat-precio').val()   || '',
+    tipoFiltro:       $('#tipoFiltro').val() || '',
+    lista_filtro_ids: ($('#listaTipoFiltro').val()     || []).join(',')
+  });
+  const a = document.createElement('a');
+  a.href = '/descargar/productos/filtros?' + params.toString();
+  a.download = '';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function () { $btn.prop('disabled', false).html(orig); }, 3000);
 }
 
+/* ──────────────────────────────────────────────────────────────────────────
+   TAB 2 — Cobertura
+────────────────────────────────────────────────────────────────────────── */
+function cargarCobertura() {
+  $('#loading-cobertura').show();
+  $('#wrapper-cobertura').hide();
+  $('#stats-cobertura').hide();
 
+  $.getJSON('/reportes/escalas/cobertura', function (data) {
+    $('#loading-cobertura').hide();
 
+    // Stats
+    const total = data.length;
+    const sinCob = data.filter(function (r) { return parseInt(r.total_cat_precios) === 0; }).length;
+    const totalProds = data.reduce(function (s, r) { return s + parseInt(r.total_productos || 0); }, 0);
+    $('#stat-total-cat').text(total);
+    $('#stat-sin-cobertura').text(sinCob);
+    $('#stat-con-cobertura').text(total - sinCob);
+    $('#stat-total-prods-cob').text(totalProds.toLocaleString());
+    $('#stats-cobertura').show();
 
+    // Filas
+    const $tbody = $('#tbody-cobertura').empty();
+    data.forEach(function (r) {
+      const catTotal = parseInt(r.total_cat_precios) || 0;
+      const cobBadge = catTotal === 0
+        ? '<span class="badge-cero">Sin cobertura</span>'
+        : '<span class="badge-activo">' + catTotal + ' cat.</span>';
+      $tbody.append(
+        '<tr>' +
+        '<td>' + r.id + '</td>' +
+        '<td><strong>' + escHtml(r.nombre_categoria) + '</strong></td>' +
+        '<td class="text-center">' + badgeEstado(r.estado) + '</td>' +
+        '<td class="text-center">' + catTotal + '</td>' +
+        '<td class="text-center">' + (r.cat_activas || 0) + '</td>' +
+        '<td class="text-center"><strong>' + (r.total_productos || 0) + '</strong></td>' +
+        '<td class="text-center">' + cobBadge + '</td>' +
+        '<td class="text-center"><small>' + (r.created_at || '—') + '</small></td>' +
+        '</tr>'
+      );
+    });
 
-// Índices sugeridos a nivel de base de datos para mejorar performance en consultas frecuentes:
-// CREATE INDEX idx_ppc_cat_prod ON precios_producto_carga (categoria_precios_id, producto_id);
-// CREATE INDEX idx_ppc_estado   ON precios_producto_carga (estado_id);
+    // DataTable
+    if (dtCobertura) { dtCobertura.destroy(); dtCobertura = null; }
+    dtCobertura = $('#tbl_cobertura').DataTable({
+      language: { url: '/js/plugins/dataTables/i18n/Spanish.json' },
+      pageLength: 10,
+      order: [[3, 'asc']],
+      dom: '<"row"<"col-sm-6"l><"col-sm-6"f>>rtip'
+    });
+
+    $('#wrapper-cobertura').show();
+  }).fail(function () {
+    $('#loading-cobertura').hide();
+    Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo cargar el reporte de cobertura.' });
+  });
+}
+
+function exportarCobertura() {
+  descargarExcel('/exportar/cobertura-categorias');
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   TAB 3 — Sin categorías de precio
+────────────────────────────────────────────────────────────────────────── */
+function cargarSinCat() {
+  $('#loading-sincat').show();
+  $('#wrapper-sincat').hide();
+  $('#empty-sincat').hide();
+
+  $.getJSON('/reportes/escalas/sin-precios-cat', function (data) {
+    $('#loading-sincat').hide();
+
+    if (data.length === 0) {
+      $('#empty-sincat').show();
+      return;
+    }
+
+    const $tbody = $('#tbody-sincat').empty();
+    data.forEach(function (r) {
+      $tbody.append(
+        '<tr>' +
+        '<td>' + r.id + '</td>' +
+        '<td><strong>' + escHtml(r.nombre_categoria) + '</strong></td>' +
+        '<td>' + escHtml(r.descripcion_categoria || '') + '</td>' +
+        '<td class="text-center">' + badgeEstado(r.estado) + '</td>' +
+        '<td class="text-center"><small>' + (r.created_at || '—') + '</small></td>' +
+        '</tr>'
+      );
+    });
+
+    if (dtSinCat) { dtSinCat.destroy(); dtSinCat = null; }
+    dtSinCat = $('#tbl_sincat').DataTable({
+      language: { url: '/js/plugins/dataTables/i18n/Spanish.json' },
+      pageLength: 10,
+      order: [[0, 'desc']],
+      dom: '<"row"<"col-sm-6"l><"col-sm-6"f>>rtip'
+    });
+
+    $('#wrapper-sincat').show();
+  }).fail(function () {
+    $('#loading-sincat').hide();
+    Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo cargar el reporte.' });
+  });
+}
+
+function exportarSinCat() {
+  descargarExcel('/exportar/cat-sin-precios');
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   TAB 4 — Productos sin precios
+────────────────────────────────────────────────────────────────────────── */
+function cargarSinPrecio() {
+  $('#loading-sinprecio').show();
+  $('#wrapper-sinprecio').hide();
+  $('#empty-sinprecio').hide();
+
+  $.getJSON('/reportes/escalas/sin-precios-prod', function (data) {
+    $('#loading-sinprecio').hide();
+
+    if (data.length === 0) {
+      $('#empty-sinprecio').show();
+      return;
+    }
+
+    const $tbody = $('#tbody-sinprecio').empty();
+    data.forEach(function (r) {
+      $tbody.append(
+        '<tr>' +
+        '<td>' + r.id + '</td>' +
+        '<td>' + escHtml(r.codigo_barra || '—') + '</td>' +
+        '<td>' + escHtml(r.nombre) + '</td>' +
+        '</tr>'
+      );
+    });
+
+    if (dtSinPrecio) { dtSinPrecio.destroy(); dtSinPrecio = null; }
+    dtSinPrecio = $('#tbl_sinprecio').DataTable({
+      language: { url: '/js/plugins/dataTables/i18n/Spanish.json' },
+      pageLength: 10,
+      order: [[0, 'desc']],
+      dom: '<"row"<"col-sm-6"l><"col-sm-6"f>>rtip'
+    });
+
+    $('#wrapper-sinprecio').show();
+  }).fail(function () {
+    $('#loading-sinprecio').hide();
+    Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo cargar el reporte.' });
+  });
+}
+
+function exportarSinPrecio() {
+  descargarExcel('/exportar/productos-sin-precios');
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   TAB 5 — Comparativo por producto
+────────────────────────────────────────────────────────────────────────── */
+function cargarComparativo() {
+  currentProdutoId = $('#select-produto-comparativo').val();
+  if (!currentProdutoId) {
+    Swal.fire({ icon: 'warning', title: 'Seleccione un producto', text: 'Debe buscar y seleccionar un producto primero.' });
+    return;
+  }
+
+  $('#placeholder-comparativo').hide();
+  $('#loading-comparativo').show();
+  $('#wrapper-comparativo').hide();
+
+  $.getJSON('/reportes/escalas/comparativo?produto_id=' + currentProdutoId, function (data) {
+    $('#loading-comparativo').hide();
+
+    if (data.length === 0) {
+      $('#placeholder-comparativo').html('<i class="fa fa-inbox"></i>Este producto no tiene precios configurados en ninguna categoría.').show();
+      $('#btn-export-comparativo').prop('disabled', true);
+      return;
+    }
+
+    const $tbody = $('#tbody-comparativo').empty();
+    data.forEach(function (r) {
+      $tbody.append(
+        '<tr>' +
+        '<td>' + escHtml(r.categoria_cliente) + '</td>' +
+        '<td>' + escHtml(r.categoria_precio) + '</td>' +
+        '<td class="text-center">' + fmtPct(r.porc_precio_a) + '</td>' +
+        '<td class="text-center">' + fmtPct(r.porc_precio_b) + '</td>' +
+        '<td class="text-center">' + fmtPct(r.porc_precio_c) + '</td>' +
+        '<td class="text-center">' + fmtPct(r.porc_precio_d) + '</td>' +
+        '<td class="text-right">' + fmt(r.precio_base_venta) + '</td>' +
+        '<td class="text-right"><strong>' + fmt(r.precio_a) + '</strong></td>' +
+        '<td class="text-right">' + fmt(r.precio_b) + '</td>' +
+        '<td class="text-right">' + fmt(r.precio_c) + '</td>' +
+        '<td class="text-right">' + fmt(r.precio_d) + '</td>' +
+        '<td class="text-center">' + badgeEstado(r.estado) + '</td>' +
+        '</tr>'
+      );
+    });
+
+    if (dtComparativo) { dtComparativo.destroy(); dtComparativo = null; }
+    dtComparativo = $('#tbl_comparativo').DataTable({
+      language: { url: '/js/plugins/dataTables/i18n/Spanish.json' },
+      pageLength: 25,
+      order: [[0, 'asc']],
+      dom: '<"row"<"col-sm-6"l><"col-sm-6"f>>rtip'
+    });
+
+    $('#wrapper-comparativo').show();
+    $('#btn-export-comparativo').prop('disabled', false);
+    $('#info-comparativo').html('<i class="fa fa-info-circle mr-1"></i>' + data.length + ' configuraciones encontradas para el producto seleccionado.');
+  }).fail(function () {
+    $('#loading-comparativo').hide();
+    Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo cargar el comparativo.' });
+  });
+}
+
+function exportarComparativo() {
+  if (!currentProdutoId) return;
+  descargarExcel('/exportar/comparativo-produto?produto_id=' + currentProdutoId);
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   TAB 6 — Resumen categorías de precio
+────────────────────────────────────────────────────────────────────────── */
+function cargarResumen() {
+  $('#loading-resumen').show();
+  $('#wrapper-resumen').hide();
+
+  if (dtResumen) { dtResumen.destroy(); dtResumen = null; }
+
+  const catClienteId = $('#filtro-resumen-cat-cliente').val() || '';
+  const estadoId     = $('#filtro-resumen-estado').val();
+
+  const params = new URLSearchParams();
+  if (catClienteId) params.append('cat_cliente_id', catClienteId);
+  if (estadoId !== '') params.append('estado_id', estadoId);
+
+  $.getJSON('/reportes/escalas/resumen-cat-precio?' + params.toString(), function (data) {
+    $('#loading-resumen').hide();
+
+    const $tbody = $('#tbody-resumen').empty();
+    data.forEach(function (r) {
+      $tbody.append(
+        '<tr>' +
+        '<td>' + r.id + '</td>' +
+        '<td><strong>' + escHtml(r.categoria_precio) + '</strong></td>' +
+        '<td>' + escHtml(r.categoria_cliente) + '</td>' +
+        '<td class="text-center">' + fmtPct(r.porc_precio_a) + '</td>' +
+        '<td class="text-center">' + fmtPct(r.porc_precio_b) + '</td>' +
+        '<td class="text-center">' + fmtPct(r.porc_precio_c) + '</td>' +
+        '<td class="text-center">' + fmtPct(r.porc_precio_d) + '</td>' +
+        '<td class="text-center">' + badgeEstado(r.estado) + '</td>' +
+        '<td class="text-center"><strong>' + (r.total_productos || 0) + '</strong></td>' +
+        '<td class="text-center"><small>' + (r.fecha_ultima_actualizacion || '—') + '</small></td>' +
+        '</tr>'
+      );
+    });
+
+    dtResumen = $('#tbl_resumen').DataTable({
+      language: { url: '/js/plugins/dataTables/i18n/Spanish.json' },
+      pageLength: 15,
+      order: [[1, 'asc']],
+      dom: '<"row"<"col-sm-6"l><"col-sm-6"f>>rtip'
+    });
+
+    $('#wrapper-resumen').show();
+  }).fail(function () {
+    $('#loading-resumen').hide();
+    Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo cargar el resumen.' });
+  });
+}
+
+function exportarResumen() {
+  const catClienteId = $('#filtro-resumen-cat-cliente').val() || '';
+  const estadoId     = $('#filtro-resumen-estado').val();
+  const params = new URLSearchParams();
+  if (catClienteId) params.append('cat_cliente_id', catClienteId);
+  if (estadoId !== '') params.append('estado_id', estadoId);
+  descargarExcel('/exportar/resumen-cat-precio?' + params.toString());
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   UTILIDADES
+────────────────────────────────────────────────────────────────────────── */
+function descargarExcel(url) {
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = '';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+function escHtml(text) {
+  if (!text) return '';
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}

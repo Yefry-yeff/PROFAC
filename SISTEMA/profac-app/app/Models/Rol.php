@@ -11,10 +11,12 @@ class Rol extends Model
 
     protected $table = 'rol';
     protected $primaryKey = 'id';
-    
+
     protected $fillable = [
         'nombre',
-        'estado_id'
+        'estado_id',
+        'nivel_id',
+        'area_id',
     ];
 
     /**
@@ -31,6 +33,22 @@ class Rol extends Model
     public function estado()
     {
         return $this->belongsTo(Estado::class, 'estado_id');
+    }
+
+    /**
+     * Nivel jerárquico del rol (Gerente, Jefe de Depto., Colaborador, etc.)
+     */
+    public function nivel()
+    {
+        return $this->belongsTo(NivelRol::class, 'nivel_id');
+    }
+
+    /**
+     * Área / departamento al que pertenece el rol
+     */
+    public function area()
+    {
+        return $this->belongsTo(Area::class, 'area_id');
     }
 
     /**
