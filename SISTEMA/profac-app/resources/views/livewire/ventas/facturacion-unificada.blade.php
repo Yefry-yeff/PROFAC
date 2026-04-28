@@ -40,7 +40,7 @@
         /* ── Main ibox ────────────────────────────────────────────── */
         .ofr-main-ibox { border-radius: 16px !important; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,.07) !important; }
         .ofr-main-ibox > .ibox-title {
-            background: linear-gradient(135deg,#e65100 0%,#f9a826 100%) !important;
+            background: linear-gradient(135deg,#004d40 0%,#00897b 100%) !important;
             border: none !important; padding: 16px 24px !important;
         }
         .ofr-main-ibox > .ibox-title h3 { color: #fff !important; margin: 0; font-size: 16px; }
@@ -756,70 +756,16 @@
         </div>
 
         {{-- MODAL: Seleccionar oferta ganadora --}}
-        <style>
-            /* Z-index por encima de los valores de IBOX (.modal=2050, .modal-dialog=2200) */
-            #modalOfertasGanadoras { z-index: 2060 !important; }
-
-            /* Lista con scroll: altura fija para mostrar ~3 ofertas a la vez */
-            #ogLista {
-                max-height: 310px;
-                overflow-y: auto;
-                overflow-x: hidden;
-                padding-right: 2px;
-            }
-            #ogLista::-webkit-scrollbar { width: 5px; }
-            #ogLista::-webkit-scrollbar-thumb { background: #f9a826; border-radius: 4px; }
-
-            /* Accordion de productos */
-            .og-card { border-radius: 10px; margin-bottom: 10px; overflow: hidden; transition: box-shadow .2s; }
-            .og-card:hover { box-shadow: 0 4px 18px rgba(0,0,0,.10); }
-            .og-card-header {
-                display: flex; align-items: center; gap: 8px;
-                padding: 11px 14px; cursor: default;
-            }
-            .og-toggle-btn {
-                background: none; border: none; padding: 0;
-                display: flex; align-items: center; gap: 5px;
-                font-size: 11px; font-weight: 700; color: #e65100;
-                cursor: pointer; white-space: nowrap; flex-shrink: 0;
-                transition: color .15s;
-            }
-            .og-toggle-btn:hover { color: #bf360c; }
-            .og-toggle-icon {
-                display: inline-block; width: 18px; height: 18px; line-height: 16px;
-                border-radius: 50%; background: #fff3e0; border: 1.5px solid #f9a826;
-                text-align: center; font-size: 13px; font-weight: 900; color: #e65100;
-                transition: transform .3s, background .2s;
-                flex-shrink: 0;
-            }
-            .og-toggle-btn.open .og-toggle-icon {
-                transform: rotate(45deg);
-                background: #e65100; color: #fff; border-color: #e65100;
-            }
-            .og-products {
-                overflow: hidden;
-                max-height: 0;
-                transition: max-height .35s cubic-bezier(.4,0,.2,1), padding .25s;
-                padding: 0 14px;
-            }
-            .og-products.open { max-height: 600px; padding: 0 14px 10px; }
-            .og-prod-row {
-                display: flex; justify-content: space-between; align-items: center;
-                padding: 4px 0; border-bottom: 1px solid #f5f5f5;
-                font-size: 12px;
-            }
-            .og-prod-row:last-child { border-bottom: none; }
-        </style>
         <div class="modal fade" id="modalOfertasGanadoras" tabindex="-1" role="dialog">
-            <div class="modal-dialog modal-dialog-centered" role="document"
-                 style="max-width:660px; width:94%;">
-                <div class="modal-content" style="border-radius:16px; overflow:hidden; display:flex; flex-direction:column;">
-                    <div class="modal-header" style="background:linear-gradient(135deg,#e65100,#f9a826); border:none; padding:14px 20px; flex-shrink:0;">
+            <div class="modal-dialog modal-dialog-centered" role="document" style="max-width:560px;">
+                <div class="modal-content" style="border-radius:16px; overflow:hidden;">
+                    <div class="modal-header" style="background:linear-gradient(135deg,#e65100,#f9a826); border:none; padding:16px 24px;">
                         <h5 class="modal-title" style="color:#fff; font-weight:800; margin:0; font-size:14px;">
                             <i class="mr-2 fa fa-trophy"></i> Seleccionar oferta ganadora
                         </h5>
                         <button type="button" class="close" data-dismiss="modal" style="color:#fff; opacity:1;"><span>&times;</span></button>
                     </div>
+<<<<<<< HEAD
                     <div class="modal-body" style="padding:16px 18px; overflow:hidden; display:flex; flex-direction:column; flex:1; min-height:0;">
                         <div id="ogLoading" class="py-3 text-center" style="display:none;">
                             <i class="fa fa-spinner fa-spin fa-2x" style="color:#e65100;"></i>
@@ -834,6 +780,12 @@
                             <i class="mr-1 fa fa-arrow-left"></i> Volver
                         </button>
                     </div>
+=======
+                    <div class="modal-body" style="padding:20px;">
+                        <div id="ogLoading" class="text-center py-3" style="display:none;"><i class="fa fa-spinner fa-spin fa-2x" style="color:#e65100;"></i></div>
+                        <div id="ogLista"></div>
+                    </div>
+>>>>>>> parent of bdeaa912 (Merge branch 'antes-de-cagarla' into antes-cagarla-yef)
                 </div>
             </div>
         </div>
@@ -1957,19 +1909,26 @@
         var idPedido  = _ofertaPedidoId;
 
         if (tipo === 'nueva') {
+            // Limpiar sólo productos; mantener cliente y pedido vinculado si hay
+            document.getElementById('bloqueImagenes').innerHTML = '';
+            document.getElementById('divProductos').innerHTML = '';
+            var carritoTabla = document.getElementById('carritoTablaWrapper');
+            var carritoVacio = document.getElementById('carritoVacio');
+            if (carritoTabla) carritoTabla.style.display = 'none';
+            if (carritoVacio) carritoVacio.style.display = '';
+            arregloIdInputs = [];
+            numeroInputs = 0;
             $('#modalExitoOferta').modal('hide');
-            // Recargar la página para restaurar los datos del pedido vinculado
-            window.location.reload();
-            return;
 
         } else if (tipo === 'ganadora') {
+            $('#modalExitoOferta').modal('hide');
             if (!idPedido) {
-                $('#modalExitoOferta').modal('hide');
                 Swal.fire({ icon: 'info', title: 'Sin pedido', text: 'Esta oferta no está vinculada a un pedido.' });
                 return;
             }
             document.getElementById('ogLista').innerHTML = '';
             document.getElementById('ogLoading').style.display = '';
+<<<<<<< HEAD
             // Esperar a que el primer modal cierre completamente antes de abrir el segundo
             $('#modalExitoOferta').one('hidden.bs.modal', function () {
                 $('#modalOfertasGanadoras').modal('show');
@@ -2035,9 +1994,32 @@
                     .catch(function() {
                         document.getElementById('ogLoading').style.display = 'none';
                         document.getElementById('ogLista').innerHTML = '<p class="text-center text-danger">Error al cargar ofertas.</p>';
+=======
+            $('#modalOfertasGanadoras').modal('show');
+            axios.get('/cotizacion/por-pedido/' + idPedido)
+                .then(function(res) {
+                    document.getElementById('ogLoading').style.display = 'none';
+                    var ofertas = res.data;
+                    if (!ofertas.length) {
+                        document.getElementById('ogLista').innerHTML = '<p class="text-muted text-center">No hay ofertas para este pedido.</p>';
+                        return;
+                    }
+                    var html = '<div class="list-group">';
+                    ofertas.forEach(function(o) {
+                        var esActual = o.id == idOferta ? ' (esta oferta)' : '';
+                        html += '<button onclick="confirmarGanadora(' + o.id + ')" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" style="border-radius:8px; margin-bottom:6px; border:1px solid #f9a826;">';
+                        html += '<span><strong>Oferta #' + o.id + '</strong>' + esActual + '<br><small class="text-muted">' + (o.nombre_cliente || '') + '</small></span>';
+                        html += '<span style="font-weight:700; color:#e65100;">L ' + parseFloat(o.total).toFixed(2) + '</span>';
+                        html += '</button>';
+>>>>>>> parent of bdeaa912 (Merge branch 'antes-de-cagarla' into antes-cagarla-yef)
                     });
-            });
-            $('#modalExitoOferta').modal('hide');
+                    html += '</div>';
+                    document.getElementById('ogLista').innerHTML = html;
+                })
+                .catch(function() {
+                    document.getElementById('ogLoading').style.display = 'none';
+                    document.getElementById('ogLista').innerHTML = '<p class="text-danger text-center">Error al cargar ofertas.</p>';
+                });
 
         } else if (tipo === 'prefacturar') {
             $('#modalExitoOferta').modal('hide');
@@ -2054,7 +2036,7 @@
             if (urlImprimir && idOferta) {
                 window.open(urlImprimir.replace('{id}', idOferta), '_blank');
             }
-            // Modal permanece abierto intencionalmente
+            $('#modalExitoOferta').modal('hide');
         }
     }
 
@@ -2068,54 +2050,6 @@
                 Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo marcar la oferta como ganadora.' });
             });
     }
-
-    // Accordion: abrir un panel cierra los demás
-    var _ogOpenId = null;
-    function ogToggle(ofertaId) {
-        var prods  = document.getElementById('ogProds_'  + ofertaId);
-        var toggle = document.getElementById('ogToggle_' + ofertaId);
-        if (!prods || !toggle) return;
-
-        var isOpen = prods.classList.contains('open');
-
-        // Cerrar el que estaba abierto (si era otro)
-        if (_ogOpenId && _ogOpenId !== ofertaId) {
-            var prevProds  = document.getElementById('ogProds_'  + _ogOpenId);
-            var prevToggle = document.getElementById('ogToggle_' + _ogOpenId);
-            if (prevProds)  prevProds.classList.remove('open');
-            if (prevToggle) prevToggle.classList.remove('open');
-            _ogOpenId = null;
-        }
-
-        if (isOpen) {
-            prods.classList.remove('open');
-            toggle.classList.remove('open');
-            _ogOpenId = null;
-        } else {
-            prods.classList.add('open');
-            toggle.classList.add('open');
-            _ogOpenId = ofertaId;
-        }
-    }
-
-    // Botón Volver: cierra ganadora y reabre el modal de éxito
-    document.addEventListener('DOMContentLoaded', function () {
-        // Mover el modal al <body> para evitar el offset del page-wrapper de IBOX
-        var ogModal = document.getElementById('modalOfertasGanadoras');
-        if (ogModal && ogModal.parentElement !== document.body) {
-            document.body.appendChild(ogModal);
-        }
-
-        var btnVolver = document.getElementById('ogBtnVolver');
-        if (btnVolver) {
-            btnVolver.addEventListener('click', function () {
-                $('#modalOfertasGanadoras').one('hidden.bs.modal', function () {
-                    $('#modalExitoOferta').modal('show');
-                });
-                $('#modalOfertasGanadoras').modal('hide');
-            });
-        }
-    });
 
     $(document).on('submit', '#crear_venta', function(event) {
         event.preventDefault();
@@ -2235,24 +2169,6 @@
     setInterval(mostrarHora, 1000);
     </script>
     @endpush
-
-    @if($clientePedido)
-    @push('scripts')
-    {{-- Re-despacha el evento pedido-seleccionado al cargar si el pedido ya estaba vinculado (desde URL pedidoId) --}}
-    <script>
-        document.addEventListener('livewire:load', function () {
-            window.dispatchEvent(new CustomEvent('pedido-seleccionado', {
-                detail: {
-                    clienteId:     {!! (int)$clientePedido['id'] !!},
-                    clienteNombre: {!! json_encode($clientePedido['nombre']) !!},
-                    vendedorId:    {!! (int)($vendedorDefault['id'] ?? 0) !!},
-                    vendedorNombre:{!! json_encode($vendedorDefault['name'] ?? '') !!},
-                }
-            }));
-        });
-    </script>
-    @endpush
-    @endif
 
     <div class="mt-3">
         <div class="float-right">
