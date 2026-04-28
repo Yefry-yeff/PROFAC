@@ -24,8 +24,9 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
     protected int $userId;
     protected ?int $defaultUnidadMedidaId;
     protected bool $previewMode;  // Modo preview: solo validar, no insertar
-    protected string $tipoPlantilla;  // 'categoria' o 'general'
+    protected string $tipoPlantilla;  // 'categoria', 'general' o 'cliente_todas'
     protected array $categoriasExcluidas;  // IDs de categorías a excluir en modo general
+    protected ?int $clienteCategoriaId; // ID de cliente_categoria_escala para modo 'cliente_todas'
 
     // Contadores y variables de control para estadísticas de proceso
     protected int $rowsRead = 0;
@@ -51,7 +52,7 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
      * Constructor: inicializa los parámetros requeridos para el proceso.
      * Se reciben directamente desde el controlador.
      */
-    public function __construct(string $tipoCategoria, int $tipoFiltro, int $valorFiltro, ?int $categoriaPrecioId, int $userId, ?int $defaultUnidadMedidaId = null, bool $previewMode = false, string $tipoPlantilla = 'categoria', array $categoriasExcluidas = [])
+    public function __construct(string $tipoCategoria, int $tipoFiltro, int $valorFiltro, ?int $categoriaPrecioId, int $userId, ?int $defaultUnidadMedidaId = null, bool $previewMode = false, string $tipoPlantilla = 'categoria', array $categoriasExcluidas = [], ?int $clienteCategoriaId = null)
     {
         $this->tipoCategoria         = $tipoCategoria;
         $this->tipoFiltro            = $tipoFiltro;
@@ -62,6 +63,7 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
         $this->previewMode           = $previewMode;
         $this->tipoPlantilla         = $tipoPlantilla;
         $this->categoriasExcluidas   = $categoriasExcluidas;
+        $this->clienteCategoriaId    = $clienteCategoriaId;
     }
 
     /**
@@ -89,12 +91,11 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
          */
         if (!$this->headersValidated) {
             $present = array_keys($rows->first()->toArray());
-            $required = ['producto_id', 'categoria_precios_id', 'precio_base_venta'];
+            $required = ['producto_id', 'precio_base_venta'];
             $missing = array_diff($required, $present);
             $this->missingHeaders = array_values($missing);
             $this->headersValidated = true;
 
-            // Si faltan encabezados esenciales, se registra un warning y se interrumpe el proceso.
             if (!empty($this->missingHeaders)) {
                 Log::warning('[Import precios] Faltan columnas requeridas', ['missing' => $this->missingHeaders]);
                 return;
@@ -103,8 +104,34 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
 
         // Variables auxiliares
         $now = now();
-        $batch = [];                // Contendrá los registros listos para insertar
-        $groupForInactivate = [];   // Agrupa productos por categoría de precios para actualizar estado a inactivo antes de insertar los nuevos
+        $batch = [];
+        $groupForInactivate = [];
+
+        /**
+         * PRE-CARGAR CATEGORÍAS DE PRECIO UNA SOLA VEZ POR CHUNK.
+         * Para modos 'general' y 'cliente_todas' evitamos N queries por fila.
+         */
+        $categoriasCache = null;
+        if ($this->tipoPlantilla === 'general') {
+            $q = DB::table('categoria_precios')->where('estado_id', 1);
+            if (!empty($this->categoriasExcluidas)) {
+                $q->whereNotIn('id', $this->categoriasExcluidas);
+            }
+            $categoriasCache = $q->get();
+            if ($categoriasCache->isEmpty()) {
+                Log::warning('[Import precios] Sin categorías activas en modo general');
+                return;
+            }
+        } elseif ($this->tipoPlantilla === 'cliente_todas') {
+            $categoriasCache = DB::table('categoria_precios')
+                ->where('estado_id', 1)
+                ->where('cliente_categoria_escala_id', $this->clienteCategoriaId)
+                ->get();
+            if ($categoriasCache->isEmpty()) {
+                Log::warning('[Import precios] Sin categorías activas para cliente_categoria_escala_id=' . $this->clienteCategoriaId);
+                return;
+            }
+        }
 
         /**
          * Se obtiene la lista de IDs de productos presentes en el chunk actual
@@ -165,25 +192,15 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
 
             // Se obtienen y validan los IDs principales requeridos.
             $productoId   = $this->asInt($row['producto_id'] ?? null);
-            
+
             // En modo general, obtenemos todas las categorías activas
             // En modo categoría, usamos la categoría especificada
+            // En modo general/cliente_todas usamos el cache pre-cargado.
+            // En modo categoría buscamos la categoría específica del row o del constructor.
             $categoriasPrecios = [];
-            if ($this->tipoPlantilla === 'general') {
-                // Obtener todas las categorías de precios activas
-                $categoriasPrecios = DB::table('categoria_precios')
-                    ->where('estado_id', 1)
-                    ->get();
-
-                // Excluir las categorías seleccionadas por el usuario
-                if (!empty($this->categoriasExcluidas)) {
-                    $categoriasPrecios = $categoriasPrecios->whereNotIn('id', $this->categoriasExcluidas)->values();
-                }
-                    
-                if ($categoriasPrecios->isEmpty()) {
-                    $this->skip("No hay categorías de precios activas en el sistema", $row->toArray());
-                    continue;
-                }
+            if ($this->tipoPlantilla === 'general' || $this->tipoPlantilla === 'cliente_todas') {
+                // Ya validado y pre-cargado arriba — $categoriasCache no puede ser null aquí
+                $categoriasPrecios = $categoriasCache;
             } else {
                 // Modo categoría: usar la categoría especificada
                 $catPrecioId = $this->asInt($row['categoria_precios_id'] ?? $this->categoriaPrecioId);
@@ -191,18 +208,18 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
                     $this->skip("Falta categoria_precios_id", $row->toArray());
                     continue;
                 }
-                
+
                 // Crear un objeto similar para mantener compatibilidad
                 $categoria = DB::table('categoria_precios')
                     ->where('id', $catPrecioId)
                     ->where('estado_id', 1)
                     ->first();
-                    
+
                 if (!$categoria) {
                     $this->skip("Categoría de precios no existe o está inactiva: {$catPrecioId}", $row->toArray());
                     continue;
                 }
-                
+
                 $categoriasPrecios = collect([$categoria]);
             }
 
@@ -319,7 +336,7 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
                         'created_at'             => now(),
                         'updated_at'             => now(),
                     ];
-                    
+
                     // Agrupar para inactivar registros antiguos
                     $groupForInactivate[$cat->id][] = $productoId;
                 }
@@ -364,7 +381,7 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
                         'created_at'             => now(),
                         'updated_at'             => now(),
                     ];
-                    
+
                     // Agrupar para inactivar registros antiguos
                     $groupForInactivate[$cat->id][] = $productoId;
                 }
@@ -396,7 +413,7 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
             foreach ($batch as $item) {
                 $producto = $productos[$item['producto_id']] ?? null;
                 $categoria = $categorias[$item['categoria_precios_id']] ?? null;
-                
+
                 $this->productosParaProcesar[] = [
                     'producto_id' => $item['producto_id'],
                     'codigo' => $producto->id ?? $item['producto_id'],
@@ -428,10 +445,10 @@ class PreciosProductoCargaImport implements ToCollection, WithHeadingRow, WithCh
                 // Usar una sola query por categoría con todos los productos
                 foreach ($groupForInactivate as $catId => $prodIds) {
                     $uniqueProdIds = array_unique($prodIds);
-                    
+
                     // Si hay muchos productos, dividir en lotes de 1000 para evitar límites de SQL
                     $chunks = array_chunk($uniqueProdIds, 1000);
-                    
+
                     foreach ($chunks as $chunk) {
                         $affected = DB::table('precios_producto_carga')
                             ->where('categoria_precios_id', $catId)

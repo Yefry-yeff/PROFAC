@@ -236,20 +236,20 @@
                             <h5 class="m-0" style="color:#fff;">
                                 <i class="fa fa-shopping-cart"></i> &nbsp;Registrar Pedido
                             </h5>
-                            <a href="{{ route('flujo.ventas') }}" class="btn btn-outline-light btn-sm" style="border-radius:8px; font-size:12px; font-weight:600;">
-                                <i class="fa fa-arrow-left mr-1"></i> Volver
-                            </a>
+                            <div class="d-flex align-items-center" style="gap:10px;">
+                                <div class="d-flex align-items-center" style="background:rgba(255,255,255,.18); border-radius:8px; padding:3px 10px 3px 10px; gap:6px;">
+                                    <span style="color:rgba(255,255,255,.85); font-size:12px; font-weight:600; white-space:nowrap;">N° Pedido:</span>
+                                    <input type="text" value="{{ $pedidoGuardadoId ?? $numeroPedido }}"
+                                        style="width:60px; background:transparent; border:none; outline:none; color:#fff; font-weight:700; font-size:14px; text-align:center;" readonly>
+                                </div>
+                                <a href="{{ route('flujo.ventas') }}" class="btn btn-outline-light btn-sm" style="border-radius:8px; font-size:12px; font-weight:600;">
+                                    <i class="fa fa-arrow-left mr-1"></i> Volver
+                                </a>
+                            </div>
                         </div>
                     </div>
 
                     <div class="ibox-content pedido-ibox-content" style="padding: 24px;">
-
-                        {{-- ==================== NÚMERO DE PEDIDO ==================== --}}
-                        <div class="d-flex align-items-center mb-3">
-                            <span class="text-muted mr-2" style="font-size:13px; font-weight:600;">N° Pedido:</span>
-                            <input type="text" value="{{ $pedidoGuardadoId ?? $numeroPedido }}"
-                                class="form-control form-control-sm" style="max-width:120px; font-weight:700; font-size:14px;" readonly>
-                        </div>
 
                         {{-- ==================== SECCIÓN 1: CLIENTE ==================== --}}
                         <div class="pedido-section-heading">
@@ -257,24 +257,26 @@
                             <h5>Información del Cliente</h5>
                         </div>
 
-                        @if (!$clienteSeleccionado)
-                        {{-- ── Buscador live ── --}}
-                        <div class="pedido-search-wrap mb-2">
-                            <div class="input-group">
-                                <div class="input-group-prepend">
-                                    <span class="input-group-text border-right-0">
-                                        <i class="fa fa-search" style="color:#1a7efb; font-size:13px;"></i>
-                                    </span>
-                                </div>
-                                <input
-                                    type="text"
-                                    wire:model.debounce.350ms="busqueda"
-                                    class="form-control border-left-0"
-                                    placeholder="Nombre o RTN — escribe para buscar..."
-                                    autocomplete="off"
-                                    >
+                        {{-- ── Fila buscador + info condensada ── --}}
+                        <div class="d-flex align-items-flex-start" style="gap:12px; flex-wrap:wrap;">
+
+                            {{-- Columna izquierda: buscador --}}
+                            <div style="flex:0 0 320px; min-width:200px; position:relative;">
+                                @if (!$clienteSeleccionado)
+                                <div class="input-group" style="border-radius:8px; overflow:hidden;">
+                                    <div class="input-group-prepend">
+                                        <span class="input-group-text border-right-0">
+                                            <i class="fa fa-search" style="color:#1a7efb; font-size:13px;"></i>
+                                        </span>
+                                    </div>
+                                    <input
+                                        type="text"
+                                        wire:model.debounce.350ms="busqueda"
+                                        class="form-control border-left-0"
+                                        placeholder="Nombre o RTN — escribe para buscar..."
+                                        autocomplete="off">
                                     <div class="input-group-append">
-                                        <span class="input-group-text border-left-0" style="padding: 0 12px;">
+                                        <span class="input-group-text border-left-0" style="padding:0 12px;">
                                             <span wire:loading wire:target="updatedBusqueda,buscarCliente">
                                                 <i class="fa fa-spinner fa-spin" style="color:#1a7efb; font-size:11px;"></i>
                                             </span>
@@ -287,107 +289,98 @@
                                 @error('clienteSeleccionado')
                                     <small class="text-danger mt-1 d-block"><i class="fa fa-exclamation-circle"></i> {{ $message }}</small>
                                 @enderror
-                        </div>
 
-                        {{-- ── Sugerencias (dropdown live) ── --}}
-                        @if (count($resultadosBusqueda) > 0)
-                        <div class="sugerencias-box mb-2">
-                            @foreach ($resultadosBusqueda as $r)
-                            <button type="button"
-                                    class="sugerencia-item list-group-item list-group-item-action border-0 py-2 px-3"
-                                    wire:click="seleccionarCliente({{ $r['id'] }})">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <i class="fa fa-user-circle-o text-primary mr-1" style="font-size:12px;"></i>
-                                        <strong style="font-size:13px;">{{ $r['nombre'] }}</strong>
-                                    </div>
-                                    @if ($r['rtn'])
-                                    <span class="badge badge-light border" style="font-size:10px; color:#666;">{{ $r['rtn'] }}</span>
-                                    @endif
+                                {{-- Sugerencias --}}
+                                @if (count($resultadosBusqueda) > 0)
+                                <div class="sugerencias-box" style="position:absolute; z-index:50; left:0; right:0; top:calc(100% + 4px);">
+                                    @foreach ($resultadosBusqueda as $r)
+                                    <button type="button"
+                                            class="sugerencia-item list-group-item list-group-item-action border-0 py-2 px-3"
+                                            wire:click="seleccionarCliente({{ $r['id'] }})">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <i class="fa fa-user-circle-o text-primary mr-1" style="font-size:12px;"></i>
+                                                <strong style="font-size:13px;">{{ $r['nombre'] }}</strong>
+                                            </div>
+                                            @if ($r['rtn'])
+                                            <span class="badge badge-light border" style="font-size:10px; color:#666;">{{ $r['rtn'] }}</span>
+                                            @endif
+                                        </div>
+                                        @if (!empty($r['direccion']))
+                                        <small class="text-muted d-block" style="font-size:11px; margin-top:1px;">
+                                            <i class="fa fa-map-marker mr-1"></i>{{ Str::limit($r['direccion'], 60) }}
+                                        </small>
+                                        @endif
+                                    </button>
+                                    @endforeach
+                                    <button type="button"
+                                            class="list-group-item list-group-item-action border-0 py-2 px-3 text-success"
+                                            wire:click="abrirModalCrearCliente"
+                                            style="font-size:12px; background:#f0fdf4; border-top:1px solid #dcfce7 !important;">
+                                        <i class="fa fa-plus-circle mr-1"></i>
+                                        No lo veo — <strong>Crear nuevo cliente</strong>
+                                    </button>
                                 </div>
-                                @if (!empty($r['direccion']))
-                                <small class="text-muted d-block" style="font-size:11px; margin-top:1px;">
-                                    <i class="fa fa-map-marker mr-1"></i>{{ Str::limit($r['direccion'], 60) }}
-                                </small>
+                                @elseif ($hasBuscado && strlen(trim($busqueda)) >= 2)
+                                <div style="background:#fff8e1; border:1px solid #ffc107; border-radius:8px; padding:8px 12px; font-size:12px; margin-top:4px; display:flex; align-items:center; justify-content:space-between;">
+                                    <span><i class="fa fa-info-circle text-warning mr-1"></i>Sin resultados para <strong>"{{ $busqueda }}"</strong></span>
+                                    <button type="button" class="btn btn-success btn-sm ml-2" wire:click="abrirModalCrearCliente" style="border-radius:20px; font-size:11px;">
+                                        <i class="fa fa-plus"></i> Crear
+                                    </button>
+                                </div>
                                 @endif
-                            </button>
-                            @endforeach
-                            <button type="button"
-                                    class="list-group-item list-group-item-action border-0 py-2 px-3 text-success"
-                                    wire:click="abrirModalCrearCliente"
-                                    style="font-size:12px; background:#f0fdf4; border-top:1px solid #dcfce7 !important;">
-                                <i class="fa fa-plus-circle mr-1"></i>
-                                No lo veo — <strong>Crear nuevo cliente</strong>
-                            </button>
-                        </div>
-
-                        {{-- Sin resultados tras búsqueda explícita --}}
-                        @elseif ($hasBuscado && strlen(trim($busqueda)) >= 2)
-                        <div class="pedido-search-wrap mb-2">
-                            <div class="d-flex align-items-center justify-content-between"
-                                 style="background:#fff8e1; border:1px solid #ffc107; border-radius:8px; padding:10px 14px; font-size:13px;">
-                                <div>
-                                    <i class="fa fa-info-circle text-warning mr-1"></i>
-                                    Sin resultados para <strong>"{{ $busqueda }}"</strong>
-                                </div>
-                                <button type="button" class="btn btn-success btn-sm ml-2" wire:click="abrirModalCrearCliente"
-                                        style="border-radius:20px; font-size:11px;">
-                                    <i class="fa fa-plus"></i> Crear
+                                @else
+                                {{-- Cliente ya seleccionado: botón cambiar compact --}}
+                                <button type="button" class="btn btn-outline-secondary btn-sm w-100" wire:click="limpiarCliente"
+                                        style="border-radius:8px; font-size:12px;">
+                                    <i class="fa fa-times mr-1"></i>Cambiar cliente
                                 </button>
+                                @endif
                             </div>
-                        </div>
-                        @endif
-                        @endif
 
-                        {{-- Tarjeta del cliente seleccionado --}}
-                        @if ($clienteSeleccionado)
-                        <div class="cliente-card mb-3" style="max-width:640px;">
-                            <div class="card mb-0" style="border:none; background:linear-gradient(135deg,#f0fff8,#e8f4ff); border-radius:12px; box-shadow:0 3px 14px rgba(26,179,148,.15);">
-                                <div class="card-body">
-                                    <div class="d-flex justify-content-between align-items-start mb-1">
-                                        <div>
-                                            <p class="mb-0 text-muted" style="font-size:10px; text-transform:uppercase; letter-spacing:1px;">Cliente seleccionado</p>
-                                            <h5 class="mb-0 mt-1" style="color:#1a7efb; font-size:16px;">
-                                                <i class="fa fa-user-circle mr-1"></i>{{ $clienteSeleccionado['nombre'] }}
-                                            </h5>
+                            {{-- Columna derecha: info condensada del cliente seleccionado --}}
+                            @if ($clienteSeleccionado)
+                            <div class="cliente-card" style="flex:1; min-width:260px; animation:fadeInUp .25s ease both;">
+                                <div style="background:linear-gradient(135deg,#f0fff8,#e8f4ff); border-radius:10px;
+                                            box-shadow:0 2px 10px rgba(26,179,148,.12); padding:10px 16px;
+                                            display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+                                    <div style="flex:0 0 auto;">
+                                        <div style="font-size:10px; text-transform:uppercase; letter-spacing:.8px; color:#999; line-height:1;">Cliente</div>
+                                        <div style="font-size:15px; font-weight:700; color:#1a7efb; margin-top:2px;">
+                                            <i class="fa fa-user-circle mr-1"></i>{{ $clienteSeleccionado['nombre'] }}
                                         </div>
-                                        <button type="button" class="btn btn-outline-secondary btn-sm" wire:click="limpiarCliente"
-                                                style="border-radius:20px; font-size:11px; white-space:nowrap;">
-                                            <i class="fa fa-times mr-1"></i>Cambiar
-                                        </button>
                                     </div>
-                                    <div class="cliente-info-grid">
-                                        <div class="cliente-info-item">
-                                            <small>RTN</small>
-                                            <strong>{{ $clienteSeleccionado['rtn'] ?? '—' }}</strong>
-                                        </div>
-                                        <div class="cliente-info-item">
-                                            <small>Teléfono</small>
-                                            <strong>{{ $clienteSeleccionado['telefono_empresa'] ?? '—' }}</strong>
-                                        </div>
-                                        <div class="cliente-info-item">
-                                            <small>Correo</small>
-                                            <strong>{{ $clienteSeleccionado['correo'] ?? '—' }}</strong>
-                                        </div>
-                                        @if ($clienteSeleccionado['credito'])
-                                        <div class="cliente-info-item">
-                                            <small>Crédito</small>
-                                            <span class="badge badge-success" style="font-size:12px;">
-                                                L. {{ number_format($clienteSeleccionado['credito'], 2) }}
-                                            </span>
+                                    <div style="display:flex; gap:16px; flex-wrap:wrap; flex:1;">
+                                        @if($clienteSeleccionado['rtn'] ?? null)
+                                        <div style="line-height:1.3;">
+                                            <div style="font-size:9px; text-transform:uppercase; color:#aaa;">RTN</div>
+                                            <div style="font-size:12px; font-weight:600; color:#444;">{{ $clienteSeleccionado['rtn'] }}</div>
                                         </div>
                                         @endif
-                                        <div class="cliente-info-item" style="grid-column: 1 / -1;">
-                                            <small>Dirección</small>
-                                            <strong>{{ $clienteSeleccionado['direccion'] ?? '—' }}</strong>
+                                        @if($clienteSeleccionado['telefono_empresa'] ?? null)
+                                        <div style="line-height:1.3;">
+                                            <div style="font-size:9px; text-transform:uppercase; color:#aaa;">Tel</div>
+                                            <div style="font-size:12px; font-weight:600; color:#444;">{{ $clienteSeleccionado['telefono_empresa'] }}</div>
                                         </div>
+                                        @endif
+                                        @if($clienteSeleccionado['credito'] ?? null)
+                                        <div style="line-height:1.3;">
+                                            <div style="font-size:9px; text-transform:uppercase; color:#aaa;">Crédito</div>
+                                            <div style="font-size:12px; font-weight:700; color:#27ae60;">L. {{ number_format($clienteSeleccionado['credito'], 2) }}</div>
+                                        </div>
+                                        @endif
+                                        @if($clienteSeleccionado['direccion'] ?? null)
+                                        <div style="line-height:1.3;">
+                                            <div style="font-size:9px; text-transform:uppercase; color:#aaa;">Dirección</div>
+                                            <div style="font-size:12px; color:#555;">{{ Str::limit($clienteSeleccionado['direccion'], 45) }}</div>
+                                        </div>
+                                        @endif
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                        @endif
+                            @endif
 
-                        <hr class="my-3" style="border-color:#edf1f9;">
+                        </div>{{-- /fila buscador+info --}}
 
                         {{-- ==================== SECCIÓN 2: PRODUCTOS ==================== --}}
                         <div class="pedido-section-heading">

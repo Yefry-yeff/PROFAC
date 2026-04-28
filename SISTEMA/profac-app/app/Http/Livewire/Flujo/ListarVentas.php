@@ -96,11 +96,10 @@ class ListarVentas extends Component
             ->join('users as u', 'u.id', '=', 'p.users_id')
             ->leftJoin('historico_flujo as hf', function ($join) {
                 $join->on('hf.tramite_id', '=', 'p.id')
-                     ->where('hf.tipo_tramite_id', '=', 1); // 1 = 'pedido' en tipos_tramites
+                     ->where('hf.tramite_tipo', '=', 'pedido');
             })
             ->leftJoin('flujo as f', 'f.id', '=', 'hf.flujo_id')
-            ->leftJoin('tipos_tramites as te', 'te.id', '=', 'f.tipo_tramite_id')
-            ->leftJoin('estado_venta as ev_hf', 'ev_hf.id', '=', 'hf.estado_id')
+            ->leftJoin('tipos_estatus as te', 'te.id', '=', 'f.estatus_id')
             ->select(
                 'p.id',
                 'c.nombre as cliente',
@@ -113,7 +112,7 @@ class ListarVentas extends Component
                 'p.updated_at as pedido_updated_at',
                 'f.id as flujo_id',
                 'te.nombre as estatus_flujo',
-                'ev_hf.descripcion as estado_flujo',
+                'hf.estado as estado_flujo',
                 DB::raw('(SELECT COUNT(*) FROM pedido_detalle pd WHERE pd.pedido_id = p.id) as total_productos'),
                 DB::raw('(SELECT COUNT(*) FROM historico_flujo hf INNER JOIN flujo f ON f.id = hf.flujo_id WHERE f.identificacion = CAST(p.id AS CHAR) AND f.tipo_flujo_id = 1 AND hf.tipo_tramite_id = 2) as has_ofertas'),
                 DB::raw('(SELECT COUNT(*) FROM historico_flujo hf INNER JOIN flujo f ON f.id = hf.flujo_id WHERE f.identificacion = CAST(p.id AS CHAR) AND f.tipo_flujo_id = 1 AND hf.tipo_tramite_id = 2 AND hf.observaciones = \'ganadora\') as has_ganadora')
@@ -210,20 +209,20 @@ class ListarVentas extends Component
 
             // Actualizar el flujo si existe
             $hf = DB::table('historico_flujo')
-                ->where('tipo_tramite_id', 1) // 'pedido' en tipos_tramites
+                ->where('tramite_tipo', 'pedido')
                 ->where('tramite_id', $this->pedidoAnularId)
                 ->first();
 
             if ($hf) {
-                // Estatus 'cancelado' — actualizar estado_id en historico
+                // Estatus 'cancelado' — buscamos o usamos el estado directamente en historico
                 DB::table('historico_flujo')
                     ->where('id', $hf->id)
-                    ->update(['estado_id' => DB::table('estado_venta')->where('descripcion', 'cancelado')->value('id'), 'updated_by' => Auth::id(), 'updated_at' => now()]);
+                    ->update(['estado' => 'cancelado', 'updated_by' => Auth::id(), 'updated_at' => now()]);
 
-                // Buscar estatus "cancelado" en tipos_tramites o marcar flujo como inactivo
+                // Buscar estatus "cancelado" en tipos_estatus o marcar flujo como inactivo
                 DB::table('flujo')
                     ->where('id', $hf->flujo_id)
-                    ->update(['updated_by' => Auth::id(), 'updated_at' => now()]);
+                    ->update(['estado' => 'cancelado', 'updated_by' => Auth::id(), 'updated_at' => now()]);
             }
 
             DB::commit();
@@ -244,18 +243,17 @@ class ListarVentas extends Component
             ->join('users as u', 'u.id', '=', 'p.users_id')
             ->leftJoin('historico_flujo as hf', function ($join) {
                 $join->on('hf.tramite_id', '=', 'p.id')
-                     ->where('hf.tipo_tramite_id', '=', 1); // 1 = 'pedido' en tipos_tramites
+                     ->where('hf.tramite_tipo', '=', 'pedido');
             })
             ->leftJoin('flujo as f', 'f.id', '=', 'hf.flujo_id')
-            ->leftJoin('tipos_tramites as te', 'te.id', '=', 'f.tipo_tramite_id')
-            ->leftJoin('estado_venta as ev_hf', 'ev_hf.id', '=', 'hf.estado_id')
+            ->leftJoin('tipos_estatus as te', 'te.id', '=', 'f.estatus_id')
             ->select(
-                'p.id', 'p.estado', 'p.observaciones', 'p.created_at', 'p.updated_at',
+                'p.id', 'p.estado', 'p.sub_estado_entrega', 'p.observaciones', 'p.created_at', 'p.updated_at',
                 'c.nombre as cliente',
                 'u.name as registrado_por',
                 'f.id as flujo_id',
                 'te.nombre as estatus_flujo',
-                'ev_hf.descripcion as estado_flujo',
+                'hf.estado as estado_flujo',
                 'hf.observaciones as obs_flujo'
             )
             ->where('p.id', $id)
@@ -330,7 +328,7 @@ class ListarVentas extends Component
 
             // Actualizar auditoría en flujo si existe
             $hf = DB::table('historico_flujo')
-                ->where('tipo_tramite_id', 1) // 'pedido' en tipos_tramites
+                ->where('tramite_tipo', 'pedido')
                 ->where('tramite_id', $this->pedidoReasignarId)
                 ->first();
 
@@ -398,17 +396,17 @@ class ListarVentas extends Component
 
             // Avanzar flujo al estatus prefactura (id=4)
             $hf = DB::table('historico_flujo')
-                ->where('tipo_tramite_id', 1) // 'pedido' en tipos_tramites
+                ->where('tramite_tipo', 'pedido')
                 ->where('tramite_id', $this->pedidoGanadoraId)
                 ->first();
 
             if ($hf) {
                 DB::table('flujo')
                     ->where('id', $hf->flujo_id)
-                    ->update(['tipo_tramite_id' => 4, 'updated_by' => Auth::id(), 'updated_at' => now()]);
+                    ->update(['estatus_id' => 4, 'updated_by' => Auth::id(), 'updated_at' => now()]);
                 DB::table('historico_flujo')
                     ->where('id', $hf->id)
-                    ->update(['estado_id' => DB::table('estado_venta')->where('descripcion', 'pre_factura')->value('id'), 'updated_by' => Auth::id(), 'updated_at' => now()]);
+                    ->update(['estado' => 'pre_factura', 'updated_by' => Auth::id(), 'updated_at' => now()]);
             }
 
             DB::commit();

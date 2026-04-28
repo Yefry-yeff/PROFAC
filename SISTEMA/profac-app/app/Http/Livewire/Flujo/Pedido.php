@@ -418,24 +418,25 @@ class Pedido extends Component
                 ]);
             }
 
-            // Registrar en el sistema de flujo (tipo_flujo_id=1 = 'venta', tipo_tramite_id=1 = 'pedido')
+            // Registrar en el sistema de flujo (tipo_flujo_id=1 = 'venta', estatus_id=1 = 'pedido')
             $flujoId = DB::table('flujo')->insertGetId([
-                'tipo_flujo_id'   => 1,
-                'identificacion'  => (string) $pedidoId,
-                'nombre'          => $this->clienteSeleccionado['nombre'],
-                'tipo_tramite_id' => 1,
-                'created_by'      => Auth::id(),
-                'updated_by'      => Auth::id(),
-                'created_at'      => now(),
-                'updated_at'      => now(),
+                'tipo_flujo_id' => 1,
+                'identificacion'=> (string) $pedidoId,
+                'nombre'        => $this->clienteSeleccionado['nombre'],
+                'estado'        => 'activo',
+                'estatus_id'    => 1,
+                'created_by'    => Auth::id(),
+                'updated_by'    => Auth::id(),
+                'created_at'    => now(),
+                'updated_at'    => now(),
             ]);
 
             DB::table('historico_flujo')->insert([
-                'flujo_id'        => $flujoId,
-                'tipo_tramite_id' => 1, // 'pedido' en tipos_tramites
-                'tramite_id'      => $pedidoId,
-                'estado_id'       => DB::table('estado_venta')->where('descripcion', 'pendiente')->value('id'),
-                'observaciones'   => null,
+                'flujo_id'    => $flujoId,
+                'tramite_tipo'=> 'pedido',
+                'tramite_id'  => $pedidoId,
+                'estado'      => 'pendiente',
+                'observaciones'=> null,
                 'created_by'  => Auth::id(),
                 'updated_by'  => Auth::id(),
                 'created_at'  => now(),
