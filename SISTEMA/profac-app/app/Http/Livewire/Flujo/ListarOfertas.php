@@ -31,6 +31,15 @@ class ListarOfertas extends Component
     public $busquedaPedido     = '';
     public $pedidosEncontrados = [];
 
+    // ── Modal detalle / acciones de pedido ────────────────────────────────
+    public $showModalPedido    = false;
+    public $pedidoSeleccionado = null;   // array
+    public $pedidoDetalles     = [];     // array of arrays
+    public $confirmAccion      = null;   // 'anular' | 'duplicar'
+    public $mensajeExito       = '';
+    public $mensajeError       = '';
+    public $motivoAnulacion    = '';
+
     // ── Reset paginación al cambiar filtros ───────────────────────────────
     public function updatedBusquedaCliente() { $this->pagina = 1; }
     public function updatedFiltroFecha()     { $this->pagina = 1; }
@@ -66,8 +75,8 @@ class ListarOfertas extends Component
                 'c.nombre as cliente',
                 'c.rtn',
                 'u.name as registrado_por',
-                DB::raw('(SELECT COUNT(*) FROM oferta o WHERE o.pedido_id = p.id) as total_ofertas'),
-                DB::raw('(SELECT COUNT(*) FROM oferta o WHERE o.pedido_id = p.id AND o.estado = \'ganadora\') as has_ganadora')
+                DB::raw('(SELECT COUNT(*) FROM historico_flujo hf INNER JOIN flujo f ON f.id = hf.flujo_id WHERE f.identificacion = CAST(p.id AS CHAR) AND f.tipo_flujo_id = 1 AND hf.tipo_tramite_id = 2) as total_ofertas'),
+                DB::raw('(SELECT COUNT(*) FROM historico_flujo hf INNER JOIN flujo f ON f.id = hf.flujo_id WHERE f.identificacion = CAST(p.id AS CHAR) AND f.tipo_flujo_id = 1 AND hf.tipo_tramite_id = 2 AND hf.observaciones = \'ganadora\') as has_ganadora')
             )
             ->orderByDesc('p.created_at')
             ->limit(10);
@@ -163,6 +172,123 @@ class ListarOfertas extends Component
         $this->filtroPedido    = '';
         $this->filtroEstado    = '';
         $this->pagina          = 1;
+    }
+
+    // ── Modal: abrir con detalle del pedido ───────────────────────────────
+    public function abrirModalPedido(int $pedidoId): void
+    {
+        $pedido = DB::table('pedido as p')
+            ->join('cliente as c', 'c.id', '=', 'p.cliente_id')
+            ->leftJoin('users as u', 'u.id', '=', 'p.users_id')
+            ->select(
+                'p.id', 'p.estado', 'p.observaciones', 'p.created_at',
+                'c.nombre as cliente', 'c.rtn',
+                'u.name as registrado_por',
+                DB::raw('(SELECT COUNT(*) FROM historico_flujo hf INNER JOIN flujo f ON f.id = hf.flujo_id WHERE f.identificacion = CAST(p.id AS CHAR) AND f.tipo_flujo_id = 1 AND hf.tipo_tramite_id = 2) as total_ofertas'),
+                DB::raw('(SELECT COUNT(*) FROM historico_flujo hf INNER JOIN flujo f ON f.id = hf.flujo_id WHERE f.identificacion = CAST(p.id AS CHAR) AND f.tipo_flujo_id = 1 AND hf.tipo_tramite_id = 2 AND hf.observaciones = \'ganadora\') as has_ganadora'),
+                DB::raw('(SELECT tt.nombre FROM flujo f INNER JOIN tipos_tramites tt ON tt.id = f.tipo_tramite_id WHERE f.identificacion = CAST(p.id AS CHAR) AND f.tipo_flujo_id = 1 LIMIT 1) as estatus_flujo')
+            )
+            ->where('p.id', $pedidoId)
+            ->first();
+
+        if (!$pedido) return;
+
+        $this->pedidoSeleccionado = (array) $pedido;
+        $this->pedidoDetalles     = DB::table('pedido_detalle')
+            ->where('pedido_id', $pedidoId)
+            ->get()
+            ->map(fn($r) => (array) $r)
+            ->toArray();
+        $this->confirmAccion   = null;
+        $this->mensajeExito    = '';
+        $this->mensajeError    = '';
+        $this->motivoAnulacion = '';
+        $this->showModalPedido = true;
+    }
+
+    public function cerrarModalPedido(): void
+    {
+        $this->showModalPedido    = false;
+        $this->pedidoSeleccionado = null;
+        $this->pedidoDetalles     = [];
+        $this->confirmAccion      = null;
+        $this->mensajeExito       = '';
+        $this->mensajeError       = '';
+        $this->motivoAnulacion    = '';
+    }
+
+    public function confirmarAccion(string $accion): void
+    {
+        $this->confirmAccion = $accion;
+    }
+
+    public function cancelarConfirmacion(): void
+    {
+        $this->confirmAccion   = null;
+        $this->motivoAnulacion = '';
+    }
+
+    public function anularPedido(): void
+    {
+        if (!$this->pedidoSeleccionado) return;
+
+        $this->motivoAnulacion = trim($this->motivoAnulacion);
+        if ($this->motivoAnulacion === '') {
+            $this->mensajeError = 'Debe indicar el motivo de anulación.';
+            return;
+        }
+
+        $pedidoId = $this->pedidoSeleccionado['id'];
+
+        DB::beginTransaction();
+        try {
+            DB::table('pedido')->where('id', $pedidoId)
+                ->update(['estado' => 'cancelado', 'updated_at' => now()]);
+
+            $canceladoId = DB::table('estado_venta')->where('descripcion', 'cancelado')->value('id');
+            $hf = DB::table('historico_flujo')
+                ->where('tipo_tramite_id', 1)
+                ->where('tramite_id', $pedidoId)
+                ->first();
+            if ($hf) {
+                DB::table('historico_flujo')->where('id', $hf->id)
+                    ->update([
+                        'estado_id'     => $canceladoId,
+                        'observaciones' => 'Anulado: ' . $this->motivoAnulacion,
+                        'updated_by'    => Auth::id(),
+                        'updated_at'    => now(),
+                    ]);
+                DB::table('flujo')->where('id', $hf->flujo_id)
+                    ->update(['estado_id' => $canceladoId, 'updated_by' => Auth::id(), 'updated_at' => now()]);
+            }
+
+            DB::commit();
+            $this->confirmAccion = null;
+            $this->motivoAnulacion = '';
+            $this->abrirModalPedido($pedidoId); // recarga datos actualizados, resetea mensajes
+            $this->mensajeExito = 'Pedido #'.$pedidoId.' anulado correctamente.';
+        } catch (\Exception $e) {
+            DB::rollBack();
+            $this->confirmAccion = null;
+            $this->mensajeError  = 'Error al anular: '.$e->getMessage();
+        }
+    }
+
+    public function duplicarPedido(): void
+    {
+        if (!$this->pedidoSeleccionado) return;
+        $pedidoId = $this->pedidoSeleccionado['id'];
+
+        $productos = DB::table('pedido_detalle')
+            ->where('pedido_id', $pedidoId)
+            ->get(['nombre_producto', 'cantidad'])
+            ->map(fn($r) => ['nombre_producto' => $r->nombre_producto, 'cantidad' => $r->cantidad])
+            ->toArray();
+
+        $param = base64_encode(json_encode($productos));
+        $url   = route('flujo.pedido') . '?productos=' . urlencode($param);
+        $this->dispatchBrowserEvent('abrir-nueva-pestana', ['url' => $url]);
+        $this->cerrarModalPedido();
     }
 
     // ── Render ───────────────────────────────────────────────────────────
