@@ -175,7 +175,7 @@
                         <div class="ibox-content py-3 px-3">
                             <div class="accion-grid">
 
-                                <a href="/proforma/cotizacion/2?from=flujo&pedidoId={{ $pedidoGuardadoId }}" class="accion-btn"
+                                <a href="/proforma/cotizacion/1" class="accion-btn"
                                    style="background:linear-gradient(135deg,#1a7efb,#0d6efd); box-shadow:0 4px 14px rgba(26,126,251,.35);"
                                    title="Crear Oferta">
                                     <i class="fa fa-file-text-o accion-icon"></i>

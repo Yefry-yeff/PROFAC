@@ -94,20 +94,6 @@ class Pedido extends Component
     public function mount()
     {
         $this->numeroPedido = (DB::table('pedido')->max('id') ?? 0) + 1;
-
-        // Si se llega con productos pre-cargados (ej: desde duplicar pedido)
-        $productosParam = request('productos');
-        if ($productosParam) {
-            $decoded = json_decode(base64_decode($productosParam), true);
-            if (is_array($decoded) && count($decoded) > 0) {
-                $this->items = array_map(fn($p) => [
-                    'nombre_producto' => $p['nombre_producto'] ?? '',
-                    'cantidad'        => $p['cantidad'] ?? 1,
-                ], $decoded);
-                return;
-            }
-        }
-
         $this->items = [
             ['nombre_producto' => '', 'cantidad' => 1],
         ];
