@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Auth;
 class Ventas extends Component
 {
     public $titulo = 'Ventas';
-    public $step = 'select'; // 'select' | 'pedido_options' | 'historial_pedidos' | 'oferta' | 'prefactura' | 'factura_options'
+    public $step = 'select'; // 'select' | 'oferta' | 'prefactura' | 'factura_options'
 
     public function render()
     {
@@ -18,17 +18,7 @@ class Ventas extends Component
 
     public function selectPedido()
     {
-        $this->step = 'pedido_options';
-    }
-
-    public function selectIngresarPedido()
-    {
         return $this->redirect(route('flujo.pedido'));
-    }
-
-    public function selectHistorialPedidos()
-    {
-        $this->step = 'historial_pedidos';
     }
 
     public function selectOferta()
@@ -65,11 +55,6 @@ class Ventas extends Component
     public function goBack()
     {
         $this->step = 'select';
-    }
-
-    public function abrirModalPedido(int $pedidoId): void
-    {
-        $this->emit('abrirFlujoPedido', $pedidoId);
     }
 
     /**

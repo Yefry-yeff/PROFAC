@@ -1090,7 +1090,10 @@
         }
     </style>
 
-    <script>
+</div>
+
+@push('scripts')
+<script>
 function cerrarFlujoYEditar(url, titulo) {
     // Close the flujo Livewire modal, then open the edit iframe modal
     window.livewire.emit('cerrarFlujoDesdeJS');
@@ -1131,5 +1134,5 @@ window.addEventListener('message', function(e) {
         cerrarModalPedido();
     }
 });
-    </script>
-</div>
+</script>
+@endpush

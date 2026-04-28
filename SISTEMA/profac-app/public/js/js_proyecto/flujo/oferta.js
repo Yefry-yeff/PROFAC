@@ -293,7 +293,9 @@
                             </div>`
 
                             document.getElementById('bloqueImagenes').innerHTML = htmlImagenes;
-                            // No mostrar el botón aquí: debe aparecer solo después de seleccionar bodega
+
+                            var element = document.getElementById('botonAdd');
+                            if (element) element.classList.remove("d-none");
 
                         } else {
                             imagenes.forEach(element => {
@@ -375,18 +377,7 @@
                 let idProducto = document.getElementById('seleccionarProducto').value;
                 let categoria_cliente_venta_id = document.getElementById('categoria_cliente_venta_id').value;
 
-                // Validar que se haya seleccionado una bodega antes de agregar
-                var bodegaDataArr = $("#bodega").select2('data');
-                if (!bodegaDataArr || !bodegaDataArr.length || !bodegaDataArr[0].idBodega) {
-                    Swal.fire({
-                        icon: 'warning',
-                        title: 'Bodega requerida',
-                        text: 'Debe seleccionar una bodega antes de agregar el producto al carrito.'
-                    });
-                    return;
-                }
-
-                let data = bodegaDataArr[0];
+                let data = $("#bodega").select2('data')[0];
                 let bodega = data.bodegaSeccion;
                 let idBodega = data.idBodega;
                 let idSeccion = data.id

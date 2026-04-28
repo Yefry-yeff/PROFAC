@@ -114,8 +114,8 @@ class ListarVentas extends Component
                 'te.nombre as estatus_flujo',
                 'hf.estado as estado_flujo',
                 DB::raw('(SELECT COUNT(*) FROM pedido_detalle pd WHERE pd.pedido_id = p.id) as total_productos'),
-                DB::raw('(SELECT COUNT(*) FROM historico_flujo hf INNER JOIN flujo f ON f.id = hf.flujo_id WHERE f.identificacion = CAST(p.id AS CHAR) AND f.tipo_flujo_id = 1 AND hf.tipo_tramite_id = 2) as has_ofertas'),
-                DB::raw('(SELECT COUNT(*) FROM historico_flujo hf INNER JOIN flujo f ON f.id = hf.flujo_id WHERE f.identificacion = CAST(p.id AS CHAR) AND f.tipo_flujo_id = 1 AND hf.tipo_tramite_id = 2 AND hf.observaciones = \'ganadora\') as has_ganadora')
+                DB::raw('(SELECT COUNT(*) FROM oferta o WHERE o.pedido_id = p.id) as has_ofertas'),
+                DB::raw('(SELECT COUNT(*) FROM oferta o WHERE o.pedido_id = p.id AND o.estado = \'ganadora\') as has_ganadora')
             )
             ->orderByDesc('p.created_at');
 
@@ -260,17 +260,10 @@ class ListarVentas extends Component
             ->first();
 
         if ($pedido) {
-            $ofertas = DB::table('historico_flujo as hf')
-                ->join('cotizacion as co', 'co.id', '=', 'hf.tramite_id')
-                ->join('flujo as f2', 'f2.id', '=', 'hf.flujo_id')
-                ->where('f2.identificacion', (string) $id)
-                ->where('f2.tipo_flujo_id', 1)
-                ->where('hf.tipo_tramite_id', 2)
-                ->select(
-                    'co.id', 'co.nombre_cliente', 'co.total', 'co.created_at',
-                    DB::raw("IF(hf.observaciones = 'ganadora', 'ganadora', 'activa') as estado")
-                )
-                ->orderBy('co.id')
+            $ofertas = DB::table('oferta')
+                ->where('pedido_id', $id)
+                ->select('id', 'nombre_cliente', 'total', 'created_at', 'estado')
+                ->orderBy('id')
                 ->limit(10)
                 ->get();
 
