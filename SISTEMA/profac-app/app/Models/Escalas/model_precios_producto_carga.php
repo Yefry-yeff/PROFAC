@@ -23,6 +23,8 @@ class model_precios_producto_carga extends Model
         'precio_base_venta',
         'tipo_categoria_precio_id',
         'users_id_creador',
+        'users_id_actualizador',
+        'fecha_ultima_actualizacion',
         'precio_compra_usd',
         'tipo_cambio_usd',
         'precio_hnl',

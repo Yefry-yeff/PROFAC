@@ -251,7 +251,7 @@ class ListarPedidos extends Component
             ->leftJoin('tipos_tramites as te', 'te.id', '=', 'f.tipo_tramite_id')
             ->leftJoin('estado_venta as ev_hf', 'ev_hf.id', '=', 'hf.estado_id')
             ->select(
-                'p.id', 'p.estado', 'p.observaciones', 'p.created_at', 'p.updated_at',
+                'p.id', 'p.estado', 'p.sub_estado_entrega', 'p.observaciones', 'p.created_at', 'p.updated_at',
                 'c.nombre as cliente',
                 'u.name as registrado_por',
                 'f.id as flujo_id',
