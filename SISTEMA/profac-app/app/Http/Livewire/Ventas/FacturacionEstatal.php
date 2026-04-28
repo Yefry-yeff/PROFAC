@@ -30,12 +30,14 @@ use Exception;
 class FacturacionEstatal extends Component
 {
     public $idCotizacion = null;
+    public $fromFlujo = false;
 
     public function mount($id = null)
     {
         if ($id) {
             $this->idCotizacion = $id;
         }
+        $this->fromFlujo = request()->get('from') === 'flujo';
     }
 
     // Nota: Este componente solo se usa como controlador API.
@@ -160,7 +162,7 @@ class FacturacionEstatal extends Component
                 on A.unidad_medida_id = B.id
                 where A.producto_id = " . $producto->producto_id
             );
-            
+
             // Obtener los precios del producto usando la categoría correcta
             $preciosProducto = DB::selectOne("
                 SELECT
@@ -173,7 +175,7 @@ class FacturacionEstatal extends Component
                 WHERE ppc.id = " . ($producto->precios_producto_carga_id ?? 0) . "
                 LIMIT 1
             ");
-            
+
             // Si no se encontraron precios, intentar con la categoría del cliente
             if (!$preciosProducto && $producto->cliente_categoria_escala_id) {
                 $preciosProducto = DB::selectOne("
@@ -191,7 +193,7 @@ class FacturacionEstatal extends Component
                     LIMIT 1
                 ");
             }
-            
+
             // Construir HTML de opciones de precios
             $htmlPrecios = '';
             if ($preciosProducto) {

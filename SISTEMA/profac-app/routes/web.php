@@ -89,8 +89,8 @@ use App\Http\Livewire\ComprovanteEntrega\CrearComprovante;
 use App\Http\Livewire\ComprovanteEntrega\ListarComprovantes;
 use App\Http\Livewire\ComprovanteEntrega\ListarComprovantesAnulados;
 use App\Http\Livewire\ComprovanteEntrega\FacturarComprobante;
-// use App\Http\Livewire\VentasEstatal\SinRestriccionGobierno; // Movido a codigo-muerto
 use App\Http\Livewire\Ventas\FacturacionUnificada;
+
 
 
 use App\Http\Livewire\CuentasPorCobrar\Pagos;
@@ -203,8 +203,6 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::post('/submenu/guardar', [App\Http\Controllers\MenuController::class, 'guardarSubmenu']);
     Route::get('/submenu/obtener/{id}', [App\Http\Controllers\MenuController::class, 'obtenerSubmenu']);
     Route::put('/submenu/actualizar/{id}', [App\Http\Controllers\MenuController::class, 'actualizarSubmenu']);
-    Route::get('/menu/obtener/{id}/submenus', [App\Http\Controllers\MenuController::class, 'obtenerSubmenusDeMenu']);
-    Route::post('/submenu/toggle-estado/{id}', [App\Http\Controllers\MenuController::class, 'toggleEstadoSubmenu']);
 
     //---------------------------------------configuracion-------------------------------//
     Route::get('/configuracion/datos', [Configuracion::class, 'parametros']);
@@ -239,14 +237,14 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     // Rutas para listas de empleados y roles
     Route::get('/comision/empleados/lista', [ReportesComisionesGenerales::class, 'listarEmpleados']);
     Route::get('/comision/roles/lista', [ReportesComisionesGenerales::class, 'listarRoles']);
-    
+
     // Rutas para los 5 tipos de reportes
     Route::get('/comision/reporte/empleado', [ReportesComisionesGenerales::class, 'reporteEmpleado']);
     Route::get('/comision/reporte/rol', [ReportesComisionesGenerales::class, 'reporteRol']);
     Route::get('/comision/reporte/usuarios', [ReportesComisionesGenerales::class, 'reporteUsuarios']);
     Route::get('/comision/reporte/productos', [ReportesComisionesGenerales::class, 'reporteProductos']);
     Route::get('/comision/reporte/facturas', [ReportesComisionesGenerales::class, 'reporteFacturas']);
-    
+
     // Ruta para descarga de Excel
     Route::get('/comision/reporte/excel', [ReportesComisionesGenerales::class, 'descargarExcel']);
 
@@ -255,14 +253,78 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/clientes/categorias', CategoriaClientes::class);
     Route::get('/descargar-plantilla', [App\Http\Controllers\ExcelController::class, 'descargarPlantilla'])->name('excel.plantilla');
     Route::get('/filtros/marca', function() {
-        return \App\Models\ModelMarca::select('id','nombre')->get();
+        return \Illuminate\Support\Facades\Cache::remember('filtros_marca', 300, fn () =>
+            \App\Models\ModelMarca::select('id','nombre')->orderBy('nombre')->get()
+        );
     });
 
     Route::get('/filtros/categoria', function() {
-        return \App\Models\ModelCategoriaProducto::select('id','descripcion as nombre')->get();
+        return \Illuminate\Support\Facades\Cache::remember('filtros_categoria_producto', 300, fn () =>
+            \App\Models\ModelCategoriaProducto::select('id','descripcion as nombre')->orderBy('descripcion')->get()
+        );
     });
     Route::get('/filtros/categoria/precios', function() {
-        return \App\Models\Escalas\modelCategoriaPrecios::select('id','nombre')->where('estado_id','=',1)->get();
+        return \Illuminate\Support\Facades\Cache::remember('filtros_categoria_precios', 120, fn () =>
+            \App\Models\Escalas\modelCategoriaPrecios::select('id','nombre')->where('estado_id',1)->orderBy('nombre')->get()
+        );
+    });
+    Route::get('/filtros/categoria/precios/por-cliente', function(\Illuminate\Http\Request $req) {
+        $catClienteIds = array_values(array_filter(explode(',', $req->input('cat_cliente_ids', ''))));
+        $catClienteIds = array_slice(array_map('intval', $catClienteIds), 0, 20); // máx 20
+        $cacheKey = 'filtros_cat_precio_' . implode('_', $catClienteIds);
+        return \Illuminate\Support\Facades\Cache::remember($cacheKey, 120, function () use ($catClienteIds) {
+            $query = \Illuminate\Support\Facades\DB::table('categoria_precios')
+                ->select('id', 'nombre')
+                ->where('estado_id', 1)
+                ->orderBy('nombre');
+            if (!empty($catClienteIds)) {
+                $query->whereIn('cliente_categoria_escala_id', $catClienteIds);
+            }
+            return $query->get();
+        });
+    });
+    Route::get('/filtros/categoria/cliente', function() {
+        return \Illuminate\Support\Facades\Cache::remember('filtros_cat_cliente', 120, fn () =>
+            \App\Models\Escalas\modelCategoriaCliente::select('id','nombre_categoria as nombre')
+                ->where('estado_id', 1)->orderBy('nombre_categoria')->get()
+        );
+    });
+    Route::get('/filtros/marca/buscar', function(\Illuminate\Http\Request $req) {
+        $q    = $req->input('q', '');
+        $page = max(1, (int) $req->input('page', 1));
+        $per  = 20;
+        $base = \App\Models\ModelMarca::select('id', 'nombre')
+            ->when($q, fn ($b) => $b->where('nombre', 'LIKE', "%{$q}%"))
+            ->orderBy('nombre');
+        $total   = $base->count();
+        $results = $base->skip(($page - 1) * $per)->take($per)->get();
+        return response()->json([
+            'results'    => $results->map(fn ($r) => ['id' => $r->id, 'text' => $r->nombre]),
+            'pagination' => ['more' => ($page * $per) < $total],
+        ]);
+    });
+    Route::get('/filtros/categoria/buscar', function(\Illuminate\Http\Request $req) {
+        $q    = $req->input('q', '');
+        $page = max(1, (int) $req->input('page', 1));
+        $per  = 20;
+        $base = \App\Models\ModelCategoriaProducto::select('id', 'descripcion as nombre')
+            ->when($q, fn ($b) => $b->where('descripcion', 'LIKE', "%{$q}%"))
+            ->orderBy('descripcion');
+        $total   = $base->count();
+        $results = $base->skip(($page - 1) * $per)->take($per)->get();
+        return response()->json([
+            'results'    => $results->map(fn ($r) => ['id' => $r->id, 'text' => $r->nombre]),
+            'pagination' => ['more' => ($page * $per) < $total],
+        ]);
+    });
+    Route::get('/filtros/produtos', function(\Illuminate\Http\Request $req) {
+        $q = $req->input('q', '');
+        return \Illuminate\Support\Facades\DB::table('producto')
+            ->where('nombre', 'LIKE', "%{$q}%")
+            ->select('id', \Illuminate\Support\Facades\DB::raw("CONCAT(id, ' — ', nombre) as nombre"))
+            ->orderBy('nombre')
+            ->limit(40)
+            ->get();
     });
     /* Categoria de cliente */
     Route::post('/guardar/categoria/cliente', [CategoriaClientes::class, 'guardarCtaegoria']);
@@ -274,6 +336,8 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::post('/guardar/categoria/precios', [CategoriaPrecios::class, 'guardarCtaegoria']);
     Route::get('/listar/categoria/precios', [CategoriaPrecios::class, 'listarCategorias']);
     Route::get('/desactivar/categoria/precios/{idCategoria}', [CategoriaPrecios::class, 'desactivarCategoria']);
+    Route::get('/listar/categorias/precios/por-cliente/{id}', [CategoriaPrecios::class, 'listarCategoriasPorCliente']);
+    Route::post('/actualizar/categoria/precios', [CategoriaPrecios::class, 'actualizarCategoria']);
     /*SUBIDA DE EXCEL */
     // web.php
     Route::post('/importar-excel', [App\Http\Controllers\ExcelController::class, 'importarExcel']);// routes/web.php
@@ -284,6 +348,10 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     ->name('finalizar.excel.precios');
     Route::post('/procesar-excel-precios', [App\Http\Controllers\ExcelController::class, 'procesarExcelPrecios'])
     ->name('procesar.excel.precios');
+    Route::get('/exportar/precios/por-cliente/{clienteCatId}', [App\Http\Controllers\ExcelController::class, 'exportarPreciosPorCliente'])
+    ->name('exportar.precios.por.cliente');
+    Route::get('/exportar/precios/por-categoria/{clienteCatId}/{categoriaPrecioId}', [App\Http\Controllers\ExcelController::class, 'exportarPreciosPorCategoriaPrecio'])
+    ->name('exportar.precios.por.categoria');
 
     /* Gestión masiva de clientes */
 
@@ -301,7 +369,22 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
 
     Route::get('/reportes/escalas', ReportesEscalas::class);
     Route::get('/descargar/productos/filtros', [ReportesEscalas::class, 'descargarPrecios'])->name('excel.productos.filtros');
-    Route::get('/escalas/productos/filtrados', [ReportesEscalas::class, 'listarProductosFiltrados']);
+    Route::get('/escalas/productos/filtrados', [ReportesEscalas::class, 'listarProductosFiltrados'])
+        ->middleware('throttle:40,1');
+
+    // Reportes — JSON para DataTables (client-side)
+    Route::get('/reportes/escalas/cobertura',           [ReportesEscalas::class, 'coberturaJson']);
+    Route::get('/reportes/escalas/sin-precios-cat',     [ReportesEscalas::class, 'sinPreciosCatJson']);
+    Route::get('/reportes/escalas/sin-precios-prod',    [ReportesEscalas::class, 'productosSinPreciosJson']);
+    Route::get('/reportes/escalas/comparativo',         [ReportesEscalas::class, 'comparativoJson']);
+    Route::get('/reportes/escalas/resumen-cat-precio',  [ReportesEscalas::class, 'resumenCatPrecioJson']);
+
+    // Reportes — descargas Excel
+    Route::get('/exportar/cobertura-categorias',    [ReportesEscalas::class, 'descargarCobertura'])->name('exportar.cobertura.categorias');
+    Route::get('/exportar/cat-sin-precios',         [ReportesEscalas::class, 'descargarSinPreciosCat'])->name('exportar.cat.sin.precios');
+    Route::get('/exportar/productos-sin-precios',   [ReportesEscalas::class, 'descargarProductosSinPrecios'])->name('exportar.productos.sin.precios');
+    Route::get('/exportar/comparativo-produto',     [ReportesEscalas::class, 'descargarComparativo'])->name('exportar.comparativo.produto');
+    Route::get('/exportar/resumen-cat-precio',      [ReportesEscalas::class, 'descargarResumenCatPrecio'])->name('exportar.resumen.cat.precio');
 
 
     //-----------------------Bodega---------------------------------------------------------------------------------------------------------------------//
@@ -434,8 +517,9 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/usuarios/{id}/rol-anterior', [App\Http\Livewire\Usuarios\Roles::class, 'obtenerRolAnteriorUsuario']);
     Route::get('/roles/{id}/permisos', [App\Http\Livewire\Usuarios\Roles::class, 'obtenerPermisosDelRol']);
     Route::get('/submenus/todos', [App\Http\Livewire\Usuarios\Roles::class, 'listarTodosSubmenus']);
-    Route::get('/roles/{id}/permisos', [App\Http\Livewire\Usuarios\Roles::class, 'obtenerPermisosDelRol']);
-    Route::get('/submenus/todos', [App\Http\Livewire\Usuarios\Roles::class, 'listarTodosSubmenus']);
+    // Catálogos de jerarquía de roles
+    Route::get('/roles/catalogos/niveles', [App\Http\Livewire\Usuarios\Roles::class, 'listarNiveles'])->name('roles.niveles');
+    Route::get('/roles/catalogos/areas',   [App\Http\Livewire\Usuarios\Roles::class, 'listarAreas'])->name('roles.areas');
 
     /*----------------------------------------------- /NUEVAS RUTAS DE ACCESO A USUARIOS  */
 
@@ -599,6 +683,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/proforma/cotizacion/2', FacturacionUnificada::class)->defaults('codigo', 'cotizacion_clientes_a');
 
     //---------------------------------------------------------------------VENTAS ESTATAL--------------------------------------------------------------------------------//
+
 
     Route::get('/ventas/estatal/vendedor', ListadoFacturasVendedorUnificado::class)->defaults('tipo', 'estatal');
     Route::get('/listado/ventas/estatal/vendedor', [LitsadoFacturasEstatalVendedor::class, 'listarFacturasEstatalVendedor']);
@@ -852,7 +937,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
 
     //---------------------------------------------------------SinRestriccionPrecio-------------------------------------------------------//
 
-    // Route::get('/ventas/sin/restriccion/precio', SinRestriccionPrecio::class); // Movido a Facturación Unificada
+    // Route::get('/ventas/sin/restriccion/precio', SinRestriccionPrecio::class); // Duplicado - Movido a Facturación Unificada
     Route::get('/ventas/solicitud/codigo', [SinRestriccionPrecio::class, 'enviarCodigo']);
     Route::post('/ventas/verificar/codigo', [SinRestriccionPrecio::class, 'verificarCodigo']);
     Route::post('/ventas/autorizacion/desactivar', [SinRestriccionPrecio::class, 'desactivarCodigo']);
@@ -930,7 +1015,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
 
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // Route::get('/ventas/sin/restriccion/precio', SinRestriccionPrecio::class); // Duplicado - Movido a Facturación Unificada
+    // Route::get('/ventas/sin/restriccion/precio', SinRestriccionPrecio::class); // Movido a Facturación Unificada
     Route::get('/ventas/solicitud/codigo', [SinRestriccionPrecio::class, 'enviarCodigo']);
     Route::post('/ventas/verificar/codigo', [SinRestriccionPrecio::class, 'verificarCodigo']);
     Route::post('/ventas/autorizacion/desactivar', [SinRestriccionPrecio::class, 'desactivarCodigo']);
