@@ -471,35 +471,27 @@
         .flujo-info-grid { display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:#666; }
     </style>
     @php
-        $fEstado         = $pedidoFlujoData['estado'] ?? 'pedido';
-        $fEstadoEntrega  = $pedidoFlujoData['sub_estado_entrega'] ?? 'sin_entrega';
-        $fCancelado      = ($fEstado === 'cancelado');
-        $fOfertas        = $pedidoFlujoData['ofertas'] ?? [];
-        $tieneOfertas    = count($fOfertas) > 0;
-        $tieneGanadora   = collect($fOfertas)->contains(fn($o) => ((array)$o)['estado'] === 'ganadora');
+        $fEstado      = $pedidoFlujoData['estado'] ?? 'pedido';
+        $fCancelado   = ($fEstado === 'cancelado');
+        $fOfertas     = $pedidoFlujoData['ofertas'] ?? [];
+        $tieneOfertas  = count($fOfertas) > 0;
+        $tieneGanadora = collect($fOfertas)->contains(fn($o) => ((array)$o)['estado'] === 'ganadora');
         $yaGanadoraExists = $tieneGanadora;
-
-        // Tramo compartido (pasos 1-4): estado del pipeline principal
         $fPaso = match(true) {
             $fCancelado                                                              => 0,
-            $fEstado === 'facturado'                                                 => 4,
+            $fEstado === 'facturado'                                                 => 6,
             $fEstado === 'cotizado' || $fEstado === 'pre_factura' || $tieneGanadora => 3,
             $tieneOfertas                                                            => 2,
             default                                                                  => 1,
         };
-
-        // Pasos comunes (antes del fork)
-        $fPasosComunes = [
-            1 => ['icon' => 'fa-shopping-cart', 'title' => 'Pedido',      'color' => '#1a7efb'],
-            2 => ['icon' => 'fa-tag',           'title' => 'Ofertas',     'color' => '#f39c12'],
-            3 => ['icon' => 'fa-file-o',        'title' => 'Pre Factura', 'color' => '#00b894'],
-            4 => ['icon' => 'fa-file-text',     'title' => 'Factura',     'color' => '#1ab394'],
+        $fPasos = [
+            1 => ['icon' => 'fa-shopping-cart', 'title' => 'Pedido',       'color' => '#1a7efb', 'glow' => 'rgba(26,126,251,.45)'],
+            2 => ['icon' => 'fa-tag',           'title' => 'Ofertas',      'color' => '#f39c12', 'glow' => 'rgba(243,156,18,.45)'],
+            3 => ['icon' => 'fa-file-o',        'title' => 'Pre Factura',  'color' => '#00b894', 'glow' => 'rgba(0,184,148,.45)'],
+            4 => ['icon' => 'fa-file-text',     'title' => 'Factura',      'color' => '#1ab394', 'glow' => 'rgba(26,179,148,.45)'],
+            5 => ['icon' => 'fa-truck',         'title' => 'Entregas',     'color' => '#e67e22', 'glow' => 'rgba(230,126,34,.45)'],
+            6 => ['icon' => 'fa-money',         'title' => 'Cobro',        'color' => '#6c5ce7', 'glow' => 'rgba(108,92,231,.45)'],
         ];
-
-        // Estado del fork (sólo visible cuando el pedido está facturado)
-        $fFacturado  = ($fEstado === 'facturado');
-        $fEnCamino   = in_array($fEstadoEntrega, ['en_camino', 'entregado']);
-        $fEntregado  = ($fEstadoEntrega === 'entregado');
     @endphp
     <div id="flujoModalWrap" tabindex="-1" role="dialog"
          style="position:fixed; inset:0; z-index:1060;
@@ -511,25 +503,24 @@
 
                 {{-- Header --}}
                 <div class="modal-header flujo-hdr" style="background:linear-gradient(135deg,#f39c12 0%,#e67e22 100%);
-                            border:none; padding:9px 18px;">
-                    <div style="display:flex; align-items:center; gap:6px 14px; flex-wrap:wrap; min-width:0;">
-                        <h5 class="modal-title m-0" style="color:#fff; font-size:15px; font-weight:700; white-space:nowrap;">
+                            border:none;">
+                    <div>
+                        <h5 class="modal-title m-0" style="color:#fff; font-size:17px; font-weight:700;">
                             <i class="fa fa-map-o mr-2"></i>Flujo del Pedido
                             <span style="background:rgba(255,255,255,.2); border-radius:20px;
-                                         padding:2px 10px; font-size:13px; margin-left:5px;">
+                                         padding:2px 12px; font-size:14px; margin-left:6px;">
                                 #{{ $pedidoFlujoData['id'] }}
                             </span>
                         </h5>
-                        <div style="color:rgba(255,255,255,.85); font-size:11px; display:flex; flex-wrap:wrap; gap:0 8px; align-items:center;">
-                            <span><i class="fa fa-user mr-1"></i>{{ $pedidoFlujoData['cliente'] }}</span>
-                            <span style="opacity:.4;">|</span>
-                            <span><i class="fa fa-user-circle-o mr-1"></i>Por: {{ $pedidoFlujoData['registrado_por'] }}</span>
-                            <span style="opacity:.4;">|</span>
-                            <span><i class="fa fa-calendar mr-1"></i>{{ \Carbon\Carbon::parse($pedidoFlujoData['created_at'])->format('d/m/Y H:i') }}</span>
-                        </div>
+                        <small style="color:rgba(255,255,255,.8); font-size:12px;">
+                            <i class="fa fa-user mr-1"></i>{{ $pedidoFlujoData['cliente'] }}
+                            &nbsp;&bull;&nbsp;
+                            <i class="fa fa-calendar mr-1"></i>
+                            {{ \Carbon\Carbon::parse($pedidoFlujoData['created_at'])->format('d/m/Y H:i') }}
+                        </small>
                     </div>
                     <button type="button" wire:click="cerrarFlujo"
-                            class="close" style="color:#fff; opacity:1; font-size:22px;">
+                            class="close" style="color:#fff; opacity:1; font-size:22px; margin-top:-8px;">
                         <span>&times;</span>
                     </button>
                 </div>
@@ -550,166 +541,114 @@
                         <p class="text-muted" style="font-size:13px; margin:0;">Este pedido fue cancelado y no continuará en el flujo.</p>
                     </div>
                     @else
-                    {{-- ── Pipeline de estados ── --}}
-                    @php
-                        $p1done = $fPaso >= 2; $p1act = $fPaso === 1;
-                        $p2done = $fPaso >= 3; $p2act = $fPaso === 2;
-                        $p3done = $fPaso >= 4; $p3act = $fPaso === 3;
-                        $p4done = $fFacturado;  $p4act = false;
-                        $p5done = false;        $p5act = false;
-                        $camCompleto = $fFacturado && $fEntregado;
-                        $camActivo   = $fFacturado && $fEnCamino && !$fEntregado;
-                        $entCompleto = $fFacturado && $fEntregado;
-                        $nodeBox = function(bool $done, bool $act, string $color) {
-                            if ($done) return "background:linear-gradient(135deg,#27ae60,#1ab394);color:#fff;box-shadow:0 4px 18px rgba(26,179,148,.35);border-color:transparent;";
-                            if ($act)  return "background:linear-gradient(135deg,#1a7efb 0%,#00b4d8 100%);color:#fff;border-color:transparent;box-shadow:0 0 0 4px rgba(26,126,251,.22), 0 4px 22px rgba(26,126,251,.55);";
-                            return "background:#f4f6fc;color:#c8ccd8;border-color:#e2e6f0;";
-                        };
-                        $lColor = function(bool $done, bool $act, string $color) {
-                            if ($done) return '#27ae60'; if ($act) return $color; return '#b0b8cc';
-                        };
-                        $cFill = function(bool $f) { return $f ? '#27ae60' : '#dde3ef'; };
-                        $nodeIcon = function(bool $done, bool $act) {
-                            return (!$done && $act) ? 'font-size:18px; color:#fff;' : 'font-size:15px;';
-                        };
-                    @endphp
+                    {{-- Pipeline de estados --}}
+                    <div class="flujo-pipeline" style="display:flex; align-items:center; justify-content:center;
+                                gap:0; flex-wrap:nowrap; overflow-x:auto;
+                                padding: 20px 8px 12px;">
 
-                    <div class="flujo-pipeline" style="padding:14px 0 2px; width:100%;">
-                    <div style="display:grid;
-                                grid-template-columns: 1fr 30px 1fr 30px 1fr 30px 1fr 30px 1fr;
-                                grid-template-rows: auto 22px auto;
-                                width:100%; gap:0;">
+                        @foreach($fPasos as $paso => $info)
 
-                        {{-- ── ROW 1: spacer 1-6 | En camino (7) → (8) → Entregado (9) ── --}}
-                        <div style="grid-column:1/7; grid-row:1;"></div>
+                        @php
+                            $completado  = (!$fCancelado && $paso < $fPaso);
+                            $activo      = (!$fCancelado && $paso === $fPaso);
+                            $pendiente   = (!$fCancelado && $paso > $fPaso);
+                            $delay       = ($paso - 1) * 100;
 
-                        <div style="grid-column:7; grid-row:1; display:flex; flex-direction:column; align-items:center; animation:stepIn .4s cubic-bezier(.34,1.56,.64,1) 400ms both;">
-                            <div style="width:90px; height:46px; border-radius:8px; border:1.5px solid;
+                            $labelColor  = $completado ? '#1ab394' : ($activo ? '#1a7efb' : '#aab');
+                        @endphp
+
+                        {{-- Step card --}}
+                        <div style="display:flex; flex-direction:column; align-items:center; min-width:110px;
+                                    animation:stepIn .5s cubic-bezier(.34,1.56,.64,1) {{ $delay }}ms both;">
+
+                            {{-- Circle --}}
+                            @if($completado)
+                            <div style="width:64px; height:64px; border-radius:50%;
+                                        background:linear-gradient(135deg,#1ab394,#0fa37a);
+                                        color:#fff; margin-bottom:10px;
+                                        box-shadow:0 6px 20px rgba(26,179,148,.45);
                                         display:flex; align-items:center; justify-content:center;
-                                        {{ $nodeBox($camCompleto, $camActivo, '#e67e22') }}">
-                                <i class="fa {{ $camCompleto ? 'fa-check' : 'fa-truck' }}" style="{{ $nodeIcon($camCompleto, $camActivo) }}"></i>
-                                @if(!$camCompleto && $camActivo)<i class="fa fa-circle-o-notch fa-spin" style="font-size:9px; margin-left:5px; opacity:.85;"></i>@endif
+                                        font-size:24px; flex-shrink:0;">
+                                <i class="fa fa-check" style="animation:checkPop .4s cubic-bezier(.34,1.56,.64,1) {{ $delay + 200 }}ms both;"></i>
                             </div>
-                            <div style="margin-top:4px; font-size:10px; font-weight:600; letter-spacing:.2px; color:{{ $lColor($camCompleto, $camActivo, '#e67e22') }}; text-align:center;">En camino</div>
-                        </div>
-
-                        <div style="grid-column:8; grid-row:1; display:flex; align-items:flex-start; padding-top:23px;">
-                            <div style="position:relative; width:100%; height:2px; border-radius:2px; background:{{ $cFill($camCompleto) }};">
-                                <div style="position:absolute; right:-4px; top:50%; transform:translateY(-50%); width:0; height:0;
-                                            border-top:4px solid transparent; border-bottom:4px solid transparent;
-                                            border-left:6px solid {{ $cFill($camCompleto) }};"></div>
-                            </div>
-                        </div>
-
-                        <div style="grid-column:9; grid-row:1; display:flex; flex-direction:column; align-items:center; animation:stepIn .4s cubic-bezier(.34,1.56,.64,1) 480ms both;">
-                            <div style="width:90px; height:46px; border-radius:8px; border:1.5px solid;
+                            @elseif($activo)
+                            {{-- Estado actual: check azul con anillo distintivo --}}
+                            <div style="width:64px; height:64px; border-radius:50%;
+                                        background:linear-gradient(135deg,#1a7efb,#0d6efd);
+                                        color:#fff; margin-bottom:10px;
+                                        box-shadow:0 6px 24px rgba(26,126,251,.5), 0 0 0 5px rgba(26,126,251,.2), 0 0 0 10px rgba(26,126,251,.08);
                                         display:flex; align-items:center; justify-content:center;
-                                        {{ $nodeBox($entCompleto, false, '#00b894') }}">
-                                <i class="fa {{ $entCompleto ? 'fa-check' : 'fa-check-square-o' }}" style="{{ $nodeIcon($entCompleto, false) }}"></i>
+                                        font-size:24px; flex-shrink:0;">
+                                <i class="fa fa-check" style="animation:checkPop .4s cubic-bezier(.34,1.56,.64,1) {{ $delay + 200 }}ms both;"></i>
                             </div>
-                            <div style="margin-top:4px; font-size:10px; font-weight:600; letter-spacing:.2px; color:{{ $lColor($entCompleto, false, '#00b894') }}; text-align:center;">Entregado</div>
-                        </div>
-
-                        {{-- ── ROW 2: vertical fork (col 7, above Facturado) ── --}}
-                        <div style="grid-column:1/7; grid-row:2;"></div>
-                        <div style="grid-column:7; grid-row:2; display:flex; justify-content:center; align-items:stretch;">
-                            <div style="width:2px; border-radius:2px; background:{{ $cFill($fFacturado) }};"></div>
-                        </div>
-                        <div style="grid-column:8/10; grid-row:2;"></div>
-
-                        {{-- ── ROW 3: Pedido → Ofertas → Pre Factura → Facturado → Cobro ── --}}
-                        <div style="grid-column:1; grid-row:3; display:flex; flex-direction:column; align-items:center; animation:stepIn .4s cubic-bezier(.34,1.56,.64,1) 0ms both;">
-                            <div style="width:90px; height:46px; border-radius:8px; border:1.5px solid;
+                            @else
+                            <div style="width:64px; height:64px; border-radius:50%;
+                                        background:#e8eaf0; color:#c0c2cc; margin-bottom:10px;
                                         display:flex; align-items:center; justify-content:center;
-                                        {{ $nodeBox($p1done, $p1act, '#1a7efb') }}">
-                                <i class="fa {{ $p1done ? 'fa-check' : 'fa-shopping-cart' }}" style="{{ $nodeIcon($p1done, $p1act) }}"></i>
-                                @if(!$p1done && $p1act)<i class="fa fa-circle-o-notch fa-spin" style="font-size:9px; margin-left:5px; opacity:.85;"></i>@endif
-                            </div>
-                            <div style="margin-top:4px; font-size:10px; font-weight:600; letter-spacing:.2px; color:{{ $lColor($p1done, $p1act, '#1a7efb') }}; text-align:center;">Pedido</div>
-                        </div>
-
-                        <div style="grid-column:2; grid-row:3; display:flex; align-items:flex-start; padding-top:23px;">
-                            <div style="position:relative; width:100%; height:2px; border-radius:2px; background:{{ $cFill($p1done) }};">
-                                <div style="position:absolute; right:-4px; top:50%; transform:translateY(-50%); width:0; height:0;
-                                            border-top:4px solid transparent; border-bottom:4px solid transparent;
-                                            border-left:6px solid {{ $cFill($p1done) }};"></div>
-                            </div>
-                        </div>
-
-                        <div style="grid-column:3; grid-row:3; display:flex; flex-direction:column; align-items:center; animation:stepIn .4s cubic-bezier(.34,1.56,.64,1) 90ms both;">
-                            <div style="width:90px; height:46px; border-radius:8px; border:1.5px solid;
-                                        display:flex; align-items:center; justify-content:center;
-                                        {{ $nodeBox($p2done, $p2act, '#f39c12') }}">
-                                <i class="fa {{ $p2done ? 'fa-check' : 'fa-tags' }}" style="{{ $nodeIcon($p2done, $p2act) }}"></i>
-                                @if(!$p2done && $p2act)<i class="fa fa-circle-o-notch fa-spin" style="font-size:9px; margin-left:5px; opacity:.85;"></i>@endif
-                            </div>
-                            <div style="margin-top:4px; font-size:10px; font-weight:600; letter-spacing:.2px; color:{{ $lColor($p2done, $p2act, '#f39c12') }}; text-align:center;">Ofertas</div>
-                        </div>
-
-                        <div style="grid-column:4; grid-row:3; display:flex; align-items:flex-start; padding-top:23px;">
-                            <div style="position:relative; width:100%; height:2px; border-radius:2px; background:{{ $cFill($p2done) }};">
-                                <div style="position:absolute; right:-4px; top:50%; transform:translateY(-50%); width:0; height:0;
-                                            border-top:4px solid transparent; border-bottom:4px solid transparent;
-                                            border-left:6px solid {{ $cFill($p2done) }};"></div>
-                            </div>
-                        </div>
-
-                        <div style="grid-column:5; grid-row:3; display:flex; flex-direction:column; align-items:center; animation:stepIn .4s cubic-bezier(.34,1.56,.64,1) 180ms both;">
-                            <div style="width:90px; height:46px; border-radius:8px; border:1.5px solid;
-                                        display:flex; align-items:center; justify-content:center;
-                                        {{ $nodeBox($p3done, $p3act, '#00b894') }}">
-                                <i class="fa {{ $p3done ? 'fa-check' : 'fa-file-text-o' }}" style="{{ $nodeIcon($p3done, $p3act) }}"></i>
-                                @if(!$p3done && $p3act)<i class="fa fa-circle-o-notch fa-spin" style="font-size:9px; margin-left:5px; opacity:.85;"></i>@endif
-                            </div>
-                            <div style="margin-top:4px; font-size:10px; font-weight:600; letter-spacing:.2px; color:{{ $lColor($p3done, $p3act, '#00b894') }}; text-align:center;">Pre Factura</div>
-                            @if($p3act && $tieneGanadora)
-                            <div style="margin-top:3px; font-size:9px; font-weight:700; color:#f39c12;
-                                        background:rgba(243,156,18,.12); border-radius:8px; padding:1px 6px; white-space:nowrap;
-                                        animation:trophyBounce 1.5s ease-in-out infinite;">
-                                <i class="fa fa-trophy"></i> Oferta ganadora
+                                        font-size:24px; flex-shrink:0;">
+                                <i class="fa {{ $info['icon'] }}"></i>
                             </div>
                             @endif
-                        </div>
 
-                        <div style="grid-column:6; grid-row:3; display:flex; align-items:flex-start; padding-top:23px;">
-                            <div style="position:relative; width:100%; height:2px; border-radius:2px; background:{{ $cFill($p3done) }};">
-                                <div style="position:absolute; right:-4px; top:50%; transform:translateY(-50%); width:0; height:0;
-                                            border-top:4px solid transparent; border-bottom:4px solid transparent;
-                                            border-left:6px solid {{ $cFill($p3done) }};"></div>
+                            {{-- Label --}}
+                            <div style="text-align:center;">
+                                <div style="font-size:13px; font-weight:700; color:{{ $labelColor }};">
+                                    {{ $info['title'] }}
+                                </div>
+                                <div style="font-size:11px; color:{{ $labelColor }}; opacity:{{ $pendiente ? '.5' : '1' }};">
+                                    @if($completado)
+                                        <i class="fa fa-check-circle"></i> Completado
+                                    @elseif($activo)
+                                        <i class="fa fa-map-marker" style="animation:dotBlink 1s ease-in-out infinite;"></i> Estado actual
+                                    @else
+                                        <i class="fa fa-clock-o"></i> Pendiente
+                                    @endif
+                                </div>
+                                @if($activo && $paso === 3)
+                                <div style="font-size:10px; color:#f39c12; margin-top:4px; font-weight:700;
+                                            background:rgba(243,156,18,.12); border-radius:8px; padding:2px 7px;">
+                                    <i class="fa fa-trophy"></i> Oferta ganadora
+                                </div>
+                                @endif
                             </div>
-                        </div>
 
-                        <div style="grid-column:7; grid-row:3; display:flex; flex-direction:column; align-items:center; animation:stepIn .4s cubic-bezier(.34,1.56,.64,1) 270ms both;">
-                            <div style="width:90px; height:46px; border-radius:8px; border:1.5px solid;
-                                        display:flex; align-items:center; justify-content:center;
-                                        {{ $nodeBox($p4done, $p4act, '#1ab394') }}">
-                                <i class="fa {{ $p4done ? 'fa-check' : 'fa-file-text' }}" style="{{ $nodeIcon($p4done, $p4act) }}"></i>
-                                @if(!$p4done && $p4act)<i class="fa fa-circle-o-notch fa-spin" style="font-size:9px; margin-left:5px; opacity:.85;"></i>@endif
-                            </div>
-                            <div style="margin-top:4px; font-size:10px; font-weight:600; letter-spacing:.2px; color:{{ $lColor($p4done, $p4act, '#1ab394') }}; text-align:center;">Facturado</div>
-                        </div>
+                        </div>{{-- /step --}}
 
-                        <div style="grid-column:8; grid-row:3; display:flex; align-items:flex-start; padding-top:23px;">
-                            <div style="position:relative; width:100%; height:2px; border-radius:2px; background:{{ $cFill($p4done) }};">
-                                <div style="position:absolute; right:-4px; top:50%; transform:translateY(-50%); width:0; height:0;
-                                            border-top:4px solid transparent; border-bottom:4px solid transparent;
-                                            border-left:6px solid {{ $cFill($p4done) }};"></div>
-                            </div>
+                        {{-- Connector (between steps) --}}
+                        @if($paso < 6)
+                        @php $connDelay = $delay + 80; @endphp
+                        <div style="flex:1; min-width:24px; max-width:48px; height:4px; border-radius:4px;
+                                    margin-bottom:28px; position:relative; overflow:hidden; background:#e0e3ee;">
+                            @if($completado)
+                            <div style="position:absolute; top:0; left:0; width:100%; height:100%;
+                                        background:linear-gradient(90deg,#1ab394,#1a7efb);
+                                        animation:connFill .6s ease {{ $connDelay }}ms both;
+                                        border-radius:4px;"></div>
+                            @endif
                         </div>
+                        @endif
 
-                        <div style="grid-column:9; grid-row:3; display:flex; flex-direction:column; align-items:center; animation:stepIn .4s cubic-bezier(.34,1.56,.64,1) 360ms both;">
-                            <div style="width:90px; height:46px; border-radius:8px; border:1.5px solid;
-                                        display:flex; align-items:center; justify-content:center;
-                                        {{ $nodeBox($p5done, $p5act, '#6c5ce7') }}">
-                                <i class="fa {{ $p5done ? 'fa-check' : 'fa-usd' }}" style="{{ $nodeIcon($p5done, $p5act) }}"></i>
-                                @if(!$p5done && $p5act)<i class="fa fa-circle-o-notch fa-spin" style="font-size:9px; margin-left:5px; opacity:.85;"></i>@endif
-                            </div>
-                            <div style="margin-top:4px; font-size:10px; font-weight:600; letter-spacing:.2px; color:{{ $lColor($p5done, $p5act, '#6c5ce7') }}; text-align:center;">Cobro</div>
-                        </div>
+                        @endforeach
 
-                    </div>{{-- /grid --}}
-                    </div>{{-- /flujo-pipeline --}}
+                    </div>
                     @endif
+
+                    {{-- Info footer --}}
+                    <div class="flujo-info-grid" style="margin-top:20px; padding:14px 18px; background:#fff;
+                                border-radius:12px; border:1px solid #e8eaf0;">
+                        <span><i class="fa fa-hashtag text-primary mr-1"></i>
+                            <strong>Pedido #{{ $pedidoFlujoData['id'] }}</strong>
+                        </span>
+                        <span><i class="fa fa-user text-info mr-1"></i>
+                            {{ $pedidoFlujoData['cliente'] }}
+                        </span>
+                        <span><i class="fa fa-user-circle-o text-muted mr-1"></i>
+                            Por: {{ $pedidoFlujoData['registrado_por'] }}
+                        </span>
+                        <span><i class="fa fa-calendar text-muted mr-1"></i>
+                            {{ \Carbon\Carbon::parse($pedidoFlujoData['created_at'])->format('d/m/Y H:i') }}
+                        </span>
+                    </div>
 
                     {{-- Panel dinámico de ofertas --}}
                     <div style="margin-top:14px; border-radius:12px; overflow:hidden; border:1px solid #ede9f7;">
@@ -1079,14 +1018,6 @@
             0%,100% { transform:rotate(0); }
             20%,60% { transform:rotate(-10deg) scale(1.05); }
             40%,80% { transform:rotate(10deg) scale(1.05); }
-        }
-        @keyframes nodeActivePulse {
-            0%,100% { box-shadow: 0 4px 18px rgba(26,126,251,.35); }
-            50%      { box-shadow: 0 6px 32px rgba(26,126,251,.8), 0 0 0 5px rgba(26,126,251,.18); }
-        }
-        @keyframes trophyBounce {
-            0%,100% { transform:translateY(0) scale(1); }
-            40%      { transform:translateY(-3px) scale(1.05); }
         }
     </style>
 

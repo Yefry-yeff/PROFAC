@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Exports\Escalas\ProductosPlantillaExport;
 use App\Exports\Escalas\ProductosPlantillaExportManual;
-use App\Exports\Escalas\ProductosPreciosPorClienteExport;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\Validator;
 use App\Imports\Escalas\PreciosProductoCargaImport;
@@ -90,11 +89,11 @@ class ExcelController extends Controller
         // Validación de parámetros recibidos desde el frontend.
         // Incluye validaciones de pertenencia (in) y existencia en BD (exists).
 $v = Validator::make($request->all(), [
-    'archivo_excel'      => 'required|file|max:20480',
+    'archivo_excel'      => 'required|file|max:20480', // 20 MB
     'tipoCategoria'      => 'required|in:escalable,manual',
     'tipoFiltro'         => 'required|in:1,2',
     'valorFiltro'        => 'required|integer',
-    'categoriaPrecioId'  => 'required',
+    'categoriaPrecioId'  => 'required|exists:categoria_precios,id',
     'defaultUnidadMedidaId' => 'nullable|integer|exists:unidad_medida_venta,id',
 ], [
     'archivo_excel.required' => 'Subí un archivo.',
@@ -106,25 +105,6 @@ if ($v->fails()) {
         'icon'  => 'error',
         'title' => 'Validación',
         'text'  => $v->errors()->first(),
-    ], 422);
-}
-
-// Verificar que categoriaPrecioId sea 'all' o un ID válido en BD
-$categoriaPrecioRaw = $request->input('categoriaPrecioId');
-$modoTodas = ($categoriaPrecioRaw === 'all');
-if (!$modoTodas && !\DB::table('categoria_precios')->where('id', (int)$categoriaPrecioRaw)->exists()) {
-    return response()->json([
-        'icon'  => 'error',
-        'title' => 'Validación',
-        'text'  => 'La categoría de precios seleccionada no existe.',
-    ], 422);
-}
-$catClienteId = $request->input('catClienteId');
-if ($modoTodas && !$catClienteId) {
-    return response()->json([
-        'icon'  => 'error',
-        'title' => 'Validación',
-        'text'  => 'Se requiere la categoría de cliente para procesar todas las categorías.',
     ], 422);
 }
 
@@ -144,13 +124,9 @@ $import = new PreciosProductoCargaImport(
     $request->input('tipoCategoria'),
     (int)$request->input('tipoFiltro'),
     (int)$request->input('valorFiltro'),
-    $modoTodas ? null : (int)$categoriaPrecioRaw,
+    (int)$request->input('categoriaPrecioId'),
     (int)$userId,
-    $request->input('defaultUnidadMedidaId') ? (int)$request->input('defaultUnidadMedidaId') : null,
-    false,                                          // previewMode
-    $modoTodas ? 'cliente_todas' : 'categoria',     // tipoPlantilla
-    [],                                             // categoriasExcluidas
-    $modoTodas ? (int)$catClienteId : null          // clienteCategoriaId
+    $request->input('defaultUnidadMedidaId') ? (int)$request->input('defaultUnidadMedidaId') : null
 );
 
 
@@ -319,10 +295,10 @@ $collections = Excel::toCollection($import, $full);
             'tipoCategoria'       => 'required|in:escalable,manual',
             'tipoFiltro'          => 'required|in:1,2',
             'valorFiltro'         => 'required|integer',
-            'categoriaPrecioId'   => 'nullable',
-            'defaultUnidadMedidaId' => 'nullable|integer',
+            'categoriaPrecioId'   => 'nullable|exists:categoria_precios,id',
+            'defaultUnidadMedidaId' => 'nullable|integer|exists:unidad_medida_venta,id',
             'categoriasExcluidas'   => 'nullable|array',
-            'categoriasExcluidas.*' => 'integer',
+            'categoriasExcluidas.*' => 'integer|exists:categoria_precios,id',
         ], [
             'archivo_excel.required' => 'Subí un archivo.',
             'archivo_excel.file'     => 'Archivo inválido.',
@@ -338,52 +314,33 @@ $collections = Excel::toCollection($import, $full);
         }
 
         try {
-            $userId              = auth()->id() ?? 1;
-            $tipoPlantilla       = $request->input('tipoPlantilla'); // 'categoria' o 'general'
-            $categoriaPrecioRaw  = $request->input('categoriaPrecioId');
-            $modoTodas           = ($categoriaPrecioRaw === 'all');
-            $catClienteId        = $request->input('catClienteId');
-            $categoriasExcluidas = array_map('intval', (array) $request->input('categoriasExcluidas', []));
+            $userId = auth()->id() ?? 1;
+            $tipoPlantilla = $request->input('tipoPlantilla');
+            $categoriaPrecioId = $request->input('categoriaPrecioId');
+            $categoriasExcluidas = $request->input('categoriasExcluidas', []);
+            $categoriasExcluidas = array_map('intval', (array) $categoriasExcluidas);
 
-            // Determinar el tipoPlantilla efectivo para el importer
-            $tipoPlantillaEfectivo = $modoTodas ? 'cliente_todas' : $tipoPlantilla;
-
-            // Validaciones manuales post-validator
-            if ($modoTodas) {
-                if (!$catClienteId) {
-                    return response()->json(['icon' => 'error', 'title' => 'Validación',
-                        'text' => 'Se requiere la categoría de cliente para el modo "Todas las categorías".'], 422);
-                }
-                $existeCliente = \DB::table('cliente_categoria_escala')->where('id', (int)$catClienteId)->exists();
-                if (!$existeCliente) {
-                    return response()->json(['icon' => 'error', 'title' => 'Validación',
-                        'text' => 'La categoría de cliente seleccionada no existe.'], 422);
-                }
-            } else {
-                if ($tipoPlantilla === 'categoria' && !$categoriaPrecioRaw) {
-                    return response()->json(['icon' => 'error', 'title' => 'Validación',
-                        'text' => 'La categoría de precios es requerida para el modo "Por Categoría".'], 422);
-                }
-                if ($categoriaPrecioRaw && !\DB::table('categoria_precios')->where('id', (int)$categoriaPrecioRaw)->exists()) {
-                    return response()->json(['icon' => 'error', 'title' => 'Validación',
-                        'text' => 'La categoría de precios seleccionada no existe.'], 422);
-                }
+            // Si es general, categoriaPrecioId puede ser null
+            // Si es categoria, categoriaPrecioId es requerido
+            if ($tipoPlantilla === 'categoria' && !$categoriaPrecioId) {
+                return response()->json([
+                    'icon'  => 'error',
+                    'title' => 'Validación',
+                    'text'  => 'La categoría de precios es requerida para el modo "Por Categoría".',
+                ], 422);
             }
-
-            $categoriaPrecioId = ($modoTodas || !$categoriaPrecioRaw) ? null : (int)$categoriaPrecioRaw;
 
             // Crear importador en MODO PREVIEW (solo validación, sin insertar)
             $import = new PreciosProductoCargaImport(
                 $request->input('tipoCategoria'),
                 (int)$request->input('tipoFiltro'),
                 (int)$request->input('valorFiltro'),
-                $categoriaPrecioId,
+                $categoriaPrecioId ? (int)$categoriaPrecioId : null,
                 (int)$userId,
                 $request->input('defaultUnidadMedidaId') ? (int)$request->input('defaultUnidadMedidaId') : null,
                 true, // MODO PREVIEW
-                $tipoPlantillaEfectivo,
-                $categoriasExcluidas,
-                $modoTodas ? (int)$catClienteId : null
+                $tipoPlantilla, // Pasar el tipo de plantilla
+                $categoriasExcluidas // Categorías a excluir (solo modo general)
             );
 
             config(['excel.temporary_files.local_path' => storage_path('app/excel-temp')]);
@@ -406,7 +363,7 @@ $collections = Excel::toCollection($import, $full);
 
             // toCollection obtiene los datos sin corrupción en cPanel
             $collections = Excel::toCollection($import, $fullPath);
-
+            
             // Llamar manualmente al método collection() para procesar los datos
             foreach ($collections as $sheet) {
                 $import->collection($sheet);
@@ -426,17 +383,16 @@ $collections = Excel::toCollection($import, $full);
             // Guardar datos del preview en sesión para usar en finalizar
             session([
                 'preview_precios_data' => [
-                    'tipoPlantilla'        => $tipoPlantillaEfectivo,
-                    'tipoCategoria'        => $request->input('tipoCategoria'),
-                    'tipoFiltro'           => (int)$request->input('tipoFiltro'),
-                    'valorFiltro'          => (int)$request->input('valorFiltro'),
-                    'categoriaPrecioId'    => $categoriaPrecioId,
-                    'clienteCategoriaId'   => $modoTodas ? (int)$catClienteId : null,
-                    'userId'               => (int)$userId,
-                    'defaultUnidadMedidaId'=> $request->input('defaultUnidadMedidaId') ? (int)$request->input('defaultUnidadMedidaId') : null,
-                    'storedPath'           => $storedPath,
-                    'readerType'           => $readerType,
-                    'categoriasExcluidas'  => $categoriasExcluidas,
+                    'tipoPlantilla' => $tipoPlantilla,
+                    'tipoCategoria' => $request->input('tipoCategoria'),
+                    'tipoFiltro' => (int)$request->input('tipoFiltro'),
+                    'valorFiltro' => (int)$request->input('valorFiltro'),
+                    'categoriaPrecioId' => $categoriaPrecioId ? (int)$categoriaPrecioId : null,
+                    'userId' => (int)$userId,
+                    'defaultUnidadMedidaId' => $request->input('defaultUnidadMedidaId') ? (int)$request->input('defaultUnidadMedidaId') : null,
+                    'storedPath' => $storedPath,
+                    'readerType' => $readerType,
+                    'categoriasExcluidas' => $categoriasExcluidas,
                 ]
             ]);
 
@@ -477,7 +433,7 @@ $collections = Excel::toCollection($import, $full);
         // Aumentar límites para procesos largos
         @set_time_limit(600); // 10 minutos
         @ini_set('memory_limit', '512M');
-
+        
         try {
             // Recuperar datos del preview desde la sesión
             $previewData = session('preview_precios_data');
@@ -505,29 +461,28 @@ $collections = Excel::toCollection($import, $full);
                 $previewData['userId'],
                 $previewData['defaultUnidadMedidaId'],
                 false, // MODO FINAL - SÍ INSERTAR
-                $previewData['tipoPlantilla'] ?? 'categoria',
-                $previewData['categoriasExcluidas'] ?? [],
-                $previewData['clienteCategoriaId'] ?? null
+                $previewData['tipoPlantilla'] ?? 'categoria', // Tipo de plantilla
+                $previewData['categoriasExcluidas'] ?? [] // Categorías excluidas
             );
 
             config(['excel.temporary_files.local_path' => storage_path('app/excel-temp')]);
 
             $fullPath = storage_path('app/' . $previewData['storedPath']);
-
+            
             \Log::info('[finalizarExcelPrecios] Iniciando importación', ['path' => $fullPath]);
 
             // toCollection obtiene los datos sin corrupción en cPanel
             $collections = Excel::toCollection($import, $fullPath);
-
+            
             \Log::info('[finalizarExcelPrecios] Colecciones obtenidas', ['count' => $collections->count()]);
-
+            
             // Llamar manualmente al método collection() para procesar los datos
             foreach ($collections as $sheet) {
                 $import->collection($sheet);
             }
 
             $stats = $import->getStats();
-
+            
             \Log::info('[finalizarExcelPrecios] Proceso completado', $stats);
 
             // Limpiar sesión
@@ -558,41 +513,6 @@ $collections = Excel::toCollection($import, $full);
                 'debug' => $e->getMessage(),
             ], 500);
         }
-    }
-
-    /**
-     * Descarga un Excel con todos los productos y sus precios activos
-     * para una categoría de cliente determinada, agrupados por categoría de precio.
-     */
-    public function exportarPreciosPorCliente(Request $request, int $clienteCatId)
-    {
-        if ($clienteCatId <= 0) {
-            abort(400, 'ID de categoría inválido.');
-        }
-
-        $fecha = date('Y-m-d_H-i-s');
-
-        return Excel::download(
-            new ProductosPreciosPorClienteExport($clienteCatId),
-            'precios_por_categoria_cliente_' . $clienteCatId . '_' . $fecha . '.xlsx'
-        );
-    }
-
-    /**
-     * Descarga el reporte de precios filtrando por una categoría de precio específica.
-     */
-    public function exportarPreciosPorCategoriaPrecio(Request $request, int $clienteCatId, int $categoriaPrecioId)
-    {
-        if ($clienteCatId <= 0 || $categoriaPrecioId <= 0) {
-            abort(400, 'IDs inválidos.');
-        }
-
-        $fecha = date('Y-m-d_H-i-s');
-
-        return Excel::download(
-            new ProductosPreciosPorClienteExport($clienteCatId, $categoriaPrecioId),
-            'precios_cat_' . $categoriaPrecioId . '_' . $fecha . '.xlsx'
-        );
     }
 
 

@@ -35,7 +35,6 @@ class ModelFactura extends Model
         'estado_editar',
         'codigo_exoneracion_id',
         'comprovante_entrega_id',
-        'pedido_id',
         'comentario',
     ];
 
