@@ -307,7 +307,7 @@ class Cotizacion extends Component
                         'flujo_id'        => $flujoIdVinculado,
                         'tipo_tramite_id' => 2, // 'Ofertas'
                         'tramite_id'      => $cotizacion->id,
-                        'estado_id'       => null,
+                        'estado_id'       => 1,
                         'observaciones'   => 'Oferta registrada para pedido #' . $pedidoIdVinculado,
                         'created_by'      => Auth::id(),
                         'updated_by'      => Auth::id(),
@@ -324,8 +324,8 @@ class Cotizacion extends Component
                     'tipo_flujo_id'   => 1,
                     'identificacion'  => (string) $cotizacion->id,
                     'nombre'          => $cotizacion->nombre_cliente ?? ('Cotizacion #' . $cotizacion->id),
-                    'estado'          => 'activo',
                     'tipo_tramite_id' => 2, // Oferta directa (sin pedido previo)
+                    'estado_id'       => 1,
                     'created_by'      => Auth::id(),
                     'updated_by'      => Auth::id(),
                     'created_at'      => now(),
@@ -335,7 +335,7 @@ class Cotizacion extends Component
                     'flujo_id'        => $flujoNuevo,
                     'tipo_tramite_id' => 2,
                     'tramite_id'      => $cotizacion->id,
-                    'estado_id'       => null,
+                    'estado_id'       => 1,
                     'observaciones'   => 'Oferta sin pedido',
                     'created_by'      => Auth::id(),
                     'updated_by'      => Auth::id(),

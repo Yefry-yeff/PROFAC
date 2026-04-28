@@ -171,7 +171,7 @@ class ListarPedidosParaOfertar extends Component
 
         $qSin = DB::table('flujo as f')
             ->join('tipos_tramites as tt', 'tt.id', '=', 'f.tipo_tramite_id')
-            ->join('oferta as o', DB::raw('o.id'), '=', DB::raw('CAST(f.identificacion AS UNSIGNED)'))
+            ->join('cotizacion as o', DB::raw('o.id'), '=', DB::raw('CAST(f.identificacion AS UNSIGNED)'))
             ->leftJoin('users as u', 'u.id', '=', 'o.users_id')
             ->where('f.tipo_flujo_id', 1)
             ->whereNotExists(function ($query) {
@@ -190,7 +190,7 @@ class ListarPedidosParaOfertar extends Component
                 'tt.nombre as estado_flujo',
                 'f.tipo_tramite_id as flujo_tipo_tramite_id',
                 'u.name as registrado_por',
-                DB::raw('(SELECT COUNT(*) FROM oferta_has_producto ohp WHERE ohp.oferta_id = o.id) as total_productos'),
+                DB::raw('(SELECT COUNT(*) FROM cotizacion_has_producto chp WHERE chp.cotizacion_id = o.id) as total_productos'),
                 // es_ganadora: flujo tiene tipo_tramite_id = 4 (prefactura)
                 DB::raw('IF(f.tipo_tramite_id = 4, 1, 0) as es_ganadora')
             );
@@ -245,8 +245,8 @@ class ListarPedidosParaOfertar extends Component
                     'updated_at'      => now(),
                 ]);
 
-            // Actualizar oferta → ganadora
-            DB::table('oferta')->where('id', $ofertaId)
+            // Actualizar cotizacion → ganadora
+            DB::table('cotizacion')->where('id', $ofertaId)
                 ->update(['updated_at' => now()]);
 
             // Marcar en historico_flujo observaciones = 'ganadora' para el registro de tipo=2 de esta oferta
