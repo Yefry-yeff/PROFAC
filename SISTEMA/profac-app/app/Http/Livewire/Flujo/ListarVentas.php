@@ -96,10 +96,10 @@ class ListarVentas extends Component
             ->join('users as u', 'u.id', '=', 'p.users_id')
             ->leftJoin('historico_flujo as hf', function ($join) {
                 $join->on('hf.tramite_id', '=', 'p.id')
-                     ->where('hf.tramite_tipo', '=', 'pedido');
+                     ->where('hf.tipo_tramite_id', '=', 'pedido');
             })
             ->leftJoin('flujo as f', 'f.id', '=', 'hf.flujo_id')
-            ->leftJoin('tipos_estatus as te', 'te.id', '=', 'f.estatus_id')
+            ->leftJoin('tipos_estatus as te', 'te.id', '=', 'f.estado_id')
             ->select(
                 'p.id',
                 'c.nombre as cliente',
@@ -112,7 +112,7 @@ class ListarVentas extends Component
                 'p.updated_at as pedido_updated_at',
                 'f.id as flujo_id',
                 'te.nombre as estatus_flujo',
-                'hf.estado as estado_flujo',
+                'hf.estado_id as estado_flujo',
                 DB::raw('(SELECT COUNT(*) FROM pedido_detalle pd WHERE pd.pedido_id = p.id) as total_productos'),
                 DB::raw('(SELECT COUNT(*) FROM historico_flujo hf INNER JOIN flujo f ON f.id = hf.flujo_id WHERE f.identificacion = CAST(p.id AS CHAR) AND f.tipo_flujo_id = 1 AND hf.tipo_tramite_id = 2) as has_ofertas'),
                 DB::raw('(SELECT COUNT(*) FROM historico_flujo hf INNER JOIN flujo f ON f.id = hf.flujo_id WHERE f.identificacion = CAST(p.id AS CHAR) AND f.tipo_flujo_id = 1 AND hf.tipo_tramite_id = 2 AND hf.observaciones = \'ganadora\') as has_ganadora')
@@ -243,17 +243,17 @@ class ListarVentas extends Component
             ->join('users as u', 'u.id', '=', 'p.users_id')
             ->leftJoin('historico_flujo as hf', function ($join) {
                 $join->on('hf.tramite_id', '=', 'p.id')
-                     ->where('hf.tramite_tipo', '=', 'pedido');
+                     ->where('hf.tipo_tramite_id', '=', 'pedido');
             })
             ->leftJoin('flujo as f', 'f.id', '=', 'hf.flujo_id')
-            ->leftJoin('tipos_estatus as te', 'te.id', '=', 'f.estatus_id')
+            ->leftJoin('tipos_estatus as te', 'te.id', '=', 'f.estado_id')
             ->select(
                 'p.id', 'p.estado', 'p.sub_estado_entrega', 'p.observaciones', 'p.created_at', 'p.updated_at',
                 'c.nombre as cliente',
                 'u.name as registrado_por',
                 'f.id as flujo_id',
                 'te.nombre as estatus_flujo',
-                'hf.estado as estado_flujo',
+                'hf.estado_id as estado_flujo',
                 'hf.observaciones as obs_flujo'
             )
             ->where('p.id', $id)

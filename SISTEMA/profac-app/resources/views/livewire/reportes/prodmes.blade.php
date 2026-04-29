@@ -64,6 +64,7 @@
                                         <th>CRÉDITO/CONTADO</th>
                                         <th>TIPO CLIENTE (AoB)</th>
                                         <th>VENDEDOR</th>
+                                        <th>FACTURADOR</th>
                                         <th>FACTURA</th>
                                         <th>CLIENTE</th>
                                         <th>CÓDIGO</th>
@@ -85,6 +86,7 @@
                                         <th>CRÉDITO/CONTADO</th>
                                         <th>TIPO CLIENTE (AoB)</th>
                                         <th>VENDEDOR</th>
+                                        <th>FACTURADOR</th>
                                         <th>FACTURA</th>
                                         <th>CLIENTE</th>
                                         <th>CÓDIGO</th>
@@ -154,6 +156,7 @@
                 {data: 'CRÉDITO/CONTADO'},
                 {data: 'TIPO CLIENTE (AoB)'},
                 {data: 'VENDEDOR'},
+                {data: 'FACTURADOR'},
                 {data: 'FACTURA'},
                 {data: 'CLIENTE'},
                 {data: 'CÓDIGO'},
