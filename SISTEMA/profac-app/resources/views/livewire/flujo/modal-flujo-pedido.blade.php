@@ -45,12 +45,19 @@
     $tieneOfertas  = count($ofertasPedido) > 0 || ($d['total_ofertas'] > 0);
     $tieneGanadora = ($d['has_ganadora'] > 0);
     $tienePrefact  = in_array(4, $flujoTipos);
-    $tieneFactura  = in_array(3, $flujoTipos);
+    $tieneFactura  = in_array(3, $flujoTipos) || in_array(5, $flujoTipos);
     $tieneEntrega  = in_array(5, $flujoTipos);
+    $cobroCompletado = isset($saldoPendienteFactura) && $saldoPendienteFactura !== null
+        ? ((float) $saldoPendienteFactura <= 0.0001)
+        : false;
+    $finalizadoCompletado = $tieneEntrega && $cobroCompletado;
+    $facturaCompletada = in_array(5, $flujoTipos) || in_array(3, $flujoTipos);
 
     $fPaso = match(true) {
         $fCancelado   => 0,
+        $finalizadoCompletado => 7,
         $tieneEntrega => 5,
+        $cobroCompletado => 6,
         $tieneFactura => 4,
         $tienePrefact => 3,
         $tieneGanadora => 3,
@@ -63,13 +70,11 @@
         2 => ['key' => 'ofertas',     'icon' => 'fa-tag',           'title' => 'Ofertas'],
         3 => ['key' => 'prefactura',  'icon' => 'fa-file-o',        'title' => 'Pre Factura'],
         4 => ['key' => 'factura',     'icon' => 'fa-file-text',     'title' => 'Factura'],
-        5 => ['key' => 'entrega',     'icon' => 'fa-truck',         'title' => 'Entregas'],
-        6 => ['key' => 'cobro',       'icon' => 'fa-money',         'title' => 'Cobro'],
     ];
 
     $pasoMap = [
         'pedido' => 1, 'ofertas' => 2, 'prefactura' => 3,
-        'factura' => 4, 'entrega' => 5, 'cobro' => 6,
+        'factura' => 4, 'entrega' => 5, 'cobro' => 6, 'finalizado' => 7,
     ];
     $pasoActivoNum = $pasoMap[$pasoActivo] ?? 1;
 @endphp
@@ -141,9 +146,10 @@
                             flex-wrap:nowrap; overflow-x:auto; padding:18px 8px 10px;">
                     @foreach ($fPasos as $paso => $info)
                     @php
-                        $completado = ($paso < $fPaso);
-                        $activo     = ($paso === $fPaso);
-                        $pendiente  = ($paso > $fPaso);
+                        $fPasoLinea = min($fPaso, 4);
+                        $completado = ($paso < $fPasoLinea) || ($paso === 4 && $fPaso > 4);
+                        $activo     = ($paso === $fPasoLinea) && !($paso === 4 && $fPaso > 4);
+                        $pendiente  = ($paso > $fPasoLinea);
                         $esSeleccionado = ($info['key'] === $pasoActivo);
                         $delay      = ($paso - 1) * 100;
                         $esSinPedido = ($paso === 1 && !empty($d['sin_pedido']));
@@ -229,7 +235,7 @@
                     </div>{{-- /step --}}
 
                     {{-- Conector --}}
-                    @if ($paso < 6)
+                    @if ($paso < 4)
                     @php $connDelay = $delay + 80; @endphp
                     <div style="flex:1; min-width:16px; max-width:40px; height:4px; border-radius:4px;
                                 margin-bottom:30px; position:relative; overflow:hidden; background:#e0e3ee;">
@@ -239,20 +245,212 @@
                                     animation:connFill .6s ease {{ $connDelay }}ms both;
                                     border-radius:4px;"></div>
                         @endif
+
                     </div>
                     @endif
 
                     @endforeach
+
+                {{-- Ramificación real desde Factura: Entregas/Cobro -> Finalizado --}}
+                @php
+                    $etapaEntregaCobroActiva = ($pasoActivo === 'entrega' && $tieneEntrega && !$finalizadoCompletado);
+                    $entregaActiva    = ($pasoActivo === 'entrega') || $etapaEntregaCobroActiva;
+                    $cobroActiva      = ($pasoActivo === 'cobro') || $etapaEntregaCobroActiva;
+                    $facturaActiva    = ($pasoActivo === 'factura');
+                    $finalActiva      = ($pasoActivo === 'finalizado');
+                    $puedeEntrega     = $tieneFactura;
+                    $puedeCobro       = $tieneFactura;
+                    $puedeFinal       = $tieneFactura;
+
+                    $facturaLineaCompletada = ($fPaso > 4);
+                    $entregaColor = $entregaActiva ? '#1a7efb' : ($tieneEntrega ? '#1ab394' : '#aab');
+                    $cobroColor   = $cobroCompletado ? '#1ab394' : ($cobroActiva ? '#1a7efb' : '#aab');
+                    $finalColor   = $finalizadoCompletado ? '#1ab394' : ($finalActiva ? '#1a7efb' : '#aab');
+
+                    $lineaFacturaEstado = $facturaLineaCompletada
+                        ? '#1ab394'
+                        : ($facturaActiva ? '#1a7efb' : '#d6dbe8');
+                    $lineaEntregaEstado = $entregaActiva
+                        ? '#1a7efb'
+                        : ($tieneEntrega ? '#1ab394' : '#d6dbe8');
+                    $lineaCobroEstado   = $cobroCompletado
+                        ? '#1ab394'
+                        : ($cobroActiva ? '#1a7efb' : '#d6dbe8');
+                @endphp
+                <div style="display:flex; align-items:center; gap:20px; margin-left:8px; padding:0 6px 30px 6px; position:relative;">
+
+                        <div style="width:44px; height:170px; position:relative;">
+                            <div style="position:absolute; left:-22px; top:80px; width:22px; height:3px; border-radius:3px;
+                                        background:{{ $lineaFacturaEstado }};"></div>
+                            <div style="position:absolute; left:0; top:38px; width:3px; height:87px; border-radius:3px;
+                                        background:{{ $lineaFacturaEstado }};"></div>
+                            <div style="position:absolute; left:3px; top:38px; width:41px; height:3px; border-radius:3px;
+                                        background:{{ $lineaEntregaEstado }};"></div>
+                            <div style="position:absolute; left:3px; top:122px; width:41px; height:3px; border-radius:3px;
+                                        background:{{ $lineaCobroEstado }};"></div>
+                        </div>
+
+                        <div style="display:flex; flex-direction:column; gap:16px; min-width:100px;">
+                            <div class="{{ $puedeEntrega ? 'fmp-step-clickable' : '' }}"
+                                 @if($puedeEntrega) wire:click="seleccionarPaso('entrega')" @endif
+                                 style="display:flex; flex-direction:column; align-items:center; min-width:100px;">
+                                @if ($entregaActiva)
+                                <div style="width:60px; height:60px; border-radius:50%;
+                                            background:linear-gradient(135deg,#1a7efb,#0d6efd); color:#fff;
+                                            margin-bottom:8px;
+                                            box-shadow:0 6px 20px rgba(26,126,251,.5), 0 0 0 5px rgba(26,126,251,.2), 0 0 0 10px rgba(26,126,251,.08);
+                                            display:flex; align-items:center; justify-content:center;
+                                            font-size:22px; flex-shrink:0;
+                                            outline:3px solid rgba(26,126,251,.35); outline-offset:4px;">
+                                    <i class="fa fa-check"></i>
+                                </div>
+                                @elseif ($tieneEntrega)
+                                <div style="width:60px; height:60px; border-radius:50%;
+                                            background:linear-gradient(135deg,#1ab394,#0fa37a); color:#fff;
+                                            margin-bottom:8px; box-shadow:0 4px 16px rgba(26,179,148,.4);
+                                            display:flex; align-items:center; justify-content:center;
+                                            font-size:22px; flex-shrink:0;
+                                            {{ $entregaActiva ? 'box-shadow:0 4px 16px rgba(26,179,148,.4), 0 0 0 4px rgba(26,179,148,.25);' : '' }}">
+                                    <i class="fa fa-check"></i>
+                                </div>
+                                @else
+                                <div style="width:60px; height:60px; border-radius:50%;
+                                            background:#e8eaf0; color:#c0c2cc; margin-bottom:8px;
+                                            display:flex; align-items:center; justify-content:center;
+                                            font-size:22px; flex-shrink:0;">
+                                    <i class="fa fa-truck"></i>
+                                </div>
+                                @endif
+                                <div style="text-align:center;">
+                                    <div style="font-size:12px; font-weight:700; color:{{ $entregaColor }};
+                                                {{ $entregaActiva ? 'text-decoration:underline;' : '' }}">Entregas</div>
+                                    <div style="font-size:10px; color:{{ $entregaColor }}; opacity:{{ $tieneEntrega ? '1' : '.7' }};">
+                                        @if ($entregaActiva)
+                                            <i class="fa fa-map-marker" style="animation:dotBlink 1s ease-in-out infinite;"></i> Actual
+                                        @elseif ($tieneEntrega)
+                                            <i class="fa fa-check-circle"></i> Completado
+                                        @else
+                                            <i class="fa fa-clock-o"></i> Pendiente
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="{{ $puedeCobro ? 'fmp-step-clickable' : '' }}"
+                                 @if($puedeCobro) wire:click="seleccionarPaso('cobro')" @endif
+                                 style="display:flex; flex-direction:column; align-items:center; min-width:100px;">
+                                @if ($cobroCompletado)
+                                <div style="width:60px; height:60px; border-radius:50%;
+                                            background:linear-gradient(135deg,#1ab394,#0fa37a); color:#fff;
+                                            margin-bottom:8px; box-shadow:0 4px 16px rgba(26,179,148,.4);
+                                            display:flex; align-items:center; justify-content:center;
+                                            font-size:22px; flex-shrink:0;
+                                            {{ $cobroActiva ? 'box-shadow:0 4px 16px rgba(26,179,148,.4), 0 0 0 4px rgba(26,179,148,.25);' : '' }}">
+                                    <i class="fa fa-check"></i>
+                                </div>
+                                @elseif ($cobroActiva)
+                                <div style="width:60px; height:60px; border-radius:50%;
+                                            background:linear-gradient(135deg,#1a7efb,#0d6efd); color:#fff;
+                                            margin-bottom:8px;
+                                            box-shadow:0 6px 20px rgba(26,126,251,.5), 0 0 0 5px rgba(26,126,251,.2), 0 0 0 10px rgba(26,126,251,.08);
+                                            display:flex; align-items:center; justify-content:center;
+                                            font-size:22px; flex-shrink:0;
+                                            outline:3px solid rgba(26,126,251,.35); outline-offset:4px;">
+                                    <i class="fa fa-check"></i>
+                                </div>
+                                @else
+                                <div style="width:60px; height:60px; border-radius:50%;
+                                            background:#e8eaf0; color:#c0c2cc; margin-bottom:8px;
+                                            display:flex; align-items:center; justify-content:center;
+                                            font-size:22px; flex-shrink:0;">
+                                    <i class="fa fa-money"></i>
+                                </div>
+                                @endif
+                                <div style="text-align:center;">
+                                    <div style="font-size:12px; font-weight:700; color:{{ $cobroColor }};
+                                                {{ $cobroActiva ? 'text-decoration:underline;' : '' }}">Cobro</div>
+                                    <div style="font-size:10px; color:{{ $cobroColor }}; opacity:{{ $cobroCompletado ? '1' : '.7' }};">
+                                        @if ($cobroCompletado)
+                                            <i class="fa fa-check-circle"></i> Completado
+                                        @elseif ($cobroActiva)
+                                            <i class="fa fa-map-marker" style="animation:dotBlink 1s ease-in-out infinite;"></i> Actual
+                                        @else
+                                            <i class="fa fa-clock-o"></i> Pendiente
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="width:80px; height:170px; position:relative;">
+                            <div style="position:absolute; left:0; top:38px; width:48px; height:3px; border-radius:3px;
+                                        background:{{ $tieneEntrega ? '#1ab394' : '#d6dbe8' }};"></div>
+                            <div style="position:absolute; left:0; top:122px; width:48px; height:3px; border-radius:3px;
+                                        background:{{ $cobroCompletado ? '#1ab394' : '#d6dbe8' }};"></div>
+                            <div style="position:absolute; left:48px; top:38px; width:3px; height:87px; border-radius:3px;
+                                        background:{{ ($tieneEntrega || $cobroCompletado) ? '#1a7efb' : '#d6dbe8' }};"></div>
+                            <div style="position:absolute; left:48px; top:82px; width:32px; height:3px; border-radius:3px;
+                                        background:{{ $finalizadoCompletado ? '#1ab394' : '#d6dbe8' }};"></div>
+                        </div>
+
+                        <div class="{{ $puedeFinal ? 'fmp-step-clickable' : '' }}"
+                             @if($puedeFinal) wire:click="seleccionarPaso('finalizado')" @endif
+                             style="display:flex; flex-direction:column; align-items:center; min-width:100px;">
+                            @if ($finalizadoCompletado)
+                            <div style="width:60px; height:60px; border-radius:50%;
+                                        background:linear-gradient(135deg,#1ab394,#0fa37a); color:#fff;
+                                        margin-bottom:8px; box-shadow:0 4px 16px rgba(26,179,148,.4);
+                                        display:flex; align-items:center; justify-content:center;
+                                        font-size:22px; flex-shrink:0;
+                                        {{ $finalActiva ? 'box-shadow:0 4px 16px rgba(26,179,148,.4), 0 0 0 4px rgba(26,179,148,.25);' : '' }}">
+                                <i class="fa fa-check"></i>
+                            </div>
+                            @elseif ($finalActiva)
+                            <div style="width:60px; height:60px; border-radius:50%;
+                                        background:linear-gradient(135deg,#1a7efb,#0d6efd); color:#fff;
+                                        margin-bottom:8px;
+                                        box-shadow:0 6px 20px rgba(26,126,251,.5), 0 0 0 5px rgba(26,126,251,.2), 0 0 0 10px rgba(26,126,251,.08);
+                                        display:flex; align-items:center; justify-content:center;
+                                        font-size:22px; flex-shrink:0;
+                                        outline:3px solid rgba(26,126,251,.35); outline-offset:4px;">
+                                <i class="fa fa-check"></i>
+                            </div>
+                            @else
+                            <div style="width:60px; height:60px; border-radius:50%;
+                                        background:#e8eaf0; color:#c0c2cc; margin-bottom:8px;
+                                        display:flex; align-items:center; justify-content:center;
+                                        font-size:22px; flex-shrink:0;">
+                                <i class="fa fa-flag-checkered"></i>
+                            </div>
+                            @endif
+                            <div style="text-align:center;">
+                                <div style="font-size:12px; font-weight:700; color:{{ $finalColor }};
+                                            {{ $finalActiva ? 'text-decoration:underline;' : '' }}">Finalizado</div>
+                                <div style="font-size:10px; color:{{ $finalColor }}; opacity:{{ $finalizadoCompletado ? '1' : '.7' }};">
+                                    @if ($finalizadoCompletado)
+                                        <i class="fa fa-check-circle"></i> Completado
+                                    @elseif ($finalActiva)
+                                        <i class="fa fa-map-marker" style="animation:dotBlink 1s ease-in-out infinite;"></i> Actual
+                                    @else
+                                        <i class="fa fa-clock-o"></i> Pendiente
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
                 </div>
+
                 @endif {{-- /cancelado --}}
 
                 {{-- ── Barra de oferta seleccionada (encima de info grid) ─── --}}
                 @if ($pasoActivo === 'ofertas' && $ofertaSeleccionada)
-                @php
-                    $obsOfertTop = $ofertaSeleccionada['hf_observaciones'] ?? '';
-                    $esGanTop    = ($obsOfertTop === 'ganadora');
-                    $esAnuTop    = str_starts_with($obsOfertTop, 'Anulado:');
-                @endphp
+                    @php
+                        $obsOfertTop = $ofertaSeleccionada['hf_observaciones'] ?? '';
+                        $esGanTop    = ($obsOfertTop === 'ganadora');
+                        $esAnuTop    = str_starts_with($obsOfertTop, 'Anulado:');
+                        $esVencTop   = str_starts_with($obsOfertTop, 'VencidaPrecios:');
+                    @endphp
                 <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px; flex-wrap:wrap;">
                     <button type="button" wire:click="cerrarOferta"
                             style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff;
@@ -272,6 +470,11 @@
                         <span style="background:#f8d7da; color:#721c24; border-radius:10px;
                                      padding:2px 8px; font-size:11px; font-weight:700;">
                             <i class="fa fa-ban"></i> Anulada
+                        </span>
+                    @elseif ($esVencTop)
+                        <span style="background:#fff3e0; color:#e65100; border-radius:10px;
+                                     padding:2px 8px; font-size:11px; font-weight:700;">
+                            <i class="fa fa-exclamation-triangle"></i> Precios cambiaron
                         </span>
                     @else
                         <span style="background:#e8f0fe; color:#1a7efb; border-radius:10px;
@@ -386,7 +589,7 @@
                 </div>
 
                 {{-- Acciones del pedido --}}
-                @if ($confirmAccion === 'anular')
+                    @if (!$facturaCompletada && $confirmAccion === 'anular')
                 <div style="margin-top:14px; background:#fff8e1; border:1px solid #ffe082;
                             border-radius:12px; padding:14px;">
                     <p style="font-size:13px; color:#555; margin:0 0 8px;">
@@ -419,7 +622,7 @@
                 </div>
                 @endif
 
-                @if ($confirmAccion === 'duplicar')
+                    @if (!$facturaCompletada && $confirmAccion === 'duplicar')
                 <div style="margin-top:14px; background:#e3f2fd; border:1px solid #90caf9;
                             border-radius:12px; padding:14px; text-align:center;">
                     <p style="font-size:13px; color:#555; margin:0 0 10px;">
@@ -449,6 +652,18 @@
                 {{-- ── PASO: OFERTAS ─────────────────────────────────── --}}
                 @if ($pasoActivo === 'ofertas')
 
+                {{-- Aviso: prefactura vencida procesada en esta sesión --}}
+                @if ($vencimientoProcesado)
+                <div style="margin-top:12px; background:#fff3e0; border:1px solid #ffcc80;
+                            border-radius:12px; padding:12px 16px; font-size:12px; color:#e65100;">
+                    <i class="fa fa-clock-o mr-1"></i>
+                    <strong>Prefactura vencida.</strong>
+                    El sistema revisó los precios y reactivar las ofertas con precios vigentes.
+                    Las ofertas con precios desactualizados fueron marcadas como inactivas
+                    (solo pueden duplicarse).
+                </div>
+                @endif
+
                 @if ($ofertaSeleccionada)
                 {{-- ── Detalle de la oferta seleccionada ── --}}
                 <div style="margin-top:12px;">
@@ -456,6 +671,7 @@
                         $obsOfert = $ofertaSeleccionada['hf_observaciones'] ?? '';
                         $esGanDet = ($obsOfert === 'ganadora');
                         $esAnuDet = str_starts_with($obsOfert, 'Anulado:');
+                        $esVencDet = str_starts_with($obsOfert, 'VencidaPrecios:');
                     @endphp
                     {{-- Info de la oferta --}}
                     <div style="background:#fff; border-radius:10px; border:1px solid #e8eaf0;
@@ -493,16 +709,27 @@
                                     <th style="padding:4px 8px; text-align:left;">Producto</th>
                                     <th style="padding:4px 8px; text-align:center;">Cant.</th>
                                     <th style="padding:4px 8px; text-align:right;">P.Unit.</th>
+                                    <th style="padding:4px 8px; text-align:right;">Actual</th>
                                     <th style="padding:4px 8px; text-align:right;">Total</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach ($ofertaSeleccionada['productos'] as $pr)
+                                @php
+                                    $precioAct   = isset($pr['precio_actual']) ? (float)$pr['precio_actual'] : null;
+                                    $precioOrig  = isset($pr['precio_unidad'])  ? (float)$pr['precio_unidad']  : null;
+                                    $precioCambio = ($precioAct !== null && $precioOrig !== null)
+                                                    && abs($precioOrig - $precioAct) > 0.0001;
+                                @endphp
                                 <tr style="border-bottom:1px solid #f0f0f0;">
                                     <td style="padding:4px 8px; color:#2c3e50;">{{ $pr['nombre_producto'] }}</td>
                                     <td style="padding:4px 8px; text-align:center; color:#1a7efb; font-weight:700;">{{ $pr['cantidad'] }}</td>
-                                    <td style="padding:4px 8px; text-align:right; color:#555;">
+                                    <td style="padding:4px 8px; text-align:right; color:{{ $precioCambio ? '#c0392b' : '#555' }};
+                                               {{ $precioCambio ? 'text-decoration:line-through;' : '' }}">
                                         @if ($pr['precio_unidad']) L {{ number_format($pr['precio_unidad'], 2) }} @else — @endif
+                                    </td>
+                                    <td style="padding:4px 8px; text-align:right; color:{{ $precioCambio ? '#27ae60' : '#aaa' }}; font-weight:{{ $precioCambio ? '700' : '400' }};">
+                                        @if ($precioAct !== null) L {{ number_format($precioAct, 2) }} @else — @endif
                                     </td>
                                     <td style="padding:4px 8px; text-align:right; font-weight:700; color:#1ab394;">
                                         @if ($pr['total']) L {{ number_format($pr['total'], 2) }} @else — @endif
@@ -517,13 +744,27 @@
                     {{-- Acciones de la oferta --}}
                     @if ($confirmAccionOferta === null)
                     <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:12px;">
+
+                        {{-- Aviso de oferta inactiva por precios --}}
+                        @if ($esVencDet)
+                        <div style="width:100%; background:#fff3e0; border:1px solid #ffcc80;
+                                    border-radius:10px; padding:8px 12px; font-size:11px; color:#e65100;
+                                    margin-bottom:4px;">
+                            <i class="fa fa-exclamation-triangle mr-1"></i>
+                            <strong>Precios desactualizados.</strong>
+                            Esta oferta fue inactivada porque uno o más precios cambiaron desde que fue creada.
+                            Solo puede duplicarse para generar una nueva oferta con precios actualizados.
+                        </div>
+                        @endif
+
                         <a href="/cotizacion/imprimir/{{ $ofertaSeleccionada['id'] }}" target="_blank"
                            style="text-align:center; background:#f8f9fc; color:#1a7efb;
                                   border:1px solid #e8eaf0; border-radius:8px; padding:5px 10px;
                                   font-size:11px; font-weight:700; text-decoration:none;">
                             <i class="fa fa-print mr-1"></i> Imprimir
                         </a>
-                        @if (!$esGanDet && !$esAnuDet && !$tieneGanadora)
+
+                        @if (!$facturaCompletada && !$esGanDet && !$esAnuDet && !$esVencDet && !$tieneGanadora)
                         <button type="button" wire:click="confirmarAccionOferta('ganadora')"
                                 style="background:linear-gradient(135deg,#1ab394,#0fa37a); color:#fff;
                                        border:none; border-radius:8px; padding:5px 10px;
@@ -531,7 +772,7 @@
                             <i class="fa fa-trophy mr-1"></i> Ganadora
                         </button>
                         @endif
-                        @if ($esGanDet && !$esAnuDet)
+                        @if (!$facturaCompletada && $esGanDet && !$esAnuDet)
                         <button type="button" wire:click="confirmarAccionOferta('quitar_ganadora')"
                                 style="background:linear-gradient(135deg,#e67e22,#d35400); color:#fff;
                                        border:none; border-radius:8px; padding:5px 10px;
@@ -539,7 +780,7 @@
                             <i class="fa fa-times-circle mr-1"></i> Quitar Ganadora
                         </button>
                         @endif
-                        @if (!$esAnuDet)
+                        @if (!$facturaCompletada && !$esAnuDet && !$esVencDet)
                         <button type="button" wire:click="confirmarAccionOferta('anular_oferta')"
                                 style="background:linear-gradient(135deg,#e74c3c,#c0392b); color:#fff;
                                        border:none; border-radius:8px; padding:5px 10px;
@@ -557,7 +798,7 @@
                     @endif
 
                     {{-- Confirmación: Ganadora --}}
-                    @if ($confirmAccionOferta === 'ganadora')
+                    @if (!$facturaCompletada && $confirmAccionOferta === 'ganadora')
                     <div style="margin-top:12px; background:#fff8e1; border:1px solid #ffe082;
                                 border-radius:12px; padding:14px;">
 
@@ -614,7 +855,7 @@
                     @endif
 
                     {{-- Confirmación: Quitar Ganadora --}}
-                    @if ($confirmAccionOferta === 'quitar_ganadora')
+                    @if (!$facturaCompletada && $confirmAccionOferta === 'quitar_ganadora')
                     <div style="margin-top:12px; background:#fff3e0; border:1px solid #ffcc80;
                                 border-radius:12px; padding:14px;">
                         <p style="font-size:13px; color:#555; margin:0 0 8px;">
@@ -648,7 +889,7 @@
                     @endif
 
                     {{-- Confirmación: Anular oferta --}}
-                    @if ($confirmAccionOferta === 'anular_oferta')
+                    @if (!$facturaCompletada && $confirmAccionOferta === 'anular_oferta')
                     <div style="margin-top:12px; background:#fff5f5; border:1px solid #feb2b2;
                                 border-radius:12px; padding:14px;">
                         <p style="font-size:13px; color:#555; margin:0 0 8px;">
@@ -741,14 +982,15 @@
                             $obs2      = $of['hf_observaciones'] ?? '';
                             $isGan2    = ($obs2 === 'ganadora');
                             $isAnu2    = str_starts_with($obs2, 'Anulado:');
-                            $listBadgeBg    = $isGan2 ? '#d4edda' : ($isAnu2 ? '#f8d7da' : '#e8f0fe');
-                            $listBadgeColor = $isGan2 ? '#155724' : ($isAnu2 ? '#721c24' : '#1a7efb');
-                            $listBadgeText  = $isGan2 ? 'Ganadora' : ($isAnu2 ? 'Anulada' : 'Activa');
+                            $isVenc2   = str_starts_with($obs2, 'VencidaPrecios:');
+                            $listBadgeBg    = $isGan2 ? '#d4edda' : ($isAnu2 ? '#f8d7da' : ($isVenc2 ? '#fff3e0' : '#e8f0fe'));
+                            $listBadgeColor = $isGan2 ? '#155724' : ($isAnu2 ? '#721c24' : ($isVenc2 ? '#e65100' : '#1a7efb'));
+                            $listBadgeText  = $isGan2 ? 'Ganadora' : ($isAnu2 ? 'Anulada' : ($isVenc2 ? 'Precios cambiaron' : 'Activa'));
                         @endphp
                         <div wire:click="verOferta({{ $of['cotizacion_id'] }})"
                              style="padding:9px 12px; border:1px solid #f0f0f0; border-radius:10px;
                                     margin-bottom:6px; cursor:pointer; transition:box-shadow .15s ease;
-                                    opacity:{{ $isAnu2 ? '.55' : '1' }};"
+                                    opacity:{{ ($isAnu2 || $isVenc2) ? '.65' : '1' }};"
                              onmouseover="this.style.boxShadow='0 2px 12px rgba(0,0,0,.1)'"
                              onmouseout="this.style.boxShadow='none'">
                             <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -759,7 +1001,7 @@
                                     <span style="background:{{ $listBadgeBg }}; color:{{ $listBadgeColor }};
                                                  border-radius:12px; padding:1px 8px; font-size:10px;
                                                  font-weight:700; margin-left:6px;">
-                                        @if ($isGan2)<i class="fa fa-trophy mr-1"></i>@endif
+                                        @if ($isGan2)<i class="fa fa-trophy mr-1"></i>@elseif($isVenc2)<i class="fa fa-exclamation-triangle mr-1"></i>@endif
                                         {{ $listBadgeText }}
                                     </span>
                                 </div>
@@ -849,7 +1091,7 @@
                     {{-- Botones de acción --}}
                     @if ($confirmAccionPrefactura === null)
                     <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:4px;">
-
+                        @if (!$facturaCompletada)
                         <button type="button" wire:click="confirmarAccionPrefactura('revertir')"
                                 style="background:linear-gradient(135deg,#1a7efb,#0d6efd); color:#fff;
                                        border:none; border-radius:8px; padding:6px 14px;
@@ -863,6 +1105,7 @@
                                        font-size:12px; font-weight:700; cursor:pointer;">
                             <i class="fa fa-ban mr-1"></i> Anular
                         </button>
+                        @endif
 
                         <a href="/prefactura/imprimir/{{ $pref['id'] }}" target="_blank"
                            style="background:#f8f9fc; color:#1a7efb; border:1px solid #e8eaf0;
@@ -871,43 +1114,20 @@
                             <i class="fa fa-print"></i> Imprimir prefactura
                         </a>
 
+                        @if (!$facturaCompletada)
                         <button type="button" wire:click="iniciarFacturacion"
                                 style="background:linear-gradient(135deg,#1b5e20,#2e7d32); color:#fff;
                                        border:none; border-radius:8px; padding:6px 14px;
                                        font-size:12px; font-weight:700; cursor:pointer;">
                             <i class="fa fa-file-text mr-1"></i> Facturar
                         </button>
+                        @endif
 
-                    </div>
-                    @endif
-
-                    {{-- Selección de tipo de facturación --}}
-                    @if ($facturacionActiva && !empty($tiposFacturacion))
-                    <div style="margin-top:12px; background:#e8f5e9; border:1px solid #a5d6a7; border-radius:12px; padding:14px;">
-                        <p style="font-size:13px; color:#1b5e20; margin:0 0 10px; font-weight:700;">
-                            <i class="fa fa-file-text mr-1"></i> Seleccionar tipo de facturación:
-                        </p>
-                        <div style="display:flex; flex-direction:column; gap:8px;">
-                            @foreach($tiposFacturacion as $tf)
-                            <button type="button" wire:click="ejecutarFacturacion({{ $tf['id'] }})"
-                                    style="background:#fff; border:1.5px solid #a5d6a7; border-radius:8px;
-                                           padding:8px 14px; text-align:left; font-size:12px; font-weight:700;
-                                           color:#1b5e20; cursor:pointer; display:flex; align-items:center; gap:8px;">
-                                <i class="fa fa-file-text" style="color:#1a7efb;"></i>
-                                {{ $tf['nombre'] }}
-                            </button>
-                            @endforeach
-                        </div>
-                        <button type="button" wire:click="cancelarFacturacion"
-                                style="margin-top:8px; background:#f0f0f0; color:#555; border:none;
-                                       border-radius:8px; padding:6px 14px; font-size:12px; cursor:pointer;">
-                            Cancelar
-                        </button>
                     </div>
                     @endif
 
                     {{-- Confirmación: Pasar a Oferta --}}
-                    @if ($confirmAccionPrefactura === 'revertir')
+                    @if (!$facturaCompletada && $confirmAccionPrefactura === 'revertir')
                     <div style="margin-top:10px; background:#e3f2fd; border:1px solid #90caf9;
                                 border-radius:12px; padding:14px;">
                         <p style="font-size:13px; color:#555; margin:0 0 8px;">
@@ -934,7 +1154,7 @@
                     @endif
 
                     {{-- Confirmación: Anular --}}
-                    @if ($confirmAccionPrefactura === 'anular')
+                    @if (!$facturaCompletada && $confirmAccionPrefactura === 'anular')
                     <div style="margin-top:10px; background:#fff5f5; border:1px solid #feb2b2;
                                 border-radius:12px; padding:14px;">
                         <p style="font-size:13px; color:#555; margin:0 0 8px;">
@@ -971,6 +1191,105 @@
                 </div>
                 @endif
 
+                {{-- ══════════════════════════════════════════════════ --}}
+                {{-- PASO: FACTURA                                         --}}
+                {{-- ══════════════════════════════════════════════════ --}}
+                @elseif ($pasoActivo === 'factura')
+
+                @if ($facturaData)
+                @php $fac = $facturaData; @endphp
+                <div style="margin-top:12px;">
+                    <div style="background:#fff; border-radius:10px; border:1px solid #e8eaf0;
+                                padding:12px 14px; margin-bottom:10px; font-size:12px; color:#555;">
+                        <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:center;">
+                            <span><i class="fa fa-file-text text-primary mr-1"></i><strong>Factura #{{ $fac['id'] }}</strong></span>
+                            <span><i class="fa fa-user text-info mr-1"></i>{{ $fac['nombre_cliente'] ?? ($d['cliente'] ?? '—') }}</span>
+                            <span><i class="fa fa-calendar text-muted mr-1"></i>{{ \Carbon\Carbon::parse($fac['fecha_emision'] ?? $fac['created_at'])->format('d/m/Y') }}</span>
+                            <strong style="color:#e65100;">Total: L {{ number_format($fac['total'] ?? 0, 2) }}</strong>
+                        </div>
+                    </div>
+
+                    @if (!empty($fac['productos']))
+                    <div style="border-radius:10px; overflow:hidden; border:1px solid #e8eaf0;
+                                max-height:170px; overflow-y:auto; margin-bottom:10px;">
+                        <table style="width:100%; font-size:11px; border-collapse:collapse;">
+                            <thead>
+                                <tr style="background:#f8f9fc; color:#888; position:sticky; top:0;">
+                                    <th style="padding:4px 8px; text-align:left;">Producto</th>
+                                    <th style="padding:4px 8px; text-align:center;">Cant.</th>
+                                    <th style="padding:4px 8px; text-align:right;">P.Unit.</th>
+                                    <th style="padding:4px 8px; text-align:right;">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($fac['productos'] as $fp)
+                                <tr style="border-bottom:1px solid #f0f0f0;">
+                                    <td style="padding:4px 8px; color:#2c3e50;">{{ $fp['nombre_producto'] ?? '—' }}</td>
+                                    <td style="padding:4px 8px; text-align:center; color:#1a7efb; font-weight:700;">{{ $fp['cantidad'] ?? '—' }}</td>
+                                    <td style="padding:4px 8px; text-align:right; color:#555;">
+                                        @if (!empty($fp['precio_unidad'])) L {{ number_format($fp['precio_unidad'], 2) }} @else — @endif
+                                    </td>
+                                    <td style="padding:4px 8px; text-align:right; font-weight:700; color:#1ab394;">
+                                        @if (!empty($fp['total'])) L {{ number_format($fp['total'], 2) }} @else — @endif
+                                    </td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                    @endif
+
+                    @if ($confirmAccionFactura === null)
+                    <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:4px;">
+                        <a href="{{ $fac['print_url'] ?? ('/factura/cooporativo/' . $fac['id']) }}" target="_blank"
+                           style="background:#f8f9fc; color:#1a7efb; border:1px solid #e8eaf0;
+                                  border-radius:8px; padding:6px 14px; font-size:12px; font-weight:700;
+                                  text-decoration:none; display:inline-flex; align-items:center; gap:5px;">
+                            <i class="fa fa-print"></i> Imprimir factura
+                        </a>
+
+                        <button type="button" wire:click="confirmarAccionFactura('anular')"
+                                style="background:linear-gradient(135deg,#e74c3c,#c0392b); color:#fff;
+                                       border:none; border-radius:8px; padding:6px 14px;
+                                       font-size:12px; font-weight:700; cursor:pointer;">
+                            <i class="fa fa-ban mr-1"></i> Anular Factura
+                        </button>
+                    </div>
+                    @endif
+
+                    @if ($confirmAccionFactura === 'anular')
+                    <div style="margin-top:10px; background:#fff5f5; border:1px solid #feb2b2;
+                                border-radius:12px; padding:14px;">
+                        <p style="font-size:13px; color:#555; margin:0 0 8px;">
+                            <i class="fa fa-ban text-danger mr-1"></i>
+                            ¿Anular la <strong>Factura #{{ $fac['id'] }}</strong>?
+                        </p>
+                        <p style="font-size:11px; color:#888; margin:0 0 10px;">
+                            Si la prefactura está vigente, el flujo regresará a Prefactura. Si está vencida, regresará a Ofertas con validación de precios.
+                        </p>
+                        <div style="display:flex; gap:8px;">
+                            <button type="button" wire:click="anularFactura"
+                                    style="background:linear-gradient(135deg,#e74c3c,#c0392b); color:#fff;
+                                           border:none; border-radius:8px; padding:7px 18px;
+                                           font-size:12px; font-weight:700; cursor:pointer;">
+                                <i class="fa fa-ban mr-1"></i> Confirmar anulación
+                            </button>
+                            <button type="button" wire:click="cancelarConfirmFactura"
+                                    style="background:#f0f0f0; color:#555; border:none;
+                                           border-radius:8px; padding:7px 16px; font-size:12px; cursor:pointer;">
+                                Cancelar
+                            </button>
+                        </div>
+                    </div>
+                    @endif
+                </div>
+                @else
+                <div style="margin-top:20px; text-align:center; padding:24px; color:#90a4ae;">
+                    <i class="fa fa-file-text-o fa-2x d-block mb-2" style="opacity:.4;"></i>
+                    <p style="font-size:13px; margin:0; font-weight:600;">Sin factura registrada en este flujo.</p>
+                </div>
+                @endif
+
                 {{-- Pasos pendientes: factura, entrega, cobro --}}
                 @elseif (!in_array($pasoActivo, ['pedido', 'ofertas']))
                 <div style="margin-top:20px; text-align:center; padding:24px; color:#90a4ae;">
@@ -995,37 +1314,47 @@
                     <i class="fa fa-times mr-1"></i> Cerrar
                 </button>
 
-                @if (!$fCancelado && $pasoActivo === 'pedido')
-                <a href="/flujo/pedido/editar/{{ $d['id'] }}"
-                   target="_blank"
-                   style="border-radius:20px; padding:6px 20px; background:linear-gradient(135deg,#f39c12,#e67e22);
-                          color:#fff; font-size:13px; font-weight:700; text-decoration:none;
-                          display:inline-block;">
-                    <i class="fa fa-pencil mr-1"></i> Editar pedido
-                </a>
+                  @if (!$fCancelado && $pasoActivo === 'pedido')
+                  <a href="/flujo/pedido/imprimir/{{ $d['id'] }}"
+                     target="_blank"
+                     style="border-radius:20px; padding:6px 20px; background:#f8f9fc;
+                         color:#1a7efb; font-size:13px; font-weight:700; text-decoration:none;
+                         border:1px solid #e8eaf0; display:inline-block;">
+                      <i class="fa fa-print mr-1"></i> Imprimir
+                  </a>
 
-                <button type="button" wire:click="confirmarAccion('duplicar')"
-                        style="border-radius:20px; padding:6px 20px; background:linear-gradient(135deg,#1a7efb,#0d6efd);
-                               color:#fff; border:none; font-size:13px; font-weight:700; cursor:pointer;">
-                    <i class="fa fa-copy mr-1"></i> Duplicar
-                </button>
+                  @if (!$facturaCompletada)
+                  <a href="/flujo/pedido/editar/{{ $d['id'] }}"
+                     target="_blank"
+                     style="border-radius:20px; padding:6px 20px; background:linear-gradient(135deg,#f39c12,#e67e22);
+                         color:#fff; font-size:13px; font-weight:700; text-decoration:none;
+                         display:inline-block;">
+                      <i class="fa fa-pencil mr-1"></i> Editar pedido
+                  </a>
 
-                @if (!$tieneGanadora)
-                <button type="button" wire:click="nuevaOferta"
-                        style="border-radius:20px; padding:6px 20px; background:linear-gradient(135deg,#e65100,#f9a826);
-                               color:#fff; border:none; font-size:13px; font-weight:700; cursor:pointer;">
-                    <i class="fa fa-tag mr-1"></i> Ag. Oferta
-                </button>
+                  <button type="button" wire:click="confirmarAccion('duplicar')"
+                       style="border-radius:20px; padding:6px 20px; background:linear-gradient(135deg,#1a7efb,#0d6efd);
+                           color:#fff; border:none; font-size:13px; font-weight:700; cursor:pointer;">
+                      <i class="fa fa-copy mr-1"></i> Duplicar
+                  </button>
+
+                  @if (!$tieneGanadora)
+                  <button type="button" wire:click="nuevaOferta"
+                       style="border-radius:20px; padding:6px 20px; background:linear-gradient(135deg,#e65100,#f9a826);
+                           color:#fff; border:none; font-size:13px; font-weight:700; cursor:pointer;">
+                      <i class="fa fa-tag mr-1"></i> Ag. Oferta
+                  </button>
+                  @endif
+
+                  <button type="button" wire:click="confirmarAccion('anular')"
+                       style="border-radius:20px; padding:6px 20px; background:linear-gradient(135deg,#e74c3c,#c0392b);
+                           color:#fff; border:none; font-size:13px; font-weight:700; cursor:pointer;">
+                      <i class="fa fa-ban mr-1"></i> Anular
+                  </button>
+                  @endif
                 @endif
 
-                <button type="button" wire:click="confirmarAccion('anular')"
-                        style="border-radius:20px; padding:6px 20px; background:linear-gradient(135deg,#e74c3c,#c0392b);
-                               color:#fff; border:none; font-size:13px; font-weight:700; cursor:pointer;">
-                    <i class="fa fa-ban mr-1"></i> Anular
-                </button>
-                @endif
-
-                @if ($pasoActivo === 'ofertas' && !$tieneGanadora)
+                  @if ($pasoActivo === 'ofertas' && !$tieneGanadora && !$facturaCompletada)
                 <button type="button" wire:click="nuevaOferta"
                         style="border-radius:20px; padding:6px 20px; background:linear-gradient(135deg,#e65100,#f9a826);
                                color:#fff; border:none; font-size:13px; font-weight:700; cursor:pointer;">

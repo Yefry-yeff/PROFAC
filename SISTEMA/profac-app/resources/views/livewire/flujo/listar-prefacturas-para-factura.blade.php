@@ -1,4 +1,30 @@
 <div>
+    <style>
+        .pf-th {
+            white-space: nowrap;
+            background: #fff3e0;
+            font-size: 12px;
+            font-weight: 700;
+            color: #e65100;
+            padding: 10px 12px;
+            border-bottom: 2px solid #ffcc80 !important;
+        }
+        .pf-badge {
+            display: inline-block;
+            border-radius: 20px;
+            padding: 3px 10px;
+            font-size: 11px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+        .pf-row {
+            transition: background .1s;
+        }
+        .pf-row:hover > td {
+            background: #fffaf2 !important;
+        }
+    </style>
+
     {{-- ── Filtro ───────────────────────────────────────────────────────── --}}
     <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
         <div class="input-group" style="max-width:360px;">
@@ -33,26 +59,56 @@
                 Prefactura <strong>#{{ $ofertaParaFacturar }}</strong> → elige el tipo de factura a emitir:
             </p>
             <div class="row g-2">
-                @foreach([
-                    ['clientes_a',    'fa-user-tie',      '#1199c1', '#e3f2fd', 'Clientes A',     'Facturación estándar Tipo A'],
-                    ['clientes_b',    'fa-users',         '#3a53a3', '#e8eaf6', 'Clientes B',     'Facturación estándar Tipo B'],
-                    ['sr_clientes_a', 'fa-shield-alt',    '#d32f2f', '#fce4ec', 'SR / Clientes A','Sin restricción – Tipo A'],
-                    ['sr_clientes_b', 'fa-lock-open',     '#424242', '#f5f5f5', 'SR / Clientes B','Sin restricción – Tipo B'],
-                    ['exonerada',     'fa-file-invoice',  '#00897b', '#e8f5e9', 'Exonerada',      'Para clientes exonerados'],
-                ] as [$subtipo, $icon, $color, $bg, $label, $desc])
                 <div class="col-6 mb-2">
-                    <button type="button" wire:click="crearFactura('{{ $subtipo }}')"
-                            style="background:{{ $bg }}; color:{{ $color }}; border:2px solid {{ $color }}20;
-                                   border-radius:12px; padding:12px 14px; width:100%; text-align:left;
-                                   cursor:pointer; transition:box-shadow .15s;"
-                            onmouseover="this.style.boxShadow='0 4px 16px {{ $color }}30';"
+                    <button type="button" wire:click="crearFactura('clientes_a')"
+                            style="background:#e3f2fd; color:#1199c1; border:2px solid #1199c1; border-radius:12px; padding:12px 14px; width:100%; text-align:left; cursor:pointer; transition:box-shadow .15s;"
+                        onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,.12)';"
                             onmouseout="this.style.boxShadow='none';">
-                        <div style="font-size:18px; margin-bottom:4px;"><i class="fa {{ $icon }}"></i></div>
-                        <div style="font-weight:800; font-size:13px;">{{ $label }}</div>
-                        <div style="font-size:11px; opacity:.8;">{{ $desc }}</div>
+                        <div style="font-size:18px; margin-bottom:4px;"><i class="fa fa-user-tie"></i></div>
+                        <div style="font-weight:800; font-size:13px;">Clientes A</div>
+                        <div style="font-size:11px; opacity:.8;">Facturación estándar Tipo A</div>
                     </button>
                 </div>
-                @endforeach
+                <div class="col-6 mb-2">
+                    <button type="button" wire:click="crearFactura('clientes_b')"
+                            style="background:#e8eaf6; color:#3a53a3; border:2px solid #3a53a3; border-radius:12px; padding:12px 14px; width:100%; text-align:left; cursor:pointer; transition:box-shadow .15s;"
+                            onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,.12)';"
+                            onmouseout="this.style.boxShadow='none';">
+                        <div style="font-size:18px; margin-bottom:4px;"><i class="fa fa-users"></i></div>
+                        <div style="font-weight:800; font-size:13px;">Clientes B</div>
+                        <div style="font-size:11px; opacity:.8;">Facturación estándar Tipo B</div>
+                    </button>
+                </div>
+                <div class="col-6 mb-2">
+                    <button type="button" wire:click="crearFactura('sr_clientes_a')"
+                            style="background:#fce4ec; color:#d32f2f; border:2px solid #d32f2f; border-radius:12px; padding:12px 14px; width:100%; text-align:left; cursor:pointer; transition:box-shadow .15s;"
+                            onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,.12)';"
+                            onmouseout="this.style.boxShadow='none';">
+                        <div style="font-size:18px; margin-bottom:4px;"><i class="fa fa-shield-alt"></i></div>
+                        <div style="font-weight:800; font-size:13px;">SR / Clientes A</div>
+                        <div style="font-size:11px; opacity:.8;">Sin restricción – Tipo A</div>
+                    </button>
+                </div>
+                <div class="col-6 mb-2">
+                    <button type="button" wire:click="crearFactura('sr_clientes_b')"
+                            style="background:#f5f5f5; color:#424242; border:2px solid #424242; border-radius:12px; padding:12px 14px; width:100%; text-align:left; cursor:pointer; transition:box-shadow .15s;"
+                            onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,.12)';"
+                            onmouseout="this.style.boxShadow='none';">
+                        <div style="font-size:18px; margin-bottom:4px;"><i class="fa fa-lock-open"></i></div>
+                        <div style="font-weight:800; font-size:13px;">SR / Clientes B</div>
+                        <div style="font-size:11px; opacity:.8;">Sin restricción – Tipo B</div>
+                    </button>
+                </div>
+                <div class="col-6 mb-2">
+                    <button type="button" wire:click="crearFactura('exonerada')"
+                            style="background:#e8f5e9; color:#00897b; border:2px solid #00897b; border-radius:12px; padding:12px 14px; width:100%; text-align:left; cursor:pointer; transition:box-shadow .15s;"
+                            onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,.12)';"
+                            onmouseout="this.style.boxShadow='none';">
+                        <div style="font-size:18px; margin-bottom:4px;"><i class="fa fa-file-invoice"></i></div>
+                        <div style="font-weight:800; font-size:13px;">Exonerada</div>
+                        <div style="font-size:11px; opacity:.8;">Para clientes exonerados</div>
+                    </button>
+                </div>
             </div>
             <div class="text-right mt-3">
                 <button type="button" wire:click="cancelarSeleccion"
@@ -73,50 +129,54 @@
     </div>
     @else
     <div class="table-responsive">
-        <table class="table table-hover" style="font-size:13px;">
-            <thead style="background:#fff8e1;">
+        <table class="table table-bordered mb-0" style="font-size:13px; border-color:#dee2e6;">
+            <thead>
                 <tr>
-                    <th># Prefactura</th>
-                    <th>Pedido</th>
-                    <th>Cliente</th>
-                    <th>RTN</th>
-                    <th>Vendedor</th>
-                    <th>Productos</th>
-                    <th class="text-right">Total L.</th>
-                    <th>Fecha</th>
-                    <th>Acción</th>
+                    <th class="pf-th" style="width:170px;">Identificadores</th>
+                    <th class="pf-th">Cliente</th>
+                    <th class="pf-th" style="width:110px; text-align:center;">Fecha</th>
+                    <th class="pf-th" style="width:140px; text-align:center;">Estado</th>
+                    <th class="pf-th" style="width:140px; text-align:center;">Acciones</th>
                 </tr>
             </thead>
             <tbody>
                 @foreach($prefacturas as $pref)
                 @php $p = (array)$pref; @endphp
-                <tr>
-                    <td>
+                <tr class="pf-row">
+                    <td class="align-middle" style="padding:10px 12px;">
                         <span style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff;
                                      border-radius:6px; padding:3px 10px; font-weight:800;">#{{ $p['id'] }}</span>
-                    </td>
-                    <td>
-                        @if($p['pedido_id'])
-                            <span style="background:#e3f2fd; color:#1565c0; border-radius:12px; padding:2px 8px; font-size:11px; font-weight:700;">
-                                Pedido #{{ $p['pedido_id'] }}
+                        <div style="margin-top:6px; display:flex; flex-wrap:wrap; gap:6px;">
+                            @if($p['pedido_id'])
+                                <span class="pf-badge" style="background:#e3f2fd; color:#1565c0;">
+                                    Pedido #{{ $p['pedido_id'] }}
+                                </span>
+                            @endif
+                            <span class="pf-badge" style="background:#ede7f6; color:#5e35b1;">
+                                {{ $p['total_productos'] }} producto(s)
                             </span>
-                        @else
-                            <span style="color:#b0bec5; font-size:11px;">—</span>
-                        @endif
+                        </div>
                     </td>
-                    <td style="font-weight:600; color:#2c3e50;">{{ $p['nombre_cliente'] }}</td>
-                    <td style="color:#546e7a;">{{ $p['RTN'] ?: '—' }}</td>
-                    <td style="color:#546e7a; font-size:12px;">{{ $p['vendedor_nombre'] ?: '—' }}</td>
-                    <td>
-                        <span style="background:#e8eaf6; color:#3949ab; border-radius:20px; padding:2px 8px; font-size:11px; font-weight:700;">
-                            {{ $p['total_productos'] }}
+                    <td class="align-middle" style="padding:10px 12px;">
+                        <div style="font-weight:700; color:#2c3e50; line-height:1.3;">{{ $p['nombre_cliente'] }}</div>
+                        <div style="font-size:11px; color:#78909c; margin-top:3px; display:flex; flex-wrap:wrap; gap:10px;">
+                            <span><i class="fa fa-id-card-o mr-1"></i>{{ $p['RTN'] ?: 'Sin RTN' }}</span>
+                            <span><i class="fa fa-user-circle-o mr-1"></i>{{ $p['vendedor_nombre'] ?: 'Sin vendedor' }}</span>
+                            <span style="font-weight:700; color:#e65100;"><i class="fa fa-money mr-1"></i>L. {{ $p['total'] }}</span>
+                        </div>
+                    </td>
+                    <td class="text-center align-middle" style="padding:10px 8px; color:#78909c; font-size:11px; white-space:nowrap;">
+                        {{ \Carbon\Carbon::parse($p['created_at'])->format('d/m/Y') }}
+                        <div style="font-size:10px; color:#b0bec5;">
+                            {{ \Carbon\Carbon::parse($p['created_at'])->format('H:i') }}
+                        </div>
+                    </td>
+                    <td class="text-center align-middle" style="padding:10px 8px;">
+                        <span class="pf-badge" style="background:#e0f7fa; color:#006064; border:1px solid #00606422;">
+                            <i class="fa fa-file-o mr-1"></i>Prefactura
                         </span>
                     </td>
-                    <td class="text-right" style="font-weight:700; color:#e65100;">L. {{ $p['total'] }}</td>
-                    <td style="color:#78909c; font-size:11px;">
-                        {{ \Carbon\Carbon::parse($p['created_at'])->format('d/m/Y') }}
-                    </td>
-                    <td>
+                    <td class="text-center align-middle" style="padding:10px 8px;">
                         <button type="button" wire:click="seleccionarParaFacturar({{ $p['id'] }})"
                                 style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff; border:none;
                                        border-radius:8px; padding:7px 14px; font-size:12px; font-weight:700;

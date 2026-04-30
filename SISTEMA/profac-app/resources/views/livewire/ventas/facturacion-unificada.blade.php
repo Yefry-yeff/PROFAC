@@ -211,12 +211,54 @@
             
         </div>
     </div>
+    @elseif($fromPrefactura)
+    <div class="row wrapper border-bottom white-bg page-heading">
+        <div class="col-lg-10">
+            <h2><i class="fa fa-file-text-o" style="color:#1b5e20;"></i> Factura desde Prefactura</h2>
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Inicio</a></li>
+                <li class="breadcrumb-item"><a href="{{ route('flujo.ventas') }}">Ventas</a></li>
+                <li class="breadcrumb-item active"><strong>Factura desde Prefactura</strong></li>
+            </ol>
+        </div>
+        <div class="col-lg-2 d-flex align-items-center justify-content-end">
+            <a href="{{ route('flujo.ventas') }}" class="btn btn-default btn-sm">
+                <i class="mr-1 fa fa-arrow-left"></i> Volver
+            </a>
+        </div>
+    </div>
     @endif
 
     <div class="wrapper wrapper-content animated fadeInRight">
 
+        {{-- ===== SELECTOR DE TIPO (para facturación desde prefactura) ===== --}}
+        @if($fromPrefactura)
+        <div class="mb-4 row">
+            <div class="col-12">
+                <div class="ibox">
+                    <div class="py-3 ibox-content" style="background: linear-gradient(135deg, #f1f8e9, #e8f5e9); border: 2px solid #a5d6a7;">
+                        <h6 style="margin:0 0 12px; font-weight:800; color:#1b5e20; display:flex; align-items:center; gap:8px;">
+                            <i class="fa fa-file-text-o"></i> Selecciona el tipo de facturación:
+                        </h6>
+                        <div class="flex-wrap d-flex align-items-center tipo-factura-selector" style="gap:8px;">
+                            @foreach($tiposFactura as $tipo)
+                                <button type="button"
+                                    class="btn btn-sm {{ $config && $config->id == $tipo->id ? 'btn-success active' : 'btn-outline-success' }}"
+                                    onclick="cambiarTipoFacturaDesdeUrl('{{ $tipo->ruta_menu }}')"
+                                    style="border-radius:8px; padding:8px 16px; font-weight:700; font-size:13px;">
+                                    <i class="mr-1 fa fa-file-text"></i> {{ $tipo->nombre }}
+                                </button>
+                            @endforeach
+                        </div>
+                        <small class="mt-2 d-block text-muted">Selecciona el tipo de facturación y los datos de la prefactura se cargarán automáticamente.</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        @endif
+
         {{-- ===== SELECTOR DE TIPO (fuera de flujo) ===== --}}
-        @if(!$fromFlujo)
+        @if(!$fromFlujo && !$fromPrefactura)
         <div class="mb-3 row">
             <div class="col-12">
                 <div class="ibox">
@@ -232,6 +274,85 @@
                     </div>
                 </div>
             </div>
+        </div>
+        @endif
+
+        {{-- ===== PANEL: VINCULAR A UNA PREFACTURA (modo facturación desde prefactura) ===== --}}
+        @if($fromPrefactura)
+        <div class="pedido-link-panel {{ $prefacturaVinculada ? 'linked' : '' }}" style="border-color:#a5d6a7; background:#f1f8e9;">
+            @if(!$prefacturaVinculada)
+            <div class="mb-3">
+                <h6 style="margin:0; font-weight:800; color:#1b5e20;">
+                    <i class="mr-2 fa fa-file-text-o"></i>Vincular a una Prefactura
+                </h6>
+            </div>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="input-group">
+                        <div class="input-group-prepend">
+                            <span class="input-group-text" style="background:#1b5e20; color:#fff; border-color:#1b5e20; border-radius:8px 0 0 8px;">
+                                <i class="fa fa-search"></i>
+                            </span>
+                        </div>
+                        <input type="text"
+                               wire:model.debounce.350ms="busquedaPrefactura"
+                               class="form-control"
+                               placeholder="Buscar por # prefactura, # flujo, cliente o RTN..."
+                               style="border-radius:0 8px 8px 0;"
+                               autocomplete="off">
+                    </div>
+                    @if(strlen(trim($busquedaPrefactura)) > 0 && strlen(trim($busquedaPrefactura)) < 2)
+                        <small class="mt-1 text-muted d-block">Escribe al menos 2 caracteres</small>
+                    @endif
+                </div>
+            </div>
+
+            @if(count($prefacturasEncontradas) > 0)
+            <div style="max-height:280px; overflow-y:auto; margin-top:12px;">
+                @foreach($prefacturasEncontradas as $pf)
+                <div class="ped-row" wire:click="seleccionarPrefactura({{ $pf['id'] }})" style="cursor:pointer; border-color:#c8e6c9;">
+                    <div style="flex-shrink:0; display:flex; flex-direction:column; align-items:center; gap:3px;">
+                        <span style="background:linear-gradient(135deg,#1b5e20,#2e7d32); color:#fff; border-radius:8px; padding:3px 10px; font-size:12px; font-weight:800;"># Pref. {{ $pf['id'] }}</span>
+                        @if(!empty($pf['flujo_id']))
+                        <span style="background:#e8f0fe; color:#1a5276; border-radius:6px; padding:1px 8px; font-size:10px; font-weight:700;">Flujo #{{ $pf['flujo_id'] }}</span>
+                        @endif
+                    </div>
+                    <div style="flex:1; min-width:0;">
+                        <div style="font-weight:700; color:#2c3e50; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ $pf['nombre_cliente'] }}</div>
+                        <div style="font-size:11px; color:#90a4ae;">RTN: {{ $pf['RTN'] ?: '—' }} &nbsp;·&nbsp; Emisión: {{ \Carbon\Carbon::parse($pf['fecha_emision'])->format('d/m/Y') }} &nbsp;·&nbsp; Vence: {{ \Carbon\Carbon::parse($pf['fecha_vencimiento'])->format('d/m/Y') }}</div>
+                    </div>
+                    <div style="flex-shrink:0; text-align:right; min-width:110px;">
+                        <div style="font-weight:800; color:#e65100; font-size:14px;">L {{ number_format($pf['total'], 2) }}</div>
+                    </div>
+                </div>
+                @endforeach
+            </div>
+            @elseif(strlen(trim($busquedaPrefactura)) >= 2)
+            <div class="py-3 mt-2 text-center">
+                <i class="mb-2 fa fa-search fa-2x" style="color:#b2dfdb; display:block;"></i>
+                <p style="color:#78909c; font-size:13px; margin:0;">No se encontraron prefacturas activas con ese criterio.</p>
+            </div>
+            @endif
+
+            @else
+            <div class="flex-wrap d-flex align-items-center justify-content-between" style="gap:8px;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span style="background:linear-gradient(135deg,#1b5e20,#2e7d32); color:#fff; border-radius:8px; padding:4px 14px; font-size:13px; font-weight:800;">
+                        <i class="mr-1 fa fa-link"></i> Prefactura Vinculada
+                    </span>
+                    <span style="font-weight:700; color:#1b5e20; font-size:14px;">
+                        #{{ $prefacturaVinculada['id'] }} — {{ $prefacturaVinculada['nombre_cliente'] }}
+                    </span>
+                    <span style="background:#fff3e0; color:#e65100; border-radius:6px; padding:2px 10px; font-size:11px; font-weight:700;">
+                        Total: L {{ number_format($prefacturaVinculada['total'], 2) }}
+                    </span>
+                </div>
+                <button type="button" wire:click="desvincularPrefactura"
+                        style="background:#fce4ec; color:#b71c1c; border:1px solid #ffcdd2; border-radius:8px; padding:5px 14px; font-size:12px; font-weight:700; cursor:pointer;">
+                    <i class="mr-1 fa fa-unlink"></i> Desvincular
+                </button>
+            </div>
+            @endif
         </div>
         @endif
 
@@ -379,6 +500,7 @@
                             <input type="hidden" id="codigo_autorizacion" name="codigo_autorizacion" value="">
                             <input type="hidden" id="pedido_vinculado_id" name="pedido_id"          value="{{ $pedidoId ?? '' }}"> {{-- vinculación a pedido --}}
                             <input type="hidden" id="flujo_vinculado_id"  name="flujo_id"           value="{{ $flujoVinculadoId ?? '' }}"> {{-- flujo directo (sin pedido) --}}
+                            <input type="hidden" id="prefactura_vinculada_id" name="prefactura_id"   value="{{ $prefacturaVinculadaId ?? '' }}"> {{-- prefactura vinculada --}}
 
                             {{-- ── SECCIÓN 1: Datos del Cliente ────────────────────────── --}}
                             <span id="ico_sec_cliente" style="display:none;"></span>
@@ -402,7 +524,7 @@
                                     <select id="seleccionarCliente" name="seleccionarCliente"
                                         class="form-control form-control-sm" data-parsley-required
                                         onchange="obtenerDatosCliente()"
-                                        {{ $flujoVinculado ? 'disabled' : '' }}>
+                                        {{ ($flujoVinculado || $prefacturaVinculada) ? 'disabled' : '' }}>
                                         <option value="" selected disabled>--Seleccionar--</option>
                                     </select>
                                 </div>
@@ -680,6 +802,60 @@
                             </div>
 
                         </form>
+
+                        {{-- ===== PANEL POST-FACTURA (oculto hasta guardar) ===== --}}
+                        <div id="panel_post_factura" style="display:none; margin-top:24px;">
+                            <div style="background:linear-gradient(135deg,#e8f5e9,#f1f8e9); border:2px solid #a5d6a7; border-radius:16px; padding:24px 28px;">
+                                <div style="text-align:center; margin-bottom:20px;">
+                                    <div style="display:inline-flex; align-items:center; justify-content:center;
+                                                width:64px; height:64px; border-radius:50%;
+                                                background:linear-gradient(135deg,#1b5e20,#2e7d32);
+                                                box-shadow:0 6px 20px rgba(27,94,32,.35); margin-bottom:12px;">
+                                        <i class="fa fa-check" style="color:#fff; font-size:28px;"></i>
+                                    </div>
+                                    <h5 style="color:#1b5e20; font-weight:800; margin:0 0 4px;">Factura guardada exitosamente</h5>
+                                    <p id="pfactura_numero" style="color:#555; font-size:13px; margin:0;"></p>
+                                </div>
+                                <div style="display:flex; flex-wrap:wrap; gap:12px; justify-content:center;">
+                                    {{-- Imprimir factura --}}
+                                    <a id="btn_post_imprimir" href="#" target="_blank"
+                                       style="display:inline-flex; align-items:center; gap:8px;
+                                              background:linear-gradient(135deg,#1565c0,#1a7efb); color:#fff;
+                                              border:none; border-radius:12px; padding:12px 22px;
+                                              font-size:14px; font-weight:700; text-decoration:none;
+                                              box-shadow:0 4px 14px rgba(21,101,192,.35);">
+                                        <i class="fa fa-print fa-lg"></i> Imprimir Factura
+                                    </a>
+                                    {{-- Registrar Cobro --}}
+                                    <a id="btn_post_cobro" href="#"
+                                       style="display:inline-flex; align-items:center; gap:8px;
+                                              background:linear-gradient(135deg,#e65100,#f9a826); color:#fff;
+                                              border:none; border-radius:12px; padding:12px 22px;
+                                              font-size:14px; font-weight:700; text-decoration:none;
+                                              box-shadow:0 4px 14px rgba(230,81,0,.35);">
+                                        <i class="fa fa-dollar fa-lg"></i> Registrar Cobro
+                                    </a>
+                                    {{-- Registrar Entrega --}}
+                                    <a id="btn_post_entrega" href="/logistica/distribuciones"
+                                       style="display:inline-flex; align-items:center; gap:8px;
+                                              background:linear-gradient(135deg,#00695c,#00897b); color:#fff;
+                                              border:none; border-radius:12px; padding:12px 22px;
+                                              font-size:14px; font-weight:700; text-decoration:none;
+                                              box-shadow:0 4px 14px rgba(0,137,123,.35);">
+                                        <i class="fa fa-truck fa-lg"></i> Registrar Entrega
+                                    </a>
+                                    {{-- Nueva factura --}}
+                                    <button type="button" onclick="window.location.reload()"
+                                       style="display:inline-flex; align-items:center; gap:8px;
+                                              background:#f5f5f5; color:#555;
+                                              border:1px solid #ddd; border-radius:12px; padding:12px 22px;
+                                              font-size:14px; font-weight:700; cursor:pointer;">
+                                        <i class="fa fa-plus fa-lg"></i> Nueva Factura
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
             </div>
@@ -888,7 +1064,7 @@
                                            cursor:pointer; text-align:center; box-shadow:0 3px 10px rgba(230,81,0,.25); transition:opacity .15s;"
                                     onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">
                                 <i class="fa fa-file-text-o d-block" style="font-size:20px; margin-bottom:4px;"></i>
-                                Prefacturar
+                                Oferta ganadora
                             </button>
 
                         </div>
@@ -919,7 +1095,7 @@
                         <h4 style="font-weight:800; color:#004d40; margin-bottom:6px; font-size:18px;">¡Prefactura generada!</h4>
                         <p id="msgPrefactura" style="color:#546e7a; font-size:13px; margin-bottom:6px;"></p>
                         <p style="color:#90a4ae; font-size:11px; margin-bottom:24px; line-height:1.5;">
-                            <i class="fa fa-info-circle mr-1"></i>
+                            <i class="mr-1 fa fa-info-circle"></i>
                             La prefactura <strong>reserva el inventario</strong> por el período de validez configurado.
                             Una vez vencido, la prefactura pierde validez automáticamente.
                         </p>
@@ -954,6 +1130,68 @@
                                 Imprimir
                             </button>
 
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- MODAL: Éxito guardado factura – mismo estilo que oferta --}}
+        <div class="modal fade" id="modalExitoFactura" tabindex="-1" role="dialog" data-backdrop="static" data-keyboard="false">
+            <div class="modal-dialog modal-dialog-centered" role="document" style="max-width:420px;">
+                <div class="modal-content" style="border-radius:20px; overflow:hidden; border:none; box-shadow:0 20px 60px rgba(0,0,0,.18); position:relative;">
+                    <button type="button" data-dismiss="modal" aria-label="Cerrar"
+                            style="position:absolute; top:12px; right:14px; background:none; border:none;
+                                   font-size:20px; color:#9e9e9e; cursor:pointer; line-height:1; z-index:1;
+                                   padding:4px 8px; border-radius:50%;" title="Cerrar">&times;</button>
+                    <div class="modal-body" style="padding:36px 32px 28px; text-align:center;">
+
+                        <div style="width:90px; height:90px; border-radius:50%;
+                                    background:linear-gradient(135deg,#00c853,#69f0ae);
+                                    display:flex; align-items:center; justify-content:center;
+                                    margin:0 auto 20px; box-shadow:0 8px 24px rgba(0,200,83,.30);">
+                            <i class="fa fa-check" style="font-size:46px; color:#fff; line-height:1;"></i>
+                        </div>
+
+                        <h4 style="font-weight:800; color:#1b5e20; margin-bottom:6px; font-size:18px;">¡Factura guardada!</h4>
+                        <p id="msgNumFactura" style="color:#546e7a; font-size:13px; margin-bottom:24px;">La factura fue registrada exitosamente.</p>
+
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                            <button onclick="facturaAccion('nueva')"
+                                    style="background:#f0fdf4; color:#1b5e20; border:1.5px solid #a7f3d0;
+                                           border-radius:10px; padding:11px 8px; font-size:12px; font-weight:700;
+                                           cursor:pointer; text-align:center; transition:background .15s;"
+                                    onmouseover="this.style.background='#dcfce7'" onmouseout="this.style.background='#f0fdf4'">
+                                <i class="fa fa-plus-circle d-block" style="font-size:20px; margin-bottom:4px; color:#16a34a;"></i>
+                                Nueva factura
+                            </button>
+
+                            <button onclick="facturaAccion('flujo')"
+                                    style="background:#eff6ff; color:#1e40af; border:1.5px solid #bfdbfe;
+                                           border-radius:10px; padding:11px 8px; font-size:12px; font-weight:700;
+                                           cursor:pointer; text-align:center; transition:background .15s;"
+                                    onmouseover="this.style.background='#dbeafe'" onmouseout="this.style.background='#eff6ff'">
+                                <i class="fa fa-sitemap d-block" style="font-size:20px; margin-bottom:4px; color:#2563eb;"></i>
+                                Ver flujo
+                            </button>
+
+                            <button onclick="facturaAccion('imprimir')"
+                                    style="background:#fafafa; color:#374151; border:1.5px solid #e5e7eb;
+                                           border-radius:10px; padding:11px 8px; font-size:12px; font-weight:700;
+                                           cursor:pointer; text-align:center; transition:background .15s;"
+                                    onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='#fafafa'">
+                                <i class="fa fa-print d-block" style="font-size:20px; margin-bottom:4px; color:#6b7280;"></i>
+                                Imprimir factura
+                            </button>
+
+                            <button onclick="facturaAccion('cobro')"
+                                    style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff; border:none;
+                                           border-radius:10px; padding:11px 8px; font-size:12px; font-weight:700;
+                                           cursor:pointer; text-align:center; box-shadow:0 3px 10px rgba(230,81,0,.25); transition:opacity .15s;"
+                                    onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">
+                                <i class="fa fa-exchange d-block" style="font-size:20px; margin-bottom:4px;"></i>
+                                Entregas y cobros
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -1412,6 +1650,20 @@
 
     function cambiarTipoFactura(rutaMenu) {
         window.location.href = '/' + rutaMenu;
+    }
+
+    function cambiarTipoFacturaDesdeUrl(rutaMenu) {
+        // Preserva los parámetros de prefactura (from=prefactura, prefactura_id, flujoId)
+        const urlParams = new URLSearchParams(window.location.search);
+        const from = urlParams.get('from');
+        const prefacturaId = urlParams.get('prefactura_id');
+        const flujoId = urlParams.get('flujoId');
+
+        let newUrl = '/' + rutaMenu;
+        if (from && prefacturaId && flujoId) {
+            newUrl += '?from=' + from + '&prefactura_id=' + prefacturaId + '&flujoId=' + flujoId;
+        }
+        window.location.href = newUrl;
     }
 
     // ================================================================
@@ -2165,6 +2417,8 @@
     var _ofertaFlujoId     = null;
     var _prefacturaId      = null;
     var _prefacturaFlujoId = null;
+    var _facturaGuardadaId = null;
+    var _facturaFlujoId    = null;
 
     function limpiarFormularioVenta(data) {
         document.getElementById('bloqueImagenes').innerHTML = '';
@@ -2294,14 +2548,14 @@
 
         } else if (tipo === 'prefacturar') {
             var btn = document.getElementById('btnPrefacturarOferta');
-            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa fa-spinner fa-spin d-block" style="font-size:20px;margin-bottom:4px;"></i>Procesando…'; }
+            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa fa-spinner fa-spin d-block" style="font-size:20px;margin-bottom:4px;"></i>Procesando...'; }
 
             axios.post('/cotizacion/prefacturar-desde-oferta',
                 { cotizacion_id: idOferta, flujo_id: idFlujo || null },
                 { headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') } }
             ).then(function(res) {
                 var d = res.data;
-                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa fa-file-text-o d-block" style="font-size:20px;margin-bottom:4px;"></i>Prefacturar'; }
+                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa fa-file-text-o d-block" style="font-size:20px;margin-bottom:4px;"></i>Oferta ganadora'; }
                 _prefacturaId    = d.idPrefactura;
                 _prefacturaFlujoId = d.flujoId || idFlujo;
                 document.getElementById('msgPrefactura').textContent = 'Prefactura #' + d.idPrefactura + ' generada. Válida por ' + (d.diasValidez || 7) + ' día(s).';
@@ -2314,7 +2568,7 @@
                 });
                 $('#modalExitoOferta').modal('hide');
             }).catch(function(err) {
-                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa fa-file-text-o d-block" style="font-size:20px;margin-bottom:4px;"></i>Prefacturar'; }
+                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa fa-file-text-o d-block" style="font-size:20px;margin-bottom:4px;"></i>Oferta ganadora'; }
                 var d = err.response ? err.response.data : {};
                 if (d.stock_errors && d.stock_errors.length) {
                     var rows = d.stock_errors.map(function(e) {
@@ -2348,6 +2602,50 @@
         }
     }
 
+    function facturaAccion(tipo) {
+        var idFactura = _facturaGuardadaId;
+        var idFlujo   = _facturaFlujoId;
+
+        if (tipo === 'nueva') {
+            $('#modalExitoFactura').modal('hide');
+            window.location.reload();
+            return;
+        }
+
+        if (tipo === 'flujo') {
+            $('#modalExitoFactura').one('hidden.bs.modal', function () {
+                if (idFlujo) {
+                    axios.get('/flujo/' + idFlujo + '/pedido-id').then(function(r) {
+                        if (r.data.pedido_id) {
+                            Livewire.emit('abrirFlujoPedido', r.data.pedido_id, 'entrega');
+                        } else {
+                            Livewire.emit('abrirFlujoCotizacion', idFlujo);
+                        }
+                    }).catch(function() {
+                        Livewire.emit('abrirFlujoCotizacion', idFlujo);
+                    });
+                } else {
+                    window.location.href = '/flujo/prefactura';
+                }
+            });
+            $('#modalExitoFactura').modal('hide');
+            return;
+        }
+
+        if (tipo === 'imprimir') {
+            if (idFactura && urls.imprimir) {
+                window.open(urls.imprimir.replace('{id}', idFactura), '_blank');
+            }
+            return;
+        }
+
+        if (tipo === 'cobro') {
+            if (idFactura) {
+                window.location.href = '/venta/cobro/' + idFactura;
+            }
+        }
+    }
+
     function prefacturaAccion(tipo) {
         if (tipo === 'imprimir') {
             if (_prefacturaId) {
@@ -2378,46 +2676,12 @@
                 return;
             }
             $('#modalPrefacturaExito').one('hidden.bs.modal', function() {
-                axios.get('/prefactura/' + prefId + '/tipos-facturacion').then(function(r) {
-                    var tipos = r.data.tipos || [];
-                    if (tipos.length === 0) {
-                        Swal.fire({ icon: 'warning', title: 'Sin opciones', text: 'No hay tipos de facturación disponibles para este cliente.' });
-                        return;
-                    }
-                    var html = '<div style="display:flex;flex-direction:column;gap:10px;margin-top:8px;">';
-                    tipos.forEach(function(t) {
-                        html += '<button type="button" class="btn-fact-tipo" data-id="' + t.id + '"'
-                              + ' style="background:#fff;border:1.5px solid #e0e3ee;border-radius:10px;'
-                              + ' padding:10px 16px;text-align:left;cursor:pointer;font-size:13px;'
-                              + ' font-weight:700;color:#2c3e50;display:flex;align-items:center;gap:10px;">'
-                              + '<i class="fa fa-file-text" style="color:#1a7efb;"></i>' + t.nombre + '</button>';
-                    });
-                    html += '</div>';
-                    Swal.fire({
-                        title: 'Seleccionar tipo de facturación',
-                        html: html,
-                        showConfirmButton: false,
-                        showCancelButton: true,
-                        cancelButtonText: 'Cancelar',
-                        didOpen: function() {
-                            document.querySelectorAll('.btn-fact-tipo').forEach(function(btn) {
-                                btn.addEventListener('click', function() {
-                                    var tipoId = this.getAttribute('data-id');
-                                    Swal.close();
-                                    axios.post('/prefactura/' + prefId + '/facturar',
-                                        { tipo_factura_id: tipoId },
-                                        { headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') } }
-                                    ).then(function(res) {
-                                        window.location.href = res.data.url;
-                                    }).catch(function(err) {
-                                        Swal.fire({ icon: 'error', title: 'Error', text: (err.response && err.response.data && err.response.data.error) ? err.response.data.error : 'Error al procesar.' });
-                                    });
-                                });
-                            });
-                        }
-                    });
-                }).catch(function() {
-                    Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo cargar los tipos de facturación.' });
+                axios.post('/prefactura/' + prefId + '/facturar', {}, {
+                    headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') }
+                }).then(function(res) {
+                    window.location.href = res.data.url;
+                }).catch(function(err) {
+                    Swal.fire({ icon: 'error', title: 'Error', text: (err.response && err.response.data && err.response.data.error) ? err.response.data.error : 'Error al procesar.' });
                 });
             });
             $('#modalPrefacturaExito').modal('hide');
@@ -2550,15 +2814,36 @@
                     return;
                 }
 
-                Swal.fire({ icon: data.icon, title: data.title, html: data.text });
-                limpiarFormularioVenta(data);
+                // ── Obtener flujo_id (desde URL param o campo oculto) ──────────
+                var urlParams   = new URLSearchParams(window.location.search);
+                var flujoIdUrl  = urlParams.get('flujoId');
+                var flujoIdEl   = document.getElementById('flujo_vinculado_id');
+                var flujoIdVal  = flujoIdUrl || (flujoIdEl ? flujoIdEl.value : '');
 
-                limpiarFormularioVenta(data);
+                // ── Si hay flujo vinculado: actualizar estado del flujo ────────
+                if (flujoIdVal && data.idFactura) {
+                    axios.post('/flujo/factura/confirmar', {
+                        flujo_id:       flujoIdVal,
+                        factura_id:     data.idFactura,
+                        tipo_factura_id: (tipoFacturaConfig ? tipoFacturaConfig.id : '')
+                    }).catch(function(err) {
+                        console.warn('No se pudo registrar el flujo de factura:', err);
+                    });
+                }
+
+                // ── Mostrar modal post-factura (mismo estilo que oferta) ───────
+                _facturaGuardadaId = data.idFactura;
+                _facturaFlujoId    = flujoIdVal || null;
+                var msgFacturaEl = document.getElementById('msgNumFactura');
+                if (msgFacturaEl) msgFacturaEl.textContent = 'Factura #' + data.idFactura + ' registrada exitosamente.';
+                $('#modalExitoFactura').modal('show');
 
                 // Desactivar código si aplica
                 if (tipoFacturaConfig && tipoFacturaConfig.requiere_codigo_autorizacion) {
                     setTimeout(function() { desactivarCodigo(); }, 30000);
                 }
+
+                document.getElementById("btn_venta_coorporativa").disabled = false;
             })
             .catch(err => {
                 document.getElementById("btn_venta_coorporativa").disabled = false;
@@ -2625,12 +2910,13 @@
 
     @if(count($productosParaCarrito) > 0)
     @push('scripts')
-    {{-- Auto-agregar productos al carrito al duplicar una oferta (cotizacionId en URL) --}}
+    {{-- Auto-agregar productos al carrito: oferta duplicada o prefactura vinculada --}}
     <script>
     (function () {
         var _productosAutoAgregados = false;
+        var _modoPrefactura = {!! $fromPrefactura ? 'true' : 'false' !!};
 
-        function cargarProductosDesdeCotizacion() {
+        function cargarProductosIniciales() {
             if (_productosAutoAgregados) return;
             _productosAutoAgregados = true;
 
@@ -2640,19 +2926,106 @@
             var chain = Promise.resolve();
             productos.forEach(function (prod) {
                 chain = chain.then(function () {
-                    return agregarProductoDesdeOferta(prod);
+                    return _modoPrefactura ? agregarProductoDesdePrefactura(prod) : agregarProductoDesdeOferta(prod);
                 });
             });
             chain.then(function () {
                 Swal.fire({
                     icon: 'success',
                     title: 'Productos cargados',
-                    text: productos.length + ' producto(s) cargado(s) desde la oferta duplicada.',
+                    text: productos.length + ' producto(s) cargado(s) desde ' + (_modoPrefactura ? 'la prefactura vinculada' : 'la oferta duplicada') + '.',
                     timer: 2500,
                     showConfirmButton: false,
                     toast: true,
                     position: 'top-end'
                 });
+            });
+        }
+
+        function agregarProductoDesdePrefactura(prod) {
+            return new Promise(function (resolve) {
+                numeroInputs += 1;
+                var idx = numeroInputs;
+
+                var precioUsar   = parseFloat(prod.precio_unidad || 0);
+                var cantidadUsar = parseFloat(prod.cantidad || 0);
+                var subTotalUsar = parseFloat(prod.sub_total || 0);
+                var isvUsar      = parseFloat(prod.isv || 0);
+                var totalUsar    = parseFloat(prod.total || 0);
+                var isvPct       = parseFloat(prod.isv_producto || 0);
+                var bodegaTexto  = prod.nombre_bodega || '';
+                var idBodega     = prod.Bodega_id || '';
+                var idSeccion    = prod.seccion_id || '';
+                var idUnidadVenta = prod.unidad_medida_venta_id || '';
+
+                var html = `
+                <tr id='${idx}'>
+                    <td style="vertical-align:middle; text-align:center; padding:4px 6px;">
+                        <input id="idProducto${idx}" name="idProducto${idx}" type="hidden" value="${prod.producto_id || ''}">
+                        <input id="precios_producto_carga_id${idx}" name="precios_producto_carga_id${idx}" type="hidden" value="${prod.precios_producto_carga_id || ''}">
+                        <input id="isv${idx}" name="isv${idx}" type="hidden" value="${isvPct}">
+                        <input id="idBodega${idx}" name="idBodega${idx}" type="hidden" value="${idBodega}">
+                        <input id="idSeccion${idx}" name="idSeccion${idx}" type="hidden" value="${idSeccion}">
+                        <input id="restaInventario${idx}" name="restaInventario${idx}" type="hidden" value="${cantidadUsar}">
+                        <input id="subTotal${idx}" name="subTotal${idx}" type="hidden" value="${subTotalUsar.toFixed(2)}" required>
+                        <input id="isvProducto${idx}" name="isvProducto${idx}" type="hidden" value="${isvUsar.toFixed(2)}" required>
+                        <input id="acumuladoDescuento${idx}" name="acumuladoDescuento${idx}" type="hidden" value="0.00">
+                        <input id="total${idx}" name="total${idx}" type="hidden" value="${totalUsar.toFixed(2)}" required>
+                        <input id="bodega${idx}" name="bodega${idx}" type="hidden" value="${bodegaTexto}">
+                        <button class="btn btn-danger btn-xs" type="button" onclick="eliminarInput(${idx})" title="Eliminar" style="padding:2px 6px; font-size:11px; border-radius:5px;">
+                            <i class="fa fa-times"></i>
+                        </button>
+                    </td>
+                    <td style="vertical-align:middle; padding:4px 6px;">
+                        <input type="text" id="nombre${idx}" name="nombre${idx}" value='${prod.nombre_producto || ''}' readonly data-parsley-required
+                            style="border:none; background:transparent; font-size:12px; font-weight:700; color:#1b5e20; width:100%; min-width:130px;">
+                    </td>
+                    <td style="vertical-align:middle; padding:4px 6px; white-space:nowrap;">
+                        <span style="background:#e3f2fd; color:#1565c0; border-radius:6px; padding:2px 8px; font-size:11px; font-weight:700;">
+                            <i class="fa fa-archive" style="font-size:10px;"></i> ${bodegaTexto}
+                        </span>
+                    </td>
+                    <td style="vertical-align:middle; padding:4px 6px;">
+                        <select class="form-control form-control-sm" name="precios${idx}" id="precios${idx}" data-parsley-required style="font-size:11px; min-width:100px;"
+                            onchange="validacionPrecio(precios${idx}, precio${idx})">
+                            <option value="${precioUsar.toFixed(2)}" data-id="p1" selected>${precioUsar.toFixed(2)} - Fijo</option>
+                        </select>
+                    </td>
+                    <td style="vertical-align:middle; padding:4px 6px;">
+                        <input type="number" id="precio${idx}" name="precio${idx}" value="${precioUsar.toFixed(2)}" class="form-control form-control-sm"
+                            data-parsley-required step="any" autocomplete="off" style="min-width:80px; font-size:11px;"
+                            onchange="calcularTotales(precio${idx},cantidad${idx},${isvPct},unidad${idx},${idx},restaInventario${idx})">
+                    </td>
+                    <td style="vertical-align:middle; padding:4px 6px;">
+                        <input type="number" id="cantidad${idx}" name="cantidad${idx}" value="${cantidadUsar}" class="form-control form-control-sm" min="1" data-parsley-required autocomplete="off" style="min-width:60px; font-size:11px;"
+                            onchange="calcularTotales(precio${idx},cantidad${idx},${isvPct},unidad${idx},${idx},restaInventario${idx})">
+                    </td>
+                    <td style="vertical-align:middle; padding:4px 6px;">
+                        <select class="form-control form-control-sm" name="unidad${idx}" id="unidad${idx}" data-parsley-required style="font-size:11px; min-width:80px;"
+                            onchange="calcularTotales(precio${idx},cantidad${idx},${isvPct},unidad${idx},${idx},restaInventario${idx})">
+                            <option value="1" data-id="${idUnidadVenta}" selected>U.</option>
+                        </select>
+                    </td>
+                    <td style="vertical-align:middle; padding:4px 6px; text-align:right;">
+                        <input type="text" id="subTotalMostrar${idx}" name="subTotalMostrar${idx}" value="${formatoMoneda(subTotalUsar)}" readonly autocomplete="off"
+                            style="border:none; background:#f1f8e9; border-radius:5px; font-weight:700; color:#2e7d32; font-size:12px; padding:2px 6px; text-align:right; width:100%; min-width:75px;">
+                    </td>
+                    <td style="vertical-align:middle; padding:4px 6px; text-align:right;">
+                        <input type="text" id="isvProductoMostrar${idx}" name="isvProductoMostrar${idx}" value="${formatoMoneda(isvUsar)}" readonly autocomplete="off"
+                            style="border:none; background:#fce4ec; border-radius:5px; font-weight:700; color:#b71c1c; font-size:12px; padding:2px 6px; text-align:right; width:100%; min-width:65px;">
+                    </td>
+                    <td style="vertical-align:middle; padding:4px 6px; text-align:right;">
+                        <input type="text" id="totalMostrar${idx}" name="totalMostrar${idx}" value="${formatoMoneda(totalUsar)}" readonly autocomplete="off"
+                            style="border:none; background:linear-gradient(135deg,#e65100,#f9a826); border-radius:5px; font-weight:800; color:#fff; font-size:12px; padding:2px 6px; text-align:right; width:100%; min-width:80px;">
+                    </td>
+                </tr>`;
+
+                arregloIdInputs.splice(idx, 0, idx);
+                document.getElementById('carritoTbody').insertAdjacentHTML('beforeend', html);
+                document.getElementById('carritoVacio').classList.add('d-none');
+                document.getElementById('carritoTablaWrapper').classList.remove('d-none');
+                totalesGenerales();
+                resolve();
             });
         }
 
@@ -2783,7 +3156,7 @@
         // Disparar auto-carga cuando el cliente esté completamente cargado
         window.addEventListener('cliente-datos-cargados', function onClienteListo() {
             window.removeEventListener('cliente-datos-cargados', onClienteListo);
-            cargarProductosDesdeCotizacion();
+            cargarProductosIniciales();
         });
     })();
     </script>

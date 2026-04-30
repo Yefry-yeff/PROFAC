@@ -13,6 +13,13 @@ class FacturacionUnificada extends Component
     public $tipoFactura;
     public $tiposFactura;
     public $fromFlujo = false;
+    public $fromPrefactura = false;
+
+    // ── Buscador de prefactura ───────────────────────────────────────────
+    public $busquedaPrefactura     = '';
+    public $prefacturasEncontradas = [];
+    public $prefacturaVinculada    = null;
+    public $prefacturaVinculadaId  = null;
 
 // ── Buscador de flujo ─────────────────────────────────────────────────
     public $busquedaFlujo      = '';
@@ -34,8 +41,10 @@ class FacturacionUnificada extends Component
 
     public function mount($codigo = null)
     {
-        $this->fromFlujo = request()->get('from') === 'flujo';
-        $this->tiposFactura = TipoFactura::activos()->get();
+        $from = request()->get('from');
+        $this->fromFlujo = $from === 'flujo';
+        $this->fromPrefactura = $from === 'prefactura';
+        $this->tiposFactura = TipoFactura::activos()->where('codigo', '!=', 'cotizacion_clientes_a')->get();
 
         if ($codigo) {
             $this->tipoFactura = TipoFactura::where('codigo', $codigo)->first();
@@ -69,8 +78,14 @@ class FacturacionUnificada extends Component
 
         // Pre-seleccionar flujo si viene por flujoId directo (flujos sin pedido)
         $fid = request()->get('flujoId');
-        if ($fid && !$pid) {
+        if ($fid && !$pid && !$this->fromPrefactura) {
             $this->seleccionarFlujo((int) $fid);
+        }
+
+        // Pre-seleccionar prefactura si viene por query string
+        $prefId = request()->get('prefactura_id');
+        if ($prefId && $this->fromPrefactura) {
+            $this->seleccionarPrefactura((int) $prefId);
         }
 
         // Cargar productos del duplicado para auto-agregar al carrito (cotizacionId)
@@ -194,6 +209,47 @@ class FacturacionUnificada extends Component
         );
     }
 
+    public function updatedBusquedaPrefactura()
+    {
+        $term = trim($this->busquedaPrefactura);
+        if (strlen($term) < 2) {
+            $this->prefacturasEncontradas = [];
+            return;
+        }
+
+        $esNum = is_numeric($term);
+        $like  = '%' . $term . '%';
+
+        $q = DB::table('prefactura as p')
+            ->where('p.estado', 'activo')
+            ->select(
+                'p.id',
+                'p.flujo_id',
+                'p.cliente_id',
+                'p.nombre_cliente',
+                'p.RTN',
+                'p.total',
+                'p.fecha_emision',
+                'p.fecha_vencimiento'
+            )
+            ->orderByDesc('p.id')
+            ->limit(8);
+
+        if ($esNum) {
+            $q->where(function ($s) use ($term) {
+                $num = (int) $term;
+                $s->where('p.id', $num)->orWhere('p.flujo_id', $num);
+            });
+        } else {
+            $q->where(function ($s) use ($like) {
+                $s->where('p.nombre_cliente', 'LIKE', $like)
+                  ->orWhere('p.RTN', 'LIKE', $like);
+            });
+        }
+
+        $this->prefacturasEncontradas = $q->get()->map(fn($r) => (array) $r)->toArray();
+    }
+
     public function seleccionarFlujo(int $flujoId)
     {
         $hasPedido = DB::table('historico_flujo')
@@ -277,6 +333,66 @@ class FacturacionUnificada extends Component
         if ($flujoId) {
             $this->seleccionarFlujo((int) $flujoId);
         }
+    }
+
+    public function seleccionarPrefactura(int $prefacturaId)
+    {
+        $pref = DB::table('prefactura')
+            ->where('id', $prefacturaId)
+            ->where('estado', 'activo')
+            ->first();
+
+        if (!$pref) return;
+
+        $this->prefacturaVinculadaId = (int) $pref->id;
+        $this->prefacturaVinculada   = (array) $pref;
+
+        // Ligado de flujo (solo prefacturas)
+        $this->flujoVinculadoId = $pref->flujo_id ? (int) $pref->flujo_id : null;
+        $this->flujoVinculado   = $pref->flujo_id ? [
+            'flujo_id'  => (int) $pref->flujo_id,
+            'cliente'   => $pref->nombre_cliente,
+            'pedido_id' => null,
+        ] : null;
+
+        // Datos cliente desde prefactura
+        $this->clientePedido = [
+            'id'     => $pref->cliente_id,
+            'nombre' => $pref->nombre_cliente,
+            'rtn'    => $pref->RTN,
+        ];
+
+        // Carrito exacto desde prefactura (sin recalcular valores)
+        $this->productosParaCarrito = DB::table('prefactura_has_producto')
+            ->where('prefactura_id', $prefacturaId)
+            ->orderBy('indice')
+            ->get([
+                'producto_id',
+                'nombre_producto',
+                'nombre_bodega',
+                'precio_unidad',
+                'cantidad',
+                'sub_total',
+                'isv',
+                'total',
+                'isv_producto',
+                'unidad_medida_venta_id',
+                'Bodega_id',
+                'seccion_id',
+                'precios_producto_carga_id',
+            ])
+            ->map(fn($r) => (array) $r)
+            ->toArray();
+
+        $this->busquedaPrefactura     = '';
+        $this->prefacturasEncontradas = [];
+
+        $this->dispatchBrowserEvent('pedido-seleccionado', [
+            'clienteId'      => $this->clientePedido['id'],
+            'clienteNombre'  => $this->clientePedido['nombre'],
+            'vendedorId'     => $this->vendedorDefault['id'] ?? null,
+            'vendedorNombre' => $this->vendedorDefault['name'] ?? null,
+        ]);
     }
     /**
      * Carga el detalle de un pedido para mostrar en modal de preview.
@@ -364,6 +480,23 @@ class FacturacionUnificada extends Component
         $this->clientePedido       = null;
         $this->productosSugeridos  = [];
         $this->pedidoDetalle       = null;
+
+        $this->dispatchBrowserEvent('pedido-desvinculado', [
+            'vendedorId'     => $this->vendedorDefault['id'] ?? null,
+            'vendedorNombre' => $this->vendedorDefault['name'] ?? null,
+        ]);
+    }
+
+    public function desvincularPrefactura()
+    {
+        $this->prefacturaVinculadaId  = null;
+        $this->prefacturaVinculada    = null;
+        $this->busquedaPrefactura     = '';
+        $this->prefacturasEncontradas = [];
+        $this->flujoVinculadoId       = null;
+        $this->flujoVinculado         = null;
+        $this->clientePedido          = null;
+        $this->productosParaCarrito   = [];
 
         $this->dispatchBrowserEvent('pedido-desvinculado', [
             'vendedorId'     => $this->vendedorDefault['id'] ?? null,
