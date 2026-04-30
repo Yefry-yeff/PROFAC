@@ -246,4 +246,329 @@ class PrefacturaController
 
         return $pdf->stream("Prefactura_NO_{$datos->codigo}.pdf");
     }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // POST /cotizacion/prefacturar-desde-oferta
+    // Creates a prefactura directly from a cotizacion (offer).
+    // Validates inventory from recibido_bodega, reserves stock,
+    // inserts historico_flujo (tipo_tramite_id=4), updates flujo.
+    // ─────────────────────────────────────────────────────────────────────
+    public function prefacturarDesdeOferta(Request $request)
+    {
+        $cotizacionId = (int) $request->cotizacion_id;
+        $flujoId      = $request->flujo_id ? (int) $request->flujo_id : null;
+
+        if (!$cotizacionId) {
+            return response()->json(['icon' => 'error', 'title' => 'Error', 'text' => 'cotizacion_id requerido.'], 422);
+        }
+
+        $cotizacion = DB::table('cotizacion')->where('id', $cotizacionId)->first();
+        if (!$cotizacion) {
+            return response()->json(['icon' => 'error', 'title' => 'Error', 'text' => 'Oferta no encontrada.'], 404);
+        }
+
+        $productos = DB::table('cotizacion_has_producto')
+            ->where('cotizacion_id', $cotizacionId)
+            ->get();
+
+        // ── 1. Validar inventario (stock neto = stock_real - reservado en prefacturas activas) ──
+        $stockErrors = [];
+        foreach ($productos as $prod) {
+            if ($prod->resta_inventario && $prod->producto_id && $prod->seccion_id) {
+                $rawStock  = (float) DB::table('recibido_bodega')
+                    ->where('producto_id', $prod->producto_id)
+                    ->where('seccion_id',  $prod->seccion_id)
+                    ->where('cantidad_disponible', '>', 0)
+                    ->sum('cantidad_disponible');
+                $reservado = (float) DB::table('prefactura_has_producto as php')
+                    ->join('prefactura as pf', 'pf.id', '=', 'php.prefactura_id')
+                    ->where('pf.estado', 'activo')
+                    ->where('php.producto_id', $prod->producto_id)
+                    ->where('php.seccion_id',  $prod->seccion_id)
+                    ->where('php.resta_inventario', 1)
+                    ->sum('php.cantidad');
+                $disponible = max(0.0, $rawStock - $reservado);
+
+                if ($disponible < $prod->cantidad) {
+                    $stockErrors[] = [
+                        'producto'   => $prod->nombre_producto,
+                        'solicitado' => (int) $prod->cantidad,
+                        'disponible' => (int) $disponible,
+                    ];
+                }
+            }
+}
+
+        if (!empty($stockErrors)) {
+            return response()->json([
+                'icon'         => 'error',
+                'title'        => 'Stock insuficiente',
+                'stock_errors' => $stockErrors,
+            ], 422);
+        }
+
+        // ── 2. Si no viene flujo_id, buscarlo vía historico_flujo ─────────
+        if (!$flujoId) {
+            $flujoId = DB::table('historico_flujo')
+                ->where('tipo_tramite_id', 2)
+                ->where('tramite_id', $cotizacionId)
+                ->value('flujo_id');
+        }
+
+        // ── 3. Calcular fecha vencimiento ──────────────────────────────────
+        $config      = DB::table('configuracion_prefactura')->first();
+        $diasValidez = $config ? (int) $config->dias_validez : 7;
+        $fechaEmision     = now()->toDateString();
+        $fechaVencimiento = \Carbon\Carbon::parse($fechaEmision)->addDays($diasValidez)->toDateString();
+
+        DB::beginTransaction();
+        try {
+            // ── 4. Crear prefactura ────────────────────────────────────────
+            $prefacturaId = DB::table('prefactura')->insertGetId([
+                'cotizacion_id'       => $cotizacionId,
+                'flujo_id'            => $flujoId,
+                'cliente_id'          => $cotizacion->cliente_id,
+                'nombre_cliente'      => $cotizacion->nombre_cliente,
+                'RTN'                 => $cotizacion->RTN,
+                'fecha_emision'       => $fechaEmision,
+                'fecha_vencimiento'   => $fechaVencimiento,
+                'sub_total'           => $cotizacion->sub_total,
+                'sub_total_grabado'   => $cotizacion->sub_total_grabado,
+                'sub_total_excento'   => $cotizacion->sub_total_excento,
+                'isv'                 => $cotizacion->isv,
+                'total'               => $cotizacion->total,
+                'porc_descuento'      => $cotizacion->porc_descuento ?? 0,
+                'monto_descuento'     => $cotizacion->monto_descuento ?? 0,
+                'tipo_venta_id'       => $cotizacion->tipo_venta_id,
+                'vendedor'            => $cotizacion->vendedor,
+                'nota'                => $cotizacion->nota,
+                'arregloIdInputs'     => $cotizacion->arregloIdInputs,
+                'numeroInputs'        => $cotizacion->numeroInputs,
+                'estado'              => 'activo',
+                'users_id'            => Auth::id(),
+                'created_at'          => now(),
+                'updated_at'          => now(),
+            ]);
+
+            // ── 5. Insertar productos ──────────────────────────────────────
+            $prefProds = [];
+            foreach ($productos as $prod) {
+                $prefProds[] = [
+                    'prefactura_id'           => $prefacturaId,
+                    'producto_id'             => $prod->producto_id,
+                    'indice'                  => $prod->indice,
+                    'nombre_producto'         => $prod->nombre_producto,
+                    'nombre_bodega'           => $prod->nombre_bodega,
+                    'precio_unidad'           => $prod->precio_unidad,
+                    'cantidad'                => $prod->cantidad,
+                    'sub_total'               => $prod->sub_total,
+                    'isv'                     => $prod->isv,
+                    'total'                   => $prod->total,
+                    'isv_producto'            => $prod->isv_producto,
+                    'Bodega_id'               => $prod->bodega_id,
+                    'seccion_id'              => $prod->seccion_id,
+                    'unidad_medida_venta_id'  => $prod->unidad_medida_venta_id,
+                    'monto_descProducto'      => $prod->monto_descProducto ?? 0,
+                    'idPrecioSeleccionado'     => $prod->idPrecioSeleccionado ?? null,
+                    'precioSeleccionado'       => $prod->precioSeleccionado ?? null,
+                    'precios_producto_carga_id' => $prod->precios_producto_carga_id ?? null,
+                    'resta_inventario'         => $prod->resta_inventario,
+                    'created_at'              => now(),
+                    'updated_at'              => now(),
+                ];
+            }
+            if (!empty($prefProds)) {
+                DB::table('prefactura_has_producto')->insert($prefProds);
+            }
+
+            // ── 6. Reservar inventario en recibido_bodega ──────────────────
+            foreach ($prefProds as $pp) {
+                if ($pp['resta_inventario'] && $pp['producto_id'] && $pp['seccion_id']) {
+                    // Descontar de los registros con más cantidad disponible primero
+                    $restante = (float) $pp['cantidad'];
+                    $filas = DB::table('recibido_bodega')
+                        ->where('producto_id', $pp['producto_id'])
+                        ->where('seccion_id',  $pp['seccion_id'])
+                        ->where('cantidad_disponible', '>', 0)
+                        ->orderByDesc('cantidad_disponible')
+                        ->get(['id', 'cantidad_disponible']);
+
+                    foreach ($filas as $fila) {
+                        if ($restante <= 0) break;
+                        $descontar = min((float) $fila->cantidad_disponible, $restante);
+                        DB::table('recibido_bodega')
+                            ->where('id', $fila->id)
+                            ->decrement('cantidad_disponible', $descontar);
+                        $restante -= $descontar;
+                    }
+                }
+            }
+
+            // ── 7. Auditar cotizacion_estado como ganadora ─────────────────
+            DB::table('cotizacion_estado')->insert([
+                'cotizacion_id' => $cotizacionId,
+                'flujo_id'      => $flujoId,
+                'ganadora'      => 1,
+                'comentario'    => 'Prefacturada directamente desde oferta',
+                'estado_id'     => 1,
+                'created_by'    => Auth::id(),
+                'updated_by'    => Auth::id(),
+                'created_at'    => now(),
+                'updated_at'    => now(),
+            ]);
+
+            // ── 8. Actualizar observaciones en historico_flujo de la oferta ─
+            DB::table('historico_flujo')
+                ->where('tipo_tramite_id', 2)
+                ->where('tramite_id', $cotizacionId)
+                ->update(['observaciones' => 'ganadora', 'updated_at' => now()]);
+
+            // ── 9. Insertar historico_flujo para la prefactura ─────────────
+            if ($flujoId) {
+                DB::table('historico_flujo')->insert([
+                    'flujo_id'        => $flujoId,
+                    'tipo_tramite_id' => 4, // prefactura
+                    'tramite_id'      => $prefacturaId,
+                    'estado_id'       => 1,
+                    'observaciones'   => 'Prefactura #' . $prefacturaId . ' creada desde oferta #' . $cotizacionId,
+                    'created_by'      => Auth::id(),
+                    'updated_by'      => Auth::id(),
+                    'created_at'      => now(),
+                    'updated_at'      => now(),
+                ]);
+
+                DB::table('flujo')->where('id', $flujoId)->update([
+                    'tipo_tramite_id' => 4,
+                    'updated_by'      => Auth::id(),
+                    'updated_at'      => now(),
+                ]);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'icon'        => 'success',
+                'title'       => '¡Prefactura generada!',
+                'idPrefactura' => $prefacturaId,
+                'flujoId'     => $flujoId,
+                'diasValidez' => $diasValidez,
+            ], 200);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'icon'  => 'error',
+                'title' => 'Error',
+                'text'  => 'Error al generar prefactura: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // GET /prefactura/{id}/tipos-facturacion
+    // Returns the available billing types for the prefactura's client.
+    // ─────────────────────────────────────────────────────────────────────
+    public function getTiposFacturacion(int $id)
+    {
+        $prefactura = DB::table('prefactura')->where('id', $id)->first();
+        if (!$prefactura) {
+            return response()->json(['error' => 'Prefactura no encontrada.'], 404);
+        }
+
+        $clienteId     = (int) ($prefactura->cliente_id ?? 0);
+        $cliente       = $clienteId ? DB::table('cliente')->where('id', $clienteId)->first() : null;
+        $tipoClienteId = $cliente ? (int) $cliente->tipo_cliente_id : 0;
+
+        $tiposVenta = [];
+        if ($tipoClienteId === 1) {            // Corporativo (B)
+            $tiposVenta[] = 1;
+        } elseif (in_array($tipoClienteId, [2, 3])) {  // Estatal (A) / Gobierno
+            $tiposVenta[] = 2;
+        }
+        if ($clienteId && DB::table('codigo_exoneracion')
+                ->where('cliente_id', $clienteId)->where('estado_id', 1)->exists()) {
+            $tiposVenta[] = 3; // Exonerada
+        }
+        if (empty($tiposVenta)) {
+            $tiposVenta = [3]; // Fallback
+        }
+
+        $tipos = DB::table('tipo_factura')
+            ->whereIn('tipo_venta_id', $tiposVenta)
+            ->where('estado', 1)
+            ->orderBy('orden')
+            ->get(['id', 'nombre', 'codigo', 'ruta_menu', 'tipo_venta_id'])
+            ->toArray();
+
+        return response()->json(['tipos' => $tipos]);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // POST /prefactura/{id}/facturar
+    // Registers the prefactura → factura transition:
+    // inserts historico_flujo (tipo_tramite_id=3), updates flujo, returns billing URL.
+    // ─────────────────────────────────────────────────────────────────────
+    public function registrarFacturacion(Request $request, int $id)
+    {
+        $tipoFacturaId = (int) $request->tipo_factura_id;
+
+        $prefactura = DB::table('prefactura')->where('id', $id)->where('estado', 'activo')->first();
+        if (!$prefactura) {
+            return response()->json(['error' => 'Prefactura no encontrada o inactiva.'], 404);
+        }
+        $tipoFactura = DB::table('tipo_factura')->where('id', $tipoFacturaId)->where('estado', 1)->first();
+        if (!$tipoFactura) {
+            return response()->json(['error' => 'Tipo de facturación no válido.'], 422);
+        }
+
+        $flujoId = (int) ($prefactura->flujo_id ?? 0);
+
+        DB::beginTransaction();
+        try {
+            if ($flujoId) {
+                DB::table('historico_flujo')->insert([
+                    'flujo_id'        => $flujoId,
+                    'tipo_tramite_id' => 3,
+                    'tramite_id'      => $id,
+                    'estado_id'       => 1,
+                    'observaciones'   => 'Facturación iniciada desde prefactura #' . $id,
+                    'created_by'      => Auth::id(),
+                    'updated_by'      => Auth::id(),
+                    'created_at'      => now(),
+                    'updated_at'      => now(),
+                ]);
+                DB::table('flujo')->where('id', $flujoId)->update([
+                    'tipo_tramite_id' => 3,
+                    'updated_by'      => Auth::id(),
+                    'updated_at'      => now(),
+                ]);
+            }
+
+            DB::commit();
+
+            $url = '/' . ltrim($tipoFactura->ruta_menu, '/') . '?prefactura_id=' . $id;
+            return response()->json(['url' => $url]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['error' => 'Error: ' . $e->getMessage()], 500);
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // GET /flujo/{id}/pedido-id
+    // Returns the pedido_id associated with a flujo (if any).
+    // ─────────────────────────────────────────────────────────────────────
+    public function getPedidoIdByFlujo(int $id)
+    {
+        $flujo = DB::table('flujo')->where('id', $id)->first();
+        if (!$flujo) {
+            return response()->json(['pedido_id' => null]);
+        }
+        $pedidoId = null;
+        if (is_numeric($flujo->identificacion)) {
+            $pedidoId = DB::table('pedido')->where('id', (int) $flujo->identificacion)->value('id');
+        }
+        return response()->json(['pedido_id' => $pedidoId]);
+    }
 }

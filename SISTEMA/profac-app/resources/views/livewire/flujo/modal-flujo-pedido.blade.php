@@ -559,14 +559,43 @@
                     {{-- Confirmación: Ganadora --}}
                     @if ($confirmAccionOferta === 'ganadora')
                     <div style="margin-top:12px; background:#fff8e1; border:1px solid #ffe082;
-                                border-radius:12px; padding:14px; text-align:center;">
-                        <p style="font-size:13px; color:#555; margin:0 0 6px;">
+                                border-radius:12px; padding:14px;">
+
+                        {{-- Errores de inventario (si los hay) --}}
+                        @if (!empty($stockErrors))
+                        <div style="background:#fce4ec; border:1px solid #f48fb1; border-radius:8px;
+                                    padding:10px 12px; margin-bottom:10px;">
+                            <p style="font-size:12px; color:#b71c1c; font-weight:700; margin:0 0 8px;">
+                                <i class="fa fa-exclamation-triangle mr-1"></i> Inventario insuficiente
+                            </p>
+                            <table style="width:100%; font-size:11px; border-collapse:collapse;">
+                                <thead>
+                                    <tr style="background:#f8bbd0;">
+                                        <th style="padding:3px 8px; text-align:left;">Producto</th>
+                                        <th style="padding:3px 8px; text-align:center;">Solicitado</th>
+                                        <th style="padding:3px 8px; text-align:center;">Disponible</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach ($stockErrors as $se)
+                                    <tr style="border-bottom:1px solid #f0f0f0;">
+                                        <td style="padding:3px 8px; color:#2c3e50;">{{ $se['producto'] }}</td>
+                                        <td style="padding:3px 8px; text-align:center; color:#e65100; font-weight:700;">{{ $se['solicitado'] }}</td>
+                                        <td style="padding:3px 8px; text-align:center; color:#b71c1c; font-weight:700;">{{ $se['disponible'] }}</td>
+                                    </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                        @endif
+
+                        <p style="font-size:13px; color:#555; margin:0 0 6px; text-align:center;">
                             <i class="fa fa-trophy text-warning mr-1"></i>
                             ¿Marcar la <strong>Oferta #{{ $ofertaSeleccionada['id'] }}</strong> como <strong>ganadora</strong>?
                         </p>
-                        <p style="font-size:12px; color:#e65100; margin:0 0 10px;">
-                            <i class="fa fa-external-link mr-1"></i>
-                            Se abrirá una nueva pestaña para completar la <strong>Pre-Factura</strong>.
+                        <p style="font-size:12px; color:#1b5e20; margin:0 0 10px; text-align:center;">
+                            <i class="fa fa-check-circle mr-1"></i>
+                            Se creará la <strong>Pre-Factura automáticamente</strong> y se reservará el inventario.
                         </p>
                         <div style="display:flex; gap:8px; justify-content:center;">
                             <button type="button" wire:click="ganadoraOferta"
@@ -756,8 +785,194 @@
                 @endif
                 {{-- /paso ofertas --}}
 
-                {{-- ── PASOS PENDIENTES (prefactura, factura, entrega, cobro) ── --}}
-                @if (!in_array($pasoActivo, ['pedido', 'ofertas']))
+                {{-- ══════════════════════════════════════════════════ --}}
+                {{-- PASO: PREFACTURA                                       --}}
+                {{-- ══════════════════════════════════════════════════ --}}
+                @if ($pasoActivo === 'prefactura')
+
+                @if ($prefacturaData)
+                @php $pref = $prefacturaData; @endphp
+                <div style="margin-top:12px;">
+
+                    {{-- Cabecera de prefactura --}}
+                    <div style="background:#fff; border-radius:10px; border:1px solid #e8eaf0;
+                                padding:12px 14px; margin-bottom:10px; font-size:12px; color:#555;">
+                        <div style="display:flex; flex-wrap:wrap; gap:12px;">
+                            <span><i class="fa fa-user text-info mr-1"></i>{{ $pref['nombre_cliente'] }}</span>
+                            <span><i class="fa fa-calendar text-muted mr-1"></i>
+                                {{ \Carbon\Carbon::parse($pref['fecha_emision'])->format('d/m/Y') }}
+                            </span>
+                            <span style="color:#e67e22;">
+                                <i class="fa fa-clock-o mr-1"></i>
+                                Vence: {{ \Carbon\Carbon::parse($pref['fecha_vencimiento'])->format('d/m/Y') }}
+                            </span>
+                            <strong style="color:#e65100;">
+                                Total: L {{ number_format($pref['total'], 2) }}
+                            </strong>
+                            <span style="background:#e8f5e9; color:#1b5e20; border-radius:8px; padding:1px 8px; font-size:10px; font-weight:700;">
+                                <i class="fa fa-check-circle mr-1"></i> Activa
+                            </span>
+                        </div>
+                    </div>
+
+                    {{-- Productos de la prefactura --}}
+                    @if (!empty($pref['productos']))
+                    <div style="border-radius:10px; overflow:hidden; border:1px solid #e8eaf0;
+                                max-height:160px; overflow-y:auto; margin-bottom:10px;">
+                        <table style="width:100%; font-size:11px; border-collapse:collapse;">
+                            <thead>
+                                <tr style="background:#f8f9fc; color:#888; position:sticky; top:0;">
+                                    <th style="padding:4px 8px; text-align:left;">Producto</th>
+                                    <th style="padding:4px 8px; text-align:center;">Cant.</th>
+                                    <th style="padding:4px 8px; text-align:right;">P.Unit.</th>
+                                    <th style="padding:4px 8px; text-align:right;">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($pref['productos'] as $pp)
+                                <tr style="border-bottom:1px solid #f0f0f0;">
+                                    <td style="padding:4px 8px; color:#2c3e50;">{{ $pp['nombre_producto'] }}</td>
+                                    <td style="padding:4px 8px; text-align:center; color:#1a7efb; font-weight:700;">{{ $pp['cantidad'] }}</td>
+                                    <td style="padding:4px 8px; text-align:right; color:#555;">
+                                        @if ($pp['precio_unidad']) L {{ number_format($pp['precio_unidad'], 2) }} @else — @endif
+                                    </td>
+                                    <td style="padding:4px 8px; text-align:right; font-weight:700; color:#1ab394;">
+                                        @if ($pp['total']) L {{ number_format($pp['total'], 2) }} @else — @endif
+                                    </td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                    @endif
+
+                    {{-- Botones de acción --}}
+                    @if ($confirmAccionPrefactura === null)
+                    <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:4px;">
+
+                        <button type="button" wire:click="confirmarAccionPrefactura('revertir')"
+                                style="background:linear-gradient(135deg,#1a7efb,#0d6efd); color:#fff;
+                                       border:none; border-radius:8px; padding:6px 14px;
+                                       font-size:12px; font-weight:700; cursor:pointer;">
+                            <i class="fa fa-arrow-left mr-1"></i> Pasar a Oferta
+                        </button>
+
+                        <button type="button" wire:click="confirmarAccionPrefactura('anular')"
+                                style="background:linear-gradient(135deg,#e74c3c,#c0392b); color:#fff;
+                                       border:none; border-radius:8px; padding:6px 14px;
+                                       font-size:12px; font-weight:700; cursor:pointer;">
+                            <i class="fa fa-ban mr-1"></i> Anular
+                        </button>
+
+                        <a href="/prefactura/imprimir/{{ $pref['id'] }}" target="_blank"
+                           style="background:#f8f9fc; color:#1a7efb; border:1px solid #e8eaf0;
+                                  border-radius:8px; padding:6px 14px; font-size:12px; font-weight:700;
+                                  text-decoration:none; display:inline-flex; align-items:center; gap:5px;">
+                            <i class="fa fa-print"></i> Imprimir prefactura
+                        </a>
+
+                        <button type="button" wire:click="iniciarFacturacion"
+                                style="background:linear-gradient(135deg,#1b5e20,#2e7d32); color:#fff;
+                                       border:none; border-radius:8px; padding:6px 14px;
+                                       font-size:12px; font-weight:700; cursor:pointer;">
+                            <i class="fa fa-file-text mr-1"></i> Facturar
+                        </button>
+
+                    </div>
+                    @endif
+
+                    {{-- Selección de tipo de facturación --}}
+                    @if ($facturacionActiva && !empty($tiposFacturacion))
+                    <div style="margin-top:12px; background:#e8f5e9; border:1px solid #a5d6a7; border-radius:12px; padding:14px;">
+                        <p style="font-size:13px; color:#1b5e20; margin:0 0 10px; font-weight:700;">
+                            <i class="fa fa-file-text mr-1"></i> Seleccionar tipo de facturación:
+                        </p>
+                        <div style="display:flex; flex-direction:column; gap:8px;">
+                            @foreach($tiposFacturacion as $tf)
+                            <button type="button" wire:click="ejecutarFacturacion({{ $tf['id'] }})"
+                                    style="background:#fff; border:1.5px solid #a5d6a7; border-radius:8px;
+                                           padding:8px 14px; text-align:left; font-size:12px; font-weight:700;
+                                           color:#1b5e20; cursor:pointer; display:flex; align-items:center; gap:8px;">
+                                <i class="fa fa-file-text" style="color:#1a7efb;"></i>
+                                {{ $tf['nombre'] }}
+                            </button>
+                            @endforeach
+                        </div>
+                        <button type="button" wire:click="cancelarFacturacion"
+                                style="margin-top:8px; background:#f0f0f0; color:#555; border:none;
+                                       border-radius:8px; padding:6px 14px; font-size:12px; cursor:pointer;">
+                            Cancelar
+                        </button>
+                    </div>
+                    @endif
+
+                    {{-- Confirmación: Pasar a Oferta --}}
+                    @if ($confirmAccionPrefactura === 'revertir')
+                    <div style="margin-top:10px; background:#e3f2fd; border:1px solid #90caf9;
+                                border-radius:12px; padding:14px;">
+                        <p style="font-size:13px; color:#555; margin:0 0 8px;">
+                            <i class="fa fa-arrow-left text-primary mr-1"></i>
+                            ¿Deshacer la prefactura y volver a <strong>Oferta</strong>?
+                        </p>
+                        <p style="font-size:11px; color:#888; margin:0 0 10px;">
+                            Se inactivará la prefactura, se restaurará el inventario reservado y el flujo volverá al paso de Ofertas.
+                        </p>
+                        <div style="display:flex; gap:8px;">
+                            <button type="button" wire:click="revertirPrefacturaAOferta"
+                                    style="background:linear-gradient(135deg,#1a7efb,#0d6efd); color:#fff;
+                                           border:none; border-radius:8px; padding:7px 18px;
+                                           font-size:12px; font-weight:700; cursor:pointer;">
+                                <i class="fa fa-check mr-1"></i> Confirmar
+                            </button>
+                            <button type="button" wire:click="cancelarConfirmPrefactura"
+                                    style="background:#f0f0f0; color:#555; border:none;
+                                           border-radius:8px; padding:7px 16px; font-size:12px; cursor:pointer;">
+                                Cancelar
+                            </button>
+                        </div>
+                    </div>
+                    @endif
+
+                    {{-- Confirmación: Anular --}}
+                    @if ($confirmAccionPrefactura === 'anular')
+                    <div style="margin-top:10px; background:#fff5f5; border:1px solid #feb2b2;
+                                border-radius:12px; padding:14px;">
+                        <p style="font-size:13px; color:#555; margin:0 0 8px;">
+                            <i class="fa fa-ban text-danger mr-1"></i>
+                            ¿Anular la <strong>Prefactura #{{ $pref['id'] }}</strong>?
+                        </p>
+                        <p style="font-size:11px; color:#888; margin:0 0 10px;">
+                            La prefactura se anulará permanentemente. El inventario reservado <strong>no se restaura</strong>.
+                        </p>
+                        <div style="display:flex; gap:8px;">
+                            <button type="button" wire:click="anularPrefactura"
+                                    style="background:linear-gradient(135deg,#e74c3c,#c0392b); color:#fff;
+                                           border:none; border-radius:8px; padding:7px 18px;
+                                           font-size:12px; font-weight:700; cursor:pointer;">
+                                <i class="fa fa-ban mr-1"></i> Confirmar anulación
+                            </button>
+                            <button type="button" wire:click="cancelarConfirmPrefactura"
+                                    style="background:#f0f0f0; color:#555; border:none;
+                                           border-radius:8px; padding:7px 16px; font-size:12px; cursor:pointer;">
+                                Cancelar
+                            </button>
+                        </div>
+                    </div>
+                    @endif
+
+                </div>{{-- /prefacturaData --}}
+
+                @else
+                {{-- No hay prefactura activa todavía --}}
+                <div style="margin-top:20px; text-align:center; padding:24px; color:#90a4ae;">
+                    <i class="fa fa-clock-o fa-2x d-block mb-2" style="opacity:.4;"></i>
+                    <p style="font-size:13px; margin:0; font-weight:600;">Sin prefactura activa.</p>
+                    <p style="font-size:12px; margin:4px 0 0; opacity:.7;">Marca una oferta como ganadora para generar la prefactura.</p>
+                </div>
+                @endif
+
+                {{-- Pasos pendientes: factura, entrega, cobro --}}
+                @elseif (!in_array($pasoActivo, ['pedido', 'ofertas']))
                 <div style="margin-top:20px; text-align:center; padding:24px; color:#90a4ae;">
                     <i class="fa fa-clock-o fa-2x d-block mb-2" style="opacity:.4;"></i>
                     <p style="font-size:13px; margin:0; font-weight:600;">
@@ -831,6 +1046,11 @@
         window._fmpListenerSet = true;
         window.addEventListener('abrir-nueva-pestana', function(e) {
             window.open(e.detail.url, '_blank');
+        });
+        window.addEventListener('fmp-redirigir', function(e) {
+            if (e.detail && e.detail.url) {
+                window.location.href = e.detail.url;
+            }
         });
     }
 </script>

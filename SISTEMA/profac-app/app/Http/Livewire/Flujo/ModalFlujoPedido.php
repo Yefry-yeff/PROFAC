@@ -37,6 +37,11 @@ class ModalFlujoPedido extends Component
     public $mensajeExito = '';
     public $mensajeError = '';
 
+    // ── Prefactura del flujo activo ───────────────────────────────────────
+    public $prefacturaData          = null;
+    public $stockErrors             = [];  // errores de inventario al crear prefactura
+    public $confirmAccionPrefactura = null; // null | 'revertir' | 'anular'
+
     // ── Listeners ─────────────────────────────────────────────────────────
     protected $listeners = ['abrirFlujoPedido' => 'abrir', 'abrirFlujoCotizacion' => 'abrirDesdeFlujo'];
 
@@ -105,6 +110,7 @@ class ModalFlujoPedido extends Component
         $this->flujoTipos = $this->flujoId
             ? DB::table('historico_flujo')
                 ->where('flujo_id', $this->flujoId)
+                ->where('estado_id', '!=', 7)   // excluir registros inactivados
                 ->pluck('tipo_tramite_id')
                 ->unique()
                 ->values()
@@ -114,15 +120,21 @@ class ModalFlujoPedido extends Component
         $this->cargarOfertasPedido();
 
         // Resetear estado
-        $this->pasoActivo           = $pasoFinal;
-        $this->ofertaSeleccionada   = null;
-        $this->confirmAccion        = null;
-        $this->confirmAccionOferta  = null;
-        $this->motivoAnulacion      = '';
-        $this->motivoAnulOferta     = '';
-        $this->mensajeExito         = '';
-        $this->mensajeError         = '';
-        $this->showModal            = true;
+        $this->pasoActivo              = $pasoFinal;
+        $this->ofertaSeleccionada      = null;
+        $this->confirmAccion           = null;
+        $this->confirmAccionOferta     = null;
+        $this->confirmAccionPrefactura = null;
+        $this->motivoAnulacion         = '';
+        $this->motivoAnulOferta        = '';
+        $this->mensajeExito            = '';
+        $this->mensajeError            = '';
+        $this->stockErrors             = [];
+        $this->prefacturaData          = null;
+        if ($pasoFinal === 'prefactura') {
+            $this->cargarPrefactura();
+        }
+        $this->showModal               = true;
         $this->dispatchBrowserEvent('fmp-show');
     }
 
@@ -170,6 +182,7 @@ class ModalFlujoPedido extends Component
 
         $this->flujoTipos = DB::table('historico_flujo')
             ->where('flujo_id', $flujoId)
+            ->where('estado_id', '!=', 7)   // excluir registros inactivados
             ->pluck('tipo_tramite_id')
             ->unique()
             ->values()
@@ -191,15 +204,22 @@ class ModalFlujoPedido extends Component
 
         $this->cargarOfertasPedido();
 
-        $this->pasoActivo           = $tramiteStepMap[$flujoTramiteNombre] ?? 'ofertas';
-        $this->ofertaSeleccionada   = null;
-        $this->confirmAccion        = null;
-        $this->confirmAccionOferta  = null;
-        $this->motivoAnulacion      = '';
-        $this->motivoAnulOferta     = '';
-        $this->mensajeExito         = '';
-        $this->mensajeError         = '';
-        $this->showModal            = true;
+        $pasoAbierto = $tramiteStepMap[$flujoTramiteNombre] ?? 'ofertas';
+        $this->pasoActivo              = $pasoAbierto;
+        $this->ofertaSeleccionada      = null;
+        $this->confirmAccion           = null;
+        $this->confirmAccionOferta     = null;
+        $this->confirmAccionPrefactura = null;
+        $this->motivoAnulacion         = '';
+        $this->motivoAnulOferta        = '';
+        $this->mensajeExito            = '';
+        $this->mensajeError            = '';
+        $this->stockErrors             = [];
+        $this->prefacturaData          = null;
+        if ($pasoAbierto === 'prefactura') {
+            $this->cargarPrefactura();
+        }
+        $this->showModal               = true;
         $this->dispatchBrowserEvent('fmp-show');
     }
 
@@ -232,10 +252,15 @@ class ModalFlujoPedido extends Component
         $this->ofertaSeleccionada   = null;
         $this->confirmAccion        = null;
         $this->confirmAccionOferta  = null;
-        $this->motivoAnulacion      = '';
-        $this->motivoAnulOferta     = '';
-        $this->mensajeExito         = '';
-        $this->mensajeError         = '';
+        $this->motivoAnulacion         = '';
+        $this->motivoAnulOferta        = '';
+        $this->mensajeExito            = '';
+        $this->mensajeError            = '';
+        $this->prefacturaData          = null;
+        $this->stockErrors             = [];
+        $this->confirmAccionPrefactura = null;
+        $this->tiposFacturacion        = [];
+        $this->facturacionActiva       = false;
     }
 
     // ─────────────────────────────────────────────────────────────────────
@@ -256,6 +281,11 @@ class ModalFlujoPedido extends Component
         if ($paso === 'ofertas') {
             $this->cargarOfertasPedido();
         }
+        if ($paso === 'prefactura') {
+            $this->cargarPrefactura();
+        }
+        $this->tiposFacturacion  = [];
+        $this->facturacionActiva = false;
     }
 
     // ─────────────────────────────────────────────────────────────────────
@@ -442,39 +472,169 @@ class ModalFlujoPedido extends Component
         if (!$this->ofertaSeleccionada || !$this->flujoId) return;
 
         $cotizacionId = (int) $this->ofertaSeleccionada['id'];
+        $cotizacion   = DB::table('cotizacion')->where('id', $cotizacionId)->first();
+        if (!$cotizacion) { $this->mensajeError = 'Oferta no encontrada.'; return; }
 
-        $hf = DB::table('historico_flujo')
-            ->where('tramite_id', $cotizacionId)
-            ->where('tipo_tramite_id', 2)
-            ->where('flujo_id', $this->flujoId)
-            ->first();
+        $productos = DB::table('cotizacion_has_producto')
+            ->where('cotizacion_id', $cotizacionId)
+            ->get();
 
-        if (!$hf) {
-            $this->mensajeError = 'Registro de oferta no encontrado.';
+        // ── 1. Validar inventario (stock_real - reservado en prefacturas activas) ─
+        $stockErrors = [];
+        foreach ($productos as $prod) {
+            if ($prod->resta_inventario && $prod->producto_id && $prod->seccion_id) {
+                $rawStock  = (float) DB::table('recibido_bodega')
+                    ->where('producto_id', $prod->producto_id)
+                    ->where('seccion_id',  $prod->seccion_id)
+                    ->where('cantidad_disponible', '>', 0)
+                    ->sum('cantidad_disponible');
+                $reservado = (float) DB::table('prefactura_has_producto as php')
+                    ->join('prefactura as pf', 'pf.id', '=', 'php.prefactura_id')
+                    ->where('pf.estado', 'activo')
+                    ->where('php.producto_id', $prod->producto_id)
+                    ->where('php.seccion_id',  $prod->seccion_id)
+                    ->where('php.resta_inventario', 1)
+                    ->sum('php.cantidad');
+                $disponible = max(0.0, $rawStock - $reservado);
+                if ($disponible < $prod->cantidad) {
+                    $stockErrors[] = [
+                        'producto'   => $prod->nombre_producto,
+                        'solicitado' => (int) $prod->cantidad,
+                        'disponible' => (int) $disponible,
+                    ];
+                }
+            }
+        }
+
+        if (!empty($stockErrors)) {
+            $this->stockErrors  = $stockErrors;
+            $this->mensajeError = 'No hay suficiente inventario para algunos productos.';
             return;
         }
 
-        // Quitar ganadora anterior si existe
-        DB::table('historico_flujo')
-            ->where('flujo_id', $this->flujoId)
-            ->where('tipo_tramite_id', 2)
-            ->where('observaciones', 'ganadora')
-            ->update(['observaciones' => null, 'updated_at' => now()]);
+        $config      = DB::table('configuracion_prefactura')->first();
+        $diasValidez = $config ? (int) $config->dias_validez : 7;
 
-        // Marcar la nueva ganadora
-        DB::table('historico_flujo')
-            ->where('id', $hf->id)
-            ->update(['observaciones' => 'ganadora', 'updated_at' => now()]);
+        DB::beginTransaction();
+        try {
+            // ── 2. Quitar ganadora anterior si existe ──────────────────────
+            DB::table('historico_flujo')
+                ->where('flujo_id', $this->flujoId)
+                ->where('tipo_tramite_id', 2)
+                ->where('observaciones', 'ganadora')
+                ->update(['observaciones' => null, 'updated_at' => now()]);
 
-        // NO avanzar el flujo aquí — lo avanza el guardado de la prefactura.
-        // Abrir formulario de prefactura en nueva pestaña
-        $url = '/flujo/prefactura/crear?cotizacionId=' . $cotizacionId . '&flujoId=' . $this->flujoId;
-        $this->dispatchBrowserEvent('abrir-nueva-pestana', ['url' => $url]);
+            // ── 3. Marcar esta oferta como ganadora ────────────────────────
+            DB::table('historico_flujo')
+                ->where('tramite_id', $cotizacionId)
+                ->where('tipo_tramite_id', 2)
+                ->where('flujo_id', $this->flujoId)
+                ->update(['observaciones' => 'ganadora', 'updated_at' => now()]);
 
-        $this->mensajeExito = 'Oferta #' . $cotizacionId . ' marcada como ganadora. Completa la pre-factura en la nueva pestaña.';
-        $this->confirmAccionOferta = null;
-        $this->emit('pedidoActualizado');
-        $this->recargar();
+            // ── 4. Auditoría cotizacion_estado ─────────────────────────────
+            DB::table('cotizacion_estado')->insert([
+                'cotizacion_id' => $cotizacionId,
+                'flujo_id'      => $this->flujoId,
+                'ganadora'      => 1,
+                'comentario'    => 'Marcada como ganadora',
+                'estado_id'     => 1,
+                'created_by'    => Auth::id(),
+                'updated_by'    => Auth::id(),
+                'created_at'    => now(),
+                'updated_at'    => now(),
+            ]);
+
+            // ── 5. Crear prefactura ────────────────────────────────────────
+            $prefacturaId = DB::table('prefactura')->insertGetId([
+                'cotizacion_id'     => $cotizacionId,
+                'flujo_id'          => $this->flujoId,
+                'cliente_id'        => $cotizacion->cliente_id,
+                'nombre_cliente'    => $cotizacion->nombre_cliente,
+                'RTN'               => $cotizacion->RTN,
+                'fecha_emision'     => now()->toDateString(),
+                'fecha_vencimiento' => now()->addDays($diasValidez)->toDateString(),
+                'sub_total'         => $cotizacion->sub_total,
+                'sub_total_grabado' => $cotizacion->sub_total_grabado,
+                'sub_total_excento' => $cotizacion->sub_total_excento,
+                'isv'               => $cotizacion->isv,
+                'total'             => $cotizacion->total,
+                'porc_descuento'    => $cotizacion->porc_descuento ?? 0,
+                'monto_descuento'   => $cotizacion->monto_descuento ?? 0,
+                'tipo_venta_id'     => $cotizacion->tipo_venta_id,
+                'vendedor'          => $cotizacion->vendedor,
+                'nota'              => $cotizacion->nota,
+                'arregloIdInputs'   => $cotizacion->arregloIdInputs,
+                'numeroInputs'      => $cotizacion->numeroInputs,
+                'estado'            => 'activo',
+                'users_id'          => Auth::id(),
+                'created_at'        => now(),
+                'updated_at'        => now(),
+            ]);
+
+            // ── 6. Insertar productos de la prefactura ─────────────────────
+            $prefProds = [];
+            foreach ($productos as $prod) {
+                $prefProds[] = [
+                    'prefactura_id'            => $prefacturaId,
+                    'producto_id'              => $prod->producto_id,
+                    'indice'                   => $prod->indice,
+                    'nombre_producto'          => $prod->nombre_producto,
+                    'nombre_bodega'            => $prod->nombre_bodega,
+                    'precio_unidad'            => $prod->precio_unidad,
+                    'cantidad'                 => $prod->cantidad,
+                    'sub_total'                => $prod->sub_total,
+                    'isv'                      => $prod->isv,
+                    'total'                    => $prod->total,
+                    'isv_producto'             => $prod->isv_producto,
+                    'Bodega_id'                => $prod->bodega_id,
+                    'seccion_id'               => $prod->seccion_id,
+                    'unidad_medida_venta_id'   => $prod->unidad_medida_venta_id,
+                    'monto_descProducto'       => $prod->monto_descProducto ?? 0,
+                    'idPrecioSeleccionado'      => $prod->idPrecioSeleccionado ?? null,
+                    'precioSeleccionado'        => $prod->precioSeleccionado ?? null,
+                    'precios_producto_carga_id' => $prod->precios_producto_carga_id ?? null,
+                    'resta_inventario'          => $prod->resta_inventario,
+                    'created_at'               => now(),
+                    'updated_at'               => now(),
+                ];
+            }
+            if (!empty($prefProds)) {
+                DB::table('prefactura_has_producto')->insert($prefProds);
+            }
+
+            // (inventario se calcula dinámicamente: stock_real - reservado en prefacturas activas)
+            // ── 8. Historico flujo para prefactura ─────────────────────────
+            DB::table('historico_flujo')->insert([
+                'flujo_id'        => $this->flujoId,
+                'tipo_tramite_id' => 4,
+                'tramite_id'      => $prefacturaId,
+                'estado_id'       => 1,
+                'observaciones'   => 'Prefactura #' . $prefacturaId . ' creada desde oferta #' . $cotizacionId,
+                'created_by'      => Auth::id(),
+                'updated_by'      => Auth::id(),
+                'created_at'      => now(),
+                'updated_at'      => now(),
+            ]);
+
+            // ── 9. Avanzar flujo a prefactura ──────────────────────────────
+            DB::table('flujo')->where('id', $this->flujoId)->update([
+                'tipo_tramite_id' => 4,
+                'updated_by'      => Auth::id(),
+                'updated_at'      => now(),
+            ]);
+
+            DB::commit();
+            $this->stockErrors         = [];
+            $this->confirmAccionOferta = null;
+            $this->ofertaSeleccionada  = null;
+            $this->mensajeExito = 'Prefactura #' . $prefacturaId . ' generada. Válida por ' . $diasValidez . ' día(s).';
+            $this->emit('pedidoActualizado');
+            $this->recargar();
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            $this->mensajeError = 'Error al crear prefactura: ' . $e->getMessage();
+        }
     }
 
     public function quitarGanadora(): void
@@ -489,25 +649,60 @@ class ModalFlujoPedido extends Component
 
         $cotizacionId = (int) $this->ofertaSeleccionada['id'];
 
-        DB::table('historico_flujo')
-            ->where('flujo_id', $this->flujoId)
-            ->where('tipo_tramite_id', 2)
-            ->where('tramite_id', $cotizacionId)
-            ->update(['observaciones' => 'QuitadaGanadora: ' . $motivo, 'updated_at' => now()]);
+        DB::beginTransaction();
+        try {
+            // 1. Marcar oferta como QuitadaGanadora
+            DB::table('historico_flujo')
+                ->where('flujo_id', $this->flujoId)
+                ->where('tipo_tramite_id', 2)
+                ->where('tramite_id', $cotizacionId)
+                ->update(['observaciones' => 'QuitadaGanadora: ' . $motivo, 'updated_at' => now()]);
 
-        // Retroceder el flujo a Ofertas (tipo_tramite_id = 2)
-        DB::table('flujo')
-            ->where('id', $this->flujoId)
-            ->update([
-                'tipo_tramite_id' => 2,
-                'updated_by'      => Auth::id(),
-                'updated_at'      => now(),
+            // 2. Auditoría
+            DB::table('cotizacion_estado')->insert([
+                'cotizacion_id' => $cotizacionId,
+                'flujo_id'      => $this->flujoId,
+                'ganadora'      => 2,
+                'comentario'    => 'Quitada ganadora: ' . $motivo,
+                'estado_id'     => 1,
+                'created_by'    => Auth::id(),
+                'updated_by'    => Auth::id(),
+                'created_at'    => now(),
+                'updated_at'    => now(),
             ]);
 
-        $this->mensajeExito = 'Oferta #' . $cotizacionId . ' ya no es ganadora.';
-        $this->emit('pedidoActualizado');
-        $this->recargar();
-        $this->mensajeExito = 'Oferta #' . $cotizacionId . ' ya no es ganadora.';
+            // 3. Inactivar prefactura activa vinculada a este flujo/cotización
+            $prefactura = DB::table('prefactura')
+                ->where('flujo_id', $this->flujoId)
+                ->where('cotizacion_id', $cotizacionId)
+                ->where('estado', 'activo')
+                ->first();
+
+            if ($prefactura) {
+                DB::table('prefactura')
+                    ->where('id', $prefactura->id)
+                    ->update(['estado' => 'inactive', 'updated_at' => now()]);
+
+                DB::table('historico_flujo')
+                    ->where('flujo_id', $this->flujoId)
+                    ->where('tipo_tramite_id', 4)
+                    ->where('tramite_id', $prefactura->id)
+                    ->update(['estado_id' => 7, 'updated_at' => now()]);
+            }
+
+            // 4. Retroceder flujo a Ofertas
+            DB::table('flujo')
+                ->where('id', $this->flujoId)
+                ->update(['tipo_tramite_id' => 2, 'updated_by' => Auth::id(), 'updated_at' => now()]);
+
+            DB::commit();
+            $this->mensajeExito = 'Oferta #' . $cotizacionId . ' ya no es ganadora.';
+            $this->emit('pedidoActualizado');
+            $this->recargar();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            $this->mensajeError = 'Error: ' . $e->getMessage();
+        }
     }
 
     public function anularOferta(): void
@@ -531,10 +726,22 @@ class ModalFlujoPedido extends Component
                 'updated_at'    => now(),
             ]);
 
+        // Auditoría: registrar en cotizacion_estado como anulada
+        DB::table('cotizacion_estado')->insert([
+            'cotizacion_id' => $cotizacionId,
+            'flujo_id'      => $this->flujoId,
+            'ganadora'      => 3,
+            'comentario'    => 'Anulada: ' . $motivo,
+            'estado_id'     => 1,
+            'created_by'    => Auth::id(),
+            'updated_by'    => Auth::id(),
+            'created_at'    => now(),
+            'updated_at'    => now(),
+        ]);
+
         $this->mensajeExito = 'Oferta #' . $cotizacionId . ' anulada correctamente.';
         $this->emit('pedidoActualizado');
         $this->recargar();
-        $this->mensajeExito = 'Oferta #' . $cotizacionId . ' anulada correctamente.';
     }
 
     public function duplicarOferta(bool $mismoCliente): void
@@ -568,6 +775,290 @@ class ModalFlujoPedido extends Component
         } else {
             $pedidoId = (int) $this->pedidoData['id'];
             $this->redirect('/proforma/cotizacion/2?from=flujo&pedidoId=' . $pedidoId);
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // GESTIÓN DE PREFACTURA
+    // ─────────────────────────────────────────────────────────────────────
+
+    private function cargarPrefactura(): void
+    {
+        if (!$this->flujoId) {
+            $this->prefacturaData = null;
+            return;
+        }
+        $pref = DB::table('prefactura')
+            ->where('flujo_id', $this->flujoId)
+            ->where('estado', 'activo')
+            ->orderByDesc('id')
+            ->first();
+
+        if (!$pref) {
+            $this->prefacturaData = null;
+            return;
+        }
+
+        $productos = DB::table('prefactura_has_producto')
+            ->where('prefactura_id', $pref->id)
+            ->select('nombre_producto', 'cantidad', 'precio_unidad', 'total')
+            ->get()
+            ->map(fn($r) => (array) $r)
+            ->toArray();
+
+        $this->prefacturaData = array_merge((array) $pref, ['productos' => $productos]);
+    }
+
+    public function confirmarAccionPrefactura(string $accion): void
+    {
+        $this->confirmAccionPrefactura = $accion;
+        $this->mensajeError            = '';
+    }
+
+    public function cancelarConfirmPrefactura(): void
+    {
+        $this->confirmAccionPrefactura = null;
+        $this->mensajeError            = '';
+    }
+
+    /**
+     * Revierte la prefactura a estado de oferta:
+     * inactiva prefactura + historico, retrocede flujo a tipo_tramite_id=2,
+     * restaura inventario y desmarca la oferta como ganadora.
+     */
+    public function revertirPrefacturaAOferta(): void
+    {
+        if (!$this->prefacturaData || !$this->flujoId) return;
+
+        $prefacturaId = (int) $this->prefacturaData['id'];
+        $cotizacionId = (int) ($this->prefacturaData['cotizacion_id'] ?? 0);
+
+        DB::beginTransaction();
+        try {
+            // 1. Inactivar prefactura
+            DB::table('prefactura')
+                ->where('id', $prefacturaId)
+                ->update(['estado' => 'inactive', 'updated_at' => now()]);
+
+            // 2. estado_id=7 en historico_flujo de la prefactura
+            DB::table('historico_flujo')
+                ->where('flujo_id', $this->flujoId)
+                ->where('tipo_tramite_id', 4)
+                ->where('tramite_id', $prefacturaId)
+                ->update(['estado_id' => 7, 'updated_at' => now()]);
+
+            // (inventario calculado dinámicamente — no hay decremento que revertir)
+
+            // 4. Marcar oferta como QuitadaGanadora
+            if ($cotizacionId) {
+                DB::table('historico_flujo')
+                    ->where('flujo_id', $this->flujoId)
+                    ->where('tipo_tramite_id', 2)
+                    ->where('tramite_id', $cotizacionId)
+                    ->update(['observaciones' => 'QuitadaGanadora: Revertida a oferta', 'updated_at' => now()]);
+
+                DB::table('cotizacion_estado')->insert([
+                    'cotizacion_id' => $cotizacionId,
+                    'flujo_id'      => $this->flujoId,
+                    'ganadora'      => 2,
+                    'comentario'    => 'Revertida a oferta desde prefactura',
+                    'estado_id'     => 1,
+                    'created_by'    => Auth::id(),
+                    'updated_by'    => Auth::id(),
+                    'created_at'    => now(),
+                    'updated_at'    => now(),
+                ]);
+            }
+
+            // 5. Retroceder flujo a Ofertas
+            DB::table('flujo')->where('id', $this->flujoId)->update([
+                'tipo_tramite_id' => 2,
+                'updated_by'      => Auth::id(),
+                'updated_at'      => now(),
+            ]);
+
+            DB::commit();
+            $this->prefacturaData          = null;
+            $this->confirmAccionPrefactura = null;
+            $this->mensajeExito = 'Prefactura #' . $prefacturaId . ' revertida. El flujo volvió a Ofertas.';
+            $this->emit('pedidoActualizado');
+            $this->recargar();
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            $this->mensajeError = 'Error: ' . $e->getMessage();
+        }
+    }
+
+    /**
+     * Anula la prefactura: la inactiva + inactiva su registro en historico_flujo
+     * y retrocede el flujo a Ofertas. No restaura inventario (stock perdido).
+     */
+    public function anularPrefactura(): void
+    {
+        if (!$this->prefacturaData || !$this->flujoId) return;
+
+        $prefacturaId = (int) $this->prefacturaData['id'];
+        $cotizacionId = (int) ($this->prefacturaData['cotizacion_id'] ?? 0);
+
+        DB::beginTransaction();
+        try {
+            DB::table('prefactura')
+                ->where('id', $prefacturaId)
+                ->update(['estado' => 'inactive', 'updated_at' => now()]);
+
+            DB::table('historico_flujo')
+                ->where('flujo_id', $this->flujoId)
+                ->where('tipo_tramite_id', 4)
+                ->where('tramite_id', $prefacturaId)
+                ->update(['estado_id' => 7, 'updated_at' => now()]);
+
+            if ($cotizacionId) {
+                DB::table('historico_flujo')
+                    ->where('flujo_id', $this->flujoId)
+                    ->where('tipo_tramite_id', 2)
+                    ->where('tramite_id', $cotizacionId)
+                    ->update(['observaciones' => 'QuitadaGanadora: Prefactura anulada', 'updated_at' => now()]);
+
+                DB::table('cotizacion_estado')->insert([
+                    'cotizacion_id' => $cotizacionId,
+                    'flujo_id'      => $this->flujoId,
+                    'ganadora'      => 2,
+                    'comentario'    => 'Prefactura anulada',
+                    'estado_id'     => 1,
+                    'created_by'    => Auth::id(),
+                    'updated_by'    => Auth::id(),
+                    'created_at'    => now(),
+                    'updated_at'    => now(),
+                ]);
+            }
+
+            DB::table('flujo')->where('id', $this->flujoId)->update([
+                'tipo_tramite_id' => 2,
+                'updated_by'      => Auth::id(),
+                'updated_at'      => now(),
+            ]);
+
+            DB::commit();
+            $this->prefacturaData          = null;
+            $this->confirmAccionPrefactura = null;
+            $this->mensajeExito = 'Prefactura #' . $prefacturaId . ' anulada. El flujo volvió a Ofertas.';
+            $this->emit('pedidoActualizado');
+            $this->recargar();
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            $this->mensajeError = 'Error: ' . $e->getMessage();
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+
+    // ─────────────────────────────────────────────────────────────────────
+    // FACTURACIÓN DESDE PREFACTURA (pasar prefactura → factura)
+    // ─────────────────────────────────────────────────────────────────────
+
+    public $tiposFacturacion  = [];   // tipos disponibles para el cliente
+    public $facturacionActiva = false;
+
+    /** Carga los tipos de facturación disponibles para el cliente de la prefactura activa. */
+    public function iniciarFacturacion(): void
+    {
+        if (!$this->prefacturaData) return;
+
+        $clienteId     = (int) ($this->prefacturaData['cliente_id'] ?? 0);
+        $cliente       = $clienteId ? DB::table('cliente')->where('id', $clienteId)->first() : null;
+        $tipoClienteId = $cliente ? (int) $cliente->tipo_cliente_id : 0;
+
+        $tiposVenta = [];
+        // tipo_cliente_id=1 (Corporativo B) → Clientes B (tipo_venta_id=1)
+        // tipo_cliente_id=2 (Estatal A) / 3 (Gobierno) → Clientes A (tipo_venta_id=2)
+        if ($tipoClienteId === 1) {
+            $tiposVenta[] = 1;
+        } elseif (in_array($tipoClienteId, [2, 3])) {
+            $tiposVenta[] = 2;
+        }
+        // Exonerada siempre disponible si el cliente tiene código activo
+        if ($clienteId && DB::table('codigo_exoneracion')
+                ->where('cliente_id', $clienteId)->where('estado_id', 1)->exists()) {
+            $tiposVenta[] = 3;
+        }
+        if (empty($tiposVenta)) {
+            // Fallback: mostrar solo exonerada
+            $tiposVenta = [3];
+        }
+
+        $this->tiposFacturacion = DB::table('tipo_factura')
+            ->whereIn('tipo_venta_id', $tiposVenta)
+            ->where('estado', 1)
+            ->orderBy('orden')
+            ->get(['id', 'nombre', 'codigo', 'ruta_menu', 'tipo_venta_id'])
+            ->map(fn($t) => (array) $t)
+            ->toArray();
+
+        if (empty($this->tiposFacturacion)) {
+            $this->mensajeError = 'No hay tipos de facturación disponibles para este cliente.';
+            return;
+        }
+
+        $this->facturacionActiva = true;
+        $this->mensajeError      = '';
+        $this->confirmAccionPrefactura = null;
+    }
+
+    public function cancelarFacturacion(): void
+    {
+        $this->facturacionActiva = false;
+        $this->tiposFacturacion  = [];
+        $this->mensajeError      = '';
+    }
+
+    /**
+     * Registra la transición prefactura → factura en el flujo y redirige
+     * al formulario de facturación del tipo seleccionado.
+     */
+    public function ejecutarFacturacion(int $tipoFacturaId): void
+    {
+        if (!$this->prefacturaData || !$this->flujoId) return;
+
+        $tipoFactura  = DB::table('tipo_factura')->where('id', $tipoFacturaId)->where('estado', 1)->first();
+        if (!$tipoFactura) {
+            $this->mensajeError = 'Tipo de facturación no válido.';
+            return;
+        }
+
+        $prefacturaId = (int) $this->prefacturaData['id'];
+
+        DB::beginTransaction();
+        try {
+            // 1. Historico flujo: marcar transición a factura
+            DB::table('historico_flujo')->insert([
+                'flujo_id'        => $this->flujoId,
+                'tipo_tramite_id' => 3,
+                'tramite_id'      => $prefacturaId,
+                'estado_id'       => 1,
+                'observaciones'   => 'Facturación iniciada desde prefactura #' . $prefacturaId,
+                'created_by'      => Auth::id(),
+                'updated_by'      => Auth::id(),
+                'created_at'      => now(),
+                'updated_at'      => now(),
+            ]);
+
+            // 2. Avanzar flujo a Factura
+            DB::table('flujo')->where('id', $this->flujoId)->update([
+                'tipo_tramite_id' => 3,
+                'updated_by'      => Auth::id(),
+                'updated_at'      => now(),
+            ]);
+
+            DB::commit();
+
+            $url = '/' . ltrim($tipoFactura->ruta_menu, '/') . '?prefactura_id=' . $prefacturaId;
+            $this->dispatchBrowserEvent('fmp-redirigir', ['url' => $url]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            $this->mensajeError = 'Error: ' . $e->getMessage();
         }
     }
 

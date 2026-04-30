@@ -334,7 +334,7 @@
                     </span>
                     @else
                     <span style="background:#fff3e0; color:#e65100; border-radius:6px; padding:2px 10px; font-size:11px; font-weight:700;">
-                        <i class="fa fa-tag mr-1"></i>Sin pedido
+                        <i class="mr-1 fa fa-tag"></i>Sin pedido
                     </span>
                     @endif
                 </div>
@@ -569,7 +569,7 @@
                                                 <i class="fa fa-history"></i> Últimas 5 ventas de este producto a este cliente
                                             </div>
                                             <div class="of-historial-body" id="historialPreciosCuerpo">
-                                                <p class="text-muted small mb-0">Sin ventas previas de este producto a este cliente.</p>
+                                                <p class="mb-0 text-muted small">Sin ventas previas de este producto a este cliente.</p>
                                             </div>
                                         </div>
                                     </div>
@@ -583,18 +583,18 @@
                             <div class="of-card" style="padding:0; overflow:hidden;">
                                 <div style="padding:16px 24px 12px; border-bottom:1px solid #f0f2f5; display:flex; align-items:center; gap:8px; cursor:pointer;"
                                      onclick="toggleOfCard('body_carrito', this)">
-                                    <span class="of-card-title mb-0" style="cursor:pointer; margin-bottom:0 !important;">
+                                    <span class="mb-0 of-card-title" style="cursor:pointer; margin-bottom:0 !important;">
                                         <i class="fa fa-shopping-cart text-warning"></i> Carrito de productos
                                     </span>
                                     <span id="cart-count-badge">0 producto(s)</span>
-                                    <i class="fa fa-chevron-down of-chevron ml-2" style="margin-left:8px;"></i>
+                                    <i class="ml-2 fa fa-chevron-down of-chevron" style="margin-left:8px;"></i>
                                 </div>
 
                                 {{-- ── Lista productos ────────────────────────────────────────── --}}
                                 <div id="body_carrito">
                                 <div id="divProductos" style="padding:0 0 4px;">
                                     <div id="carritoVacio" class="py-3 text-center">
-                                        <i class="fa fa-inbox fa-3x d-block mb-2"></i>
+                                        <i class="mb-2 fa fa-inbox fa-3x d-block"></i>
                                         <p style="font-size:13px; margin:0;">No hay productos en el carrito.<br><small>Use el buscador de arriba para agregar productos.</small></p>
                                     </div>
                                     <div id="carritoTablaWrapper" class="d-none table-responsive" style="max-height:400px; overflow-y:auto;">
@@ -633,27 +633,27 @@
                                         </div>
                                         <div class="of-totals-body">
                                             <div class="of-total-row">
-                                                <span class="lbl"><i class="fa fa-tag mr-1 text-muted"></i> Descuento</span>
+                                                <span class="lbl"><i class="mr-1 fa fa-tag text-muted"></i> Descuento</span>
                                                 <input type="text" id="descuentoMostrar" name="descuentoMostrar" class="val" placeholder="L. 0.00" data-parsley-required autocomplete="off" readonly>
                                                 <input type="hidden" value="0" id="porDescuentoCalculado" name="porDescuentoCalculado">
                                             </div>
                                             <div class="of-total-row">
-                                                <span class="lbl"><i class="fa fa-list mr-1 text-muted"></i> Sub Total</span>
+                                                <span class="lbl"><i class="mr-1 fa fa-list text-muted"></i> Sub Total</span>
                                                 <input type="text" id="subTotalGeneralMostrar" class="val" placeholder="L. 0.00" readonly autocomplete="off">
                                                 <input id="subTotalGeneral" name="subTotalGeneral" type="hidden" value="" required>
                                             </div>
                                             <div class="of-total-row">
-                                                <span class="lbl"><i class="fa fa-file-text-o mr-1 text-muted"></i> Sub Total Grabado</span>
+                                                <span class="lbl"><i class="mr-1 fa fa-file-text-o text-muted"></i> Sub Total Grabado</span>
                                                 <input type="text" id="subTotalGeneralGrabadoMostrar" class="val" placeholder="L. 0.00" readonly autocomplete="off">
                                                 <input id="subTotalGeneralGrabado" name="subTotalGeneralGrabado" type="hidden" value="" required>
                                             </div>
                                             <div class="of-total-row">
-                                                <span class="lbl"><i class="fa fa-minus-circle mr-1 text-muted"></i> Sub Total Exento</span>
+                                                <span class="lbl"><i class="mr-1 fa fa-minus-circle text-muted"></i> Sub Total Exento</span>
                                                 <input type="text" id="subTotalGeneralExcentoMostrar" class="val" placeholder="L. 0.00" readonly autocomplete="off">
                                                 <input id="subTotalGeneralExcento" name="subTotalGeneralExcento" type="hidden" value="" required>
                                             </div>
                                             <div class="of-total-row" id="fila_isv" style="{{ ($config->aplica_isv ?? true) ? '' : 'display:none' }}">
-                                                <span class="lbl"><i class="fa fa-percent mr-1 text-muted"></i> ISV</span>
+                                                <span class="lbl"><i class="mr-1 fa fa-percent text-muted"></i> ISV</span>
                                                 <input type="text" id="isvGeneralMostrar" class="val" placeholder="L. 0.00" readonly autocomplete="off">
                                                 <input id="isvGeneral" name="isvGeneral" type="hidden" value="" required>
                                             </div>
@@ -830,34 +830,130 @@
             </div>
         </div>
 
-        {{-- MODAL: Éxito guardado oferta – 4 opciones --}}
+        {{-- MODAL: Éxito guardado oferta – check verde + 4 botones --}}
         <div class="modal fade" id="modalExitoOferta" tabindex="-1" role="dialog" data-backdrop="static" data-keyboard="false">
-            <div class="modal-dialog modal-dialog-centered" role="document" style="max-width:500px;">
-                <div class="modal-content" style="border-radius:16px; overflow:hidden;">
-                    <div class="modal-header" style="background:linear-gradient(135deg,#e65100,#f9a826); border:none; padding:18px 24px;">
-                        <h5 class="modal-title" style="color:#fff; font-weight:800; margin:0; font-size:15px;">
-                            <i class="mr-2 fa fa-check-circle"></i> Oferta guardada exitosamente
-                        </h5>
+            <div class="modal-dialog modal-dialog-centered" role="document" style="max-width:420px;">
+                <div class="modal-content" style="border-radius:20px; overflow:hidden; border:none; box-shadow:0 20px 60px rgba(0,0,0,.18); position:relative;">
+                    {{-- Botón cerrar --}}
+                    <button type="button" data-dismiss="modal" aria-label="Cerrar"
+                            style="position:absolute; top:12px; right:14px; background:none; border:none;
+                                   font-size:20px; color:#9e9e9e; cursor:pointer; line-height:1; z-index:1;
+                                   padding:4px 8px; border-radius:50%;" title="Cerrar">&times;</button>
+                    <div class="modal-body" style="padding:36px 32px 28px; text-align:center;">
+
+                        {{-- Ícono check grande --}}
+                        <div style="width:90px; height:90px; border-radius:50%;
+                                    background:linear-gradient(135deg,#00c853,#69f0ae);
+                                    display:flex; align-items:center; justify-content:center;
+                                    margin:0 auto 20px; box-shadow:0 8px 24px rgba(0,200,83,.30);">
+                            <i class="fa fa-check" style="font-size:46px; color:#fff; line-height:1;"></i>
+                        </div>
+
+                        <h4 style="font-weight:800; color:#1b5e20; margin-bottom:6px; font-size:18px;">¡Oferta guardada!</h4>
+                        <p id="msgNumOferta" style="color:#546e7a; font-size:13px; margin-bottom:24px;">La oferta fue registrada exitosamente.</p>
+
+                        {{-- 4 botones compactos --}}
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+
+                            <button onclick="ofertaAccion('nueva')"
+                                    style="background:#f0fdf4; color:#1b5e20; border:1.5px solid #a7f3d0;
+                                           border-radius:10px; padding:11px 8px; font-size:12px; font-weight:700;
+                                           cursor:pointer; text-align:center; transition:background .15s;"
+                                    onmouseover="this.style.background='#dcfce7'" onmouseout="this.style.background='#f0fdf4'">
+                                <i class="fa fa-plus-circle d-block" style="font-size:20px; margin-bottom:4px; color:#16a34a;"></i>
+                                Nueva oferta
+                            </button>
+
+                            <button onclick="ofertaAccion('flujo')"
+                                    style="background:#eff6ff; color:#1e40af; border:1.5px solid #bfdbfe;
+                                           border-radius:10px; padding:11px 8px; font-size:12px; font-weight:700;
+                                           cursor:pointer; text-align:center; transition:background .15s;"
+                                    onmouseover="this.style.background='#dbeafe'" onmouseout="this.style.background='#eff6ff'">
+                                <i class="fa fa-sitemap d-block" style="font-size:20px; margin-bottom:4px; color:#2563eb;"></i>
+                                Ver flujo
+                            </button>
+
+                            <button onclick="ofertaAccion('imprimir')"
+                                    style="background:#fafafa; color:#374151; border:1.5px solid #e5e7eb;
+                                           border-radius:10px; padding:11px 8px; font-size:12px; font-weight:700;
+                                           cursor:pointer; text-align:center; transition:background .15s;"
+                                    onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='#fafafa'">
+                                <i class="fa fa-print d-block" style="font-size:20px; margin-bottom:4px; color:#6b7280;"></i>
+                                Imprimir oferta
+                            </button>
+
+                            <button onclick="ofertaAccion('prefacturar')" id="btnPrefacturarOferta"
+                                    style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff; border:none;
+                                           border-radius:10px; padding:11px 8px; font-size:12px; font-weight:700;
+                                           cursor:pointer; text-align:center; box-shadow:0 3px 10px rgba(230,81,0,.25); transition:opacity .15s;"
+                                    onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">
+                                <i class="fa fa-file-text-o d-block" style="font-size:20px; margin-bottom:4px;"></i>
+                                Prefacturar
+                            </button>
+
+                        </div>
                     </div>
-                    <div class="modal-body" style="padding:24px;">
-                        <p style="color:#546e7a; font-size:13px; margin-bottom:20px; text-align:center;">¿Qué desea hacer ahora?</p>
-                        <div class="d-flex flex-column" style="gap:12px;">
-                            <button onclick="ofertaAccion('nueva')" class="btn btn-block" style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff; font-weight:700; border:none; border-radius:10px; padding:12px 20px; text-align:left;">
-                                <i class="mr-2 fa fa-plus-circle"></i> Agregar nueva oferta
-                                <div style="font-size:11px; font-weight:400; opacity:.85;">Limpiar productos y crear otra oferta para el mismo pedido</div>
+                </div>
+            </div>
+        </div>
+
+        {{-- MODAL: Resultado de prefacturación --}}
+        <div class="modal fade" id="modalPrefacturaExito" tabindex="-1" role="dialog" data-backdrop="static" data-keyboard="false" style="z-index:2075;">
+            <div class="modal-dialog modal-dialog-centered" role="document" style="max-width:440px;">
+                <div class="modal-content" style="border-radius:20px; overflow:hidden; border:none; box-shadow:0 20px 60px rgba(0,0,0,.18); position:relative;">
+                    {{-- Botón cerrar --}}
+                    <button type="button" data-dismiss="modal" aria-label="Cerrar"
+                            style="position:absolute; top:12px; right:14px; background:none; border:none;
+                                   font-size:20px; color:#9e9e9e; cursor:pointer; line-height:1; z-index:1;
+                                   padding:4px 8px; border-radius:50%;" title="Cerrar">&times;</button>
+                    <div class="modal-body" style="padding:36px 32px 28px; text-align:center;">
+
+                        {{-- Ícono check --}}
+                        <div style="width:90px; height:90px; border-radius:50%;
+                                    background:linear-gradient(135deg,#00897b,#26c6da);
+                                    display:flex; align-items:center; justify-content:center;
+                                    margin:0 auto 20px; box-shadow:0 8px 24px rgba(0,137,123,.28);">
+                            <i class="fa fa-check" style="font-size:46px; color:#fff; line-height:1;"></i>
+                        </div>
+
+                        <h4 style="font-weight:800; color:#004d40; margin-bottom:6px; font-size:18px;">¡Prefactura generada!</h4>
+                        <p id="msgPrefactura" style="color:#546e7a; font-size:13px; margin-bottom:6px;"></p>
+                        <p style="color:#90a4ae; font-size:11px; margin-bottom:24px; line-height:1.5;">
+                            <i class="fa fa-info-circle mr-1"></i>
+                            La prefactura <strong>reserva el inventario</strong> por el período de validez configurado.
+                            Una vez vencido, la prefactura pierde validez automáticamente.
+                        </p>
+
+                        {{-- 3 botones --}}
+                        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;">
+
+                            <button onclick="prefacturaAccion('facturar')"
+                                    style="background:linear-gradient(135deg,#1b5e20,#2e7d32); color:#fff; border:none;
+                                           border-radius:10px; padding:11px 6px; font-size:11px; font-weight:700;
+                                           cursor:pointer; text-align:center; box-shadow:0 3px 10px rgba(27,94,32,.25); transition:opacity .15s;"
+                                    onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">
+                                <i class="fa fa-file-invoice d-block" style="font-size:20px; margin-bottom:4px;"></i>
+                                Facturar
                             </button>
-                            <button onclick="ofertaAccion('ganadora')" class="btn btn-block" style="background:#fff; color:#e65100; font-weight:700; border:2px solid #f9a826; border-radius:10px; padding:12px 20px; text-align:left;">
-                                <i class="mr-2 fa fa-trophy"></i> Seleccionar oferta ganadora
-                                <div style="font-size:11px; font-weight:400; color:#546e7a;">Ver todas las ofertas del pedido y elegir la ganadora</div>
+
+                            <button onclick="prefacturaAccion('flujo')"
+                                    style="background:#eff6ff; color:#1e40af; border:1.5px solid #bfdbfe;
+                                           border-radius:10px; padding:11px 6px; font-size:11px; font-weight:700;
+                                           cursor:pointer; text-align:center; transition:background .15s;"
+                                    onmouseover="this.style.background='#dbeafe'" onmouseout="this.style.background='#eff6ff'">
+                                <i class="fa fa-sitemap d-block" style="font-size:20px; margin-bottom:4px; color:#2563eb;"></i>
+                                Ver flujo
                             </button>
-                            <button onclick="ofertaAccion('prefacturar')" class="btn btn-block" style="background:#fff3e0; color:#bf360c; font-weight:700; border:none; border-radius:10px; padding:12px 20px; text-align:left;">
-                                <i class="mr-2 fa fa-file-text-o"></i> Prefacturar esta oferta
-                                <div style="font-size:11px; font-weight:400; color:#546e7a;">Esta oferta se marca como ganadora y se manda a prefactura</div>
+
+                            <button onclick="prefacturaAccion('imprimir')"
+                                    style="background:#fafafa; color:#374151; border:1.5px solid #e5e7eb;
+                                           border-radius:10px; padding:11px 6px; font-size:11px; font-weight:700;
+                                           cursor:pointer; text-align:center; transition:background .15s;"
+                                    onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='#fafafa'">
+                                <i class="fa fa-print d-block" style="font-size:20px; margin-bottom:4px; color:#6b7280;"></i>
+                                Imprimir
                             </button>
-                            <button onclick="ofertaAccion('imprimir')" class="btn btn-block" style="background:#fafafa; color:#546e7a; font-weight:700; border:1px solid #e0e0e0; border-radius:10px; padding:12px 20px; text-align:left;">
-                                <i class="mr-2 fa fa-print"></i> Imprimir oferta
-                                <div style="font-size:11px; font-weight:400; color:#78909c;">Abrir PDF de la oferta recién guardada</div>
-                            </button>
+
                         </div>
                     </div>
                 </div>
@@ -868,6 +964,10 @@
         <style>
             /* Z-index por encima de los valores de IBOX (.modal=2050, .modal-dialog=2200) */
             #modalOfertasGanadoras { z-index: 2060 !important; }
+            /* Prefactura éxito: siempre encima del modal de oferta y su backdrop */
+            #modalPrefacturaExito { z-index: 2075 !important; }
+            /* El backdrop del segundo modal debe apilarse correctamente */
+            #modalPrefacturaExito ~ .modal-backdrop { z-index: 2070 !important; }
 
             /* Lista con scroll: altura fija para mostrar ~3 ofertas a la vez */
             #ogLista {
@@ -1430,7 +1530,7 @@
         var lbl = document.getElementById('productoSeleccionadoLabel');
         lbl.classList.add('d-none'); lbl.textContent = '';
         document.getElementById('historialPreciosPanel').querySelector('#historialPreciosCuerpo').innerHTML =
-            '<p class="text-muted small mb-0">Sin ventas previas de este producto a este cliente.</p>';
+            '<p class="mb-0 text-muted small">Sin ventas previas de este producto a este cliente.</p>';
         document.getElementById('historialPreciosPanel').classList.remove('d-none');
     }
 
@@ -1649,7 +1749,7 @@
         var cuerpo = document.getElementById('historialPreciosCuerpo');
 
         if (!productoId || !clienteId) {
-            cuerpo.innerHTML = '<p class="text-muted small mb-0">Sin ventas previas de este producto a este cliente.</p>';
+            cuerpo.innerHTML = '<p class="mb-0 text-muted small">Sin ventas previas de este producto a este cliente.</p>';
             return;
         }
 
@@ -2060,8 +2160,11 @@
     // ================================================================
     // GUARDAR VENTA
     // ================================================================
-    var _ofertaGuardadaId = null;
-    var _ofertaPedidoId   = null;
+    var _ofertaGuardadaId  = null;
+    var _ofertaPedidoId    = null;
+    var _ofertaFlujoId     = null;
+    var _prefacturaId      = null;
+    var _prefacturaFlujoId = null;
 
     function limpiarFormularioVenta(data) {
         document.getElementById('bloqueImagenes').innerHTML = '';
@@ -2099,11 +2202,25 @@
     function ofertaAccion(tipo) {
         var idOferta  = _ofertaGuardadaId;
         var idPedido  = _ofertaPedidoId;
+        var idFlujo   = _ofertaFlujoId;
 
         if (tipo === 'nueva') {
             $('#modalExitoOferta').modal('hide');
             // Recargar la página para restaurar los datos del pedido vinculado
             window.location.reload();
+            return;
+
+        } else if (tipo === 'flujo') {
+            $('#modalExitoOferta').one('hidden.bs.modal', function () {
+                if (idPedido) {
+                    Livewire.emit('abrirFlujoPedido', idPedido, 'ofertas');
+                } else if (idFlujo) {
+                    Livewire.emit('abrirFlujoCotizacion', idFlujo);
+                } else {
+                    window.location.href = '/flujo/prefactura';
+                }
+            });
+            $('#modalExitoOferta').modal('hide');
             return;
 
         } else if (tipo === 'ganadora') {
@@ -2132,20 +2249,15 @@
                             var esGanadora = o.es_ganadora ? ' <span style="background:#fff8e1;color:#f57f17;border-radius:12px;padding:1px 8px;font-size:10px;font-weight:700;"><i class="fa fa-trophy"></i> Ganadora</span>' : '';
                             var cardBorder = o.es_ganadora ? 'border:2px solid #f9a826;background:#fffde7;' : 'border:1px solid #e0e0e0;background:#fff;';
                             var numProds   = (o.productos && o.productos.length) ? o.productos.length : 0;
-                            var cardId     = 'ogCard_' + o.id;
 
                             html += '<div class="og-card" style="' + cardBorder + '">';
-
-                            // ── Fila principal ──────────────────────────────
                             html += '<div class="og-card-header">';
-                            // Info izquierda
                             html += '<div style="flex:1;min-width:0;">';
                             html += '<div style="font-weight:800;font-size:13px;color:#2d3748;display:flex;align-items:center;flex-wrap:wrap;gap:4px;">';
                             html += 'Oferta #' + o.id + esActual + esGanadora;
                             html += '</div>';
                             html += '<div style="font-size:11px;color:#90a4ae;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (o.nombre_cliente || '') + '</div>';
                             html += '</div>';
-                            // Total + botón seleccionar
                             html += '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0;">';
                             html += '<span style="font-weight:800;color:#e65100;font-size:14px;">L ' + fmt.format(o.total) + '</span>';
                             html += '<button onclick="confirmarGanadora(' + o.id + ')" style="background:linear-gradient(135deg,#e65100,#f9a826);color:#fff;border:none;border-radius:8px;padding:4px 14px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">';
@@ -2153,7 +2265,6 @@
                             html += '</div>';
                             html += '</div>';
 
-                            // ── Toggle de productos ─────────────────────────
                             if (numProds > 0) {
                                 html += '<div style="padding:0 14px 8px;">';
                                 html += '<button type="button" class="og-toggle-btn" id="ogToggle_' + o.id + '" onclick="ogToggle(' + o.id + ')">';
@@ -2161,7 +2272,6 @@
                                 html += 'Productos (' + numProds + ')';
                                 html += '</button>';
                                 html += '</div>';
-
                                 html += '<div class="og-products" id="ogProds_' + o.id + '">';
                                 o.productos.forEach(function(p) {
                                     html += '<div class="og-prod-row">';
@@ -2171,8 +2281,7 @@
                                 });
                                 html += '</div>';
                             }
-
-                            html += '</div>'; // .og-card
+                            html += '</div>';
                         });
                         document.getElementById('ogLista').innerHTML = html;
                     })
@@ -2184,14 +2293,51 @@
             $('#modalExitoOferta').modal('hide');
 
         } else if (tipo === 'prefacturar') {
-            $('#modalExitoOferta').modal('hide');
-            axios.post('/cotizacion/marcar-ganadora', { cotizacion_id: idOferta }, { headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') } })
-                .then(function() {
-                    window.location.href = '/flujo/prefactura';
-                })
-                .catch(function() {
-                    Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo prefacturar la oferta.' });
+            var btn = document.getElementById('btnPrefacturarOferta');
+            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa fa-spinner fa-spin d-block" style="font-size:20px;margin-bottom:4px;"></i>Procesando…'; }
+
+            axios.post('/cotizacion/prefacturar-desde-oferta',
+                { cotizacion_id: idOferta, flujo_id: idFlujo || null },
+                { headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') } }
+            ).then(function(res) {
+                var d = res.data;
+                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa fa-file-text-o d-block" style="font-size:20px;margin-bottom:4px;"></i>Prefacturar'; }
+                _prefacturaId    = d.idPrefactura;
+                _prefacturaFlujoId = d.flujoId || idFlujo;
+                document.getElementById('msgPrefactura').textContent = 'Prefactura #' + d.idPrefactura + ' generada. Válida por ' + (d.diasValidez || 7) + ' día(s).';
+                $('#modalExitoOferta').one('hidden.bs.modal', function() {
+                    $('#modalPrefacturaExito').modal('show');
+                    // Asegurar que el backdrop del modal de prefactura quede encima
+                    setTimeout(function() {
+                        $('.modal-backdrop').last().css('z-index', '2070');
+                    }, 50);
                 });
+                $('#modalExitoOferta').modal('hide');
+            }).catch(function(err) {
+                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa fa-file-text-o d-block" style="font-size:20px;margin-bottom:4px;"></i>Prefacturar'; }
+                var d = err.response ? err.response.data : {};
+                if (d.stock_errors && d.stock_errors.length) {
+                    var rows = d.stock_errors.map(function(e) {
+                        return '<tr><td style="padding:4px 8px;font-weight:600;">' + e.producto + '</td>'
+                             + '<td style="padding:4px 8px;text-align:center;color:#e65100;font-weight:700;">' + e.solicitado + '</td>'
+                             + '<td style="padding:4px 8px;text-align:center;color:#b71c1c;font-weight:700;">' + e.disponible + '</td></tr>';
+                    }).join('');
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Inventario insuficiente',
+                        html: '<p style="font-size:13px;margin-bottom:10px;">Los siguientes productos no tienen stock suficiente:</p>'
+                            + '<table style="width:100%;font-size:12px;border-collapse:collapse;">'
+                            + '<thead><tr style="background:#fce4ec;">'
+                            + '<th style="padding:4px 8px;text-align:left;">Producto</th>'
+                            + '<th style="padding:4px 8px;">Solicitado</th>'
+                            + '<th style="padding:4px 8px;">Disponible</th>'
+                            + '</tr></thead><tbody>' + rows + '</tbody></table>',
+                        confirmButtonColor: '#e65100',
+                    });
+                } else {
+                    Swal.fire({ icon: 'error', title: d.title || 'Error', text: d.text || 'No se pudo prefacturar la oferta.' });
+                }
+            });
 
         } else if (tipo === 'imprimir') {
             var urlImprimir = urls.imprimir;
@@ -2199,6 +2345,82 @@
                 window.open(urlImprimir.replace('{id}', idOferta), '_blank');
             }
             // Modal permanece abierto intencionalmente
+        }
+    }
+
+    function prefacturaAccion(tipo) {
+        if (tipo === 'imprimir') {
+            if (_prefacturaId) {
+                window.open('/prefactura/imprimir/' + _prefacturaId, '_blank');
+            }
+        } else if (tipo === 'flujo') {
+            var flujoId = _prefacturaFlujoId;
+            $('#modalPrefacturaExito').one('hidden.bs.modal', function () {
+                if (flujoId) {
+                    axios.get('/flujo/' + flujoId + '/pedido-id').then(function(r) {
+                        if (r.data.pedido_id) {
+                            Livewire.emit('abrirFlujoPedido', r.data.pedido_id, 'prefactura');
+                        } else {
+                            Livewire.emit('abrirFlujoCotizacion', flujoId);
+                        }
+                    }).catch(function() {
+                        window.location.href = '/flujo/prefactura';
+                    });
+                } else {
+                    window.location.href = '/flujo/prefactura';
+                }
+            });
+            $('#modalPrefacturaExito').modal('hide');
+        } else if (tipo === 'facturar') {
+            var prefId = _prefacturaId;
+            if (!prefId) {
+                Swal.fire({ icon: 'warning', title: 'Sin prefactura', text: 'No se encontró la prefactura.' });
+                return;
+            }
+            $('#modalPrefacturaExito').one('hidden.bs.modal', function() {
+                axios.get('/prefactura/' + prefId + '/tipos-facturacion').then(function(r) {
+                    var tipos = r.data.tipos || [];
+                    if (tipos.length === 0) {
+                        Swal.fire({ icon: 'warning', title: 'Sin opciones', text: 'No hay tipos de facturación disponibles para este cliente.' });
+                        return;
+                    }
+                    var html = '<div style="display:flex;flex-direction:column;gap:10px;margin-top:8px;">';
+                    tipos.forEach(function(t) {
+                        html += '<button type="button" class="btn-fact-tipo" data-id="' + t.id + '"'
+                              + ' style="background:#fff;border:1.5px solid #e0e3ee;border-radius:10px;'
+                              + ' padding:10px 16px;text-align:left;cursor:pointer;font-size:13px;'
+                              + ' font-weight:700;color:#2c3e50;display:flex;align-items:center;gap:10px;">'
+                              + '<i class="fa fa-file-text" style="color:#1a7efb;"></i>' + t.nombre + '</button>';
+                    });
+                    html += '</div>';
+                    Swal.fire({
+                        title: 'Seleccionar tipo de facturación',
+                        html: html,
+                        showConfirmButton: false,
+                        showCancelButton: true,
+                        cancelButtonText: 'Cancelar',
+                        didOpen: function() {
+                            document.querySelectorAll('.btn-fact-tipo').forEach(function(btn) {
+                                btn.addEventListener('click', function() {
+                                    var tipoId = this.getAttribute('data-id');
+                                    Swal.close();
+                                    axios.post('/prefactura/' + prefId + '/facturar',
+                                        { tipo_factura_id: tipoId },
+                                        { headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') } }
+                                    ).then(function(res) {
+                                        window.location.href = res.data.url;
+                                    }).catch(function(err) {
+                                        Swal.fire({ icon: 'error', title: 'Error', text: (err.response && err.response.data && err.response.data.error) ? err.response.data.error : 'Error al procesar.' });
+                                    });
+                                });
+                            });
+                        }
+                    });
+                }).catch(function() {
+                    Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo cargar los tipos de facturación.' });
+                });
+            });
+            $('#modalPrefacturaExito').modal('hide');
         }
     }
 
@@ -2319,7 +2541,10 @@
                 // Para cotizaciones, mostrar modal de opciones post-guardado
                 if (codigoActual === 'cotizacion_clientes_a') {
                     _ofertaGuardadaId = data.idFactura;
-                    _ofertaPedidoId   = data.pedidoId || null;
+                    _ofertaPedidoId   = data.pedidoId  || null;
+                    _ofertaFlujoId    = data.flujoId   || null;
+                    var msgEl = document.getElementById('msgNumOferta');
+                    if (msgEl) msgEl.textContent = 'Oferta #' + data.idFactura + ' registrada exitosamente.';
                     limpiarFormularioVenta(data);
                     $('#modalExitoOferta').modal('show');
                     return;
