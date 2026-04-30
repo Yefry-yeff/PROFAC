@@ -211,12 +211,54 @@
             
         </div>
     </div>
+    @elseif($fromPrefactura)
+    <div class="row wrapper border-bottom white-bg page-heading">
+        <div class="col-lg-10">
+            <h2><i class="fa fa-file-text-o" style="color:#1b5e20;"></i> Factura desde Prefactura</h2>
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Inicio</a></li>
+                <li class="breadcrumb-item"><a href="{{ route('flujo.ventas') }}">Ventas</a></li>
+                <li class="breadcrumb-item active"><strong>Factura desde Prefactura</strong></li>
+            </ol>
+        </div>
+        <div class="col-lg-2 d-flex align-items-center justify-content-end">
+            <a href="{{ route('flujo.ventas') }}" class="btn btn-default btn-sm">
+                <i class="mr-1 fa fa-arrow-left"></i> Volver
+            </a>
+        </div>
+    </div>
     @endif
 
     <div class="wrapper wrapper-content animated fadeInRight">
 
+        {{-- ===== SELECTOR DE TIPO (para facturación desde prefactura) ===== --}}
+        @if($fromPrefactura)
+        <div class="mb-4 row">
+            <div class="col-12">
+                <div class="ibox">
+                    <div class="py-3 ibox-content" style="background: linear-gradient(135deg, #f1f8e9, #e8f5e9); border: 2px solid #a5d6a7;">
+                        <h6 style="margin:0 0 12px; font-weight:800; color:#1b5e20; display:flex; align-items:center; gap:8px;">
+                            <i class="fa fa-file-text-o"></i> Selecciona el tipo de facturación:
+                        </h6>
+                        <div class="flex-wrap d-flex align-items-center tipo-factura-selector" style="gap:8px;">
+                            @foreach($tiposFactura as $tipo)
+                                <button type="button"
+                                    class="btn btn-sm {{ $config && $config->id == $tipo->id ? 'btn-success active' : 'btn-outline-success' }}"
+                                    onclick="cambiarTipoFacturaDesdeUrl('{{ $tipo->ruta_menu }}')"
+                                    style="border-radius:8px; padding:8px 16px; font-weight:700; font-size:13px;">
+                                    <i class="fa fa-file-text mr-1"></i> {{ $tipo->nombre }}
+                                </button>
+                            @endforeach
+                        </div>
+                        <small class="mt-2 d-block text-muted">Selecciona el tipo de facturación y los datos de la prefactura se cargarán automáticamente.</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        @endif
+
         {{-- ===== SELECTOR DE TIPO (fuera de flujo) ===== --}}
-        @if(!$fromFlujo)
+        @if(!$fromFlujo && !$fromPrefactura)
         <div class="mb-3 row">
             <div class="col-12">
                 <div class="ibox">
@@ -232,6 +274,85 @@
                     </div>
                 </div>
             </div>
+        </div>
+        @endif
+
+        {{-- ===== PANEL: VINCULAR A UNA PREFACTURA (modo facturación desde prefactura) ===== --}}
+        @if($fromPrefactura)
+        <div class="pedido-link-panel {{ $prefacturaVinculada ? 'linked' : '' }}" style="border-color:#a5d6a7; background:#f1f8e9;">
+            @if(!$prefacturaVinculada)
+            <div class="mb-3">
+                <h6 style="margin:0; font-weight:800; color:#1b5e20;">
+                    <i class="mr-2 fa fa-file-text-o"></i>Vincular a una Prefactura
+                </h6>
+            </div>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="input-group">
+                        <div class="input-group-prepend">
+                            <span class="input-group-text" style="background:#1b5e20; color:#fff; border-color:#1b5e20; border-radius:8px 0 0 8px;">
+                                <i class="fa fa-search"></i>
+                            </span>
+                        </div>
+                        <input type="text"
+                               wire:model.debounce.350ms="busquedaPrefactura"
+                               class="form-control"
+                               placeholder="Buscar por # prefactura, # flujo, cliente o RTN..."
+                               style="border-radius:0 8px 8px 0;"
+                               autocomplete="off">
+                    </div>
+                    @if(strlen(trim($busquedaPrefactura)) > 0 && strlen(trim($busquedaPrefactura)) < 2)
+                        <small class="mt-1 text-muted d-block">Escribe al menos 2 caracteres</small>
+                    @endif
+                </div>
+            </div>
+
+            @if(count($prefacturasEncontradas) > 0)
+            <div style="max-height:280px; overflow-y:auto; margin-top:12px;">
+                @foreach($prefacturasEncontradas as $pf)
+                <div class="ped-row" wire:click="seleccionarPrefactura({{ $pf['id'] }})" style="cursor:pointer; border-color:#c8e6c9;">
+                    <div style="flex-shrink:0; display:flex; flex-direction:column; align-items:center; gap:3px;">
+                        <span style="background:linear-gradient(135deg,#1b5e20,#2e7d32); color:#fff; border-radius:8px; padding:3px 10px; font-size:12px; font-weight:800;"># Pref. {{ $pf['id'] }}</span>
+                        @if(!empty($pf['flujo_id']))
+                        <span style="background:#e8f0fe; color:#1a5276; border-radius:6px; padding:1px 8px; font-size:10px; font-weight:700;">Flujo #{{ $pf['flujo_id'] }}</span>
+                        @endif
+                    </div>
+                    <div style="flex:1; min-width:0;">
+                        <div style="font-weight:700; color:#2c3e50; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ $pf['nombre_cliente'] }}</div>
+                        <div style="font-size:11px; color:#90a4ae;">RTN: {{ $pf['RTN'] ?: '—' }} &nbsp;·&nbsp; Emisión: {{ \Carbon\Carbon::parse($pf['fecha_emision'])->format('d/m/Y') }} &nbsp;·&nbsp; Vence: {{ \Carbon\Carbon::parse($pf['fecha_vencimiento'])->format('d/m/Y') }}</div>
+                    </div>
+                    <div style="flex-shrink:0; text-align:right; min-width:110px;">
+                        <div style="font-weight:800; color:#e65100; font-size:14px;">L {{ number_format($pf['total'], 2) }}</div>
+                    </div>
+                </div>
+                @endforeach
+            </div>
+            @elseif(strlen(trim($busquedaPrefactura)) >= 2)
+            <div class="py-3 mt-2 text-center">
+                <i class="mb-2 fa fa-search fa-2x" style="color:#b2dfdb; display:block;"></i>
+                <p style="color:#78909c; font-size:13px; margin:0;">No se encontraron prefacturas activas con ese criterio.</p>
+            </div>
+            @endif
+
+            @else
+            <div class="flex-wrap d-flex align-items-center justify-content-between" style="gap:8px;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span style="background:linear-gradient(135deg,#1b5e20,#2e7d32); color:#fff; border-radius:8px; padding:4px 14px; font-size:13px; font-weight:800;">
+                        <i class="mr-1 fa fa-link"></i> Prefactura Vinculada
+                    </span>
+                    <span style="font-weight:700; color:#1b5e20; font-size:14px;">
+                        #{{ $prefacturaVinculada['id'] }} — {{ $prefacturaVinculada['nombre_cliente'] }}
+                    </span>
+                    <span style="background:#fff3e0; color:#e65100; border-radius:6px; padding:2px 10px; font-size:11px; font-weight:700;">
+                        Total: L {{ number_format($prefacturaVinculada['total'], 2) }}
+                    </span>
+                </div>
+                <button type="button" wire:click="desvincularPrefactura"
+                        style="background:#fce4ec; color:#b71c1c; border:1px solid #ffcdd2; border-radius:8px; padding:5px 14px; font-size:12px; font-weight:700; cursor:pointer;">
+                    <i class="mr-1 fa fa-unlink"></i> Desvincular
+                </button>
+            </div>
+            @endif
         </div>
         @endif
 
@@ -379,6 +500,7 @@
                             <input type="hidden" id="codigo_autorizacion" name="codigo_autorizacion" value="">
                             <input type="hidden" id="pedido_vinculado_id" name="pedido_id"          value="{{ $pedidoId ?? '' }}"> {{-- vinculación a pedido --}}
                             <input type="hidden" id="flujo_vinculado_id"  name="flujo_id"           value="{{ $flujoVinculadoId ?? '' }}"> {{-- flujo directo (sin pedido) --}}
+                            <input type="hidden" id="prefactura_vinculada_id" name="prefactura_id"   value="{{ $prefacturaVinculadaId ?? '' }}"> {{-- prefactura vinculada --}}
 
                             {{-- ── SECCIÓN 1: Datos del Cliente ────────────────────────── --}}
                             <span id="ico_sec_cliente" style="display:none;"></span>
@@ -402,7 +524,7 @@
                                     <select id="seleccionarCliente" name="seleccionarCliente"
                                         class="form-control form-control-sm" data-parsley-required
                                         onchange="obtenerDatosCliente()"
-                                        {{ $flujoVinculado ? 'disabled' : '' }}>
+                                        {{ ($flujoVinculado || $prefacturaVinculada) ? 'disabled' : '' }}>
                                         <option value="" selected disabled>--Seleccionar--</option>
                                     </select>
                                 </div>
@@ -1412,6 +1534,20 @@
 
     function cambiarTipoFactura(rutaMenu) {
         window.location.href = '/' + rutaMenu;
+    }
+
+    function cambiarTipoFacturaDesdeUrl(rutaMenu) {
+        // Preserva los parámetros de prefactura (from=prefactura, prefactura_id, flujoId)
+        const urlParams = new URLSearchParams(window.location.search);
+        const from = urlParams.get('from');
+        const prefacturaId = urlParams.get('prefactura_id');
+        const flujoId = urlParams.get('flujoId');
+
+        let newUrl = '/' + rutaMenu;
+        if (from && prefacturaId && flujoId) {
+            newUrl += '?from=' + from + '&prefactura_id=' + prefacturaId + '&flujoId=' + flujoId;
+        }
+        window.location.href = newUrl;
     }
 
     // ================================================================
@@ -2625,12 +2761,13 @@
 
     @if(count($productosParaCarrito) > 0)
     @push('scripts')
-    {{-- Auto-agregar productos al carrito al duplicar una oferta (cotizacionId en URL) --}}
+    {{-- Auto-agregar productos al carrito: oferta duplicada o prefactura vinculada --}}
     <script>
     (function () {
         var _productosAutoAgregados = false;
+        var _modoPrefactura = {!! $fromPrefactura ? 'true' : 'false' !!};
 
-        function cargarProductosDesdeCotizacion() {
+        function cargarProductosIniciales() {
             if (_productosAutoAgregados) return;
             _productosAutoAgregados = true;
 
@@ -2640,19 +2777,106 @@
             var chain = Promise.resolve();
             productos.forEach(function (prod) {
                 chain = chain.then(function () {
-                    return agregarProductoDesdeOferta(prod);
+                    return _modoPrefactura ? agregarProductoDesdePrefactura(prod) : agregarProductoDesdeOferta(prod);
                 });
             });
             chain.then(function () {
                 Swal.fire({
                     icon: 'success',
                     title: 'Productos cargados',
-                    text: productos.length + ' producto(s) cargado(s) desde la oferta duplicada.',
+                    text: productos.length + ' producto(s) cargado(s) desde ' + (_modoPrefactura ? 'la prefactura vinculada' : 'la oferta duplicada') + '.',
                     timer: 2500,
                     showConfirmButton: false,
                     toast: true,
                     position: 'top-end'
                 });
+            });
+        }
+
+        function agregarProductoDesdePrefactura(prod) {
+            return new Promise(function (resolve) {
+                numeroInputs += 1;
+                var idx = numeroInputs;
+
+                var precioUsar   = parseFloat(prod.precio_unidad || 0);
+                var cantidadUsar = parseFloat(prod.cantidad || 0);
+                var subTotalUsar = parseFloat(prod.sub_total || 0);
+                var isvUsar      = parseFloat(prod.isv || 0);
+                var totalUsar    = parseFloat(prod.total || 0);
+                var isvPct       = parseFloat(prod.isv_producto || 0);
+                var bodegaTexto  = prod.nombre_bodega || '';
+                var idBodega     = prod.Bodega_id || '';
+                var idSeccion    = prod.seccion_id || '';
+                var idUnidadVenta = prod.unidad_medida_venta_id || '';
+
+                var html = `
+                <tr id='${idx}'>
+                    <td style="vertical-align:middle; text-align:center; padding:4px 6px;">
+                        <input id="idProducto${idx}" name="idProducto${idx}" type="hidden" value="${prod.producto_id || ''}">
+                        <input id="precios_producto_carga_id${idx}" name="precios_producto_carga_id${idx}" type="hidden" value="${prod.precios_producto_carga_id || ''}">
+                        <input id="isv${idx}" name="isv${idx}" type="hidden" value="${isvPct}">
+                        <input id="idBodega${idx}" name="idBodega${idx}" type="hidden" value="${idBodega}">
+                        <input id="idSeccion${idx}" name="idSeccion${idx}" type="hidden" value="${idSeccion}">
+                        <input id="restaInventario${idx}" name="restaInventario${idx}" type="hidden" value="${cantidadUsar}">
+                        <input id="subTotal${idx}" name="subTotal${idx}" type="hidden" value="${subTotalUsar.toFixed(2)}" required>
+                        <input id="isvProducto${idx}" name="isvProducto${idx}" type="hidden" value="${isvUsar.toFixed(2)}" required>
+                        <input id="acumuladoDescuento${idx}" name="acumuladoDescuento${idx}" type="hidden" value="0.00">
+                        <input id="total${idx}" name="total${idx}" type="hidden" value="${totalUsar.toFixed(2)}" required>
+                        <input id="bodega${idx}" name="bodega${idx}" type="hidden" value="${bodegaTexto}">
+                        <button class="btn btn-danger btn-xs" type="button" onclick="eliminarInput(${idx})" title="Eliminar" style="padding:2px 6px; font-size:11px; border-radius:5px;">
+                            <i class="fa fa-times"></i>
+                        </button>
+                    </td>
+                    <td style="vertical-align:middle; padding:4px 6px;">
+                        <input type="text" id="nombre${idx}" name="nombre${idx}" value='${prod.nombre_producto || ''}' readonly data-parsley-required
+                            style="border:none; background:transparent; font-size:12px; font-weight:700; color:#1b5e20; width:100%; min-width:130px;">
+                    </td>
+                    <td style="vertical-align:middle; padding:4px 6px; white-space:nowrap;">
+                        <span style="background:#e3f2fd; color:#1565c0; border-radius:6px; padding:2px 8px; font-size:11px; font-weight:700;">
+                            <i class="fa fa-archive" style="font-size:10px;"></i> ${bodegaTexto}
+                        </span>
+                    </td>
+                    <td style="vertical-align:middle; padding:4px 6px;">
+                        <select class="form-control form-control-sm" name="precios${idx}" id="precios${idx}" data-parsley-required style="font-size:11px; min-width:100px;"
+                            onchange="validacionPrecio(precios${idx}, precio${idx})">
+                            <option value="${precioUsar.toFixed(2)}" data-id="p1" selected>${precioUsar.toFixed(2)} - Fijo</option>
+                        </select>
+                    </td>
+                    <td style="vertical-align:middle; padding:4px 6px;">
+                        <input type="number" id="precio${idx}" name="precio${idx}" value="${precioUsar.toFixed(2)}" class="form-control form-control-sm"
+                            data-parsley-required step="any" autocomplete="off" style="min-width:80px; font-size:11px;"
+                            onchange="calcularTotales(precio${idx},cantidad${idx},${isvPct},unidad${idx},${idx},restaInventario${idx})">
+                    </td>
+                    <td style="vertical-align:middle; padding:4px 6px;">
+                        <input type="number" id="cantidad${idx}" name="cantidad${idx}" value="${cantidadUsar}" class="form-control form-control-sm" min="1" data-parsley-required autocomplete="off" style="min-width:60px; font-size:11px;"
+                            onchange="calcularTotales(precio${idx},cantidad${idx},${isvPct},unidad${idx},${idx},restaInventario${idx})">
+                    </td>
+                    <td style="vertical-align:middle; padding:4px 6px;">
+                        <select class="form-control form-control-sm" name="unidad${idx}" id="unidad${idx}" data-parsley-required style="font-size:11px; min-width:80px;"
+                            onchange="calcularTotales(precio${idx},cantidad${idx},${isvPct},unidad${idx},${idx},restaInventario${idx})">
+                            <option value="1" data-id="${idUnidadVenta}" selected>U.</option>
+                        </select>
+                    </td>
+                    <td style="vertical-align:middle; padding:4px 6px; text-align:right;">
+                        <input type="text" id="subTotalMostrar${idx}" name="subTotalMostrar${idx}" value="${formatoMoneda(subTotalUsar)}" readonly autocomplete="off"
+                            style="border:none; background:#f1f8e9; border-radius:5px; font-weight:700; color:#2e7d32; font-size:12px; padding:2px 6px; text-align:right; width:100%; min-width:75px;">
+                    </td>
+                    <td style="vertical-align:middle; padding:4px 6px; text-align:right;">
+                        <input type="text" id="isvProductoMostrar${idx}" name="isvProductoMostrar${idx}" value="${formatoMoneda(isvUsar)}" readonly autocomplete="off"
+                            style="border:none; background:#fce4ec; border-radius:5px; font-weight:700; color:#b71c1c; font-size:12px; padding:2px 6px; text-align:right; width:100%; min-width:65px;">
+                    </td>
+                    <td style="vertical-align:middle; padding:4px 6px; text-align:right;">
+                        <input type="text" id="totalMostrar${idx}" name="totalMostrar${idx}" value="${formatoMoneda(totalUsar)}" readonly autocomplete="off"
+                            style="border:none; background:linear-gradient(135deg,#e65100,#f9a826); border-radius:5px; font-weight:800; color:#fff; font-size:12px; padding:2px 6px; text-align:right; width:100%; min-width:80px;">
+                    </td>
+                </tr>`;
+
+                arregloIdInputs.splice(idx, 0, idx);
+                document.getElementById('carritoTbody').insertAdjacentHTML('beforeend', html);
+                document.getElementById('carritoVacio').classList.add('d-none');
+                document.getElementById('carritoTablaWrapper').classList.remove('d-none');
+                totalesGenerales();
+                resolve();
             });
         }
 
@@ -2783,7 +3007,7 @@
         // Disparar auto-carga cuando el cliente esté completamente cargado
         window.addEventListener('cliente-datos-cargados', function onClienteListo() {
             window.removeEventListener('cliente-datos-cargados', onClienteListo);
-            cargarProductosDesdeCotizacion();
+            cargarProductosIniciales();
         });
     })();
     </script>

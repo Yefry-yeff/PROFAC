@@ -41,6 +41,7 @@ class ModalFlujoPedido extends Component
     public $prefacturaData          = null;
     public $stockErrors             = [];  // errores de inventario al crear prefactura
     public $confirmAccionPrefactura = null; // null | 'revertir' | 'anular'
+    public $vencimientoProcesado    = false; // true cuando se procesó el vencimiento en esta carga
 
     // ── Listeners ─────────────────────────────────────────────────────────
     protected $listeners = ['abrirFlujoPedido' => 'abrir', 'abrirFlujoCotizacion' => 'abrirDesdeFlujo'];
@@ -261,6 +262,7 @@ class ModalFlujoPedido extends Component
         $this->confirmAccionPrefactura = null;
         $this->tiposFacturacion        = [];
         $this->facturacionActiva       = false;
+        $this->vencimientoProcesado    = false;
     }
 
     // ─────────────────────────────────────────────────────────────────────
@@ -404,7 +406,8 @@ class ModalFlujoPedido extends Component
                 'hf.created_at as hf_fecha',
                 'c.nombre_cliente',
                 'c.total',
-                'c.cliente_id'
+                'c.cliente_id',
+                'c.estado_id as cotizacion_estado_id'   // 1=activo, 2=inactivo por precios
             )
             ->orderByDesc('hf.id')
             ->get()
@@ -424,15 +427,28 @@ class ModalFlujoPedido extends Component
                 'c.id', 'c.nombre_cliente', 'c.RTN', 'c.total', 'c.isv',
                 'c.sub_total', 'c.porc_descuento', 'c.monto_descuento',
                 'c.fecha_emision', 'c.created_at', 'c.cliente_id',
+                'c.estado_id as cotizacion_estado_id',
                 'hf.observaciones as hf_observaciones'
             )
             ->first();
 
         if (!$row) return;
 
-        $productos = DB::table('cotizacion_has_producto')
-            ->where('cotizacion_id', $cotizacionId)
-            ->select('nombre_producto', 'cantidad', 'precio_unidad', 'total')
+        $productos = DB::table('cotizacion_has_producto as chp')
+            ->leftJoin('precios_producto_carga as ppc', 'ppc.id', '=', 'chp.precios_producto_carga_id')
+            ->where('chp.cotizacion_id', $cotizacionId)
+            ->select(
+                'chp.nombre_producto', 'chp.cantidad', 'chp.precio_unidad', 'chp.total',
+                'chp.idPrecioSeleccionado', 'chp.precios_producto_carga_id',
+                // precio actual del sistema para el tipo elegido
+                DB::raw('CASE chp.idPrecioSeleccionado
+                    WHEN "a" THEN ppc.precio_a
+                    WHEN "b" THEN ppc.precio_b
+                    WHEN "c" THEN ppc.precio_c
+                    WHEN "d" THEN ppc.precio_d
+                    ELSE ppc.precio_base_venta
+                END as precio_actual')
+            )
             ->get()
             ->map(fn($r) => (array) $r)
             ->toArray();
@@ -782,6 +798,144 @@ class ModalFlujoPedido extends Component
     // GESTIÓN DE PREFACTURA
     // ─────────────────────────────────────────────────────────────────────
 
+    /**
+     * Procesa el vencimiento de una prefactura:
+     * 1. Inactiva la prefactura.
+     * 2. Marca historico_flujo de la prefactura con estado_id=4 (Vencido).
+     * 3. Retrocede el flujo a Ofertas (tipo_tramite_id=2).
+     * 4. Por cada cotización del flujo, compara precios:
+     *    - Precios cambiaron → inactiva cotizacion (estado_id=2) + cotizacion_estado.
+     *    - Precios no cambiaron → cotizacion queda activa, cotizacion_estado con observación.
+     */
+    private function procesarVencimientoPrefactura(object $pref): void
+    {
+        DB::beginTransaction();
+        try {
+            // 1. Inactivar prefactura
+            DB::table('prefactura')
+                ->where('id', $pref->id)
+                ->update(['estado' => 'inactive', 'updated_at' => now()]);
+
+            // 2. Marcar historico_flujo de la prefactura como Vencido (estado_id=4)
+            DB::table('historico_flujo')
+                ->where('flujo_id', $this->flujoId)
+                ->where('tipo_tramite_id', 4)          // tipo_tramite_id=4 = Prefactura
+                ->where('tramite_id', $pref->id)
+                ->update(['estado_id' => 4, 'updated_at' => now()]);
+
+            // 3. Retroceder flujo a Ofertas
+            DB::table('flujo')
+                ->where('id', $this->flujoId)
+                ->update([
+                    'tipo_tramite_id' => 2,
+                    'updated_by'      => Auth::id(),
+                    'updated_at'      => now(),
+                ]);
+
+            // 4. Validar precios por cada cotización del flujo
+            $cotizaciones = DB::table('historico_flujo')
+                ->where('flujo_id', $this->flujoId)
+                ->where('tipo_tramite_id', 2)      // tipo_tramite_id=2 = Ofertas
+                ->whereNotIn('observaciones', ['ganadora'])
+                ->whereRaw('(observaciones NOT LIKE ? OR observaciones IS NULL)', ['Anulado:%'])
+                ->pluck('tramite_id')
+                ->unique();
+
+            foreach ($cotizaciones as $cotId) {
+                $preciosCambiaron = $this->verificarCambioPrecios((int) $cotId);
+
+                if ($preciosCambiaron) {
+                    // Inactivar cotización por precios desactualizados
+                    DB::table('cotizacion')
+                        ->where('id', $cotId)
+                        ->update(['estado_id' => 2, 'updated_at' => now()]);
+
+                    // Marcar en historico_flujo la oferta como VencidaPrecios
+                    DB::table('historico_flujo')
+                        ->where('flujo_id', $this->flujoId)
+                        ->where('tipo_tramite_id', 2)
+                        ->where('tramite_id', $cotId)
+                        ->update([
+                            'observaciones' => 'VencidaPrecios: Prefactura vencida, precios cambiaron',
+                            'updated_at'    => now(),
+                        ]);
+
+                    DB::table('cotizacion_estado')->insert([
+                        'cotizacion_id' => $cotId,
+                        'flujo_id'      => $this->flujoId,
+                        'ganadora'      => 4,  // 4 = Vencida / inactiva por precios
+                        'comentario'    => 'Oferta inactivada: prefactura #' . $pref->id . ' venció y los precios cambiaron',
+                        'estado_id'     => 1,
+                        'created_by'    => Auth::id(),
+                        'updated_by'    => Auth::id(),
+                        'created_at'    => now(),
+                        'updated_at'    => now(),
+                    ]);
+                } else {
+                    // Precios sin cambio: oferta vuelve a quedar disponible
+                    DB::table('historico_flujo')
+                        ->where('flujo_id', $this->flujoId)
+                        ->where('tipo_tramite_id', 2)
+                        ->where('tramite_id', $cotId)
+                        ->where('observaciones', 'ganadora')   // si estaba marcada como ganadora, limpiar
+                        ->update(['observaciones' => null, 'updated_at' => now()]);
+
+                    DB::table('cotizacion_estado')->insert([
+                        'cotizacion_id' => $cotId,
+                        'flujo_id'      => $this->flujoId,
+                        'ganadora'      => 2,
+                        'comentario'    => 'Oferta reactivada: prefactura #' . $pref->id . ' venció, precios sin cambio',
+                        'estado_id'     => 1,
+                        'created_by'    => Auth::id(),
+                        'updated_by'    => Auth::id(),
+                        'created_at'    => now(),
+                        'updated_at'    => now(),
+                    ]);
+                }
+            }
+
+            DB::commit();
+            $this->mensajeError = ''; // limpio para que el blade muestre el aviso de vencimiento
+        } catch (\Exception $e) {
+            DB::rollBack();
+            $this->mensajeError = 'Error al procesar vencimiento: ' . $e->getMessage();
+        }
+    }
+
+    /**
+     * Compara los precios de cada producto de la cotización con los precios actuales
+     * en precios_producto_carga. Devuelve true si al menos un producto cambió de precio.
+     */
+    private function verificarCambioPrecios(int $cotizacionId): bool
+    {
+        $lineas = DB::table('cotizacion_has_producto as chp')
+            ->leftJoin('precios_producto_carga as ppc', 'ppc.id', '=', 'chp.precios_producto_carga_id')
+            ->where('chp.cotizacion_id', $cotizacionId)
+            ->whereNotNull('chp.precios_producto_carga_id')
+            ->select(
+                'chp.precio_unidad',
+                'chp.idPrecioSeleccionado',
+                'ppc.precio_a', 'ppc.precio_b', 'ppc.precio_c', 'ppc.precio_d',
+                'ppc.precio_base_venta'
+            )
+            ->get();
+
+        foreach ($lineas as $l) {
+            $precioActual = match(strtolower((string) $l->idPrecioSeleccionado)) {
+                'a'     => (float) $l->precio_a,
+                'b'     => (float) $l->precio_b,
+                'c'     => (float) $l->precio_c,
+                'd'     => (float) $l->precio_d,
+                default => (float) $l->precio_base_venta,
+            };
+            // Comparar con 4 decimales de tolerancia
+            if (abs((float)$l->precio_unidad - $precioActual) > 0.0001) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private function cargarPrefactura(): void
     {
         if (!$this->flujoId) {
@@ -798,6 +952,20 @@ class ModalFlujoPedido extends Component
             $this->prefacturaData = null;
             return;
         }
+
+        // ── Verificar vencimiento ──────────────────────────────────────────
+        if ($pref->fecha_vencimiento && now()->startOfDay()->gt(
+                \Carbon\Carbon::parse($pref->fecha_vencimiento)->startOfDay()
+            )) {
+            $this->procesarVencimientoPrefactura($pref);
+            $this->prefacturaData    = null;
+            $this->vencimientoProcesado = true;
+            // Recargar las ofertas para que reflejen los nuevos estados
+            $this->cargarOfertasPedido();
+            return;
+        }
+
+        $this->vencimientoProcesado = false;
 
         $productos = DB::table('prefactura_has_producto')
             ->where('prefactura_id', $pref->id)
@@ -961,69 +1129,19 @@ class ModalFlujoPedido extends Component
     public $tiposFacturacion  = [];   // tipos disponibles para el cliente
     public $facturacionActiva = false;
 
-    /** Carga los tipos de facturación disponibles para el cliente de la prefactura activa. */
+    /** Redirecciona directamente a la vista de facturación con prefactura vinculada. */
     public function iniciarFacturacion(): void
-    {
-        if (!$this->prefacturaData) return;
-
-        $clienteId     = (int) ($this->prefacturaData['cliente_id'] ?? 0);
-        $cliente       = $clienteId ? DB::table('cliente')->where('id', $clienteId)->first() : null;
-        $tipoClienteId = $cliente ? (int) $cliente->tipo_cliente_id : 0;
-
-        $tiposVenta = [];
-        // tipo_cliente_id=1 (Corporativo B) → Clientes B (tipo_venta_id=1)
-        // tipo_cliente_id=2 (Estatal A) / 3 (Gobierno) → Clientes A (tipo_venta_id=2)
-        if ($tipoClienteId === 1) {
-            $tiposVenta[] = 1;
-        } elseif (in_array($tipoClienteId, [2, 3])) {
-            $tiposVenta[] = 2;
-        }
-        // Exonerada siempre disponible si el cliente tiene código activo
-        if ($clienteId && DB::table('codigo_exoneracion')
-                ->where('cliente_id', $clienteId)->where('estado_id', 1)->exists()) {
-            $tiposVenta[] = 3;
-        }
-        if (empty($tiposVenta)) {
-            // Fallback: mostrar solo exonerada
-            $tiposVenta = [3];
-        }
-
-        $this->tiposFacturacion = DB::table('tipo_factura')
-            ->whereIn('tipo_venta_id', $tiposVenta)
-            ->where('estado', 1)
-            ->orderBy('orden')
-            ->get(['id', 'nombre', 'codigo', 'ruta_menu', 'tipo_venta_id'])
-            ->map(fn($t) => (array) $t)
-            ->toArray();
-
-        if (empty($this->tiposFacturacion)) {
-            $this->mensajeError = 'No hay tipos de facturación disponibles para este cliente.';
-            return;
-        }
-
-        $this->facturacionActiva = true;
-        $this->mensajeError      = '';
-        $this->confirmAccionPrefactura = null;
-    }
-
-    public function cancelarFacturacion(): void
-    {
-        $this->facturacionActiva = false;
-        $this->tiposFacturacion  = [];
-        $this->mensajeError      = '';
-    }
-
-    /**
-     * Registra la transición prefactura → factura en el flujo y redirige
-     * al formulario de facturación del tipo seleccionado.
-     */
-    public function ejecutarFacturacion(int $tipoFacturaId): void
     {
         if (!$this->prefacturaData || !$this->flujoId) return;
 
-        $tipoFactura  = DB::table('tipo_factura')->where('id', $tipoFacturaId)->where('estado', 1)->first();
+        $tipoFactura = DB::table('tipo_factura')
+            ->where('estado', 1)
+            ->where('codigo', '!=', 'cotizacion_clientes_a')
+            ->orderBy('orden')
+            ->first(['id', 'nombre', 'codigo', 'ruta_menu', 'tipo_venta_id']);
+
         if (!$tipoFactura) {
-            $this->mensajeError = 'Tipo de facturación no válido.';
+            $this->mensajeError = 'No hay tipos de facturación disponibles.';
             return;
         }
 
@@ -1053,13 +1171,27 @@ class ModalFlujoPedido extends Component
 
             DB::commit();
 
-            $url = '/' . ltrim($tipoFactura->ruta_menu, '/') . '?prefactura_id=' . $prefacturaId;
+            // 3. Redirigir a la vista con prefactura vinculada
+            $url = '/' . ltrim($tipoFactura->ruta_menu, '/')
+                 . '?from=prefactura&prefactura_id=' . $prefacturaId
+                 . '&flujoId=' . $this->flujoId;
             $this->dispatchBrowserEvent('fmp-redirigir', ['url' => $url]);
 
         } catch (\Exception $e) {
             DB::rollBack();
             $this->mensajeError = 'Error: ' . $e->getMessage();
         }
+
+        $this->facturacionActiva = false;
+        $this->tiposFacturacion  = [];
+        $this->mensajeError      = '';
+    }
+
+    public function cancelarFacturacion(): void
+    {
+        $this->facturacionActiva = false;
+        $this->tiposFacturacion  = [];
+        $this->mensajeError      = '';
     }
 
     // ─────────────────────────────────────────────────────────────────────
