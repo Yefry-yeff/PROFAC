@@ -22,8 +22,9 @@ class FacturacionUnificada extends Component
     public $pedidoId           = null;   // pedido.id (null para flujos sin pedido)
 
     // ── Datos pre-cargados del pedido (solo modo oferta) ─────────────────
-    public $clientePedido      = null;   // ['id','nombre','rtn','cliente_id']
-    public $productosSugeridos = [];     // [['nombre_pedido','cantidad','similares':[...]]]
+    public $clientePedido         = null;   // ['id','nombre','rtn','cliente_id']
+    public $productosSugeridos    = [];     // [['nombre_pedido','cantidad','similares':[...]]]
+    public $productosParaCarrito  = [];     // Productos del duplicado para auto-agregar al carrito
 
     // ── Vendedor actual ──────────────────────────────────────────────────
     public $vendedorDefault    = [];
@@ -63,6 +64,41 @@ class FacturacionUnificada extends Component
                 ->value('id');
             if ($flujoId) {
                 $this->seleccionarFlujo((int) $flujoId);
+            }
+        }
+
+        // Pre-seleccionar flujo si viene por flujoId directo (flujos sin pedido)
+        $fid = request()->get('flujoId');
+        if ($fid && !$pid) {
+            $this->seleccionarFlujo((int) $fid);
+        }
+
+        // Cargar productos del duplicado para auto-agregar al carrito (cotizacionId)
+        $cotizId = request()->get('cotizacionId');
+        if ($cotizId) {
+            $prods = DB::table('cotizacion_has_producto')
+                ->where('cotizacion_id', (int) $cotizId)
+                ->orderBy('indice')
+                ->get([
+                    'producto_id',
+                    'nombre_producto',
+                    'nombre_bodega',
+                    'precio_unidad',
+                    'cantidad',
+                    'isv_producto',
+                    'unidad_medida_venta_id',
+                    'Bodega_id',
+                    'seccion_id',
+                    'precios_producto_carga_id',
+                ])
+                ->toArray();
+            foreach ($prods as $p) {
+                $this->productosParaCarrito[] = (array) $p;
+                $this->productosSugeridos[] = [
+                    'nombre_pedido' => $p->nombre_producto,
+                    'cantidad'      => $p->cantidad,
+                    'similares'     => $this->buscarSimilares($p->nombre_producto),
+                ];
             }
         }
     }

@@ -1409,6 +1409,9 @@
                     cargarHistorialPrecios();
                 }
             })
+            .then(() => {
+                window.dispatchEvent(new CustomEvent('cliente-datos-cargados'));
+            })
             .catch(err => {
                 console.log(err);
                 Swal.fire({ icon: 'error', title: 'Error...', text: "Error al obtener datos del cliente" });
@@ -2278,6 +2281,173 @@
                 }
             }));
         });
+    </script>
+    @endpush
+    @endif
+
+    @if(count($productosParaCarrito) > 0)
+    @push('scripts')
+    {{-- Auto-agregar productos al carrito al duplicar una oferta (cotizacionId en URL) --}}
+    <script>
+    (function () {
+        var _productosAutoAgregados = false;
+
+        function cargarProductosDesdeCotizacion() {
+            if (_productosAutoAgregados) return;
+            _productosAutoAgregados = true;
+
+            var productos = @json($productosParaCarrito);
+            if (!productos || productos.length === 0) return;
+
+            var chain = Promise.resolve();
+            productos.forEach(function (prod) {
+                chain = chain.then(function () {
+                    return agregarProductoDesdeOferta(prod);
+                });
+            });
+            chain.then(function () {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Productos cargados',
+                    text: productos.length + ' producto(s) cargado(s) desde la oferta duplicada.',
+                    timer: 2500,
+                    showConfirmButton: false,
+                    toast: true,
+                    position: 'top-end'
+                });
+            });
+        }
+
+        function agregarProductoDesdeOferta(prod) {
+            return new Promise(function (resolve) {
+                if (!prod.producto_id) { resolve(); return; }
+
+                var categoriaId = $('#categoria_cliente_venta_id').val()
+                    || $('#categoria_cliente_venta_id').data('categoria-cliente-id')
+                    || prod.precios_producto_carga_id
+                    || '';
+
+                axios.post(urls.datos_producto, {
+                    idProducto: prod.producto_id,
+                    categoria_cliente_venta_id: categoriaId
+                }).then(function (response) {
+                    var producto = response.data.producto;
+                    var arrayUnidades = response.data.unidades;
+                    numeroInputs += 1;
+                    var idx = numeroInputs;
+
+                    // Construir select de unidades – pre-seleccionar la del duplicado
+                    var htmlSelectUnidades = '';
+                    arrayUnidades.forEach(function (u) {
+                        var sel = (u.idUnidadVenta == prod.unidad_medida_venta_id) ? 'selected' : (u.valor_defecto == 1 && htmlSelectUnidades === '' ? 'selected' : '');
+                        htmlSelectUnidades += '<option ' + sel + ' value="' + u.id + '" data-id="' + u.idUnidadVenta + '">' + u.nombre + '</option>';
+                    });
+
+                    // Precios
+                    var htmlprecios = '';
+                    if (tipoFacturaConfig && tipoFacturaConfig.multiples_precios) {
+                        htmlprecios = '<option value="' + producto.precio1 + '" data-id="p1" selected>' + producto.precio1 + ' - A</option>';
+                        if (producto.precio2) htmlprecios += '<option value="' + producto.precio2 + '" data-id="p2">' + producto.precio2 + ' - B</option>';
+                        if (producto.precio3) htmlprecios += '<option value="' + producto.precio3 + '" data-id="p3">' + producto.precio3 + ' - C</option>';
+                        if (producto.precio4) htmlprecios += '<option value="' + producto.precio4 + '" data-id="p4">' + producto.precio4 + ' - D</option>';
+                    } else {
+                        htmlprecios = '<option value="' + producto.precio1 + '" data-id="p1" selected>' + producto.precio1 + ' - A</option>';
+                    }
+
+                    var minPrecio = (tipoFacturaConfig && tipoFacturaConfig.multiples_precios) ? '' : 'min="' + producto.precio1 + '"';
+                    var precioUsar = prod.precio_unidad || producto.precio1;
+                    var cantidadUsar = prod.cantidad || 1;
+                    var bodegaTexto = prod.nombre_bodega || '';
+                    var idBodega = prod['Bodega_id'] || '';
+                    var idSeccion = prod.seccion_id || '';
+
+                    var html = `
+                    <tr id='${idx}'>
+                        <td style="vertical-align:middle; text-align:center; padding:4px 6px;">
+                            <input id="idProducto${idx}" name="idProducto${idx}" type="hidden" value="${producto.id}">
+                            <input id="precios_producto_carga_id${idx}" name="precios_producto_carga_id${idx}" type="hidden" value="${producto.precios_producto_carga_id || ''}">
+                            <input id="isv${idx}" name="isv${idx}" type="hidden" value="${producto.isv}">
+                            <input id="idBodega${idx}" name="idBodega${idx}" type="hidden" value="${idBodega}">
+                            <input id="idSeccion${idx}" name="idSeccion${idx}" type="hidden" value="${idSeccion}">
+                            <input id="restaInventario${idx}" name="restaInventario${idx}" type="hidden" value="">
+                            <input id="subTotal${idx}" name="subTotal${idx}" type="hidden" value="" required>
+                            <input id="isvProducto${idx}" name="isvProducto${idx}" type="hidden" value="" required>
+                            <input id="acumuladoDescuento${idx}" name="acumuladoDescuento${idx}" type="hidden">
+                            <input id="total${idx}" name="total${idx}" type="hidden" value="" required>
+                            <input id="bodega${idx}" name="bodega${idx}" type="hidden" value="${bodegaTexto}">
+                            <button class="btn btn-danger btn-xs" type="button" onclick="eliminarInput(${idx})" title="Eliminar" style="padding:2px 6px; font-size:11px; border-radius:5px;">
+                                <i class="fa fa-times"></i>
+                            </button>
+                        </td>
+                        <td style="vertical-align:middle; padding:4px 6px;">
+                            <input type="text" id="nombre${idx}" name="nombre${idx}" value='${producto.nombre}' readonly data-parsley-required
+                                style="border:none; background:transparent; font-size:12px; font-weight:700; color:#1b5e20; width:100%; min-width:130px;">
+                        </td>
+                        <td style="vertical-align:middle; padding:4px 6px; white-space:nowrap;">
+                            <span style="background:#e3f2fd; color:#1565c0; border-radius:6px; padding:2px 8px; font-size:11px; font-weight:700;">
+                                <i class="fa fa-archive" style="font-size:10px;"></i> ${bodegaTexto}
+                            </span>
+                        </td>
+                        <td style="vertical-align:middle; padding:4px 6px;">
+                            <select class="form-control form-control-sm" name="precios${idx}" id="precios${idx}" data-parsley-required style="font-size:11px; min-width:100px;"
+                                onchange="validacionPrecio(precios${idx}, precio${idx})">
+                                ${htmlprecios}
+                            </select>
+                        </td>
+                        <td style="vertical-align:middle; padding:4px 6px;">
+                            <input type="number" id="precio${idx}" name="precio${idx}" value="${precioUsar}" class="form-control form-control-sm"
+                                ${minPrecio} data-parsley-required step="any" autocomplete="off" style="min-width:80px; font-size:11px;"
+                                onchange="calcularTotales(precio${idx},cantidad${idx},${producto.isv},unidad${idx},${idx},restaInventario${idx})">
+                        </td>
+                        <td style="vertical-align:middle; padding:4px 6px;">
+                            <input type="number" id="cantidad${idx}" name="cantidad${idx}" value="${cantidadUsar}" class="form-control form-control-sm" min="1" data-parsley-required autocomplete="off" style="min-width:60px; font-size:11px;"
+                                onchange="calcularTotales(precio${idx},cantidad${idx},${producto.isv},unidad${idx},${idx},restaInventario${idx})">
+                        </td>
+                        <td style="vertical-align:middle; padding:4px 6px;">
+                            <select class="form-control form-control-sm" name="unidad${idx}" id="unidad${idx}" data-parsley-required style="font-size:11px; min-width:80px;"
+                                onchange="calcularTotales(precio${idx},cantidad${idx},${producto.isv},unidad${idx},${idx},restaInventario${idx})">
+                                ${htmlSelectUnidades}
+                            </select>
+                        </td>
+                        <td style="vertical-align:middle; padding:4px 6px; text-align:right;">
+                            <input type="text" id="subTotalMostrar${idx}" name="subTotalMostrar${idx}" placeholder="0.00" readonly autocomplete="off"
+                                style="border:none; background:#f1f8e9; border-radius:5px; font-weight:700; color:#2e7d32; font-size:12px; padding:2px 6px; text-align:right; width:100%; min-width:75px;">
+                        </td>
+                        <td style="vertical-align:middle; padding:4px 6px; text-align:right;">
+                            <input type="text" id="isvProductoMostrar${idx}" name="isvProductoMostrar${idx}" placeholder="0.00" readonly autocomplete="off"
+                                style="border:none; background:#fce4ec; border-radius:5px; font-weight:700; color:#b71c1c; font-size:12px; padding:2px 6px; text-align:right; width:100%; min-width:65px;">
+                        </td>
+                        <td style="vertical-align:middle; padding:4px 6px; text-align:right;">
+                            <input type="text" id="totalMostrar${idx}" name="totalMostrar${idx}" placeholder="0.00" readonly autocomplete="off"
+                                style="border:none; background:linear-gradient(135deg,#e65100,#f9a826); border-radius:5px; font-weight:800; color:#fff; font-size:12px; padding:2px 6px; text-align:right; width:100%; min-width:80px;">
+                        </td>
+                    </tr>`;
+
+                    arregloIdInputs.splice(idx, 0, idx);
+                    document.getElementById('carritoTbody').insertAdjacentHTML('beforeend', html);
+                    document.getElementById('carritoVacio').classList.add('d-none');
+                    document.getElementById('carritoTablaWrapper').classList.remove('d-none');
+
+                    // Calcular totales para esta fila
+                    calcularTotales(
+                        document.getElementById('precio' + idx),
+                        document.getElementById('cantidad' + idx),
+                        producto.isv,
+                        document.getElementById('unidad' + idx),
+                        idx,
+                        document.getElementById('restaInventario' + idx)
+                    );
+                    resolve();
+                }).catch(function () { resolve(); });
+            });
+        }
+
+        // Disparar auto-carga cuando el cliente esté completamente cargado
+        window.addEventListener('cliente-datos-cargados', function onClienteListo() {
+            window.removeEventListener('cliente-datos-cargados', onClienteListo);
+            cargarProductosDesdeCotizacion();
+        });
+    })();
     </script>
     @endpush
     @endif

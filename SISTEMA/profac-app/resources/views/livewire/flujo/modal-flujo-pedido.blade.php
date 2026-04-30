@@ -246,6 +246,42 @@
                 </div>
                 @endif {{-- /cancelado --}}
 
+                {{-- ── Barra de oferta seleccionada (encima de info grid) ─── --}}
+                @if ($pasoActivo === 'ofertas' && $ofertaSeleccionada)
+                @php
+                    $obsOfertTop = $ofertaSeleccionada['hf_observaciones'] ?? '';
+                    $esGanTop    = ($obsOfertTop === 'ganadora');
+                    $esAnuTop    = str_starts_with($obsOfertTop, 'Anulado:');
+                @endphp
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px; flex-wrap:wrap;">
+                    <button type="button" wire:click="cerrarOferta"
+                            style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff;
+                                   border:none; border-radius:20px; padding:5px 16px;
+                                   font-size:12px; font-weight:700; cursor:pointer;">
+                        <i class="fa fa-arrow-left mr-1"></i> Volver
+                    </button>
+                    <span style="font-size:14px; font-weight:700; color:#2c3e50;">
+                        Oferta #{{ $ofertaSeleccionada['id'] }}
+                    </span>
+                    @if ($esGanTop)
+                        <span style="background:#d4edda; color:#155724; border-radius:10px;
+                                     padding:2px 8px; font-size:11px; font-weight:700;">
+                            <i class="fa fa-trophy"></i> Ganadora
+                        </span>
+                    @elseif ($esAnuTop)
+                        <span style="background:#f8d7da; color:#721c24; border-radius:10px;
+                                     padding:2px 8px; font-size:11px; font-weight:700;">
+                            <i class="fa fa-ban"></i> Anulada
+                        </span>
+                    @else
+                        <span style="background:#e8f0fe; color:#1a7efb; border-radius:10px;
+                                     padding:2px 8px; font-size:11px; font-weight:700;">
+                            Activa
+                        </span>
+                    @endif
+                </div>
+                @endif
+
                 {{-- ── Info grid ─────────────────────────────────────── --}}
                 <div class="fmp-info-grid" style="margin-top:12px; padding:12px 16px; background:#fff;
                             border-radius:12px; border:1px solid #e8eaf0;">
@@ -416,38 +452,11 @@
                 @if ($ofertaSeleccionada)
                 {{-- ── Detalle de la oferta seleccionada ── --}}
                 <div style="margin-top:12px;">
-                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
-                        <button type="button" wire:click="cerrarOferta"
-                                style="background:#f0f0f0; color:#555; border:none; border-radius:8px;
-                                       padding:5px 12px; font-size:12px; cursor:pointer;">
-                            <i class="fa fa-arrow-left mr-1"></i> Volver
-                        </button>
-                        <span style="font-size:14px; font-weight:700; color:#2c3e50;">
-                            Oferta #{{ $ofertaSeleccionada['id'] }}
-                            @php
-                                $obsOfert = $ofertaSeleccionada['hf_observaciones'] ?? '';
-                                $esGanDet = ($obsOfert === 'ganadora');
-                                $esAnuDet = str_starts_with($obsOfert, 'Anulado:');
-                            @endphp
-                            @if ($esGanDet)
-                                <span style="background:#d4edda; color:#155724; border-radius:10px;
-                                             padding:2px 8px; font-size:11px; font-weight:700; margin-left:4px;">
-                                    <i class="fa fa-trophy"></i> Ganadora
-                                </span>
-                            @elseif ($esAnuDet)
-                                <span style="background:#f8d7da; color:#721c24; border-radius:10px;
-                                             padding:2px 8px; font-size:11px; font-weight:700; margin-left:4px;">
-                                    <i class="fa fa-ban"></i> Anulada
-                                </span>
-                            @else
-                                <span style="background:#e8f0fe; color:#1a7efb; border-radius:10px;
-                                             padding:2px 8px; font-size:11px; font-weight:700; margin-left:4px;">
-                                    Activa
-                                </span>
-                            @endif
-                        </span>
-                    </div>
-
+                    @php
+                        $obsOfert = $ofertaSeleccionada['hf_observaciones'] ?? '';
+                        $esGanDet = ($obsOfert === 'ganadora');
+                        $esAnuDet = str_starts_with($obsOfert, 'Anulado:');
+                    @endphp
                     {{-- Info de la oferta --}}
                     <div style="background:#fff; border-radius:10px; border:1px solid #e8eaf0;
                                 padding:12px 14px; margin-bottom:10px; font-size:12px; color:#555;">
@@ -551,16 +560,20 @@
                     @if ($confirmAccionOferta === 'ganadora')
                     <div style="margin-top:12px; background:#fff8e1; border:1px solid #ffe082;
                                 border-radius:12px; padding:14px; text-align:center;">
-                        <p style="font-size:13px; color:#555; margin:0 0 10px;">
+                        <p style="font-size:13px; color:#555; margin:0 0 6px;">
                             <i class="fa fa-trophy text-warning mr-1"></i>
                             ¿Marcar la <strong>Oferta #{{ $ofertaSeleccionada['id'] }}</strong> como <strong>ganadora</strong>?
                         </p>
+                        <p style="font-size:12px; color:#e65100; margin:0 0 10px;">
+                            <i class="fa fa-external-link mr-1"></i>
+                            Se abrirá una nueva pestaña para completar la <strong>Pre-Factura</strong>.
+                        </p>
                         <div style="display:flex; gap:8px; justify-content:center;">
                             <button type="button" wire:click="ganadoraOferta"
-                                    style="background:linear-gradient(135deg,#1ab394,#0fa37a); color:#fff;
+                                    style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff;
                                            border:none; border-radius:8px; padding:7px 18px;
                                            font-size:12px; font-weight:700; cursor:pointer;">
-                                <i class="fa fa-trophy mr-1"></i> Confirmar
+                                <i class="fa fa-trophy mr-1"></i> Confirmar y crear Pre-Factura
                             </button>
                             <button type="button" wire:click="cancelarConfirmOferta"
                                     style="background:#f0f0f0; color:#555; border:none;
@@ -814,8 +827,11 @@
 @endif
 
 <script>
-    window.addEventListener('abrir-nueva-pestana', function(e) {
-        window.open(e.detail.url, '_blank');
-    });
+    if (!window._fmpListenerSet) {
+        window._fmpListenerSet = true;
+        window.addEventListener('abrir-nueva-pestana', function(e) {
+            window.open(e.detail.url, '_blank');
+        });
+    }
 </script>
 </div>
