@@ -871,6 +871,38 @@
                             <i class="fa fa-print"></i> Imprimir prefactura
                         </a>
 
+                        <button type="button" wire:click="iniciarFacturacion"
+                                style="background:linear-gradient(135deg,#1b5e20,#2e7d32); color:#fff;
+                                       border:none; border-radius:8px; padding:6px 14px;
+                                       font-size:12px; font-weight:700; cursor:pointer;">
+                            <i class="fa fa-file-text mr-1"></i> Facturar
+                        </button>
+
+                    </div>
+                    @endif
+
+                    {{-- Selección de tipo de facturación --}}
+                    @if ($facturacionActiva && !empty($tiposFacturacion))
+                    <div style="margin-top:12px; background:#e8f5e9; border:1px solid #a5d6a7; border-radius:12px; padding:14px;">
+                        <p style="font-size:13px; color:#1b5e20; margin:0 0 10px; font-weight:700;">
+                            <i class="fa fa-file-text mr-1"></i> Seleccionar tipo de facturación:
+                        </p>
+                        <div style="display:flex; flex-direction:column; gap:8px;">
+                            @foreach($tiposFacturacion as $tf)
+                            <button type="button" wire:click="ejecutarFacturacion({{ $tf['id'] }})"
+                                    style="background:#fff; border:1.5px solid #a5d6a7; border-radius:8px;
+                                           padding:8px 14px; text-align:left; font-size:12px; font-weight:700;
+                                           color:#1b5e20; cursor:pointer; display:flex; align-items:center; gap:8px;">
+                                <i class="fa fa-file-text" style="color:#1a7efb;"></i>
+                                {{ $tf['nombre'] }}
+                            </button>
+                            @endforeach
+                        </div>
+                        <button type="button" wire:click="cancelarFacturacion"
+                                style="margin-top:8px; background:#f0f0f0; color:#555; border:none;
+                                       border-radius:8px; padding:6px 14px; font-size:12px; cursor:pointer;">
+                            Cancelar
+                        </button>
                     </div>
                     @endif
 
@@ -1014,6 +1046,11 @@
         window._fmpListenerSet = true;
         window.addEventListener('abrir-nueva-pestana', function(e) {
             window.open(e.detail.url, '_blank');
+        });
+        window.addEventListener('fmp-redirigir', function(e) {
+            if (e.detail && e.detail.url) {
+                window.location.href = e.detail.url;
+            }
         });
     }
 </script>

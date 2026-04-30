@@ -835,22 +835,35 @@ class Cotizacion extends Component
     {
         try {
 
+            // Stock neto = cantidad_disponible - reservado en prefacturas activas
             $results = DB::SELECT("
-        select
+        SELECT
             A.seccion_id as id,
             D.id as 'idBodega',
             CONCAT(D.nombre,'',REPLACE(B.descripcion,'Seccion','')) as 'bodegaSeccion',
-            concat(D.nombre,' - ', REPLACE(B.descripcion,'Seccion',''),' - cantidad ',sum(A.cantidad_disponible)) as 'text'
-        from recibido_bodega A
-            inner join seccion B
-            on A.seccion_id = B.id
-            inner join segmento C
-            on B.segmento_id = C.id
-            inner join bodega D
-            on C.bodega_id = D.id
-        where  producto_id = " . $request->idProducto . "
-        and (D.nombre LIKE '%" . $request->search . "%' or B.descripcion LIKE '%" . $request->search . "%')
-        group by A.seccion_id
+            concat(D.nombre,' - ', REPLACE(B.descripcion,'Seccion',''),' - cantidad ',
+                GREATEST(0,
+                    sum(A.cantidad_disponible) - COALESCE((
+                        SELECT SUM(php2.cantidad)
+                        FROM prefactura_has_producto php2
+                        INNER JOIN prefactura pf2 ON pf2.id = php2.prefactura_id
+                        WHERE pf2.estado = 'activo'
+                          AND php2.producto_id = A.producto_id
+                          AND php2.seccion_id  = A.seccion_id
+                          AND php2.resta_inventario = 1
+                    ), 0)
+                )
+            ) as 'text'
+        FROM recibido_bodega A
+            INNER JOIN seccion B
+            ON A.seccion_id = B.id
+            INNER JOIN segmento C
+            ON B.segmento_id = C.id
+            INNER JOIN bodega D
+            ON C.bodega_id = D.id
+        WHERE  producto_id = " . (int)$request->idProducto . "
+        AND (D.nombre LIKE '%" . addslashes($request->search) . "%' OR B.descripcion LIKE '%" . addslashes($request->search) . "%')
+        GROUP BY A.seccion_id
             ");
 
             return response()->json([

@@ -741,6 +741,8 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/prefactura/imprimir/{id}', [\App\Http\Livewire\Flujo\PrefacturaController::class, 'imprimir']);
     Route::post('/cotizacion/prefacturar-desde-oferta', [\App\Http\Livewire\Flujo\PrefacturaController::class, 'prefacturarDesdeOferta']);
     Route::get('/flujo/{id}/pedido-id', [\App\Http\Livewire\Flujo\PrefacturaController::class, 'getPedidoIdByFlujo']);
+    Route::get('/prefactura/{id}/tipos-facturacion', [\App\Http\Livewire\Flujo\PrefacturaController::class, 'getTiposFacturacion']);
+    Route::post('/prefactura/{id}/facturar', [\App\Http\Livewire\Flujo\PrefacturaController::class, 'registrarFacturacion']);
     Route::get('/configuracion/prefacturacion', \App\Http\Livewire\Configuracion\TiempoPrefacturacion::class)->name('configuracion.prefacturacion');
 
 

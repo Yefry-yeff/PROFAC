@@ -2372,8 +2372,55 @@
             });
             $('#modalPrefacturaExito').modal('hide');
         } else if (tipo === 'facturar') {
+            var prefId = _prefacturaId;
+            if (!prefId) {
+                Swal.fire({ icon: 'warning', title: 'Sin prefactura', text: 'No se encontró la prefactura.' });
+                return;
+            }
+            $('#modalPrefacturaExito').one('hidden.bs.modal', function() {
+                axios.get('/prefactura/' + prefId + '/tipos-facturacion').then(function(r) {
+                    var tipos = r.data.tipos || [];
+                    if (tipos.length === 0) {
+                        Swal.fire({ icon: 'warning', title: 'Sin opciones', text: 'No hay tipos de facturación disponibles para este cliente.' });
+                        return;
+                    }
+                    var html = '<div style="display:flex;flex-direction:column;gap:10px;margin-top:8px;">';
+                    tipos.forEach(function(t) {
+                        html += '<button type="button" class="btn-fact-tipo" data-id="' + t.id + '"'
+                              + ' style="background:#fff;border:1.5px solid #e0e3ee;border-radius:10px;'
+                              + ' padding:10px 16px;text-align:left;cursor:pointer;font-size:13px;'
+                              + ' font-weight:700;color:#2c3e50;display:flex;align-items:center;gap:10px;">'
+                              + '<i class="fa fa-file-text" style="color:#1a7efb;"></i>' + t.nombre + '</button>';
+                    });
+                    html += '</div>';
+                    Swal.fire({
+                        title: 'Seleccionar tipo de facturación',
+                        html: html,
+                        showConfirmButton: false,
+                        showCancelButton: true,
+                        cancelButtonText: 'Cancelar',
+                        didOpen: function() {
+                            document.querySelectorAll('.btn-fact-tipo').forEach(function(btn) {
+                                btn.addEventListener('click', function() {
+                                    var tipoId = this.getAttribute('data-id');
+                                    Swal.close();
+                                    axios.post('/prefactura/' + prefId + '/facturar',
+                                        { tipo_factura_id: tipoId },
+                                        { headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') } }
+                                    ).then(function(res) {
+                                        window.location.href = res.data.url;
+                                    }).catch(function(err) {
+                                        Swal.fire({ icon: 'error', title: 'Error', text: (err.response && err.response.data && err.response.data.error) ? err.response.data.error : 'Error al procesar.' });
+                                    });
+                                });
+                            });
+                        }
+                    });
+                }).catch(function() {
+                    Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo cargar los tipos de facturación.' });
+                });
+            });
             $('#modalPrefacturaExito').modal('hide');
-            window.location.href = '/flujo/prefactura';
         }
     }
 

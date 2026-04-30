@@ -271,15 +271,23 @@ class PrefacturaController
             ->where('cotizacion_id', $cotizacionId)
             ->get();
 
-        // ── 1. Validar inventario ──────────────────────────────────────────
+        // ── 1. Validar inventario (stock neto = stock_real - reservado en prefacturas activas) ──
         $stockErrors = [];
         foreach ($productos as $prod) {
             if ($prod->resta_inventario && $prod->producto_id && $prod->seccion_id) {
-                $disponible = (float) DB::table('recibido_bodega')
+                $rawStock  = (float) DB::table('recibido_bodega')
                     ->where('producto_id', $prod->producto_id)
                     ->where('seccion_id',  $prod->seccion_id)
                     ->where('cantidad_disponible', '>', 0)
                     ->sum('cantidad_disponible');
+                $reservado = (float) DB::table('prefactura_has_producto as php')
+                    ->join('prefactura as pf', 'pf.id', '=', 'php.prefactura_id')
+                    ->where('pf.estado', 'activo')
+                    ->where('php.producto_id', $prod->producto_id)
+                    ->where('php.seccion_id',  $prod->seccion_id)
+                    ->where('php.resta_inventario', 1)
+                    ->sum('php.cantidad');
+                $disponible = max(0.0, $rawStock - $reservado);
 
                 if ($disponible < $prod->cantidad) {
                     $stockErrors[] = [
@@ -289,7 +297,7 @@ class PrefacturaController
                     ];
                 }
             }
-        }
+}
 
         if (!empty($stockErrors)) {
             return response()->json([
@@ -453,6 +461,97 @@ class PrefacturaController
                 'title' => 'Error',
                 'text'  => 'Error al generar prefactura: ' . $e->getMessage(),
             ], 500);
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // GET /prefactura/{id}/tipos-facturacion
+    // Returns the available billing types for the prefactura's client.
+    // ─────────────────────────────────────────────────────────────────────
+    public function getTiposFacturacion(int $id)
+    {
+        $prefactura = DB::table('prefactura')->where('id', $id)->first();
+        if (!$prefactura) {
+            return response()->json(['error' => 'Prefactura no encontrada.'], 404);
+        }
+
+        $clienteId     = (int) ($prefactura->cliente_id ?? 0);
+        $cliente       = $clienteId ? DB::table('cliente')->where('id', $clienteId)->first() : null;
+        $tipoClienteId = $cliente ? (int) $cliente->tipo_cliente_id : 0;
+
+        $tiposVenta = [];
+        if ($tipoClienteId === 1) {            // Corporativo (B)
+            $tiposVenta[] = 1;
+        } elseif (in_array($tipoClienteId, [2, 3])) {  // Estatal (A) / Gobierno
+            $tiposVenta[] = 2;
+        }
+        if ($clienteId && DB::table('codigo_exoneracion')
+                ->where('cliente_id', $clienteId)->where('estado_id', 1)->exists()) {
+            $tiposVenta[] = 3; // Exonerada
+        }
+        if (empty($tiposVenta)) {
+            $tiposVenta = [3]; // Fallback
+        }
+
+        $tipos = DB::table('tipo_factura')
+            ->whereIn('tipo_venta_id', $tiposVenta)
+            ->where('estado', 1)
+            ->orderBy('orden')
+            ->get(['id', 'nombre', 'codigo', 'ruta_menu', 'tipo_venta_id'])
+            ->toArray();
+
+        return response()->json(['tipos' => $tipos]);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // POST /prefactura/{id}/facturar
+    // Registers the prefactura → factura transition:
+    // inserts historico_flujo (tipo_tramite_id=3), updates flujo, returns billing URL.
+    // ─────────────────────────────────────────────────────────────────────
+    public function registrarFacturacion(Request $request, int $id)
+    {
+        $tipoFacturaId = (int) $request->tipo_factura_id;
+
+        $prefactura = DB::table('prefactura')->where('id', $id)->where('estado', 'activo')->first();
+        if (!$prefactura) {
+            return response()->json(['error' => 'Prefactura no encontrada o inactiva.'], 404);
+        }
+        $tipoFactura = DB::table('tipo_factura')->where('id', $tipoFacturaId)->where('estado', 1)->first();
+        if (!$tipoFactura) {
+            return response()->json(['error' => 'Tipo de facturación no válido.'], 422);
+        }
+
+        $flujoId = (int) ($prefactura->flujo_id ?? 0);
+
+        DB::beginTransaction();
+        try {
+            if ($flujoId) {
+                DB::table('historico_flujo')->insert([
+                    'flujo_id'        => $flujoId,
+                    'tipo_tramite_id' => 3,
+                    'tramite_id'      => $id,
+                    'estado_id'       => 1,
+                    'observaciones'   => 'Facturación iniciada desde prefactura #' . $id,
+                    'created_by'      => Auth::id(),
+                    'updated_by'      => Auth::id(),
+                    'created_at'      => now(),
+                    'updated_at'      => now(),
+                ]);
+                DB::table('flujo')->where('id', $flujoId)->update([
+                    'tipo_tramite_id' => 3,
+                    'updated_by'      => Auth::id(),
+                    'updated_at'      => now(),
+                ]);
+            }
+
+            DB::commit();
+
+            $url = '/' . ltrim($tipoFactura->ruta_menu, '/') . '?prefactura_id=' . $id;
+            return response()->json(['url' => $url]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['error' => 'Error: ' . $e->getMessage()], 500);
         }
     }
 
