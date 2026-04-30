@@ -236,20 +236,20 @@
                             <h5 class="m-0" style="color:#fff;">
                                 <i class="fa fa-shopping-cart"></i> &nbsp;Registrar Pedido
                             </h5>
-                            <div class="d-flex align-items-center" style="gap:10px;">
-                                <div class="d-flex align-items-center" style="background:rgba(255,255,255,.18); border-radius:8px; padding:3px 10px 3px 10px; gap:6px;">
-                                    <span style="color:rgba(255,255,255,.85); font-size:12px; font-weight:600; white-space:nowrap;">N° Pedido:</span>
-                                    <input type="text" value="{{ $pedidoGuardadoId ?? $numeroPedido }}"
-                                        style="width:60px; background:transparent; border:none; outline:none; color:#fff; font-weight:700; font-size:14px; text-align:center;" readonly>
-                                </div>
-                                <a href="{{ route('flujo.ventas') }}" class="btn btn-outline-light btn-sm" style="border-radius:8px; font-size:12px; font-weight:600;">
-                                    <i class="fa fa-arrow-left mr-1"></i> Volver
-                                </a>
-                            </div>
+                            <a href="{{ route('flujo.ventas') }}" class="btn btn-outline-light btn-sm" style="border-radius:8px; font-size:12px; font-weight:600;">
+                                <i class="fa fa-arrow-left mr-1"></i> Volver
+                            </a>
                         </div>
                     </div>
 
                     <div class="ibox-content pedido-ibox-content" style="padding: 24px;">
+
+                        {{-- N° Pedido --}}
+                        <div class="mb-3 d-flex align-items-center" style="gap:10px;">
+                            <span style="background:linear-gradient(135deg,#f39c12,#e67e22); color:#fff; border-radius:8px; padding:5px 14px; font-size:13px; font-weight:700; box-shadow:0 2px 8px rgba(243,156,18,.3);">
+                                <i class="fa fa-hashtag mr-1"></i> N° Pedido: {{ $pedidoGuardadoId ?? $numeroPedido }}
+                            </span>
+                        </div>
 
                         {{-- ==================== SECCIÓN 1: CLIENTE ==================== --}}
                         <div class="pedido-section-heading">
