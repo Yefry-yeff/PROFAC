@@ -1136,6 +1136,68 @@
             </div>
         </div>
 
+        {{-- MODAL: Éxito guardado factura – mismo estilo que oferta --}}
+        <div class="modal fade" id="modalExitoFactura" tabindex="-1" role="dialog" data-backdrop="static" data-keyboard="false">
+            <div class="modal-dialog modal-dialog-centered" role="document" style="max-width:420px;">
+                <div class="modal-content" style="border-radius:20px; overflow:hidden; border:none; box-shadow:0 20px 60px rgba(0,0,0,.18); position:relative;">
+                    <button type="button" data-dismiss="modal" aria-label="Cerrar"
+                            style="position:absolute; top:12px; right:14px; background:none; border:none;
+                                   font-size:20px; color:#9e9e9e; cursor:pointer; line-height:1; z-index:1;
+                                   padding:4px 8px; border-radius:50%;" title="Cerrar">&times;</button>
+                    <div class="modal-body" style="padding:36px 32px 28px; text-align:center;">
+
+                        <div style="width:90px; height:90px; border-radius:50%;
+                                    background:linear-gradient(135deg,#00c853,#69f0ae);
+                                    display:flex; align-items:center; justify-content:center;
+                                    margin:0 auto 20px; box-shadow:0 8px 24px rgba(0,200,83,.30);">
+                            <i class="fa fa-check" style="font-size:46px; color:#fff; line-height:1;"></i>
+                        </div>
+
+                        <h4 style="font-weight:800; color:#1b5e20; margin-bottom:6px; font-size:18px;">¡Factura guardada!</h4>
+                        <p id="msgNumFactura" style="color:#546e7a; font-size:13px; margin-bottom:24px;">La factura fue registrada exitosamente.</p>
+
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                            <button onclick="facturaAccion('nueva')"
+                                    style="background:#f0fdf4; color:#1b5e20; border:1.5px solid #a7f3d0;
+                                           border-radius:10px; padding:11px 8px; font-size:12px; font-weight:700;
+                                           cursor:pointer; text-align:center; transition:background .15s;"
+                                    onmouseover="this.style.background='#dcfce7'" onmouseout="this.style.background='#f0fdf4'">
+                                <i class="fa fa-plus-circle d-block" style="font-size:20px; margin-bottom:4px; color:#16a34a;"></i>
+                                Nueva factura
+                            </button>
+
+                            <button onclick="facturaAccion('flujo')"
+                                    style="background:#eff6ff; color:#1e40af; border:1.5px solid #bfdbfe;
+                                           border-radius:10px; padding:11px 8px; font-size:12px; font-weight:700;
+                                           cursor:pointer; text-align:center; transition:background .15s;"
+                                    onmouseover="this.style.background='#dbeafe'" onmouseout="this.style.background='#eff6ff'">
+                                <i class="fa fa-sitemap d-block" style="font-size:20px; margin-bottom:4px; color:#2563eb;"></i>
+                                Ver flujo
+                            </button>
+
+                            <button onclick="facturaAccion('imprimir')"
+                                    style="background:#fafafa; color:#374151; border:1.5px solid #e5e7eb;
+                                           border-radius:10px; padding:11px 8px; font-size:12px; font-weight:700;
+                                           cursor:pointer; text-align:center; transition:background .15s;"
+                                    onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='#fafafa'">
+                                <i class="fa fa-print d-block" style="font-size:20px; margin-bottom:4px; color:#6b7280;"></i>
+                                Imprimir factura
+                            </button>
+
+                            <button onclick="facturaAccion('cobro')"
+                                    style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff; border:none;
+                                           border-radius:10px; padding:11px 8px; font-size:12px; font-weight:700;
+                                           cursor:pointer; text-align:center; box-shadow:0 3px 10px rgba(230,81,0,.25); transition:opacity .15s;"
+                                    onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">
+                                <i class="fa fa-exchange d-block" style="font-size:20px; margin-bottom:4px;"></i>
+                                Entregas y cobros
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         {{-- MODAL: Seleccionar oferta ganadora --}}
         <style>
             /* Z-index por encima de los valores de IBOX (.modal=2050, .modal-dialog=2200) */
@@ -2355,6 +2417,8 @@
     var _ofertaFlujoId     = null;
     var _prefacturaId      = null;
     var _prefacturaFlujoId = null;
+    var _facturaGuardadaId = null;
+    var _facturaFlujoId    = null;
 
     function limpiarFormularioVenta(data) {
         document.getElementById('bloqueImagenes').innerHTML = '';
@@ -2535,6 +2599,50 @@
                 window.open(urlImprimir.replace('{id}', idOferta), '_blank');
             }
             // Modal permanece abierto intencionalmente
+        }
+    }
+
+    function facturaAccion(tipo) {
+        var idFactura = _facturaGuardadaId;
+        var idFlujo   = _facturaFlujoId;
+
+        if (tipo === 'nueva') {
+            $('#modalExitoFactura').modal('hide');
+            window.location.reload();
+            return;
+        }
+
+        if (tipo === 'flujo') {
+            $('#modalExitoFactura').one('hidden.bs.modal', function () {
+                if (idFlujo) {
+                    axios.get('/flujo/' + idFlujo + '/pedido-id').then(function(r) {
+                        if (r.data.pedido_id) {
+                            Livewire.emit('abrirFlujoPedido', r.data.pedido_id, 'entrega');
+                        } else {
+                            Livewire.emit('abrirFlujoCotizacion', idFlujo);
+                        }
+                    }).catch(function() {
+                        Livewire.emit('abrirFlujoCotizacion', idFlujo);
+                    });
+                } else {
+                    window.location.href = '/flujo/prefactura';
+                }
+            });
+            $('#modalExitoFactura').modal('hide');
+            return;
+        }
+
+        if (tipo === 'imprimir') {
+            if (idFactura && urls.imprimir) {
+                window.open(urls.imprimir.replace('{id}', idFactura), '_blank');
+            }
+            return;
+        }
+
+        if (tipo === 'cobro') {
+            if (idFactura) {
+                window.location.href = '/venta/cobro/' + idFactura;
+            }
         }
     }
 
@@ -2723,41 +2831,19 @@
                     });
                 }
 
-                // ── Mostrar panel post-factura en lugar de Swal ───────────────
-                var panel = document.getElementById('panel_post_factura');
-                if (panel) {
-                    // Actualizar número de factura
-                    var numEl = document.getElementById('pfactura_numero');
-                    if (numEl) numEl.textContent = 'Factura #' + data.idFactura + ' registrada exitosamente.';
-
-                    // Botón imprimir
-                    var btnImprimir = document.getElementById('btn_post_imprimir');
-                    if (btnImprimir && urls.imprimir) {
-                        btnImprimir.href = urls.imprimir.replace('{id}', data.idFactura);
-                    }
-
-                    // Botón cobro
-                    var btnCobro = document.getElementById('btn_post_cobro');
-                    if (btnCobro) {
-                        btnCobro.href = '/venta/cobro/' + data.idFactura;
-                    }
-
-                    // Ocultar formulario y mostrar panel
-                    var form = document.getElementById('crear_venta');
-                    var btnVenta = document.getElementById('btn_venta_coorporativa');
-                    if (form) form.style.display = 'none';
-                    if (btnVenta) btnVenta.style.display = 'none';
-                    panel.style.display = 'block';
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                } else {
-                    Swal.fire({ icon: data.icon, title: data.title, html: data.text });
-                    limpiarFormularioVenta(data);
-                }
+                // ── Mostrar modal post-factura (mismo estilo que oferta) ───────
+                _facturaGuardadaId = data.idFactura;
+                _facturaFlujoId    = flujoIdVal || null;
+                var msgFacturaEl = document.getElementById('msgNumFactura');
+                if (msgFacturaEl) msgFacturaEl.textContent = 'Factura #' + data.idFactura + ' registrada exitosamente.';
+                $('#modalExitoFactura').modal('show');
 
                 // Desactivar código si aplica
                 if (tipoFacturaConfig && tipoFacturaConfig.requiere_codigo_autorizacion) {
                     setTimeout(function() { desactivarCodigo(); }, 30000);
                 }
+
+                document.getElementById("btn_venta_coorporativa").disabled = false;
             })
             .catch(err => {
                 document.getElementById("btn_venta_coorporativa").disabled = false;

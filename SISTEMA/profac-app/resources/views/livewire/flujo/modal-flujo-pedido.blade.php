@@ -45,7 +45,7 @@
     $tieneOfertas  = count($ofertasPedido) > 0 || ($d['total_ofertas'] > 0);
     $tieneGanadora = ($d['has_ganadora'] > 0);
     $tienePrefact  = in_array(4, $flujoTipos);
-    $tieneFactura  = in_array(3, $flujoTipos);
+    $tieneFactura  = in_array(3, $flujoTipos) || in_array(5, $flujoTipos);
     $tieneEntrega  = in_array(5, $flujoTipos);
     $cobroCompletado = isset($saldoPendienteFactura) && $saldoPendienteFactura !== null
         ? ((float) $saldoPendienteFactura <= 0.0001)
@@ -147,8 +147,8 @@
                     @foreach ($fPasos as $paso => $info)
                     @php
                         $fPasoLinea = min($fPaso, 4);
-                        $completado = ($paso < $fPasoLinea);
-                        $activo     = ($paso === $fPasoLinea);
+                        $completado = ($paso < $fPasoLinea) || ($paso === 4 && $fPaso > 4);
+                        $activo     = ($paso === $fPasoLinea) && !($paso === 4 && $fPaso > 4);
                         $pendiente  = ($paso > $fPasoLinea);
                         $esSeleccionado = ($info['key'] === $pasoActivo);
                         $delay      = ($paso - 1) * 100;
@@ -253,8 +253,9 @@
 
                 {{-- Ramificación real desde Factura: Entregas/Cobro -> Finalizado --}}
                 @php
-                    $entregaActiva    = ($pasoActivo === 'entrega');
-                    $cobroActiva      = ($pasoActivo === 'cobro');
+                    $etapaEntregaCobroActiva = ($pasoActivo === 'entrega' && $tieneEntrega && !$finalizadoCompletado);
+                    $entregaActiva    = ($pasoActivo === 'entrega') || $etapaEntregaCobroActiva;
+                    $cobroActiva      = ($pasoActivo === 'cobro') || $etapaEntregaCobroActiva;
                     $facturaActiva    = ($pasoActivo === 'factura');
                     $finalActiva      = ($pasoActivo === 'finalizado');
                     $puedeEntrega     = $tieneFactura;
@@ -262,16 +263,16 @@
                     $puedeFinal       = $tieneFactura;
 
                     $facturaLineaCompletada = ($fPaso > 4);
-                    $entregaColor = $tieneEntrega ? '#1ab394' : ($entregaActiva ? '#1a7efb' : '#aab');
+                    $entregaColor = $entregaActiva ? '#1a7efb' : ($tieneEntrega ? '#1ab394' : '#aab');
                     $cobroColor   = $cobroCompletado ? '#1ab394' : ($cobroActiva ? '#1a7efb' : '#aab');
                     $finalColor   = $finalizadoCompletado ? '#1ab394' : ($finalActiva ? '#1a7efb' : '#aab');
 
                     $lineaFacturaEstado = $facturaLineaCompletada
                         ? '#1ab394'
                         : ($facturaActiva ? '#1a7efb' : '#d6dbe8');
-                    $lineaEntregaEstado = $tieneEntrega
-                        ? '#1ab394'
-                        : ($entregaActiva ? '#1a7efb' : '#d6dbe8');
+                    $lineaEntregaEstado = $entregaActiva
+                        ? '#1a7efb'
+                        : ($tieneEntrega ? '#1ab394' : '#d6dbe8');
                     $lineaCobroEstado   = $cobroCompletado
                         ? '#1ab394'
                         : ($cobroActiva ? '#1a7efb' : '#d6dbe8');
@@ -293,16 +294,7 @@
                             <div class="{{ $puedeEntrega ? 'fmp-step-clickable' : '' }}"
                                  @if($puedeEntrega) wire:click="seleccionarPaso('entrega')" @endif
                                  style="display:flex; flex-direction:column; align-items:center; min-width:100px;">
-                                @if ($tieneEntrega)
-                                <div style="width:60px; height:60px; border-radius:50%;
-                                            background:linear-gradient(135deg,#1ab394,#0fa37a); color:#fff;
-                                            margin-bottom:8px; box-shadow:0 4px 16px rgba(26,179,148,.4);
-                                            display:flex; align-items:center; justify-content:center;
-                                            font-size:22px; flex-shrink:0;
-                                            {{ $entregaActiva ? 'box-shadow:0 4px 16px rgba(26,179,148,.4), 0 0 0 4px rgba(26,179,148,.25);' : '' }}">
-                                    <i class="fa fa-check"></i>
-                                </div>
-                                @elseif ($entregaActiva)
+                                @if ($entregaActiva)
                                 <div style="width:60px; height:60px; border-radius:50%;
                                             background:linear-gradient(135deg,#1a7efb,#0d6efd); color:#fff;
                                             margin-bottom:8px;
@@ -310,6 +302,15 @@
                                             display:flex; align-items:center; justify-content:center;
                                             font-size:22px; flex-shrink:0;
                                             outline:3px solid rgba(26,126,251,.35); outline-offset:4px;">
+                                    <i class="fa fa-check"></i>
+                                </div>
+                                @elseif ($tieneEntrega)
+                                <div style="width:60px; height:60px; border-radius:50%;
+                                            background:linear-gradient(135deg,#1ab394,#0fa37a); color:#fff;
+                                            margin-bottom:8px; box-shadow:0 4px 16px rgba(26,179,148,.4);
+                                            display:flex; align-items:center; justify-content:center;
+                                            font-size:22px; flex-shrink:0;
+                                            {{ $entregaActiva ? 'box-shadow:0 4px 16px rgba(26,179,148,.4), 0 0 0 4px rgba(26,179,148,.25);' : '' }}">
                                     <i class="fa fa-check"></i>
                                 </div>
                                 @else
@@ -324,10 +325,10 @@
                                     <div style="font-size:12px; font-weight:700; color:{{ $entregaColor }};
                                                 {{ $entregaActiva ? 'text-decoration:underline;' : '' }}">Entregas</div>
                                     <div style="font-size:10px; color:{{ $entregaColor }}; opacity:{{ $tieneEntrega ? '1' : '.7' }};">
-                                        @if ($tieneEntrega)
-                                            <i class="fa fa-check-circle"></i> Completado
-                                        @elseif ($entregaActiva)
+                                        @if ($entregaActiva)
                                             <i class="fa fa-map-marker" style="animation:dotBlink 1s ease-in-out infinite;"></i> Actual
+                                        @elseif ($tieneEntrega)
+                                            <i class="fa fa-check-circle"></i> Completado
                                         @else
                                             <i class="fa fa-clock-o"></i> Pendiente
                                         @endif

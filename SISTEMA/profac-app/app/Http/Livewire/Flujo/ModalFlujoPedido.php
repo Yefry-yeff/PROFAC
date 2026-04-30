@@ -95,13 +95,19 @@ class ModalFlujoPedido extends Component
             ->value('id');
 
         // Derivar el paso activo del estado actual del flujo
-        $flujoTramiteNombre = $this->flujoId
+        $flujoInfo = $this->flujoId
             ? DB::table('flujo as f')
-                ->join('tipos_tramites as tt', 'tt.id', '=', 'f.tipo_tramite_id')
+                ->leftJoin('tipos_tramites as tt', 'tt.id', '=', 'f.tipo_tramite_id')
                 ->where('f.id', $this->flujoId)
-                ->value('tt.nombre')
+                ->select('f.tipo_tramite_id', 'tt.nombre as tramite_nombre')
+                ->first()
             : null;
         $tramiteStepMap = [
+            1  => 'pedido',
+            2  => 'ofertas',
+            4  => 'prefactura',
+            3  => 'factura',
+            5  => 'entrega',
             'pedido'        => 'pedido',
             'Ofertas'       => 'ofertas',
             'prefactura'    => 'prefactura',
@@ -110,7 +116,12 @@ class ModalFlujoPedido extends Component
         ];
         // Si el paso inicial es 'pedido' (default), auto-derivamos del flujo;
         // si se pasó explícitamente otro paso, lo respetamos
-        $autoPaso = $tramiteStepMap[$flujoTramiteNombre] ?? 'pedido';
+        $autoPaso = 'pedido';
+        if ($flujoInfo && isset($tramiteStepMap[(int) $flujoInfo->tipo_tramite_id])) {
+            $autoPaso = $tramiteStepMap[(int) $flujoInfo->tipo_tramite_id];
+        } elseif ($flujoInfo && isset($tramiteStepMap[$flujoInfo->tramite_nombre])) {
+            $autoPaso = $tramiteStepMap[$flujoInfo->tramite_nombre];
+        }
         $pasoFinal = ($pasoInicial === 'pedido') ? $autoPaso : $pasoInicial;
 
         $this->flujoTipos = $this->flujoId
@@ -201,12 +212,18 @@ class ModalFlujoPedido extends Component
             ->toArray();
 
         // Determinar paso activo desde el estado actual del flujo
-        $flujoTramiteNombre = DB::table('flujo as f')
-            ->join('tipos_tramites as tt', 'tt.id', '=', 'f.tipo_tramite_id')
+        $flujoInfo = DB::table('flujo as f')
+            ->leftJoin('tipos_tramites as tt', 'tt.id', '=', 'f.tipo_tramite_id')
             ->where('f.id', $flujoId)
-            ->value('tt.nombre');
+            ->select('f.tipo_tramite_id', 'tt.nombre as tramite_nombre')
+            ->first();
 
         $tramiteStepMap = [
+            1  => 'ofertas',
+            2  => 'ofertas',
+            4  => 'prefactura',
+            3  => 'factura',
+            5  => 'entrega',
             'pedido'        => 'ofertas',   // sin pedido, arrancamos en ofertas
             'Ofertas'       => 'ofertas',
             'prefactura'    => 'prefactura',
@@ -216,7 +233,12 @@ class ModalFlujoPedido extends Component
 
         $this->cargarOfertasPedido();
 
-        $pasoAbierto = $tramiteStepMap[$flujoTramiteNombre] ?? 'ofertas';
+        $pasoAbierto = 'ofertas';
+        if ($flujoInfo && isset($tramiteStepMap[(int) $flujoInfo->tipo_tramite_id])) {
+            $pasoAbierto = $tramiteStepMap[(int) $flujoInfo->tipo_tramite_id];
+        } elseif ($flujoInfo && isset($tramiteStepMap[$flujoInfo->tramite_nombre])) {
+            $pasoAbierto = $tramiteStepMap[$flujoInfo->tramite_nombre];
+        }
         $this->pasoActivo              = $pasoAbierto;
         $this->ofertaSeleccionada      = null;
         $this->confirmAccion           = null;

@@ -419,8 +419,8 @@ class FacturacionCorporativa extends Component
     }
 
     /**
-     * Al guardar la factura: actualiza el flujo al trámite "factura"
-     * e inserta un registro en historico_flujo.
+     * Al guardar la factura: avanza el flujo al trámite "Entrega Cobro"
+     * (tipo_tramite_id=5) e inserta un registro en historico_flujo.
      * Llamado por AJAX después de guardar exitosamente cualquier tipo de factura.
      */
     public function confirmarFacturaFlujo(Request $request)
@@ -437,22 +437,22 @@ class FacturacionCorporativa extends Component
             DB::beginTransaction();
 
             $tramiteFacturaId = (int) DB::table('tipos_tramites')
-                ->whereRaw('LOWER(nombre) = ?', ['factura'])
+                ->whereRaw('LOWER(nombre) = ?', ['entrega cobro'])
                 ->value('id');
 
-            // Fallback de compatibilidad histórica
+            // Fallback: mantener compatibilidad con BD donde aún no esté el nombre.
             if (!$tramiteFacturaId) {
-                $tramiteFacturaId = 3;
+                $tramiteFacturaId = 5;
             }
 
-            // 1. Actualizar flujo a Factura
+            // 1. Actualizar flujo al estado Entregas y Cobros
             DB::table('flujo')->where('id', $flujoId)->update([
                 'tipo_tramite_id' => $tramiteFacturaId,
                 'updated_by'      => Auth::id(),
                 'updated_at'      => now(),
             ]);
 
-            // 2. Insertar historico_flujo: confirmación de factura (sin duplicar)
+            // 2. Insertar historico_flujo para Entregas/Cobros (sin duplicar)
             $yaExiste = DB::table('historico_flujo')
                 ->where('flujo_id', $flujoId)
                 ->where('tipo_tramite_id', $tramiteFacturaId)
@@ -466,7 +466,7 @@ class FacturacionCorporativa extends Component
                     'tipo_tramite_id' => $tramiteFacturaId,
                     'tramite_id'      => $facturaId,
                     'estado_id'       => 1,
-                    'observaciones'   => 'Factura #' . $facturaId . ' creada/confirmada',
+                    'observaciones'   => 'Factura #' . $facturaId . ' confirmada. Paso actual: Entregas y Cobros',
                     'created_by'      => Auth::id(),
                     'updated_by'      => Auth::id(),
                     'created_at'      => now(),
