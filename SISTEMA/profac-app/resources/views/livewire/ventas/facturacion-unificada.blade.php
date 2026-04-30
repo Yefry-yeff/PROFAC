@@ -299,8 +299,8 @@
                                  onclick="toggleSeccion('sec_cliente', this)">
                                 <i class="fa fa-user"></i> 1. Datos del Cliente
                                 @if($fromFlujo && ($config->codigo ?? '') === 'cotizacion_clientes_a')
-                                <span id="cat_cliente_badge" style="margin-left:auto; background:rgba(26,115,232,.12); color:#1a73e8; border-radius:20px; padding:2px 12px; font-size:11px; font-weight:700;">
-                                    <i class="mr-1 fa fa-tag"></i><span id="cat_badge_text">—</span>
+                                <span id="cat_cliente_badge" style="display:none; margin-left:auto; background:rgba(255,255,255,.2); color:#fff; border:1px solid rgba(255,255,255,.5); border-radius:20px; padding:2px 12px; font-size:11px; font-weight:700;">
+                                    <i class="mr-1 fa fa-tag"></i><span id="cat_badge_text"></span>
                                 </span>
                                 @endif
                                 <i class="ml-2 fa fa-chevron-up" style="font-size:11px;" id="ico_sec_cliente"></i>
@@ -345,11 +345,11 @@
                                 </div>
                                 {{-- Descuento --}}
                                 <div class="col-12 col-md-4">
-                                    <label class="ofr-label">Descuento % <span class="req">*</span></label>
+                                    <label class="ofr-label">Descuento %</label>
                                     <input class="form-control form-control-sm" type="number" min="0"
                                         max="{{ $config->max_descuento ?? 50 }}"
                                         value="0" id="porDescuento" name="porDescuento"
-                                        onchange="calcularTotalesInicioPagina()" data-parsley-required>
+                                        onchange="calcularTotalesInicioPagina()">
                                 </div>
                                 {{-- Fecha emisión --}}
                                 <div class="col-12 col-md-4">
@@ -454,11 +454,6 @@
 
                                 {{-- RIGHT: imagen + historial --}}
                                 <div class="col-12 col-md-6">
-                                    <div class="mb-1 text-center">
-                                        <a id="detalleProducto" href="" class="font-bold d-none text-success" target="_blank" style="font-size:12px;">
-                                            <i class="mr-1 fa fa-info-circle"></i> Ver Detalles del Producto
-                                        </a>
-                                    </div>
                                     <div id="carouselProducto" class="carousel slide" data-ride="carousel">
                                         <div id="bloqueImagenes" class="carousel-inner" style="border-radius:10px; overflow:hidden; max-height:220px;"></div>
                                         <a class="carousel-control-prev" href="#carouselProducto" role="button" data-slide="prev">
@@ -1372,7 +1367,7 @@
                     if (selectBox.options.length > 2) selectBox.remove(2);
 
                     $('#categoria_cliente_nombre').text(data.nombre_categoria);
-                    $('#cat_badge_text').text(data.nombre_categoria);
+                    if (data.nombre_categoria) { $('#cat_badge_text').text(data.nombre_categoria); $('#cat_cliente_badge').show(); }
                     $('#categoria_cliente_venta_id').data('categoria-cliente-id', data.idcategoriacliente);
 
                     if ($('#seleccionarProducto').val()) {
@@ -1388,7 +1383,7 @@
                     document.getElementById("rtn_ventas").value = data.rtn;
 
                     $('#categoria_cliente_nombre').text(data.nombre_categoria);
-                    $('#cat_badge_text').text(data.nombre_categoria);
+                    if (data.nombre_categoria) { $('#cat_badge_text').text(data.nombre_categoria); $('#cat_cliente_badge').show(); }
                     $('#categoria_cliente_venta_id').data('categoria-cliente-id', data.idcategoriacliente);
 
                     if ($('#seleccionarProducto').val()) {
@@ -1458,6 +1453,15 @@
                 });
                 document.getElementById('tipoPagoVenta').innerHTML = htmlPagos;
                 document.getElementById("numero_venta").value = numeroVenta;
+                // Auto-seleccionar "Contado" por defecto
+                let selPago = document.getElementById('tipoPagoVenta');
+                for (let i = 0; i < selPago.options.length; i++) {
+                    if (selPago.options[i].text.toLowerCase().includes('contado')) {
+                        selPago.selectedIndex = i;
+                        validarFechaPago();
+                        break;
+                    }
+                }
             })
             .catch(err => {
                 console.log(err);
@@ -1583,19 +1587,25 @@
         axios.post('/producto/listar/imagenes', { id: id })
             .then(response => {
                 let imagenes = response.data.imagenes;
+                let detalleUrl = '/producto/detalle/' + id;
                 if (imagenes.length == 0) {
-                    document.getElementById('bloqueImagenes').innerHTML = '<div class="carousel-item active"><div style="height:180px;display:flex;align-items:center;justify-content:center;background:#f5f5f5;border-radius:8px;"><div style="text-align:center;color:#b0bec5;"><i class="fa fa-image" style="font-size:2.5rem;display:block;margin-bottom:8px;"></i><span style="font-size:13px;">Sin imagen</span></div></div></div>';
+                    document.getElementById('bloqueImagenes').innerHTML =
+                        '<div class="carousel-item active">' +
+                        '<a href="' + detalleUrl + '" target="_blank" title="Ver detalles del producto" style="display:block;">' +
+                        '<div style="height:200px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#f5f5f5;border-radius:8px;cursor:pointer;border:2px dashed #cfd8dc;">' +
+                        '<i class="fa fa-image" style="font-size:3rem;color:#b0bec5;margin-bottom:8px;"></i>' +
+                        '<span style="font-size:12px;color:#78909c;font-weight:600;">Sin imagen — clic para ver detalles</span>' +
+                        '</div></a></div>';
                 } else {
                     imagenes.forEach(element => {
                         let activeClass = element.contador == 1 ? ' active' : '';
-                        htmlImagenes += '<div class="carousel-item' + activeClass + '"><img class="d-block" src="' + public_path + '/' + element.url_img + '" alt="imagen ' + element.contador + '" style="width:100%;height:30rem"></div>';
+                        htmlImagenes += '<div class="carousel-item' + activeClass + '">' +
+                            '<a href="' + detalleUrl + '" target="_blank" title="Ver detalles del producto" style="display:block;">' +
+                            '<img class="d-block" src="' + public_path + '/' + element.url_img + '" alt="imagen ' + element.contador + '" style="width:100%;height:30rem;cursor:pointer;"></a></div>';
                     });
                     document.getElementById('bloqueImagenes').innerHTML = htmlImagenes;
                 }
                 document.getElementById('botonAdd').classList.add("d-none");
-                let a = document.getElementById("detalleProducto");
-                a.href = "/producto/detalle/" + id;
-                a.classList.remove("d-none");
             })
             .catch(err => { console.log(err); });
 
@@ -1943,8 +1953,6 @@
         document.getElementById("crear_venta").reset();
         $('#crear_venta').parsley().reset();
 
-        document.getElementById('detalleProducto').classList.add("d-none");
-        document.getElementById('detalleProducto').href = "";
         document.getElementById("seleccionarCliente").innerHTML = '<option value="" selected disabled>--Seleccionar un cliente--</option>';
         $('#seleccionarCliente').prop('disabled', false);
         document.getElementById('seleccionarProducto').innerHTML = '<option value="" selected disabled></option>';
