@@ -14,11 +14,12 @@ class FacturacionUnificada extends Component
     public $tiposFactura;
     public $fromFlujo = false;
 
-// ── Buscador de pedido ────────────────────────────────────────────────
-    public $busquedaPedido     = '';
-    public $pedidosEncontrados = [];
-    public $pedidoVinculado    = null;
-    public $pedidoId           = null;
+// ── Buscador de flujo ─────────────────────────────────────────────────
+    public $busquedaFlujo      = '';
+    public $flujoEncontrados   = [];
+    public $flujoVinculado     = null;
+    public $flujoVinculadoId   = null;   // flujo.id del flujo vinculado
+    public $pedidoId           = null;   // pedido.id (null para flujos sin pedido)
 
     // ── Datos pre-cargados del pedido (solo modo oferta) ─────────────────
     public $clientePedido      = null;   // ['id','nombre','rtn','cliente_id']
@@ -53,89 +54,175 @@ class FacturacionUnificada extends Component
             ];
         }
 
-        // Pre-seleccionar pedido si viene por query string
+        // Pre-seleccionar flujo si viene por query string (pedidoId)
         $pid = request()->get('pedidoId');
         if ($pid) {
-            $this->seleccionarPedido((int) $pid);
+            $flujoId = DB::table('flujo')
+                ->where('identificacion', (string) $pid)
+                ->where('tipo_flujo_id', 1)
+                ->value('id');
+            if ($flujoId) {
+                $this->seleccionarFlujo((int) $flujoId);
+            }
         }
     }
 
-    public function updatedBusquedaPedido()
+    public function updatedBusquedaFlujo()
     {
-        $term = trim($this->busquedaPedido);
+        $term = trim($this->busquedaFlujo);
         if (strlen($term) < 2) {
-            $this->pedidosEncontrados = [];
+            $this->flujoEncontrados = [];
             return;
         }
+
         $esNum = is_numeric($term);
-        $q = DB::table('pedido as p')
-            ->join('cliente as c', 'c.id', '=', 'p.cliente_id')
-            ->leftJoin('users as u', 'u.id', '=', 'p.users_id')
-            ->whereNotIn('p.estado', ['cancelado'])
-            ->select(
-                'p.id', 'p.estado', 'p.created_at',
-                'c.nombre as cliente', 'c.rtn',
-                'u.name as registrado_por',
-                DB::raw('(SELECT COUNT(*) FROM oferta o WHERE o.pedido_id = p.id) as total_ofertas'),
-                DB::raw('(SELECT COUNT(*) FROM oferta o WHERE o.pedido_id = p.id AND o.estado = \'ganadora\') as has_ganadora')
-            )
-            ->orderByDesc('p.created_at')
-            ->limit(8);
+        $num   = $esNum ? (int) $term : 0;
+        $like  = '%' . $term . '%';
 
-        if ($esNum) {
-            $q->where('p.id', (int) $term);
-        } else {
-            $like = '%' . $term . '%';
-            $q->where(function ($sub) use ($like) {
-                $sub->where('c.nombre', 'LIKE', $like)
-                    ->orWhere('c.rtn', 'LIKE', $like);
-            });
-        }
-        $this->pedidosEncontrados = $q->get()->toArray();
-    }
-
-    public function seleccionarPedido(int $id)
-    {
-        $p = DB::table('pedido as p')
-            ->join('cliente as c', 'c.id', '=', 'p.cliente_id')
-            ->where('p.id', $id)
-            ->select(
-                'p.id', 'p.estado', 'p.created_at',
-                'c.id as cliente_id', 'c.nombre as cliente', 'c.rtn'
-            )
-            ->first();
-
-        if (!$p) return;
-
-        $this->pedidoId        = $p->id;
-        $this->pedidoVinculado = (array) $p;
-
-        // Pre-cargar datos del cliente
-        $this->clientePedido = [
-            'id'     => $p->cliente_id,
-            'nombre' => $p->cliente,
-            'rtn'    => $p->rtn,
+        $selectComun = [
+            'f.id as flujo_id',
+            'tt.nombre as flujo_estado',
+            'f.created_at',
+            'c.id as cliente_id',
+            'c.nombre as cliente',
+            'c.rtn',
+            DB::raw('(SELECT COUNT(*) FROM historico_flujo hf WHERE hf.flujo_id = f.id AND hf.tipo_tramite_id = 2) as total_ofertas'),
+            DB::raw('(SELECT COUNT(*) FROM historico_flujo hf WHERE hf.flujo_id = f.id AND hf.tipo_tramite_id = 2 AND hf.observaciones LIKE \'%ganadora%\') as has_ganadora'),
         ];
 
-        // Cargar detalles del pedido y buscar productos similares
-        $detalles = DB::table('pedido_detalle')
-            ->where('pedido_id', $id)
-            ->select('id', 'nombre_producto', 'cantidad')
-            ->get();
+        // ── A: flujos CON pedido ─────────────────────────────────────────
+        $qA = DB::table('flujo as f')
+            ->join('tipos_tramites as tt', 'tt.id', '=', 'f.tipo_tramite_id')
+            ->join('pedido as p', DB::raw('CAST(f.identificacion AS UNSIGNED)'), '=', 'p.id')
+            ->join('cliente as c', 'c.id', '=', 'p.cliente_id')
+            ->where('f.tipo_flujo_id', 1)
+            ->whereNotIn('p.estado', ['cancelado'])
+            ->whereExists(function ($s) {
+                $s->from('historico_flujo as hf')
+                  ->whereColumn('hf.flujo_id', 'f.id')
+                  ->where('hf.tipo_tramite_id', 1);
+            })
+            ->select(array_merge($selectComun, [
+                'p.id as pedido_id',
+                DB::raw("NULL as cotizacion_id"),
+                DB::raw("'pedido' as tipo_origen"),
+            ]))
+            ->orderByDesc('f.id')
+            ->limit(8);
 
-        $this->productosSugeridos = [];
-        foreach ($detalles as $det) {
-            $this->productosSugeridos[] = [
-                'nombre_pedido' => $det->nombre_producto,
-                'cantidad'      => $det->cantidad,
-                'similares'     => $this->buscarSimilares($det->nombre_producto),
-            ];
+        // ── B: flujos SIN pedido (cotizacion directa) ────────────────────
+        $qB = DB::table('flujo as f')
+            ->join('tipos_tramites as tt', 'tt.id', '=', 'f.tipo_tramite_id')
+            ->join('cotizacion as co', DB::raw('CAST(f.identificacion AS UNSIGNED)'), '=', 'co.id')
+            ->join('cliente as c', 'c.id', '=', 'co.cliente_id')
+            ->where('f.tipo_flujo_id', 1)
+            ->whereNotExists(function ($s) {
+                $s->from('historico_flujo as hf')
+                  ->whereColumn('hf.flujo_id', 'f.id')
+                  ->where('hf.tipo_tramite_id', 1);
+            })
+            ->select(array_merge($selectComun, [
+                DB::raw("NULL as pedido_id"),
+                'co.id as cotizacion_id',
+                DB::raw("'cotizacion' as tipo_origen"),
+            ]))
+            ->orderByDesc('f.id')
+            ->limit(8);
+
+        // ── Filtros ──────────────────────────────────────────────────────
+        if ($esNum) {
+            $qA->where(function ($s) use ($num) {
+                $s->where('f.id', $num)
+                  ->orWhere('p.id', $num)
+                  ->orWhereExists(fn ($e) => $e->from('historico_flujo as hf')
+                      ->whereColumn('hf.flujo_id', 'f.id')
+                      ->where('hf.tramite_id', $num)
+                      ->where('hf.tipo_tramite_id', 2));
+            });
+            $qB->where(function ($s) use ($num) {
+                $s->where('f.id', $num)
+                  ->orWhere('co.id', $num)
+                  ->orWhereExists(fn ($e) => $e->from('historico_flujo as hf')
+                      ->whereColumn('hf.flujo_id', 'f.id')
+                      ->where('hf.tramite_id', $num)
+                      ->where('hf.tipo_tramite_id', 2));
+            });
+        } else {
+            $qA->where(fn ($s) => $s->where('c.nombre', 'LIKE', $like)->orWhere('c.rtn', 'LIKE', $like));
+            $qB->where(fn ($s) => $s->where('c.nombre', 'LIKE', $like)->orWhere('c.rtn', 'LIKE', $like));
         }
 
-        $this->busquedaPedido     = '';
-        $this->pedidosEncontrados = [];
+        $this->flujoEncontrados = array_slice(
+            array_merge($qA->get()->toArray(), $qB->get()->toArray()),
+            0, 8
+        );
+    }
 
-        // Notificar al JS para re-llenar Select2 de cliente y vendedor
+    public function seleccionarFlujo(int $flujoId)
+    {
+        $hasPedido = DB::table('historico_flujo')
+            ->where('flujo_id', $flujoId)
+            ->where('tipo_tramite_id', 1)
+            ->exists();
+
+        if ($hasPedido) {
+            $f = DB::table('flujo as f')
+                ->join('tipos_tramites as tt', 'tt.id', '=', 'f.tipo_tramite_id')
+                ->join('pedido as p', DB::raw('CAST(f.identificacion AS UNSIGNED)'), '=', 'p.id')
+                ->join('cliente as c', 'c.id', '=', 'p.cliente_id')
+                ->where('f.id', $flujoId)
+                ->select('f.id as flujo_id', 'tt.nombre as flujo_estado',
+                         'p.id as pedido_id', DB::raw('NULL as cotizacion_id'),
+                         'p.created_at', 'c.id as cliente_id', 'c.nombre as cliente', 'c.rtn',
+                         DB::raw("'pedido' as tipo_origen"))
+                ->first();
+
+            if (!$f) return;
+
+            $this->pedidoId = $f->pedido_id;
+
+            $detalles = DB::table('pedido_detalle')
+                ->where('pedido_id', $f->pedido_id)
+                ->select('id', 'nombre_producto', 'cantidad')
+                ->get();
+
+            $this->productosSugeridos = [];
+            foreach ($detalles as $det) {
+                $this->productosSugeridos[] = [
+                    'nombre_pedido' => $det->nombre_producto,
+                    'cantidad'      => $det->cantidad,
+                    'similares'     => $this->buscarSimilares($det->nombre_producto),
+                ];
+            }
+        } else {
+            $f = DB::table('flujo as f')
+                ->join('tipos_tramites as tt', 'tt.id', '=', 'f.tipo_tramite_id')
+                ->join('cotizacion as co', DB::raw('CAST(f.identificacion AS UNSIGNED)'), '=', 'co.id')
+                ->join('cliente as c', 'c.id', '=', 'co.cliente_id')
+                ->where('f.id', $flujoId)
+                ->select('f.id as flujo_id', 'tt.nombre as flujo_estado',
+                         DB::raw('NULL as pedido_id'), 'co.id as cotizacion_id',
+                         'co.created_at', 'c.id as cliente_id', 'c.nombre as cliente', 'c.rtn',
+                         DB::raw("'cotizacion' as tipo_origen"))
+                ->first();
+
+            if (!$f) return;
+
+            $this->pedidoId           = null;
+            $this->productosSugeridos = [];
+        }
+
+        $this->flujoVinculadoId = $flujoId;
+        $this->flujoVinculado   = (array) $f;
+        $this->clientePedido    = [
+            'id'     => $f->cliente_id,
+            'nombre' => $f->cliente,
+            'rtn'    => $f->rtn,
+        ];
+
+        $this->busquedaFlujo    = '';
+        $this->flujoEncontrados = [];
+
         $this->dispatchBrowserEvent('pedido-seleccionado', [
             'clienteId'      => $this->clientePedido['id'],
             'clienteNombre'  => $this->clientePedido['nombre'],
@@ -144,6 +231,17 @@ class FacturacionUnificada extends Component
         ]);
     }
 
+    public function seleccionarFlujoDesdePedido(int $pedidoId)
+    {
+        $flujoId = DB::table('flujo')
+            ->where('identificacion', (string) $pedidoId)
+            ->where('tipo_flujo_id', 1)
+            ->value('id');
+
+        if ($flujoId) {
+            $this->seleccionarFlujo((int) $flujoId);
+        }
+    }
     /**
      * Carga el detalle de un pedido para mostrar en modal de preview.
      */
@@ -220,17 +318,17 @@ class FacturacionUnificada extends Component
         return $results;
     }
 
-    public function desvincularPedido()
+    public function desvincularFlujo()
     {
         $this->pedidoId            = null;
-        $this->pedidoVinculado     = null;
-        $this->busquedaPedido      = '';
-        $this->pedidosEncontrados  = [];
+        $this->flujoVinculadoId    = null;
+        $this->flujoVinculado      = null;
+        $this->busquedaFlujo       = '';
+        $this->flujoEncontrados    = [];
         $this->clientePedido       = null;
         $this->productosSugeridos  = [];
         $this->pedidoDetalle       = null;
 
-        // Notificar al JS para restaurar campos
         $this->dispatchBrowserEvent('pedido-desvinculado', [
             'vendedorId'     => $this->vendedorDefault['id'] ?? null,
             'vendedorNombre' => $this->vendedorDefault['name'] ?? null,

@@ -149,13 +149,13 @@
         </div>
         @endif
 
-        {{-- ===== PANEL: VINCULAR A PEDIDO (solo en modo oferta desde flujo) ===== --}}
+        {{-- ===== PANEL: VINCULAR A UN FLUJO (solo en modo oferta desde flujo) ===== --}}
         @if($fromFlujo && ($config->codigo ?? '') === 'cotizacion_clientes_a')
-        <div class="pedido-link-panel {{ $pedidoVinculado ? 'linked' : '' }}">
-            @if(!$pedidoVinculado)
+        <div class="pedido-link-panel {{ $flujoVinculado ? 'linked' : '' }}">
+            @if(!$flujoVinculado)
             <div class="mb-3">
                 <h6 style="margin:0; font-weight:800; color:#00695c;">
-                    <i class="mr-2 fa fa-link"></i>Vincular a un Pedido
+                    <i class="mr-2 fa fa-link"></i>Vincular a un Flujo
                     <span style="font-size:11px; font-weight:400; color:#78909c; margin-left:8px;">(opcional)</span>
                 </h6>
             </div>
@@ -168,72 +168,91 @@
                             </span>
                         </div>
                         <input type="text"
-                               wire:model.debounce.350ms="busquedaPedido"
+                               wire:model.debounce.350ms="busquedaFlujo"
                                class="form-control"
-                               placeholder="Buscar pedido por # o nombre de cliente…"
+                               placeholder="Buscar por cliente, RTN, # flujo, # pedido u # oferta…"
                                style="border-radius:0 8px 8px 0;"
                                autocomplete="off">
                     </div>
-                    @if(strlen(trim($busquedaPedido)) > 0 && strlen(trim($busquedaPedido)) < 2)
+                    @if(strlen(trim($busquedaFlujo)) > 0 && strlen(trim($busquedaFlujo)) < 2)
                         <small class="mt-1 text-muted d-block">Escribe al menos 2 caracteres</small>
                     @endif
                 </div>
                 <div class="col-md-6 d-flex align-items-center">
                     <small class="text-muted">
                         <i class="mr-1 fa fa-info-circle text-info"></i>
-                        Puedes crear <strong>múltiples ofertas</strong> para el mismo pedido.
+                        Puedes crear <strong>múltiples ofertas</strong> para el mismo flujo.
                     </small>
                 </div>
             </div>
 
-            @if(count($pedidosEncontrados) > 0)
+            @if(count($flujoEncontrados) > 0)
             <div style="max-height:280px; overflow-y:auto; margin-top:12px;">
-                @foreach($pedidosEncontrados as $ped)
-                @php $p = (array)$ped; @endphp
-                <div class="ped-row" wire:click="seleccionarPedido({{ $p['id'] }})" style="cursor:pointer;">
-                    <div style="flex-shrink:0;">
-                        <span style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff; border-radius:8px; padding:4px 12px; font-size:13px; font-weight:800;">#{{ $p['id'] }}</span>
+                @foreach($flujoEncontrados as $flujo)
+                @php $fl = (array)$flujo; @endphp
+                <div class="ped-row" wire:click="seleccionarFlujo({{ $fl['flujo_id'] }})" style="cursor:pointer;">
+                    <div style="flex-shrink:0; display:flex; flex-direction:column; align-items:center; gap:3px;">
+                        <span style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff; border-radius:8px; padding:3px 10px; font-size:12px; font-weight:800;"># Flujo {{ $fl['flujo_id'] }}</span>
+                        @if($fl['pedido_id'])
+                        <span style="background:#e3f2fd; color:#1565c0; border-radius:6px; padding:1px 8px; font-size:10px; font-weight:700;">Ped. #{{ $fl['pedido_id'] }}</span>
+                        @else
+                        <span style="background:#fff3e0; color:#e65100; border-radius:6px; padding:1px 8px; font-size:10px; font-weight:700;">Sin pedido</span>
+                        @endif
                     </div>
                     <div style="flex:1; min-width:0;">
-                        <div style="font-weight:700; color:#2c3e50; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ $p['cliente'] }}</div>
-                        <div style="font-size:11px; color:#90a4ae;">RTN: {{ $p['rtn'] ?: '—' }} &nbsp;·&nbsp; {{ \Carbon\Carbon::parse($p['created_at'])->format('d/m/Y') }}</div>
+                        <div style="font-weight:700; color:#2c3e50; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ $fl['cliente'] }}</div>
+                        <div style="font-size:11px; color:#90a4ae;">RTN: {{ $fl['rtn'] ?: '—' }} &nbsp;·&nbsp; {{ \Carbon\Carbon::parse($fl['created_at'])->format('d/m/Y') }}</div>
                     </div>
                     <div style="flex-shrink:0; text-align:center; min-width:70px;">
                         <div style="font-size:10px; color:#90a4ae;">Ofertas</div>
-                        <div style="font-weight:700; color:{{ $p['total_ofertas'] > 0 ? '#00897b' : '#b0bec5' }}; font-size:15px;">
-                            {{ $p['total_ofertas'] }}
-                            @if($p['has_ganadora'] > 0)<i class="fa fa-trophy text-warning" style="font-size:12px;"></i>@endif
+                        <div style="font-weight:700; color:{{ $fl['total_ofertas'] > 0 ? '#00897b' : '#b0bec5' }}; font-size:15px;">
+                            {{ $fl['total_ofertas'] }}
+                            @if($fl['has_ganadora'] > 0)<i class="fa fa-trophy text-warning" style="font-size:12px;"></i>@endif
                         </div>
                     </div>
                     <div style="flex-shrink:0;">
-                        @php $estMap=['pendiente'=>['#e3f2fd','#1565c0'],'pre_factura'=>['#fff8e1','#f57f17'],'activo'=>['#e8f5e9','#2e7d32'],'cancelado'=>['#fce4ec','#b71c1c']]; $col=$estMap[$p['estado']]??['#f5f5f5','#546e7a']; @endphp
-                        <span style="background:{{ $col[0] }}; color:{{ $col[1] }}; border-radius:20px; padding:3px 10px; font-size:11px; font-weight:700;">{{ ucfirst(str_replace('_',' ',$p['estado'])) }}</span>
+                        @php
+                            $estMapFl=['pedido'=>['#e3f2fd','#1565c0'],'Ofertas'=>['#fff3e0','#e65100'],'prefactura'=>['#e0f7fa','#006064'],'factura'=>['#e8f5e9','#1b5e20'],'cancelado'=>['#fce4ec','#b71c1c']];
+                            $colFl=$estMapFl[$fl['flujo_estado']]??['#f5f5f5','#546e7a'];
+                        @endphp
+                        <span style="background:{{ $colFl[0] }}; color:{{ $colFl[1] }}; border-radius:20px; padding:3px 10px; font-size:11px; font-weight:700;">{{ ucfirst(str_replace('_',' ',$fl['flujo_estado'])) }}</span>
                     </div>
-                    <div style="flex-shrink:0;" wire:click.stop="verDetallePedido({{ $p['id'] }})">
+                    @if($fl['pedido_id'])
+                    <div style="flex-shrink:0;" wire:click.stop="verDetallePedido({{ $fl['pedido_id'] }})">
                         <span style="background:#1565c0; color:#fff; border-radius:8px; padding:6px 14px; font-size:12px; font-weight:700; cursor:pointer;"><i class="mr-1 fa fa-eye"></i> Detalle</span>
                     </div>
+                    @endif
                 </div>
                 @endforeach
             </div>
-            @elseif(strlen(trim($busquedaPedido)) >= 2)
+            @elseif(strlen(trim($busquedaFlujo)) >= 2)
             <div class="py-3 mt-2 text-center">
                 <i class="mb-2 fa fa-search fa-2x" style="color:#b2dfdb; display:block;"></i>
-                <p style="color:#78909c; font-size:13px; margin:0;">No se encontraron pedidos activos con ese criterio.</p>
+                <p style="color:#78909c; font-size:13px; margin:0;">No se encontraron flujos activos con ese criterio.</p>
             </div>
             @endif
 
             @else
-            {{-- Pedido vinculado: versión compacta con desvincular --}}
+            {{-- Flujo vinculado: versión compacta con desvincular --}}
             <div class="flex-wrap d-flex align-items-center justify-content-between" style="gap:8px;">
                 <div style="display:flex; align-items:center; gap:10px;">
                     <span style="background:linear-gradient(135deg,#1b5e20,#2e7d32); color:#fff; border-radius:8px; padding:4px 14px; font-size:13px; font-weight:800;">
-                        <i class="mr-1 fa fa-link"></i> Vinculado a Pedido
+                        <i class="mr-1 fa fa-link"></i> Flujo Vinculado
                     </span>
                     <span style="font-weight:700; color:#1b5e20; font-size:14px;">
-                        #{{ $pedidoVinculado['id'] }} — {{ $pedidoVinculado['cliente'] }}
+                        #{{ $flujoVinculado['flujo_id'] }} — {{ $flujoVinculado['cliente'] }}
                     </span>
+                    @if($flujoVinculado['pedido_id'])
+                    <span style="background:#e3f2fd; color:#1565c0; border-radius:6px; padding:2px 10px; font-size:11px; font-weight:700;">
+                        Ped. #{{ $flujoVinculado['pedido_id'] }}
+                    </span>
+                    @else
+                    <span style="background:#fff3e0; color:#e65100; border-radius:6px; padding:2px 10px; font-size:11px; font-weight:700;">
+                        <i class="fa fa-tag mr-1"></i>Sin pedido
+                    </span>
+                    @endif
                 </div>
-                <button type="button" wire:click="desvincularPedido"
+                <button type="button" wire:click="desvincularFlujo"
                         style="background:#fce4ec; color:#b71c1c; border:1px solid #ffcdd2; border-radius:8px; padding:5px 14px; font-size:12px; font-weight:700; cursor:pointer;">
                     <i class="mr-1 fa fa-unlink"></i> Desvincular
                 </button>
@@ -273,6 +292,7 @@
                             <input type="hidden" id="idComprobante"      name="idComprobante"      value="">
                             <input type="hidden" id="codigo_autorizacion" name="codigo_autorizacion" value="">
                             <input type="hidden" id="pedido_vinculado_id" name="pedido_id"          value="{{ $pedidoId ?? '' }}"> {{-- vinculación a pedido --}}
+                            <input type="hidden" id="flujo_vinculado_id"  name="flujo_id"           value="{{ $flujoVinculadoId ?? '' }}"> {{-- flujo directo (sin pedido) --}}
 
                             {{-- ── SECCIÓN 1: Datos del Cliente ────────────────────────── --}}
                             <div class="ofr-section-header" style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff; cursor:pointer; user-select:none;"
@@ -294,7 +314,7 @@
                                     <select id="seleccionarCliente" name="seleccionarCliente"
                                         class="form-control form-control-sm" data-parsley-required
                                         onchange="obtenerDatosCliente()"
-                                        {{ $pedidoVinculado ? 'disabled' : '' }}>
+                                        {{ $flujoVinculado ? 'disabled' : '' }}>
                                         <option value="" selected disabled>--Seleccionar--</option>
                                     </select>
                                 </div>
@@ -710,9 +730,9 @@
                     <div class="modal-footer">
                         @if($pedidoDetalle)
                         <button type="button"
-                                wire:click="seleccionarPedido({{ $pedidoDetalle['pedido']['id'] }})" data-dismiss="modal"
+                                wire:click="seleccionarFlujoDesdePedido({{ $pedidoDetalle['pedido']['id'] }})" data-dismiss="modal"
                                 style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff; border:none; border-radius:8px; padding:8px 20px; font-weight:700; cursor:pointer;">
-                            <i class="mr-1 fa fa-link"></i> Vincular este Pedido
+                            <i class="mr-1 fa fa-link"></i> Vincular este Flujo
                         </button>
                         @endif
                         <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cerrar</button>
