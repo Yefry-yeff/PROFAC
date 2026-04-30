@@ -292,12 +292,12 @@ class Cotizacion extends Component
             $cotizacion->nota = $request->nota;
             $cotizacion->save();
 
-            // ── Registrar en historico_flujo / crear flujo según si hay pedido vinculado ──
+            // ── Registrar en historico_flujo / crear flujo según si hay pedido/flujo vinculado ──
             $pedidoIdVinculado = $request->pedido_id ? (int) $request->pedido_id : null;
-            $flujoIdVinculado  = null;
+            $flujoIdDirecto    = $request->flujo_id  ? (int) $request->flujo_id  : null;
+
             if ($pedidoIdVinculado) {
-                // Buscar el flujo del pedido (por identificacion+tipo_flujo_id; no filtrar por tipo_tramite_id
-                // porque pudo ya haberse actualizado a 2 si hay otra oferta previa)
+                // Flujo con pedido: buscar el flujo del pedido y agregar historico
                 $flujoIdVinculado = DB::table('flujo')
                     ->where('identificacion', (string) $pedidoIdVinculado)
                     ->where('tipo_flujo_id', 1)
@@ -314,17 +314,31 @@ class Cotizacion extends Component
                         'created_at'      => now(),
                         'updated_at'      => now(),
                     ]);
-                    // Avanzar el flujo al estado "Oferta" (tipo_tramite_id=2)
                     DB::table('flujo')->where('id', $flujoIdVinculado)
                         ->update(['tipo_tramite_id' => 2, 'updated_by' => Auth::id(), 'updated_at' => now()]);
                 }
+            } elseif ($flujoIdDirecto) {
+                // Flujo sin pedido ya existente: agregar nueva oferta al mismo flujo
+                DB::table('historico_flujo')->insert([
+                    'flujo_id'        => $flujoIdDirecto,
+                    'tipo_tramite_id' => 2,
+                    'tramite_id'      => $cotizacion->id,
+                    'estado_id'       => 1,
+                    'observaciones'   => 'Oferta adicional #' . $cotizacion->id . ' registrada en flujo existente',
+                    'created_by'      => Auth::id(),
+                    'updated_by'      => Auth::id(),
+                    'created_at'      => now(),
+                    'updated_at'      => now(),
+                ]);
+                DB::table('flujo')->where('id', $flujoIdDirecto)
+                    ->update(['updated_by' => Auth::id(), 'updated_at' => now()]);
             } else {
-                // Sin pedido: crear un nuevo registro en flujo para esta cotizacion
+                // Sin pedido ni flujo vinculado: crear un nuevo flujo para esta cotizacion
                 $flujoNuevo = DB::table('flujo')->insertGetId([
                     'tipo_flujo_id'   => 1,
                     'identificacion'  => (string) $cotizacion->id,
                     'nombre'          => $cotizacion->nombre_cliente ?? ('Cotizacion #' . $cotizacion->id),
-                    'tipo_tramite_id' => 2, // Oferta directa (sin pedido previo)
+                    'tipo_tramite_id' => 2,
                     'estado_id'       => 1,
                     'created_by'      => Auth::id(),
                     'updated_by'      => Auth::id(),

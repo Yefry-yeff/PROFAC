@@ -466,19 +466,15 @@ class ModalFlujoPedido extends Component
             ->where('id', $hf->id)
             ->update(['observaciones' => 'ganadora', 'updated_at' => now()]);
 
-        // Avanzar el flujo a prefactura (tipo_tramite_id = 4)
-        DB::table('flujo')
-            ->where('id', $this->flujoId)
-            ->update([
-                'tipo_tramite_id' => 4,
-                'updated_by'      => Auth::id(),
-                'updated_at'      => now(),
-            ]);
+        // NO avanzar el flujo aquí — lo avanza el guardado de la prefactura.
+        // Abrir formulario de prefactura en nueva pestaña
+        $url = '/flujo/prefactura/crear?cotizacionId=' . $cotizacionId . '&flujoId=' . $this->flujoId;
+        $this->dispatchBrowserEvent('abrir-nueva-pestana', ['url' => $url]);
 
-        $this->mensajeExito = 'Oferta #' . $cotizacionId . ' marcada como ganadora.';
+        $this->mensajeExito = 'Oferta #' . $cotizacionId . ' marcada como ganadora. Completa la pre-factura en la nueva pestaña.';
+        $this->confirmAccionOferta = null;
         $this->emit('pedidoActualizado');
         $this->recargar();
-        $this->mensajeExito = 'Oferta #' . $cotizacionId . ' marcada como ganadora.';
     }
 
     public function quitarGanadora(): void
@@ -543,11 +539,21 @@ class ModalFlujoPedido extends Component
 
     public function duplicarOferta(bool $mismoCliente): void
     {
-        if (!$this->pedidoData) return;
-        $pedidoId = (int) $this->pedidoData['id'];
-        $url = $mismoCliente
-            ? '/proforma/cotizacion/2?from=flujo&pedidoId=' . $pedidoId
-            : '/proforma/cotizacion/2?from=flujo';
+        if (!$this->ofertaSeleccionada) return;
+
+        $cotizacionId = (int) $this->ofertaSeleccionada['id'];
+
+        // Construir URL base
+        $url = '/proforma/cotizacion/2?from=flujo&cotizacionId=' . $cotizacionId;
+
+        if ($mismoCliente) {
+            if (!empty($this->pedidoData) && empty($this->pedidoData['sin_pedido'])) {
+                $url .= '&pedidoId=' . (int) $this->pedidoData['id'];
+            } elseif ($this->flujoId) {
+                $url .= '&flujoId=' . $this->flujoId;
+            }
+        }
+
         $this->dispatchBrowserEvent('abrir-nueva-pestana', ['url' => $url]);
         $this->confirmAccionOferta = null;
     }

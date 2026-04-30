@@ -297,41 +297,20 @@
                 <div class="banner-icon d-none d-md-block"><i class="fa fa-clipboard-list"></i></div>
             </div>
 
-            <div class="row justify-content-center">
+            <div class="vnav-grid" style="grid-template-columns: repeat(2, 1fr); max-width: 600px;">
 
                 {{-- Historial de Pedidos --}}
-                <div class="mb-4 col-lg-3 col-md-4 col-sm-6">
-                    <div class="flujo-card ibox" style="border-top:4px solid transparent; cursor:pointer;"
-                         onmouseover="this.style.borderTopColor='#1a73e8';this.style.transform='translateY(-6px)';"
-                         onmouseout="this.style.borderTopColor='transparent';this.style.transform='';"
-                         wire:click="selectHistorialPedidos">
-                        <div class="card-icon-wrap">
-                            <div class="icon-circle" style="background:rgba(26,115,232,0.12); color:#1a73e8;">
-                                <i class="fa fa-history"></i>
-                            </div>
-                            <div class="card-label">Historial de Pedidos</div>
-                            <div class="card-desc">Consulta todos los pedidos, genera ofertas o anula</div>
-                        </div>
-                        <div class="card-footer-bar" style="background:#1a73e8;">
-                            <i class="mr-1 fa fa-arrow-right"></i> Ver Historial
-                        </div>
-                    </div>
+                <div class="vnav-item vnav-historial" wire:click="selectHistorialPedidos">
+                    <div class="vnav-icon"><i class="fa fa-history"></i></div>
+                    <div class="vnav-title">Historial de Pedidos</div>
+                    <p class="vnav-desc">Consulta todos los pedidos, genera ofertas o anula</p>
                 </div>
 
                 {{-- Ingresar Pedido --}}
-                <div class="mb-4 col-lg-3 col-md-4 col-sm-6">
-                    <div class="flujo-card flujo-pedido ibox" wire:click="selectIngresarPedido">
-                        <div class="card-icon-wrap">
-                            <div class="icon-circle">
-                                <i class="fa fa-plus-circle"></i>
-                            </div>
-                            <div class="card-label">Ingresar Pedido</div>
-                            <div class="card-desc">Registra un nuevo pedido de cliente</div>
-                        </div>
-                        <div class="card-footer-bar">
-                            <i class="mr-1 fa fa-arrow-right"></i> Nuevo Pedido
-                        </div>
-                    </div>
+                <div class="vnav-item vnav-pedido" wire:click="selectIngresarPedido">
+                    <div class="vnav-icon"><i class="fa fa-plus-circle"></i></div>
+                    <div class="vnav-title">Ingresar Pedido</div>
+                    <p class="vnav-desc">Registra un nuevo pedido de cliente</p>
                 </div>
 
             </div>

@@ -86,6 +86,92 @@
         .cart-item-card { transition: box-shadow .15s; }
         .cart-item-card:hover { box-shadow: 0 4px 18px rgba(27,94,32,.14) !important; }
         .cart-field-label { font-size:10px; color:#78909c; font-weight:700; text-transform:uppercase; letter-spacing:.3px; margin-bottom:3px; }
+
+        /* ── of-card system ────────────────────────────────────────────── */
+        .ofr-main-ibox { border: none !important; box-shadow: none !important; background: transparent !important; }
+        .ofr-main-ibox > .ibox-title { display: none !important; }
+        .ofr-main-ibox > .ibox-content { padding: 0 !important; background: transparent !important; border: none !important; }
+
+        .of-card {
+            background: #fff;
+            border-radius: 14px;
+            border: 1px solid #e8eaef;
+            box-shadow: 0 2px 12px rgba(0,0,0,.06);
+            padding: 22px 24px;
+            margin-bottom: 18px;
+        }
+        .of-card-title {
+            font-size: 13px; font-weight: 700; color: #6c757d;
+            text-transform: uppercase; letter-spacing: .6px;
+            margin-bottom: 16px;
+            display: flex; align-items: center; gap: 7px;
+        }
+        .of-card-title i { font-size: 14px; }
+
+        /* ── of-totals-card ─────────────────────────────────────────────── */
+        .of-totals-card {
+            background: #fff; border: 1.5px solid #e8eaef;
+            border-radius: 14px; overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,.07);
+            margin-bottom: 18px;
+        }
+        .of-totals-header {
+            background: linear-gradient(135deg,#2d3748,#4a5568);
+            padding: 12px 20px; color: #fff; font-size: 13px; font-weight: 700;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .of-totals-body { padding: 16px 20px; }
+        .of-total-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 7px 0; border-bottom: 1px solid #f0f2f5; font-size: 13px;
+        }
+        .of-total-row:last-child { border-bottom: none; }
+        .of-total-row .lbl { color: #6b7280; font-weight: 500; }
+        .of-total-row .val {
+            font-weight: 700; color: #1a202c;
+            background: #f7f8fa; border: 1px solid #e8eaef;
+            border-radius: 7px; padding: 4px 12px; font-size: 13px;
+            min-width: 140px; text-align: right; font-family: monospace;
+            outline: none;
+        }
+        .of-total-grand .lbl { font-size: 15px; font-weight: 800; color: #1a202c; }
+        .of-total-grand .val {
+            background: linear-gradient(135deg,#1ab394,#0fa37a);
+            color: #fff; font-size: 15px; border: none;
+            box-shadow: 0 3px 10px rgba(26,179,148,.3);
+        }
+
+        /* ── Cart empty state ────────────────────────────────────────────── */
+        #carritoVacio {
+            text-align: center; padding: 36px 20px; color: #aab;
+        }
+        #carritoVacio i { font-size: 48px; opacity: .25; display: block; margin-bottom: 10px; color: #aab; }
+        #cart-count-badge {
+            background: #e65100; color: #fff; border-radius: 20px;
+            font-size: 11px; font-weight: 700; padding: 2px 10px;
+        }
+
+        /* ── Collapsible of-cards ─────────────────────────────────────── */
+        .of-card-title { cursor: pointer; user-select: none; }
+        .of-card-title .of-chevron {
+            margin-left: auto; font-size: 12px; color: #9ca3af;
+            transition: transform .25s ease; flex-shrink: 0;
+        }
+        .of-card-title.is-collapsed .of-chevron { transform: rotate(-90deg); }
+
+        /* ── Historial panel naranja ──────────────────────────────────── */
+        .of-historial-header {
+            background: linear-gradient(135deg,#e65100,#f9a826);
+            color: #fff; border-radius: 8px 8px 0 0;
+            padding: 8px 14px; font-size: 11px; font-weight: 700;
+            text-transform: uppercase; letter-spacing: .4px;
+            display: flex; align-items: center; gap: 6px;
+        }
+        .of-historial-body {
+            border: 1.5px solid #ffe0b2; border-top: none;
+            border-radius: 0 0 8px 8px; padding: 8px 12px;
+            background: #fffbf7; font-size: 12px; min-height: 38px;
+        }
     </style>
     @endpush
 
@@ -149,13 +235,13 @@
         </div>
         @endif
 
-        {{-- ===== PANEL: VINCULAR A PEDIDO (solo en modo oferta desde flujo) ===== --}}
+        {{-- ===== PANEL: VINCULAR A UN FLUJO (solo en modo oferta desde flujo) ===== --}}
         @if($fromFlujo && ($config->codigo ?? '') === 'cotizacion_clientes_a')
-        <div class="pedido-link-panel {{ $pedidoVinculado ? 'linked' : '' }}">
-            @if(!$pedidoVinculado)
+        <div class="pedido-link-panel {{ $flujoVinculado ? 'linked' : '' }}">
+            @if(!$flujoVinculado)
             <div class="mb-3">
                 <h6 style="margin:0; font-weight:800; color:#00695c;">
-                    <i class="mr-2 fa fa-link"></i>Vincular a un Pedido
+                    <i class="mr-2 fa fa-link"></i>Vincular a un Flujo
                     <span style="font-size:11px; font-weight:400; color:#78909c; margin-left:8px;">(opcional)</span>
                 </h6>
             </div>
@@ -168,72 +254,91 @@
                             </span>
                         </div>
                         <input type="text"
-                               wire:model.debounce.350ms="busquedaPedido"
+                               wire:model.debounce.350ms="busquedaFlujo"
                                class="form-control"
-                               placeholder="Buscar pedido por # o nombre de cliente…"
+                               placeholder="Buscar por cliente, RTN, # flujo, # pedido u # oferta…"
                                style="border-radius:0 8px 8px 0;"
                                autocomplete="off">
                     </div>
-                    @if(strlen(trim($busquedaPedido)) > 0 && strlen(trim($busquedaPedido)) < 2)
+                    @if(strlen(trim($busquedaFlujo)) > 0 && strlen(trim($busquedaFlujo)) < 2)
                         <small class="mt-1 text-muted d-block">Escribe al menos 2 caracteres</small>
                     @endif
                 </div>
                 <div class="col-md-6 d-flex align-items-center">
                     <small class="text-muted">
                         <i class="mr-1 fa fa-info-circle text-info"></i>
-                        Puedes crear <strong>múltiples ofertas</strong> para el mismo pedido.
+                        Puedes crear <strong>múltiples ofertas</strong> para el mismo flujo.
                     </small>
                 </div>
             </div>
 
-            @if(count($pedidosEncontrados) > 0)
+            @if(count($flujoEncontrados) > 0)
             <div style="max-height:280px; overflow-y:auto; margin-top:12px;">
-                @foreach($pedidosEncontrados as $ped)
-                @php $p = (array)$ped; @endphp
-                <div class="ped-row" wire:click="seleccionarPedido({{ $p['id'] }})" style="cursor:pointer;">
-                    <div style="flex-shrink:0;">
-                        <span style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff; border-radius:8px; padding:4px 12px; font-size:13px; font-weight:800;">#{{ $p['id'] }}</span>
+                @foreach($flujoEncontrados as $flujo)
+                @php $fl = (array)$flujo; @endphp
+                <div class="ped-row" wire:click="seleccionarFlujo({{ $fl['flujo_id'] }})" style="cursor:pointer;">
+                    <div style="flex-shrink:0; display:flex; flex-direction:column; align-items:center; gap:3px;">
+                        <span style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff; border-radius:8px; padding:3px 10px; font-size:12px; font-weight:800;"># Flujo {{ $fl['flujo_id'] }}</span>
+                        @if($fl['pedido_id'])
+                        <span style="background:#e3f2fd; color:#1565c0; border-radius:6px; padding:1px 8px; font-size:10px; font-weight:700;">Ped. #{{ $fl['pedido_id'] }}</span>
+                        @else
+                        <span style="background:#fff3e0; color:#e65100; border-radius:6px; padding:1px 8px; font-size:10px; font-weight:700;">Sin pedido</span>
+                        @endif
                     </div>
                     <div style="flex:1; min-width:0;">
-                        <div style="font-weight:700; color:#2c3e50; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ $p['cliente'] }}</div>
-                        <div style="font-size:11px; color:#90a4ae;">RTN: {{ $p['rtn'] ?: '—' }} &nbsp;·&nbsp; {{ \Carbon\Carbon::parse($p['created_at'])->format('d/m/Y') }}</div>
+                        <div style="font-weight:700; color:#2c3e50; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ $fl['cliente'] }}</div>
+                        <div style="font-size:11px; color:#90a4ae;">RTN: {{ $fl['rtn'] ?: '—' }} &nbsp;·&nbsp; {{ \Carbon\Carbon::parse($fl['created_at'])->format('d/m/Y') }}</div>
                     </div>
                     <div style="flex-shrink:0; text-align:center; min-width:70px;">
                         <div style="font-size:10px; color:#90a4ae;">Ofertas</div>
-                        <div style="font-weight:700; color:{{ $p['total_ofertas'] > 0 ? '#00897b' : '#b0bec5' }}; font-size:15px;">
-                            {{ $p['total_ofertas'] }}
-                            @if($p['has_ganadora'] > 0)<i class="fa fa-trophy text-warning" style="font-size:12px;"></i>@endif
+                        <div style="font-weight:700; color:{{ $fl['total_ofertas'] > 0 ? '#00897b' : '#b0bec5' }}; font-size:15px;">
+                            {{ $fl['total_ofertas'] }}
+                            @if($fl['has_ganadora'] > 0)<i class="fa fa-trophy text-warning" style="font-size:12px;"></i>@endif
                         </div>
                     </div>
                     <div style="flex-shrink:0;">
-                        @php $estMap=['pendiente'=>['#e3f2fd','#1565c0'],'pre_factura'=>['#fff8e1','#f57f17'],'activo'=>['#e8f5e9','#2e7d32'],'cancelado'=>['#fce4ec','#b71c1c']]; $col=$estMap[$p['estado']]??['#f5f5f5','#546e7a']; @endphp
-                        <span style="background:{{ $col[0] }}; color:{{ $col[1] }}; border-radius:20px; padding:3px 10px; font-size:11px; font-weight:700;">{{ ucfirst(str_replace('_',' ',$p['estado'])) }}</span>
+                        @php
+                            $estMapFl=['pedido'=>['#e3f2fd','#1565c0'],'Ofertas'=>['#fff3e0','#e65100'],'prefactura'=>['#e0f7fa','#006064'],'factura'=>['#e8f5e9','#1b5e20'],'cancelado'=>['#fce4ec','#b71c1c']];
+                            $colFl=$estMapFl[$fl['flujo_estado']]??['#f5f5f5','#546e7a'];
+                        @endphp
+                        <span style="background:{{ $colFl[0] }}; color:{{ $colFl[1] }}; border-radius:20px; padding:3px 10px; font-size:11px; font-weight:700;">{{ ucfirst(str_replace('_',' ',$fl['flujo_estado'])) }}</span>
                     </div>
-                    <div style="flex-shrink:0;" wire:click.stop="verDetallePedido({{ $p['id'] }})">
+                    @if($fl['pedido_id'])
+                    <div style="flex-shrink:0;" wire:click.stop="verDetallePedido({{ $fl['pedido_id'] }})">
                         <span style="background:#1565c0; color:#fff; border-radius:8px; padding:6px 14px; font-size:12px; font-weight:700; cursor:pointer;"><i class="mr-1 fa fa-eye"></i> Detalle</span>
                     </div>
+                    @endif
                 </div>
                 @endforeach
             </div>
-            @elseif(strlen(trim($busquedaPedido)) >= 2)
+            @elseif(strlen(trim($busquedaFlujo)) >= 2)
             <div class="py-3 mt-2 text-center">
                 <i class="mb-2 fa fa-search fa-2x" style="color:#b2dfdb; display:block;"></i>
-                <p style="color:#78909c; font-size:13px; margin:0;">No se encontraron pedidos activos con ese criterio.</p>
+                <p style="color:#78909c; font-size:13px; margin:0;">No se encontraron flujos activos con ese criterio.</p>
             </div>
             @endif
 
             @else
-            {{-- Pedido vinculado: versión compacta con desvincular --}}
+            {{-- Flujo vinculado: versión compacta con desvincular --}}
             <div class="flex-wrap d-flex align-items-center justify-content-between" style="gap:8px;">
                 <div style="display:flex; align-items:center; gap:10px;">
                     <span style="background:linear-gradient(135deg,#1b5e20,#2e7d32); color:#fff; border-radius:8px; padding:4px 14px; font-size:13px; font-weight:800;">
-                        <i class="mr-1 fa fa-link"></i> Vinculado a Pedido
+                        <i class="mr-1 fa fa-link"></i> Flujo Vinculado
                     </span>
                     <span style="font-weight:700; color:#1b5e20; font-size:14px;">
-                        #{{ $pedidoVinculado['id'] }} — {{ $pedidoVinculado['cliente'] }}
+                        #{{ $flujoVinculado['flujo_id'] }} — {{ $flujoVinculado['cliente'] }}
                     </span>
+                    @if($flujoVinculado['pedido_id'])
+                    <span style="background:#e3f2fd; color:#1565c0; border-radius:6px; padding:2px 10px; font-size:11px; font-weight:700;">
+                        Ped. #{{ $flujoVinculado['pedido_id'] }}
+                    </span>
+                    @else
+                    <span style="background:#fff3e0; color:#e65100; border-radius:6px; padding:2px 10px; font-size:11px; font-weight:700;">
+                        <i class="fa fa-tag mr-1"></i>Sin pedido
+                    </span>
+                    @endif
                 </div>
-                <button type="button" wire:click="desvincularPedido"
+                <button type="button" wire:click="desvincularFlujo"
                         style="background:#fce4ec; color:#b71c1c; border:1px solid #ffcdd2; border-radius:8px; padding:5px 14px; font-size:12px; font-weight:700; cursor:pointer;">
                     <i class="mr-1 fa fa-unlink"></i> Desvincular
                 </button>
@@ -273,18 +378,21 @@
                             <input type="hidden" id="idComprobante"      name="idComprobante"      value="">
                             <input type="hidden" id="codigo_autorizacion" name="codigo_autorizacion" value="">
                             <input type="hidden" id="pedido_vinculado_id" name="pedido_id"          value="{{ $pedidoId ?? '' }}"> {{-- vinculación a pedido --}}
+                            <input type="hidden" id="flujo_vinculado_id"  name="flujo_id"           value="{{ $flujoVinculadoId ?? '' }}"> {{-- flujo directo (sin pedido) --}}
 
                             {{-- ── SECCIÓN 1: Datos del Cliente ────────────────────────── --}}
-                            <div class="ofr-section-header" style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff; cursor:pointer; user-select:none;"
-                                 onclick="toggleSeccion('sec_cliente', this)">
-                                <i class="fa fa-user"></i> 1. Datos del Cliente
+                            <span id="ico_sec_cliente" style="display:none;"></span>
+                            <div class="of-card">
+                            <div class="of-card-title" onclick="toggleOfCard('body_cliente', this)">
+                                <i class="fa fa-user text-primary"></i> Datos del cliente
                                 @if($fromFlujo && ($config->codigo ?? '') === 'cotizacion_clientes_a')
-                                <span id="cat_cliente_badge" style="margin-left:auto; background:rgba(26,115,232,.12); color:#1a73e8; border-radius:20px; padding:2px 12px; font-size:11px; font-weight:700;">
-                                    <i class="mr-1 fa fa-tag"></i><span id="cat_badge_text">—</span>
+                                <span id="cat_cliente_badge" style="display:none; background:rgba(230,81,0,.1); color:#e65100; border:1px solid rgba(230,81,0,.2); border-radius:20px; padding:2px 12px; font-size:11px; font-weight:700;">
+                                    <i class="mr-1 fa fa-tag"></i><span id="cat_badge_text"></span>
                                 </span>
                                 @endif
-                                <i class="ml-2 fa fa-chevron-up" style="font-size:11px;" id="ico_sec_cliente"></i>
+                                <i class="fa fa-chevron-down of-chevron"></i>
                             </div>
+                            <div id="body_cliente">
                             <div id="sec_cliente">
 
                             <div class="row" style="row-gap:10px;">
@@ -294,7 +402,7 @@
                                     <select id="seleccionarCliente" name="seleccionarCliente"
                                         class="form-control form-control-sm" data-parsley-required
                                         onchange="obtenerDatosCliente()"
-                                        {{ $pedidoVinculado ? 'disabled' : '' }}>
+                                        {{ $flujoVinculado ? 'disabled' : '' }}>
                                         <option value="" selected disabled>--Seleccionar--</option>
                                     </select>
                                 </div>
@@ -325,11 +433,11 @@
                                 </div>
                                 {{-- Descuento --}}
                                 <div class="col-12 col-md-4">
-                                    <label class="ofr-label">Descuento % <span class="req">*</span></label>
+                                    <label class="ofr-label">Descuento %</label>
                                     <input class="form-control form-control-sm" type="number" min="0"
                                         max="{{ $config->max_descuento ?? 50 }}"
                                         value="0" id="porDescuento" name="porDescuento"
-                                        onchange="calcularTotalesInicioPagina()" data-parsley-required>
+                                        onchange="calcularTotalesInicioPagina()">
                                 </div>
                                 {{-- Fecha emisión --}}
                                 <div class="col-12 col-md-4">
@@ -369,202 +477,203 @@
                             </div>
 
                             </div>{{-- /sec_cliente --}}
+                            </div>{{-- /body_cliente --}}
+                            </div>{{-- /of-card cliente --}}
 
                             {{-- ── SECCIÓN 2: Agregar Producto ─────────────────────────── --}}
-                            <div class="ofr-section-header" style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff; cursor:pointer; user-select:none;"
-                                 onclick="toggleSeccion('sec_producto', this)">
-                                <i class="fa fa-plus-circle"></i> 2. Agregar Producto
-                                <i class="ml-auto fa fa-chevron-up" style="font-size:11px;" id="ico_sec_producto"></i>
+                            <span id="ico_sec_producto" style="display:none;"></span>
+                            <div class="of-card">
+                            <div class="of-card-title" onclick="toggleOfCard('body_producto', this)">
+                                <i class="fa fa-plus-circle text-success"></i> Agregar producto al carrito
+                                <i class="fa fa-chevron-down of-chevron"></i>
                             </div>
+                            <div id="body_producto">
                             <div id="sec_producto">
 
-                            <div class="row">
-                                {{-- LEFT: búsqueda + categoría + bodega + boton --}}
-                                <div class="col-12 col-md-6">
-                                    {{-- Sugerencias del pedido --}}
-                                    @if($fromFlujo && ($config->codigo ?? '') === 'cotizacion_clientes_a' && count($productosSugeridos) > 0)
-                                    <div style="border:1.5px solid #c8e6c9; border-radius:8px; padding:7px 12px; margin-bottom:10px; background:#f1f8e9; display:flex; align-items:center; justify-content:space-between;">
-                                        <span style="font-weight:700; color:#1b5e20; font-size:12px;">
-                                            <i class="mr-1 fa fa-list-ul"></i> {{ count($productosSugeridos) }} ítem(s) en el pedido
-                                        </span>
-                                        <button type="button" data-toggle="modal" data-target="#modalProductosPedido"
-                                                style="background:linear-gradient(135deg,#1b5e20,#2e7d32); color:#fff; border:none; border-radius:6px; padding:4px 10px; font-size:11px; font-weight:700; cursor:pointer;">
-                                            <i class="mr-1 fa fa-eye"></i> Ver Productos
-                                        </button>
-                                    </div>
-                                    @endif
+                                {{-- Sugerencias del pedido --}}
+                                @if($fromFlujo && ($config->codigo ?? '') === 'cotizacion_clientes_a' && count($productosSugeridos) > 0)
+                                <div style="border:1.5px solid #c8e6c9; border-radius:8px; padding:7px 12px; margin-bottom:12px; background:#f1f8e9; display:flex; align-items:center; justify-content:space-between;">
+                                    <span style="font-weight:700; color:#1b5e20; font-size:12px;">
+                                        <i class="mr-1 fa fa-list-ul"></i> {{ count($productosSugeridos) }} ítem(s) en el pedido
+                                    </span>
+                                    <button type="button" data-toggle="modal" data-target="#modalProductosPedido"
+                                            style="background:linear-gradient(135deg,#1b5e20,#2e7d32); color:#fff; border:none; border-radius:6px; padding:4px 10px; font-size:11px; font-weight:700; cursor:pointer;">
+                                        <i class="mr-1 fa fa-eye"></i> Ver Productos
+                                    </button>
+                                </div>
+                                @endif
 
-                                    <label class="ofr-label">Seleccionar Producto <span class="req">*</span></label>
-                                    <div class="mb-1 input-group">
-                                        <input type="text" id="codigoProductoBuscar" class="form-control form-control-sm"
-                                            placeholder="ID o nombre del producto…" autocomplete="off"
-                                            onkeydown="if(event.key==='Enter'){buscarPorCodigo(this.value);return false;}">
-                                        <div class="input-group-append">
-                                            <button type="button" class="btn btn-primary btn-sm" title="Buscar producto"
-                                                onclick="limpiarProducto(); window['abrirBuscador_buscadorProductoUnificado'](document.getElementById('codigoProductoBuscar').value||'')">
-                                                <i class="fa fa-search"></i>
-                                            </button>
+                                {{-- Fila 1: Producto | Categoría | Bodega --}}
+                                <div class="row" style="row-gap:10px; margin-bottom:10px;">
+                                    <div class="col-12 col-md-4">
+                                        <label class="ofr-label">Seleccionar Producto <span class="req">*</span></label>
+                                        <div class="input-group">
+                                            <input type="text" id="codigoProductoBuscar" class="form-control form-control-sm"
+                                                placeholder="ID o nombre del producto…" autocomplete="off"
+                                                onkeydown="if(event.key==='Enter'){buscarPorCodigo(this.value);return false;}">
+                                            <div class="input-group-append">
+                                                <button type="button" class="btn btn-primary btn-sm" title="Buscar producto"
+                                                    onclick="limpiarProducto(); window['abrirBuscador_buscadorProductoUnificado'](document.getElementById('codigoProductoBuscar').value||'')">
+                                                    <i class="fa fa-search"></i>
+                                                </button>
+                                            </div>
                                         </div>
+                                        <small id="productoSeleccionadoLabel" class="mt-1 text-success font-weight-bold d-block d-none" style="font-size:11px;"></small>
+                                        <select id="seleccionarProducto" name="seleccionarProducto" class="d-none">
+                                            <option value="" selected disabled></option>
+                                        </select>
                                     </div>
-                                    <small id="productoSeleccionadoLabel" class="text-success font-weight-bold d-block d-none" style="font-size:11px; margin-bottom:6px;"></small>
-                                    <select id="seleccionarProducto" name="seleccionarProducto" class="d-none">
-                                        <option value="" selected disabled></option>
-                                    </select>
-
-                                    <label class="mt-2 ofr-label">Categoría Precio <span class="req">*</span></label>
-                                    <select id="categoria_cliente_venta_id" name="categoria_cliente_venta_id"
-                                        class="mb-2 form-control form-control-sm" onchange="habilitarBodega()">
-                                        <option value="" selected disabled>--Seleccione primero un producto--</option>
-                                    </select>
-
-                                    <label class="mt-2 ofr-label">Bodega <span class="req">*</span></label>
-                                    <select id="bodega" name="bodega" class="mb-2 form-control form-control-sm" onchange="prueba()">
-                                        <option value="" selected disabled>--Seleccione una categoría primero--</option>
-                                    </select>
-
-                                    <div id="botonAdd" class="mt-2 d-none">
-                                        <button type="button" onclick="agregarProductoCarrito()"
-                                            style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff; border:none;
-                                                   border-radius:8px; padding:5px 14px; font-size:12px; font-weight:700;
-                                                   box-shadow:0 2px 8px rgba(230,81,0,.3); cursor:pointer;">
-                                            <i class="mr-1 fa fa-shopping-cart"></i> Añadir al Carrito
-                                        </button>
+                                    <div class="col-12 col-md-4">
+                                        <label class="ofr-label">Categoría Precio <span class="req">*</span></label>
+                                        <select id="categoria_cliente_venta_id" name="categoria_cliente_venta_id"
+                                            class="form-control form-control-sm" onchange="habilitarBodega()">
+                                            <option value="" selected disabled>--Seleccione primero un producto--</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-12 col-md-4">
+                                        <label class="ofr-label">Bodega <span class="req">*</span></label>
+                                        <select id="bodega" name="bodega" class="form-control form-control-sm" onchange="prueba()">
+                                            <option value="" selected disabled>--Seleccione una categoría primero--</option>
+                                        </select>
                                     </div>
                                 </div>
 
-                                {{-- RIGHT: imagen + historial --}}
-                                <div class="col-12 col-md-6">
-                                    <div class="mb-1 text-center">
-                                        <a id="detalleProducto" href="" class="font-bold d-none text-success" target="_blank" style="font-size:12px;">
-                                            <i class="mr-1 fa fa-info-circle"></i> Ver Detalles del Producto
-                                        </a>
+                                {{-- Botón añadir --}}
+                                <div id="botonAdd" class="mb-3 d-none">
+                                    <button type="button" onclick="agregarProductoCarrito()"
+                                        style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff; border:none;
+                                               border-radius:8px; padding:5px 14px; font-size:12px; font-weight:700;
+                                               box-shadow:0 2px 8px rgba(230,81,0,.3); cursor:pointer;">
+                                        <i class="mr-1 fa fa-shopping-cart"></i> Añadir al Carrito
+                                    </button>
+                                </div>
+
+                                {{-- Fila 2: Imagen | Historial --}}
+                                <div class="row">
+                                    <div class="col-12 col-md-5">
+                                        <div id="carouselProducto" class="carousel slide" data-ride="carousel">
+                                            <div id="bloqueImagenes" class="carousel-inner" style="border-radius:10px; overflow:hidden; max-height:220px;"></div>
+                                            <a class="carousel-control-prev" href="#carouselProducto" role="button" data-slide="prev">
+                                                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                                                <span class="sr-only">Previous</span>
+                                            </a>
+                                            <a class="carousel-control-next" href="#carouselProducto" role="button" data-slide="next">
+                                                <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                                                <span class="sr-only">Next</span>
+                                            </a>
+                                        </div>
                                     </div>
-                                    <div id="carouselProducto" class="carousel slide" data-ride="carousel">
-                                        <div id="bloqueImagenes" class="carousel-inner" style="border-radius:10px; overflow:hidden; max-height:220px;"></div>
-                                        <a class="carousel-control-prev" href="#carouselProducto" role="button" data-slide="prev">
-                                            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-                                            <span class="sr-only">Previous</span>
-                                        </a>
-                                        <a class="carousel-control-next" href="#carouselProducto" role="button" data-slide="next">
-                                            <span class="carousel-control-next-icon" aria-hidden="true"></span>
-                                            <span class="sr-only">Next</span>
-                                        </a>
-                                    </div>
-                                    <div id="historialPreciosPanel" class="mt-2 d-none">
-                                        <div style="font-size:11px; font-weight:700; color:#546e7a; text-transform:uppercase; letter-spacing:.3px; margin-bottom:4px;">
-                                            <i class="mr-1 fa fa-history text-info"></i> Últimas 5 ventas a este cliente
-                                        </div>
-                                        <div id="historialPreciosCuerpo"><p class="text-muted small">Cargando...</p></div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <hr style="border-color:#e0f2f1; margin:16px 0 14px;">
-                            <div style="font-size:11px; font-weight:700; color:#00695c; text-transform:uppercase; letter-spacing:.5px; margin-bottom:10px;">
-                                <i class="mr-1 fa fa-list"></i> Productos en el carrito
-                            </div>
-
-                            {{-- ── Lista productos ────────────────────────────────────────── --}}
-                            <div id="divProductos">
-                                <div id="carritoVacio" class="py-3 text-center" style="color:#b2dfdb; font-size:12px;">
-                                    <i class="mb-1 fa fa-shopping-cart fa-2x d-block"></i> Sin productos en el carrito
-                                </div>
-                                <div id="carritoTablaWrapper" class="d-none table-responsive" style="max-height:400px; overflow-y:auto;">
-                                    <table class="table mb-0 table-sm table-bordered" style="font-size:12px; min-width:900px;">
-                                        <thead style="background:linear-gradient(135deg,#e8f5e9,#e0f7fa); position:sticky; top:0; z-index:1;">
-                                            <tr style="color:#00695c; font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:.3px;">
-                                                <th style="width:36px;"></th>
-                                                <th style="min-width:150px;">Producto</th>
-                                                <th style="min-width:100px;">Bodega</th>
-                                                <th style="min-width:110px;">Precio Opc.</th>
-                                                <th style="min-width:90px;">P. Unitario</th>
-                                                <th style="min-width:70px;">Cantidad</th>
-                                                <th style="min-width:90px;">Unidad</th>
-                                                <th style="min-width:90px;">Subtotal</th>
-                                                <th style="min-width:80px;">ISV</th>
-                                                <th style="min-width:90px; background:linear-gradient(135deg,#e65100,#f9a826); color:#fff;">Total</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="carritoTbody"></tbody>
-                                    </table>
-                                </div>
-                            </div>
-
-                            </div>{{-- /sec_producto --}}
-
-                            {{-- ── SECCIÓN 3: Totales ───────────────────────────────────── --}}
-                            <div class="ofr-section-header" style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff; cursor:pointer; user-select:none;"
-                                 onclick="toggleSeccion('sec_totales', this)">
-                                <i class="fa fa-calculator"></i> 3. Totales
-                                <i class="ml-auto fa fa-chevron-up" style="font-size:11px;" id="ico_sec_totales"></i>
-                            </div>
-                            <div id="sec_totales">
-
-                            <div style="background:#fff; border:2px solid #a5d6a7; border-radius:16px; overflow:hidden; margin-bottom:24px; box-shadow:0 4px 20px rgba(27,94,32,.08);">
-                                {{-- Header del bloque totales --}}
-                                <div style="background:linear-gradient(135deg,#e65100,#f9a826); padding:12px 22px; display:flex; align-items:center; gap:8px;">
-                                    <i class="fa fa-calculator" style="color:rgba(255,255,255,.8);"></i>
-                                    <span style="color:#fff; font-weight:700; font-size:13px; letter-spacing:.4px; text-transform:uppercase;">Resumen de Totales</span>
-                                </div>
-                                {{-- Cuerpo --}}
-                                <div style="padding:20px 24px; background:#fafffe;">
-                                    <div class="row">
-                                        <div class="mb-3 col-6 col-md-4 col-lg-2">
-                                            <div style="font-size:10px; color:#78909c; font-weight:700; text-transform:uppercase; letter-spacing:.4px; margin-bottom:4px;">Descuento</div>
-                                            <input type="text" id="descuentoMostrar" name="descuentoMostrar" placeholder="L. 0.00"
-                                                   data-parsley-required autocomplete="off" readonly
-                                                   style="border:none; background:transparent; font-size:17px; font-weight:800; color:#e65100; padding:0; width:100%; outline:none;">
-                                            <input type="hidden" value="0" id="porDescuentoCalculado" name="porDescuentoCalculado">
-                                        </div>
-                                        <div class="mb-3 col-6 col-md-4 col-lg-2">
-                                            <div style="font-size:10px; color:#78909c; font-weight:700; text-transform:uppercase; letter-spacing:.4px; margin-bottom:4px;">Sub Total</div>
-                                            <input type="text" id="subTotalGeneralMostrar" placeholder="L. 0.00" readonly autocomplete="off"
-                                                   style="border:none; background:transparent; font-size:17px; font-weight:800; color:#2e7d32; padding:0; width:100%; outline:none;">
-                                            <input id="subTotalGeneral" name="subTotalGeneral" type="hidden" value="" required>
-                                        </div>
-                                        <div class="mb-3 col-6 col-md-4 col-lg-2">
-                                            <div style="font-size:10px; color:#78909c; font-weight:700; text-transform:uppercase; letter-spacing:.4px; margin-bottom:4px;">Grabado</div>
-                                            <input type="text" id="subTotalGeneralGrabadoMostrar" placeholder="L. 0.00" readonly autocomplete="off"
-                                                   style="border:none; background:transparent; font-size:17px; font-weight:800; color:#1565c0; padding:0; width:100%; outline:none;">
-                                            <input id="subTotalGeneralGrabado" name="subTotalGeneralGrabado" type="hidden" value="" required>
-                                        </div>
-                                        <div class="mb-3 col-6 col-md-4 col-lg-2">
-                                            <div style="font-size:10px; color:#78909c; font-weight:700; text-transform:uppercase; letter-spacing:.4px; margin-bottom:4px;">Excento</div>
-                                            <input type="text" id="subTotalGeneralExcentoMostrar" placeholder="L. 0.00" readonly autocomplete="off"
-                                                   style="border:none; background:transparent; font-size:17px; font-weight:800; color:#6a1b9a; padding:0; width:100%; outline:none;">
-                                            <input id="subTotalGeneralExcento" name="subTotalGeneralExcento" type="hidden" value="" required>
-                                        </div>
-                                        <div class="mb-3 col-6 col-md-4 col-lg-2" id="fila_isv" style="{{ ($config->aplica_isv ?? true) ? '' : 'display:none' }}">
-                                            <div style="font-size:10px; color:#78909c; font-weight:700; text-transform:uppercase; letter-spacing:.4px; margin-bottom:4px;">ISV</div>
-                                            <input type="text" id="isvGeneralMostrar" placeholder="L. 0.00" readonly autocomplete="off"
-                                                   style="border:none; background:transparent; font-size:17px; font-weight:800; color:#b71c1c; padding:0; width:100%; outline:none;">
-                                            <input id="isvGeneral" name="isvGeneral" type="hidden" value="" required>
-                                        </div>
-                                        <div class="mb-0 col-12 col-md-4 col-lg-2 d-flex align-items-end">
-                                            <div style="background:linear-gradient(135deg,#e65100,#f9a826); border-radius:12px; padding:14px 18px; width:100%; text-align:center; box-shadow:0 4px 14px rgba(230,81,0,.3);">
-                                                <div style="font-size:10px; color:rgba(255,255,255,.75); font-weight:700; text-transform:uppercase; letter-spacing:.4px; margin-bottom:4px;">TOTAL</div>
-                                                <input type="text" id="totalGeneralMostrar" placeholder="L. 0.00" readonly autocomplete="off"
-                                                       style="border:none; background:transparent; font-size:22px; font-weight:900; color:#fff; padding:0; text-align:center; width:100%; outline:none;">
-                                                <input id="totalGeneral" name="totalGeneral" type="hidden" value="" required>
+                                    <div class="col-12 col-md-7">
+                                        <div id="historialPreciosPanel">
+                                            <div class="of-historial-header">
+                                                <i class="fa fa-history"></i> Últimas 5 ventas de este producto a este cliente
+                                            </div>
+                                            <div class="of-historial-body" id="historialPreciosCuerpo">
+                                                <p class="text-muted small mb-0">Sin ventas previas de este producto a este cliente.</p>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
 
-                            </div>{{-- /sec_totales --}}
+                            </div>{{-- /sec_producto --}}
+                            </div>{{-- /body_producto --}}
+                            </div>{{-- /of-card producto --}}
 
-                            {{-- ── Botón principal ─────────────────────────────────────── --}}
+                            {{-- ── CARRITO DE PRODUCTOS ────────────────────────────────── --}}
+                            <div class="of-card" style="padding:0; overflow:hidden;">
+                                <div style="padding:16px 24px 12px; border-bottom:1px solid #f0f2f5; display:flex; align-items:center; gap:8px; cursor:pointer;"
+                                     onclick="toggleOfCard('body_carrito', this)">
+                                    <span class="of-card-title mb-0" style="cursor:pointer; margin-bottom:0 !important;">
+                                        <i class="fa fa-shopping-cart text-warning"></i> Carrito de productos
+                                    </span>
+                                    <span id="cart-count-badge">0 producto(s)</span>
+                                    <i class="fa fa-chevron-down of-chevron ml-2" style="margin-left:8px;"></i>
+                                </div>
+
+                                {{-- ── Lista productos ────────────────────────────────────────── --}}
+                                <div id="body_carrito">
+                                <div id="divProductos" style="padding:0 0 4px;">
+                                    <div id="carritoVacio" class="py-3 text-center">
+                                        <i class="fa fa-inbox fa-3x d-block mb-2"></i>
+                                        <p style="font-size:13px; margin:0;">No hay productos en el carrito.<br><small>Use el buscador de arriba para agregar productos.</small></p>
+                                    </div>
+                                    <div id="carritoTablaWrapper" class="d-none table-responsive" style="max-height:400px; overflow-y:auto;">
+                                        <table class="table mb-0 table-sm table-bordered" style="font-size:12px; min-width:900px;">
+                                            <thead style="background:linear-gradient(135deg,#e8f5e9,#e0f7fa); position:sticky; top:0; z-index:1;">
+                                                <tr style="color:#00695c; font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:.3px;">
+                                                    <th style="width:36px;"></th>
+                                                    <th style="min-width:150px;">Producto</th>
+                                                    <th style="min-width:100px;">Bodega</th>
+                                                    <th style="min-width:110px;">Precio Opc.</th>
+                                                    <th style="min-width:90px;">P. Unitario</th>
+                                                    <th style="min-width:70px;">Cantidad</th>
+                                                    <th style="min-width:90px;">Unidad</th>
+                                                    <th style="min-width:90px;">Subtotal</th>
+                                                    <th style="min-width:80px;">ISV</th>
+                                                    <th style="min-width:90px; background:linear-gradient(135deg,#e65100,#f9a826); color:#fff;">Total</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="carritoTbody"></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                </div>{{-- /body_carrito --}}
+                            </div>{{-- /of-card carrito --}}
+
+                            {{-- ── SECCIÓN 3: Totales ───────────────────────────────────── --}}
+                            <span id="ico_sec_totales" style="display:none;"></span>
+                            <div id="sec_totales" style="display:none;">{{-- kept for JS compat --}}</div>
+
+                            {{-- ── Botón principal + Totales ────────────────────────── --}}
                             <div class="row">
-                                <div class="col-12 col-md-6">
+                                <div class="col-12 col-lg-6 offset-lg-6">
+                                    <div class="of-totals-card">
+                                        <div class="of-totals-header">
+                                            <i class="fa fa-calculator"></i> Resumen de totales
+                                        </div>
+                                        <div class="of-totals-body">
+                                            <div class="of-total-row">
+                                                <span class="lbl"><i class="fa fa-tag mr-1 text-muted"></i> Descuento</span>
+                                                <input type="text" id="descuentoMostrar" name="descuentoMostrar" class="val" placeholder="L. 0.00" data-parsley-required autocomplete="off" readonly>
+                                                <input type="hidden" value="0" id="porDescuentoCalculado" name="porDescuentoCalculado">
+                                            </div>
+                                            <div class="of-total-row">
+                                                <span class="lbl"><i class="fa fa-list mr-1 text-muted"></i> Sub Total</span>
+                                                <input type="text" id="subTotalGeneralMostrar" class="val" placeholder="L. 0.00" readonly autocomplete="off">
+                                                <input id="subTotalGeneral" name="subTotalGeneral" type="hidden" value="" required>
+                                            </div>
+                                            <div class="of-total-row">
+                                                <span class="lbl"><i class="fa fa-file-text-o mr-1 text-muted"></i> Sub Total Grabado</span>
+                                                <input type="text" id="subTotalGeneralGrabadoMostrar" class="val" placeholder="L. 0.00" readonly autocomplete="off">
+                                                <input id="subTotalGeneralGrabado" name="subTotalGeneralGrabado" type="hidden" value="" required>
+                                            </div>
+                                            <div class="of-total-row">
+                                                <span class="lbl"><i class="fa fa-minus-circle mr-1 text-muted"></i> Sub Total Exento</span>
+                                                <input type="text" id="subTotalGeneralExcentoMostrar" class="val" placeholder="L. 0.00" readonly autocomplete="off">
+                                                <input id="subTotalGeneralExcento" name="subTotalGeneralExcento" type="hidden" value="" required>
+                                            </div>
+                                            <div class="of-total-row" id="fila_isv" style="{{ ($config->aplica_isv ?? true) ? '' : 'display:none' }}">
+                                                <span class="lbl"><i class="fa fa-percent mr-1 text-muted"></i> ISV</span>
+                                                <input type="text" id="isvGeneralMostrar" class="val" placeholder="L. 0.00" readonly autocomplete="off">
+                                                <input id="isvGeneral" name="isvGeneral" type="hidden" value="" required>
+                                            </div>
+                                            <div class="of-total-row of-total-grand" style="padding-top:12px; margin-top:4px;">
+                                                <span class="lbl">TOTAL</span>
+                                                <input type="text" id="totalGeneralMostrar" class="val" placeholder="L. 0.00" readonly autocomplete="off">
+                                                <input id="totalGeneral" name="totalGeneral" type="hidden" value="" required>
+                                            </div>
+                                        </div>
+                                    </div>
+
                                     <button id="btn_venta_coorporativa"
                                             style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff; border:none;
                                                    border-radius:12px; padding:14px 32px; font-size:15px; font-weight:800;
-                                                   box-shadow:0 4px 18px rgba(230,81,0,.35); width:100%; cursor:pointer;">
+                                                   box-shadow:0 4px 18px rgba(230,81,0,.35); width:100%; cursor:pointer;
+                                                   display:flex; align-items:center; justify-content:center; gap:10px;">
                                         @if($fromFlujo && ($config->codigo ?? '') === 'cotizacion_clientes_a')
-                                            <i class="mr-2 fa fa-save"></i> Guardar Oferta
+                                            <i class="fa fa-save"></i> Guardar Oferta
                                         @else
-                                            <i class="mr-2 fa fa-check-circle"></i> Realizar Venta
+                                            <i class="fa fa-check-circle"></i> Realizar Venta
                                         @endif
                                     </button>
                                 </div>
@@ -710,9 +819,9 @@
                     <div class="modal-footer">
                         @if($pedidoDetalle)
                         <button type="button"
-                                wire:click="seleccionarPedido({{ $pedidoDetalle['pedido']['id'] }})" data-dismiss="modal"
+                                wire:click="seleccionarFlujoDesdePedido({{ $pedidoDetalle['pedido']['id'] }})" data-dismiss="modal"
                                 style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff; border:none; border-radius:8px; padding:8px 20px; font-weight:700; cursor:pointer;">
-                            <i class="mr-1 fa fa-link"></i> Vincular este Pedido
+                            <i class="mr-1 fa fa-link"></i> Vincular este Flujo
                         </button>
                         @endif
                         <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cerrar</button>
@@ -1107,6 +1216,20 @@
     }
 
     // ================================================================
+    // ================================================================
+    // OF-CARD TOGGLE
+    // ================================================================
+    function toggleOfCard(bodyId, titleEl) {
+        var body = document.getElementById(bodyId);
+        if (!body) return;
+        var isOpen = body.style.display !== 'none';
+        body.style.display = isOpen ? 'none' : '';
+        // Rotate chevron
+        var chevron = titleEl.querySelector('.of-chevron');
+        if (chevron) chevron.style.transform = isOpen ? 'rotate(-90deg)' : '';
+    }
+
+    // ================================================================
     // SECCIONES COLAPSABLES
     // ================================================================
     function toggleSeccion(id, headerEl) {
@@ -1306,7 +1429,9 @@
         document.getElementById('codigoProductoBuscar').value = '';
         var lbl = document.getElementById('productoSeleccionadoLabel');
         lbl.classList.add('d-none'); lbl.textContent = '';
-        document.getElementById('historialPreciosPanel').classList.add('d-none');
+        document.getElementById('historialPreciosPanel').querySelector('#historialPreciosCuerpo').innerHTML =
+            '<p class="text-muted small mb-0">Sin ventas previas de este producto a este cliente.</p>';
+        document.getElementById('historialPreciosPanel').classList.remove('d-none');
     }
 
     function alSeleccionarProducto(producto) {
@@ -1352,7 +1477,7 @@
                     if (selectBox.options.length > 2) selectBox.remove(2);
 
                     $('#categoria_cliente_nombre').text(data.nombre_categoria);
-                    $('#cat_badge_text').text(data.nombre_categoria);
+                    if (data.nombre_categoria) { $('#cat_badge_text').text(data.nombre_categoria); $('#cat_cliente_badge').show(); }
                     $('#categoria_cliente_venta_id').data('categoria-cliente-id', data.idcategoriacliente);
 
                     if ($('#seleccionarProducto').val()) {
@@ -1368,7 +1493,7 @@
                     document.getElementById("rtn_ventas").value = data.rtn;
 
                     $('#categoria_cliente_nombre').text(data.nombre_categoria);
-                    $('#cat_badge_text').text(data.nombre_categoria);
+                    if (data.nombre_categoria) { $('#cat_badge_text').text(data.nombre_categoria); $('#cat_cliente_badge').show(); }
                     $('#categoria_cliente_venta_id').data('categoria-cliente-id', data.idcategoriacliente);
 
                     if ($('#seleccionarProducto').val()) {
@@ -1393,6 +1518,9 @@
 
                     cargarHistorialPrecios();
                 }
+            })
+            .then(() => {
+                window.dispatchEvent(new CustomEvent('cliente-datos-cargados'));
             })
             .catch(err => {
                 console.log(err);
@@ -1438,6 +1566,15 @@
                 });
                 document.getElementById('tipoPagoVenta').innerHTML = htmlPagos;
                 document.getElementById("numero_venta").value = numeroVenta;
+                // Auto-seleccionar "Contado" por defecto
+                let selPago = document.getElementById('tipoPagoVenta');
+                for (let i = 0; i < selPago.options.length; i++) {
+                    if (selPago.options[i].text.toLowerCase().includes('contado')) {
+                        selPago.selectedIndex = i;
+                        validarFechaPago();
+                        break;
+                    }
+                }
             })
             .catch(err => {
                 console.log(err);
@@ -1511,7 +1648,10 @@
         var panel = document.getElementById('historialPreciosPanel');
         var cuerpo = document.getElementById('historialPreciosCuerpo');
 
-        if (!productoId || !clienteId) { panel.classList.add('d-none'); return; }
+        if (!productoId || !clienteId) {
+            cuerpo.innerHTML = '<p class="text-muted small mb-0">Sin ventas previas de este producto a este cliente.</p>';
+            return;
+        }
 
         var urlHistorial = urls.historial_precios;
 
@@ -1563,19 +1703,25 @@
         axios.post('/producto/listar/imagenes', { id: id })
             .then(response => {
                 let imagenes = response.data.imagenes;
+                let detalleUrl = '/producto/detalle/' + id;
                 if (imagenes.length == 0) {
-                    document.getElementById('bloqueImagenes').innerHTML = '<div class="carousel-item active"><div style="height:180px;display:flex;align-items:center;justify-content:center;background:#f5f5f5;border-radius:8px;"><div style="text-align:center;color:#b0bec5;"><i class="fa fa-image" style="font-size:2.5rem;display:block;margin-bottom:8px;"></i><span style="font-size:13px;">Sin imagen</span></div></div></div>';
+                    document.getElementById('bloqueImagenes').innerHTML =
+                        '<div class="carousel-item active">' +
+                        '<a href="' + detalleUrl + '" target="_blank" title="Ver detalles del producto" style="display:block;">' +
+                        '<div style="height:200px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#f5f5f5;border-radius:8px;cursor:pointer;border:2px dashed #cfd8dc;">' +
+                        '<i class="fa fa-image" style="font-size:3rem;color:#b0bec5;margin-bottom:8px;"></i>' +
+                        '<span style="font-size:12px;color:#78909c;font-weight:600;">Sin imagen — clic para ver detalles</span>' +
+                        '</div></a></div>';
                 } else {
                     imagenes.forEach(element => {
                         let activeClass = element.contador == 1 ? ' active' : '';
-                        htmlImagenes += '<div class="carousel-item' + activeClass + '"><img class="d-block" src="' + public_path + '/' + element.url_img + '" alt="imagen ' + element.contador + '" style="width:100%;height:30rem"></div>';
+                        htmlImagenes += '<div class="carousel-item' + activeClass + '">' +
+                            '<a href="' + detalleUrl + '" target="_blank" title="Ver detalles del producto" style="display:block;">' +
+                            '<img class="d-block" src="' + public_path + '/' + element.url_img + '" alt="imagen ' + element.contador + '" style="width:100%;height:30rem;cursor:pointer;"></a></div>';
                     });
                     document.getElementById('bloqueImagenes').innerHTML = htmlImagenes;
                 }
                 document.getElementById('botonAdd').classList.add("d-none");
-                let a = document.getElementById("detalleProducto");
-                a.href = "/producto/detalle/" + id;
-                a.classList.remove("d-none");
             })
             .catch(err => { console.log(err); });
 
@@ -1923,8 +2069,6 @@
         document.getElementById("crear_venta").reset();
         $('#crear_venta').parsley().reset();
 
-        document.getElementById('detalleProducto').classList.add("d-none");
-        document.getElementById('detalleProducto').href = "";
         document.getElementById("seleccionarCliente").innerHTML = '<option value="" selected disabled>--Seleccionar un cliente--</option>';
         $('#seleccionarCliente').prop('disabled', false);
         document.getElementById('seleccionarProducto').innerHTML = '<option value="" selected disabled></option>';
@@ -2250,6 +2394,173 @@
                 }
             }));
         });
+    </script>
+    @endpush
+    @endif
+
+    @if(count($productosParaCarrito) > 0)
+    @push('scripts')
+    {{-- Auto-agregar productos al carrito al duplicar una oferta (cotizacionId en URL) --}}
+    <script>
+    (function () {
+        var _productosAutoAgregados = false;
+
+        function cargarProductosDesdeCotizacion() {
+            if (_productosAutoAgregados) return;
+            _productosAutoAgregados = true;
+
+            var productos = @json($productosParaCarrito);
+            if (!productos || productos.length === 0) return;
+
+            var chain = Promise.resolve();
+            productos.forEach(function (prod) {
+                chain = chain.then(function () {
+                    return agregarProductoDesdeOferta(prod);
+                });
+            });
+            chain.then(function () {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Productos cargados',
+                    text: productos.length + ' producto(s) cargado(s) desde la oferta duplicada.',
+                    timer: 2500,
+                    showConfirmButton: false,
+                    toast: true,
+                    position: 'top-end'
+                });
+            });
+        }
+
+        function agregarProductoDesdeOferta(prod) {
+            return new Promise(function (resolve) {
+                if (!prod.producto_id) { resolve(); return; }
+
+                var categoriaId = $('#categoria_cliente_venta_id').val()
+                    || $('#categoria_cliente_venta_id').data('categoria-cliente-id')
+                    || prod.precios_producto_carga_id
+                    || '';
+
+                axios.post(urls.datos_producto, {
+                    idProducto: prod.producto_id,
+                    categoria_cliente_venta_id: categoriaId
+                }).then(function (response) {
+                    var producto = response.data.producto;
+                    var arrayUnidades = response.data.unidades;
+                    numeroInputs += 1;
+                    var idx = numeroInputs;
+
+                    // Construir select de unidades – pre-seleccionar la del duplicado
+                    var htmlSelectUnidades = '';
+                    arrayUnidades.forEach(function (u) {
+                        var sel = (u.idUnidadVenta == prod.unidad_medida_venta_id) ? 'selected' : (u.valor_defecto == 1 && htmlSelectUnidades === '' ? 'selected' : '');
+                        htmlSelectUnidades += '<option ' + sel + ' value="' + u.id + '" data-id="' + u.idUnidadVenta + '">' + u.nombre + '</option>';
+                    });
+
+                    // Precios
+                    var htmlprecios = '';
+                    if (tipoFacturaConfig && tipoFacturaConfig.multiples_precios) {
+                        htmlprecios = '<option value="' + producto.precio1 + '" data-id="p1" selected>' + producto.precio1 + ' - A</option>';
+                        if (producto.precio2) htmlprecios += '<option value="' + producto.precio2 + '" data-id="p2">' + producto.precio2 + ' - B</option>';
+                        if (producto.precio3) htmlprecios += '<option value="' + producto.precio3 + '" data-id="p3">' + producto.precio3 + ' - C</option>';
+                        if (producto.precio4) htmlprecios += '<option value="' + producto.precio4 + '" data-id="p4">' + producto.precio4 + ' - D</option>';
+                    } else {
+                        htmlprecios = '<option value="' + producto.precio1 + '" data-id="p1" selected>' + producto.precio1 + ' - A</option>';
+                    }
+
+                    var minPrecio = (tipoFacturaConfig && tipoFacturaConfig.multiples_precios) ? '' : 'min="' + producto.precio1 + '"';
+                    var precioUsar = prod.precio_unidad || producto.precio1;
+                    var cantidadUsar = prod.cantidad || 1;
+                    var bodegaTexto = prod.nombre_bodega || '';
+                    var idBodega = prod['Bodega_id'] || '';
+                    var idSeccion = prod.seccion_id || '';
+
+                    var html = `
+                    <tr id='${idx}'>
+                        <td style="vertical-align:middle; text-align:center; padding:4px 6px;">
+                            <input id="idProducto${idx}" name="idProducto${idx}" type="hidden" value="${producto.id}">
+                            <input id="precios_producto_carga_id${idx}" name="precios_producto_carga_id${idx}" type="hidden" value="${producto.precios_producto_carga_id || ''}">
+                            <input id="isv${idx}" name="isv${idx}" type="hidden" value="${producto.isv}">
+                            <input id="idBodega${idx}" name="idBodega${idx}" type="hidden" value="${idBodega}">
+                            <input id="idSeccion${idx}" name="idSeccion${idx}" type="hidden" value="${idSeccion}">
+                            <input id="restaInventario${idx}" name="restaInventario${idx}" type="hidden" value="">
+                            <input id="subTotal${idx}" name="subTotal${idx}" type="hidden" value="" required>
+                            <input id="isvProducto${idx}" name="isvProducto${idx}" type="hidden" value="" required>
+                            <input id="acumuladoDescuento${idx}" name="acumuladoDescuento${idx}" type="hidden">
+                            <input id="total${idx}" name="total${idx}" type="hidden" value="" required>
+                            <input id="bodega${idx}" name="bodega${idx}" type="hidden" value="${bodegaTexto}">
+                            <button class="btn btn-danger btn-xs" type="button" onclick="eliminarInput(${idx})" title="Eliminar" style="padding:2px 6px; font-size:11px; border-radius:5px;">
+                                <i class="fa fa-times"></i>
+                            </button>
+                        </td>
+                        <td style="vertical-align:middle; padding:4px 6px;">
+                            <input type="text" id="nombre${idx}" name="nombre${idx}" value='${producto.nombre}' readonly data-parsley-required
+                                style="border:none; background:transparent; font-size:12px; font-weight:700; color:#1b5e20; width:100%; min-width:130px;">
+                        </td>
+                        <td style="vertical-align:middle; padding:4px 6px; white-space:nowrap;">
+                            <span style="background:#e3f2fd; color:#1565c0; border-radius:6px; padding:2px 8px; font-size:11px; font-weight:700;">
+                                <i class="fa fa-archive" style="font-size:10px;"></i> ${bodegaTexto}
+                            </span>
+                        </td>
+                        <td style="vertical-align:middle; padding:4px 6px;">
+                            <select class="form-control form-control-sm" name="precios${idx}" id="precios${idx}" data-parsley-required style="font-size:11px; min-width:100px;"
+                                onchange="validacionPrecio(precios${idx}, precio${idx})">
+                                ${htmlprecios}
+                            </select>
+                        </td>
+                        <td style="vertical-align:middle; padding:4px 6px;">
+                            <input type="number" id="precio${idx}" name="precio${idx}" value="${precioUsar}" class="form-control form-control-sm"
+                                ${minPrecio} data-parsley-required step="any" autocomplete="off" style="min-width:80px; font-size:11px;"
+                                onchange="calcularTotales(precio${idx},cantidad${idx},${producto.isv},unidad${idx},${idx},restaInventario${idx})">
+                        </td>
+                        <td style="vertical-align:middle; padding:4px 6px;">
+                            <input type="number" id="cantidad${idx}" name="cantidad${idx}" value="${cantidadUsar}" class="form-control form-control-sm" min="1" data-parsley-required autocomplete="off" style="min-width:60px; font-size:11px;"
+                                onchange="calcularTotales(precio${idx},cantidad${idx},${producto.isv},unidad${idx},${idx},restaInventario${idx})">
+                        </td>
+                        <td style="vertical-align:middle; padding:4px 6px;">
+                            <select class="form-control form-control-sm" name="unidad${idx}" id="unidad${idx}" data-parsley-required style="font-size:11px; min-width:80px;"
+                                onchange="calcularTotales(precio${idx},cantidad${idx},${producto.isv},unidad${idx},${idx},restaInventario${idx})">
+                                ${htmlSelectUnidades}
+                            </select>
+                        </td>
+                        <td style="vertical-align:middle; padding:4px 6px; text-align:right;">
+                            <input type="text" id="subTotalMostrar${idx}" name="subTotalMostrar${idx}" placeholder="0.00" readonly autocomplete="off"
+                                style="border:none; background:#f1f8e9; border-radius:5px; font-weight:700; color:#2e7d32; font-size:12px; padding:2px 6px; text-align:right; width:100%; min-width:75px;">
+                        </td>
+                        <td style="vertical-align:middle; padding:4px 6px; text-align:right;">
+                            <input type="text" id="isvProductoMostrar${idx}" name="isvProductoMostrar${idx}" placeholder="0.00" readonly autocomplete="off"
+                                style="border:none; background:#fce4ec; border-radius:5px; font-weight:700; color:#b71c1c; font-size:12px; padding:2px 6px; text-align:right; width:100%; min-width:65px;">
+                        </td>
+                        <td style="vertical-align:middle; padding:4px 6px; text-align:right;">
+                            <input type="text" id="totalMostrar${idx}" name="totalMostrar${idx}" placeholder="0.00" readonly autocomplete="off"
+                                style="border:none; background:linear-gradient(135deg,#e65100,#f9a826); border-radius:5px; font-weight:800; color:#fff; font-size:12px; padding:2px 6px; text-align:right; width:100%; min-width:80px;">
+                        </td>
+                    </tr>`;
+
+                    arregloIdInputs.splice(idx, 0, idx);
+                    document.getElementById('carritoTbody').insertAdjacentHTML('beforeend', html);
+                    document.getElementById('carritoVacio').classList.add('d-none');
+                    document.getElementById('carritoTablaWrapper').classList.remove('d-none');
+
+                    // Calcular totales para esta fila
+                    calcularTotales(
+                        document.getElementById('precio' + idx),
+                        document.getElementById('cantidad' + idx),
+                        producto.isv,
+                        document.getElementById('unidad' + idx),
+                        idx,
+                        document.getElementById('restaInventario' + idx)
+                    );
+                    resolve();
+                }).catch(function () { resolve(); });
+            });
+        }
+
+        // Disparar auto-carga cuando el cliente esté completamente cargado
+        window.addEventListener('cliente-datos-cargados', function onClienteListo() {
+            window.removeEventListener('cliente-datos-cargados', onClienteListo);
+            cargarProductosDesdeCotizacion();
+        });
+    })();
     </script>
     @endpush
     @endif
