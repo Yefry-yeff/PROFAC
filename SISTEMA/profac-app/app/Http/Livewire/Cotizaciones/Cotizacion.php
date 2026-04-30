@@ -245,9 +245,8 @@ class Cotizacion extends Component
             'numeroInputs' => 'required',
             'seleccionarCliente' => 'required',
             'nombre_cliente_ventas' => 'required',
-            'bodega' => 'required',
-            'seleccionarProducto' => 'required',
-
+            // bodega y seleccionarProducto son campos del buscador de productos,
+            // no son datos a guardar — los productos reales vienen en bodega{idx}, idProducto{idx}, etc.
 
 
         ]);

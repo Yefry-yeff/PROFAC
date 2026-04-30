@@ -802,6 +802,60 @@
                             </div>
 
                         </form>
+
+                        {{-- ===== PANEL POST-FACTURA (oculto hasta guardar) ===== --}}
+                        <div id="panel_post_factura" style="display:none; margin-top:24px;">
+                            <div style="background:linear-gradient(135deg,#e8f5e9,#f1f8e9); border:2px solid #a5d6a7; border-radius:16px; padding:24px 28px;">
+                                <div style="text-align:center; margin-bottom:20px;">
+                                    <div style="display:inline-flex; align-items:center; justify-content:center;
+                                                width:64px; height:64px; border-radius:50%;
+                                                background:linear-gradient(135deg,#1b5e20,#2e7d32);
+                                                box-shadow:0 6px 20px rgba(27,94,32,.35); margin-bottom:12px;">
+                                        <i class="fa fa-check" style="color:#fff; font-size:28px;"></i>
+                                    </div>
+                                    <h5 style="color:#1b5e20; font-weight:800; margin:0 0 4px;">Factura guardada exitosamente</h5>
+                                    <p id="pfactura_numero" style="color:#555; font-size:13px; margin:0;"></p>
+                                </div>
+                                <div style="display:flex; flex-wrap:wrap; gap:12px; justify-content:center;">
+                                    {{-- Imprimir factura --}}
+                                    <a id="btn_post_imprimir" href="#" target="_blank"
+                                       style="display:inline-flex; align-items:center; gap:8px;
+                                              background:linear-gradient(135deg,#1565c0,#1a7efb); color:#fff;
+                                              border:none; border-radius:12px; padding:12px 22px;
+                                              font-size:14px; font-weight:700; text-decoration:none;
+                                              box-shadow:0 4px 14px rgba(21,101,192,.35);">
+                                        <i class="fa fa-print fa-lg"></i> Imprimir Factura
+                                    </a>
+                                    {{-- Registrar Cobro --}}
+                                    <a id="btn_post_cobro" href="#"
+                                       style="display:inline-flex; align-items:center; gap:8px;
+                                              background:linear-gradient(135deg,#e65100,#f9a826); color:#fff;
+                                              border:none; border-radius:12px; padding:12px 22px;
+                                              font-size:14px; font-weight:700; text-decoration:none;
+                                              box-shadow:0 4px 14px rgba(230,81,0,.35);">
+                                        <i class="fa fa-dollar fa-lg"></i> Registrar Cobro
+                                    </a>
+                                    {{-- Registrar Entrega --}}
+                                    <a id="btn_post_entrega" href="/logistica/distribuciones"
+                                       style="display:inline-flex; align-items:center; gap:8px;
+                                              background:linear-gradient(135deg,#00695c,#00897b); color:#fff;
+                                              border:none; border-radius:12px; padding:12px 22px;
+                                              font-size:14px; font-weight:700; text-decoration:none;
+                                              box-shadow:0 4px 14px rgba(0,137,123,.35);">
+                                        <i class="fa fa-truck fa-lg"></i> Registrar Entrega
+                                    </a>
+                                    {{-- Nueva factura --}}
+                                    <button type="button" onclick="window.location.reload()"
+                                       style="display:inline-flex; align-items:center; gap:8px;
+                                              background:#f5f5f5; color:#555;
+                                              border:1px solid #ddd; border-radius:12px; padding:12px 22px;
+                                              font-size:14px; font-weight:700; cursor:pointer;">
+                                        <i class="fa fa-plus fa-lg"></i> Nueva Factura
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
             </div>
@@ -1010,7 +1064,7 @@
                                            cursor:pointer; text-align:center; box-shadow:0 3px 10px rgba(230,81,0,.25); transition:opacity .15s;"
                                     onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">
                                 <i class="fa fa-file-text-o d-block" style="font-size:20px; margin-bottom:4px;"></i>
-                                Prefacturar
+                                Oferta ganadora
                             </button>
 
                         </div>
@@ -2430,14 +2484,14 @@
 
         } else if (tipo === 'prefacturar') {
             var btn = document.getElementById('btnPrefacturarOferta');
-            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa fa-spinner fa-spin d-block" style="font-size:20px;margin-bottom:4px;"></i>Procesando…'; }
+            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa fa-spinner fa-spin d-block" style="font-size:20px;margin-bottom:4px;"></i>Procesando...'; }
 
             axios.post('/cotizacion/prefacturar-desde-oferta',
                 { cotizacion_id: idOferta, flujo_id: idFlujo || null },
                 { headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') } }
             ).then(function(res) {
                 var d = res.data;
-                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa fa-file-text-o d-block" style="font-size:20px;margin-bottom:4px;"></i>Prefacturar'; }
+                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa fa-file-text-o d-block" style="font-size:20px;margin-bottom:4px;"></i>Oferta ganadora'; }
                 _prefacturaId    = d.idPrefactura;
                 _prefacturaFlujoId = d.flujoId || idFlujo;
                 document.getElementById('msgPrefactura').textContent = 'Prefactura #' + d.idPrefactura + ' generada. Válida por ' + (d.diasValidez || 7) + ' día(s).';
@@ -2450,7 +2504,7 @@
                 });
                 $('#modalExitoOferta').modal('hide');
             }).catch(function(err) {
-                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa fa-file-text-o d-block" style="font-size:20px;margin-bottom:4px;"></i>Prefacturar'; }
+                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa fa-file-text-o d-block" style="font-size:20px;margin-bottom:4px;"></i>Oferta ganadora'; }
                 var d = err.response ? err.response.data : {};
                 if (d.stock_errors && d.stock_errors.length) {
                     var rows = d.stock_errors.map(function(e) {
@@ -2514,46 +2568,12 @@
                 return;
             }
             $('#modalPrefacturaExito').one('hidden.bs.modal', function() {
-                axios.get('/prefactura/' + prefId + '/tipos-facturacion').then(function(r) {
-                    var tipos = r.data.tipos || [];
-                    if (tipos.length === 0) {
-                        Swal.fire({ icon: 'warning', title: 'Sin opciones', text: 'No hay tipos de facturación disponibles para este cliente.' });
-                        return;
-                    }
-                    var html = '<div style="display:flex;flex-direction:column;gap:10px;margin-top:8px;">';
-                    tipos.forEach(function(t) {
-                        html += '<button type="button" class="btn-fact-tipo" data-id="' + t.id + '"'
-                              + ' style="background:#fff;border:1.5px solid #e0e3ee;border-radius:10px;'
-                              + ' padding:10px 16px;text-align:left;cursor:pointer;font-size:13px;'
-                              + ' font-weight:700;color:#2c3e50;display:flex;align-items:center;gap:10px;">'
-                              + '<i class="fa fa-file-text" style="color:#1a7efb;"></i>' + t.nombre + '</button>';
-                    });
-                    html += '</div>';
-                    Swal.fire({
-                        title: 'Seleccionar tipo de facturación',
-                        html: html,
-                        showConfirmButton: false,
-                        showCancelButton: true,
-                        cancelButtonText: 'Cancelar',
-                        didOpen: function() {
-                            document.querySelectorAll('.btn-fact-tipo').forEach(function(btn) {
-                                btn.addEventListener('click', function() {
-                                    var tipoId = this.getAttribute('data-id');
-                                    Swal.close();
-                                    axios.post('/prefactura/' + prefId + '/facturar',
-                                        { tipo_factura_id: tipoId },
-                                        { headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') } }
-                                    ).then(function(res) {
-                                        window.location.href = res.data.url;
-                                    }).catch(function(err) {
-                                        Swal.fire({ icon: 'error', title: 'Error', text: (err.response && err.response.data && err.response.data.error) ? err.response.data.error : 'Error al procesar.' });
-                                    });
-                                });
-                            });
-                        }
-                    });
-                }).catch(function() {
-                    Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo cargar los tipos de facturación.' });
+                axios.post('/prefactura/' + prefId + '/facturar', {}, {
+                    headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') }
+                }).then(function(res) {
+                    window.location.href = res.data.url;
+                }).catch(function(err) {
+                    Swal.fire({ icon: 'error', title: 'Error', text: (err.response && err.response.data && err.response.data.error) ? err.response.data.error : 'Error al procesar.' });
                 });
             });
             $('#modalPrefacturaExito').modal('hide');
@@ -2686,10 +2706,53 @@
                     return;
                 }
 
-                Swal.fire({ icon: data.icon, title: data.title, html: data.text });
-                limpiarFormularioVenta(data);
+                // ── Obtener flujo_id (desde URL param o campo oculto) ──────────
+                var urlParams   = new URLSearchParams(window.location.search);
+                var flujoIdUrl  = urlParams.get('flujoId');
+                var flujoIdEl   = document.getElementById('flujo_vinculado_id');
+                var flujoIdVal  = flujoIdUrl || (flujoIdEl ? flujoIdEl.value : '');
 
-                limpiarFormularioVenta(data);
+                // ── Si hay flujo vinculado: actualizar estado del flujo ────────
+                if (flujoIdVal && data.idFactura) {
+                    axios.post('/flujo/factura/confirmar', {
+                        flujo_id:       flujoIdVal,
+                        factura_id:     data.idFactura,
+                        tipo_factura_id: (tipoFacturaConfig ? tipoFacturaConfig.id : '')
+                    }).catch(function(err) {
+                        console.warn('No se pudo registrar el flujo de factura:', err);
+                    });
+                }
+
+                // ── Mostrar panel post-factura en lugar de Swal ───────────────
+                var panel = document.getElementById('panel_post_factura');
+                if (panel) {
+                    // Actualizar número de factura
+                    var numEl = document.getElementById('pfactura_numero');
+                    if (numEl) numEl.textContent = 'Factura #' + data.idFactura + ' registrada exitosamente.';
+
+                    // Botón imprimir
+                    var btnImprimir = document.getElementById('btn_post_imprimir');
+                    if (btnImprimir && urls.imprimir) {
+                        btnImprimir.href = urls.imprimir.replace('{id}', data.idFactura);
+                    }
+
+                    // Botón cobro
+                    var btnCobro = document.getElementById('btn_post_cobro');
+                    if (btnCobro) {
+                        btnCobro.href = '/venta/cobro/' + data.idFactura;
+                    }
+
+                    // Ocultar formulario y mostrar panel
+                    var form = document.getElementById('crear_venta');
+                    var btnVenta = document.getElementById('btn_venta_coorporativa');
+                    if (form) form.style.display = 'none';
+                    if (btnVenta) btnVenta.style.display = 'none';
+                    panel.style.display = 'block';
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                } else {
+                    Swal.fire({ icon: data.icon, title: data.title, html: data.text });
+                    limpiarFormularioVenta(data);
+                }
 
                 // Desactivar código si aplica
                 if (tipoFacturaConfig && tipoFacturaConfig.requiere_codigo_autorizacion) {

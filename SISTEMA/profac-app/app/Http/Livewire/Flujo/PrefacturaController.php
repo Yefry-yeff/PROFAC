@@ -505,20 +505,24 @@ class PrefacturaController
 
     // ─────────────────────────────────────────────────────────────────────
     // POST /prefactura/{id}/facturar
-    // Registers the prefactura → factura transition:
-    // inserts historico_flujo (tipo_tramite_id=3), updates flujo, returns billing URL.
+    // Registers the prefactura → factura transition and returns the same
+    // billing destination used by flujo (first active tipo_factura except cotizacion).
     // ─────────────────────────────────────────────────────────────────────
     public function registrarFacturacion(Request $request, int $id)
     {
-        $tipoFacturaId = (int) $request->tipo_factura_id;
-
         $prefactura = DB::table('prefactura')->where('id', $id)->where('estado', 'activo')->first();
         if (!$prefactura) {
             return response()->json(['error' => 'Prefactura no encontrada o inactiva.'], 404);
         }
-        $tipoFactura = DB::table('tipo_factura')->where('id', $tipoFacturaId)->where('estado', 1)->first();
+
+        $tipoFactura = DB::table('tipo_factura')
+            ->where('estado', 1)
+            ->where('codigo', '!=', 'cotizacion_clientes_a')
+            ->orderBy('orden')
+            ->first(['ruta_menu']);
+
         if (!$tipoFactura) {
-            return response()->json(['error' => 'Tipo de facturación no válido.'], 422);
+            return response()->json(['error' => 'No hay tipos de facturación disponibles.'], 422);
         }
 
         $flujoId = (int) ($prefactura->flujo_id ?? 0);
@@ -546,7 +550,9 @@ class PrefacturaController
 
             DB::commit();
 
-            $url = '/' . ltrim($tipoFactura->ruta_menu, '/') . '?prefactura_id=' . $id;
+            $url = '/' . ltrim($tipoFactura->ruta_menu, '/')
+                . '?from=prefactura&prefactura_id=' . $id
+                . ($flujoId ? '&flujoId=' . $flujoId : '');
             return response()->json(['url' => $url]);
 
         } catch (\Exception $e) {

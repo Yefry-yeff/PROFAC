@@ -418,6 +418,70 @@ class FacturacionCorporativa extends Component
         }
     }
 
+    /**
+     * Al guardar la factura: actualiza el flujo al trámite "factura"
+     * e inserta un registro en historico_flujo.
+     * Llamado por AJAX después de guardar exitosamente cualquier tipo de factura.
+     */
+    public function confirmarFacturaFlujo(Request $request)
+    {
+        $flujoId   = (int) $request->input('flujo_id');
+        $facturaId = (int) $request->input('factura_id');
+        $tipoFacturaId = (int) $request->input('tipo_factura_id', 0);
+
+        if (!$flujoId || !$facturaId) {
+            return response()->json(['ok' => false, 'message' => 'Datos incompletos.'], 422);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            $tramiteFacturaId = (int) DB::table('tipos_tramites')
+                ->whereRaw('LOWER(nombre) = ?', ['factura'])
+                ->value('id');
+
+            // Fallback de compatibilidad histórica
+            if (!$tramiteFacturaId) {
+                $tramiteFacturaId = 3;
+            }
+
+            // 1. Actualizar flujo a Factura
+            DB::table('flujo')->where('id', $flujoId)->update([
+                'tipo_tramite_id' => $tramiteFacturaId,
+                'updated_by'      => Auth::id(),
+                'updated_at'      => now(),
+            ]);
+
+            // 2. Insertar historico_flujo: confirmación de factura (sin duplicar)
+            $yaExiste = DB::table('historico_flujo')
+                ->where('flujo_id', $flujoId)
+                ->where('tipo_tramite_id', $tramiteFacturaId)
+                ->where('tramite_id', $facturaId)
+                ->where('estado_id', 1)
+                ->exists();
+
+            if (!$yaExiste) {
+                DB::table('historico_flujo')->insert([
+                    'flujo_id'        => $flujoId,
+                    'tipo_tramite_id' => $tramiteFacturaId,
+                    'tramite_id'      => $facturaId,
+                    'estado_id'       => 1,
+                    'observaciones'   => 'Factura #' . $facturaId . ' creada/confirmada',
+                    'created_by'      => Auth::id(),
+                    'updated_by'      => Auth::id(),
+                    'created_at'      => now(),
+                    'updated_at'      => now(),
+                ]);
+            }
+
+            DB::commit();
+            return response()->json(['ok' => true]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['ok' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
     public function guardarVenta(Request $request)
     {
 
