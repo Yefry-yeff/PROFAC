@@ -44,7 +44,7 @@ class FacturacionUnificada extends Component
         $from = request()->get('from');
         $this->fromFlujo = $from === 'flujo';
         $this->fromPrefactura = $from === 'prefactura';
-        $this->tiposFactura = TipoFactura::activos()->get();
+        $this->tiposFactura = TipoFactura::activos()->where('codigo', '!=', 'cotizacion_clientes_a')->get();
 
         if ($codigo) {
             $this->tipoFactura = TipoFactura::where('codigo', $codigo)->first();

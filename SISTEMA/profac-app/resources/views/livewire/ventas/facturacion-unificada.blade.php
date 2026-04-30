@@ -246,7 +246,7 @@
                                     class="btn btn-sm {{ $config && $config->id == $tipo->id ? 'btn-success active' : 'btn-outline-success' }}"
                                     onclick="cambiarTipoFacturaDesdeUrl('{{ $tipo->ruta_menu }}')"
                                     style="border-radius:8px; padding:8px 16px; font-weight:700; font-size:13px;">
-                                    <i class="fa fa-file-text mr-1"></i> {{ $tipo->nombre }}
+                                    <i class="mr-1 fa fa-file-text"></i> {{ $tipo->nombre }}
                                 </button>
                             @endforeach
                         </div>
@@ -1041,7 +1041,7 @@
                         <h4 style="font-weight:800; color:#004d40; margin-bottom:6px; font-size:18px;">¡Prefactura generada!</h4>
                         <p id="msgPrefactura" style="color:#546e7a; font-size:13px; margin-bottom:6px;"></p>
                         <p style="color:#90a4ae; font-size:11px; margin-bottom:24px; line-height:1.5;">
-                            <i class="fa fa-info-circle mr-1"></i>
+                            <i class="mr-1 fa fa-info-circle"></i>
                             La prefactura <strong>reserva el inventario</strong> por el período de validez configurado.
                             Una vez vencido, la prefactura pierde validez automáticamente.
                         </p>
