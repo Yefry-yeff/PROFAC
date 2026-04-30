@@ -423,6 +423,7 @@ class Pedido extends Component
                 'tipo_flujo_id'   => 1,
                 'identificacion'  => (string) $pedidoId,
                 'nombre'          => $this->clienteSeleccionado['nombre'],
+                'cliente_rtn'     => $this->clienteSeleccionado['rtn'] ?? null,
                 'tipo_tramite_id' => 1,
                 'created_by'      => Auth::id(),
                 'updated_by'      => Auth::id(),

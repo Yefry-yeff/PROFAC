@@ -290,6 +290,8 @@ class Cotizacion extends Component
             $cotizacion->porc_descuento = $request->porDescuento;
             $cotizacion->monto_descuento = $request->descuentoGeneral;
             $cotizacion->nota = $request->nota;
+            $cotizacion->estado_id  = 1;
+            $cotizacion->created_by = Auth::id();
             $cotizacion->save();
 
             // ── Registrar en historico_flujo / crear flujo según si hay pedido/flujo vinculado ──
@@ -338,6 +340,7 @@ class Cotizacion extends Component
                     'tipo_flujo_id'   => 1,
                     'identificacion'  => (string) $cotizacion->id,
                     'nombre'          => $cotizacion->nombre_cliente ?? ('Cotizacion #' . $cotizacion->id),
+                    'cliente_rtn'     => $request->rtn_ventas ?? null,
                     'tipo_tramite_id' => 2,
                     'estado_id'       => 1,
                     'created_by'      => Auth::id(),
@@ -443,6 +446,7 @@ class Cotizacion extends Component
             'title'     => 'Exito!',
             'idFactura' => $cotizacion->id,
             'pedidoId'  => $pedidoIdVinculado ?: null,
+            'flujoId'   => $flujoIdVinculado ?? $flujoIdDirecto ?? $flujoNuevo ?? null,
         ],200);
 
         } catch (QueryException $e) {
