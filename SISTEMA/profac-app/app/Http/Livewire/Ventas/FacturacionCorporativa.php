@@ -429,54 +429,103 @@ class FacturacionCorporativa extends Component
     }
 
     /**
-     * Al guardar la factura: avanza el flujo al trámite "Entrega Cobro"
-     * (tipo_tramite_id=5) e inserta un registro en historico_flujo.
+     * Al guardar la factura: avanza el flujo al trámite "Flujo conjunto" (tipo 7)
+     * e inserta DOS registros en historico_flujo:
+     *   – Registro 1 (Entrega):  tipo_tramite_id=5, tramite_id=NULL,             estado_id=5
+     *   – Registro 2 (Cobro):    tipo_tramite_id=6, tramite_id=aplicacion_pagos.id, estado_id=5
      * Llamado por AJAX después de guardar exitosamente cualquier tipo de factura.
      */
     public function confirmarFacturaFlujo(Request $request)
     {
         $flujoId   = (int) $request->input('flujo_id');
         $facturaId = (int) $request->input('factura_id');
-        $tipoFacturaId = (int) $request->input('tipo_factura_id', 0);
 
         if (!$flujoId || !$facturaId) {
             return response()->json(['ok' => false, 'message' => 'Datos incompletos.'], 422);
         }
 
+        // IDs según nuevo modelo de tipos de trámite:
+        //   3 = Factura (referencia documental)
+        //   5 = Entrega  |  6 = Cobro  |  7 = Flujo conjunto (Entrega + Cobro)
+        $TIPO_FACTURA         = 3;
+        $TIPO_ENTREGA         = 5;
+        $TIPO_COBRO           = 6;
+        $TIPO_FLUJO_CONJUNTO  = 7;
+        $ESTADO_ACTIVO        = 1;
+        $ESTADO_PENDIENTE     = 5;
+
         try {
             DB::beginTransaction();
 
-            $tramiteFacturaId = (int) DB::table('tipos_tramites')
-                ->whereRaw('LOWER(nombre) = ?', ['entrega cobro'])
-                ->value('id');
-
-            // Fallback: mantener compatibilidad con BD donde aún no esté el nombre.
-            if (!$tramiteFacturaId) {
-                $tramiteFacturaId = 5;
-            }
-
-            // 1. Actualizar flujo al estado Entregas y Cobros
+            // 1. Actualizar flujo al estado Flujo conjunto (Entrega + Cobro)
             DB::table('flujo')->where('id', $flujoId)->update([
-                'tipo_tramite_id' => $tramiteFacturaId,
+                'tipo_tramite_id' => $TIPO_FLUJO_CONJUNTO,
                 'updated_by'      => Auth::id(),
                 'updated_at'      => now(),
             ]);
 
-            // 2. Insertar historico_flujo para Entregas/Cobros (sin duplicar)
-            $yaExiste = DB::table('historico_flujo')
+            // 2. Registro de Factura (tipo 3) — referencia documental para consultas
+            $facturaExiste = DB::table('historico_flujo')
                 ->where('flujo_id', $flujoId)
-                ->where('tipo_tramite_id', $tramiteFacturaId)
+                ->where('tipo_tramite_id', $TIPO_FACTURA)
                 ->where('tramite_id', $facturaId)
-                ->where('estado_id', 1)
+                ->where('estado_id', '!=', 7)
                 ->exists();
 
-            if (!$yaExiste) {
+            if (!$facturaExiste) {
                 DB::table('historico_flujo')->insert([
                     'flujo_id'        => $flujoId,
-                    'tipo_tramite_id' => $tramiteFacturaId,
+                    'tipo_tramite_id' => $TIPO_FACTURA,
                     'tramite_id'      => $facturaId,
-                    'estado_id'       => 1,
+                    'estado_id'       => $ESTADO_ACTIVO,
                     'observaciones'   => 'Factura #' . $facturaId . ' confirmada. Paso actual: Entregas y Cobros',
+                    'created_by'      => Auth::id(),
+                    'updated_by'      => Auth::id(),
+                    'created_at'      => now(),
+                    'updated_at'      => now(),
+                ]);
+            }
+
+            // 3. Registro de Entrega (tramite_id = NULL, estado Pendiente)
+            $entregaExiste = DB::table('historico_flujo')
+                ->where('flujo_id', $flujoId)
+                ->where('tipo_tramite_id', $TIPO_ENTREGA)
+                ->whereNull('tramite_id')
+                ->where('estado_id', $ESTADO_PENDIENTE)
+                ->exists();
+
+            if (!$entregaExiste) {
+                DB::table('historico_flujo')->insert([
+                    'flujo_id'        => $flujoId,
+                    'tipo_tramite_id' => $TIPO_ENTREGA,
+                    'tramite_id'      => null,
+                    'estado_id'       => $ESTADO_PENDIENTE,
+                    'observaciones'   => 'Entrega pendiente — Factura #' . $facturaId,
+                    'created_by'      => Auth::id(),
+                    'updated_by'      => Auth::id(),
+                    'created_at'      => now(),
+                    'updated_at'      => now(),
+                ]);
+            }
+
+            // 4. Registro de Cobro (tramite_id = aplicacion_pagos.id para esta factura, estado Pendiente)
+            $aplicacionPagoId = DB::table('aplicacion_pagos')
+                ->where('factura_id', $facturaId)
+                ->value('id');
+
+            $cobroExiste = DB::table('historico_flujo')
+                ->where('flujo_id', $flujoId)
+                ->where('tipo_tramite_id', $TIPO_COBRO)
+                ->where('estado_id', $ESTADO_PENDIENTE)
+                ->exists();
+
+            if (!$cobroExiste) {
+                DB::table('historico_flujo')->insert([
+                    'flujo_id'        => $flujoId,
+                    'tipo_tramite_id' => $TIPO_COBRO,
+                    'tramite_id'      => $aplicacionPagoId ?: null,
+                    'estado_id'       => $ESTADO_PENDIENTE,
+                    'observaciones'   => 'Cobro pendiente — Factura #' . $facturaId,
                     'created_by'      => Auth::id(),
                     'updated_by'      => Auth::id(),
                     'created_at'      => now(),

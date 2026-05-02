@@ -1054,10 +1054,12 @@ class ModalFlujoPedido extends Component
             return;
         }
 
-        // Compatibilidad: en algunos ambientes la factura pudo quedar en tipo_tramite_id=5.
+        // Prioridad tipo_tramite_id=3 (factura); tipo 5 como compatibilidad con datos anteriores
+        // al nuevo modelo (donde tipo 5 = Entrega con tramite_id NULL).
         $hist = DB::table('historico_flujo')
             ->where('flujo_id', $this->flujoId)
             ->whereIn('tipo_tramite_id', [3, 5])
+            ->whereNotNull('tramite_id')
             ->where('estado_id', '!=', 7)
             ->orderByDesc('id')
             ->first();
@@ -1112,6 +1114,7 @@ class ModalFlujoPedido extends Component
         $hist = DB::table('historico_flujo')
             ->where('flujo_id', $this->flujoId)
             ->whereIn('tipo_tramite_id', [3, 5])
+            ->whereNotNull('tramite_id')
             ->where('estado_id', '!=', 7)
             ->orderByDesc('id')
             ->first(['tramite_id']);
@@ -1147,7 +1150,7 @@ class ModalFlujoPedido extends Component
 
         DB::beginTransaction();
         try {
-            // 1) Inactivar historico de factura
+            // 1) Inactivar registro de factura (tipo 3 / legacy tipo 5 con tramite_id)
             DB::table('historico_flujo')
                 ->where('flujo_id', $this->flujoId)
                 ->whereIn('tipo_tramite_id', [3, 5])
@@ -1155,6 +1158,17 @@ class ModalFlujoPedido extends Component
                 ->update([
                     'estado_id'     => 7,
                     'observaciones' => 'Anulada: Factura #' . $facturaId,
+                    'updated_at'    => now(),
+                ]);
+
+            // 1b) Inactivar registros de Entrega (tipo 5) y Cobro (tipo 6) del nuevo modelo
+            DB::table('historico_flujo')
+                ->where('flujo_id', $this->flujoId)
+                ->whereIn('tipo_tramite_id', [5, 6])
+                ->whereIn('estado_id', [1, 5])
+                ->update([
+                    'estado_id'     => 7,
+                    'observaciones' => 'Anulado por anulación de Factura #' . $facturaId,
                     'updated_at'    => now(),
                 ]);
 
