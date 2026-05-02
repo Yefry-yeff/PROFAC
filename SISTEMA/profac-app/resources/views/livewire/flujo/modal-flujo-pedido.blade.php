@@ -1241,6 +1241,13 @@
 
                     @if ($confirmAccionFactura === null)
                     <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:4px;">
+                        <a href="/crear/vale/{{ $fac['id'] }}" target="_blank"
+                           style="background:#eef2ff; color:#3730a3; border:1px solid #c7d2fe;
+                                  border-radius:8px; padding:6px 14px; font-size:12px; font-weight:700;
+                                  text-decoration:none; display:inline-flex; align-items:center; gap:5px;">
+                            <i class="fa fa-ticket"></i> Crear vale
+                        </a>
+
                         <a href="{{ $fac['print_url'] ?? ('/factura/cooporativo/' . $fac['id']) }}" target="_blank"
                            style="background:#f8f9fc; color:#1a7efb; border:1px solid #e8eaf0;
                                   border-radius:8px; padding:6px 14px; font-size:12px; font-weight:700;

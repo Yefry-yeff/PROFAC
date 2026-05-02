@@ -1204,6 +1204,15 @@
                                 <i class="fa fa-exchange d-block" style="font-size:20px; margin-bottom:4px;"></i>
                                 Entregas y cobros
                             </button>
+
+                            <button onclick="facturaAccion('vale')"
+                                    style="background:#eef2ff; color:#3730a3; border:1.5px solid #c7d2fe;
+                                           border-radius:10px; padding:11px 8px; font-size:12px; font-weight:700;
+                                           cursor:pointer; text-align:center; transition:background .15s;"
+                                    onmouseover="this.style.background='#e0e7ff'" onmouseout="this.style.background='#eef2ff'">
+                                <i class="fa fa-ticket d-block" style="font-size:20px; margin-bottom:4px; color:#4338ca;"></i>
+                                Crear vale
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -1409,6 +1418,9 @@
 
     {{-- Buscador de producto reutilizable --}}
     <x-buscador-producto id-modal="buscadorProductoUnificado" callback="alSeleccionarProducto" />
+
+    {{-- Modal global de flujo (escucha abrirFlujoPedido / abrirFlujoCotizacion) --}}
+    <livewire:flujo.modal-flujo-pedido />
 
     @push('scripts')
     <script>
@@ -2631,6 +2643,26 @@
         document.getElementById('tipo_factura_id').value = tipoFacturaConfig ? tipoFacturaConfig.id : '';
     }
 
+    function abrirModalFlujoDesdeContexto(pasoPreferido, pedidoId, flujoId) {
+        var pId = pedidoId || document.getElementById('pedido_vinculado_id')?.value || null;
+        var fId = flujoId  || document.getElementById('flujo_vinculado_id')?.value || null;
+
+        pId = pId ? parseInt(pId, 10) : null;
+        fId = fId ? parseInt(fId, 10) : null;
+
+        if (pId) {
+            Livewire.emit('abrirFlujoPedido', pId, pasoPreferido || 'pedido');
+            return;
+        }
+
+        if (fId) {
+            Livewire.emit('abrirFlujoCotizacion', fId);
+            return;
+        }
+
+        Swal.fire({ icon: 'info', title: 'Sin flujo', text: 'No se encontró flujo o pedido vinculado para mostrar.' });
+    }
+
     function ofertaAccion(tipo) {
         var idOferta  = _ofertaGuardadaId;
         var idPedido  = _ofertaPedidoId;
@@ -2643,16 +2675,7 @@
             return;
 
         } else if (tipo === 'flujo') {
-            $('#modalExitoOferta').one('hidden.bs.modal', function () {
-                if (idPedido) {
-                    Livewire.emit('abrirFlujoPedido', idPedido, 'ofertas');
-                } else if (idFlujo) {
-                    Livewire.emit('abrirFlujoCotizacion', idFlujo);
-                } else {
-                    window.location.href = '/flujo/prefactura';
-                }
-            });
-            $('#modalExitoOferta').modal('hide');
+            abrirModalFlujoDesdeContexto('ofertas', idPedido, idFlujo);
             return;
 
         } else if (tipo === 'ganadora') {
@@ -2791,28 +2814,13 @@
         }
 
         if (tipo === 'flujo') {
-            $('#modalExitoFactura').one('hidden.bs.modal', function () {
-                if (idFlujo) {
-                    axios.get('/flujo/' + idFlujo + '/pedido-id').then(function(r) {
-                        if (r.data.pedido_id) {
-                            Livewire.emit('abrirFlujoPedido', r.data.pedido_id, 'entrega');
-                        } else {
-                            Livewire.emit('abrirFlujoCotizacion', idFlujo);
-                        }
-                    }).catch(function() {
-                        Livewire.emit('abrirFlujoCotizacion', idFlujo);
-                    });
-                } else {
-                    window.location.href = '/flujo/prefactura';
-                }
-            });
-            $('#modalExitoFactura').modal('hide');
+            abrirModalFlujoDesdeContexto('entrega', null, idFlujo);
             return;
         }
 
         if (tipo === 'imprimir') {
-            if (idFactura && urls.imprimir) {
-                window.open(urls.imprimir.replace('{id}', idFactura), '_blank');
+            if (idFactura) {
+                window.open('/factura/cooporativo/' + idFactura, '_blank');
             }
             return;
         }
@@ -2820,6 +2828,13 @@
         if (tipo === 'cobro') {
             if (idFactura) {
                 window.location.href = '/venta/cobro/' + idFactura;
+            }
+            return;
+        }
+
+        if (tipo === 'vale') {
+            if (idFactura) {
+                window.location.href = '/crear/vale/' + idFactura;
             }
         }
     }
@@ -2831,22 +2846,7 @@
             }
         } else if (tipo === 'flujo') {
             var flujoId = _prefacturaFlujoId;
-            $('#modalPrefacturaExito').one('hidden.bs.modal', function () {
-                if (flujoId) {
-                    axios.get('/flujo/' + flujoId + '/pedido-id').then(function(r) {
-                        if (r.data.pedido_id) {
-                            Livewire.emit('abrirFlujoPedido', r.data.pedido_id, 'prefactura');
-                        } else {
-                            Livewire.emit('abrirFlujoCotizacion', flujoId);
-                        }
-                    }).catch(function() {
-                        window.location.href = '/flujo/prefactura';
-                    });
-                } else {
-                    window.location.href = '/flujo/prefactura';
-                }
-            });
-            $('#modalPrefacturaExito').modal('hide');
+            abrirModalFlujoDesdeContexto('prefactura', null, flujoId);
         } else if (tipo === 'facturar') {
             var prefId = _prefacturaId;
             if (!prefId) {
