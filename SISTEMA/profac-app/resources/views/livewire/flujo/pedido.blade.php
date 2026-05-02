@@ -162,6 +162,12 @@
                  data-backdrop="static" data-keyboard="false">
                 <div class="modal-dialog modal-dialog-centered" role="document" style="max-width:420px;">
                     <div class="modal-content" style="border-radius:20px; overflow:hidden; border:none; box-shadow:0 20px 60px rgba(0,0,0,.18); position:relative;">
+                        <button type="button"
+                                wire:click="cerrarModalPedidoGuardado"
+                                aria-label="Cerrar"
+                                style="position:absolute; top:10px; right:10px; width:34px; height:34px; border-radius:50%; border:1px solid #d1d5db; background:#fff; color:#6b7280; z-index:2; cursor:pointer;">
+                            <i class="fa fa-times"></i>
+                        </button>
                         <div class="modal-body" style="padding:36px 32px 28px; text-align:center;">
 
                             <div style="width:90px; height:90px; border-radius:50%;
@@ -185,14 +191,16 @@
                                     Nuevo pedido
                                 </button>
 
-                                <a href="{{ route('flujo.ventas') }}"
-                                   style="background:#eff6ff; color:#1e40af; border:1.5px solid #bfdbfe;
-                                          border-radius:10px; padding:11px 8px; font-size:12px; font-weight:700;
-                                          cursor:pointer; text-align:center; transition:background .15s; text-decoration:none;"
-                                   onmouseover="this.style.background='#dbeafe'" onmouseout="this.style.background='#eff6ff'">
+                                    <button type="button"
+                                              data-pedido-id="{{ $pedidoGuardadoId }}"
+                                              onclick="abrirFlujoPedidoDesdeExito(this.dataset.pedidoId)"
+                                    style="background:#eff6ff; color:#1e40af; border:1.5px solid #bfdbfe;
+                                        border-radius:10px; padding:11px 8px; font-size:12px; font-weight:700;
+                                        cursor:pointer; text-align:center; transition:background .15s; text-decoration:none;"
+                                    onmouseover="this.style.background='#dbeafe'" onmouseout="this.style.background='#eff6ff'">
                                     <i class="fa fa-sitemap d-block" style="font-size:20px; margin-bottom:4px; color:#2563eb;"></i>
                                     Ver flujo
-                                </a>
+                                    </button>
 
                                 <button type="button" onclick="window.open('/flujo/pedido/imprimir/{{ $pedidoGuardadoId }}', '_blank')"
                                         style="background:#fafafa; color:#374151; border:1.5px solid #e5e7eb;
@@ -723,8 +731,21 @@
 
     </div>{{-- /wrapper-content --}}
 
+    {{-- Modal global de flujo (escucha abrirFlujoPedido / abrirFlujoCotizacion) --}}
+    <livewire:flujo.modal-flujo-pedido />
+
     {{-- ===== SCROLL TO TOP ON SAVE ===== --}}
     <script>
+        function abrirFlujoPedidoDesdeExito(pedidoId) {
+            var pId = pedidoId ? parseInt(pedidoId, 10) : null;
+            if (!pId) {
+                Swal.fire({ icon: 'info', title: 'Sin pedido', text: 'No se encontró el pedido para abrir el flujo.' });
+                return;
+            }
+
+            Livewire.emit('abrirFlujoPedido', pId, 'pedido');
+        }
+
         window.addEventListener('scroll-top', function() {
             window.scrollTo({ top: 0, behavior: 'smooth' });
         });

@@ -470,6 +470,14 @@ class Pedido extends Component
         $this->limpiarExcel();
     }
 
+    // ── Cerrar modal de éxito sin reiniciar formulario ───────────────────
+    public function cerrarModalPedidoGuardado()
+    {
+        $this->pedidoGuardadoId = null;
+        $this->mensajeExito     = '';
+        $this->mensajeError     = '';
+    }
+
     // ── Render ─────────────────────────────────────────────────────────────
     public function render()
     {

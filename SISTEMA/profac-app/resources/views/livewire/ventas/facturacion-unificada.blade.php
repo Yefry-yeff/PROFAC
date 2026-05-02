@@ -2270,6 +2270,7 @@
                 // Mostrar tabla, ocultar mensaje vacío
                 document.getElementById('carritoVacio').classList.add('d-none');
                 document.getElementById('carritoTablaWrapper').classList.remove('d-none');
+                actualizarContadorCarrito();
             })
             .catch(err => {
                 const mensaje = err.response?.data?.message || 'Error al agregar producto';
@@ -2366,12 +2367,38 @@
         }
 
         idPrecio.value = valorInputPrecio;
+        actualizarContadorCarrito();
     }
 
     function formatoMoneda(valor) {
         return new Intl.NumberFormat('es-HN', {
             style: 'currency', currency: 'HNL', minimumFractionDigits: 2
         }).format(valor);
+    }
+
+    function actualizarContadorCarrito() {
+        var badge = document.getElementById('cart-count-badge');
+        if (!badge) return;
+
+        var totalCantidad = 0;
+        for (var i = 0; i < arregloIdInputs.length; i++) {
+            var id = arregloIdInputs[i];
+            var inputCantidad = document.getElementById('cantidad' + id);
+            var cantidad = inputCantidad ? parseFloat(inputCantidad.value) : NaN;
+
+            // Si la cantidad aun no fue digitada, contar al menos 1 por fila.
+            if (!isNaN(cantidad) && cantidad > 0) {
+                totalCantidad += cantidad;
+            } else {
+                totalCantidad += 1;
+            }
+        }
+
+        var cantidadTexto = Number.isInteger(totalCantidad)
+            ? totalCantidad.toString()
+            : totalCantidad.toFixed(2);
+
+        badge.textContent = cantidadTexto + ' producto(s)';
     }
 
     function totalesGenerales() {
@@ -2422,6 +2449,7 @@
             document.getElementById('carritoTablaWrapper').classList.add('d-none');
             document.getElementById('carritoVacio').classList.remove('d-none');
         }
+        actualizarContadorCarrito();
     }
 
     function validacionPrecio(idPrecios, idprecio) {
@@ -2535,7 +2563,7 @@
 
         var btn = document.getElementById('btnGuardarNuevaOrden');
         btn.disabled = true;
-        btn.innerHTML = '<i class="fa fa-spinner fa-spin mr-1"></i> Guardando...';
+        btn.innerHTML = '<i class="mr-1 fa fa-spinner fa-spin"></i> Guardando...';
 
         var data = new FormData();
         data.append('cliente', idCliente);
@@ -2633,6 +2661,7 @@
 
         arregloIdInputs = [];
         numeroInputs = 0;
+        actualizarContadorCarrito();
         retencionEstado = false;
 
         if (data && data.numeroVenta) document.getElementById('numero_venta').value = data.numeroVenta;
@@ -3202,6 +3231,7 @@
                 document.getElementById('carritoVacio').classList.add('d-none');
                 document.getElementById('carritoTablaWrapper').classList.remove('d-none');
                 totalesGenerales();
+                actualizarContadorCarrito();
                 resolve();
             });
         }
@@ -3315,6 +3345,7 @@
                     document.getElementById('carritoTbody').insertAdjacentHTML('beforeend', html);
                     document.getElementById('carritoVacio').classList.add('d-none');
                     document.getElementById('carritoTablaWrapper').classList.remove('d-none');
+                    actualizarContadorCarrito();
 
                     // Calcular totales para esta fila
                     calcularTotales(
