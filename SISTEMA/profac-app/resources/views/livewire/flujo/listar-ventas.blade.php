@@ -1,1134 +1,269 @@
 <div>
-    {{-- ===== ENCABEZADO ===== --}}
-    <div class="row wrapper border-bottom white-bg page-heading">
-        <div class="col-lg-12">
-            <h2><i class="fa fa-list-alt text-primary"></i> Histórico de Ventas</h2>
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item">
-                    <a href="{{ route('dashboard') }}">Inicio</a>
-                </li>
-                <li class="breadcrumb-item">Flujo</li>
-                <li class="breadcrumb-item active"><strong>Histórico de Ventas</strong></li>
-            </ol>
-        </div>
+    <style>
+        .ofp-th {
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 10px 12px;
+            border-bottom: 2px solid !important;
+            transition: background .15s;
+            background: #fff3e0;
+            color: #e65100;
+            border-color: #ffcc80 !important;
+        }
+        .ofp-th:hover { background: #ffe0b2; }
+        .ofp-th.static { cursor: default; }
+        .ofp-th.static:hover { background: #fff3e0; }
+        .ofp-th .sort-icon { margin-left: 4px; opacity: .4; font-size: 11px; }
+        .ofp-th .sort-icon.active { opacity: 1; color: #e65100; }
+        .hist-badge {
+            display: inline-block;
+            border-radius: 20px;
+            padding: 3px 10px;
+            font-size: 11px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+        .estado-pedido { background:#e8f5e9; color:#2e7d32; }
+        .estado-ofertas { background:#fff3e0; color:#e65100; }
+        .estado-prefactura { background:#e0f7fa; color:#006064; }
+        .estado-factura { background:#e8f5e9; color:#1b5e20; }
+        .estado-entrega-cobro { background:#ede7f6; color:#4527a0; }
+        .estado-sin-flujo { background:#f5f5f5; color:#78909c; }
+        .estado-cancelado { background:#fce4ec; color:#b71c1c; }
+        .ofp-row { transition: background .1s; }
+        .ofp-row:hover > td { background: #fff8ee !important; cursor: pointer; }
+    </style>
+
+    <div class="ibox" style="background:#fff; border-radius:14px; overflow:hidden; box-shadow:0 8px 26px rgba(0,0,0,.08);">
+    <div class="ibox-title d-flex align-items-center justify-content-between"
+         style="background:linear-gradient(135deg,#ef6c00 0%,#f9a825 100%); color:#fff; padding:12px 20px; border:none;">
+        <h5 class="m-0" style="color:#fff; font-weight:800;">
+            <i class="fa fa-history mr-2"></i> Historial
+        </h5>
+        <a href="{{ route('flujo.ventas') }}"
+           class="btn btn-sm"
+           style="border:1px solid rgba(255,255,255,.8); color:#fff; border-radius:8px; font-weight:700; padding:6px 14px;">
+            <i class="fa fa-arrow-left mr-1"></i> Volver
+        </a>
     </div>
 
-    <div class="wrapper wrapper-content animated fadeInRight">
+    <div class="ibox-content" style="padding:22px; background:#fff;">
 
-        {{-- ===== ALERTAS ===== --}}
-        @if ($mensajeExito)
-            <div class="alert alert-success alert-dismissible">
-                <button type="button" class="close" wire:click="$set('mensajeExito', '')"><span>&times;</span></button>
-                <i class="fa fa-check-circle"></i> <strong>¡Éxito!</strong> {{ $mensajeExito }}
-            </div>
-        @endif
-        @if ($mensajeError)
-            <div class="alert alert-danger alert-dismissible">
-                <button type="button" class="close" wire:click="$set('mensajeError', '')"><span>&times;</span></button>
-                <i class="fa fa-exclamation-triangle"></i> {{ $mensajeError }}
-            </div>
-        @endif
-
-        <div class="row">
-            <div class="col-lg-12">
-                <div class="ibox">
-                    {{-- ── Encabezado del ibox ── --}}
-                    <div class="ibox-title d-flex align-items-center justify-content-between"
-                         style="background:linear-gradient(135deg,#f39c12 0%,#e67e22 100%);
-                                color:#fff; border-radius:4px 4px 0 0; padding:12px 20px;">
-                        <h5 class="m-0" style="color:#fff;">
-                            <i class="fa fa-list-alt"></i> &nbsp;Histórico de Ventas
-                        </h5>
-                        <a href="{{ route('flujo.ventas') }}"
-                           style="background:#fff; color:#e67e22; border:none; border-radius:8px;
-                                  padding:7px 18px; font-size:13px; font-weight:700;
-                                  display:inline-flex; align-items:center; gap:6px; text-decoration:none;
-                                  box-shadow:0 2px 8px rgba(0,0,0,.15); transition:transform .15s, box-shadow .15s;"
-                           onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 14px rgba(0,0,0,.2)';"
-                           onmouseout="this.style.transform='';this.style.boxShadow='0 2px 8px rgba(0,0,0,.15)';"
-                        >
-                            <i class="fa fa-arrow-left"></i> Volver
-                        </a>
-                    </div>
-
-                    <div class="ibox-content" style="padding:24px;">
-
-                        {{-- ===== FILTROS ===== --}}
-                        <div class="row mb-4" style="align-items:flex-end;">
-
-                            {{-- Búsqueda de cliente --}}
-                            <div class="col-lg-3 col-md-4 mb-2">
-                                <label class="font-weight-bold" style="font-size:12px; color:#555;">
-                                    <i class="fa fa-search text-primary"></i> &nbsp;Buscar por cliente
-                                </label>
-                                <div class="input-group shadow-sm">
-                                    <div class="input-group-prepend">
-                                        <span class="input-group-text bg-white border-right-0">
-                                            <i class="fa fa-user text-muted"></i>
-                                        </span>
-                                    </div>
-                                    <input
-                                        type="text"
-                                        wire:model.debounce.300ms="busquedaCliente"
-                                        class="form-control border-left-0"
-                                        placeholder="Nombre o RTN del cliente..."
-                                        style="border-radius:0 8px 8px 0;"
-                                    >
-                                </div>
-                            </div>
-
-                            {{-- Filtro por nº documento --}}
-                            <div class="col-lg-2 col-md-3 mb-2">
-                                <label class="font-weight-bold" style="font-size:12px; color:#555;">
-                                    <i class="fa fa-hashtag text-primary"></i> &nbsp;Nº Documento
-                                </label>
-                                <input
-                                    type="number"
-                                    wire:model.debounce.300ms="filtroNumero"
-                                    class="form-control shadow-sm"
-                                    placeholder="Ej: 1025"
-                                    min="1"
-                                    style="border-radius:8px;"
-                                >
-                            </div>
-
-                            {{-- Filtro estado (usa nombres de tipos_estatus) --}}
-                            <div class="col-lg-2 col-md-3 mb-2">
-                                <label class="font-weight-bold" style="font-size:12px; color:#555;">
-                                    <i class="fa fa-filter text-primary"></i> &nbsp;Estado flujo
-                                </label>
-                                <select wire:model="filtroEstado" class="form-control shadow-sm"
-                                        style="border-radius:8px;">
-                                    <option value="">Todos</option>
-                                    <option value="pedido">Pedido</option>
-                                    <option value="Ofertas">Ofertas</option>
-                                    <option value="prefactura">Pre Factura</option>
-                                    <option value="factura">Factura</option>
-                                    <option value="Entrega Cobro">Entrega / Cobro</option>
-                                    <option value="sin_flujo">Sin flujo registrado</option>
-                                </select>
-                            </div>
-
-                            {{-- Filtro fecha --}}
-                            <div class="col-lg-2 col-md-3 mb-2">
-                                <label class="font-weight-bold" style="font-size:12px; color:#555;">
-                                    <i class="fa fa-calendar text-primary"></i> &nbsp;Fecha exacta
-                                </label>
-                                <input
-                                    type="date"
-                                    wire:model="filtroFecha"
-                                    class="form-control shadow-sm"
-                                    style="border-radius:8px;"
-                                >
-                            </div>
-
-                            {{-- Botón limpiar --}}
-                            <div class="col-lg-2 col-md-3 mb-2">
-                                <label class="font-weight-bold" style="font-size:12px; color:#555;">&nbsp;</label>
-                                <button
-                                    type="button"
-                                    wire:click="limpiarFiltros"
-                                    class="btn btn-default btn-block shadow-sm"
-                                    style="border-radius:8px; width:100%;"
-                                    title="Limpiar filtros"
-                                >
-                                    <i class="fa fa-times-circle text-muted"></i> &nbsp;Limpiar
-                                </button>
-                            </div>
-                        </div>
-
-                        {{-- Contador de resultados --}}
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <small class="text-muted">
-                                <i class="fa fa-info-circle"></i>
-                                {{ $totalPedidos }} registro(s) encontrado(s)
-                                @if(!$esAdmin)
-                                    &nbsp;<span class="label label-warning" style="font-size:10px; vertical-align:middle;"><i class="fa fa-user"></i> Solo tus registros</span>
-                                @endif
-                            </small>
-                            <small class="text-muted">
-                                Página {{ $pagina }} de {{ $totalPaginas ?: 1 }}
-                            </small>
-                        </div>
-
-                        {{-- ===== TABLA ===== --}}
-                        <div class="table-responsive">
-                            <table class="table table-hover table-striped" style="font-size:14px;">
-                                <thead>
-                                    <tr style="background:#f5f7fb;">
-                                        <th style="width:50px;">#</th>
-                                        <th>Cliente</th>
-                                        <th style="width:75px; text-align:center;">Prods.</th>
-                                        <th style="width:120px; text-align:center;">Estado Flujo</th>
-                                        @if($esAdmin)
-                                        <th>Registrado</th>
-                                        @endif
-                                        <th style="width:160px;">Fechas</th>
-                                        <th style="width:90px; text-align:center;">Detalle</th>
-                                        <th style="width:175px; text-align:center;">Acciones</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @forelse ($pedidos as $pedido)
-                                        <tr>
-                                            {{-- ID --}}
-                                            <td class="font-weight-bold text-primary">
-                                                #{{ $pedido->id }}
-                                            </td>
-
-                                            {{-- Cliente --}}
-                                            <td>
-                                                <span class="font-weight-bold">{{ $pedido->cliente }}</span>
-                                                @if ($pedido->rtn)
-                                                    <br><small class="text-muted">RTN: {{ $pedido->rtn }}</small>
-                                                @endif
-                                            </td>
-
-                                            {{-- Cantidad de productos --}}
-                                            <td class="text-center">
-                                                <span class="badge badge-info"
-                                                      style="font-size:12px; padding:4px 8px; border-radius:12px;">
-                                                    {{ $pedido->total_productos }}
-                                                </span>
-                                            </td>
-
-                                            {{-- Estado Flujo --}}
-                                            <td class="text-center">
-                                                @php
-                                                    // Priorizar el estatus del sistema de flujo si existe
-                                                    $flujoEstatus = $pedido->estatus_flujo ?? null;
-                                                    $flujoEstado  = $pedido->estado_flujo ?? null;
-                                                    $canceladoFlujo = ($flujoEstado === 'cancelado' || $pedido->estado === 'cancelado');
-
-                                                    if ($canceladoFlujo) {
-                                                        $eLabel = 'Cancelado'; $eIcon = 'fa-ban'; $eBg = '#e74c3c';
-                                                    } elseif ($flujoEstatus === 'Entrega Cobro' || $pedido->estado === 'facturado') {
-                                                        $eLabel = 'Entrega / Cobro'; $eIcon = 'fa-money'; $eBg = '#6c5ce7';
-                                                    } elseif ($flujoEstatus === 'factura') {
-                                                        $eLabel = 'Factura'; $eIcon = 'fa-file-text'; $eBg = '#1ab394';
-                                                    } elseif ($flujoEstatus === 'prefactura' || $flujoEstado === 'pre_factura' || $pedido->has_ganadora > 0 || $pedido->estado === 'pre_factura') {
-                                                        $eLabel = 'Pre Factura'; $eIcon = 'fa-file-o'; $eBg = '#00b894';
-                                                    } elseif ($flujoEstatus === 'Ofertas' || $pedido->has_ofertas > 0) {
-                                                        $eLabel = 'Ofertas (' . $pedido->has_ofertas . ')'; $eIcon = 'fa-tag'; $eBg = '#f39c12';
-                                                    } elseif ($flujoEstatus === 'pedido' || $pedido->flujo_id) {
-                                                        $eLabel = 'Pedido'; $eIcon = 'fa-shopping-cart'; $eBg = '#1ab394';
-                                                    } else {
-                                                        $eLabel = 'Sin flujo'; $eIcon = 'fa-question-circle'; $eBg = '#aaa';
-                                                    }
-                                                @endphp
-                                                <span style="display:inline-block; background:{{ $eBg }};
-                                                             color:#fff; border-radius:20px; font-size:11px;
-                                                             font-weight:700; padding:3px 10px; white-space:nowrap;">
-                                                    <i class="fa {{ $eIcon }}"></i> {{ $eLabel }}
-                                                </span>
-                                            </td>
-
-                                            {{-- Registrado por (solo visible para admin) --}}
-                                            @if($esAdmin)
-                                            <td>
-                                                <i class="fa fa-user-circle text-muted"></i>
-                                                &nbsp;{{ $pedido->registrado_por }}
-                                            </td>
-                                            @endif
-
-                                            {{-- Fechas creación y última actualización --}}
-                                            <td style="font-size:12px; white-space:nowrap;">
-                                                <div title="Fecha de creación">
-                                                    <i class="fa fa-calendar-plus-o text-success" style="width:14px;"></i>
-                                                    {{ \Carbon\Carbon::parse($pedido->created_at)->format('d/m/Y H:i') }}
-                                                </div>
-                                                @if($pedido->pedido_updated_at && $pedido->pedido_updated_at !== $pedido->created_at)
-                                                <div class="text-muted" style="margin-top:3px;" title="Última actualización">
-                                                    <i class="fa fa-refresh text-warning" style="width:14px;"></i>
-                                                    {{ \Carbon\Carbon::parse($pedido->pedido_updated_at)->format('d/m/Y H:i') }}
-                                                </div>
-                                                @endif
-                                            </td>
-
-                                            {{-- Flujo --}}
-                                            <td class="text-center">
-                                                <button
-                                                    type="button"
-                                                    wire:click="verFlujo({{ $pedido->id }})"
-                                                    class="btn btn-xs"
-                                                    title="Ver flujo del pedido"
-                                                    style="background:linear-gradient(135deg,#6c5ce7,#a855f7); color:#fff;
-                                                           border:none; border-radius:8px; padding:4px 10px;
-                                                           font-size:11px; font-weight:600; white-space:nowrap;
-                                                           box-shadow:0 2px 8px rgba(108,92,231,.3);"
-                                                >
-                                                    <i class="fa fa-map-o"></i> Flujo
-                                                </button>
-                                            </td>
-
-                                            {{-- Acciones --}}
-                                            <td class="text-center">
-                                                <div class="btn-group">
-                                                    {{-- Imprimir --}}
-                                                    <a href="/flujo/pedido/imprimir/{{ $pedido->id }}"
-                                                       target="_blank"
-                                                       class="btn btn-xs btn-default"
-                                                       title="Imprimir pedido"
-                                                       style="border-radius:6px 0 0 6px;">
-                                                        <i class="fa fa-print text-info"></i>
-                                                    </a>
-                                                    {{-- Exportar Excel --}}
-                                                    <a href="/flujo/pedido/exportar/{{ $pedido->id }}"
-                                                       class="btn btn-xs btn-default"
-                                                       title="Exportar Excel">
-                                                        <i class="fa fa-file-excel-o text-success"></i>
-                                                    </a>
-                                                    {{-- Editar --}}
-                                                    @if ($pedido->has_ganadora > 0 || $pedido->estado === 'pre_factura' || $pedido->estado === 'cotizado')
-                                                        <button type="button" class="btn btn-xs btn-warning" disabled
-                                                                title="No se puede editar: ya existe una oferta ganadora"
-                                                                style="color:#fff; opacity:.45; cursor:not-allowed;">
-                                                            <i class="fa fa-lock"></i>
-                                                        </button>
-                                                    @else
-                                                        <button type="button"
-                                                           onclick="abrirModalPedido('/flujo/pedido/editar/{{ $pedido->id }}?embed=1','Editar Pedido #{{ $pedido->id }}')"
-                                                           class="btn btn-xs btn-warning"
-                                                           title="Editar pedido"
-                                                           style="color:#fff;">
-                                                            <i class="fa fa-pencil"></i>
-
-                                                        </button>
-                                                    @endif
-                                                    {{-- Crear Oferta --}}
-                                                    @if ($pedido->estado !== 'cancelado' && $pedido->estado !== 'cotizado' && $pedido->estado !== 'pre_factura')
-                                                        <button type="button"
-                                                           onclick="abrirModalPedido('/flujo/oferta/crear/{{ $pedido->id }}?embed=1','Crear Oferta — Pedido #{{ $pedido->id }}')"
-                                                           class="btn btn-xs btn-primary"
-                                                           title="Crear oferta para este pedido"
-                                                           style="color:#fff;">
-                                                            <i class="fa fa-tag"></i>
-                                                        </button>
-                                                    @else
-                                                        <button type="button" class="btn btn-xs btn-default"
-                                                                disabled style="cursor:not-allowed;opacity:.45;"
-                                                                title="{{ $pedido->estado === 'cotizado' ? 'Ya existe una oferta ganadora' : ($pedido->estado === 'pre_factura' ? 'Ya existe una oferta ganadora' : 'Pedido cancelado') }}">
-                                                            <i class="fa fa-tag text-muted"></i>
-                                                        </button>
-                                                    @endif
-                                                    {{-- Cancelar (solo si no está cancelado) --}}
-                                                    @if ($pedido->estado !== 'cancelado')
-                                                        <button
-                                                            type="button"
-                                                            wire:click="confirmarAnular({{ $pedido->id }})"
-                                                            class="btn btn-xs btn-default"
-                                                            title="Cancelar pedido"
-                                                            style="border-radius:0 {{ $esAdmin ? '0' : '6px' }} {{ $esAdmin ? '0' : '6px' }} 0;">
-                                                            <i class="fa fa-ban text-danger"></i>
-                                                        </button>
-                                                    @else
-                                                        <span class="btn btn-xs btn-default disabled"
-                                                              style="border-radius:0 {{ $esAdmin ? '0' : '6px' }} {{ $esAdmin ? '0' : '6px' }} 0; opacity:.35;">
-                                                            <i class="fa fa-ban text-danger"></i>
-                                                        </span>
-                                                    @endif
-                                                    {{-- Reasignar (solo admin) --}}
-                                                    @if($esAdmin)
-                                                        <button
-                                                            type="button"
-                                                            wire:click="abrirReasignar({{ $pedido->id }})"
-                                                            class="btn btn-xs btn-info"
-                                                            title="Redistribuir / Reasignar a otro usuario"
-                                                            style="border-radius:0 6px 6px 0; color:#fff;">
-                                                            <i class="fa fa-exchange"></i>
-                                                        </button>
-                                                    @endif
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    @empty
-                                        <tr>
-                                            <td colspan="{{ $esAdmin ? 8 : 7 }}" class="text-center py-4 text-muted">
-                                                <i class="fa fa-inbox fa-2x d-block mb-2"></i>
-                                                No se encontraron registros con los filtros aplicados.
-                                            </td>
-                                        </tr>
-                                    @endforelse
-                                </tbody>
-                            </table>
-                        </div>
-
-                        {{-- ===== PAGINACIÓN ===== --}}
-                        @if ($totalPaginas > 1)
-                            <div class="d-flex justify-content-center mt-3">
-                                <nav>
-                                    <ul class="pagination pagination-sm">
-                                        <li class="page-item {{ $pagina <= 1 ? 'disabled' : '' }}">
-                                            <button
-                                                class="page-link"
-                                                wire:click="paginaAnterior"
-                                                {{ $pagina <= 1 ? 'disabled' : '' }}
-                                            >&laquo;</button>
-                                        </li>
-
-                                        @for ($p = max(1, $pagina - 2); $p <= min($totalPaginas, $pagina + 2); $p++)
-                                            <li class="page-item {{ $p == $pagina ? 'active' : '' }}">
-                                                <button class="page-link" wire:click="irPagina({{ $p }})">
-                                                    {{ $p }}
-                                                </button>
-                                            </li>
-                                        @endfor
-
-                                        <li class="page-item {{ $pagina >= $totalPaginas ? 'disabled' : '' }}">
-                                            <button
-                                                class="page-link"
-                                                wire:click="paginaSiguiente"
-                                                {{ $pagina >= $totalPaginas ? 'disabled' : '' }}
-                                            >&raquo;</button>
-                                        </li>
-                                    </ul>
-                                </nav>
-                            </div>
-                        @endif
-
-                    </div>{{-- /ibox-content --}}
-                </div>{{-- /ibox --}}
-            </div>
-        </div>
-
-    </div>{{-- /wrapper-content --}}
-
-    {{-- ===== MODAL DE CONFIRMACIÓN: ANULAR ===== --}}
-    {{-- Global modal animation + centering (applies to all Livewire modals on this page) --}}
-    <style>
-        @keyframes lw-modal-pop {
-            from { opacity:0; transform:scale(.88) translateY(24px); }
-            to   { opacity:1; transform:scale(1)   translateY(0); }
-        }
-        .lw-modal-backdrop {
-            display:flex !important;
-            align-items:center;
-            justify-content:center;
-            position:fixed; inset:0;
-        }
-        .lw-modal-backdrop > .modal-dialog {
-            margin:0 !important;
-            width:95vw;
-        }
-        .lw-modal-backdrop .modal-content {
-            animation: lw-modal-pop .28s cubic-bezier(.34,1.56,.64,1) both;
-        }
-    </style>
-    @if ($showModalAnular)
-    <div style="position:fixed; inset:0; display:grid; place-items:center;
-                background:rgba(0,0,0,.55); z-index:1050;"
-         tabindex="-1" role="dialog">
-        <div style="width:min(420px,92vw);" role="document">
-            <div class="modal-content" style="border-radius:12px; border:none; box-shadow:0 10px 40px rgba(0,0,0,.25);">
-                <div class="modal-header" style="background:linear-gradient(135deg,#f39c12 0%,#e67e22 100%); border:none;">
-                    <h5 class="modal-title text-white m-0">
-                        <i class="fa fa-ban"></i> &nbsp;Cancelar Pedido
-                    </h5>
-                    <button type="button" class="close text-white" wire:click="cancelarAnular" style="opacity:1;">
-                        <span>&times;</span>
-                    </button>
-                </div>
-                <div class="modal-body p-4 text-center">
-                    <i class="fa fa-exclamation-triangle fa-2x text-warning mb-2"></i>
-                    <p class="mb-0">
-                        ¿Está seguro que desea cancelar el pedido <strong>#{{ $pedidoAnularId }}</strong>?
-                        <br><small class="text-muted">Esta acción no puede deshacerse.</small>
-                    </p>
-                </div>
-                <div class="modal-footer" style="border:none; justify-content:center;">
-                    <button type="button" wire:click="cancelarAnular" class="btn btn-default">
-                        <i class="fa fa-times"></i> No, volver
-                    </button>
-                    <button type="button" wire:click="anularPedido" class="btn btn-danger">
-                        <i class="fa fa-ban"></i> &nbsp;Sí, Cancelar pedido
-                    </button>
-                </div>
-            </div>
-        </div>
+    @if($mensajeExito)
+    <div class="alert alert-success alert-dismissible d-flex align-items-center" role="alert" style="font-size:13px; border-radius:10px;">
+        <i class="fa fa-check-circle mr-2"></i> {{ $mensajeExito }}
+        <button type="button" class="close ml-auto" wire:click="$set('mensajeExito','')"><span>&times;</span></button>
+    </div>
+    @endif
+    @if($mensajeError)
+    <div class="alert alert-danger alert-dismissible d-flex align-items-center" role="alert" style="font-size:13px; border-radius:10px;">
+        <i class="fa fa-exclamation-circle mr-2"></i> {{ $mensajeError }}
+        <button type="button" class="close ml-auto" wire:click="$set('mensajeError','')"><span>&times;</span></button>
     </div>
     @endif
 
-    {{-- ===== MODAL DE FLUJO DEL PEDIDO ===== --}}
-    @if ($showModalFlujo && $pedidoFlujoData)
-    <style>
-        @@keyframes flujoIn {
-            from { opacity:0; transform:scale(.94) translateY(-24px); }
-            to   { opacity:1; transform:scale(1)  translateY(0);      }
-        }
-        .flujo-dlg  { max-width:900px; width:100%; animation:flujoIn .32s cubic-bezier(.34,1.28,.64,1) both; }
-        .flujo-cnt  { border-radius:18px !important; overflow:hidden !important; }
-        .flujo-hdr  { padding:16px 28px !important; }
-        .flujo-hdr h5 { font-size:17px !important; }
-        .flujo-hdr small { font-size:12px !important; }
-        .flujo-body { padding:20px 28px 24px !important; overflow-y:auto; max-height:calc(90vh - 140px); }
-        .flujo-foot { padding:12px 28px 20px !important; display:flex !important; flex-wrap:wrap !important; gap:8px !important; justify-content:flex-end !important; }
-        .flujo-pipeline { scrollbar-width:thin; scrollbar-color:#e0e3ee transparent; }
-        .flujo-pipeline::-webkit-scrollbar { height:4px; }
-        .flujo-pipeline::-webkit-scrollbar-thumb { background:#d0d4e4; border-radius:4px; }
-        .flujo-offers-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
-        .flujo-offers-wrap table { min-width:480px; }
-        .flujo-info-grid { display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:#666; }
-    </style>
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <h5 class="m-0" style="font-weight:800; color:#37474f;">
+            <i class="fa fa-list-alt mr-2" style="color:#e65100;"></i> Historico de Ventas
+        </h5>
+        <button wire:click="limpiarFiltros"
+                class="btn btn-sm btn-warning font-weight-bold"
+                style="border-radius:8px; font-size:12px;">
+            <i class="fa fa-eraser mr-1"></i> Limpiar Filtros
+        </button>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-md-4 mb-2">
+            <div class="input-group">
+                <div class="input-group-prepend">
+                    <span class="input-group-text"
+                          style="background:#e65100; color:#fff; border-color:#e65100; border-radius:8px 0 0 8px;">
+                        <i class="fa fa-search"></i>
+                    </span>
+                </div>
+                <input type="text"
+                       wire:model.debounce.300ms="busquedaOfr"
+                       class="form-control"
+                       placeholder="Buscar cliente, RTN, # flujo o # documento..."
+                       style="border-radius:0 8px 8px 0;">
+            </div>
+        </div>
+        <div class="col-md-2 mb-2">
+            <input type="number"
+                   wire:model.debounce.300ms="filtroNumero"
+                   class="form-control"
+                   min="1"
+                   placeholder="# Documento"
+                   style="border-radius:8px;">
+        </div>
+        <div class="col-md-3 mb-2">
+            <select wire:model="filtroEstado" class="form-control" style="border-radius:8px;">
+                <option value="">Todos los estados</option>
+                <option value="pedido">Pedido</option>
+                <option value="Ofertas">Ofertas</option>
+                <option value="prefactura">Pre Factura</option>
+                <option value="factura">Factura</option>
+                <option value="Entrega Cobro">Entrega / Cobro</option>
+                <option value="sin_flujo">Sin flujo</option>
+            </select>
+        </div>
+        <div class="col-md-3 mb-2">
+            <input type="date"
+                   wire:model="filtroFecha"
+                   class="form-control"
+                   style="border-radius:8px;">
+        </div>
+    </div>
+
     @php
-        $fEstado         = $pedidoFlujoData['estado'] ?? 'pedido';
-        $fEstadoEntrega  = $pedidoFlujoData['sub_estado_entrega'] ?? 'sin_entrega';
-        $fCancelado      = ($fEstado === 'cancelado');
-        $fOfertas        = $pedidoFlujoData['ofertas'] ?? [];
-        $tieneOfertas    = count($fOfertas) > 0;
-        $tieneGanadora   = collect($fOfertas)->contains(fn($o) => ((array)$o)['estado'] === 'ganadora');
-        $yaGanadoraExists = $tieneGanadora;
+        $ofrTotal    = count($registros);
+        $ofrLastPage = max(1, (int) ceil($ofrTotal / $perPage));
+        $ofrStart    = ($paginaOfr - 1) * $perPage;
+        $ofrSlice    = array_slice($registros, $ofrStart, $perPage);
 
-        // Tramo compartido (pasos 1-4): estado del pipeline principal
-        $fPaso = match(true) {
-            $fCancelado                                                              => 0,
-            $fEstado === 'facturado'                                                 => 4,
-            $fEstado === 'cotizado' || $fEstado === 'pre_factura' || $tieneGanadora => 3,
-            $tieneOfertas                                                            => 2,
-            default                                                                  => 1,
-        };
-
-        // Pasos comunes (antes del fork)
-        $fPasosComunes = [
-            1 => ['icon' => 'fa-shopping-cart', 'title' => 'Pedido',      'color' => '#1a7efb'],
-            2 => ['icon' => 'fa-tag',           'title' => 'Ofertas',     'color' => '#f39c12'],
-            3 => ['icon' => 'fa-file-o',        'title' => 'Pre Factura', 'color' => '#00b894'],
-            4 => ['icon' => 'fa-file-text',     'title' => 'Factura',     'color' => '#1ab394'],
+        $estadoMap = [
+            'pedido'        => ['#e8f5e9', '#2e7d32', 'Pedido',          'fa-shopping-cart'],
+            'Ofertas'       => ['#fff3e0', '#e65100', 'Ofertas',         'fa-tag'],
+            'prefactura'    => ['#e0f7fa', '#006064', 'Pre-factura',     'fa-file-o'],
+            'factura'       => ['#e8f5e9', '#1b5e20', 'Factura',         'fa-file-text'],
+            'Entrega Cobro' => ['#ede7f6', '#4527a0', 'Entrega / Cobro', 'fa-truck'],
+            'sin_flujo'     => ['#f5f5f5', '#78909c', 'Sin flujo',       'fa-question-circle'],
+            'cancelado'     => ['#fce4ec', '#b71c1c', 'Cancelado',       'fa-ban'],
         ];
-
-        // Estado del fork (sólo visible cuando el pedido está facturado)
-        $fFacturado  = ($fEstado === 'facturado');
-        $fEnCamino   = in_array($fEstadoEntrega, ['en_camino', 'entregado']);
-        $fEntregado  = ($fEstadoEntrega === 'entregado');
     @endphp
-    <div id="flujoModalWrap" tabindex="-1" role="dialog"
-         style="position:fixed; inset:0; z-index:1060;
-                display:flex; align-items:center; justify-content:center; padding:20px;
-                background:rgba(15,15,35,.58); backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px);">
-        <div class="flujo-dlg" role="document">
-            <div class="modal-content flujo-cnt" style="border:none; overflow:hidden;
-                        box-shadow:0 20px 60px rgba(0,0,0,.35);">
 
-                {{-- Header --}}
-                <div class="modal-header flujo-hdr" style="background:linear-gradient(135deg,#f39c12 0%,#e67e22 100%);
-                            border:none; padding:9px 18px;">
-                    <div style="display:flex; align-items:center; gap:6px 14px; flex-wrap:wrap; min-width:0;">
-                        <h5 class="modal-title m-0" style="color:#fff; font-size:15px; font-weight:700; white-space:nowrap;">
-                            <i class="fa fa-map-o mr-2"></i>Flujo del Pedido
-                            <span style="background:rgba(255,255,255,.2); border-radius:20px;
-                                         padding:2px 10px; font-size:13px; margin-left:5px;">
-                                #{{ $pedidoFlujoData['id'] }}
-                            </span>
-                        </h5>
-                        <div style="color:rgba(255,255,255,.85); font-size:11px; display:flex; flex-wrap:wrap; gap:0 8px; align-items:center;">
-                            <span><i class="fa fa-user mr-1"></i>{{ $pedidoFlujoData['cliente'] }}</span>
-                            <span style="opacity:.4;">|</span>
-                            <span><i class="fa fa-user-circle-o mr-1"></i>Por: {{ $pedidoFlujoData['registrado_por'] }}</span>
-                            <span style="opacity:.4;">|</span>
-                            <span><i class="fa fa-calendar mr-1"></i>{{ \Carbon\Carbon::parse($pedidoFlujoData['created_at'])->format('d/m/Y H:i') }}</span>
-                        </div>
-                    </div>
-                    <button type="button" wire:click="cerrarFlujo"
-                            class="close" style="color:#fff; opacity:1; font-size:22px;">
-                        <span>&times;</span>
-                    </button>
-                </div>
+    <div class="d-flex flex-wrap align-items-end mb-2" style="gap:10px;">
+        <small style="color:#78909c; line-height:28px;">
+            <i class="fa fa-list mr-1"></i> {{ $ofrTotal }} registro(s)
+        </small>
+        @if(!$esAdmin)
+            <small style="color:#78909c; line-height:28px;">
+                <i class="fa fa-user mr-1"></i> Solo tus registros
+            </small>
+        @endif
+    </div>
 
-                <div class="modal-body flujo-body" style="background:#f8f9fc;">
+    @if($ofrTotal === 0)
+    <div class="text-center py-5">
+        <i class="fa fa-inbox fa-3x mb-3 d-block" style="color:#ffe0b2;"></i>
+        <p style="color:#78909c; font-size:14px;">No hay registros para mostrar.</p>
+    </div>
+    @else
+    <div class="table-responsive">
+        <table class="table table-bordered mb-0" style="font-size:13px; border-color:#dee2e6;">
+            <thead>
+                <tr>
+                    <th class="ofp-th" wire:click="sortByOfr('flujo_id')" style="width:80px; text-align:center;">
+                        # Flujo
+                        <i class="fa {{ $sortColOfr==='flujo_id' ? ($sortDirOfr==='asc' ? 'fa-sort-asc' : 'fa-sort-desc') : 'fa-sort' }} sort-icon {{ $sortColOfr==='flujo_id' ? 'active' : '' }}"></i>
+                    </th>
+                    <th class="ofp-th" wire:click="sortByOfr('documento_id')" style="width:95px; text-align:center;">
+                        # Documento
+                        <i class="fa {{ $sortColOfr==='documento_id' ? ($sortDirOfr==='asc' ? 'fa-sort-asc' : 'fa-sort-desc') : 'fa-sort' }} sort-icon {{ $sortColOfr==='documento_id' ? 'active' : '' }}"></i>
+                    </th>
+                    <th class="ofp-th" wire:click="sortByOfr('cliente')">
+                        Cliente
+                        <i class="fa {{ $sortColOfr==='cliente' ? ($sortDirOfr==='asc' ? 'fa-sort-asc' : 'fa-sort-desc') : 'fa-sort' }} sort-icon {{ $sortColOfr==='cliente' ? 'active' : '' }}"></i>
+                    </th>
+                    <th class="ofp-th static" style="width:140px;">RTN</th>
+                    <th class="ofp-th" wire:click="sortByOfr('estado_flujo')" style="width:145px; text-align:center;">
+                        Estado
+                        <i class="fa {{ $sortColOfr==='estado_flujo' ? ($sortDirOfr==='asc' ? 'fa-sort-asc' : 'fa-sort-desc') : 'fa-sort' }} sort-icon {{ $sortColOfr==='estado_flujo' ? 'active' : '' }}"></i>
+                    </th>
+                    <th class="ofp-th" wire:click="sortByOfr('total_ofertas')" style="width:85px; text-align:center;">
+                        Ofertas
+                        <i class="fa {{ $sortColOfr==='total_ofertas' ? ($sortDirOfr==='asc' ? 'fa-sort-asc' : 'fa-sort-desc') : 'fa-sort' }} sort-icon {{ $sortColOfr==='total_ofertas' ? 'active' : '' }}"></i>
+                    </th>
+                    <th class="ofp-th" wire:click="sortByOfr('created_at')" style="width:100px; text-align:center;">
+                        Fecha
+                        <i class="fa {{ $sortColOfr==='created_at' ? ($sortDirOfr==='asc' ? 'fa-sort-asc' : 'fa-sort-desc') : 'fa-sort' }} sort-icon {{ $sortColOfr==='created_at' ? 'active' : '' }}"></i>
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($ofrSlice as $ofr)
+                @php
+                    $o  = (array) $ofr;
+                    $ef = $o['estado_flujo'] ?? 'sin_flujo';
+                    $ec = $estadoMap[$ef] ?? ['#f5f5f5', '#78909c', ucfirst($ef), 'fa-circle'];
+                    $estadoClass = match($ef) {
+                        'pedido' => 'estado-pedido',
+                        'Ofertas' => 'estado-ofertas',
+                        'prefactura' => 'estado-prefactura',
+                        'factura' => 'estado-factura',
+                        'Entrega Cobro' => 'estado-entrega-cobro',
+                        'cancelado' => 'estado-cancelado',
+                        default => 'estado-sin-flujo',
+                    };
+                    $rowClick = !empty($o['pedido_id'])
+                        ? 'abrirModalPedido('.$o['pedido_id'].')'
+                        : 'abrirModalCotizacion('.$o['flujo_id'].')';
+                @endphp
+                <tr class="ofp-row" wire:click="{{ $rowClick }}" title="Ver flujo #{{ $o['flujo_id'] }}">
+                    <td class="text-center align-middle" style="padding:8px;">
+                        <span style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff; border-radius:6px; padding:2px 9px; font-weight:800; font-size:13px;">
+                            #{{ $o['flujo_id'] }}
+                        </span>
+                        <div style="font-size:10px; color:#b0bec5; margin-top:2px;">Hist #{{ $o['historico_id'] }}</div>
+                    </td>
+                    <td class="text-center align-middle" style="padding:8px; color:#5d4037; font-weight:700;">
+                        {{ $o['documento_id'] ?? '—' }}
+                    </td>
+                    <td class="align-middle" style="padding:8px 12px;">
+                        <div style="font-weight:700; color:#2c3e50; line-height:1.3;">{{ $o['cliente'] }}</div>
+                    </td>
+                    <td class="align-middle" style="color:#546e7a; padding:8px 12px; font-size:12px;">
+                        {{ $o['rtn'] ?: '—' }}
+                    </td>
+                    <td class="text-center align-middle" style="padding:8px 6px;">
+                        <span class="hist-badge {{ $estadoClass }}">
+                            <i class="fa {{ $ec[3] }} mr-1"></i>{{ $ec[2] }}
+                        </span>
+                        @if(($o['tiene_ganadora'] ?? 0) > 0)
+                        <span class="hist-badge ml-1" style="background:#fff8e1; color:#f57f17; border:1px solid #ffe08233;">
+                            <i class="fa fa-trophy mr-1"></i>Ganadora
+                        </span>
+                        @endif
+                    </td>
+                    <td class="text-center align-middle" style="padding:8px 6px;">
+                        <span class="hist-badge" style="background:#fff3e0; color:#e65100;">
+                            <i class="fa fa-tag mr-1"></i>{{ $o['total_ofertas'] ?? 0 }}
+                        </span>
+                    </td>
+                    <td class="text-center align-middle" style="color:#78909c; font-size:12px; padding:8px 6px; white-space:nowrap;">
+                        {{ \Carbon\Carbon::parse($o['created_at'])->format('d/m/Y') }}
+                        <div style="font-size:10px; color:#b0bec5;">{{ \Carbon\Carbon::parse($o['created_at'])->format('H:i') }}</div>
+                    </td>
+                </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </div>
 
-                    @if ($fCancelado)
-                    {{-- Estado cancelado: banner rojo --}}
-                    <div style="text-align:center; padding:20px 0 10px;">
-                        <div style="display:inline-block; background:linear-gradient(135deg,#e74c3c,#c0392b);
-                                    border-radius:50%; width:80px; height:80px; line-height:80px;
-                                    font-size:36px; color:#fff; margin-bottom:16px;
-                                    box-shadow:0 8px 24px rgba(231,76,60,.45);
-                                    animation:cancelShake .5s ease;">
-                            <i class="fa fa-ban"></i>
-                        </div>
-                        <h4 style="color:#e74c3c; font-weight:700; margin:0 0 6px;">Pedido Cancelado</h4>
-                        <p class="text-muted" style="font-size:13px; margin:0;">Este pedido fue cancelado y no continuará en el flujo.</p>
-                    </div>
-                    @else
-                    {{-- ── Pipeline de estados ── --}}
-                    @php
-                        $p1done = $fPaso >= 2; $p1act = $fPaso === 1;
-                        $p2done = $fPaso >= 3; $p2act = $fPaso === 2;
-                        $p3done = $fPaso >= 4; $p3act = $fPaso === 3;
-                        $p4done = $fFacturado;  $p4act = false;
-                        $p5done = false;        $p5act = false;
-                        $camCompleto = $fFacturado && $fEntregado;
-                        $camActivo   = $fFacturado && $fEnCamino && !$fEntregado;
-                        $entCompleto = $fFacturado && $fEntregado;
-                        $nodeBox = function(bool $done, bool $act, string $color) {
-                            if ($done) return "background:linear-gradient(135deg,#27ae60,#1ab394);color:#fff;box-shadow:0 4px 18px rgba(26,179,148,.35);border-color:transparent;";
-                            if ($act)  return "background:linear-gradient(135deg,#1a7efb 0%,#00b4d8 100%);color:#fff;border-color:transparent;box-shadow:0 0 0 4px rgba(26,126,251,.22), 0 4px 22px rgba(26,126,251,.55);";
-                            return "background:#f4f6fc;color:#c8ccd8;border-color:#e2e6f0;";
-                        };
-                        $lColor = function(bool $done, bool $act, string $color) {
-                            if ($done) return '#27ae60'; if ($act) return $color; return '#b0b8cc';
-                        };
-                        $cFill = function(bool $f) { return $f ? '#27ae60' : '#dde3ef'; };
-                        $nodeIcon = function(bool $done, bool $act) {
-                            return (!$done && $act) ? 'font-size:18px; color:#fff;' : 'font-size:15px;';
-                        };
-                    @endphp
-
-                    <div class="flujo-pipeline" style="padding:14px 0 2px; width:100%;">
-                    <div style="display:grid;
-                                grid-template-columns: 1fr 30px 1fr 30px 1fr 30px 1fr 30px 1fr;
-                                grid-template-rows: auto 22px auto;
-                                width:100%; gap:0;">
-
-                        {{-- ── ROW 1: spacer 1-6 | En camino (7) → (8) → Entregado (9) ── --}}
-                        <div style="grid-column:1/7; grid-row:1;"></div>
-
-                        <div style="grid-column:7; grid-row:1; display:flex; flex-direction:column; align-items:center; animation:stepIn .4s cubic-bezier(.34,1.56,.64,1) 400ms both;">
-                            <div style="width:90px; height:46px; border-radius:8px; border:1.5px solid;
-                                        display:flex; align-items:center; justify-content:center;
-                                        {{ $nodeBox($camCompleto, $camActivo, '#e67e22') }}">
-                                <i class="fa {{ $camCompleto ? 'fa-check' : 'fa-truck' }}" style="{{ $nodeIcon($camCompleto, $camActivo) }}"></i>
-                                @if(!$camCompleto && $camActivo)<i class="fa fa-circle-o-notch fa-spin" style="font-size:9px; margin-left:5px; opacity:.85;"></i>@endif
-                            </div>
-                            <div style="margin-top:4px; font-size:10px; font-weight:600; letter-spacing:.2px; color:{{ $lColor($camCompleto, $camActivo, '#e67e22') }}; text-align:center;">En camino</div>
-                        </div>
-
-                        <div style="grid-column:8; grid-row:1; display:flex; align-items:flex-start; padding-top:23px;">
-                            <div style="position:relative; width:100%; height:2px; border-radius:2px; background:{{ $cFill($camCompleto) }};">
-                                <div style="position:absolute; right:-4px; top:50%; transform:translateY(-50%); width:0; height:0;
-                                            border-top:4px solid transparent; border-bottom:4px solid transparent;
-                                            border-left:6px solid {{ $cFill($camCompleto) }};"></div>
-                            </div>
-                        </div>
-
-                        <div style="grid-column:9; grid-row:1; display:flex; flex-direction:column; align-items:center; animation:stepIn .4s cubic-bezier(.34,1.56,.64,1) 480ms both;">
-                            <div style="width:90px; height:46px; border-radius:8px; border:1.5px solid;
-                                        display:flex; align-items:center; justify-content:center;
-                                        {{ $nodeBox($entCompleto, false, '#00b894') }}">
-                                <i class="fa {{ $entCompleto ? 'fa-check' : 'fa-check-square-o' }}" style="{{ $nodeIcon($entCompleto, false) }}"></i>
-                            </div>
-                            <div style="margin-top:4px; font-size:10px; font-weight:600; letter-spacing:.2px; color:{{ $lColor($entCompleto, false, '#00b894') }}; text-align:center;">Entregado</div>
-                        </div>
-
-                        {{-- ── ROW 2: vertical fork (col 7, above Facturado) ── --}}
-                        <div style="grid-column:1/7; grid-row:2;"></div>
-                        <div style="grid-column:7; grid-row:2; display:flex; justify-content:center; align-items:stretch;">
-                            <div style="width:2px; border-radius:2px; background:{{ $cFill($fFacturado) }};"></div>
-                        </div>
-                        <div style="grid-column:8/10; grid-row:2;"></div>
-
-                        {{-- ── ROW 3: Pedido → Ofertas → Pre Factura → Facturado → Cobro ── --}}
-                        <div style="grid-column:1; grid-row:3; display:flex; flex-direction:column; align-items:center; animation:stepIn .4s cubic-bezier(.34,1.56,.64,1) 0ms both;">
-                            <div style="width:90px; height:46px; border-radius:8px; border:1.5px solid;
-                                        display:flex; align-items:center; justify-content:center;
-                                        {{ $nodeBox($p1done, $p1act, '#1a7efb') }}">
-                                <i class="fa {{ $p1done ? 'fa-check' : 'fa-shopping-cart' }}" style="{{ $nodeIcon($p1done, $p1act) }}"></i>
-                                @if(!$p1done && $p1act)<i class="fa fa-circle-o-notch fa-spin" style="font-size:9px; margin-left:5px; opacity:.85;"></i>@endif
-                            </div>
-                            <div style="margin-top:4px; font-size:10px; font-weight:600; letter-spacing:.2px; color:{{ $lColor($p1done, $p1act, '#1a7efb') }}; text-align:center;">Pedido</div>
-                        </div>
-
-                        <div style="grid-column:2; grid-row:3; display:flex; align-items:flex-start; padding-top:23px;">
-                            <div style="position:relative; width:100%; height:2px; border-radius:2px; background:{{ $cFill($p1done) }};">
-                                <div style="position:absolute; right:-4px; top:50%; transform:translateY(-50%); width:0; height:0;
-                                            border-top:4px solid transparent; border-bottom:4px solid transparent;
-                                            border-left:6px solid {{ $cFill($p1done) }};"></div>
-                            </div>
-                        </div>
-
-                        <div style="grid-column:3; grid-row:3; display:flex; flex-direction:column; align-items:center; animation:stepIn .4s cubic-bezier(.34,1.56,.64,1) 90ms both;">
-                            <div style="width:90px; height:46px; border-radius:8px; border:1.5px solid;
-                                        display:flex; align-items:center; justify-content:center;
-                                        {{ $nodeBox($p2done, $p2act, '#f39c12') }}">
-                                <i class="fa {{ $p2done ? 'fa-check' : 'fa-tags' }}" style="{{ $nodeIcon($p2done, $p2act) }}"></i>
-                                @if(!$p2done && $p2act)<i class="fa fa-circle-o-notch fa-spin" style="font-size:9px; margin-left:5px; opacity:.85;"></i>@endif
-                            </div>
-                            <div style="margin-top:4px; font-size:10px; font-weight:600; letter-spacing:.2px; color:{{ $lColor($p2done, $p2act, '#f39c12') }}; text-align:center;">Ofertas</div>
-                        </div>
-
-                        <div style="grid-column:4; grid-row:3; display:flex; align-items:flex-start; padding-top:23px;">
-                            <div style="position:relative; width:100%; height:2px; border-radius:2px; background:{{ $cFill($p2done) }};">
-                                <div style="position:absolute; right:-4px; top:50%; transform:translateY(-50%); width:0; height:0;
-                                            border-top:4px solid transparent; border-bottom:4px solid transparent;
-                                            border-left:6px solid {{ $cFill($p2done) }};"></div>
-                            </div>
-                        </div>
-
-                        <div style="grid-column:5; grid-row:3; display:flex; flex-direction:column; align-items:center; animation:stepIn .4s cubic-bezier(.34,1.56,.64,1) 180ms both;">
-                            <div style="width:90px; height:46px; border-radius:8px; border:1.5px solid;
-                                        display:flex; align-items:center; justify-content:center;
-                                        {{ $nodeBox($p3done, $p3act, '#00b894') }}">
-                                <i class="fa {{ $p3done ? 'fa-check' : 'fa-file-text-o' }}" style="{{ $nodeIcon($p3done, $p3act) }}"></i>
-                                @if(!$p3done && $p3act)<i class="fa fa-circle-o-notch fa-spin" style="font-size:9px; margin-left:5px; opacity:.85;"></i>@endif
-                            </div>
-                            <div style="margin-top:4px; font-size:10px; font-weight:600; letter-spacing:.2px; color:{{ $lColor($p3done, $p3act, '#00b894') }}; text-align:center;">Pre Factura</div>
-                            @if($p3act && $tieneGanadora)
-                            <div style="margin-top:3px; font-size:9px; font-weight:700; color:#f39c12;
-                                        background:rgba(243,156,18,.12); border-radius:8px; padding:1px 6px; white-space:nowrap;
-                                        animation:trophyBounce 1.5s ease-in-out infinite;">
-                                <i class="fa fa-trophy"></i> Oferta ganadora
-                            </div>
-                            @endif
-                        </div>
-
-                        <div style="grid-column:6; grid-row:3; display:flex; align-items:flex-start; padding-top:23px;">
-                            <div style="position:relative; width:100%; height:2px; border-radius:2px; background:{{ $cFill($p3done) }};">
-                                <div style="position:absolute; right:-4px; top:50%; transform:translateY(-50%); width:0; height:0;
-                                            border-top:4px solid transparent; border-bottom:4px solid transparent;
-                                            border-left:6px solid {{ $cFill($p3done) }};"></div>
-                            </div>
-                        </div>
-
-                        <div style="grid-column:7; grid-row:3; display:flex; flex-direction:column; align-items:center; animation:stepIn .4s cubic-bezier(.34,1.56,.64,1) 270ms both;">
-                            <div style="width:90px; height:46px; border-radius:8px; border:1.5px solid;
-                                        display:flex; align-items:center; justify-content:center;
-                                        {{ $nodeBox($p4done, $p4act, '#1ab394') }}">
-                                <i class="fa {{ $p4done ? 'fa-check' : 'fa-file-text' }}" style="{{ $nodeIcon($p4done, $p4act) }}"></i>
-                                @if(!$p4done && $p4act)<i class="fa fa-circle-o-notch fa-spin" style="font-size:9px; margin-left:5px; opacity:.85;"></i>@endif
-                            </div>
-                            <div style="margin-top:4px; font-size:10px; font-weight:600; letter-spacing:.2px; color:{{ $lColor($p4done, $p4act, '#1ab394') }}; text-align:center;">Facturado</div>
-                        </div>
-
-                        <div style="grid-column:8; grid-row:3; display:flex; align-items:flex-start; padding-top:23px;">
-                            <div style="position:relative; width:100%; height:2px; border-radius:2px; background:{{ $cFill($p4done) }};">
-                                <div style="position:absolute; right:-4px; top:50%; transform:translateY(-50%); width:0; height:0;
-                                            border-top:4px solid transparent; border-bottom:4px solid transparent;
-                                            border-left:6px solid {{ $cFill($p4done) }};"></div>
-                            </div>
-                        </div>
-
-                        <div style="grid-column:9; grid-row:3; display:flex; flex-direction:column; align-items:center; animation:stepIn .4s cubic-bezier(.34,1.56,.64,1) 360ms both;">
-                            <div style="width:90px; height:46px; border-radius:8px; border:1.5px solid;
-                                        display:flex; align-items:center; justify-content:center;
-                                        {{ $nodeBox($p5done, $p5act, '#6c5ce7') }}">
-                                <i class="fa {{ $p5done ? 'fa-check' : 'fa-usd' }}" style="{{ $nodeIcon($p5done, $p5act) }}"></i>
-                                @if(!$p5done && $p5act)<i class="fa fa-circle-o-notch fa-spin" style="font-size:9px; margin-left:5px; opacity:.85;"></i>@endif
-                            </div>
-                            <div style="margin-top:4px; font-size:10px; font-weight:600; letter-spacing:.2px; color:{{ $lColor($p5done, $p5act, '#6c5ce7') }}; text-align:center;">Cobro</div>
-                        </div>
-
-                    </div>{{-- /grid --}}
-                    </div>{{-- /flujo-pipeline --}}
-                    @endif
-
-                    {{-- Panel dinámico de ofertas --}}
-                    <div style="margin-top:14px; border-radius:12px; overflow:hidden; border:1px solid #ede9f7;">
-                        <div style="background:linear-gradient(135deg,#f39c12 0%,#e67e22 100%);
-                                    padding:10px 18px;">
-                            <span style="color:#fff; font-size:13px; font-weight:700;">
-                                <i class="fa fa-tag mr-1"></i>
-                                Ofertas asociadas
-                            </span>
-                        </div>
-                        <div class="flujo-offers-wrap" style="background:#fff; padding:12px 18px; max-height:220px; overflow-y:auto;">
-                            @if (count($fOfertas) === 0)
-                                <div class="text-center py-3 text-muted" style="font-size:12px;">
-                                    <i class="fa fa-inbox fa-lg d-block mb-1" style="opacity:.3;"></i>
-                                    Sin ofertas aún para este pedido.
-                                </div>
-                            @else
-                                <table style="width:100%; font-size:11px; border-collapse:collapse;">
-                                    <thead>
-                                        <tr style="background:#f8f9fc; color:#888;">
-                                            <th style="padding:4px 8px; text-align:left;">Oferta</th>
-                                            <th style="padding:4px 8px; text-align:left;">Cliente</th>
-                                            <th style="padding:4px 8px; text-align:right;">Total</th>
-                                            <th style="padding:4px 8px; text-align:center;">Fecha</th>
-                                            <th style="padding:4px 8px; text-align:center;">Estado</th>
-                                            <th style="padding:4px 8px; text-align:center;">Acción</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @foreach ($fOfertas as $fo)
-                                        @php
-                                            $foArr     = (array) $fo;
-                                            $foEstado  = $foArr['estado'] ?? 'activa';
-                                        @endphp
-                                        <tr style="border-bottom:1px solid #f0f0f0; opacity:{{ $foEstado === 'cancelada' ? '.5' : '1' }};">
-                                            <td style="padding:5px 8px; font-weight:700; color:{{ $foEstado === 'ganadora' ? '#1ab394' : ($foEstado === 'cancelada' ? '#aaa' : '#f39c12') }};">
-                                                #{{ $foArr['id'] }}
-                                                @if($foEstado === 'ganadora')
-                                                    <i class="fa fa-trophy ml-1" style="color:#f39c12;"></i>
-                                                @endif
-                                            </td>
-                                            <td style="padding:5px 8px; color:#555; text-decoration:{{ $foEstado === 'cancelada' ? 'line-through' : 'none' }};">
-                                                {{ $foArr['nombre_cliente'] }}
-                                            </td>
-                                            <td style="padding:5px 8px; text-align:right; font-weight:700; color:#1ab394;">
-                                                L. {{ number_format($foArr['total'], 2) }}
-                                            </td>
-                                            <td style="padding:5px 8px; text-align:center; color:#888;">
-                                                {{ \Carbon\Carbon::parse($foArr['created_at'])->format('d/m/Y') }}
-                                            </td>
-                                            <td style="padding:5px 8px; text-align:center;">
-                                                @if($foEstado === 'ganadora')
-                                                    <span style="background:#d4edda; color:#155724; border-radius:10px; padding:2px 8px; font-size:10px; font-weight:700;">
-                                                        <i class="fa fa-trophy"></i> Ganadora
-                                                    </span>
-                                                @elseif($foEstado === 'cancelada')
-                                                    <span style="background:#f8d7da; color:#721c24; border-radius:10px; padding:2px 8px; font-size:10px; font-weight:700;">
-                                                        <i class="fa fa-ban"></i> Cancelada
-                                                    </span>
-                                                @else
-                                                    <span style="background:#e8f0fe; color:#1a7efb; border-radius:10px; padding:2px 8px; font-size:10px; font-weight:700;">
-                                                        <i class="fa fa-circle"></i> Activa
-                                                    </span>
-                                                @endif
-                                            </td>
-                                            <td style="padding:5px 8px; text-align:center;">
-                                                <div style="display:flex; gap:4px; justify-content:center; align-items:center;">
-                                                    <a href="/oferta/imprimir/{{ $foArr['id'] }}" target="_blank"
-                                                       title="Imprimir oferta"
-                                                       style="color:#1a7efb; font-size:13px;">
-                                                        <i class="fa fa-print"></i>
-                                                    </a>
-                                                    @if($foEstado === 'activa' && !$yaGanadoraExists)
-                                                        <button type="button"
-                                                                wire:click="confirmarGanadora({{ $foArr['id'] }}, {{ $pedidoFlujoData['id'] }})"
-                                                                title="Seleccionar como oferta ganadora"
-                                                                style="background:linear-gradient(135deg,#f39c12,#e67e22); color:#fff;
-                                                                       border:none; border-radius:8px; padding:2px 8px;
-                                                                       font-size:10px; font-weight:700; cursor:pointer;">
-                                                            <i class="fa fa-trophy mr-1"></i> Ganadora
-                                                        </button>
-                                                    @endif
-                                                </div>
-                                            </td>
-                                        </tr>
-                                        @endforeach
-                                    </tbody>
-                                </table>
-                            @endif
-                        </div>
-                    </div>
-
-                </div>{{-- /modal-body --}}
-
-                <div class="modal-footer flujo-foot" style="border:none; background:#f8f9fc;">
-                    <button type="button" wire:click="cerrarFlujo" class="btn btn-default"
-                            style="border-radius:20px; padding:6px 22px;">
-                        <i class="fa fa-times mr-1"></i> Cerrar
-                    </button>
-                    @if ($yaGanadoraExists)
-                        <button type="button" class="btn btn-warning" disabled
-                                title="No se puede editar: ya existe una oferta ganadora para este pedido"
-                                style="border-radius:20px; padding:6px 22px; color:#fff; opacity:.45; cursor:not-allowed;">
-                            <i class="fa fa-lock mr-1"></i> Editar pedido
-                        </button>
-                    @else
-                        <button type="button"
-                               onclick="cerrarFlujoYEditar('/flujo/pedido/editar/{{ $pedidoFlujoData['id'] }}?embed=1','Editar Pedido #{{ $pedidoFlujoData['id'] }}')"
-                               class="btn btn-warning" style="border-radius:20px; padding:6px 22px; color:#fff;">
-                            <i class="fa fa-pencil mr-1"></i> Editar pedido
-                        </button>
-                    @endif
-                    @if (!$fCancelado && !$yaGanadoraExists)
-                        <a href="/flujo/oferta/crear/{{ $pedidoFlujoData['id'] }}"
-                           class="btn btn-primary" style="border-radius:20px; padding:6px 22px; color:#fff;">
-                            <i class="fa fa-tag mr-1"></i> Crear oferta
-                        </a>
-                    @endif
-                </div>
-
-            </div>
-        </div>
-    </div>{{-- /flujoModalWrap --}}
-    @endif
-
-    {{-- ===== MODAL CONFIRMACIÓN: OFERTA GANADORA ===== --}}
-    @if ($showModalGanadora)
-    <div style="position:fixed; inset:0; display:grid; place-items:center;
-                background:rgba(0,0,0,.65); z-index:1080;"
-         tabindex="-1" role="dialog">
-        <div style="width:min(420px,92vw);" role="document">
-            <div class="modal-content" style="border-radius:12px; border:none; box-shadow:0 10px 40px rgba(0,0,0,.35);">
-                <div class="modal-header" style="background:linear-gradient(135deg,#f39c12 0%,#e67e22 100%); border:none;">
-                    <h5 class="modal-title text-white m-0">
-                        <i class="fa fa-trophy"></i> &nbsp;Seleccionar Oferta Ganadora
-                    </h5>
-                    <button type="button" class="close text-white" wire:click="cancelarSeleccionGanadora" style="opacity:1;">
-                        <span>&times;</span>
-                    </button>
-                </div>
-                <div class="modal-body p-4 text-center">
-                    <i class="fa fa-trophy fa-2x mb-2" style="color:#f39c12;"></i>
-                    <p class="mb-1">
-                        ¿Confirmar la <strong>Oferta #{{ $ofertaGanadoraId }}</strong> como ganadora?
-                    </p>
-                    <small class="text-muted">
-                        Las demás ofertas de este pedido quedarán <strong>canceladas</strong> y el pedido avanzará a la etapa de <strong>Pre Factura</strong>.
-                    </small>
-                </div>
-                <div class="modal-footer" style="border:none; justify-content:center;">
-                    <button type="button" wire:click="cancelarSeleccionGanadora" class="btn btn-default">
-                        <i class="fa fa-times"></i> No, volver
-                    </button>
-                    <button type="button" wire:click="seleccionarGanadora" class="btn btn-warning" style="color:#fff;">
-                        <i class="fa fa-trophy"></i> &nbsp;Sí, confirmar ganadora
-                    </button>
-                </div>
-            </div>
+    @if($ofrTotal > $perPage)
+    <div class="d-flex align-items-center justify-content-between mt-2" style="font-size:12px; color:#78909c;">
+        <span>Mostrando {{ min($ofrStart + 1, $ofrTotal) }}-{{ min($ofrStart + $perPage, $ofrTotal) }} de {{ $ofrTotal }}</span>
+        <div class="d-flex align-items-center" style="gap:8px;">
+            <button wire:click="ofrPrev" @if($paginaOfr <= 1) disabled @endif
+                    class="btn btn-sm btn-outline-warning" style="border-radius:8px; font-size:11px;"
+                    @if($paginaOfr <= 1) style="opacity:.5; cursor:not-allowed;" @endif>
+                <i class="fa fa-chevron-left mr-1"></i> Anterior
+            </button>
+            <span style="font-weight:700; color:#546e7a;">Pag. {{ $paginaOfr }} / {{ $ofrLastPage }}</span>
+            <button wire:click="ofrNext" @if($paginaOfr >= $ofrLastPage) disabled @endif
+                    class="btn btn-sm btn-outline-warning" style="border-radius:8px; font-size:11px;"
+                    @if($paginaOfr >= $ofrLastPage) style="opacity:.5; cursor:not-allowed;" @endif>
+                Siguiente <i class="fa fa-chevron-right ml-1"></i>
+            </button>
         </div>
     </div>
     @endif
-
-    {{-- ===== MODAL REDISTRIBUIR / REASIGNAR (solo admin) ===== --}}
-    @if ($showModalReasignar)
-    <div style="position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
-                background:rgba(0,0,0,.6); z-index:1090; padding:20px;"
-         tabindex="-1" role="dialog">
-        <div style="width:min(500px,95vw);" role="document">
-            <div class="modal-content" style="border-radius:14px; border:none; box-shadow:0 16px 50px rgba(0,0,0,.35);">
-
-                {{-- Header --}}
-                <div class="modal-header" style="background:linear-gradient(135deg,#0984e3 0%,#74b9ff 100%); border:none; border-radius:14px 14px 0 0; padding:14px 22px;">
-                    <h5 class="modal-title text-white m-0" style="font-size:15px; font-weight:700;">
-                        <i class="fa fa-exchange mr-2"></i>
-                        Redistribuir Pedido <span style="background:rgba(255,255,255,.2); border-radius:20px; padding:2px 10px;">#{{ $pedidoReasignarId }}</span>
-                    </h5>
-                    <button type="button" class="close text-white" wire:click="cerrarReasignar" style="opacity:1;">
-                        <span>&times;</span>
-                    </button>
-                </div>
-
-                {{-- Body --}}
-                <div class="modal-body" style="padding:22px 24px;">
-                    <p class="text-muted mb-3" style="font-size:13px;">
-                        <i class="fa fa-info-circle text-info mr-1"></i>
-                        Busca el nombre del usuario al que deseas transferir este pedido.
-                    </p>
-
-                    {{-- Buscador de usuario --}}
-                    <div class="input-group mb-3">
-                        <div class="input-group-prepend">
-                            <span class="input-group-text"><i class="fa fa-search"></i></span>
-                        </div>
-                        <input
-                            type="text"
-                            wire:model.debounce.300ms="busquedaUsuario"
-                            class="form-control"
-                            placeholder="Escribe el nombre del usuario..."
-                            autocomplete="off"
-                        >
-                    </div>
-
-                    {{-- Lista de resultados --}}
-                    @if(count($usuariosDisponibles) > 0)
-                    <div style="border:1px solid #e0e3ee; border-radius:10px; overflow:hidden; max-height:260px; overflow-y:auto;">
-                        @foreach($usuariosDisponibles as $usr)
-                        @php $uArr = (array)$usr; @endphp
-                        <div wire:click="seleccionarUsuarioReasignar({{ $uArr['id'] }})"
-                             style="display:flex; align-items:center; gap:12px; padding:10px 16px; cursor:pointer;
-                                    border-bottom:1px solid #f0f0f0;
-                                    background:{{ $usuarioReasignarId == $uArr['id'] ? 'linear-gradient(135deg,#e3f2fd,#bbdefb)' : '#fff' }};
-                                    transition:background .15s;"
-                             onmouseover="if({{ $usuarioReasignarId == $uArr['id'] ? 'false' : 'true' }}) this.style.background='#f8f9fc';"
-                             onmouseout="if({{ $usuarioReasignarId == $uArr['id'] ? 'false' : 'true' }}) this.style.background='#fff';">
-
-                            {{-- Avatar --}}
-                            <div style="width:38px; height:38px; border-radius:50%; flex-shrink:0;
-                                        background:linear-gradient(135deg,#0984e3,#74b9ff);
-                                        display:flex; align-items:center; justify-content:center;
-                                        color:#fff; font-size:16px; font-weight:700;">
-                                {{ strtoupper(substr($uArr['name'], 0, 1)) }}
-                            </div>
-
-                            {{-- Info --}}
-                            <div style="flex:1; min-width:0;">
-                                <div style="font-weight:700; font-size:13px; color:#2d3436; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-                                    {{ $uArr['name'] }}
-                                    @if($usuarioReasignarId == $uArr['id'])
-                                        <i class="fa fa-check-circle text-success ml-1"></i>
-                                    @endif
-                                </div>
-                                <div style="font-size:11px; color:#888;">{{ $uArr['rol'] }}</div>
-                            </div>
-                        </div>
-                        @endforeach
-                    </div>
-                    @elseif(strlen(trim($busquedaUsuario)) >= 2)
-                        <div class="text-center text-muted py-3" style="font-size:13px;">
-                            <i class="fa fa-user-times fa-lg d-block mb-1" style="opacity:.4;"></i>
-                            No se encontraron usuarios con ese nombre.
-                        </div>
-                    @endif
-
-                    {{-- Usuario seleccionado --}}
-                    @if($usuarioReasignarId)
-                    @php
-                        $selArr = collect($usuariosDisponibles)->first(fn($u) => ((array)$u)['id'] == $usuarioReasignarId);
-                        $selNombre = $selArr ? ((array)$selArr)['name'] : 'Usuario #'.$usuarioReasignarId;
-                    @endphp
-                    <div class="alert" style="background:#d4edda; color:#155724; border:none; border-radius:10px; margin-top:14px; font-size:13px; margin-bottom:0;">
-                        <i class="fa fa-check-circle mr-1"></i>
-                        Será asignado a: <strong>{{ $selNombre }}</strong>
-                    </div>
-                    @endif
-
-                </div>
-
-                {{-- Footer --}}
-                <div class="modal-footer" style="border:none; justify-content:flex-end; gap:8px; padding:12px 24px 18px;">
-                    <button type="button" wire:click="cerrarReasignar" class="btn btn-default" style="border-radius:20px; padding:6px 20px;">
-                        <i class="fa fa-times mr-1"></i> Cancelar
-                    </button>
-                    <button type="button" wire:click="reasignarPedido"
-                            class="btn btn-primary"
-                            style="border-radius:20px; padding:6px 22px; color:#fff;
-                                   {{ !$usuarioReasignarId ? 'opacity:.5; cursor:not-allowed;' : '' }}"
-                            {{ !$usuarioReasignarId ? 'disabled' : '' }}>
-                        <i class="fa fa-exchange mr-1"></i> Confirmar redistribución
-                    </button>
-                </div>
-
-            </div>
-        </div>
-    </div>
     @endif
 
-    {{-- ===== MODAL PEDIDO FORM (Nuevo / Editar — iframe) ===== --}}
-    {{-- The modal and backdrop are scoped to the content area via CSS + JS --}}
-    <div class="modal fade" id="modalPedidoForm" tabindex="-1" role="dialog"
-         data-backdrop="false" data-keyboard="false">
-        <div class="modal-dialog modal-dialog-centered" id="modalPedidoDialog" role="document">
-            <div class="modal-content" style="border:none; border-radius:14px; overflow:hidden;
-                        box-shadow:0 20px 60px rgba(0,0,0,.45);">
-                <div class="modal-header"
-                     style="background:linear-gradient(135deg,#f39c12 0%,#e67e22 100%);
-                            border:none; padding:13px 20px;">
-                    <h5 class="modal-title" id="modalPedidoTitulo"
-                        style="color:#fff; font-weight:800; font-size:15px; margin:0;">
-                        <i class="fa fa-shopping-cart mr-2"></i> Pedido
-                    </h5>
-                    <button type="button" onclick="cerrarModalPedido()"
-                            class="close" style="color:rgba(255,255,255,.85); opacity:1; font-size:24px; line-height:1;">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
-                </div>
-                <div class="modal-body" style="padding:0; position:relative; background:#f4f5f7;">
-                    <div id="pedidoIframeLoader"
-                         style="position:absolute;inset:0;display:flex;flex-direction:column;
-                                align-items:center;justify-content:center;
-                                background:#f4f5f7;z-index:10;gap:10px;">
-                        <i class="fa fa-spinner fa-spin fa-2x" style="color:#e67e22;"></i>
-                        <span style="font-size:13px; color:#888;">Cargando formulario...</span>
-                    </div>
-                    <iframe id="pedidoIframe" src="" frameborder="0"
-                            style="width:100%; height:75vh; display:block; background:#f4f5f7;"
-                            onload="document.getElementById('pedidoIframeLoader').style.display='none'">
-                    </iframe>
-                </div>
-            </div>
-        </div>
     </div>
-
-    {{-- Custom backdrop scoped to content area only --}}
-    <div id="pedidoBackdrop"
-         style="display:none; position:fixed; top:0; bottom:0; right:0;
-                background:rgba(0,0,0,.5); z-index:1050;
-                transition:opacity .15s linear;"></div>
-
-    {{-- Scoped modal CSS --}}
-    <style>
-        /* Scope modal to content area (right of sidebar) on desktop */
-        @media (min-width: 993px) {
-            #modalPedidoForm {
-                left: 220px !important;
-                width: calc(100vw - 220px) !important;
-            }
-            #modalPedidoDialog {
-                max-width: min(780px, 88%) !important;
-                width: min(780px, 88%) !important;
-                margin: 40px auto !important;
-            }
-        }
-        /* Mobile: full width */
-        @media (max-width: 992px) {
-            #modalPedidoForm { left: 0 !important; width: 100vw !important; }
-            #modalPedidoDialog { max-width: 95vw !important; width: 95vw !important; margin: 20px auto !important; }
-            #pedidoBackdrop { left: 0 !important; }
-        }
-        /* Desktop backdrop starts after sidebar */
-        @media (min-width: 993px) {
-            #pedidoBackdrop { left: 220px; }
-        }
-    </style>
-
-    {{-- ===== CSS ANIMACIONES FLUJO ===== --}}
-    <style>
-        @keyframes stepIn {
-            from { opacity:0; transform:translateY(20px) scale(.85); }
-            to   { opacity:1; transform:translateY(0) scale(1); }
-        }
-        @keyframes stepPulse {
-            0%,100% { box-shadow:0 6px 24px var(--sp-glow,rgba(26,126,251,.4)), 0 0 0 6px rgba(26,126,251,.08); transform:scale(1); }
-            50%      { box-shadow:0 6px 32px var(--sp-glow,rgba(26,126,251,.55)), 0 0 0 12px rgba(26,126,251,.06); transform:scale(1.07); }
-        }
-        @keyframes checkPop {
-            from { opacity:0; transform:scale(0) rotate(-45deg); }
-            to   { opacity:1; transform:scale(1) rotate(0deg); }
-        }
-        @keyframes connFill {
-            from { width:0; }
-            to   { width:100%; }
-        }
-        @keyframes dotBlink {
-            0%,100% { opacity:1; } 50% { opacity:.3; }
-        }
-        @keyframes cancelShake {
-            0%,100% { transform:rotate(0); }
-            20%,60% { transform:rotate(-10deg) scale(1.05); }
-            40%,80% { transform:rotate(10deg) scale(1.05); }
-        }
-        @keyframes nodeActivePulse {
-            0%,100% { box-shadow: 0 4px 18px rgba(26,126,251,.35); }
-            50%      { box-shadow: 0 6px 32px rgba(26,126,251,.8), 0 0 0 5px rgba(26,126,251,.18); }
-        }
-        @keyframes trophyBounce {
-            0%,100% { transform:translateY(0) scale(1); }
-            40%      { transform:translateY(-3px) scale(1.05); }
-        }
-    </style>
-
-    <script>
-function cerrarFlujoYEditar(url, titulo) {
-    // Close the flujo Livewire modal, then open the edit iframe modal
-    window.livewire.emit('cerrarFlujoDesdeJS');
-    setTimeout(function() { abrirModalPedido(url, titulo); }, 350);
-}
-function abrirModalPedido(url, titulo) {
-    document.getElementById('modalPedidoTitulo').innerHTML =
-        '<i class="fa fa-shopping-cart mr-2"></i> ' + titulo;
-    var loader = document.getElementById('pedidoIframeLoader');
-    var iframe = document.getElementById('pedidoIframe');
-    loader.style.display = 'flex';
-    iframe.src = '';
-    iframe.src = url;
-    // Show custom backdrop scoped to content area
-    var bd = document.getElementById('pedidoBackdrop');
-    bd.style.display = 'block';
-    bd.style.opacity = '0';
-    setTimeout(function(){ bd.style.opacity = '1'; }, 10);
-    // Show modal without Bootstrap backdrop
-    $('#modalPedidoForm').modal({ backdrop: false, keyboard: false });
-    $('#modalPedidoForm').modal('show');
-}
-function cerrarModalPedido() {
-    var bd = document.getElementById('pedidoBackdrop');
-    bd.style.opacity = '0';
-    setTimeout(function(){ bd.style.display = 'none'; }, 150);
-    $('#modalPedidoForm').modal('hide');
-    document.getElementById('pedidoIframe').src = '';
-}
-// Close on backdrop click
-document.getElementById('pedidoBackdrop').addEventListener('click', cerrarModalPedido);
-$('#modalPedidoForm').on('hidden.bs.modal', function () {
-    window.livewire.emit('pedidoGuardado');
-});
-// Close modal when iframe signals it (e.g. after saving offer)
-window.addEventListener('message', function(e) {
-    if (e.data && e.data.action === 'cerrarModal') {
-        cerrarModalPedido();
-    }
-});
-    </script>
+    </div>
 </div>

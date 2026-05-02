@@ -5,25 +5,24 @@ namespace App\Http\Livewire\Flujo;
 use Livewire\Component;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
-use PhpOffice\PhpSpreadsheet\Spreadsheet;
-use PhpOffice\PhpSpreadsheet\Writer\Xlsx as XlsxWriter;
 
 class ListarVentas extends Component
 {
-    // ── Filtros ────────────────────────────────────────────────────────────
-    public $busquedaCliente = '';
-    public $filtroEstado    = '';
-    public $filtroFecha     = '';
-    public $filtroNumero    = '';   // filtro por nº de documento
+    // ── Filtros y sort (misma mecanica que listar-pedidos-para-ofertar) ──
+    public $busquedaOfr  = '';
+    public $filtroEstado = '';
+    public $filtroFecha  = '';
+    public $filtroNumero = '';
+    public $sortColOfr   = 'created_at';
+    public $sortDirOfr   = 'desc';
 
     // ── Control de acceso ─────────────────────────────────────────────────
     public $esAdmin = false;
 
-    // ── Paginación simple ──────────────────────────────────────────────────
-    public $pagina       = 1;
-    public $porPagina    = 15;
-    public $totalPedidos = 0;
-    public $totalPaginas = 0;
+    // ── Paginación y datos ────────────────────────────────────────────────
+    public int $paginaOfr = 1;
+    public int $perPage   = 15;
+    public $registros     = [];
 
     // ── Confirmación de cancelación ──────────────────────────────────────────
     public $pedidoAnularId   = null;
@@ -54,13 +53,36 @@ class ListarVentas extends Component
     public function mount()
     {
         $this->esAdmin = Auth::user()->rol_id === 1;
+        $this->cargarRegistros();
     }
 
-    // ── Actualización de filtros → volver a página 1 ──────────────────────
-    public function updatedBusquedaCliente() { $this->pagina = 1; }
-    public function updatedFiltroEstado()    { $this->pagina = 1; }
-    public function updatedFiltroFecha()     { $this->pagina = 1; }
-    public function updatedFiltroNumero()    { $this->pagina = 1; }
+    // ── Actualización de filtros ──────────────────────────────────────────
+    public function updatedBusquedaOfr() { $this->paginaOfr = 1; $this->cargarRegistros(); }
+    public function updatedFiltroEstado() { $this->paginaOfr = 1; $this->cargarRegistros(); }
+    public function updatedFiltroFecha() { $this->paginaOfr = 1; $this->cargarRegistros(); }
+    public function updatedFiltroNumero() { $this->paginaOfr = 1; $this->cargarRegistros(); }
+
+    public function sortByOfr(string $column): void
+    {
+        $allowed = [
+            'flujo_id', 'documento_id', 'cliente',
+            'estado_flujo', 'total_ofertas', 'created_at'
+        ];
+
+        if (!in_array($column, $allowed, true)) {
+            return;
+        }
+
+        if ($this->sortColOfr === $column) {
+            $this->sortDirOfr = $this->sortDirOfr === 'asc' ? 'desc' : 'asc';
+        } else {
+            $this->sortColOfr = $column;
+            $this->sortDirOfr = 'asc';
+        }
+
+        $this->paginaOfr = 1;
+        $this->cargarRegistros();
+    }
 
     public function updatedBusquedaUsuario()
     {
@@ -88,100 +110,130 @@ class ListarVentas extends Component
         ];
     }
 
-    // ── Obtener pedidos filtrados ──────────────────────────────────────────
-    private function query()
+    public function ofrPrev(): void
     {
-        $q = DB::table('pedido as p')
-            ->join('cliente as c', 'c.id', '=', 'p.cliente_id')
-            ->join('users as u', 'u.id', '=', 'p.users_id')
-            ->leftJoin('historico_flujo as hf', function ($join) {
-                $join->on('hf.tramite_id', '=', 'p.id')
-                     ->where('hf.tipo_tramite_id', '=', 'pedido');
+        if ($this->paginaOfr > 1) {
+            $this->paginaOfr--;
+        }
+    }
+
+    public function ofrNext(): void
+    {
+        $total = count($this->registros);
+        $lastPage = max(1, (int) ceil($total / $this->perPage));
+        if ($this->paginaOfr < $lastPage) {
+            $this->paginaOfr++;
+        }
+    }
+
+    private function cargarRegistros(): void
+    {
+        $q = DB::table('historico_flujo as hf')
+            ->join('flujo as f', 'f.id', '=', 'hf.flujo_id')
+            ->leftJoin('tipos_tramites as tt', 'tt.id', '=', 'hf.tipo_tramite_id')
+            ->leftJoin('pedido as p', function ($join) {
+                $join->on('p.id', '=', 'f.identificacion')
+                     ->where('f.tipo_flujo_id', '=', 1);
             })
-            ->leftJoin('flujo as f', 'f.id', '=', 'hf.flujo_id')
-            ->leftJoin('tipos_estatus as te', 'te.id', '=', 'f.estado_id')
+            ->leftJoin('cliente as c', 'c.id', '=', 'p.cliente_id')
+            ->leftJoin('cotizacion as co', function ($join) {
+                $join->on('co.id', '=', 'f.identificacion')
+                     ->where('f.tipo_flujo_id', '=', 1);
+            })
+            ->leftJoin('users as uc', 'uc.id', '=', 'co.users_id')
             ->select(
-                'p.id',
-                'c.nombre as cliente',
-                'c.rtn',
-                'p.estado',
-                'p.users_id',
-                'u.name as registrado_por',
-                'p.observaciones',
-                'p.created_at',
-                'p.updated_at as pedido_updated_at',
-                'f.id as flujo_id',
-                'te.nombre as estatus_flujo',
-                'hf.estado_id as estado_flujo',
-                DB::raw('(SELECT COUNT(*) FROM pedido_detalle pd WHERE pd.pedido_id = p.id) as total_productos'),
-                DB::raw('(SELECT COUNT(*) FROM historico_flujo hf INNER JOIN flujo f ON f.id = hf.flujo_id WHERE f.identificacion = CAST(p.id AS CHAR) AND f.tipo_flujo_id = 1 AND hf.tipo_tramite_id = 2) as has_ofertas'),
-                DB::raw('(SELECT COUNT(*) FROM historico_flujo hf INNER JOIN flujo f ON f.id = hf.flujo_id WHERE f.identificacion = CAST(p.id AS CHAR) AND f.tipo_flujo_id = 1 AND hf.tipo_tramite_id = 2 AND hf.observaciones = \'ganadora\') as has_ganadora')
-            )
-            ->orderByDesc('p.created_at');
+                'hf.id as historico_id',
+                'hf.flujo_id',
+                'hf.tramite_id as documento_id',
+                'hf.created_at',
+                DB::raw("COALESCE(c.nombre, co.nombre_cliente, '—') as cliente"),
+                DB::raw("COALESCE(c.rtn, co.RTN, '—') as rtn"),
+                DB::raw("COALESCE(tt.nombre, 'sin_flujo') as estado_flujo"),
+                DB::raw('COALESCE((SELECT COUNT(*) FROM historico_flujo hf2 WHERE hf2.flujo_id = hf.flujo_id AND hf2.tipo_tramite_id = 2), 0) as total_ofertas'),
+                DB::raw("COALESCE((SELECT COUNT(*) FROM historico_flujo hf3 WHERE hf3.flujo_id = hf.flujo_id AND hf3.tipo_tramite_id = 2 AND hf3.observaciones = 'ganadora'), 0) as tiene_ganadora"),
+                DB::raw("CASE WHEN p.id IS NULL THEN 'cotizacion' ELSE 'pedido' END as origen"),
+                DB::raw('CASE WHEN p.id IS NULL THEN NULL ELSE p.id END as pedido_id')
+            );
 
         // Solo ver propios registros si no es administrador
         if (!$this->esAdmin) {
-            $q->where('p.users_id', Auth::id());
+            $q->where(function ($sub) {
+                $sub->where('p.users_id', Auth::id())
+                    ->orWhere('co.users_id', Auth::id())
+                    ->orWhere('hf.created_by', Auth::id());
+            });
         }
 
         // Filtro por número de documento
         if (trim($this->filtroNumero) !== '') {
-            $q->where('p.id', (int) $this->filtroNumero);
+            $q->where('hf.tramite_id', (int) $this->filtroNumero);
         }
 
-        // Filtro por cliente
-        if (strlen(trim($this->busquedaCliente)) >= 2) {
-            $term = '%' . trim($this->busquedaCliente) . '%';
+        // Busqueda principal
+        $termRaw = trim($this->busquedaOfr);
+        if ($termRaw !== '') {
+            $term = '%' . $termRaw . '%';
             $q->where(function ($sub) use ($term) {
                 $sub->where('c.nombre', 'LIKE', $term)
-                    ->orWhere('c.rtn', 'LIKE', $term);
+                    ->orWhere('co.nombre_cliente', 'LIKE', $term)
+                    ->orWhere('c.rtn', 'LIKE', $term)
+                    ->orWhere('co.RTN', 'LIKE', $term)
+                    ->orWhere('hf.flujo_id', 'LIKE', $term)
+                    ->orWhere('hf.tramite_id', 'LIKE', $term);
             });
         }
 
         // Filtro por estado
         if ($this->filtroEstado !== '') {
             if ($this->filtroEstado === 'sin_flujo') {
-                $q->whereNull('f.id');
+                $q->whereNull('tt.id');
             } else {
-                $q->where('te.nombre', $this->filtroEstado);
+                $q->where('tt.nombre', $this->filtroEstado);
             }
         }
 
         // Filtro por fecha
         if ($this->filtroFecha !== '') {
-            $q->whereDate('p.created_at', $this->filtroFecha);
+            $q->whereDate('hf.created_at', $this->filtroFecha);
         }
 
-        return $q;
-    }
-
-    public function getTotalPaginasProperty(): int
-    {
-        return (int) ceil($this->totalPedidos / $this->porPagina);
-    }
-
-    // ── Paginación ─────────────────────────────────────────────────────────
-    public function paginaAnterior() { if ($this->pagina > 1) $this->pagina--; }
-    public function paginaSiguiente()
-    {
-        if ($this->pagina < $this->totalPaginas) $this->pagina++;
-    }
-
-    public function irPagina(int $p)
-    {
-        if ($p >= 1 && $p <= $this->totalPaginas) {
-            $this->pagina = $p;
+        $dir = strtolower($this->sortDirOfr) === 'asc' ? 'asc' : 'desc';
+        switch ($this->sortColOfr) {
+            case 'flujo_id':
+                $q->orderBy('hf.flujo_id', $dir);
+                break;
+            case 'documento_id':
+                $q->orderBy('hf.tramite_id', $dir);
+                break;
+            case 'cliente':
+                $q->orderByRaw("COALESCE(c.nombre, co.nombre_cliente, '') {$dir}");
+                break;
+            case 'estado_flujo':
+                $q->orderByRaw("COALESCE(tt.nombre, 'sin_flujo') {$dir}");
+                break;
+            case 'total_ofertas':
+                $q->orderBy('total_ofertas', $dir);
+                break;
+            case 'created_at':
+            default:
+                $q->orderBy('hf.created_at', $dir);
+                break;
         }
+
+        $q->orderByDesc('hf.id');
+
+        $this->registros = $q->get()->toArray();
     }
 
     // ── Limpiar filtros ────────────────────────────────────────────────────
     public function limpiarFiltros()
     {
-        $this->busquedaCliente = '';
+        $this->busquedaOfr     = '';
         $this->filtroEstado    = '';
         $this->filtroFecha     = '';
         $this->filtroNumero    = '';
-        $this->pagina          = 1;
+        $this->paginaOfr       = 1;
+        $this->cargarRegistros();
     }
 
     // ── Anular pedido ──────────────────────────────────────────────────────
@@ -280,6 +332,18 @@ class ListarVentas extends Component
             ]);
             $this->showModalFlujo  = true;
         }
+    }
+
+    /** Abre el componente de flujo para origen pedido (igual a ofertar) */
+    public function abrirModalPedido(int $pedidoId): void
+    {
+        $this->emit('abrirFlujoPedido', $pedidoId);
+    }
+
+    /** Abre el componente de flujo para origen cotizacion (igual a ofertar) */
+    public function abrirModalCotizacion(int $flujoId): void
+    {
+        $this->emit('abrirFlujoCotizacion', $flujoId);
     }
 
     public function cerrarFlujo()
@@ -428,14 +492,8 @@ class ListarVentas extends Component
     // ── Render ─────────────────────────────────────────────────────────────
     public function render()
     {
-        $this->totalPedidos  = $this->query()->count();
-        $this->totalPaginas  = (int) ceil($this->totalPedidos / $this->porPagina);
-        $offset  = ($this->pagina - 1) * $this->porPagina;
-        $pedidos = $this->query()->skip($offset)->take($this->porPagina)->get();
-
         return view('livewire.flujo.listar-ventas', [
-            'pedidos'      => $pedidos,
-            'totalPaginas' => $this->totalPaginas,
+            'registros' => $this->registros,
         ]);
     }
 }
