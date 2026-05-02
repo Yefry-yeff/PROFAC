@@ -46,18 +46,22 @@
     $tieneGanadora = ($d['has_ganadora'] > 0);
     $tienePrefact  = in_array(4, $flujoTipos);
     $tieneFactura  = in_array(3, $flujoTipos) || in_array(5, $flujoTipos);
-    $tieneEntrega  = in_array(5, $flujoTipos);
-    $cobroCompletado = isset($saldoPendienteFactura) && $saldoPendienteFactura !== null
-        ? ((float) $saldoPendienteFactura <= 0.0001)
-        : false;
-    $finalizadoCompletado = $tieneEntrega && $cobroCompletado;
+
+    // Estado de Entrega y Cobro leídos desde historico_flujo.estado_id
+    // 5 = Pendiente (azul) | 1 = Completado (verde) | null = no existe aún (gris)
+    $entregaEstadoId = $estadoEntrega;  // null | 1 | 5
+    $cobroEstadoId   = $estadoCobro;    // null | 1 | 5
+    $tieneEntrega    = ($entregaEstadoId !== null);
+    $entregaEsCompletada = ($entregaEstadoId === 1);
+    $cobroCompletado     = ($cobroEstadoId === 1);
+    $finalizadoCompletado = $entregaEsCompletada && $cobroCompletado;
     $facturaCompletada = in_array(5, $flujoTipos) || in_array(3, $flujoTipos);
 
     $fPaso = match(true) {
         $fCancelado   => 0,
         $finalizadoCompletado => 7,
-        $tieneEntrega => 5,
         $cobroCompletado => 6,
+        $tieneEntrega => 5,
         $tieneFactura => 4,
         $tienePrefact => 3,
         $tieneGanadora => 3,
@@ -263,8 +267,14 @@
                     $puedeFinal       = $tieneFactura;
 
                     $facturaLineaCompletada = ($fPaso > 4);
-                    $entregaColor = $entregaActiva ? '#1a7efb' : ($tieneEntrega ? '#1ab394' : '#aab');
-                    $cobroColor   = $cobroCompletado ? '#1ab394' : ($cobroActiva ? '#1a7efb' : '#aab');
+
+                    // Colores según estado_id: activo=azul, completado(1)=verde, pendiente(5)=azul, null=gris
+                    $entregaColor = $entregaActiva
+                        ? '#1a7efb'
+                        : ($entregaEsCompletada ? '#1ab394' : ($tieneEntrega ? '#1a7efb' : '#aab'));
+                    $cobroColor   = $cobroActiva
+                        ? '#1a7efb'
+                        : ($cobroCompletado ? '#1ab394' : ($cobroEstadoId === 5 ? '#1a7efb' : '#aab'));
                     $finalColor   = $finalizadoCompletado ? '#1ab394' : ($finalActiva ? '#1a7efb' : '#aab');
 
                     $lineaFacturaEstado = $facturaLineaCompletada
@@ -272,10 +282,10 @@
                         : ($facturaActiva ? '#1a7efb' : '#d6dbe8');
                     $lineaEntregaEstado = $entregaActiva
                         ? '#1a7efb'
-                        : ($tieneEntrega ? '#1ab394' : '#d6dbe8');
-                    $lineaCobroEstado   = $cobroCompletado
-                        ? '#1ab394'
-                        : ($cobroActiva ? '#1a7efb' : '#d6dbe8');
+                        : ($entregaEsCompletada ? '#1ab394' : ($tieneEntrega ? '#1a7efb' : '#d6dbe8'));
+                    $lineaCobroEstado   = $cobroActiva
+                        ? '#1a7efb'
+                        : ($cobroCompletado ? '#1ab394' : ($cobroEstadoId === 5 ? '#1a7efb' : '#d6dbe8'));
                 @endphp
                 <div style="display:flex; align-items:center; gap:20px; margin-left:8px; padding:0 6px 30px 6px; position:relative;">
 
@@ -293,7 +303,8 @@
                         <div style="display:flex; flex-direction:column; gap:16px; min-width:100px;">
                             <div class="{{ $puedeEntrega ? 'fmp-step-clickable' : '' }}"
                                  @if($puedeEntrega) wire:click="seleccionarPaso('entrega')" @endif
-                                 style="display:flex; flex-direction:column; align-items:center; min-width:100px;">
+                                 style="display:flex; flex-direction:column; align-items:center; min-width:100px;
+                                        {{ ($pasoActivo === 'entrega') ? 'background:rgba(26,126,251,.06); border-radius:12px; padding:4px 6px;' : 'padding:4px 6px;' }}">
                                 @if ($entregaActiva)
                                 <div style="width:60px; height:60px; border-radius:50%;
                                             background:linear-gradient(135deg,#1a7efb,#0d6efd); color:#fff;
@@ -304,14 +315,22 @@
                                             outline:3px solid rgba(26,126,251,.35); outline-offset:4px;">
                                     <i class="fa fa-check"></i>
                                 </div>
-                                @elseif ($tieneEntrega)
+                                @elseif ($entregaEsCompletada)
                                 <div style="width:60px; height:60px; border-radius:50%;
                                             background:linear-gradient(135deg,#1ab394,#0fa37a); color:#fff;
                                             margin-bottom:8px; box-shadow:0 4px 16px rgba(26,179,148,.4);
                                             display:flex; align-items:center; justify-content:center;
-                                            font-size:22px; flex-shrink:0;
-                                            {{ $entregaActiva ? 'box-shadow:0 4px 16px rgba(26,179,148,.4), 0 0 0 4px rgba(26,179,148,.25);' : '' }}">
+                                            font-size:22px; flex-shrink:0;">
                                     <i class="fa fa-check"></i>
+                                </div>
+                                @elseif ($entregaEstadoId === 5)
+                                <div style="width:60px; height:60px; border-radius:50%;
+                                            background:linear-gradient(135deg,#1a7efb,#0d6efd); color:#fff;
+                                            margin-bottom:8px;
+                                            box-shadow:0 4px 16px rgba(26,126,251,.35);
+                                            display:flex; align-items:center; justify-content:center;
+                                            font-size:22px; flex-shrink:0;">
+                                    <i class="fa fa-truck"></i>
                                 </div>
                                 @else
                                 <div style="width:60px; height:60px; border-radius:50%;
@@ -327,8 +346,10 @@
                                     <div style="font-size:10px; color:{{ $entregaColor }}; opacity:{{ $tieneEntrega ? '1' : '.7' }};">
                                         @if ($entregaActiva)
                                             <i class="fa fa-map-marker" style="animation:dotBlink 1s ease-in-out infinite;"></i> Actual
-                                        @elseif ($tieneEntrega)
+                                        @elseif ($entregaEsCompletada)
                                             <i class="fa fa-check-circle"></i> Completado
+                                        @elseif ($entregaEstadoId === 5)
+                                            <i class="fa fa-clock-o"></i> Pendiente
                                         @else
                                             <i class="fa fa-clock-o"></i> Pendiente
                                         @endif
@@ -338,14 +359,14 @@
 
                             <div class="{{ $puedeCobro ? 'fmp-step-clickable' : '' }}"
                                  @if($puedeCobro) wire:click="seleccionarPaso('cobro')" @endif
-                                 style="display:flex; flex-direction:column; align-items:center; min-width:100px;">
+                                 style="display:flex; flex-direction:column; align-items:center; min-width:100px;
+                                        {{ ($pasoActivo === 'cobro') ? 'background:rgba(26,126,251,.06); border-radius:12px; padding:4px 6px;' : 'padding:4px 6px;' }}">
                                 @if ($cobroCompletado)
                                 <div style="width:60px; height:60px; border-radius:50%;
                                             background:linear-gradient(135deg,#1ab394,#0fa37a); color:#fff;
                                             margin-bottom:8px; box-shadow:0 4px 16px rgba(26,179,148,.4);
                                             display:flex; align-items:center; justify-content:center;
-                                            font-size:22px; flex-shrink:0;
-                                            {{ $cobroActiva ? 'box-shadow:0 4px 16px rgba(26,179,148,.4), 0 0 0 4px rgba(26,179,148,.25);' : '' }}">
+                                            font-size:22px; flex-shrink:0;">
                                     <i class="fa fa-check"></i>
                                 </div>
                                 @elseif ($cobroActiva)
@@ -358,22 +379,33 @@
                                             outline:3px solid rgba(26,126,251,.35); outline-offset:4px;">
                                     <i class="fa fa-check"></i>
                                 </div>
+                                @elseif ($cobroEstadoId === 5)
+                                <div style="width:60px; height:60px; border-radius:50%;
+                                            background:linear-gradient(135deg,#1a7efb,#0d6efd); color:#fff;
+                                            margin-bottom:8px;
+                                            box-shadow:0 4px 16px rgba(26,126,251,.35);
+                                            display:flex; align-items:center; justify-content:center;
+                                            font-size:22px; flex-shrink:0;">
+                                    <i class="fa fa-dollar"></i>
+                                </div>
                                 @else
                                 <div style="width:60px; height:60px; border-radius:50%;
                                             background:#e8eaf0; color:#c0c2cc; margin-bottom:8px;
                                             display:flex; align-items:center; justify-content:center;
                                             font-size:22px; flex-shrink:0;">
-                                    <i class="fa fa-money"></i>
+                                    <i class="fa fa-dollar"></i>
                                 </div>
                                 @endif
                                 <div style="text-align:center;">
                                     <div style="font-size:12px; font-weight:700; color:{{ $cobroColor }};
                                                 {{ $cobroActiva ? 'text-decoration:underline;' : '' }}">Cobro</div>
-                                    <div style="font-size:10px; color:{{ $cobroColor }}; opacity:{{ $cobroCompletado ? '1' : '.7' }};">
+                                    <div style="font-size:10px; color:{{ $cobroColor }}; opacity:{{ $cobroEstadoId !== null ? '1' : '.7' }};">
                                         @if ($cobroCompletado)
                                             <i class="fa fa-check-circle"></i> Completado
                                         @elseif ($cobroActiva)
                                             <i class="fa fa-map-marker" style="animation:dotBlink 1s ease-in-out infinite;"></i> Actual
+                                        @elseif ($cobroEstadoId === 5)
+                                            <i class="fa fa-clock-o"></i> Pendiente
                                         @else
                                             <i class="fa fa-clock-o"></i> Pendiente
                                         @endif
@@ -384,11 +416,11 @@
 
                         <div style="width:80px; height:170px; position:relative;">
                             <div style="position:absolute; left:0; top:38px; width:48px; height:3px; border-radius:3px;
-                                        background:{{ $tieneEntrega ? '#1ab394' : '#d6dbe8' }};"></div>
+                                        background:{{ $entregaEsCompletada ? '#1ab394' : ($tieneEntrega ? '#1a7efb' : '#d6dbe8') }};"></div>
                             <div style="position:absolute; left:0; top:122px; width:48px; height:3px; border-radius:3px;
-                                        background:{{ $cobroCompletado ? '#1ab394' : '#d6dbe8' }};"></div>
+                                        background:{{ $cobroCompletado ? '#1ab394' : ($cobroEstadoId === 5 ? '#1a7efb' : '#d6dbe8') }};"></div>
                             <div style="position:absolute; left:48px; top:38px; width:3px; height:87px; border-radius:3px;
-                                        background:{{ ($tieneEntrega || $cobroCompletado) ? '#1a7efb' : '#d6dbe8' }};"></div>
+                                        background:{{ ($tieneEntrega || $cobroEstadoId !== null) ? '#1a7efb' : '#d6dbe8' }};"></div>
                             <div style="position:absolute; left:48px; top:82px; width:32px; height:3px; border-radius:3px;
                                         background:{{ $finalizadoCompletado ? '#1ab394' : '#d6dbe8' }};"></div>
                         </div>
@@ -1294,6 +1326,111 @@
                 <div style="margin-top:20px; text-align:center; padding:24px; color:#90a4ae;">
                     <i class="fa fa-file-text-o fa-2x d-block mb-2" style="opacity:.4;"></i>
                     <p style="font-size:13px; margin:0; font-weight:600;">Sin factura registrada en este flujo.</p>
+                </div>
+                @endif
+
+                {{-- ══════════════════════════════════════════════════ --}}
+                {{-- PASO: COBRO                                           --}}
+                {{-- ══════════════════════════════════════════════════ --}}
+                @elseif ($pasoActivo === 'cobro')
+
+                @if ($cobroFacturaData)
+                @php
+                    $saldoCobro = (float) ($saldoPendienteFactura ?? 0);
+                    $totalAbonado = collect($historialPagosFactura)->sum(function ($p) {
+                        return (float) ($p['monto_abonado'] ?? 0);
+                    });
+                @endphp
+                <div style="margin-top:12px;">
+                    <div style="background:#fff; border-radius:10px; border:1px solid #e8eaf0;
+                                padding:12px 14px; margin-bottom:10px; font-size:12px; color:#555;">
+                        <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:center;">
+                            <span><i class="fa fa-file-text text-primary mr-1"></i><strong>Factura #{{ $cobroFacturaData['id'] }}</strong></span>
+                            <span><i class="fa fa-user text-info mr-1"></i>{{ $cobroFacturaData['nombre'] ?? ($d['cliente'] ?? '—') }}</span>
+                            <span><i class="fa fa-calendar text-muted mr-1"></i>{{ \Carbon\Carbon::parse($cobroFacturaData['fecha_emision'])->format('d/m/Y') }}</span>
+                            <strong style="color:#e65100;">Total factura: L {{ number_format($cobroFacturaData['total'] ?? 0, 2) }}</strong>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
+                        <div style="flex:1; min-width:180px; background:#fff; border:1px solid #e8eaf0; border-radius:10px; padding:12px 14px;">
+                            <div style="font-size:11px; color:#888; font-weight:700; text-transform:uppercase; letter-spacing:.3px;">Saldo pendiente</div>
+                            <div style="font-size:22px; font-weight:800; color:{{ $saldoCobro <= 0 ? '#1ab394' : '#1a7efb' }};">
+                                L {{ number_format($saldoCobro, 2) }}
+                            </div>
+                            <div style="font-size:11px; color:#90a4ae;">Aplicación de pagos #{{ $aplicacionPagoId ?? '—' }}</div>
+                        </div>
+
+                        <div style="flex:1; min-width:180px; background:#fff; border:1px solid #e8eaf0; border-radius:10px; padding:12px 14px;">
+                            <div style="font-size:11px; color:#888; font-weight:700; text-transform:uppercase; letter-spacing:.3px;">Total abonado</div>
+                            <div style="font-size:22px; font-weight:800; color:#1ab394;">
+                                L {{ number_format($totalAbonado, 2) }}
+                            </div>
+                            <div style="font-size:11px; color:#90a4ae;">{{ count($historialPagosFactura) }} pago(s) registrados</div>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; flex-wrap:wrap; gap:8px; margin:4px 0 10px;">
+                        <a href="/venta/cobro/{{ $cobroFacturaData['id'] }}" target="_blank"
+                           style="background:linear-gradient(135deg,#1a7efb,#0d6efd); color:#fff;
+                                  border:none; border-radius:8px; padding:6px 14px; font-size:12px; font-weight:700;
+                                  text-decoration:none; display:inline-flex; align-items:center; gap:5px;">
+                            <i class="fa fa-dollar"></i> Gestionar cobros
+                        </a>
+                    </div>
+
+                    <div style="border-radius:10px; overflow:hidden; border:1px solid #e8eaf0; background:#fff;">
+                        <div style="background:linear-gradient(135deg,#1a7efb 0%,#0d6efd 100%); padding:10px 14px; color:#fff; font-size:13px; font-weight:700;">
+                            <i class="fa fa-list-ul mr-1"></i> Historial de pagos
+                        </div>
+
+                        @if (count($historialPagosFactura) === 0)
+                        <div style="padding:16px; text-align:center; color:#90a4ae; font-size:12px;">
+                            <i class="fa fa-inbox d-block mb-1" style="opacity:.35; font-size:20px;"></i>
+                            No hay pagos registrados para esta factura.
+                        </div>
+                        @else
+                        <div style="max-height:260px; overflow-y:auto;">
+                            <table style="width:100%; font-size:11px; border-collapse:collapse;">
+                                <thead>
+                                    <tr style="background:#f8f9fc; color:#888; position:sticky; top:0;">
+                                        <th style="padding:6px 8px; text-align:left;">Fecha</th>
+                                        <th style="padding:6px 8px; text-align:right;">Monto</th>
+                                        <th style="padding:6px 8px; text-align:left;">Método</th>
+                                        <th style="padding:6px 8px; text-align:left;">Banco</th>
+                                        <th style="padding:6px 8px; text-align:left;">Recibo</th>
+                                        <th style="padding:6px 8px; text-align:left;">Usuario</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach ($historialPagosFactura as $pago)
+                                    <tr style="border-bottom:1px solid #f0f0f0;">
+                                        <td style="padding:6px 8px; color:#2c3e50;">{{ !empty($pago['fecha_pago']) ? \Carbon\Carbon::parse($pago['fecha_pago'])->format('d/m/Y') : '—' }}</td>
+                                        <td style="padding:6px 8px; text-align:right; font-weight:700; color:#1ab394;">L {{ number_format((float) ($pago['monto_abonado'] ?? 0), 2) }}</td>
+                                        <td style="padding:6px 8px; color:#555;">{{ $pago['tipo_pago'] ?? '—' }}</td>
+                                        <td style="padding:6px 8px; color:#555;">{{ !empty($pago['banco']) ? $pago['banco'] : '—' }}</td>
+                                        <td style="padding:6px 8px; color:#555;">{{ $pago['numero_recibo'] ?? '—' }}</td>
+                                        <td style="padding:6px 8px; color:#90a4ae;">{{ $pago['usuario'] ?? '—' }}</td>
+                                    </tr>
+                                    @if (!empty($pago['comentario']))
+                                    <tr style="border-bottom:1px solid #f0f0f0; background:#fafbff;">
+                                        <td colspan="6" style="padding:6px 8px; color:#6b7280; font-size:10px;">
+                                            <i class="fa fa-sticky-note-o mr-1"></i>{{ $pago['comentario'] }}
+                                        </td>
+                                    </tr>
+                                    @endif
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                        @endif
+                    </div>
+                </div>
+                @else
+                <div style="margin-top:20px; text-align:center; padding:24px; color:#90a4ae;">
+                    <i class="fa fa-clock-o fa-2x d-block mb-2" style="opacity:.4;"></i>
+                    <p style="font-size:13px; margin:0; font-weight:600;">No se encontró información de cobro.</p>
+                    <p style="font-size:12px; margin:4px 0 0; opacity:.7;">Primero debe existir una factura y su registro en aplicación de pagos.</p>
                 </div>
                 @endif
 

@@ -511,15 +511,28 @@ class FacturacionCorporativa extends Component
             // 4. Registro de Cobro (tramite_id = aplicacion_pagos.id para esta factura, estado Pendiente)
             $aplicacionPagoId = DB::table('aplicacion_pagos')
                 ->where('factura_id', $facturaId)
+                ->orderByDesc('id')
                 ->value('id');
 
-            $cobroExiste = DB::table('historico_flujo')
+            $cobroPendiente = DB::table('historico_flujo')
                 ->where('flujo_id', $flujoId)
                 ->where('tipo_tramite_id', $TIPO_COBRO)
                 ->where('estado_id', $ESTADO_PENDIENTE)
-                ->exists();
+                ->orderByDesc('id')
+                ->first(['id', 'tramite_id']);
 
-            if (!$cobroExiste) {
+            if ($cobroPendiente) {
+                // Si ya existe pendiente pero quedó sin tramite_id, lo reparamos.
+                if (empty($cobroPendiente->tramite_id) && $aplicacionPagoId) {
+                    DB::table('historico_flujo')
+                        ->where('id', $cobroPendiente->id)
+                        ->update([
+                            'tramite_id' => $aplicacionPagoId,
+                            'updated_by' => Auth::id(),
+                            'updated_at' => now(),
+                        ]);
+                }
+            } else {
                 DB::table('historico_flujo')->insert([
                     'flujo_id'        => $flujoId,
                     'tipo_tramite_id' => $TIPO_COBRO,

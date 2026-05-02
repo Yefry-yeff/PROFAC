@@ -47,6 +47,11 @@ class ModalFlujoPedido extends Component
     public $facturaData          = null;
     public $confirmAccionFactura = null; // null | 'anular'
     public $saldoPendienteFactura = null;
+    public $estadoEntrega         = null;
+    public $estadoCobro           = null;
+    public $cobroFacturaData      = null;
+    public $historialPagosFactura = [];
+    public $aplicacionPagoId      = null;
 
     // ── Listeners ─────────────────────────────────────────────────────────
     protected $listeners = ['abrirFlujoPedido' => 'abrir', 'abrirFlujoCotizacion' => 'abrirDesdeFlujo'];
@@ -108,10 +113,12 @@ class ModalFlujoPedido extends Component
             4  => 'prefactura',
             3  => 'factura',
             5  => 'entrega',
+            8  => 'finalizado',
             'pedido'        => 'pedido',
             'Ofertas'       => 'ofertas',
             'prefactura'    => 'prefactura',
             'factura'       => 'factura',
+            'finalizado'    => 'finalizado',
             'Entrega Cobro' => 'entrega',
         ];
         // Si el paso inicial es 'pedido' (default), auto-derivamos del flujo;
@@ -134,6 +141,7 @@ class ModalFlujoPedido extends Component
                 ->toArray()
             : [];
 
+        $this->cargarEstadosEntregaCobro();
         $this->cargarOfertasPedido();
 
         // Resetear estado
@@ -211,6 +219,8 @@ class ModalFlujoPedido extends Component
             ->values()
             ->toArray();
 
+        $this->cargarEstadosEntregaCobro();
+
         // Determinar paso activo desde el estado actual del flujo
         $flujoInfo = DB::table('flujo as f')
             ->leftJoin('tipos_tramites as tt', 'tt.id', '=', 'f.tipo_tramite_id')
@@ -224,10 +234,12 @@ class ModalFlujoPedido extends Component
             4  => 'prefactura',
             3  => 'factura',
             5  => 'entrega',
+            8  => 'finalizado',
             'pedido'        => 'ofertas',   // sin pedido, arrancamos en ofertas
             'Ofertas'       => 'ofertas',
             'prefactura'    => 'prefactura',
             'factura'       => 'factura',
+            'finalizado'    => 'finalizado',
             'Entrega Cobro' => 'entrega',
         ];
 
@@ -302,9 +314,14 @@ class ModalFlujoPedido extends Component
         $this->facturaData             = null;
         $this->confirmAccionFactura    = null;
         $this->saldoPendienteFactura   = null;
+        $this->cobroFacturaData        = null;
+        $this->historialPagosFactura   = [];
+        $this->aplicacionPagoId        = null;
         $this->tiposFacturacion        = [];
         $this->facturacionActiva       = false;
         $this->vencimientoProcesado    = false;
+        $this->estadoEntrega           = null;
+        $this->estadoCobro             = null;
     }
 
     // ─────────────────────────────────────────────────────────────────────
@@ -330,6 +347,9 @@ class ModalFlujoPedido extends Component
         }
         if ($paso === 'factura') {
             $this->cargarFactura();
+        }
+        if ($paso === 'cobro') {
+            $this->cargarEstadoCobroFactura();
         }
         $this->tiposFacturacion  = [];
         $this->facturacionActiva = false;
@@ -1049,28 +1069,14 @@ class ModalFlujoPedido extends Component
 
     private function cargarFactura(): void
     {
-        if (!$this->flujoId) {
-            $this->facturaData = null;
-            return;
-        }
-
-        // Prioridad tipo_tramite_id=3 (factura); tipo 5 como compatibilidad con datos anteriores
-        // al nuevo modelo (donde tipo 5 = Entrega con tramite_id NULL).
-        $hist = DB::table('historico_flujo')
-            ->where('flujo_id', $this->flujoId)
-            ->whereIn('tipo_tramite_id', [3, 5])
-            ->whereNotNull('tramite_id')
-            ->where('estado_id', '!=', 7)
-            ->orderByDesc('id')
-            ->first();
-
-        if (!$hist) {
+        $facturaId = $this->obtenerFacturaIdFlujo();
+        if (!$facturaId) {
             $this->facturaData = null;
             return;
         }
 
         $factura = DB::table('factura')
-            ->where('id', (int) $hist->tramite_id)
+            ->where('id', $facturaId)
             ->first();
 
         if (!$factura) {
@@ -1094,8 +1100,8 @@ class ModalFlujoPedido extends Component
 
         $this->facturaData = array_merge((array) $factura, [
             'productos'      => $productos,
-            'historico_id'   => (int) $hist->id,
-            'tramite_tipo_id'=> (int) $hist->tipo_tramite_id,
+            'historico_id'   => null,
+            'tramite_tipo_id'=> 3,
             'print_url'      => '/factura/cooporativo/' . $factura->id,
         ]);
 
@@ -1104,13 +1110,14 @@ class ModalFlujoPedido extends Component
             : null;
     }
 
-    private function cargarEstadoCobroFactura(): void
+    private function obtenerFacturaIdFlujo(): ?int
     {
         if (!$this->flujoId) {
-            $this->saldoPendienteFactura = null;
-            return;
+            return null;
         }
 
+        // Prioridad tipo_tramite_id=3 (factura); tipo 5 como compatibilidad con datos anteriores
+        // al nuevo modelo (donde tipo 5 = Entrega con tramite_id NULL).
         $hist = DB::table('historico_flujo')
             ->where('flujo_id', $this->flujoId)
             ->whereIn('tipo_tramite_id', [3, 5])
@@ -1119,14 +1126,163 @@ class ModalFlujoPedido extends Component
             ->orderByDesc('id')
             ->first(['tramite_id']);
 
-        if (!$hist) {
-            $this->saldoPendienteFactura = null;
+        return $hist ? (int) $hist->tramite_id : null;
+    }
+
+    /**
+     * Carga el estado_id real de los registros Entrega (tipo 5) y Cobro (tipo 6)
+     * desde historico_flujo para reflejar pendiente (5) o completado (1) en el stepper.
+     */
+    private function cargarEstadosEntregaCobro(): void
+    {
+        if (!$this->flujoId) {
+            $this->estadoEntrega = null;
+            $this->estadoCobro   = null;
             return;
         }
 
-        $this->saldoPendienteFactura = DB::table('factura')
-            ->where('id', (int) $hist->tramite_id)
-            ->value('pendiente_cobro');
+        $entrega = DB::table('historico_flujo')
+            ->where('flujo_id', $this->flujoId)
+            ->where('tipo_tramite_id', 5)
+            ->whereNull('tramite_id')   // nuevo modelo: Entrega con tramite_id NULL
+            ->where('estado_id', '!=', 7)
+            ->orderByDesc('id')
+            ->value('estado_id');
+
+        $cobro = DB::table('historico_flujo')
+            ->where('flujo_id', $this->flujoId)
+            ->where('tipo_tramite_id', 6)
+            ->where('estado_id', '!=', 7)
+            ->orderByDesc('id')
+            ->value('estado_id');
+
+        $this->estadoEntrega = $entrega ? (int) $entrega : null;
+        $this->estadoCobro   = $cobro   ? (int) $cobro   : null;
+    }
+
+    private function cargarEstadoCobroFactura(): void
+    {
+        if (!$this->flujoId) {
+            $this->saldoPendienteFactura = null;
+            $this->cobroFacturaData = null;
+            $this->historialPagosFactura = [];
+            $this->aplicacionPagoId = null;
+            return;
+        }
+
+        $facturaId = $this->obtenerFacturaIdFlujo();
+        if (!$facturaId) {
+            $this->saldoPendienteFactura = null;
+            $this->cobroFacturaData = null;
+            $this->historialPagosFactura = [];
+            $this->aplicacionPagoId = null;
+            return;
+        }
+
+        $factura = DB::table('factura')
+            ->where('id', $facturaId)
+            ->first(['id', 'cai', 'nombre_cliente', 'total', 'fecha_emision', 'created_at', 'pendiente_cobro']);
+
+        $ap = DB::table('aplicacion_pagos')
+            ->where('factura_id', $facturaId)
+            ->where('estado', 1)
+            ->orderByDesc('id')
+            ->first(['id', 'saldo', 'credito_abonos', 'created_at', 'updated_at']);
+
+        if (!$ap) {
+            $ap = DB::table('aplicacion_pagos')
+                ->where('factura_id', $facturaId)
+                ->orderByDesc('id')
+                ->first(['id', 'saldo', 'credito_abonos', 'created_at', 'updated_at']);
+        }
+
+        $this->aplicacionPagoId = $ap ? (int) $ap->id : null;
+        $this->saldoPendienteFactura = $ap
+            ? (float) $ap->saldo
+            : (float) ($factura->pendiente_cobro ?? 0);
+
+        $this->cobroFacturaData = [
+            'id'           => (int) $factura->id,
+            'cai'          => $factura->cai,
+            'nombre'       => $factura->nombre_cliente,
+            'total'        => (float) ($factura->total ?? 0),
+            'fecha_emision'=> $factura->fecha_emision ?? $factura->created_at,
+        ];
+
+        $historial = DB::table('abonos_creditos as ac')
+            ->leftJoin('users as u', 'u.id', '=', 'ac.usr_registro')
+            ->leftJoin('tipo_pago_cobro as tpc', 'tpc.id', '=', 'ac.id_tipo_pago_cobro')
+            ->leftJoin('banco as b', 'b.id', '=', 'ac.banco_id')
+            ->where('ac.factura_id', $facturaId)
+            ->where('ac.estado_abono', 1)
+            ->orderByDesc('ac.fecha_pago')
+            ->orderByDesc('ac.id')
+            ->get([
+                'ac.id',
+                'ac.monto_abonado',
+                'ac.fecha_pago',
+                'ac.numero_recibo',
+                'ac.comentario',
+                'ac.url_documento',
+                'tpc.descripcion as tipo_pago',
+                DB::raw("CONCAT(COALESCE(b.nombre,''), CASE WHEN b.cuenta IS NOT NULL AND b.cuenta <> '' THEN CONCAT(' - ', b.cuenta) ELSE '' END) as banco"),
+                'u.name as usuario',
+            ])
+            ->map(fn($r) => (array) $r)
+            ->toArray();
+
+        $this->historialPagosFactura = $historial;
+
+        // Sincronizar Cobro en historico_flujo con aplicacion_pagos:
+        // - tramite_id del Cobro = aplicacion_pagos.id
+        // - si saldo <= 0 => estado_id del Cobro pasa a 1 (completado)
+        $cobroHist = DB::table('historico_flujo')
+            ->where('flujo_id', $this->flujoId)
+            ->where('tipo_tramite_id', 6)
+            ->where('estado_id', '!=', 7)
+            ->orderByDesc('id')
+            ->first(['id', 'tramite_id', 'estado_id']);
+
+        $actualizarCobro = [];
+        if ($cobroHist) {
+            if (empty($cobroHist->tramite_id) && $this->aplicacionPagoId) {
+                $actualizarCobro['tramite_id'] = $this->aplicacionPagoId;
+            }
+
+            if ((float) $this->saldoPendienteFactura <= 0 && (int) $cobroHist->estado_id !== 1) {
+                $actualizarCobro['estado_id'] = 1;
+                $actualizarCobro['observaciones'] = 'Cobro completado por saldo <= 0 (Factura #' . $facturaId . ')';
+            }
+
+            if (!empty($actualizarCobro)) {
+                $actualizarCobro['updated_at'] = now();
+                DB::table('historico_flujo')
+                    ->where('id', $cobroHist->id)
+                    ->update($actualizarCobro);
+            }
+        }
+
+        // Si Cobro quedó completado y Entrega está completada, mover flujo a Finalizado (tipo 8)
+        if ((float) $this->saldoPendienteFactura <= 0) {
+            $entregaCompletada = DB::table('historico_flujo')
+                ->where('flujo_id', $this->flujoId)
+                ->where('tipo_tramite_id', 5)
+                ->where('estado_id', 1)
+                ->where('estado_id', '!=', 7)
+                ->exists();
+
+            if ($entregaCompletada) {
+                DB::table('flujo')
+                    ->where('id', $this->flujoId)
+                    ->update([
+                        'tipo_tramite_id' => 8,
+                        'updated_by'      => Auth::id(),
+                        'updated_at'      => now(),
+                    ]);
+            }
+        }
+
+        $this->cargarEstadosEntregaCobro();
     }
 
     public function confirmarAccionFactura(string $accion): void
