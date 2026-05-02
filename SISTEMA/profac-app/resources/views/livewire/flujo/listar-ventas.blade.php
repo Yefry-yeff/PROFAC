@@ -199,11 +199,8 @@
                         'cancelado' => 'estado-cancelado',
                         default => 'estado-sin-flujo',
                     };
-                    $rowClick = !empty($o['pedido_id'])
-                        ? 'abrirModalPedido('.$o['pedido_id'].')'
-                        : 'abrirModalCotizacion('.$o['flujo_id'].')';
                 @endphp
-                <tr class="ofp-row" wire:click="{{ $rowClick }}" title="Ver flujo #{{ $o['flujo_id'] }}">
+                <tr class="ofp-row" wire:click="abrirFlujoDesdeRegistro({{ (int) ($o['flujo_id'] ?? 0) }}, {{ (int) ($o['pedido_id'] ?? 0) }})" title="Ver flujo #{{ $o['flujo_id'] }}">
                     <td class="text-center align-middle" style="padding:8px;">
                         <span style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff; border-radius:6px; padding:2px 9px; font-weight:800; font-size:13px;">
                             #{{ $o['flujo_id'] }}
@@ -223,11 +220,6 @@
                         <span class="hist-badge {{ $estadoClass }}">
                             <i class="fa {{ $ec[3] }} mr-1"></i>{{ $ec[2] }}
                         </span>
-                        @if(($o['tiene_ganadora'] ?? 0) > 0)
-                        <span class="hist-badge ml-1" style="background:#fff8e1; color:#f57f17; border:1px solid #ffe08233;">
-                            <i class="fa fa-trophy mr-1"></i>Ganadora
-                        </span>
-                        @endif
                     </td>
                     <td class="text-center align-middle" style="padding:8px 6px;">
                         <span class="hist-badge" style="background:#fff3e0; color:#e65100;">
@@ -266,4 +258,7 @@
 
     </div>
     </div>
+
+    {{-- Modal global de flujo (igual que listar-pedidos-para-ofertar) --}}
+    <livewire:flujo.modal-flujo-pedido />
 </div>

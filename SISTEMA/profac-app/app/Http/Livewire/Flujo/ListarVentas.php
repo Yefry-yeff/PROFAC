@@ -21,7 +21,7 @@ class ListarVentas extends Component
 
     // ── Paginación y datos ────────────────────────────────────────────────
     public int $paginaOfr = 1;
-    public int $perPage   = 15;
+    public int $perPage   = 5;
     public $registros     = [];
 
     // ── Confirmación de cancelación ──────────────────────────────────────────
@@ -131,15 +131,9 @@ class ListarVentas extends Component
         $q = DB::table('historico_flujo as hf')
             ->join('flujo as f', 'f.id', '=', 'hf.flujo_id')
             ->leftJoin('tipos_tramites as tt', 'tt.id', '=', 'hf.tipo_tramite_id')
-            ->leftJoin('pedido as p', function ($join) {
-                $join->on('p.id', '=', 'f.identificacion')
-                     ->where('f.tipo_flujo_id', '=', 1);
-            })
+            ->leftJoin('pedido as p', DB::raw('CAST(f.identificacion AS UNSIGNED)'), '=', 'p.id')
             ->leftJoin('cliente as c', 'c.id', '=', 'p.cliente_id')
-            ->leftJoin('cotizacion as co', function ($join) {
-                $join->on('co.id', '=', 'f.identificacion')
-                     ->where('f.tipo_flujo_id', '=', 1);
-            })
+            ->leftJoin('cotizacion as co', DB::raw('CAST(f.identificacion AS UNSIGNED)'), '=', 'co.id')
             ->leftJoin('users as uc', 'uc.id', '=', 'co.users_id')
             ->select(
                 'hf.id as historico_id',
@@ -343,6 +337,28 @@ class ListarVentas extends Component
     /** Abre el componente de flujo para origen cotizacion (igual a ofertar) */
     public function abrirModalCotizacion(int $flujoId): void
     {
+        $this->emit('abrirFlujoCotizacion', $flujoId);
+    }
+
+    /**
+     * Abre flujo desde fila de historial.
+     * Prioriza modal-flujo-pedido; si no existe pedido asociado, abre flujo de cotizacion.
+     */
+    public function abrirFlujoDesdeRegistro(int $flujoId, int $pedidoId = 0): void
+    {
+        if ($pedidoId > 0) {
+            $this->emit('abrirFlujoPedido', $pedidoId);
+            return;
+        }
+
+        $identificacion = DB::table('flujo')->where('id', $flujoId)->value('identificacion');
+        $pedidoDetectado = (int) DB::table('pedido')->where('id', (int) $identificacion)->value('id');
+
+        if ($pedidoDetectado > 0) {
+            $this->emit('abrirFlujoPedido', $pedidoDetectado);
+            return;
+        }
+
         $this->emit('abrirFlujoCotizacion', $flujoId);
     }
 
