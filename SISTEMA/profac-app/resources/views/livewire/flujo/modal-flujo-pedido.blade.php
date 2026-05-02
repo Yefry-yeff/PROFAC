@@ -1330,6 +1330,86 @@
                 @endif
 
                 {{-- ══════════════════════════════════════════════════ --}}
+                {{-- PASO: ENTREGAS                                        --}}
+                {{-- ══════════════════════════════════════════════════ --}}
+                @elseif ($pasoActivo === 'entrega')
+
+                @if (!empty($historialEntregasFactura))
+                <div style="margin-top:12px;">
+                    <div style="background:#fff; border-radius:10px; border:1px solid #e8eaf0;
+                                padding:12px 14px; margin-bottom:10px; font-size:12px; color:#555;">
+                        <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:center;">
+                            <span><i class="mr-1 fa fa-truck text-primary"></i><strong>Entregas de la factura</strong></span>
+                            <span><i class="mr-1 fa fa-list-ul text-info"></i>{{ count($historialEntregasFactura) }} distribución(es) asociada(s)</span>
+                            <span><i class="mr-1 fa fa-sort-amount-asc text-muted"></i>Orden cronológico</span>
+                        </div>
+                    </div>
+
+                    <div style="border-radius:10px; overflow:hidden; border:1px solid #e8eaf0; background:#fff;">
+                        <div style="background:linear-gradient(135deg,#1a7efb 0%,#0d6efd 100%); padding:10px 14px; color:#fff; font-size:13px; font-weight:700;">
+                            <i class="mr-1 fa fa-history"></i> Historial de entregas
+                        </div>
+
+                        <div style="max-height:300px; overflow-y:auto;">
+                            <table style="width:100%; font-size:11px; border-collapse:collapse;">
+                                <thead>
+                                    <tr style="background:#f8f9fc; color:#888; position:sticky; top:0;">
+                                        <th style="padding:6px 8px; text-align:left;">Distribución</th>
+                                        <th style="padding:6px 8px; text-align:left;">Fecha programada</th>
+                                        <th style="padding:6px 8px; text-align:left;">Estado</th>
+                                        <th style="padding:6px 8px; text-align:left;">Equipo responsable</th>
+                                        <th style="padding:6px 8px; text-align:left;">Miembros</th>
+                                        <th style="padding:6px 8px; text-align:center;">Orden</th>
+                                        <th style="padding:6px 8px; text-align:left;">Entrega real</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach ($historialEntregasFactura as $entrega)
+                                    @php
+                                        $estadoEntregaDistribucion = (int) ($entrega['estado_id'] ?? 0);
+                                        $estadoTexto = match($estadoEntregaDistribucion) {
+                                            1 => 'Pendiente',
+                                            2 => 'En proceso de entrega',
+                                            3 => 'Completada',
+                                            4 => 'Cancelada',
+                                            default => 'Desconocido',
+                                        };
+                                        $estadoColor = match($estadoEntregaDistribucion) {
+                                            1 => '#f39c12',
+                                            2 => '#1a7efb',
+                                            3 => '#1ab394',
+                                            4 => '#e74c3c',
+                                            default => '#9ca3af',
+                                        };
+                                    @endphp
+                                    <tr style="border-bottom:1px solid #f0f0f0;">
+                                        <td style="padding:6px 8px; color:#2c3e50; font-weight:700;">#{{ $entrega['distribucion_id'] }}</td>
+                                        <td style="padding:6px 8px; color:#555;">{{ !empty($entrega['fecha_programada']) ? \Carbon\Carbon::parse($entrega['fecha_programada'])->format('d/m/Y') : '—' }}</td>
+                                        <td style="padding:6px 8px;">
+                                            <span style="display:inline-block; border-radius:10px; padding:2px 8px; font-weight:700; font-size:10px; color:#fff; background:{{ $estadoColor }};">
+                                                {{ $estadoTexto }}
+                                            </span>
+                                        </td>
+                                        <td style="padding:6px 8px; color:#555;">{{ !empty($entrega['nombre_equipo']) ? $entrega['nombre_equipo'] : '—' }}</td>
+                                        <td style="padding:6px 8px; color:#6b7280;">{{ !empty($entrega['equipo_miembros']) ? $entrega['equipo_miembros'] : 'Sin miembros registrados' }}</td>
+                                        <td style="padding:6px 8px; text-align:center; font-weight:700; color:#1a7efb;">{{ $entrega['orden_entrega'] ?? '—' }}</td>
+                                        <td style="padding:6px 8px; color:#555;">{{ !empty($entrega['fecha_entrega_real']) ? \Carbon\Carbon::parse($entrega['fecha_entrega_real'])->format('d/m/Y H:i') : '—' }}</td>
+                                    </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                @else
+                <div style="margin-top:20px; text-align:center; padding:24px; color:#90a4ae;">
+                    <i class="mb-2 fa fa-truck fa-2x d-block" style="opacity:.4;"></i>
+                    <p style="font-size:13px; margin:0; font-weight:600;">No hay entregas asociadas a esta factura.</p>
+                    <p style="font-size:12px; margin:4px 0 0; opacity:.7;">Cuando se programe una distribución en logística, aparecerá aquí su historial completo.</p>
+                </div>
+                @endif
+
+                {{-- ══════════════════════════════════════════════════ --}}
                 {{-- PASO: COBRO                                           --}}
                 {{-- ══════════════════════════════════════════════════ --}}
                 @elseif ($pasoActivo === 'cobro')

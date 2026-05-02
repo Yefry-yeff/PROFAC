@@ -1150,8 +1150,60 @@ class DistribucionEntrega extends Component
                 ], 422);
             }
 
+            DB::beginTransaction();
+
             $distribucion->estado_id = 3; // Completada
             $distribucion->save();
+
+            // Sincronizar historico_flujo (tipo_tramite_id = 5) por cada factura
+            // de la distribución para registrar el tramite_id de la entrega.
+            $facturaIds = DB::table('distribuciones_entrega_facturas')
+                ->where('distribucion_entrega_id', $distribucionId)
+                ->pluck('factura_id');
+
+            foreach ($facturaIds as $facturaId) {
+                $flujoId = DB::table('historico_flujo')
+                    ->whereIn('tipo_tramite_id', [3, 5])
+                    ->where('tramite_id', $facturaId)
+                    ->where('estado_id', '!=', 7)
+                    ->orderByDesc('id')
+                    ->value('flujo_id');
+
+                if (!$flujoId) {
+                    continue;
+                }
+
+                $registroEntrega = DB::table('historico_flujo')
+                    ->where('flujo_id', $flujoId)
+                    ->where('tipo_tramite_id', 5)
+                    ->where('estado_id', '!=', 7)
+                    ->orderByDesc('id')
+                    ->first(['id', 'tramite_id', 'estado_id']);
+
+                if (!$registroEntrega) {
+                    continue;
+                }
+
+                $actualizacionEntrega = [
+                    'updated_by' => Auth::id(),
+                    'updated_at' => now(),
+                ];
+
+                if ((int) ($registroEntrega->tramite_id ?? 0) !== (int) $distribucionId) {
+                    $actualizacionEntrega['tramite_id'] = $distribucionId;
+                }
+
+                if ((int) $registroEntrega->estado_id !== 1) {
+                    $actualizacionEntrega['estado_id'] = 1;
+                    $actualizacionEntrega['observaciones'] = 'Entrega completada en distribución #' . $distribucionId;
+                }
+
+                DB::table('historico_flujo')
+                    ->where('id', $registroEntrega->id)
+                    ->update($actualizacionEntrega);
+            }
+
+            DB::commit();
             
             Log::info("Distribución completada exitosamente:", [
                 'distribucion_id' => $distribucion->id,
@@ -1165,6 +1217,9 @@ class DistribucionEntrega extends Component
             ], 200);
 
         } catch (\Exception $e) {
+            if (DB::transactionLevel() > 0) {
+                DB::rollBack();
+            }
             Log::error("Error al completar distribución:", [
                 'distribucion_id' => $distribucionId,
                 'error' => $e->getMessage(),

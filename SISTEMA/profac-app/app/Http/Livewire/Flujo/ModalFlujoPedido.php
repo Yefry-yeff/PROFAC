@@ -51,6 +51,7 @@ class ModalFlujoPedido extends Component
     public $estadoCobro           = null;
     public $cobroFacturaData      = null;
     public $historialPagosFactura = [];
+    public $historialEntregasFactura = [];
     public $aplicacionPagoId      = null;
 
     // ── Listeners ─────────────────────────────────────────────────────────
@@ -164,6 +165,9 @@ class ModalFlujoPedido extends Component
         if ($pasoFinal === 'factura') {
             $this->cargarFactura();
         }
+        if ($pasoFinal === 'entrega') {
+            $this->cargarHistorialEntregasFactura();
+        }
         $this->cargarEstadoCobroFactura();
         $this->showModal               = true;
         $this->dispatchBrowserEvent('fmp-show');
@@ -270,6 +274,9 @@ class ModalFlujoPedido extends Component
         if ($pasoAbierto === 'factura') {
             $this->cargarFactura();
         }
+        if ($pasoAbierto === 'entrega') {
+            $this->cargarHistorialEntregasFactura();
+        }
         $this->cargarEstadoCobroFactura();
         $this->showModal               = true;
         $this->dispatchBrowserEvent('fmp-show');
@@ -316,6 +323,7 @@ class ModalFlujoPedido extends Component
         $this->saldoPendienteFactura   = null;
         $this->cobroFacturaData        = null;
         $this->historialPagosFactura   = [];
+        $this->historialEntregasFactura = [];
         $this->aplicacionPagoId        = null;
         $this->tiposFacturacion        = [];
         $this->facturacionActiva       = false;
@@ -350,6 +358,9 @@ class ModalFlujoPedido extends Component
         }
         if ($paso === 'cobro') {
             $this->cargarEstadoCobroFactura();
+        }
+        if ($paso === 'entrega') {
+            $this->cargarHistorialEntregasFactura();
         }
         $this->tiposFacturacion  = [];
         $this->facturacionActiva = false;
@@ -1116,17 +1127,32 @@ class ModalFlujoPedido extends Component
             return null;
         }
 
-        // Prioridad tipo_tramite_id=3 (factura); tipo 5 como compatibilidad con datos anteriores
-        // al nuevo modelo (donde tipo 5 = Entrega con tramite_id NULL).
-        $hist = DB::table('historico_flujo')
+        // Regla principal: la factura real vive en tipo_tramite_id = 3.
+        $histFactura = DB::table('historico_flujo')
             ->where('flujo_id', $this->flujoId)
-            ->whereIn('tipo_tramite_id', [3, 5])
+            ->where('tipo_tramite_id', 3)
             ->whereNotNull('tramite_id')
             ->where('estado_id', '!=', 7)
             ->orderByDesc('id')
             ->first(['tramite_id']);
 
-        return $hist ? (int) $hist->tramite_id : null;
+        if ($histFactura) {
+            return (int) $histFactura->tramite_id;
+        }
+
+        // Compatibilidad legacy: algunos flujos guardaron la factura en tipo 5.
+        // Se valida que tramite_id exista en tabla factura para no confundirlo
+        // con un id de distribución de entrega.
+        $histLegacy = DB::table('historico_flujo as hf')
+            ->join('factura as f', 'f.id', '=', 'hf.tramite_id')
+            ->where('hf.flujo_id', $this->flujoId)
+            ->where('hf.tipo_tramite_id', 5)
+            ->whereNotNull('hf.tramite_id')
+            ->where('hf.estado_id', '!=', 7)
+            ->orderByDesc('hf.id')
+            ->first(['hf.tramite_id']);
+
+        return $histLegacy ? (int) $histLegacy->tramite_id : null;
     }
 
     /**
@@ -1144,10 +1170,27 @@ class ModalFlujoPedido extends Component
         $entrega = DB::table('historico_flujo')
             ->where('flujo_id', $this->flujoId)
             ->where('tipo_tramite_id', 5)
-            ->whereNull('tramite_id')   // nuevo modelo: Entrega con tramite_id NULL
             ->where('estado_id', '!=', 7)
             ->orderByDesc('id')
-            ->value('estado_id');
+            ->first(['estado_id', 'tramite_id']);
+
+        // Compatibilidad: si el tipo 5 más reciente apunta a una factura histórica,
+        // usar el registro del modelo nuevo (tramite_id NULL o distribución válida).
+        if ($entrega && !empty($entrega->tramite_id)) {
+            $esDistribucion = DB::table('distribuciones_entrega')
+                ->where('id', (int) $entrega->tramite_id)
+                ->exists();
+
+            if (!$esDistribucion) {
+                $entrega = DB::table('historico_flujo')
+                    ->where('flujo_id', $this->flujoId)
+                    ->where('tipo_tramite_id', 5)
+                    ->where('estado_id', '!=', 7)
+                    ->whereNull('tramite_id')
+                    ->orderByDesc('id')
+                    ->first(['estado_id', 'tramite_id']);
+            }
+        }
 
         $cobro = DB::table('historico_flujo')
             ->where('flujo_id', $this->flujoId)
@@ -1156,8 +1199,53 @@ class ModalFlujoPedido extends Component
             ->orderByDesc('id')
             ->value('estado_id');
 
-        $this->estadoEntrega = $entrega ? (int) $entrega : null;
+        $this->estadoEntrega = $entrega ? (int) $entrega->estado_id : null;
         $this->estadoCobro   = $cobro   ? (int) $cobro   : null;
+    }
+
+    private function cargarHistorialEntregasFactura(): void
+    {
+        if (!$this->flujoId) {
+            $this->historialEntregasFactura = [];
+            return;
+        }
+
+        $facturaId = $this->obtenerFacturaIdFlujo();
+        if (!$facturaId) {
+            $this->historialEntregasFactura = [];
+            return;
+        }
+
+        $miembrosSnapshot = DB::table('distribuciones_entrega_miembros as dem')
+            ->leftJoin('users as u', 'u.id', '=', 'dem.user_id')
+            ->select(
+                'dem.distribucion_entrega_id',
+                DB::raw("GROUP_CONCAT(DISTINCT TRIM(COALESCE(u.name, '')) ORDER BY u.name SEPARATOR ', ') as miembros")
+            )
+            ->groupBy('dem.distribucion_entrega_id');
+
+        $this->historialEntregasFactura = DB::table('distribuciones_entrega_facturas as def')
+            ->join('distribuciones_entrega as de', 'de.id', '=', 'def.distribucion_entrega_id')
+            ->leftJoin('equipos_entrega as ee', 'ee.id', '=', 'de.equipo_entrega_id')
+            ->leftJoinSub($miembrosSnapshot, 'ms', function ($join) {
+                $join->on('ms.distribucion_entrega_id', '=', 'de.id');
+            })
+            ->where('def.factura_id', $facturaId)
+            ->orderBy('de.fecha_programada')
+            ->orderBy('de.id')
+            ->get([
+                'de.id as distribucion_id',
+                'de.fecha_programada',
+                'de.estado_id',
+                'ee.nombre_equipo',
+                'ms.miembros as equipo_miembros',
+                'def.orden_entrega',
+                'def.estado_entrega',
+                'def.fecha_entrega_real',
+                'def.observaciones',
+            ])
+            ->map(fn($r) => (array) $r)
+            ->toArray();
     }
 
     private function cargarEstadoCobroFactura(): void
