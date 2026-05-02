@@ -565,22 +565,18 @@ class FacturacionEstatal extends Component
                     ppc.precio_d AS precio4,
                     ppc.id AS precios_producto_carga_id
                 FROM producto p
-                JOIN cliente_categoria_escala cce
-                    ON cce.id = :categoria_cliente_venta_id
-                    AND cce.estado_id = 1
-                JOIN categoria_precios cp
-                    ON cp.cliente_categoria_escala_id = cce.id
-                    AND cp.estado_id = 1
                 JOIN precios_producto_carga ppc
                     ON ppc.producto_id = p.id
-                    AND ppc.categoria_precios_id = cp.id
+                    AND ppc.categoria_precios_id = :categoria_cliente_venta_id
                     AND ppc.estado_id = 1
+                JOIN categoria_precios cp
+                    ON cp.id = ppc.categoria_precios_id
+                    AND cp.estado_id = 1
                 WHERE p.id = :idProducto
                 LIMIT 1;
             ", [
                 'categoria_cliente_venta_id' => $request['categoria_cliente_venta_id'],
                 'idProducto' => $request['idProducto'],
-
             ]);
 
 
@@ -589,13 +585,13 @@ class FacturacionEstatal extends Component
                     ->where('id', $request['idProducto'])
                     ->value('nombre');
 
-                $nombreCategoria = DB::table('cliente_categoria_escala')
+                $nombreCategoria = DB::table('categoria_precios')
                     ->where('id', $request['categoria_cliente_venta_id'])
-                    ->value('nombre_categoria');
+                    ->value('nombre');
 
                if (!$producto) {
                     return response()->json([
-                        'message' => "El producto <b>{$nombreProducto}</b> no tiene una escala de precios asignada para la categoría de cliente <b>{$nombreCategoria}</b>."
+                        'message' => "El producto <b>{$nombreProducto}</b> no tiene precios asignados para la categoría <b>{$nombreCategoria}</b>."
                     ], 404);
                 }
 

@@ -335,22 +335,18 @@ class FacturacionCorporativa extends Component
                     ppc.precio_d AS precio4,
                     ppc.id AS precios_producto_carga_id
                 FROM producto p
-                JOIN cliente_categoria_escala cce
-                    ON cce.id = :categoria_cliente_venta_id
-                    AND cce.estado_id = 1
-                JOIN categoria_precios cp
-                    ON cp.cliente_categoria_escala_id = cce.id
-                    AND cp.estado_id = 1
                 JOIN precios_producto_carga ppc
                     ON ppc.producto_id = p.id
-                    AND ppc.categoria_precios_id = cp.id
+                    AND ppc.categoria_precios_id = :categoria_cliente_venta_id
                     AND ppc.estado_id = 1
+                JOIN categoria_precios cp
+                    ON cp.id = ppc.categoria_precios_id
+                    AND cp.estado_id = 1
                 WHERE p.id = :idProducto
                 LIMIT 1;
             ", [
                 'categoria_cliente_venta_id' => $request['categoria_cliente_venta_id'],
                 'idProducto' => $request['idProducto'],
-
             ]);
 
             if (!$producto) {
@@ -358,12 +354,12 @@ class FacturacionCorporativa extends Component
                     ->where('id', $request['idProducto'])
                     ->value('nombre');
 
-                $nombreCategoria = DB::table('cliente_categoria_escala')
+                $nombreCategoria = DB::table('categoria_precios')
                     ->where('id', $request['categoria_cliente_venta_id'])
-                    ->value('nombre_categoria');
+                    ->value('nombre');
 
                 return response()->json([
-                    'message' => "El producto <b>{$nombreProducto}</b> no tiene una escala de precios asignada para la categoría de cliente <b>{$nombreCategoria}</b>."
+                    'message' => "El producto <b>{$nombreProducto}</b> no tiene precios asignados para la categoría <b>{$nombreCategoria}</b>."
                 ], 404);
             }
 
@@ -383,29 +379,43 @@ class FacturacionCorporativa extends Component
     public function obtenerCategoriasProducto(Request $request)
     {
         try {
-            $productoId = $request->producto_id;
+            $productoId          = $request->producto_id;
+            $categoriaEscalaId   = $request->cliente_categoria_escala_id;
 
-            $categorias = DB::SELECT("
-                SELECT
-                    cce.id,
-                    cce.nombre_categoria,
-                    MAX(ppc.precio_a) as precio_a
-                FROM
-                    precios_producto_carga ppc
-                INNER JOIN
-                    categoria_precios cp ON ppc.categoria_precios_id = cp.id
-                INNER JOIN
-                    cliente_categoria_escala cce ON cp.cliente_categoria_escala_id = cce.id
-                WHERE
-                    ppc.producto_id = ?
-                    AND ppc.estado_id = 1
-                    AND cp.estado_id = 1
-                    AND cce.estado_id = 1
-                GROUP BY
-                    cce.id, cce.nombre_categoria
-                ORDER BY
-                    precio_a DESC
-            ", [$productoId]);
+            if ($categoriaEscalaId) {
+                // Filtrado: solo las categorías de precio ligadas al cce del cliente seleccionado
+                $categorias = DB::SELECT("
+                    SELECT
+                        cp.id,
+                        cp.nombre AS nombre_categoria,
+                        ppc.precio_a
+                    FROM categoria_precios cp
+                    INNER JOIN precios_producto_carga ppc
+                        ON ppc.categoria_precios_id = cp.id
+                        AND ppc.producto_id = ?
+                        AND ppc.estado_id = 1
+                    WHERE cp.cliente_categoria_escala_id = ?
+                        AND cp.estado_id = 1
+                    ORDER BY ppc.precio_a DESC
+                ", [$productoId, $categoriaEscalaId]);
+            } else {
+                // Fallback sin cliente: todas las cce que tienen precios para el producto
+                $categorias = DB::SELECT("
+                    SELECT
+                        cce.id,
+                        cce.nombre_categoria,
+                        MAX(ppc.precio_a) as precio_a
+                    FROM precios_producto_carga ppc
+                    INNER JOIN categoria_precios cp ON ppc.categoria_precios_id = cp.id
+                    INNER JOIN cliente_categoria_escala cce ON cp.cliente_categoria_escala_id = cce.id
+                    WHERE ppc.producto_id = ?
+                        AND ppc.estado_id = 1
+                        AND cp.estado_id = 1
+                        AND cce.estado_id = 1
+                    GROUP BY cce.id, cce.nombre_categoria
+                    ORDER BY precio_a DESC
+                ", [$productoId]);
+            }
 
             return response()->json([
                 'categorias' => $categorias

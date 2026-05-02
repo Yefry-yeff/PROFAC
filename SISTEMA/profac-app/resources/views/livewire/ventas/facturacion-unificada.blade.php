@@ -208,7 +208,7 @@
                 <i class="mr-1 fa fa-arrow-left"></i> Volver
             </a>
 
-            
+
         </div>
     </div>
     @elseif($fromPrefactura)
@@ -592,9 +592,21 @@
                                 <div class="col-12 col-md-4" id="campo_orden_compra"
                                     style="{{ ($config->requiere_orden_compra ?? false) ? '' : 'display:none' }}">
                                     <label class="ofr-label">Orden de Compra</label>
-                                    <select class="form-control form-control-sm" name="ordenCompra" id="ordenCompra">
-                                        <option value="" selected disabled>--Seleccionar--</option>
-                                    </select>
+                                    <div class="input-group input-group-sm">
+                                        <select class="form-control form-control-sm" name="ordenCompra" id="ordenCompra">
+                                            <option value="" selected disabled>--Seleccionar--</option>
+                                        </select>
+                                        <div class="input-group-append">
+                                            <button type="button" id="btnNuevaOrdenInline"
+                                                onclick="abrirModalNuevaOrden()"
+                                                title="Crear nueva orden de compra"
+                                                style="background:linear-gradient(135deg,#1b5e20,#2e7d32); color:#fff; border:none;
+                                                       border-radius:0 6px 6px 0; padding:0 10px; font-size:13px;
+                                                       font-weight:700; cursor:pointer; white-space:nowrap;">
+                                                <i class="fa fa-plus"></i>
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
@@ -1357,6 +1369,44 @@
 
     </div>
 
+    {{-- MODAL INLINE: Crear nueva Orden de Compra desde Facturación --}}
+    <div class="modal fade" id="modal_nueva_orden_inline" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document" style="max-width:440px;">
+            <div class="modal-content" style="border-radius:14px; overflow:hidden;">
+                <div class="modal-header" style="background:linear-gradient(135deg,#e65100,#f9a826); border:none; padding:14px 20px;">
+                    <h5 class="modal-title" style="color:#fff; font-weight:800; margin:0; font-size:14px;">
+                        <i class="mr-2 fa fa-plus-circle"></i> Nueva Orden de Compra
+                    </h5>
+                    <button type="button" class="close" data-dismiss="modal" style="color:#fff; opacity:1;"><span>&times;</span></button>
+                </div>
+                <div class="modal-body" style="padding:20px 24px;">
+                    <form id="formNuevaOrdenInline" autocomplete="off">
+                        <div class="mb-3">
+                            <label class="ofr-label">Cliente</label>
+                            <input type="text" id="nuevaOrdenClienteNombre" class="form-control form-control-sm" readonly
+                                style="background:#f1f8e9; color:#1b5e20; font-weight:700; border-color:#a5d6a7;">
+                            <input type="hidden" id="nuevaOrdenClienteId">
+                        </div>
+                        <div class="mb-1">
+                            <label class="ofr-label">Número de Orden <span class="req">*</span></label>
+                            <input type="text" id="nuevaOrdenNumero" name="numero_orden"
+                                class="form-control form-control-sm ofr-input"
+                                placeholder="Ej: OC-2026-001" required autocomplete="off" maxlength="100">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer" style="padding:10px 20px;">
+                    <button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Cancelar</button>
+                    <button type="submit" form="formNuevaOrdenInline" id="btnGuardarNuevaOrden"
+                        style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff; border:none;
+                               font-weight:700; border-radius:8px; padding:6px 18px; font-size:13px; cursor:pointer;">
+                        <i class="mr-1 fa fa-save"></i> Guardar Orden
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     {{-- Buscador de producto reutilizable --}}
     <x-buscador-producto id-modal="buscadorProductoUnificado" callback="alSeleccionarProducto" />
 
@@ -1940,6 +1990,7 @@
     function cargarCategoriasProducto() {
         let productoId = $('#seleccionarProducto').val();
         let clienteId = $('#seleccionarCliente').val();
+        let categoriaEscalaId = $('#categoria_cliente_venta_id').data('categoria-cliente-id') || null;
 
         if (!productoId) {
             $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>--Seleccione primero un producto--</option>');
@@ -1948,22 +1999,25 @@
 
         $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>Cargando categorías...</option>');
 
-        axios.post('/producto/categorias-disponibles', { producto_id: productoId })
+        axios.post('/producto/categorias-disponibles', {
+            producto_id: productoId,
+            cliente_categoria_escala_id: categoriaEscalaId
+        })
             .then(response => {
                 let categorias = response.data.categorias;
                 if (categorias.length > 0) {
                     categorias.sort((a, b) => (parseFloat(b.precio_a) || 0) - (parseFloat(a.precio_a) || 0));
 
                     $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>--Seleccione una categoría--</option>');
-                    let categoriaClienteId = $('#categoria_cliente_venta_id').data('categoria-cliente-id');
 
-                    categorias.forEach(categoria => {
+                    categorias.forEach((categoria, index) => {
                         let precio = parseFloat(categoria.precio_a) || 0;
                         let precioFormateado = new Intl.NumberFormat('es-HN', {
                             style: 'currency', currency: 'HNL', minimumFractionDigits: 2
                         }).format(precio);
                         let textoOpcion = categoria.nombre_categoria + ' - ' + precioFormateado;
-                        let isSelected = (clienteId && categoria.id == categoriaClienteId);
+                        // Auto-seleccionar el primer item (mayor precio_a)
+                        let isSelected = index === 0;
                         let option = new Option(textoOpcion, categoria.id, isSelected, isSelected);
                         $('#categoria_cliente_venta_id').append(option);
                     });
@@ -2398,15 +2452,122 @@
     function obtenerOrdenesCompra() {
         if (!tipoFacturaConfig || !tipoFacturaConfig.requiere_orden_compra || !urls.orden_compra) return;
 
-        let idCliente = document.getElementById('seleccionarCliente').value;
-        $('#ordenCompra').select2({
-            ajax: {
-                url: urls.orden_compra,
-                data: function(params) {
-                    return { idCliente: idCliente, search: params.term, type: 'public', page: params.page || 1 };
+        var idCliente = document.getElementById('seleccionarCliente').value;
+        if (!idCliente) return;
+
+        var selectEl = document.getElementById('ordenCompra');
+        selectEl.innerHTML = '<option value="" disabled selected>Cargando...</option>';
+
+        axios.get(urls.orden_compra, { params: { idCliente: idCliente } })
+            .then(function(response) {
+                var ordenes = response.data.results || [];
+                if (ordenes.length === 0) {
+                    selectEl.innerHTML = '<option value="" disabled selected>-- Sin órdenes disponibles --</option>';
+                } else {
+                    var html = '<option value="" disabled selected>--Seleccionar--</option>';
+                    ordenes.forEach(function(o) {
+                        html += '<option value="' + o.id + '">' + o.text + '</option>';
+                    });
+                    selectEl.innerHTML = html;
                 }
-            }
-        });
+            })
+            .catch(function() {
+                selectEl.innerHTML = '<option value="" disabled selected>--Seleccionar--</option>';
+            });
+    }
+
+    // ================================================================
+    // NUEVA ORDEN DE COMPRA INLINE (desde facturación)
+    // ================================================================
+    function abrirModalNuevaOrden() {
+        var idCliente = $('#seleccionarCliente').val();
+        if (!idCliente) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Cliente requerido',
+                text: 'Debe seleccionar un cliente antes de crear una orden de compra.'
+            });
+            return;
+        }
+
+        // Obtener nombre del cliente: desde el campo de texto o desde el select
+        var nombreCliente = document.getElementById('nombre_cliente_ventas').value;
+        if (!nombreCliente) {
+            var selOpt = document.querySelector('#seleccionarCliente option:checked');
+            nombreCliente = selOpt ? selOpt.text : 'Cliente seleccionado';
+        }
+
+        document.getElementById('nuevaOrdenClienteId').value    = idCliente;
+        document.getElementById('nuevaOrdenClienteNombre').value = nombreCliente;
+        document.getElementById('nuevaOrdenNumero').value        = '';
+
+        $('#modal_nueva_orden_inline').modal('show');
+        setTimeout(function() {
+            document.getElementById('nuevaOrdenNumero').focus();
+        }, 400);
+    }
+
+    $(document).on('submit', '#formNuevaOrdenInline', function(e) {
+        e.preventDefault();
+        guardarNuevaOrdenInline();
+    });
+
+    function guardarNuevaOrdenInline() {
+        var idCliente   = document.getElementById('nuevaOrdenClienteId').value;
+        var numeroOrden = document.getElementById('nuevaOrdenNumero').value.trim();
+
+        if (!idCliente || !numeroOrden) {
+            Swal.fire({ icon: 'warning', title: 'Campos requeridos', text: 'Complete el número de orden.' });
+            return;
+        }
+
+        var btn = document.getElementById('btnGuardarNuevaOrden');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa fa-spinner fa-spin mr-1"></i> Guardando...';
+
+        var data = new FormData();
+        data.append('cliente', idCliente);
+        data.append('numero_orden', numeroOrden);
+
+        axios.post('/estatal/ordenes/guardar', data)
+            .then(function(response) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="mr-1 fa fa-save"></i> Guardar Orden';
+
+                $('#modal_nueva_orden_inline').modal('hide');
+
+                // Recargar órdenes del cliente y preseleccionar la nueva
+                axios.get(urls.orden_compra, { params: { idCliente: idCliente } })
+                    .then(function(res) {
+                        var ordenes = res.data.results || [];
+                        var selectEl = document.getElementById('ordenCompra');
+                        var html = '<option value="" disabled>--Seleccionar--</option>';
+                        ordenes.forEach(function(o) {
+                            var sel = (o.text === numeroOrden) ? ' selected' : '';
+                            html += '<option value="' + o.id + '"' + sel + '>' + o.text + '</option>';
+                        });
+                        selectEl.innerHTML = html;
+                    })
+                    .catch(function() {});
+
+                Swal.fire({
+                    icon: 'success',
+                    title: '¡Orden creada!',
+                    text: 'Orden "' + numeroOrden + '" registrada y seleccionada.',
+                    timer: 2200,
+                    showConfirmButton: false
+                });
+            })
+            .catch(function(err) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="mr-1 fa fa-save"></i> Guardar Orden';
+                var d = err.response ? err.response.data : {};
+                Swal.fire({
+                    icon: d.icon || 'error',
+                    title: d.title || 'Error',
+                    text: d.text || 'Error al guardar la orden de compra.'
+                });
+            });
     }
 
     // ================================================================
@@ -2426,14 +2587,31 @@
         document.getElementById("crear_venta").reset();
         $('#crear_venta').parsley().reset();
 
+        // Cliente
         document.getElementById("seleccionarCliente").innerHTML = '<option value="" selected disabled>--Seleccionar un cliente--</option>';
         $('#seleccionarCliente').prop('disabled', false);
+        $('#cat_cliente_badge').hide();
+        $('#cat_badge_text').text('');
+        $('#categoria_cliente_venta_id').data('categoria-cliente-id', null)
+            .empty().append('<option value="" selected disabled>--Seleccione una categoría--</option>')
+            .prop('disabled', true);
+        diasCredito = 0;
+
+        // Orden de compra
+        var selectOrden = document.getElementById('ordenCompra');
+        if (selectOrden) selectOrden.innerHTML = '<option value="" selected disabled>--Seleccionar--</option>';
+
+        // Producto
         document.getElementById('seleccionarProducto').innerHTML = '<option value="" selected disabled></option>';
         document.getElementById('codigoProductoBuscar').value = '';
         var lblProd = document.getElementById('productoSeleccionadoLabel');
         if (lblProd) { lblProd.classList.add('d-none'); lblProd.textContent = ''; }
         document.getElementById('bodega').innerHTML = '<option value="" selected disabled>--Seleccione un producto--</option>';
         document.getElementById("bodega").disabled = true;
+
+        // Historial de precios
+        var histCuerpo = document.getElementById('historialPreciosCuerpo');
+        if (histCuerpo) histCuerpo.innerHTML = '<p class="mb-0 text-muted small">Sin ventas previas de este producto a este cliente.</p>';
 
         // Ocultar tabla carrito
         var carritoTabla = document.getElementById('carritoTablaWrapper');
@@ -2836,14 +3014,13 @@
                 _facturaFlujoId    = flujoIdVal || null;
                 var msgFacturaEl = document.getElementById('msgNumFactura');
                 if (msgFacturaEl) msgFacturaEl.textContent = 'Factura #' + data.idFactura + ' registrada exitosamente.';
+                limpiarFormularioVenta(data);
                 $('#modalExitoFactura').modal('show');
 
                 // Desactivar código si aplica
                 if (tipoFacturaConfig && tipoFacturaConfig.requiere_codigo_autorizacion) {
                     setTimeout(function() { desactivarCodigo(); }, 30000);
                 }
-
-                document.getElementById("btn_venta_coorporativa").disabled = false;
             })
             .catch(err => {
                 document.getElementById("btn_venta_coorporativa").disabled = false;
