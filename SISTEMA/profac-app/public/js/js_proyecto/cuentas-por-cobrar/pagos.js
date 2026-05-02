@@ -833,6 +833,10 @@ function datosBanco(){
 
         let datos = response.data.result;
         datos.forEach((element) => document.getElementById("selectBanco").innerHTML += '<option  class="form-control" value="'+element.idBanco+'">'+element.banco+'</option>');
+        // Notificar a Select2 que las opciones fueron actualizadas
+        if (typeof $ !== 'undefined' && $('#selectBanco').data('select2')) {
+            $('#selectBanco').trigger('change.select2');
+        }
     })
     .catch(err => {
         let data = err.response.data;

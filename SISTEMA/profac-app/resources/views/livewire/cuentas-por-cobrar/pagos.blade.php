@@ -402,15 +402,63 @@
 .ap-empty-state i { font-size:52px; display:block; margin-bottom:14px; opacity:.3; }
 .ap-empty-state p { font-size:14px; }
 
-/* Select2 */
-.ap-form-group .select2-container--default .select2-selection--single {
-    border:1.5px solid #dde2ec!important; border-radius:9px!important;
-    height:40px!important; background:#fff!important;
+/* ── Select2 — caja de selección ── */
+.ap-modal .select2-container { width: 100% !important; }
+.ap-modal .select2-container .select2-selection--single {
+    height: 40px !important;
+    border: 1.5px solid #dde2ec !important;
+    border-radius: 9px !important;
+    background: #fff !important;
+    display: flex; align-items: center;
+    transition: border-color .18s, box-shadow .18s;
 }
-.ap-form-group .select2-container--default .select2-selection--single .select2-selection__rendered {
-    line-height:38px!important; font-size:13px; color:#2d3748;
+.ap-modal .select2-container--open .select2-selection--single,
+.ap-modal .select2-container .select2-selection--single:focus {
+    border-color: #f39c12 !important;
+    box-shadow: 0 0 0 3px rgba(243,156,18,.15) !important;
+    outline: none !important;
 }
-.ap-form-group .select2-container--default .select2-selection--single .select2-selection__arrow { height:38px!important; }
+.ap-modal .select2-selection__rendered {
+    color: #2d3748 !important;
+    font-size: 13px !important;
+    line-height: 38px !important;
+    padding-left: 13px !important;
+    padding-right: 30px !important;
+}
+.ap-modal .select2-selection__arrow { height: 38px !important; right: 8px !important; }
+/* ── Dropdown flotante — z-index superior al tema Inspinia (2040) ── */
+.ap-select2-drop.select2-dropdown {
+    border: 1.5px solid #f39c12 !important;
+    border-radius: 9px !important;
+    box-shadow: 0 8px 32px rgba(243,156,18,.22) !important;
+    font-size: 13px !important;
+    z-index: 99999 !important;
+    overflow: hidden;
+}
+.ap-select2-drop .select2-search--dropdown input {
+    border: 1.5px solid #dde2ec;
+    border-radius: 7px;
+    padding: 6px 10px;
+    font-size: 13px;
+}
+.ap-select2-drop .select2-search--dropdown input:focus {
+    border-color: #f39c12;
+    box-shadow: 0 0 0 3px rgba(243,156,18,.12);
+    outline: none;
+}
+.ap-select2-drop .select2-results__option {
+    padding: 8px 14px;
+    font-size: 13px;
+    color: #2d3748;
+}
+.ap-select2-drop .select2-results__option--highlighted {
+    background: linear-gradient(135deg, #f39c12, #e67e22) !important;
+    color: #fff !important;
+}
+/* Permite que el dropdown desborde el modal sin ser recortado */
+.ap-modal .modal-content { overflow: visible; }
+.ap-modal.modal { overflow-y: auto !important; }
+.ap-modal .modal-dialog { overflow: visible !important; }
 </style>
 @endpush
 
@@ -524,7 +572,7 @@
 <div class="modal ap-modal fade" id="modalNC" tabindex="-1" role="dialog">
     <div class="modal-dialog modal-dialog-centered" role="document">
         <div class="modal-content">
-            <div class="modal-header green">
+            <div class="modal-header orange">
                 <h5 class="modal-title">
                     <i class="fa fa-arrow-down"></i> Aplicación de Nota de Crédito
                 </h5>
@@ -583,7 +631,7 @@
                     </div>
                     <div class="modal-footer px-0 pb-0">
                         <button type="button" class="btn btn-outline-secondary btn-sm" data-dismiss="modal">Cancelar</button>
-                        <button id="btn_notacredito" type="submit" class="ap-btn-save green">
+                        <button id="btn_notacredito" type="submit" class="ap-btn-save orange">
                             <i class="fa fa-save"></i> Gestionar
                         </button>
                     </div>
@@ -597,7 +645,7 @@
 <div class="modal ap-modal fade" id="modalND" tabindex="-1" role="dialog">
     <div class="modal-dialog modal-dialog-centered" role="document">
         <div class="modal-content">
-            <div class="modal-header red">
+            <div class="modal-header orange">
                 <h5 class="modal-title">
                     <i class="fa fa-arrow-up"></i> Aplicación de Nota de Débito
                 </h5>
@@ -656,7 +704,7 @@
                     </div>
                     <div class="modal-footer px-0 pb-0">
                         <button type="button" class="btn btn-outline-secondary btn-sm" data-dismiss="modal">Cancelar</button>
-                        <button id="btn_notadebito" type="submit" class="ap-btn-save red">
+                        <button id="btn_notadebito" type="submit" class="ap-btn-save orange">
                             <i class="fa fa-save"></i> Gestionar
                         </button>
                     </div>
@@ -671,7 +719,7 @@
 <div class="modal ap-modal fade" id="modalOtrosMovimientos" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
         <div class="modal-content">
-            <div class="modal-header blue">
+            <div class="modal-header orange">
                 <h5 class="modal-title">
                     <i class="fa fa-exchange"></i> Otros Movimientos — Cobros / Rebajas
                 </h5>
@@ -733,7 +781,7 @@
 <div class="modal ap-modal fade" id="modalAbonos" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
         <div class="modal-content">
-            <div class="modal-header green">
+            <div class="modal-header orange">
                 <h5 class="modal-title">
                     <i class="fa fa-credit-card"></i> Aplicar Crédito / Abono
                 </h5>
@@ -807,7 +855,7 @@
                     </div>
                     <div class="modal-footer px-0 pb-0">
                         <button type="button" class="btn btn-outline-secondary btn-sm" data-dismiss="modal">Cancelar</button>
-                        <button id="btn_notaabono" type="submit" class="ap-btn-save green">
+                        <button id="btn_notaabono" type="submit" class="ap-btn-save orange">
                             <i class="fa fa-check-circle"></i> Registrar Abono
                         </button>
                     </div>
@@ -823,7 +871,7 @@
 <div class="modal ap-modal fade" id="modalcerrarFact" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered" role="document">
         <div class="modal-content">
-            <div class="modal-header dark">
+            <div class="modal-header orange">
                 <h5 class="modal-title">
                     <i class="fa fa-lock"></i> Cerrar Factura
                 </h5>
@@ -1054,6 +1102,165 @@ function switchTab(tabId, btn) {
 
     btn.classList.add('active');
 }
+
+// ── Select2 en modal de abonos ──
+function initAbonosSelects() {
+    // selectMetodoPago: opciones estáticas, sin buscador
+    var $metodo = $('#selectMetodoPago');
+    try { if ($metodo.data('select2')) $metodo.select2('destroy'); } catch(e) {}
+    $metodo.select2({
+        dropdownParent: $('#modalAbonos'),
+        dropdownCssClass: 'ap-select2-drop',
+        minimumResultsForSearch: Infinity,
+        width: '100%',
+        language: { noResults: function() { return 'Sin resultados'; } }
+    });
+
+    // selectBanco: opciones dinámicas via AJAX → usar MutationObserver
+    var $banco = $('#selectBanco');
+    try { if ($banco.data('select2')) $banco.select2('destroy'); } catch(e) {}
+    $banco.select2({
+        dropdownParent: $('#modalAbonos'),
+        dropdownCssClass: 'ap-select2-drop',
+        width: '100%',
+        language: { noResults: function() { return 'Sin resultados'; } }
+    });
+    // Cuando datosBanco() agregue <option> al <select>, Select2 se refresca
+    if ($banco.data('_mo')) { try { $banco.data('_mo').disconnect(); } catch(e) {} }
+    var mo = new MutationObserver(function() { $banco.trigger('change.select2'); });
+    mo.observe($banco[0], { childList: true });
+    $banco.data('_mo', mo);
+}
+
+function destroyAbonosSelects() {
+    ['#selectMetodoPago', '#selectBanco'].forEach(function(id) {
+        var $el = $(id);
+        try { if ($el.data('_mo')) { $el.data('_mo').disconnect(); $el.data('_mo', null); } } catch(e) {}
+        try { if ($el.data('select2')) $el.select2('destroy'); } catch(e) {}
+    });
+}
+
+$('#modalAbonos').on('shown.bs.modal', function() {
+    initAbonosSelects();
+});
+$('#modalAbonos').on('hidden.bs.modal', function() {
+    destroyAbonosSelects();
+    document.getElementById('selectBanco').innerHTML = '';
+});
+
+// ── Select2 en modal Otros Movimientos ──
+function initOtrosMovSelects() {
+    var $tipo = $('#selecttipoMovimiento');
+    try { if ($tipo.data('select2')) $tipo.select2('destroy'); } catch(e) {}
+    $tipo.select2({
+        dropdownParent: $('#modalOtrosMovimientos'),
+        dropdownCssClass: 'ap-select2-drop',
+        minimumResultsForSearch: Infinity,
+        width: '100%',
+        language: { noResults: function() { return 'Sin resultados'; } }
+    });
+}
+
+function destroyOtrosMovSelects() {
+    var $tipo = $('#selecttipoMovimiento');
+    try { if ($tipo.data('select2')) $tipo.select2('destroy'); } catch(e) {}
+}
+
+$('#modalOtrosMovimientos').on('shown.bs.modal', function() {
+    initOtrosMovSelects();
+});
+$('#modalOtrosMovimientos').on('hidden.bs.modal', function() {
+    destroyOtrosMovSelects();
+});
+
+// ── Select2 en modal Retención ISV ──
+function initRetencionSelects() {
+    var $ret = $('#selectTiporetencion');
+    try { if ($ret.data('select2')) $ret.select2('destroy'); } catch(e) {}
+    $ret.select2({
+        dropdownParent: $('#modalretencion'),
+        dropdownCssClass: 'ap-select2-drop',
+        minimumResultsForSearch: Infinity,
+        width: '100%',
+        language: { noResults: function() { return 'Sin resultados'; } }
+    });
+}
+
+function destroyRetencionSelects() {
+    var $ret = $('#selectTiporetencion');
+    try { if ($ret.data('select2')) $ret.select2('destroy'); } catch(e) {}
+}
+
+$('#modalretencion').on('shown.bs.modal', function() {
+    initRetencionSelects();
+});
+$('#modalretencion').on('hidden.bs.modal', function() {
+    destroyRetencionSelects();
+});
+
+// ── Select2 en modal Nota de Crédito ──
+function initNCSelects() {
+    // #selectNotaCredito: opciones ya cargadas vía AJAX antes de abrir el modal
+    var $nc = $('#selectNotaCredito');
+    try { if ($nc.data('select2')) $nc.select2('destroy'); } catch(e) {}
+    $nc.select2({
+        dropdownParent: $('#modalNC'),
+        dropdownCssClass: 'ap-select2-drop',
+        width: '100%',
+        language: { noResults: function() { return 'Sin resultados'; } }
+    });
+    // Re-lanzar datosNotaCredito al cambiar selección vía Select2
+    $nc.off('change.nc').on('change.nc', function() { datosNotaCredito(); });
+
+    var $accion = $('#selectAplicado');
+    try { if ($accion.data('select2')) $accion.select2('destroy'); } catch(e) {}
+    $accion.select2({
+        dropdownParent: $('#modalNC'),
+        dropdownCssClass: 'ap-select2-drop',
+        minimumResultsForSearch: Infinity,
+        width: '100%',
+        language: { noResults: function() { return 'Sin resultados'; } }
+    });
+}
+function destroyNCSelects() {
+    ['#selectNotaCredito','#selectAplicado'].forEach(function(id) {
+        var $el = $(id);
+        try { if ($el.data('select2')) { $el.off('change.nc'); $el.select2('destroy'); } } catch(e) {}
+    });
+}
+$('#modalNC').on('shown.bs.modal', function() { initNCSelects(); });
+$('#modalNC').on('hidden.bs.modal', function() { destroyNCSelects(); });
+
+// ── Select2 en modal Nota de Débito ──
+function initNDSelects() {
+    var $nd = $('#selectNotaDebito');
+    try { if ($nd.data('select2')) $nd.select2('destroy'); } catch(e) {}
+    $nd.select2({
+        dropdownParent: $('#modalND'),
+        dropdownCssClass: 'ap-select2-drop',
+        width: '100%',
+        language: { noResults: function() { return 'Sin resultados'; } }
+    });
+    $nd.off('change.nd').on('change.nd', function() { datosNotaDebito(); });
+
+    var $accion = $('#selectAplicadond');
+    try { if ($accion.data('select2')) $accion.select2('destroy'); } catch(e) {}
+    $accion.select2({
+        dropdownParent: $('#modalND'),
+        dropdownCssClass: 'ap-select2-drop',
+        minimumResultsForSearch: Infinity,
+        width: '100%',
+        language: { noResults: function() { return 'Sin resultados'; } }
+    });
+}
+function destroyNDSelects() {
+    ['#selectNotaDebito','#selectAplicadond'].forEach(function(id) {
+        var $el = $(id);
+        try { if ($el.data('select2')) { $el.off('change.nd'); $el.select2('destroy'); } } catch(e) {}
+    });
+}
+$('#modalND').on('shown.bs.modal', function() { initNDSelects(); });
+$('#modalND').on('hidden.bs.modal', function() { destroyNDSelects(); });
 </script>
 @endpush
 </div>{{-- /Livewire root --}}

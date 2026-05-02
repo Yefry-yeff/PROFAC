@@ -17,20 +17,41 @@ class GeneradorFacturasComision
         int $categoriaClienteId
     ): array {
 
+        // Prevenir doble registro: si ya existen comisiones para esta factura, no procesar
+        $yaProcessado = modelfacturas_comision::where('factura_id', $facturaId)->exists();
+        if ($yaProcessado) {
+            return [];
+        }
+
+        // Solo televendedor (rol 3) y asesor comercial (rol 2)
         $parametros = DB::table('comision_escala')
             ->where('estado_id', 1)
             ->where('cliente_categoria_escala_id', $categoriaClienteId)
+            ->whereIn('rol_id', [2, 3])
             ->get();
+
+        // Si no hay parámetros configurados para esta categoría de cliente, no hacer nada
+        if ($parametros->isEmpty()) {
+            return [];
+        }
 
         $productos = DB::table('venta_has_producto')
             ->where('factura_id', $facturaId)
             ->get();
 
+        if ($productos->isEmpty()) {
+            return [];
+        }
+
         [$productosComision, $facturasComision] =
             $this->calcularComisiones($parametros, $productos, $facturaId, $aplicacionPagoId);
 
-        modelproducto_comision::insert($productosComision);
-        modelfacturas_comision::insert($facturasComision);
+        if (!empty($productosComision)) {
+            modelproducto_comision::insert($productosComision);
+        }
+        if (!empty($facturasComision)) {
+            modelfacturas_comision::insert($facturasComision);
+        }
 
         return $facturasComision;
     }

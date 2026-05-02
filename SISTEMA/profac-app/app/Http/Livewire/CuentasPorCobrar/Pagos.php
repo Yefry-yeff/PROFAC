@@ -858,41 +858,26 @@ class Pagos extends Component
                                    @estado,
                                    @msjResultado);"); */
 
-                                $existePrecioCargado = DB::table('venta_has_producto')
-                                    ->whereNotNull('precios_producto_carga_id')
-                                    ->where('factura_id', $request->idFacturaAbono)
-                                    ->exists();
+                                 // Registrar comisiones si existen parámetros configurados para la categoría del cliente
+                                $generador = app(GeneradorFacturasComision::class);
+                                $arrayfacturas_comision = $generador->generar(
+                                    (int) $request->idFacturaAbono,
+                                    (int) $request->codAplicPagoAbono,
+                                    (int) $creditoCli->cliente_categoria_escala_id
+                                );
 
-                                if ($existePrecioCargado) {
-
-                                    $generador = app(GeneradorFacturasComision::class);
-
-                                    $arrayfacturas_comision = $generador->generar(
-                                        $request->idFacturaAbono,
-                                        $request->codAplicPagoAbono,
-                                        $creditoCli->cliente_categoria_escala_id
-                                    );
-
-                                    /*recuperar factura, vendedor y teleoperacior del id factura*/
-
-
+                                if (!empty($arrayfacturas_comision)) {
                                     $datos_factura = DB::SELECTONE("select users_id as 'teleoperador', vendedor from factura where id =".$request->idFacturaAbono);
 
-                                        /*Variables constantes porque es la estructura en duro de cualquier factura */
+                                    $procesador = app(ProcesadorComisiones::class);
+                                    $contexto = [
+                                        'televendedor_id' => $datos_factura->teleoperador,
+                                        'vendedor_id'     => $datos_factura->vendedor,
+                                    ];
 
-                                        $idTelevendedor = $datos_factura->teleoperador;
-                                        $idVendedor = $datos_factura->vendedor;
-
-                                        $procesador = app(ProcesadorComisiones::class);
-
-                                        $contexto = [
-                                            'televendedor_id' => $idTelevendedor,
-                                            'vendedor_id'     => $idVendedor,
-                                        ];
-
-                                        foreach ($arrayfacturas_comision as $factura) {
-                                            $procesador->procesar($factura, $contexto);
-                                        }
+                                    foreach ($arrayfacturas_comision as $factura) {
+                                        $procesador->procesar($factura, $contexto);
+                                    }
                                 }
 
 
@@ -1081,6 +1066,34 @@ class Pagos extends Component
                 ],402);
             }
 
+            // Registrar comisiones al cierre manual de factura
+            $apCierre = DB::selectone(
+                "SELECT ap.factura_id, ap.saldo, f.users_id AS teleoperador, f.vendedor, c.cliente_categoria_escala_id
+                 FROM aplicacion_pagos ap
+                 INNER JOIN factura f ON f.id = ap.factura_id
+                 INNER JOIN cliente c ON c.id = f.cliente_id
+                 WHERE ap.id = " . (int) $request->codAplicCierre
+            );
+
+            if ($apCierre && $apCierre->saldo == 0) {
+                $generador = app(GeneradorFacturasComision::class);
+                $arrayfacturas_comision = $generador->generar(
+                    (int) $apCierre->factura_id,
+                    (int) $request->codAplicCierre,
+                    (int) $apCierre->cliente_categoria_escala_id
+                );
+
+                if (!empty($arrayfacturas_comision)) {
+                    $procesador = app(ProcesadorComisiones::class);
+                    $contexto = [
+                        'televendedor_id' => $apCierre->teleoperador,
+                        'vendedor_id'     => $apCierre->vendedor,
+                    ];
+                    foreach ($arrayfacturas_comision as $factura) {
+                        $procesador->procesar($factura, $contexto);
+                    }
+                }
+            }
 
         } catch (QueryException $e) {
             DB::rollback();
