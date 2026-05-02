@@ -96,8 +96,8 @@
             <div class="modal-header" style="background:linear-gradient(135deg,#f39c12 0%,#e67e22 100%);
                         border:none; padding:16px 24px;">
                 <div>
-                    <h5 class="modal-title m-0" style="color:#fff; font-size:17px; font-weight:700;">
-                        <i class="fa fa-map-o mr-2"></i>
+                    <h5 class="m-0 modal-title" style="color:#fff; font-size:17px; font-weight:700;">
+                        <i class="mr-2 fa fa-map-o"></i>
                         @if(!empty($d['sin_pedido']))
                         Flujo de Cotización
                         @else
@@ -106,16 +106,16 @@
                         <span style="background:rgba(255,255,255,.22); border-radius:20px;
                                      padding:2px 12px; font-size:14px; margin-left:6px;">
                             @if(!empty($d['sin_pedido']))
-                                <i class="fa fa-times-circle mr-1"></i> Sin pedido
+                                <i class="mr-1 fa fa-times-circle"></i> Sin pedido
                             @else
                                 #{{ $d['id'] }}
                             @endif
                         </span>
                     </h5>
                     <small style="color:rgba(255,255,255,.85); font-size:12px;">
-                        <i class="fa fa-user mr-1"></i>{{ $d['cliente'] }}
+                        <i class="mr-1 fa fa-user"></i>{{ $d['cliente'] }}
                         &nbsp;&bull;&nbsp;
-                        <i class="fa fa-calendar mr-1"></i>
+                        <i class="mr-1 fa fa-calendar"></i>
                         {{ \Carbon\Carbon::parse($d['created_at'])->format('d/m/Y H:i') }}
                     </small>
                 </div>
@@ -488,7 +488,7 @@
                             style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff;
                                    border:none; border-radius:20px; padding:5px 16px;
                                    font-size:12px; font-weight:700; cursor:pointer;">
-                        <i class="fa fa-arrow-left mr-1"></i> Volver
+                        <i class="mr-1 fa fa-arrow-left"></i> Volver
                     </button>
                     <span style="font-size:14px; font-weight:700; color:#2c3e50;">
                         Oferta #{{ $ofertaSeleccionada['id'] }}
@@ -522,28 +522,28 @@
                             border-radius:12px; border:1px solid #e8eaf0;">
                     <span>
                         @if(!empty($d['sin_pedido']))
-                        <i class="fa fa-times-circle mr-1" style="color:#e74c3c;"></i>
+                        <i class="mr-1 fa fa-times-circle" style="color:#e74c3c;"></i>
                         <strong style="color:#e74c3c;">Sin pedido</strong>
                         @else
-                        <i class="fa fa-hashtag text-primary mr-1"></i>
+                        <i class="mr-1 fa fa-hashtag text-primary"></i>
                         <strong>Pedido #{{ $d['id'] }}</strong>
                         @endif
                     </span>
                     <span>
-                        <i class="fa fa-user text-info mr-1"></i>
+                        <i class="mr-1 fa fa-user text-info"></i>
                         {{ $d['cliente'] }}
                     </span>
                     <span>
-                        <i class="fa fa-user-circle-o text-muted mr-1"></i>
+                        <i class="mr-1 fa fa-user-circle-o text-muted"></i>
                         Por: {{ $d['registrado_por'] ?? '—' }}
                     </span>
                     <span>
-                        <i class="fa fa-calendar text-muted mr-1"></i>
+                        <i class="mr-1 fa fa-calendar text-muted"></i>
                         {{ \Carbon\Carbon::parse($d['created_at'])->format('d/m/Y H:i') }}
                     </span>
                     @if ($fCancelado)
                     <span style="color:#e74c3c; font-weight:700;">
-                        <i class="fa fa-ban mr-1"></i> Cancelado
+                        <i class="mr-1 fa fa-ban"></i> Cancelado
                     </span>
                     @endif
                 </div>
@@ -552,13 +552,13 @@
                 @if ($mensajeExito)
                 <div style="margin-top:10px; background:#d4edda; border:1px solid #c3e6cb;
                             border-radius:10px; padding:9px 14px; font-size:13px; color:#155724;">
-                    <i class="fa fa-check-circle mr-1"></i> {{ $mensajeExito }}
+                    <i class="mr-1 fa fa-check-circle"></i> {{ $mensajeExito }}
                 </div>
                 @endif
                 @if ($mensajeError && $confirmAccion !== 'anular' && $confirmAccionOferta !== 'anular_oferta')
                 <div style="margin-top:10px; background:#f8d7da; border:1px solid #f5c6cb;
                             border-radius:10px; padding:9px 14px; font-size:13px; color:#721c24;">
-                    <i class="fa fa-exclamation-triangle mr-1"></i> {{ $mensajeError }}
+                    <i class="mr-1 fa fa-exclamation-triangle"></i> {{ $mensajeError }}
                 </div>
                 @endif
 
@@ -573,7 +573,7 @@
                 @if (!empty($d['observaciones']))
                 <div style="margin-top:12px; padding:10px 14px; background:#fffde7;
                             border-left:4px solid #f9a825; border-radius:8px; font-size:12px; color:#555;">
-                    <i class="fa fa-sticky-note text-warning mr-1"></i>
+                    <i class="mr-1 fa fa-sticky-note text-warning"></i>
                     <strong>Observaciones:</strong> {{ $d['observaciones'] }}
                 </div>
                 @endif
@@ -582,7 +582,7 @@
                 <div style="margin-top:12px; border-radius:12px; overflow:hidden; border:1px solid #e8eaf0;">
                     <div style="background:linear-gradient(135deg,#1a7efb 0%,#0d6efd 100%); padding:10px 16px;">
                         <span style="color:#fff; font-size:13px; font-weight:700;">
-                            <i class="fa fa-list-ul mr-1"></i>
+                            <i class="mr-1 fa fa-list-ul"></i>
                             Productos del Pedido
                             <span style="background:rgba(255,255,255,.22); border-radius:20px; padding:1px 9px; font-size:11px; margin-left:6px;">
                                 {{ count($pedidoDetalles) }}
@@ -591,8 +591,8 @@
                     </div>
                     <div style="background:#fff; max-height:200px; overflow-y:auto; padding:10px 14px;">
                         @if (count($pedidoDetalles) === 0)
-                        <p class="text-muted text-center" style="font-size:12px; margin:12px 0;">
-                            <i class="fa fa-inbox d-block mb-1" style="opacity:.3; font-size:22px;"></i>
+                        <p class="text-center text-muted" style="font-size:12px; margin:12px 0;">
+                            <i class="mb-1 fa fa-inbox d-block" style="opacity:.3; font-size:22px;"></i>
                             Sin productos registrados.
                         </p>
                         @else
@@ -625,7 +625,7 @@
                 <div style="margin-top:14px; background:#fff8e1; border:1px solid #ffe082;
                             border-radius:12px; padding:14px;">
                     <p style="font-size:13px; color:#555; margin:0 0 8px;">
-                        <i class="fa fa-exclamation-triangle text-warning mr-1"></i>
+                        <i class="mr-1 fa fa-exclamation-triangle text-warning"></i>
                         ¿Anular el <strong>Pedido #{{ $d['id'] }}</strong>? Esta acción no se puede deshacer.
                     </p>
                     @if ($mensajeError)
@@ -643,7 +643,7 @@
                                 style="background:linear-gradient(135deg,#e74c3c,#c0392b); color:#fff;
                                        border:none; border-radius:8px; padding:7px 18px; font-size:12px;
                                        font-weight:700; cursor:pointer;">
-                            <i class="fa fa-ban mr-1"></i> Confirmar anulación
+                            <i class="mr-1 fa fa-ban"></i> Confirmar anulación
                         </button>
                         <button type="button" wire:click="cancelarConfirmacion"
                                 style="background:#f0f0f0; color:#555; border:none;
@@ -658,7 +658,7 @@
                 <div style="margin-top:14px; background:#e3f2fd; border:1px solid #90caf9;
                             border-radius:12px; padding:14px; text-align:center;">
                     <p style="font-size:13px; color:#555; margin:0 0 10px;">
-                        <i class="fa fa-copy text-primary mr-1"></i>
+                        <i class="mr-1 fa fa-copy text-primary"></i>
                         ¿Duplicar el <strong>Pedido #{{ $d['id'] }}</strong>?<br>
                         Se abrirá el formulario con los mismos productos.
                     </p>
@@ -667,7 +667,7 @@
                                 style="background:linear-gradient(135deg,#1a7efb,#0d6efd); color:#fff;
                                        border:none; border-radius:8px; padding:7px 18px; font-size:12px;
                                        font-weight:700; cursor:pointer;">
-                            <i class="fa fa-copy mr-1"></i> Duplicar
+                            <i class="mr-1 fa fa-copy"></i> Duplicar
                         </button>
                         <button type="button" wire:click="cancelarConfirmacion"
                                 style="background:#f0f0f0; color:#555; border:none;
@@ -688,7 +688,7 @@
                 @if ($vencimientoProcesado)
                 <div style="margin-top:12px; background:#fff3e0; border:1px solid #ffcc80;
                             border-radius:12px; padding:12px 16px; font-size:12px; color:#e65100;">
-                    <i class="fa fa-clock-o mr-1"></i>
+                    <i class="mr-1 fa fa-clock-o"></i>
                     <strong>Prefactura vencida.</strong>
                     El sistema revisó los precios y reactivar las ofertas con precios vigentes.
                     Las ofertas con precios desactualizados fueron marcadas como inactivas
@@ -709,20 +709,20 @@
                     <div style="background:#fff; border-radius:10px; border:1px solid #e8eaf0;
                                 padding:12px 14px; margin-bottom:10px; font-size:12px; color:#555;">
                         <div style="display:flex; flex-wrap:wrap; gap:12px;">
-                            <span><i class="fa fa-user text-info mr-1"></i>{{ $ofertaSeleccionada['nombre_cliente'] }}</span>
+                            <span><i class="mr-1 fa fa-user text-info"></i>{{ $ofertaSeleccionada['nombre_cliente'] }}</span>
                             @if (!empty($ofertaSeleccionada['fecha_emision']))
-                            <span><i class="fa fa-calendar text-muted mr-1"></i>{{ \Carbon\Carbon::parse($ofertaSeleccionada['fecha_emision'])->format('d/m/Y') }}</span>
+                            <span><i class="mr-1 fa fa-calendar text-muted"></i>{{ \Carbon\Carbon::parse($ofertaSeleccionada['fecha_emision'])->format('d/m/Y') }}</span>
                             @endif
-                            <span><i class="fa fa-dollar text-success mr-1"></i>
+                            <span><i class="mr-1 fa fa-dollar text-success"></i>
                                 Sub: L {{ number_format($ofertaSeleccionada['sub_total'] ?? 0, 2) }}
                             </span>
                             @if (($ofertaSeleccionada['monto_descuento'] ?? 0) > 0)
-                            <span><i class="fa fa-minus-circle text-warning mr-1"></i>
+                            <span><i class="mr-1 fa fa-minus-circle text-warning"></i>
                                 Desc: L {{ number_format($ofertaSeleccionada['monto_descuento'], 2) }}
                                 ({{ $ofertaSeleccionada['porc_descuento'] }}%)
                             </span>
                             @endif
-                            <span><i class="fa fa-file-text text-muted mr-1"></i>
+                            <span><i class="mr-1 fa fa-file-text text-muted"></i>
                                 ISV: L {{ number_format($ofertaSeleccionada['isv'] ?? 0, 2) }}
                             </span>
                             <strong style="color:#e65100;">
@@ -782,7 +782,7 @@
                         <div style="width:100%; background:#fff3e0; border:1px solid #ffcc80;
                                     border-radius:10px; padding:8px 12px; font-size:11px; color:#e65100;
                                     margin-bottom:4px;">
-                            <i class="fa fa-exclamation-triangle mr-1"></i>
+                            <i class="mr-1 fa fa-exclamation-triangle"></i>
                             <strong>Precios desactualizados.</strong>
                             Esta oferta fue inactivada porque uno o más precios cambiaron desde que fue creada.
                             Solo puede duplicarse para generar una nueva oferta con precios actualizados.
@@ -793,7 +793,7 @@
                            style="text-align:center; background:#f8f9fc; color:#1a7efb;
                                   border:1px solid #e8eaf0; border-radius:8px; padding:5px 10px;
                                   font-size:11px; font-weight:700; text-decoration:none;">
-                            <i class="fa fa-print mr-1"></i> Imprimir
+                            <i class="mr-1 fa fa-print"></i> Imprimir
                         </a>
 
                         @if (!$facturaCompletada && !$esGanDet && !$esAnuDet && !$esVencDet && !$tieneGanadora)
@@ -801,7 +801,7 @@
                                 style="background:linear-gradient(135deg,#1ab394,#0fa37a); color:#fff;
                                        border:none; border-radius:8px; padding:5px 10px;
                                        font-size:11px; font-weight:700; cursor:pointer;">
-                            <i class="fa fa-trophy mr-1"></i> Ganadora
+                            <i class="mr-1 fa fa-trophy"></i> Ganadora
                         </button>
                         @endif
                         @if (!$facturaCompletada && $esGanDet && !$esAnuDet)
@@ -809,7 +809,7 @@
                                 style="background:linear-gradient(135deg,#e67e22,#d35400); color:#fff;
                                        border:none; border-radius:8px; padding:5px 10px;
                                        font-size:11px; font-weight:700; cursor:pointer;">
-                            <i class="fa fa-times-circle mr-1"></i> Quitar Ganadora
+                            <i class="mr-1 fa fa-times-circle"></i> Quitar Ganadora
                         </button>
                         @endif
                         @if (!$facturaCompletada && !$esAnuDet && !$esVencDet)
@@ -817,14 +817,14 @@
                                 style="background:linear-gradient(135deg,#e74c3c,#c0392b); color:#fff;
                                        border:none; border-radius:8px; padding:5px 10px;
                                        font-size:11px; font-weight:700; cursor:pointer;">
-                            <i class="fa fa-ban mr-1"></i> Anular
+                            <i class="mr-1 fa fa-ban"></i> Anular
                         </button>
                         @endif
                         <button type="button" wire:click="confirmarAccionOferta('duplicar_oferta')"
                                 style="background:linear-gradient(135deg,#1a7efb,#0d6efd); color:#fff;
                                        border:none; border-radius:8px; padding:5px 10px;
                                        font-size:11px; font-weight:700; cursor:pointer;">
-                            <i class="fa fa-copy mr-1"></i> Duplicar
+                            <i class="mr-1 fa fa-copy"></i> Duplicar
                         </button>
                     </div>
                     @endif
@@ -839,7 +839,7 @@
                         <div style="background:#fce4ec; border:1px solid #f48fb1; border-radius:8px;
                                     padding:10px 12px; margin-bottom:10px;">
                             <p style="font-size:12px; color:#b71c1c; font-weight:700; margin:0 0 8px;">
-                                <i class="fa fa-exclamation-triangle mr-1"></i> Inventario insuficiente
+                                <i class="mr-1 fa fa-exclamation-triangle"></i> Inventario insuficiente
                             </p>
                             <table style="width:100%; font-size:11px; border-collapse:collapse;">
                                 <thead>
@@ -863,11 +863,11 @@
                         @endif
 
                         <p style="font-size:13px; color:#555; margin:0 0 6px; text-align:center;">
-                            <i class="fa fa-trophy text-warning mr-1"></i>
+                            <i class="mr-1 fa fa-trophy text-warning"></i>
                             ¿Marcar la <strong>Oferta #{{ $ofertaSeleccionada['id'] }}</strong> como <strong>ganadora</strong>?
                         </p>
                         <p style="font-size:12px; color:#1b5e20; margin:0 0 10px; text-align:center;">
-                            <i class="fa fa-check-circle mr-1"></i>
+                            <i class="mr-1 fa fa-check-circle"></i>
                             Se creará la <strong>Pre-Factura automáticamente</strong> y se reservará el inventario.
                         </p>
                         <div style="display:flex; gap:8px; justify-content:center;">
@@ -875,7 +875,7 @@
                                     style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff;
                                            border:none; border-radius:8px; padding:7px 18px;
                                            font-size:12px; font-weight:700; cursor:pointer;">
-                                <i class="fa fa-trophy mr-1"></i> Confirmar y crear Pre-Factura
+                                <i class="mr-1 fa fa-trophy"></i> Confirmar y crear Pre-Factura
                             </button>
                             <button type="button" wire:click="cancelarConfirmOferta"
                                     style="background:#f0f0f0; color:#555; border:none;
@@ -891,7 +891,7 @@
                     <div style="margin-top:12px; background:#fff3e0; border:1px solid #ffcc80;
                                 border-radius:12px; padding:14px;">
                         <p style="font-size:13px; color:#555; margin:0 0 8px;">
-                            <i class="fa fa-times-circle text-warning mr-1"></i>
+                            <i class="mr-1 fa fa-times-circle text-warning"></i>
                             ¿Quitar el estado <strong>Ganadora</strong> de la <strong>Oferta #{{ $ofertaSeleccionada['id'] }}</strong>?
                         </p>
                         @if ($mensajeError)
@@ -909,7 +909,7 @@
                                     style="background:linear-gradient(135deg,#e67e22,#d35400); color:#fff;
                                            border:none; border-radius:8px; padding:7px 18px;
                                            font-size:12px; font-weight:700; cursor:pointer;">
-                                <i class="fa fa-times-circle mr-1"></i> Confirmar
+                                <i class="mr-1 fa fa-times-circle"></i> Confirmar
                             </button>
                             <button type="button" wire:click="cancelarConfirmOferta"
                                     style="background:#f0f0f0; color:#555; border:none;
@@ -925,7 +925,7 @@
                     <div style="margin-top:12px; background:#fff5f5; border:1px solid #feb2b2;
                                 border-radius:12px; padding:14px;">
                         <p style="font-size:13px; color:#555; margin:0 0 8px;">
-                            <i class="fa fa-ban text-danger mr-1"></i>
+                            <i class="mr-1 fa fa-ban text-danger"></i>
                             ¿Anular la <strong>Oferta #{{ $ofertaSeleccionada['id'] }}</strong>?
                         </p>
                         @if ($mensajeError)
@@ -944,7 +944,7 @@
                                     style="background:linear-gradient(135deg,#e74c3c,#c0392b); color:#fff;
                                            border:none; border-radius:8px; padding:7px 18px;
                                            font-size:12px; font-weight:700; cursor:pointer;">
-                                <i class="fa fa-ban mr-1"></i> Confirmar anulación
+                                <i class="mr-1 fa fa-ban"></i> Confirmar anulación
                             </button>
                             <button type="button" wire:click="cancelarConfirmOferta"
                                     style="background:#f0f0f0; color:#555; border:none;
@@ -961,7 +961,7 @@
                     <div style="margin-top:12px; background:#e3f2fd; border:1px solid #90caf9;
                                 border-radius:12px; padding:14px; text-align:center;">
                         <p style="font-size:13px; color:#555; margin:0 0 10px;">
-                            <i class="fa fa-copy text-primary mr-1"></i>
+                            <i class="mr-1 fa fa-copy text-primary"></i>
                             ¿Duplicar la <strong>Oferta #{{ $ofertaSeleccionada['id'] }}</strong>?
                         </p>
                         <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
@@ -969,13 +969,13 @@
                                     style="background:linear-gradient(135deg,#1a7efb,#0d6efd); color:#fff;
                                            border:none; border-radius:8px; padding:7px 16px;
                                            font-size:12px; font-weight:700; cursor:pointer;">
-                                <i class="fa fa-user mr-1"></i> Mismo cliente
+                                <i class="mr-1 fa fa-user"></i> Mismo cliente
                             </button>
                             <button type="button" wire:click="duplicarOferta(false)"
                                     style="background:linear-gradient(135deg,#1ab394,#0fa37a); color:#fff;
                                            border:none; border-radius:8px; padding:7px 16px;
                                            font-size:12px; font-weight:700; cursor:pointer;">
-                                <i class="fa fa-exchange mr-1"></i> Otro cliente
+                                <i class="mr-1 fa fa-exchange"></i> Otro cliente
                             </button>
                             <button type="button" wire:click="cancelarConfirmOferta"
                                     style="background:#f0f0f0; color:#555; border:none;
@@ -994,7 +994,7 @@
                 <div style="margin-top:12px; border-radius:12px; overflow:hidden; border:1px solid #ede9f7;">
                     <div style="background:linear-gradient(135deg,#f39c12 0%,#e67e22 100%); padding:10px 16px;">
                         <span style="color:#fff; font-size:13px; font-weight:700;">
-                            <i class="fa fa-tag mr-1"></i> Ofertas asociadas
+                            <i class="mr-1 fa fa-tag"></i> Ofertas asociadas
                             @if (count($ofertasPedido) > 0)
                             <span style="background:rgba(255,255,255,.22); border-radius:20px; padding:1px 9px; font-size:11px; margin-left:6px;">
                                 {{ count($ofertasPedido) }}
@@ -1004,8 +1004,8 @@
                     </div>
                     <div class="fmp-offers-wrap" style="background:#fff; padding:10px 14px; max-height:250px; overflow-y:auto;">
                         @if (count($ofertasPedido) === 0)
-                        <div class="text-center py-3 text-muted" style="font-size:12px;">
-                            <i class="fa fa-inbox fa-lg d-block mb-1" style="opacity:.3;"></i>
+                        <div class="py-3 text-center text-muted" style="font-size:12px;">
+                            <i class="mb-1 fa fa-inbox fa-lg d-block" style="opacity:.3;"></i>
                             Sin ofertas aún para este pedido.
                         </div>
                         @else
@@ -1033,7 +1033,7 @@
                                     <span style="background:{{ $listBadgeBg }}; color:{{ $listBadgeColor }};
                                                  border-radius:12px; padding:1px 8px; font-size:10px;
                                                  font-weight:700; margin-left:6px;">
-                                        @if ($isGan2)<i class="fa fa-trophy mr-1"></i>@elseif($isVenc2)<i class="fa fa-exclamation-triangle mr-1"></i>@endif
+                                        @if ($isGan2)<i class="mr-1 fa fa-trophy"></i>@elseif($isVenc2)<i class="mr-1 fa fa-exclamation-triangle"></i>@endif
                                         {{ $listBadgeText }}
                                     </span>
                                 </div>
@@ -1072,19 +1072,19 @@
                     <div style="background:#fff; border-radius:10px; border:1px solid #e8eaf0;
                                 padding:12px 14px; margin-bottom:10px; font-size:12px; color:#555;">
                         <div style="display:flex; flex-wrap:wrap; gap:12px;">
-                            <span><i class="fa fa-user text-info mr-1"></i>{{ $pref['nombre_cliente'] }}</span>
-                            <span><i class="fa fa-calendar text-muted mr-1"></i>
+                            <span><i class="mr-1 fa fa-user text-info"></i>{{ $pref['nombre_cliente'] }}</span>
+                            <span><i class="mr-1 fa fa-calendar text-muted"></i>
                                 {{ \Carbon\Carbon::parse($pref['fecha_emision'])->format('d/m/Y') }}
                             </span>
                             <span style="color:#e67e22;">
-                                <i class="fa fa-clock-o mr-1"></i>
+                                <i class="mr-1 fa fa-clock-o"></i>
                                 Vence: {{ \Carbon\Carbon::parse($pref['fecha_vencimiento'])->format('d/m/Y') }}
                             </span>
                             <strong style="color:#e65100;">
                                 Total: L {{ number_format($pref['total'], 2) }}
                             </strong>
                             <span style="background:#e8f5e9; color:#1b5e20; border-radius:8px; padding:1px 8px; font-size:10px; font-weight:700;">
-                                <i class="fa fa-check-circle mr-1"></i> Activa
+                                <i class="mr-1 fa fa-check-circle"></i> Activa
                             </span>
                         </div>
                     </div>
@@ -1128,14 +1128,14 @@
                                 style="background:linear-gradient(135deg,#1a7efb,#0d6efd); color:#fff;
                                        border:none; border-radius:8px; padding:6px 14px;
                                        font-size:12px; font-weight:700; cursor:pointer;">
-                            <i class="fa fa-arrow-left mr-1"></i> Pasar a Oferta
+                            <i class="mr-1 fa fa-arrow-left"></i> Pasar a Oferta
                         </button>
 
                         <button type="button" wire:click="confirmarAccionPrefactura('anular')"
                                 style="background:linear-gradient(135deg,#e74c3c,#c0392b); color:#fff;
                                        border:none; border-radius:8px; padding:6px 14px;
                                        font-size:12px; font-weight:700; cursor:pointer;">
-                            <i class="fa fa-ban mr-1"></i> Anular
+                            <i class="mr-1 fa fa-ban"></i> Anular
                         </button>
                         @endif
 
@@ -1151,7 +1151,7 @@
                                 style="background:linear-gradient(135deg,#1b5e20,#2e7d32); color:#fff;
                                        border:none; border-radius:8px; padding:6px 14px;
                                        font-size:12px; font-weight:700; cursor:pointer;">
-                            <i class="fa fa-file-text mr-1"></i> Facturar
+                            <i class="mr-1 fa fa-file-text"></i> Facturar
                         </button>
                         @endif
 
@@ -1163,7 +1163,7 @@
                     <div style="margin-top:10px; background:#e3f2fd; border:1px solid #90caf9;
                                 border-radius:12px; padding:14px;">
                         <p style="font-size:13px; color:#555; margin:0 0 8px;">
-                            <i class="fa fa-arrow-left text-primary mr-1"></i>
+                            <i class="mr-1 fa fa-arrow-left text-primary"></i>
                             ¿Deshacer la prefactura y volver a <strong>Oferta</strong>?
                         </p>
                         <p style="font-size:11px; color:#888; margin:0 0 10px;">
@@ -1174,7 +1174,7 @@
                                     style="background:linear-gradient(135deg,#1a7efb,#0d6efd); color:#fff;
                                            border:none; border-radius:8px; padding:7px 18px;
                                            font-size:12px; font-weight:700; cursor:pointer;">
-                                <i class="fa fa-check mr-1"></i> Confirmar
+                                <i class="mr-1 fa fa-check"></i> Confirmar
                             </button>
                             <button type="button" wire:click="cancelarConfirmPrefactura"
                                     style="background:#f0f0f0; color:#555; border:none;
@@ -1190,7 +1190,7 @@
                     <div style="margin-top:10px; background:#fff5f5; border:1px solid #feb2b2;
                                 border-radius:12px; padding:14px;">
                         <p style="font-size:13px; color:#555; margin:0 0 8px;">
-                            <i class="fa fa-ban text-danger mr-1"></i>
+                            <i class="mr-1 fa fa-ban text-danger"></i>
                             ¿Anular la <strong>Prefactura #{{ $pref['id'] }}</strong>?
                         </p>
                         <p style="font-size:11px; color:#888; margin:0 0 10px;">
@@ -1201,7 +1201,7 @@
                                     style="background:linear-gradient(135deg,#e74c3c,#c0392b); color:#fff;
                                            border:none; border-radius:8px; padding:7px 18px;
                                            font-size:12px; font-weight:700; cursor:pointer;">
-                                <i class="fa fa-ban mr-1"></i> Confirmar anulación
+                                <i class="mr-1 fa fa-ban"></i> Confirmar anulación
                             </button>
                             <button type="button" wire:click="cancelarConfirmPrefactura"
                                     style="background:#f0f0f0; color:#555; border:none;
@@ -1217,7 +1217,7 @@
                 @else
                 {{-- No hay prefactura activa todavía --}}
                 <div style="margin-top:20px; text-align:center; padding:24px; color:#90a4ae;">
-                    <i class="fa fa-clock-o fa-2x d-block mb-2" style="opacity:.4;"></i>
+                    <i class="mb-2 fa fa-clock-o fa-2x d-block" style="opacity:.4;"></i>
                     <p style="font-size:13px; margin:0; font-weight:600;">Sin prefactura activa.</p>
                     <p style="font-size:12px; margin:4px 0 0; opacity:.7;">Marca una oferta como ganadora para generar la prefactura.</p>
                 </div>
@@ -1234,9 +1234,9 @@
                     <div style="background:#fff; border-radius:10px; border:1px solid #e8eaf0;
                                 padding:12px 14px; margin-bottom:10px; font-size:12px; color:#555;">
                         <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:center;">
-                            <span><i class="fa fa-file-text text-primary mr-1"></i><strong>Factura #{{ $fac['id'] }}</strong></span>
-                            <span><i class="fa fa-user text-info mr-1"></i>{{ $fac['nombre_cliente'] ?? ($d['cliente'] ?? '—') }}</span>
-                            <span><i class="fa fa-calendar text-muted mr-1"></i>{{ \Carbon\Carbon::parse($fac['fecha_emision'] ?? $fac['created_at'])->format('d/m/Y') }}</span>
+                            <span><i class="mr-1 fa fa-file-text text-primary"></i><strong>Factura #{{ $fac['id'] }}</strong></span>
+                            <span><i class="mr-1 fa fa-user text-info"></i>{{ $fac['nombre_cliente'] ?? ($d['cliente'] ?? '—') }}</span>
+                            <span><i class="mr-1 fa fa-calendar text-muted"></i>{{ \Carbon\Carbon::parse($fac['fecha_emision'] ?? $fac['created_at'])->format('d/m/Y') }}</span>
                             <strong style="color:#e65100;">Total: L {{ number_format($fac['total'] ?? 0, 2) }}</strong>
                         </div>
                     </div>
@@ -1291,7 +1291,7 @@
                                 style="background:linear-gradient(135deg,#e74c3c,#c0392b); color:#fff;
                                        border:none; border-radius:8px; padding:6px 14px;
                                        font-size:12px; font-weight:700; cursor:pointer;">
-                            <i class="fa fa-ban mr-1"></i> Anular Factura
+                            <i class="mr-1 fa fa-ban"></i> Anular Factura
                         </button>
                     </div>
                     @endif
@@ -1300,7 +1300,7 @@
                     <div style="margin-top:10px; background:#fff5f5; border:1px solid #feb2b2;
                                 border-radius:12px; padding:14px;">
                         <p style="font-size:13px; color:#555; margin:0 0 8px;">
-                            <i class="fa fa-ban text-danger mr-1"></i>
+                            <i class="mr-1 fa fa-ban text-danger"></i>
                             ¿Anular la <strong>Factura #{{ $fac['id'] }}</strong>?
                         </p>
                         <p style="font-size:11px; color:#888; margin:0 0 10px;">
@@ -1311,7 +1311,7 @@
                                     style="background:linear-gradient(135deg,#e74c3c,#c0392b); color:#fff;
                                            border:none; border-radius:8px; padding:7px 18px;
                                            font-size:12px; font-weight:700; cursor:pointer;">
-                                <i class="fa fa-ban mr-1"></i> Confirmar anulación
+                                <i class="mr-1 fa fa-ban"></i> Confirmar anulación
                             </button>
                             <button type="button" wire:click="cancelarConfirmFactura"
                                     style="background:#f0f0f0; color:#555; border:none;
@@ -1324,7 +1324,7 @@
                 </div>
                 @else
                 <div style="margin-top:20px; text-align:center; padding:24px; color:#90a4ae;">
-                    <i class="fa fa-file-text-o fa-2x d-block mb-2" style="opacity:.4;"></i>
+                    <i class="mb-2 fa fa-file-text-o fa-2x d-block" style="opacity:.4;"></i>
                     <p style="font-size:13px; margin:0; font-weight:600;">Sin factura registrada en este flujo.</p>
                 </div>
                 @endif
@@ -1345,9 +1345,9 @@
                     <div style="background:#fff; border-radius:10px; border:1px solid #e8eaf0;
                                 padding:12px 14px; margin-bottom:10px; font-size:12px; color:#555;">
                         <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:center;">
-                            <span><i class="fa fa-file-text text-primary mr-1"></i><strong>Factura #{{ $cobroFacturaData['id'] }}</strong></span>
-                            <span><i class="fa fa-user text-info mr-1"></i>{{ $cobroFacturaData['nombre'] ?? ($d['cliente'] ?? '—') }}</span>
-                            <span><i class="fa fa-calendar text-muted mr-1"></i>{{ \Carbon\Carbon::parse($cobroFacturaData['fecha_emision'])->format('d/m/Y') }}</span>
+                            <span><i class="mr-1 fa fa-file-text text-primary"></i><strong>Factura #{{ $cobroFacturaData['id'] }}</strong></span>
+                            <span><i class="mr-1 fa fa-user text-info"></i>{{ $cobroFacturaData['nombre'] ?? ($d['cliente'] ?? '—') }}</span>
+                            <span><i class="mr-1 fa fa-calendar text-muted"></i>{{ \Carbon\Carbon::parse($cobroFacturaData['fecha_emision'])->format('d/m/Y') }}</span>
                             <strong style="color:#e65100;">Total factura: L {{ number_format($cobroFacturaData['total'] ?? 0, 2) }}</strong>
                         </div>
                     </div>
@@ -1370,23 +1370,14 @@
                         </div>
                     </div>
 
-                    <div style="display:flex; flex-wrap:wrap; gap:8px; margin:4px 0 10px;">
-                        <a href="/venta/cobro/{{ $cobroFacturaData['id'] }}" target="_blank"
-                           style="background:linear-gradient(135deg,#1a7efb,#0d6efd); color:#fff;
-                                  border:none; border-radius:8px; padding:6px 14px; font-size:12px; font-weight:700;
-                                  text-decoration:none; display:inline-flex; align-items:center; gap:5px;">
-                            <i class="fa fa-dollar"></i> Gestionar cobros
-                        </a>
-                    </div>
-
                     <div style="border-radius:10px; overflow:hidden; border:1px solid #e8eaf0; background:#fff;">
                         <div style="background:linear-gradient(135deg,#1a7efb 0%,#0d6efd 100%); padding:10px 14px; color:#fff; font-size:13px; font-weight:700;">
-                            <i class="fa fa-list-ul mr-1"></i> Historial de pagos
+                            <i class="mr-1 fa fa-list-ul"></i> Historial de pagos
                         </div>
 
                         @if (count($historialPagosFactura) === 0)
                         <div style="padding:16px; text-align:center; color:#90a4ae; font-size:12px;">
-                            <i class="fa fa-inbox d-block mb-1" style="opacity:.35; font-size:20px;"></i>
+                            <i class="mb-1 fa fa-inbox d-block" style="opacity:.35; font-size:20px;"></i>
                             No hay pagos registrados para esta factura.
                         </div>
                         @else
@@ -1415,7 +1406,7 @@
                                     @if (!empty($pago['comentario']))
                                     <tr style="border-bottom:1px solid #f0f0f0; background:#fafbff;">
                                         <td colspan="6" style="padding:6px 8px; color:#6b7280; font-size:10px;">
-                                            <i class="fa fa-sticky-note-o mr-1"></i>{{ $pago['comentario'] }}
+                                            <i class="mr-1 fa fa-sticky-note-o"></i>{{ $pago['comentario'] }}
                                         </td>
                                     </tr>
                                     @endif
@@ -1428,7 +1419,7 @@
                 </div>
                 @else
                 <div style="margin-top:20px; text-align:center; padding:24px; color:#90a4ae;">
-                    <i class="fa fa-clock-o fa-2x d-block mb-2" style="opacity:.4;"></i>
+                    <i class="mb-2 fa fa-clock-o fa-2x d-block" style="opacity:.4;"></i>
                     <p style="font-size:13px; margin:0; font-weight:600;">No se encontró información de cobro.</p>
                     <p style="font-size:12px; margin:4px 0 0; opacity:.7;">Primero debe existir una factura y su registro en aplicación de pagos.</p>
                 </div>
@@ -1437,7 +1428,7 @@
                 {{-- Pasos pendientes: factura, entrega, cobro --}}
                 @elseif (!in_array($pasoActivo, ['pedido', 'ofertas']))
                 <div style="margin-top:20px; text-align:center; padding:24px; color:#90a4ae;">
-                    <i class="fa fa-clock-o fa-2x d-block mb-2" style="opacity:.4;"></i>
+                    <i class="mb-2 fa fa-clock-o fa-2x d-block" style="opacity:.4;"></i>
                     <p style="font-size:13px; margin:0; font-weight:600;">
                         Esta etapa aún está pendiente.
                     </p>
@@ -1455,7 +1446,7 @@
                 <button type="button" wire:click="cerrar"
                         style="border-radius:20px; padding:6px 20px; background:#f0f0f0;
                                border:none; color:#555; font-size:13px; cursor:pointer;">
-                    <i class="fa fa-times mr-1"></i> Cerrar
+                    <i class="mr-1 fa fa-times"></i> Cerrar
                 </button>
 
                   @if (!$fCancelado && $pasoActivo === 'pedido')
@@ -1464,7 +1455,7 @@
                      style="border-radius:20px; padding:6px 20px; background:#f8f9fc;
                          color:#1a7efb; font-size:13px; font-weight:700; text-decoration:none;
                          border:1px solid #e8eaf0; display:inline-block;">
-                      <i class="fa fa-print mr-1"></i> Imprimir
+                      <i class="mr-1 fa fa-print"></i> Imprimir
                   </a>
 
                   @if (!$facturaCompletada)
@@ -1473,27 +1464,27 @@
                      style="border-radius:20px; padding:6px 20px; background:linear-gradient(135deg,#f39c12,#e67e22);
                          color:#fff; font-size:13px; font-weight:700; text-decoration:none;
                          display:inline-block;">
-                      <i class="fa fa-pencil mr-1"></i> Editar pedido
+                      <i class="mr-1 fa fa-pencil"></i> Editar pedido
                   </a>
 
                   <button type="button" wire:click="confirmarAccion('duplicar')"
                        style="border-radius:20px; padding:6px 20px; background:linear-gradient(135deg,#1a7efb,#0d6efd);
                            color:#fff; border:none; font-size:13px; font-weight:700; cursor:pointer;">
-                      <i class="fa fa-copy mr-1"></i> Duplicar
+                      <i class="mr-1 fa fa-copy"></i> Duplicar
                   </button>
 
                   @if (!$tieneGanadora)
                   <button type="button" wire:click="nuevaOferta"
                        style="border-radius:20px; padding:6px 20px; background:linear-gradient(135deg,#e65100,#f9a826);
                            color:#fff; border:none; font-size:13px; font-weight:700; cursor:pointer;">
-                      <i class="fa fa-tag mr-1"></i> Ag. Oferta
+                      <i class="mr-1 fa fa-tag"></i> Ag. Oferta
                   </button>
                   @endif
 
                   <button type="button" wire:click="confirmarAccion('anular')"
                        style="border-radius:20px; padding:6px 20px; background:linear-gradient(135deg,#e74c3c,#c0392b);
                            color:#fff; border:none; font-size:13px; font-weight:700; cursor:pointer;">
-                      <i class="fa fa-ban mr-1"></i> Anular
+                      <i class="mr-1 fa fa-ban"></i> Anular
                   </button>
                   @endif
                 @endif
@@ -1502,7 +1493,7 @@
                 <button type="button" wire:click="nuevaOferta"
                         style="border-radius:20px; padding:6px 20px; background:linear-gradient(135deg,#e65100,#f9a826);
                                color:#fff; border:none; font-size:13px; font-weight:700; cursor:pointer;">
-                    <i class="fa fa-tag mr-1"></i> Ag. Oferta
+                    <i class="mr-1 fa fa-tag"></i> Ag. Oferta
                 </button>
                 @endif
 
