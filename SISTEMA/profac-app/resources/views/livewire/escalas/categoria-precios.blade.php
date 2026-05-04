@@ -1098,6 +1098,7 @@ a.btn.btn-pf-primary:hover {
                   <th class="text-center col-hide-xs">% B</th>
                   <th class="text-center col-hide-xs">% C</th>
                   <th class="text-center col-hide-xs">% D</th>
+                  <th class="text-center">% Comisión</th>
                   <th class="text-center">Estado</th>
                   <th class="text-center col-hide-sm">Últ. actualización</th>
                   <th class="text-center col-hide-sm">Actualizado por</th>

@@ -179,7 +179,7 @@ class CategoriaPrecios extends Component
 
         public function listarCategoriasPorCliente($id){
             try {
-                $datos = DB::SELECT("
+                $datos = DB::select("
                     SELECT
                         cp.id,
                         cp.nombre,
@@ -198,9 +198,68 @@ class CategoriaPrecios extends Component
                     ORDER BY cp.id DESC
                 ", [$id]);
 
+                // Cargar comisiones activas por categoría de precio
+                $comisiones = DB::table('comision_escala as ce')
+                    ->join('rol as r', 'r.id', '=', 'ce.rol_id')
+                    ->where('ce.cliente_categoria_escala_id', $id)
+                    ->where('ce.estado_id', 1)
+                    ->select('ce.id as escala_id', 'ce.categoria_precios_id', 'ce.rol_id', 'r.nombre as rol_nombre', 'ce.porcentaje_comision')
+                    ->orderBy('r.nombre')
+                    ->get()
+                    ->groupBy('categoria_precios_id');
+
+                // Adjuntar comisiones a cada categoría de precio
+                foreach ($datos as $row) {
+                    $row->comisiones = $comisiones->get($row->id, collect())->values()->all();
+                }
+
                 return response()->json(['categorias' => $datos]);
             } catch (\Exception $e) {
                 return response()->json(['error' => $e->getMessage()], 500);
+            }
+        }
+
+        public function actualizarComisionCatPrecio(Request $request){
+            try {
+                $catPrecioId  = (int) $request->cat_precio_id;
+                $comisiones   = $request->comisiones ?? []; // [{escala_id, porcentaje_comision}]
+
+                if (!$catPrecioId) {
+                    return response()->json(['icon' => 'error', 'title' => 'Error', 'text' => 'ID de categoría requerido.'], 422);
+                }
+
+                DB::beginTransaction();
+
+                foreach ($comisiones as $item) {
+                    $escalId  = (int) ($item['escala_id'] ?? 0);
+                    $porcento = (float) ($item['porcentaje_comision'] ?? 0);
+
+                    if ($escalId) {
+                        DB::table('comision_escala')
+                            ->where('id', $escalId)
+                            ->where('estado_id', 1)
+                            ->update([
+                                'porcentaje_comision'      => $porcento,
+                                'usermodifico'             => Auth::id(),
+                                'fechaultimamodificacion'  => now(),
+                                'updated_at'               => now(),
+                            ]);
+                    }
+                }
+
+                DB::commit();
+                return response()->json([
+                    'icon'  => 'success',
+                    'title' => 'Éxito!',
+                    'text'  => 'Comisiones actualizadas correctamente.'
+                ], 200);
+            } catch (\Exception $e) {
+                DB::rollBack();
+                return response()->json([
+                    'icon'  => 'error',
+                    'title' => 'Error',
+                    'text'  => 'No se pudieron actualizar las comisiones.'
+                ], 500);
             }
         }
 

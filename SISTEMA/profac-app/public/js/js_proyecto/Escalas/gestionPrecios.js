@@ -685,19 +685,36 @@ function buildCatRow(c) {
     ? '<span style="font-size:.75rem;"><i class="fa fa-user mr-1 text-secondary"></i>' + escapeHtml(c.nombre_actualizador) + '</span>'
     : '<span class="text-muted">\u2014</span>';
 
+  // Renderizar comisiones por rol
+  var comisionesHtml = '';
+  if (c.comisiones && c.comisiones.length > 0) {
+    comisionesHtml = c.comisiones.map(function (cm) {
+      var porc = parseFloat(cm.porcentaje_comision);
+      return '<span style="display:inline-flex;align-items:center;gap:3px;background:#e8f5e9;color:#2e7d32;border-radius:10px;padding:2px 7px;font-size:.72rem;font-weight:700;margin:1px;white-space:nowrap;">'
+        + escapeHtml(cm.rol_nombre) + ': ' + porc + '%</span>';
+    }).join(' ');
+  } else {
+    comisionesHtml = '<span class="text-muted" style="font-size:.75rem;">Sin config.</span>';
+  }
+
+  // Serializar comisiones para data-attribute
+  var comisionesData = JSON.stringify(c.comisiones || []).replace(/"/g, '&quot;');
+
   return `<tr id="row_cat_${c.id}"
               data-id="${c.id}"
               data-nombre="${escapeHtml(c.nombre)}"
               data-a="${c.porc_precio_a}"
               data-b="${c.porc_precio_b || ''}"
               data-c="${c.porc_precio_c || ''}"
-              data-d="${c.porc_precio_d || ''}">
+              data-d="${c.porc_precio_d || ''}"
+              data-comisiones="${comisionesData}">
     <td class="col-hide-xs">${c.id}</td>
     <td>${escapeHtml(c.nombre)}</td>
     <td class="text-center">${c.porc_precio_a}%</td>
     <td class="text-center col-hide-xs">${c.porc_precio_b ? c.porc_precio_b + '%' : '<span class="text-muted">\u2014</span>'}</td>
     <td class="text-center col-hide-xs">${c.porc_precio_c ? c.porc_precio_c + '%' : '<span class="text-muted">\u2014</span>'}</td>
     <td class="text-center col-hide-xs">${c.porc_precio_d ? c.porc_precio_d + '%' : '<span class="text-muted">\u2014</span>'}</td>
+    <td class="text-center" style="max-width:180px;">${comisionesHtml}</td>
     <td class="text-center">${estado}</td>
     <td class="text-center col-hide-sm">${fechaAct}</td>
     <td class="text-center col-hide-sm">${usuarioAct}</td>
@@ -717,11 +734,30 @@ function escapeHtml(text) {
 
 function activarEdicionFila(id) {
   const $row = $('#row_cat_' + id);
-  const nombre = $row.data('nombre');
-  const a = $row.data('a');
-  const b = $row.data('b');
-  const c = $row.data('c');
-  const d = $row.data('d');
+  const nombre    = $row.data('nombre');
+  const a         = $row.data('a');
+  const b         = $row.data('b');
+  const c         = $row.data('c');
+  const d         = $row.data('d');
+  const comisiones = $row.data('comisiones') || [];
+
+  // Generar inputs de comisión por rol
+  let comisionInputsHtml = '';
+  if (comisiones.length > 0) {
+    comisionInputsHtml = comisiones.map(function (cm) {
+      return '<div style="display:flex;align-items:center;gap:4px;margin-bottom:4px;">'
+        + '<span style="font-size:.7rem;font-weight:700;color:#555;white-space:nowrap;min-width:70px;">'
+        + escapeHtml(cm.rol_nombre) + ':</span>'
+        + '<input type="number" class="form-control edit-cat-input text-center edit-comision-input" '
+        + 'data-escala-id="' + cm.escala_id + '" '
+        + 'value="' + parseFloat(cm.porcentaje_comision) + '" min="0" max="100" step="0.01" '
+        + 'style="width:60px;height:26px;padding:2px 4px;font-size:.8rem;">'
+        + '<span style="font-size:.75rem;color:#777;">%</span>'
+        + '</div>';
+    }).join('');
+  } else {
+    comisionInputsHtml = '<span class="text-muted" style="font-size:.72rem;">Sin comisiones configuradas</span>';
+  }
 
   $row.html(`
     <td class="col-hide-xs">${id}</td>
@@ -745,6 +781,7 @@ function activarEdicionFila(id) {
       <input type="number" class="form-control edit-cat-input text-center" id="edit_d_${id}"
              value="${d}" min="0" max="100" step="0.01" style="width:52px;">
     </td>
+    <td style="min-width:140px;">${comisionInputsHtml}</td>
     <td></td>
     <td class="col-hide-sm"></td>
     <td class="text-center col-hide-sm"></td>
@@ -775,6 +812,16 @@ function guardarEdicionCat(id) {
     return;
   }
 
+  // Recoger valores de comisión por rol
+  var comisionItems = [];
+  $('#row_cat_' + id).find('.edit-comision-input').each(function () {
+    var escalId = $(this).data('escala-id');
+    var pct     = parseFloat($(this).val()) || 0;
+    if (escalId) {
+      comisionItems.push({ escala_id: escalId, porcentaje_comision: pct });
+    }
+  });
+
   const payload = {
     id:           id,
     nombre:       nombre,
@@ -790,14 +837,21 @@ function guardarEdicionCat(id) {
   $btnGuardar.prop('disabled', true)
              .html('<i class="fa fa-spinner fa-spin mr-1"></i>Guardando...');
 
-  axios.post('/actualizar/categoria/precios', payload)
-    .then(function (res) {
-      const data = res.data;
+  // Guardar precios y comisiones en paralelo
+  var promPrecios = axios.post('/actualizar/categoria/precios', payload);
+  var promComisiones = comisionItems.length > 0
+    ? axios.post('/actualizar/comision/cat-precio', { cat_precio_id: id, comisiones: comisionItems })
+    : Promise.resolve(null);
+
+  axios.all([promPrecios, promComisiones])
+    .then(axios.spread(function (resPrecios) {
+      const data = resPrecios.data;
       const count = data.productos_actualizados ?? 0;
       const htmlMsg = 'Categoría actualizada correctamente.' +
         '<br><span class="badge badge-success mt-2" style="font-size:.82rem;padding:4px 10px;">' +
         '<i class="fa fa-refresh mr-1"></i>' + count + ' producto' + (count !== 1 ? 's' : '') + ' recalculado' + (count !== 1 ? 's' : '') +
-        '</span>';
+        '</span>' +
+        (comisionItems.length > 0 ? '<br><span class="badge badge-info mt-1" style="font-size:.78rem;padding:4px 10px;"><i class="fa fa-percent mr-1"></i>Comisiones actualizadas</span>' : '');
       Swal.fire({
         icon: data.icon,
         title: data.title,
@@ -809,7 +863,7 @@ function guardarEdicionCat(id) {
       reloadCatPrecios();
       // Actualizar el contador en la tabla principal sin reiniciarla
       $('#tbl_listaCategoria').DataTable().ajax.reload(null, false);
-    })
+    }))
     .catch(function (err) {
       $btnGuardar.prop('disabled', false).html(htmlOriginal);
       const data = err.response?.data || { icon: 'error', title: 'Error', text: 'No se pudo actualizar.' };

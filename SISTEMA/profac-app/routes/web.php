@@ -225,12 +225,24 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::post('/desactivar/parametro-comision/{id}',[confcomisiones::class,'desactivarParametro'])->name('parametro.comision.desactivar');
     Route::get('/parametro-comision/{id}', [confcomisiones::class,'obtenerParametro']);
     Route::post('/actualizar/parametro/comision/{id}', [confcomisiones::class,'actualizarParametro']);
+    Route::get('/comisiones/configuracion/categorias-precio', [confcomisiones::class,'categoriasPrecioPorCliente'])->name('comision.configuracion.categorias.precio');
+    Route::get('/comisiones/configuracion/plantilla-masiva', [confcomisiones::class,'descargarPlantillaMasiva'])->name('comision.configuracion.plantilla.masiva');
+    Route::post('/comisiones/configuracion/carga-masiva', [confcomisiones::class,'cargarMasivaComisiones'])->name('comision.configuracion.carga.masiva');
+    // Carga selectiva
+    Route::get('/comisiones/configuracion/categorias-cliente-activas', [confcomisiones::class,'listaCategoriasClienteActivas'])->name('comision.configuracion.cat.cliente.activas');
+    Route::get('/comisiones/configuracion/cat-precio-para-filtro', [confcomisiones::class,'categoriasPrecioParaFiltro'])->name('comision.configuracion.cat.precio.filtro');
+    Route::get('/comisiones/configuracion/plantilla-filtrada', [confcomisiones::class,'descargarPlantillaFiltrada'])->name('comision.configuracion.plantilla.filtrada');
+    Route::post('/comisiones/configuracion/preview-carga-filtrada', [confcomisiones::class,'previewCargaFiltrada'])->name('comision.configuracion.preview.filtrada');
+    Route::post('/comisiones/configuracion/procesar-carga-filtrada', [confcomisiones::class,'procesarCargaFiltrada'])->name('comision.configuracion.procesar.filtrada');
 
 
 
 
     Route::get('/comisiones/empleado', MisComisiones::class);
-    Route::get('/listar/empleado/comision', [MisComisiones::class,'listarComisionesEmpleado']);
+    Route::get('/listar/empleado/comision',         [MisComisiones::class, 'listarComisionesEmpleado']);
+    Route::get('/comision/empleado/top-productos',  [MisComisiones::class, 'topProductos'])->name('comision.empleado.top.productos');
+    Route::get('/comision/empleado/chart-mensual',  [MisComisiones::class, 'chartMensual'])->name('comision.empleado.chart.mensual');
+    Route::get('/comision/empleado/detalle-mes',    [MisComisiones::class, 'detalleFacturasMes'])->name('comision.empleado.detalle.mes');
 
 
     Route::get('/comisiones/general', ReportesComisionesGenerales::class);
@@ -339,6 +351,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/desactivar/categoria/precios/{idCategoria}', [CategoriaPrecios::class, 'desactivarCategoria']);
     Route::get('/listar/categorias/precios/por-cliente/{id}', [CategoriaPrecios::class, 'listarCategoriasPorCliente']);
     Route::post('/actualizar/categoria/precios', [CategoriaPrecios::class, 'actualizarCategoria']);
+    Route::post('/actualizar/comision/cat-precio', [CategoriaPrecios::class, 'actualizarComisionCatPrecio'])->name('cat.precio.actualizar.comision');
     /*SUBIDA DE EXCEL */
     // web.php
     Route::post('/importar-excel', [App\Http\Controllers\ExcelController::class, 'importarExcel']);// routes/web.php

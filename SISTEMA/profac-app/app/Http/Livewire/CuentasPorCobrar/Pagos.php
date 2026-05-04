@@ -697,33 +697,17 @@ class Pagos extends Component
 
 
                                 $generador = app(GeneradorFacturasComision::class);
-
                                 $arrayfacturas_comision = $generador->generar(
-                                    $request->idFacturaom,
-                                    $request->codAplicPagoom,
-                                    $creditoCli->cliente_categoria_escala_id
+                                    (int) $request->idFacturaom,
+                                    (int) $request->codAplicPagoom
                                 );
 
-                                /*recuperar factura, vendedor y teleoperacior del id factura*/
-
-
-                                $datos_factura = DB::SELECTONE("select users_id as 'teleoperador', vendedor from factura where id =".$request->idFacturaom);
-
-                                    /*Variables constantes porque es la estructura en duro de cualquier factura */
-
-                                    $idTelevendedor = $datos_factura->teleoperador;
-                                    $idVendedor = $datos_factura->vendedor;
-
+                                if (!empty($arrayfacturas_comision)) {
                                     $procesador = app(ProcesadorComisiones::class);
-
-                                    $contexto = [
-                                        'televendedor_id' => $idTelevendedor,
-                                        'vendedor_id'     => $idVendedor,
-                                    ];
-
                                     foreach ($arrayfacturas_comision as $factura) {
-                                        $procesador->procesar($factura, $contexto);
+                                        $procesador->procesar($factura);
                                     }
+                                }
 
 
                            if ($cuentas22[0]->estado == -1) {
@@ -858,25 +842,17 @@ class Pagos extends Component
                                    @estado,
                                    @msjResultado);"); */
 
-                                 // Registrar comisiones si existen parámetros configurados para la categoría del cliente
+                                // Registrar comisiones
                                 $generador = app(GeneradorFacturasComision::class);
                                 $arrayfacturas_comision = $generador->generar(
                                     (int) $request->idFacturaAbono,
-                                    (int) $request->codAplicPagoAbono,
-                                    (int) $creditoCli->cliente_categoria_escala_id
+                                    (int) $request->codAplicPagoAbono
                                 );
 
                                 if (!empty($arrayfacturas_comision)) {
-                                    $datos_factura = DB::SELECTONE("select users_id as 'teleoperador', vendedor from factura where id =".$request->idFacturaAbono);
-
                                     $procesador = app(ProcesadorComisiones::class);
-                                    $contexto = [
-                                        'televendedor_id' => $datos_factura->teleoperador,
-                                        'vendedor_id'     => $datos_factura->vendedor,
-                                    ];
-
                                     foreach ($arrayfacturas_comision as $factura) {
-                                        $procesador->procesar($factura, $contexto);
+                                        $procesador->procesar($factura);
                                     }
                                 }
 
@@ -1068,10 +1044,8 @@ class Pagos extends Component
 
             // Registrar comisiones al cierre manual de factura
             $apCierre = DB::selectone(
-                "SELECT ap.factura_id, ap.saldo, f.users_id AS teleoperador, f.vendedor, c.cliente_categoria_escala_id
+                "SELECT ap.factura_id, ap.saldo
                  FROM aplicacion_pagos ap
-                 INNER JOIN factura f ON f.id = ap.factura_id
-                 INNER JOIN cliente c ON c.id = f.cliente_id
                  WHERE ap.id = " . (int) $request->codAplicCierre
             );
 
@@ -1079,18 +1053,13 @@ class Pagos extends Component
                 $generador = app(GeneradorFacturasComision::class);
                 $arrayfacturas_comision = $generador->generar(
                     (int) $apCierre->factura_id,
-                    (int) $request->codAplicCierre,
-                    (int) $apCierre->cliente_categoria_escala_id
+                    (int) $request->codAplicCierre
                 );
 
                 if (!empty($arrayfacturas_comision)) {
                     $procesador = app(ProcesadorComisiones::class);
-                    $contexto = [
-                        'televendedor_id' => $apCierre->teleoperador,
-                        'vendedor_id'     => $apCierre->vendedor,
-                    ];
                     foreach ($arrayfacturas_comision as $factura) {
-                        $procesador->procesar($factura, $contexto);
+                        $procesador->procesar($factura);
                     }
                 }
             }
