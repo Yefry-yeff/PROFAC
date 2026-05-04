@@ -209,19 +209,26 @@ function datosNotaDebito(){
     });
 }
 
-function modalOtrosMovimientos(codigoPagoA, caiFactura, idFactura ){
+function modalOtrosMovimientos(codigoPagoA, caiFactura, idFactura, saldo){
     $('#codAplicPagoom').val(codigoPagoA);
     $('#facturaCaiom').val(caiFactura);
     $('#idFacturaom').val(idFactura);
 
-    $('#modalOtrosMovimientos').modal('show');
+    var s = parseFloat(saldo) || 0;
+    $('#montoTM').val(s > 0 ? s.toFixed(2) : '');
+    $('#om-saldo-label').text(s > 0 ? '(Total: L. ' + s.toLocaleString('es-HN', {minimumFractionDigits:2, maximumFractionDigits:2}) + ')' : '');
 
+    $('#modalOtrosMovimientos').modal('show');
 }
 
-function modalAbonos(codigoPagoA, caiFactura, idFactura){
+function modalAbonos(codigoPagoA, caiFactura, idFactura, saldo){
     $('#codAplicPagoAbono').val(codigoPagoA);
     $('#facturaCaiAbono').val(caiFactura);
     $('#idFacturaAbono').val(idFactura);
+
+    var s = parseFloat(saldo) || 0;
+    $('#montoAbono').val(s > 0 ? s.toFixed(2) : '');
+    $('#abono-saldo-label').text(s > 0 ? '(Total: L. ' + s.toLocaleString('es-HN', {minimumFractionDigits:2, maximumFractionDigits:2}) + ')' : '');
 
     datosBanco();
     $('#modalAbonos').modal('show');
