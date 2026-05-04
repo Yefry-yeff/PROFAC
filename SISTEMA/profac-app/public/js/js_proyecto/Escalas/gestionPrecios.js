@@ -685,17 +685,11 @@ function buildCatRow(c) {
     ? '<span style="font-size:.75rem;"><i class="fa fa-user mr-1 text-secondary"></i>' + escapeHtml(c.nombre_actualizador) + '</span>'
     : '<span class="text-muted">\u2014</span>';
 
-  // Renderizar comisiones por rol
-  var comisionesHtml = '';
-  if (c.comisiones && c.comisiones.length > 0) {
-    comisionesHtml = c.comisiones.map(function (cm) {
-      var porc = parseFloat(cm.porcentaje_comision);
-      return '<span style="display:inline-flex;align-items:center;gap:3px;background:#e8f5e9;color:#2e7d32;border-radius:10px;padding:2px 7px;font-size:.72rem;font-weight:700;margin:1px;white-space:nowrap;">'
-        + escapeHtml(cm.rol_nombre) + ': ' + porc + '%</span>';
-    }).join(' ');
-  } else {
-    comisionesHtml = '<span class="text-muted" style="font-size:.75rem;">Sin config.</span>';
-  }
+  // Botón compacto → abre mini modal de comisiones
+  var cnt = (c.comisiones || []).length;
+  var comisionesHtml = cnt > 0
+    ? '<button class="btn-mc-ver" onclick="abrirModalComisiones(' + c.id + ', false); event.stopPropagation();"><i class="fa fa-percent"></i> ' + cnt + ' roles</button>'
+    : '<span class="btn-mc-ver-sin"><i class="fa fa-percent"></i> Sin config.</span>';
 
   // Serializar comisiones para data-attribute
   var comisionesData = JSON.stringify(c.comisiones || []).replace(/"/g, '&quot;');
@@ -732,6 +726,235 @@ function escapeHtml(text) {
     .replace(/'/g, '&#39;');
 }
 
+/* ════════════════════════════════════════════════════════
+   MINI MODAL % COMISIONES POR ROL
+   ════════════════════════════════════════════════════════ */
+window._pfComisionesEditadas = {};
+var _pfMCCatId = null;
+
+function abrirModalComisiones(catId, modoEdicion) {
+  var $row = $('#row_cat_' + catId);
+  var nombre    = $row.data('nombre') || ('Categoría ' + catId);
+  var comisiones = $row.data('comisiones') || [];
+
+  _pfMCCatId = catId;
+
+  // Si ya hay ediciones pendientes para este cat, usarlas
+  var items = (window._pfComisionesEditadas[catId] && window._pfComisionesEditadas[catId].length > 0)
+    ? window._pfComisionesEditadas[catId]
+    : comisiones;
+
+  // Header
+  $('#mc-modal-subtitle').html(
+    '<strong>' + escapeHtml(nombre) + '</strong>'
+    + ' <span style="opacity:.7;margin-left:6px;">' + items.length + ' rol' + (items.length !== 1 ? 'es' : '') + ' configurado' + (items.length !== 1 ? 's' : '') + '</span>'
+  );
+
+  // Limpiar buscador y tabla
+  $('#mc-buscador').val('');
+  $('#mc-no-result').hide();
+  var $tbody = $('#mc-tbody');
+  $tbody.empty();
+
+  if (items.length === 0) {
+    $tbody.append('<tr><td colspan="2" class="text-center py-3" style="color:#999;font-size:.82rem;">Sin comisiones configuradas para esta categoría.</td></tr>');
+    $('#mc-btn-aplicar').hide();
+  } else {
+    items.forEach(function (cm) {
+      var porc = parseFloat(cm.porcentaje_comision);
+      var celdaPorc = modoEdicion
+        ? '<div style="display:inline-flex;align-items:center;gap:6px;">'
+            + '<input type="number" class="mc-pct-input" '
+            + 'data-escala-id="' + cm.escala_id + '" '
+            + 'value="' + porc + '" min="0" max="100" step="0.01">'
+            + '<span style="font-size:.72rem;color:#777;">%</span></div>'
+        : '<span class="mc-pct-badge">' + porc + '%</span>';
+
+      $tbody.append(
+        '<tr data-rol="' + escapeHtml((cm.rol_nombre || '').toLowerCase()) + '" data-escala-id="' + cm.escala_id + '">'
+        + '<td style="font-size:.82rem;">' + escapeHtml(cm.rol_nombre) + '</td>'
+        + '<td class="text-center">' + celdaPorc + '</td>'
+        + '</tr>'
+      );
+    });
+    $('#mc-btn-aplicar').toggle(modoEdicion);
+    $('#mc-btn-editar').toggle(!modoEdicion);
+  }
+
+  // Abrir overlay custom (siempre encima de todo)
+  document.getElementById('mcOverlay').style.display = 'flex';
+  // Bloquear el focus-trap de Bootstrap para permitir edición en el overlay
+  $(document).off('focusin.modal').on('focusin.mcOverlay', function (e) {
+    if ($('#mcOverlay').is(':visible') && !$(e.target).closest('#mcOverlay').length) {
+      e.stopImmediatePropagation();
+    }
+  });
+  setTimeout(function () { document.getElementById('mc-buscador').focus(); }, 80);
+}
+
+function cerrarModalComisiones() {
+  document.getElementById('mcOverlay').style.display = 'none';
+  // Restaurar el focus-trap de Bootstrap
+  $(document).off('focusin.mcOverlay');
+}
+function cerrarMCIfBg(e) {
+  if (e.target === document.getElementById('mcOverlay')) cerrarModalComisiones();
+}
+
+function activarEdicionMC() {
+  // Reemplaza cada badge por un input numérico editable
+  $('#mc-tbody tr[data-rol]').each(function () {
+    var $td = $(this).find('td:last-child');
+    var badge = $td.find('.mc-pct-badge');
+    if (badge.length) {
+      var val = badge.text().replace('%', '').trim();
+      var escalId = $(this).data('escala-id');
+      $td.html(
+        '<div style="display:inline-flex;align-items:center;gap:6px;">'
+        + '<input type="number" class="mc-pct-input" data-escala-id="' + escalId + '" '
+        + 'value="' + val + '" min="0" max="100" step="0.01">'
+        + '<span style="font-size:.72rem;color:#777;">%</span></div>'
+      );
+    }
+  });
+  $('#mc-btn-editar').hide();
+  $('#mc-btn-aplicar').show();
+  // Foco en el primer input
+  $('#mc-tbody .mc-pct-input').first().focus().select();
+}
+
+function filtrarModalComisiones(val) {
+  var query = val.toLowerCase().trim();
+  var visible = 0;
+  $('#mc-tbody tr[data-rol]').each(function () {
+    var rol = $(this).data('rol') || '';
+    var show = !query || rol.indexOf(query) !== -1;
+    $(this).toggle(show);
+    if (show) visible++;
+  });
+  $('#mc-no-result').toggle(visible === 0 && query.length > 0);
+}
+
+function aplicarComisionesModal() {
+  if (!_pfMCCatId) return;
+
+  // Recoger valores actuales de los inputs
+  var items = [];
+  $('#mc-tbody tr[data-rol]').each(function () {
+    var $input = $(this).find('.mc-pct-input');
+    if ($input.length) {
+      var escalId = parseInt($input.data('escala-id'));
+      var pct     = parseFloat($input.val());
+      var rolNom  = $(this).find('td:first-child').text().trim();
+      if (escalId && !isNaN(pct)) {
+        items.push({ escala_id: escalId, porcentaje_comision: pct, rol_nombre: rolNom });
+      }
+    }
+  });
+
+  if (items.length === 0) {
+    cerrarModalComisiones();
+    $('#modalVerCatPrecios').addClass('pf-hiding').modal('hide');
+    Swal.fire({ icon: 'warning', title: 'Sin cambios', text: 'No hay comisiones para aplicar.', timer: 1800, showConfirmButton: false });
+    return;
+  }
+
+  // Comparar con valores originales para detectar cambios reales
+  var originales = ($('#row_cat_' + _pfMCCatId).data('comisiones') || []);
+  var origMap = {};
+  originales.forEach(function (o) { origMap[o.escala_id] = parseFloat(o.porcentaje_comision); });
+
+  var cambios = items.filter(function (it) {
+    return origMap[it.escala_id] === undefined || origMap[it.escala_id] !== it.porcentaje_comision;
+  });
+
+  // Construir lista HTML de cambios para el confirm
+  var listHtml = cambios.length > 0
+    ? '<div style="max-height:200px;overflow-y:auto;margin-top:8px;">'
+      + '<table style="width:100%;font-size:.82rem;border-collapse:collapse;">'
+      + '<thead><tr style="background:#f0f7f1;">'
+      + '<th style="padding:5px 8px;text-align:left;border-bottom:1px solid #c8e6c9;">Rol</th>'
+      + '<th style="padding:5px 8px;text-align:center;border-bottom:1px solid #c8e6c9;">Antes</th>'
+      + '<th style="padding:5px 8px;text-align:center;border-bottom:1px solid #c8e6c9;">Ahora</th>'
+      + '</tr></thead><tbody>'
+      + cambios.map(function (it) {
+          var antes = origMap[it.escala_id] !== undefined ? origMap[it.escala_id] + '%' : '—';
+          return '<tr><td style="padding:4px 8px;">' + escapeHtml(it.rol_nombre) + '</td>'
+            + '<td style="padding:4px 8px;text-align:center;color:#999;">' + antes + '</td>'
+            + '<td style="padding:4px 8px;text-align:center;font-weight:700;color:#1b5e20;">' + it.porcentaje_comision + '%</td></tr>';
+        }).join('')
+      + '</tbody></table></div>'
+    : '<p style="color:#888;font-size:.83rem;margin-top:6px;">No se detectaron cambios respecto a los valores actuales.</p>';
+
+  // Guardar antes de cerrar
+  var catIdGuardar = _pfMCCatId;
+  var itemsParaGuardar = items;
+  var cambiosParaGuardar = cambios;
+
+  var titulo = cambiosParaGuardar.length > 0
+    ? 'Confirmar ' + cambiosParaGuardar.length + ' cambio' + (cambiosParaGuardar.length !== 1 ? 's' : '')
+    : 'Sin cambios detectados';
+
+  // Cerrar overlay y modal COMPLETAMENTE antes de Swal
+  cerrarModalComisiones();
+  var $bsModal = $('#modalVerCatPrecios');
+  if ($bsModal.hasClass('show')) {
+    $bsModal.one('hidden.bs.modal', function () {
+      _mostrarSwalComisiones(titulo, listHtml, cambiosParaGuardar, catIdGuardar, itemsParaGuardar);
+    });
+    $bsModal.addClass('pf-hiding').modal('hide');
+  } else {
+    _mostrarSwalComisiones(titulo, listHtml, cambiosParaGuardar, catIdGuardar, itemsParaGuardar);
+  }
+}
+
+function _mostrarSwalComisiones(titulo, listHtml, cambiosParaGuardar, catIdGuardar, itemsParaGuardar) {
+  Swal.fire({
+    icon: cambiosParaGuardar.length > 0 ? 'question' : 'info',
+    title: titulo,
+    html: '<p style="font-size:.85rem;margin:0;">Se modificará el % de comisión para los siguientes roles:</p>' + listHtml,
+    showCancelButton: cambiosParaGuardar.length > 0,
+    confirmButtonText: cambiosParaGuardar.length > 0 ? '<i class="fa fa-check mr-1"></i>Sí, aplicar' : 'Cerrar',
+    cancelButtonText: 'Cancelar',
+    confirmButtonColor: '#27ae60',
+    cancelButtonColor: '#6c757d',
+    customClass: { htmlContainer: 'text-left' }
+  }).then(function (result) {
+    if (!result.isConfirmed || cambiosParaGuardar.length === 0) return;
+
+    // Enviar al servidor
+    axios.post('/actualizar/comision/cat-precio', {
+      cat_precio_id: catIdGuardar,
+      comisiones: itemsParaGuardar.map(function (it) {
+        return { escala_id: it.escala_id, porcentaje_comision: it.porcentaje_comision };
+      })
+    }).then(function (response) {
+      // Actualizar data-comisiones en la fila
+      var $row = $('#row_cat_' + catIdGuardar);
+      var comisionesActuales = $row.data('comisiones') || [];
+      var mapNuevos = {};
+      itemsParaGuardar.forEach(function (it) { mapNuevos[it.escala_id] = it.porcentaje_comision; });
+      comisionesActuales.forEach(function (c) {
+        if (mapNuevos[c.escala_id] !== undefined) c.porcentaje_comision = mapNuevos[c.escala_id];
+      });
+      $row.data('comisiones', comisionesActuales);
+
+      Swal.fire({
+        icon: 'success',
+        title: '¡Comisiones actualizadas!',
+        html: '<b>' + cambiosParaGuardar.length + ' cambio' + (cambiosParaGuardar.length !== 1 ? 's' : '') + '</b> guardado' + (cambiosParaGuardar.length !== 1 ? 's' : '') + ' correctamente.',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#27ae60',
+        timer: 3500,
+        timerProgressBar: true
+      });
+    }).catch(function (err) {
+      console.error(err);
+      Swal.fire({ icon: 'error', title: 'Error al guardar', text: 'No se pudieron guardar los cambios. Inténtalo de nuevo.' });
+    });
+  });
+}
+
 function activarEdicionFila(id) {
   const $row = $('#row_cat_' + id);
   const nombre    = $row.data('nombre');
@@ -741,23 +964,11 @@ function activarEdicionFila(id) {
   const d         = $row.data('d');
   const comisiones = $row.data('comisiones') || [];
 
-  // Generar inputs de comisión por rol
-  let comisionInputsHtml = '';
-  if (comisiones.length > 0) {
-    comisionInputsHtml = comisiones.map(function (cm) {
-      return '<div style="display:flex;align-items:center;gap:4px;margin-bottom:4px;">'
-        + '<span style="font-size:.7rem;font-weight:700;color:#555;white-space:nowrap;min-width:70px;">'
-        + escapeHtml(cm.rol_nombre) + ':</span>'
-        + '<input type="number" class="form-control edit-cat-input text-center edit-comision-input" '
-        + 'data-escala-id="' + cm.escala_id + '" '
-        + 'value="' + parseFloat(cm.porcentaje_comision) + '" min="0" max="100" step="0.01" '
-        + 'style="width:60px;height:26px;padding:2px 4px;font-size:.8rem;">'
-        + '<span style="font-size:.75rem;color:#777;">%</span>'
-        + '</div>';
-    }).join('');
-  } else {
-    comisionInputsHtml = '<span class="text-muted" style="font-size:.72rem;">Sin comisiones configuradas</span>';
-  }
+  // Botón para abrir mini modal en modo edición
+  var cntEdit = comisiones.length;
+  var comisionInputsHtml = cntEdit > 0
+    ? '<button class="btn-mc-ver-edit" onclick="abrirModalComisiones(' + id + ', true); event.stopPropagation();"><i class="fa fa-pencil"></i> Comisiones (' + cntEdit + ')</button>'
+    : '<span class="btn-mc-ver-sin"><i class="fa fa-percent"></i> Sin config.</span>';
 
   $row.html(`
     <td class="col-hide-xs">${id}</td>
@@ -812,15 +1023,9 @@ function guardarEdicionCat(id) {
     return;
   }
 
-  // Recoger valores de comisión por rol
-  var comisionItems = [];
-  $('#row_cat_' + id).find('.edit-comision-input').each(function () {
-    var escalId = $(this).data('escala-id');
-    var pct     = parseFloat($(this).val()) || 0;
-    if (escalId) {
-      comisionItems.push({ escala_id: escalId, porcentaje_comision: pct });
-    }
-  });
+  // Recoger comisiones editadas en el mini modal (almacenadas en memoria temporal)
+  var comisionItems = window._pfComisionesEditadas ? (window._pfComisionesEditadas[id] || []) : [];
+  if (window._pfComisionesEditadas) delete window._pfComisionesEditadas[id];
 
   const payload = {
     id:           id,
