@@ -132,14 +132,14 @@
 
         {{-- Tarjeta izquierda: Comentario + Registrado por --}}
         <div class="border card border-dark"
-             style="position:absolute; left:0px; margin-top:{{ $altura }}px; width:26rem; height:14rem;">
-            <div class="card-body">
+             style="position:absolute; left:0px; margin-top:{{ $altura }}px; width:26rem; height:5rem;">
+            <div class="card-body" style="padding:8px 10px;">
                 @if(!empty($boleta->comentario))
-                <p class="card-text" style="position:absolute; left:10px; top:5px; font-size:11px; max-width:390px;">
+                <p class="card-text" style="font-size:11px; margin:0 0 4px 0;">
                     <b>Comentario:</b> {{ $boleta->comentario }}
                 </p>
                 @endif
-                <p class="card-text" style="position:absolute; left:10px; bottom:8px; font-size:12px;">
+                <p class="card-text" style="font-size:12px; margin:0;">
                     <b>Registrado por: </b>{{ $boleta->registrado_por }}
                 </p>
             </div>
@@ -147,51 +147,23 @@
 
         {{-- Tarjeta derecha: Totales --}}
         <div class="border card border-dark"
-             style="position:absolute; left:430px; margin-top:{{ $altura }}px; width:18rem; height:14rem;">
+             style="position:absolute; left:430px; margin-top:{{ $altura }}px; width:18rem; height:5rem;">
             <div class="card-body" style="padding:6px 10px;">
-                <table style="width:100%; font-size:10px; border:none;" cellspacing="0" cellpadding="2">
+                <table style="width:100%; font-size:11px; border:none;" cellspacing="0" cellpadding="3">
                     <tr>
-                        <td style="border:none;">Importe exonerado:</td>
-                        <td style="border:none; text-align:right;">L. 0.00</td>
-                    </tr>
-                    <tr>
-                        <td style="border:none;">Importe Gravado 15%:</td>
-                        <td style="border:none; text-align:right;">L. 0.00</td>
-                    </tr>
-                    <tr>
-                        <td style="border:none;">Importe Gravado 18%:</td>
-                        <td style="border:none; text-align:right;">L. 0.00</td>
-                    </tr>
-                    <tr>
-                        <td style="border:none;">Importe Exento:</td>
-                        <td style="border:none; text-align:right;">L. {{ number_format($boleta->sub_total, 2) }}</td>
-                    </tr>
-                    <tr>
-                        <td style="border:none;">Desc. y Rebajas:</td>
-                        <td style="border:none; text-align:right;">L. 0.00</td>
-                    </tr>
-                    <tr>
-                        <td style="border:none; padding-top:4px;"><b>Sub Total:</b></td>
-                        <td style="border:none; text-align:right; padding-top:4px;"><b>L. {{ number_format($boleta->sub_total, 2) }}</b></td>
-                    </tr>
-                    <tr>
-                        <td style="border:none;">Impuesto sobre venta 15%:</td>
-                        <td style="border:none; text-align:right;">L. 0.00</td>
-                    </tr>
-                    <tr>
-                        <td style="border:none;">Impuesto sobre venta 18%:</td>
-                        <td style="border:none; text-align:right;">L. 0.00</td>
+                        <td style="border:none;"><b>Sub Total:</b></td>
+                        <td style="border:none; text-align:right;"><b>L. {{ number_format($boleta->sub_total, 2) }}</b></td>
                     </tr>
                     <tr style="font-size:12px;">
-                        <td style="border:none; padding-top:4px;"><b>Total a Pagar:</b></td>
-                        <td style="border:none; text-align:right; padding-top:4px;"><b>L. {{ number_format($boleta->total, 2) }}</b></td>
+                        <td style="border:none; padding-top:6px;"><b>Total a Pagar:</b></td>
+                        <td style="border:none; text-align:right; padding-top:6px;"><b>L. {{ number_format($boleta->total, 2) }}</b></td>
                     </tr>
                 </table>
             </div>
         </div>
 
         {{-- Valor en letras (debajo de los dos recuadros) --}}
-        <div style="position:absolute; left:0px; margin-top:{{ $altura + 234 }}px; width:45rem;">
+        <div style="position:absolute; left:0px; margin-top:{{ $altura + 90 }}px; width:45rem;">
             <p class="card-text" style="font-size:11px; padding:4px 10px;">
                 @if($flagCentavos == false)
                     <b>"{{ $numeroLetras . ' CON CERO CENTAVOS' }}"</b>
@@ -204,19 +176,19 @@
     </div>
 
     {{-- Firmas: fijas en la parte inferior de la página --}}
-    <div style="position:fixed; bottom:50px; left:44px; width:45rem;">
-        <p class="card-text" style="position:absolute; left:20px; top:10px;">
+    <div style="position:fixed; bottom:90px; left:44px; width:45rem;">
+        <p class="card-text" style="position:absolute; left:60px; top:10px;">
             _______________________________________
         </p>
-        <p class="card-text" style="position:absolute; left:450px; top:10px;">
+        <p class="card-text" style="position:absolute; left:400px; top:10px;">
             _______________________________________
         </p>
-        <p class="card-text" style="position:absolute; left:22px; top:28px; font-size:10px;">
+        <p class="card-text" style="position:absolute; left:62px; top:28px; font-size:10px;">
             <b>Comprador:</b> {{ strtoupper($boleta->cliente) }}
             @if(!empty($boleta->rtn_dni)) | RTN/DNI: {{ $boleta->rtn_dni }} @endif
             @if(!empty($boleta->telefono)) | Tel: {{ $boleta->telefono }} @endif
         </p>
-        <p class="card-text" style="position:absolute; left:470px; top:28px;">DISTRIBUCIONES VALENCIA</p>
+        <p class="card-text" style="position:absolute; left:420px; top:28px;">DISTRIBUCIONES VALENCIA</p>
     </div>
 
 </div>
