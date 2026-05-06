@@ -60,6 +60,7 @@ class HistorialBoletaCompra extends Component
                         '<div class="btn-group">
                         <button data-toggle="dropdown" class="btn btn-warning dropdown-toggle" aria-expanded="false">Ver más</button>
                         <ul class="dropdown-menu" style="position: absolute; top: 33px; left: 0px; will-change: top, left;">
+                            <li><a class="dropdown-item" href="/boleta/compra/editar/' . $boleta->id . '"><i class="fa-solid fa-pen-to-square"></i> Editar</a></li>
                             <li><a class="dropdown-item" onclick="anularBoleta(' . $boleta->id . ')"><i class="fa-solid fa-trash"></i> Anular</a></li>
                             <li><a class="dropdown-item" href="/boleta/compra/imprimir/' . $boleta->id . '" target="_blank"><i class="fa-solid fa-file-invoice"></i> Imprimir Original</a></li>
                             <li><a class="dropdown-item" href="/boleta/compra/imprimir/copia/' . $boleta->id . '" target="_blank"><i class="fa-solid fa-file-invoice"></i> Imprimir Copia</a></li>
@@ -128,5 +129,88 @@ class HistorialBoletaCompra extends Component
         $data = $this->_datosBoleta($id);
         $pdf  = PDF::loadView('/pdf/boletaCompra_copia', $data)->setPaper('letter');
         return $pdf->stream('boleta_compra_copia_' . $data['boleta']->numero_boleta . '.pdf');
+    }
+
+    public function actualizarBoletaCompra(Request $request)
+    {
+        $validator = \Validator::make($request->all(), [
+            'id'         => 'required|integer',
+            'cliente'    => 'required|string|max:255',
+            'fecha'      => 'required|date',
+            'conceptos'  => 'required|string',
+            'total'      => 'required|numeric|min:0.01',
+            'rtn_dni'    => 'nullable|string|max:50',
+            'telefono'   => 'nullable|string|max:50',
+            'comentario' => 'nullable|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Datos inválidos',
+                'errors'  => $validator->errors(),
+            ], 422);
+        }
+
+        $conceptos = json_decode($request->conceptos, true);
+
+        if (empty($conceptos)) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Debe agregar al menos un concepto de compra.',
+            ], 422);
+        }
+
+        $id = (int)$request->id;
+
+        DB::beginTransaction();
+        try {
+            DB::table('boleta_compra')->where('id', $id)->update([
+                'cliente'     => $request->cliente,
+                'direccion'   => $request->direccion ?? '',
+                'rtn_dni'     => $request->rtn_dni ?: null,
+                'telefono'    => $request->telefono ?: null,
+                'comentario'  => $request->comentario ?: null,
+                'fecha'       => $request->fecha,
+                'sub_total'   => $request->total,
+                'total'       => $request->total,
+                'editado_por' => \Auth::user()->name,
+                'editado_at'  => now(),
+                'updated_at'  => now(),
+            ]);
+
+            DB::table('boleta_compra_detalle')->where('boleta_compra_id', $id)->delete();
+
+            foreach ($conceptos as $index => $concepto) {
+                DB::table('boleta_compra_detalle')->insert([
+                    'boleta_compra_id' => $id,
+                    'linea'            => $index + 1,
+                    'descripcion'      => $concepto['descripcion'],
+                    'precio'           => $concepto['precio'],
+                    'cantidad'         => $concepto['cantidad'],
+                    'importe'          => $concepto['importe'],
+                    'created_at'       => now(),
+                    'updated_at'       => now(),
+                ]);
+            }
+
+            DB::commit();
+
+            $boleta = DB::table('boleta_compra')->where('id', $id)->first();
+
+            return response()->json([
+                'status'        => 'success',
+                'message'       => 'Boleta actualizada correctamente.',
+                'id'            => $id,
+                'numero_boleta' => $boleta->numero_boleta,
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Error al actualizar la boleta.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 }

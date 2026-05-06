@@ -132,7 +132,7 @@
 
         {{-- Tarjeta izquierda: Comentario + Registrado por --}}
         <div class="border card border-dark"
-             style="position:absolute; left:0px; margin-top:{{ $altura }}px; width:26rem; height:5rem;">
+             style="position:absolute; left:0px; margin-top:{{ $altura }}px; width:26rem; height:auto; min-height:5rem;">
             <div class="card-body" style="padding:8px 10px;">
                 @if(!empty($boleta->comentario))
                 <p class="card-text" style="font-size:11px; margin:0 0 4px 0;">
@@ -142,12 +142,19 @@
                 <p class="card-text" style="font-size:12px; margin:0;">
                     <b>Registrado por: </b>{{ $boleta->registrado_por }}
                 </p>
+                @if(!empty($boleta->editado_por))
+                <p class="card-text" style="font-size:11px; margin:2px 0 0 0; color:#555;">
+                    <b>Editado por: </b>{{ $boleta->editado_por }}
+                    &nbsp;&mdash;&nbsp;
+                    {{ \Carbon\Carbon::parse($boleta->editado_at)->format('d/m/Y H:i') }}
+                </p>
+                @endif
             </div>
         </div>
 
         {{-- Tarjeta derecha: Totales --}}
         <div class="border card border-dark"
-             style="position:absolute; left:430px; margin-top:{{ $altura }}px; width:18rem; height:5rem;">
+             style="position:absolute; left:430px; margin-top:{{ $altura }}px; width:18rem; height:auto; min-height:5rem;">
             <div class="card-body" style="padding:6px 10px;">
                 <table style="width:100%; font-size:11px; border:none;" cellspacing="0" cellpadding="3">
                     <tr>

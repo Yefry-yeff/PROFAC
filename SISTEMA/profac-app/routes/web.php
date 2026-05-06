@@ -78,6 +78,7 @@ use App\Http\Livewire\NotaCredito\CrearNotaCredito;
 use App\Http\Livewire\NotaCredito\ListadoNotaCredito;
 use App\Http\Livewire\BoletaCompra\CrearBoletaCompra;
 use App\Http\Livewire\BoletaCompra\HistorialBoletaCompra;
+use App\Http\Livewire\BoletaCompra\EditarBoletaCompra;
 use App\Http\Livewire\Inventario\Categoria;
 use App\Http\Livewire\Inventario\SubCategoria;
 use App\Http\Livewire\Ventas\SinRestriccionPrecio;
@@ -612,6 +613,8 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::post('/boleta/compra/listar',             [HistorialBoletaCompra::class,'listadoBoletaCompra']);
     Route::get('/boleta/compra/imprimir/{id}',       [HistorialBoletaCompra::class,'imprimirOriginal']);
     Route::get('/boleta/compra/imprimir/copia/{id}', [HistorialBoletaCompra::class,'imprimirCopia']);
+    Route::get('/boleta/compra/editar/{id}',         EditarBoletaCompra::class);
+    Route::post('/boleta/compra/actualizar',         [HistorialBoletaCompra::class,'actualizarBoletaCompra']);
 
     // Redirección a sistema externo de boletas de compra
     Route::get('/orden/compra', function () {
