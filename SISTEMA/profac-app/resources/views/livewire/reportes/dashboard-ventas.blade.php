@@ -542,12 +542,12 @@
 
 {{-- ======================= ESTILOS ======================= --}}
 <style>
-.nav-tabs-custom { border-bottom: 2px solid #4e73df; }
+.nav-tabs-custom { border-bottom: 2px solid #EC401B; }
 .nav-tabs-custom .nav-link { border: 1px solid transparent; border-radius: 4px 4px 0 0; color: #5a5c69; }
-.nav-tabs-custom .nav-link.active { background: #fff; border-color: #4e73df #4e73df #fff; color: #4e73df; }
+.nav-tabs-custom .nav-link.active { background: #fff; border-color: #EC401B #EC401B #fff; color: #EC401B; }
 
 .kpi-card { border-radius: 6px; border: 1px solid #e3e6f0; }
-.border-left-primary  { border-left: 4px solid #4e73df !important; }
+.border-left-primary  { border-left: 4px solid #EC401B !important; }
 .border-left-success  { border-left: 4px solid #1cc88a !important; }
 .border-left-info     { border-left: 4px solid #36b9cc !important; }
 .border-left-warning  { border-left: 4px solid #f6c23e !important; }
@@ -557,18 +557,35 @@
 
 #dashboardVentas .card-header { background: #f8f9fc; font-size: .85rem; }
 
-/* Ensure DT headers always show in dark */
-#tabla-vendedores thead th, #tabla-clientes thead th, #tabla-productos thead th {
+/* DT headers dark — all tables */
+#tabla-vendedores thead th, #tabla-clientes thead th, #tabla-productos thead th,
+#tabla-semanal thead th {
     background-color: #343a40 !important;
     color: #fff !important;
     border-color: #454d55 !important;
 }
 /* Year toggle pills */
 .year-pill { border-radius: 20px !important; font-size: .75rem !important; padding: 2px 10px !important; }
+
+/* Orange gradient buttons */
+#dashboardVentas .btn-primary {
+    background: linear-gradient(135deg, #EC401B 0%, #F15533 100%) !important;
+    border-color: #d4390f !important;
+}
+#dashboardVentas .btn-primary:hover {
+    background: linear-gradient(135deg, #d4390f 0%, #EC401B 100%) !important;
+}
+/* Active year pill — orange */
+.year-pill.btn-primary { background: linear-gradient(135deg, #EC401B 0%, #F15533 100%) !important; border-color: #d4390f !important; }
+.year-pill.btn-outline-primary { color: #EC401B !important; border-color: #EC401B !important; }
+.year-pill.btn-outline-primary:hover { background: rgba(236,64,27,.1) !important; }
 </style>
 
 {{-- ======================= SCRIPTS ======================= --}}
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<script>
+    window._profacAuthUser = '{{ addslashes(auth()->user()->name ?? "Usuario") }}';
+</script>
 <script src="{{ asset('js/js_proyecto/reportes/dashboard-ventas.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function () {

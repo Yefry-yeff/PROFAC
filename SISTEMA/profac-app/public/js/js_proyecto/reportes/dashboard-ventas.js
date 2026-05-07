@@ -23,7 +23,9 @@ const dashboardVentas = (function () {
 
     const MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 
-    const COLORS_LINE = ['#4e73df','#1cc88a','#f6c23e','#e74a3b','#858796','#36b9cc'];
+    const COLORS_LINE = ['#EC401B','#1cc88a','#f6c23e','#36b9cc','#858796','#4e73df'];
+    const ORANGE_HEX  = 'FFEC401B';
+    const ORANGE2_HEX = 'FFF15533';
 
     // ── HELPERS ──────────────────────────────────────────────────────────────
     function fmtMoney(n) {
@@ -156,7 +158,7 @@ const dashboardVentas = (function () {
 
         charts.evolucion = new ApexCharts(document.getElementById('chart-evolucion'), {
             series,
-            chart: { type: 'line', height: 280, toolbar: { show: true }, zoom: { enabled: true } },
+            chart: { type: 'line', height: 300, toolbar: { show: true }, zoom: { enabled: true }, clip: false },
             stroke: { width: 3, curve: 'smooth' },
             colors: COLORS_LINE,
             xaxis: { categories: MESES },
@@ -169,7 +171,7 @@ const dashboardVentas = (function () {
                 enabled: true,
                 formatter: v => v === 0 ? '' : 'L.' + (v/1000).toFixed(0) + 'K',
                 style: { fontSize: '9px' },
-                background: { enabled: true, borderRadius: 2, padding: 2, opacity: 0.8 }
+                background: { enabled: true, foreColor: '#fff', borderRadius: 2, padding: 3, opacity: 0.85, borderWidth: 0, dropShadow: { enabled: false } }
             }
         });
         charts.evolucion.render();
@@ -188,8 +190,8 @@ const dashboardVentas = (function () {
 
         charts.barras = new ApexCharts(document.getElementById('chart-barras'), {
             series,
-            chart: { type: 'bar', height: 260, toolbar: { show: false } },
-            plotOptions: { bar: { borderRadius: 2, columnWidth: '70%' } },
+            chart: { type: 'bar', height: 280, toolbar: { show: false } },
+            plotOptions: { bar: { borderRadius: 2, columnWidth: '70%', dataLabels: { position: 'top' } } },
             colors: COLORS_LINE,
             xaxis: { categories: MESES },
             yaxis: { labels: { formatter: v => 'L.' + (v/1000).toFixed(0) + 'K' } },
@@ -198,8 +200,8 @@ const dashboardVentas = (function () {
             dataLabels: {
                 enabled: true,
                 formatter: v => v === 0 ? '' : 'L.' + (v/1000).toFixed(0) + 'K',
-                style: { fontSize: '8px' },
-                offsetY: -4
+                style: { fontSize: '7px', colors: ['#374151'] },
+                offsetY: -18
             }
         });
         charts.barras.render();
@@ -285,7 +287,7 @@ const dashboardVentas = (function () {
                 formatter: v => v === 0 ? '' : 'L.' + (v/1000).toFixed(0) + 'K',
                 style: { fontSize: '8px', colors: ['#fff'] }
             },
-            colors: ['#4e73df'],
+            colors: ['#EC401B'],
             tooltip: { y: { formatter: v => fmtMoney(v) } },
             xaxis: { type: 'category' }
         });
@@ -335,8 +337,8 @@ const dashboardVentas = (function () {
         const valores = data.map(d => parseFloat(d.total));
         charts['por-dia'] = new ApexCharts(document.getElementById('chart-por-dia'), {
             series: [{ name: 'Ventas', data: valores }],
-            chart: { type: 'bar', height: 240, toolbar: { show: false } },
-            plotOptions: { bar: { borderRadius: 4, distributed: true } },
+            chart: { type: 'bar', height: 260, toolbar: { show: false } },
+            plotOptions: { bar: { borderRadius: 4, distributed: true, dataLabels: { position: 'top' } } },
             colors: COLORS_LINE,
             xaxis: { categories: labels },
             yaxis: { labels: { formatter: v => 'L.' + (v/1000).toFixed(0) + 'K' } },
@@ -345,8 +347,8 @@ const dashboardVentas = (function () {
             dataLabels: {
                 enabled: true,
                 formatter: v => v === 0 ? '' : 'L.' + (v/1000).toFixed(0) + 'K',
-                style: { fontSize: '9px' },
-                offsetY: -4
+                style: { fontSize: '9px', colors: ['#374151'] },
+                offsetY: -20
             }
         });
         charts['por-dia'].render();
@@ -360,7 +362,7 @@ const dashboardVentas = (function () {
             series: valores,
             chart: { type: 'donut', height: 240 },
             labels,
-            colors: ['#4e73df','#1cc88a','#f6c23e','#e74a3b'],
+            colors: ['#EC401B','#1cc88a','#f6c23e','#e74a3b'],
             tooltip: { y: { formatter: v => fmtMoney(v) } },
             legend: { position: 'bottom', fontSize: '11px' },
             dataLabels: { formatter: (v) => v.toFixed(1) + '%' }
@@ -374,16 +376,16 @@ const dashboardVentas = (function () {
         const vals = data.map(d => parseFloat(d.total_ventas));
         charts['ranking-vend-sem'] = new ApexCharts(document.getElementById('chart-ranking-vend-sem'), {
             series: [{ name: 'Total', data: vals }],
-            chart: { type: 'bar', height: 240, toolbar: { show: false } },
-            plotOptions: { bar: { horizontal: true, borderRadius: 3 } },
+            chart: { type: 'bar', height: 260, toolbar: { show: false } },
+            plotOptions: { bar: { horizontal: true, borderRadius: 3, dataLabels: { position: 'center' } } },
             xaxis: { categories: cats, labels: { formatter: v => 'L.' + (v/1000).toFixed(0) + 'K' } },
             tooltip: { y: { formatter: v => fmtMoney(v) } },
             dataLabels: {
                 enabled: true,
                 formatter: v => 'L.' + (v/1000).toFixed(0) + 'K',
-                style: { fontSize: '9px' }
+                style: { fontSize: '9px', colors: ['#fff'] }
             },
-            colors: ['#4e73df']
+            colors: ['#EC401B']
         });
         charts['ranking-vend-sem'].render();
     }
@@ -399,27 +401,22 @@ const dashboardVentas = (function () {
                 dataSrc: 'data'
             },
             columns: [
-                { data: 'fecha' },
-                { data: 'dia_semana' },
-                { data: 'semana_iso' },
-                { data: 'documento', defaultContent: '—' },
-                { data: 'cliente' },
-                { data: 'vendedor' },
-                { data: 'tipo_cliente' },
-                { data: 'subtotal',  className: 'text-right' },
-                { data: 'impuesto', className: 'text-right' },
-                { data: 'descuento', className: 'text-right' },
-                { data: 'total',     className: 'text-right font-weight-bold' }
+                { title: 'Fecha',     data: 'fecha' },
+                { title: 'Día',       data: 'dia_semana' },
+                { title: 'Semana',    data: 'semana_iso' },
+                { title: 'Documento', data: 'documento', defaultContent: '—' },
+                { title: 'Cliente',   data: 'cliente' },
+                { title: 'Vendedor',  data: 'vendedor' },
+                { title: 'Tipo',      data: 'tipo_cliente' },
+                { title: 'Subtotal',  data: 'subtotal',  className: 'text-right' },
+                { title: 'ISV',       data: 'impuesto',  className: 'text-right' },
+                { title: 'Descuento', data: 'descuento', className: 'text-right' },
+                { title: 'Total',     data: 'total',     className: 'text-right font-weight-bold' }
             ],
             order: [[0, 'desc']],
             pageLength: 25,
             language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json' },
-            dom: 'Bfrtip',
-            buttons: [
-                { extend: 'excel', text: '<i class="fas fa-file-excel"></i>', className: 'd-none buttons-excel' },
-                { extend: 'csv',   text: '<i class="fas fa-file-csv"></i>',  className: 'd-none' },
-                { extend: 'pdf',   text: '<i class="fas fa-file-pdf"></i>',  className: 'd-none' }
-            ]
+            dom: 'frtip'
         });
     }
 
@@ -595,7 +592,7 @@ const dashboardVentas = (function () {
                     { title: { text: 'Ingresos' }, labels: { formatter: v => 'L.' + (v/1000).toFixed(0) + 'K' } },
                     { opposite: true, min: 0, max: 100, title: { text: 'Pareto %' }, labels: { formatter: v => v + '%' } }
                 ],
-                colors: ['#4e73df','#f6c23e'],
+                colors: ['#EC401B','#f6c23e'],
                 tooltip: { shared: true, intersect: false },
                 dataLabels: {
                     enabled: true,
@@ -652,14 +649,34 @@ const dashboardVentas = (function () {
     function excelHeader(ws, text, cols) {
         ws.mergeCells(`A1:${String.fromCharCode(64 + cols)}1`);
         const c = ws.getCell('A1');
-        c.value = text; c.font = { bold: true, size: 13, color: { argb: 'FF4E73DF' } };
-        c.alignment = { horizontal: 'center' }; ws.getRow(1).height = 22;
+        c.value = 'REPORTE DE VENTAS — PROFAC';
+        c.font = { bold: true, size: 14, color: { argb: 'FFFFFFFF' } };
+        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ORANGE_HEX } };
+        c.alignment = { horizontal: 'center', vertical: 'middle' };
+        ws.getRow(1).height = 28;
+
+        ws.mergeCells(`A2:${String.fromCharCode(64 + cols)}2`);
+        const c2 = ws.getCell('A2');
+        c2.value = text;
+        c2.font = { bold: true, size: 12, color: { argb: 'FFFFFFFF' } };
+        c2.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ORANGE2_HEX } };
+        c2.alignment = { horizontal: 'center', vertical: 'middle' };
+        ws.getRow(2).height = 22;
+
+        ws.mergeCells(`A3:${String.fromCharCode(64 + cols)}3`);
+        const c3 = ws.getCell('A3');
+        const now = new Date().toLocaleString('es-HN', { dateStyle: 'long', timeStyle: 'short' });
+        const user = (typeof window._profacAuthUser !== 'undefined') ? window._profacAuthUser : 'Usuario';
+        c3.value = `Descargado el: ${now}  |  Por: ${user}`;
+        c3.font = { italic: true, size: 9, color: { argb: 'FF555555' } };
+        c3.alignment = { horizontal: 'center', vertical: 'middle' };
+        ws.getRow(3).height = 16;
     }
 
     function excelTableHeader(row, color) {
         row.eachCell(c => {
             c.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-            c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: color || 'FF4E73DF' } };
+            c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: color || ORANGE_HEX } };
             c.alignment = { horizontal: 'center', vertical: 'middle' };
         });
     }
@@ -683,9 +700,8 @@ const dashboardVentas = (function () {
 
     async function _exportarTab1() {
         const wb = new ExcelJS.Workbook(); wb.creator = 'PROFAC';
-        // Hoja Datos
         const ws1 = wb.addWorksheet('Datos');
-        excelHeader(ws1, 'DASHBOARD DE VENTAS — HISTÓRICO & COMPARATIVO', 3);
+        excelHeader(ws1, 'Histórico & Comparativo', 3);
         ws1.addRow([]);
         const hdr1 = ws1.addRow(['INDICADOR', 'VALOR']); excelTableHeader(hdr1);
         if (lastKpis) {
@@ -708,7 +724,6 @@ const dashboardVentas = (function () {
         });
         ws1.columns = [{ width: 28 }, { width: 18 }, { width: 22 }];
 
-        // Hoja Gráficas
         const ws2 = wb.addWorksheet('Gráficas');
         await _insertarGraficas(wb, ws2, [
             { key: 'evolucion',   label: 'Evolución Mensual por Año',    w: 680, h: 280 },
@@ -722,9 +737,8 @@ const dashboardVentas = (function () {
 
     async function _exportarTab2() {
         const wb = new ExcelJS.Workbook(); wb.creator = 'PROFAC';
-        // Hoja Resumen
         const ws1 = wb.addWorksheet('Resumen');
-        excelHeader(ws1, 'REPORTE SEMANAL DE VENTAS', 2);
+        excelHeader(ws1, 'Reporte Semanal de Ventas', 2);
         ws1.addRow([]);
         const hdr1 = ws1.addRow(['INDICADOR', 'VALOR']); excelTableHeader(hdr1);
         [
@@ -737,8 +751,9 @@ const dashboardVentas = (function () {
         ].forEach(r => ws1.addRow(r));
         ws1.columns = [{ width: 25 }, { width: 38 }];
 
-        // Hoja Detalle
         const ws2 = wb.addWorksheet('Detalle');
+        excelHeader(ws2, 'Detalle de Facturas', 11);
+        ws2.addRow([]);
         const detHdr = ws2.addRow(['Fecha','Día','Semana','Documento','Cliente','Vendedor','Tipo','Subtotal','ISV','Descuento','Total']);
         excelTableHeader(detHdr);
         const fi = document.getElementById('s-fi').value, ff = document.getElementById('s-ff').value;
@@ -752,7 +767,6 @@ const dashboardVentas = (function () {
         } catch(e) { console.warn('Detalle export error', e); }
         ws2.columns = [8,12,8,18,32,22,15,14,10,12,14].map(w => ({ width: w }));
 
-        // Hoja Gráficas
         const ws3 = wb.addWorksheet('Gráficas');
         await _insertarGraficas(wb, ws3, [
             { key: 'por-dia',              label: 'Ventas por Día de la Semana', w: 500, h: 250 },
@@ -766,8 +780,9 @@ const dashboardVentas = (function () {
     async function _exportarTab3() {
         const wb = new ExcelJS.Workbook(); wb.creator = 'PROFAC';
 
-        // Hoja Vendedores
         const wsV = wb.addWorksheet('Vendedores');
+        excelHeader(wsV, 'Análisis de Vendedores', 7);
+        wsV.addRow([]);
         const vHdr = wsV.addRow(['#','Vendedor','Facturas','Clientes','Total Ventas','Ticket Promedio','Participación %']);
         excelTableHeader(vHdr);
         lastVendedores.forEach((v, i) => {
@@ -780,10 +795,11 @@ const dashboardVentas = (function () {
             { key: 'part-vend',  label: 'Participación de Mercado',  w: 500, h: 300 },
         ], lastVendedores.length + 4);
 
-        // Hoja Clientes
         const wsC = wb.addWorksheet('Clientes');
+        excelHeader(wsC, 'Análisis de Clientes', 10);
+        wsC.addRow([]);
         const cHdr = wsC.addRow(['#','Cliente','Tipo','ABC','Facturas','Total Comprado','Ticket Prom.','Última Compra','Días sin comprar','Estado']);
-        excelTableHeader(cHdr, 'FF1CC88A');
+        excelTableHeader(cHdr, ORANGE2_HEX);
         lastClientes.forEach((c, i) => {
             const r = wsC.addRow([i+1, c.cliente, c.tipo_cliente, c.clasificacion_abc, Number(c.facturas), parseFloat(c.total_comprado), parseFloat(c.ticket_promedio), c.ultima_compra, c.dias_sin_comprar, c.inactivo ? 'Inactivo' : (c.recurrente ? 'Recurrente' : 'Activo')]);
             r.getCell(6).numFmt = '#,##0.00'; r.getCell(7).numFmt = '#,##0.00';
@@ -794,10 +810,11 @@ const dashboardVentas = (function () {
             { key: 'abc-cli',  label: 'Clasificación ABC',               w: 500, h: 300 },
         ], lastClientes.length + 4);
 
-        // Hoja Productos
         const wsP = wb.addWorksheet('Productos');
+        excelHeader(wsP, 'Análisis de Productos', 9);
+        wsP.addRow([]);
         const pHdr = wsP.addRow(['#','Producto','Categoría','Subcategoría','Unidades','Ingresos','Precio Prom.','Facturas','Pareto %']);
-        excelTableHeader(pHdr, 'FF36B9CC');
+        excelTableHeader(pHdr, ORANGE2_HEX);
         lastProductos.forEach((p, i) => {
             const r = wsP.addRow([i+1, p.producto, p.categoria, p.subcategoria, Number(p.unidades_vendidas), parseFloat(p.ingresos), parseFloat(p.precio_promedio), p.apariciones, parseFloat(p.pareto)]);
             r.getCell(6).numFmt = '#,##0.00'; r.getCell(7).numFmt = '#,##0.00';
