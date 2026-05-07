@@ -13,7 +13,8 @@ use App\Http\Livewire\Comisiones\ComisionesHistorico;
 
 /* ------------------------------/COMISIONES------------------------------------------- */
 
-use App\Http\Livewire\FacturaDia\FacturaDia;
+use App\Http\Livewire\Reportes\FacturaDia;
+use App\Http\Livewire\Reportes\DashboardVentas;
 
 use App\Http\Livewire\Reportes\Prodmes;
 use App\Http\Livewire\Reportes\Reporteria;
@@ -1161,12 +1162,26 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/reporte/comision', Prodmes::class);
     Route::get('/reporte/reporteria', Reporteria::class);
 
+    // Dashboard de Ventas BI
+    Route::get('/reporte/dashboard-ventas', DashboardVentas::class);
+    Route::get('/reporte/dashboard/kpis',                    [DashboardVentas::class,'kpis']);
+    Route::get('/reporte/dashboard/ventas-por-mes',          [DashboardVentas::class,'ventasPorMes']);
+    Route::get('/reporte/dashboard/heatmap',                 [DashboardVentas::class,'heatmap']);
+    Route::get('/reporte/dashboard/ventas-semanales',        [DashboardVentas::class,'ventasSemanales']);
+    Route::get('/reporte/dashboard/resumen-semanal',         [DashboardVentas::class,'resumenSemanal']);
+    Route::get('/reporte/dashboard/top-vendedores',          [DashboardVentas::class,'topVendedores']);
+    Route::get('/reporte/dashboard/top-clientes',            [DashboardVentas::class,'topClientes']);
+    Route::get('/reporte/dashboard/top-productos',           [DashboardVentas::class,'topProductos']);
+    Route::get('/reporte/dashboard/catalogo-filtros',        [DashboardVentas::class,'catalogoFiltros']);
+    Route::get('/reporte/dashboard/ventas-vendedor-dia',     [DashboardVentas::class,'ventasPorVendedorDia']);
+    Route::get('/reporte/dashboard/participacion-tipo-cliente', [DashboardVentas::class,'participacionTipoCliente']);
+
     Route::get('/reporte/reporteria/consulta/{fecha_inicio}/{fecha_final}', [Reporteria::class,'consulta']);
     Route::get('/reporte/reporteria/productos', [Reporteria::class,'catalogoProductos']);
     Route::get('/reporte/reporteria/clientes', [Reporteria::class,'consultaClientes']);
 
 
-    Route::get('/consulta/{fecha_inicio}/{fecha_final}', [facturaDia::class,'consulta']);
+    Route::get('/consulta/{fecha_inicio}/{fecha_final}', [FacturaDia::class,'consulta']);
 
     Route::get('/consultaComision/{fecha_inicio}/{fecha_final}', [Prodmes::class,'consultaComision']);
 
