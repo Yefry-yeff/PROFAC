@@ -11,7 +11,15 @@ class DashboardVentas extends Component
 {
     public function render()
     {
-        return view('livewire.reportes.dashboard-ventas')
+        $vendedores = DB::SELECT("
+            SELECT DISTINCT u.id, u.name
+            FROM users u
+            INNER JOIN factura f ON f.vendedor = u.id
+            WHERE f.estado_venta_id = 1
+            ORDER BY u.name
+        ");
+
+        return view('livewire.reportes.dashboard-ventas', compact('vendedores'))
             ->layout('layouts.app', ['title' => 'Dashboard de Ventas']);
     }
 
@@ -399,6 +407,37 @@ class DashboardVentas extends Component
             $r->pareto       = $total_global > 0 ? round(($acumulado / $total_global) * 100, 2) : 0;
             $r->ingresos     = round((float)$r->ingresos, 2);
             $r->precio_promedio = round((float)$r->precio_promedio, 2);
+        }
+
+        return response()->json($rows);
+    }
+
+    // ─── Top clientes por vendedor (P2) ─────────────────────────────────────
+    public function topClientesPorVendedor(Request $request)
+    {
+        $fi    = $request->fecha_inicio ?? date('Y-m-01');
+        $ff    = $request->fecha_final  ?? date('Y-m-d');
+        $vend  = $request->vendedor      ? (int)$request->vendedor : null;
+        $limit = $request->limite        ? (int)$request->limite   : 5;
+
+        $where = "f.estado_venta_id = 1 AND f.fecha_emision BETWEEN '$fi' AND '$ff'";
+        if ($vend) $where .= " AND f.vendedor = $vend";
+
+        $rows = DB::SELECT("
+            SELECT
+                cli.nombre                                  AS cliente,
+                COUNT(DISTINCT f.id)                        AS facturas,
+                SUM(f.total)                                AS total_comprado
+            FROM factura f
+            INNER JOIN cliente cli ON cli.id = f.cliente_id
+            WHERE $where
+            GROUP BY f.cliente_id, cli.nombre
+            ORDER BY total_comprado DESC
+            LIMIT $limit
+        ");
+
+        foreach ($rows as &$r) {
+            $r->total_comprado = round((float)$r->total_comprado, 2);
         }
 
         return response()->json($rows);

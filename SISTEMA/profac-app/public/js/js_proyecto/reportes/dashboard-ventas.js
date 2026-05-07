@@ -27,6 +27,23 @@ const dashboardVentas = (function () {
     const ORANGE_HEX  = 'FFEC401B';
     const ORANGE2_HEX = 'FFF15533';
 
+    // Lenguaje español para DataTables (inline, sin CDN externo)
+    const DT_ES = {
+        sProcessing: 'Procesando…',
+        sLengthMenu: 'Mostrar _MENU_ registros',
+        sZeroRecords: 'No se encontraron resultados',
+        sEmptyTable: 'Ningún dato disponible',
+        sInfo: 'Mostrando registros del _START_ al _END_ de un total de _TOTAL_ registros',
+        sInfoEmpty: 'Mostrando registros del 0 al 0 de un total de 0 registros',
+        sInfoFiltered: '(filtrado de un total de _MAX_ registros)',
+        sSearch: 'Buscar:',
+        sUrl: '',
+        sInfoThousands: ',',
+        sLoadingRecords: 'Cargando…',
+        oPaginate: { sFirst: '«', sPrevious: '‹', sNext: '›', sLast: '»' },
+        oAria: { sSortAscending: ': activar para ordenar columna de manera ascendente', sSortDescending: ': activar para ordenar columna de manera descendente' }
+    };
+
     // Mapas de nombres de días ES ↔ EN (para cross-filter)
     const DIA_EN_ES = { Monday:'Lunes', Tuesday:'Martes', Wednesday:'Miércoles', Thursday:'Jueves', Friday:'Viernes', Saturday:'Sábado', Sunday:'Domingo' };
     const DIA_ES_EN = { Lunes:'Monday', Martes:'Tuesday', 'Miércoles':'Wednesday', Jueves:'Thursday', Viernes:'Friday', Sábado:'Saturday', Domingo:'Sunday' };
@@ -102,16 +119,14 @@ const dashboardVentas = (function () {
                 pillsContainer.appendChild(btn);
             });
 
-            // Todos los selects de vendedor y tipo cliente
-            [['h-vendedor','s-vendedor','a-vendedor'], ['h-tipo-cliente','s-tipo-cliente','a-tipo-cliente']].forEach(([...ids], idx) => {
-                const data = idx === 0 ? vendedores : tiposCliente;
-                const label = idx === 0 ? 'name' : 'descripcion';
-                ids.forEach(id => {
-                    const sel = document.getElementById(id);
-                    if (!sel) return;
-                    data.forEach(item => {
-                        sel.appendChild(new Option(item[label], item.id));
-                    });
+            // Los selects de vendedor ya vienen pre-poblados desde PHP.
+            // Solo populamos tipo_cliente y categorías desde la API.
+            const tipoSelIds = ['h-tipo-cliente','s-tipo-cliente','a-tipo-cliente'];
+            tipoSelIds.forEach(id => {
+                const sel = document.getElementById(id);
+                if (!sel) return;
+                tiposCliente.forEach(item => {
+                    sel.appendChild(new Option(item.descripcion, item.id));
                 });
             });
 
@@ -339,9 +354,9 @@ const dashboardVentas = (function () {
             dibujarPorDia(d.por_dia);
         } catch(e) { console.error('Resumen semanal error', e); }
 
-        // Tipo cliente donut
+        // Tipo cliente donut — filtrado por vendedor activo
         try {
-            const r2 = await axios.get('/reporte/dashboard/participacion-tipo-cliente?' + buildParams({ fecha_inicio: fi, fecha_final: ff }));
+            const r2 = await axios.get('/reporte/dashboard/participacion-tipo-cliente?' + buildParams({ fecha_inicio: fi, fecha_final: ff, vendedor: vend }));
             dibujarTipoClienteDonut(r2.data, 'chart-tipo-cliente-sem');
         } catch(e) {}
 
@@ -350,6 +365,16 @@ const dashboardVentas = (function () {
             const r3 = await axios.get('/reporte/dashboard/top-vendedores?' + params);
             dibujarRankingVendedoresPeriodo(r3.data.slice(0,8));
         } catch(e) {}
+
+        // Crecimiento vendedores — sincronizar inputs "Comparar con" con fechas del filtro principal
+        const crecFiEl = document.getElementById('crec-fi');
+        const crecFfEl = document.getElementById('crec-ff');
+        if (crecFiEl) crecFiEl.value = fi;
+        if (crecFfEl) crecFfEl.value = ff;
+        dibujarCrecimientoVendedoresSem(fi, ff, params);
+
+        // Top 5 clientes
+        dibujarTopCliVendedor(fi, ff, vend);
 
         // Tabla
         cargarTablaDetalle(params);
@@ -476,7 +501,7 @@ const dashboardVentas = (function () {
             ],
             order: [[0, 'desc']],
             pageLength: 25,
-            language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json' },
+            language: DT_ES,
             dom: 'frtip'
         });
     }
@@ -487,8 +512,13 @@ const dashboardVentas = (function () {
             if (semFiltros.dia === value) { semFiltros.dia = null; semFiltros.diaEs = null; }
             else { semFiltros.dia = value; semFiltros.diaEs = label; }
         } else if (key === 'vendedor') {
-            if (semFiltros.vendedor_id === value) { semFiltros.vendedor_id = null; semFiltros.vendedor_label = null; }
-            else { semFiltros.vendedor_id = value; semFiltros.vendedor_label = label; }
+            if (semFiltros.vendedor_id === value) {
+                semFiltros.vendedor_id = null; semFiltros.vendedor_label = null;
+                document.getElementById('s-vendedor').value = '';
+            } else {
+                semFiltros.vendedor_id = value; semFiltros.vendedor_label = label;
+                document.getElementById('s-vendedor').value = value;
+            }
         }
         renderBadgesSem();
         cargarSemanal(false);
@@ -496,6 +526,7 @@ const dashboardVentas = (function () {
 
     function limpiarFiltrosSem() {
         semFiltros = { dia: null, diaEs: null, vendedor_id: null, vendedor_label: null };
+        document.getElementById('s-vendedor').value = '';
         renderBadgesSem();
         cargarSemanal(false);
     }
@@ -512,12 +543,23 @@ const dashboardVentas = (function () {
     async function dibujarCrecimientoVendedoresSem(fi, ff, paramsBase) {
         destroyChart('crec-vend-sem');
         showSkeleton('chart-crec-vend-sem', 6);
+        const fmt = d => d.toISOString().split('T')[0];
         try {
-            const ms    = Math.round((new Date(ff) - new Date(fi)) / 86400000) + 1;
-            const prevFf = new Date(new Date(fi).getTime() - 86400000);
-            const prevFi = new Date(new Date(fi).getTime() - ms * 86400000);
-            const fmt   = d => d.toISOString().split('T')[0];
-            const paramsPrev = buildParams({ fecha_inicio: fmt(prevFi), fecha_final: fmt(prevFf) });
+            // Usar fechas del comparador si están definidas, si no auto-calcular período previo
+            const crecFiEl = document.getElementById('crec-fi');
+            const crecFfEl = document.getElementById('crec-ff');
+            let prevFiStr = crecFiEl && crecFiEl.value ? crecFiEl.value : null;
+            let prevFfStr = crecFfEl && crecFfEl.value ? crecFfEl.value : null;
+
+            if (!prevFiStr || !prevFfStr) {
+                const ms     = Math.round((new Date(ff) - new Date(fi)) / 86400000) + 1;
+                const prevFf = new Date(new Date(fi).getTime() - 86400000);
+                const prevFi = new Date(new Date(fi).getTime() - ms * 86400000);
+                prevFiStr = fmt(prevFi);
+                prevFfStr = fmt(prevFf);
+            }
+
+            const paramsPrev = buildParams({ fecha_inicio: prevFiStr, fecha_final: prevFfStr });
 
             const [rCurr, rPrev] = await Promise.all([
                 axios.get('/reporte/dashboard/top-vendedores?' + paramsBase),
@@ -536,7 +578,7 @@ const dashboardVentas = (function () {
                 return { vendedor: (v.vendedor || '').split(' ').slice(0,2).join(' '), vendedor_id: v.vendedor_id, crec, monto: parseFloat(v.total_ventas), prevMonto };
             }).filter(v => v.crec !== null).sort((a, b) => b.crec - a.crec);
 
-            const periodoLabel = `vs. ${fmt(prevFi)} → ${fmt(prevFf)}`;
+            const periodoLabel = `vs. ${prevFiStr} → ${prevFfStr}`;
             const labelEl = document.getElementById('crec-vend-periodo-label');
             if (labelEl) labelEl.textContent = periodoLabel;
 
@@ -545,6 +587,10 @@ const dashboardVentas = (function () {
                     '<p class="text-center text-muted small pt-5">Sin datos comparativos del período anterior.</p>';
                 return;
             }
+
+            // Limpiar skeleton antes de renderizar
+            const crecEl = document.getElementById('chart-crec-vend-sem');
+            if (crecEl) crecEl.innerHTML = '';
 
             charts['crec-vend-sem'] = new ApexCharts(document.getElementById('chart-crec-vend-sem'), {
                 series: [{ name: 'Crecimiento %', data: comp.map(v => v.crec) }],
@@ -579,6 +625,60 @@ const dashboardVentas = (function () {
         } catch(e) {
             console.error('Crec vendedores sem error', e);
             const el = document.getElementById('chart-crec-vend-sem');
+            if (el) el.innerHTML = '<p class="text-center text-muted small pt-5">Error cargando datos.</p>';
+        }
+    }
+
+    async function recalcularCrecimiento() {
+        const fi   = document.getElementById('s-fi').value;
+        const ff   = document.getElementById('s-ff').value;
+        const vend = document.getElementById('s-vendedor').value;
+        const params = buildParams({ fecha_inicio: fi, fecha_final: ff, vendedor: vend });
+        await dibujarCrecimientoVendedoresSem(fi, ff, params);
+    }
+
+    async function dibujarTopCliVendedor(fi, ff, vend) {
+        destroyChart('top-cli-sem');
+        showSkeleton('chart-top-cli-sem', 5);
+        const lbl = document.getElementById('top-cli-sem-label');
+        try {
+            const params = buildParams({ fecha_inicio: fi, fecha_final: ff, vendedor: vend, limite: 5 });
+            const r = await axios.get('/reporte/dashboard/top-clientes-vendedor?' + params);
+            const data = r.data;
+
+            if (lbl) lbl.textContent = vend ? (semFiltros.vendedor_label || 'Vendedor seleccionado') : 'Todos los vendedores';
+
+            if (!data.length) {
+                document.getElementById('chart-top-cli-sem').innerHTML =
+                    '<p class="text-center text-muted small pt-5">Sin datos para el período.</p>';
+                return;
+            }
+
+            const names  = data.map(d => (d.cliente || '').substring(0, 28));
+            const totals = data.map(d => parseFloat(d.total_comprado));
+
+            // Limpiar skeleton antes de renderizar
+            const topCliEl = document.getElementById('chart-top-cli-sem');
+            if (topCliEl) topCliEl.innerHTML = '';
+
+            charts['top-cli-sem'] = new ApexCharts(document.getElementById('chart-top-cli-sem'), {
+                series: [{ name: 'Total', data: totals }],
+                chart: { type: 'bar', height: 280, toolbar: { show: false } },
+                plotOptions: { bar: { horizontal: true, borderRadius: 4, distributed: true, dataLabels: { position: 'center' } } },
+                xaxis: { categories: names, labels: { formatter: v => 'L.' + (v/1000).toFixed(0) + 'K' } },
+                tooltip: { y: { formatter: v => fmtMoney(v) } },
+                dataLabels: {
+                    enabled: true,
+                    formatter: v => 'L.' + (v/1000).toFixed(0) + 'K',
+                    style: { fontSize: '10px', colors: ['#fff'] }
+                },
+                colors: COLORS_LINE,
+                legend: { show: false }
+            });
+            charts['top-cli-sem'].render();
+        } catch(e) {
+            console.error('Top clientes vendedor error', e);
+            const el = document.getElementById('chart-top-cli-sem');
             if (el) el.innerHTML = '<p class="text-center text-muted small pt-5">Error cargando datos.</p>';
         }
     }
@@ -1090,6 +1190,6 @@ const dashboardVentas = (function () {
 
     // ── API PÚBLICA ──────────────────────────────────────────────────────────
     return { init, cargarHistorico, cargarSemanal, cargarAnalitica, recargarTodo, exportarExcel,
-             limpiarFiltrosSem, limpiarFiltrosAdv };
+             limpiarFiltrosSem, limpiarFiltrosAdv, recalcularCrecimiento };
 
 })();

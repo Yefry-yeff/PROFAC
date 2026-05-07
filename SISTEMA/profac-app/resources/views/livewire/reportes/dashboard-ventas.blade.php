@@ -55,9 +55,14 @@
                     </div>
                     <div class="col-md-3">
                         <label class="small font-weight-bold">Vendedor</label>
+                        <div wire:ignore>
                         <select class="form-control form-control-sm" id="h-vendedor">
                             <option value="">Todos</option>
+                            @foreach($vendedores as $v)
+                                <option value="{{ $v->id }}">{{ $v->name }}</option>
+                            @endforeach
                         </select>
+                        </div>
                     </div>
                     <div class="col-md-3">
                         <label class="small font-weight-bold">Tipo cliente</label>
@@ -218,9 +223,14 @@
                     </div>
                     <div class="col-md-2">
                         <label class="small font-weight-bold">Vendedor</label>
+                        <div wire:ignore>
                         <select class="form-control form-control-sm" id="s-vendedor">
                             <option value="">Todos</option>
+                            @foreach($vendedores as $v)
+                                <option value="{{ $v->id }}">{{ $v->name }}</option>
+                            @endforeach
                         </select>
+                        </div>
                     </div>
                     <div class="col-md-2">
                         <label class="small font-weight-bold">Tipo cliente</label>
@@ -346,11 +356,33 @@
             <div class="mb-3 row">
                 <div class="col-12">
                     <div class="shadow-sm card bi-clickable-chart">
-                        <div class="py-2 card-header d-flex justify-content-between align-items-center">
+                        <div class="py-2 px-3 card-header d-flex flex-wrap justify-content-between align-items-center" style="gap:8px">
                             <span class="font-weight-bold"><i class="fas fa-chart-bar mr-1"></i> Crecimiento por Vendedor</span>
-                            <small class="text-muted text-italic" id="crec-vend-periodo-label">vs. período anterior</small>
+                            <div class="d-flex align-items-center flex-wrap" style="gap:6px">
+                                <small class="text-muted mr-1">Comparar con:</small>
+                                <input type="date" class="form-control form-control-sm" id="crec-fi" style="width:140px">
+                                <small class="text-muted">al</small>
+                                <input type="date" class="form-control form-control-sm" id="crec-ff" style="width:140px">
+                                <button class="btn btn-sm btn-outline-primary" onclick="dashboardVentas.recalcularCrecimiento()">
+                                    <i class="fas fa-sync-alt"></i>
+                                </button>
+                                <small class="text-muted font-italic" id="crec-vend-periodo-label">vs. período anterior</small>
+                            </div>
                         </div>
                         <div class="p-2 card-body"><div id="chart-crec-vend-sem" style="min-height:300px"></div></div>
+                    </div>
+                </div>
+            </div>
+
+            {{-- FILA 4: Top 5 clientes (full width) --}}
+            <div class="mb-3 row">
+                <div class="col-12">
+                    <div class="shadow-sm card">
+                        <div class="py-2 card-header d-flex justify-content-between align-items-center">
+                            <span class="font-weight-bold"><i class="fas fa-star mr-1 text-warning"></i> Top 5 Clientes del Período</span>
+                            <small class="text-muted" id="top-cli-sem-label">Todos los vendedores</small>
+                        </div>
+                        <div class="p-2 card-body"><div id="chart-top-cli-sem" style="min-height:280px"></div></div>
                     </div>
                 </div>
             </div>
@@ -398,9 +430,14 @@
                     </div>
                     <div class="col-md-2">
                         <label class="small font-weight-bold">Vendedor</label>
+                        <div wire:ignore>
                         <select class="form-control form-control-sm" id="a-vendedor">
                             <option value="">Todos</option>
+                            @foreach($vendedores as $v)
+                                <option value="{{ $v->id }}">{{ $v->name }}</option>
+                            @endforeach
                         </select>
+                        </div>
                     </div>
                     <div class="col-md-2">
                         <label class="small font-weight-bold">Tipo cliente</label>
