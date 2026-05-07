@@ -27,6 +27,15 @@ const dashboardVentas = (function () {
     const ORANGE_HEX  = 'FFEC401B';
     const ORANGE2_HEX = 'FFF15533';
 
+    // Mapas de nombres de días ES ↔ EN (para cross-filter)
+    const DIA_EN_ES = { Monday:'Lunes', Tuesday:'Martes', Wednesday:'Miércoles', Thursday:'Jueves', Friday:'Viernes', Saturday:'Sábado', Sunday:'Domingo' };
+    const DIA_ES_EN = { Lunes:'Monday', Martes:'Tuesday', 'Miércoles':'Wednesday', Jueves:'Thursday', Viernes:'Friday', Sábado:'Saturday', Domingo:'Sunday' };
+    const DIA_ORDER = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+
+    // Cross-filter state — Pestaña 2 y 3
+    let semFiltros = { dia: null, diaEs: null, vendedor_id: null, vendedor_label: null };
+    let advFiltros = { vendedor_id: null, vendedor_label: null };
+
     // ── HELPERS ──────────────────────────────────────────────────────────────
     function fmtMoney(n) {
         return 'L. ' + Number(n).toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -37,6 +46,21 @@ const dashboardVentas = (function () {
     function showLoader(id) {
         const el = document.getElementById(id);
         if (el) el.innerHTML = '<div class="text-center py-4"><i class="fas fa-spinner fa-spin fa-2x text-primary"></i></div>';
+    }
+    function showSkeleton(id, lines = 5) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const widths = [90,70,85,60,80];
+        const html = Array(lines).fill('').map((_, i) =>
+            `<div class="skeleton-block" style="height:${i===0?28:14}px;width:${widths[i%5]}%"></div>`
+        ).join('');
+        el.innerHTML = `<div class="p-3">${html}</div>`;
+    }
+    function showKpiSkeleton(ids) {
+        ids.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.innerHTML = '<div class="skeleton-block" style="height:24px;width:65%"></div>';
+        });
     }
     function isoHoy() { return new Date().toISOString().split('T')[0]; }
     function isoInicio(offsetDays) {
@@ -158,7 +182,7 @@ const dashboardVentas = (function () {
 
         charts.evolucion = new ApexCharts(document.getElementById('chart-evolucion'), {
             series,
-            chart: { type: 'line', height: 300, toolbar: { show: true }, zoom: { enabled: true }, clip: false },
+            chart: { type: 'line', height: 420, toolbar: { show: true }, zoom: { enabled: true }, clip: false },
             stroke: { width: 3, curve: 'smooth' },
             colors: COLORS_LINE,
             xaxis: { categories: MESES },
@@ -241,7 +265,7 @@ const dashboardVentas = (function () {
 
         charts.crecimiento = new ApexCharts(document.getElementById('chart-crecimiento'), {
             series: [{ name: 'Crecimiento %', data: crecData }],
-            chart: { type: 'bar', height: 280, toolbar: { show: false } },
+            chart: { type: 'bar', height: 340, toolbar: { show: false } },
             plotOptions: { bar: { borderRadius: 3, colors: { ranges: [{ from: -9999, to: 0, color: '#e74a3b' }, { from: 0.001, to: 9999, color: '#1cc88a' }] } } },
             xaxis: { categories: MESES },
             yaxis: { labels: { formatter: v => (v === null ? 'N/D' : v + '%') } },
@@ -333,17 +357,37 @@ const dashboardVentas = (function () {
 
     function dibujarPorDia(data) {
         destroyChart('por-dia');
-        const labels = data.map(d => d.dia);
-        const valores = data.map(d => parseFloat(d.total));
+        // Ordenar por día de semana y traducir a español
+        const sorted = DIA_ORDER
+            .map(en => {
+                const d = data.find(x => x.dia === en);
+                return d ? { diaEn: en, dia: DIA_EN_ES[en] || en, total: parseFloat(d.total), facturas: Number(d.facturas) }
+                         : null;
+            })
+            .filter(Boolean)
+            .filter(d => d.total > 0);
+
+        const labels = sorted.map(d => d.dia);
+        const valores = sorted.map(d => d.total);
+
         charts['por-dia'] = new ApexCharts(document.getElementById('chart-por-dia'), {
             series: [{ name: 'Ventas', data: valores }],
-            chart: { type: 'bar', height: 260, toolbar: { show: false } },
-            plotOptions: { bar: { borderRadius: 4, distributed: true, dataLabels: { position: 'top' } } },
+            chart: {
+                type: 'bar', height: 300, toolbar: { show: false },
+                events: {
+                    dataPointSelection: (event, ctx, config) => {
+                        const item = sorted[config.dataPointIndex];
+                        if (item) setSemFiltro('dia', item.diaEn, item.dia);
+                    }
+                }
+            },
+            plotOptions: { bar: { borderRadius: 6, distributed: true, dataLabels: { position: 'top' } } },
             colors: COLORS_LINE,
             xaxis: { categories: labels },
             yaxis: { labels: { formatter: v => 'L.' + (v/1000).toFixed(0) + 'K' } },
             tooltip: { y: { formatter: v => fmtMoney(v) } },
             legend: { show: false },
+            states: { active: { filter: { type: 'darken', value: 0.65 } } },
             dataLabels: {
                 enabled: true,
                 formatter: v => v === 0 ? '' : 'L.' + (v/1000).toFixed(0) + 'K',
@@ -354,13 +398,19 @@ const dashboardVentas = (function () {
         charts['por-dia'].render();
     }
 
-    function dibujarTipoClienteDonut(data, elId) {
+    function dibujarTipoClienteDonut(data, elId, addClickHandler) {
         destroyChart(elId);
         const labels  = data.map(d => d.tipo_cliente);
         const valores = data.map(d => parseFloat(d.total));
+        const tipoIds = data.map(d => d.tipo_id || null);
+        const events  = {};
+        if (addClickHandler && elId === 'chart-tipo-cliente-sem') {
+            // click en donut de P2 no activa cross-filter de tipo (ya existe el vendedor/dia)
+            // simplemente resalta visualmente
+        }
         charts[elId] = new ApexCharts(document.getElementById(elId), {
             series: valores,
-            chart: { type: 'donut', height: 240 },
+            chart: { type: 'donut', height: 280, events },
             labels,
             colors: ['#EC401B','#1cc88a','#f6c23e','#e74a3b'],
             tooltip: { y: { formatter: v => fmtMoney(v) } },
@@ -372,12 +422,22 @@ const dashboardVentas = (function () {
 
     function dibujarRankingVendedoresPeriodo(data) {
         destroyChart('ranking-vend-sem');
-        const cats = data.map(d => d.vendedor.split(' ')[0]);
+        const cats = data.map(d => (d.vendedor || '').split(' ').slice(0,2).join(' '));
         const vals = data.map(d => parseFloat(d.total_ventas));
+        const vids  = data.map(d => d.vendedor_id);
         charts['ranking-vend-sem'] = new ApexCharts(document.getElementById('chart-ranking-vend-sem'), {
             series: [{ name: 'Total', data: vals }],
-            chart: { type: 'bar', height: 260, toolbar: { show: false } },
-            plotOptions: { bar: { horizontal: true, borderRadius: 3, dataLabels: { position: 'center' } } },
+            chart: {
+                type: 'bar', height: 300, toolbar: { show: false },
+                events: {
+                    dataPointSelection: (event, ctx, config) => {
+                        const vid   = vids[config.dataPointIndex];
+                        const vlabel = cats[config.dataPointIndex];
+                        if (vid) setSemFiltro('vendedor', vid, vlabel);
+                    }
+                }
+            },
+            plotOptions: { bar: { horizontal: true, borderRadius: 4, dataLabels: { position: 'center' } } },
             xaxis: { categories: cats, labels: { formatter: v => 'L.' + (v/1000).toFixed(0) + 'K' } },
             tooltip: { y: { formatter: v => fmtMoney(v) } },
             dataLabels: {
@@ -385,7 +445,8 @@ const dashboardVentas = (function () {
                 formatter: v => 'L.' + (v/1000).toFixed(0) + 'K',
                 style: { fontSize: '9px', colors: ['#fff'] }
             },
-            colors: ['#EC401B']
+            colors: ['#EC401B'],
+            states: { active: { filter: { type: 'darken', value: 0.65 } } }
         });
         charts['ranking-vend-sem'].render();
     }
@@ -402,7 +463,7 @@ const dashboardVentas = (function () {
             },
             columns: [
                 { title: 'Fecha',     data: 'fecha' },
-                { title: 'Día',       data: 'dia_semana' },
+                { title: 'Día',       data: 'dia_semana', render: v => DIA_EN_ES[v] || v },
                 { title: 'Semana',    data: 'semana_iso' },
                 { title: 'Documento', data: 'documento', defaultContent: '—' },
                 { title: 'Cliente',   data: 'cliente' },
@@ -418,6 +479,108 @@ const dashboardVentas = (function () {
             language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json' },
             dom: 'frtip'
         });
+    }
+
+    // ── CROSS-FILTER FUNCIONES P2 ──────────────────────────────────────────────────
+    function setSemFiltro(key, value, label) {
+        if (key === 'dia') {
+            if (semFiltros.dia === value) { semFiltros.dia = null; semFiltros.diaEs = null; }
+            else { semFiltros.dia = value; semFiltros.diaEs = label; }
+        } else if (key === 'vendedor') {
+            if (semFiltros.vendedor_id === value) { semFiltros.vendedor_id = null; semFiltros.vendedor_label = null; }
+            else { semFiltros.vendedor_id = value; semFiltros.vendedor_label = label; }
+        }
+        renderBadgesSem();
+        cargarSemanal(false);
+    }
+
+    function limpiarFiltrosSem() {
+        semFiltros = { dia: null, diaEs: null, vendedor_id: null, vendedor_label: null };
+        renderBadgesSem();
+        cargarSemanal(false);
+    }
+
+    function renderBadgesSem() {
+        const bar  = document.getElementById('sem-active-filters');
+        const bDia = document.getElementById('filter-badge-dia');
+        const bVend = document.getElementById('filter-badge-vend');
+        if (bDia) { bDia.style.display = semFiltros.diaEs ? '' : 'none'; bDia.textContent = semFiltros.diaEs ? '📅 ' + semFiltros.diaEs : ''; }
+        if (bVend) { bVend.style.display = semFiltros.vendedor_label ? '' : 'none'; bVend.textContent = semFiltros.vendedor_label ? '👤 ' + semFiltros.vendedor_label : ''; }
+        if (bar) bar.classList.toggle('d-none', !semFiltros.dia && !semFiltros.vendedor_id);
+    }
+
+    async function dibujarCrecimientoVendedoresSem(fi, ff, paramsBase) {
+        destroyChart('crec-vend-sem');
+        showSkeleton('chart-crec-vend-sem', 6);
+        try {
+            const ms    = Math.round((new Date(ff) - new Date(fi)) / 86400000) + 1;
+            const prevFf = new Date(new Date(fi).getTime() - 86400000);
+            const prevFi = new Date(new Date(fi).getTime() - ms * 86400000);
+            const fmt   = d => d.toISOString().split('T')[0];
+            const paramsPrev = buildParams({ fecha_inicio: fmt(prevFi), fecha_final: fmt(prevFf) });
+
+            const [rCurr, rPrev] = await Promise.all([
+                axios.get('/reporte/dashboard/top-vendedores?' + paramsBase),
+                axios.get('/reporte/dashboard/top-vendedores?' + paramsPrev)
+            ]);
+
+            const curr = rCurr.data;
+            const prev = rPrev.data;
+
+            const comp = curr.map(v => {
+                const p = prev.find(p => p.vendedor === v.vendedor);
+                const prevMonto = p ? parseFloat(p.total_ventas) : 0;
+                const crec = prevMonto > 0
+                    ? parseFloat(((parseFloat(v.total_ventas) - prevMonto) / prevMonto * 100).toFixed(1))
+                    : null;
+                return { vendedor: (v.vendedor || '').split(' ').slice(0,2).join(' '), vendedor_id: v.vendedor_id, crec, monto: parseFloat(v.total_ventas), prevMonto };
+            }).filter(v => v.crec !== null).sort((a, b) => b.crec - a.crec);
+
+            const periodoLabel = `vs. ${fmt(prevFi)} → ${fmt(prevFf)}`;
+            const labelEl = document.getElementById('crec-vend-periodo-label');
+            if (labelEl) labelEl.textContent = periodoLabel;
+
+            if (!comp.length) {
+                document.getElementById('chart-crec-vend-sem').innerHTML =
+                    '<p class="text-center text-muted small pt-5">Sin datos comparativos del período anterior.</p>';
+                return;
+            }
+
+            charts['crec-vend-sem'] = new ApexCharts(document.getElementById('chart-crec-vend-sem'), {
+                series: [{ name: 'Crecimiento %', data: comp.map(v => v.crec) }],
+                chart: {
+                    type: 'bar', height: 300, toolbar: { show: false },
+                    events: {
+                        dataPointSelection: (e, ctx, config) => {
+                            const v = comp[config.dataPointIndex];
+                            if (v?.vendedor_id) setSemFiltro('vendedor', v.vendedor_id, v.vendedor);
+                        }
+                    }
+                },
+                plotOptions: { bar: { horizontal: true, borderRadius: 4,
+                    colors: { ranges: [{ from: -9999, to: -0.001, color: '#e74a3b' }, { from: 0, to: 9999, color: '#1cc88a' }] }
+                }},
+                xaxis: { categories: comp.map(v => v.vendedor), labels: { formatter: v => v + '%' } },
+                tooltip: { y: {
+                    formatter: (v, { dataPointIndex }) => {
+                        const c = comp[dataPointIndex];
+                        return (v >= 0 ? '+' : '') + v + '% — Actual: ' + fmtMoney(c.monto) + ' / Anterior: ' + fmtMoney(c.prevMonto);
+                    }
+                }},
+                dataLabels: {
+                    enabled: true,
+                    formatter: v => (v >= 0 ? '+' : '') + v + '%',
+                    style: { fontSize: '10px', colors: ['#fff'] }
+                },
+                annotations: { xaxis: [{ x: 0, borderColor: '#666', strokeDashArray: 3 }] },
+                states: { active: { filter: { type: 'darken', value: 0.65 } } }
+            });
+            charts['crec-vend-sem'].render();
+        } catch(e) {
+            console.error('Crec vendedores sem error', e);
+            const el = document.getElementById('chart-crec-vend-sem');
+            if (el) el.innerHTML = '<p class="text-center text-muted small pt-5">Error cargando datos.</p>';
+        }
     }
 
     // ── PESTAÑA 3: ANALÍTICA ─────────────────────────────────────────────────
@@ -444,11 +607,21 @@ const dashboardVentas = (function () {
 
             // Gráfica barra horizontal
             destroyChart('rank-vend');
-            const names = data.map(d => d.vendedor.split(' ')[0] + ' ' + (d.vendedor.split(' ')[1] || ''));
+            const names  = data.map(d => (d.vendedor || '').split(' ').slice(0,2).join(' '));
             const totals = data.map(d => d.total_ventas);
+            const vids3  = data.map(d => d.vendedor_id);
             charts['rank-vend'] = new ApexCharts(document.getElementById('chart-rank-vend'), {
                 series: [{ name: 'Total', data: totals }],
-                chart: { type: 'bar', height: 300, toolbar: { show: false } },
+                chart: {
+                    type: 'bar', height: 300, toolbar: { show: false },
+                    events: {
+                        dataPointSelection: (e, ctx, config) => {
+                            const vid   = vids3[config.dataPointIndex];
+                            const vname = names[config.dataPointIndex];
+                            setAdvFiltro('vendedor', vid, vname);
+                        }
+                    }
+                },
                 plotOptions: { bar: { horizontal: true, borderRadius: 3, distributed: true } },
                 xaxis: { categories: names, labels: { formatter: v => 'L.' + (v/1000000).toFixed(1) + 'M' } },
                 tooltip: { y: { formatter: v => fmtMoney(v) } },
@@ -457,7 +630,8 @@ const dashboardVentas = (function () {
                     formatter: v => 'L.' + (v/1000000).toFixed(2) + 'M',
                     style: { fontSize: '9px' }
                 },
-                legend: { show: false }
+                legend: { show: false },
+                states: { active: { filter: { type: 'darken', value: 0.65 } } }
             });
             charts['rank-vend'].render();
 
@@ -485,7 +659,7 @@ const dashboardVentas = (function () {
                     { title: 'Facturas',         data: 'facturas',          className: 'text-center', render: v => fmtNum(v) },
                     { title: 'Clientes',         data: 'clientes_atendidos', className: 'text-center', render: v => fmtNum(v) },
                     { title: 'Total Ventas',     data: 'total_ventas',      className: 'text-right',  render: v => fmtMoney(v) },
-                    { title: 'Ticket Promedio',  data: 'ticket_promedio',   className: 'text-right',  render: v => fmtMoney(v) },
+                    { title: 'Venta Promedio',    data: 'ticket_promedio',   className: 'text-right',  render: v => fmtMoney(v) },
                     { title: 'Participación %',  data: 'participacion',     className: 'text-center',
                       render: v => `<div class="progress d-inline-flex" style="height:16px;min-width:80px"><div class="progress-bar bg-primary" style="width:${v}%"></div></div><small class="ml-1">${v}%</small>` }
                 ],
@@ -544,7 +718,7 @@ const dashboardVentas = (function () {
                     { title: 'ABC',              data: 'clasificacion_abc', render: v => { const c = v==='A'?'success':(v==='B'?'warning':'danger'); return `<span class="badge badge-${c}">${v}</span>`; } },
                     { title: 'Facturas',         data: 'facturas',        className: 'text-center', render: v => fmtNum(v) },
                     { title: 'Total Comprado',   data: 'total_comprado',  className: 'text-right',  render: v => fmtMoney(v) },
-                    { title: 'Ticket Prom.',     data: 'ticket_promedio', className: 'text-right',  render: v => fmtMoney(v) },
+                    { title: 'Venta Prom.',       data: 'ticket_promedio', className: 'text-right',  render: v => fmtMoney(v) },
                     { title: 'Última Compra',    data: 'ultima_compra' },
                     { title: 'Días sin comprar', data: 'dias_sin_comprar', className: 'text-center' },
                     { title: 'Estado', data: null, render: (d,t,r) => r.inactivo ? '<span class="badge badge-danger">Inactivo</span>' : (r.recurrente ? '<span class="badge badge-success">Recurrente</span>' : '<span class="badge badge-info">Activo</span>') }
@@ -881,7 +1055,41 @@ const dashboardVentas = (function () {
         });
     }
 
+    // ── CROSS-FILTER P3 ───────────────────────────────────────────────────────
+    function setAdvFiltro(key, value, label) {
+        if (advFiltros.vendedor_id === value) {
+            advFiltros.vendedor_id = null; advFiltros.vendedor_label = null;
+            const sel = document.getElementById('a-vendedor');
+            if (sel) sel.value = '';
+        } else {
+            advFiltros.vendedor_id = value; advFiltros.vendedor_label = label;
+            const sel = document.getElementById('a-vendedor');
+            if (sel) sel.value = value;
+        }
+        renderBadgesAdv();
+        cargarAnalitica();
+    }
+
+    function limpiarFiltrosAdv() {
+        advFiltros = { vendedor_id: null, vendedor_label: null };
+        const sel = document.getElementById('a-vendedor');
+        if (sel) sel.value = '';
+        renderBadgesAdv();
+        cargarAnalitica();
+    }
+
+    function renderBadgesAdv() {
+        const bar   = document.getElementById('adv-active-filters');
+        const badge = document.getElementById('adv-filter-badge-vend');
+        if (badge) {
+            badge.style.display = advFiltros.vendedor_label ? '' : 'none';
+            badge.textContent   = advFiltros.vendedor_label ? '👤 ' + advFiltros.vendedor_label : '';
+        }
+        if (bar) bar.classList.toggle('d-none', !advFiltros.vendedor_id);
+    }
+
     // ── API PÚBLICA ──────────────────────────────────────────────────────────
-    return { init, cargarHistorico, cargarSemanal, cargarAnalitica, recargarTodo, exportarExcel };
+    return { init, cargarHistorico, cargarSemanal, cargarAnalitica, recargarTodo, exportarExcel,
+             limpiarFiltrosSem, limpiarFiltrosAdv };
 
 })();

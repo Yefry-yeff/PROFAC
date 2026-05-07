@@ -169,14 +169,16 @@ class DashboardVentas extends Component
     // ─── PESTAÑA 2: Ventas semanales (tabla) ────────────────────────────────
     public function ventasSemanales(Request $request)
     {
-        $fi   = $request->fecha_inicio ?? date('Y-m-01');
-        $ff   = $request->fecha_final  ?? date('Y-m-d');
-        $vend = $request->vendedor      ? (int)$request->vendedor      : null;
-        $tc   = $request->tipo_cliente  ? (int)$request->tipo_cliente  : null;
+        $fi         = $request->fecha_inicio ?? date('Y-m-01');
+        $ff         = $request->fecha_final  ?? date('Y-m-d');
+        $vend       = $request->vendedor      ? (int)$request->vendedor     : null;
+        $tc         = $request->tipo_cliente  ? (int)$request->tipo_cliente : null;
+        $diaSemana  = $request->dia_semana    ?? null;
 
         $where = "f.estado_venta_id = 1 AND f.fecha_emision BETWEEN '$fi' AND '$ff'";
-        if ($vend) $where .= " AND f.vendedor = $vend";
-        if ($tc)   $where .= " AND tc.id = $tc";
+        if ($vend)      $where .= " AND f.vendedor = $vend";
+        if ($tc)        $where .= " AND tc.id = $tc";
+        if ($diaSemana) $where .= " AND DAYNAME(f.fecha_emision) = '" . addslashes($diaSemana) . "'";
 
         $rows = DB::SELECT("
             SELECT
@@ -207,14 +209,16 @@ class DashboardVentas extends Component
     // ─── PESTAÑA 2: Resumen semanal KPIs ────────────────────────────────────
     public function resumenSemanal(Request $request)
     {
-        $fi   = $request->fecha_inicio ?? date('Y-m-01');
-        $ff   = $request->fecha_final  ?? date('Y-m-d');
-        $vend = $request->vendedor      ? (int)$request->vendedor : null;
-        $tc   = $request->tipo_cliente  ? (int)$request->tipo_cliente : null;
+        $fi         = $request->fecha_inicio ?? date('Y-m-01');
+        $ff         = $request->fecha_final  ?? date('Y-m-d');
+        $vend       = $request->vendedor      ? (int)$request->vendedor     : null;
+        $tc         = $request->tipo_cliente  ? (int)$request->tipo_cliente : null;
+        $diaSemana  = $request->dia_semana    ?? null;
 
         $where = "f.estado_venta_id = 1 AND f.fecha_emision BETWEEN '$fi' AND '$ff'";
-        if ($vend) $where .= " AND f.vendedor = $vend";
-        if ($tc)   $where .= " AND tc.id = $tc";
+        if ($vend)      $where .= " AND f.vendedor = $vend";
+        if ($tc)        $where .= " AND tc.id = $tc";
+        if ($diaSemana) $where .= " AND DAYNAME(f.fecha_emision) = '" . addslashes($diaSemana) . "'";
 
         $totales = DB::SELECTONE("
             SELECT COUNT(f.id) AS facturas, COALESCE(SUM(f.total),0) AS total,
@@ -271,15 +275,20 @@ class DashboardVentas extends Component
     // ─── PESTAÑA 3: Top vendedores ──────────────────────────────────────────
     public function topVendedores(Request $request)
     {
-        $fi = $request->fecha_inicio ?? date('Y-01-01');
-        $ff = $request->fecha_final  ?? date('Y-m-d');
-        $tc = $request->tipo_cliente ? (int)$request->tipo_cliente : null;
+        $fi         = $request->fecha_inicio ?? date('Y-01-01');
+        $ff         = $request->fecha_final  ?? date('Y-m-d');
+        $tc         = $request->tipo_cliente  ? (int)$request->tipo_cliente : null;
+        $vend       = $request->vendedor      ? (int)$request->vendedor     : null;
+        $diaSemana  = $request->dia_semana    ?? null;
 
         $where = "f.estado_venta_id = 1 AND f.fecha_emision BETWEEN '$fi' AND '$ff'";
-        if ($tc) $where .= " AND tc.id = $tc";
+        if ($tc)        $where .= " AND tc.id = $tc";
+        if ($vend)      $where .= " AND f.vendedor = $vend";
+        if ($diaSemana) $where .= " AND DAYNAME(f.fecha_emision) = '" . addslashes($diaSemana) . "'";
 
         $rows = DB::SELECT("
             SELECT
+                u.id                                       AS vendedor_id,
                 u.name                                     AS vendedor,
                 COUNT(DISTINCT f.id)                       AS facturas,
                 COUNT(DISTINCT f.cliente_id)               AS clientes_atendidos,
@@ -444,19 +453,27 @@ class DashboardVentas extends Component
     // ─── Participación por tipo cliente ─────────────────────────────────────
     public function participacionTipoCliente(Request $request)
     {
-        $fi = $request->fecha_inicio ?? date('Y-01-01');
-        $ff = $request->fecha_final  ?? date('Y-m-d');
+        $fi         = $request->fecha_inicio  ?? date('Y-01-01');
+        $ff         = $request->fecha_final   ?? date('Y-m-d');
+        $vend       = $request->vendedor       ? (int)$request->vendedor      : null;
+        $tc         = $request->tipo_cliente   ? (int)$request->tipo_cliente  : null;
+        $diaSemana  = $request->dia_semana     ?? null;
+
+        $where = "f.estado_venta_id = 1 AND f.fecha_emision BETWEEN '$fi' AND '$ff'";
+        if ($vend)      $where .= " AND f.vendedor = $vend";
+        if ($tc)        $where .= " AND tc.id = $tc";
+        if ($diaSemana) $where .= " AND DAYNAME(f.fecha_emision) = '" . addslashes($diaSemana) . "'";
 
         $rows = DB::SELECT("
             SELECT
+                tc.id                        AS tipo_id,
                 tc.descripcion               AS tipo_cliente,
                 COUNT(DISTINCT f.id)         AS facturas,
                 SUM(f.total)                 AS total
             FROM factura f
             INNER JOIN cliente cli     ON cli.id = f.cliente_id
             INNER JOIN tipo_cliente tc ON tc.id  = cli.tipo_cliente_id
-            WHERE f.estado_venta_id = 1
-              AND f.fecha_emision BETWEEN '$fi' AND '$ff'
+            WHERE $where
             GROUP BY tc.id, tc.descripcion
             ORDER BY total DESC
         ");

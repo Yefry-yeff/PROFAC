@@ -99,7 +99,7 @@
                 <div class="mb-2 col-6 col-md-3">
                     <div class="card kpi-card border-left-info h-100">
                         <div class="px-3 py-2 card-body">
-                            <div class="mb-1 text-xs font-weight-bold text-info text-uppercase">Ticket Promedio</div>
+                            <div class="mb-1 text-xs font-weight-bold text-info text-uppercase">Venta Promedio</div>
                             <div class="mb-0 h5 font-weight-bold" id="kpi-ticket">—</div>
                         </div>
                     </div>
@@ -146,31 +146,37 @@
                 </div>
             </div>
 
-            {{-- Gráficas fila 1 --}}
+            {{-- FILA 2: Evolución mensual — full width --}}
             <div class="mb-3 row">
-                <div class="col-md-8">
+                <div class="col-12">
                     <div class="shadow-sm card">
                         <div class="py-2 card-header d-flex justify-content-between align-items-center">
-                            <span class="font-weight-bold">Evolución Mensual por Año</span>
+                            <span class="font-weight-bold"><i class="fas fa-chart-line mr-1"></i> Evolución Mensual por Año</span>
+                            <small class="text-muted font-italic" id="evol-anios-badge"></small>
                         </div>
                         <div class="p-2 card-body">
-                            <div id="chart-evolucion" style="min-height:280px"></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="shadow-sm card">
-                        <div class="py-2 card-header">
-                            <span class="font-weight-bold">% Crecimiento Mensual</span>
-                        </div>
-                        <div class="p-2 card-body">
-                            <div id="chart-crecimiento" style="min-height:280px"></div>
+                            <div id="chart-evolucion" style="min-height:420px"></div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            {{-- Gráficas fila 2 --}}
+            {{-- FILA 3: % Crecimiento mensual — full width --}}
+            <div class="mb-3 row">
+                <div class="col-12">
+                    <div class="shadow-sm card">
+                        <div class="py-2 card-header d-flex align-items-center">
+                            <span class="font-weight-bold"><i class="fas fa-percentage mr-1"></i> % Crecimiento Mensual</span>
+                            <small class="text-muted ml-2">(diferencia absoluta en L. por mes)</small>
+                        </div>
+                        <div class="p-2 card-body">
+                            <div id="chart-crecimiento" style="min-height:340px"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {{-- FILA 4: Barras agrupadas + Heatmap --}}
             <div class="mb-3 row">
                 <div class="col-md-6">
                     <div class="shadow-sm card">
@@ -256,7 +262,7 @@
                 <div class="mb-2 col-6 col-md-3">
                     <div class="card kpi-card border-left-info h-100">
                         <div class="px-3 py-2 card-body">
-                            <div class="mb-1 text-xs font-weight-bold text-info text-uppercase">Ticket Promedio</div>
+                            <div class="mb-1 text-xs font-weight-bold text-info text-uppercase">Venta Promedio</div>
                             <div class="mb-0 h5 font-weight-bold" id="s-kpi-ticket">—</div>
                         </div>
                     </div>
@@ -287,24 +293,64 @@
                 </div>
             </div>
 
-            {{-- Gráficas semanal --}}
+            {{-- Barra de filtros activos P2 --}}
+            <div id="sem-active-filters" class="mb-2 bi-filter-bar d-none">
+                <div class="d-flex flex-wrap align-items-center" style="gap:6px">
+                    <i class="fas fa-filter text-primary mr-1"></i>
+                    <small class="font-weight-bold text-muted mr-1">Filtro activo:</small>
+                    <span id="filter-badge-dia"  class="badge badge-pill bi-badge" style="display:none;cursor:pointer"></span>
+                    <span id="filter-badge-vend" class="badge badge-pill bi-badge" style="display:none;cursor:pointer"></span>
+                    <button class="btn btn-xs btn-outline-danger ml-1" onclick="dashboardVentas.limpiarFiltrosSem()">
+                        <i class="fas fa-times mr-1"></i>Limpiar filtros
+                    </button>
+                    <small class="text-muted ml-2"><i class="fas fa-info-circle"></i> Haz clic en cualquier barra o segmento para filtrar</small>
+                </div>
+            </div>
+
+            {{-- FILA 1: Por día + Tipo de cliente --}}
             <div class="mb-3 row">
-                <div class="col-md-5">
-                    <div class="shadow-sm card">
-                        <div class="py-2 card-header"><span class="font-weight-bold">Ventas por Día de la Semana</span></div>
-                        <div class="p-2 card-body"><div id="chart-por-dia" style="min-height:240px"></div></div>
+                <div class="col-md-6">
+                    <div class="shadow-sm card bi-clickable-chart">
+                        <div class="py-2 card-header d-flex justify-content-between align-items-center">
+                            <span class="font-weight-bold"><i class="fas fa-calendar-day mr-1"></i> Ventas por Día de la Semana</span>
+                            <small class="text-muted">Clic para filtrar</small>
+                        </div>
+                        <div class="p-2 card-body"><div id="chart-por-dia" style="min-height:300px"></div></div>
                     </div>
                 </div>
-                <div class="col-md-4">
-                    <div class="shadow-sm card">
-                        <div class="py-2 card-header"><span class="font-weight-bold">Tipo de Cliente</span></div>
-                        <div class="p-2 card-body"><div id="chart-tipo-cliente-sem" style="min-height:240px"></div></div>
+                <div class="col-md-6">
+                    <div class="shadow-sm card bi-clickable-chart">
+                        <div class="py-2 card-header d-flex justify-content-between align-items-center">
+                            <span class="font-weight-bold"><i class="fas fa-users mr-1"></i> Tipo de Cliente</span>
+                            <small class="text-muted">Clic para filtrar</small>
+                        </div>
+                        <div class="p-2 card-body"><div id="chart-tipo-cliente-sem" style="min-height:300px"></div></div>
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <div class="shadow-sm card">
-                        <div class="py-2 card-header"><span class="font-weight-bold">Top Vendedores (período)</span></div>
-                        <div class="p-2 card-body"><div id="chart-ranking-vend-sem" style="min-height:240px"></div></div>
+            </div>
+
+            {{-- FILA 2: Top vendedores (full width) --}}
+            <div class="mb-3 row">
+                <div class="col-12">
+                    <div class="shadow-sm card bi-clickable-chart">
+                        <div class="py-2 card-header d-flex justify-content-between align-items-center">
+                            <span class="font-weight-bold"><i class="fas fa-medal mr-1"></i> Top Vendedores del Período</span>
+                            <small class="text-muted">Clic para filtrar por vendedor</small>
+                        </div>
+                        <div class="p-2 card-body"><div id="chart-ranking-vend-sem" style="min-height:300px"></div></div>
+                    </div>
+                </div>
+            </div>
+
+            {{-- FILA 3: Crecimiento de vendedores (full width) --}}
+            <div class="mb-3 row">
+                <div class="col-12">
+                    <div class="shadow-sm card bi-clickable-chart">
+                        <div class="py-2 card-header d-flex justify-content-between align-items-center">
+                            <span class="font-weight-bold"><i class="fas fa-chart-bar mr-1"></i> Crecimiento por Vendedor</span>
+                            <small class="text-muted text-italic" id="crec-vend-periodo-label">vs. período anterior</small>
+                        </div>
+                        <div class="p-2 card-body"><div id="chart-crec-vend-sem" style="min-height:300px"></div></div>
                     </div>
                 </div>
             </div>
@@ -376,6 +422,18 @@
                 </div>
             </div>
 
+            {{-- Barra filtros activos P3 --}}
+            <div id="adv-active-filters" class="mb-2 bi-filter-bar d-none">
+                <div class="d-flex flex-wrap align-items-center" style="gap:6px">
+                    <i class="fas fa-filter text-primary mr-1"></i>
+                    <small class="font-weight-bold text-muted mr-1">Filtro activo:</small>
+                    <span id="adv-filter-badge-vend" class="badge badge-pill bi-badge" style="display:none"></span>
+                    <button class="btn btn-xs btn-outline-danger ml-1" onclick="dashboardVentas.limpiarFiltrosAdv()">
+                        <i class="fas fa-times mr-1"></i>Limpiar filtros
+                    </button>
+                </div>
+            </div>
+
             {{-- Sub-tabs analítica --}}
             <ul class="mb-3 nav nav-pills" id="adv-pills">
                 <li class="nav-item">
@@ -429,7 +487,7 @@
                                         <th>Facturas</th>
                                         <th>Clientes</th>
                                         <th>Total Ventas</th>
-                                        <th>Ticket Promedio</th>
+                                        <th>Venta Promedio</th>
                                         <th>Participación %</th>
                                     </tr>
                                 </thead>
@@ -477,7 +535,7 @@
                                         <th>ABC</th>
                                         <th>Facturas</th>
                                         <th>Total Comprado</th>
-                                        <th>Ticket Prom.</th>
+                                        <th>Venta Prom.</th>
                                         <th>Última Compra</th>
                                         <th>Días sin comprar</th>
                                         <th>Estado</th>
@@ -579,6 +637,40 @@
 .year-pill.btn-primary { background: linear-gradient(135deg, #EC401B 0%, #F15533 100%) !important; border-color: #d4390f !important; }
 .year-pill.btn-outline-primary { color: #EC401B !important; border-color: #EC401B !important; }
 .year-pill.btn-outline-primary:hover { background: rgba(236,64,27,.1) !important; }
+
+/* BI skeleton shimmer */
+@keyframes bi-shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+.skeleton-block {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: bi-shimmer 1.4s infinite;
+    border-radius: 4px;
+    display: block;
+    margin-bottom: 8px;
+}
+/* Clickable chart cards */
+.bi-clickable-chart { transition: box-shadow .2s ease; }
+.bi-clickable-chart:hover { box-shadow: 0 4px 16px rgba(236,64,27,.18) !important; }
+/* Active filter bar */
+.bi-filter-bar {
+    background: linear-gradient(90deg, rgba(236,64,27,.06) 0%, rgba(241,85,51,.04) 100%);
+    border: 1px solid rgba(236,64,27,.25);
+    border-radius: 6px;
+    padding: 6px 14px;
+}
+.bi-badge {
+    background: linear-gradient(135deg,#EC401B,#F15533) !important;
+    color: #fff !important;
+    font-size: .73rem;
+    padding: 4px 10px;
+    cursor: pointer;
+}
+.bi-badge:hover { opacity: .8; }
+.btn-xs { padding: 2px 8px; font-size: .72rem; }
+/* ApexCharts pointer cursor on clickable elements */
+.bi-clickable-chart .apexcharts-bar-area,
+.bi-clickable-chart .apexcharts-pie-slice,
+.bi-clickable-chart .apexcharts-donut-slice { cursor: pointer !important; }
 </style>
 
 {{-- ======================= SCRIPTS ======================= --}}
