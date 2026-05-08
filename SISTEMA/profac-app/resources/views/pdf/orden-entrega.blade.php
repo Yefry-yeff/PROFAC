@@ -14,6 +14,11 @@
             font-size: 12px;
         }
 
+        @page {
+            margin-top: 90px;
+            margin-bottom: 30px;
+        }
+
         body {
             margin: -45px;
             padding: 0px;
@@ -22,7 +27,7 @@
             background-size: 200% 200%;
             background-size: cover;
 
-            width: 115% !important;
+            width: 45rem;
 
         }
 
@@ -35,7 +40,7 @@
         th, td {
         text-align: left;
         padding: 2px;
-
+        word-wrap: break-word;
         }
 
         thead {
@@ -111,24 +116,24 @@
             <div >
 
 
-                <table  class="" style="font-size: 11px;">
+                <table  class="" style="font-size: 11px; table-layout: fixed; width: 100%;">
                     <thead>
                         <tr>
-                          <th>Código</th>
-                          <th>Descripción</th>
-                          <th>Medida</th>
-                          <th>Bodega</th>
-                          <th>Seccion</th>
-                          <th>Cantidad</th>
-                          <th>Precio </th>
-                          <th>Importe</th>
+                          <th style="width:6%">Código</th>
+                          <th style="width:36%">Descripción</th>
+                          <th style="width:8%">Medida</th>
+                          <th style="width:11%">Bodega</th>
+                          <th style="width:7%">Seccion</th>
+                          <th style="width:9%; white-space:nowrap;">Cantidad</th>
+                          <th style="width:11%">Precio </th>
+                          <th style="width:12%">Importe</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach ($productos as $producto)
                         <tr>
                             <td>{{$producto->producto_id}}</td>
-                            <td>{{$producto->nombre}}</td>
+                            <td style="word-wrap:break-word;">{{$producto->nombre}}</td>
                             <td>{{$producto->unidad}}</td>
                             <td>{{$producto->bodega}}</td>
                             <td>{{$producto->seccion}}</td>
