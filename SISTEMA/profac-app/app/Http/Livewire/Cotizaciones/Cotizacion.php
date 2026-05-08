@@ -109,15 +109,27 @@ class Cotizacion extends Component
     public function listarClientes(Request $request)
     {
         try {
+            // Administrador y Mercadeo ven TODOS los clientes activos sin restricción de tipo
+            if (Auth::user()->rol_id == 1 || Auth::user()->rol_id == 9) {
+                $listaClientes = DB::SELECT("
+                    SELECT id, nombre AS text
+                    FROM cliente
+                    WHERE estado_cliente_id = 1
+                      AND id <> 1
+                      AND (id LIKE '%" . $request->search . "%' OR nombre LIKE '%" . $request->search . "%')
+                    ORDER BY nombre
+                    LIMIT 20
+                ");
+                return response()->json(["results" => $listaClientes], 200);
+            }
 
+            $tipoCotizacion = $request->tipoCotizacion;
 
-           $tipoCotizacion = $request->tipoCotizacion;
-
-            if($tipoCotizacion==1){
+            if ($tipoCotizacion == 1) {
                 $listaClientes = $this->clientesCorporativo($request);
-            }elseif ($tipoCotizacion==2){
+            } elseif ($tipoCotizacion == 2) {
                 $listaClientes = $this->clientesEstatal($request);
-            }else{
+            } else {
                 $listaClientes = $this->clientesExonerados($request);
             }
 
