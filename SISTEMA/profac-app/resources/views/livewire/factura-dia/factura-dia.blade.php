@@ -8,7 +8,7 @@
     </style>
     <div class="row wrapper border-bottom white-bg page-heading d-flex align-items-center">
         <div class="col-lg-12 col-xl-12 col-md-12 col-sm-12">
-            <h2>Reporte de facturaci√≥n</h2>
+            <h2>Reporte de facturaci®Æn</h2>
 
             <ol class="breadcrumb">
                 <li class="breadcrumb-item">
@@ -22,7 +22,7 @@
     </div>
 
 
-    <p> <b>Nota: </b> Se requiere de selecci√≥n de un rango de fechas para mostrar la informaci√≥n.</p>
+    <p> <b>Nota: </b> Se requiere de selecci®Æn de un rango de fechas para mostrar la informaci®Æn.</p>
 
     <div class="wrapper wrapper-content animated fadeInRight pb-0">
         <div class="row">

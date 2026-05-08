@@ -56,10 +56,10 @@
     </div>
 
     {{-- ══════════════════════════════════════════════════════════════════
-         MÉTRICAS EMPRESARIALES
+         WIDGETS DEL DASHBOARD (métricas, gráficos, tablas)
     ══════════════════════════════════════════════════════════════════ --}}
-    <div style="margin-top:28px;">
-        @livewire('usuarios.dashboard-empresarial')
+    <div style="margin-top:24px;">
+        @livewire('usuarios.dashboard', ['showConfigPanel' => false])
     </div>
   </div>
 

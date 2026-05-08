@@ -1,240 +1,274 @@
-﻿<div>
+<div>
     @push('styles')
-    <style>
-        @@keyframes banco-pop {
-            from { opacity:0; transform:scale(.88) translateY(20px); }
-            to   { opacity:1; transform:scale(1)   translateY(0); }
-        }
-        .banco-modal-wrap .modal-content {
-            animation: banco-pop .28s cubic-bezier(.34,1.56,.64,1) both;
-        }
-        #tbl_bancos_listar thead th {
-            background: linear-gradient(135deg,#f39c12 0%,#e67e22 100%) !important;
-            color: #fff !important;
-            font-size: 12px;
-            font-weight: 700;
-            border: none !important;
-            padding: 10px 14px;
-            white-space: nowrap;
-        }
-        #tbl_bancos_listar tbody tr:hover { background: #fff8f0 !important; }
-        #tbl_bancos_listar tbody td {
-            vertical-align: middle;
-            font-size: 13px;
-            padding: 9px 14px;
-            border-color: #f0f0f0 !important;
-        }
-        .banco-badge-cod {
-            display: inline-block;
-            background: linear-gradient(135deg,#f39c12,#e67e22);
-            color: #fff;
-            border-radius: 20px;
-            padding: 2px 10px;
-            font-size: 11px;
-            font-weight: 700;
-        }
-        .banco-btn-edit {
-            background: linear-gradient(135deg,#f39c12,#e67e22);
-            color: #fff;
-            border: none;
-            border-radius: 7px;
-            padding: 5px 13px;
-            font-size: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: opacity .15s, transform .15s;
-        }
-        .banco-btn-edit:hover { opacity:.85; transform:translateY(-1px); }
-        .banco-modal-header {
-            background: linear-gradient(135deg,#f39c12 0%,#e67e22 100%) !important;
-            border: none !important;
-        }
-        .banco-form-label { font-size:12px; font-weight:700; color:#555; margin-bottom:4px; }
-        .banco-form-label .req { color:#e74c3c; }
-        .banco-form-input {
-            border-radius: 8px;
-            border: 1.5px solid #e0e3ee;
-            padding: 8px 12px;
-            font-size: 13px;
-            width: 100%;
-            transition: border-color .2s, box-shadow .2s;
-        }
-        .banco-form-input:focus {
-            outline: none;
-            border-color: #f39c12;
-            box-shadow: 0 0 0 3px rgba(243,156,18,.15);
-        }
-    </style>
-    @endpush
+        <style>
+            @media (max-width: 600px) {
+                .ancho-imagen {
+                    max-width: 200px;
+                }
+            }
 
-    {{-- ===== ENCABEZADO ===== --}}
+            @media (min-width: 601px) and (max-width:900px) {
+                .ancho-imagen {
+                    max-width: 300px;
+                }
+            }
+
+            @media (min-width: 901px) {
+                .ancho-imagen {
+                    max-width: 12rem;
+                }
+            }
+
+            /* a {
+                    pointer-events: none;
+                } */
+            .loader,
+            .loader:before,
+            .loader:after {
+                border-radius: 50%;
+            }
+
+            .loader {
+                color: #0dc5c1;
+                font-size: 11px;
+                text-indent: -99999em;
+                margin: 55px auto;
+                position: relative;
+                width: 10em;
+                height: 10em;
+                box-shadow: inset 0 0 0 1em;
+                -webkit-transform: translateZ(0);
+                -ms-transform: translateZ(0);
+                transform: translateZ(0);
+            }
+
+            .loader:before,
+            .loader:after {
+                position: absolute;
+                content: '';
+            }
+
+            .loader:before {
+                width: 5.2em;
+                height: 10.2em;
+                background: #ffffff;
+                border-radius: 10.2em 0 0 10.2em;
+                top: -0.1em;
+                left: -0.1em;
+                -webkit-transform-origin: 5.1em 5.1em;
+                transform-origin: 5.1em 5.1em;
+                -webkit-animation: load2 2s infinite ease 1.5s;
+                animation: load2 2s infinite ease 1.5s;
+            }
+
+            .loader:after {
+                width: 5.2em;
+                height: 10.2em;
+                background: #ffffff;
+                border-radius: 0 10.2em 10.2em 0;
+                top: -0.1em;
+                left: 4.9em;
+                -webkit-transform-origin: 0.1em 5.1em;
+                transform-origin: 0.1em 5.1em;
+                -webkit-animation: load2 2s infinite ease;
+                animation: load2 2s infinite ease;
+            }
+
+            @-webkit-keyframes load2 {
+                0% {
+                    -webkit-transform: rotate(0deg);
+                    transform: rotate(0deg);
+                }
+
+                100% {
+                    -webkit-transform: rotate(360deg);
+                    transform: rotate(360deg);
+                }
+            }
+
+            @keyframes load2 {
+                0% {
+                    -webkit-transform: rotate(0deg);
+                    transform: rotate(0deg);
+                }
+
+                100% {
+                    -webkit-transform: rotate(360deg);
+                    transform: rotate(360deg);
+                }
+            }
+        </style>
+    @endpush
     <div class="row wrapper border-bottom white-bg page-heading">
-        <div class="col-lg-10 col-md-9">
-            <h2><i class="fa fa-university text-warning"></i> Gesti&oacute;n de Bancos</h2>
+        <div class="col-lg-8 col-xl-10 col-md-8 col-sm-8">
+            <h2>Bancos </h2>
             <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Inicio</a></li>
-                <li class="breadcrumb-item">Configuraci&oacute;n</li>
-                <li class="breadcrumb-item active"><strong>Bancos</strong></li>
+                <li class="breadcrumb-item">
+                    <a>Listar</a>
+                </li>
+                <li class="breadcrumb-item">
+                    <a data-toggle="modal" data-target="#modal_banco_crear">Banco</a>
+                </li>
+
             </ol>
         </div>
-        <div class="col-lg-2 col-md-3 d-flex align-items-center justify-content-end" style="padding-top:12px;">
-            <button type="button" data-toggle="modal" data-target="#modal_banco_crear"
-                    style="background:linear-gradient(135deg,#f39c12,#e67e22); color:#fff;
-                           border:none; border-radius:8px; padding:8px 18px;
-                           font-size:13px; font-weight:700; cursor:pointer;
-                           display:inline-flex; align-items:center; gap:6px;
-                           box-shadow:0 2px 8px rgba(243,156,18,.4);">
-                <i class="fa fa-plus"></i> A&ntilde;adir Banco
-            </button>
+
+
+        <div class="col-lg-4 col-xl-2 col-md-4 col-sm-4">
+            <div style="margin-top: 1.5rem">
+                <a href="#" class="btn add-btn btn-primary" data-toggle="modal"
+                    data-target="#modal_banco_crear"><i class="fa fa-plus"></i> Añadir Banco</a>
+            </div>
+
         </div>
+
+
     </div>
 
     <div class="wrapper wrapper-content animated fadeInRight">
         <div class="row">
             <div class="col-lg-12">
-                <div class="ibox">
-                    <div class="ibox-content" style="padding:24px;">
+                <div class="ibox ">
+                    <div class="ibox-content">
                         <div class="table-responsive">
-                            <table id="tbl_bancos_listar"
-                                   class="table table-hover"
-                                   style="width:100%; border-collapse:separate; border-spacing:0;
-                                          border-radius:10px; overflow:hidden;
-                                          box-shadow:0 2px 12px rgba(0,0,0,.07); border:1px solid #f0f0f0;">
-                                <thead>
+                            <table id="tbl_bancos_listar" class="table table-striped table-bordered table-hover ">
+                                <thead class="">
                                     <tr>
-                                        <th style="width:70px;">#</th>
+                                        <th>Cod</th>
                                         <th>Banco</th>
                                         <th>Cuenta</th>
-                                        <th>Registrado por</th>
-                                        <th style="width:110px; text-align:center;">Acciones</th>
+                                        <th>Registrado Por</th>
+                                        <th>Opciones</th>
+
                                     </tr>
                                 </thead>
-                                <tbody></tbody>
+                                <tbody>
+
+                                </tbody>
                             </table>
+
+                        </div>
+
+
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal para registro de Banco-->
+            <div class="modal fade" id="modal_banco_crear" tabindex="-1" role="dialog"
+                aria-labelledby="exampleModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered" role="document">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h3 class="modal-title" id="exampleModalLabel">Registro de Banco</h3>
+                            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                        </div>
+
+                        <div class="modal-body">
+                            <form id="crearBancoForm" name="crearBancoForm" data-parsley-validate>
+                                {{-- <input type="hidden" name="_token" value="{!! csrf_token() !!}"> --}}
+
+                                <div class="row" id="row_datos">
+
+                                    <div class="col-md-12">
+                                        <label for="nombre_banco" class="col-form-label focus-label">Nombre del Banco:<span class="text-danger">*</span></label>
+                                        <input class="form-control" required type="text" id="nombre_banco"
+                                            name="nombre_banco" data-parsley-required>
+                                    </div>
+
+                                    <div class="col-md-12">
+                                        <label for="cuenta" class="col-form-label focus-label">Cuenta:<span class="text-danger">*</span></label>
+                                        <input class="form-control" required type="text" id="cuenta"
+                                            name="cuenta" data-parsley-required>
+                                    </div>
+
+
+                                </div>
+                            </form>
+
+                        </div>
+
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-default" data-dismiss="modal">Cerrar</button>
+                            <button type="submit" form="crearBancoForm" class="btn btn-primary">Guardar
+                                Banco</button>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
 
-    {{-- ===== MODAL: CREAR BANCO ===== --}}
-    <div class="modal fade banco-modal-wrap" id="modal_banco_crear" tabindex="-1" role="dialog" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered" role="document" style="max-width:460px;">
-            <div class="modal-content" style="border:none; border-radius:14px; overflow:hidden;
-                        box-shadow:0 20px 60px rgba(0,0,0,.3);">
-                <div class="modal-header banco-modal-header" style="padding:14px 22px;">
-                    <h5 class="modal-title m-0" style="color:#fff; font-weight:700; font-size:15px;">
-                        <i class="fa fa-plus-circle mr-2"></i>Registrar Banco
-                    </h5>
-                    <button type="button" class="close" data-dismiss="modal"
-                            style="color:#fff; opacity:1; font-size:22px;">
-                        <span>&times;</span>
-                    </button>
-                </div>
-                <div class="modal-body" style="padding:24px; background:#fff;">
-                    <form id="crearBancoForm" name="crearBancoForm" data-parsley-validate>
-                        <div class="mb-3">
-                            <label class="banco-form-label">Nombre del Banco <span class="req">*</span></label>
-                            <input class="banco-form-input" type="text"
-                                   id="nombre_banco" name="nombre_banco"
-                                   placeholder="Ej. Banco Atl&aacute;ntida"
-                                   data-parsley-required required>
+                        <!-- Modal para editar Banco-->
+                        <div class="modal fade" id="modal_banco_editar" tabindex="-1" role="dialog"
+                        aria-labelledby="exampleModalLabel" aria-hidden="true">
+                        <div class="modal-dialog modal-dialog-centered" role="document">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h3 class="modal-title" id="exampleModalLabel">Editar Banco</h3>
+                                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                        <span aria-hidden="true">&times;</span>
+                                    </button>
+                                </div>
+
+                                <div class="modal-body">
+                                    <form id="editarBancoForm" name="editarBancoForm" data-parsley-validate>
+                                        {{-- <input type="hidden" name="_token" value="{!! csrf_token() !!}"> --}}
+                                        <input id="idBanco" name="idBanco" type="hidden" value="">
+                                        <div class="row" id="row_datos">
+
+                                            <div class="col-md-12">
+                                                <label for="nombre_banco_editar" class="col-form-label focus-label">Nombre del Banco:<span class="text-danger">*</span></label>
+                                                <input class="form-control" required type="text" id="nombre_banco_editar" name="nombre_banco_editar" data-parsley-required>
+                                            </div>
+
+                                            <div class="col-md-12">
+                                                <label for="cuenta_editar" class="col-form-label focus-label">Cuenta :<span class="text-danger">*</span></label>
+                                                <input class="form-control" required type="text" id="cuenta_editar" name="cuenta_editar" data-parsley-required>
+                                            </div>
+
+
+                                        </div>
+                                    </form>
+
+                                </div>
+
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-default" data-dismiss="modal">Cerrar</button>
+                                    <button type="submit" form="editarBancoForm" class="btn btn-primary">Editar
+                                        Banco</button>
+                                </div>
+                            </div>
                         </div>
-                        <div class="mb-3">
-                            <label class="banco-form-label">N&uacute;mero de Cuenta <span class="req">*</span></label>
-                            <input class="banco-form-input" type="text"
-                                   id="cuenta" name="cuenta"
-                                   placeholder="Ej. 1234-5678-90"
-                                   data-parsley-required required>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer" style="border:none; padding:12px 22px 18px; background:#f8f9fc;
-                             display:flex; justify-content:flex-end; gap:8px;">
-                    <button type="button" class="btn btn-default" data-dismiss="modal"
-                            style="border-radius:20px; padding:6px 20px;">
-                        <i class="fa fa-times mr-1"></i>Cancelar
-                    </button>
-                    <button type="submit" form="crearBancoForm"
-                            style="background:linear-gradient(135deg,#f39c12,#e67e22); color:#fff;
-                                   border:none; border-radius:20px; padding:7px 22px;
-                                   font-size:13px; font-weight:700; cursor:pointer;
-                                   box-shadow:0 2px 8px rgba(243,156,18,.4);">
-                        <i class="fa fa-save mr-1"></i>Guardar Banco
-                    </button>
+                    </div>
+
+
+        </div>
+
+
+
+        <!-- Modal -->
+        <div class="modal" id="modalSpinnerLoading" data-backdrop="static" tabindex="-1" role="dialog"
+            aria-labelledby="modalSpinnerLoadingTitle" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+                <div class="modal-content">
+
+                    <div class="modal-body">
+                        <h2 class="text-center">Espere un momento...</h2>
+                        <div class="loader">Loading...</div>
+
+                    </div>
+
                 </div>
             </div>
         </div>
-    </div>
 
-    {{-- ===== MODAL: EDITAR BANCO ===== --}}
-    <div class="modal fade banco-modal-wrap" id="modal_banco_editar" tabindex="-1" role="dialog" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered" role="document" style="max-width:460px;">
-            <div class="modal-content" style="border:none; border-radius:14px; overflow:hidden;
-                        box-shadow:0 20px 60px rgba(0,0,0,.3);">
-                <div class="modal-header banco-modal-header" style="padding:14px 22px;">
-                    <h5 class="modal-title m-0" style="color:#fff; font-weight:700; font-size:15px;">
-                        <i class="fa fa-pencil mr-2"></i>Editar Banco
-                    </h5>
-                    <button type="button" class="close" data-dismiss="modal"
-                            style="color:#fff; opacity:1; font-size:22px;">
-                        <span>&times;</span>
-                    </button>
-                </div>
-                <div class="modal-body" style="padding:24px; background:#fff;">
-                    <form id="editarBancoForm" name="editarBancoForm" data-parsley-validate>
-                        <input id="idBanco" name="idBanco" type="hidden" value="">
-                        <div class="mb-3">
-                            <label class="banco-form-label">Nombre del Banco <span class="req">*</span></label>
-                            <input class="banco-form-input" type="text"
-                                   id="nombre_banco_editar" name="nombre_banco_editar"
-                                   placeholder="Nombre del banco"
-                                   data-parsley-required required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="banco-form-label">N&uacute;mero de Cuenta <span class="req">*</span></label>
-                            <input class="banco-form-input" type="text"
-                                   id="cuenta_editar" name="cuenta_editar"
-                                   placeholder="N&uacute;mero de cuenta"
-                                   data-parsley-required required>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer" style="border:none; padding:12px 22px 18px; background:#f8f9fc;
-                             display:flex; justify-content:flex-end; gap:8px;">
-                    <button type="button" class="btn btn-default" data-dismiss="modal"
-                            style="border-radius:20px; padding:6px 20px;">
-                        <i class="fa fa-times mr-1"></i>Cancelar
-                    </button>
-                    <button type="submit" form="editarBancoForm"
-                            style="background:linear-gradient(135deg,#f39c12,#e67e22); color:#fff;
-                                   border:none; border-radius:20px; padding:7px 22px;
-                                   font-size:13px; font-weight:700; cursor:pointer;
-                                   box-shadow:0 2px 8px rgba(243,156,18,.4);">
-                        <i class="fa fa-save mr-1"></i>Guardar Cambios
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
 
-    {{-- ===== MODAL: LOADING ===== --}}
-    <div class="modal" id="modalSpinnerLoading" data-backdrop="static" tabindex="-1" role="dialog" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered" role="document" style="max-width:280px;">
-            <div class="modal-content" style="border:none; border-radius:14px; overflow:hidden;
-                        box-shadow:0 10px 40px rgba(0,0,0,.2); text-align:center; padding:32px 24px;">
-                <div style="width:56px; height:56px; border-radius:50%;
-                             background:linear-gradient(135deg,#f39c12,#e67e22);
-                             margin:0 auto 16px; display:flex; align-items:center; justify-content:center;">
-                    <i class="fa fa-spinner fa-spin fa-lg" style="color:#fff;"></i>
-                </div>
-                <p class="m-0" style="font-size:14px; font-weight:600; color:#555;">Procesando...</p>
-                <small class="text-muted">Espere un momento</small>
-            </div>
-        </div>
-    </div>
 
+
+
+
+    </div>
     @push('scripts')
     <script src="{{ asset('js/js_proyecto/banco-proveedores/bancos.js') }}"></script>
     @endpush

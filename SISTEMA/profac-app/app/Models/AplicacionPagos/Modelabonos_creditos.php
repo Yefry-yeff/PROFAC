@@ -18,7 +18,6 @@ class Modelabonos_creditos extends Model
         'usr_registro',
         'comentario',
         'url_documento',
-        'fecha_pago',
-        'numero_recibo'
+        'fecha_pago'
     ];
 }

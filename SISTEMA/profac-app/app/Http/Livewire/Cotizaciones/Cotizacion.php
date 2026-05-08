@@ -21,88 +21,17 @@ class Cotizacion extends Component
 {
 
     public $tipoCotizacion;
-    public $fromFlujo = false;
-
-    // ── Buscador de pedido ────────────────────────────────────────────────
-    public $busquedaPedido     = '';
-    public $pedidosEncontrados = [];
-    public $pedidoVinculado    = null;   // array con datos del pedido elegido
-    public $pedidoId           = null;   // id que se inyecta en el form hidden
 
     public function mount($id)
     {
+
         $this->tipoCotizacion = $id;
-        $this->fromFlujo = request()->get('from') === 'flujo';
-
-        // Si vienen con pedidoId por query-string lo pre-selecciona
-        $pid = request()->get('pedidoId');
-        if ($pid) {
-            $this->seleccionarPedido((int) $pid);
-        }
-    }
-
-    public function updatedBusquedaPedido()
-    {
-        $term = trim($this->busquedaPedido);
-        if (strlen($term) < 2) {
-            $this->pedidosEncontrados = [];
-            return;
-        }
-        $esNum = is_numeric($term);
-        $q = DB::table('pedido as p')
-            ->join('cliente as c', 'c.id', '=', 'p.cliente_id')
-            ->leftJoin('users as u', 'u.id', '=', 'p.users_id')
-            ->whereNotIn('p.estado', ['cancelado'])
-            ->select(
-                'p.id', 'p.estado', 'p.created_at',
-                'c.nombre as cliente', 'c.rtn',
-                'u.name as registrado_por',
-                DB::raw('(SELECT COUNT(*) FROM oferta o WHERE o.pedido_id = p.id) as total_ofertas'),
-                DB::raw('(SELECT COUNT(*) FROM oferta o WHERE o.pedido_id = p.id AND o.estado = \'ganadora\') as has_ganadora')
-            )
-            ->orderByDesc('p.created_at')
-            ->limit(8);
-
-        if ($esNum) {
-            $q->where('p.id', (int) $term);
-        } else {
-            $like = '%' . $term . '%';
-            $q->where(function ($sub) use ($like) {
-                $sub->where('c.nombre', 'LIKE', $like)
-                    ->orWhere('c.rtn', 'LIKE', $like);
-            });
-        }
-        $this->pedidosEncontrados = $q->get()->toArray();
-    }
-
-    public function seleccionarPedido(int $id)
-    {
-        $p = DB::table('pedido as p')
-            ->join('cliente as c', 'c.id', '=', 'p.cliente_id')
-            ->where('p.id', $id)
-            ->select('p.id', 'p.estado', 'p.created_at', 'c.nombre as cliente', 'c.rtn')
-            ->first();
-        if ($p) {
-            $this->pedidoId       = $p->id;
-            $this->pedidoVinculado = (array) $p;
-        }
-        $this->busquedaPedido     = '';
-        $this->pedidosEncontrados = [];
-    }
-
-    public function desvincularPedido()
-    {
-        $this->pedidoId        = null;
-        $this->pedidoVinculado = null;
-        $this->busquedaPedido  = '';
-        $this->pedidosEncontrados = [];
     }
 
     public function render()
     {
         $tipoCotizacion = $this->tipoCotizacion;
-        $fromFlujo      = $this->fromFlujo;
-        return view('livewire.cotizaciones.cotizacion', compact('tipoCotizacion', 'fromFlujo'));
+        return view('livewire.cotizaciones.cotizacion', compact('tipoCotizacion'));
     }
 
 
@@ -239,14 +168,16 @@ class Cotizacion extends Component
 
 
             'subTotalGeneralGrabado' => 'required',
+            'subTotalGeneralGrabadoMostrar' => 'required',
             'subTotalGeneral' => 'required',
             'isvGeneral' => 'required',
             'totalGeneral' => 'required',
             'numeroInputs' => 'required',
             'seleccionarCliente' => 'required',
             'nombre_cliente_ventas' => 'required',
-            // bodega y seleccionarProducto son campos del buscador de productos,
-            // no son datos a guardar — los productos reales vienen en bodega{idx}, idProducto{idx}, etc.
+            'bodega' => 'required',
+            'seleccionarProducto' => 'required',
+
 
 
         ]);
@@ -289,76 +220,8 @@ class Cotizacion extends Component
             $cotizacion->porc_descuento = $request->porDescuento;
             $cotizacion->monto_descuento = $request->descuentoGeneral;
             $cotizacion->nota = $request->nota;
-            $cotizacion->estado_id  = 1;
-            $cotizacion->created_by = Auth::id();
             $cotizacion->save();
 
-            // ── Registrar en historico_flujo / crear flujo según si hay pedido/flujo vinculado ──
-            $pedidoIdVinculado = $request->pedido_id ? (int) $request->pedido_id : null;
-            $flujoIdDirecto    = $request->flujo_id  ? (int) $request->flujo_id  : null;
-
-            if ($pedidoIdVinculado) {
-                // Flujo con pedido: buscar el flujo del pedido y agregar historico
-                $flujoIdVinculado = DB::table('flujo')
-                    ->where('identificacion', (string) $pedidoIdVinculado)
-                    ->where('tipo_flujo_id', 1)
-                    ->value('id');
-                if ($flujoIdVinculado) {
-                    DB::table('historico_flujo')->insert([
-                        'flujo_id'        => $flujoIdVinculado,
-                        'tipo_tramite_id' => 2, // 'Ofertas'
-                        'tramite_id'      => $cotizacion->id,
-                        'estado_id'       => 1,
-                        'observaciones'   => 'Oferta registrada para pedido #' . $pedidoIdVinculado,
-                        'created_by'      => Auth::id(),
-                        'updated_by'      => Auth::id(),
-                        'created_at'      => now(),
-                        'updated_at'      => now(),
-                    ]);
-                    DB::table('flujo')->where('id', $flujoIdVinculado)
-                        ->update(['tipo_tramite_id' => 2, 'updated_by' => Auth::id(), 'updated_at' => now()]);
-                }
-            } elseif ($flujoIdDirecto) {
-                // Flujo sin pedido ya existente: agregar nueva oferta al mismo flujo
-                DB::table('historico_flujo')->insert([
-                    'flujo_id'        => $flujoIdDirecto,
-                    'tipo_tramite_id' => 2,
-                    'tramite_id'      => $cotizacion->id,
-                    'estado_id'       => 1,
-                    'observaciones'   => 'Oferta adicional #' . $cotizacion->id . ' registrada en flujo existente',
-                    'created_by'      => Auth::id(),
-                    'updated_by'      => Auth::id(),
-                    'created_at'      => now(),
-                    'updated_at'      => now(),
-                ]);
-                DB::table('flujo')->where('id', $flujoIdDirecto)
-                    ->update(['updated_by' => Auth::id(), 'updated_at' => now()]);
-            } else {
-                // Sin pedido ni flujo vinculado: crear un nuevo flujo para esta cotizacion
-                $flujoNuevo = DB::table('flujo')->insertGetId([
-                    'tipo_flujo_id'   => 1,
-                    'identificacion'  => (string) $cotizacion->id,
-                    'nombre'          => $cotizacion->nombre_cliente ?? ('Cotizacion #' . $cotizacion->id),
-                    'cliente_rtn'     => $request->rtn_ventas ?? null,
-                    'tipo_tramite_id' => 2,
-                    'estado_id'       => 1,
-                    'created_by'      => Auth::id(),
-                    'updated_by'      => Auth::id(),
-                    'created_at'      => now(),
-                    'updated_at'      => now(),
-                ]);
-                DB::table('historico_flujo')->insert([
-                    'flujo_id'        => $flujoNuevo,
-                    'tipo_tramite_id' => 2,
-                    'tramite_id'      => $cotizacion->id,
-                    'estado_id'       => 1,
-                    'observaciones'   => 'Oferta sin pedido',
-                    'created_by'      => Auth::id(),
-                    'updated_by'      => Auth::id(),
-                    'created_at'      => now(),
-                    'updated_at'      => now(),
-                ]);
-            }
 
             for ($i = 0; $i < count($arrayInputs); $i++) {
 
@@ -440,12 +303,9 @@ class Cotizacion extends Component
 
         DB::commit();
         return response()->json([
-            'icon'      => 'success',
-            'text'      => 'Cotización guardada con éxito.',
-            'title'     => 'Exito!',
-            'idFactura' => $cotizacion->id,
-            'pedidoId'  => $pedidoIdVinculado ?: null,
-            'flujoId'   => $flujoIdVinculado ?? $flujoIdDirecto ?? $flujoNuevo ?? null,
+            'icon'=>'success',
+            'text'=>'Cotización guardada con éxito.',
+            'title'=>'Exito!'
         ],200);
 
         } catch (QueryException $e) {
@@ -458,74 +318,6 @@ class Cotizacion extends Component
             'error' => $e
         ],402);
         }
-    }
-
-    public function ofertasPorPedido($pedidoId)
-    {
-        $flujoId = DB::table('flujo')
-            ->where('identificacion', (string) (int) $pedidoId)
-            ->where('tipo_flujo_id', 1)
-            ->value('id');
-
-        if (!$flujoId) {
-            return response()->json([]);
-        }
-
-        $ofertas = DB::table('historico_flujo as hf')
-            ->join('cotizacion as c', 'c.id', '=', 'hf.tramite_id')
-            ->where('hf.flujo_id', $flujoId)
-            ->where('hf.tipo_tramite_id', 2)
-            ->select('c.id', 'c.nombre_cliente', 'c.total', 'c.created_at',
-                     DB::raw("IF(hf.observaciones = 'ganadora', 1, 0) as es_ganadora"))
-            ->orderByDesc('c.id')
-            ->get();
-
-        // Incluir productos de cada oferta para mostrar el detalle en el modal
-        $ofertasConProductos = $ofertas->map(function ($o) {
-            $o->productos = DB::table('cotizacion_has_producto as chp')
-                ->join('producto as p', 'p.id', '=', 'chp.producto_id')
-                ->where('chp.cotizacion_id', $o->id)
-                ->select('p.nombre', 'chp.cantidad', 'chp.precio_unidad', 'chp.total')
-                ->orderBy('chp.indice')
-                ->get();
-            return $o;
-        });
-
-        return response()->json($ofertasConProductos);
-    }
-
-    public function marcarGanadora(Request $request)
-    {
-        $id = (int) $request->input('cotizacion_id');
-        if (!$id) {
-            return response()->json(['error' => 'ID requerido'], 422);
-        }
-
-        // Marcar en historico_flujo: esta oferta como ganadora, el resto como no-ganadora
-        $hf = DB::table('historico_flujo')
-            ->where('tramite_id', $id)
-            ->where('tipo_tramite_id', 2)
-            ->first();
-
-        if ($hf) {
-            // Quitar 'ganadora' de las otras ofertas del mismo flujo
-            DB::table('historico_flujo')
-                ->where('flujo_id', $hf->flujo_id)
-                ->where('tipo_tramite_id', 2)
-                ->where('observaciones', 'ganadora')
-                ->update(['observaciones' => null, 'updated_at' => now()]);
-
-            // Marcar esta como ganadora
-            DB::table('historico_flujo')
-                ->where('id', $hf->id)
-                ->update(['observaciones' => 'ganadora', 'updated_at' => now()]);
-
-            // Avanzar el flujo al estado "Prefactura" (tipo_tramite_id=3)
-            DB::table('flujo')->where('id', $hf->flujo_id)
-                ->update(['tipo_tramite_id' => 3, 'updated_by' => Auth::id(), 'updated_at' => now()]);
-        }
-
-        return response()->json(['success' => true, 'cotizacion_id' => $id]);
     }
 
     public function imprimirCotizacion($idFactura)
@@ -834,35 +626,22 @@ class Cotizacion extends Component
     {
         try {
 
-            // Stock neto = cantidad_disponible - reservado en prefacturas activas
             $results = DB::SELECT("
-        SELECT
+        select
             A.seccion_id as id,
             D.id as 'idBodega',
             CONCAT(D.nombre,'',REPLACE(B.descripcion,'Seccion','')) as 'bodegaSeccion',
-            concat(D.nombre,' - ', REPLACE(B.descripcion,'Seccion',''),' - cantidad ',
-                GREATEST(0,
-                    sum(A.cantidad_disponible) - COALESCE((
-                        SELECT SUM(php2.cantidad)
-                        FROM prefactura_has_producto php2
-                        INNER JOIN prefactura pf2 ON pf2.id = php2.prefactura_id
-                        WHERE pf2.estado = 'activo'
-                          AND php2.producto_id = A.producto_id
-                          AND php2.seccion_id  = A.seccion_id
-                          AND php2.resta_inventario = 1
-                    ), 0)
-                )
-            ) as 'text'
-        FROM recibido_bodega A
-            INNER JOIN seccion B
-            ON A.seccion_id = B.id
-            INNER JOIN segmento C
-            ON B.segmento_id = C.id
-            INNER JOIN bodega D
-            ON C.bodega_id = D.id
-        WHERE  producto_id = " . (int)$request->idProducto . "
-        AND (D.nombre LIKE '%" . addslashes($request->search) . "%' OR B.descripcion LIKE '%" . addslashes($request->search) . "%')
-        GROUP BY A.seccion_id
+            concat(D.nombre,' - ', REPLACE(B.descripcion,'Seccion',''),' - cantidad ',sum(A.cantidad_disponible)) as 'text'
+        from recibido_bodega A
+            inner join seccion B
+            on A.seccion_id = B.id
+            inner join segmento C
+            on B.segmento_id = C.id
+            inner join bodega D
+            on C.bodega_id = D.id
+        where  producto_id = " . $request->idProducto . "
+        and (D.nombre LIKE '%" . $request->search . "%' or B.descripcion LIKE '%" . $request->search . "%')
+        group by A.seccion_id
             ");
 
             return response()->json([

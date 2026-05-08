@@ -30,11 +30,9 @@ use Mail;
 
 class SinRestriccionPrecio extends Component
 {
-    // Nota: Este componente solo se usa como controlador API.
-    // El render() no se invoca desde ninguna ruta de página.
     public function render()
     {
-        return view('livewire.ventas.facturacion-unificada');
+        return view('livewire.ventas.sin-restriccion-precio');
     }
 
     public function listarClientes(Request $request)

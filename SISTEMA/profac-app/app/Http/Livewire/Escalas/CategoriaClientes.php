@@ -71,19 +71,18 @@ class CategoriaClientes extends Component
                         return Datatables::of($datos)
                         ->addColumn('estado', function ($datos) {
                             if ($datos->estado === 1) {
-                                return '<span class="badge badge-success" style="font-size:.78rem;padding:4px 10px;">ACTIVO</span>';
+                                return '<td><span class="badge bg-primary">ACTIVO</span></td>';
                             } else {
-                                return '<span class="badge badge-danger" style="font-size:.78rem;padding:4px 10px;">INACTIVO</span>';
+
+                                return '<td><span class="badge bg-danger">INACTIVO</span></td>';
                             }
                         })
                         ->addColumn('opciones', function ($datos) {
                             if($datos->estado == 1){
                                 return
                                 '<div class="btn-group">
-                                    <button data-toggle="dropdown" class="btn btn-sm dropdown-toggle" aria-expanded="false"
-                                        style="background:linear-gradient(135deg,#f39c12 0%,#e67e22 100%);color:#fff;border:none;font-size:.78rem;padding:4px 12px;border-radius:5px;font-weight:600;">
-                                        <i class="fa fa-ellipsis-v mr-1"></i>Acciones
-                                    </button>
+                                    <button data-toggle="dropdown" class="btn btn-warning dropdown-toggle" aria-expanded="false">Ver
+                                        más</button>
                                     <ul class="dropdown-menu" x-placement="bottom-start" style="position: absolute; top: 33px; left: 0px; will-change: top, left;">
                                         <li>
                                             <a class="dropdown-item" onclick="desactivarCategoria('.$datos->id.')" > <i class="fa fa-times text-danger" aria-hidden="true"></i> Desactivar</a>
@@ -91,7 +90,8 @@ class CategoriaClientes extends Component
                                     </ul>
                                 </div>';
                             }else{
-                                return '<span class="badge badge-secondary" style="font-size:.78rem;padding:4px 10px;">
+                                return '
+                                        <span class="badge badge-secondary px-3 py-2 shadow-sm">
                                             <i class="fa fa-ban mr-1"></i> Sin acciones
                                         </span>';
                             }

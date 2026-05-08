@@ -1,9 +1,8 @@
 <?php
 
-namespace App\Http\Livewire\Ventas;
+namespace App\Http\Livewire\VentasEstatal;
 
 use Livewire\Component;
-
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\DB;
@@ -14,14 +13,16 @@ use Validator;
 use PDF;
 use Luecano\NumeroALetras\NumeroALetras;
 
-class LitsadoFacturasVendedor extends Component
+class LitsadoFacturasEstatalVendedor extends Component
 {
     public function render()
     {
-        return view('livewire.ventas.litsado-facturas-vendedor');
+        return view('livewire.ventas-estatal.litsado-facturas-estatal-vendedor');
     }
 
-    public function listarFacturasVendedor(){
+
+
+    public function listarFacturasEstatalVendedor(){
 
         try {
 
@@ -41,8 +42,7 @@ class LitsadoFacturasVendedor extends Component
             factura.credito,
             users.name as creado_por,
             (select if(sum(monto) is null,0,sum(monto)) from pago_venta where estado_venta_id = 1   and factura_id = factura.id ) as monto_pagado,
-            factura.estado_venta_id,
-            factura.created_at as fecha_registro
+            factura.estado_venta_id
 
         from factura
             inner join cliente
@@ -52,7 +52,7 @@ class LitsadoFacturasVendedor extends Component
             inner join users
             on factura.vendedor = users.id
             cross join (select @i := 0) r
-        where ( YEAR(factura.created_at) >= (YEAR(NOW())-2) ) and factura.estado_venta_id<>2 and (factura.tipo_venta_id = 1) and factura.vendedor = ".Auth::user()->id."
+        where ( YEAR(factura.created_at) >= (YEAR(NOW())-2) ) and factura.estado_venta_id<>2 and (factura.tipo_venta_id = 2) and factura.vendedor = ".Auth::user()->id."
         order by factura.created_at desc
             ");
 
@@ -104,20 +104,21 @@ class LitsadoFacturasVendedor extends Component
                     </div>';
                 }
             })
+
             ->addColumn('estado_cobro', function ($listaFacturas) {
-                /* if($listaFacturas->estado_venta_id==2){
+
+                $revision = DB::SELECTONE("
+                SELECT IF(COUNT(*), aplicacion_pagos.saldo, -1) AS 'cerrado'
+                from aplicacion_pagos
+                where aplicacion_pagos.estado = 1 and aplicacion_pagos.factura_id =
+                ".$listaFacturas->id);
+
+
+                if( $revision->cerrado == 0){
 
                     return
                     '
-                    <p class="text-center"><span class="badge badge-danger p-2" style="font-size:0.75rem">Anulado</span></p>
-                    ';
-
-                }elseif(round($listaFacturas->monto_pagado,2) >= str_replace(",","",$listaFacturas->total)){
-
-                    return
-                    '
-
-                    <p class="text-center" ><span class="badge badge-primary p-2" style="font-size:0.75rem">Completo</span></p>
+                    <p class="text-center" ><span class="badge badge-primary p-2" style="font-size:0.75rem">Cerrada</span></p>
                     ';
 
                 }else{
@@ -125,31 +126,7 @@ class LitsadoFacturasVendedor extends Component
                     '
                     <p class="text-center"><span class="badge badge-danger p-2" style="font-size:0.75rem">Pendiente</span></p>
                     ';
-                } */
-
-
-                $revision = DB::SELECTONE("
-                    SELECT IF(COUNT(*), aplicacion_pagos.estado_cerrado, 0) AS 'cerrado'
-                    from aplicacion_pagos
-                    where aplicacion_pagos.estado = 1
-                    and aplicacion_pagos.factura_id =
-                    ".$listaFacturas->id);
-
-
-                    if(  $revision->cerrado == 2){
-
-                        return
-                        '
-
-                        <p class="text-center" ><span class="badge badge-primary p-2" style="font-size:0.75rem">Cerrada</span></p>
-                        ';
-
-                    }else{
-                        return
-                        '
-                        <p class="text-center"><span class="badge badge-danger p-2" style="font-size:0.75rem">Pendiente</span></p>
-                        ';
-                    }
+                }
            })
             ->rawColumns(['opciones','estado_cobro'])
             ->make(true);
@@ -163,4 +140,6 @@ class LitsadoFacturasVendedor extends Component
         }
 
     }
+
+
 }

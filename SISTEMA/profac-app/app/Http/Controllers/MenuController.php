@@ -92,34 +92,6 @@ class MenuController extends Controller
     }
 
     /**
-     * Obtener submenus de un menú específico
-     */
-    public function obtenerSubmenusDeMenu($id)
-    {
-        try {
-            $submenus = SubMenu::where('menu_id', $id)->orderBy('orden')->get();
-            return response()->json($submenus);
-        } catch (\Exception $e) {
-            return response()->json([], 500);
-        }
-    }
-
-    /**
-     * Toggle estado de un submenu (activar/inactivar)
-     */
-    public function toggleEstadoSubmenu($id)
-    {
-        try {
-            $submenu = SubMenu::findOrFail($id);
-            $submenu->estado_id = $submenu->estado_id == 1 ? 2 : 1;
-            $submenu->save();
-            return response()->json(['success' => true, 'mensaje' => 'Estado actualizado']);
-        } catch (\Exception $e) {
-            return response()->json(['success' => false, 'mensaje' => 'Error: ' . $e->getMessage()], 500);
-        }
-    }
-
-    /**
      * Guardar nuevo submenu
      */
     public function guardarSubmenu(Request $request)
@@ -128,7 +100,7 @@ class MenuController extends Controller
             $request->validate([
                 'menu_id' => 'required|integer|exists:menu,id',
                 'nombre' => 'required|string|max:255',
-                'url' => 'nullable|string|max:255',
+                'url' => 'required|string|max:255',
                 'orden' => 'required|integer|min:1',
                 'estado_id' => 'required|integer|exists:estado,id',
                 'roles' => 'required|array|min:1',
@@ -221,7 +193,7 @@ class MenuController extends Controller
             $request->validate([
                 'menu_id' => 'required|integer|exists:menu,id',
                 'nombre' => 'required|string|max:255',
-                'url' => 'nullable|string|max:255',
+                'url' => 'required|string|max:255',
                 'orden' => 'required|integer|min:1',
                 'estado_id' => 'required|integer|exists:estado,id',
                 'roles' => 'required|array|min:1',

@@ -189,6 +189,7 @@ class expo extends Component
 
         $validator = Validator::make($request->all(), [
             'subTotalGeneralGrabado' => 'required',
+            'subTotalGeneralGrabadoMostrar' => 'required',
             'subTotalGeneral' => 'required',
             'isvGeneral' => 'required',
             'totalGeneral' => 'required',

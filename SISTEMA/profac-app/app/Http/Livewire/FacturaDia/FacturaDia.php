@@ -44,12 +44,11 @@ class FacturaDia extends Component
             A.cai as 'factura',
             A.nombre_cliente as 'cliente',
             (select name from users where id = A.vendedor) as 'vendedor',
-            (select name from users where id = A.users_id) as 'facturador',
+            (select name from users where id = A.users_id) as 'vendedora',
             format(A.sub_total,2) as 'subtotal',
             IF(A.sub_total = A.total, 0.00, format(A.isv,2)) as 'imp_venta',
             format(A.total,2) as 'total',
             CASE A.estado_factura_id WHEN 1 THEN 'CLIENTE A' WHEN 2 THEN 'CLIENTE B' END AS 'tipo'
-
 
             from factura A
             inner join estado_venta B

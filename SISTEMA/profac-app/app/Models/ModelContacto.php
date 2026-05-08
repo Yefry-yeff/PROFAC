@@ -17,7 +17,6 @@ class ModelContacto extends Model
     'id',
     'nombre',
     'telefono',
-    'cliente_id',
-    'estado_id',
+    'cliente_id'
     ];
 }

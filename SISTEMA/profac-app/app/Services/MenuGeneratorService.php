@@ -308,33 +308,12 @@ class {$className} extends Component
     }
 
     /**
-     * Genera el texto de la ruta y lo inserta en web.php
+     * Genera el texto de la ruta para agregar manualmente
      */
     private function generarTextoRuta($url, $componenteNombre)
     {
         $componenteCompleto = 'App\\Http\\Livewire\\' . str_replace('/', '\\', $componenteNombre);
         
-        $rutaTexto = "Route::get('/{$url}', \\{$componenteCompleto}::class);";
-        
-        // Intentar insertar la ruta en web.php automáticamente
-        $webPhpPath = base_path('routes/web.php');
-        if (File::exists($webPhpPath)) {
-            $contenido = File::get($webPhpPath);
-            
-            // Verificar que la ruta no existe ya
-            if (strpos($contenido, "/{$url}'") === false) {
-                // Agregar la ruta antes del último cierre de archivo
-                $lineaRuta = "\n    // Ruta auto-generada para: {$componenteNombre}\n    {$rutaTexto}\n";
-                
-                // Buscar la última llave de cierre del middleware group o el final del archivo
-                $posUltimoCierre = strrpos($contenido, '});');
-                if ($posUltimoCierre !== false) {
-                    $contenido = substr($contenido, 0, $posUltimoCierre) . $lineaRuta . substr($contenido, $posUltimoCierre);
-                    File::put($webPhpPath, $contenido);
-                }
-            }
-        }
-        
-        return $rutaTexto;
+        return "Route::get('/{$url}', {$componenteCompleto}::class);";
     }
 }

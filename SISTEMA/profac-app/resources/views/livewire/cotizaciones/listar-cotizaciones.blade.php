@@ -1,16 +1,6 @@
 ﻿<div>
     @push('styles')
-        <style>
-            .tipo-selector .btn { margin: 2px 4px; }
-            .tipo-selector .btn.active { box-shadow: 0 0 0 3px rgba(0,123,255,.5); }
-        </style>
     @endpush
-
-    {{-- Loading Overlay --}}
-    <div id="tbl_loading_overlay" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.78); z-index:9000; text-align:center; padding-top:18%;">
-        <i class="fa fa-spinner fa-spin fa-3x" style="color:#1ab394;"></i>
-        <p class="mt-3" style="color:#555; font-size:1rem;">Cargando datos...</p>
-    </div>
 
     <div class="row wrapper border-bottom white-bg page-heading">
         <div class="col-lg-8 col-xl-10 col-md-8 col-sm-8">
@@ -48,26 +38,6 @@
     </div>
 
     <div class="wrapper wrapper-content animated fadeInRight">
-
-        {{-- SELECTOR DE TIPO --}}
-        <div class="row mb-3">
-            <div class="col-12">
-                <div class="ibox">
-                    <div class="ibox-content py-2">
-                        <div class="d-flex align-items-center flex-wrap tipo-selector">
-                            <strong class="mr-3">Tipo:</strong>
-                            <button type="button" class="btn btn-sm {{ $idTipoVenta == 2 ? 'btn-primary active' : 'btn-outline-secondary' }}"
-                                onclick="cambiarTipoCotizacion(2, this)">Clientes A</button>
-                            <button type="button" class="btn btn-sm {{ $idTipoVenta == 1 ? 'btn-primary active' : 'btn-outline-secondary' }}"
-                                onclick="cambiarTipoCotizacion(1, this)">Clientes B</button>
-                            <button type="button" class="btn btn-sm {{ $idTipoVenta == 3 ? 'btn-primary active' : 'btn-outline-secondary' }}"
-                                onclick="cambiarTipoCotizacion(3, this)">Exoneradas</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <div class="row">
             <div class="col-lg-12">
                 <div class="ibox ">
@@ -106,8 +76,6 @@
     @push('scripts')
         <script>
             var idTipoVenta = {{$idTipoVenta}};
-            var nombresTipoCotiz = { 1: 'Coorporativo', 2: 'Gobierno', 3: 'Exonerado' };
-            var urlHistoryCotiz = { 1: '/cotizacion/listado/corporativo', 2: '/cotizacion/listado/estatal', 3: '/cotizacion/listado/exonerado' };
 
             $(document).ready(function() {
                 $('#tbl_listar_cotizaciones').DataTable({
@@ -116,7 +84,7 @@
                         "url": "/js/plugins/dataTables/i18n/Spanish.json"
                     },
 
-                    pageLength: 5,
+                    pageLength: 10,
                     responsive: true,
                     dom: '<"html5buttons"B>lTfgitp',
                     buttons: [
@@ -129,7 +97,7 @@
                     ],
                     "ajax":{
                         'url':"/cotizacion/obtener/listado",
-                        'data' : function(d) { d.id = idTipoVenta; },
+                        'data' : {'id' : idTipoVenta },
                         'type' : 'post',
                         'headers': {
                                     'X-CSRF-TOKEN': '{{ csrf_token() }}'
@@ -172,33 +140,12 @@
 
 
 
-                    ],
-                    "initComplete": function() {
-                        document.getElementById('tbl_loading_overlay').style.display = 'none';
-                    }
+                    ]
 
 
                 });
                 })
 
-            function cambiarTipoCotizacion(nuevoIdTipo, btnElement) {
-                if (nuevoIdTipo === idTipoVenta) return;
-                document.getElementById('tbl_loading_overlay').style.display = '';
-                document.querySelectorAll('.tipo-selector .btn').forEach(function(btn) {
-                    btn.classList.remove('btn-primary', 'active');
-                    btn.classList.add('btn-outline-secondary');
-                });
-                btnElement.classList.remove('btn-outline-secondary');
-                btnElement.classList.add('btn-primary', 'active');
-                idTipoVenta = nuevoIdTipo;
-                // Actualizar breadcrumb
-                var breadcrumbItems = document.querySelectorAll('.breadcrumb-item.active a');
-                if (breadcrumbItems.length > 0) breadcrumbItems[0].textContent = nombresTipoCotiz[nuevoIdTipo];
-                history.pushState({ tipo: nuevoIdTipo }, '', urlHistoryCotiz[nuevoIdTipo]);
-                $('#tbl_listar_cotizaciones').DataTable().ajax.reload(function() {
-                    document.getElementById('tbl_loading_overlay').style.display = 'none';
-                });
-            }
 
         </script>
         <script src="{{ asset('js/js_proyecto/cotizaciones/listar-cotizaciones.js') }}"></script>

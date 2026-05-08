@@ -110,7 +110,8 @@
 
         <div class="col-lg-4 col-xl-2 col-md-4 col-sm-4">
             <div style="margin-top: 1.5rem">
-                <a href="/clientes/form" class="btn add-btn btn-success"><i class="fa fa-plus"></i> Registrar Cliente</a>
+                <a href="#" class="btn add-btn btn-success" data-toggle="modal" data-target="#modal_clientes_crear"><i
+                        class="fa fa-plus"></i> Registrar Cliente</a>
             </div>
             <div style="margin-top: 1.5rem">
                 <a href="/cliente/excel" class="btn-seconary"><i class="fa fa-plus"></i> Exportar Excel</a>

@@ -1,17 +1,18 @@
 <?php
 
-namespace App\Http\Livewire\VentasExoneradas;
+namespace App\Http\Livewire\VentasEstatal;
 
 use Livewire\Component;
 
 
-use Illuminate\Database\QueryException;
-use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
-use DataTables;
+use Illuminate\Support\Facades\DB;
 use Auth;
 use Validator;
+use Illuminate\Database\QueryException;
+use Throwable;
+use DataTables;
+
 
 use App\Models\ModelCliente;
 use App\Models\ModelFactura;
@@ -20,18 +21,19 @@ use App\Models\ModelRecibirBodega;
 use App\Models\ModelLogTranslados;
 
 
-class ListadoFacturasExonerads extends Component
+
+class ListadoFacturaEstatal extends Component
 {
     public function render()
     {
-        return view('livewire.ventas-exoneradas.listado-facturas-exonerads');
+        return view('livewire.ventas-estatal.listado-factura-estatal');
     }
 
     public function listarFacturas(){
 
         try {
 
-            if((Auth::user()->rol_id == 1 || Auth::user()->rol_id == 3 || Auth::user()->rol_id == 5)){
+
                 $listaFacturas = DB::SELECT("
                 select
                     factura.id as id,
@@ -42,45 +44,15 @@ class ListadoFacturasExonerads extends Component
                     factura.nombre_cliente as nombre,
                     tipo_pago_venta.descripcion,
                     fecha_vencimiento,
-                    format(sub_total,2) as sub_total,
-                    format(isv,2) as isv,
-                    format(total,2) as total,
-                    factura.credito,
-                    users.name as vendedor,
-                    (select name from users where id = factura.users_id) as facturador,
-                    (select if(sum(monto) is null,0,sum(monto)) from pago_venta where estado_venta_id = 1   and factura_id = factura.id ) as monto_pagado,
-                    factura.estado_venta_id
-                from factura
-                    inner join cliente
-                    on factura.cliente_id = cliente.id
-                    inner join tipo_pago_venta
-                    on factura.tipo_pago_id = tipo_pago_venta.id
-                    inner join users
-                    on factura.vendedor = users.id
-                    cross join (select @i := 0) r
-                where YEAR(factura.created_at) >= (YEAR(NOW())-2) and factura.estado_venta_id<>2 and factura.tipo_venta_id = 3
-                order by factura.created_at desc
-                ");
-
-            }else{
-
-                $listaFacturas = DB::SELECT("
-                select
-                    factura.id as id,
-                    @i := @i + 1 as contador,
-                    numero_factura,
-                    cai,
-                    fecha_emision,
-                    cliente.nombre,
-                    tipo_pago_venta.descripcion,
-                    fecha_vencimiento,
                     FORMAT(sub_total,2) as sub_total,
                     FORMAT(isv,2) as isv,
                     FORMAT(total,2) as total,
                     factura.credito,
-                    users.name as creado_por,
+                    users.name as vendedor,
+            (select name from users where id = factura.users_id) as facturador,
                     (select if(sum(monto) is null,0,sum(monto)) from pago_venta where estado_venta_id = 1   and factura_id = factura.id ) as monto_pagado,
-                    factura.estado_venta_id
+                    factura.estado_venta_id,
+                    factura.created_at as fecha_registro
                 from factura
                     inner join cliente
                     on factura.cliente_id = cliente.id
@@ -89,11 +61,11 @@ class ListadoFacturasExonerads extends Component
                     inner join users
                     on factura.vendedor = users.id
                     cross join (select @i := 0) r
-                where YEAR(factura.created_at) >= (YEAR(NOW())-2) and factura.estado_venta_id<>2 and factura.tipo_venta_id = 3
-                and factura.vendedor =".Auth::user()->id."
+                where YEAR(factura.created_at) >= (YEAR(NOW())-2) and factura.estado_venta_id<>2 and factura.tipo_venta_id = 2
                 order by factura.created_at desc
                 ");
-            }
+
+
 
 
 
@@ -111,17 +83,13 @@ class ListadoFacturasExonerads extends Component
                             <li>
                                 <a class="dropdown-item" href="/detalle/venta/'.$listaFacturas->id.'" > <i class="fa-solid fa-arrows-to-eye text-info"></i> Detalle de venta </a>
                             </li>
-                            <li>
-                            <a class="dropdown-item" target="_blank"  href="/factura/cooporativo/'.$listaFacturas->id.'"> <i class="fa-solid fa-print text-info"></i> Imprimir Factura Original </a>
-                            </li>
 
                             <li>
-                            <a class="dropdown-item" target="_blank"  href="/factura/cooporativoCopia/'.$listaFacturas->id.'"> <i class="fa-solid fa-print text-info"></i> Imprimir Factura Copia </a>
+                            <a class="dropdown-item" target="_blank"  href="/factura/cooporativo/'.$listaFacturas->id.'"> <i class="fa-solid fa-print text-info"></i> Imprimir Factura </a>
                             </li>
 
-                            <li>
-                            <a class="dropdown-item" target="_blank"  href="/facturaCoor/actaRec/'.$listaFacturas->id.'"> <i class="fa-solid fa-print text-info"></i> Imprimir Acta de Recepción </a>
-                            </li>
+
+
 
                         </ul>
                     </div>';
@@ -137,24 +105,26 @@ class ListadoFacturasExonerads extends Component
                                 <a class="dropdown-item" href="/detalle/venta/'.$listaFacturas->id.'" > <i class="fa-solid fa-arrows-to-eye text-info"></i> Detalle de venta </a>
                             </li>
 
+
                             <li>
-                            <a class="dropdown-item" target="_blank"  href="/exonerado/factura/'.$listaFacturas->id.'"> <i class="fa-solid fa-print text-info"></i> Imprimir Factura Original</a>
+                            <a class="dropdown-item" target="_blank"  href="/factura/cooporativo/'.$listaFacturas->id.'"> <i class="fa-solid fa-print text-info"></i> Imprimir Factura Original </a>
                             </li>
 
                             <li>
-                            <a class="dropdown-item" target="_blank"  href="/exonerado/facturaCopia/'.$listaFacturas->id.'"> <i class="fa-solid fa-print text-info"></i> Imprimir Factura Copia </a>
+                            <a class="dropdown-item" target="_blank"  href="/factura/cooporativoCopia/'.$listaFacturas->id.'"> <i class="fa-solid fa-print text-info"></i> Imprimir Factura Copia </a>
                             </li>
 
                             <li>
-                            <a class="dropdown-item" target="_blank"  href="/exonerado/actaRec/'.$listaFacturas->id.'"> <i class="fa-solid fa-print text-info"></i> Imprimir Acta de Recepción </a>
+                            <a class="dropdown-item" target="_blank"  href="/facturaCoor/actaRec/'.$listaFacturas->id.'"> <i class="fa-solid fa-print text-info"></i> Imprimir Acta de Recepción </a>
                             </li>
+
                             <li>
                             <a class="dropdown-item"  onclick="anularVentaConfirmar('.$listaFacturas->id.')" > <i class="fa-solid fa-ban text-danger"></i> Anular Factura </a>
-                            </li>
+                             </li>
 
-                            <li>
-                            <a class="dropdown-item" href="/crear/vale/'.$listaFacturas->id.'" > <i class="fa-solid fa-calendar-days text-success"></i> Agendar Entrega </a>
-                            </li>
+                             <li>
+                             <a class="dropdown-item" href="/crear/vale/'.$listaFacturas->id.'" > <i class="fa-solid fa-calendar-days text-success"></i> Agendar Entrega </a>
+                             </li>
 
 
                         </ul>
@@ -164,29 +134,31 @@ class ListadoFacturasExonerads extends Component
 
             ->addColumn('estado_cobro', function ($listaFacturas) {
 
+
                 $revision = DB::SELECTONE("
-                SELECT IF(COUNT(*), aplicacion_pagos.saldo, -1) AS 'cerrado'
-                from aplicacion_pagos
-                where aplicacion_pagos.estado = 1 and aplicacion_pagos.factura_id =
-                ".$listaFacturas->id);
+                    SELECT IF(COUNT(*), aplicacion_pagos.saldo, -1) AS 'cerrado'
+                    from aplicacion_pagos
+                    where aplicacion_pagos.estado = 1 and aplicacion_pagos.factura_id =
+                    ".$listaFacturas->id);
 
 
-                if( $revision->cerrado == 0){
+                    if( $revision->cerrado == 0){
 
-                    return
-                    '
-                    <p class="text-center" ><span class="badge badge-primary p-2" style="font-size:0.75rem">Cerrada</span></p>
-                    ';
+                        return
+                        '
+                        <p class="text-center" ><span class="badge badge-primary p-2" style="font-size:0.75rem">Cerrada</span></p>
+                        ';
 
-                }else{
-                    return
-                    '
-                    <p class="text-center"><span class="badge badge-danger p-2" style="font-size:0.75rem">Pendiente</span></p>
-                    ';
-                }
+                    }else{
+                        return
+                        '
+                        <p class="text-center"><span class="badge badge-danger p-2" style="font-size:0.75rem">Pendiente</span></p>
+                        ';
+                    }
            })
             ->rawColumns(['opciones','estado_cobro'])
             ->make(true);
+
         } catch (QueryException $e) {
             return response()->json([
                 'message' => 'Ha ocurrido un error al listar las compras.',
@@ -261,6 +233,7 @@ class ListadoFacturasExonerads extends Component
 
 
 
+
          DB::commit();
         return response()->json([
             "text" =>"Factura anulada con exito",
@@ -278,3 +251,4 @@ class ListadoFacturasExonerads extends Component
 
      }
 }
+

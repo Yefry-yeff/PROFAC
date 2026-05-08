@@ -1516,6 +1516,7 @@
             }
         </script>
     @endpush
+</div>
 <?php
 date_default_timezone_set('America/Tegucigalpa');
 $act_fecha = date('Y-m-d');
@@ -1548,4 +1549,3 @@ $datetim = $act_fecha . ' ' . $act_hora;
     <strong>Copyright</strong> Distribuciones Valencia &copy; <?php echo "$year"; ?>
 </div>
 <p id="reloj"></p>
-</div>
