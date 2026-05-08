@@ -584,9 +584,21 @@
                                 <div class="col-12 col-md-4" id="campo_codigo_exoneracion"
                                     style="{{ ($config->requiere_codigo_exoneracion ?? false) ? '' : 'display:none' }}">
                                     <label class="ofr-label">Código Exoneración <span class="req">*</span></label>
-                                    <select id="codigoExoneracion" name="codigoExoneracion" class="form-control form-control-sm">
-                                        <option value="" selected disabled>--Seleccione--</option>
-                                    </select>
+                                    <div class="input-group input-group-sm">
+                                        <select id="codigoExoneracion" name="codigoExoneracion" class="form-control form-control-sm">
+                                            <option value="" selected disabled>--Seleccione--</option>
+                                        </select>
+                                        <div class="input-group-append">
+                                            <button type="button" id="btnNuevaExoneracionInline"
+                                                onclick="abrirModalNuevaExoneracion()"
+                                                title="Crear nuevo código de exoneración"
+                                                style="background:linear-gradient(135deg,#1b5e20,#2e7d32); color:#fff; border:none;
+                                                       border-radius:0 6px 6px 0; padding:0 10px; font-size:13px;
+                                                       font-weight:700; cursor:pointer; white-space:nowrap;">
+                                                <i class="fa fa-plus"></i>
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                                 {{-- Orden de compra (oculto por defecto) --}}
                                 <div class="col-12 col-md-4" id="campo_orden_compra"
@@ -1367,6 +1379,50 @@
             </div>
         </div>
 
+    </div>
+
+    {{-- MODAL INLINE: Crear nuevo Código de Exoneración desde Facturación --}}
+    <div class="modal fade" id="modal_nueva_exoneracion_inline" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document" style="max-width:440px;">
+            <div class="modal-content" style="border-radius:14px; overflow:hidden;">
+                <div class="modal-header" style="background:linear-gradient(135deg,#1b5e20,#2e7d32); border:none; padding:14px 20px;">
+                    <h5 class="modal-title" style="color:#fff; font-weight:800; margin:0; font-size:14px;">
+                        <i class="mr-2 fa fa-plus-circle"></i> Nuevo Código de Exoneración
+                    </h5>
+                    <button type="button" class="close" data-dismiss="modal" style="color:#fff; opacity:1;"><span>&times;</span></button>
+                </div>
+                <div class="modal-body" style="padding:20px 24px;">
+                    <form id="formNuevaExoneracionInline" autocomplete="off">
+                        <div class="mb-3">
+                            <label class="ofr-label">Cliente</label>
+                            <input type="text" id="nuevaExoneracionClienteNombre" class="form-control form-control-sm" readonly
+                                style="background:#f1f8e9; color:#1b5e20; font-weight:700; border-color:#a5d6a7;">
+                            <input type="hidden" id="nuevaExoneracionClienteId">
+                        </div>
+                        <div class="mb-3">
+                            <label class="ofr-label">Código de Exoneración <span class="req">*</span></label>
+                            <input type="text" id="nuevaExoneracionCodigo"
+                                class="form-control form-control-sm ofr-input"
+                                placeholder="Ej: EX-2026-001" required autocomplete="off" maxlength="100">
+                        </div>
+                        <div class="mb-1">
+                            <label class="ofr-label">Correlativo / Orden</label>
+                            <input type="text" id="nuevaExoneracionCorrOrd"
+                                class="form-control form-control-sm ofr-input"
+                                placeholder="Opcional" autocomplete="off" maxlength="100">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer" style="padding:10px 20px;">
+                    <button type="button" class="btn btn-default btn-sm" data-dismiss="modal">Cancelar</button>
+                    <button type="submit" form="formNuevaExoneracionInline" id="btnGuardarNuevaExoneracion"
+                        style="background:linear-gradient(135deg,#1b5e20,#2e7d32); color:#fff; border:none;
+                               font-weight:700; border-radius:8px; padding:6px 18px; font-size:13px; cursor:pointer;">
+                        <i class="mr-1 fa fa-save"></i> Guardar Código
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
     {{-- MODAL INLINE: Crear nueva Orden de Compra desde Facturación --}}
@@ -2602,6 +2658,102 @@
     }
 
     // ================================================================
+    // NUEVO CÓDIGO DE EXONERACIÓN INLINE (desde facturación)
+    // ================================================================
+    function abrirModalNuevaExoneracion() {
+        var idCliente = $('#seleccionarCliente').val();
+        if (!idCliente) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Cliente requerido',
+                text: 'Debe seleccionar un cliente antes de crear un código de exoneración.'
+            });
+            return;
+        }
+
+        var nombreCliente = document.getElementById('nombre_cliente_ventas').value;
+        if (!nombreCliente) {
+            var selOpt = document.querySelector('#seleccionarCliente option:checked');
+            nombreCliente = selOpt ? selOpt.text : 'Cliente seleccionado';
+        }
+
+        document.getElementById('nuevaExoneracionClienteId').value      = idCliente;
+        document.getElementById('nuevaExoneracionClienteNombre').value   = nombreCliente;
+        document.getElementById('nuevaExoneracionCodigo').value          = '';
+        document.getElementById('nuevaExoneracionCorrOrd').value         = '';
+
+        $('#modal_nueva_exoneracion_inline').modal('show');
+        setTimeout(function() {
+            document.getElementById('nuevaExoneracionCodigo').focus();
+        }, 400);
+    }
+
+    $(document).on('submit', '#formNuevaExoneracionInline', function(e) {
+        e.preventDefault();
+        guardarNuevaExoneracionInline();
+    });
+
+    function guardarNuevaExoneracionInline() {
+        var idCliente = document.getElementById('nuevaExoneracionClienteId').value;
+        var codigo    = document.getElementById('nuevaExoneracionCodigo').value.trim();
+        var corrOrd   = document.getElementById('nuevaExoneracionCorrOrd').value.trim();
+
+        if (!idCliente || !codigo) {
+            Swal.fire({ icon: 'warning', title: 'Campos requeridos', text: 'Complete el código de exoneración.' });
+            return;
+        }
+
+        var btn = document.getElementById('btnGuardarNuevaExoneracion');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="mr-1 fa fa-spinner fa-spin"></i> Guardando...';
+
+        var data = new FormData();
+        data.append('cliente', idCliente);
+        data.append('codigo', codigo);
+        if (corrOrd) data.append('corrOrd', corrOrd);
+
+        axios.post('/estatal/exonerado/guardar', data)
+            .then(function(response) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="mr-1 fa fa-save"></i> Guardar Código';
+
+                $('#modal_nueva_exoneracion_inline').modal('hide');
+
+                // Recargar códigos y preseleccionar el nuevo
+                axios.get('/exonerado/listar/codigos', { params: { idCliente: idCliente } })
+                    .then(function(res) {
+                        var codigos = res.data.results || [];
+                        var selectEl = document.getElementById('codigoExoneracion');
+                        var html = '<option value="" disabled>--Seleccione--</option>';
+                        codigos.forEach(function(c) {
+                            var sel = (c.text === codigo) ? ' selected' : '';
+                            html += '<option value="' + c.id + '"' + sel + '>' + c.text + '</option>';
+                        });
+                        selectEl.innerHTML = html;
+                    })
+                    .catch(function() {});
+
+                Swal.fire({
+                    icon: 'success',
+                    title: '¡Código creado!',
+                    text: 'Código "' + codigo + '" registrado y seleccionado.',
+                    timer: 2200,
+                    showConfirmButton: false
+                });
+            })
+            .catch(function(err) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="mr-1 fa fa-save"></i> Guardar Código';
+                var d = err.response ? err.response.data : {};
+                Swal.fire({
+                    icon: d.icon || 'error',
+                    title: d.title || 'Error',
+                    text: d.text || 'Error al guardar el código de exoneración.'
+                });
+            });
+    }
+
+    // ================================================================
     // GUARDAR VENTA
     // ================================================================
     var _ofertaGuardadaId  = null;
@@ -2976,6 +3128,20 @@
         data.append("numeroInputs", numeroInputs);
         let text = arregloIdInputs.toString();
         data.append("arregloIdInputs", text);
+
+        // numero_venta está fuera del <form>; añadirlo manualmente
+        var numeroVentaEl = document.getElementById('numero_venta');
+        if (numeroVentaEl && numeroVentaEl.value) {
+            data.set('numero_venta', numeroVentaEl.value);
+        }
+
+        // Exoneradas: el select se llama "codigoExoneracion" pero el backend espera "codigo"
+        if (codigoActual === 'exoneradas') {
+            var codigoExonerEl = document.getElementById('codigoExoneracion');
+            if (codigoExonerEl && codigoExonerEl.value) {
+                data.set('codigo', codigoExonerEl.value);
+            }
+        }
 
         const formDataObj = {};
         data.forEach((value, key) => (formDataObj[key] = value));
