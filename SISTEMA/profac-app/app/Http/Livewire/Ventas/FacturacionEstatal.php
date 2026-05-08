@@ -438,23 +438,46 @@ class FacturacionEstatal extends Component
     public function listarBodegas(Request $request)
     {
         try {
-
+            $prodId = (int) $request->idProducto;
+            $search = addslashes($request->search ?? '');
+            // Stock neto = cantidad_disponible - reservado en prefacturas activas
             $results = DB::SELECT("
-        select
+        SELECT
             A.seccion_id as id,
             D.id as 'idBodega',
             CONCAT(D.nombre,'',REPLACE(B.descripcion,'Seccion','')) as 'bodegaSeccion',
-            concat(D.nombre,' - ', REPLACE(B.descripcion,'Seccion',''),' - cantidad ',sum(A.cantidad_disponible)) as 'text'
-        from recibido_bodega A
-            inner join seccion B
-            on A.seccion_id = B.id
-            inner join segmento C
-            on B.segmento_id = C.id
-            inner join bodega D
-            on C.bodega_id = D.id
-        where  A.cantidad_disponible <> 0 and producto_id = " . $request->idProducto . "
-        and (D.nombre LIKE '%" . $request->search . "%' or B.descripcion LIKE '%" . $request->search . "%')
-        group by A.seccion_id
+            CONCAT(D.nombre,' - ', REPLACE(B.descripcion,'Seccion',''),' - cantidad ',
+                GREATEST(0,
+                    SUM(A.cantidad_disponible) - COALESCE((
+                        SELECT SUM(php2.cantidad)
+                        FROM prefactura_has_producto php2
+                        INNER JOIN prefactura pf2 ON pf2.id = php2.prefactura_id
+                        WHERE pf2.estado = 'activo'
+                          AND php2.producto_id = {$prodId}
+                          AND php2.seccion_id  = A.seccion_id
+                          AND php2.resta_inventario = 1
+                    ), 0)
+                )
+            ) as 'text'
+        FROM recibido_bodega A
+            INNER JOIN seccion B ON A.seccion_id = B.id
+            INNER JOIN segmento C ON B.segmento_id = C.id
+            INNER JOIN bodega D ON C.bodega_id = D.id
+        WHERE A.cantidad_disponible <> 0
+          AND A.producto_id = {$prodId}
+          AND (D.nombre LIKE '%{$search}%' OR B.descripcion LIKE '%{$search}%')
+        GROUP BY A.seccion_id
+        HAVING GREATEST(0,
+            SUM(A.cantidad_disponible) - COALESCE((
+                SELECT SUM(php3.cantidad)
+                FROM prefactura_has_producto php3
+                INNER JOIN prefactura pf3 ON pf3.id = php3.prefactura_id
+                WHERE pf3.estado = 'activo'
+                  AND php3.producto_id = {$prodId}
+                  AND php3.seccion_id  = A.seccion_id
+                  AND php3.resta_inventario = 1
+            ), 0)
+        ) > 0
             ");
 
             return response()->json([
@@ -687,12 +710,23 @@ class FacturacionEstatal extends Component
             $keyNombre = "nombre" . $arrayInputs[$j];
             $keyBodega = "bodega" . $arrayInputs[$j];
 
-            $resultado = DB::selectONE("select
-            if(sum(cantidad_disponible) is null,0,sum(cantidad_disponible)) as cantidad_disponoble
-            from recibido_bodega
-            where cantidad_disponible <> 0
-            and producto_id = " . $request->$keyIdProducto . "
-            and seccion_id = " . $request->$keyIdSeccion);
+            // Stock neto = stock_real - reservado en prefacturas activas
+            $resultado = DB::selectONE("
+                SELECT GREATEST(0,
+                    IFNULL((SELECT SUM(rb2.cantidad_disponible) FROM recibido_bodega rb2
+                             WHERE rb2.cantidad_disponible > 0
+                               AND rb2.producto_id = " . (int)$request->$keyIdProducto . "
+                               AND rb2.seccion_id  = " . (int)$request->$keyIdSeccion . "), 0)
+                    -
+                    IFNULL((SELECT SUM(php2.cantidad)
+                             FROM prefactura_has_producto php2
+                             INNER JOIN prefactura pf2 ON pf2.id = php2.prefactura_id
+                             WHERE pf2.estado = 'activo'
+                               AND php2.producto_id = " . (int)$request->$keyIdProducto . "
+                               AND php2.seccion_id  = " . (int)$request->$keyIdSeccion . "
+                               AND php2.resta_inventario = 1), 0)
+                ) AS cantidad_disponoble
+            ");
 
             if ($request->$keyRestaInventario > $resultado->cantidad_disponoble) {
                 $mensaje = $mensaje . "Unidades insuficientes para el producto: <b>" . $request->$keyNombre . "</b> en la bodega con sección :<b>" . $request->$keyBodega . "</b><br><br>";
