@@ -3424,6 +3424,10 @@
                         htmlSelectUnidades += '<option ' + sel + ' value="' + u.id + '" data-id="' + u.idUnidadVenta + '">' + u.nombre + '</option>';
                     });
 
+                    // Precio real de la oferta original (puede ser base/especial, distinto de precio_a)
+                    var precioUsar = parseFloat(prod.precio_unidad) || parseFloat(producto.precio1);
+                    var precioUsarFmt = precioUsar.toFixed(2);
+
                     // Precios
                     var htmlprecios = '';
                     if (tipoFacturaConfig && tipoFacturaConfig.multiples_precios) {
@@ -3432,11 +3436,12 @@
                         if (producto.precio3) htmlprecios += '<option value="' + producto.precio3 + '" data-id="p3">' + producto.precio3 + ' - C</option>';
                         if (producto.precio4) htmlprecios += '<option value="' + producto.precio4 + '" data-id="p4">' + producto.precio4 + ' - D</option>';
                     } else {
-                        htmlprecios = '<option value="' + producto.precio1 + '" data-id="p1" selected>' + producto.precio1 + ' - A</option>';
+                        // Usar el precio original del duplicado: puede ser precio base/especial (ej. Co-Distribuidor)
+                        htmlprecios = '<option value="' + precioUsarFmt + '" data-id="p1" selected>' + precioUsarFmt + ' - Oferta</option>';
                     }
 
-                    var minPrecio = (tipoFacturaConfig && tipoFacturaConfig.multiples_precios) ? '' : 'min="' + producto.precio1 + '"';
-                    var precioUsar = prod.precio_unidad || producto.precio1;
+                    // El mínimo debe corresponder al precio cargado, no forzar precio_a cuando viene de duplicado
+                    var minPrecio = (tipoFacturaConfig && tipoFacturaConfig.multiples_precios) ? '' : 'min="' + precioUsarFmt + '"';
                     var cantidadUsar = prod.cantidad || 1;
                     var bodegaTexto = prod.nombre_bodega || '';
                     var idBodega = prod['Bodega_id'] || '';
