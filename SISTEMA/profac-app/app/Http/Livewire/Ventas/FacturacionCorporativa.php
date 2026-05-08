@@ -430,9 +430,11 @@ class FacturacionCorporativa extends Component
 
     /**
      * Al guardar la factura: avanza el flujo al trámite "Flujo conjunto" (tipo 7)
-     * e inserta DOS registros en historico_flujo:
-     *   – Registro 1 (Entrega):  tipo_tramite_id=5, tramite_id=NULL,             estado_id=5
-     *   – Registro 2 (Cobro):    tipo_tramite_id=6, tramite_id=aplicacion_pagos.id, estado_id=5
+     * e inserta registros en historico_flujo:
+     *   – Registro Factura:  tipo_tramite_id=3, tramite_id=factura.id,       estado_id=1
+     *   – Registro Entrega:  tipo_tramite_id=5, tramite_id=NULL,             estado_id=5
+     *   – Registro Cobro:    tipo_tramite_id=6, tramite_id=aplicacion_pagos.id, estado_id=5
+     * Si no se pasa flujo_id, busca o crea automáticamente un flujo para la factura.
      * Llamado por AJAX después de guardar exitosamente cualquier tipo de factura.
      */
     public function confirmarFacturaFlujo(Request $request)
@@ -440,7 +442,7 @@ class FacturacionCorporativa extends Component
         $flujoId   = (int) $request->input('flujo_id');
         $facturaId = (int) $request->input('factura_id');
 
-        if (!$flujoId || !$facturaId) {
+        if (!$facturaId) {
             return response()->json(['ok' => false, 'message' => 'Datos incompletos.'], 422);
         }
 
@@ -457,6 +459,59 @@ class FacturacionCorporativa extends Component
         try {
             DB::beginTransaction();
 
+            // 0. Si no hay flujo_id: buscar o crear flujo para esta factura ─────────
+            if (!$flujoId) {
+                // a) ¿Ya existe un historico_flujo para esta factura?
+                $flujoExistente = DB::table('historico_flujo')
+                    ->where('tipo_tramite_id', $TIPO_FACTURA)
+                    ->where('tramite_id', $facturaId)
+                    ->where('estado_id', '!=', 7)
+                    ->value('flujo_id');
+
+                if ($flujoExistente) {
+                    $flujoId = (int) $flujoExistente;
+                } else {
+                    // b) ¿Tiene pedido vinculado con flujo existente?
+                    // (la columna pedido_id puede no estar presente en todas las instalaciones)
+                    if (\Illuminate\Support\Facades\Schema::hasColumn('factura', 'pedido_id')) {
+                        $pedidoId = DB::table('factura')->where('id', $facturaId)->value('pedido_id');
+                        if ($pedidoId) {
+                            $flujoPedido = DB::table('flujo')
+                                ->where('identificacion', (string) $pedidoId)
+                                ->where('tipo_flujo_id', 1)
+                                ->value('id');
+                            if ($flujoPedido) {
+                                $flujoId = (int) $flujoPedido;
+                            }
+                        }
+                    }
+
+                    // c) Crear nuevo flujo desde datos de la factura
+                    if (!$flujoId) {
+                        $facturaData = DB::table('factura')
+                            ->where('id', $facturaId)
+                            ->first(['nombre_cliente', 'rtn']);
+
+                        if (!$facturaData) {
+                            DB::rollBack();
+                            return response()->json(['ok' => false, 'message' => 'Factura no encontrada.'], 404);
+                        }
+
+                        $flujoId = DB::table('flujo')->insertGetId([
+                            'tipo_flujo_id'   => 1,
+                            'identificacion'  => (string) $facturaId,
+                            'nombre'          => $facturaData->nombre_cliente,
+                            'cliente_rtn'     => $facturaData->rtn ?? null,
+                            'tipo_tramite_id' => $TIPO_FLUJO_CONJUNTO,
+                            'created_by'      => Auth::id(),
+                            'updated_by'      => Auth::id(),
+                            'created_at'      => now(),
+                            'updated_at'      => now(),
+                        ]);
+                    }
+                }
+            }
+
             // 1. Actualizar flujo al estado Flujo conjunto (Entrega + Cobro)
             DB::table('flujo')->where('id', $flujoId)->update([
                 'tipo_tramite_id' => $TIPO_FLUJO_CONJUNTO,
@@ -465,14 +520,27 @@ class FacturacionCorporativa extends Component
             ]);
 
             // 2. Registro de Factura (tipo 3) — referencia documental para consultas
-            $facturaExiste = DB::table('historico_flujo')
+            // Si ya existe un registro (p. ej. creado sin tramite_id por una versión anterior),
+            // lo actualizamos con el ID correcto. Si no existe, lo creamos.
+            $existingFacturaRec = DB::table('historico_flujo')
                 ->where('flujo_id', $flujoId)
                 ->where('tipo_tramite_id', $TIPO_FACTURA)
-                ->where('tramite_id', $facturaId)
                 ->where('estado_id', '!=', 7)
-                ->exists();
+                ->orderByDesc('id')
+                ->first(['id', 'tramite_id']);
 
-            if (!$facturaExiste) {
+            if ($existingFacturaRec) {
+                if ((int) $existingFacturaRec->tramite_id !== $facturaId) {
+                    DB::table('historico_flujo')
+                        ->where('id', $existingFacturaRec->id)
+                        ->update([
+                            'tramite_id'    => $facturaId,
+                            'observaciones' => 'Factura #' . $facturaId . ' confirmada. Paso actual: Entregas y Cobros',
+                            'updated_by'    => Auth::id(),
+                            'updated_at'    => now(),
+                        ]);
+                }
+            } else {
                 DB::table('historico_flujo')->insert([
                     'flujo_id'        => $flujoId,
                     'tipo_tramite_id' => $TIPO_FACTURA,
@@ -547,7 +615,7 @@ class FacturacionCorporativa extends Component
             }
 
             DB::commit();
-            return response()->json(['ok' => true]);
+            return response()->json(['ok' => true, 'flujoId' => $flujoId]);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['ok' => false, 'message' => $e->getMessage()], 500);

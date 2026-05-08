@@ -151,14 +151,19 @@
                     @foreach ($fPasos as $paso => $info)
                     @php
                         $fPasoLinea = min($fPaso, 4);
-                        $completado = ($paso < $fPasoLinea) || ($paso === 4 && $fPaso > 4);
-                        $activo     = ($paso === $fPasoLinea) && !($paso === 4 && $fPaso > 4);
-                        $pendiente  = ($paso > $fPasoLinea);
+                        $esSinPedido = ($paso === 1 && !empty($d['sin_pedido']));
+                        // Pasos que no aplican porque el flujo fue directo (sin ofertas/prefactura)
+                        $esSinAplica = !$esSinPedido && !empty($d['sin_pedido']) && (
+                            ($paso === 2 && !$tieneOfertas && $fPasoLinea > 2) ||
+                            ($paso === 3 && !$tienePrefact && $fPasoLinea > 3)
+                        );
+                        $completado = !$esSinPedido && !$esSinAplica && (($paso < $fPasoLinea) || ($paso === 4 && $fPaso > 4));
+                        $activo     = !$esSinPedido && !$esSinAplica && ($paso === $fPasoLinea) && !($paso === 4 && $fPaso > 4);
+                        $pendiente  = !$esSinPedido && !$esSinAplica && ($paso > $fPasoLinea);
                         $esSeleccionado = ($info['key'] === $pasoActivo);
                         $delay      = ($paso - 1) * 100;
-                        $esSinPedido = ($paso === 1 && !empty($d['sin_pedido']));
-                        $labelColor = $esSinPedido ? '#e74c3c' : ($completado ? '#1ab394' : ($activo ? '#1a7efb' : '#aab'));
-                        $puedeClick = ($completado || $activo) && !$esSinPedido;
+                        $labelColor = ($esSinPedido || $esSinAplica) ? '#e74c3c' : ($completado ? '#1ab394' : ($activo ? '#1a7efb' : '#aab'));
+                        $puedeClick = ($completado || $activo) && !$esSinPedido && !$esSinAplica;
                     @endphp
 
                     {{-- Step card --}}
@@ -169,7 +174,7 @@
                                 {{ $esSeleccionado ? 'background:rgba(26,126,251,.06); border-radius:12px; padding:4px 6px;' : 'padding:4px 6px;' }}">
 
                         {{-- Circle --}}
-                        @if ($esSinPedido)
+                        @if ($esSinPedido || $esSinAplica)
                         <div style="width:60px; height:60px; border-radius:50%;
                                     background:linear-gradient(135deg,#e74c3c,#c0392b); color:#fff;
                                     margin-bottom:8px; box-shadow:0 4px 16px rgba(231,76,60,.4);
@@ -221,6 +226,8 @@
                             <div style="font-size:10px; color:{{ $labelColor }}; opacity:{{ $pendiente ? '.5' : '1' }};">
                                 @if ($esSinPedido)
                                     <i class="fa fa-times-circle"></i> Sin pedido
+                                @elseif ($esSinAplica)
+                                    <i class="fa fa-times-circle"></i> N/A
                                 @elseif ($completado)
                                     <i class="fa fa-check-circle"></i> Completado
                                 @elseif ($activo)

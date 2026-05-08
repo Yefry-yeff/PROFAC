@@ -3021,26 +3021,29 @@
                     return;
                 }
 
-                // ── Obtener flujo_id (desde URL param o campo oculto) ──────────
+                // ── Obtener flujo_id pre-seleccionado (desde URL param o campo oculto) ──
                 var urlParams   = new URLSearchParams(window.location.search);
                 var flujoIdUrl  = urlParams.get('flujoId');
                 var flujoIdEl   = document.getElementById('flujo_vinculado_id');
-                var flujoIdVal  = flujoIdUrl || (flujoIdEl ? flujoIdEl.value : '');
+                var flujoIdVal  = flujoIdUrl || (flujoIdEl ? flujoIdEl.value : '') || null;
 
-                // ── Si hay flujo vinculado: actualizar estado del flujo ────────
-                if (flujoIdVal && data.idFactura) {
-                    axios.post('/flujo/factura/confirmar', {
-                        flujo_id:       flujoIdVal,
-                        factura_id:     data.idFactura,
-                        tipo_factura_id: (tipoFacturaConfig ? tipoFacturaConfig.id : '')
-                    }).catch(function(err) {
-                        console.warn('No se pudo registrar el flujo de factura:', err);
-                    });
-                }
+                // ── Crear/actualizar registro de flujo para esta factura ───────
+                // Se llama siempre: si no hay flujo previo, el backend lo crea automáticamente.
+                axios.post('/flujo/factura/confirmar', {
+                    flujo_id:        flujoIdVal || 0,
+                    factura_id:      data.idFactura,
+                    tipo_factura_id: (tipoFacturaConfig ? tipoFacturaConfig.id : '')
+                }).then(function(res) {
+                    if (res.data && res.data.flujoId) {
+                        _facturaFlujoId = res.data.flujoId;
+                    }
+                }).catch(function(err) {
+                    console.warn('No se pudo registrar el flujo de factura:', err);
+                });
 
                 // ── Mostrar modal post-factura (mismo estilo que oferta) ───────
                 _facturaGuardadaId = data.idFactura;
-                _facturaFlujoId    = flujoIdVal || null;
+                _facturaFlujoId    = flujoIdVal ? parseInt(flujoIdVal, 10) : null;
                 var msgFacturaEl = document.getElementById('msgNumFactura');
                 if (msgFacturaEl) msgFacturaEl.textContent = 'Factura #' + data.idFactura + ' registrada exitosamente.';
                 limpiarFormularioVenta(data);

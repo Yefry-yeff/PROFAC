@@ -183,7 +183,15 @@ class ModalFlujoPedido extends Component
         if (!$flujo) return;
 
         $cotizacion = DB::table('cotizacion')->where('id', $flujo->identificacion)->first();
-        if (!$cotizacion) return;
+
+        // Si no hay cotizacion, puede ser un flujo creado directamente desde una factura
+        $facturaDirecta = null;
+        if (!$cotizacion) {
+            $facturaDirecta = DB::table('factura')
+                ->where('id', $flujo->identificacion)
+                ->first(['nombre_cliente', 'rtn', 'created_at', 'cliente_id']);
+            if (!$facturaDirecta) return;
+        }
 
         // Conteos de ofertas en el flujo
         $totalOfertas = DB::table('historico_flujo')
@@ -201,11 +209,11 @@ class ModalFlujoPedido extends Component
         $this->pedidoData = [
             'id'             => (int) $flujo->identificacion,
             'estado'         => 'activo',
-            'observaciones'  => $cotizacion->observaciones ?? null,
-            'created_at'     => $cotizacion->created_at,
-            'cliente'        => $cotizacion->nombre_cliente ?? '—',
-            'rtn'            => $cotizacion->RTN ?? null,
-            'cliente_id'     => $cotizacion->cliente_id ?? null,
+            'observaciones'  => $cotizacion ? ($cotizacion->observaciones ?? null) : null,
+            'created_at'     => $cotizacion ? $cotizacion->created_at : $facturaDirecta->created_at,
+            'cliente'        => $cotizacion ? ($cotizacion->nombre_cliente ?? '—') : ($facturaDirecta->nombre_cliente ?? '—'),
+            'rtn'            => $cotizacion ? ($cotizacion->RTN ?? null) : ($facturaDirecta->rtn ?? null),
+            'cliente_id'     => $cotizacion ? ($cotizacion->cliente_id ?? null) : ($facturaDirecta->cliente_id ?? null),
             'registrado_por' => null,
             'total_ofertas'  => $totalOfertas,
             'has_ganadora'   => $hasGanadora,
@@ -238,6 +246,8 @@ class ModalFlujoPedido extends Component
             4  => 'prefactura',
             3  => 'factura',
             5  => 'entrega',
+            6  => 'cobro',
+            7  => 'entrega',    // Flujo conjunto (Entrega + Cobro)
             8  => 'finalizado',
             'pedido'        => 'ofertas',   // sin pedido, arrancamos en ofertas
             'Ofertas'       => 'ofertas',
@@ -249,7 +259,8 @@ class ModalFlujoPedido extends Component
 
         $this->cargarOfertasPedido();
 
-        $pasoAbierto = 'ofertas';
+        // Flujos de factura directa (sin cotizacion) arrancan en el paso de entrega/factura
+        $pasoAbierto = $facturaDirecta ? 'factura' : 'ofertas';
         if ($flujoInfo && isset($tramiteStepMap[(int) $flujoInfo->tipo_tramite_id])) {
             $pasoAbierto = $tramiteStepMap[(int) $flujoInfo->tipo_tramite_id];
         } elseif ($flujoInfo && isset($tramiteStepMap[$flujoInfo->tramite_nombre])) {
