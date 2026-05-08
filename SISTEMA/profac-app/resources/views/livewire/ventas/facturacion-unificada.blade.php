@@ -1196,15 +1196,6 @@
                                 Imprimir factura
                             </button>
 
-                            <button onclick="facturaAccion('cobro')"
-                                    style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff; border:none;
-                                           border-radius:10px; padding:11px 8px; font-size:12px; font-weight:700;
-                                           cursor:pointer; text-align:center; box-shadow:0 3px 10px rgba(230,81,0,.25); transition:opacity .15s;"
-                                    onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">
-                                <i class="fa fa-exchange d-block" style="font-size:20px; margin-bottom:4px;"></i>
-                                Entregas y cobros
-                            </button>
-
                             <button onclick="facturaAccion('vale')"
                                     style="background:#eef2ff; color:#3730a3; border:1.5px solid #c7d2fe;
                                            border-radius:10px; padding:11px 8px; font-size:12px; font-weight:700;
@@ -3029,9 +3020,12 @@
 
                 // ── Crear/actualizar registro de flujo para esta factura ───────
                 // Se llama siempre: si no hay flujo previo, el backend lo crea automáticamente.
+                var pedidoVinculadoEl = document.getElementById('pedido_vinculado_id');
+                var pedidoIdVal = pedidoVinculadoEl ? (pedidoVinculadoEl.value || 0) : 0;
                 axios.post('/flujo/factura/confirmar', {
                     flujo_id:        flujoIdVal || 0,
                     factura_id:      data.idFactura,
+                    pedido_id:       pedidoIdVal,
                     tipo_factura_id: (tipoFacturaConfig ? tipoFacturaConfig.id : '')
                 }).then(function(res) {
                     if (res.data && res.data.flujoId) {

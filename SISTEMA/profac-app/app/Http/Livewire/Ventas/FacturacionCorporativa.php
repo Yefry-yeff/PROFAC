@@ -441,6 +441,7 @@ class FacturacionCorporativa extends Component
     {
         $flujoId   = (int) $request->input('flujo_id');
         $facturaId = (int) $request->input('factura_id');
+        $pedidoIdReq = (int) $request->input('pedido_id');
 
         if (!$facturaId) {
             return response()->json(['ok' => false, 'message' => 'Datos incompletos.'], 422);
@@ -472,17 +473,14 @@ class FacturacionCorporativa extends Component
                     $flujoId = (int) $flujoExistente;
                 } else {
                     // b) ¿Tiene pedido vinculado con flujo existente?
-                    // (la columna pedido_id puede no estar presente en todas las instalaciones)
-                    if (\Illuminate\Support\Facades\Schema::hasColumn('factura', 'pedido_id')) {
-                        $pedidoId = DB::table('factura')->where('id', $facturaId)->value('pedido_id');
-                        if ($pedidoId) {
-                            $flujoPedido = DB::table('flujo')
-                                ->where('identificacion', (string) $pedidoId)
-                                ->where('tipo_flujo_id', 1)
-                                ->value('id');
-                            if ($flujoPedido) {
-                                $flujoId = (int) $flujoPedido;
-                            }
+                    // El pedido_id se recibe desde el request (JS lo envía desde el campo oculto)
+                    if ($pedidoIdReq) {
+                        $flujoPedido = DB::table('flujo')
+                            ->where('identificacion', (string) $pedidoIdReq)
+                            ->where('tipo_flujo_id', 1)
+                            ->value('id');
+                        if ($flujoPedido) {
+                            $flujoId = (int) $flujoPedido;
                         }
                     }
 
@@ -840,7 +838,6 @@ class FacturacionCorporativa extends Component
                 $factura->comentario = $request->nota_comen;
                 $factura->porc_descuento = $request->porDescuento;
                 $factura->monto_descuento = $request->porDescuentoCalculado;
-                $factura->pedido_id = $request->pedido_id ?: null;
                 $factura->save();
 
                 $caiUpdated =  ModelCAI::find($cai->id);
@@ -922,7 +919,7 @@ class FacturacionCorporativa extends Component
 
                 // dd($factura);
 
-                $this->restarUnidadesInventario($precios_producto_carga_id, $precioSeleccionado,$idPrecioSeleccionado,$restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $arrayInputs[$i]);
+                $this->restarUnidadesInventario($precios_producto_carga_id, $idPrecioSeleccionado, $precioSeleccionado, $restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $arrayInputs[$i]);
             };
 
             if ($request->tipoPagoVenta == 2) { //si el tipo de pago es credito
@@ -971,7 +968,7 @@ class FacturacionCorporativa extends Component
                 'icon' => "error",
                 'text' => 'Ha ocurrido un error.',
                 'title' => 'Error!',
-                'idFactura' => $factura->id,
+                'idFactura' => $factura->id ?? null,
                 'mensajeError' => $e
             ], 402);
         }
@@ -1122,7 +1119,6 @@ class FacturacionCorporativa extends Component
             $factura->codigo_autorizacion_id = $request->codigo_autorizacion;
             $factura->comprovante_entrega_id = $request->idComprobante;
             $factura->comentario = $request->nota_comen;
-            $factura->pedido_id = $request->pedido_id ?: null;
             $factura->save();
 
             if ($turno->turno == 1) {
@@ -1427,7 +1423,6 @@ class FacturacionCorporativa extends Component
             $factura->codigo_autorizacion_id = $request->codigo_autorizacion;
             $factura->comprovante_entrega_id = $request->idComprobante;
             $factura->comentario = $request->nota_comen;
-            $factura->pedido_id = $request->pedido_id ?: null;
             $factura->save();
 
 
@@ -2032,7 +2027,6 @@ class FacturacionCorporativa extends Component
             $factura->codigo_autorizacion_id = $request->codigo_autorizacion;
             $factura->comprovante_entrega_id = $request->idComprobante;
             $factura->comentario = $request->nota_comen;
-            $factura->pedido_id = $request->pedido_id ?: null;
             $factura->save();
 
 
@@ -2298,7 +2292,6 @@ class FacturacionCorporativa extends Component
         $factura->comentario = $request->nota_comen;
         $factura->porc_descuento = $request->porDescuento;
         $factura->monto_descuento = $request->porDescuentoCalculado;
-        $factura->pedido_id = $request->pedido_id ?: null;
         $factura->save();
 
 
