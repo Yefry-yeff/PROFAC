@@ -1650,11 +1650,12 @@
                 .then(function(response) {
                     var data = response.data || {};
                     if (data.print_url) {
-                        window.location.href = data.print_url;
-                        return;
+                        // Abrir impresión en nueva pestaña
+                        window.open(data.print_url, '_blank');
                     }
-                    if (data.factura_id) {
-                        window.location.reload();
+                    // Recargar el flujo en el modal actual via Livewire
+                    if (window.Livewire) {
+                        Livewire.emit('recargarFlujo');
                     }
                 })
                 .catch(function(error) {

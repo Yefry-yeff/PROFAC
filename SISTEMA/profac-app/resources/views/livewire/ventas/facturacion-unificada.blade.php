@@ -82,6 +82,8 @@
             align-items: center !important;
             min-height: calc(100% - 3.5rem) !important;
         }
+        /* SweetAlert sobre modales de autorización */
+        .swal-sobre-modal { z-index: 99999 !important; }
         /* ── Carrito items ─────────────────────────────────────────── */
         .cart-item-card { transition: box-shadow .15s; }
         .cart-item-card:hover { box-shadow: 0 4px 18px rgba(27,94,32,.14) !important; }
@@ -1124,16 +1126,27 @@
                             Una vez vencido, la prefactura pierde validez automáticamente.
                         </p>
 
-                        {{-- 3 botones --}}
-                        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                        {{-- 4 botones --}}
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
 
-                            <button onclick="prefacturaAccion('facturar')"
+                            {{-- Facturar directo --}}
+                            <button id="btnPrefFacturarDirecto" onclick="prefacturaAccion('facturar')"
                                     style="background:linear-gradient(135deg,#1b5e20,#2e7d32); color:#fff; border:none;
                                            border-radius:10px; padding:11px 6px; font-size:11px; font-weight:700;
                                            cursor:pointer; text-align:center; box-shadow:0 3px 10px rgba(27,94,32,.25); transition:opacity .15s;"
                                     onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">
-                                <i class="fa fa-file-invoice d-block" style="font-size:20px; margin-bottom:4px;"></i>
+                                <i class="fa fa-bolt d-block" style="font-size:20px; margin-bottom:4px;"></i>
                                 Facturar
+                            </button>
+
+                            {{-- Editar factura (requiere autorización) --}}
+                            <button onclick="prefacturaAccion('editar')"
+                                    style="background:linear-gradient(135deg,#1565c0,#1a7efb); color:#fff; border:none;
+                                           border-radius:10px; padding:11px 6px; font-size:11px; font-weight:700;
+                                           cursor:pointer; text-align:center; box-shadow:0 3px 10px rgba(21,101,192,.25); transition:opacity .15s;"
+                                    onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">
+                                <i class="fa fa-pencil d-block" style="font-size:20px; margin-bottom:4px;"></i>
+                                Editar Factura
                             </button>
 
                             <button onclick="prefacturaAccion('flujo')"
@@ -1155,6 +1168,61 @@
                             </button>
 
                         </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- MODAL: Autorización para editar factura desde prefactura --}}
+        <div class="modal fade" id="modalAutorizacionEditarPref" data-backdrop="static" data-keyboard="false" tabindex="-1" role="dialog" style="z-index:2080;">
+            <div class="modal-dialog modal-dialog-centered" role="document" style="max-width:400px;">
+                <div class="modal-content" style="border-radius:16px; overflow:hidden; border:none; box-shadow:0 16px 48px rgba(0,0,0,.18);">
+                    <div class="modal-header" style="background:linear-gradient(135deg,#1565c0,#1a7efb); border:none; padding:16px 24px;">
+                        <h5 class="modal-title" style="color:#fff; font-weight:700; margin:0;">
+                            <i class="mr-2 fa fa-lock"></i> Autorización requerida
+                        </h5>
+                    </div>
+                    <div class="modal-body" style="padding:24px;">
+                        <p style="color:#546e7a; font-size:13px; margin-bottom:16px;">
+                            Para <strong>editar la factura</strong> desde una prefactura se requiere un código de autorización de supervisor.
+                        </p>
+
+                        <div class="mb-3">
+                            <button type="button" id="btnSolicitarCodigoEditarPref"
+                                    onclick="solicitarCodigoEditarPref(this)"
+                                    class="btn btn-outline-primary btn-sm btn-block">
+                                <i class="fa fa-paper-plane mr-1"></i> Solicitar código por correo
+                            </button>
+                        </div>
+
+                        <div class="form-group mb-2">
+                            <label style="font-size:11px; font-weight:700; color:#546e7a; text-transform:uppercase; letter-spacing:.5px;">
+                                Código de autorización <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" id="codigoEditarPref" class="form-control"
+                                   placeholder="Ingrese el código de 4 dígitos"
+                                   onkeydown="event.stopPropagation()" autocomplete="off" maxlength="10">
+                            <span id="errCodigoEditarPref" class="text-danger" style="font-size:12px; display:none;">Código incorrecto.</span>
+                        </div>
+
+                        <div class="form-group mb-0">
+                            <label style="font-size:11px; font-weight:700; color:#546e7a; text-transform:uppercase; letter-spacing:.5px;">
+                                Motivo <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" id="motivoEditarPref" class="form-control"
+                                   placeholder="Indique el motivo de edición"
+                                   onkeydown="event.stopPropagation()" autocomplete="off">
+                            <span id="errMotivoEditarPref" class="text-danger" style="font-size:12px; display:none;">El motivo es requerido.</span>
+                        </div>
+                    </div>
+                    <div class="modal-footer" style="border:none; padding:12px 24px 20px;">
+                        <button type="button" class="btn btn-secondary btn-sm"
+                                onclick="$('#modalAutorizacionEditarPref').modal('hide'); $('#modalPrefacturaExito').modal('show');">
+                            Cancelar
+                        </button>
+                        <button type="button" class="btn btn-primary btn-sm" onclick="verificarCodigoEditarPref()">
+                            <i class="fa fa-check mr-1"></i> Verificar y continuar
+                        </button>
                     </div>
                 </div>
             </div>
@@ -3031,23 +3099,110 @@
         } else if (tipo === 'flujo') {
             var flujoId = _prefacturaFlujoId;
             abrirModalFlujoDesdeContexto('prefactura', null, flujoId);
+        } else if (tipo === 'editar') {
+            // Requiere autorización → esperar a que cierre el modal anterior antes de abrir el nuevo
+            $('#codigoEditarPref').val('');
+            $('#motivoEditarPref').val('');
+            $('#errCodigoEditarPref').hide();
+            $('#errMotivoEditarPref').hide();
+            if ($('#modalPrefacturaExito').hasClass('show') || $('#modalPrefacturaExito').is(':visible')) {
+                $('#modalPrefacturaExito').one('hidden.bs.modal', function() {
+                    $('#modalAutorizacionEditarPref').modal('show');
+                });
+                $('#modalPrefacturaExito').modal('hide');
+            } else {
+                $('#modalAutorizacionEditarPref').modal('show');
+            }
         } else if (tipo === 'facturar') {
+            // Facturar directamente sin salir de la página
             var prefId = _prefacturaId;
             if (!prefId) {
                 Swal.fire({ icon: 'warning', title: 'Sin prefactura', text: 'No se encontró la prefactura.' });
                 return;
             }
-            $('#modalPrefacturaExito').one('hidden.bs.modal', function() {
-                axios.post('/prefactura/' + prefId + '/facturar', {}, {
-                    headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') }
-                }).then(function(res) {
-                    window.location.href = res.data.url;
-                }).catch(function(err) {
-                    Swal.fire({ icon: 'error', title: 'Error', text: (err.response && err.response.data && err.response.data.error) ? err.response.data.error : 'Error al procesar.' });
-                });
-            });
+            var btn = document.getElementById('btnPrefFacturarDirecto');
+            if (btn) { btn.disabled = true; btn.style.opacity = '.6'; }
+
             $('#modalPrefacturaExito').modal('hide');
+
+            axios.post('/prefactura/' + prefId + '/facturar-directo', { tipo_pago: 1 }, {
+                headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') }
+            }).then(function(res) {
+                var data = res.data || {};
+                if (data.print_url) {
+                    window.open(data.print_url, '_blank');
+                }
+                // Mostrar modal de éxito de factura
+                var msgEl = document.getElementById('msgNumFactura');
+                if (msgEl) msgEl.textContent = 'Factura #' + (data.factura_id || '') + ' registrada exitosamente.';
+                _facturaGuardadaId = data.factura_id || null;
+                _facturaFlujoId    = _prefacturaFlujoId || null;
+                // Llenar btn imprimir del modal éxito
+                var btnImp = document.getElementById('btn_post_factura_imprimir_pref');
+                if (btnImp && data.print_url) btnImp.href = data.print_url;
+                $('#modalExitoFactura').modal('show');
+                if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+            }).catch(function(err) {
+                if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+                var msg = (err.response && err.response.data) ? (err.response.data.error || err.response.data.warning || 'Error al facturar.') : 'Error al facturar.';
+                Swal.fire({ icon: 'error', title: 'Error', text: msg });
+            });
         }
+    }
+
+    function solicitarCodigoEditarPref(btnEl) {
+        if (!btnEl) return;
+        var textoOriginal = btnEl.innerHTML;
+        btnEl.disabled = true;
+        btnEl.innerHTML = '<i class="fa fa-spinner fa-spin mr-1"></i> Enviando...';
+        axios.get('/ventas/solicitud/codigo').then(function() {
+            btnEl.disabled = false;
+            btnEl.innerHTML = textoOriginal;
+            Swal.fire({ icon: 'info', title: 'Código enviado', text: 'Solicíteselo a su supervisor.', timer: 3000, showConfirmButton: false, customClass: { container: 'swal-sobre-modal' } });
+        }).catch(function() {
+            btnEl.disabled = false;
+            btnEl.innerHTML = textoOriginal;
+            Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo enviar el código.', customClass: { container: 'swal-sobre-modal' } });
+        });
+    }
+
+    function verificarCodigoEditarPref() {
+        var codigo = document.getElementById('codigoEditarPref').value.trim();
+        var motivo = document.getElementById('motivoEditarPref').value.trim();
+        var errCod = document.getElementById('errCodigoEditarPref');
+        var errMot = document.getElementById('errMotivoEditarPref');
+        errCod.style.display = 'none';
+        errMot.style.display = 'none';
+
+        if (!codigo) { errCod.style.display = ''; errCod.textContent = 'El código es requerido.'; return; }
+        if (!motivo)  { errMot.style.display = ''; return; }
+
+        axios.post('/ventas/verificar/codigo', { codigo: codigo }).then(function(response) {
+            var data = response.data;
+            if (data.estado != 1) {
+                errCod.style.display = '';
+                errCod.textContent = 'Código incorrecto.';
+                return;
+            }
+            var autorizacionId = data.idAutorizacion;
+            // Desactivar código
+            axios.post('/ventas/autorizacion/desactivar', { idAutorizacion: autorizacionId });
+
+            $('#modalAutorizacionEditarPref').modal('hide');
+
+            // Redirigir a formulario de edición
+            var prefId = _prefacturaId;
+            axios.post('/prefactura/' + prefId + '/facturar', {}, {
+                headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') }
+            }).then(function(res) {
+                window.location.href = res.data.url;
+            }).catch(function(err) {
+                Swal.fire({ icon: 'error', title: 'Error', text: (err.response && err.response.data && err.response.data.error) ? err.response.data.error : 'Error al procesar.' });
+            });
+        }).catch(function() {
+            errCod.style.display = '';
+            errCod.textContent = 'Error al verificar el código.';
+        });
     }
 
     function confirmarGanadora(cotizacionId) {
@@ -3092,10 +3247,14 @@
 
     // Botón Volver: cierra ganadora y reabre el modal de éxito
     document.addEventListener('DOMContentLoaded', function () {
-        // Mover el modal al <body> para evitar el offset del page-wrapper de IBOX
+        // Mover modales al <body> para evitar offset de IBOX y conflictos de backdrop
         var ogModal = document.getElementById('modalOfertasGanadoras');
         if (ogModal && ogModal.parentElement !== document.body) {
             document.body.appendChild(ogModal);
+        }
+        var authPrefModal = document.getElementById('modalAutorizacionEditarPref');
+        if (authPrefModal && authPrefModal.parentElement !== document.body) {
+            document.body.appendChild(authPrefModal);
         }
 
         var btnVolver = document.getElementById('ogBtnVolver');

@@ -62,7 +62,7 @@ class ModalFlujoPedido extends Component
     public $aplicacionPagoId      = null;
 
     // ── Listeners ─────────────────────────────────────────────────────────
-    protected $listeners = ['abrirFlujoPedido' => 'abrir', 'abrirFlujoCotizacion' => 'abrirDesdeFlujo'];
+    protected $listeners = ['abrirFlujoPedido' => 'abrir', 'abrirFlujoCotizacion' => 'abrirDesdeFlujo', 'recargarFlujo' => 'recargarDesdeJS'];
 
     // ─────────────────────────────────────────────────────────────────────
     // ABRIR / CERRAR
@@ -301,6 +301,12 @@ class ModalFlujoPedido extends Component
     }
 
     /** Recarga los datos del pedido preservando el paso activo */
+    public function recargarDesdeJS(): void
+    {
+        $this->recargar();
+        $this->emit('pedidoActualizado');
+    }
+
     private function recargar(): void
     {
         if (!$this->pedidoData) return;
