@@ -482,6 +482,266 @@
         </button>
     </div>
 
+    {{-- ===== SECCIÓN GESTIÓN MASIVA (card unificada con tabs) ===== --}}
+    <div style="background:#fff;border-radius:16px;margin-bottom:20px;
+                box-shadow:0 4px 24px rgba(0,0,0,.07);overflow:hidden;border:1px solid #edf0f7;">
+
+        {{-- Header del card --}}
+        <div style="background:linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%);
+                    padding:18px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+            <div style="display:flex;align-items:center;gap:12px;">
+                <div style="width:42px;height:42px;border-radius:12px;background:rgba(255,255,255,.12);
+                            display:flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.2);">
+                    <i class="fa fa-table" style="color:#fff;font-size:16px;"></i>
+                </div>
+                <div>
+                    <div style="font-size:14px;font-weight:800;color:#fff;letter-spacing:.2px;">Gestión Masiva de Comisiones</div>
+                    <div style="font-size:11px;color:rgba(255,255,255,.6);margin-top:2px;">
+                        Descargue, edite y cargue porcentajes de comisión en lote
+                    </div>
+                </div>
+            </div>
+
+            {{-- Tab switcher pill --}}
+            <div style="display:flex;background:rgba(255,255,255,.1);border-radius:10px;padding:4px;gap:3px;border:1px solid rgba(255,255,255,.15);">
+                <button id="tab_btn_global" onclick="switchTab('global')"
+                    style="display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:7px;
+                           border:none;cursor:pointer;font-size:12px;font-weight:700;transition:all .2s;
+                           background:linear-gradient(135deg,#f39c12,#e67e22);color:#fff;
+                           box-shadow:0 2px 8px rgba(243,156,18,.4);">
+                    <i class="fa fa-globe"></i> Carga Global
+                </button>
+                <button id="tab_btn_selectiva" onclick="switchTab('selectiva')"
+                    style="display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:7px;
+                           border:none;cursor:pointer;font-size:12px;font-weight:700;transition:all .2s;
+                           background:transparent;color:rgba(255,255,255,.7);">
+                    <i class="fa fa-filter"></i> Carga Selectiva
+                </button>
+            </div>
+        </div>
+
+        {{-- ── TAB GLOBAL ── --}}
+        <div id="tab_global" style="padding:28px 28px 24px;">
+            <div style="display:flex;gap:20px;align-items:stretch;flex-wrap:wrap;">
+
+                {{-- Paso 1 --}}
+                <div style="flex:1;min-width:220px;border:1.5px solid #e8f0fe;border-radius:12px;
+                            padding:20px;background:linear-gradient(135deg,#f8f9ff,#eef1fd);
+                            display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;">
+                    <div style="width:52px;height:52px;border-radius:14px;
+                                background:linear-gradient(135deg,#667eea,#764ba2);
+                                display:flex;align-items:center;justify-content:center;
+                                box-shadow:0 4px 12px rgba(102,126,234,.35);">
+                        <i class="fa fa-download" style="color:#fff;font-size:20px;"></i>
+                    </div>
+                    <div>
+                        <div style="font-size:12px;font-weight:800;color:#3730a3;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">
+                            Paso 1
+                        </div>
+                        <div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:6px;">Descargar Plantilla</div>
+                        <div style="font-size:11px;color:#64748b;line-height:1.5;">
+                            Descargue el Excel con <strong>todas</strong> las combinaciones de rol + categorías.
+                        </div>
+                    </div>
+                    <a href="{{ route('comision.configuracion.plantilla.masiva') }}"
+                       style="margin-top:auto;display:inline-flex;align-items:center;gap:7px;padding:9px 20px;
+                              border-radius:9px;border:2px solid #667eea;background:#fff;
+                              color:#667eea;font-size:12px;font-weight:700;text-decoration:none;
+                              transition:all .2s;box-shadow:0 2px 6px rgba(102,126,234,.15);"
+                       onmouseover="this.style.background='#667eea';this.style.color='#fff'"
+                       onmouseout="this.style.background='#fff';this.style.color='#667eea'">
+                        <i class="fa fa-download"></i> Descargar
+                    </a>
+                </div>
+
+                {{-- Flecha --}}
+                <div style="display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:0 4px;">
+                    <div style="width:36px;height:36px;border-radius:50%;background:#f1f5f9;
+                                display:flex;align-items:center;justify-content:center;border:1.5px solid #e2e8f0;">
+                        <i class="fa fa-arrow-right" style="color:#94a3b8;font-size:13px;"></i>
+                    </div>
+                </div>
+
+                {{-- Paso 2 --}}
+                <div style="flex:1;min-width:220px;border:1.5px solid #fef3c7;border-radius:12px;
+                            padding:20px;background:linear-gradient(135deg,#fffdf5,#fef9e7);
+                            display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;">
+                    <div style="width:52px;height:52px;border-radius:14px;
+                                background:linear-gradient(135deg,#f59e0b,#d97706);
+                                display:flex;align-items:center;justify-content:center;
+                                box-shadow:0 4px 12px rgba(245,158,11,.35);">
+                        <i class="fa fa-pencil" style="color:#fff;font-size:20px;"></i>
+                    </div>
+                    <div>
+                        <div style="font-size:12px;font-weight:800;color:#92400e;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">
+                            Paso 2
+                        </div>
+                        <div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:6px;">Completar Porcentajes</div>
+                        <div style="font-size:11px;color:#64748b;line-height:1.5;">
+                            Edite la columna <strong>% Comisión</strong> en amarillo y guarde el archivo.
+                        </div>
+                    </div>
+                    <div style="margin-top:auto;display:inline-flex;align-items:center;gap:6px;padding:9px 20px;
+                                border-radius:9px;background:#fef3c7;border:1.5px dashed #f59e0b;
+                                color:#92400e;font-size:11px;font-weight:600;">
+                        <i class="fa fa-info-circle"></i> Edite el Excel descargado
+                    </div>
+                </div>
+
+                {{-- Flecha --}}
+                <div style="display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:0 4px;">
+                    <div style="width:36px;height:36px;border-radius:50%;background:#f1f5f9;
+                                display:flex;align-items:center;justify-content:center;border:1.5px solid #e2e8f0;">
+                        <i class="fa fa-arrow-right" style="color:#94a3b8;font-size:13px;"></i>
+                    </div>
+                </div>
+
+                {{-- Paso 3 --}}
+                <div style="flex:1;min-width:220px;border:1.5px solid #d1fae5;border-radius:12px;
+                            padding:20px;background:linear-gradient(135deg,#f0fdf4,#ecfdf5);
+                            display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;">
+                    <div style="width:52px;height:52px;border-radius:14px;
+                                background:linear-gradient(135deg,#10b981,#059669);
+                                display:flex;align-items:center;justify-content:center;
+                                box-shadow:0 4px 12px rgba(16,185,129,.35);">
+                        <i class="fa fa-upload" style="color:#fff;font-size:20px;"></i>
+                    </div>
+                    <div>
+                        <div style="font-size:12px;font-weight:800;color:#065f46;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">
+                            Paso 3
+                        </div>
+                        <div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:6px;">Subir y Aplicar</div>
+                        <div style="font-size:11px;color:#64748b;line-height:1.5;">
+                            Suba el archivo editado. Los cambios se aplican <strong>automáticamente</strong>.
+                        </div>
+                    </div>
+                    <button type="button" onclick="document.getElementById('input_carga_masiva').click()"
+                        style="margin-top:auto;display:inline-flex;align-items:center;gap:7px;padding:9px 20px;
+                               border-radius:9px;border:none;cursor:pointer;font-size:12px;font-weight:700;
+                               background:linear-gradient(135deg,#10b981,#059669);color:#fff;
+                               box-shadow:0 3px 10px rgba(16,185,129,.35);transition:opacity .2s;"
+                        onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+                        <i class="fa fa-upload"></i> Subir Plantilla
+                    </button>
+                    <input type="file" id="input_carga_masiva" accept=".xlsx,.xls" style="display:none"
+                           onchange="procesarCargaMasiva(this)">
+                </div>
+
+            </div>
+        </div>
+
+        {{-- ── TAB SELECTIVA ── --}}
+        <div id="tab_selectiva" style="display:none;">
+
+            {{-- Sub-header selectiva --}}
+            <div style="padding:14px 24px;background:#fafbff;border-bottom:1px solid #edf0f7;
+                        display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+                <div style="font-size:12px;color:#64748b;">
+                    <i class="fa fa-info-circle mr-1" style="color:#667eea;"></i>
+                    Marque las categorías que desea incluir — deje en blanco para <strong>incluir todas</strong>.
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <button type="button" onclick="descargarPlantillaFiltrada()"
+                        style="display:inline-flex;align-items:center;gap:6px;padding:7px 16px;
+                               border-radius:8px;border:1.5px solid #667eea;background:#fff;
+                               color:#667eea;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s;"
+                        onmouseover="this.style.background='#667eea';this.style.color='#fff'"
+                        onmouseout="this.style.background='#fff';this.style.color='#667eea'">
+                        <i class="fa fa-download"></i> Descargar Plantilla Filtrada
+                    </button>
+                    <button type="button" onclick="document.getElementById('input_carga_filtrada').click()"
+                        style="display:inline-flex;align-items:center;gap:6px;padding:7px 16px;
+                               border-radius:8px;border:none;cursor:pointer;font-size:12px;font-weight:700;
+                               background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;
+                               box-shadow:0 2px 8px rgba(102,126,234,.3);transition:opacity .2s;"
+                        onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+                        <i class="fa fa-upload"></i> Subir Plantilla Filtrada
+                    </button>
+                    <input type="file" id="input_carga_filtrada" accept=".xlsx,.xls" style="display:none"
+                           onchange="iniciarCargaFiltrada(this)">
+                </div>
+            </div>
+
+            {{-- Grid checklists --}}
+            <div style="display:flex;gap:0;">
+
+                {{-- Columna Categoría Cliente --}}
+                <div style="flex:1;padding:20px;border-right:1px solid #edf0f7;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <div style="width:28px;height:28px;border-radius:8px;
+                                        background:linear-gradient(135deg,#667eea,#764ba2);
+                                        display:flex;align-items:center;justify-content:center;">
+                                <i class="fa fa-users" style="color:#fff;font-size:11px;"></i>
+                            </div>
+                            <span style="font-size:12px;font-weight:800;color:#1e293b;text-transform:uppercase;letter-spacing:.4px;">
+                                Categoría de Cliente
+                            </span>
+                        </div>
+                        <div style="display:flex;gap:5px;">
+                            <button type="button" onclick="checklistSelTodos('chk_cat_cli', true)"
+                                style="font-size:10px;padding:3px 9px;border-radius:6px;border:none;
+                                       background:#667eea;color:#fff;cursor:pointer;font-weight:700;">
+                                <i class="fa fa-check-square-o mr-1"></i>Todos
+                            </button>
+                            <button type="button" onclick="checklistSelTodos('chk_cat_cli', false)"
+                                style="font-size:10px;padding:3px 9px;border-radius:6px;border:1px solid #cbd5e0;
+                                       background:#f8fafc;color:#64748b;cursor:pointer;font-weight:600;">
+                                <i class="fa fa-square-o mr-1"></i>Ninguno
+                            </button>
+                        </div>
+                    </div>
+                    <div id="lista_chk_cat_cli"
+                         style="max-height:220px;overflow-y:auto;border:1.5px solid #e8f0fe;
+                                border-radius:10px;padding:6px 8px;background:#fafbff;
+                                scrollbar-width:thin;scrollbar-color:#c7d2fe #f1f5f9;">
+                        <div style="text-align:center;color:#a0aec0;font-size:12px;padding:16px 0;">
+                            <i class="fa fa-spinner fa-spin"></i> Cargando...
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Columna Categoría Precio --}}
+                <div style="flex:1;padding:20px;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <div style="width:28px;height:28px;border-radius:8px;
+                                        background:linear-gradient(135deg,#f59e0b,#d97706);
+                                        display:flex;align-items:center;justify-content:center;">
+                                <i class="fa fa-tag" style="color:#fff;font-size:11px;"></i>
+                            </div>
+                            <span style="font-size:12px;font-weight:800;color:#1e293b;text-transform:uppercase;letter-spacing:.4px;">
+                                Categoría de Precio
+                            </span>
+                        </div>
+                        <div style="display:flex;gap:5px;">
+                            <button type="button" onclick="checklistSelTodos('chk_cat_precio', true)"
+                                style="font-size:10px;padding:3px 9px;border-radius:6px;border:none;
+                                       background:#f59e0b;color:#fff;cursor:pointer;font-weight:700;">
+                                <i class="fa fa-check-square-o mr-1"></i>Todos
+                            </button>
+                            <button type="button" onclick="checklistSelTodos('chk_cat_precio', false)"
+                                style="font-size:10px;padding:3px 9px;border-radius:6px;border:1px solid #cbd5e0;
+                                       background:#f8fafc;color:#64748b;cursor:pointer;font-weight:600;">
+                                <i class="fa fa-square-o mr-1"></i>Ninguno
+                            </button>
+                        </div>
+                    </div>
+                    <div id="lista_chk_cat_precio"
+                         style="max-height:220px;overflow-y:auto;border:1.5px solid #fef3c7;
+                                border-radius:10px;padding:6px 8px;background:#fffdf5;
+                                scrollbar-width:thin;scrollbar-color:#fde68a #fffdf5;">
+                        <div style="text-align:center;color:#a0aec0;font-size:12px;padding:16px 0;">
+                            Marque categorías de cliente para ver las de precio disponibles.
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+
     {{-- ===== TABLA ===== --}}
     <div class="cc-panel" style="margin-top:0;">
         <div class="cc-panel-title">
@@ -499,6 +759,7 @@
                         <th>%</th>
                         <th>Rol de Usuario</th>
                         <th>Categoría Cliente</th>
+                        <th>Categoría Precio</th>
                         <th>Registrado por</th>
                         <th>Fecha</th>
                         <th class="text-center">Estado</th>
@@ -512,7 +773,7 @@
 
     {{-- ===== MODAL CREAR / EDITAR ===== --}}
     <div class="modal cc-modal fade" id="modalParamComision" tabindex="-1" role="dialog" data-backdrop="static" data-keyboard="false">
-        <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+        <div class="modal-dialog modal-dialog-centered modal-xl" role="document">
             <div class="modal-content">
 
                 <div class="modal-header">
@@ -527,65 +788,27 @@
 
                     <div class="cc-info-banner">
                         <i class="fa fa-info-circle"></i>
-                        <span>Defina el porcentaje de comisión que recibirá cada rol de usuario según la categoría del cliente en las ventas cobradas.</span>
+                        <span>Seleccione el <strong>rol</strong> y la <strong>categoría de cliente</strong>. El sistema cargará todas las categorías de precio activas para esa categoría — asigne el % a cada una.</span>
                     </div>
 
                     <form id="paramComisionForm" novalidate>
                         <input type="hidden" id="param_comision_id" name="param_comision_id">
 
+                        {{-- Fila 1: Título + Rol --}}
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="cc-form-group">
-                                    <label><i class="fa fa-tag mr-1"></i>Título de Comisión <span class="req">*</span></label>
-                                    <input type="text"
-                                           class="form-control"
-                                           id="nombre_comescala"
-                                           name="nombre_comescala"
-                                           maxlength="150"
-                                           placeholder="Ej: Comisión Mayoristas Vendedor"
-                                           required>
-                                    <small>Nombre identificador de la comisión</small>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="cc-form-group">
-                                    <label><i class="fa fa-pencil mr-1"></i>Descripción <span class="req">*</span></label>
-                                    <input type="text"
-                                           class="form-control"
-                                           id="descripcion_comescala"
-                                           name="descripcion_comescala"
-                                           maxlength="250"
-                                           placeholder="Descripción breve..."
-                                           required>
-                                    <small>Breve descripción para referencia interna</small>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="cc-divider"></div>
-
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="cc-form-group">
-                                    <label><i class="fa fa-users mr-1"></i>Categoría de Cliente <span class="req">*</span></label>
-                                    <select id="categoria_cliente_id"
-                                            name="categoria_cliente_id"
-                                            class="form-control"
-                                            data-url="{{ route('clientes.categorias.escala') }}"
-                                            required>
-                                        <option value="">-- Seleccione una categoria --</option>
-                                    </select>
-                                    <small>Categoría de cliente a la que aplica la comisión</small>
+                                    <label><i class="fa fa-tag mr-1"></i>Título de la Configuración <span class="req">*</span></label>
+                                    <input type="text" class="form-control" id="nombre_comescala" name="nombre_comescala"
+                                           maxlength="150" placeholder="Ej: Comisión Mayoristas — Vendedor" required>
+                                    <small>Nombre identificador del grupo de comisiones</small>
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="cc-form-group">
                                     <label><i class="fa fa-id-badge mr-1"></i>Rol Asociado <span class="req">*</span></label>
-                                    <select id="rol_id"
-                                            name="rol_id"
-                                            class="form-control"
-                                            data-url="{{ route('comision.configuracion.rol') }}"
-                                            required>
+                                    <select id="rol_id" name="rol_id" class="form-control"
+                                            data-url="{{ route('comision.configuracion.rol') }}" required>
                                         <option value="">-- Seleccione un rol --</option>
                                     </select>
                                     <small>Rol de usuario que recibirá la comisión</small>
@@ -593,41 +816,68 @@
                             </div>
                         </div>
 
+                        {{-- Fila 2: Categoría Cliente --}}
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="cc-form-group">
-                                    <label><i class="fa fa-percent mr-1"></i>Porcentaje de Comisión <span class="req">*</span></label>
-                                    <div style="position:relative;">
-                                        <input type="number"
-                                               step="0.01"
-                                               min="0"
-                                               max="100"
-                                               class="form-control"
-                                               id="porcentaje_comision"
-                                               name="porcentaje_comision"
-                                               placeholder="0.00"
-                                               required
-                                               style="padding-right: 42px;">
-                                        <span style="position:absolute;right:13px;top:50%;transform:translateY(-50%);color:#f39c12;font-weight:800;font-size:15px;pointer-events:none;">%</span>
-                                    </div>
-                                    <small>Ej: 5, 7.5, 10 — sobre el precio de venta del producto</small>
+                                    <label><i class="fa fa-users mr-1"></i>Categoría de Cliente <span class="req">*</span></label>
+                                    <select id="categoria_cliente_id" name="categoria_cliente_id" class="form-control"
+                                            data-url="{{ route('clientes.categorias.escala') }}" required>
+                                        <option value="">-- Seleccione una categoría --</option>
+                                    </select>
+                                    <small>Categoría de cliente a la que aplica la comisión</small>
                                 </div>
                             </div>
-                            <div class="col-md-6">
-                                <div class="cc-form-group">
-                                    <label><i class="fa fa-eye mr-1"></i>Vista Previa</label>
-                                    <div id="ccPreviewBox" style="
-                                        background: linear-gradient(135deg,#fff8e1,#fef3c7);
-                                        border: 1.5px dashed #f59e0b;
-                                        border-radius: 9px; padding: 11px 14px;
-                                        font-size: 12px; color: #92400e; min-height: 56px;
-                                        display:flex; align-items:center; gap:8px;
-                                    ">
-                                        <i class="fa fa-info-circle" style="color:#f59e0b;font-size:14px;flex-shrink:0;"></i>
-                                        <span id="ccPreviewText" style="font-weight:600;">Complete los campos para ver la vista previa</span>
-                                    </div>
+                            <div class="col-md-6 d-flex align-items-end pb-3">
+                                <div id="ccSelectHint" style="font-size:12px;color:#92400e;padding:8px 12px;
+                                     background:#fff8e1;border:1px solid #fde68a;border-radius:8px;width:100%;">
+                                    <i class="fa fa-arrow-up mr-1" style="color:#f59e0b;"></i>
+                                    Seleccione rol y categoría de cliente para cargar las categorías de precio.
                                 </div>
                             </div>
+                        </div>
+
+                        <div class="cc-divider"></div>
+
+                        {{-- Tabla dinámica de categorías de precio --}}
+                        <div id="seccionCategoriasPrecio" style="display:none;">
+                            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                                <div style="font-size:13px;font-weight:800;color:#4a5568;">
+                                    <i class="fa fa-percent text-warning mr-1"></i>
+                                    Porcentaje de comisión por Categoría de Precio
+                                </div>
+                                <span id="ccCatPreCount" class="badge" style="background:#f39c12;color:#fff;font-size:11px;padding:4px 10px;border-radius:20px;"></span>
+                            </div>
+
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered" id="tbl_categorias_precio" style="font-size:13px;">
+                                    <thead style="background:#f5f7fb;">
+                                        <tr>
+                                            <th style="width:50%;padding:10px 14px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:#4a5568;">
+                                                Categoría de Precio
+                                            </th>
+                                            <th style="width:30%;padding:10px 14px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:#4a5568;">
+                                                % Comisión
+                                            </th>
+                                            <th style="width:20%;padding:10px 14px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:#4a5568;text-align:center;">
+                                                Estado
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tbody_categorias_precio">
+                                        {{-- Se llena dinámicamente --}}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <small class="text-muted">
+                                <i class="fa fa-info-circle mr-1"></i>
+                                Deje en blanco las categorías que no apliquen. Solo se guardan las que tengan % &gt; 0.
+                            </small>
+                        </div>
+
+                        <div id="seccionCargandoPrecios" style="display:none;text-align:center;padding:20px;">
+                            <i class="fa fa-spinner fa-spin fa-2x text-warning"></i>
+                            <p style="margin-top:8px;font-size:13px;color:#718096;">Cargando categorías de precio...</p>
                         </div>
 
                     </form>
@@ -637,12 +887,48 @@
                     <button type="button" class="cc-btn-cancel" data-dismiss="modal">
                         <i class="fa fa-times"></i> Cancelar
                     </button>
-                    <button type="button" class="cc-btn-save" id="btn_guardar_parametro_comision" onclick="$('#paramComisionForm').submit();">
+                    <button type="button" class="cc-btn-save" id="btn_guardar_parametro_comision" onclick="$('#paramComisionForm').submit();" style="display:none;">
                         <i class="fa fa-save"></i>
-                        <span id="ccBtnSaveText">Guardar Parámetro</span>
+                        <span id="ccBtnSaveText">Guardar Parámetros</span>
                     </button>
                 </div>
 
+            </div>
+        </div>
+    </div>
+
+    {{-- ===== MODAL EDITAR % INDIVIDUAL ===== --}}
+    <div class="modal cc-modal fade" id="modalEditarPct" tabindex="-1" role="dialog" data-backdrop="static" data-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered modal-sm" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fa fa-edit mr-1"></i> Editar Porcentaje
+                    </h5>
+                    <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="edit_pct_id">
+                    <div class="cc-form-group mb-0">
+                        <label style="font-size:12px;font-weight:700;color:#718096;">
+                            <i class="fa fa-percent mr-1"></i> Nuevo Porcentaje <span class="req">*</span>
+                        </label>
+                        <div style="position:relative;">
+                            <input type="number" step="0.01" min="0" max="100"
+                                   class="form-control" id="edit_pct_valor" placeholder="0.00"
+                                   style="padding-right:42px;">
+                            <span style="position:absolute;right:13px;top:50%;transform:translateY(-50%);
+                                         color:#f39c12;font-weight:800;font-size:15px;pointer-events:none;">%</span>
+                        </div>
+                        <small id="edit_pct_label" style="font-size:11px;color:#a0aec0;margin-top:6px;display:block;"></small>
+                    </div>
+                </div>
+                <div class="modal-footer" style="justify-content:space-between;">
+                    <button type="button" class="cc-btn-cancel" data-dismiss="modal">Cancelar</button>
+                    <button type="button" class="cc-btn-save" id="btn_confirmar_editar_pct" onclick="confirmarEditarPct()">
+                        <i class="fa fa-save mr-1"></i> Actualizar
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -652,24 +938,7 @@
 @push('scripts')
 <script src="{{ asset('js/js_proyecto/comisiones/Escalado/gestionComision.js') }}"></script>
 <script>
-// -- Preview dinamico --
-function actualizarPreview() {
-    var cat = $('#categoria_cliente_id option:selected').text();
-    var rol = $('#rol_id option:selected').text();
-    var pct = parseFloat($('#porcentaje_comision').val()) || 0;
-    var txt = document.getElementById('ccPreviewText');
-    var hascat = cat && cat.indexOf('Seleccione') === -1 && cat.trim() !== '';
-    var hasrol = rol && rol.indexOf('Seleccione') === -1 && rol.trim() !== '';
-    if (hascat && hasrol && pct > 0) {
-        txt.innerHTML = 'Los usuarios con rol <strong>' + rol + '</strong> ganar&aacute;n <strong style="color:#e67e22;">' + pct + '%</strong> sobre cada producto vendido a clientes de la categor&iacute;a <strong>' + cat + '</strong>.';
-    } else {
-        txt.innerHTML = 'Complete los campos para ver la vista previa';
-    }
-}
-
-$('#categoria_cliente_id, #rol_id, #porcentaje_comision').on('change input', actualizarPreview);
-
-// -- Select2 con clase de dropdown personalizada --
+// ── Select2 ──────────────────────────────────────────────────
 function initModalSelects() {
     ['#categoria_cliente_id', '#rol_id'].forEach(function(id) {
         var $el = $(id);
@@ -680,14 +949,8 @@ function initModalSelects() {
             width: '100%',
             language: { noResults: function() { return 'Sin resultados'; } }
         });
-        // Actualizar preview cuando cambia la selección
-        $el.off('change.preview').on('change.preview', actualizarPreview);
-        // MutationObserver: re-renderizar Select2 cuando AJAX cargue las opciones
+        var mo = new MutationObserver(function() { $el.trigger('change.select2'); });
         if ($el.data('_mo')) { try { $el.data('_mo').disconnect(); } catch(e) {} }
-        var mo = new MutationObserver(function() {
-            $el.trigger('change.select2');
-            actualizarPreview();
-        });
         mo.observe($el[0], { childList: true });
         $el.data('_mo', mo);
     });
@@ -697,38 +960,458 @@ function destroyModalSelects() {
     ['#categoria_cliente_id', '#rol_id'].forEach(function(id) {
         var $el = $(id);
         try { if ($el.data('_mo')) { $el.data('_mo').disconnect(); $el.data('_mo', null); } } catch(e) {}
-        try { if ($el.data('select2')) { $el.off('change.preview'); $el.select2('destroy'); } } catch(e) {}
+        try { if ($el.data('select2')) $el.select2('destroy'); } catch(e) {}
     });
 }
 
-// -- Abrir modal en modo nuevo --
-function abrirModalNuevo() {
-    document.getElementById('ccModalTitleText').textContent = 'Nuevo Par\u00e1metro de Comisi\u00f3n';
-    document.getElementById('ccBtnSaveText').textContent = 'Guardar Par\u00e1metro';
-    document.querySelector('#ccModalTitle i').className = 'fa fa-plus-circle';
+// ── Cargar categorías de precio cuando cambien rol o categoría cliente ──
+function intentarCargarCategoriasPrecio() {
+    var rolId  = $('#rol_id').val();
+    var catId  = $('#categoria_cliente_id').val();
+    if (!rolId || !catId) return;
+
+    $('#seccionCategoriasPrecio').hide();
+    $('#seccionCargandoPrecios').show();
+    $('#btn_guardar_parametro_comision').hide();
+
+    var excludeId = $('#param_comision_id').val() || 0;
+
+    $.getJSON('/comisiones/configuracion/categorias-precio', {
+        cliente_categoria_escala_id: catId,
+        rol_id: rolId,
+        exclude_id: excludeId
+    })
+    .done(function(res) {
+        renderFilasCategorias(res.categorias || []);
+    })
+    .fail(function() {
+        Swal.fire({ icon:'error', title:'Error', text:'No se pudieron cargar las categorías de precio.' });
+    })
+    .always(function() {
+        $('#seccionCargandoPrecios').hide();
+    });
 }
 
-// Parchar editarParametro para actualizar el titulo del modal
-$(document).ready(function() {
-    var _orig = window.editarParametro;
-    window.editarParametro = function(id) {
-        document.getElementById('ccModalTitleText').textContent = 'Editar Par\u00e1metro de Comisi\u00f3n';
-        document.getElementById('ccBtnSaveText').textContent = 'Actualizar Par\u00e1metro';
-        document.querySelector('#ccModalTitle i').className = 'fa fa-edit';
-        if (typeof _orig === 'function') _orig(id);
-    };
-});
+function renderFilasCategorias(categorias) {
+    var $tbody = $('#tbody_categorias_precio');
+    $tbody.empty();
 
-// Inicializar Select2 cuando se abre el modal (despues de que gestionComision.js registre su handler)
+    if (!categorias.length) {
+        $tbody.append('<tr><td colspan="3" class="text-center text-muted py-3">' +
+            '<i class="fa fa-exclamation-circle mr-1"></i>' +
+            'No hay categorías de precio activas para esta categoría de cliente.</td></tr>');
+        $('#seccionCategoriasPrecio').show();
+        $('#ccCatPreCount').text('0 categorías');
+        return;
+    }
+
+    categorias.forEach(function(cat) {
+        var tieneConfig = cat.porcentaje_comision !== null && cat.porcentaje_comision !== undefined;
+        var pct = tieneConfig ? parseFloat(cat.porcentaje_comision) : '';
+        var estadoBadge = tieneConfig
+            ? '<span class="badge" style="background:#e6faf5;color:#0fa37a;border:1px solid #a7f3d0;font-size:10px;padding:3px 8px;border-radius:12px;"><i class="fa fa-check-circle mr-1"></i>Configurado</span>'
+            : '<span class="badge" style="background:#fff0f0;color:#e74c3c;border:1px solid #fecaca;font-size:10px;padding:3px 8px;border-radius:12px;"><i class="fa fa-minus-circle mr-1"></i>Sin configurar</span>';
+
+        var row = '<tr data-cat-id="' + cat.id + '" data-ce-id="' + (cat.comision_escala_id || '') + '">' +
+            '<td style="vertical-align:middle;padding:10px 14px;font-weight:600;color:#2d3748;">' +
+                '<i class="fa fa-tag text-warning mr-2" style="font-size:11px;"></i>' + cat.nombre +
+            '</td>' +
+            '<td style="vertical-align:middle;padding:8px 14px;">' +
+                '<div style="position:relative;">' +
+                    '<input type="number" step="0.01" min="0" max="100"' +
+                    '       class="form-control form-control-sm pct-input"' +
+                    '       name="porcentaje_' + cat.id + '"' +
+                    '       placeholder="Ej: 5.00"' +
+                    '       value="' + pct + '"' +
+                    '       style="padding-right:36px;font-weight:600;"' +
+                    '       oninput="actualizarEstadoFila(this)">' +
+                    '<span style="position:absolute;right:10px;top:50%;transform:translateY(-50%);' +
+                    '             color:#f39c12;font-weight:800;font-size:13px;pointer-events:none;">%</span>' +
+                '</div>' +
+            '</td>' +
+            '<td style="vertical-align:middle;padding:8px 14px;text-align:center;" class="td-estado">' +
+                estadoBadge +
+            '</td>' +
+        '</tr>';
+        $tbody.append(row);
+    });
+
+    $('#seccionCategoriasPrecio').show();
+    $('#btn_guardar_parametro_comision').show();
+    $('#ccCatPreCount').text(categorias.length + ' categoría' + (categorias.length !== 1 ? 's' : ''));
+}
+
+function actualizarEstadoFila(input) {
+    var $td = $(input).closest('tr').find('.td-estado');
+    var val  = parseFloat($(input).val());
+    if (val > 0) {
+        $td.html('<span class="badge" style="background:#e6faf5;color:#0fa37a;border:1px solid #a7f3d0;font-size:10px;padding:3px 8px;border-radius:12px;"><i class="fa fa-check-circle mr-1"></i>Se guardará</span>');
+    } else {
+        $td.html('<span class="badge" style="background:#f4f6f9;color:#a0aec0;border:1px solid #e2e8f0;font-size:10px;padding:3px 8px;border-radius:12px;"><i class="fa fa-minus mr-1"></i>Se omitirá</span>');
+    }
+}
+
+// ── Eventos de cambio ──
+$(document).on('change', '#rol_id, #categoria_cliente_id', intentarCargarCategoriasPrecio);
+
+// ── Abrir modal nuevo ──
+function abrirModalNuevo() {
+    document.getElementById('ccModalTitleText').textContent = 'Nuevo Parámetro de Comisión';
+    document.getElementById('ccBtnSaveText').textContent    = 'Guardar Parámetros';
+    document.querySelector('#ccModalTitle i').className = 'fa fa-plus-circle';
+    $('#seccionCategoriasPrecio').hide();
+    $('#seccionCargandoPrecios').hide();
+    $('#btn_guardar_parametro_comision').hide();
+    $('#ccSelectHint').show();
+}
+
+// ── Inicializar al abrir modal ──
 $('#modalParamComision').on('shown.bs.modal', function() {
     initModalSelects();
-    actualizarPreview();
 });
 
-// Limpiar Select2 y preview al cerrar
+// ── Limpiar al cerrar ──
 $('#modalParamComision').on('hidden.bs.modal', function() {
     destroyModalSelects();
-    document.getElementById('ccPreviewText').innerHTML = 'Complete los campos para ver la vista previa';
+    $('#paramComisionForm')[0].reset();
+    $('#param_comision_id').val('');
+    $('#tbody_categorias_precio').empty();
+    $('#seccionCategoriasPrecio').hide();
+    $('#seccionCargandoPrecios').hide();
+    $('#btn_guardar_parametro_comision').hide();
+    $('#ccSelectHint').show();
+    try { $('#paramComisionForm').parsley().reset(); } catch(e) {}
 });
+
+// ── Modal editar porcentaje individual ──
+function editarParametro(id) {
+    $.getJSON('/parametro-comision/' + id, function(data) {
+        $('#edit_pct_id').val(data.id);
+        $('#edit_pct_valor').val(parseFloat(data.porcentaje_comision));
+        $('#edit_pct_label').text('Registro ID #' + data.id);
+        $('#modalEditarPct').modal('show');
+    }).fail(function() {
+        Swal.fire({ icon:'error', title:'Error', text:'No se pudo cargar el registro.' });
+    });
+}
+
+function confirmarEditarPct() {
+    var id  = $('#edit_pct_id').val();
+    var pct = $('#edit_pct_valor').val();
+
+    if (!pct || parseFloat(pct) <= 0) {
+        Swal.fire({ icon:'warning', title:'Porcentaje requerido', text:'Ingrese un % mayor a 0.' });
+        return;
+    }
+
+    var $btn = $('#btn_confirmar_editar_pct').prop('disabled', true);
+    var fd   = new FormData();
+    fd.append('porcentaje_comision', pct);
+
+    axios.post('/actualizar/parametro/comision/' + id, fd)
+        .then(function(res) {
+            $('#modalEditarPct').modal('hide');
+            $('#tbl_listaParametroComision').DataTable().ajax.reload(null, false);
+            Swal.fire({ icon: res.data.icon, title: res.data.title, text: res.data.text });
+        })
+        .catch(function(err) {
+            var d = err.response?.data || { icon:'error', title:'Error', text:'Ocurrió un error.' };
+            Swal.fire({ icon: d.icon, title: d.title, text: d.text });
+        })
+        .finally(function() { $btn.prop('disabled', false); });
+}
+
+// ── Carga masiva ─────────────────────────────────────────────────────────────
+function procesarCargaMasiva(input) {
+    if (!input.files || !input.files[0]) return;
+    var archivo = input.files[0];
+
+    // Reset input para permitir subir el mismo archivo nuevamente
+    input.value = '';
+
+    Swal.fire({
+        title: '¿Subir plantilla?',
+        html: '<span style="font-size:13px;">Se procesará <strong>' + archivo.name + '</strong>.<br>' +
+              'Los registros existentes serán <strong>actualizados</strong> y los nuevos serán <strong>insertados</strong>.</span>',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: '<i class="fa fa-upload mr-1"></i> Sí, procesar',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#e67e22',
+        cancelButtonColor: '#6c757d',
+    }).then(function(result) {
+        if (!result.isConfirmed) return;
+
+        // Mostrar progreso
+        Swal.fire({
+            title: 'Procesando...',
+            html: '<div style="display:flex;flex-direction:column;align-items:center;gap:12px;padding:10px 0;">' +
+                  '<i class="fa fa-spinner fa-spin fa-2x" style="color:#e67e22;"></i>' +
+                  '<span style="font-size:13px;color:#4a5568;">Leyendo y registrando comisiones...<br>Esto puede tomar unos segundos.</span>' +
+                  '</div>',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            showConfirmButton: false,
+        });
+
+        var fd = new FormData();
+        fd.append('archivo_comision', archivo);
+        fd.append('_token', '{{ csrf_token() }}');
+
+        axios.post('{{ route("comision.configuracion.carga.masiva") }}', fd, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        })
+        .then(function(res) {
+            var d = res.data;
+            var detalles = '<div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:10px;">' +
+                '<span style="background:#e6faf5;color:#0fa37a;border:1px solid #a7f3d0;border-radius:20px;padding:4px 14px;font-size:12px;font-weight:700;">' +
+                '<i class="fa fa-plus-circle mr-1"></i>Insertados: ' + (d.insertados||0) + '</span>' +
+                '<span style="background:#fff8e1;color:#856404;border:1px solid #fde68a;border-radius:20px;padding:4px 14px;font-size:12px;font-weight:700;">' +
+                '<i class="fa fa-edit mr-1"></i>Actualizados: ' + (d.actualizados||0) + '</span>' +
+                '<span style="background:#f4f6f9;color:#718096;border:1px solid #e2e8f0;border-radius:20px;padding:4px 14px;font-size:12px;font-weight:700;">' +
+                '<i class="fa fa-minus-circle mr-1"></i>Omitidos: ' + (d.omitidos||0) + '</span>' +
+                '</div>';
+
+            var errHtml = '';
+            if (d.errores && d.errores.length) {
+                errHtml = '<div style="margin-top:10px;font-size:11px;color:#e53e3e;text-align:left;max-height:80px;overflow-y:auto;background:#fff5f5;padding:8px;border-radius:6px;">' +
+                    d.errores.slice(0,5).join('<br>') + '</div>';
+            }
+
+            $('#tbl_listaParametroComision').DataTable().ajax.reload(null, false);
+
+            Swal.fire({
+                icon: d.icon || 'success',
+                title: d.title || 'Carga completada',
+                html: detalles + errHtml,
+                confirmButtonColor: '#e67e22',
+            });
+        })
+        .catch(function(err) {
+            var d = err.response?.data || { icon:'error', title:'Error', text:'Error al procesar el archivo.' };
+            Swal.fire({ icon: d.icon, title: d.title, text: d.text });
+        });
+    });
+}
+
+// ── Gestión Masiva — Tab Switcher ────────────────────────────────────────────
+var _catCliCargadas           = false;
+var _archivoPendienteFiltrado = null;
+
+function switchTab(tab) {
+    var isGlobal = tab === 'global';
+    document.getElementById('tab_global').style.display    = isGlobal ? '' : 'none';
+    document.getElementById('tab_selectiva').style.display = isGlobal ? 'none' : '';
+
+    var btnG = document.getElementById('tab_btn_global');
+    var btnS = document.getElementById('tab_btn_selectiva');
+
+    if (isGlobal) {
+        btnG.style.cssText += ';background:linear-gradient(135deg,#f39c12,#e67e22);color:#fff;box-shadow:0 2px 8px rgba(243,156,18,.4);';
+        btnS.style.cssText += ';background:transparent;color:rgba(255,255,255,.7);box-shadow:none;';
+    } else {
+        btnS.style.cssText += ';background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;box-shadow:0 2px 8px rgba(102,126,234,.4);';
+        btnG.style.cssText += ';background:transparent;color:rgba(255,255,255,.7);box-shadow:none;';
+        if (!_catCliCargadas) cargarCatCliParaFiltro();
+    }
+}
+
+/* helper: checkbox item */
+function _chkItem(grupo, id, label, subLabel) {
+    var sub = subLabel ? '<span style="font-size:10px;color:#a0aec0;margin-left:4px;">('+subLabel+')</span>' : '';
+    return '<label style="display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:6px;'
+        + 'cursor:pointer;transition:background .12s;font-size:12px;color:#2d3748;font-weight:500;"'
+        + ' onmouseover="this.style.background=\'#f0f4ff\'" onmouseout="this.style.background=\'transparent\'">'
+        + '<input type="checkbox" class="chk_'+grupo+'" value="'+id+'"'
+        + ' onchange="_onChkCatCliChange()"'
+        + ' style="width:14px;height:14px;cursor:pointer;accent-color:#667eea;">'
+        + label + sub + '</label>';
+}
+function _chkItemPrecio(id, label, subLabel) {
+    var sub = subLabel ? '<span style="font-size:10px;color:#a0aec0;margin-left:4px;">('+subLabel+')</span>' : '';
+    return '<label style="display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:6px;'
+        + 'cursor:pointer;transition:background .12s;font-size:12px;color:#2d3748;font-weight:500;"'
+        + ' onmouseover="this.style.background=\'#fffbf0\'" onmouseout="this.style.background=\'transparent\'">'
+        + '<input type="checkbox" class="chk_cat_precio" value="'+id+'"'
+        + ' style="width:14px;height:14px;cursor:pointer;accent-color:#f39c12;">'
+        + label + sub + '</label>';
+}
+
+function cargarCatCliParaFiltro() {
+    $.getJSON('{{ route("comision.configuracion.cat.cliente.activas") }}', function(res) {
+        var $lista = $('#lista_chk_cat_cli').empty();
+        (res.categorias || []).forEach(function(c) {
+            $lista.append(_chkItem('cat_cli', c.id, c.nombre_categoria));
+        });
+        _catCliCargadas = true;
+        // Cargar precios con todas las catCli al inicio
+        recargarCatPrecioFiltro([]);
+    });
+}
+
+function _onChkCatCliChange() {
+    var ids = _getChecked('cat_cli');
+    recargarCatPrecioFiltro(ids);
+}
+
+function recargarCatPrecioFiltro(catCliIds) {
+    var $lista = $('#lista_chk_cat_precio');
+    $lista.html('<div style="text-align:center;color:#a0aec0;font-size:12px;padding:12px 0;"><i class="fa fa-spinner fa-spin"></i></div>');
+
+    var params = (catCliIds || []).map(function(id) { return 'cat_cli_ids[]=' + id; }).join('&');
+    var url = '{{ route("comision.configuracion.cat.precio.filtro") }}' + (params ? '?' + params : '');
+
+    $.getJSON(url, function(res) {
+        $lista.empty();
+        if (!res.categorias || res.categorias.length === 0) {
+            $lista.html('<div style="text-align:center;color:#a0aec0;font-size:12px;padding:12px 0;">Sin categorías de precio disponibles.</div>');
+            return;
+        }
+        var mostrarSub = catCliIds && catCliIds.length !== 1; // mostrar a qué catCli pertenece si hay varias
+        res.categorias.forEach(function(c) {
+            $lista.append(_chkItemPrecio(c.id, c.nombre, mostrarSub ? c.cat_cli_nombre : null));
+        });
+    });
+}
+
+function checklistSelTodos(grupo, marcar) {
+    $('.chk_' + grupo).prop('checked', marcar);
+    if (grupo === 'cat_cli') _onChkCatCliChange();
+}
+
+function _getChecked(grupo) {
+    var ids = [];
+    $('.chk_' + grupo + ':checked').each(function() { ids.push($(this).val()); });
+    return ids;
+}
+
+function descargarPlantillaFiltrada() {
+    var catCli    = _getChecked('cat_cli');
+    var catPrecio = _getChecked('cat_precio');
+
+    var base = '{{ route("comision.configuracion.plantilla.filtrada") }}';
+    var qs   = [];
+    catCli.forEach(function(id)    { qs.push('cat_cli[]='    + id); });
+    catPrecio.forEach(function(id) { qs.push('cat_precio[]=' + id); });
+
+    window.location.href = base + (qs.length ? '?' + qs.join('&') : '');
+}
+
+function iniciarCargaFiltrada(input) {
+    if (!input.files || !input.files[0]) return;
+    _archivoPendienteFiltrado = input.files[0];
+    input.value = '';
+
+    // Step 1: preview
+    var fd = new FormData();
+    fd.append('archivo_comision', _archivoPendienteFiltrado);
+    fd.append('_token', '{{ csrf_token() }}');
+
+    Swal.fire({
+        title: 'Analizando archivo...',
+        html: '<div style="text-align:center;padding:10px 0;"><i class="fa fa-spinner fa-spin fa-2x" style="color:#667eea;"></i><p style="margin-top:8px;font-size:13px;color:#4a5568;">Leyendo contenido del Excel...</p></div>',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        showConfirmButton: false,
+    });
+
+    axios.post('{{ route("comision.configuracion.preview.filtrada") }}', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+    })
+    .then(function(res) {
+        var d = res.data; // {existentes, nuevos, omitidos}
+        var total = (d.existentes || 0) + (d.nuevos || 0);
+
+        if (total === 0) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Sin datos válidos',
+                text: 'No se encontraron filas con porcentaje mayor a 0 para procesar.',
+            });
+            return;
+        }
+
+        var detalleHtml =
+            '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:12px 0;">' +
+            (d.existentes > 0
+                ? '<span style="background:#fff8e1;color:#856404;border:1px solid #fde68a;border-radius:20px;padding:5px 14px;font-size:12px;font-weight:700;"><i class="fa fa-edit mr-1"></i>Actualizarán: ' + d.existentes + '</span>'
+                : '') +
+            (d.nuevos > 0
+                ? '<span style="background:#e6faf5;color:#0fa37a;border:1px solid #a7f3d0;border-radius:20px;padding:5px 14px;font-size:12px;font-weight:700;"><i class="fa fa-plus-circle mr-1"></i>Insertarán: ' + d.nuevos + '</span>'
+                : '') +
+            (d.omitidos > 0
+                ? '<span style="background:#f4f6f9;color:#718096;border:1px solid #e2e8f0;border-radius:20px;padding:5px 14px;font-size:12px;font-weight:700;"><i class="fa fa-minus-circle mr-1"></i>Omitidos: ' + d.omitidos + '</span>'
+                : '') +
+            '</div>';
+
+        var advertencia = d.existentes > 0
+            ? '<p style="font-size:12px;color:#e53e3e;margin-top:6px;"><i class="fa fa-exclamation-triangle mr-1"></i>' +
+              d.existentes + ' registro(s) ya configurado(s) serán sobreescritos con el nuevo porcentaje.</p>'
+            : '';
+
+        Swal.fire({
+            title: '¿Confirmar carga?',
+            html: detalleHtml + advertencia +
+                  '<p style="font-size:12px;color:#718096;margin-top:4px;">Esta acción no se puede deshacer.</p>',
+            icon: d.existentes > 0 ? 'warning' : 'question',
+            showCancelButton: true,
+            confirmButtonText: '<i class="fa fa-upload mr-1"></i> Sí, procesar',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: d.existentes > 0 ? '#e67e22' : '#667eea',
+            cancelButtonColor: '#6c757d',
+        }).then(function(result) {
+            if (result.isConfirmed) procesarArchivoFiltrado();
+        });
+    })
+    .catch(function(err) {
+        var d = err.response?.data || { icon:'error', title:'Error', text:'Error al leer el archivo.' };
+        Swal.fire({ icon: d.icon, title: d.title, text: d.text });
+    });
+}
+
+function procesarArchivoFiltrado() {
+    var fd = new FormData();
+    fd.append('archivo_comision', _archivoPendienteFiltrado);
+    fd.append('_token', '{{ csrf_token() }}');
+
+    Swal.fire({
+        title: 'Procesando...',
+        html: '<div style="text-align:center;padding:10px 0;"><i class="fa fa-spinner fa-spin fa-2x" style="color:#667eea;"></i><p style="margin-top:8px;font-size:13px;color:#4a5568;">Registrando comisiones...</p></div>',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        showConfirmButton: false,
+    });
+
+    axios.post('{{ route("comision.configuracion.procesar.filtrada") }}', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+    })
+    .then(function(res) {
+        var d = res.data;
+        var detalles =
+            '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:10px;">' +
+            '<span style="background:#e6faf5;color:#0fa37a;border:1px solid #a7f3d0;border-radius:20px;padding:4px 14px;font-size:12px;font-weight:700;">' +
+            '<i class="fa fa-plus-circle mr-1"></i>Insertados: ' + (d.insertados||0) + '</span>' +
+            '<span style="background:#fff8e1;color:#856404;border:1px solid #fde68a;border-radius:20px;padding:4px 14px;font-size:12px;font-weight:700;">' +
+            '<i class="fa fa-edit mr-1"></i>Actualizados: ' + (d.actualizados||0) + '</span>' +
+            '<span style="background:#f4f6f9;color:#718096;border:1px solid #e2e8f0;border-radius:20px;padding:4px 14px;font-size:12px;font-weight:700;">' +
+            '<i class="fa fa-minus-circle mr-1"></i>Omitidos: ' + (d.omitidos||0) + '</span>' +
+            '</div>';
+
+        $('#tbl_listaParametroComision').DataTable().ajax.reload(null, false);
+        _archivoPendienteFiltrado = null;
+
+        Swal.fire({
+            icon: 'success',
+            title: 'Carga completada',
+            html: detalles,
+            confirmButtonColor: '#667eea',
+        });
+    })
+    .catch(function(err) {
+        var d = err.response?.data || { icon:'error', title:'Error', text:'Error al procesar.' };
+        Swal.fire({ icon: d.icon, title: d.title, text: d.text });
+    });
+}
 </script>
 @endpush
+

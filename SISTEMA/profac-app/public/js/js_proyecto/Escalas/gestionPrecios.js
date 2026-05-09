@@ -685,19 +685,30 @@ function buildCatRow(c) {
     ? '<span style="font-size:.75rem;"><i class="fa fa-user mr-1 text-secondary"></i>' + escapeHtml(c.nombre_actualizador) + '</span>'
     : '<span class="text-muted">\u2014</span>';
 
+  // Botón compacto → abre mini modal de comisiones
+  var cnt = (c.comisiones || []).length;
+  var comisionesHtml = cnt > 0
+    ? '<button class="btn-mc-ver" onclick="abrirModalComisiones(' + c.id + ', false); event.stopPropagation();"><i class="fa fa-percent"></i> ' + cnt + ' roles</button>'
+    : '<span class="btn-mc-ver-sin"><i class="fa fa-percent"></i> Sin config.</span>';
+
+  // Serializar comisiones para data-attribute
+  var comisionesData = JSON.stringify(c.comisiones || []).replace(/"/g, '&quot;');
+
   return `<tr id="row_cat_${c.id}"
               data-id="${c.id}"
               data-nombre="${escapeHtml(c.nombre)}"
               data-a="${c.porc_precio_a}"
               data-b="${c.porc_precio_b || ''}"
               data-c="${c.porc_precio_c || ''}"
-              data-d="${c.porc_precio_d || ''}">
+              data-d="${c.porc_precio_d || ''}"
+              data-comisiones="${comisionesData}">
     <td class="col-hide-xs">${c.id}</td>
     <td>${escapeHtml(c.nombre)}</td>
     <td class="text-center">${c.porc_precio_a}%</td>
     <td class="text-center col-hide-xs">${c.porc_precio_b ? c.porc_precio_b + '%' : '<span class="text-muted">\u2014</span>'}</td>
     <td class="text-center col-hide-xs">${c.porc_precio_c ? c.porc_precio_c + '%' : '<span class="text-muted">\u2014</span>'}</td>
     <td class="text-center col-hide-xs">${c.porc_precio_d ? c.porc_precio_d + '%' : '<span class="text-muted">\u2014</span>'}</td>
+    <td class="text-center" style="max-width:180px;">${comisionesHtml}</td>
     <td class="text-center">${estado}</td>
     <td class="text-center col-hide-sm">${fechaAct}</td>
     <td class="text-center col-hide-sm">${usuarioAct}</td>
@@ -715,13 +726,249 @@ function escapeHtml(text) {
     .replace(/'/g, '&#39;');
 }
 
+/* ════════════════════════════════════════════════════════
+   MINI MODAL % COMISIONES POR ROL
+   ════════════════════════════════════════════════════════ */
+window._pfComisionesEditadas = {};
+var _pfMCCatId = null;
+
+function abrirModalComisiones(catId, modoEdicion) {
+  var $row = $('#row_cat_' + catId);
+  var nombre    = $row.data('nombre') || ('Categoría ' + catId);
+  var comisiones = $row.data('comisiones') || [];
+
+  _pfMCCatId = catId;
+
+  // Si ya hay ediciones pendientes para este cat, usarlas
+  var items = (window._pfComisionesEditadas[catId] && window._pfComisionesEditadas[catId].length > 0)
+    ? window._pfComisionesEditadas[catId]
+    : comisiones;
+
+  // Header
+  $('#mc-modal-subtitle').html(
+    '<strong>' + escapeHtml(nombre) + '</strong>'
+    + ' <span style="opacity:.7;margin-left:6px;">' + items.length + ' rol' + (items.length !== 1 ? 'es' : '') + ' configurado' + (items.length !== 1 ? 's' : '') + '</span>'
+  );
+
+  // Limpiar buscador y tabla
+  $('#mc-buscador').val('');
+  $('#mc-no-result').hide();
+  var $tbody = $('#mc-tbody');
+  $tbody.empty();
+
+  if (items.length === 0) {
+    $tbody.append('<tr><td colspan="2" class="text-center py-3" style="color:#999;font-size:.82rem;">Sin comisiones configuradas para esta categoría.</td></tr>');
+    $('#mc-btn-aplicar').hide();
+  } else {
+    items.forEach(function (cm) {
+      var porc = parseFloat(cm.porcentaje_comision);
+      var celdaPorc = modoEdicion
+        ? '<div style="display:inline-flex;align-items:center;gap:6px;">'
+            + '<input type="number" class="mc-pct-input" '
+            + 'data-escala-id="' + cm.escala_id + '" '
+            + 'value="' + porc + '" min="0" max="100" step="0.01">'
+            + '<span style="font-size:.72rem;color:#777;">%</span></div>'
+        : '<span class="mc-pct-badge">' + porc + '%</span>';
+
+      $tbody.append(
+        '<tr data-rol="' + escapeHtml((cm.rol_nombre || '').toLowerCase()) + '" data-escala-id="' + cm.escala_id + '">'
+        + '<td style="font-size:.82rem;">' + escapeHtml(cm.rol_nombre) + '</td>'
+        + '<td class="text-center">' + celdaPorc + '</td>'
+        + '</tr>'
+      );
+    });
+    $('#mc-btn-aplicar').toggle(modoEdicion);
+    $('#mc-btn-editar').toggle(!modoEdicion);
+  }
+
+  // Abrir overlay custom (siempre encima de todo)
+  document.getElementById('mcOverlay').style.display = 'flex';
+  // Bloquear el focus-trap de Bootstrap para permitir edición en el overlay
+  $(document).off('focusin.modal').on('focusin.mcOverlay', function (e) {
+    if ($('#mcOverlay').is(':visible') && !$(e.target).closest('#mcOverlay').length) {
+      e.stopImmediatePropagation();
+    }
+  });
+  setTimeout(function () { document.getElementById('mc-buscador').focus(); }, 80);
+}
+
+function cerrarModalComisiones() {
+  document.getElementById('mcOverlay').style.display = 'none';
+  // Restaurar el focus-trap de Bootstrap
+  $(document).off('focusin.mcOverlay');
+}
+function cerrarMCIfBg(e) {
+  if (e.target === document.getElementById('mcOverlay')) cerrarModalComisiones();
+}
+
+function activarEdicionMC() {
+  // Reemplaza cada badge por un input numérico editable
+  $('#mc-tbody tr[data-rol]').each(function () {
+    var $td = $(this).find('td:last-child');
+    var badge = $td.find('.mc-pct-badge');
+    if (badge.length) {
+      var val = badge.text().replace('%', '').trim();
+      var escalId = $(this).data('escala-id');
+      $td.html(
+        '<div style="display:inline-flex;align-items:center;gap:6px;">'
+        + '<input type="number" class="mc-pct-input" data-escala-id="' + escalId + '" '
+        + 'value="' + val + '" min="0" max="100" step="0.01">'
+        + '<span style="font-size:.72rem;color:#777;">%</span></div>'
+      );
+    }
+  });
+  $('#mc-btn-editar').hide();
+  $('#mc-btn-aplicar').show();
+  // Foco en el primer input
+  $('#mc-tbody .mc-pct-input').first().focus().select();
+}
+
+function filtrarModalComisiones(val) {
+  var query = val.toLowerCase().trim();
+  var visible = 0;
+  $('#mc-tbody tr[data-rol]').each(function () {
+    var rol = $(this).data('rol') || '';
+    var show = !query || rol.indexOf(query) !== -1;
+    $(this).toggle(show);
+    if (show) visible++;
+  });
+  $('#mc-no-result').toggle(visible === 0 && query.length > 0);
+}
+
+function aplicarComisionesModal() {
+  if (!_pfMCCatId) return;
+
+  // Recoger valores actuales de los inputs
+  var items = [];
+  $('#mc-tbody tr[data-rol]').each(function () {
+    var $input = $(this).find('.mc-pct-input');
+    if ($input.length) {
+      var escalId = parseInt($input.data('escala-id'));
+      var pct     = parseFloat($input.val());
+      var rolNom  = $(this).find('td:first-child').text().trim();
+      if (escalId && !isNaN(pct)) {
+        items.push({ escala_id: escalId, porcentaje_comision: pct, rol_nombre: rolNom });
+      }
+    }
+  });
+
+  if (items.length === 0) {
+    cerrarModalComisiones();
+    $('#modalVerCatPrecios').addClass('pf-hiding').modal('hide');
+    Swal.fire({ icon: 'warning', title: 'Sin cambios', text: 'No hay comisiones para aplicar.', timer: 1800, showConfirmButton: false });
+    return;
+  }
+
+  // Comparar con valores originales para detectar cambios reales
+  var originales = ($('#row_cat_' + _pfMCCatId).data('comisiones') || []);
+  var origMap = {};
+  originales.forEach(function (o) { origMap[o.escala_id] = parseFloat(o.porcentaje_comision); });
+
+  var cambios = items.filter(function (it) {
+    return origMap[it.escala_id] === undefined || origMap[it.escala_id] !== it.porcentaje_comision;
+  });
+
+  // Construir lista HTML de cambios para el confirm
+  var listHtml = cambios.length > 0
+    ? '<div style="max-height:200px;overflow-y:auto;margin-top:8px;">'
+      + '<table style="width:100%;font-size:.82rem;border-collapse:collapse;">'
+      + '<thead><tr style="background:#f0f7f1;">'
+      + '<th style="padding:5px 8px;text-align:left;border-bottom:1px solid #c8e6c9;">Rol</th>'
+      + '<th style="padding:5px 8px;text-align:center;border-bottom:1px solid #c8e6c9;">Antes</th>'
+      + '<th style="padding:5px 8px;text-align:center;border-bottom:1px solid #c8e6c9;">Ahora</th>'
+      + '</tr></thead><tbody>'
+      + cambios.map(function (it) {
+          var antes = origMap[it.escala_id] !== undefined ? origMap[it.escala_id] + '%' : '—';
+          return '<tr><td style="padding:4px 8px;">' + escapeHtml(it.rol_nombre) + '</td>'
+            + '<td style="padding:4px 8px;text-align:center;color:#999;">' + antes + '</td>'
+            + '<td style="padding:4px 8px;text-align:center;font-weight:700;color:#1b5e20;">' + it.porcentaje_comision + '%</td></tr>';
+        }).join('')
+      + '</tbody></table></div>'
+    : '<p style="color:#888;font-size:.83rem;margin-top:6px;">No se detectaron cambios respecto a los valores actuales.</p>';
+
+  // Guardar antes de cerrar
+  var catIdGuardar = _pfMCCatId;
+  var itemsParaGuardar = items;
+  var cambiosParaGuardar = cambios;
+
+  var titulo = cambiosParaGuardar.length > 0
+    ? 'Confirmar ' + cambiosParaGuardar.length + ' cambio' + (cambiosParaGuardar.length !== 1 ? 's' : '')
+    : 'Sin cambios detectados';
+
+  // Cerrar overlay y modal COMPLETAMENTE antes de Swal
+  cerrarModalComisiones();
+  var $bsModal = $('#modalVerCatPrecios');
+  if ($bsModal.hasClass('show')) {
+    $bsModal.one('hidden.bs.modal', function () {
+      _mostrarSwalComisiones(titulo, listHtml, cambiosParaGuardar, catIdGuardar, itemsParaGuardar);
+    });
+    $bsModal.addClass('pf-hiding').modal('hide');
+  } else {
+    _mostrarSwalComisiones(titulo, listHtml, cambiosParaGuardar, catIdGuardar, itemsParaGuardar);
+  }
+}
+
+function _mostrarSwalComisiones(titulo, listHtml, cambiosParaGuardar, catIdGuardar, itemsParaGuardar) {
+  Swal.fire({
+    icon: cambiosParaGuardar.length > 0 ? 'question' : 'info',
+    title: titulo,
+    html: '<p style="font-size:.85rem;margin:0;">Se modificará el % de comisión para los siguientes roles:</p>' + listHtml,
+    showCancelButton: cambiosParaGuardar.length > 0,
+    confirmButtonText: cambiosParaGuardar.length > 0 ? '<i class="fa fa-check mr-1"></i>Sí, aplicar' : 'Cerrar',
+    cancelButtonText: 'Cancelar',
+    confirmButtonColor: '#27ae60',
+    cancelButtonColor: '#6c757d',
+    customClass: { htmlContainer: 'text-left' }
+  }).then(function (result) {
+    if (!result.isConfirmed || cambiosParaGuardar.length === 0) return;
+
+    // Enviar al servidor
+    axios.post('/actualizar/comision/cat-precio', {
+      cat_precio_id: catIdGuardar,
+      comisiones: itemsParaGuardar.map(function (it) {
+        return { escala_id: it.escala_id, porcentaje_comision: it.porcentaje_comision };
+      })
+    }).then(function (response) {
+      // Actualizar data-comisiones en la fila
+      var $row = $('#row_cat_' + catIdGuardar);
+      var comisionesActuales = $row.data('comisiones') || [];
+      var mapNuevos = {};
+      itemsParaGuardar.forEach(function (it) { mapNuevos[it.escala_id] = it.porcentaje_comision; });
+      comisionesActuales.forEach(function (c) {
+        if (mapNuevos[c.escala_id] !== undefined) c.porcentaje_comision = mapNuevos[c.escala_id];
+      });
+      $row.data('comisiones', comisionesActuales);
+
+      Swal.fire({
+        icon: 'success',
+        title: '¡Comisiones actualizadas!',
+        html: '<b>' + cambiosParaGuardar.length + ' cambio' + (cambiosParaGuardar.length !== 1 ? 's' : '') + '</b> guardado' + (cambiosParaGuardar.length !== 1 ? 's' : '') + ' correctamente.',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#27ae60',
+        timer: 3500,
+        timerProgressBar: true
+      });
+    }).catch(function (err) {
+      console.error(err);
+      Swal.fire({ icon: 'error', title: 'Error al guardar', text: 'No se pudieron guardar los cambios. Inténtalo de nuevo.' });
+    });
+  });
+}
+
 function activarEdicionFila(id) {
   const $row = $('#row_cat_' + id);
-  const nombre = $row.data('nombre');
-  const a = $row.data('a');
-  const b = $row.data('b');
-  const c = $row.data('c');
-  const d = $row.data('d');
+  const nombre    = $row.data('nombre');
+  const a         = $row.data('a');
+  const b         = $row.data('b');
+  const c         = $row.data('c');
+  const d         = $row.data('d');
+  const comisiones = $row.data('comisiones') || [];
+
+  // Botón para abrir mini modal en modo edición
+  var cntEdit = comisiones.length;
+  var comisionInputsHtml = cntEdit > 0
+    ? '<button class="btn-mc-ver-edit" onclick="abrirModalComisiones(' + id + ', true); event.stopPropagation();"><i class="fa fa-pencil"></i> Comisiones (' + cntEdit + ')</button>'
+    : '<span class="btn-mc-ver-sin"><i class="fa fa-percent"></i> Sin config.</span>';
 
   $row.html(`
     <td class="col-hide-xs">${id}</td>
@@ -745,6 +992,7 @@ function activarEdicionFila(id) {
       <input type="number" class="form-control edit-cat-input text-center" id="edit_d_${id}"
              value="${d}" min="0" max="100" step="0.01" style="width:52px;">
     </td>
+    <td style="min-width:140px;">${comisionInputsHtml}</td>
     <td></td>
     <td class="col-hide-sm"></td>
     <td class="text-center col-hide-sm"></td>
@@ -775,6 +1023,10 @@ function guardarEdicionCat(id) {
     return;
   }
 
+  // Recoger comisiones editadas en el mini modal (almacenadas en memoria temporal)
+  var comisionItems = window._pfComisionesEditadas ? (window._pfComisionesEditadas[id] || []) : [];
+  if (window._pfComisionesEditadas) delete window._pfComisionesEditadas[id];
+
   const payload = {
     id:           id,
     nombre:       nombre,
@@ -790,14 +1042,21 @@ function guardarEdicionCat(id) {
   $btnGuardar.prop('disabled', true)
              .html('<i class="fa fa-spinner fa-spin mr-1"></i>Guardando...');
 
-  axios.post('/actualizar/categoria/precios', payload)
-    .then(function (res) {
-      const data = res.data;
+  // Guardar precios y comisiones en paralelo
+  var promPrecios = axios.post('/actualizar/categoria/precios', payload);
+  var promComisiones = comisionItems.length > 0
+    ? axios.post('/actualizar/comision/cat-precio', { cat_precio_id: id, comisiones: comisionItems })
+    : Promise.resolve(null);
+
+  axios.all([promPrecios, promComisiones])
+    .then(axios.spread(function (resPrecios) {
+      const data = resPrecios.data;
       const count = data.productos_actualizados ?? 0;
       const htmlMsg = 'Categoría actualizada correctamente.' +
         '<br><span class="badge badge-success mt-2" style="font-size:.82rem;padding:4px 10px;">' +
         '<i class="fa fa-refresh mr-1"></i>' + count + ' producto' + (count !== 1 ? 's' : '') + ' recalculado' + (count !== 1 ? 's' : '') +
-        '</span>';
+        '</span>' +
+        (comisionItems.length > 0 ? '<br><span class="badge badge-info mt-1" style="font-size:.78rem;padding:4px 10px;"><i class="fa fa-percent mr-1"></i>Comisiones actualizadas</span>' : '');
       Swal.fire({
         icon: data.icon,
         title: data.title,
@@ -809,7 +1068,7 @@ function guardarEdicionCat(id) {
       reloadCatPrecios();
       // Actualizar el contador en la tabla principal sin reiniciarla
       $('#tbl_listaCategoria').DataTable().ajax.reload(null, false);
-    })
+    }))
     .catch(function (err) {
       $btnGuardar.prop('disabled', false).html(htmlOriginal);
       const data = err.response?.data || { icon: 'error', title: 'Error', text: 'No se pudo actualizar.' };
