@@ -58,6 +58,7 @@ class RestarVale extends Component
         INNER join espera_has_producto E
         on A.id = E.vale_id
 
+        where C.estado_venta_id <> 2
 
         order by A.created_at desc
 
