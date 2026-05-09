@@ -214,13 +214,16 @@ class RestarVale extends Component
                     $producto->ivsProducto,
                     $producto->unidad_venta
                 );
+            }
 
+            // Eliminar registros existentes con la misma clave primaria (factura_id, producto_id, lote)
+            // para evitar error de entrada duplicada, independientemente del seccion_id
+            foreach($this->arrayProductos as $item){
                 DB::table('venta_has_producto')
-                ->where('producto_id', '=', $producto->producto_id)
-                ->where('factura_id', '=', $producto->idFactura)
-                ->where('seccion_id', '=', 0)
-                ->delete();
-
+                    ->where('factura_id', '=', $item['factura_id'])
+                    ->where('producto_id', '=', $item['producto_id'])
+                    ->where('lote', '=', $item['lote'])
+                    ->delete();
             }
 
             //dd($this->arrayProductos);
