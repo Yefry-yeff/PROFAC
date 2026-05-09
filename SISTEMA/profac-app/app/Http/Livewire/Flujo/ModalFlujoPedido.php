@@ -5,6 +5,7 @@ namespace App\Http\Livewire\Flujo;
 use Livewire\Component;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use App\Models\PrefacturaAuditoria;
 
 /**
  * Modal reutilizable "Flujo del Pedido".
@@ -42,6 +43,12 @@ class ModalFlujoPedido extends Component
     public $stockErrors             = [];  // errores de inventario al crear prefactura
     public $confirmAccionPrefactura = null; // null | 'revertir' | 'anular'
     public $vencimientoProcesado    = false; // true cuando se procesó el vencimiento en esta carga
+    public $mostrarAutorizacionPrefactura = false;
+    public $accionAutorizacionPrefactura  = null;
+    public $codigoAutorizacion            = '';
+    public $autorizacionId                = null;
+    public $autorizadorId                 = null;
+    public $motivoAutorizacion            = '';
 
     // ── Factura del flujo activo ─────────────────────────────────────────
     public $facturaData          = null;
@@ -1089,6 +1096,113 @@ class ModalFlujoPedido extends Component
         $this->mensajeError            = '';
     }
 
+    public function solicitarAutorizacionPrefactura(string $accion): void
+    {
+        $this->accionAutorizacionPrefactura = $accion;
+        $this->mostrarAutorizacionPrefactura = true;
+        $this->codigoAutorizacion = '';
+        $this->autorizacionId = null;
+        $this->autorizadorId = null;
+        $this->motivoAutorizacion = '';
+        $this->mensajeError = '';
+    }
+
+    public function cancelarAutorizacionPrefactura(): void
+    {
+        $this->mostrarAutorizacionPrefactura = false;
+        $this->accionAutorizacionPrefactura = null;
+        $this->codigoAutorizacion = '';
+        $this->autorizacionId = null;
+        $this->autorizadorId = null;
+        $this->motivoAutorizacion = '';
+        $this->mensajeError = '';
+    }
+
+    public function validarCodigoAutorizacionPrefactura(): void
+    {
+        $codigo = trim((string) $this->codigoAutorizacion);
+        if ($codigo === '') {
+            $this->mensajeError = 'Debe ingresar un código de autorización válido.';
+            return;
+        }
+
+        $autorizacion = DB::table('codigo_autorizacion')
+            ->where('estado_id', 1)
+            ->where('codigo', $codigo)
+            ->first(['id', 'users_id']);
+
+        if (!$autorizacion) {
+            $this->mensajeError = 'El código de autorización es inválido o ya fue desactivado.';
+            return;
+        }
+
+        $this->autorizacionId = (int) $autorizacion->id;
+        $this->autorizadorId = (int) $autorizacion->users_id;
+
+        $motivo = trim((string) $this->motivoAutorizacion);
+        if ($motivo === '') {
+            $this->mensajeError = 'El motivo es obligatorio.';
+            return;
+        }
+
+        // Desactivar el código para que no pueda reutilizarse
+        DB::table('codigo_autorizacion')
+            ->where('id', $this->autorizacionId)
+            ->update(['estado_id' => 2, 'updated_at' => now()]);
+
+        if ($this->accionAutorizacionPrefactura === 'editar_factura') {
+            $this->redireccionarEdicionFacturaAutorizada();
+            return;
+        }
+
+        if ($this->accionAutorizacionPrefactura === 'anular_prefactura') {
+            $this->anularPrefactura();
+            return;
+        }
+
+        if ($this->accionAutorizacionPrefactura === 'revertir_prefactura') {
+            $this->revertirPrefacturaAOferta();
+            return;
+        }
+
+        $this->mensajeError = 'Acción de autorización no reconocida.';
+    }
+
+    public function facturarPrefacturaDirecta(): void
+    {
+        if (!$this->prefacturaData || !$this->flujoId) return;
+
+        $this->dispatchBrowserEvent('fmp-facturar-directo', [
+            'url' => '/prefactura/' . (int) $this->prefacturaData['id'] . '/facturar-directo',
+        ]);
+    }
+
+    private function redireccionarEdicionFacturaAutorizada(): void
+    {
+        if (!$this->prefacturaData || !$this->flujoId) return;
+
+        $tipoFactura = DB::table('tipo_factura')
+            ->where('estado', 1)
+            ->where('codigo', '!=', 'cotizacion_clientes_a')
+            ->orderBy('orden')
+            ->first(['ruta_menu']);
+
+        if (!$tipoFactura) {
+            $this->mensajeError = 'No hay tipos de facturación disponibles.';
+            return;
+        }
+
+        $prefacturaId = (int) $this->prefacturaData['id'];
+        $url = '/' . ltrim($tipoFactura->ruta_menu, '/')
+             . '?from=prefactura&prefactura_id=' . $prefacturaId
+             . '&flujoId=' . $this->flujoId
+             . '&modo=editar_factura'
+             . '&autorizacion_id=' . $this->autorizacionId
+             . '&autorizador_id=' . $this->autorizadorId;
+
+        $this->dispatchBrowserEvent('fmp-redirigir', ['url' => $url]);
+    }
+
     private function cargarFactura(): void
     {
         $facturaId = $this->obtenerFacturaIdFlujo();
@@ -1457,7 +1571,6 @@ class ModalFlujoPedido extends Component
                     'updated_by'      => Auth::id(),
                     'updated_at'      => now(),
                 ]);
-
                 $cotizaciones = DB::table('historico_flujo')
                     ->where('flujo_id', $this->flujoId)
                     ->where('tipo_tramite_id', 2)
@@ -1568,9 +1681,25 @@ class ModalFlujoPedido extends Component
                 'updated_at'      => now(),
             ]);
 
+            \App\Models\PrefacturaAuditoria::registrar(
+                'reversion_prefactura',
+                $prefacturaId,
+                null,
+                ['estado_prefactura' => 'active', 'cotizacion_id' => $cotizacionId],
+                ['estado_prefactura' => 'inactive', 'flujo_paso' => 'ofertas'],
+                $this->motivoAutorizacion ?: null,
+                $this->autorizacionId
+            );
+
             DB::commit();
             $this->prefacturaData          = null;
             $this->confirmAccionPrefactura = null;
+            $this->mostrarAutorizacionPrefactura = false;
+            $this->accionAutorizacionPrefactura = null;
+            $this->codigoAutorizacion = '';
+            $this->autorizacionId = null;
+            $this->autorizadorId = null;
+            $this->motivoAutorizacion = '';
             $this->mensajeExito = 'Prefactura #' . $prefacturaId . ' revertida. El flujo volvió a Ofertas.';
             $this->emit('pedidoActualizado');
             $this->recargar();
@@ -1630,9 +1759,21 @@ class ModalFlujoPedido extends Component
                 'updated_at'      => now(),
             ]);
 
+            PrefacturaAuditoria::registrar(
+                'anulacion_prefactura',
+                $prefacturaId,
+                null,
+                $this->prefacturaData,
+                ['estado' => 'inactive', 'flujo_id' => $this->flujoId],
+                $this->motivoAutorizacion,
+                $this->autorizacionId
+            );
+
             DB::commit();
             $this->prefacturaData          = null;
             $this->confirmAccionPrefactura = null;
+            $this->mostrarAutorizacionPrefactura = false;
+            $this->accionAutorizacionPrefactura = null;
             $this->mensajeExito = 'Prefactura #' . $prefacturaId . ' anulada. El flujo volvió a Ofertas.';
             $this->emit('pedidoActualizado');
             $this->recargar();

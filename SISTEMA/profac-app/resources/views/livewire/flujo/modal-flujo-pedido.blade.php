@@ -1135,14 +1135,14 @@
                     @if ($confirmAccionPrefactura === null)
                     <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:4px;">
                         @if (!$facturaCompletada)
-                        <button type="button" wire:click="confirmarAccionPrefactura('revertir')"
+<button type="button" wire:click="solicitarAutorizacionPrefactura('revertir_prefactura')"
                                 style="background:linear-gradient(135deg,#1a7efb,#0d6efd); color:#fff;
                                        border:none; border-radius:8px; padding:6px 14px;
                                        font-size:12px; font-weight:700; cursor:pointer;">
                             <i class="mr-1 fa fa-arrow-left"></i> Pasar a Oferta
                         </button>
 
-                        <button type="button" wire:click="confirmarAccionPrefactura('anular')"
+                        <button type="button" wire:click="solicitarAutorizacionPrefactura('anular_prefactura')"
                                 style="background:linear-gradient(135deg,#e74c3c,#c0392b); color:#fff;
                                        border:none; border-radius:8px; padding:6px 14px;
                                        font-size:12px; font-weight:700; cursor:pointer;">
@@ -1158,36 +1158,77 @@
                         </a>
 
                         @if (!$facturaCompletada)
-                        <button type="button" wire:click="iniciarFacturacion"
+                        <button type="button" wire:click="facturarPrefacturaDirecta"
                                 style="background:linear-gradient(135deg,#1b5e20,#2e7d32); color:#fff;
                                        border:none; border-radius:8px; padding:6px 14px;
                                        font-size:12px; font-weight:700; cursor:pointer;">
                             <i class="mr-1 fa fa-file-text"></i> Facturar
+                        </button>
+                        <button type="button" wire:click="solicitarAutorizacionPrefactura('editar_factura')"
+                                style="background:linear-gradient(135deg,#0f766e,#0ea5a4); color:#fff;
+                                       border:none; border-radius:8px; padding:6px 14px;
+                                       font-size:12px; font-weight:700; cursor:pointer;">
+                            <i class="mr-1 fa fa-pencil"></i> Editar Factura
                         </button>
                         @endif
 
                     </div>
                     @endif
 
-                    {{-- Confirmación: Pasar a Oferta --}}
-                    @if (!$facturaCompletada && $confirmAccionPrefactura === 'revertir')
-                    <div style="margin-top:10px; background:#e3f2fd; border:1px solid #90caf9;
+                    @if ($mostrarAutorizacionPrefactura)
+                    <div style="margin-top:10px; background:#fff8e1; border:1px solid #ffe082;
                                 border-radius:12px; padding:14px;">
-                        <p style="font-size:13px; color:#555; margin:0 0 8px;">
-                            <i class="mr-1 fa fa-arrow-left text-primary"></i>
-                            ¿Deshacer la prefactura y volver a <strong>Oferta</strong>?
+                        <p style="font-size:13px; color:#555; margin:0 0 8px; font-weight:700;">
+                            <i class="mr-1 fa fa-shield text-warning"></i>
+                            Se requiere autorización para
+                            @if($accionAutorizacionPrefactura === 'editar_factura') editar la factura
+                            @elseif($accionAutorizacionPrefactura === 'revertir_prefactura') pasar la prefactura a oferta
+                            @else anular la prefactura
+                            @endif.
                         </p>
-                        <p style="font-size:11px; color:#888; margin:0 0 10px;">
-                            Se inactivará la prefactura, se restaurará el inventario reservado y el flujo volverá al paso de Ofertas.
-                        </p>
-                        <div style="display:flex; gap:8px;">
-                            <button type="button" wire:click="revertirPrefacturaAOferta"
+
+                        {{-- Botón solicitar código --}}
+                        <div style="margin-bottom:10px;">
+                            <button type="button" id="btnSolicitarCodigoPrefactura"
+                                    onclick="solicitarCodigoPrefactura(this)"
+                                    style="background:linear-gradient(135deg,#f59e0b,#d97706); color:#fff;
+                                           border:none; border-radius:8px; padding:6px 14px;
+                                           font-size:12px; font-weight:700; cursor:pointer;">
+                                <i class="mr-1 fa fa-send"></i> Solicitar código por correo
+                            </button>
+                            <span id="msgSolicitarCodigo" style="margin-left:10px; font-size:12px;"></span>
+                        </div>
+
+                        <div class="row" style="row-gap:8px;">
+                            <div class="col-12 col-md-4">
+                                <label style="font-size:11px; font-weight:700; margin-bottom:4px;">Código de autorización</label>
+                                {{-- onkeydown stopPropagation: evita que Bootstrap modal capture el teclado --}}
+                                <input type="password" class="form-control form-control-sm"
+                                       wire:model.defer="codigoAutorizacion"
+                                       onkeydown="event.stopPropagation()"
+                                       placeholder="Ingrese el código">
+                            </div>
+                            <div class="col-12 col-md-8">
+                                <label style="font-size:11px; font-weight:700; margin-bottom:4px;">Motivo / comentario <span style="color:#c0392b;">*</span></label>
+                                <input type="text" class="form-control form-control-sm"
+                                       wire:model.defer="motivoAutorizacion"
+                                       onkeydown="event.stopPropagation()"
+                                       placeholder="Motivo requerido">
+                            </div>
+                        </div>
+                        @if($mensajeError)
+                        <div style="margin-top:8px; color:#b71c1c; font-size:12px; font-weight:700;">
+                            {{ $mensajeError }}
+                        </div>
+                        @endif
+                        <div style="display:flex; gap:8px; margin-top:10px;">
+                            <button type="button" wire:click="validarCodigoAutorizacionPrefactura"
                                     style="background:linear-gradient(135deg,#1a7efb,#0d6efd); color:#fff;
                                            border:none; border-radius:8px; padding:7px 18px;
                                            font-size:12px; font-weight:700; cursor:pointer;">
-                                <i class="mr-1 fa fa-check"></i> Confirmar
+                                Validar y continuar
                             </button>
-                            <button type="button" wire:click="cancelarConfirmPrefactura"
+                            <button type="button" wire:click="cancelarAutorizacionPrefactura"
                                     style="background:#f0f0f0; color:#555; border:none;
                                            border-radius:8px; padding:7px 16px; font-size:12px; cursor:pointer;">
                                 Cancelar
@@ -1196,32 +1237,7 @@
                     </div>
                     @endif
 
-                    {{-- Confirmación: Anular --}}
-                    @if (!$facturaCompletada && $confirmAccionPrefactura === 'anular')
-                    <div style="margin-top:10px; background:#fff5f5; border:1px solid #feb2b2;
-                                border-radius:12px; padding:14px;">
-                        <p style="font-size:13px; color:#555; margin:0 0 8px;">
-                            <i class="mr-1 fa fa-ban text-danger"></i>
-                            ¿Anular la <strong>Prefactura #{{ $pref['id'] }}</strong>?
-                        </p>
-                        <p style="font-size:11px; color:#888; margin:0 0 10px;">
-                            La prefactura se anulará permanentemente. El inventario reservado <strong>no se restaura</strong>.
-                        </p>
-                        <div style="display:flex; gap:8px;">
-                            <button type="button" wire:click="anularPrefactura"
-                                    style="background:linear-gradient(135deg,#e74c3c,#c0392b); color:#fff;
-                                           border:none; border-radius:8px; padding:7px 18px;
-                                           font-size:12px; font-weight:700; cursor:pointer;">
-                                <i class="mr-1 fa fa-ban"></i> Confirmar anulación
-                            </button>
-                            <button type="button" wire:click="cancelarConfirmPrefactura"
-                                    style="background:#f0f0f0; color:#555; border:none;
-                                           border-radius:8px; padding:7px 16px; font-size:12px; cursor:pointer;">
-                                Cancelar
-                            </button>
-                        </div>
-                    </div>
-                    @endif
+
 
                 </div>{{-- /prefacturaData --}}
 
@@ -1597,6 +1613,27 @@
 @endif
 
 <script>
+    function solicitarCodigoPrefactura(btn) {
+        var msgEl = document.getElementById('msgSolicitarCodigo');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa fa-spinner fa-spin mr-1"></i> Enviando...';
+        msgEl.style.color = '#555';
+        msgEl.textContent = '';
+        axios.get('/ventas/solicitud/codigo')
+            .then(function() {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa fa-send mr-1"></i> Solicitar código por correo';
+                msgEl.style.color = '#2e7d32';
+                msgEl.textContent = 'Solicíteselo a su supervisor.';
+            })
+            .catch(function() {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa fa-send mr-1"></i> Solicitar código por correo';
+                msgEl.style.color = '#b71c1c';
+                msgEl.textContent = 'Error al enviar el código. Intente de nuevo.';
+            });
+    }
+
     if (!window._fmpListenerSet) {
         window._fmpListenerSet = true;
         window.addEventListener('abrir-nueva-pestana', function(e) {
@@ -1606,6 +1643,28 @@
             if (e.detail && e.detail.url) {
                 window.location.href = e.detail.url;
             }
+        });
+        window.addEventListener('fmp-facturar-directo', function(e) {
+            if (!e.detail || !e.detail.url) return;
+            axios.post(e.detail.url, { tipo_pago: 1 })
+                .then(function(response) {
+                    var data = response.data || {};
+                    if (data.print_url) {
+                        window.location.href = data.print_url;
+                        return;
+                    }
+                    if (data.factura_id) {
+                        window.location.reload();
+                    }
+                })
+                .catch(function(error) {
+                    var data = error.response ? error.response.data : {};
+                    Swal.fire({
+                        icon: data.icon || 'error',
+                        title: data.title || 'Error',
+                        text: data.text || data.error || 'No se pudo facturar la prefactura.'
+                    });
+                });
         });
     }
 </script>

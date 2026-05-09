@@ -24,6 +24,7 @@ use App\Models\ModelParametro;
 use App\Models\ModelLista;
 use App\Models\ModelCliente;
 use App\Models\logCredito;
+use App\Models\PrefacturaAuditoria;
 use App\Models\User;
 use App\Http\Controllers\CAI\Notificaciones;
 use App\Models\Escalas\modelCategoriaCliente;
@@ -976,6 +977,18 @@ class FacturacionCorporativa extends Component
             }
 
             DB::commit();
+
+            if (($request->modo ?? null) === 'editar_factura' && !empty($request->prefactura_id) && !empty($request->autorizacion_id)) {
+                PrefacturaAuditoria::registrar(
+                    'edicion_factura',
+                    (int) $request->prefactura_id,
+                    (int) $factura->id,
+                    ['prefactura_id' => (int) $request->prefactura_id, 'total' => $request->totalGeneral],
+                    ['factura_id' => (int) $factura->id, 'total' => $request->totalGeneral, 'tipo_pago' => $request->tipoPagoVenta],
+                    $request->motivo ?? null,
+                    (int) $request->autorizacion_id
+                );
+            }
 
 
 

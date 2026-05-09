@@ -24,6 +24,7 @@ use App\Models\ModelCliente;
 use App\Models\Escalas\modelCategoriaCliente;
 use App\Models\logCredito;
 use App\Models\ModelNumOrdenCompra;
+use App\Models\PrefacturaAuditoria;
 use App\Http\Controllers\CAI\Notificaciones;
 use Exception;
 
@@ -909,6 +910,18 @@ class FacturacionEstatal extends Component
 
             $numeroVenta = DB::selectOne("select concat(YEAR(NOW()),'-',count(id)+1)  as 'numero' from factura");
             DB::commit();
+
+            if (($request->modo ?? null) === 'editar_factura' && !empty($request->prefactura_id) && !empty($request->autorizacion_id)) {
+                PrefacturaAuditoria::registrar(
+                    'edicion_factura',
+                    (int) $request->prefactura_id,
+                    (int) $factura->id,
+                    ['prefactura_id' => (int) $request->prefactura_id, 'total' => $request->totalGeneral],
+                    ['factura_id' => (int) $factura->id, 'total' => $request->totalGeneral, 'tipo_pago' => $request->tipoPagoVenta],
+                    $request->motivo ?? null,
+                    (int) $request->autorizacion_id
+                );
+            }
 
             return response()->json([
                 'icon' => "success",

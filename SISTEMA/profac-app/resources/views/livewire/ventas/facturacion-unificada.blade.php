@@ -1767,10 +1767,16 @@
         const from = urlParams.get('from');
         const prefacturaId = urlParams.get('prefactura_id');
         const flujoId = urlParams.get('flujoId');
+        const modo = urlParams.get('modo');
+        const autorizacionId = urlParams.get('autorizacion_id');
+        const autorizadorId = urlParams.get('autorizador_id');
 
         let newUrl = '/' + rutaMenu;
         if (from && prefacturaId && flujoId) {
             newUrl += '?from=' + from + '&prefactura_id=' + prefacturaId + '&flujoId=' + flujoId;
+            if (modo) newUrl += '&modo=' + encodeURIComponent(modo);
+            if (autorizacionId) newUrl += '&autorizacion_id=' + encodeURIComponent(autorizacionId);
+            if (autorizadorId) newUrl += '&autorizador_id=' + encodeURIComponent(autorizadorId);
         }
         window.location.href = newUrl;
     }
@@ -2813,6 +2819,12 @@
         document.getElementById('restriccion').value = tipoFacturaConfig ? tipoFacturaConfig.restriccion : 1;
         document.getElementById('tipo_venta_id').value = tipoFacturaConfig ? tipoFacturaConfig.tipo_venta_id : 2;
         document.getElementById('tipo_factura_id').value = tipoFacturaConfig ? tipoFacturaConfig.id : '';
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const autorizacionId = urlParams.get('autorizacion_id');
+        if (autorizacionId) {
+            document.getElementById('codigo_autorizacion').value = autorizacionId;
+        }
     }
 
     function abrirModalFlujoDesdeContexto(pasoPreferido, pedidoId, flujoId) {
@@ -3142,6 +3154,14 @@
                 data.set('codigo', codigoExonerEl.value);
             }
         }
+
+        var urlParams = new URLSearchParams(window.location.search);
+        var modoEdicion = urlParams.get('modo');
+        var autorizacionId = urlParams.get('autorizacion_id');
+        var autorizadorId = urlParams.get('autorizador_id');
+        if (modoEdicion) data.set('modo', modoEdicion);
+        if (autorizacionId) data.set('autorizacion_id', autorizacionId);
+        if (autorizadorId) data.set('autorizador_id', autorizadorId);
 
         const formDataObj = {};
         data.forEach((value, key) => (formDataObj[key] = value));

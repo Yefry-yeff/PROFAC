@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use Luecano\NumeroALetras\NumeroALetras;
 use PDF;
+use App\Models\PrefacturaAuditoria;
+use App\Http\Livewire\Ventas\FacturacionCorporativa;
 
 /**
  * HTTP controller (non-Livewire) that handles prefactura save & print.
@@ -576,5 +578,259 @@ class PrefacturaController
             $pedidoId = DB::table('pedido')->where('id', (int) $flujo->identificacion)->value('id');
         }
         return response()->json(['pedido_id' => $pedidoId]);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // POST /prefactura/{id}/facturar-directo
+    // Crea la factura directamente desde los datos de la prefactura,
+    // sin redirigir al formulario de edición.
+    // Body esperado: tipo_pago (1=contado, 2=crédito), autorizacion_id (opcional), motivo (opcional)
+    // ─────────────────────────────────────────────────────────────────────
+    public function facturarDirectamente(Request $request, int $id)
+    {
+        $pf = DB::table('prefactura')->where('id', $id)->where('estado', 'activo')->first();
+        if (!$pf) {
+            return response()->json(['error' => 'Prefactura no encontrada o inactiva.'], 404);
+        }
+
+        $tipoPago = (int) ($request->tipo_pago ?? 1);
+
+        // ── Calcular fecha_vencimiento ────────────────────────────────────
+        $fechaEmision = now()->toDateString();
+        if ($tipoPago === 2 && $pf->cliente_id) {
+            $diasCredito = DB::table('cliente')->where('id', $pf->cliente_id)->value('dias_credito') ?? 0;
+        } else {
+            $diasCredito = 0;
+        }
+        $fechaVencimiento = \Carbon\Carbon::parse($fechaEmision)->addDays($diasCredito)->toDateString();
+
+        // ── Obtener productos de la prefactura ────────────────────────────
+        $productos = DB::table('prefactura_has_producto')
+            ->where('prefactura_id', $id)
+            ->get();
+
+        if ($productos->isEmpty()) {
+            return response()->json(['error' => 'La prefactura no tiene productos.'], 422);
+        }
+
+        // ── Construir índices y datos por producto ────────────────────────
+        $indicesArr = [];
+        $productoData = [];
+        foreach ($productos as $prod) {
+            $idx     = $prod->indice;
+            $unidad  = 1;
+            if ($prod->unidad_medida_venta_id) {
+                $unidad = DB::table('unidad_medida_venta')
+                    ->where('id', $prod->unidad_medida_venta_id)
+                    ->value('unidad_venta') ?? 1;
+            }
+            // restaInventario = cantidad en unidades base a descontar del inventario
+            $restaInv = $prod->resta_inventario ? ($prod->cantidad * $unidad) : 0;
+
+            $indicesArr[] = $idx;
+            $productoData["idSeccion{$idx}"]               = $prod->seccion_id;
+            $productoData["idProducto{$idx}"]              = $prod->producto_id;
+            $productoData["restaInventario{$idx}"]         = $restaInv;
+            $productoData["nombre{$idx}"]                  = $prod->nombre_producto;
+            $productoData["bodega{$idx}"]                  = $prod->nombre_bodega;
+            $productoData["precio{$idx}"]                  = $prod->precio_unidad;
+            $productoData["cantidad{$idx}"]                = $prod->cantidad;
+            $productoData["subTotal{$idx}"]                = $prod->sub_total;
+            $productoData["isvProducto{$idx}"]             = $prod->isv;
+            $productoData["total{$idx}"]                   = $prod->total;
+            $productoData["isv{$idx}"]                     = $prod->isv_producto;
+            $productoData["unidad{$idx}"]                  = $unidad;
+            $productoData["idPrecioSeleccionado{$idx}"]    = $prod->idPrecioSeleccionado;
+            $productoData["precios{$idx}"]                 = $prod->precioSeleccionado;
+            $productoData["precios_producto_carga_id{$idx}"] = $prod->precios_producto_carga_id;
+            $productoData["idUnidadVenta{$idx}"]           = $prod->unidad_medida_venta_id;
+        }
+
+        // ── Obtener pedido_id vinculado al flujo ──────────────────────────
+        $pedidoId = null;
+        if ($pf->flujo_id) {
+            $flujo = DB::table('flujo')->where('id', $pf->flujo_id)->first();
+            if ($flujo && is_numeric($flujo->identificacion)) {
+                $pedidoId = (int) $flujo->identificacion;
+            }
+        }
+
+        // ── Construir Request sintético para guardarVenta ─────────────────
+        $syntheticData = array_merge([
+            'fecha_emision'            => $fechaEmision,
+            'fecha_vencimiento'        => $fechaVencimiento,
+            'subTotalGeneralGrabado'   => $pf->sub_total_grabado,
+            'subTotalGeneral'          => $pf->sub_total,
+            'subTotalGeneralExcento'   => $pf->sub_total_excento ?? 0,
+            'isvGeneral'               => $pf->isv,
+            'totalGeneral'             => $pf->total,
+            'numeroInputs'             => $pf->numeroInputs,
+            'arregloIdInputs'          => implode(',', $indicesArr),
+            'seleccionarCliente'       => $pf->cliente_id,
+            'nombre_cliente_ventas'    => $pf->nombre_cliente,
+            'rtn_ventas'               => $pf->RTN,
+            'tipoPagoVenta'            => $tipoPago,
+            'restriccion'              => 0,  // sin restricción de facturas vencidas en flujo directo
+            'vendedor'                 => $pf->vendedor,
+            'porDescuento'             => $pf->porc_descuento ?? 0,
+            'porDescuentoCalculado'    => $pf->monto_descuento ?? 0,
+            'nota_comen'               => $pf->nota,
+            'codigo_autorizacion'      => null,
+            'idComprobante'            => null,
+            'ordenCompra'              => null,
+            'pedido_id'                => $pedidoId,
+            'flujo_id'                 => $pf->flujo_id,
+        ], $productoData);
+
+        $syntheticRequest = Request::create(
+            '/prefactura/' . $id . '/facturar-directo',
+            'POST',
+            $syntheticData
+        );
+        // Propagar autenticación y sesión al request sintético
+        $syntheticRequest->setUserResolver(fn() => Auth::user());
+        $syntheticRequest->cookies->set(
+            config('session.cookie'),
+            $request->cookie(config('session.cookie'))
+        );
+
+        // ── Llamar guardarVenta del controlador existente ─────────────────
+        $corp = app()->make(FacturacionCorporativa::class);
+        $corp->arrayProductos = [];
+        $corp->arrayLogs      = [];
+
+        $response = $corp->guardarVenta($syntheticRequest);
+        $payload  = json_decode($response->getContent(), true);
+
+        if ($response->getStatusCode() >= 400 || ($payload['icon'] ?? '') === 'error') {
+            return response()->json([
+                'error'  => $payload['text'] ?? $payload['error'] ?? 'Error al facturar.',
+                'detail' => $payload,
+            ], 422);
+        }
+
+        // Advertencia de stock u otro aviso de negocios (guardarVenta devuelve 200 con icon=warning)
+        if (($payload['icon'] ?? '') === 'warning') {
+            return response()->json([
+                'warning' => $payload['text'] ?? 'No fue posible completar la facturación.',
+                'detail'  => $payload,
+            ], 200);
+        }
+
+        $facturaId = (int) ($payload['idFactura'] ?? 0);
+
+        // ── Actualizar prefactura a 'convertida' ──────────────────────────
+        DB::table('prefactura')
+            ->where('id', $id)
+            ->update(['estado' => 'convertida', 'updated_at' => now()]);
+
+        // ── Registrar el flujo (equivalente a confirmarFacturaFlujo) ──────
+        $flujoId = (int) ($pf->flujo_id ?? 0);
+        if ($flujoId && $facturaId) {
+            $TIPO_FACTURA  = 3;
+            $TIPO_ENTREGA  = 5;
+            $TIPO_COBRO    = 6;
+            $TIPO_CONJUNTO = 7;
+            $ESTADO_ACTIVO = 1;
+            $ESTADO_PEND   = 5;
+
+            DB::table('flujo')->where('id', $flujoId)->update([
+                'tipo_tramite_id' => $TIPO_CONJUNTO,
+                'updated_by'      => Auth::id(),
+                'updated_at'      => now(),
+            ]);
+
+            $existeFactura = DB::table('historico_flujo')
+                ->where('flujo_id', $flujoId)
+                ->where('tipo_tramite_id', $TIPO_FACTURA)
+                ->where('estado_id', '!=', 7)
+                ->orderByDesc('id')
+                ->first(['id', 'tramite_id']);
+
+            if ($existeFactura) {
+                DB::table('historico_flujo')->where('id', $existeFactura->id)->update([
+                    'tramite_id'    => $facturaId,
+                    'observaciones' => 'Factura #' . $facturaId . ' generada directamente desde prefactura #' . $id,
+                    'updated_by'    => Auth::id(),
+                    'updated_at'    => now(),
+                ]);
+            } else {
+                DB::table('historico_flujo')->insert([
+                    'flujo_id'        => $flujoId,
+                    'tipo_tramite_id' => $TIPO_FACTURA,
+                    'tramite_id'      => $facturaId,
+                    'estado_id'       => $ESTADO_ACTIVO,
+                    'observaciones'   => 'Factura #' . $facturaId . ' generada directamente desde prefactura #' . $id,
+                    'created_by'      => Auth::id(),
+                    'updated_by'      => Auth::id(),
+                    'created_at'      => now(),
+                    'updated_at'      => now(),
+                ]);
+            }
+
+            // Entrega pendiente
+            $entregaExiste = DB::table('historico_flujo')
+                ->where('flujo_id', $flujoId)->where('tipo_tramite_id', $TIPO_ENTREGA)
+                ->whereNull('tramite_id')->where('estado_id', $ESTADO_PEND)->exists();
+            if (!$entregaExiste) {
+                DB::table('historico_flujo')->insert([
+                    'flujo_id'        => $flujoId,
+                    'tipo_tramite_id' => $TIPO_ENTREGA,
+                    'tramite_id'      => null,
+                    'estado_id'       => $ESTADO_PEND,
+                    'observaciones'   => 'Entrega pendiente — Factura #' . $facturaId,
+                    'created_by'      => Auth::id(),
+                    'updated_by'      => Auth::id(),
+                    'created_at'      => now(),
+                    'updated_at'      => now(),
+                ]);
+            }
+
+            // Cobro pendiente
+            $aplicacionPagoId = DB::table('aplicacion_pagos')
+                ->where('factura_id', $facturaId)->orderByDesc('id')->value('id');
+            $cobroPendiente = DB::table('historico_flujo')
+                ->where('flujo_id', $flujoId)->where('tipo_tramite_id', $TIPO_COBRO)
+                ->where('estado_id', $ESTADO_PEND)->orderByDesc('id')->first(['id', 'tramite_id']);
+            if ($cobroPendiente) {
+                if (empty($cobroPendiente->tramite_id) && $aplicacionPagoId) {
+                    DB::table('historico_flujo')->where('id', $cobroPendiente->id)->update([
+                        'tramite_id' => $aplicacionPagoId, 'updated_by' => Auth::id(), 'updated_at' => now(),
+                    ]);
+                }
+            } else {
+                DB::table('historico_flujo')->insert([
+                    'flujo_id'        => $flujoId,
+                    'tipo_tramite_id' => $TIPO_COBRO,
+                    'tramite_id'      => $aplicacionPagoId,
+                    'estado_id'       => $ESTADO_PEND,
+                    'observaciones'   => 'Cobro pendiente — Factura #' . $facturaId,
+                    'created_by'      => Auth::id(),
+                    'updated_by'      => Auth::id(),
+                    'created_at'      => now(),
+                    'updated_at'      => now(),
+                ]);
+            }
+        }
+
+        // ── Auditoría ─────────────────────────────────────────────────────
+        $autorizacionId = $request->input('autorizacion_id') ? (int) $request->input('autorizacion_id') : null;
+        PrefacturaAuditoria::registrar(
+            'facturacion_directa',
+            $id,
+            $facturaId,
+            ['prefactura_id' => $id, 'estado' => 'activo', 'total' => $pf->total],
+            ['factura_id' => $facturaId, 'tipo_pago' => $tipoPago],
+            $request->input('motivo'),
+            $autorizacionId
+        );
+
+        return response()->json([
+            'icon'       => 'success',
+            'title'      => '¡Facturado!',
+            'text'       => 'Factura #' . $facturaId . ' generada correctamente.',
+            'factura_id' => $facturaId,
+            'print_url'  => '/factura/cooporativo/' . $facturaId,
+        ], 200);
     }
 }
