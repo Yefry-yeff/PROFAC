@@ -7,7 +7,7 @@
                 <div class="card-body py-3">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h4 class="mb-0">
+                            <h4 class="mb-0" id="tituloPagina">
                                 <i class="fas fa-truck-loading text-primary"></i> 
                                 Nueva Distribución de Entrega
                             </h4>
@@ -23,6 +23,7 @@
     </div>
 
     <form id="formNuevaDistribucion">
+        <input type="hidden" id="editarDistribucionId" name="editar_id" value="">
         <div class="row">
             <!-- Columna Izquierda: Información y Búsqueda -->
             <div class="col-lg-8">
@@ -755,7 +756,8 @@ function guardarDistribucion() {
         equipo_entrega_id: equipoId,
         fecha_programada: fechaProgramada,
         observaciones: observaciones,
-        facturas: facturasSelTmp.map(f => f.id)
+        facturas: facturasSelTmp.map(f => f.id),
+        editar_id: $('#editarDistribucionId').val() || null,
     };
     
     console.log('Datos a enviar:', data);
@@ -813,6 +815,36 @@ function distribuccionAccion(accion) {
 
 // Inicialización cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', function() {
+
+// ========== MODO EDICIÓN: detectar ?editar=ID ==========
+(function() {
+    const params = new URLSearchParams(window.location.search);
+    const editarId = params.get('editar');
+    if (!editarId) return;
+
+    $('#editarDistribucionId').val(editarId);
+    $('#tituloPagina').html('<i class="fas fa-edit text-warning"></i> Editar Distribución #' + editarId);
+    $('button[onclick="guardarDistribucion()"]').html('<i class="fas fa-save"></i> Actualizar Distribución');
+
+    $.get('/logistica/distribuciones/' + editarId + '/datos', function(d) {
+        // Rellenar campos básicos
+        $('select[name="equipo_entrega_id"]').val(d.equipo_entrega_id);
+        $('input[name="fecha_programada"]').val(d.fecha_programada);
+        $('textarea[name="observaciones"]').val(d.observaciones || '');
+
+        // Cargar facturas
+        facturasSelTmp = d.facturas.map(f => ({
+            id: f.id,
+            numero: f.numero,
+            cliente: f.cliente,
+            direccion: f.direccion || '',
+            total: parseFloat(f.total)
+        }));
+        actualizarPreviewFacturas();
+    }).fail(function() {
+        Swal.fire({icon: 'error', title: 'Error', text: 'No se pudieron cargar los datos de la distribución'});
+    });
+})();
 
 // ========== BÚSQUEDA POR FACTURA ==========
 

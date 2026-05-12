@@ -14,7 +14,9 @@ class DistribucionEntrega extends Model
         'fecha_programada',
         'observaciones',
         'estado_id',
-        'users_id_creador'
+        'users_id_creador',
+        'hora_salida',
+        'observaciones_salida',
     ];
 
     protected $casts = [

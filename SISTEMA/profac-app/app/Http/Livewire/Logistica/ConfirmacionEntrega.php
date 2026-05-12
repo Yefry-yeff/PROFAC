@@ -345,38 +345,6 @@ class ConfirmacionEntrega extends Component
                             'updated_at' => now()
                         ]);
 
-                    // Actualizar sub_estado_entrega del pedido vinculado (si existe)
-                    $facturaPedido = DB::table('distribuciones_entrega_facturas as def')
-                        ->join('factura as f', 'f.id', '=', 'def.factura_id')
-                        ->where('def.id', $distribucionFacturaId)
-                        ->whereNotNull('f.pedido_id')
-                        ->select('f.pedido_id')
-                        ->first();
-
-                    if ($facturaPedido && $facturaPedido->pedido_id) {
-                        $estadoPedidoEntrega = DB::selectOne("
-                            SELECT CASE
-                                WHEN COUNT(*) > 0
-                                     AND SUM(CASE WHEN def2.estado_entrega != 'entregado' THEN 1 ELSE 0 END) = 0
-                                     THEN 'entregado'
-                                WHEN SUM(CASE WHEN def2.estado_entrega IN ('parcial','entregado') THEN 1 ELSE 0 END) > 0
-                                     THEN 'en_camino'
-                                ELSE 'sin_entrega'
-                            END AS sub_estado
-                            FROM distribuciones_entrega_facturas def2
-                            INNER JOIN factura f2 ON f2.id = def2.factura_id
-                            WHERE f2.pedido_id = ?
-                        ", [$facturaPedido->pedido_id]);
-
-                        if ($estadoPedidoEntrega) {
-                            DB::table('pedido')
-                                ->where('id', $facturaPedido->pedido_id)
-                                ->update([
-                                    'sub_estado_entrega' => $estadoPedidoEntrega->sub_estado,
-                                    'updated_at' => now()
-                                ]);
-                        }
-                    }
                 }
             }
 
@@ -626,23 +594,6 @@ class ConfirmacionEntrega extends Component
                 ]);
 
             // El trigger actualizará el estado_entrega automáticamente
-
-            // Actualizar sub_estado_entrega del pedido vinculado (si existe)
-            $facturaPedido = DB::table('distribuciones_entrega_facturas as def')
-                ->join('factura as f', 'f.id', '=', 'def.factura_id')
-                ->where('def.id', $distribucionFacturaId)
-                ->whereNotNull('f.pedido_id')
-                ->select('f.pedido_id')
-                ->first();
-
-            if ($facturaPedido && $facturaPedido->pedido_id) {
-                DB::table('pedido')
-                    ->where('id', $facturaPedido->pedido_id)
-                    ->update([
-                        'sub_estado_entrega' => 'entregado',
-                        'updated_at' => now()
-                    ]);
-            }
 
             return response()->json([
                 'icon' => 'success',

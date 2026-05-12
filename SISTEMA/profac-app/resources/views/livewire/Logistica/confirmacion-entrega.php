@@ -1,77 +1,236 @@
 <div class="logistica-confirmacion">
     <style>
-        /* Estilos personalizados para scroll en listas */
+        /* ===== CONFIRMACION ENTREGAS — MOBILE FIRST ===== */
+
+        /* Scrollbar */
+        #listaDistribuciones::-webkit-scrollbar,
         #listaFacturas::-webkit-scrollbar,
-        .table-responsive::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        #listaFacturas::-webkit-scrollbar-track,
-        .table-responsive::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 10px;
-        }
-
+        .table-responsive::-webkit-scrollbar { width: 6px; }
+        #listaDistribuciones::-webkit-scrollbar-thumb,
         #listaFacturas::-webkit-scrollbar-thumb,
-        .table-responsive::-webkit-scrollbar-thumb {
-            background: #888;
-            border-radius: 10px;
+        .table-responsive::-webkit-scrollbar-thumb { background: #0d9488; border-radius: 4px; }
+        #listaDistribuciones::-webkit-scrollbar-track,
+        #listaFacturas::-webkit-scrollbar-track,
+        .table-responsive::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+
+        /* Transition suave */
+        .btn-distribucion, .factura-item, #tablaProductos tbody tr { transition: all 0.15s ease; }
+
+        /* === HEADER TEAL === */
+        .ce-header {
+            background: linear-gradient(135deg, #0f766e 0%, #0d9488 55%, #14b8a6 100%);
+            color: white;
+            padding: 1rem 1.25rem 0.875rem;
+            border-radius: calc(0.25rem - 1px) calc(0.25rem - 1px) 0 0;
+        }
+        .ce-header h4 { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.2rem; color: white; }
+        .ce-header p { font-size: 0.82rem; opacity: 0.85; margin: 0; color: white; }
+        .ce-date-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.8; margin-bottom: 3px; }
+        .ce-date-input {
+            background: rgba(255,255,255,0.18);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            border-radius: 6px;
+            padding: 5px 10px;
+            font-size: 0.88rem;
+            min-width: 150px;
+        }
+        .ce-date-input:focus { outline: none; background: rgba(255,255,255,0.28); }
+        .ce-date-input::-webkit-calendar-picker-indicator { filter: invert(1); cursor: pointer; }
+
+        /* Breadcrumb móvil */
+        .ce-breadcrumb { font-size: 0.8rem; margin-top: 0.5rem; }
+        .ce-breadcrumb .step { opacity: 0.5; font-weight: 500; }
+        .ce-breadcrumb .step.active { opacity: 1; font-weight: 700; }
+        .ce-breadcrumb .sep { margin: 0 6px; opacity: 0.4; }
+
+        /* === PANELES === */
+        .ce-panel-left { padding: 1rem 1rem 0.75rem; }
+        .ce-panel-right { padding: 1rem; }
+        @media (min-width: 992px) {
+            .ce-panel-left { border-right: 1px solid #e9ecef; min-height: 500px; }
         }
 
-        #listaFacturas::-webkit-scrollbar-thumb:hover,
-        .table-responsive::-webkit-scrollbar-thumb:hover {
-            background: #555;
+        /* Labels de panel */
+        .ce-panel-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #6c757d;
+            margin-bottom: 0.65rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
-        /* Animación suave para filtros */
-        .factura-item, #tablaProductos tbody tr {
-            transition: opacity 0.2s ease-in-out;
+        /* Visibilidad móvil */
+        #panelFacturas.mobile-hidden { display: none; }
+        @media (min-width: 992px) {
+            #panelFacturas.mobile-hidden { display: block !important; }
         }
+
+        /* Botón volver (solo móvil) */
+        .ce-back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: none;
+            border: none;
+            color: #0d9488;
+            font-size: 0.85rem;
+            font-weight: 600;
+            padding: 0 0 0.75rem 0;
+            cursor: pointer;
+        }
+        .ce-back-btn:hover { color: #0f766e; }
+
+        /* === BOTONES DE EQUIPO (override list-group-item) === */
+        #listaDistribuciones .btn-distribucion {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            padding: 0.75rem 0.875rem;
+            margin-bottom: 0.4rem;
+            background: #f8fffe;
+            border: 1.5px solid #e2f5f3 !important;
+            border-radius: 8px !important;
+            text-align: left;
+            cursor: pointer;
+            position: static;
+        }
+        #listaDistribuciones .btn-distribucion:hover { border-color: #0d9488 !important; background: #f0faf9; }
+        #listaDistribuciones .btn-distribucion.active {
+            border-color: #0d9488 !important;
+            background: #e6f7f5 !important;
+            color: #0f766e !important;
+            box-shadow: 0 0 0 2px rgba(13,148,136,0.15);
+        }
+        #listaDistribuciones .btn-distribucion .font-weight-bold { color: #1a1a2e; font-size: 0.9rem; }
+        #listaDistribuciones .btn-distribucion.active .font-weight-bold { color: #0f766e; }
+
+        /* === ITEMS DE FACTURA (override list-group-item) === */
+        #listaFacturas .factura-item {
+            display: block;
+            width: 100%;
+            padding: 0.7rem 0.875rem;
+            margin-bottom: 0.35rem;
+            background: white;
+            border: 1.5px solid #e9ecef !important;
+            border-radius: 8px !important;
+            text-align: left;
+            cursor: pointer;
+        }
+        #listaFacturas .factura-item:hover { border-color: #0d9488 !important; background: #f0faf9; }
+        #listaFacturas .factura-item.active {
+            border-color: #0d9488 !important;
+            background: #e6f7f5 !important;
+            color: #0f766e !important;
+        }
+        #listaFacturas .factura-item.active .font-weight-bold { color: #0f766e; }
+        #listaFacturas .factura-item.active small { color: #0d9488 !important; }
+
+        /* === BOTÓN CONFIRMAR === */
+        #btnConfirmarEntrega {
+            background: linear-gradient(135deg, #0f766e, #0d9488) !important;
+            border-color: transparent !important;
+            font-weight: 600;
+            padding: 0.55rem 1.5rem;
+            border-radius: 8px;
+        }
+        #btnConfirmarEntrega:hover { background: linear-gradient(135deg, #0a5c56, #0b857a) !important; }
+        #btnConfirmarEntrega:disabled { opacity: 0.6; }
+
+        /* === TABLA DE PRODUCTOS === */
+        .chk-producto { width: 20px !important; height: 20px !important; cursor: pointer; }
+        .btn-incidencia { min-height: 34px; }
+
+        /* === PLACEHOLDER === */
+        .ce-placeholder { text-align: center; color: #9ca3af; padding: 3rem 1rem; }
+        .ce-placeholder i { font-size: 2.2rem; margin-bottom: 0.75rem; display: block; }
+
+        /* === MODAL OFFSET (AdminLTE sidebar + header) === */
+        @media (min-width: 992px) {
+            .modal { padding-left: 250px !important; padding-top: 57px !important; }
+            .modal-backdrop { left: 250px !important; top: 57px !important; width: calc(100% - 250px) !important; height: calc(100% - 57px) !important; }
+            .modal-dialog-centered { min-height: calc(100% - 57px - 2rem); }
+        }
+        .modal-dialog { margin-top: 1.5rem; }
+
+        /* Header teal de modales */
+        .ce-modal-header {
+            background: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%);
+            color: white;
+            border-radius: calc(0.3rem - 1px) calc(0.3rem - 1px) 0 0;
+        }
+        .ce-modal-header .modal-title { color: white; }
+        .ce-modal-header .close { color: white; opacity: 0.9; text-shadow: none; }
+        .ce-modal-header .close:hover { opacity: 1; }
+        .ce-modal-header small { opacity: 0.85; color: rgba(255,255,255,0.9) !important; }
     </style>
-    <div class="border-0 shadow-sm card">
-        <div class="flex-wrap bg-white border-0 card-header d-flex justify-content-between align-items-center">
-            <div>
-                <h4 class="mb-1">Confirmación de entregas</h4>
-                <p class="mb-0 text-muted">Selecciona el equipo, luego la factura para validar los productos entregados.</p>
+
+    <!-- Card principal -->
+    <div class="card border-0 shadow-sm">
+
+        <!-- Header teal -->
+        <div class="ce-header d-flex flex-wrap justify-content-between align-items-start">
+            <div class="mb-2 mb-sm-0">
+                <h4>Confirmación de entregas</h4>
+                <p>Selecciona el equipo y la factura para validar los productos entregados.</p>
+                <!-- Breadcrumb solo en móvil -->
+                <div class="ce-breadcrumb d-lg-none" id="ceBreadcrumb">
+                    <span class="step active" id="stepEquipos">Equipos</span>
+                    <span class="sep">›</span>
+                    <span class="step" id="stepFacturas">Facturas</span>
+                </div>
             </div>
             <div class="d-flex align-items-center">
-                <div class="mr-3 text-right">
-                    <span class="d-block text-uppercase small text-muted">Fecha programada</span>
-                    <input type="date" class="form-control form-control-sm" id="fechaConfirmacion" value="<?= date('Y-m-d') ?>">
+                <div>
+                    <div class="ce-date-label">Fecha programada</div>
+                    <input type="date" class="ce-date-input" id="fechaConfirmacion" value="<?= date('Y-m-d') ?>">
                 </div>
             </div>
         </div>
-        <div class="pt-0 card-body">
-            <div class="row">
-                <div class="col-lg-4 border-right">
-                    <div class="mb-2 d-flex justify-content-between align-items-center">
-                        <h6 class="mb-0 text-uppercase text-muted">Equipos programados</h6>
-                        <span class="badge badge-light" id="totalEquipos">0</span>
+
+        <!-- Cuerpo: dos paneles -->
+        <div class="card-body p-0">
+            <div class="row no-gutters">
+
+                <!-- Panel izquierdo: Lista de equipos -->
+                <div id="panelEquipos" class="col-12 col-lg-4 ce-panel-left">
+                    <div class="ce-panel-label">
+                        <span>Equipos programados</span>
+                        <span class="badge badge-secondary" id="totalEquipos">0</span>
                     </div>
-                    <div id="listaDistribuciones" class="pr-lg-3" style="min-height:250px;"></div>
+                    <div id="listaDistribuciones" style="max-height: 520px; overflow-y: auto;"></div>
                 </div>
-                <div class="col-lg-8">
-                    <div class="mb-2 d-flex justify-content-between align-items-center">
-                        <h6 class="mb-0 text-uppercase text-muted">Detalle de confirmación</h6>
-                    </div>
-                    <div id="contenedorFacturas" class="p-4 border rounded bg-light" style="min-height:320px;">
-                        <div class="py-5 text-center text-muted">
-                            <i class="mb-3 fas fa-truck-loading fa-2x"></i>
+
+                <!-- Panel derecho: Facturas y productos -->
+                <div id="panelFacturas" class="col-12 col-lg-8 ce-panel-right mobile-hidden">
+                    <button type="button" class="d-lg-none ce-back-btn" id="btnVolverEquipos">
+                        <i class="fas fa-arrow-left"></i> Equipos
+                    </button>
+                    <div id="contenedorFacturas">
+                        <div class="ce-placeholder">
+                            <i class="fas fa-truck-loading"></i>
                             <p class="mb-0">Selecciona un equipo para ver sus facturas.</p>
                         </div>
                     </div>
                 </div>
+
             </div>
         </div>
     </div>
 
+    <!-- Modal: Incidencias -->
     <div class="modal fade" id="modalIncidencia" tabindex="-1" role="dialog">
-        <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
             <div class="modal-content">
-                <div class="modal-header">
+                <div class="modal-header ce-modal-header">
                     <div>
                         <h5 class="mb-0 modal-title">Incidencias del producto</h5>
-                        <small class="text-muted" id="tituloProductoIncidencia">Selecciona un producto de la tabla.</small>
+                        <small id="tituloProductoIncidencia">Selecciona un producto de la tabla.</small>
                     </div>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
                         <span aria-hidden="true">&times;</span>
@@ -103,11 +262,15 @@
                     <hr>
                     <div class="mb-3">
                         <h6 class="mb-2 text-uppercase small text-muted">Evidencia fotográfica</h6>
-                        <div class="mb-2 custom-file">
-                            <input type="file" class="custom-file-input" id="inputEvidencias" accept="image/*" multiple>
-                            <label class="custom-file-label" for="inputEvidencias">Seleccionar imágenes...</label>
+                        <div class="d-flex gap-2 mb-2" style="gap:0.5rem;">
+                            <div class="flex-grow-1 custom-file">
+                                <input type="file" class="custom-file-input" id="inputEvidencias" accept="image/*" multiple>
+                                <label class="custom-file-label" for="inputEvidencias">Buscar imagen...</label>
+                            </div>
+                            <button type="button" class="btn btn-outline-secondary flex-shrink-0" id="btnCamara" title="Tomar foto con la cámara">
+                                <i class="fas fa-camera"></i>
+                            </button>
                         </div>
-
                         <div id="previewEvidencias" class="flex-wrap d-flex"></div>
                     </div>
                     <div class="text-right">
@@ -126,10 +289,11 @@
         </div>
     </div>
 
+    <!-- Modal: Hora de entrega -->
     <div class="modal fade" id="modalHoraEntrega" tabindex="-1" role="dialog">
-        <div class="modal-dialog modal-sm" role="document">
+        <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
             <div class="modal-content">
-                <div class="modal-header">
+                <div class="modal-header ce-modal-header">
                     <h5 class="mb-0 modal-title">Hora de entrega</h5>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
                         <span aria-hidden="true">&times;</span>
@@ -147,10 +311,11 @@
         </div>
     </div>
 
+    <!-- Modal: Imágenes de incidencia -->
     <div class="modal fade" id="modalImagenesIncidencia" tabindex="-1" role="dialog">
-        <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
             <div class="modal-content">
-                <div class="modal-header">
+                <div class="modal-header ce-modal-header">
                     <h5 class="mb-0 modal-title">
                         <i class="fas fa-images"></i> Evidencias Fotográficas
                     </h5>
@@ -168,6 +333,20 @@
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Overlay de cámara en vivo -->
+    <div id="camaraOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.93); z-index:10000; flex-direction:column; align-items:center; justify-content:center;">
+        <video id="camaraVideo" autoplay playsinline style="max-width:96vw; max-height:65vh; border-radius:10px; background:#000;"></video>
+        <canvas id="camaraCanvas" style="display:none;"></canvas>
+        <div style="margin-top:1.25rem; display:flex; gap:1rem;">
+            <button type="button" id="btnCapturarFoto" class="btn btn-success btn-lg px-4">
+                <i class="fas fa-camera mr-2"></i>Capturar
+            </button>
+            <button type="button" id="btnCerrarCamara" class="btn btn-secondary btn-lg px-4">
+                <i class="fas fa-times mr-2"></i>Cancelar
+            </button>
         </div>
     </div>
 
@@ -261,6 +440,15 @@
                         renderFacturasList($(this).val());
                     });
                     $('#modalHoraEntrega').on('click', '#btnConfirmarHora', confirmarHoraEntrega);
+                    // Volver a la lista de equipos en móvil
+                    $(document).on('click', '#btnVolverEquipos', function () {
+                        if (window.innerWidth < 992) {
+                            $('#panelFacturas').addClass('mobile-hidden');
+                            $('#panelEquipos').show();
+                            $('#stepEquipos').addClass('active');
+                            $('#stepFacturas').removeClass('active');
+                        }
+                    });
                     cargarDistribucionesFecha();
                 });
 
@@ -286,6 +474,13 @@
 
                 function cargarDistribucionesFecha() {
                     const fecha = $('#fechaConfirmacion').val();
+                    // En móvil: volver al panel de equipos al cambiar fecha
+                    if (window.innerWidth < 992) {
+                        $('#panelEquipos').show();
+                        $('#panelFacturas').addClass('mobile-hidden');
+                        $('#stepEquipos').addClass('active');
+                        $('#stepFacturas').removeClass('active');
+                    }
                     $('#listaDistribuciones').html(skeleton('Cargando equipos...'));
                     $('#contenedorFacturas').html(plantillaVacia('Selecciona un equipo para ver sus facturas.'));
                     confirmacionState.distribucionActual = null;
@@ -354,6 +549,13 @@
                     confirmacionState.distribucionActual = distribucionId;
                     $('.btn-distribucion').removeClass('active');
                     $(element).addClass('active');
+                    // En móvil: ocultar panel de equipos y mostrar panel de facturas
+                    if (window.innerWidth < 992) {
+                        $('#panelEquipos').hide();
+                        $('#panelFacturas').removeClass('mobile-hidden').show();
+                        $('#stepEquipos').removeClass('active');
+                        $('#stepFacturas').addClass('active');
+                    }
                     cargarConfirmacion(distribucionId, facturaAnterior);
                 }
 
@@ -504,6 +706,9 @@
                     // Bloquear si está entregada completamente (entregado) o si ya se ha confirmado
                     // NOTA: 'parcial' NO bloquea para permitir agregar más incidencias después de desbloquear
                     const facturaBloqueada = estado === 'entregado' || (Number(factura.confirmada) === 1 && estado !== 'sin_entrega');
+
+                    // Mostrar u ocultar botón de confirmar según estado de factura
+                    $('#btnConfirmarEntrega').toggle(!facturaBloqueada);
 
                     let filas = '';
                     productos.forEach((p, index) => {
@@ -977,12 +1182,11 @@
                 }
 
                 // ==================== EVIDENCIAS (FOTOS) ====================
-                // Vista previa y subida automática
-                $(document).off('change', '#inputEvidencias').on('change', '#inputEvidencias', function() {
-                    const files = Array.from(this.files || []);
-                    if (!files.length) return;
+                // Función auxiliar: agregar archivos al preview y a evidenciasPendientes
+                function agregarEvidencias(files) {
+                    if (!files || !files.length) return;
                     const preview = $('#previewEvidencias');
-                    files.forEach(f => {
+                    Array.from(files).forEach(f => {
                         evidenciasPendientes.push(f);
                         const reader = new FileReader();
                         reader.onload = e => {
@@ -993,8 +1197,60 @@
                         };
                         reader.readAsDataURL(f);
                     });
-                    // Update label with cumulative count
-                    $(this).next('.custom-file-label').text(`${evidenciasPendientes.length} archivo(s) acumulado(s)`);
+                    $('#inputEvidencias').next('.custom-file-label').text(`${evidenciasPendientes.length} archivo(s) acumulado(s)`);
+                }
+
+                // Seleccionar desde galería/archivos
+                $(document).off('change', '#inputEvidencias').on('change', '#inputEvidencias', function() {
+                    agregarEvidencias(this.files);
+                });
+
+                // Cámara en vivo con getUserMedia
+                let camaraStream = null;
+
+                function cerrarCamara() {
+                    if (camaraStream) {
+                        camaraStream.getTracks().forEach(t => t.stop());
+                        camaraStream = null;
+                    }
+                    const video = document.getElementById('camaraVideo');
+                    if (video) video.srcObject = null;
+                    $('#camaraOverlay').hide();
+                }
+
+                $(document).off('click', '#btnCamara').on('click', '#btnCamara', function() {
+                    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                        toastr.warning('Tu dispositivo no soporta acceso directo a la cámara.');
+                        return;
+                    }
+                    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+                        .then(stream => {
+                            camaraStream = stream;
+                            const video = document.getElementById('camaraVideo');
+                            video.srcObject = stream;
+                            $('#camaraOverlay').css('display', 'flex');
+                        })
+                        .catch(err => {
+                            console.warn('Camera error:', err);
+                            toastr.warning('No se pudo acceder a la cámara. Verifica los permisos.');
+                        });
+                });
+
+                $(document).off('click', '#btnCapturarFoto').on('click', '#btnCapturarFoto', function() {
+                    const video = document.getElementById('camaraVideo');
+                    const canvas = document.getElementById('camaraCanvas');
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    canvas.getContext('2d').drawImage(video, 0, 0);
+                    canvas.toBlob(blob => {
+                        const file = new File([blob], `foto_${Date.now()}.jpg`, { type: 'image/jpeg' });
+                        agregarEvidencias([file]);
+                        cerrarCamara();
+                    }, 'image/jpeg', 0.92);
+                });
+
+                $(document).off('click', '#btnCerrarCamara').on('click', '#btnCerrarCamara', function() {
+                    cerrarCamara();
                 });
 
                 function subirEvidenciasPendientes(incidenciaId, callback) {

@@ -79,19 +79,32 @@ class DistribucionEntrega extends Component
             DB::beginTransaction();
             Log::info('Transacción iniciada');
 
-            // Crear distribución
-            $distribucion = ModelDistribucionEntrega::create([
-                'equipo_entrega_id' => $data['equipo_entrega_id'],
-                'fecha_programada' => $data['fecha_programada'],
-                'observaciones' => trim($data['observaciones'] ?? ''),
-                'estado_id' => 1, // Pendiente
-                'users_id_creador' => Auth::id(),
-            ]);
+            $editarId = $data['editar_id'] ?? null;
 
-            Log::info('Distribución creada:', [
+            if ($editarId) {
+                // ---- MODO EDICIÓN ----
+                $distribucion = ModelDistribucionEntrega::findOrFail($editarId);
+                $distribucion->equipo_entrega_id = $data['equipo_entrega_id'];
+                $distribucion->fecha_programada  = $data['fecha_programada'];
+                $distribucion->observaciones     = trim($data['observaciones'] ?? '');
+                $distribucion->save();
+
+                // Eliminar facturas anteriores y re-crear
+                DistribucionEntregaFactura::where('distribucion_entrega_id', $distribucion->id)->delete();
+                Log::info('Facturas anteriores eliminadas para edición');
+            } else {
+                // ---- MODO CREACIÓN ----
+                $distribucion = ModelDistribucionEntrega::create([
+                    'equipo_entrega_id' => $data['equipo_entrega_id'],
+                    'fecha_programada'  => $data['fecha_programada'],
+                    'observaciones'     => trim($data['observaciones'] ?? ''),
+                    'estado_id'         => 1, // Pendiente
+                    'users_id_creador'  => Auth::id(),
+                ]);
+            }
+
+            Log::info('Distribución ' . ($editarId ? 'actualizada' : 'creada') . ':', [
                 'id' => $distribucion->id,
-                'equipo_entrega_id' => $distribucion->equipo_entrega_id,
-                'fecha_programada' => $distribucion->fecha_programada
             ]);
 
             // Agregar facturas en el orden especificado
@@ -115,9 +128,9 @@ class DistribucionEntrega extends Component
             Log::info('Transacción confirmada - Distribución guardada exitosamente');
 
             return response()->json([
-                'icon'           => 'success',
-                'title'          => '¡Éxito!',
-                'text'           => 'Distribución creada con ' . count($data['facturas']) . ' factura(s)',
+                'icon'            => 'success',
+                'title'           => '¡Éxito!',
+                'text'            => 'Distribución ' . (isset($editarId) && $editarId ? 'actualizada' : 'creada') . ' con ' . count($data['facturas']) . ' factura(s)',
                 'distribucion_id' => $distribucion->id,
             ], 200);
 
@@ -388,6 +401,40 @@ class DistribucionEntrega extends Component
     public function verDistribucion($id)
     {
         return redirect()->route('logistica.distribuciones', ['ver' => $id]);
+    }
+
+    /**
+     * Obtener datos completos de una distribución para edición
+     */
+    public function obtenerDatosDistribucion($id)
+    {
+        try {
+            $distribucion = ModelDistribucionEntrega::with('equipo')->findOrFail($id);
+
+            $facturas = DB::select("
+                SELECT
+                    df.factura_id  AS id,
+                    f.cai          AS numero,
+                    c.nombre       AS cliente,
+                    c.direccion,
+                    f.total
+                FROM distribuciones_entrega_facturas df
+                INNER JOIN factura  f ON df.factura_id  = f.id
+                INNER JOIN cliente  c ON f.cliente_id   = c.id
+                WHERE df.distribucion_entrega_id = ?
+                ORDER BY df.orden_entrega ASC
+            ", [$id]);
+
+            return response()->json([
+                'equipo_entrega_id' => $distribucion->equipo_entrega_id,
+                'fecha_programada'  => $distribucion->fecha_programada->format('Y-m-d'),
+                'observaciones'     => $distribucion->observaciones,
+                'facturas'          => $facturas,
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
     }
 
     /**
@@ -957,7 +1004,7 @@ class DistribucionEntrega extends Component
     /**
      * Iniciar distribución (cambiar de Pendiente a En proceso)
      */
-    public function iniciarDistribucion($distribucionId)
+    public function iniciarDistribucion($distribucionId, Request $request)
     {
         try {
             $distribucion = ModelDistribucionEntrega::findOrFail($distribucionId);
@@ -997,7 +1044,9 @@ class DistribucionEntrega extends Component
                 ], 422);
             }
 
-            $distribucion->estado_id = 2; // En proceso
+            $distribucion->estado_id          = 2; // En proceso
+            $distribucion->hora_salida        = $request->input('hora_salida');
+            $distribucion->observaciones_salida = $request->input('observaciones_salida');
             $distribucion->save();
 
             return response()->json([
