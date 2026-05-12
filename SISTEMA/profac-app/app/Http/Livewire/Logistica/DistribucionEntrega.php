@@ -1591,8 +1591,8 @@ class DistribucionEntrega extends Component
                 'estado_actual' => $factura->estado_entrega
             ]);
             
-            // Cambiar estado a sin_entrega
-            $factura->estado_entrega = 'sin_entrega';
+            // Cambiar estado a anulada
+            $factura->estado_entrega = 'anulada';
             $factura->fecha_entrega_real = null;
             $factura->motivo_anulacion = $motivo ?: null;
             $factura->save();

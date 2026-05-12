@@ -257,7 +257,7 @@
         </div>
 
         <!-- Pestañas -->
-        <ul class="nav de-tabs px-3 pt-2" id="tabsDistribucion" role="tablist">
+        <ul class="px-3 pt-2 nav de-tabs" id="tabsDistribucion" role="tablist">
             <li class="nav-item">
                 <a class="nav-link active" data-toggle="tab" href="#tab-pendientes" role="tab">
                     <i class="fas fa-clock text-warning"></i> Pendientes de Tratar
@@ -276,12 +276,12 @@
         </ul>
 
         <!-- Contenido de pestañas -->
-        <div class="card-body tab-content p-3">
+        <div class="p-3 card-body tab-content">
 
             <!-- Pestaña: Pendientes de Tratar -->
             <div class="tab-pane fade show active" id="tab-pendientes" role="tabpanel">
                 <div class="table-responsive">
-                    <table id="tablaPendientes" class="table table-bordered table-striped table-sm mb-0">
+                    <table id="tablaPendientes" class="table mb-0 table-bordered table-striped table-sm">
                         <thead>
                             <tr>
                                 <th>ID</th>
@@ -304,7 +304,7 @@
             <!-- Pestaña: Sin Finalizar -->
             <div class="tab-pane fade" id="tab-proceso" role="tabpanel">
                 <div class="table-responsive">
-                    <table id="tablaEnProceso" class="table table-bordered table-striped table-sm mb-0">
+                    <table id="tablaEnProceso" class="table mb-0 table-bordered table-striped table-sm">
                         <thead>
                             <tr>
                                 <th>ID</th>
@@ -325,7 +325,7 @@
             <!-- Pestaña: Completadas -->
             <div class="tab-pane fade" id="tab-completadas" role="tabpanel">
                 <div class="table-responsive">
-                    <table id="tablaCompletadas" class="table table-bordered table-striped table-sm mb-0">
+                    <table id="tablaCompletadas" class="table mb-0 table-bordered table-striped table-sm">
                         <thead>
                             <tr>
                                 <th>ID</th>
@@ -351,17 +351,17 @@
         <div class="modal-dialog modal-xl" style="max-width: 95%;">
             <div class="modal-content">
                 <div class="modal-header bg-gradient-primary">
-                    <h5 class="modal-title text-white">
+                    <h5 class="text-white modal-title">
                         <i class="fas fa-truck-loading"></i> Nueva Distribución de Entrega
                     </h5>
-                    <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+                    <button type="button" class="text-white close" data-dismiss="modal">&times;</button>
                 </div>
                 <div class="modal-body" style="background: #f4f6f9;">
                     <form id="formNuevaDistribucion">
                         
                         <!-- Información Básica -->
-                        <div class="card shadow-sm mb-3">
-                            <div class="card-header bg-white">
+                        <div class="mb-3 shadow-sm card">
+                            <div class="bg-white card-header">
                                 <h6 class="mb-0"><i class="fas fa-info-circle text-primary"></i> Información de la Distribución</h6>
                             </div>
                             <div class="card-body">
@@ -394,7 +394,7 @@
                                 </div>
                                 <div class="row">
                                     <div class="col-12">
-                                        <div class="form-group mb-0">
+                                        <div class="mb-0 form-group">
                                             <label><i class="fas fa-sticky-note"></i> Observaciones</label>
                                             <textarea class="form-control" name="observaciones" rows="2" 
                                                       placeholder="Ingrese observaciones adicionales..."></textarea>
@@ -405,16 +405,16 @@
                         </div>
 
                         <!-- Búsqueda de Facturas -->
-                        <div class="card shadow-sm mb-3">
-                            <div class="card-header bg-white">
+                        <div class="mb-3 shadow-sm card">
+                            <div class="bg-white card-header">
                                 <h6 class="mb-0"><i class="fas fa-search text-success"></i> Búsqueda de Facturas</h6>
                             </div>
                             <div class="card-body">
                                 
                                 <!-- Búsqueda por Factura -->
-                                <div class="input-group input-group-lg mb-3">
+                                <div class="mb-3 input-group input-group-lg">
                                     <div class="input-group-prepend">
-                                        <span class="input-group-text bg-primary text-white">
+                                        <span class="text-white input-group-text bg-primary">
                                             <i class="fas fa-file-invoice"></i>
                                         </span>
                                     </div>
@@ -440,17 +440,17 @@
                         </div>
 
                         <!-- Preview de Facturas Seleccionadas -->
-                        <div class="card shadow-sm">
-                            <div class="card-header bg-gradient-success text-white">
+                        <div class="shadow-sm card">
+                            <div class="text-white card-header bg-gradient-success">
                                 <h6 class="mb-0">
                                     <i class="fas fa-clipboard-list"></i> 
                                     Facturas para Distribuir 
-                                    <span class="badge badge-light ml-2" id="totalFacturasSeleccionadas">0</span>
+                                    <span class="ml-2 badge badge-light" id="totalFacturasSeleccionadas">0</span>
                                 </h6>
                             </div>
-                            <div class="card-body p-0">
+                            <div class="p-0 card-body">
                                 <div id="previewFacturasSeleccionadas" class="table-responsive" style="max-height: 300px; overflow-y: auto;">
-                                    <table class="table table-sm table-hover mb-0">
+                                    <table class="table mb-0 table-sm table-hover">
                                         <thead class="bg-light sticky-top">
                                             <tr>
                                                 <th width="100">#Factura</th>
@@ -462,8 +462,8 @@
                                         </thead>
                                         <tbody id="tablaPreviewFacturas">
                                             <tr id="mensajeVacioPreview">
-                                                <td colspan="5" class="text-center text-muted py-4">
-                                                    <i class="fas fa-inbox fa-3x mb-2"></i>
+                                                <td colspan="5" class="py-4 text-center text-muted">
+                                                    <i class="mb-2 fas fa-inbox fa-3x"></i>
                                                     <p>No hay facturas seleccionadas</p>
                                                 </td>
                                             </tr>
@@ -476,7 +476,7 @@
                                     <div class="col-6">
                                         <strong>Total a Distribuir:</strong>
                                     </div>
-                                    <div class="col-6 text-right">
+                                    <div class="text-right col-6">
                                         <h5 class="mb-0 text-success">
                                             <i class="fas fa-dollar-sign"></i> 
                                             <span id="totalMontoDistribucion">0.00</span>
@@ -508,7 +508,7 @@
                 <!-- Header con gradiente teal -->
                 <div class="de-modal-header">
                     <div>
-                        <h5><i class="fas fa-truck mr-2"></i><span id="tituloDetalleDistribucion">Detalle de Distribución</span></h5>
+                        <h5><i class="mr-2 fas fa-truck"></i><span id="tituloDetalleDistribucion">Detalle de Distribución</span></h5>
                         <div class="de-modal-meta" id="metaDetalleDistribucion"></div>
                     </div>
                     <button class="btn-close-modal" data-dismiss="modal" title="Cerrar">&times;</button>
@@ -545,7 +545,7 @@
                     <button type="button" class="btn btn-warning" onclick="editarDistribucion()">
                         <i class="fas fa-edit"></i> Editar
                     </button>
-                    <button type="button" class="btn btn-secondary ml-auto" data-dismiss="modal">
+                    <button type="button" class="ml-auto btn btn-secondary" data-dismiss="modal">
                         <i class="fas fa-times"></i> Cerrar
                     </button>
                 </div>
@@ -559,10 +559,10 @@
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header bg-gradient-warning">
-                    <h5 class="modal-title text-white">
+                    <h5 class="text-white modal-title">
                         <i class="fas fa-exclamation-triangle"></i> Incidencias de la Factura
                     </h5>
-                    <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+                    <button type="button" class="text-white close" data-dismiss="modal">&times;</button>
                 </div>
                 <div class="modal-body" id="bodyIncidencias">
                     <!-- Contenido dinámico -->
@@ -578,19 +578,19 @@
     <div class="modal fade" id="modalHoraSalida" data-backdrop="static" data-keyboard="false">
         <div class="modal-dialog modal-dialog-centered" style="max-width: 400px;">
             <div class="modal-content" style="border-radius: 16px; overflow: hidden;">
-                <div class="modal-header bg-gradient-info text-white">
+                <div class="text-white modal-header bg-gradient-info">
                     <h5 class="modal-title"><i class="fas fa-clock"></i> Hora de Salida del Equipo</h5>
                 </div>
-                <div class="modal-body text-center p-4">
-                    <p class="text-muted mb-3">Registre la hora en que el equipo sale a ruta</p>
-                    <input type="time" id="inputHoraSalida" class="form-control form-control-lg text-center mb-3"
+                <div class="p-4 text-center modal-body">
+                    <p class="mb-3 text-muted">Registre la hora en que el equipo sale a ruta</p>
+                    <input type="time" id="inputHoraSalida" class="mb-3 text-center form-control form-control-lg"
                            style="font-size:1.8rem; height:65px; letter-spacing:2px;">
                     <div class="text-left">
-                        <label class="text-muted small mb-1">Observaciones de salida <span class="text-muted">(opcional)</span></label>
+                        <label class="mb-1 text-muted small">Observaciones de salida <span class="text-muted">(opcional)</span></label>
                         <textarea id="inputObservacionesSalida" class="form-control" rows="2"
                                   placeholder="Ej: equipo completo, carga verificada..."></textarea>
                     </div>
-                    <small class="text-muted mt-2 d-block">Se guardará junto con el inicio de la distribución</small>
+                    <small class="mt-2 text-muted d-block">Se guardará junto con el inicio de la distribución</small>
                 </div>
                 <div class="modal-footer d-flex justify-content-between">
                     <button type="button" class="btn btn-secondary" onclick="$('#modalHoraSalida').modal('hide')">
@@ -609,7 +609,7 @@
         <div class="modal-dialog modal-lg" role="document">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title mb-0">
+                    <h5 class="mb-0 modal-title">
                         <i class="fas fa-images"></i> Evidencias Fotográficas
                     </h5>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
@@ -617,7 +617,7 @@
                     </button>
                 </div>
                 <div class="modal-body" id="bodyImagenesIncidencia">
-                    <div class="text-center py-4">
+                    <div class="py-4 text-center">
                         <i class="fas fa-spinner fa-spin fa-2x text-muted"></i>
                         <p class="mt-2 text-muted">Cargando imágenes...</p>
                     </div>
@@ -828,17 +828,17 @@ function mostrarResultadosFacturas(facturas) {
         const btnText = yaAgregada ? '<i class="fas fa-check"></i> Agregada' : '<i class="fas fa-plus"></i> Agregar';
         
         html += `
-        <div class="col-md-6 col-lg-4 mb-3">
+        <div class="mb-3 col-md-6 col-lg-4">
             <div class="card h-100 shadow-sm ${yaAgregada ? 'border-success' : ''}">
-                <div class="card-body p-3">
-                    <h6 class="card-title text-primary mb-2">
+                <div class="p-3 card-body">
+                    <h6 class="mb-2 card-title text-primary">
                         <i class="fas fa-file-invoice"></i> #${f.cai}
                     </h6>
-                    <p class="card-text mb-2">
+                    <p class="mb-2 card-text">
                         <small class="text-muted"><i class="fas fa-user"></i> ${f.cliente}</small>
                     </p>
                     <div class="d-flex justify-content-between align-items-center">
-                        <span class="h6 mb-0 text-success">Q${parseFloat(f.total).toFixed(2)}</span>
+                        <span class="mb-0 h6 text-success">Q${parseFloat(f.total).toFixed(2)}</span>
                         <button class="btn btn-sm ${btnClass}" ${disabled}
                                 onclick="agregarFactura(${f.id}, '${f.cai}', '${f.cliente.replace(/'/g, "\\'")}', '${f.direccion || ''}', ${f.total})">
                             ${btnText}
@@ -978,11 +978,11 @@ function guardarDistribucion() {
 
 function verFacturas(id) {
     $('#modalDetalleDistribucion').data('distribucion-id', id).modal('show');
-    $('#tituloDetalleDistribucion').html('<i class="fas fa-spinner fa-spin mr-1"></i> Cargando...');
+    $('#tituloDetalleDistribucion').html('<i class="mr-1 fas fa-spinner fa-spin"></i> Cargando...');
     $('#metaDetalleDistribucion').html('');
     $('#statTotal, #statEntregadas, #statPendientes').html('<i class="fas fa-spinner fa-spin"></i>');
     $('#bodyDetalleDistribucion').html(
-        '<div class="text-center py-5"><i class="fas fa-spinner fa-spin fa-2x" style="color:#0f766e;"></i>' +
+        '<div class="py-5 text-center"><i class="fas fa-spinner fa-spin fa-2x" style="color:#0f766e;"></i>' +
         '<p class="mt-3 text-muted">Cargando facturas...</p></div>'
     );
 
@@ -1017,16 +1017,19 @@ function verFacturas(id) {
             <tbody>`;
 
         if (total === 0) {
-            html += '<tr><td colspan="7" class="text-center py-4 text-muted"><i class="fas fa-inbox fa-2x d-block mb-2"></i>No hay facturas asignadas</td></tr>';
+            html += '<tr><td colspan="7" class="py-4 text-center text-muted"><i class="mb-2 fas fa-inbox fa-2x d-block"></i>No hay facturas asignadas</td></tr>';
         } else {
             const soloLectura = distribucion.estado_id === 3 || distribucion.estado_id === 4;
 
             r.facturas.forEach(f => {
                 const estadoBadge = f.estado_entrega === 'entregado' ? 'success' :
-                                    f.estado_entrega === 'parcial'   ? 'warning' : 'secondary';
+                                    f.estado_entrega === 'parcial'   ? 'warning' :
+                                    f.estado_entrega === 'anulada'   ? 'danger'  : 'secondary';
                 const estadoTexto = f.estado_entrega === 'sin_entrega' ? 'Sin Entrega'
+                    : f.estado_entrega === 'anulada' ? 'Anulada'
                     : f.estado_entrega.charAt(0).toUpperCase() + f.estado_entrega.slice(1);
                 const bloqueado  = f.estado_entrega === 'entregado' || f.estado_entrega === 'parcial';
+                const esAnulada  = f.estado_entrega === 'anulada';
                 const totalInc   = parseInt(f.total_incidencias) || 0;
                 const tratadas   = parseInt(f.incidencias_tratadas) || 0;
                 const todasTrat  = totalInc > 0 && totalInc === tratadas;
@@ -1054,7 +1057,7 @@ function verFacturas(id) {
                             ${!soloLectura && bloqueado
                                 ? `<button class="btn btn-warning" onclick="desbloquearFactura(${f.id})" title="Desbloquear"><i class="fas fa-unlock"></i></button>`
                                 : ''}
-                            ${!soloLectura && !bloqueado
+                            ${!soloLectura && !bloqueado && !esAnulada
                                 ? `<button class="btn btn-danger" onclick="anularEntrega(${f.id})" title="Cancelar"><i class="fas fa-times"></i></button>`
                                 : ''}
                             <button class="btn btn-info" onclick="verIncidencias(${f.id})" title="Incidencias">
@@ -1074,7 +1077,7 @@ function verFacturas(id) {
 
     }).fail(function() {
         $('#tituloDetalleDistribucion').text('Error');
-        $('#bodyDetalleDistribucion').html('<div class="alert alert-danger m-3"><i class="fas fa-exclamation-triangle"></i> Error al cargar las facturas</div>');
+        $('#bodyDetalleDistribucion').html('<div class="m-3 alert alert-danger"><i class="fas fa-exclamation-triangle"></i> Error al cargar las facturas</div>');
     });
 }
 
@@ -1333,7 +1336,7 @@ $('#modalImagenesIncidencia').on('hidden.bs.modal', function () {
 
 function verImagenesIncidenciaDistribucion(incidenciaId) {
     $('#modalImagenesIncidencia').modal('show');
-    $('#bodyImagenesIncidencia').html('<div class="text-center py-4"><i class="fas fa-spinner fa-spin fa-2x text-muted"></i><p class="mt-2 text-muted">Cargando imágenes...</p></div>');
+    $('#bodyImagenesIncidencia').html('<div class="py-4 text-center"><i class="fas fa-spinner fa-spin fa-2x text-muted"></i><p class="mt-2 text-muted">Cargando imágenes...</p></div>');
     
     const url = "{{ url('/logistica/confirmacion/incidencias') }}/" + incidenciaId + "/evidencias";
     
@@ -1341,33 +1344,33 @@ function verImagenesIncidenciaDistribucion(incidenciaId) {
         .done(resp => {
             const evidencias = resp.evidencias || [];
             if (!evidencias.length) {
-                $('#bodyImagenesIncidencia').html('<div class="alert alert-info mb-0"><i class="fas fa-info-circle"></i> Esta incidencia no tiene evidencias fotográficas.</div>');
+                $('#bodyImagenesIncidencia').html('<div class="mb-0 alert alert-info"><i class="fas fa-info-circle"></i> Esta incidencia no tiene evidencias fotográficas.</div>');
                 return;
             }
             
             let grid = '<div class="row">';
             evidencias.forEach(e => {
-                grid += `<div class="col-6 col-md-4 mb-3">
-                    <div class="border rounded p-2" style="height:200px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f8f9fa;">
+                grid += `<div class="mb-3 col-6 col-md-4">
+                    <div class="p-2 border rounded" style="height:200px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f8f9fa;">
                         <a href="${e.url}" target="_blank" title="Ver imagen completa">
                             <img src="${e.url}" alt="evidencia" class="img-fluid" style="max-height:180px;max-width:100%;object-fit:contain;">
                         </a>
                     </div>
-                    ${e.descripcion ? `<small class="text-muted d-block mt-1">${e.descripcion}</small>` : ''}
+                    ${e.descripcion ? `<small class="mt-1 text-muted d-block">${e.descripcion}</small>` : ''}
                 </div>`;
             });
             grid += '</div>';
             $('#bodyImagenesIncidencia').html(grid);
         })
         .fail(() => {
-            $('#bodyImagenesIncidencia').html('<div class="alert alert-danger mb-0"><i class="fas fa-exclamation-triangle"></i> Error al cargar las imágenes.</div>');
+            $('#bodyImagenesIncidencia').html('<div class="mb-0 alert alert-danger"><i class="fas fa-exclamation-triangle"></i> Error al cargar las imágenes.</div>');
         });
 }
 
 function verIncidencias(facturaId) {
     console.log('Cargando incidencias para factura ID:', facturaId);
     $('#modalIncidencias').modal('show');
-    $('#bodyIncidencias').html('<div class="text-center py-4"><i class="fas fa-spinner fa-spin fa-2x text-primary"></i><p class="mt-3">Cargando incidencias...</p></div>');
+    $('#bodyIncidencias').html('<div class="py-4 text-center"><i class="fas fa-spinner fa-spin fa-2x text-primary"></i><p class="mt-3">Cargando incidencias...</p></div>');
     
     const url = "{{ url('/logistica/facturas/incidencias') }}/" + facturaId;
     console.log('URL de incidencias:', url);
@@ -1384,7 +1387,7 @@ function verIncidencias(facturaId) {
             } else {
                 html = `<div class="mb-3">
                     <h6>Factura: <strong>#${r.factura?.cai || 'N/A'}</strong></h6>
-                    <p class="text-muted mb-0">Cliente: ${r.factura?.cliente || 'N/A'}</p>
+                    <p class="mb-0 text-muted">Cliente: ${r.factura?.cliente || 'N/A'}</p>
                 </div>
                 <div class="table-responsive">
                     <table class="table table-sm table-bordered">
@@ -1419,7 +1422,7 @@ function verIncidencias(facturaId) {
                 });
                 
                 html += `</tbody></table></div>
-                <div class="alert alert-light mt-3">
+                <div class="mt-3 alert alert-light">
                     <strong>Total de incidencias:</strong> ${r.incidencias.length}
                 </div>
                 <hr>
@@ -1435,11 +1438,11 @@ function verIncidencias(facturaId) {
                     html += `<h6 class="text-muted small"><i class="fas fa-history"></i> Historial de Tratamientos (${r.tratamientos.length})</h6>`;
                     r.tratamientos.forEach((t, index) => {
                         html += `
-                            <div class="alert alert-success mb-2">
+                            <div class="mb-2 alert alert-success">
                                 <div class="d-flex justify-content-between align-items-start">
                                     <div style="flex: 1;">
                                         <strong>Tratamiento #${r.tratamientos.length - index}:</strong>
-                                        <p class="mb-1 mt-1" style="white-space: pre-wrap;">${t.tratamiento}</p>
+                                        <p class="mt-1 mb-1" style="white-space: pre-wrap;">${t.tratamiento}</p>
                                         <small class="text-muted">
                                             <i class="fas fa-user"></i> ${t.usuario_registro} · 
                                             <i class="fas fa-calendar"></i> ${new Date(t.tratamiento_fecha).toLocaleString('es-HN')}
@@ -1457,7 +1460,7 @@ function verIncidencias(facturaId) {
                     html += `
                         <div class="alert alert-warning">
                             <i class="fas fa-exclamation-triangle"></i> <strong>Tratamiento No Disponible</strong>
-                            <p class="mb-0 mt-2">No se puede registrar tratamiento mientras la factura esté en estado <strong>"Sin Entrega"</strong>.</p>
+                            <p class="mt-2 mb-0">No se puede registrar tratamiento mientras la factura esté en estado <strong>"Sin Entrega"</strong>.</p>
                             <p class="mb-0">Primero debe confirmar la entrega de la factura para poder registrar el tratamiento de las incidencias.</p>
                         </div>`;
                 } else {
@@ -1466,9 +1469,9 @@ function verIncidencias(facturaId) {
                         <div class="card bg-light">
                             <div class="card-body">
                                 <h6 class="card-title"><i class="fas fa-plus-circle"></i> Agregar Nuevo Tratamiento</h6>
-                                <p class="text-muted small mb-2">Registra un nuevo tratamiento que se aplicará a todas las incidencias de esta factura.</p>
+                                <p class="mb-2 text-muted small">Registra un nuevo tratamiento que se aplicará a todas las incidencias de esta factura.</p>
                                 <textarea id="tratamientoIncidencias" class="form-control" rows="3" placeholder="Describe el tratamiento o solución aplicada..."></textarea>
-                                <button type="button" class="btn btn-success btn-sm mt-2" onclick="guardarTratamiento(${facturaId})">
+                                <button type="button" class="mt-2 btn btn-success btn-sm" onclick="guardarTratamiento(${facturaId})">
                                     <i class="fas fa-save"></i> Guardar Tratamiento
                                 </button>
                             </div>
@@ -1577,7 +1580,11 @@ function confirmarEntregaFactura(facturaId, distribucionId) {
                 });
                 return;
             }
-            
+
+            // Cerrar el modal antes de mostrar SweetAlert para evitar aria-hidden
+            $('#modalDetalleDistribucion').modal('hide');
+
+            setTimeout(() => {
             // Si pasa la validación, proceder con la confirmación
             Swal.fire({
                 title: '¿Confirmar entrega?',
@@ -1594,6 +1601,9 @@ function confirmarEntregaFactura(facturaId, distribucionId) {
                 confirmButtonText: 'Sí, confirmar',
                 cancelButtonText: 'Cancelar',
                 customClass: { htmlContainer: 'swal-compact' },
+                didOpen: () => {
+                    document.getElementById('motivoConfirmacion').focus();
+                },
                 preConfirm: () => {
                     const motivo = document.getElementById('motivoConfirmacion').value.trim();
                     if (!motivo) {
@@ -1617,12 +1627,9 @@ function confirmarEntregaFactura(facturaId, distribucionId) {
                                 title: r.title || 'Confirmada',
                                 text: r.text || 'La entrega ha sido confirmada como completa',
                                 confirmButtonColor: '#28a745'
+                            }).then(() => {
+                                verFacturas(distribucionId);
                             });
-                            // Recargar el modal de detalle
-                            const modalDistribucionId = $('#modalDetalleDistribucion').data('distribucion-id');
-                            if (modalDistribucionId) {
-                                verFacturas(modalDistribucionId);
-                            }
                             // Recargar la tabla principal
                             recargarTodasLasTablas(true);
                         },
@@ -1632,11 +1639,17 @@ function confirmarEntregaFactura(facturaId, distribucionId) {
                                 title: x.responseJSON?.title || 'Error',
                                 text: x.responseJSON?.text || 'No se pudo confirmar la entrega',
                                 confirmButtonColor: '#dc3545'
+                            }).then(() => {
+                                verFacturas(distribucionId);
                             });
                         }
                     });
+                } else {
+                    // Cancelado → reabrir modal
+                    verFacturas(distribucionId);
                 }
             });
+            }, 300); // fin setTimeout
         },
         error: function(x) {
             Swal.fire({
