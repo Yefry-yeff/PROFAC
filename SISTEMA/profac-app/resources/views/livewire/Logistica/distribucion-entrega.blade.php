@@ -129,9 +129,9 @@
                         <small>Gestión de rutas y distribución de facturas</small>
                     </div>
                 </div>
-                <button type="button" class="btn de-btn-primary" onclick="abrirModalNuevaDistribucion()">
+                <a href="{{ route('logistica.distribuciones.nueva') }}" class="btn de-btn-primary">
                     <i class="fas fa-plus"></i> Nueva Distribución
-                </button>
+                </a>
             </div>
         </div>
 

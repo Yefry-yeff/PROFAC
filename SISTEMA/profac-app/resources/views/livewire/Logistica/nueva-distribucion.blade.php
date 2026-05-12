@@ -225,7 +225,7 @@
 
 <!-- Modal Detalle de Factura -->
 <div class="modal fade" id="modalDetalleFactura" tabindex="-1" role="dialog">
-    <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
         <div class="modal-content">
             <div class="modal-header bg-primary text-white">
                 <h5 class="modal-title">
@@ -276,6 +276,13 @@
 </div>
 
 <style>
+/* Centrar modales dentro del área de contenido (excluir sidebar 250px) */
+@media (min-width: 992px) {
+    .modal {
+        padding-left: 250px !important;
+    }
+}
+
 .sticky-top {
     z-index: 1020;
 }
