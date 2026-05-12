@@ -1182,23 +1182,44 @@
                 }
 
                 // ==================== EVIDENCIAS (FOTOS) ====================
-                // Función auxiliar: agregar archivos al preview y a evidenciasPendientes
-                function agregarEvidencias(files) {
-                    if (!files || !files.length) return;
+                function actualizarLabelEvidencias() {
+                    const n = evidenciasPendientes.length;
+                    $('#inputEvidencias').next('.custom-file-label').text(n ? `${n} imagen(es) seleccionada(s)` : 'Buscar imagen...');
+                }
+
+                function renderPreviewEvidencias() {
                     const preview = $('#previewEvidencias');
-                    Array.from(files).forEach(f => {
-                        evidenciasPendientes.push(f);
+                    preview.empty();
+                    evidenciasPendientes.forEach((f, idx) => {
                         const reader = new FileReader();
                         reader.onload = e => {
-                            const el = `<div class="mb-2 mr-2 border rounded" style="width:90px;height:90px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f8f9fa;">
-                                <img src="${e.target.result}" style="max-width:100%;max-height:100%;"/>
-                            </div>`;
+                            const el = $(`<div class="mb-2 mr-2 position-relative" style="width:90px;height:90px;flex-shrink:0;">
+                                <img src="${e.target.result}" class="rounded border" style="width:100%;height:100%;object-fit:cover;"/>
+                                <button type="button" class="btn-eliminar-ev position-absolute" data-idx="${idx}"
+                                    style="top:2px;right:2px;width:22px;height:22px;border-radius:50%;border:none;background:rgba(220,53,69,0.9);color:white;font-size:12px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>`);
                             preview.append(el);
                         };
                         reader.readAsDataURL(f);
                     });
-                    $('#inputEvidencias').next('.custom-file-label').text(`${evidenciasPendientes.length} archivo(s) acumulado(s)`);
+                    actualizarLabelEvidencias();
                 }
+
+                // Función auxiliar: agregar archivos al preview y a evidenciasPendientes
+                function agregarEvidencias(files) {
+                    if (!files || !files.length) return;
+                    Array.from(files).forEach(f => evidenciasPendientes.push(f));
+                    renderPreviewEvidencias();
+                }
+
+                // Eliminar imagen del preview
+                $(document).off('click', '.btn-eliminar-ev').on('click', '.btn-eliminar-ev', function() {
+                    const idx = parseInt($(this).data('idx'));
+                    evidenciasPendientes.splice(idx, 1);
+                    renderPreviewEvidencias();
+                });
 
                 // Seleccionar desde galería/archivos
                 $(document).off('change', '#inputEvidencias').on('change', '#inputEvidencias', function() {
@@ -1420,46 +1441,15 @@
                     $('#btnIncidenciaGuardar').html('<i class="mr-1 fas fa-save"></i>Actualizar incidencia');
                     
                     // Mostrar preview de evidencias
-                    $('#previewEvidencias').empty();
-                    evidenciasPendientes.forEach((ev, idx) => {
-                        const reader = new FileReader();
-                        reader.onload = function(e) {
-                            const preview = `<div class="m-1 position-relative" style="width:80px;height:80px;">
-                                <img src="${e.target.result}" class="rounded" style="width:100%;height:100%;object-fit:cover;">
-                                <button type="button" class="btn btn-sm btn-danger position-absolute" 
-                                        style="top:2px;right:2px;padding:2px 6px;" 
-                                        onclick="window.eliminarEvidenciaTemporal(${idx})">
-                                    <i class="fas fa-times"></i>
-                                </button>
-                            </div>`;
-                            $('#previewEvidencias').append(preview);
-                        };
-                        reader.readAsDataURL(ev);
-                    });
+                    renderPreviewEvidencias();
 
-                    toastr.info('Modifica la incidencia y presiona \"Actualizar incidencia\"');
+                    toastr.info('Modifica la incidencia y presiona "Actualizar incidencia"');
                 }
 
                 window.eliminarEvidenciaTemporal = function(index) {
                     if (evidenciasPendientes[index]) {
                         evidenciasPendientes.splice(index, 1);
-                        // Re-renderizar previews
-                        $('#previewEvidencias').empty();
-                        evidenciasPendientes.forEach((ev, idx) => {
-                            const reader = new FileReader();
-                            reader.onload = function(e) {
-                                const preview = `<div class="m-1 position-relative" style="width:80px;height:80px;">
-                                    <img src="${e.target.result}" class="rounded" style="width:100%;height:100%;object-fit:cover;">
-                                    <button type="button" class="btn btn-sm btn-danger position-absolute" 
-                                            style="top:2px;right:2px;padding:2px 6px;" 
-                                            onclick="window.eliminarEvidenciaTemporal(${idx})">
-                                        <i class="fas fa-times"></i>
-                                    </button>
-                                </div>`;
-                                $('#previewEvidencias').append(preview);
-                            };
-                            reader.readAsDataURL(ev);
-                        });
+                        renderPreviewEvidencias();
                         toastr.info('Evidencia eliminada');
                     }
                 }
