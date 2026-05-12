@@ -14,7 +14,9 @@ class DistribucionEntregaFactura extends Model
         'orden_entrega',
         'estado_entrega',
         'fecha_entrega_real',
-        'observaciones'
+        'observaciones',
+        'motivo_anulacion',
+        'motivo_confirmacion',
     ];
 
     protected $casts = [

@@ -1582,6 +1582,9 @@ class DistribucionEntrega extends Component
         try {
             Log::info("=== Anulando entrega de factura ID: {$facturaId} ===");
             
+            $request = request();
+            $motivo = trim($request->input('motivo', ''));
+
             $factura = DistribucionEntregaFactura::findOrFail($facturaId);
             Log::info("Factura encontrada:", [
                 'id' => $factura->id,
@@ -1591,11 +1594,13 @@ class DistribucionEntrega extends Component
             // Cambiar estado a sin_entrega
             $factura->estado_entrega = 'sin_entrega';
             $factura->fecha_entrega_real = null;
+            $factura->motivo_anulacion = $motivo ?: null;
             $factura->save();
             
             Log::info("Entrega anulada exitosamente:", [
                 'factura_id' => $factura->id,
-                'nuevo_estado' => $factura->estado_entrega
+                'nuevo_estado' => $factura->estado_entrega,
+                'motivo' => $motivo
             ]);
             
             return response()->json([
@@ -1629,6 +1634,9 @@ class DistribucionEntrega extends Component
         try {
             Log::info("=== Confirmando entrega de factura ID: {$facturaId} ===");
             
+            $request = request();
+            $motivo = trim($request->input('motivo', ''));
+
             $factura = DistribucionEntregaFactura::findOrFail($facturaId);
             Log::info("Factura encontrada:", [
                 'id' => $factura->id,
@@ -1638,12 +1646,14 @@ class DistribucionEntrega extends Component
             // Cambiar estado a entregado
             $factura->estado_entrega = 'entregado';
             $factura->fecha_entrega_real = now();
+            $factura->motivo_confirmacion = $motivo ?: null;
             $factura->save();
             
             Log::info("Entrega confirmada exitosamente:", [
                 'factura_id' => $factura->id,
                 'nuevo_estado' => $factura->estado_entrega,
-                'fecha_entrega' => $factura->fecha_entrega_real
+                'fecha_entrega' => $factura->fecha_entrega_real,
+                'motivo' => $motivo
             ]);
             
             return response()->json([

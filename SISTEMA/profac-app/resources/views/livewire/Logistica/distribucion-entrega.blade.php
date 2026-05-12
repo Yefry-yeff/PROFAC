@@ -1249,20 +1249,35 @@ function anularEntrega(facturaId) {
     setTimeout(() => {
         Swal.fire({
             title: '¿Anular entrega?',
-            text: 'Esto cambiará el estado de la factura a "Sin Entrega".',
+            html: '<div style="text-align:left;padding:0 0.25rem">' +
+                  '<p style="font-size:0.85rem;color:#6c757d;margin:0 0 0.75rem">El estado cambiará a <strong>Sin Entrega</strong>.</p>' +
+                  '<label style="font-size:0.8rem;font-weight:600;color:#495057;display:block;margin-bottom:4px">Motivo <span style="color:#dc3545">*</span></label>' +
+                  '<textarea id="motivoAnulacion" rows="2" placeholder="Motivo de anulación..." style="width:100%;font-size:0.85rem;padding:6px 10px;border:1px solid #ced4da;border-radius:6px;resize:none;outline:none;box-sizing:border-box;"></textarea>' +
+                  '</div>',
             icon: 'warning',
+            width: 420,
             showCancelButton: true,
             confirmButtonColor: '#dc3545',
             cancelButtonColor: '#6c757d',
             confirmButtonText: 'Sí, anular',
-            cancelButtonText: 'Cancelar'
+            cancelButtonText: 'Cancelar',
+            customClass: { htmlContainer: 'swal-compact' },
+            preConfirm: () => {
+                const motivo = document.getElementById('motivoAnulacion').value.trim();
+                if (!motivo) {
+                    Swal.showValidationMessage('El motivo de anulación es obligatorio.');
+                    return false;
+                }
+                return motivo;
+            }
         }).then((result) => {
             if (result.isConfirmed) {
             $.ajax({
                 url: "{{ url('/logistica/facturas/anular-entrega') }}/" + facturaId,
                 type: 'POST',
                 data: {
-                    _token: $('meta[name="csrf-token"]').attr('content')
+                    _token: $('meta[name="csrf-token"]').attr('content'),
+                    motivo: result.value
                 },
                 success: function(r) {
                     Swal.fire({
@@ -1565,21 +1580,36 @@ function confirmarEntregaFactura(facturaId, distribucionId) {
             
             // Si pasa la validación, proceder con la confirmación
             Swal.fire({
-                title: '¿Confirmar entrega completa?',
-                text: 'Esto cambiará el estado de la factura a "Entregado".',
+                title: '¿Confirmar entrega?',
+                html: '<div style="text-align:left;padding:0 0.25rem">' +
+                      '<p style="font-size:0.85rem;color:#6c757d;margin:0 0 0.75rem">El estado cambiará a <strong>Entregado</strong>.</p>' +
+                      '<label style="font-size:0.8rem;font-weight:600;color:#495057;display:block;margin-bottom:4px">Observación <span style="color:#dc3545">*</span></label>' +
+                      '<textarea id="motivoConfirmacion" rows="2" placeholder="Observación de la entrega..." style="width:100%;font-size:0.85rem;padding:6px 10px;border:1px solid #ced4da;border-radius:6px;resize:none;outline:none;box-sizing:border-box;"></textarea>' +
+                      '</div>',
                 icon: 'question',
+                width: 420,
                 showCancelButton: true,
                 confirmButtonColor: '#28a745',
                 cancelButtonColor: '#6c757d',
                 confirmButtonText: 'Sí, confirmar',
-                cancelButtonText: 'Cancelar'
+                cancelButtonText: 'Cancelar',
+                customClass: { htmlContainer: 'swal-compact' },
+                preConfirm: () => {
+                    const motivo = document.getElementById('motivoConfirmacion').value.trim();
+                    if (!motivo) {
+                        Swal.showValidationMessage('El motivo de confirmación es obligatorio.');
+                        return false;
+                    }
+                    return motivo;
+                }
             }).then((result) => {
                 if (result.isConfirmed) {
                     $.ajax({
                         url: "{{ url('/logistica/facturas/confirmar-entrega') }}/" + facturaId,
                         type: 'POST',
                         data: {
-                            _token: $('meta[name="csrf-token"]').attr('content')
+                            _token: $('meta[name="csrf-token"]').attr('content'),
+                            motivo: result.value
                         },
                         success: function(r) {
                             Swal.fire({
