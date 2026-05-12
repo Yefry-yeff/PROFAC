@@ -1309,6 +1309,8 @@ Route::post('/reporte/ventas-cobros/exportar-excel/{vendedorId}/{clienteId}/{mes
     Route::post('/logistica/facturas/confirmar-entrega/{facturaId}', [DistribucionEntrega::class, 'confirmarEntregaFactura']);
     Route::post('/logistica/facturas/desbloquear/{facturaId}', [DistribucionEntrega::class, 'desbloquearFactura']);
     Route::get('/logistica/distribuciones/validar-incidencias/{distribucionId}', [DistribucionEntrega::class, 'validarIncidenciasSinTratamiento']);
+    Route::post('/logistica/distribuciones/finalizar/{distribucionId}', [DistribucionEntrega::class, 'finalizarEntregaDistribucion']);
+    Route::get('/logistica/facturas/verificar-disponibilidad', [DistribucionEntrega::class, 'verificarDisponibilidad']);
 
     // Confirmacion de Entregas
     Route::get('/logistica/confirmacion', ConfirmacionEntrega::class);

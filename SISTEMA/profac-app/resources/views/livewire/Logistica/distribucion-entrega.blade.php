@@ -545,6 +545,9 @@
                     <button type="button" class="btn btn-warning" onclick="editarDistribucion()">
                         <i class="fas fa-edit"></i> Editar
                     </button>
+                    <button type="button" id="btnFinalizarEntrega" class="btn btn-danger" onclick="finalizarEntrega()" style="display:none;">
+                        <i class="fas fa-flag-checkered"></i> Finalizar entrega
+                    </button>
                     <button type="button" class="ml-auto btn btn-secondary" data-dismiss="modal">
                         <i class="fas fa-times"></i> Cerrar
                     </button>
@@ -1001,6 +1004,9 @@ function verFacturas(id) {
         $('#statEntregadas').text(entregadas);
         $('#statPendientes').text(pendientes);
 
+        // Mostrar botón "Finalizar entrega" solo cuando la distribución está en proceso (estado 2)
+        $('#btnFinalizarEntrega').toggle(distribucion.estado_id === 2);
+
         // Tabla
         let html = `<table class="table table-sm table-hover de-dist-table w-100">
             <thead>
@@ -1117,6 +1123,115 @@ function editarDistribucion() {
     const id = $('#modalDetalleDistribucion').data('distribucion-id');
     if (!id) return;
     window.location.href = '/logistica/distribuciones/nueva?editar=' + id;
+}
+
+function finalizarEntrega() {
+    const distribucionId = $('#modalDetalleDistribucion').data('distribucion-id');
+    if (!distribucionId) return;
+
+    // Paso 1: verificar incidencias sin tratar
+    $.ajax({
+        url: "{{ url('/logistica/distribuciones/validar-incidencias') }}/" + distribucionId,
+        type: 'GET',
+        success: function(val) {
+            if (!val.puede_confirmar) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Incidencias sin tratar',
+                    html: val.mensaje,
+                    confirmButtonColor: '#f0ad4e'
+                });
+                return;
+            }
+
+            // Paso 2: contar facturas pendientes
+            const pendientes = parseInt($('#statPendientes').text()) || 0;
+
+            // Cerrar modal antes de SweetAlert
+            $('#modalDetalleDistribucion').modal('hide');
+
+            setTimeout(() => {
+                if (pendientes > 0) {
+                    // Hay facturas sin entregar → pedir motivo de anulación masiva
+                    Swal.fire({
+                        title: 'Finalizar entrega',
+                        html: '<div style="text-align:left;padding:0 0.25rem">' +
+                              '<p style="font-size:0.85rem;color:#6c757d;margin:0 0 0.75rem">' +
+                              'Hay <strong>' + pendientes + '</strong> factura(s) aún pendiente(s). ' +
+                              'Al finalizar, quedarán como <strong>Anuladas</strong>.</p>' +
+                              '<label style="font-size:0.8rem;font-weight:600;color:#495057;display:block;margin-bottom:4px">' +
+                              'Motivo de anulación <span style="color:#dc3545">*</span></label>' +
+                              '<textarea id="motivoFinalizacion" rows="2" placeholder="Motivo general de anulación..." ' +
+                              'style="width:100%;font-size:0.85rem;padding:6px 10px;border:1px solid #ced4da;border-radius:6px;resize:none;outline:none;box-sizing:border-box;"></textarea>' +
+                              '</div>',
+                        icon: 'warning',
+                        width: 440,
+                        showCancelButton: true,
+                        confirmButtonColor: '#dc3545',
+                        cancelButtonColor: '#6c757d',
+                        confirmButtonText: 'Sí, finalizar',
+                        cancelButtonText: 'Cancelar',
+                        customClass: { htmlContainer: 'swal-compact' },
+                        didOpen: () => {
+                            document.getElementById('motivoFinalizacion').focus();
+                        },
+                        preConfirm: () => {
+                            const motivo = document.getElementById('motivoFinalizacion').value.trim();
+                            if (!motivo) {
+                                Swal.showValidationMessage('El motivo es obligatorio.');
+                                return false;
+                            }
+                            return motivo;
+                        }
+                    }).then(result => {
+                        if (result.isConfirmed) {
+                            _ejecutarFinalizacion(distribucionId, result.value);
+                        } else {
+                            verFacturas(distribucionId);
+                        }
+                    });
+                } else {
+                    // No hay pendientes → confirmar y finalizar directamente
+                    Swal.fire({
+                        title: '¿Finalizar entrega?',
+                        text: 'Todas las facturas están resueltas. Se marcará la distribución como completada.',
+                        icon: 'question',
+                        showCancelButton: true,
+                        confirmButtonColor: '#28a745',
+                        cancelButtonColor: '#6c757d',
+                        confirmButtonText: 'Sí, finalizar',
+                        cancelButtonText: 'Cancelar'
+                    }).then(result => {
+                        if (result.isConfirmed) {
+                            _ejecutarFinalizacion(distribucionId, '');
+                        } else {
+                            verFacturas(distribucionId);
+                        }
+                    });
+                }
+            }, 300);
+        },
+        error: function() {
+            Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo validar las incidencias.', confirmButtonColor: '#dc3545' });
+        }
+    });
+}
+
+function _ejecutarFinalizacion(distribucionId, motivo) {
+    Swal.fire({ title: 'Finalizando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    $.ajax({
+        url: "{{ url('/logistica/distribuciones/finalizar') }}/" + distribucionId,
+        type: 'POST',
+        data: { _token: $('meta[name="csrf-token"]').attr('content'), motivo: motivo },
+        success: function(r) {
+            Swal.fire({ icon: r.icon || 'success', title: r.title, text: r.text, confirmButtonColor: '#28a745' })
+                .then(() => recargarTodasLasTablas(false));
+        },
+        error: function(x) {
+            Swal.fire({ icon: 'error', title: x.responseJSON?.title || 'Error', text: x.responseJSON?.text || 'Error al finalizar.', confirmButtonColor: '#dc3545' })
+                .then(() => verFacturas(distribucionId));
+        }
+    });
 }
 
 function cancelarDistribucion(id) {

@@ -597,6 +597,13 @@ class DistribucionEntrega extends Component
                     WHERE def.factura_id = f.id
                     AND def.estado_entrega = 'entregado'
                 )
+                AND NOT EXISTS (
+                    SELECT 1 FROM distribuciones_entrega_facturas def
+                    INNER JOIN distribuciones_entrega de ON def.distribucion_entrega_id = de.id
+                    WHERE def.factura_id = f.id
+                    AND de.estado_id = 1
+                    AND def.estado_entrega != 'anulada'
+                )
                 LIMIT 1
             ", [$numero]);
 
@@ -631,6 +638,23 @@ class DistribucionEntrega extends Component
                         return response()->json([
                             'success' => false,
                             'message' => 'Esta factura es anterior al 01/08/2025 y no está disponible para entrega'
+                        ], 422);
+                    }
+                    
+                    // Verificar si está en distribución pendiente
+                    $enPendiente = DB::select("
+                        SELECT de.id as distribucion_id
+                        FROM distribuciones_entrega_facturas def
+                        INNER JOIN distribuciones_entrega de ON def.distribucion_entrega_id = de.id
+                        WHERE def.factura_id = (SELECT id FROM factura WHERE cai = ? LIMIT 1)
+                        AND de.estado_id = 1
+                        AND def.estado_entrega != 'anulada'
+                        LIMIT 1
+                    ", [$numero]);
+                    if (!empty($enPendiente)) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'La distribución de esta factura ya se encuentra asignada en una distribución pendiente. Debe eliminarla de dicha distribución antes de volver a asignarla.'
                         ], 422);
                     }
                 }
@@ -683,6 +707,13 @@ class DistribucionEntrega extends Component
                     SELECT 1 FROM distribuciones_entrega_facturas def
                     WHERE def.factura_id = f.id
                     AND def.estado_entrega = 'entregado'
+                )
+                AND NOT EXISTS (
+                    SELECT 1 FROM distribuciones_entrega_facturas def
+                    INNER JOIN distribuciones_entrega de ON def.distribucion_entrega_id = de.id
+                    WHERE def.factura_id = f.id
+                    AND de.estado_id = 1
+                    AND def.estado_entrega != 'anulada'
                 )
                 ORDER BY f.fecha_emision DESC, f.cai DESC
                 LIMIT 50
@@ -746,7 +777,8 @@ class DistribucionEntrega extends Component
                     SELECT 1 FROM distribuciones_entrega_facturas def
                     INNER JOIN distribuciones_entrega de ON def.distribucion_entrega_id = de.id
                     WHERE def.factura_id = f.id
-                    AND de.estado_id IN (2, 3)
+                    AND de.estado_id = 1
+                    AND def.estado_entrega != 'anulada'
                 )
                 ORDER BY f.cai DESC
                 LIMIT 20
@@ -815,7 +847,8 @@ class DistribucionEntrega extends Component
                          SELECT 1 FROM distribuciones_entrega_facturas def
                          INNER JOIN distribuciones_entrega de ON def.distribucion_entrega_id = de.id
                          WHERE def.factura_id = f2.id
-                         AND de.estado_id IN (2, 3)
+                         AND de.estado_id = 1
+                         AND def.estado_entrega != 'anulada'
                      )) as facturas_disponibles
                 FROM cliente c
                 INNER JOIN factura f ON c.id = f.cliente_id
@@ -836,7 +869,8 @@ class DistribucionEntrega extends Component
                         SELECT 1 FROM distribuciones_entrega_facturas def
                         INNER JOIN distribuciones_entrega de ON def.distribucion_entrega_id = de.id
                         WHERE def.factura_id = f2.id
-                        AND de.estado_id IN (2, 3)
+                        AND de.estado_id = 1
+                        AND def.estado_entrega != 'anulada'
                     )
                 )
                 ORDER BY c.nombre
@@ -902,7 +936,8 @@ class DistribucionEntrega extends Component
                     SELECT 1 FROM distribuciones_entrega_facturas def
                     INNER JOIN distribuciones_entrega de ON def.distribucion_entrega_id = de.id
                     WHERE def.factura_id = f.id
-                    AND de.estado_id IN (2, 3)
+                    AND de.estado_id = 1
+                    AND def.estado_entrega != 'anulada'
                 )
                 ORDER BY f.fecha_emision DESC, f.cai DESC
             ", [$clienteId]);
@@ -1027,6 +1062,7 @@ class DistribucionEntrega extends Component
                 })
                 ->where('de.id', '!=', $distribucionId)
                 ->whereIn('de.estado_id', [2, 3]) // En proceso o Completada
+                ->where('def.estado_entrega', '!=', 'anulada') // Ignorar facturas anuladas
                 ->select('def.factura_id', 'de.id as otra_distribucion_id', 'de.estado_id')
                 ->get();
 
@@ -1744,6 +1780,128 @@ class DistribucionEntrega extends Component
             return response()->json([
                 'success' => false,
                 'message' => 'Error al validar incidencias: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Verificar si una lista de facturas están disponibles para distribución
+     * (no en distribución pendiente con estado_entrega != anulada)
+     */
+    public function verificarDisponibilidad(Request $request)
+    {
+        try {
+            $facturaIds = $request->input('facturas', []);
+            if (empty($facturaIds)) {
+                return response()->json(['disponibles' => true, 'bloqueadas' => []], 200);
+            }
+
+            $placeholders = implode(',', array_fill(0, count($facturaIds), '?'));
+            $bloqueadas = DB::select("
+                SELECT def.factura_id, f.cai, de.id as distribucion_id
+                FROM distribuciones_entrega_facturas def
+                INNER JOIN distribuciones_entrega de ON def.distribucion_entrega_id = de.id
+                INNER JOIN factura f ON def.factura_id = f.id
+                WHERE def.factura_id IN ({$placeholders})
+                AND de.estado_id = 1
+                AND def.estado_entrega != 'anulada'
+            ", $facturaIds);
+
+            return response()->json([
+                'disponibles' => count($bloqueadas) === 0,
+                'bloqueadas'  => $bloqueadas,
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al verificar disponibilidad: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Finalizar distribución: anula todas las facturas pendientes (sin_entrega)
+     * con un motivo general y luego marca la distribución como completada.
+     */
+    public function finalizarEntregaDistribucion($distribucionId)
+    {
+        try {
+            Log::info("=== Finalizando distribución ID: {$distribucionId} ===");
+
+            $request = request();
+            $motivo  = trim($request->input('motivo', ''));
+
+            $distribucion = ModelDistribucionEntrega::findOrFail($distribucionId);
+
+            if ($distribucion->estado_id != 2) {
+                return response()->json([
+                    'icon'  => 'warning',
+                    'title' => 'Estado inválido',
+                    'text'  => 'Solo se pueden finalizar distribuciones en proceso',
+                ], 422);
+            }
+
+            // Bloquear si hay incidencias sin tratamiento
+            $incidenciasSinTratar = DB::select("
+                SELECT COUNT(DISTINCT i.id) as total
+                FROM distribuciones_entrega_facturas def
+                INNER JOIN entregas_productos ep ON ep.distribucion_factura_id = def.id
+                INNER JOIN entregas_productos_incidencias i ON i.entrega_producto_id = ep.id
+                LEFT JOIN entregas_incidencias_tratamientos t ON t.entrega_producto_incidencia_id = i.id
+                WHERE def.distribucion_entrega_id = ?
+                    AND t.id IS NULL
+            ", [$distribucionId]);
+
+            if ((int)($incidenciasSinTratar[0]->total ?? 0) > 0) {
+                return response()->json([
+                    'icon'  => 'warning',
+                    'title' => 'Incidencias sin tratar',
+                    'text'  => 'No se puede finalizar porque hay incidencias sin tratamiento registrado.',
+                ], 422);
+            }
+
+            DB::beginTransaction();
+
+            // Anular todas las facturas con estado 'sin_entrega'
+            DB::table('distribuciones_entrega_facturas')
+                ->where('distribucion_entrega_id', $distribucionId)
+                ->where('estado_entrega', 'sin_entrega')
+                ->update([
+                    'estado_entrega'   => 'anulada',
+                    'fecha_entrega_real' => null,
+                    'motivo_anulacion' => $motivo ?: 'Anulada al finalizar la distribución',
+                    'updated_at'       => now(),
+                ]);
+
+            // Marcar distribución como completada
+            $distribucion->estado_id = 3;
+            $distribucion->save();
+
+            DB::commit();
+
+            Log::info("Distribución finalizada exitosamente: {$distribucionId}");
+
+            return response()->json([
+                'icon'  => 'success',
+                'title' => 'Entrega finalizada',
+                'text'  => 'Las facturas pendientes fueron anuladas y la distribución ha sido completada.',
+            ], 200);
+
+        } catch (\Exception $e) {
+            if (DB::transactionLevel() > 0) {
+                DB::rollBack();
+            }
+            Log::error("Error al finalizar distribución:", [
+                'distribucion_id' => $distribucionId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'icon'  => 'error',
+                'title' => 'Error',
+                'text'  => 'No se pudo finalizar la distribución: ' . $e->getMessage(),
             ], 500);
         }
     }

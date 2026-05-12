@@ -761,7 +761,34 @@ function guardarDistribucion() {
     };
     
     console.log('Datos a enviar:', data);
-    
+
+    // Verificar disponibilidad de facturas antes de guardar
+    const facturaIds = data.facturas;
+    const queryString = facturaIds.map(id => `facturas[]=${id}`).join('&');
+    $.ajax({
+        url: '/logistica/facturas/verificar-disponibilidad?' + queryString,
+        type: 'GET',
+        success: function(check) {
+            if (!check.disponibles && check.bloqueadas.length > 0) {
+                const lista = check.bloqueadas.map(b => `#${b.cai}`).join(', ');
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Facturas ya asignadas',
+                    html: `<p>Las siguientes facturas ya se encuentran asignadas en una distribución pendiente:</p><p><strong>${lista}</strong></p><p>Debe eliminarlas de dicha distribución antes de volver a asignarlas.</p>`,
+                    confirmButtonColor: '#f0ad4e'
+                });
+                return;
+            }
+            _enviarGuardarDistribucion(data);
+        },
+        error: function() {
+            // Si falla la verificación, intentar guardar igual (el backend también valida)
+            _enviarGuardarDistribucion(data);
+        }
+    });
+}
+
+function _enviarGuardarDistribucion(data) {
     $.ajax({
         url: '/logistica/distribuciones/guardar',
         type: 'POST',
