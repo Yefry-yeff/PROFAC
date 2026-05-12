@@ -115,9 +115,10 @@ class DistribucionEntrega extends Component
             Log::info('Transacción confirmada - Distribución guardada exitosamente');
 
             return response()->json([
-                'icon' => 'success',
-                'title' => '¡Éxito!',
-                'text' => 'Distribución creada con ' . count($data['facturas']) . ' factura(s)',
+                'icon'           => 'success',
+                'title'          => '¡Éxito!',
+                'text'           => 'Distribución creada con ' . count($data['facturas']) . ' factura(s)',
+                'distribucion_id' => $distribucion->id,
             ], 200);
 
         } catch (\Exception $e) {
@@ -378,6 +379,91 @@ class DistribucionEntrega extends Component
                 'message' => 'Error al obtener facturas',
                 'error' => $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Ver detalle de distribución
+     */
+    public function verDistribucion($id)
+    {
+        return redirect()->route('logistica.distribuciones', ['ver' => $id]);
+    }
+
+    /**
+     * Descargar carta de entrega en PDF
+     */
+    public function descargarCartaEntrega($id)
+    {
+        try {
+            $distribucion = ModelDistribucionEntrega::with('equipo', 'creador')
+                ->findOrFail($id);
+
+            // Obtener facturas de la distribución ordenadas por orden de entrega
+            $facturas = DB::select("
+                SELECT
+                    df.factura_id,
+                    df.orden_entrega,
+                    f.cai                    AS numero,
+                    FORMAT(f.total, 2)       AS total,
+                    DATE_FORMAT(f.fecha_emision, '%d/%m/%Y') AS fecha,
+                    c.nombre                 AS cliente,
+                    c.direccion
+                FROM distribuciones_entrega_facturas df
+                INNER JOIN factura  f ON df.factura_id  = f.id
+                INNER JOIN cliente  c ON f.cliente_id   = c.id
+                WHERE df.distribucion_entrega_id = ?
+                ORDER BY c.nombre ASC, df.orden_entrega ASC
+            ", [$id]);
+
+            // Agrupar por cliente -> facturas -> productos
+            $clientesMap = [];
+            foreach ($facturas as $fac) {
+                $clienteKey = $fac->cliente;
+
+                if (!isset($clientesMap[$clienteKey])) {
+                    $clientesMap[$clienteKey] = [
+                        'nombre'    => $fac->cliente,
+                        'direccion' => $fac->direccion,
+                        'facturas'  => [],
+                    ];
+                }
+
+                // Obtener productos con la misma query de la factura corporativa
+                $productos = DB::select("
+                    SELECT
+                        B.producto_id                                       AS codigo,
+                        C.nombre                                            AS descripcion,
+                        UPPER(J.nombre)                                     AS medida,
+                        REPLACE(SUM(B.cantidad_s), '.00', '')              AS cantidad
+                    FROM venta_has_producto B
+                    INNER JOIN producto          C ON B.producto_id            = C.id
+                    INNER JOIN unidad_medida_venta D ON B.unidad_medida_venta_id = D.id
+                    INNER JOIN unidad_medida      J ON J.id                    = D.unidad_medida_id
+                    WHERE B.factura_id = ?
+                    GROUP BY B.producto_id, descripcion, medida, B.indice
+                    ORDER BY B.indice ASC
+                ", [$fac->factura_id]);
+
+                $clientesMap[$clienteKey]['facturas'][] = [
+                    'numero'        => $fac->numero,
+                    'orden_entrega' => $fac->orden_entrega,
+                    'fecha'         => $fac->fecha,
+                    'total'         => $fac->total,
+                    'productos'     => $productos,
+                ];
+            }
+
+            $clientes = array_values($clientesMap);
+
+            $pdf = \PDF::loadView('pdf/carta-entrega', compact('distribucion', 'clientes'))
+                       ->setPaper('letter');
+
+            return $pdf->stream("carta-entrega-{$distribucion->id}.pdf");
+
+        } catch (\Exception $e) {
+            \Log::error('Error generando carta entrega:', ['error' => $e->getMessage()]);
+            return response()->json(['error' => $e->getMessage()], 500);
         }
     }
 

@@ -275,6 +275,37 @@
     </div>
 </div>
 
+<!-- Modal: Éxito al guardar distribución -->
+<div class="modal fade" id="modalExitoDistribucion" tabindex="-1" role="dialog" data-backdrop="static" data-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered" role="document" style="max-width:420px;">
+        <div class="modal-content" style="border-radius:20px; overflow:hidden; border:none; box-shadow:0 20px 60px rgba(0,0,0,.18);">
+            <button type="button" data-dismiss="modal" aria-label="Cerrar"
+                    style="position:absolute; top:12px; right:14px; background:none; border:none;
+                           font-size:20px; color:#9e9e9e; cursor:pointer; line-height:1; z-index:1;
+                           padding:4px 8px; border-radius:50%;" title="Cerrar">&times;</button>
+            <div class="modal-body" style="padding:36px 32px 28px; text-align:center;">
+                <div style="width:90px; height:90px; border-radius:50%;
+                            background:linear-gradient(135deg,#0f766e,#14b8a6);
+                            display:flex; align-items:center; justify-content:center;
+                            margin:0 auto 20px; box-shadow:0 8px 24px rgba(15,118,110,.30);">
+                    <i class="fa fa-check" style="font-size:46px; color:#fff; line-height:1;"></i>
+                </div>
+                <h4 style="font-weight:800; color:#0f766e; margin-bottom:6px; font-size:18px;">¡Distribución guardada!</h4>
+                <p id="msgNumDistribucion" style="color:#546e7a; font-size:13px; margin-bottom:24px;">La distribución fue registrada exitosamente.</p>
+                <div style="display:flex; justify-content:center;">
+                    <button onclick="distribuccionAccion('imprimir')"
+                            style="background:#fafafa; color:#374151; border:1.5px solid #e5e7eb;
+                                   border-radius:10px; padding:11px 32px; font-size:13px; font-weight:700;
+                                   cursor:pointer; text-align:center; transition:background .15s;"
+                            onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='#fafafa'">
+                        <i class="fa fa-print d-block" style="font-size:22px; margin-bottom:4px; color:#6b7280;"></i>
+                        Imprimir
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 <style>
 /* Centrar modales dentro del área de contenido (excluir sidebar 250px) */
 @media (min-width: 992px) {
@@ -739,14 +770,12 @@ function guardarDistribucion() {
         },
         success: function(r) {
             console.log('Respuesta exitosa:', r);
-            Swal.fire({
-                icon: r.icon || 'success',
-                title: r.title || 'Éxito',
-                text: r.text || 'Distribución guardada correctamente',
-                confirmButtonColor: '#28a745'
-            }).then(() => {
-                window.location.href = '{{ route("logistica.distribuciones") }}';
-            });
+            $('#modalNuevaDistribucion').modal('hide');
+            $('#msgNumDistribucion').html(`Distribución #${r.distribucion_id} registrada correctamente`);
+            $('#modalExitoDistribucion')
+                .data('distribucion-id', r.distribucion_id)
+                .data('pedido-id', r.pedido_id || null)
+                .modal('show');
         },
         error: function(xhr, status, error) {
             console.error('Error AJAX:', {xhr, status, error});
@@ -759,6 +788,27 @@ function guardarDistribucion() {
             });
         }
     });
+}
+
+// ========== ACCIONES DISTRIBUCIÓN ==========
+function distribuccionAccion(accion) {
+    const distribucionId = $('#modalExitoDistribucion').data('distribucion-id');
+    if (!distribucionId) return;
+    
+    if (accion === 'flujo') {
+        const pedidoId = $('#modalExitoDistribucion').data('pedido-id');
+        $('#modalExitoDistribucion').modal('hide');
+        if (pedidoId) {
+            Livewire.emit('abrirFlujoPedido', parseInt(pedidoId), 'entrega');
+        } else {
+            // Sin pedido vinculado, abrir detalle de distribución
+            window.location.href = `/logistica/distribuciones?ver=${distribucionId}`;
+        }
+        return;
+    } else if (accion === 'imprimir') {
+        // Abrir PDF de carta de entrega
+        window.open(`/logistica/distribuciones/${distribucionId}/carta-entrega`, '_blank');
+    }
 }
 
 // Inicialización cuando el DOM esté listo
@@ -1002,4 +1052,6 @@ function mostrarFacturasCliente(facturas, nombreCliente) {
 
 }); // END DOMContentLoaded
 </script>
+
+<livewire:flujo.modal-flujo-pedido />
 </x-app-layout>

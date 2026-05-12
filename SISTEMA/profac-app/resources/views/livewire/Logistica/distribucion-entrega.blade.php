@@ -459,6 +459,17 @@ $(document).ready(() => {
 
     setTimeout(() => ocultarLoaderDE(), 1500);
 
+    // Auto-abrir detalle si viene con ?ver=ID en la URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const verDistribucionId = urlParams.get('ver');
+    if (verDistribucionId) {
+        // Esperar que los DataTables terminen de cargar para abrir el modal
+        setTimeout(() => verFacturas(parseInt(verDistribucionId)), 1800);
+        // Limpiar el param de la URL sin recargar
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+    }
+
     // Configuración base común de DataTables
     const configBase = {
         processing: true,
