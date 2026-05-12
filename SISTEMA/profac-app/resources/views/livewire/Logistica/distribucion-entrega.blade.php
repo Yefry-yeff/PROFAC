@@ -1,172 +1,227 @@
-﻿<div>
-    <style>
-        /* Estilos para scroll en tabla de detalle */
-        #bodyDetalleDistribucion .table-responsive::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-        
-        #bodyDetalleDistribucion .table-responsive::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 10px;
-        }
-        
-        #bodyDetalleDistribucion .table-responsive::-webkit-scrollbar-thumb {
-            background: #888;
-            border-radius: 10px;
-        }
-        
-        #bodyDetalleDistribucion .table-responsive::-webkit-scrollbar-thumb:hover {
-            background: #555;
-        }
+﻿@push('styles')
+<style>
+    /* ===== DISTRIBUCIÓN ENTREGA ===== */
+    .de-page { font-family: 'Source Sans Pro', sans-serif; }
 
-        /* Animación para botones */
-        .btn-group .btn {
-            transition: all 0.2s ease;
-        }
+    .de-main-card {
+        border: none;
+        border-radius: 14px;
+        overflow: hidden;
+        box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+        margin-bottom: 1.5rem;
+    }
 
-        .btn-group .btn:hover {
-            transform: scale(1.1);
-        }
+    .de-header {
+        background: linear-gradient(135deg, #0f766e 0%, #0d9488 60%, #14b8a6 100%);
+        padding: 1.5rem 1.75rem;
+        border-bottom: none;
+    }
 
-        /* Asegurar que SweetAlert aparezca sobre modales */
-        .swal2-container {
-            z-index: 10000 !important;
-        }
+    .de-hero-icon {
+        width: 52px; height: 52px;
+        background: rgba(255,255,255,0.18);
+        border-radius: 12px;
+        display: flex; align-items: center; justify-content: center;
+        margin-right: 1rem;
+        font-size: 1.5rem; color: #fff;
+        flex-shrink: 0;
+    }
 
-        .swal2-popup {
-            z-index: 10001 !important;
-        }
+    .de-header h4 { color: #fff; font-weight: 700; margin: 0; font-size: 1.25rem; }
+    .de-header small { color: rgba(255,255,255,0.8); font-size: 0.82rem; }
 
-        /* Ocultar card-body de cards colapsadas al cargar */
-        .collapsed-card .card-body {
-            display: none;
-        }
+    .de-btn-primary {
+        background: rgba(255,255,255,0.15);
+        border: 1.5px solid rgba(255,255,255,0.5);
+        color: #fff;
+        border-radius: 8px;
+        padding: 0.5rem 1.2rem;
+        font-weight: 600;
+        transition: background 0.2s, border-color 0.2s;
+        white-space: nowrap;
+    }
+    .de-btn-primary:hover {
+        background: rgba(255,255,255,0.28);
+        border-color: #fff;
+        color: #fff;
+        text-decoration: none;
+    }
 
-        /* Asegurar que las tablas ocupen todo el ancho */
-        .table-responsive {
-            width: 100%;
-        }
-        
-        .table {
-            width: 100% !important;
-        }
-    </style>
+    /* Nav tabs */
+    .de-tabs { border-bottom: 2px solid #e9ecef; }
+    .de-tabs .nav-link {
+        border: none;
+        border-bottom: 3px solid transparent;
+        color: #6c757d;
+        font-weight: 600;
+        padding: 0.85rem 1.25rem;
+        margin-bottom: -2px;
+        border-radius: 0;
+        transition: color 0.2s;
+    }
+    .de-tabs .nav-link:hover { color: #0f766e; }
+    .de-tabs .nav-link.active {
+        color: #0f766e;
+        border-bottom-color: #0f766e;
+        background: transparent;
+    }
+    .de-tabs .nav-link i { margin-right: 0.4rem; }
 
-    <div class="row">
-        <div class="col-md-12">
-            <div class="text-right mb-3">
-                <a href="{{ route('logistica.distribuciones.nueva') }}" class="btn btn-primary">
-                    <i class="fa fa-plus"></i> Nueva Distribución
+    /* Loading overlay */
+    .de-loading-overlay {
+        position: fixed; inset: 0;
+        background: rgba(255,255,255,0.92);
+        z-index: 9000;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        transition: opacity 0.4s;
+    }
+    .de-loading-overlay.is-hidden { opacity: 0; pointer-events: none; }
+    .de-loader {
+        width: 48px; height: 48px;
+        border: 5px solid #e0f2f1;
+        border-top-color: #0f766e;
+        border-radius: 50%;
+        animation: de-spin 0.8s linear infinite;
+    }
+    @keyframes de-spin { to { transform: rotate(360deg); } }
+
+    /* Scrollbar en modal detalle */
+    #bodyDetalleDistribucion .table-responsive::-webkit-scrollbar { width: 8px; height: 8px; }
+    #bodyDetalleDistribucion .table-responsive::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+    #bodyDetalleDistribucion .table-responsive::-webkit-scrollbar-thumb { background: #888; border-radius: 10px; }
+    #bodyDetalleDistribucion .table-responsive::-webkit-scrollbar-thumb:hover { background: #555; }
+
+    /* SweetAlert z-index */
+    .swal2-container { z-index: 10000 !important; }
+    .swal2-popup { z-index: 10001 !important; }
+
+    /* Botones en tabla */
+    .btn-group .btn { transition: all 0.2s ease; }
+    .btn-group .btn:hover { transform: scale(1.1); }
+
+    /* Tablas */
+    .table-responsive { width: 100%; }
+    .table { width: 100% !important; }
+</style>
+@endpush
+
+<div class="de-page">
+
+    <!-- Loading overlay -->
+    <div id="pageLoadingDE" class="de-loading-overlay">
+        <div class="de-loader"></div>
+        <p class="mt-3 text-muted small">Cargando distribuciones...</p>
+    </div>
+
+    <!-- Tarjeta principal con pestañas -->
+    <div class="card de-main-card">
+
+        <!-- Header -->
+        <div class="card-header de-header">
+            <div class="d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center">
+                    <div class="de-hero-icon">
+                        <i class="fas fa-truck"></i>
+                    </div>
+                    <div>
+                        <h4>Distribución de Entregas</h4>
+                        <small>Gestión de rutas y distribución de facturas</small>
+                    </div>
+                </div>
+                <button type="button" class="btn de-btn-primary" onclick="abrirModalNuevaDistribucion()">
+                    <i class="fas fa-plus"></i> Nueva Distribución
+                </button>
+            </div>
+        </div>
+
+        <!-- Pestañas -->
+        <ul class="nav de-tabs px-3 pt-2" id="tabsDistribucion" role="tablist">
+            <li class="nav-item">
+                <a class="nav-link active" data-toggle="tab" href="#tab-pendientes" role="tab">
+                    <i class="fas fa-clock text-warning"></i> Pendientes de Tratar
                 </a>
-            </div>
-        </div>
-    </div>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-toggle="tab" href="#tab-proceso" role="tab">
+                    <i class="fas fa-truck text-info"></i> Sin Finalizar
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-toggle="tab" href="#tab-completadas" role="tab">
+                    <i class="fas fa-check-circle text-success"></i> Completadas
+                </a>
+            </li>
+        </ul>
 
-    <!-- Distribuciones Pendientes de Tratar -->
-    <div class="row">
-        <div class="col-md-12">
-            <div class="card card-warning collapsed-card">
-                <div class="card-header">
-                    <h3 class="card-title"><i class="fas fa-clock"></i> Distribuciones Pendientes de Tratar</h3>
-                    <div class="card-tools">
-                        <button type="button" class="btn btn-tool" data-card-widget="collapse">
-                            <i class="fas fa-plus"></i>
-                        </button>
-                    </div>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table id="tablaPendientes" class="table table-bordered table-striped table-sm mb-0">
-                            <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>Fecha</th>
-                                    <th>Equipo</th>
-                                    <th>Descripción</th>
-                                    <th>Progreso</th>
-                                    <th>Estado</th>
-                                    <th>Creador</th>
-                                    <th>F. Actualización</th>
-                                    <th>Usuario Autorizó</th>
-                                    <th>Opciones</th>
-                                </tr>
-                            </thead>
-                            <tbody></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+        <!-- Contenido de pestañas -->
+        <div class="card-body tab-content p-3">
 
-    <!-- Distribuciones Sin Finalizar -->
-    <div class="row">
-        <div class="col-md-12">
-            <div class="card card-info collapsed-card">
-                <div class="card-header">
-                    <h3 class="card-title"><i class="fas fa-truck"></i> Distribuciones Sin Finalizar</h3>
-                    <div class="card-tools">
-                        <button type="button" class="btn btn-tool" data-card-widget="collapse">
-                            <i class="fas fa-plus"></i>
-                        </button>
-                    </div>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table id="tablaEnProceso" class="table table-bordered table-striped table-sm mb-0">
-                            <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>Fecha</th>
-                                    <th>Equipo</th>
-                                    <th>Descripción</th>
-                                    <th>Progreso</th>
-                                    <th>Estado</th>
-                                    <th>Creador</th>
-                                    <th>Opciones</th>
-                                </tr>
-                            </thead>
-                            <tbody></tbody>
-                        </table>
-                    </div>
+            <!-- Pestaña: Pendientes de Tratar -->
+            <div class="tab-pane fade show active" id="tab-pendientes" role="tabpanel">
+                <div class="table-responsive">
+                    <table id="tablaPendientes" class="table table-bordered table-striped table-sm mb-0">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Fecha</th>
+                                <th>Equipo</th>
+                                <th>Descripción</th>
+                                <th>Progreso</th>
+                                <th>Estado</th>
+                                <th>Creador</th>
+                                <th>F. Actualización</th>
+                                <th>Usuario Autorizó</th>
+                                <th>Opciones</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
                 </div>
             </div>
-        </div>
-    </div>
 
-    <!-- Distribuciones Completadas -->
-    <div class="row">
-        <div class="col-md-12">
-            <div class="card card-success collapsed-card">
-                <div class="card-header">
-                    <h3 class="card-title"><i class="fas fa-check-circle"></i> Distribuciones completadas</h3>
-                    <div class="card-tools">
-                        <button type="button" class="btn btn-tool" data-card-widget="collapse">
-                            <i class="fas fa-plus"></i>
-                        </button>
-                    </div>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table id="tablaCompletadas" class="table table-bordered table-striped table-sm mb-0">
-                            <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>Fecha</th>
-                                    <th>Equipo</th>
-                                    <th>Descripción</th>
-                                    <th>Progreso</th>
-                                    <th>Estado</th>
-                                    <th>Creador</th>
-                                    <th>Opciones</th>
-                                </tr>
-                            </thead>
-                            <tbody></tbody>
-                        </table>
-                    </div>
+            <!-- Pestaña: Sin Finalizar -->
+            <div class="tab-pane fade" id="tab-proceso" role="tabpanel">
+                <div class="table-responsive">
+                    <table id="tablaEnProceso" class="table table-bordered table-striped table-sm mb-0">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Fecha</th>
+                                <th>Equipo</th>
+                                <th>Descripción</th>
+                                <th>Progreso</th>
+                                <th>Estado</th>
+                                <th>Creador</th>
+                                <th>Opciones</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
                 </div>
             </div>
+
+            <!-- Pestaña: Completadas -->
+            <div class="tab-pane fade" id="tab-completadas" role="tabpanel">
+                <div class="table-responsive">
+                    <table id="tablaCompletadas" class="table table-bordered table-striped table-sm mb-0">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Fecha</th>
+                                <th>Equipo</th>
+                                <th>Descripción</th>
+                                <th>Progreso</th>
+                                <th>Estado</th>
+                                <th>Creador</th>
+                                <th>Opciones</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
         </div>
     </div>
 
@@ -397,37 +452,13 @@
 let tablaPendientes, tablaEnProceso, tablaCompletadas, facturasSelTmp = [];
 
 $(document).ready(() => {
-    // Agregar easing personalizado para animaciones más suaves
-    $.easing.easeInOutCubic = function(x) {
-        return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
-    };
-    
-    // Manejador manual para colapsar/expandir las tarjetas con animaciones suaves y elegantes
-    $('[data-card-widget="collapse"]').on('click', function(e) {
-        e.preventDefault();
-        const $card = $(this).closest('.card');
-        const $cardBody = $card.find('.card-body');
-        const $icon = $(this).find('i');
-        
-        if ($card.hasClass('collapsed-card')) {
-            // Expandir con animación suave y elegante
-            $card.removeClass('collapsed-card');
-            $cardBody.stop(true, true).slideDown({
-                duration: 600,
-                easing: 'easeInOutCubic'
-            });
-            $icon.removeClass('fa-plus').addClass('fa-minus');
-        } else {
-            // Colapsar con animación suave y elegante
-            $card.addClass('collapsed-card');
-            $cardBody.stop(true, true).slideUp({
-                duration: 500,
-                easing: 'easeInOutCubic'
-            });
-            $icon.removeClass('fa-minus').addClass('fa-plus');
-        }
+    // Ajustar columnas de DataTable al cambiar de pestaña
+    $('a[data-toggle="tab"]').on('shown.bs.tab', function () {
+        $.fn.dataTable.tables({ visible: true, api: true }).columns.adjust();
     });
-    
+
+    setTimeout(() => ocultarLoaderDE(), 1500);
+
     // Configuración base común de DataTables
     const configBase = {
         processing: true,
@@ -517,6 +548,10 @@ $(document).ready(() => {
         }
     });
 });
+
+function ocultarLoaderDE() {
+    $('#pageLoadingDE').addClass('is-hidden');
+}
 
 // ========== FUNCIÓN HELPER ==========
 function recargarTodasLasTablas(mantenerPaginacion = true) {

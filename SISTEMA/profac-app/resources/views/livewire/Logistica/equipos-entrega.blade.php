@@ -429,9 +429,6 @@
                             </div>
 
                             <div class="eq-member-add mb-3">
-                                <div class="mb-2">
-                                    <input type="text" class="form-control form-control-sm" id="buscarUsuarioNuevo" placeholder="Buscar miembro por nombre..." autocomplete="off">
-                                </div>
                                 <div class="d-flex gap-2 align-items-center">
                                     <div class="flex-grow-1">
                                         <select class="form-control" id="selectUsuarioNuevo">
@@ -499,9 +496,6 @@
                                 <span class="eq-total-inline">Total: <strong id="totalPctEditar">0.00</strong>%</span>
                             </div>
                             <div class="eq-member-add mb-2">
-                                <div class="mb-2">
-                                    <input type="text" class="form-control form-control-sm" id="buscarUsuarioEditar" placeholder="Buscar miembro por nombre..." autocomplete="off">
-                                </div>
                                 <div class="d-flex gap-2 align-items-center">
                                     <div class="flex-grow-1">
                                         <select class="form-control" id="selectUsuarioEditar">
@@ -559,15 +553,7 @@ $(document).ready(() => {
     $('#inputNombreEquipoNuevo').on('input', function() { $(this).removeClass('is-invalid'); });
     $('#editNombreEquipo').on('input', function() { $(this).removeClass('is-invalid'); });
 
-    // Búsqueda nativa en select de nuevo equipo
-    $('#buscarUsuarioNuevo').on('input', function() {
-        filtrarSelect('selectUsuarioNuevo', $(this).val());
-    });
 
-    // Búsqueda nativa en select de editar equipo
-    $('#buscarUsuarioEditar').on('input', function() {
-        filtrarSelect('selectUsuarioEditar', $(this).val());
-    });
 });
 
 function ocultarLoaderPantalla() {
@@ -593,8 +579,6 @@ function abrirModalNuevoEquipo() {
     $('#inputNombreEquipoNuevo').removeClass('is-invalid');
     miembrosTmp = [];
     actualizarListaTmp();
-    $('#buscarUsuarioNuevo').val('');
-    filtrarSelect('selectUsuarioNuevo', '');
     $('#modalNuevoEquipo').modal('show');
 }
 
@@ -622,8 +606,6 @@ function agregarMiembroTmp() {
     actualizarListaTmp();
     $('#selectUsuarioNuevo').val('');
     $('#inputPorcentaje').val('');
-    $('#buscarUsuarioNuevo').val('');
-    filtrarSelect('selectUsuarioNuevo', '');
 }
 
 function removerTmp(idx) {
@@ -726,8 +708,6 @@ function editarEquipo(id) {
             $('#editEquipoId').val(r.equipo.id);
             $('#editNombreEquipo').val(r.equipo.nombre_equipo);
             $('#editDescripcion').val(r.equipo.descripcion);
-            $('#buscarUsuarioEditar').val('');
-            filtrarSelect('selectUsuarioEditar', '');
             $('#selectUsuarioEditar').val('');
             
             // Cargar miembros actuales
@@ -775,8 +755,6 @@ function agregarNuevoMiembro() {
             cargarMiembrosActuales(equipoId);
             $('#selectUsuarioEditar').val('');
             $('#inputPorcentajeEditar').val('');
-            $('#buscarUsuarioEditar').val('');
-            filtrarSelect('selectUsuarioEditar', '');
         }
     }).fail(x => Swal.fire({title: x.responseJSON.title, text: x.responseJSON.text, icon: x.responseJSON.icon, customClass: {container: 'swal-over-modal'}}));
 }
