@@ -44,6 +44,7 @@
     $fCancelado   = ($d['estado'] === 'cancelado');
     $tieneOfertas  = count($ofertasPedido) > 0 || ($d['total_ofertas'] > 0);
     $tieneGanadora = ($d['has_ganadora'] > 0);
+    $tieneRevision = in_array(9, $flujoTipos);   // Revision de Inventario
     $tienePrefact  = in_array(4, $flujoTipos);
     $tieneFactura  = in_array(3, $flujoTipos) || in_array(5, $flujoTipos);
 
@@ -57,28 +58,32 @@
     $finalizadoCompletado = $entregaEsCompletada && $cobroCompletado;
     $facturaCompletada = in_array(5, $flujoTipos) || in_array(3, $flujoTipos);
 
+    // fPaso: número del paso activo en el stepper (1-5 para el pipeline principal)
+    // 1=Pedido, 2=Ofertas, 3=RevInventario, 4=PreFactura, 5=Factura
     $fPaso = match(true) {
-        $fCancelado   => 0,
+        $fCancelado           => 0,
         $finalizadoCompletado => 7,
-        $cobroCompletado => 6,
-        $tieneEntrega => 5,
-        $tieneFactura => 4,
-        $tienePrefact => 3,
-        $tieneGanadora => 3,
-        $tieneOfertas  => 2,
-        default        => 1,
+        $cobroCompletado      => 6,
+        $tieneEntrega         => 5,
+        $tieneFactura         => 5,
+        $tienePrefact         => 4,
+        $tieneRevision        => 3,   // en revisión de inventario
+        $tieneGanadora        => 4,   // ganadora sin revisión → directamente prefactura
+        $tieneOfertas         => 2,
+        default               => 1,
     };
 
     $fPasos = [
-        1 => ['key' => 'pedido',      'icon' => 'fa-shopping-cart', 'title' => 'Pedido'],
-        2 => ['key' => 'ofertas',     'icon' => 'fa-tag',           'title' => 'Ofertas'],
-        3 => ['key' => 'prefactura',  'icon' => 'fa-file-o',        'title' => 'Pre Factura'],
-        4 => ['key' => 'factura',     'icon' => 'fa-file-text',     'title' => 'Factura'],
+        1 => ['key' => 'pedido',              'icon' => 'fa-shopping-cart', 'title' => 'Pedido'],
+        2 => ['key' => 'ofertas',             'icon' => 'fa-tag',           'title' => 'Ofertas'],
+        3 => ['key' => 'revision_inventario', 'icon' => 'fa-search',        'title' => 'Rev. Inventario'],
+        4 => ['key' => 'prefactura',          'icon' => 'fa-file-o',        'title' => 'Pre Factura'],
+        5 => ['key' => 'factura',             'icon' => 'fa-file-text',     'title' => 'Factura'],
     ];
 
     $pasoMap = [
-        'pedido' => 1, 'ofertas' => 2, 'prefactura' => 3,
-        'factura' => 4, 'entrega' => 5, 'cobro' => 6, 'finalizado' => 7,
+        'pedido' => 1, 'ofertas' => 2, 'revision_inventario' => 3,
+        'prefactura' => 4, 'factura' => 5, 'entrega' => 6, 'cobro' => 7, 'finalizado' => 8,
     ];
     $pasoActivoNum = $pasoMap[$pasoActivo] ?? 1;
 @endphp
@@ -150,15 +155,16 @@
                             flex-wrap:nowrap; overflow-x:auto; padding:18px 8px 10px;">
                     @foreach ($fPasos as $paso => $info)
                     @php
-                        $fPasoLinea = min($fPaso, 4);
+                        $fPasoLinea = min($fPaso, 5);
                         $esSinPedido = ($paso === 1 && !empty($d['sin_pedido']));
                         // Pasos que no aplican porque el flujo fue directo (sin ofertas/prefactura)
                         $esSinAplica = !$esSinPedido && !empty($d['sin_pedido']) && (
                             ($paso === 2 && !$tieneOfertas && $fPasoLinea > 2) ||
-                            ($paso === 3 && !$tienePrefact && $fPasoLinea > 3)
+                            ($paso === 3 && !$tieneRevision && !$tienePrefact && $fPasoLinea > 3) ||
+                            ($paso === 4 && !$tienePrefact && $fPasoLinea > 4)
                         );
-                        $completado = !$esSinPedido && !$esSinAplica && (($paso < $fPasoLinea) || ($paso === 4 && $fPaso > 4));
-                        $activo     = !$esSinPedido && !$esSinAplica && ($paso === $fPasoLinea) && !($paso === 4 && $fPaso > 4);
+                        $completado = !$esSinPedido && !$esSinAplica && (($paso < $fPasoLinea) || ($paso === 5 && $fPaso > 5));
+                        $activo     = !$esSinPedido && !$esSinAplica && ($paso === $fPasoLinea) && !($paso === 5 && $fPaso > 5);
                         $pendiente  = !$esSinPedido && !$esSinAplica && ($paso > $fPasoLinea);
                         $esSeleccionado = ($info['key'] === $pasoActivo);
                         $delay      = ($paso - 1) * 100;
@@ -236,17 +242,23 @@
                                     <i class="fa fa-clock-o"></i> Pendiente
                                 @endif
                             </div>
-                            @if ($activo && $paso === 3)
+                            @if ($activo && $paso === 4)
                             <div style="font-size:10px; color:#f39c12; margin-top:3px; font-weight:700;
                                         background:rgba(243,156,18,.12); border-radius:8px; padding:1px 6px;">
                                 <i class="fa fa-trophy"></i> Oferta ganadora
+                            </div>
+                            @endif
+                            @if ($activo && $paso === 3)
+                            <div style="font-size:10px; color:#9c27b0; margin-top:3px; font-weight:700;
+                                        background:rgba(156,39,176,.1); border-radius:8px; padding:1px 6px;">
+                                <i class="fa fa-search"></i> En revisión
                             </div>
                             @endif
                         </div>
                     </div>{{-- /step --}}
 
                     {{-- Conector --}}
-                    @if ($paso < 4)
+                    @if ($paso < 5)
                     @php $connDelay = $delay + 80; @endphp
                     <div style="flex:1; min-width:16px; max-width:40px; height:4px; border-radius:4px;
                                 margin-bottom:30px; position:relative; overflow:hidden; background:#e0e3ee;">
@@ -877,16 +889,27 @@
                             <i class="mr-1 fa fa-trophy text-warning"></i>
                             ¿Marcar la <strong>Oferta #{{ $ofertaSeleccionada['id'] }}</strong> como <strong>ganadora</strong>?
                         </p>
+                        @if ($revisionInventarioActiva)
+                        <p style="font-size:12px; color:#6a1b9a; margin:0 0 10px; text-align:center;">
+                            <i class="mr-1 fa fa-search"></i>
+                            La oferta pasará a <strong>Revisión de Inventario</strong> antes de convertirse en Pre-Factura.
+                        </p>
+                        @else
                         <p style="font-size:12px; color:#1b5e20; margin:0 0 10px; text-align:center;">
                             <i class="mr-1 fa fa-check-circle"></i>
                             Se creará la <strong>Pre-Factura automáticamente</strong> y se reservará el inventario.
                         </p>
+                        @endif
                         <div style="display:flex; gap:8px; justify-content:center;">
                             <button type="button" wire:click="ganadoraOferta"
-                                    style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff;
+                                    style="background:{{ $revisionInventarioActiva ? 'linear-gradient(135deg,#7b1fa2,#9c27b0)' : 'linear-gradient(135deg,#e65100,#f9a826)' }}; color:#fff;
                                            border:none; border-radius:8px; padding:7px 18px;
                                            font-size:12px; font-weight:700; cursor:pointer;">
-                                <i class="mr-1 fa fa-trophy"></i> Confirmar y crear Pre-Factura
+                                @if ($revisionInventarioActiva)
+                                    <i class="mr-1 fa fa-search"></i> Confirmar y enviar a Revisión
+                                @else
+                                    <i class="mr-1 fa fa-trophy"></i> Confirmar y crear Pre-Factura
+                                @endif
                             </button>
                             <button type="button" wire:click="cancelarConfirmOferta"
                                     style="background:#f0f0f0; color:#555; border:none;
@@ -1069,6 +1092,83 @@
 
                 @endif
                 {{-- /paso ofertas --}}
+
+                {{-- ══════════════════════════════════════════════════ --}}
+                {{-- PASO: REVISIÓN DE INVENTARIO (informativo)         --}}
+                {{-- ══════════════════════════════════════════════════ --}}
+                @if ($pasoActivo === 'revision_inventario')
+                @php
+                    // Obtener observaciones del área de inventario si fue devuelta
+                    $obsDevolucion = null;
+                    if ($flujoId) {
+                        $hfDevolucion = \Illuminate\Support\Facades\DB::table('historico_flujo')
+                            ->where('flujo_id', $flujoId)
+                            ->where('tipo_tramite_id', 9)
+                            ->orderByDesc('id')
+                            ->first(['observaciones', 'estado_id', 'created_at']);
+                        if ($hfDevolucion) {
+                            $obsDevolucion = $hfDevolucion->observaciones;
+                        }
+                    }
+                @endphp
+                <div style="margin-top:14px;">
+                    {{-- Banner informativo principal --}}
+                    <div style="background:linear-gradient(135deg,#f3e5f5,#ede7f6);
+                                border:1.5px solid #ce93d8; border-radius:14px;
+                                padding:20px 24px; text-align:center; margin-bottom:14px;">
+                        <div style="width:70px; height:70px; border-radius:50%;
+                                    background:linear-gradient(135deg,#9c27b0,#7b1fa2);
+                                    display:inline-flex; align-items:center; justify-content:center;
+                                    font-size:30px; color:#fff; margin-bottom:12px;
+                                    box-shadow:0 6px 20px rgba(156,39,176,.4);">
+                            <i class="fa fa-search"></i>
+                        </div>
+                        <h4 style="color:#6a1b9a; font-weight:700; margin:0 0 6px;">
+                            Factura en revisión de inventario
+                        </h4>
+                        <p style="color:#7b1fa2; font-size:13px; margin:0;">
+                            Esta oferta está siendo validada por el área de inventario antes de continuar a Prefactura.
+                        </p>
+                    </div>
+
+                    {{-- Info del estado actual --}}
+                    <div style="background:#fff; border-radius:10px; border:1px solid #e8eaf0;
+                                padding:12px 16px; font-size:13px; color:#555;">
+                        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                            <span style="background:#f3e5f5; color:#6a1b9a; border-radius:8px;
+                                         padding:3px 12px; font-size:12px; font-weight:700;">
+                                <i class="fa fa-clock-o mr-1"></i> Pendiente de revisión
+                            </span>
+                            <span style="color:#888; font-size:12px;">
+                                <i class="fa fa-info-circle mr-1"></i>
+                                El encargado de inventario validará la disponibilidad de los productos.
+                            </span>
+                        </div>
+                        <div style="margin-top:10px; padding-top:10px; border-top:1px solid #f0f0f0;">
+                            <span style="color:#555; font-size:12px;">
+                                <i class="mr-1 fa fa-exchange text-muted"></i>
+                                Próximo paso si se aprueba: <strong>Pre Factura</strong>
+                            </span>
+                            <span style="margin-left:16px; color:#555; font-size:12px;">
+                                <i class="mr-1 fa fa-reply text-muted"></i>
+                                Si hay problemas: <strong>Devolver a Oferta</strong>
+                            </span>
+                        </div>
+                    </div>
+
+                    {{-- Observaciones de devolución (si el flujo fue devuelto desde revisión) --}}
+                    @if ($obsDevolucion && str_contains($obsDevolucion, 'Devuelto'))
+                    <div style="margin-top:12px; background:#fff3e0; border:1px solid #ffcc80;
+                                border-radius:12px; padding:12px 16px;">
+                        <h6 style="color:#e65100; font-weight:700; margin-bottom:6px;">
+                            <i class="mr-1 fa fa-comment-o"></i>Observaciones de Revisión de Inventario
+                        </h6>
+                        <p style="font-size:12px; color:#555; margin:0; white-space:pre-line;">{{ $obsDevolucion }}</p>
+                    </div>
+                    @endif
+                </div>
+                @endif
+                {{-- /paso revision_inventario --}}
 
                 {{-- ══════════════════════════════════════════════════ --}}
                 {{-- PASO: PREFACTURA                                       --}}

@@ -29,6 +29,7 @@ class ModalFlujoPedido extends Component
     public $ofertaSeleccionada  = null;
     public $confirmAccionOferta = null;  // null|'ganadora'|'anular_oferta'|'duplicar_oferta'
     public $motivoAnulOferta    = '';
+    public bool $revisionInventarioActiva = false;
 
     // ── Acciones sobre el pedido ──────────────────────────────────────────
     public $confirmAccion    = null;  // null|'anular'|'duplicar'
@@ -118,16 +119,18 @@ class ModalFlujoPedido extends Component
         $tramiteStepMap = [
             1  => 'pedido',
             2  => 'ofertas',
+            9  => 'revision_inventario',   // Revision de Inventario
             4  => 'prefactura',
             3  => 'factura',
             5  => 'entrega',
             8  => 'finalizado',
-            'pedido'        => 'pedido',
-            'Ofertas'       => 'ofertas',
-            'prefactura'    => 'prefactura',
-            'factura'       => 'factura',
-            'finalizado'    => 'finalizado',
-            'Entrega Cobro' => 'entrega',
+            'pedido'                => 'pedido',
+            'Ofertas'               => 'ofertas',
+            'Revision de Inventario'=> 'revision_inventario',
+            'prefactura'            => 'prefactura',
+            'factura'               => 'factura',
+            'finalizado'            => 'finalizado',
+            'Entrega Cobro'         => 'entrega',
         ];
         // Si el paso inicial es 'pedido' (default), auto-derivamos del flujo;
         // si se pasó explícitamente otro paso, lo respetamos
@@ -151,6 +154,10 @@ class ModalFlujoPedido extends Component
 
         $this->cargarEstadosEntregaCobro();
         $this->cargarOfertasPedido();
+
+        // Config revisión de inventario
+        $cfgRev = DB::table('configuracion_revision_inventario')->first();
+        $this->revisionInventarioActiva = $cfgRev && (bool) $cfgRev->activo;
 
         // Resetear estado
         $this->pasoActivo              = $pasoFinal;
@@ -250,21 +257,27 @@ class ModalFlujoPedido extends Component
         $tramiteStepMap = [
             1  => 'ofertas',
             2  => 'ofertas',
+            9  => 'revision_inventario',   // Revision de Inventario
             4  => 'prefactura',
             3  => 'factura',
             5  => 'entrega',
             6  => 'cobro',
             7  => 'entrega',    // Flujo conjunto (Entrega + Cobro)
             8  => 'finalizado',
-            'pedido'        => 'ofertas',   // sin pedido, arrancamos en ofertas
-            'Ofertas'       => 'ofertas',
-            'prefactura'    => 'prefactura',
-            'factura'       => 'factura',
-            'finalizado'    => 'finalizado',
-            'Entrega Cobro' => 'entrega',
+            'pedido'                => 'ofertas',   // sin pedido, arrancamos en ofertas
+            'Ofertas'               => 'ofertas',
+            'Revision de Inventario'=> 'revision_inventario',
+            'prefactura'            => 'prefactura',
+            'factura'               => 'factura',
+            'finalizado'            => 'finalizado',
+            'Entrega Cobro'         => 'entrega',
         ];
 
         $this->cargarOfertasPedido();
+
+        // Config revisión de inventario
+        $cfgRev = DB::table('configuracion_revision_inventario')->first();
+        $this->revisionInventarioActiva = $cfgRev && (bool) $cfgRev->activo;
 
         // Flujos de factura directa (sin cotizacion) arrancan en el paso de entrega/factura
         $pasoAbierto = $facturaDirecta ? 'factura' : 'ofertas';
@@ -373,6 +386,9 @@ class ModalFlujoPedido extends Component
 
         if ($paso === 'ofertas') {
             $this->cargarOfertasPedido();
+        }
+        if ($paso === 'revision_inventario') {
+            // Paso informativo; no requiere carga extra
         }
         if ($paso === 'prefactura') {
             $this->cargarPrefactura();
@@ -594,6 +610,78 @@ class ModalFlujoPedido extends Component
         $cotizacionId = (int) $this->ofertaSeleccionada['id'];
         $cotizacion   = DB::table('cotizacion')->where('id', $cotizacionId)->first();
         if (!$cotizacion) { $this->mensajeError = 'Oferta no encontrada.'; return; }
+
+        // ── Verificar si la revisión de inventario está activada ──────────
+        $configRevision = DB::table('configuracion_revision_inventario')->first();
+        $revisionActiva = $configRevision && (bool) $configRevision->activo;
+
+        if ($revisionActiva) {
+            // ── NUEVO FLUJO: Oferta Ganadora → Revisión de Inventario ─────
+            DB::beginTransaction();
+            try {
+                // 1. Quitar ganadora anterior si existe
+                DB::table('historico_flujo')
+                    ->where('flujo_id', $this->flujoId)
+                    ->where('tipo_tramite_id', 2)
+                    ->where('observaciones', 'ganadora')
+                    ->update(['observaciones' => null, 'updated_at' => now()]);
+
+                // 2. Marcar esta oferta como ganadora
+                DB::table('historico_flujo')
+                    ->where('tramite_id', $cotizacionId)
+                    ->where('tipo_tramite_id', 2)
+                    ->where('flujo_id', $this->flujoId)
+                    ->update(['observaciones' => 'ganadora', 'updated_at' => now()]);
+
+                // 3. Auditoría cotizacion_estado
+                DB::table('cotizacion_estado')->insert([
+                    'cotizacion_id' => $cotizacionId,
+                    'flujo_id'      => $this->flujoId,
+                    'ganadora'      => 1,
+                    'comentario'    => 'Marcada como ganadora. Enviada a Revisión de Inventario.',
+                    'estado_id'     => 1,
+                    'created_by'    => Auth::id(),
+                    'updated_by'    => Auth::id(),
+                    'created_at'    => now(),
+                    'updated_at'    => now(),
+                ]);
+
+                // 4. Crear registro en historico_flujo para el paso de Revisión de Inventario
+                DB::table('historico_flujo')->insert([
+                    'flujo_id'        => $this->flujoId,
+                    'tipo_tramite_id' => 9,
+                    'tramite_id'      => $cotizacionId,
+                    'estado_id'       => 5,   // Pendiente
+                    'observaciones'   => 'En Revisión de Inventario. Oferta #' . $cotizacionId,
+                    'created_by'      => Auth::id(),
+                    'updated_by'      => Auth::id(),
+                    'created_at'      => now(),
+                    'updated_at'      => now(),
+                ]);
+
+                // 5. Avanzar flujo al paso Revisión de Inventario
+                DB::table('flujo')->where('id', $this->flujoId)->update([
+                    'tipo_tramite_id' => 9,
+                    'updated_by'      => Auth::id(),
+                    'updated_at'      => now(),
+                ]);
+
+                DB::commit();
+                $this->stockErrors         = [];
+                $this->confirmAccionOferta = null;
+                $this->ofertaSeleccionada  = null;
+                $this->mensajeExito = 'Oferta #' . $cotizacionId . ' marcada como ganadora y enviada a Revisión de Inventario.';
+                $this->emit('pedidoActualizado');
+                $this->recargar();
+
+            } catch (\Exception $e) {
+                DB::rollBack();
+                $this->mensajeError = 'Error al enviar a Revisión de Inventario: ' . $e->getMessage();
+            }
+            return;
+        }
+
+        // ── FLUJO ORIGINAL: Oferta Ganadora → Prefactura ─────────────────
 
         $productos = DB::table('cotizacion_has_producto')
             ->where('cotizacion_id', $cotizacionId)

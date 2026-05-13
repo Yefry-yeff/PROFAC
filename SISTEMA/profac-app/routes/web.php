@@ -1350,10 +1350,11 @@ Route::post('/reporte/ventas-cobros/exportar-excel/{vendedorId}/{clienteId}/{mes
 
 
 
+    // Ruta auto-generada para: Flujo\RevicionInventario
+    Route::get('/flujo/revicion_inventario', \App\Http\Livewire\Flujo\RevicionInventario::class);
+
     return redirect('/login');
 
     // Configuración de tiempo de prefacturación (movido a /configuracion/prefacturacion)
 
-    // Ruta auto-generada para: Flujo\RevicionInventario
-    Route::get('/flujo/revicion_inventario', \App\Http\Livewire\Flujo\RevicionInventario::class);
 });

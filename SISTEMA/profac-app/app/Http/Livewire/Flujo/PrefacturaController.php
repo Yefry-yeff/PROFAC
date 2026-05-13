@@ -269,6 +269,85 @@ class PrefacturaController
             return response()->json(['icon' => 'error', 'title' => 'Error', 'text' => 'Oferta no encontrada.'], 404);
         }
 
+        // ── Verificar si la revisión de inventario está activa ────────────
+        $configRevision = DB::table('configuracion_revision_inventario')->first();
+        $revisionActiva = $configRevision && (bool) $configRevision->activo;
+
+        if ($revisionActiva) {
+            // Buscar flujo_id si no vino en el request
+            if (!$flujoId) {
+                $flujoId = DB::table('historico_flujo')
+                    ->where('tipo_tramite_id', 2)
+                    ->where('tramite_id', $cotizacionId)
+                    ->value('flujo_id');
+            }
+
+            DB::beginTransaction();
+            try {
+                // 1. Quitar ganadora anterior
+                if ($flujoId) {
+                    DB::table('historico_flujo')
+                        ->where('flujo_id', $flujoId)
+                        ->where('tipo_tramite_id', 2)
+                        ->where('observaciones', 'ganadora')
+                        ->update(['observaciones' => null, 'updated_at' => now()]);
+                }
+
+                // 2. Marcar esta oferta como ganadora
+                DB::table('historico_flujo')
+                    ->where('tramite_id', $cotizacionId)
+                    ->where('tipo_tramite_id', 2)
+                    ->when($flujoId, fn($q) => $q->where('flujo_id', $flujoId))
+                    ->update(['observaciones' => 'ganadora', 'updated_at' => now()]);
+
+                // 3. Auditoría cotizacion_estado
+                DB::table('cotizacion_estado')->insert([
+                    'cotizacion_id' => $cotizacionId,
+                    'flujo_id'      => $flujoId,
+                    'ganadora'      => 1,
+                    'comentario'    => 'Marcada como ganadora. Enviada a Revisión de Inventario.',
+                    'estado_id'     => 1,
+                    'created_by'    => Auth::id(),
+                    'updated_by'    => Auth::id(),
+                    'created_at'    => now(),
+                    'updated_at'    => now(),
+                ]);
+
+                // 4. Crear historico_flujo tipo=9
+                DB::table('historico_flujo')->insert([
+                    'flujo_id'        => $flujoId,
+                    'tipo_tramite_id' => 9,
+                    'tramite_id'      => $cotizacionId,
+                    'estado_id'       => 5,
+                    'observaciones'   => 'En Revisión de Inventario. Oferta #' . $cotizacionId,
+                    'created_by'      => Auth::id(),
+                    'updated_by'      => Auth::id(),
+                    'created_at'      => now(),
+                    'updated_at'      => now(),
+                ]);
+
+                // 5. Avanzar flujo al paso 9
+                if ($flujoId) {
+                    DB::table('flujo')->where('id', $flujoId)->update([
+                        'tipo_tramite_id' => 9,
+                        'updated_by'      => Auth::id(),
+                        'updated_at'      => now(),
+                    ]);
+                }
+
+                DB::commit();
+                return response()->json([
+                    'en_revision_inventario' => true,
+                    'cotizacionId'           => $cotizacionId,
+                    'flujoId'                => $flujoId,
+                    'message'                => 'Oferta #' . $cotizacionId . ' enviada a Revisión de Inventario.',
+                ]);
+            } catch (\Exception $e) {
+                DB::rollBack();
+                return response()->json(['icon' => 'error', 'title' => 'Error', 'text' => $e->getMessage()], 500);
+            }
+        }
+
         $productos = DB::table('cotizacion_has_producto')
             ->where('cotizacion_id', $cotizacionId)
             ->get();
