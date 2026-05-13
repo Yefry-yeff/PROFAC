@@ -601,7 +601,7 @@ class DistribucionEntrega extends Component
                     SELECT 1 FROM distribuciones_entrega_facturas def
                     INNER JOIN distribuciones_entrega de ON def.distribucion_entrega_id = de.id
                     WHERE def.factura_id = f.id
-                    AND de.estado_id = 1
+                    AND de.estado_id IN (1, 2)
                     AND def.estado_entrega != 'anulada'
                 )
                 LIMIT 1
@@ -647,14 +647,14 @@ class DistribucionEntrega extends Component
                         FROM distribuciones_entrega_facturas def
                         INNER JOIN distribuciones_entrega de ON def.distribucion_entrega_id = de.id
                         WHERE def.factura_id = (SELECT id FROM factura WHERE cai = ? LIMIT 1)
-                        AND de.estado_id = 1
+                        AND de.estado_id IN (1, 2)
                         AND def.estado_entrega != 'anulada'
                         LIMIT 1
                     ", [$numero]);
                     if (!empty($enPendiente)) {
                         return response()->json([
                             'success' => false,
-                            'message' => 'La distribución de esta factura ya se encuentra asignada en una distribución pendiente. Debe eliminarla de dicha distribución antes de volver a asignarla.'
+                            'message' => 'La distribución de esta factura ya se encuentra asignada en una distribución pendiente o en proceso. Debe eliminarla de dicha distribución antes de volver a asignarla.'
                         ], 422);
                     }
                 }
@@ -712,7 +712,7 @@ class DistribucionEntrega extends Component
                     SELECT 1 FROM distribuciones_entrega_facturas def
                     INNER JOIN distribuciones_entrega de ON def.distribucion_entrega_id = de.id
                     WHERE def.factura_id = f.id
-                    AND de.estado_id = 1
+                    AND de.estado_id IN (1, 2)
                     AND def.estado_entrega != 'anulada'
                 )
                 ORDER BY f.fecha_emision DESC, f.cai DESC
@@ -777,7 +777,7 @@ class DistribucionEntrega extends Component
                     SELECT 1 FROM distribuciones_entrega_facturas def
                     INNER JOIN distribuciones_entrega de ON def.distribucion_entrega_id = de.id
                     WHERE def.factura_id = f.id
-                    AND de.estado_id = 1
+                    AND de.estado_id IN (1, 2)
                     AND def.estado_entrega != 'anulada'
                 )
                 ORDER BY f.cai DESC
@@ -847,7 +847,7 @@ class DistribucionEntrega extends Component
                          SELECT 1 FROM distribuciones_entrega_facturas def
                          INNER JOIN distribuciones_entrega de ON def.distribucion_entrega_id = de.id
                          WHERE def.factura_id = f2.id
-                         AND de.estado_id = 1
+                         AND de.estado_id IN (1, 2)
                          AND def.estado_entrega != 'anulada'
                      )) as facturas_disponibles
                 FROM cliente c
@@ -869,7 +869,7 @@ class DistribucionEntrega extends Component
                         SELECT 1 FROM distribuciones_entrega_facturas def
                         INNER JOIN distribuciones_entrega de ON def.distribucion_entrega_id = de.id
                         WHERE def.factura_id = f2.id
-                        AND de.estado_id = 1
+                        AND de.estado_id IN (1, 2)
                         AND def.estado_entrega != 'anulada'
                     )
                 )
@@ -936,7 +936,7 @@ class DistribucionEntrega extends Component
                     SELECT 1 FROM distribuciones_entrega_facturas def
                     INNER JOIN distribuciones_entrega de ON def.distribucion_entrega_id = de.id
                     WHERE def.factura_id = f.id
-                    AND de.estado_id = 1
+                    AND de.estado_id IN (1, 2)
                     AND def.estado_entrega != 'anulada'
                 )
                 ORDER BY f.fecha_emision DESC, f.cai DESC
@@ -1803,7 +1803,7 @@ class DistribucionEntrega extends Component
                 INNER JOIN distribuciones_entrega de ON def.distribucion_entrega_id = de.id
                 INNER JOIN factura f ON def.factura_id = f.id
                 WHERE def.factura_id IN ({$placeholders})
-                AND de.estado_id = 1
+                AND de.estado_id IN (1, 2)
                 AND def.estado_entrega != 'anulada'
             ", $facturaIds);
 

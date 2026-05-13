@@ -774,7 +774,7 @@ function guardarDistribucion() {
                 Swal.fire({
                     icon: 'warning',
                     title: 'Facturas ya asignadas',
-                    html: `<p>Las siguientes facturas ya se encuentran asignadas en una distribución pendiente:</p><p><strong>${lista}</strong></p><p>Debe eliminarlas de dicha distribución antes de volver a asignarlas.</p>`,
+                    html: `<p>Las siguientes facturas ya se encuentran asignadas en una distribución pendiente o en proceso:</p><p><strong>${lista}</strong></p><p>Debe eliminarlas de dicha distribución antes de volver a asignarlas.</p>`,
                     confirmButtonColor: '#f0ad4e'
                 });
                 return;

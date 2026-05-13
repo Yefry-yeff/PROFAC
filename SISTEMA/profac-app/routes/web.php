@@ -142,6 +142,7 @@ use App\Http\Livewire\Escalas\ReportesEscalas;
 use App\Http\Livewire\Logistica\EquiposEntrega;
 use App\Http\Livewire\Logistica\DistribucionEntrega;
 use App\Http\Livewire\Logistica\ConfirmacionEntrega;
+use App\Http\Livewire\Logistica\ReporteLogistica;
 
 use App\Http\Livewire\Comisiones\Escalado\Configuracion as confcomisiones;
 use App\Http\Livewire\Comisiones\Escalado\MisComisiones;
@@ -1325,6 +1326,16 @@ Route::post('/reporte/ventas-cobros/exportar-excel/{vendedorId}/{clienteId}/{mes
     Route::get('/logistica/confirmacion/incidencias/{incidenciaId}/evidencias', [ConfirmacionEntrega::class, 'obtenerEvidenciasIncidencia']);
     Route::post('/logistica/confirmacion/marcar-todos/{distribucionFacturaId}', [ConfirmacionEntrega::class, 'marcarTodosEntregados']);
     Route::get('/logistica/confirmacion/reporte/{distribucionId}', [ConfirmacionEntrega::class, 'obtenerReporteDistribucion']);
+
+    // Dashboard analítica logística
+    Route::get('/logistica/reporte_logistica',        ReporteLogistica::class);
+    Route::get('/logistica/reportes/filtros',         [ReporteLogistica::class, 'obtenerFiltros']);
+    Route::get('/logistica/reportes/kpis',            [ReporteLogistica::class, 'obtenerKPIs']);
+    Route::get('/logistica/reportes/evolucion',       [ReporteLogistica::class, 'obtenerEvolucion']);
+    Route::get('/logistica/reportes/por-equipo',      [ReporteLogistica::class, 'obtenerPorEquipo']);
+    Route::get('/logistica/reportes/estados',         [ReporteLogistica::class, 'obtenerEstados']);
+    Route::get('/logistica/reportes/tabla',           [ReporteLogistica::class, 'obtenerTabla']);
+    Route::get('/logistica/reportes/tabla-facturas',  [ReporteLogistica::class, 'obtenerTablaFacturas']);
 
 
 
