@@ -25,8 +25,7 @@
         20%,60% { transform:translateX(-6px); }
         40%,80% { transform:translateX(6px);  }
     }
-    body { overflow: hidden !important; }
-    .fmp-dlg  { max-width:920px; width:100%; animation:flujoIn .32s cubic-bezier(.34,1.28,.64,1) both; }
+    .fmp-dlg  { max-width:920px; width:100%; animation:flujoIn .32s cubic-bezier(.34,1.28,.64,1) both; pointer-events:auto; }
     .fmp-cnt  { border-radius:18px !important; overflow:hidden !important; }
     .fmp-body { padding:20px 24px 24px !important; overflow-y:auto; max-height:calc(90vh - 140px); }
     .fmp-foot { padding:12px 24px 18px !important; display:flex !important; flex-wrap:wrap !important; gap:8px !important; justify-content:flex-end !important; }
@@ -102,7 +101,9 @@
 {{-- ── Overlay ─────────────────────────────────────────────────────────── --}}
 <div id="fmpModalWrap" tabindex="-1" role="dialog"
      style="position:fixed; inset:0; z-index:99999;
-            display:flex; align-items:center; justify-content:center; padding:16px;
+            display:flex; align-items:flex-start; justify-content:center; padding:16px;
+            overflow-y:auto; -webkit-overflow-scrolling:touch;
+            pointer-events:none;
             background:rgba(15,15,35,.62); backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px);">
 
     <div class="fmp-dlg" role="document">
