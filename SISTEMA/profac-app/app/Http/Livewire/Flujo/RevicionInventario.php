@@ -19,8 +19,11 @@ use Illuminate\Support\Facades\Auth;
 class RevicionInventario extends Component
 {
     // ── Bandeja ───────────────────────────────────────────────────────────
-    public array  $bandejaRegistros = [];
-    public string $busqueda         = '';
+    public array  $bandejaRegistros  = [];   // pestaña: llegando
+    public array  $bandejaDevueltos  = [];   // pestaña: devueltos a oferta
+    public array  $bandejaPrefactura = [];   // pestaña: pasados a prefactura
+    public string $busqueda          = '';
+    public string $tabActiva         = 'llegando';
 
     // ── Detalle del flujo seleccionado ────────────────────────────────────
     public ?int   $flujoId          = null;
@@ -97,7 +100,18 @@ class RevicionInventario extends Component
     public function cargar(): void
     {
         $term = trim($this->busqueda);
+        $this->bandejaRegistros  = $this->buildBandejaQuery($term, 'llegando');
+        $this->bandejaDevueltos  = $this->buildBandejaQuery($term, 'devueltos');
+        $this->bandejaPrefactura = $this->buildBandejaQuery($term, 'prefactura');
+    }
 
+    public function cambiarTab(string $tab): void
+    {
+        $this->tabActiva = in_array($tab, ['llegando', 'devueltos', 'prefactura']) ? $tab : 'llegando';
+    }
+
+    private function buildBandejaQuery(string $term, string $tipo): array
+    {
         $q = DB::table('flujo as f')
             ->join('historico_flujo as hf', function ($j) {
                 $j->on('hf.flujo_id', '=', 'f.id')
@@ -114,32 +128,36 @@ class RevicionInventario extends Component
                 $j->on('cl.id', '=', 'c.cliente_id')
                   ->orOn('cl.id', '=', 'p.cliente_id');
             })
-            ->where(function ($q) {
-                $q->where('f.tipo_tramite_id', 9)
-                  ->orWhere('hf.estado_id', 7);
-            })
             ->select(
                 'f.id as flujo_id',
                 'f.identificacion',
                 'hf.created_at as fecha_revision',
+                'hf.updated_at as fecha_accion',
                 'hfof.tramite_id as cotizacion_id',
                 DB::raw("COALESCE(c.nombre_cliente, p.observaciones, CONCAT('Flujo #', f.id)) as cliente"),
                 DB::raw("COALESCE(c.RTN, '') as rtn"),
                 DB::raw('(SELECT COUNT(*) FROM cotizacion_has_producto chp WHERE chp.cotizacion_id = hfof.tramite_id) as total_productos'),
                 'hf.observaciones as obs_revision',
-                DB::raw('CASE WHEN hf.estado_id = 7 THEN 1 ELSE 0 END as devuelto')
+                'hf.estado_id'
             )
             ->groupBy(
-                'f.id', 'f.identificacion', 'hf.created_at',
+                'f.id', 'f.identificacion', 'hf.created_at', 'hf.updated_at',
                 'hfof.tramite_id', 'c.nombre_cliente', 'p.observaciones',
                 'c.RTN', 'hf.observaciones', 'hf.estado_id'
-            )
-            ->orderByDesc('hf.created_at');
+            );
+
+        if ($tipo === 'llegando') {
+            $q->where('f.tipo_tramite_id', 9)->where('hf.estado_id', '!=', 7);
+        } elseif ($tipo === 'devueltos') {
+            $q->where('hf.estado_id', 7);
+        } else {
+            $q->where('hf.estado_id', 1); // prefactura: revisión aprobada
+        }
 
         if ($term !== '') {
             $like = '%' . $term . '%';
             if (is_numeric($term)) {
-                $q->where(function ($s) use ($term, $like) {
+                $q->where(function ($s) use ($term) {
                     $s->where('f.id', (int) $term)
                       ->orWhere('f.identificacion', $term)
                       ->orWhere('hfof.tramite_id', (int) $term);
@@ -153,7 +171,7 @@ class RevicionInventario extends Component
             }
         }
 
-        $this->bandejaRegistros = $q->get()->map(fn($r) => (array) $r)->toArray();
+        return $q->orderByDesc('hf.created_at')->get()->map(fn($r) => (array) $r)->toArray();
     }
 
     // ─────────────────────────────────────────────────────────────────────
