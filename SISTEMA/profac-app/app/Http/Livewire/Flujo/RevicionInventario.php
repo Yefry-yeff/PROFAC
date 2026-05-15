@@ -204,12 +204,23 @@ class RevicionInventario extends Component
             ->orderByDesc('id')
             ->first(['tramite_id', 'observaciones']);
 
-        // Si fue devuelto, buscar el tramite_id en el registro de devolución
+        // Si fue devuelto, buscar el cotizacion_id a través de cotizacion_estado (ganadora=4)
+        if (!$hfGanadora) {
+            $ceDev = DB::table('cotizacion_estado')
+                ->where('flujo_id', $flujoId)
+                ->where('ganadora', 4)
+                ->orderByDesc('id')
+                ->first(['cotizacion_id']);
+            if ($ceDev) {
+                $hfGanadora = (object) ['tramite_id' => $ceDev->cotizacion_id];
+            }
+        }
+        // Último respaldo: oferta marcada como devuelta desde revisión
         if (!$hfGanadora) {
             $hfGanadora = DB::table('historico_flujo')
                 ->where('flujo_id', $flujoId)
                 ->where('tipo_tramite_id', 2)
-                ->where('observaciones', 'LIKE', 'Devuelto desde Revisión de Inventario:%')
+                ->where('observaciones', 'LIKE', 'Devuelta desde Revisión:%')
                 ->orderByDesc('id')
                 ->first(['tramite_id']);
         }
@@ -483,19 +494,6 @@ class RevicionInventario extends Component
                     'updated_by'    => Auth::id(),
                     'updated_at'    => now(),
                 ]);
-
-            // Registrar en historico_flujo la devolución (para trazabilidad)
-            DB::table('historico_flujo')->insert([
-                'flujo_id'        => $this->flujoId,
-                'tipo_tramite_id' => 2,   // Ofertas
-                'tramite_id'      => $this->cotizacionId,
-                'estado_id'       => 5,   // Pendiente
-                'observaciones'   => 'Devuelto desde Revisión de Inventario: ' . $obsCompleta,
-                'created_by'      => Auth::id(),
-                'updated_by'      => Auth::id(),
-                'created_at'      => now(),
-                'updated_at'      => now(),
-            ]);
 
             // Quitar la marca de ganadora de la oferta (vuelve a estado oferta normal)
             DB::table('historico_flujo')

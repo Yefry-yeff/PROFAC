@@ -31,6 +31,10 @@ class ModalFlujoPedido extends Component
     public $motivoAnulOferta    = '';
     public bool $revisionInventarioActiva = false;
 
+    // ── Revisión de Inventario: historial de ciclos ──────────────────────────────────────
+    public array $revisionHistorial = [];   // ciclos con datos de revisor/aprobador
+    public bool  $revisionDevuelta  = false; // true si el último ciclo fue devuelto a oferta
+
     // ── Acciones sobre el pedido ──────────────────────────────────────────
     public $confirmAccion    = null;  // null|'anular'|'duplicar'
     public $motivoAnulacion  = '';
@@ -145,7 +149,11 @@ class ModalFlujoPedido extends Component
         $this->flujoTipos = $this->flujoId
             ? DB::table('historico_flujo')
                 ->where('flujo_id', $this->flujoId)
-                ->where('estado_id', '!=', 7)   // excluir registros inactivados
+                ->where(function ($q) {
+                    // Incluir activos + registros de revisión aunque estén inactivados (devueltos)
+                    $q->where('estado_id', '!=', 7)
+                      ->orWhere('tipo_tramite_id', 9);
+                })
                 ->pluck('tipo_tramite_id')
                 ->unique()
                 ->values()
@@ -153,6 +161,7 @@ class ModalFlujoPedido extends Component
             : [];
 
         $this->cargarEstadosEntregaCobro();
+        $this->cargarRevisionHistorial();
         $this->cargarOfertasPedido();
 
         // Config revisión de inventario
@@ -239,7 +248,11 @@ class ModalFlujoPedido extends Component
 
         $this->flujoTipos = DB::table('historico_flujo')
             ->where('flujo_id', $flujoId)
-            ->where('estado_id', '!=', 7)   // excluir registros inactivados
+            ->where(function ($q) {
+                // Incluir activos + registros de revisión aunque estén inactivados (devueltos)
+                $q->where('estado_id', '!=', 7)
+                  ->orWhere('tipo_tramite_id', 9);
+            })
             ->pluck('tipo_tramite_id')
             ->unique()
             ->values()
@@ -273,6 +286,7 @@ class ModalFlujoPedido extends Component
             'Entrega Cobro'         => 'entrega',
         ];
 
+        $this->cargarRevisionHistorial();
         $this->cargarOfertasPedido();
 
         // Config revisión de inventario
@@ -367,6 +381,8 @@ class ModalFlujoPedido extends Component
         $this->vencimientoProcesado    = false;
         $this->estadoEntrega           = null;
         $this->estadoCobro             = null;
+        $this->revisionHistorial       = [];
+        $this->revisionDevuelta        = false;
     }
 
     // ─────────────────────────────────────────────────────────────────────
@@ -388,7 +404,7 @@ class ModalFlujoPedido extends Component
             $this->cargarOfertasPedido();
         }
         if ($paso === 'revision_inventario') {
-            // Paso informativo; no requiere carga extra
+            $this->cargarRevisionHistorial();
         }
         if ($paso === 'prefactura') {
             $this->cargarPrefactura();
@@ -529,6 +545,47 @@ class ModalFlujoPedido extends Component
             ->get()
             ->map(fn($r) => (array) $r)
             ->toArray();
+    }
+
+    /**
+     * Carga el historial de ciclos de Revisión de Inventario para el flujo activo.
+     * Incluye nombre del revisor (created_by) y del autorizador (updated_by).
+     */
+    private function cargarRevisionHistorial(): void
+    {
+        if (!$this->flujoId) {
+            $this->revisionHistorial = [];
+            $this->revisionDevuelta  = false;
+            return;
+        }
+
+        $records = DB::table('historico_flujo as hf')
+            ->leftJoin('users as rev', 'rev.id', '=', 'hf.created_by')
+            ->leftJoin('users as apr', 'apr.id', '=', 'hf.updated_by')
+            ->where('hf.flujo_id', $this->flujoId)
+            ->where('hf.tipo_tramite_id', 9)
+            ->orderBy('hf.id')
+            ->select(
+                'hf.id',
+                'hf.estado_id',
+                'hf.observaciones',
+                'hf.tramite_id',
+                'hf.created_at',
+                'hf.updated_at',
+                'hf.created_by',
+                'hf.updated_by',
+                'rev.name as revisor_nombre',
+                'apr.name as aprobador_nombre'
+            )
+            ->get()
+            ->map(fn($r) => (array) $r)
+            ->toArray();
+
+        $this->revisionHistorial = $records;
+
+        // Devuelta si el ciclo más reciente tiene estado_id = 7 (inactivado/devuelto)
+        $ultima = collect($records)->sortByDesc('id')->first();
+        $this->revisionDevuelta = $ultima !== null && (int) ($ultima['estado_id'] ?? 0) === 7;
     }
 
     public function verOferta(int $cotizacionId): void

@@ -44,7 +44,9 @@
     $fCancelado   = ($d['estado'] === 'cancelado');
     $tieneOfertas  = count($ofertasPedido) > 0 || ($d['total_ofertas'] > 0);
     $tieneGanadora = ($d['has_ganadora'] > 0);
-    $tieneRevision = in_array(9, $flujoTipos);   // Revision de Inventario
+    $tieneRevision         = in_array(9, $flujoTipos);   // Revision de Inventario (incluye devueltos)
+    $tieneRevisionActiva   = $tieneRevision && !($revisionDevuelta ?? false);  // ciclo activo
+    $tieneRevisionDevuelta = $tieneRevision && ($revisionDevuelta ?? false);   // último ciclo devuelto
     $tienePrefact  = in_array(4, $flujoTipos);
     $tieneFactura  = in_array(3, $flujoTipos) || in_array(5, $flujoTipos);
 
@@ -67,7 +69,7 @@
         $tieneEntrega         => 5,
         $tieneFactura         => 5,
         $tienePrefact         => 4,
-        $tieneRevision        => 3,   // en revisión de inventario
+        $tieneRevisionActiva   => 3,   // en revisión de inventario (ciclo activo)
         $tieneGanadora        => 4,   // ganadora sin revisión → directamente prefactura
         $tieneOfertas         => 2,
         default               => 1,
@@ -168,8 +170,14 @@
                         $pendiente  = !$esSinPedido && !$esSinAplica && ($paso > $fPasoLinea);
                         $esSeleccionado = ($info['key'] === $pasoActivo);
                         $delay      = ($paso - 1) * 100;
-                        $labelColor = ($esSinPedido || $esSinAplica) ? '#e74c3c' : ($completado ? '#1ab394' : ($activo ? '#1a7efb' : '#aab'));
-                        $puedeClick = ($completado || $activo) && !$esSinPedido && !$esSinAplica;
+                        // Rev. Inventario devuelta: mostrar como estado especial (naranja) en vez de pendiente gris
+                        $esDevuelto = ($info['key'] === 'revision_inventario')
+                            && ($tieneRevisionDevuelta ?? false)
+                            && !($tieneRevisionActiva ?? false)
+                            && $pendiente;
+                        if ($esDevuelto) $pendiente = false;
+                        $labelColor = ($esSinPedido || $esSinAplica) ? '#e74c3c' : ($completado ? '#1ab394' : ($activo ? '#1a7efb' : ($esDevuelto ? '#e67e22' : '#aab')));
+                        $puedeClick = ($completado || $activo || $esDevuelto) && !$esSinPedido && !$esSinAplica;
                     @endphp
 
                     {{-- Step card --}}
@@ -210,6 +218,16 @@
                             <i class="fa fa-check"
                                style="animation:checkPop .4s cubic-bezier(.34,1.56,.64,1) {{ $delay + 200 }}ms both;"></i>
                         </div>
+                        @elseif ($esDevuelto)
+                        <div style="width:60px; height:60px; border-radius:50%;
+                                    background:linear-gradient(135deg,#e67e22,#d35400); color:#fff;
+                                    margin-bottom:8px; box-shadow:0 4px 16px rgba(230,126,34,.4);
+                                    display:flex; align-items:center; justify-content:center;
+                                    font-size:22px; flex-shrink:0;
+                                    {{ $esSeleccionado ? 'box-shadow:0 4px 16px rgba(230,126,34,.4), 0 0 0 4px rgba(230,126,34,.25);' : '' }}">
+                            <i class="fa fa-reply"
+                               style="animation:checkPop .4s cubic-bezier(.34,1.56,.64,1) {{ $delay + 200 }}ms both;"></i>
+                        </div>
                         @else
                         <div style="width:60px; height:60px; border-radius:50%;
                                     background:#e8eaf0; color:#c0c2cc; margin-bottom:8px;
@@ -238,6 +256,8 @@
                                     <i class="fa fa-check-circle"></i> Completado
                                 @elseif ($activo)
                                     <i class="fa fa-map-marker" style="animation:dotBlink 1s ease-in-out infinite;"></i> Actual
+                                @elseif ($esDevuelto)
+                                    <i class="fa fa-reply"></i> Devuelto
                                 @else
                                     <i class="fa fa-clock-o"></i> Pendiente
                                 @endif
@@ -1098,74 +1118,171 @@
                 {{-- ══════════════════════════════════════════════════ --}}
                 @if ($pasoActivo === 'revision_inventario')
                 @php
-                    // Obtener observaciones del área de inventario si fue devuelta
-                    $obsDevolucion = null;
-                    if ($flujoId) {
-                        $hfDevolucion = \Illuminate\Support\Facades\DB::table('historico_flujo')
-                            ->where('flujo_id', $flujoId)
-                            ->where('tipo_tramite_id', 9)
-                            ->orderByDesc('id')
-                            ->first(['observaciones', 'estado_id', 'created_at']);
-                        if ($hfDevolucion) {
-                            $obsDevolucion = $hfDevolucion->observaciones;
-                        }
-                    }
+                    $ciclos      = $revisionHistorial ?? [];
+                    $totalCiclos = count($ciclos);
                 @endphp
                 <div style="margin-top:14px;">
-                    {{-- Banner informativo principal --}}
+
+                    {{-- Encabezado de estado --}}
                     <div style="background:linear-gradient(135deg,#f3e5f5,#ede7f6);
                                 border:1.5px solid #ce93d8; border-radius:14px;
-                                padding:20px 24px; text-align:center; margin-bottom:14px;">
-                        <div style="width:70px; height:70px; border-radius:50%;
+                                padding:16px 22px; display:flex; align-items:center; gap:16px; margin-bottom:14px;">
+                        <div style="width:52px; height:52px; border-radius:50%;
                                     background:linear-gradient(135deg,#9c27b0,#7b1fa2);
-                                    display:inline-flex; align-items:center; justify-content:center;
-                                    font-size:30px; color:#fff; margin-bottom:12px;
-                                    box-shadow:0 6px 20px rgba(156,39,176,.4);">
+                                    display:flex; align-items:center; justify-content:center;
+                                    font-size:24px; color:#fff; flex-shrink:0;
+                                    box-shadow:0 4px 16px rgba(156,39,176,.35);">
                             <i class="fa fa-search"></i>
                         </div>
-                        <h4 style="color:#6a1b9a; font-weight:700; margin:0 0 6px;">
-                            Factura en revisión de inventario
-                        </h4>
-                        <p style="color:#7b1fa2; font-size:13px; margin:0;">
-                            Esta oferta está siendo validada por el área de inventario antes de continuar a Prefactura.
-                        </p>
-                    </div>
-
-                    {{-- Info del estado actual --}}
-                    <div style="background:#fff; border-radius:10px; border:1px solid #e8eaf0;
-                                padding:12px 16px; font-size:13px; color:#555;">
-                        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                            <span style="background:#f3e5f5; color:#6a1b9a; border-radius:8px;
-                                         padding:3px 12px; font-size:12px; font-weight:700;">
-                                <i class="fa fa-clock-o mr-1"></i> Pendiente de revisión
-                            </span>
-                            <span style="color:#888; font-size:12px;">
-                                <i class="fa fa-info-circle mr-1"></i>
-                                El encargado de inventario validará la disponibilidad de los productos.
-                            </span>
-                        </div>
-                        <div style="margin-top:10px; padding-top:10px; border-top:1px solid #f0f0f0;">
-                            <span style="color:#555; font-size:12px;">
-                                <i class="mr-1 fa fa-exchange text-muted"></i>
-                                Próximo paso si se aprueba: <strong>Pre Factura</strong>
-                            </span>
-                            <span style="margin-left:16px; color:#555; font-size:12px;">
-                                <i class="mr-1 fa fa-reply text-muted"></i>
-                                Si hay problemas: <strong>Devolver a Oferta</strong>
-                            </span>
+                        <div>
+                            <h5 style="color:#6a1b9a; font-weight:700; margin:0 0 6px; font-size:15px;">
+                                Revisión de Inventario
+                            </h5>
+                            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                                @if ($revisionDevuelta ?? false)
+                                <span style="background:#fff3e0; color:#e65100; border-radius:6px;
+                                             padding:2px 10px; font-size:12px; font-weight:700;">
+                                    <i class="fa fa-reply mr-1"></i>Devuelta a Oferta
+                                </span>
+                                @elseif ($totalCiclos > 0)
+                                <span style="background:#e3f2fd; color:#1565c0; border-radius:6px;
+                                             padding:2px 10px; font-size:12px; font-weight:700;">
+                                    <i class="fa fa-clock-o mr-1"></i>Pendiente de revisión
+                                </span>
+                                @else
+                                <span style="background:#f3e5f5; color:#6a1b9a; border-radius:6px;
+                                             padding:2px 10px; font-size:12px; font-weight:700;">
+                                    <i class="fa fa-clock-o mr-1"></i>Sin revisión aún
+                                </span>
+                                @endif
+                                @if ($totalCiclos > 0)
+                                <span style="font-size:11px; color:#9c27b0;">
+                                    {{ $totalCiclos }} ciclo(s)
+                                </span>
+                                @endif
+                            </div>
                         </div>
                     </div>
 
-                    {{-- Observaciones de devolución (si el flujo fue devuelto desde revisión) --}}
-                    @if ($obsDevolucion && str_contains($obsDevolucion, 'Devuelto'))
-                    <div style="margin-top:12px; background:#fff3e0; border:1px solid #ffcc80;
-                                border-radius:12px; padding:12px 16px;">
-                        <h6 style="color:#e65100; font-weight:700; margin-bottom:6px;">
-                            <i class="mr-1 fa fa-comment-o"></i>Observaciones de Revisión de Inventario
-                        </h6>
-                        <p style="font-size:12px; color:#555; margin:0; white-space:pre-line;">{{ $obsDevolucion }}</p>
+                    {{-- Historial de ciclos de revisión --}}
+                    @forelse ($ciclos as $i => $ciclo)
+                    @php
+                        $cNum   = $i + 1;
+                        $cEst   = (int) ($ciclo['estado_id'] ?? 5);
+                        $cObs   = $ciclo['observaciones'] ?? '';
+                        // Parsear observaciones: "Motivo | [Producto A]: nota | [Producto B]: nota"
+                        $cMotivo = $cObs;
+                        $cProds  = [];
+                        if (str_contains($cObs, ' | [')) {
+                            $cParts  = explode(' | [', $cObs);
+                            $cMotivo = trim(array_shift($cParts));
+                            foreach ($cParts as $cp) {
+                                if (str_contains($cp, ']: ')) {
+                                    [$cNom, $cNota] = explode(']: ', $cp, 2);
+                                    $cProds[] = ['nombre' => trim($cNom), 'nota' => trim($cNota)];
+                                }
+                            }
+                        }
+                        // Limpiar prefijo almacenado del motivo
+                        $cMotivo = trim(preg_replace('/^(Devuelto a Oferta\s*:\s*|En Revisi\xC3\xB3n de Inventario\.?\s*|Revisi\xC3\xB3n aprobada\.?\s*)/iu', '', $cMotivo));
+                        $cLabel  = match($cEst) {
+                            1       => ['txt' => 'Aprobada',          'color' => '#2e7d32', 'bg' => '#e8f5e9', 'icon' => 'fa-check-circle'],
+                            7       => ['txt' => 'Devuelta a Oferta', 'color' => '#e65100', 'bg' => '#fff3e0', 'icon' => 'fa-reply'],
+                            default => ['txt' => 'Pendiente',         'color' => '#1565c0', 'bg' => '#e3f2fd', 'icon' => 'fa-clock-o'],
+                        };
+                        $cRevisor = $ciclo['revisor_nombre']   ?? null;
+                        $cAprobad = $ciclo['aprobador_nombre'] ?? null;
+                        $cFechaC  = $ciclo['created_at']  ?? null;
+                        $cFechaU  = $ciclo['updated_at']  ?? null;
+                    @endphp
+                    <div style="background:#fff; border:1px solid #e8eaf0; border-radius:12px;
+                                padding:14px 18px; margin-bottom:12px;
+                                border-left:4px solid {{ $cLabel['color'] }};">
+
+                        {{-- Ciclo header --}}
+                        <div style="display:flex; align-items:center; justify-content:space-between;
+                                    flex-wrap:wrap; gap:8px; margin-bottom:10px;">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span style="background:#f0f2f8; color:#555; border-radius:20px;
+                                             padding:2px 10px; font-size:11px; font-weight:700;">
+                                    Ciclo #{{ $cNum }}
+                                </span>
+                                <span style="background:{{ $cLabel['bg'] }}; color:{{ $cLabel['color'] }};
+                                             border-radius:8px; padding:2px 10px; font-size:12px; font-weight:700;">
+                                    <i class="fa {{ $cLabel['icon'] }} mr-1"></i>{{ $cLabel['txt'] }}
+                                </span>
+                            </div>
+                            @if ($cFechaC)
+                            <span style="font-size:11px; color:#888;">
+                                <i class="fa fa-calendar mr-1"></i>
+                                {{ \Carbon\Carbon::parse($cFechaC)->format('d/m/Y H:i') }}
+                            </span>
+                            @endif
+                        </div>
+
+                        {{-- Revisor y Aprobador --}}
+                        <div style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom:8px;">
+                            @if ($cRevisor)
+                            <div style="font-size:12px; color:#555;">
+                                <i class="fa fa-user-circle-o mr-1 text-muted"></i>
+                                <strong>Revisado por:</strong> {{ $cRevisor }}
+                            </div>
+                            @endif
+                            @if ($cAprobad && $cEst === 1)
+                            <div style="font-size:12px; color:#2e7d32;">
+                                <i class="fa fa-check-circle mr-1"></i>
+                                <strong>Autorizado por:</strong> {{ $cAprobad }}
+                                @if ($cFechaU)
+                                <span style="color:#888;"> · {{ \Carbon\Carbon::parse($cFechaU)->format('d/m/Y H:i') }}</span>
+                                @endif
+                            </div>
+                            @endif
+                        </div>
+
+                        {{-- Motivo de devolución (solo si devuelta) --}}
+                        @if ($cMotivo !== '' && $cEst === 7)
+                        <div style="background:#fff8f0; border-radius:8px; padding:8px 12px; margin-bottom:8px;">
+                            <div style="font-size:11px; color:#888; margin-bottom:3px; font-weight:700;">
+                                <i class="fa fa-comment-o mr-1"></i>MOTIVO DE DEVOLUCIÓN
+                            </div>
+                            <p style="font-size:12px; color:#555; margin:0;">{{ $cMotivo }}</p>
+                        </div>
+                        @endif
+
+                        {{-- Productos con observaciones --}}
+                        @if (!empty($cProds))
+                        <div>
+                            <div style="font-size:11px; color:#888; margin-bottom:6px; font-weight:700;
+                                        text-transform:uppercase; letter-spacing:.4px;">
+                                <i class="fa fa-list-ul mr-1"></i>Productos con notas
+                            </div>
+                            @foreach ($cProds as $cp)
+                            <div style="background:#f8f9fc; border-radius:8px; padding:8px 12px;
+                                        margin-bottom:5px; border-left:3px solid #e67e22;">
+                                <div style="font-size:12px; color:#555; font-weight:700; margin-bottom:2px;">
+                                    <i class="fa fa-cube mr-1 text-muted"></i>{{ $cp['nombre'] }}
+                                </div>
+                                <div style="font-size:12px; color:#666;">{{ $cp['nota'] }}</div>
+                            </div>
+                            @endforeach
+                        </div>
+                        @endif
+
+                        {{-- Info para ciclo pendiente --}}
+                        @if ($cEst === 5)
+                        <div style="font-size:12px; color:#666; margin-top:4px;">
+                            <i class="fa fa-info-circle mr-1 text-muted"></i>
+                            El encargado de inventario validará la disponibilidad de los productos.
+                        </div>
+                        @endif
                     </div>
-                    @endif
+                    @empty
+                    <div style="background:#fff; border-radius:12px; border:1px solid #e8eaf0;
+                                padding:20px; text-align:center; color:#aaa;">
+                        <i class="fa fa-inbox d-block" style="font-size:28px; margin-bottom:8px; opacity:.3;"></i>
+                        <p style="margin:0; font-size:13px;">Sin historial de revisión aún.</p>
+                    </div>
+                    @endforelse
                 </div>
                 @endif
                 {{-- /paso revision_inventario --}}
