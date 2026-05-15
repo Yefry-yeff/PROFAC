@@ -774,6 +774,10 @@ class PrefacturaController
         );
 
         // ── Llamar guardarVenta del controlador existente ─────────────────
+        // Marcar la prefactura como 'procesando' para excluirla del stock reservado
+        // durante el check de stock en guardarVenta (evita double-counting).
+        DB::table('prefactura')->where('id', $id)->update(['estado' => 'procesando']);
+
         $corp = app()->make(FacturacionCorporativa::class);
         $corp->arrayProductos = [];
         $corp->arrayLogs      = [];
@@ -782,6 +786,8 @@ class PrefacturaController
         $payload  = json_decode($response->getContent(), true);
 
         if ($response->getStatusCode() >= 400 || ($payload['icon'] ?? '') === 'error') {
+            // Revertir estado si falló
+            DB::table('prefactura')->where('id', $id)->update(['estado' => 'activo']);
             return response()->json([
                 'error'  => $payload['text'] ?? $payload['error'] ?? 'Error al facturar.',
                 'detail' => $payload,
@@ -790,10 +796,14 @@ class PrefacturaController
 
         // Advertencia de stock u otro aviso de negocios (guardarVenta devuelve 200 con icon=warning)
         if (($payload['icon'] ?? '') === 'warning') {
+            // Revertir estado si no pasó el check
+            DB::table('prefactura')->where('id', $id)->update(['estado' => 'activo']);
             return response()->json([
+                'icon'    => 'warning',
+                'title'   => '¡Advertencia!',
                 'warning' => $payload['text'] ?? 'No fue posible completar la facturación.',
                 'detail'  => $payload,
-            ], 200);
+            ], 422);
         }
 
         $facturaId = (int) ($payload['idFactura'] ?? 0);

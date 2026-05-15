@@ -24,7 +24,7 @@ class RevicionInventario extends Component
 
     // ── Detalle del flujo seleccionado ────────────────────────────────────
     public ?int   $flujoId          = null;
-    public        $flujoData        = null;   // info del flujo + oferta ganadora
+    public ?array $flujoData        = null;   // info del flujo + oferta ganadora
     public ?int   $cotizacionId     = null;   // ID de la cotizacion ganadora
     public array  $productos        = [];     // {nombre_producto, cantidad, disponible, falta_stock}
     public array  $stockErrors      = [];     // productos con stock insuficiente
@@ -165,7 +165,7 @@ class RevicionInventario extends Component
         $this->stockErrors   = [];
 
         // Obtener info del flujo
-        $this->flujoData = DB::table('flujo as f')
+        $flujoRaw = DB::table('flujo as f')
             ->leftJoin('pedido as p', DB::raw('CAST(f.identificacion AS UNSIGNED)'), '=', 'p.id')
             ->leftJoin('cliente as cl', 'cl.id', '=', 'p.cliente_id')
             ->where('f.id', $flujoId)
@@ -178,6 +178,7 @@ class RevicionInventario extends Component
                 'p.observaciones as pedido_obs'
             )
             ->first();
+        $this->flujoData = $flujoRaw ? (array) $flujoRaw : null;
 
         // Obtener la cotizacion ganadora de este flujo
         $hfGanadora = DB::table('historico_flujo')
@@ -361,7 +362,7 @@ class RevicionInventario extends Component
                     'idPrecioSeleccionado'      => $prod->idPrecioSeleccionado ?? null,
                     'precioSeleccionado'        => $prod->precioSeleccionado ?? null,
                     'precios_producto_carga_id' => $prod->precios_producto_carga_id ?? null,
-                    'resta_inventario'          => $prod->resta_inventario,
+                    'resta_inventario'          => $prod->resta_inventario ? 1 : 0,
                     'created_at'               => now(),
                     'updated_at'               => now(),
                 ];

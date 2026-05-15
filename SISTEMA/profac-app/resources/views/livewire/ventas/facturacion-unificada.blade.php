@@ -2014,6 +2014,7 @@
                     $('#categoria_cliente_nombre').text(data.nombre_categoria);
                     if (data.nombre_categoria) { $('#cat_badge_text').text(data.nombre_categoria); $('#cat_cliente_badge').show(); }
                     $('#categoria_cliente_venta_id').data('categoria-cliente-id', data.idcategoriacliente);
+                    $('#categoria_cliente_venta_id').data('categoria-precio-id', data.categoria_precios_id || null);
 
                     if ($('#seleccionarProducto').val()) {
                         cargarCategoriasProducto();
@@ -2030,6 +2031,7 @@
                     $('#categoria_cliente_nombre').text(data.nombre_categoria);
                     if (data.nombre_categoria) { $('#cat_badge_text').text(data.nombre_categoria); $('#cat_cliente_badge').show(); }
                     $('#categoria_cliente_venta_id').data('categoria-cliente-id', data.idcategoriacliente);
+                    $('#categoria_cliente_venta_id').data('categoria-precio-id', data.categoria_precios_id || null);
 
                     if ($('#seleccionarProducto').val()) {
                         cargarCategoriasProducto();
@@ -2143,17 +2145,28 @@
 
                     $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>--Seleccione una categoría--</option>');
 
+                    // Usar el tier específico del cliente si existe, si no el de mayor precio
+                    let categoriaPrecioId = $('#categoria_cliente_venta_id').data('categoria-precio-id') || null;
+                    let haySeleccionada = false;
+
                     categorias.forEach((categoria, index) => {
                         let precio = parseFloat(categoria.precio_a) || 0;
                         let precioFormateado = new Intl.NumberFormat('es-HN', {
                             style: 'currency', currency: 'HNL', minimumFractionDigits: 2
                         }).format(precio);
                         let textoOpcion = categoria.nombre_categoria + ' - ' + precioFormateado;
-                        // Auto-seleccionar el primer item (mayor precio_a)
-                        let isSelected = index === 0;
+                        // Seleccionar el tier asignado al cliente; fallback: mayor precio_a
+                        let isSelected = categoriaPrecioId
+                            ? (categoria.id == categoriaPrecioId)
+                            : (index === 0);
+                        if (isSelected) haySeleccionada = true;
                         let option = new Option(textoOpcion, categoria.id, isSelected, isSelected);
                         $('#categoria_cliente_venta_id').append(option);
                     });
+                    // Si el tier del cliente no estaba en la lista, seleccionar el primero
+                    if (!haySeleccionada && categorias.length > 0) {
+                        $('#categoria_cliente_venta_id option:nth-child(2)').prop('selected', true);
+                    }
                     $('#categoria_cliente_venta_id').prop('disabled', false);
                 } else {
                     $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>No hay categorías disponibles</option>');

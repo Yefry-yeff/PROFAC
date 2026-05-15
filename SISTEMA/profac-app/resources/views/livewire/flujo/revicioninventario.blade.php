@@ -107,14 +107,14 @@
                                 <i class="mr-2 fa fa-search"></i>
                                 Revisando Flujo #{{ $flujoId }}
                                 @if($flujoData)
-                                    — {{ $flujoData->cliente ?? '—' }}
+                                    — {{ $flujoData['cliente'] ?? '—' }}
                                 @endif
                             </h5>
-                            @if($flujoData && $flujoData->pedido_id)
+                            @if($flujoData && $flujoData['pedido_id'])
                             <small style="color:rgba(255,255,255,.8); font-size:11px;">
-                                Pedido #{{ $flujoData->pedido_id }}
-                                @if($flujoData->pedido_fecha)
-                                    · {{ \Carbon\Carbon::parse($flujoData->pedido_fecha)->format('d/m/Y') }}
+                                Pedido #{{ $flujoData['pedido_id'] }}
+                                @if($flujoData['pedido_fecha'])
+                                    · {{ \Carbon\Carbon::parse($flujoData['pedido_fecha'])->format('d/m/Y') }}
                                 @endif
                             </small>
                             @endif

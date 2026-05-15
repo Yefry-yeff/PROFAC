@@ -32,6 +32,7 @@ class ModelCliente extends Model
         'users_id',
         'estado_cliente_id',
         'cliente_categoria_escala_id',
+        'categoria_precios_id',
         'ano_operacion',
         'dni_representante_legal',
         'metodo_pago',

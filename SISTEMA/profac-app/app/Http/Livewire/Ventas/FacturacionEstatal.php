@@ -395,6 +395,7 @@ class FacturacionEstatal extends Component
                 'cliente.dias_credito',
                 'cliente_categoria_escala.nombre_categoria',
                 'cliente_categoria_escala.id as idcategoriacliente',
+                'cliente.categoria_precios_id',
             )
             ->join(
                 'cliente',

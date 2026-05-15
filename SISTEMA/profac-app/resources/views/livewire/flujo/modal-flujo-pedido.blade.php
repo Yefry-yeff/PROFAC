@@ -1258,11 +1258,16 @@
                         </a>
 
                         @if (!$facturaCompletada)
-                        <button type="button" wire:click="facturarPrefacturaDirecta"
+                        <button id="btn-facturar-directo" type="button" wire:click="facturarPrefacturaDirecta"
+                                wire:loading.attr="disabled" wire:target="facturarPrefacturaDirecta"
                                 style="background:linear-gradient(135deg,#1b5e20,#2e7d32); color:#fff;
                                        border:none; border-radius:8px; padding:6px 14px;
-                                       font-size:12px; font-weight:700; cursor:pointer;">
-                            <i class="mr-1 fa fa-file-text"></i> Facturar
+                                       font-size:12px; font-weight:700; cursor:pointer; transition:opacity .2s;">
+                            <span id="btn-facturar-icon"><i class="mr-1 fa fa-file-text"></i> Facturar</span>
+                            <span wire:loading wire:target="facturarPrefacturaDirecta" style="display:none;"
+                                  id="btn-facturar-loading">
+                                <i class="fa fa-spinner fa-spin mr-1"></i> Procesando...
+                            </span>
                         </button>
                         <button type="button" wire:click="solicitarAutorizacionPrefactura('editar_factura')"
                                 style="background:linear-gradient(135deg,#0f766e,#0ea5a4); color:#fff;
@@ -1746,24 +1751,40 @@
         });
         window.addEventListener('fmp-facturar-directo', function(e) {
             if (!e.detail || !e.detail.url) return;
+
+            // Bloquear botón y mostrar spinner durante el POST
+            var btn = document.getElementById('btn-facturar-directo');
+            var iconSpan    = document.getElementById('btn-facturar-icon');
+            var loadingSpan = document.getElementById('btn-facturar-loading');
+            function setLoading(loading) {
+                if (!btn) return;
+                btn.disabled = loading;
+                btn.style.opacity = loading ? '0.7' : '1';
+                btn.style.cursor  = loading ? 'not-allowed' : 'pointer';
+                if (iconSpan)    iconSpan.style.display    = loading ? 'none'   : '';
+                if (loadingSpan) loadingSpan.style.display = loading ? 'inline' : 'none';
+            }
+            setLoading(true);
+
             axios.post(e.detail.url, { tipo_pago: 1 })
                 .then(function(response) {
                     var data = response.data || {};
                     if (data.print_url) {
-                        // Abrir impresión en nueva pestaña
                         window.open(data.print_url, '_blank');
                     }
-                    // Recargar el flujo en el modal actual via Livewire
-                    if (window.Livewire) {
-                        Livewire.emit('recargarFlujo');
-                    }
+                    // Recargar la página para que el flujo muestre el nuevo estado
+                    setTimeout(function() {
+                        window.location.reload();
+                    }, 800);
                 })
                 .catch(function(error) {
+                    setLoading(false);
                     var data = error.response ? error.response.data : {};
                     Swal.fire({
                         icon: data.icon || 'error',
                         title: data.title || 'Error',
-                        text: data.text || data.error || 'No se pudo facturar la prefactura.'
+                        text: data.text || data.warning || (data.detail && data.detail.text) || data.error || 'No se pudo facturar la prefactura.',
+                        html: (data.warning && data.warning.includes('<')) ? data.warning : undefined
                     });
                 });
         });
