@@ -141,8 +141,8 @@
                         </div>
                         @endif
 
-                        {{-- Alerta de stock insuficiente --}}
-                        @if (count($stockErrors) > 0)
+                        {{-- Alerta de stock insuficiente (solo para flujos en revisión, no devueltos) --}}
+                        @if (!$devuelto && count($stockErrors) > 0)
                         <div style="background:#fff3e0; border:1px solid #ffcc80; border-radius:12px;
                                     padding:14px 18px; margin-bottom:18px;">
                             <h6 style="color:#e65100; font-weight:700; margin-bottom:8px;">
@@ -174,7 +174,7 @@
                             </p>
                         </div>
                         @else
-                        @if(count($productos) > 0)
+                        @if(!$devuelto && count($productos) > 0)
                         <div style="background:#e8f5e9; border:1px solid #a5d6a7; border-radius:10px;
                                     padding:10px 16px; margin-bottom:16px;">
                             <span style="color:#2e7d32; font-weight:700; font-size:13px;">
@@ -278,17 +278,28 @@
 
                         {{-- Panel de acciones --}}
                         @if ($devuelto)
-                        <div style="background:#fff3e0; border:1px solid #ffd54f; border-radius:12px;
-                                    padding:14px 20px; display:flex; align-items:center; gap:14px;">
-                            <i class="fa fa-check-circle" style="color:#2e7d32; font-size:26px; flex-shrink:0;"></i>
-                            <div>
-                                <strong style="color:#e65100; font-size:13px;">
-                                    Revisión completada — Flujo devuelto a Oferta.
-                                </strong>
-                                <div style="color:#888; font-size:12px; margin-top:3px;">
-                                    Las observaciones y notas de reemplazo quedaron registradas en el historial.
+                        <div style="background:#fff3e0; border:1px solid #ffd54f; border-radius:12px; padding:16px 20px;">
+                            <div style="display:flex; align-items:flex-start; gap:14px; margin-bottom:{{ $motivoDevolucionGuardado ? '14px' : '0' }};">
+                                <i class="fa fa-undo" style="color:#e65100; font-size:22px; flex-shrink:0; margin-top:2px;"></i>
+                                <div>
+                                    <strong style="color:#e65100; font-size:13px;">
+                                        Revisión completada — Flujo devuelto a Oferta.
+                                    </strong>
+                                    <div style="color:#888; font-size:12px; margin-top:3px;">
+                                        Las observaciones y notas de reemplazo quedaron registradas en el historial.
+                                        No se puede editar, devolver ni pasar a Prefactura.
+                                    </div>
                                 </div>
                             </div>
+                            @if ($motivoDevolucionGuardado)
+                            <div style="background:#fff8e1; border:1px solid #ffe082; border-radius:8px; padding:10px 14px;">
+                                <div style="font-size:11px; font-weight:700; color:#f57f17; text-transform:uppercase;
+                                            letter-spacing:.5px; margin-bottom:6px;">
+                                    <i class="fa fa-comment mr-1"></i>Motivo de devolución
+                                </div>
+                                <div style="font-size:13px; color:#4e342e; line-height:1.6; white-space:pre-wrap;">{{ $motivoDevolucionGuardado }}</div>
+                            </div>
+                            @endif
                         </div>
                         @elseif ($confirmAccion === null)
                         <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center;">

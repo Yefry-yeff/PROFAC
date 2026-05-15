@@ -36,7 +36,8 @@ class RevicionInventario extends Component
     public array  $obsProducto      = [];     // ['idx' => 'texto obs']
 
     // ── Estado de devolución ──────────────────────────────────────────────
-    public bool   $devuelto         = false;  // true si el flujo fue devuelto a Oferta
+    public bool   $devuelto                  = false;  // true si el flujo fue devuelto a Oferta
+    public string $motivoDevolucionGuardado  = '';     // motivo leído del historico al abrir un devuelto
 
     // ── Confirmación de acciones ──────────────────────────────────────────
     public ?string $confirmAccion    = null;  // null | 'prefactura' | 'devolver'
@@ -182,6 +183,7 @@ class RevicionInventario extends Component
     {
         $this->flujoId          = $flujoId;
         $this->devuelto         = false;
+        $this->motivoDevolucionGuardado = '';
         $this->confirmAccion    = null;
         $this->motivoDevolucion = '';
         $this->mensajeExito     = '';
@@ -190,12 +192,14 @@ class RevicionInventario extends Component
         $this->stockErrors      = [];
 
         // Detectar si este flujo ya fue devuelto a Oferta
+        // Buscamos ESPECÍFICAMENTE un registro con estado_id=7 (no el último genérico)
         $revRec = DB::table('historico_flujo')
             ->where('flujo_id', $flujoId)
             ->where('tipo_tramite_id', 9)
+            ->where('estado_id', 7)
             ->orderByDesc('id')
-            ->first(['estado_id']);
-        if ($revRec && (int) $revRec->estado_id === 7) {
+            ->first(['estado_id', 'observaciones']);
+        if ($revRec) {
             $this->devuelto = true;
         }
 
@@ -264,7 +268,8 @@ class RevicionInventario extends Component
             $disponible = null;
             $faltaStock = false;
 
-            if ($prod->resta_inventario && $prod->producto_id && $prod->seccion_id) {
+            // Para registros ya devueltos no recalcular stock (solo mostrar datos)
+            if (!$this->devuelto && $prod->resta_inventario && $prod->producto_id && $prod->seccion_id) {
                 $rawStock = (float) DB::table('recibido_bodega')
                     ->where('producto_id', $prod->producto_id)
                     ->where('seccion_id',  $prod->seccion_id)
@@ -303,6 +308,33 @@ class RevicionInventario extends Component
                 'falta_stock'     => $faltaStock,
             ];
         }
+
+        // ── Si el flujo está devuelto, cargar motivo y notas de productos ──
+        if ($this->devuelto && isset($revRec)) {
+            $fullObs = $revRec->observaciones ?? '';
+            // Quitar prefijo "Devuelto a Oferta: "
+            $obsBody = preg_replace('/^Devuelto a Oferta:\s*/i', '', $fullObs);
+            // Separar motivo de notas de productos " | [nombre]: nota"
+            $pipePos = strpos($obsBody, ' | [');
+            if ($pipePos !== false) {
+                $this->motivoDevolucionGuardado = trim(substr($obsBody, 0, $pipePos));
+                $notasPart = substr($obsBody, $pipePos);
+                // Parsear cada nota de producto
+                preg_match_all('/\|\s*\[([^\]]+)\]:\s*([^|]+)/', $notasPart, $matches, PREG_SET_ORDER);
+                foreach ($matches as $m) {
+                    $nombreProd = trim($m[1]);
+                    $nota       = trim($m[2]);
+                    foreach ($this->productos as $prod) {
+                        if ($prod['nombre_producto'] === $nombreProd) {
+                            $this->obsProducto[$prod['idx']] = $nota;
+                            break;
+                        }
+                    }
+                }
+            } else {
+                $this->motivoDevolucionGuardado = trim($obsBody);
+            }
+        }
     }
 
     public function cerrarDetalle(): void
@@ -310,6 +342,7 @@ class RevicionInventario extends Component
         $this->flujoId          = null;
         $this->flujoData        = null;
         $this->devuelto         = false;
+        $this->motivoDevolucionGuardado = '';
         $this->cotizacionId     = null;
         $this->productos        = [];
         $this->stockErrors      = [];
@@ -548,7 +581,8 @@ class RevicionInventario extends Component
 
             DB::commit();
 
-            $this->devuelto         = true;
+            $this->devuelto                 = true;
+            $this->motivoDevolucionGuardado  = $motivo;
             $this->confirmAccion    = null;
             $this->motivoDevolucion = '';
             $this->mensajeError     = '';
