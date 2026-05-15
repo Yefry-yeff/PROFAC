@@ -1173,6 +1173,49 @@
             </div>
         </div>
 
+        {{-- MODAL: Oferta enviada a Revisión de Inventario --}}
+        <div class="modal fade" id="modalRevisionInventario" tabindex="-1" role="dialog" data-backdrop="static" data-keyboard="false" style="z-index:2075;">
+            <div class="modal-dialog modal-dialog-centered" role="document" style="max-width:420px;">
+                <div class="modal-content" style="border-radius:20px; overflow:hidden; border:none; box-shadow:0 20px 60px rgba(0,0,0,.18); position:relative;">
+                    <button type="button" data-dismiss="modal" aria-label="Cerrar"
+                            style="position:absolute; top:12px; right:14px; background:none; border:none;
+                                   font-size:20px; color:#9e9e9e; cursor:pointer; line-height:1; z-index:1;
+                                   padding:4px 8px; border-radius:50%;" title="Cerrar">&times;</button>
+                    <div class="modal-body" style="padding:36px 32px 28px; text-align:center;">
+
+                        {{-- Ícono reloj --}}
+                        <div style="width:90px; height:90px; border-radius:50%;
+                                    background:linear-gradient(135deg,#f57c00,#ffd54f);
+                                    display:flex; align-items:center; justify-content:center;
+                                    margin:0 auto 20px; box-shadow:0 8px 24px rgba(245,124,0,.30);">
+                            <i class="fa fa-hourglass-half" style="font-size:42px; color:#fff; line-height:1;"></i>
+                        </div>
+
+                        <h4 style="font-weight:800; color:#e65100; margin-bottom:8px; font-size:18px;">Revisión de Inventario</h4>
+                        <p style="color:#546e7a; font-size:13px; margin-bottom:6px;">
+                            La oferta fue marcada como ganadora y enviada a <strong>Revisión de Inventario</strong>.
+                        </p>
+                        <p style="color:#90a4ae; font-size:11px; margin-bottom:24px; line-height:1.6;">
+                            <i class="mr-1 fa fa-info-circle"></i>
+                            El equipo de bodega revisará la disponibilidad del inventario.<br>
+                            Una vez aprobada, se generará la prefactura automáticamente.
+                        </p>
+
+                        {{-- Botón Ver flujo --}}
+                        <button onclick="revisionInvAccion('flujo')"
+                                style="width:100%; background:linear-gradient(135deg,#1565c0,#1a7efb); color:#fff; border:none;
+                                       border-radius:10px; padding:13px 8px; font-size:13px; font-weight:700;
+                                       cursor:pointer; text-align:center; box-shadow:0 3px 10px rgba(21,101,192,.25); transition:opacity .15s;"
+                                onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">
+                            <i class="fa fa-sitemap mr-2" style="font-size:16px;"></i>
+                            Ver flujo
+                        </button>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+
         {{-- MODAL: Autorización para editar factura desde prefactura --}}
         <div class="modal fade" id="modalAutorizacionEditarPref" data-backdrop="static" data-keyboard="false" tabindex="-1" role="dialog" style="z-index:2080;">
             <div class="modal-dialog modal-dialog-centered" role="document" style="max-width:400px;">
@@ -2837,6 +2880,7 @@
     var _prefacturaFlujoId = null;
     var _facturaGuardadaId = null;
     var _facturaFlujoId    = null;
+    var _revisionFlujoId   = null;
 
     function limpiarFormularioVenta(data) {
         document.getElementById('bloqueImagenes').innerHTML = '';
@@ -3009,6 +3053,18 @@
             ).then(function(res) {
                 var d = res.data;
                 if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa fa-file-text-o d-block" style="font-size:20px;margin-bottom:4px;"></i>Oferta ganadora'; }
+
+                // ── Revisión de inventario activa: mostrar modal informativo ──
+                if (d.en_revision_inventario) {
+                    _revisionFlujoId = d.flujoId || idFlujo;
+                    $('#modalExitoOferta').one('hidden.bs.modal', function() {
+                        $('#modalRevisionInventario').modal('show');
+                        setTimeout(function() { $('.modal-backdrop').last().css('z-index', '2070'); }, 50);
+                    });
+                    $('#modalExitoOferta').modal('hide');
+                    return;
+                }
+
                 _prefacturaId    = d.idPrefactura;
                 _prefacturaFlujoId = d.flujoId || idFlujo;
                 document.getElementById('msgPrefactura').textContent = 'Prefactura #' + d.idPrefactura + ' generada. Válida por ' + (d.diasValidez || 7) + ' día(s).';
@@ -3052,6 +3108,13 @@
                 window.open(urlImprimir.replace('{id}', idOferta), '_blank');
             }
             // Modal permanece abierto intencionalmente
+        }
+    }
+
+    function revisionInvAccion(tipo) {
+        if (tipo === 'flujo') {
+            $('#modalRevisionInventario').modal('hide');
+            abrirModalFlujoDesdeContexto('ofertas', _ofertaPedidoId, _revisionFlujoId);
         }
     }
 
