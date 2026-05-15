@@ -209,6 +209,7 @@
                                 <p class="card-text" style="position:absolute;left:200px;  top:2px; font-size:14px;"><b>Facturador:
                                     </b>
                                     {{ $cai->facturador }} </p>
+                                <p class="card-text" style="position:absolute;left:10px;  top:18px; font-size:13px;"><b>Trámite #{{ $cai->flujo_id ?? '—' }}</b></p>
 
 
                             <p class="card-text" style="position:absolute;left:0px;  top:28px; font-size:11px;">

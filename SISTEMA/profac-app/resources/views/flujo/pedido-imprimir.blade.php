@@ -269,6 +269,10 @@
                 <span>{{ $pedido->registrado_por }}</span>
             </div>
             <div class="info-item">
+                <label>Trámite</label>
+                <span>#{{ $pedido->flujo_id ?? '—' }}</span>
+            </div>
+            <div class="info-item">
                 <label>Fecha</label>
                 <span>{{ \Carbon\Carbon::parse($pedido->created_at)->format('d/m/Y H:i') }}</span>
             </div>

@@ -557,7 +557,8 @@ class Cotizacion extends Component
             B.rtn,
             users.name as cotizador,
             (select name from users where id = A.vendedor) as vendedor,
-            A.nota
+            A.nota,
+            (select hf.flujo_id from historico_flujo hf where hf.tramite_id = A.id and hf.tipo_tramite_id = 2 limit 1) as flujo_id
             from cotizacion A
             inner join cliente B
             on A.cliente_id = B.id

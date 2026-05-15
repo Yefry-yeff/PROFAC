@@ -1674,7 +1674,8 @@ class FacturacionCorporativa extends Component
         DATE_FORMAT(A.fecha_vencimiento,'%d/%m/%Y' ) as fecha_vencimiento,
         users.name as vendedor,
         (select name from users where id = A.users_id ) as facturador,
-        D.id as factura
+        D.id as factura,
+        (select hf.flujo_id from historico_flujo hf where hf.tramite_id = A.id and hf.tipo_tramite_id in (3, 5) limit 1) as flujo_id
 
        from factura A
        inner join cai B  on A.cai_id = B.id
