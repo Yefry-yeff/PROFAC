@@ -3713,6 +3713,13 @@
             window.removeEventListener('cliente-datos-cargados', onClienteListo);
             cargarProductosIniciales();
         });
+
+        @if(!$clientePedido)
+        // Otro cliente: no hay cliente pre-seleccionado; cargar productos al iniciar la página
+        document.addEventListener('livewire:load', function () {
+            setTimeout(function() { cargarProductosIniciales(); }, 300);
+        });
+        @endif
     })();
     </script>
     @endpush

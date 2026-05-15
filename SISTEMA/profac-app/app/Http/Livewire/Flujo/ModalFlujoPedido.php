@@ -1204,7 +1204,7 @@ class ModalFlujoPedido extends Component
         }
         $pref = DB::table('prefactura')
             ->where('flujo_id', $this->flujoId)
-            ->where('estado', 'activo')
+            ->whereIn('estado', ['activo', 'convertida'])
             ->orderByDesc('id')
             ->first();
 
@@ -1213,8 +1213,8 @@ class ModalFlujoPedido extends Component
             return;
         }
 
-        // ── Verificar vencimiento ──────────────────────────────────────────
-        if ($pref->fecha_vencimiento && now()->startOfDay()->gt(
+        // ── Verificar vencimiento (solo si sigue activa) ───────────────────
+        if ($pref->estado === 'activo' && $pref->fecha_vencimiento && now()->startOfDay()->gt(
                 \Carbon\Carbon::parse($pref->fecha_vencimiento)->startOfDay()
             )) {
             $this->procesarVencimientoPrefactura($pref);

@@ -1317,9 +1317,15 @@
                             <strong style="color:#e65100;">
                                 Total: L {{ number_format($pref['total'], 2) }}
                             </strong>
+                            @if(($pref['estado'] ?? '') === 'convertida')
+                            <span style="background:#e3f2fd; color:#1565c0; border-radius:8px; padding:1px 8px; font-size:10px; font-weight:700;">
+                                <i class="mr-1 fa fa-file-text"></i> Facturada
+                            </span>
+                            @else
                             <span style="background:#e8f5e9; color:#1b5e20; border-radius:8px; padding:1px 8px; font-size:10px; font-weight:700;">
                                 <i class="mr-1 fa fa-check-circle"></i> Activa
                             </span>
+                            @endif
                         </div>
                     </div>
 
