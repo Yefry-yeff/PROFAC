@@ -651,6 +651,9 @@ class ModalFlujoPedido extends Component
         $this->confirmAccionOferta = $accion;
         $this->motivoAnulOferta    = '';
         $this->mensajeError        = '';
+        if (in_array($accion, ['anular_oferta', 'quitar_ganadora'])) {
+            $this->dispatchBrowserEvent('focus-motivo-oferta');
+        }
     }
 
     public function cancelarConfirmOferta(): void

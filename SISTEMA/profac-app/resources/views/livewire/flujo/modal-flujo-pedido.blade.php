@@ -942,7 +942,9 @@
 
                     {{-- Confirmación: Quitar Ganadora --}}
                     @if (!$facturaCompletada && $confirmAccionOferta === 'quitar_ganadora')
-                    <div style="margin-top:12px; background:#fff3e0; border:1px solid #ffcc80;
+                    <div x-data="{}"
+                         x-on:focus-motivo-oferta.window="setTimeout(() => $refs.quitarGanTA && $refs.quitarGanTA.focus(), 100)"
+                         style="margin-top:12px; background:#fff3e0; border:1px solid #ffcc80;
                                 border-radius:12px; padding:14px;">
                         <p style="font-size:13px; color:#555; margin:0 0 8px;">
                             <i class="mr-1 fa fa-times-circle text-warning"></i>
@@ -955,6 +957,7 @@
                         </div>
                         @endif
                         <textarea wire:model.defer="motivoAnulOferta" rows="2"
+                                  x-ref="quitarGanTA"
                                   placeholder="Motivo (obligatorio)…"
                                   style="width:100%; border:1px solid #ddd; border-radius:8px;
                                          padding:6px 10px; font-size:12px; resize:none;"></textarea>
@@ -976,7 +979,9 @@
 
                     {{-- Confirmación: Anular oferta --}}
                     @if (!$facturaCompletada && $confirmAccionOferta === 'anular_oferta')
-                    <div style="margin-top:12px; background:#fff5f5; border:1px solid #feb2b2;
+                    <div x-data="{}"
+                         x-on:focus-motivo-oferta.window="setTimeout(() => $refs.anulOfertaTA && $refs.anulOfertaTA.focus(), 100)"
+                         style="margin-top:12px; background:#fff5f5; border:1px solid #feb2b2;
                                 border-radius:12px; padding:14px;">
                         <p style="font-size:13px; color:#555; margin:0 0 8px;">
                             <i class="mr-1 fa fa-ban text-danger"></i>
@@ -989,6 +994,7 @@
                         </div>
                         @endif
                         <textarea wire:model.defer="motivoAnulOferta" rows="2"
+                                  x-ref="anulOfertaTA"
                                   placeholder="Motivo de anulación (obligatorio)…"
                                   style="width:100%; border:1px solid #ddd; border-radius:8px;
                                          padding:6px 10px; font-size:12px; resize:none;"></textarea>
