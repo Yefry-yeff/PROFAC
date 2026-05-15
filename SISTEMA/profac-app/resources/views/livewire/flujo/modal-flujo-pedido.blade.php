@@ -30,11 +30,19 @@
     .fmp-cnt  { border-radius:18px !important; overflow:hidden !important; }
     .fmp-body { padding:20px 24px 24px !important; overflow-y:auto; max-height:calc(90vh - 140px); }
     .fmp-foot { padding:12px 24px 18px !important; display:flex !important; flex-wrap:wrap !important; gap:8px !important; justify-content:flex-end !important; }
-    .fmp-pipeline { scrollbar-width:thin; scrollbar-color:#e0e3ee transparent; }
+    .fmp-pipeline { scrollbar-width:thin; scrollbar-color:#e0e3ee transparent; -webkit-overflow-scrolling:touch; scroll-behavior:smooth; }
     .fmp-pipeline::-webkit-scrollbar { height:4px; }
     .fmp-pipeline::-webkit-scrollbar-thumb { background:#d0d4e4; border-radius:4px; }
+    .fmp-step-num     { font-size:20px; font-weight:700; line-height:1; }
+    .fmp-step-icon-sm { font-size:11px; margin-top:2px; }
     .fmp-step-clickable { cursor:pointer; transition:transform .15s ease; }
     .fmp-step-clickable:hover { transform:translateY(-3px); }
+    @@media (max-width: 575px) {
+        .fmp-step-circle { width:44px !important; height:44px !important; }
+        .fmp-step-circle > div { width:44px !important; height:44px !important; }
+        .fmp-step-num { font-size:15px !important; }
+        .fmp-step-card  { min-width:72px !important; }
+    }
     .fmp-offers-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
     .fmp-offers-wrap table { min-width:480px; }
     .fmp-info-grid { display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:#666; }
@@ -45,7 +53,9 @@
     $fCancelado   = ($d['estado'] === 'cancelado');
     $tieneOfertas  = count($ofertasPedido) > 0 || ($d['total_ofertas'] > 0);
     $tieneGanadora = ($d['has_ganadora'] > 0);
-    $tieneRevision = in_array(9, $flujoTipos);   // Revision de Inventario
+    $tieneRevision         = in_array(9, $flujoTipos);   // Revision de Inventario (incluye devueltos)
+    $tieneRevisionActiva   = $tieneRevision && !($revisionDevuelta ?? false);  // ciclo activo
+    $tieneRevisionDevuelta = $tieneRevision && ($revisionDevuelta ?? false);   // último ciclo devuelto
     $tienePrefact  = in_array(4, $flujoTipos);
     $tieneFactura  = in_array(3, $flujoTipos) || in_array(5, $flujoTipos);
 
@@ -68,7 +78,7 @@
         $tieneEntrega         => 5,
         $tieneFactura         => 5,
         $tienePrefact         => 4,
-        $tieneRevision        => 3,   // en revisión de inventario
+        $tieneRevisionActiva   => 3,   // en revisión de inventario (ciclo activo)
         $tieneGanadora        => 4,   // ganadora sin revisión → directamente prefactura
         $tieneOfertas         => 2,
         default               => 1,
@@ -152,8 +162,8 @@
                 @else
 
                 {{-- ── Stepper pipeline ─────────────────────────────── --}}
-                <div class="fmp-pipeline" style="display:flex; align-items:center; justify-content:center;
-                            flex-wrap:nowrap; overflow-x:auto; padding:18px 8px 10px;">
+                <div class="fmp-pipeline" style="display:flex; align-items:center; justify-content:flex-start;
+                            flex-wrap:nowrap; overflow-x:auto; padding:18px 16px 10px;">
                     @foreach ($fPasos as $paso => $info)
                     @php
                         $fPasoLinea = min($fPaso, 5);
@@ -169,8 +179,14 @@
                         $pendiente  = !$esSinPedido && !$esSinAplica && ($paso > $fPasoLinea);
                         $esSeleccionado = ($info['key'] === $pasoActivo);
                         $delay      = ($paso - 1) * 100;
-                        $labelColor = ($esSinPedido || $esSinAplica) ? '#e74c3c' : ($completado ? '#1ab394' : ($activo ? '#1a7efb' : '#aab'));
-                        $puedeClick = ($completado || $activo) && !$esSinPedido && !$esSinAplica;
+                        // Rev. Inventario devuelta: mostrar como estado especial (naranja) en vez de pendiente gris
+                        $esDevuelto = ($info['key'] === 'revision_inventario')
+                            && ($tieneRevisionDevuelta ?? false)
+                            && !($tieneRevisionActiva ?? false)
+                            && $pendiente;
+                        if ($esDevuelto) $pendiente = false;
+                        $labelColor = ($esSinPedido || $esSinAplica) ? '#e74c3c' : ($completado ? '#1ab394' : ($activo ? '#1a7efb' : ($esDevuelto ? '#e67e22' : '#aab')));
+                        $puedeClick = ($completado || $activo || $esDevuelto) && !$esSinPedido && !$esSinAplica;
                     @endphp
 
                     {{-- Step card --}}
@@ -178,7 +194,8 @@
                          @if($puedeClick) wire:click="seleccionarPaso('{{ $info['key'] }}')" @endif
                          style="display:flex; flex-direction:column; align-items:center; min-width:100px;
                                 animation:stepIn .5s cubic-bezier(.34,1.56,.64,1) {{ $delay }}ms both;
-                                {{ $esSeleccionado ? 'background:rgba(26,126,251,.06); border-radius:12px; padding:4px 6px;' : 'padding:4px 6px;' }}">
+                                {{ $esSeleccionado ? 'background:rgba(26,126,251,.06); border-radius:12px; padding:4px 6px;' : 'padding:4px 6px;' }}"
+                         class="fmp-step-card">
 
                         {{-- Circle --}}
                         @if ($esSinPedido || $esSinAplica)
@@ -191,32 +208,52 @@
                                style="animation:checkPop .4s cubic-bezier(.34,1.56,.64,1) {{ $delay + 200 }}ms both;"></i>
                         </div>
                         @elseif ($completado)
-                        <div style="width:60px; height:60px; border-radius:50%;
-                                    background:linear-gradient(135deg,#1ab394,#0fa37a); color:#fff;
-                                    margin-bottom:8px; box-shadow:0 4px 16px rgba(26,179,148,.4);
-                                    display:flex; align-items:center; justify-content:center;
-                                    font-size:22px; flex-shrink:0;
-                                    {{ $esSeleccionado ? 'box-shadow:0 4px 16px rgba(26,179,148,.4), 0 0 0 4px rgba(26,179,148,.25);' : '' }}">
-                            <i class="fa fa-check"
-                               style="animation:checkPop .4s cubic-bezier(.34,1.56,.64,1) {{ $delay + 200 }}ms both;"></i>
+                        <div class="fmp-step-circle" style="position:relative; width:60px; height:60px; margin-bottom:8px; flex-shrink:0;">
+                            <div style="width:60px; height:60px; border-radius:50%;
+                                        background:linear-gradient(135deg,#1ab394,#0fa37a); color:#fff;
+                                        box-shadow:0 4px 16px rgba(26,179,148,.4);
+                                        display:flex; align-items:center; justify-content:center; font-size:22px;
+                                        {{ $esSeleccionado ? 'box-shadow:0 4px 16px rgba(26,179,148,.4), 0 0 0 4px rgba(26,179,148,.25);' : '' }}">
+                                <i class="fa fa-check"
+                                   style="animation:checkPop .4s cubic-bezier(.34,1.56,.64,1) {{ $delay + 200 }}ms both;"></i>
+                            </div>
+                            <span style="position:absolute; top:-4px; right:-4px; background:#0fa37a; color:#fff; border-radius:50%;
+                                         width:20px; height:20px; display:flex; align-items:center; justify-content:center;
+                                         font-size:10px; font-weight:800; border:2px solid #fff; line-height:1;">{{ $paso }}</span>
                         </div>
                         @elseif ($activo)
-                        <div style="width:60px; height:60px; border-radius:50%;
+                        <div class="fmp-step-circle" style="width:60px; height:60px; border-radius:50%;
                                     background:linear-gradient(135deg,#1a7efb,#0d6efd); color:#fff;
                                     margin-bottom:8px;
                                     box-shadow:0 6px 20px rgba(26,126,251,.5), 0 0 0 5px rgba(26,126,251,.2), 0 0 0 10px rgba(26,126,251,.08);
-                                    display:flex; align-items:center; justify-content:center;
-                                    font-size:22px; flex-shrink:0;
+                                    display:flex; align-items:center; justify-content:center; flex-direction:column;
+                                    flex-shrink:0;
                                     {{ $esSeleccionado ? 'outline:3px solid rgba(26,126,251,.35); outline-offset:4px;' : '' }}">
-                            <i class="fa fa-check"
-                               style="animation:checkPop .4s cubic-bezier(.34,1.56,.64,1) {{ $delay + 200 }}ms both;"></i>
+                            <span class="fmp-step-num" style="font-size:20px; font-weight:800; line-height:1;
+                                  animation:checkPop .4s cubic-bezier(.34,1.56,.64,1) {{ $delay + 200 }}ms both;">{{ $paso }}</span>
+                            <i class="fmp-step-icon-sm fa {{ $info['icon'] }}" style="font-size:11px; margin-top:2px; opacity:.85;"></i>
+                        </div>
+                        @elseif ($esDevuelto)
+                        <div class="fmp-step-circle" style="position:relative; width:60px; height:60px; margin-bottom:8px; flex-shrink:0;">
+                            <div style="width:60px; height:60px; border-radius:50%;
+                                        background:linear-gradient(135deg,#e67e22,#d35400); color:#fff;
+                                        box-shadow:0 4px 16px rgba(230,126,34,.4);
+                                        display:flex; align-items:center; justify-content:center; font-size:22px;
+                                        {{ $esSeleccionado ? 'box-shadow:0 4px 16px rgba(230,126,34,.4), 0 0 0 4px rgba(230,126,34,.25);' : '' }}">
+                                <i class="fa fa-reply"
+                                   style="animation:checkPop .4s cubic-bezier(.34,1.56,.64,1) {{ $delay + 200 }}ms both;"></i>
+                            </div>
+                            <span style="position:absolute; top:-4px; right:-4px; background:#d35400; color:#fff; border-radius:50%;
+                                         width:20px; height:20px; display:flex; align-items:center; justify-content:center;
+                                         font-size:10px; font-weight:800; border:2px solid #fff; line-height:1;">{{ $paso }}</span>
                         </div>
                         @else
-                        <div style="width:60px; height:60px; border-radius:50%;
+                        <div class="fmp-step-circle" style="width:60px; height:60px; border-radius:50%;
                                     background:#e8eaf0; color:#c0c2cc; margin-bottom:8px;
-                                    display:flex; align-items:center; justify-content:center;
-                                    font-size:22px; flex-shrink:0;">
-                            <i class="fa {{ $info['icon'] }}"></i>
+                                    display:flex; align-items:center; justify-content:center; flex-direction:column;
+                                    flex-shrink:0;">
+                            <span class="fmp-step-num" style="font-size:20px; font-weight:700; line-height:1; color:#aab;">{{ $paso }}</span>
+                            <i class="fmp-step-icon-sm fa {{ $info['icon'] }}" style="font-size:11px; margin-top:2px; color:#c0c2cc;"></i>
                         </div>
                         @endif
 
@@ -239,6 +276,8 @@
                                     <i class="fa fa-check-circle"></i> Completado
                                 @elseif ($activo)
                                     <i class="fa fa-map-marker" style="animation:dotBlink 1s ease-in-out infinite;"></i> Actual
+                                @elseif ($esDevuelto)
+                                    <i class="fa fa-reply"></i> Devuelto
                                 @else
                                     <i class="fa fa-clock-o"></i> Pendiente
                                 @endif
@@ -328,39 +367,45 @@
                                  style="display:flex; flex-direction:column; align-items:center; min-width:100px;
                                     {{ ($pasoActivo === 'entrega') ? (($entregaEsCompletada ? 'background:rgba(26,179,148,.08);' : 'background:rgba(26,126,251,.06);') . ' border-radius:12px; padding:4px 6px;') : 'padding:4px 6px;' }}">
                                 @if ($entregaEsCompletada)
-                                <div style="width:60px; height:60px; border-radius:50%;
-                                        background:linear-gradient(135deg,#1ab394,#0fa37a); color:#fff;
-                                        margin-bottom:8px; box-shadow:0 4px 16px rgba(26,179,148,.4);
-                                        display:flex; align-items:center; justify-content:center;
-                                        font-size:22px; flex-shrink:0;
-                                        {{ ($pasoActivo === 'entrega') ? 'box-shadow:0 4px 16px rgba(26,179,148,.4), 0 0 0 4px rgba(26,179,148,.25);' : '' }}">
-                                    <i class="fa fa-check"></i>
+                                <div class="fmp-step-circle" style="position:relative; width:60px; height:60px; margin-bottom:8px; flex-shrink:0;">
+                                    <div style="width:60px; height:60px; border-radius:50%;
+                                            background:linear-gradient(135deg,#1ab394,#0fa37a); color:#fff;
+                                            box-shadow:0 4px 16px rgba(26,179,148,.4);
+                                            display:flex; align-items:center; justify-content:center; font-size:22px;
+                                            {{ ($pasoActivo === 'entrega') ? 'box-shadow:0 4px 16px rgba(26,179,148,.4), 0 0 0 4px rgba(26,179,148,.25);' : '' }}">
+                                        <i class="fa fa-check"></i>
+                                    </div>
+                                    <span style="position:absolute; top:-4px; right:-4px; background:#0fa37a; color:#fff; border-radius:50%;
+                                                 width:20px; height:20px; display:flex; align-items:center; justify-content:center;
+                                                 font-size:10px; font-weight:800; border:2px solid #fff; line-height:1;">6</span>
                                 </div>
                                 @elseif ($entregaActiva)
-                                <div style="width:60px; height:60px; border-radius:50%;
+                                <div class="fmp-step-circle" style="width:60px; height:60px; border-radius:50%;
                                             background:linear-gradient(135deg,#1a7efb,#0d6efd); color:#fff;
                                             margin-bottom:8px;
                                             box-shadow:0 6px 20px rgba(26,126,251,.5), 0 0 0 5px rgba(26,126,251,.2), 0 0 0 10px rgba(26,126,251,.08);
-                                            display:flex; align-items:center; justify-content:center;
-                                            font-size:22px; flex-shrink:0;
-                                            outline:3px solid rgba(26,126,251,.35); outline-offset:4px;">
-                                    <i class="fa fa-check"></i>
+                                            display:flex; align-items:center; justify-content:center; flex-direction:column;
+                                            flex-shrink:0; outline:3px solid rgba(26,126,251,.35); outline-offset:4px;">
+                                    <span class="fmp-step-num" style="font-size:20px; font-weight:800; line-height:1;">6</span>
+                                    <i class="fmp-step-icon-sm fa fa-truck" style="font-size:11px; margin-top:2px; opacity:.85;"></i>
                                 </div>
                                 @elseif ($entregaEstadoId === 5)
-                                <div style="width:60px; height:60px; border-radius:50%;
+                                <div class="fmp-step-circle" style="width:60px; height:60px; border-radius:50%;
                                             background:linear-gradient(135deg,#1a7efb,#0d6efd); color:#fff;
                                             margin-bottom:8px;
                                             box-shadow:0 4px 16px rgba(26,126,251,.35);
-                                            display:flex; align-items:center; justify-content:center;
-                                            font-size:22px; flex-shrink:0;">
-                                    <i class="fa fa-truck"></i>
+                                            display:flex; align-items:center; justify-content:center; flex-direction:column;
+                                            flex-shrink:0;">
+                                    <span class="fmp-step-num" style="font-size:20px; font-weight:800; line-height:1;">6</span>
+                                    <i class="fmp-step-icon-sm fa fa-truck" style="font-size:11px; margin-top:2px; opacity:.85;"></i>
                                 </div>
                                 @else
-                                <div style="width:60px; height:60px; border-radius:50%;
+                                <div class="fmp-step-circle" style="width:60px; height:60px; border-radius:50%;
                                             background:#e8eaf0; color:#c0c2cc; margin-bottom:8px;
-                                            display:flex; align-items:center; justify-content:center;
-                                            font-size:22px; flex-shrink:0;">
-                                    <i class="fa fa-truck"></i>
+                                            display:flex; align-items:center; justify-content:center; flex-direction:column;
+                                            flex-shrink:0;">
+                                    <span class="fmp-step-num" style="font-size:20px; font-weight:700; line-height:1; color:#aab;">6</span>
+                                    <i class="fmp-step-icon-sm fa fa-truck" style="font-size:11px; margin-top:2px; color:#c0c2cc;"></i>
                                 </div>
                                 @endif
                                 <div style="text-align:center;">
@@ -385,39 +430,45 @@
                                  style="display:flex; flex-direction:column; align-items:center; min-width:100px;
                                         {{ ($pasoActivo === 'cobro') ? (($cobroCompletado ? 'background:rgba(26,179,148,.08);' : 'background:rgba(26,126,251,.06);') . ' border-radius:12px; padding:4px 6px;') : 'padding:4px 6px;' }}">
                                 @if ($cobroCompletado)
-                                <div style="width:60px; height:60px; border-radius:50%;
-                                            background:linear-gradient(135deg,#1ab394,#0fa37a); color:#fff;
-                                            margin-bottom:8px; box-shadow:0 4px 16px rgba(26,179,148,.4);
-                                            display:flex; align-items:center; justify-content:center;
-                                            font-size:22px; flex-shrink:0;
-                                            {{ ($pasoActivo === 'cobro') ? 'box-shadow:0 4px 16px rgba(26,179,148,.4), 0 0 0 4px rgba(26,179,148,.25);' : '' }}">
-                                    <i class="fa fa-check"></i>
+                                <div class="fmp-step-circle" style="position:relative; width:60px; height:60px; margin-bottom:8px; flex-shrink:0;">
+                                    <div style="width:60px; height:60px; border-radius:50%;
+                                                background:linear-gradient(135deg,#1ab394,#0fa37a); color:#fff;
+                                                box-shadow:0 4px 16px rgba(26,179,148,.4);
+                                                display:flex; align-items:center; justify-content:center; font-size:22px;
+                                                {{ ($pasoActivo === 'cobro') ? 'box-shadow:0 4px 16px rgba(26,179,148,.4), 0 0 0 4px rgba(26,179,148,.25);' : '' }}">
+                                        <i class="fa fa-check"></i>
+                                    </div>
+                                    <span style="position:absolute; top:-4px; right:-4px; background:#0fa37a; color:#fff; border-radius:50%;
+                                                 width:20px; height:20px; display:flex; align-items:center; justify-content:center;
+                                                 font-size:10px; font-weight:800; border:2px solid #fff; line-height:1;">7</span>
                                 </div>
                                 @elseif ($cobroActiva)
-                                <div style="width:60px; height:60px; border-radius:50%;
+                                <div class="fmp-step-circle" style="width:60px; height:60px; border-radius:50%;
                                             background:linear-gradient(135deg,#1a7efb,#0d6efd); color:#fff;
                                             margin-bottom:8px;
                                             box-shadow:0 6px 20px rgba(26,126,251,.5), 0 0 0 5px rgba(26,126,251,.2), 0 0 0 10px rgba(26,126,251,.08);
-                                            display:flex; align-items:center; justify-content:center;
-                                            font-size:22px; flex-shrink:0;
-                                            outline:3px solid rgba(26,126,251,.35); outline-offset:4px;">
-                                    <i class="fa fa-check"></i>
+                                            display:flex; align-items:center; justify-content:center; flex-direction:column;
+                                            flex-shrink:0; outline:3px solid rgba(26,126,251,.35); outline-offset:4px;">
+                                    <span class="fmp-step-num" style="font-size:20px; font-weight:800; line-height:1;">7</span>
+                                    <i class="fmp-step-icon-sm fa fa-dollar" style="font-size:11px; margin-top:2px; opacity:.85;"></i>
                                 </div>
                                 @elseif ($cobroEstadoId === 5)
-                                <div style="width:60px; height:60px; border-radius:50%;
+                                <div class="fmp-step-circle" style="width:60px; height:60px; border-radius:50%;
                                             background:linear-gradient(135deg,#1a7efb,#0d6efd); color:#fff;
                                             margin-bottom:8px;
                                             box-shadow:0 4px 16px rgba(26,126,251,.35);
-                                            display:flex; align-items:center; justify-content:center;
-                                            font-size:22px; flex-shrink:0;">
-                                    <i class="fa fa-dollar"></i>
+                                            display:flex; align-items:center; justify-content:center; flex-direction:column;
+                                            flex-shrink:0;">
+                                    <span class="fmp-step-num" style="font-size:20px; font-weight:800; line-height:1;">7</span>
+                                    <i class="fmp-step-icon-sm fa fa-dollar" style="font-size:11px; margin-top:2px; opacity:.85;"></i>
                                 </div>
                                 @else
-                                <div style="width:60px; height:60px; border-radius:50%;
+                                <div class="fmp-step-circle" style="width:60px; height:60px; border-radius:50%;
                                             background:#e8eaf0; color:#c0c2cc; margin-bottom:8px;
-                                            display:flex; align-items:center; justify-content:center;
-                                            font-size:22px; flex-shrink:0;">
-                                    <i class="fa fa-dollar"></i>
+                                            display:flex; align-items:center; justify-content:center; flex-direction:column;
+                                            flex-shrink:0;">
+                                    <span class="fmp-step-num" style="font-size:20px; font-weight:700; line-height:1; color:#aab;">7</span>
+                                    <i class="fmp-step-icon-sm fa fa-dollar" style="font-size:11px; margin-top:2px; color:#c0c2cc;"></i>
                                 </div>
                                 @endif
                                 <div style="text-align:center;">
@@ -453,30 +504,35 @@
                              @if($puedeFinal) wire:click="seleccionarPaso('finalizado')" @endif
                              style="display:flex; flex-direction:column; align-items:center; min-width:100px;">
                             @if ($finalizadoCompletado)
-                            <div style="width:60px; height:60px; border-radius:50%;
-                                        background:linear-gradient(135deg,#1ab394,#0fa37a); color:#fff;
-                                        margin-bottom:8px; box-shadow:0 4px 16px rgba(26,179,148,.4);
-                                        display:flex; align-items:center; justify-content:center;
-                                        font-size:22px; flex-shrink:0;
-                                        {{ $finalActiva ? 'box-shadow:0 4px 16px rgba(26,179,148,.4), 0 0 0 4px rgba(26,179,148,.25);' : '' }}">
-                                <i class="fa fa-check"></i>
+                            <div class="fmp-step-circle" style="position:relative; width:60px; height:60px; margin-bottom:8px; flex-shrink:0;">
+                                <div style="width:60px; height:60px; border-radius:50%;
+                                            background:linear-gradient(135deg,#1ab394,#0fa37a); color:#fff;
+                                            box-shadow:0 4px 16px rgba(26,179,148,.4);
+                                            display:flex; align-items:center; justify-content:center; font-size:22px;
+                                            {{ $finalActiva ? 'box-shadow:0 4px 16px rgba(26,179,148,.4), 0 0 0 4px rgba(26,179,148,.25);' : '' }}">
+                                    <i class="fa fa-check"></i>
+                                </div>
+                                <span style="position:absolute; top:-4px; right:-4px; background:#0fa37a; color:#fff; border-radius:50%;
+                                             width:20px; height:20px; display:flex; align-items:center; justify-content:center;
+                                             font-size:10px; font-weight:800; border:2px solid #fff; line-height:1;">8</span>
                             </div>
                             @elseif ($finalActiva)
-                            <div style="width:60px; height:60px; border-radius:50%;
+                            <div class="fmp-step-circle" style="width:60px; height:60px; border-radius:50%;
                                         background:linear-gradient(135deg,#1a7efb,#0d6efd); color:#fff;
                                         margin-bottom:8px;
                                         box-shadow:0 6px 20px rgba(26,126,251,.5), 0 0 0 5px rgba(26,126,251,.2), 0 0 0 10px rgba(26,126,251,.08);
-                                        display:flex; align-items:center; justify-content:center;
-                                        font-size:22px; flex-shrink:0;
-                                        outline:3px solid rgba(26,126,251,.35); outline-offset:4px;">
-                                <i class="fa fa-check"></i>
+                                        display:flex; align-items:center; justify-content:center; flex-direction:column;
+                                        flex-shrink:0; outline:3px solid rgba(26,126,251,.35); outline-offset:4px;">
+                                <span class="fmp-step-num" style="font-size:20px; font-weight:800; line-height:1;">8</span>
+                                <i class="fmp-step-icon-sm fa fa-flag-checkered" style="font-size:11px; margin-top:2px; opacity:.85;"></i>
                             </div>
                             @else
-                            <div style="width:60px; height:60px; border-radius:50%;
+                            <div class="fmp-step-circle" style="width:60px; height:60px; border-radius:50%;
                                         background:#e8eaf0; color:#c0c2cc; margin-bottom:8px;
-                                        display:flex; align-items:center; justify-content:center;
-                                        font-size:22px; flex-shrink:0;">
-                                <i class="fa fa-flag-checkered"></i>
+                                        display:flex; align-items:center; justify-content:center; flex-direction:column;
+                                        flex-shrink:0;">
+                                <span class="fmp-step-num" style="font-size:20px; font-weight:700; line-height:1; color:#aab;">8</span>
+                                <i class="fmp-step-icon-sm fa fa-flag-checkered" style="font-size:11px; margin-top:2px; color:#c0c2cc;"></i>
                             </div>
                             @endif
                             <div style="text-align:center;">
@@ -496,6 +552,16 @@
 
                     </div>
                 </div>
+
+                {{-- ── Barra de progreso ─────────────────────────────── --}}
+                @if (!$fCancelado)
+                @php $progressPct = min(round(($fPaso / 7) * 100), 100); @endphp
+                <div style="height:5px; border-radius:5px; background:#e8eaf0; margin:0 4px 6px; overflow:hidden;">
+                    <div style="height:100%; border-radius:5px;
+                                background:linear-gradient(90deg,#1ab394,#1a7efb);
+                                width:{{ $progressPct }}%; transition:width .6s ease;"></div>
+                </div>
+                @endif
 
                 @endif {{-- /cancelado --}}
 
@@ -923,7 +989,9 @@
 
                     {{-- Confirmación: Quitar Ganadora --}}
                     @if (!$facturaCompletada && $confirmAccionOferta === 'quitar_ganadora')
-                    <div style="margin-top:12px; background:#fff3e0; border:1px solid #ffcc80;
+                    <div x-data="{}"
+                         x-on:focus-motivo-oferta.window="setTimeout(() => $refs.quitarGanTA && $refs.quitarGanTA.focus(), 100)"
+                         style="margin-top:12px; background:#fff3e0; border:1px solid #ffcc80;
                                 border-radius:12px; padding:14px;">
                         <p style="font-size:13px; color:#555; margin:0 0 8px;">
                             <i class="mr-1 fa fa-times-circle text-warning"></i>
@@ -936,6 +1004,7 @@
                         </div>
                         @endif
                         <textarea wire:model.defer="motivoAnulOferta" rows="2"
+                                  x-ref="quitarGanTA"
                                   placeholder="Motivo (obligatorio)…"
                                   style="width:100%; border:1px solid #ddd; border-radius:8px;
                                          padding:6px 10px; font-size:12px; resize:none;"></textarea>
@@ -957,7 +1026,9 @@
 
                     {{-- Confirmación: Anular oferta --}}
                     @if (!$facturaCompletada && $confirmAccionOferta === 'anular_oferta')
-                    <div style="margin-top:12px; background:#fff5f5; border:1px solid #feb2b2;
+                    <div x-data="{}"
+                         x-on:focus-motivo-oferta.window="setTimeout(() => $refs.anulOfertaTA && $refs.anulOfertaTA.focus(), 100)"
+                         style="margin-top:12px; background:#fff5f5; border:1px solid #feb2b2;
                                 border-radius:12px; padding:14px;">
                         <p style="font-size:13px; color:#555; margin:0 0 8px;">
                             <i class="mr-1 fa fa-ban text-danger"></i>
@@ -970,6 +1041,7 @@
                         </div>
                         @endif
                         <textarea wire:model.defer="motivoAnulOferta" rows="2"
+                                  x-ref="anulOfertaTA"
                                   placeholder="Motivo de anulación (obligatorio)…"
                                   style="width:100%; border:1px solid #ddd; border-radius:8px;
                                          padding:6px 10px; font-size:12px; resize:none;"></textarea>
@@ -1099,74 +1171,171 @@
                 {{-- ══════════════════════════════════════════════════ --}}
                 @if ($pasoActivo === 'revision_inventario')
                 @php
-                    // Obtener observaciones del área de inventario si fue devuelta
-                    $obsDevolucion = null;
-                    if ($flujoId) {
-                        $hfDevolucion = \Illuminate\Support\Facades\DB::table('historico_flujo')
-                            ->where('flujo_id', $flujoId)
-                            ->where('tipo_tramite_id', 9)
-                            ->orderByDesc('id')
-                            ->first(['observaciones', 'estado_id', 'created_at']);
-                        if ($hfDevolucion) {
-                            $obsDevolucion = $hfDevolucion->observaciones;
-                        }
-                    }
+                    $ciclos      = $revisionHistorial ?? [];
+                    $totalCiclos = count($ciclos);
                 @endphp
                 <div style="margin-top:14px;">
-                    {{-- Banner informativo principal --}}
+
+                    {{-- Encabezado de estado --}}
                     <div style="background:linear-gradient(135deg,#f3e5f5,#ede7f6);
                                 border:1.5px solid #ce93d8; border-radius:14px;
-                                padding:20px 24px; text-align:center; margin-bottom:14px;">
-                        <div style="width:70px; height:70px; border-radius:50%;
+                                padding:16px 22px; display:flex; align-items:center; gap:16px; margin-bottom:14px;">
+                        <div style="width:52px; height:52px; border-radius:50%;
                                     background:linear-gradient(135deg,#9c27b0,#7b1fa2);
-                                    display:inline-flex; align-items:center; justify-content:center;
-                                    font-size:30px; color:#fff; margin-bottom:12px;
-                                    box-shadow:0 6px 20px rgba(156,39,176,.4);">
+                                    display:flex; align-items:center; justify-content:center;
+                                    font-size:24px; color:#fff; flex-shrink:0;
+                                    box-shadow:0 4px 16px rgba(156,39,176,.35);">
                             <i class="fa fa-search"></i>
                         </div>
-                        <h4 style="color:#6a1b9a; font-weight:700; margin:0 0 6px;">
-                            Factura en revisión de inventario
-                        </h4>
-                        <p style="color:#7b1fa2; font-size:13px; margin:0;">
-                            Esta oferta está siendo validada por el área de inventario antes de continuar a Prefactura.
-                        </p>
-                    </div>
-
-                    {{-- Info del estado actual --}}
-                    <div style="background:#fff; border-radius:10px; border:1px solid #e8eaf0;
-                                padding:12px 16px; font-size:13px; color:#555;">
-                        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                            <span style="background:#f3e5f5; color:#6a1b9a; border-radius:8px;
-                                         padding:3px 12px; font-size:12px; font-weight:700;">
-                                <i class="fa fa-clock-o mr-1"></i> Pendiente de revisión
-                            </span>
-                            <span style="color:#888; font-size:12px;">
-                                <i class="fa fa-info-circle mr-1"></i>
-                                El encargado de inventario validará la disponibilidad de los productos.
-                            </span>
-                        </div>
-                        <div style="margin-top:10px; padding-top:10px; border-top:1px solid #f0f0f0;">
-                            <span style="color:#555; font-size:12px;">
-                                <i class="mr-1 fa fa-exchange text-muted"></i>
-                                Próximo paso si se aprueba: <strong>Pre Factura</strong>
-                            </span>
-                            <span style="margin-left:16px; color:#555; font-size:12px;">
-                                <i class="mr-1 fa fa-reply text-muted"></i>
-                                Si hay problemas: <strong>Devolver a Oferta</strong>
-                            </span>
+                        <div>
+                            <h5 style="color:#6a1b9a; font-weight:700; margin:0 0 6px; font-size:15px;">
+                                Revisión de Inventario
+                            </h5>
+                            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                                @if ($revisionDevuelta ?? false)
+                                <span style="background:#fff3e0; color:#e65100; border-radius:6px;
+                                             padding:2px 10px; font-size:12px; font-weight:700;">
+                                    <i class="fa fa-reply mr-1"></i>Devuelta a Oferta
+                                </span>
+                                @elseif ($totalCiclos > 0)
+                                <span style="background:#e3f2fd; color:#1565c0; border-radius:6px;
+                                             padding:2px 10px; font-size:12px; font-weight:700;">
+                                    <i class="fa fa-clock-o mr-1"></i>Pendiente de revisión
+                                </span>
+                                @else
+                                <span style="background:#f3e5f5; color:#6a1b9a; border-radius:6px;
+                                             padding:2px 10px; font-size:12px; font-weight:700;">
+                                    <i class="fa fa-clock-o mr-1"></i>Sin revisión aún
+                                </span>
+                                @endif
+                                @if ($totalCiclos > 0)
+                                <span style="font-size:11px; color:#9c27b0;">
+                                    {{ $totalCiclos }} ciclo(s)
+                                </span>
+                                @endif
+                            </div>
                         </div>
                     </div>
 
-                    {{-- Observaciones de devolución (si el flujo fue devuelto desde revisión) --}}
-                    @if ($obsDevolucion && str_contains($obsDevolucion, 'Devuelto'))
-                    <div style="margin-top:12px; background:#fff3e0; border:1px solid #ffcc80;
-                                border-radius:12px; padding:12px 16px;">
-                        <h6 style="color:#e65100; font-weight:700; margin-bottom:6px;">
-                            <i class="mr-1 fa fa-comment-o"></i>Observaciones de Revisión de Inventario
-                        </h6>
-                        <p style="font-size:12px; color:#555; margin:0; white-space:pre-line;">{{ $obsDevolucion }}</p>
+                    {{-- Historial de ciclos de revisión --}}
+                    @forelse ($ciclos as $i => $ciclo)
+                    @php
+                        $cNum   = $i + 1;
+                        $cEst   = (int) ($ciclo['estado_id'] ?? 5);
+                        $cObs   = $ciclo['observaciones'] ?? '';
+                        // Parsear observaciones: "Motivo | [Producto A]: nota | [Producto B]: nota"
+                        $cMotivo = $cObs;
+                        $cProds  = [];
+                        if (str_contains($cObs, ' | [')) {
+                            $cParts  = explode(' | [', $cObs);
+                            $cMotivo = trim(array_shift($cParts));
+                            foreach ($cParts as $cp) {
+                                if (str_contains($cp, ']: ')) {
+                                    [$cNom, $cNota] = explode(']: ', $cp, 2);
+                                    $cProds[] = ['nombre' => trim($cNom), 'nota' => trim($cNota)];
+                                }
+                            }
+                        }
+                        // Limpiar prefijo almacenado del motivo
+                        $cMotivo = trim(preg_replace('/^(Devuelto a Oferta\s*:\s*|En Revisi\xC3\xB3n de Inventario\.?\s*|Revisi\xC3\xB3n aprobada\.?\s*)/iu', '', $cMotivo));
+                        $cLabel  = match($cEst) {
+                            1       => ['txt' => 'Aprobada',          'color' => '#2e7d32', 'bg' => '#e8f5e9', 'icon' => 'fa-check-circle'],
+                            7       => ['txt' => 'Devuelta a Oferta', 'color' => '#e65100', 'bg' => '#fff3e0', 'icon' => 'fa-reply'],
+                            default => ['txt' => 'Pendiente',         'color' => '#1565c0', 'bg' => '#e3f2fd', 'icon' => 'fa-clock-o'],
+                        };
+                        $cRevisor = $ciclo['revisor_nombre']   ?? null;
+                        $cAprobad = $ciclo['aprobador_nombre'] ?? null;
+                        $cFechaC  = $ciclo['created_at']  ?? null;
+                        $cFechaU  = $ciclo['updated_at']  ?? null;
+                    @endphp
+                    <div style="background:#fff; border:1px solid #e8eaf0; border-radius:12px;
+                                padding:14px 18px; margin-bottom:12px;
+                                border-left:4px solid {{ $cLabel['color'] }};">
+
+                        {{-- Ciclo header --}}
+                        <div style="display:flex; align-items:center; justify-content:space-between;
+                                    flex-wrap:wrap; gap:8px; margin-bottom:10px;">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span style="background:#f0f2f8; color:#555; border-radius:20px;
+                                             padding:2px 10px; font-size:11px; font-weight:700;">
+                                    Ciclo #{{ $cNum }}
+                                </span>
+                                <span style="background:{{ $cLabel['bg'] }}; color:{{ $cLabel['color'] }};
+                                             border-radius:8px; padding:2px 10px; font-size:12px; font-weight:700;">
+                                    <i class="fa {{ $cLabel['icon'] }} mr-1"></i>{{ $cLabel['txt'] }}
+                                </span>
+                            </div>
+                            @if ($cFechaC)
+                            <span style="font-size:11px; color:#888;">
+                                <i class="fa fa-calendar mr-1"></i>
+                                {{ \Carbon\Carbon::parse($cFechaC)->format('d/m/Y H:i') }}
+                            </span>
+                            @endif
+                        </div>
+
+                        {{-- Revisor y Aprobador --}}
+                        <div style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom:8px;">
+                            @if ($cRevisor)
+                            <div style="font-size:12px; color:#555;">
+                                <i class="fa fa-user-circle-o mr-1 text-muted"></i>
+                                <strong>Revisado por:</strong> {{ $cRevisor }}
+                            </div>
+                            @endif
+                            @if ($cAprobad && $cEst === 1)
+                            <div style="font-size:12px; color:#2e7d32;">
+                                <i class="fa fa-check-circle mr-1"></i>
+                                <strong>Autorizado por:</strong> {{ $cAprobad }}
+                                @if ($cFechaU)
+                                <span style="color:#888;"> · {{ \Carbon\Carbon::parse($cFechaU)->format('d/m/Y H:i') }}</span>
+                                @endif
+                            </div>
+                            @endif
+                        </div>
+
+                        {{-- Motivo de devolución (solo si devuelta) --}}
+                        @if ($cMotivo !== '' && $cEst === 7)
+                        <div style="background:#fff8f0; border-radius:8px; padding:8px 12px; margin-bottom:8px;">
+                            <div style="font-size:11px; color:#888; margin-bottom:3px; font-weight:700;">
+                                <i class="fa fa-comment-o mr-1"></i>MOTIVO DE DEVOLUCIÓN
+                            </div>
+                            <p style="font-size:12px; color:#555; margin:0;">{{ $cMotivo }}</p>
+                        </div>
+                        @endif
+
+                        {{-- Productos con observaciones --}}
+                        @if (!empty($cProds))
+                        <div>
+                            <div style="font-size:11px; color:#888; margin-bottom:6px; font-weight:700;
+                                        text-transform:uppercase; letter-spacing:.4px;">
+                                <i class="fa fa-list-ul mr-1"></i>Productos con notas
+                            </div>
+                            @foreach ($cProds as $cp)
+                            <div style="background:#f8f9fc; border-radius:8px; padding:8px 12px;
+                                        margin-bottom:5px; border-left:3px solid #e67e22;">
+                                <div style="font-size:12px; color:#555; font-weight:700; margin-bottom:2px;">
+                                    <i class="fa fa-cube mr-1 text-muted"></i>{{ $cp['nombre'] }}
+                                </div>
+                                <div style="font-size:12px; color:#666;">{{ $cp['nota'] }}</div>
+                            </div>
+                            @endforeach
+                        </div>
+                        @endif
+
+                        {{-- Info para ciclo pendiente --}}
+                        @if ($cEst === 5)
+                        <div style="font-size:12px; color:#666; margin-top:4px;">
+                            <i class="fa fa-info-circle mr-1 text-muted"></i>
+                            El encargado de inventario validará la disponibilidad de los productos.
+                        </div>
+                        @endif
                     </div>
-                    @endif
+                    @empty
+                    <div style="background:#fff; border-radius:12px; border:1px solid #e8eaf0;
+                                padding:20px; text-align:center; color:#aaa;">
+                        <i class="fa fa-inbox d-block" style="font-size:28px; margin-bottom:8px; opacity:.3;"></i>
+                        <p style="margin:0; font-size:13px;">Sin historial de revisión aún.</p>
+                    </div>
+                    @endforelse
                 </div>
                 @endif
                 {{-- /paso revision_inventario --}}
@@ -1195,9 +1364,15 @@
                             <strong style="color:#e65100;">
                                 Total: L {{ number_format($pref['total'], 2) }}
                             </strong>
+                            @if(($pref['estado'] ?? '') === 'convertida')
+                            <span style="background:#e3f2fd; color:#1565c0; border-radius:8px; padding:1px 8px; font-size:10px; font-weight:700;">
+                                <i class="mr-1 fa fa-file-text"></i> Facturada
+                            </span>
+                            @else
                             <span style="background:#e8f5e9; color:#1b5e20; border-radius:8px; padding:1px 8px; font-size:10px; font-weight:700;">
                                 <i class="mr-1 fa fa-check-circle"></i> Activa
                             </span>
+                            @endif
                         </div>
                     </div>
 

@@ -20,7 +20,8 @@ class PedidoController extends Controller
             ->select(
                 'p.id', 'c.nombre as cliente', 'c.rtn', 'c.telefono_empresa',
                 'c.direccion', 'c.correo', 'p.estado', 'p.observaciones',
-                'u.name as registrado_por', 'p.created_at'
+                'u.name as registrado_por', 'p.created_at',
+                DB::raw('(SELECT hf.flujo_id FROM historico_flujo hf WHERE hf.tramite_id = p.id AND hf.tipo_tramite_id = 1 LIMIT 1) as flujo_id')
             )
             ->where('p.id', $id)
             ->first();

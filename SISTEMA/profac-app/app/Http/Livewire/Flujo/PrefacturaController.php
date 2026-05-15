@@ -189,6 +189,7 @@ class PrefacturaController
                 (SELECT name FROM users WHERE id = p.vendedor) as vendedor,
                 p.nota,
                 p.id as prefactura_id,
+                p.flujo_id,
                 cfg.dias_validez,
                 cfg.descripcion_validez
             FROM prefactura p

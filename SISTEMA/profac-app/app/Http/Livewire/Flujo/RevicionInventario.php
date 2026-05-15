@@ -19,18 +19,25 @@ use Illuminate\Support\Facades\Auth;
 class RevicionInventario extends Component
 {
     // ── Bandeja ───────────────────────────────────────────────────────────
-    public array  $bandejaRegistros = [];
-    public string $busqueda         = '';
+    public array  $bandejaRegistros  = [];   // pestaña: llegando
+    public array  $bandejaDevueltos  = [];   // pestaña: devueltos a oferta
+    public array  $bandejaPrefactura = [];   // pestaña: pasados a prefactura
+    public string $busqueda          = '';
+    public string $tabActiva         = 'llegando';
 
     // ── Detalle del flujo seleccionado ────────────────────────────────────
     public ?int   $flujoId          = null;
-    public ?array $flujoData        = null;   // info del flujo + oferta ganadora
+    protected     $flujoData        = null;   // info del flujo + oferta ganadora
     public ?int   $cotizacionId     = null;   // ID de la cotizacion ganadora
     public array  $productos        = [];     // {nombre_producto, cantidad, disponible, falta_stock}
     public array  $stockErrors      = [];     // productos con stock insuficiente
 
     // ── Observaciones por producto (para notas de reemplazo) ──────────────
     public array  $obsProducto      = [];     // ['idx' => 'texto obs']
+
+    // ── Estado de devolución ──────────────────────────────────────────────
+    public bool   $devuelto                  = false;  // true si el flujo fue devuelto a Oferta
+    public string $motivoDevolucionGuardado  = '';     // motivo leído del historico al abrir un devuelto
 
     // ── Confirmación de acciones ──────────────────────────────────────────
     public ?string $confirmAccion    = null;  // null | 'prefactura' | 'devolver'
@@ -94,13 +101,30 @@ class RevicionInventario extends Component
     public function cargar(): void
     {
         $term = trim($this->busqueda);
+        $this->bandejaRegistros  = $this->buildBandejaQuery($term, 'llegando');
+        $this->bandejaDevueltos  = $this->buildBandejaQuery($term, 'devueltos');
+        $this->bandejaPrefactura = $this->buildBandejaQuery($term, 'prefactura');
+    }
+
+    public function cambiarTab(string $tab): void
+    {
+        $this->tabActiva = in_array($tab, ['llegando', 'devueltos', 'prefactura']) ? $tab : 'llegando';
+    }
+
+    private function buildBandejaQuery(string $term, string $tipo): array
+    {
+        // Subquery: obtiene solo el registro MÁS RECIENTE de revisión (tipo=9) por flujo.
+        // Esto evita que flujos con múltiples ciclos aparezcan duplicados en bandeja.
+        $latestRevSub = DB::table('historico_flujo')
+            ->select('flujo_id', DB::raw('MAX(id) as max_id'))
+            ->where('tipo_tramite_id', 9)
+            ->groupBy('flujo_id');
 
         $q = DB::table('flujo as f')
-            ->join('historico_flujo as hf', function ($j) {
-                $j->on('hf.flujo_id', '=', 'f.id')
-                  ->where('hf.tipo_tramite_id', 9)
-                  ->where('hf.estado_id', '!=', 7);
+            ->joinSub($latestRevSub, 'lrev', function ($j) {
+                $j->on('lrev.flujo_id', '=', 'f.id');
             })
+            ->join('historico_flujo as hf', 'hf.id', '=', 'lrev.max_id')
             ->leftJoin('historico_flujo as hfof', function ($j) {
                 $j->on('hfof.flujo_id', '=', 'f.id')
                   ->where('hfof.tipo_tramite_id', 2)
@@ -112,28 +136,38 @@ class RevicionInventario extends Component
                 $j->on('cl.id', '=', 'c.cliente_id')
                   ->orOn('cl.id', '=', 'p.cliente_id');
             })
-            ->where('f.tipo_tramite_id', 9)
             ->select(
                 'f.id as flujo_id',
                 'f.identificacion',
                 'hf.created_at as fecha_revision',
+                'hf.updated_at as fecha_accion',
                 'hfof.tramite_id as cotizacion_id',
                 DB::raw("COALESCE(c.nombre_cliente, p.observaciones, CONCAT('Flujo #', f.id)) as cliente"),
                 DB::raw("COALESCE(c.RTN, '') as rtn"),
                 DB::raw('(SELECT COUNT(*) FROM cotizacion_has_producto chp WHERE chp.cotizacion_id = hfof.tramite_id) as total_productos'),
-                'hf.observaciones as obs_revision'
+                'hf.observaciones as obs_revision',
+                'hf.estado_id'
             )
             ->groupBy(
-                'f.id', 'f.identificacion', 'hf.created_at',
+                'f.id', 'f.identificacion', 'hf.created_at', 'hf.updated_at',
                 'hfof.tramite_id', 'c.nombre_cliente', 'p.observaciones',
-                'c.RTN', 'hf.observaciones'
-            )
-            ->orderByDesc('hf.created_at');
+                'c.RTN', 'hf.observaciones', 'hf.estado_id'
+            );
+
+        if ($tipo === 'llegando') {
+            // Ciclo activo: el registro más reciente de tipo=9 no está devuelto ni aprobado
+            $q->where('f.tipo_tramite_id', 9)->where('hf.estado_id', '!=', 7);
+        } elseif ($tipo === 'devueltos') {
+            // Solo el último ciclo de revisión fue devuelto (estado_id=7)
+            $q->where('hf.estado_id', 7);
+        } else {
+            $q->where('hf.estado_id', 1); // prefactura: revisión aprobada
+        }
 
         if ($term !== '') {
             $like = '%' . $term . '%';
             if (is_numeric($term)) {
-                $q->where(function ($s) use ($term, $like) {
+                $q->where(function ($s) use ($term) {
                     $s->where('f.id', (int) $term)
                       ->orWhere('f.identificacion', $term)
                       ->orWhere('hfof.tramite_id', (int) $term);
@@ -147,7 +181,7 @@ class RevicionInventario extends Component
             }
         }
 
-        $this->bandejaRegistros = $q->get()->map(fn($r) => (array) $r)->toArray();
+        return $q->orderByDesc('hf.created_at')->get()->map(fn($r) => (array) $r)->toArray();
     }
 
     // ─────────────────────────────────────────────────────────────────────
@@ -156,16 +190,33 @@ class RevicionInventario extends Component
 
     public function seleccionarFlujo(int $flujoId): void
     {
-        $this->flujoId      = $flujoId;
-        $this->confirmAccion = null;
+        $this->flujoId          = $flujoId;
+        $this->devuelto         = false;
+        $this->motivoDevolucionGuardado = '';
+        $this->confirmAccion    = null;
         $this->motivoDevolucion = '';
-        $this->mensajeExito  = '';
-        $this->mensajeError  = '';
-        $this->obsProducto   = [];
-        $this->stockErrors   = [];
+        $this->mensajeExito     = '';
+        $this->mensajeError     = '';
+        $this->obsProducto      = [];
+        $this->stockErrors      = [];
+
+        // Detectar el estado del ciclo ACTUAL mirando el registro MÁS RECIENTE de tipo=9.
+        // Si el último registro tiene estado_id=7 → ciclo cerrado/devuelto (modo lectura).
+        // Si no → ciclo activo (puede ser un segundo o posterior ciclo).
+        $latestRevRec = DB::table('historico_flujo')
+            ->where('flujo_id', $flujoId)
+            ->where('tipo_tramite_id', 9)
+            ->orderByDesc('id')
+            ->first(['id', 'estado_id', 'observaciones']);
+
+        $revRec = null;
+        if ($latestRevRec && (int) $latestRevRec->estado_id === 7) {
+            $this->devuelto = true;
+            $revRec = $latestRevRec;
+        }
 
         // Obtener info del flujo
-        $flujoRaw = DB::table('flujo as f')
+        $this->flujoData = DB::table('flujo as f')
             ->leftJoin('pedido as p', DB::raw('CAST(f.identificacion AS UNSIGNED)'), '=', 'p.id')
             ->leftJoin('cliente as cl', 'cl.id', '=', 'p.cliente_id')
             ->where('f.id', $flujoId)
@@ -178,7 +229,6 @@ class RevicionInventario extends Component
                 'p.observaciones as pedido_obs'
             )
             ->first();
-        $this->flujoData = $flujoRaw ? (array) $flujoRaw : null;
 
         // Obtener la cotizacion ganadora de este flujo
         $hfGanadora = DB::table('historico_flujo')
@@ -187,6 +237,27 @@ class RevicionInventario extends Component
             ->where('observaciones', 'ganadora')
             ->orderByDesc('id')
             ->first(['tramite_id', 'observaciones']);
+
+        // Si fue devuelto, buscar el cotizacion_id a través de cotizacion_estado (ganadora=4)
+        if (!$hfGanadora) {
+            $ceDev = DB::table('cotizacion_estado')
+                ->where('flujo_id', $flujoId)
+                ->where('ganadora', 4)
+                ->orderByDesc('id')
+                ->first(['cotizacion_id']);
+            if ($ceDev) {
+                $hfGanadora = (object) ['tramite_id' => $ceDev->cotizacion_id];
+            }
+        }
+        // Último respaldo: oferta marcada como devuelta desde revisión
+        if (!$hfGanadora) {
+            $hfGanadora = DB::table('historico_flujo')
+                ->where('flujo_id', $flujoId)
+                ->where('tipo_tramite_id', 2)
+                ->where('observaciones', 'LIKE', 'Devuelta desde Revisión:%')
+                ->orderByDesc('id')
+                ->first(['tramite_id']);
+        }
 
         $this->cotizacionId = $hfGanadora ? (int) $hfGanadora->tramite_id : null;
 
@@ -209,7 +280,8 @@ class RevicionInventario extends Component
             $disponible = null;
             $faltaStock = false;
 
-            if ($prod->resta_inventario && $prod->producto_id && $prod->seccion_id) {
+            // Para registros ya devueltos no recalcular stock (solo mostrar datos)
+            if (!$this->devuelto && $prod->resta_inventario && $prod->producto_id && $prod->seccion_id) {
                 $rawStock = (float) DB::table('recibido_bodega')
                     ->where('producto_id', $prod->producto_id)
                     ->where('seccion_id',  $prod->seccion_id)
@@ -248,12 +320,41 @@ class RevicionInventario extends Component
                 'falta_stock'     => $faltaStock,
             ];
         }
+
+        // ── Si el flujo está devuelto, cargar motivo y notas de productos ──
+        if ($this->devuelto && isset($revRec)) {
+            $fullObs = $revRec->observaciones ?? '';
+            // Quitar prefijo "Devuelto a Oferta: "
+            $obsBody = preg_replace('/^Devuelto a Oferta:\s*/i', '', $fullObs);
+            // Separar motivo de notas de productos " | [nombre]: nota"
+            $pipePos = strpos($obsBody, ' | [');
+            if ($pipePos !== false) {
+                $this->motivoDevolucionGuardado = trim(substr($obsBody, 0, $pipePos));
+                $notasPart = substr($obsBody, $pipePos);
+                // Parsear cada nota de producto
+                preg_match_all('/\|\s*\[([^\]]+)\]:\s*([^|]+)/', $notasPart, $matches, PREG_SET_ORDER);
+                foreach ($matches as $m) {
+                    $nombreProd = trim($m[1]);
+                    $nota       = trim($m[2]);
+                    foreach ($this->productos as $prod) {
+                        if ($prod['nombre_producto'] === $nombreProd) {
+                            $this->obsProducto[$prod['idx']] = $nota;
+                            break;
+                        }
+                    }
+                }
+            } else {
+                $this->motivoDevolucionGuardado = trim($obsBody);
+            }
+        }
     }
 
     public function cerrarDetalle(): void
     {
         $this->flujoId          = null;
         $this->flujoData        = null;
+        $this->devuelto         = false;
+        $this->motivoDevolucionGuardado = '';
         $this->cotizacionId     = null;
         $this->productos        = [];
         $this->stockErrors      = [];
@@ -362,7 +463,7 @@ class RevicionInventario extends Component
                     'idPrecioSeleccionado'      => $prod->idPrecioSeleccionado ?? null,
                     'precioSeleccionado'        => $prod->precioSeleccionado ?? null,
                     'precios_producto_carga_id' => $prod->precios_producto_carga_id ?? null,
-                    'resta_inventario'          => $prod->resta_inventario ? 1 : 0,
+                    'resta_inventario'          => $prod->resta_inventario,
                     'created_at'               => now(),
                     'updated_at'               => now(),
                 ];
@@ -457,19 +558,6 @@ class RevicionInventario extends Component
                     'updated_at'    => now(),
                 ]);
 
-            // Registrar en historico_flujo la devolución (para trazabilidad)
-            DB::table('historico_flujo')->insert([
-                'flujo_id'        => $this->flujoId,
-                'tipo_tramite_id' => 2,   // Ofertas
-                'tramite_id'      => $this->cotizacionId,
-                'estado_id'       => 5,   // Pendiente
-                'observaciones'   => 'Devuelto desde Revisión de Inventario: ' . $obsCompleta,
-                'created_by'      => Auth::id(),
-                'updated_by'      => Auth::id(),
-                'created_at'      => now(),
-                'updated_at'      => now(),
-            ]);
-
             // Quitar la marca de ganadora de la oferta (vuelve a estado oferta normal)
             DB::table('historico_flujo')
                 ->where('flujo_id', $this->flujoId)
@@ -505,10 +593,13 @@ class RevicionInventario extends Component
 
             DB::commit();
 
-            $flujoIdCerrado = $this->flujoId;
-            $this->cerrarDetalle();
+            $this->devuelto                 = true;
+            $this->motivoDevolucionGuardado  = $motivo;
+            $this->confirmAccion    = null;
+            $this->motivoDevolucion = '';
+            $this->mensajeError     = '';
             $this->cargar();
-            $this->mensajeExito = 'Flujo #' . $flujoIdCerrado . ' devuelto a Oferta correctamente. Se registraron las observaciones.';
+            $this->mensajeExito = 'Flujo #' . $this->flujoId . ' devuelto a Oferta correctamente. Se registraron las observaciones.';
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -522,6 +613,8 @@ class RevicionInventario extends Component
 
     public function render()
     {
-        return view('livewire.flujo.revicioninventario');
+        return view('livewire.flujo.revicioninventario', [
+            'flujoData' => $this->flujoData,
+        ]);
     }
 }

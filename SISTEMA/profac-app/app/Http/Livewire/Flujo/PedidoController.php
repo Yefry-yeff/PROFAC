@@ -28,7 +28,8 @@ class PedidoController
                 TIME(p.created_at) AS hora,
                 cl.rtn,
                 u.name             AS cotizador,
-                p.observaciones    AS nota
+                p.observaciones    AS nota,
+                (SELECT f.id FROM flujo f WHERE f.identificacion = CAST(p.id AS CHAR) AND f.tipo_flujo_id = 1 LIMIT 1) AS flujo_id
             FROM pedido p
             INNER JOIN cliente cl ON cl.id = p.cliente_id
             INNER JOIN users u    ON u.id  = p.users_id
