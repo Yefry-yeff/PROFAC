@@ -101,7 +101,7 @@
                 <div class="ibox" style="border-radius:14px; overflow:hidden; box-shadow:0 4px 20px rgba(0,0,0,.09);">
                     {{-- Header detalle --}}
                     <div class="ibox-title d-flex align-items-center justify-content-between"
-                         style="background:linear-gradient(135deg,#1a7efb,#0d6efd); border:none; padding:14px 22px;">
+                         style="background:linear-gradient(135deg,{{ $devuelto ? '#e67e22' : '#1a7efb' }},{{ $devuelto ? '#d35400' : '#0d6efd' }}); border:none; padding:14px 22px;">
                         <div>
                             <h5 style="color:#fff; margin:0; font-weight:700; font-size:15px;">
                                 <i class="mr-2 fa fa-search"></i>
@@ -260,11 +260,13 @@
                                             </td>
                                             <td style="padding:6px 14px;">
                                                 <input type="text"
-                                                       wire:model.defer="obsProducto.{{ $prod['idx'] }}"
+                                                       wire:model.lazy="obsProducto.{{ $prod['idx'] }}"
                                                        placeholder="{{ $prod['falta_stock'] ? 'Ej: reemplazar con Producto X...' : 'Observación opcional...' }}"
                                                        class="form-control form-control-sm"
+                                                       {{ $devuelto ? 'readonly' : '' }}
                                                        style="font-size:12px; border-radius:6px;
-                                                              border-color: {{ $prod['falta_stock'] ? '#f9a825' : '#ddd' }};">
+                                                              border-color: {{ $prod['falta_stock'] ? '#f9a825' : '#ddd' }};
+                                                              {{ $devuelto ? 'background:#f8f8f8; cursor:default;' : '' }}">
                                             </td>
                                         </tr>
                                         @endforeach
@@ -275,10 +277,23 @@
                         </div>
 
                         {{-- Panel de acciones --}}
-                        @if ($confirmAccion === null)
+                        @if ($devuelto)
+                        <div style="background:#fff3e0; border:1px solid #ffd54f; border-radius:12px;
+                                    padding:14px 20px; display:flex; align-items:center; gap:14px;">
+                            <i class="fa fa-check-circle" style="color:#2e7d32; font-size:26px; flex-shrink:0;"></i>
+                            <div>
+                                <strong style="color:#e65100; font-size:13px;">
+                                    Revisión completada — Flujo devuelto a Oferta.
+                                </strong>
+                                <div style="color:#888; font-size:12px; margin-top:3px;">
+                                    Las observaciones y notas de reemplazo quedaron registradas en el historial.
+                                </div>
+                            </div>
+                        </div>
+                        @elseif ($confirmAccion === null)
                         <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center;">
                             {{-- Pasar a Prefactura --}}
-                            @if (count($stockErrors) === 0 && count($productos) > 0)
+                            @if (count($stockErrors) === 0 && count($productos) > 0 && collect($obsProducto)->filter()->isEmpty())
                             <button type="button" wire:click="confirmarAccion('prefactura')"
                                     style="background:linear-gradient(135deg,#1ab394,#0fa37a); color:#fff;
                                            border:none; border-radius:10px; padding:9px 22px;
@@ -290,7 +305,7 @@
                             <button type="button" disabled
                                     style="background:#ccc; color:#fff; border:none; border-radius:10px;
                                            padding:9px 22px; font-size:13px; font-weight:700; cursor:not-allowed;"
-                                    title="Hay productos sin stock suficiente">
+                                    title="{{ collect($obsProducto)->filter()->isNotEmpty() ? 'Elimine las notas/reemplazos antes de pasar a Prefactura' : 'Hay productos sin stock suficiente' }}">
                                 <i class="mr-1 fa fa-ban"></i> Pasar a Prefactura
                             </button>
                             @endif
@@ -461,12 +476,19 @@
                                 </thead>
                                 <tbody>
                                     @foreach ($bandejaRegistros as $reg)
-                                    <tr style="border-bottom:1px solid #f0f0f0;">
+                                    <tr style="border-bottom:1px solid #f0f0f0;
+                                               {{ !empty($reg['devuelto']) ? 'background:#fffbf5;' : '' }}">
                                         <td style="padding:10px 16px;">
                                             <span style="background:#e3f2fd; color:#1565c0; border-radius:8px;
                                                          padding:3px 10px; font-weight:700; font-size:12px;">
                                                 #{{ $reg['flujo_id'] }}
                                             </span>
+                                            @if(!empty($reg['devuelto']))
+                                            <span style="background:#fff3e0; color:#e65100; border-radius:8px;
+                                                         padding:2px 8px; font-size:10px; font-weight:700; margin-left:4px;">
+                                                <i class="fa fa-reply mr-1"></i>Devuelto
+                                            </span>
+                                            @endif
                                         </td>
                                         <td style="padding:10px 16px; color:#2c3e50; font-weight:600;">
                                             {{ $reg['cliente'] }}
@@ -496,10 +518,10 @@
                                         <td style="padding:10px 16px; text-align:center;">
                                             <button type="button"
                                                     wire:click="seleccionarFlujo({{ $reg['flujo_id'] }})"
-                                                    style="background:linear-gradient(135deg,#1a7efb,#0d6efd); color:#fff;
+                                                    style="background:{{ !empty($reg['devuelto']) ? 'linear-gradient(135deg,#e67e22,#d35400)' : 'linear-gradient(135deg,#1a7efb,#0d6efd)' }}; color:#fff;
                                                            border:none; border-radius:8px; padding:5px 14px;
                                                            font-size:12px; font-weight:700; cursor:pointer;">
-                                                <i class="mr-1 fa fa-eye"></i>Revisar
+                                                <i class="mr-1 fa fa-eye"></i>{{ !empty($reg['devuelto']) ? 'Ver' : 'Revisar' }}
                                             </button>
                                         </td>
                                     </tr>

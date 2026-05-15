@@ -24,13 +24,16 @@ class RevicionInventario extends Component
 
     // ── Detalle del flujo seleccionado ────────────────────────────────────
     public ?int   $flujoId          = null;
-    public        $flujoData        = null;   // info del flujo + oferta ganadora
+    protected     $flujoData        = null;   // info del flujo + oferta ganadora
     public ?int   $cotizacionId     = null;   // ID de la cotizacion ganadora
     public array  $productos        = [];     // {nombre_producto, cantidad, disponible, falta_stock}
     public array  $stockErrors      = [];     // productos con stock insuficiente
 
     // ── Observaciones por producto (para notas de reemplazo) ──────────────
     public array  $obsProducto      = [];     // ['idx' => 'texto obs']
+
+    // ── Estado de devolución ──────────────────────────────────────────────
+    public bool   $devuelto         = false;  // true si el flujo fue devuelto a Oferta
 
     // ── Confirmación de acciones ──────────────────────────────────────────
     public ?string $confirmAccion    = null;  // null | 'prefactura' | 'devolver'
@@ -98,8 +101,7 @@ class RevicionInventario extends Component
         $q = DB::table('flujo as f')
             ->join('historico_flujo as hf', function ($j) {
                 $j->on('hf.flujo_id', '=', 'f.id')
-                  ->where('hf.tipo_tramite_id', 9)
-                  ->where('hf.estado_id', '!=', 7);
+                  ->where('hf.tipo_tramite_id', 9);
             })
             ->leftJoin('historico_flujo as hfof', function ($j) {
                 $j->on('hfof.flujo_id', '=', 'f.id')
@@ -112,7 +114,10 @@ class RevicionInventario extends Component
                 $j->on('cl.id', '=', 'c.cliente_id')
                   ->orOn('cl.id', '=', 'p.cliente_id');
             })
-            ->where('f.tipo_tramite_id', 9)
+            ->where(function ($q) {
+                $q->where('f.tipo_tramite_id', 9)
+                  ->orWhere('hf.estado_id', 7);
+            })
             ->select(
                 'f.id as flujo_id',
                 'f.identificacion',
@@ -121,12 +126,13 @@ class RevicionInventario extends Component
                 DB::raw("COALESCE(c.nombre_cliente, p.observaciones, CONCAT('Flujo #', f.id)) as cliente"),
                 DB::raw("COALESCE(c.RTN, '') as rtn"),
                 DB::raw('(SELECT COUNT(*) FROM cotizacion_has_producto chp WHERE chp.cotizacion_id = hfof.tramite_id) as total_productos'),
-                'hf.observaciones as obs_revision'
+                'hf.observaciones as obs_revision',
+                DB::raw('CASE WHEN hf.estado_id = 7 THEN 1 ELSE 0 END as devuelto')
             )
             ->groupBy(
                 'f.id', 'f.identificacion', 'hf.created_at',
                 'hfof.tramite_id', 'c.nombre_cliente', 'p.observaciones',
-                'c.RTN', 'hf.observaciones'
+                'c.RTN', 'hf.observaciones', 'hf.estado_id'
             )
             ->orderByDesc('hf.created_at');
 
@@ -156,13 +162,24 @@ class RevicionInventario extends Component
 
     public function seleccionarFlujo(int $flujoId): void
     {
-        $this->flujoId      = $flujoId;
-        $this->confirmAccion = null;
+        $this->flujoId          = $flujoId;
+        $this->devuelto         = false;
+        $this->confirmAccion    = null;
         $this->motivoDevolucion = '';
-        $this->mensajeExito  = '';
-        $this->mensajeError  = '';
-        $this->obsProducto   = [];
-        $this->stockErrors   = [];
+        $this->mensajeExito     = '';
+        $this->mensajeError     = '';
+        $this->obsProducto      = [];
+        $this->stockErrors      = [];
+
+        // Detectar si este flujo ya fue devuelto a Oferta
+        $revRec = DB::table('historico_flujo')
+            ->where('flujo_id', $flujoId)
+            ->where('tipo_tramite_id', 9)
+            ->orderByDesc('id')
+            ->first(['estado_id']);
+        if ($revRec && (int) $revRec->estado_id === 7) {
+            $this->devuelto = true;
+        }
 
         // Obtener info del flujo
         $this->flujoData = DB::table('flujo as f')
@@ -186,6 +203,16 @@ class RevicionInventario extends Component
             ->where('observaciones', 'ganadora')
             ->orderByDesc('id')
             ->first(['tramite_id', 'observaciones']);
+
+        // Si fue devuelto, buscar el tramite_id en el registro de devolución
+        if (!$hfGanadora) {
+            $hfGanadora = DB::table('historico_flujo')
+                ->where('flujo_id', $flujoId)
+                ->where('tipo_tramite_id', 2)
+                ->where('observaciones', 'LIKE', 'Devuelto desde Revisión de Inventario:%')
+                ->orderByDesc('id')
+                ->first(['tramite_id']);
+        }
 
         $this->cotizacionId = $hfGanadora ? (int) $hfGanadora->tramite_id : null;
 
@@ -253,6 +280,7 @@ class RevicionInventario extends Component
     {
         $this->flujoId          = null;
         $this->flujoData        = null;
+        $this->devuelto         = false;
         $this->cotizacionId     = null;
         $this->productos        = [];
         $this->stockErrors      = [];
@@ -504,10 +532,12 @@ class RevicionInventario extends Component
 
             DB::commit();
 
-            $flujoIdCerrado = $this->flujoId;
-            $this->cerrarDetalle();
+            $this->devuelto         = true;
+            $this->confirmAccion    = null;
+            $this->motivoDevolucion = '';
+            $this->mensajeError     = '';
             $this->cargar();
-            $this->mensajeExito = 'Flujo #' . $flujoIdCerrado . ' devuelto a Oferta correctamente. Se registraron las observaciones.';
+            $this->mensajeExito = 'Flujo #' . $this->flujoId . ' devuelto a Oferta correctamente. Se registraron las observaciones.';
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -521,6 +551,8 @@ class RevicionInventario extends Component
 
     public function render()
     {
-        return view('livewire.flujo.revicioninventario');
+        return view('livewire.flujo.revicioninventario', [
+            'flujoData' => $this->flujoData,
+        ]);
     }
 }
