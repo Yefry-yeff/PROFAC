@@ -216,7 +216,7 @@ class RevicionInventario extends Component
         }
 
         // Obtener info del flujo
-        $this->flujoData = DB::table('flujo as f')
+        $flujoResult = DB::table('flujo as f')
             ->leftJoin('pedido as p', DB::raw('CAST(f.identificacion AS UNSIGNED)'), '=', 'p.id')
             ->leftJoin('cliente as cl', 'cl.id', '=', 'p.cliente_id')
             ->where('f.id', $flujoId)
@@ -229,6 +229,7 @@ class RevicionInventario extends Component
                 'p.observaciones as pedido_obs'
             )
             ->first();
+        $this->flujoData = $flujoResult ? (array) $flujoResult : null;
 
         // Obtener la cotizacion ganadora de este flujo
         $hfGanadora = DB::table('historico_flujo')
