@@ -226,7 +226,7 @@
                                             <td style="padding:8px 14px; text-align:center;">
                                                 <span style="background:#e3f2fd; color:#1565c0; border-radius:12px;
                                                              padding:2px 10px; font-weight:700; font-size:13px;">
-                                                    {{ $prod['cantidad'] }}
+                                                    {{ (int)$prod['cantidad'] }}
                                                 </span>
                                             </td>
                                             <td style="padding:8px 14px; text-align:center;">

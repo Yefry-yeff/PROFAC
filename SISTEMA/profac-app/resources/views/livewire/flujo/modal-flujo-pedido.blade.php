@@ -25,6 +25,7 @@
         20%,60% { transform:translateX(-6px); }
         40%,80% { transform:translateX(6px);  }
     }
+    body { overflow: hidden !important; }
     .fmp-dlg  { max-width:920px; width:100%; animation:flujoIn .32s cubic-bezier(.34,1.28,.64,1) both; }
     .fmp-cnt  { border-radius:18px !important; overflow:hidden !important; }
     .fmp-body { padding:20px 24px 24px !important; overflow-y:auto; max-height:calc(90vh - 140px); }
@@ -90,9 +91,9 @@
 
 {{-- ── Overlay ─────────────────────────────────────────────────────────── --}}
 <div id="fmpModalWrap" tabindex="-1" role="dialog"
-     style="position:fixed; inset:0; z-index:9999;
-            display:flex; align-items:center; justify-content:center; padding:20px;
-            background:rgba(15,15,35,.58); backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px);">
+     style="position:fixed; inset:0; z-index:99999;
+            display:flex; align-items:center; justify-content:center; padding:16px;
+            background:rgba(15,15,35,.62); backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px);">
 
     <div class="fmp-dlg" role="document">
         <div class="modal-content fmp-cnt" style="border:none; box-shadow:0 20px 60px rgba(0,0,0,.35);">
@@ -633,7 +634,7 @@
                                         {{ $det['nombre_producto'] ?? ($det['producto'] ?? '—') }}
                                     </td>
                                     <td style="padding:5px 8px; text-align:center; font-weight:700; color:#1a7efb;">
-                                        {{ $det['cantidad'] ?? '—' }}
+                                        {{ isset($det['cantidad']) ? (int)$det['cantidad'] : '—' }}
                                     </td>
                                 </tr>
                                 @endforeach
@@ -778,7 +779,7 @@
                                 @endphp
                                 <tr style="border-bottom:1px solid #f0f0f0;">
                                     <td style="padding:4px 8px; color:#2c3e50;">{{ $pr['nombre_producto'] }}</td>
-                                    <td style="padding:4px 8px; text-align:center; color:#1a7efb; font-weight:700;">{{ $pr['cantidad'] }}</td>
+                                    <td style="padding:4px 8px; text-align:center; color:#1a7efb; font-weight:700;">{{ (int)$pr['cantidad'] }}</td>
                                     <td style="padding:4px 8px; text-align:right; color:{{ $precioCambio ? '#c0392b' : '#555' }};
                                                {{ $precioCambio ? 'text-decoration:line-through;' : '' }}">
                                         @if ($pr['precio_unidad']) L {{ number_format($pr['precio_unidad'], 2) }} @else — @endif
@@ -1217,7 +1218,7 @@
                                 @foreach ($pref['productos'] as $pp)
                                 <tr style="border-bottom:1px solid #f0f0f0;">
                                     <td style="padding:4px 8px; color:#2c3e50;">{{ $pp['nombre_producto'] }}</td>
-                                    <td style="padding:4px 8px; text-align:center; color:#1a7efb; font-weight:700;">{{ $pp['cantidad'] }}</td>
+                                    <td style="padding:4px 8px; text-align:center; color:#1a7efb; font-weight:700;">{{ (int)$pp['cantidad'] }}</td>
                                     <td style="padding:4px 8px; text-align:right; color:#555;">
                                         @if ($pp['precio_unidad']) L {{ number_format($pp['precio_unidad'], 2) }} @else — @endif
                                     </td>
@@ -1389,7 +1390,7 @@
                                 @foreach ($fac['productos'] as $fp)
                                 <tr style="border-bottom:1px solid #f0f0f0;">
                                     <td style="padding:4px 8px; color:#2c3e50;">{{ $fp['nombre_producto'] ?? '—' }}</td>
-                                    <td style="padding:4px 8px; text-align:center; color:#1a7efb; font-weight:700;">{{ $fp['cantidad'] ?? '—' }}</td>
+                                    <td style="padding:4px 8px; text-align:center; color:#1a7efb; font-weight:700;">{{ isset($fp['cantidad']) ? (int)$fp['cantidad'] : '—' }}</td>
                                     <td style="padding:4px 8px; text-align:right; color:#555;">
                                         @if (!empty($fp['precio_unidad'])) L {{ number_format($fp['precio_unidad'], 2) }} @else — @endif
                                     </td>
