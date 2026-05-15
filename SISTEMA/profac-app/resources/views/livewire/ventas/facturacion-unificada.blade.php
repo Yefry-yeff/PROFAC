@@ -700,7 +700,7 @@
                                 <div class="row">
                                     <div class="col-12 col-md-5">
                                         <div id="carouselProducto" class="carousel slide" data-ride="carousel">
-                                            <div id="bloqueImagenes" class="carousel-inner" style="border-radius:10px; overflow:hidden; max-height:220px;"></div>
+                                            <div id="bloqueImagenes" class="carousel-inner" style="border-radius:10px; overflow:hidden; height:220px; background:#f8f9fa;"></div>
                                             <a class="carousel-control-prev" href="#carouselProducto" role="button" data-slide="prev">
                                                 <span class="carousel-control-prev-icon" aria-hidden="true"></span>
                                                 <span class="sr-only">Previous</span>
@@ -2256,7 +2256,7 @@
                         let activeClass = element.contador == 1 ? ' active' : '';
                         htmlImagenes += '<div class="carousel-item' + activeClass + '">' +
                             '<a href="' + detalleUrl + '" target="_blank" title="Ver detalles del producto" style="display:block;">' +
-                            '<img class="d-block" src="' + public_path + '/' + element.url_img + '" alt="imagen ' + element.contador + '" style="width:100%;height:30rem;cursor:pointer;"></a></div>';
+                            '<img class="d-block" src="' + public_path + '/' + element.url_img + '" alt="imagen ' + element.contador + '" style="width:100%;height:220px;object-fit:contain;cursor:pointer;"></a></div>';
                     });
                     document.getElementById('bloqueImagenes').innerHTML = htmlImagenes;
                 }
