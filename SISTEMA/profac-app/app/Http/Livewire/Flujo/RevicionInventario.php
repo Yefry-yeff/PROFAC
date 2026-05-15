@@ -113,11 +113,18 @@ class RevicionInventario extends Component
 
     private function buildBandejaQuery(string $term, string $tipo): array
     {
+        // Subquery: obtiene solo el registro MÁS RECIENTE de revisión (tipo=9) por flujo.
+        // Esto evita que flujos con múltiples ciclos aparezcan duplicados en bandeja.
+        $latestRevSub = DB::table('historico_flujo')
+            ->select('flujo_id', DB::raw('MAX(id) as max_id'))
+            ->where('tipo_tramite_id', 9)
+            ->groupBy('flujo_id');
+
         $q = DB::table('flujo as f')
-            ->join('historico_flujo as hf', function ($j) {
-                $j->on('hf.flujo_id', '=', 'f.id')
-                  ->where('hf.tipo_tramite_id', 9);
+            ->joinSub($latestRevSub, 'lrev', function ($j) {
+                $j->on('lrev.flujo_id', '=', 'f.id');
             })
+            ->join('historico_flujo as hf', 'hf.id', '=', 'lrev.max_id')
             ->leftJoin('historico_flujo as hfof', function ($j) {
                 $j->on('hfof.flujo_id', '=', 'f.id')
                   ->where('hfof.tipo_tramite_id', 2)
@@ -148,8 +155,10 @@ class RevicionInventario extends Component
             );
 
         if ($tipo === 'llegando') {
+            // Ciclo activo: el registro más reciente de tipo=9 no está devuelto ni aprobado
             $q->where('f.tipo_tramite_id', 9)->where('hf.estado_id', '!=', 7);
         } elseif ($tipo === 'devueltos') {
+            // Solo el último ciclo de revisión fue devuelto (estado_id=7)
             $q->where('hf.estado_id', 7);
         } else {
             $q->where('hf.estado_id', 1); // prefactura: revisión aprobada
@@ -191,16 +200,19 @@ class RevicionInventario extends Component
         $this->obsProducto      = [];
         $this->stockErrors      = [];
 
-        // Detectar si este flujo ya fue devuelto a Oferta
-        // Buscamos ESPECÍFICAMENTE un registro con estado_id=7 (no el último genérico)
-        $revRec = DB::table('historico_flujo')
+        // Detectar el estado del ciclo ACTUAL mirando el registro MÁS RECIENTE de tipo=9.
+        // Si el último registro tiene estado_id=7 → ciclo cerrado/devuelto (modo lectura).
+        // Si no → ciclo activo (puede ser un segundo o posterior ciclo).
+        $latestRevRec = DB::table('historico_flujo')
             ->where('flujo_id', $flujoId)
             ->where('tipo_tramite_id', 9)
-            ->where('estado_id', 7)
             ->orderByDesc('id')
-            ->first(['estado_id', 'observaciones']);
-        if ($revRec) {
+            ->first(['id', 'estado_id', 'observaciones']);
+
+        $revRec = null;
+        if ($latestRevRec && (int) $latestRevRec->estado_id === 7) {
             $this->devuelto = true;
+            $revRec = $latestRevRec;
         }
 
         // Obtener info del flujo
