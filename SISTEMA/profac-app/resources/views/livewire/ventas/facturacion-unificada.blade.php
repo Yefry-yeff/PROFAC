@@ -3658,8 +3658,11 @@
             return new Promise(function (resolve) {
                 if (!prod.producto_id) { resolve(); return; }
 
-                var categoriaId = $('#categoria_cliente_venta_id').val()
-                    || $('#categoria_cliente_venta_id').data('categoria-cliente-id')
+                // Priorizar categoria-precio-id (= categoria_precios.id) que es lo que espera el endpoint.
+                // val() devuelve cliente_categoria_escala.id cuando no hay producto seleccionado,
+                // que es el caso habitual al auto-cargar una oferta duplicada.
+                var categoriaId = $('#categoria_cliente_venta_id').data('categoria-precio-id')
+                    || $('#categoria_cliente_venta_id').val()
                     || prod.precios_producto_carga_id
                     || '';
 
