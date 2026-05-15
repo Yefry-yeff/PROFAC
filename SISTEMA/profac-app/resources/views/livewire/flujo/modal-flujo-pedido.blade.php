@@ -29,11 +29,19 @@
     .fmp-cnt  { border-radius:18px !important; overflow:hidden !important; }
     .fmp-body { padding:20px 24px 24px !important; overflow-y:auto; max-height:calc(90vh - 140px); }
     .fmp-foot { padding:12px 24px 18px !important; display:flex !important; flex-wrap:wrap !important; gap:8px !important; justify-content:flex-end !important; }
-    .fmp-pipeline { scrollbar-width:thin; scrollbar-color:#e0e3ee transparent; }
+    .fmp-pipeline { scrollbar-width:thin; scrollbar-color:#e0e3ee transparent; -webkit-overflow-scrolling:touch; scroll-behavior:smooth; }
     .fmp-pipeline::-webkit-scrollbar { height:4px; }
     .fmp-pipeline::-webkit-scrollbar-thumb { background:#d0d4e4; border-radius:4px; }
+    .fmp-step-num     { font-size:20px; font-weight:700; line-height:1; }
+    .fmp-step-icon-sm { font-size:11px; margin-top:2px; }
     .fmp-step-clickable { cursor:pointer; transition:transform .15s ease; }
     .fmp-step-clickable:hover { transform:translateY(-3px); }
+    @@media (max-width: 575px) {
+        .fmp-step-circle { width:44px !important; height:44px !important; }
+        .fmp-step-circle > div { width:44px !important; height:44px !important; }
+        .fmp-step-num { font-size:15px !important; }
+        .fmp-step-card  { min-width:72px !important; }
+    }
     .fmp-offers-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
     .fmp-offers-wrap table { min-width:480px; }
     .fmp-info-grid { display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:#666; }
@@ -153,8 +161,8 @@
                 @else
 
                 {{-- ── Stepper pipeline ─────────────────────────────── --}}
-                <div class="fmp-pipeline" style="display:flex; align-items:center; justify-content:center;
-                            flex-wrap:nowrap; overflow-x:auto; padding:18px 8px 10px;">
+                <div class="fmp-pipeline" style="display:flex; align-items:center; justify-content:flex-start;
+                            flex-wrap:nowrap; overflow-x:auto; padding:18px 16px 10px;">
                     @foreach ($fPasos as $paso => $info)
                     @php
                         $fPasoLinea = min($fPaso, 5);
@@ -185,7 +193,8 @@
                          @if($puedeClick) wire:click="seleccionarPaso('{{ $info['key'] }}')" @endif
                          style="display:flex; flex-direction:column; align-items:center; min-width:100px;
                                 animation:stepIn .5s cubic-bezier(.34,1.56,.64,1) {{ $delay }}ms both;
-                                {{ $esSeleccionado ? 'background:rgba(26,126,251,.06); border-radius:12px; padding:4px 6px;' : 'padding:4px 6px;' }}">
+                                {{ $esSeleccionado ? 'background:rgba(26,126,251,.06); border-radius:12px; padding:4px 6px;' : 'padding:4px 6px;' }}"
+                         class="fmp-step-card">
 
                         {{-- Circle --}}
                         @if ($esSinPedido || $esSinAplica)
@@ -198,42 +207,52 @@
                                style="animation:checkPop .4s cubic-bezier(.34,1.56,.64,1) {{ $delay + 200 }}ms both;"></i>
                         </div>
                         @elseif ($completado)
-                        <div style="width:60px; height:60px; border-radius:50%;
-                                    background:linear-gradient(135deg,#1ab394,#0fa37a); color:#fff;
-                                    margin-bottom:8px; box-shadow:0 4px 16px rgba(26,179,148,.4);
-                                    display:flex; align-items:center; justify-content:center;
-                                    font-size:22px; flex-shrink:0;
-                                    {{ $esSeleccionado ? 'box-shadow:0 4px 16px rgba(26,179,148,.4), 0 0 0 4px rgba(26,179,148,.25);' : '' }}">
-                            <i class="fa fa-check"
-                               style="animation:checkPop .4s cubic-bezier(.34,1.56,.64,1) {{ $delay + 200 }}ms both;"></i>
+                        <div class="fmp-step-circle" style="position:relative; width:60px; height:60px; margin-bottom:8px; flex-shrink:0;">
+                            <div style="width:60px; height:60px; border-radius:50%;
+                                        background:linear-gradient(135deg,#1ab394,#0fa37a); color:#fff;
+                                        box-shadow:0 4px 16px rgba(26,179,148,.4);
+                                        display:flex; align-items:center; justify-content:center; font-size:22px;
+                                        {{ $esSeleccionado ? 'box-shadow:0 4px 16px rgba(26,179,148,.4), 0 0 0 4px rgba(26,179,148,.25);' : '' }}">
+                                <i class="fa fa-check"
+                                   style="animation:checkPop .4s cubic-bezier(.34,1.56,.64,1) {{ $delay + 200 }}ms both;"></i>
+                            </div>
+                            <span style="position:absolute; top:-4px; right:-4px; background:#0fa37a; color:#fff; border-radius:50%;
+                                         width:20px; height:20px; display:flex; align-items:center; justify-content:center;
+                                         font-size:10px; font-weight:800; border:2px solid #fff; line-height:1;">{{ $paso }}</span>
                         </div>
                         @elseif ($activo)
-                        <div style="width:60px; height:60px; border-radius:50%;
+                        <div class="fmp-step-circle" style="width:60px; height:60px; border-radius:50%;
                                     background:linear-gradient(135deg,#1a7efb,#0d6efd); color:#fff;
                                     margin-bottom:8px;
                                     box-shadow:0 6px 20px rgba(26,126,251,.5), 0 0 0 5px rgba(26,126,251,.2), 0 0 0 10px rgba(26,126,251,.08);
-                                    display:flex; align-items:center; justify-content:center;
-                                    font-size:22px; flex-shrink:0;
+                                    display:flex; align-items:center; justify-content:center; flex-direction:column;
+                                    flex-shrink:0;
                                     {{ $esSeleccionado ? 'outline:3px solid rgba(26,126,251,.35); outline-offset:4px;' : '' }}">
-                            <i class="fa fa-check"
-                               style="animation:checkPop .4s cubic-bezier(.34,1.56,.64,1) {{ $delay + 200 }}ms both;"></i>
+                            <span class="fmp-step-num" style="font-size:20px; font-weight:800; line-height:1;
+                                  animation:checkPop .4s cubic-bezier(.34,1.56,.64,1) {{ $delay + 200 }}ms both;">{{ $paso }}</span>
+                            <i class="fmp-step-icon-sm fa {{ $info['icon'] }}" style="font-size:11px; margin-top:2px; opacity:.85;"></i>
                         </div>
                         @elseif ($esDevuelto)
-                        <div style="width:60px; height:60px; border-radius:50%;
-                                    background:linear-gradient(135deg,#e67e22,#d35400); color:#fff;
-                                    margin-bottom:8px; box-shadow:0 4px 16px rgba(230,126,34,.4);
-                                    display:flex; align-items:center; justify-content:center;
-                                    font-size:22px; flex-shrink:0;
-                                    {{ $esSeleccionado ? 'box-shadow:0 4px 16px rgba(230,126,34,.4), 0 0 0 4px rgba(230,126,34,.25);' : '' }}">
-                            <i class="fa fa-reply"
-                               style="animation:checkPop .4s cubic-bezier(.34,1.56,.64,1) {{ $delay + 200 }}ms both;"></i>
+                        <div class="fmp-step-circle" style="position:relative; width:60px; height:60px; margin-bottom:8px; flex-shrink:0;">
+                            <div style="width:60px; height:60px; border-radius:50%;
+                                        background:linear-gradient(135deg,#e67e22,#d35400); color:#fff;
+                                        box-shadow:0 4px 16px rgba(230,126,34,.4);
+                                        display:flex; align-items:center; justify-content:center; font-size:22px;
+                                        {{ $esSeleccionado ? 'box-shadow:0 4px 16px rgba(230,126,34,.4), 0 0 0 4px rgba(230,126,34,.25);' : '' }}">
+                                <i class="fa fa-reply"
+                                   style="animation:checkPop .4s cubic-bezier(.34,1.56,.64,1) {{ $delay + 200 }}ms both;"></i>
+                            </div>
+                            <span style="position:absolute; top:-4px; right:-4px; background:#d35400; color:#fff; border-radius:50%;
+                                         width:20px; height:20px; display:flex; align-items:center; justify-content:center;
+                                         font-size:10px; font-weight:800; border:2px solid #fff; line-height:1;">{{ $paso }}</span>
                         </div>
                         @else
-                        <div style="width:60px; height:60px; border-radius:50%;
+                        <div class="fmp-step-circle" style="width:60px; height:60px; border-radius:50%;
                                     background:#e8eaf0; color:#c0c2cc; margin-bottom:8px;
-                                    display:flex; align-items:center; justify-content:center;
-                                    font-size:22px; flex-shrink:0;">
-                            <i class="fa {{ $info['icon'] }}"></i>
+                                    display:flex; align-items:center; justify-content:center; flex-direction:column;
+                                    flex-shrink:0;">
+                            <span class="fmp-step-num" style="font-size:20px; font-weight:700; line-height:1; color:#aab;">{{ $paso }}</span>
+                            <i class="fmp-step-icon-sm fa {{ $info['icon'] }}" style="font-size:11px; margin-top:2px; color:#c0c2cc;"></i>
                         </div>
                         @endif
 
@@ -347,39 +366,45 @@
                                  style="display:flex; flex-direction:column; align-items:center; min-width:100px;
                                     {{ ($pasoActivo === 'entrega') ? (($entregaEsCompletada ? 'background:rgba(26,179,148,.08);' : 'background:rgba(26,126,251,.06);') . ' border-radius:12px; padding:4px 6px;') : 'padding:4px 6px;' }}">
                                 @if ($entregaEsCompletada)
-                                <div style="width:60px; height:60px; border-radius:50%;
-                                        background:linear-gradient(135deg,#1ab394,#0fa37a); color:#fff;
-                                        margin-bottom:8px; box-shadow:0 4px 16px rgba(26,179,148,.4);
-                                        display:flex; align-items:center; justify-content:center;
-                                        font-size:22px; flex-shrink:0;
-                                        {{ ($pasoActivo === 'entrega') ? 'box-shadow:0 4px 16px rgba(26,179,148,.4), 0 0 0 4px rgba(26,179,148,.25);' : '' }}">
-                                    <i class="fa fa-check"></i>
+                                <div class="fmp-step-circle" style="position:relative; width:60px; height:60px; margin-bottom:8px; flex-shrink:0;">
+                                    <div style="width:60px; height:60px; border-radius:50%;
+                                            background:linear-gradient(135deg,#1ab394,#0fa37a); color:#fff;
+                                            box-shadow:0 4px 16px rgba(26,179,148,.4);
+                                            display:flex; align-items:center; justify-content:center; font-size:22px;
+                                            {{ ($pasoActivo === 'entrega') ? 'box-shadow:0 4px 16px rgba(26,179,148,.4), 0 0 0 4px rgba(26,179,148,.25);' : '' }}">
+                                        <i class="fa fa-check"></i>
+                                    </div>
+                                    <span style="position:absolute; top:-4px; right:-4px; background:#0fa37a; color:#fff; border-radius:50%;
+                                                 width:20px; height:20px; display:flex; align-items:center; justify-content:center;
+                                                 font-size:10px; font-weight:800; border:2px solid #fff; line-height:1;">6</span>
                                 </div>
                                 @elseif ($entregaActiva)
-                                <div style="width:60px; height:60px; border-radius:50%;
+                                <div class="fmp-step-circle" style="width:60px; height:60px; border-radius:50%;
                                             background:linear-gradient(135deg,#1a7efb,#0d6efd); color:#fff;
                                             margin-bottom:8px;
                                             box-shadow:0 6px 20px rgba(26,126,251,.5), 0 0 0 5px rgba(26,126,251,.2), 0 0 0 10px rgba(26,126,251,.08);
-                                            display:flex; align-items:center; justify-content:center;
-                                            font-size:22px; flex-shrink:0;
-                                            outline:3px solid rgba(26,126,251,.35); outline-offset:4px;">
-                                    <i class="fa fa-check"></i>
+                                            display:flex; align-items:center; justify-content:center; flex-direction:column;
+                                            flex-shrink:0; outline:3px solid rgba(26,126,251,.35); outline-offset:4px;">
+                                    <span class="fmp-step-num" style="font-size:20px; font-weight:800; line-height:1;">6</span>
+                                    <i class="fmp-step-icon-sm fa fa-truck" style="font-size:11px; margin-top:2px; opacity:.85;"></i>
                                 </div>
                                 @elseif ($entregaEstadoId === 5)
-                                <div style="width:60px; height:60px; border-radius:50%;
+                                <div class="fmp-step-circle" style="width:60px; height:60px; border-radius:50%;
                                             background:linear-gradient(135deg,#1a7efb,#0d6efd); color:#fff;
                                             margin-bottom:8px;
                                             box-shadow:0 4px 16px rgba(26,126,251,.35);
-                                            display:flex; align-items:center; justify-content:center;
-                                            font-size:22px; flex-shrink:0;">
-                                    <i class="fa fa-truck"></i>
+                                            display:flex; align-items:center; justify-content:center; flex-direction:column;
+                                            flex-shrink:0;">
+                                    <span class="fmp-step-num" style="font-size:20px; font-weight:800; line-height:1;">6</span>
+                                    <i class="fmp-step-icon-sm fa fa-truck" style="font-size:11px; margin-top:2px; opacity:.85;"></i>
                                 </div>
                                 @else
-                                <div style="width:60px; height:60px; border-radius:50%;
+                                <div class="fmp-step-circle" style="width:60px; height:60px; border-radius:50%;
                                             background:#e8eaf0; color:#c0c2cc; margin-bottom:8px;
-                                            display:flex; align-items:center; justify-content:center;
-                                            font-size:22px; flex-shrink:0;">
-                                    <i class="fa fa-truck"></i>
+                                            display:flex; align-items:center; justify-content:center; flex-direction:column;
+                                            flex-shrink:0;">
+                                    <span class="fmp-step-num" style="font-size:20px; font-weight:700; line-height:1; color:#aab;">6</span>
+                                    <i class="fmp-step-icon-sm fa fa-truck" style="font-size:11px; margin-top:2px; color:#c0c2cc;"></i>
                                 </div>
                                 @endif
                                 <div style="text-align:center;">
@@ -404,39 +429,45 @@
                                  style="display:flex; flex-direction:column; align-items:center; min-width:100px;
                                         {{ ($pasoActivo === 'cobro') ? (($cobroCompletado ? 'background:rgba(26,179,148,.08);' : 'background:rgba(26,126,251,.06);') . ' border-radius:12px; padding:4px 6px;') : 'padding:4px 6px;' }}">
                                 @if ($cobroCompletado)
-                                <div style="width:60px; height:60px; border-radius:50%;
-                                            background:linear-gradient(135deg,#1ab394,#0fa37a); color:#fff;
-                                            margin-bottom:8px; box-shadow:0 4px 16px rgba(26,179,148,.4);
-                                            display:flex; align-items:center; justify-content:center;
-                                            font-size:22px; flex-shrink:0;
-                                            {{ ($pasoActivo === 'cobro') ? 'box-shadow:0 4px 16px rgba(26,179,148,.4), 0 0 0 4px rgba(26,179,148,.25);' : '' }}">
-                                    <i class="fa fa-check"></i>
+                                <div class="fmp-step-circle" style="position:relative; width:60px; height:60px; margin-bottom:8px; flex-shrink:0;">
+                                    <div style="width:60px; height:60px; border-radius:50%;
+                                                background:linear-gradient(135deg,#1ab394,#0fa37a); color:#fff;
+                                                box-shadow:0 4px 16px rgba(26,179,148,.4);
+                                                display:flex; align-items:center; justify-content:center; font-size:22px;
+                                                {{ ($pasoActivo === 'cobro') ? 'box-shadow:0 4px 16px rgba(26,179,148,.4), 0 0 0 4px rgba(26,179,148,.25);' : '' }}">
+                                        <i class="fa fa-check"></i>
+                                    </div>
+                                    <span style="position:absolute; top:-4px; right:-4px; background:#0fa37a; color:#fff; border-radius:50%;
+                                                 width:20px; height:20px; display:flex; align-items:center; justify-content:center;
+                                                 font-size:10px; font-weight:800; border:2px solid #fff; line-height:1;">7</span>
                                 </div>
                                 @elseif ($cobroActiva)
-                                <div style="width:60px; height:60px; border-radius:50%;
+                                <div class="fmp-step-circle" style="width:60px; height:60px; border-radius:50%;
                                             background:linear-gradient(135deg,#1a7efb,#0d6efd); color:#fff;
                                             margin-bottom:8px;
                                             box-shadow:0 6px 20px rgba(26,126,251,.5), 0 0 0 5px rgba(26,126,251,.2), 0 0 0 10px rgba(26,126,251,.08);
-                                            display:flex; align-items:center; justify-content:center;
-                                            font-size:22px; flex-shrink:0;
-                                            outline:3px solid rgba(26,126,251,.35); outline-offset:4px;">
-                                    <i class="fa fa-check"></i>
+                                            display:flex; align-items:center; justify-content:center; flex-direction:column;
+                                            flex-shrink:0; outline:3px solid rgba(26,126,251,.35); outline-offset:4px;">
+                                    <span class="fmp-step-num" style="font-size:20px; font-weight:800; line-height:1;">7</span>
+                                    <i class="fmp-step-icon-sm fa fa-dollar" style="font-size:11px; margin-top:2px; opacity:.85;"></i>
                                 </div>
                                 @elseif ($cobroEstadoId === 5)
-                                <div style="width:60px; height:60px; border-radius:50%;
+                                <div class="fmp-step-circle" style="width:60px; height:60px; border-radius:50%;
                                             background:linear-gradient(135deg,#1a7efb,#0d6efd); color:#fff;
                                             margin-bottom:8px;
                                             box-shadow:0 4px 16px rgba(26,126,251,.35);
-                                            display:flex; align-items:center; justify-content:center;
-                                            font-size:22px; flex-shrink:0;">
-                                    <i class="fa fa-dollar"></i>
+                                            display:flex; align-items:center; justify-content:center; flex-direction:column;
+                                            flex-shrink:0;">
+                                    <span class="fmp-step-num" style="font-size:20px; font-weight:800; line-height:1;">7</span>
+                                    <i class="fmp-step-icon-sm fa fa-dollar" style="font-size:11px; margin-top:2px; opacity:.85;"></i>
                                 </div>
                                 @else
-                                <div style="width:60px; height:60px; border-radius:50%;
+                                <div class="fmp-step-circle" style="width:60px; height:60px; border-radius:50%;
                                             background:#e8eaf0; color:#c0c2cc; margin-bottom:8px;
-                                            display:flex; align-items:center; justify-content:center;
-                                            font-size:22px; flex-shrink:0;">
-                                    <i class="fa fa-dollar"></i>
+                                            display:flex; align-items:center; justify-content:center; flex-direction:column;
+                                            flex-shrink:0;">
+                                    <span class="fmp-step-num" style="font-size:20px; font-weight:700; line-height:1; color:#aab;">7</span>
+                                    <i class="fmp-step-icon-sm fa fa-dollar" style="font-size:11px; margin-top:2px; color:#c0c2cc;"></i>
                                 </div>
                                 @endif
                                 <div style="text-align:center;">
@@ -472,30 +503,35 @@
                              @if($puedeFinal) wire:click="seleccionarPaso('finalizado')" @endif
                              style="display:flex; flex-direction:column; align-items:center; min-width:100px;">
                             @if ($finalizadoCompletado)
-                            <div style="width:60px; height:60px; border-radius:50%;
-                                        background:linear-gradient(135deg,#1ab394,#0fa37a); color:#fff;
-                                        margin-bottom:8px; box-shadow:0 4px 16px rgba(26,179,148,.4);
-                                        display:flex; align-items:center; justify-content:center;
-                                        font-size:22px; flex-shrink:0;
-                                        {{ $finalActiva ? 'box-shadow:0 4px 16px rgba(26,179,148,.4), 0 0 0 4px rgba(26,179,148,.25);' : '' }}">
-                                <i class="fa fa-check"></i>
+                            <div class="fmp-step-circle" style="position:relative; width:60px; height:60px; margin-bottom:8px; flex-shrink:0;">
+                                <div style="width:60px; height:60px; border-radius:50%;
+                                            background:linear-gradient(135deg,#1ab394,#0fa37a); color:#fff;
+                                            box-shadow:0 4px 16px rgba(26,179,148,.4);
+                                            display:flex; align-items:center; justify-content:center; font-size:22px;
+                                            {{ $finalActiva ? 'box-shadow:0 4px 16px rgba(26,179,148,.4), 0 0 0 4px rgba(26,179,148,.25);' : '' }}">
+                                    <i class="fa fa-check"></i>
+                                </div>
+                                <span style="position:absolute; top:-4px; right:-4px; background:#0fa37a; color:#fff; border-radius:50%;
+                                             width:20px; height:20px; display:flex; align-items:center; justify-content:center;
+                                             font-size:10px; font-weight:800; border:2px solid #fff; line-height:1;">8</span>
                             </div>
                             @elseif ($finalActiva)
-                            <div style="width:60px; height:60px; border-radius:50%;
+                            <div class="fmp-step-circle" style="width:60px; height:60px; border-radius:50%;
                                         background:linear-gradient(135deg,#1a7efb,#0d6efd); color:#fff;
                                         margin-bottom:8px;
                                         box-shadow:0 6px 20px rgba(26,126,251,.5), 0 0 0 5px rgba(26,126,251,.2), 0 0 0 10px rgba(26,126,251,.08);
-                                        display:flex; align-items:center; justify-content:center;
-                                        font-size:22px; flex-shrink:0;
-                                        outline:3px solid rgba(26,126,251,.35); outline-offset:4px;">
-                                <i class="fa fa-check"></i>
+                                        display:flex; align-items:center; justify-content:center; flex-direction:column;
+                                        flex-shrink:0; outline:3px solid rgba(26,126,251,.35); outline-offset:4px;">
+                                <span class="fmp-step-num" style="font-size:20px; font-weight:800; line-height:1;">8</span>
+                                <i class="fmp-step-icon-sm fa fa-flag-checkered" style="font-size:11px; margin-top:2px; opacity:.85;"></i>
                             </div>
                             @else
-                            <div style="width:60px; height:60px; border-radius:50%;
+                            <div class="fmp-step-circle" style="width:60px; height:60px; border-radius:50%;
                                         background:#e8eaf0; color:#c0c2cc; margin-bottom:8px;
-                                        display:flex; align-items:center; justify-content:center;
-                                        font-size:22px; flex-shrink:0;">
-                                <i class="fa fa-flag-checkered"></i>
+                                        display:flex; align-items:center; justify-content:center; flex-direction:column;
+                                        flex-shrink:0;">
+                                <span class="fmp-step-num" style="font-size:20px; font-weight:700; line-height:1; color:#aab;">8</span>
+                                <i class="fmp-step-icon-sm fa fa-flag-checkered" style="font-size:11px; margin-top:2px; color:#c0c2cc;"></i>
                             </div>
                             @endif
                             <div style="text-align:center;">
@@ -515,6 +551,16 @@
 
                     </div>
                 </div>
+
+                {{-- ── Barra de progreso ─────────────────────────────── --}}
+                @if (!$fCancelado)
+                @php $progressPct = min(round(($fPaso / 7) * 100), 100); @endphp
+                <div style="height:5px; border-radius:5px; background:#e8eaf0; margin:0 4px 6px; overflow:hidden;">
+                    <div style="height:100%; border-radius:5px;
+                                background:linear-gradient(90deg,#1ab394,#1a7efb);
+                                width:{{ $progressPct }}%; transition:width .6s ease;"></div>
+                </div>
+                @endif
 
                 @endif {{-- /cancelado --}}
 
