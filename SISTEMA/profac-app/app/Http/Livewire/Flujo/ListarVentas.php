@@ -145,17 +145,23 @@ class ListarVentas extends Component
                     ELSE COALESCE(tt.nombre, 'sin_flujo')
                  END as estado_flujo"),
                 // Documento: factura→cai, prefactura→id, fallback→pedido id
+                // Factura activa → CAI; ofertas → vacío; prefactura → id; resto → pedido id
                 DB::raw("COALESCE(
                     (SELECT fa.cai
                      FROM historico_flujo hf3
                      INNER JOIN factura fa ON fa.id = hf3.tramite_id
                      WHERE hf3.flujo_id = f.id AND hf3.tipo_tramite_id = 3
+                       AND fa.estado_venta_id = 1
                      ORDER BY hf3.id DESC LIMIT 1),
-                    CAST((SELECT hf4.tramite_id
-                          FROM historico_flujo hf4
-                          WHERE hf4.flujo_id = f.id AND hf4.tipo_tramite_id = 4
-                          ORDER BY hf4.id DESC LIMIT 1) AS CHAR),
-                    CAST(p.id AS CHAR)
+                    CASE
+                        WHEN f.tipo_tramite_id = 2 THEN NULL
+                        WHEN f.tipo_tramite_id = 4
+                             THEN CAST((SELECT hf4.tramite_id
+                                        FROM historico_flujo hf4
+                                        WHERE hf4.flujo_id = f.id AND hf4.tipo_tramite_id = 4
+                                        ORDER BY hf4.id DESC LIMIT 1) AS CHAR)
+                        ELSE CAST(p.id AS CHAR)
+                    END
                 ) as documento_display"),
                 DB::raw('COALESCE((SELECT COUNT(*) FROM historico_flujo hf2 WHERE hf2.flujo_id = f.id AND hf2.tipo_tramite_id = 2), 0) as total_ofertas'),
                 DB::raw("CASE WHEN p.id IS NULL THEN 'cotizacion' ELSE 'pedido' END as origen")
