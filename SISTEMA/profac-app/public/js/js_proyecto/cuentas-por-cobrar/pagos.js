@@ -762,43 +762,23 @@ function guardarCreditos(){
     axios.post("/pagos/creditos/guardar", data)
         .then(response => {
 
+            //$('#formEstadoRetencion').parsley().reset();
             $('#tbl_cuentas_facturas_cliente').DataTable().ajax.reload();
             $('#tbl_abonos_cliente').DataTable().ajax.reload();
 
             var formulario = document.getElementById("formabonos");
+
+            // Resetear el formulario, lo que también reseteará el valor del TextArea
             formulario.reset();
 
             $('#btn_notaabono').css('display','block');
             $('#btn_notaabono').show();
 
-            var res = response.data;
-
-            // Si hay roles sin parametrización de comisiones, avisar después del éxito
-            if (res.comisiones_aviso && res.comisiones_aviso.roles_sin_config && res.comisiones_aviso.roles_sin_config.length > 0) {
-                var roles = res.comisiones_aviso.roles_sin_config.join(', ');
-                Swal.fire({
-                    icon: res.icon || 'success',
-                    title: res.title || '¡Éxito!',
-                    text: res.text,
-                    confirmButtonText: 'Continuar'
-                }).then(function() {
-                    Swal.fire({
-                        icon: 'warning',
-                        title: 'Sin parametrización de comisiones',
-                        html: 'Los siguientes roles no tienen comisiones configuradas: <br><b>' + roles + '</b>.<br><br>' +
-                              '<a href="/comisiones/configuracion" style="color:#d69e2e;font-weight:bold;">' +
-                              '<i class="fa fa-cog"></i> Ir a configuración de comisiones</a>',
-                        confirmButtonText: 'Entendido',
-                        confirmButtonColor: '#d69e2e',
-                    });
-                });
-            } else {
-                Swal.fire({
-                    icon: res.icon || 'success',
-                    title: res.title || '¡Éxito!',
-                    text: res.text || 'Ha realizado la gestión.',
-                });
-            }
+            Swal.fire({
+                icon: 'success',
+                title: 'Exito!',
+                text: "Ha realizado la gestion."
+            });
 
     })
     .catch(err => {

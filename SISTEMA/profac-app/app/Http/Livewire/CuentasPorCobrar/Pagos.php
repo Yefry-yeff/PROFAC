@@ -827,19 +827,20 @@ class Pagos extends Component
                        $saldoActual2 = DB::selectone('select saldo from aplicacion_pagos where id = '.$request->codAplicPagoAbono);
 
                        if($saldoActual2->saldo == 0){
+                            //dd("Prueba de que llega aqui esta mierda");
+                           /* $cuentas22 = DB::select("
 
-                                $cuentas22 = DB::select("
-                                    CALL sp_aplicacion_pagos(
-                                        '9',
-                                        '0',
-                                        '".Auth::user()->id."',
-                                        '0',
-                                        'CIERRE POR SALDO 0',
-                                        '".$request->codAplicPagoAbono."',
-                                        '0',
-                                        '0',
-                                        @estado,
-                                        @msjResultado);");
+                               CALL sp_aplicacion_pagos(
+                                   '9',
+                                   '0',
+                                   '".Auth::user()->id."',
+                                   '0',
+                                   'CIERRE POR SALDO 0',
+                                   '".$request->codAplicPagoAbono."',
+                                   '0',
+                                   '0',
+                                   @estado,
+                                   @msjResultado);"); */
 
                                 // Registrar comisiones
                                 $generador = app(GeneradorFacturasComision::class);
@@ -855,60 +856,11 @@ class Pagos extends Component
                                     }
                                 }
 
-                                // Verificar roles involucrados sin parametrización de comisiones
-                                $filaFactura = DB::selectOne(
-                                    "SELECT uf.rol_id AS facturador_rol, uv.rol_id AS vendedor_rol
-                                     FROM factura f
-                                     INNER JOIN users uf ON uf.id = f.users_id
-                                     INNER JOIN users uv ON uv.id = f.vendedor
-                                     WHERE f.id = ?",
-                                    [(int) $request->idFacturaAbono]
-                                );
 
-                                $rolesInvolucrados = $filaFactura
-                                    ? array_unique([
-                                        GeneradorFacturasComision::ROL_FACTURADOR_ID,
-                                        (int) $filaFactura->facturador_rol,
-                                        (int) $filaFactura->vendedor_rol,
-                                      ])
-                                    : [GeneradorFacturasComision::ROL_FACTURADOR_ID];
 
-                                $rolesSinConfig = [];
-                                foreach ($rolesInvolucrados as $rolId) {
-                                    $tieneConfig = DB::table('comision_escala')
-                                        ->where('rol_id', $rolId)
-                                        ->where('estado_id', 1)
-                                        ->exists();
-                                    if (!$tieneConfig) {
-                                        $nombreRol = DB::table('rol')->where('id', $rolId)->value('nombre')
-                                            ?? "Rol #{$rolId}";
-                                        $rolesSinConfig[] = $nombreRol;
-                                    }
-                                }
 
-                                if (!empty($rolesSinConfig)) {
-                                    return response()->json([
-                                        'icon'             => 'success',
-                                        'title'            => 'Abono registrado',
-                                        'text'             => 'El abono se registró y la factura fue cerrada correctamente.',
-                                        'comisiones_aviso' => [
-                                            'roles_sin_config' => $rolesSinConfig,
-                                        ],
-                                    ], 200);
-                                }
-
-                                return response()->json([
-                                    'icon'  => 'success',
-                                    'title' => 'Abono registrado',
-                                    'text'  => 'El abono y las comisiones se registraron correctamente.',
-                                ], 200);
                        }
 
-                       return response()->json([
-                           'icon'  => 'success',
-                           'title' => 'Abono registrado',
-                           'text'  => 'El abono se registró correctamente.',
-                       ], 200);
 
            }catch (QueryException $e) {
 
