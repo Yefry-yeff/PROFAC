@@ -589,9 +589,9 @@ class DistribucionEntrega extends Component
                     c.direccion
                 FROM factura f
                 INNER JOIN cliente c ON f.cliente_id = c.id
-                WHERE f.estado_factura_id = 1
+                WHERE f.estado_factura_id IN (1, 2)
                 AND f.cai = ?
-                AND f.fecha_emision >= '2025-08-01'
+                AND f.fecha_emision >= CURDATE()
                 AND NOT EXISTS (
                     SELECT 1 FROM distribuciones_entrega_facturas def
                     WHERE def.factura_id = f.id
@@ -634,10 +634,10 @@ class DistribucionEntrega extends Component
                             'success' => false,
                             'message' => 'Esta factura ya fue entregada'
                         ], 422);
-                    } elseif ($facturaInfo[0]->fecha_emision < '2025-08-01') {
+                    } elseif ($facturaInfo[0]->fecha_emision < date('Y-m-d')) {
                         return response()->json([
                             'success' => false,
-                            'message' => 'Esta factura es anterior al 01/08/2025 y no está disponible para entrega'
+                            'message' => 'Esta factura no es de hoy y no está disponible para distribución'
                         ], 422);
                     }
                     
@@ -700,8 +700,8 @@ class DistribucionEntrega extends Component
                     c.direccion
                 FROM factura f
                 INNER JOIN cliente c ON f.cliente_id = c.id
-                WHERE f.estado_factura_id = 1
-                AND f.fecha_emision >= '2025-08-01'
+                WHERE f.estado_factura_id IN (1, 2)
+                AND f.fecha_emision >= CURDATE()
                 AND c.nombre LIKE ?
                 AND NOT EXISTS (
                     SELECT 1 FROM distribuciones_entrega_facturas def
@@ -765,8 +765,8 @@ class DistribucionEntrega extends Component
                     (SELECT COUNT(*) FROM venta_has_producto vhp WHERE vhp.factura_id = f.id) AS cantidad_productos
                 FROM factura f
                 INNER JOIN cliente c ON f.cliente_id = c.id
-                WHERE f.estado_factura_id = 1
-                AND f.fecha_emision >= DATE_SUB(CURDATE(), INTERVAL 3 YEAR)
+                WHERE f.estado_factura_id IN (1, 2)
+                AND f.fecha_emision >= CURDATE()
                 AND (f.cai LIKE ? OR f.numero_factura LIKE ? OR CAST(f.id AS CHAR) = ?)
                 AND NOT EXISTS (
                     SELECT 1 FROM distribuciones_entrega_facturas def
@@ -836,8 +836,8 @@ class DistribucionEntrega extends Component
                     (SELECT COUNT(*) 
                      FROM factura f2 
                      WHERE f2.cliente_id = c.id
-                     AND f2.fecha_emision >= '2025-08-01'
-                     AND f2.estado_factura_id = 1
+                     AND f2.fecha_emision >= CURDATE()
+                     AND f2.estado_factura_id IN (1, 2)
                      AND NOT EXISTS (
                          SELECT 1 FROM distribuciones_entrega_facturas def
                          WHERE def.factura_id = f2.id
@@ -852,14 +852,14 @@ class DistribucionEntrega extends Component
                      )) as facturas_disponibles
                 FROM cliente c
                 INNER JOIN factura f ON c.id = f.cliente_id
-                WHERE f.estado_factura_id = 1
-                AND f.fecha_emision >= '2025-08-01'
+                WHERE f.estado_factura_id IN (1, 2)
+                AND f.fecha_emision >= CURDATE()
                 AND c.nombre LIKE ?
                 AND EXISTS (
                     SELECT 1 FROM factura f2
                     WHERE f2.cliente_id = c.id
-                    AND f2.fecha_emision >= '2025-08-01'
-                    AND f2.estado_factura_id = 1
+                    AND f2.fecha_emision >= CURDATE()
+                    AND f2.estado_factura_id IN (1, 2)
                     AND NOT EXISTS (
                         SELECT 1 FROM distribuciones_entrega_facturas def
                         WHERE def.factura_id = f2.id
@@ -925,8 +925,8 @@ class DistribucionEntrega extends Component
                     (SELECT COUNT(*) FROM venta_has_producto vhp WHERE vhp.factura_id = f.id) as cantidad_productos
                 FROM factura f
                 WHERE f.cliente_id = ?
-                AND f.estado_factura_id = 1
-                AND f.fecha_emision >= DATE_SUB(CURDATE(), INTERVAL 3 YEAR)
+                AND f.estado_factura_id IN (1, 2)
+                AND f.fecha_emision >= CURDATE()
                 AND NOT EXISTS (
                     SELECT 1 FROM distribuciones_entrega_facturas def
                     WHERE def.factura_id = f.id
