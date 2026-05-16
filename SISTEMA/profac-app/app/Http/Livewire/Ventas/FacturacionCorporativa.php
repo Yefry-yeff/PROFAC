@@ -793,6 +793,8 @@ class FacturacionCorporativa extends Component
             if ($estado == 1) {
                 //presenta
 
+                // FOR UPDATE bloquea la fila hasta que se haga commit,
+                // evitando que dos transacciones simultáneas lean el mismo numero_actual.
                 $cai = DB::SELECTONE("select
                 id,
                 numero_inicial,
@@ -800,7 +802,8 @@ class FacturacionCorporativa extends Component
                 cantidad_otorgada,
                 numero_actual
                 from cai
-                where tipo_documento_fiscal_id = 1 and estado_id = 1");
+                where tipo_documento_fiscal_id = 1 and estado_id = 1
+                FOR UPDATE");
 
 
                 if ($cai->numero_actual > $cai->cantidad_otorgada) {
@@ -1044,75 +1047,33 @@ class FacturacionCorporativa extends Component
             $numeroSecuenciaUpdated = 0;
 
             $turno = DB::SELECTONE("select turno from parametro where id =1");
-
-
-
-            if ($turno->turno == 1) {
-                $turnoActualizar = 2;
-
-                $cai = DB::SELECTONE("select
-                                id,
-                                numero_inicial,
-                                numero_final,
-                                cantidad_otorgada,
-                                numero_actual as 'numero_actual'
-                                from cai
-                                where tipo_documento_fiscal_id = 1 and estado_id = 1");
-            } else {
-
-                $turnoActualizar = 1;
-
-                $cai = DB::SELECTONE("select
-                                id,
-                                numero_inicial,
-                                numero_final,
-                                cantidad_otorgada,
-                                serie as 'numero_actual'
-                                from cai
-                                where tipo_documento_fiscal_id = 1 and estado_id = 1");
-            }
-
+            $turnoActualizar = ($turno->turno == 1) ? 2 : 1;
             $estado = $turno->turno;
 
-            $arrayCai = explode('-', $cai->numero_final);
-            $cuartoSegmentoCAI = sprintf("%'.08d", $cai->numero_actual);
-            $numeroCAI = $arrayCai[0] . '-' . $arrayCai[1] . '-' . $arrayCai[2] . '-' . $cuartoSegmentoCAI;
+            // FOR UPDATE bloquea la fila hasta que se haga commit,
+            // evitando que dos transacciones simultáneas lean el mismo numero_actual.
+            $cai = DB::SELECTONE("select
+                            id,
+                            numero_inicial,
+                            numero_final,
+                            cantidad_otorgada,
+                            numero_actual
+                            from cai
+                            where tipo_documento_fiscal_id = 1 and estado_id = 1
+                            FOR UPDATE");
 
-            $duplicado = DB::SELECTONE("select count(id) as contador from factura where estado_venta_id=1 and cai_id=" . $cai->id . " and cai='" . $numeroCAI . "'");
+            $numeroSecuencia = $cai->numero_actual;
 
-            // if($duplicado->contador>=1){
-
-            //     $numeroSecuencia = $numeroSecuencia + $cai->numero_actual + 1;
-            //     $numeroSecuenciaUpdated = $cai->numero_actual+2;
-
-            // }
-
-            $existencia = DB::SELECTONE(
-                "select
-                            id
-                            from factura
-                            where  estado_venta_id=1 and cliente_id=" . $request->seleccionarCliente . " and cai_id=" . $cai->id . " and numero_secuencia_cai=" . $cai->numero_actual
-            );
-
-            // if(!empty($existencia)){
-            //     //existe
-            //     $numeroSecuencia = $cai->numero_actual+1;
-            //     $numeroSecuenciaUpdated = $cai->numero_actual+2;
-
-            // }else{
-            //     //no existe
-            //     $numeroSecuencia = $cai->numero_actual;
-            //     $numeroSecuenciaUpdated = $cai->numero_actual+1;
-
-            // }
-
-            if ($duplicado->contador >= 2 || !empty($existencia)) {
-                $numeroSecuencia =  $this->comprobacionRecursiva($request, $cai, $cai->numero_actual, $estado);
-                $numeroSecuenciaUpdated = $numeroSecuencia + 1;
-            } else {
-                $numeroSecuencia = $cai->numero_actual;
-                $numeroSecuenciaUpdated = $cai->numero_actual + 1;
+            // Si el número actual ya está en uso, avanzar hasta el próximo libre.
+            while ($numeroSecuencia <= $cai->cantidad_otorgada
+                && DB::table('factura')
+                       ->where('cai_id', $cai->id)
+                       ->where('numero_secuencia_cai', $numeroSecuencia)
+                       ->exists()) {
+                $numeroSecuencia++;
             }
+
+            $numeroSecuenciaUpdated = $numeroSecuencia + 1;
 
             $arrayNumeroFinal = explode('-', $cai->numero_final);
             $numero_final = (string)((int)($arrayNumeroFinal[3]));
@@ -1182,15 +1143,9 @@ class FacturacionCorporativa extends Component
             $factura->comentario = $request->nota_comen;
             $factura->save();
 
-            if ($turno->turno == 1) {
-                $caiUpdated =  ModelCAI::find($cai->id);
-                $caiUpdated->numero_actual = $numeroSecuenciaUpdated;
-                $caiUpdated->save();
-            } else {
-                $caiUpdated =  ModelCAI::find($cai->id);
-                $caiUpdated->serie = $numeroSecuenciaUpdated;
-                $caiUpdated->save();
-            }
+            $caiUpdated = ModelCAI::find($cai->id);
+            $caiUpdated->numero_actual = $numeroSecuenciaUpdated;
+            $caiUpdated->save();
 
 
             // if(empty($existencia)){
@@ -1235,49 +1190,36 @@ class FacturacionCorporativa extends Component
 
     public function nivelacion($request)
     {
-
-
+        DB::beginTransaction();
+        try {
 
         $numeroSecuencia = 0;
         $numeroSecuenciaUpdated = 0;
 
-
-
+        // FOR UPDATE bloquea la fila hasta que se haga commit,
+        // evitando que dos transacciones simultáneas lean el mismo numero_actual.
         $cai = DB::SELECTONE("select
             id,
             numero_inicial,
             numero_final,
             cantidad_otorgada,
-            serie as 'numero_actual'
+            numero_actual
             from cai
-            where tipo_documento_fiscal_id = 1 and estado_id = 1");
+            where tipo_documento_fiscal_id = 1 and estado_id = 1
+            FOR UPDATE");
 
+        $numeroSecuencia = $cai->numero_actual;
 
-
-        $arrayCai = explode('-', $cai->numero_final);
-        $cuartoSegmentoCAI = sprintf("%'.08d", $cai->numero_actual);
-        $numeroCAI = $arrayCai[0] . '-' . $arrayCai[1] . '-' . $arrayCai[2] . '-' . $cuartoSegmentoCAI;
-
-        $duplicado = DB::SELECTONE("select count(id) as contador from factura where estado_venta_id=1 and cai_id=" . $cai->id . " and cai='" . $numeroCAI . "'");
-
-
-
-        $existencia = DB::SELECTONE(
-            "select
-                            id
-                            from factura
-                            where  estado_venta_id=1 and cliente_id=" . $request->seleccionarCliente . " and cai_id=" . $cai->id . " and numero_secuencia_cai=" . $cai->numero_actual
-        );
-
-
-
-        if ($duplicado->contador >= 2 || !empty($existencia)) {
-            $numeroSecuencia =  $this->comprobacionRecursiva($request, $cai, $cai->numero_actual, 2);
-            $numeroSecuenciaUpdated = $numeroSecuencia + 1;
-        } else {
-            $numeroSecuencia = $cai->numero_actual;
-            $numeroSecuenciaUpdated = $cai->numero_actual + 1;
+        // Si el número actual ya está en uso, avanzar hasta el próximo libre.
+        while ($numeroSecuencia <= $cai->cantidad_otorgada
+            && DB::table('factura')
+                   ->where('cai_id', $cai->id)
+                   ->where('numero_secuencia_cai', $numeroSecuencia)
+                   ->exists()) {
+            $numeroSecuencia++;
         }
+
+        $numeroSecuenciaUpdated = $numeroSecuencia + 1;
 
         $arrayNumeroFinal = explode('-', $cai->numero_final);
         $numero_final = (string)((int)($arrayNumeroFinal[3]));
@@ -1345,33 +1287,20 @@ class FacturacionCorporativa extends Component
         $factura->save();
 
 
-        $caiUpdated =  ModelCAI::find($cai->id);
-        $caiUpdated->serie = $numeroSecuenciaUpdated;
+        $caiUpdated = ModelCAI::find($cai->id);
+        $caiUpdated->numero_actual = $numeroSecuenciaUpdated;
         $caiUpdated->save();
 
-
-
-        /* $aplicacionPagos = DB::select("
-
-        CALL sp_aplicacion_pagos('2','".$factura->cliente_id."', '".Auth::user()->id."', '".$factura->id."','na','0','0','0', @estado, @msjResultado);");
-
-
-        if ($aplicacionPagos[0]->estado == -1) {
-            return response()->json([
-                "text" => "Ha ocurrido un error al insertar factura ".$factura->id."en aplicacion de pagos.",
-                "icon" => "error",
-                "title"=>"Error!"
-            ],400);
-        } */
+        DB::commit();
 
         return $factura;
-        // } catch (QueryException $e) {
-        //     DB::rollback();
-        //     return response()->json([
-        //         'message' => 'Ha ocurrido un error, meotodo alternar',
-        //         'error' => $e
-        //     ], 402);
-        // }
+        } catch (\Exception $e) {
+            DB::rollback();
+            return response()->json([
+                'message' => 'Ha ocurrido un error, metodo nivelacion',
+                'error' => $e->getMessage()
+            ], 402);
+        }
     }
 
 
@@ -2244,49 +2173,37 @@ class FacturacionCorporativa extends Component
 
     public function guardarVentaND($request)
     {
-
-
+        DB::beginTransaction();
+        try {
 
         $numeroSecuencia = 0;
         $numeroSecuenciaUpdated = 0;
         $estado = 2;
 
+        // FOR UPDATE bloquea la fila hasta que se haga commit,
+        // evitando que dos transacciones simultáneas lean el mismo numero_actual.
         $cai = DB::SELECTONE("select
                                 id,
                                 numero_inicial,
                                 numero_final,
                                 cantidad_otorgada,
-                                serie as 'numero_actual'
+                                numero_actual
                                 from cai
-                                where tipo_documento_fiscal_id = 1 and estado_id = 1");
+                                where tipo_documento_fiscal_id = 1 and estado_id = 1
+                                FOR UPDATE");
 
+        $numeroSecuencia = $cai->numero_actual;
 
-
-
-        $arrayCai = explode('-', $cai->numero_final);
-        $cuartoSegmentoCAI = sprintf("%'.08d", $cai->numero_actual);
-        $numeroCAI = $arrayCai[0] . '-' . $arrayCai[1] . '-' . $arrayCai[2] . '-' . $cuartoSegmentoCAI;
-
-        $duplicado = DB::SELECTONE("select count(id) as contador from factura where estado_venta_id=1 and cai_id=" . $cai->id . " and cai='" . $numeroCAI . "'");
-
-
-
-        $existencia = DB::SELECTONE(
-            "select
-                            id
-                            from factura
-                            where  estado_venta_id=1 and cliente_id=" . $request->seleccionarCliente . " and cai_id=" . $cai->id . " and numero_secuencia_cai=" . $cai->numero_actual
-        );
-
-
-
-        if ($duplicado->contador >= 2 || !empty($existencia)) {
-            $numeroSecuencia =  $this->comprobacionRecursiva($request, $cai, $cai->numero_actual, $estado);
-            $numeroSecuenciaUpdated = $numeroSecuencia + 1;
-        } else {
-            $numeroSecuencia = $cai->numero_actual;
-            $numeroSecuenciaUpdated = $cai->numero_actual + 1;
+        // Si el número actual ya está en uso, avanzar hasta el próximo libre.
+        while ($numeroSecuencia <= $cai->cantidad_otorgada
+            && DB::table('factura')
+                   ->where('cai_id', $cai->id)
+                   ->where('numero_secuencia_cai', $numeroSecuencia)
+                   ->exists()) {
+            $numeroSecuencia++;
         }
+
+        $numeroSecuenciaUpdated = $numeroSecuencia + 1;
 
         $arrayNumeroFinal = explode('-', $cai->numero_final);
         $numero_final = (string)((int)($arrayNumeroFinal[3]));
@@ -2357,23 +2274,20 @@ class FacturacionCorporativa extends Component
         $factura->save();
 
 
-        $caiUpdated =  ModelCAI::find($cai->id);
-        $caiUpdated->serie = $numeroSecuenciaUpdated;
+        $caiUpdated = ModelCAI::find($cai->id);
+        $caiUpdated->numero_actual = $numeroSecuenciaUpdated;
         $caiUpdated->save();
 
-        /* $aplicacionPagos = DB::select("
+        DB::commit();
 
-            CALL sp_aplicacion_pagos('2','".$factura->cliente_id."', '".Auth::user()->id."', '".$factura->id."','na','0','0','0', @estado, @msjResultado);");
-
-
-            if ($aplicacionPagos[0]->estado == -1) {
-                return response()->json([
-                    "text" => "Ha ocurrido un error al insertar factura ".$factura->id."en aplicacion de pagos.",
-                    "icon" => "error",
-                    "title"=>"Error!"
-                ],400);
-            } */
         return $factura;
+        } catch (\Exception $e) {
+            DB::rollback();
+            return response()->json([
+                'message' => 'Ha ocurrido un error, metodo guardarVentaND',
+                'error' => $e->getMessage()
+            ], 402);
+        }
     }
 
 
