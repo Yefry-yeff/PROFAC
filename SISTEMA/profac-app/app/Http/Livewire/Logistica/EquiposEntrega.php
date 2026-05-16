@@ -15,7 +15,7 @@ class EquiposEntrega extends Component
 {
     public function render()
     {
-        $usuarios = User::all();
+        $usuarios = User::orderBy('name')->get();
         return view('livewire.logistica.equipos-entrega', compact('usuarios'));
     }
 

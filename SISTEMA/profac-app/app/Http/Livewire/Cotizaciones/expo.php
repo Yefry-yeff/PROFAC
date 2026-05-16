@@ -52,11 +52,8 @@ class expo extends Component
                 FROM producto p
                 JOIN cliente cli
                 ON cli.id = :idCliente
-                JOIN cliente_categoria_escala cce
-                ON cce.id = cli.cliente_categoria_escala_id
-                AND cce.estado_id = 1
                 JOIN categoria_precios cp
-                ON cp.cliente_categoria_escala_id = cce.id
+                ON cp.id = cli.categoria_precios_id
                 AND cp.estado_id = 1
                 JOIN precios_producto_carga ppc
                 ON ppc.producto_id = p.id
@@ -189,7 +186,6 @@ class expo extends Component
 
         $validator = Validator::make($request->all(), [
             'subTotalGeneralGrabado' => 'required',
-            'subTotalGeneralGrabadoMostrar' => 'required',
             'subTotalGeneral' => 'required',
             'isvGeneral' => 'required',
             'totalGeneral' => 'required',

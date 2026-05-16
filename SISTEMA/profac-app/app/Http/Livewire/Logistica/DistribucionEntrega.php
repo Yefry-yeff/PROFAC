@@ -6,6 +6,7 @@ use Livewire\Component;
 use App\Models\Logistica\DistribucionEntrega as ModelDistribucionEntrega;
 use App\Models\Logistica\DistribucionEntregaFactura;
 use App\Models\Logistica\EquipoEntrega;
+use App\Models\Logistica\EntregaProducto;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
@@ -76,22 +77,73 @@ class DistribucionEntrega extends Component
                 'total_facturas' => count($data['facturas'])
             ]);
 
+            // Verificar que ninguna factura esté ya en otra distribución activa
+            $editarId     = $data['editar_id'] ?? null;
+            $facturaIds   = $data['facturas'];
+            $placeholders = implode(',', array_fill(0, count($facturaIds), '?'));
+            $whereEditar  = $editarId ? ' AND de.id != ?' : '';
+            $params       = $facturaIds;
+            if ($editarId) {
+                $params[] = (int) $editarId;
+            }
+
+            $bloqueadas = DB::select("
+                SELECT def.factura_id, f.cai, de.id as distribucion_id, ee.nombre_equipo
+                FROM distribuciones_entrega_facturas def
+                INNER JOIN distribuciones_entrega de ON def.distribucion_entrega_id = de.id
+                INNER JOIN factura f ON def.factura_id = f.id
+                INNER JOIN equipos_entrega ee ON de.equipo_entrega_id = ee.id
+                WHERE def.factura_id IN ({$placeholders})
+                AND de.estado_id IN (1, 2)
+                AND def.estado_entrega != 'anulada'
+                {$whereEditar}
+            ", $params);
+
+            if (!empty($bloqueadas)) {
+                $detalle = implode('; ', array_map(
+                    fn($b) => "#$b->cai (Equipo: $b->nombre_equipo)",
+                    $bloqueadas
+                ));
+                Log::warning('Facturas ya asignadas detectadas al guardar:', ['bloqueadas' => $bloqueadas]);
+                return response()->json([
+                    'icon'       => 'warning',
+                    'title'      => 'Facturas ya asignadas',
+                    'text'       => "Las siguientes facturas ya están en otra distribución activa: $detalle",
+                    'bloqueadas' => $bloqueadas,
+                ], 422);
+            }
+
             DB::beginTransaction();
             Log::info('Transacción iniciada');
 
-            // Crear distribución
-            $distribucion = ModelDistribucionEntrega::create([
-                'equipo_entrega_id' => $data['equipo_entrega_id'],
-                'fecha_programada' => $data['fecha_programada'],
-                'observaciones' => trim($data['observaciones'] ?? ''),
-                'estado_id' => 1, // Pendiente
-                'users_id_creador' => Auth::id(),
-            ]);
+            $editarId = $data['editar_id'] ?? null;
 
-            Log::info('Distribución creada:', [
+            if ($editarId) {
+                // ---- MODO EDICIÓN ----
+                $distribucion = ModelDistribucionEntrega::findOrFail($editarId);
+                $distribucion->equipo_entrega_id = $data['equipo_entrega_id'];
+                $distribucion->fecha_programada  = $data['fecha_programada'];
+                $distribucion->observaciones     = trim($data['observaciones'] ?? '');
+                $distribucion->save();
+
+                // Eliminar registros de entrega asociados y facturas anteriores
+                $defIds = DistribucionEntregaFactura::where('distribucion_entrega_id', $distribucion->id)->pluck('id');
+                EntregaProducto::whereIn('distribucion_factura_id', $defIds)->delete();
+                DistribucionEntregaFactura::where('distribucion_entrega_id', $distribucion->id)->delete();
+                Log::info('Facturas y registros de entrega anteriores eliminados para edición');
+            } else {
+                // ---- MODO CREACIÓN ----
+                $distribucion = ModelDistribucionEntrega::create([
+                    'equipo_entrega_id' => $data['equipo_entrega_id'],
+                    'fecha_programada'  => $data['fecha_programada'],
+                    'observaciones'     => trim($data['observaciones'] ?? ''),
+                    'estado_id'         => 1, // Pendiente
+                    'users_id_creador'  => Auth::id(),
+                ]);
+            }
+
+            Log::info('Distribución ' . ($editarId ? 'actualizada' : 'creada') . ':', [
                 'id' => $distribucion->id,
-                'equipo_entrega_id' => $distribucion->equipo_entrega_id,
-                'fecha_programada' => $distribucion->fecha_programada
             ]);
 
             // Agregar facturas en el orden especificado
@@ -100,13 +152,35 @@ class DistribucionEntrega extends Component
                     'factura_id' => $facturaId,
                     'orden' => $index + 1
                 ]);
-                
-                DistribucionEntregaFactura::create([
+
+                $defRecord = DistribucionEntregaFactura::create([
                     'distribucion_entrega_id' => $distribucion->id,
-                    'factura_id' => $facturaId,
-                    'orden_entrega' => $index + 1,
-                    'estado_entrega' => 'sin_entrega',
+                    'factura_id'              => $facturaId,
+                    'orden_entrega'           => $index + 1,
+                    'estado_entrega'          => 'sin_entrega',
                 ]);
+
+                // Pre-crear registros de entregas_productos para confirmación inmediata
+                $productos = DB::table('venta_has_producto')
+                    ->where('factura_id', $facturaId)
+                    ->select('producto_id', 'cantidad')
+                    ->get();
+
+                foreach ($productos as $producto) {
+                    EntregaProducto::firstOrCreate(
+                        [
+                            'distribucion_factura_id' => $defRecord->id,
+                            'producto_id'             => $producto->producto_id,
+                        ],
+                        [
+                            'cantidad_facturada'  => $producto->cantidad,
+                            'cantidad_entregada'  => 0,
+                            'entregado'           => 0,
+                            'tiene_incidencia'    => 0,
+                            'user_id_registro'    => Auth::id(),
+                        ]
+                    );
+                }
             }
 
             Log::info('Todas las facturas procesadas correctamente');
@@ -115,9 +189,10 @@ class DistribucionEntrega extends Component
             Log::info('Transacción confirmada - Distribución guardada exitosamente');
 
             return response()->json([
-                'icon' => 'success',
-                'title' => '¡Éxito!',
-                'text' => 'Distribución creada con ' . count($data['facturas']) . ' factura(s)',
+                'icon'            => 'success',
+                'title'           => '¡Éxito!',
+                'text'            => 'Distribución ' . (isset($editarId) && $editarId ? 'actualizada' : 'creada') . ' con ' . count($data['facturas']) . ' factura(s)',
+                'distribucion_id' => $distribucion->id,
             ], 200);
 
         } catch (\Exception $e) {
@@ -382,6 +457,125 @@ class DistribucionEntrega extends Component
     }
 
     /**
+     * Ver detalle de distribución
+     */
+    public function verDistribucion($id)
+    {
+        return redirect()->route('logistica.distribuciones', ['ver' => $id]);
+    }
+
+    /**
+     * Obtener datos completos de una distribución para edición
+     */
+    public function obtenerDatosDistribucion($id)
+    {
+        try {
+            $distribucion = ModelDistribucionEntrega::with('equipo')->findOrFail($id);
+
+            $facturas = DB::select("
+                SELECT
+                    df.factura_id  AS id,
+                    f.cai          AS numero,
+                    c.nombre       AS cliente,
+                    c.direccion,
+                    f.total
+                FROM distribuciones_entrega_facturas df
+                INNER JOIN factura  f ON df.factura_id  = f.id
+                INNER JOIN cliente  c ON f.cliente_id   = c.id
+                WHERE df.distribucion_entrega_id = ?
+                ORDER BY df.orden_entrega ASC
+            ", [$id]);
+
+            return response()->json([
+                'equipo_entrega_id' => $distribucion->equipo_entrega_id,
+                'fecha_programada'  => $distribucion->fecha_programada->format('Y-m-d'),
+                'observaciones'     => $distribucion->observaciones,
+                'facturas'          => $facturas,
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Descargar carta de entrega en PDF
+     */
+    public function descargarCartaEntrega($id)
+    {
+        try {
+            $distribucion = ModelDistribucionEntrega::with('equipo', 'creador')
+                ->findOrFail($id);
+
+            // Obtener facturas de la distribución ordenadas por orden de entrega
+            $facturas = DB::select("
+                SELECT
+                    df.factura_id,
+                    df.orden_entrega,
+                    f.cai                    AS numero,
+                    FORMAT(f.total, 2)       AS total,
+                    DATE_FORMAT(f.fecha_emision, '%d/%m/%Y') AS fecha,
+                    c.nombre                 AS cliente,
+                    c.direccion
+                FROM distribuciones_entrega_facturas df
+                INNER JOIN factura  f ON df.factura_id  = f.id
+                INNER JOIN cliente  c ON f.cliente_id   = c.id
+                WHERE df.distribucion_entrega_id = ?
+                ORDER BY c.nombre ASC, df.orden_entrega ASC
+            ", [$id]);
+
+            // Agrupar por cliente -> facturas -> productos
+            $clientesMap = [];
+            foreach ($facturas as $fac) {
+                $clienteKey = $fac->cliente;
+
+                if (!isset($clientesMap[$clienteKey])) {
+                    $clientesMap[$clienteKey] = [
+                        'nombre'    => $fac->cliente,
+                        'direccion' => $fac->direccion,
+                        'facturas'  => [],
+                    ];
+                }
+
+                // Obtener productos con la misma query de la factura corporativa
+                $productos = DB::select("
+                    SELECT
+                        B.producto_id                                       AS codigo,
+                        C.nombre                                            AS descripcion,
+                        UPPER(J.nombre)                                     AS medida,
+                        REPLACE(SUM(B.cantidad_s), '.00', '')              AS cantidad
+                    FROM venta_has_producto B
+                    INNER JOIN producto          C ON B.producto_id            = C.id
+                    INNER JOIN unidad_medida_venta D ON B.unidad_medida_venta_id = D.id
+                    INNER JOIN unidad_medida      J ON J.id                    = D.unidad_medida_id
+                    WHERE B.factura_id = ?
+                    GROUP BY B.producto_id, descripcion, medida, B.indice
+                    ORDER BY B.indice ASC
+                ", [$fac->factura_id]);
+
+                $clientesMap[$clienteKey]['facturas'][] = [
+                    'numero'        => $fac->numero,
+                    'orden_entrega' => $fac->orden_entrega,
+                    'fecha'         => $fac->fecha,
+                    'total'         => $fac->total,
+                    'productos'     => $productos,
+                ];
+            }
+
+            $clientes = array_values($clientesMap);
+
+            $pdf = \PDF::loadView('pdf/carta-entrega', compact('distribucion', 'clientes'))
+                       ->setPaper('letter');
+
+            return $pdf->stream("carta-entrega-{$distribucion->id}.pdf");
+
+        } catch (\Exception $e) {
+            \Log::error('Error generando carta entrega:', ['error' => $e->getMessage()]);
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
      * Buscar facturas para agregar a distribución
      */
     public function buscarFacturas(Request $request)
@@ -456,13 +650,21 @@ class DistribucionEntrega extends Component
                     c.direccion
                 FROM factura f
                 INNER JOIN cliente c ON f.cliente_id = c.id
-                WHERE f.estado_factura_id = 1
+                WHERE f.estado_factura_id IN (1, 2)
+                AND f.estado_venta_id = 1
                 AND f.cai = ?
-                AND f.fecha_emision >= '2025-08-01'
+                AND f.fecha_emision >= CURDATE()
                 AND NOT EXISTS (
                     SELECT 1 FROM distribuciones_entrega_facturas def
                     WHERE def.factura_id = f.id
                     AND def.estado_entrega = 'entregado'
+                )
+                AND NOT EXISTS (
+                    SELECT 1 FROM distribuciones_entrega_facturas def
+                    INNER JOIN distribuciones_entrega de ON def.distribucion_entrega_id = de.id
+                    WHERE def.factura_id = f.id
+                    AND de.estado_id IN (1, 2)
+                    AND def.estado_entrega != 'anulada'
                 )
                 LIMIT 1
             ", [$numero]);
@@ -494,10 +696,27 @@ class DistribucionEntrega extends Component
                             'success' => false,
                             'message' => 'Esta factura ya fue entregada'
                         ], 422);
-                    } elseif ($facturaInfo[0]->fecha_emision < '2025-08-01') {
+                    } elseif ($facturaInfo[0]->fecha_emision < date('Y-m-d')) {
                         return response()->json([
                             'success' => false,
-                            'message' => 'Esta factura es anterior al 01/08/2025 y no está disponible para entrega'
+                            'message' => 'Esta factura no es de hoy y no está disponible para distribución'
+                        ], 422);
+                    }
+                    
+                    // Verificar si está en distribución pendiente
+                    $enPendiente = DB::select("
+                        SELECT de.id as distribucion_id
+                        FROM distribuciones_entrega_facturas def
+                        INNER JOIN distribuciones_entrega de ON def.distribucion_entrega_id = de.id
+                        WHERE def.factura_id = (SELECT id FROM factura WHERE cai = ? LIMIT 1)
+                        AND de.estado_id IN (1, 2)
+                        AND def.estado_entrega != 'anulada'
+                        LIMIT 1
+                    ", [$numero]);
+                    if (!empty($enPendiente)) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'La distribución de esta factura ya se encuentra asignada en una distribución pendiente o en proceso. Debe eliminarla de dicha distribución antes de volver a asignarla.'
                         ], 422);
                     }
                 }
@@ -543,13 +762,21 @@ class DistribucionEntrega extends Component
                     c.direccion
                 FROM factura f
                 INNER JOIN cliente c ON f.cliente_id = c.id
-                WHERE f.estado_factura_id = 1
-                AND f.fecha_emision >= '2025-08-01'
+                WHERE f.estado_factura_id IN (1, 2)
+                AND f.estado_venta_id = 1
+                AND f.fecha_emision >= CURDATE()
                 AND c.nombre LIKE ?
                 AND NOT EXISTS (
                     SELECT 1 FROM distribuciones_entrega_facturas def
                     WHERE def.factura_id = f.id
                     AND def.estado_entrega = 'entregado'
+                )
+                AND NOT EXISTS (
+                    SELECT 1 FROM distribuciones_entrega_facturas def
+                    INNER JOIN distribuciones_entrega de ON def.distribucion_entrega_id = de.id
+                    WHERE def.factura_id = f.id
+                    AND de.estado_id IN (1, 2)
+                    AND def.estado_entrega != 'anulada'
                 )
                 ORDER BY f.fecha_emision DESC, f.cai DESC
                 LIMIT 50
@@ -601,9 +828,10 @@ class DistribucionEntrega extends Component
                     (SELECT COUNT(*) FROM venta_has_producto vhp WHERE vhp.factura_id = f.id) AS cantidad_productos
                 FROM factura f
                 INNER JOIN cliente c ON f.cliente_id = c.id
-                WHERE f.estado_factura_id = 1
-                AND f.fecha_emision >= '2025-08-01'
-                AND f.cai LIKE ?
+                WHERE f.estado_factura_id IN (1, 2)
+                AND f.estado_venta_id = 1
+                AND f.fecha_emision >= CURDATE()
+                AND (f.cai LIKE ? OR f.numero_factura LIKE ? OR CAST(f.id AS CHAR) = ?)
                 AND NOT EXISTS (
                     SELECT 1 FROM distribuciones_entrega_facturas def
                     WHERE def.factura_id = f.id
@@ -613,11 +841,12 @@ class DistribucionEntrega extends Component
                     SELECT 1 FROM distribuciones_entrega_facturas def
                     INNER JOIN distribuciones_entrega de ON def.distribucion_entrega_id = de.id
                     WHERE def.factura_id = f.id
-                    AND de.estado_id IN (2, 3)
+                    AND de.estado_id IN (1, 2)
+                    AND def.estado_entrega != 'anulada'
                 )
-                ORDER BY f.cai DESC
+                ORDER BY f.fecha_emision DESC, f.cai DESC
                 LIMIT 20
-            ", ["%{$termino}%"]);
+            ", ["%{$termino}%", "%{$termino}%", $termino]);
 
             Log::info('Facturas encontradas', [
                 'total' => count($facturas)
@@ -671,8 +900,9 @@ class DistribucionEntrega extends Component
                     (SELECT COUNT(*) 
                      FROM factura f2 
                      WHERE f2.cliente_id = c.id
-                     AND f2.fecha_emision >= '2025-08-01'
-                     AND f2.estado_factura_id = 1
+                     AND f2.fecha_emision >= CURDATE()
+                     AND f2.estado_factura_id IN (1, 2)
+                     AND f2.estado_venta_id = 1
                      AND NOT EXISTS (
                          SELECT 1 FROM distribuciones_entrega_facturas def
                          WHERE def.factura_id = f2.id
@@ -682,18 +912,21 @@ class DistribucionEntrega extends Component
                          SELECT 1 FROM distribuciones_entrega_facturas def
                          INNER JOIN distribuciones_entrega de ON def.distribucion_entrega_id = de.id
                          WHERE def.factura_id = f2.id
-                         AND de.estado_id IN (2, 3)
+                         AND de.estado_id IN (1, 2)
+                         AND def.estado_entrega != 'anulada'
                      )) as facturas_disponibles
                 FROM cliente c
                 INNER JOIN factura f ON c.id = f.cliente_id
-                WHERE f.estado_factura_id = 1
-                AND f.fecha_emision >= '2025-08-01'
+                WHERE f.estado_factura_id IN (1, 2)
+                AND f.estado_venta_id = 1
+                AND f.fecha_emision >= CURDATE()
                 AND c.nombre LIKE ?
                 AND EXISTS (
                     SELECT 1 FROM factura f2
                     WHERE f2.cliente_id = c.id
-                    AND f2.fecha_emision >= '2025-08-01'
-                    AND f2.estado_factura_id = 1
+                    AND f2.fecha_emision >= CURDATE()
+                    AND f2.estado_factura_id IN (1, 2)
+                    AND f2.estado_venta_id = 1
                     AND NOT EXISTS (
                         SELECT 1 FROM distribuciones_entrega_facturas def
                         WHERE def.factura_id = f2.id
@@ -703,7 +936,8 @@ class DistribucionEntrega extends Component
                         SELECT 1 FROM distribuciones_entrega_facturas def
                         INNER JOIN distribuciones_entrega de ON def.distribucion_entrega_id = de.id
                         WHERE def.factura_id = f2.id
-                        AND de.estado_id IN (2, 3)
+                        AND de.estado_id IN (1, 2)
+                        AND def.estado_entrega != 'anulada'
                     )
                 )
                 ORDER BY c.nombre
@@ -758,8 +992,9 @@ class DistribucionEntrega extends Component
                     (SELECT COUNT(*) FROM venta_has_producto vhp WHERE vhp.factura_id = f.id) as cantidad_productos
                 FROM factura f
                 WHERE f.cliente_id = ?
-                AND f.estado_factura_id = 1
-                AND f.fecha_emision >= '2025-08-01'
+                AND f.estado_factura_id IN (1, 2)
+                AND f.estado_venta_id = 1
+                AND f.fecha_emision >= CURDATE()
                 AND NOT EXISTS (
                     SELECT 1 FROM distribuciones_entrega_facturas def
                     WHERE def.factura_id = f.id
@@ -769,7 +1004,8 @@ class DistribucionEntrega extends Component
                     SELECT 1 FROM distribuciones_entrega_facturas def
                     INNER JOIN distribuciones_entrega de ON def.distribucion_entrega_id = de.id
                     WHERE def.factura_id = f.id
-                    AND de.estado_id IN (2, 3)
+                    AND de.estado_id IN (1, 2)
+                    AND def.estado_entrega != 'anulada'
                 )
                 ORDER BY f.fecha_emision DESC, f.cai DESC
             ", [$clienteId]);
@@ -871,7 +1107,7 @@ class DistribucionEntrega extends Component
     /**
      * Iniciar distribución (cambiar de Pendiente a En proceso)
      */
-    public function iniciarDistribucion($distribucionId)
+    public function iniciarDistribucion($distribucionId, Request $request)
     {
         try {
             $distribucion = ModelDistribucionEntrega::findOrFail($distribucionId);
@@ -894,6 +1130,7 @@ class DistribucionEntrega extends Component
                 })
                 ->where('de.id', '!=', $distribucionId)
                 ->whereIn('de.estado_id', [2, 3]) // En proceso o Completada
+                ->where('def.estado_entrega', '!=', 'anulada') // Ignorar facturas anuladas
                 ->select('def.factura_id', 'de.id as otra_distribucion_id', 'de.estado_id')
                 ->get();
 
@@ -911,7 +1148,9 @@ class DistribucionEntrega extends Component
                 ], 422);
             }
 
-            $distribucion->estado_id = 2; // En proceso
+            $distribucion->estado_id          = 2; // En proceso
+            $distribucion->hora_salida        = $request->input('hora_salida');
+            $distribucion->observaciones_salida = $request->input('observaciones_salida');
             $distribucion->save();
 
             return response()->json([
@@ -1150,8 +1389,60 @@ class DistribucionEntrega extends Component
                 ], 422);
             }
 
+            DB::beginTransaction();
+
             $distribucion->estado_id = 3; // Completada
             $distribucion->save();
+
+            // Sincronizar historico_flujo (tipo_tramite_id = 5) por cada factura
+            // de la distribución para registrar el tramite_id de la entrega.
+            $facturaIds = DB::table('distribuciones_entrega_facturas')
+                ->where('distribucion_entrega_id', $distribucionId)
+                ->pluck('factura_id');
+
+            foreach ($facturaIds as $facturaId) {
+                $flujoId = DB::table('historico_flujo')
+                    ->whereIn('tipo_tramite_id', [3, 5])
+                    ->where('tramite_id', $facturaId)
+                    ->where('estado_id', '!=', 7)
+                    ->orderByDesc('id')
+                    ->value('flujo_id');
+
+                if (!$flujoId) {
+                    continue;
+                }
+
+                $registroEntrega = DB::table('historico_flujo')
+                    ->where('flujo_id', $flujoId)
+                    ->where('tipo_tramite_id', 5)
+                    ->where('estado_id', '!=', 7)
+                    ->orderByDesc('id')
+                    ->first(['id', 'tramite_id', 'estado_id']);
+
+                if (!$registroEntrega) {
+                    continue;
+                }
+
+                $actualizacionEntrega = [
+                    'updated_by' => Auth::id(),
+                    'updated_at' => now(),
+                ];
+
+                if ((int) ($registroEntrega->tramite_id ?? 0) !== (int) $distribucionId) {
+                    $actualizacionEntrega['tramite_id'] = $distribucionId;
+                }
+
+                if ((int) $registroEntrega->estado_id !== 1) {
+                    $actualizacionEntrega['estado_id'] = 1;
+                    $actualizacionEntrega['observaciones'] = 'Entrega completada en distribución #' . $distribucionId;
+                }
+
+                DB::table('historico_flujo')
+                    ->where('id', $registroEntrega->id)
+                    ->update($actualizacionEntrega);
+            }
+
+            DB::commit();
             
             Log::info("Distribución completada exitosamente:", [
                 'distribucion_id' => $distribucion->id,
@@ -1165,6 +1456,9 @@ class DistribucionEntrega extends Component
             ], 200);
 
         } catch (\Exception $e) {
+            if (DB::transactionLevel() > 0) {
+                DB::rollBack();
+            }
             Log::error("Error al completar distribución:", [
                 'distribucion_id' => $distribucionId,
                 'error' => $e->getMessage(),
@@ -1392,20 +1686,25 @@ class DistribucionEntrega extends Component
         try {
             Log::info("=== Anulando entrega de factura ID: {$facturaId} ===");
             
+            $request = request();
+            $motivo = trim($request->input('motivo', ''));
+
             $factura = DistribucionEntregaFactura::findOrFail($facturaId);
             Log::info("Factura encontrada:", [
                 'id' => $factura->id,
                 'estado_actual' => $factura->estado_entrega
             ]);
             
-            // Cambiar estado a sin_entrega
-            $factura->estado_entrega = 'sin_entrega';
+            // Cambiar estado a anulada
+            $factura->estado_entrega = 'anulada';
             $factura->fecha_entrega_real = null;
+            $factura->motivo_anulacion = $motivo ?: null;
             $factura->save();
             
             Log::info("Entrega anulada exitosamente:", [
                 'factura_id' => $factura->id,
-                'nuevo_estado' => $factura->estado_entrega
+                'nuevo_estado' => $factura->estado_entrega,
+                'motivo' => $motivo
             ]);
             
             return response()->json([
@@ -1439,6 +1738,9 @@ class DistribucionEntrega extends Component
         try {
             Log::info("=== Confirmando entrega de factura ID: {$facturaId} ===");
             
+            $request = request();
+            $motivo = trim($request->input('motivo', ''));
+
             $factura = DistribucionEntregaFactura::findOrFail($facturaId);
             Log::info("Factura encontrada:", [
                 'id' => $factura->id,
@@ -1448,12 +1750,14 @@ class DistribucionEntrega extends Component
             // Cambiar estado a entregado
             $factura->estado_entrega = 'entregado';
             $factura->fecha_entrega_real = now();
+            $factura->motivo_confirmacion = $motivo ?: null;
             $factura->save();
             
             Log::info("Entrega confirmada exitosamente:", [
                 'factura_id' => $factura->id,
                 'nuevo_estado' => $factura->estado_entrega,
-                'fecha_entrega' => $factura->fecha_entrega_real
+                'fecha_entrega' => $factura->fecha_entrega_real,
+                'motivo' => $motivo
             ]);
             
             return response()->json([
@@ -1544,6 +1848,137 @@ class DistribucionEntrega extends Component
             return response()->json([
                 'success' => false,
                 'message' => 'Error al validar incidencias: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Verificar si una lista de facturas están disponibles para distribución
+     * (no en distribución pendiente con estado_entrega != anulada)
+     */
+    public function verificarDisponibilidad(Request $request)
+    {
+        try {
+            $facturaIds = $request->input('facturas', []);
+            if (empty($facturaIds)) {
+                return response()->json(['disponibles' => true, 'bloqueadas' => []], 200);
+            }
+
+            $editarId    = $request->input('editar_id');
+            $placeholders = implode(',', array_fill(0, count($facturaIds), '?'));
+            $whereEditar  = $editarId ? ' AND de.id != ?' : '';
+            $params       = $facturaIds;
+            if ($editarId) {
+                $params[] = (int) $editarId;
+            }
+
+            $bloqueadas = DB::select("
+                SELECT def.factura_id, f.cai, de.id as distribucion_id, ee.nombre_equipo
+                FROM distribuciones_entrega_facturas def
+                INNER JOIN distribuciones_entrega de ON def.distribucion_entrega_id = de.id
+                INNER JOIN factura f ON def.factura_id = f.id
+                INNER JOIN equipos_entrega ee ON de.equipo_entrega_id = ee.id
+                WHERE def.factura_id IN ({$placeholders})
+                AND de.estado_id IN (1, 2)
+                AND def.estado_entrega != 'anulada'
+                {$whereEditar}
+            ", $params);
+
+            return response()->json([
+                'disponibles' => count($bloqueadas) === 0,
+                'bloqueadas'  => $bloqueadas,
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al verificar disponibilidad: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Finalizar distribución: anula todas las facturas pendientes (sin_entrega)
+     * con un motivo general y luego marca la distribución como completada.
+     */
+    public function finalizarEntregaDistribucion($distribucionId)
+    {
+        try {
+            Log::info("=== Finalizando distribución ID: {$distribucionId} ===");
+
+            $request = request();
+            $motivo  = trim($request->input('motivo', ''));
+
+            $distribucion = ModelDistribucionEntrega::findOrFail($distribucionId);
+
+            if ($distribucion->estado_id != 2) {
+                return response()->json([
+                    'icon'  => 'warning',
+                    'title' => 'Estado inválido',
+                    'text'  => 'Solo se pueden finalizar distribuciones en proceso',
+                ], 422);
+            }
+
+            // Bloquear si hay incidencias sin tratamiento
+            $incidenciasSinTratar = DB::select("
+                SELECT COUNT(DISTINCT i.id) as total
+                FROM distribuciones_entrega_facturas def
+                INNER JOIN entregas_productos ep ON ep.distribucion_factura_id = def.id
+                INNER JOIN entregas_productos_incidencias i ON i.entrega_producto_id = ep.id
+                LEFT JOIN entregas_incidencias_tratamientos t ON t.entrega_producto_incidencia_id = i.id
+                WHERE def.distribucion_entrega_id = ?
+                    AND t.id IS NULL
+            ", [$distribucionId]);
+
+            if ((int)($incidenciasSinTratar[0]->total ?? 0) > 0) {
+                return response()->json([
+                    'icon'  => 'warning',
+                    'title' => 'Incidencias sin tratar',
+                    'text'  => 'No se puede finalizar porque hay incidencias sin tratamiento registrado.',
+                ], 422);
+            }
+
+            DB::beginTransaction();
+
+            // Anular todas las facturas con estado 'sin_entrega'
+            DB::table('distribuciones_entrega_facturas')
+                ->where('distribucion_entrega_id', $distribucionId)
+                ->where('estado_entrega', 'sin_entrega')
+                ->update([
+                    'estado_entrega'   => 'anulada',
+                    'fecha_entrega_real' => null,
+                    'motivo_anulacion' => $motivo ?: 'Anulada al finalizar la distribución',
+                    'updated_at'       => now(),
+                ]);
+
+            // Marcar distribución como completada
+            $distribucion->estado_id = 3;
+            $distribucion->save();
+
+            DB::commit();
+
+            Log::info("Distribución finalizada exitosamente: {$distribucionId}");
+
+            return response()->json([
+                'icon'  => 'success',
+                'title' => 'Entrega finalizada',
+                'text'  => 'Las facturas pendientes fueron anuladas y la distribución ha sido completada.',
+            ], 200);
+
+        } catch (\Exception $e) {
+            if (DB::transactionLevel() > 0) {
+                DB::rollBack();
+            }
+            Log::error("Error al finalizar distribución:", [
+                'distribucion_id' => $distribucionId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'icon'  => 'error',
+                'title' => 'Error',
+                'text'  => 'No se pudo finalizar la distribución: ' . $e->getMessage(),
             ], 500);
         }
     }

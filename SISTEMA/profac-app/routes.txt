@@ -1,0 +1,657 @@
+
+  GET|HEAD  / ..................... generated::W7qJYt210jSRLbNU
+  POST      _ignition/execute-solution ignition.executeSolutioÔÇª
+  GET|HEAD  _ignition/health-check ignition.healthCheck ÔÇ║ SpatÔÇª
+  POST      _ignition/update-config ignition.updateConfig ÔÇ║ SpÔÇª
+  POST      actualizar/parametro/comision/{id} generated::rCkxÔÇª
+  POST      ajuste/ingreso/datos/producto generated::pNtEFoduyÔÇª
+  POST      ajuste/ingreso/guardar generated::yQirGws659j6EcOgÔÇª
+  GET|HEAD  ajuste/ingreso/listar/secciones generated::oOO0oTmÔÇª
+  GET|HEAD  ajuste/ingreso/productos generated::Y7VwUC6xYVtct4ÔÇª
+  GET|HEAD  ajuste/listar/secciones generated::JLFnw9JU3SZdvtCÔÇª
+  POST      ajustes/datos/producto generated::cFvWBo7VW4suUPzJÔÇª
+  POST      ajustes/guardar/ajuste generated::3jZsPeKaZH02Ib83ÔÇª
+  GET|HEAD  ajustes/imprimir/ajuste/{id} generated::i9U9Qk9TxhÔÇª
+  GET|HEAD  ajustes/ingreso/listar/bodegas generated::PJw9q9lLÔÇª
+  POST      ajustes/listado/producto/bodega generated::jkDJVwaÔÇª
+  GET|HEAD  ajustes/listar/bodegas generated::6vmbNui4dM8GHxkTÔÇª
+  GET|HEAD  ajustes/listar/productos generated::HL6pADLoQ6XKWdÔÇª
+  GET|HEAD  ajustes/motivos/listar generated::O1nSgjsvWLviJUiEÔÇª
+  GET|HEAD  anuladas/{fecha} generated::SL58s7gTKWCc7t2Y ÔÇ║ AppÔÇª
+  POST      anular/vale generated::j7LNZDFbNHcqMzC7 ÔÇ║ App\HttpÔÇª
+  GET|HEAD  api/user .............. generated::zNXOoMKvMr6aP0U0
+  GET|HEAD  aplicacion/pagos/clientes generated::OQTMoQsQgRhE1ÔÇª
+  GET|HEAD  aplicacion/pagos/listar/abonos/{id} generated::0fBÔÇª
+  GET|HEAD  aplicacion/pagos/listar/movimientos/{id} generatedÔÇª
+  GET|HEAD  aplicacion/pagos/listar/{id} generated::Mc5AgrlNBEÔÇª
+  GET|HEAD  banco/bancos generated::c2J7f5XqGLLkBwhc ÔÇ║ App\HttÔÇª
+  POST      banco/bancos/datos generated::jeBortbqi6WbkWxK ÔÇ║ AÔÇª
+  POST      banco/bancos/editar generated::z9sCkgQdqD3TruQx ÔÇ║ ÔÇª
+  POST      banco/bancos/guardar generated::07W8dzH200fouZ4o  ÔÇª
+  GET|HEAD  banco/bancos/listar generated::dSiEV35LLIBMc0Or ÔÇ║ ÔÇª
+  GET|HEAD  bodega generated::hZNZ1qFx6R0eD2ME ÔÇ║ App\Http\LiveÔÇª
+  POST      bodega/crear generated::BxrmuIj9MT69pqOd ÔÇ║ App\HttÔÇª
+  POST      bodega/datos generated::VULGWGzwxj6NCY8z ÔÇ║ App\HttÔÇª
+  POST      bodega/desactivar generated::RDO9X47cZLzq3H7F ÔÇ║ ApÔÇª
+  POST      bodega/editar generated::32sOn64a6pw9vSoy ÔÇ║ App\HtÔÇª
+  GET|HEAD  bodega/editar/screen generated::x5cjkjnHoHcuUDaz  ÔÇª
+  GET|HEAD  bodega/excel generated::oolbx5ZBTPrWSvtJ ÔÇ║ App\HttÔÇª
+  GET|HEAD  bodega/listar/bodegas generated::mTAUXkBkbopQA8kn ÔÇª
+  GET|HEAD  bodega/prod generated::P74dqaN9OlGPR4RD ÔÇ║ App\HttpÔÇª
+  GET|HEAD  bodega/segmentos/listar/{idBodega} generated::C7B6ÔÇª
+  GET|HEAD  boleta/compra ......... generated::XPKN03C61nf202AV
+  POST      boleta/compra/anular generated::2c6DcZxccW0I6KAi  ÔÇª
+  GET|HEAD  boleta/compra/crear generated::aCpaAjeQFUYrjC9h ÔÇ║ ÔÇª
+  POST      boleta/compra/guardar generated::bhrQrhy3V7HYDs9k ÔÇª
+  GET|HEAD  boleta/compra/historial generated::kjJmPAQn4KnVYu6ÔÇª
+  GET|HEAD  boleta/compra/imprimir/copia/{id} generated::arS0CÔÇª
+  GET|HEAD  boleta/compra/imprimir/{id} generated::0rNCmzzm3aLÔÇª
+  POST      boleta/compra/listar generated::Nuh6zQZ10JytTYKn  ÔÇª
+  GET|HEAD  cai/verificacion generated::TwvuntgWNRulxIdY ÔÇ║ AppÔÇª
+  GET|HEAD  cajaChica/excel/general generated::JqOkv6zJ2lzObYbÔÇª
+  GET|HEAD  cajaChica/excel/{bitacoraCierre} generated::j2Vsu9ÔÇª
+  GET|HEAD  cambiar-contrasena .... generated::FXXy32f0htYmDZFL
+  POST      cambiar-contrasena/guardar generated::8ZYiGkNPrnVLÔÇª
+  GET|HEAD  cardex generated::U1jkEDMk75AHKVB4 ÔÇ║ App\Http\LiveÔÇª
+  GET|HEAD  cardex/com generated::mt8m7XAdtrYMScyR ÔÇ║ App\Http\ÔÇª
+  GET|HEAD  cardex/com/listar/bodega generated::aXV1G1OuEz09qMÔÇª
+  GET|HEAD  cardex/com/listar/productos generated::GMN9cyjrYmtÔÇª
+  GET|HEAD  cardex/general generated::RIFFu3fMDxlsORLR ÔÇ║ App\HÔÇª
+  GET|HEAD  cardex/listar/bodega generated::EoQp31NVIDDbYNhg  ÔÇª
+  GET|HEAD  cardex/listar/productos generated::KIpZBToHboJpSvzÔÇª
+  GET|HEAD  cardexn generated::dzukYpgq8Zw3pMJb ÔÇ║ App\Http\LivÔÇª
+  GET|HEAD  carga/totales/{fecha} generated::FT9s72icv47uzsSl ÔÇª
+  GET|HEAD  cargar/historico generated::EAyjp4rOethnMKHY ÔÇ║ AppÔÇª
+  GET|HEAD  categoria/categorias generated::aUPi1vn784OSPHI0  ÔÇª
+  POST      categoria/datos generated::I20bPr3n2GALiFjX ÔÇ║ App\ÔÇª
+  POST      categoria/editar generated::6UdCHVPntKwoliNk ÔÇ║ AppÔÇª
+  POST      categoria/guardar generated::fR0F1fgrdLl6GgzD ÔÇ║ ApÔÇª
+  GET|HEAD  categoria/listar generated::S559ujKHJdTi1Jue ÔÇ║ AppÔÇª
+  GET|HEAD  cierre/caja generated::F9b08NKa1Z5qzQ8O ÔÇ║ App\HttpÔÇª
+  POST      cierre/guardar/{fecha} generated::CNBH6O97JVXtNlmHÔÇª
+  GET|HEAD  cierre/historico generated::uzYBJJuvLla8oavK ÔÇ║ AppÔÇª
+  POST      cliente/departamento generated::AkcSnHrzCqYeGZlZ  ÔÇª
+  GET|HEAD  cliente/excel generated::hm3GW4uTJN1lyaLP ÔÇ║ App\HtÔÇª
+  GET|HEAD  cliente/lista/vendedores generated::bnxxQAIZ09sQViÔÇª
+  POST      cliente/municipio generated::fAVyCOwsVnRbd4uv ÔÇ║ ApÔÇª
+  GET|HEAD  cliente/pais generated::uGeHsSKbwoOzspOv ÔÇ║ App\HttÔÇª
+  POST      cliente/registrar generated::wOjCkidS8xUsyM7r ÔÇ║ ApÔÇª
+  GET|HEAD  cliente/tipo/cliente generated::utkDp06Hcy2HJNpN  ÔÇª
+  GET|HEAD  cliente/tipo/personalidad generated::PbvrWLkaqr5K9ÔÇª
+  GET|HEAD  clientes generated::Y4iiKLcLCGeafjif ÔÇ║ App\Http\LiÔÇª
+  POST      clientes/activar generated::NCo9k1D8wpjk7Igi ÔÇ║ AppÔÇª
+  POST      clientes/autorizacion/guardar clientes.autorizacioÔÇª
+  GET|HEAD  clientes/categorias generated::QDi8LUwoayDYyiqB ÔÇ║ ÔÇª
+  GET|HEAD  clientes/categorias-escala clientes.categorias.escÔÇª
+  POST      clientes/crear-completo clientes.crear.completo ÔÇ║ ÔÇª
+  POST      clientes/credito/guardar clientes.credito.guardar ÔÇª
+  GET|HEAD  clientes/credito/historico/{id} clientes.credito.hÔÇª
+  POST      clientes/datos/editar generated::a7HEX0SxZFauljwe ÔÇª
+  POST      clientes/desactivar generated::J2xOKAgyWek4WNSz ÔÇ║ ÔÇª
+  GET|HEAD  clientes/documento/descargar/{id} clientes.documenÔÇª
+  POST      clientes/documento/subir clientes.documento.subir ÔÇª
+  GET|HEAD  clientes/documento/ver/{id} clientes.documento.verÔÇª
+  DELETE    clientes/documento/{id} clientes.documento.eliminaÔÇª
+  GET|HEAD  clientes/documentos/{id} clientes.documentos ÔÇ║ AppÔÇª
+  POST      clientes/editar generated::sM4O95acXQ997WvP ÔÇ║ App\ÔÇª
+  POST      clientes/editar-completo clientes.editar.completo ÔÇª
+  GET|HEAD  clientes/form clientes.form.crear ÔÇ║ App\Http\LivewÔÇª
+  GET|HEAD  clientes/form/datos/{id} clientes.form.datos ÔÇ║ AppÔÇª
+  GET|HEAD  clientes/form/{id} clientes.form.editar ÔÇ║ App\HttpÔÇª
+  GET|HEAD  clientes/historial/{id} clientes.historial ÔÇ║ App\HÔÇª
+  POST      clientes/imagen generated::ixBglARZUyR35gBz ÔÇ║ App\ÔÇª
+  POST      clientes/imagen/editar generated::Aj9JnZxh33H6dRlmÔÇª
+  POST      clientes/importar-categorias clientes.importar.catÔÇª
+  GET|HEAD  clientes/listar generated::JNxS86PfMLubFKNP ÔÇ║ App\ÔÇª
+  POST      clientes/observacion/guardar clientes.observacion.ÔÇª
+  GET|HEAD  clientes/observaciones/{id} clientes.observacionesÔÇª
+  GET|HEAD  clientes/plantilla-categorias clientes.plantilla.cÔÇª
+  POST      clientes/preview-categorias clientes.preview.categÔÇª
+  POST      clientes/referencias/guardar clientes.referencias.ÔÇª
+  GET|HEAD  comision/empleados/lista generated::cBkFIxXI4pE0mSÔÇª
+  POST      comision/guardar generated::Th8tgP421csqiGA7 ÔÇ║ AppÔÇª
+  POST      comision/guardar/masivo generated::yeO5z50DvPiZAOUÔÇª
+  GET|HEAD  comision/reporte/empleado generated::mE7q6FfFkoNmkÔÇª
+  GET|HEAD  comision/reporte/excel generated::kyYjnMFBubT2avF6ÔÇª
+  GET|HEAD  comision/reporte/facturas generated::zg5SB2sz4Uf4HÔÇª
+  GET|HEAD  comision/reporte/productos generated::K8WUE8YIteKeÔÇª
+  GET|HEAD  comision/reporte/rol generated::fmVniLiScOoomrXS  ÔÇª
+  GET|HEAD  comision/reporte/usuarios generated::TXlD3QC8x5LMCÔÇª
+  GET|HEAD  comision/roles/lista generated::MJOgjiWdvEMKDC7L  ÔÇª
+  GET|HEAD  comisiones/comisionar generated::2uXjnigHQDjtb5e6 ÔÇª
+  GET|HEAD  comisiones/configuracion generated::2DITklQMiqj8FYÔÇª
+  GET|HEAD  comisiones/configuracion/rol comision.configuracioÔÇª
+  GET|HEAD  comisiones/empleado generated::5LccAzpcb8cokpj7 ÔÇ║ ÔÇª
+  GET|HEAD  comisiones/general generated::QgeOLuMTf1SPtBFc ÔÇ║ AÔÇª
+  GET|HEAD  comisiones/gestion generated::kVYzhctJMWGBaC7D ÔÇ║ AÔÇª
+  GET|HEAD  comisiones/historico generated::qdAnTBhz045R1X5g  ÔÇª
+  GET|HEAD  comisiones/vendedor generated::Oix8fsne0IgasjMT ÔÇ║ ÔÇª
+  GET|HEAD  compra/retencion/documento/{idCompra} generated::xÔÇª
+  GET|HEAD  compras/excel_mes/{mes} generated::rgZgWwi2MAUiAatÔÇª
+  GET|HEAD  comprobante/entrega generated::wCVsLq0KcpXMAn30 ÔÇ║ ÔÇª
+  POST      comprobante/entrega/anular generated::zXwSHcjcB0dtÔÇª
+  GET|HEAD  comprobante/entrega/anular/{idComprobante} generatÔÇª
+  GET|HEAD  comprobante/imprimir/copia/{idComprobante} generatÔÇª
+  GET|HEAD  comprobante/imprimir/{idComprobante} generated::AZÔÇª
+  GET|HEAD  comprovante/clientes/lista generated::lLxLvdK0zbnxÔÇª
+  GET|HEAD  comprovante/entrega/anulados generated::Tlaku2JJNnÔÇª
+  GET|HEAD  comprovante/entrega/listado generated::irmh1N5sh2XÔÇª
+  GET|HEAD  comprovante/entrega/listado/activos generated::BKIÔÇª
+  GET|HEAD  comprovante/entrega/listado/anulados generated::PWÔÇª
+  POST      comprovante/guardar/orden generated::ZHXgHKPyQohj9ÔÇª
+  GET|HEAD  configuracion/datos generated::IbM0i4WbRt2NTSMk ÔÇ║ ÔÇª
+  GET|HEAD  configuracion/datos/compra generated::TnjzOeU26yorÔÇª
+  GET|HEAD  configuracion/excel generated::a1FkjOvKHPcZjuAy ÔÇ║ ÔÇª
+  GET|HEAD  consulta/prod/bodega/{selectBodega} generated::hrkÔÇª
+  GET|HEAD  consulta/{fecha_inicio}/{fecha_final} generated::IÔÇª
+  GET|HEAD  consultaComision/{fecha_inicio}/{fecha_final} geneÔÇª
+  GET|HEAD  contado/{fecha} generated::FBj1zhqqABGP4hde ÔÇ║ App\ÔÇª
+  GET|HEAD  coorporativo/ordenCompra/clientes generated::6mlYhÔÇª
+  GET|HEAD  coorporativo/ordenCompra/listar generated::RHx17BAÔÇª
+  GET|HEAD  cotizacion/clientes generated::QVcrqIVtO6pyaEXS ÔÇ║ ÔÇª
+  GET|HEAD  cotizacion/edicion/{id} generated::xj2xiYtA8kBFz9NÔÇª
+  GET|HEAD  cotizacion/facturar/gobierno/{id} generated::UkRw4ÔÇª
+  GET|HEAD  cotizacion/facturar/{id} generated::EhlLkM97t2ZNMnÔÇª
+  GET|HEAD  cotizacion/imprimir/catalogo/{id} generated::9v0SlÔÇª
+  GET|HEAD  cotizacion/imprimir/{id} generated::ts560WSznKY9zbÔÇª
+  GET|HEAD  cotizacion/listado/expo/{id} generated::Fo7lQHlbicÔÇª
+  GET|HEAD  cotizacion/listado/{id} generated::WG5e5pEzSnhN7JsÔÇª
+  GET|HEAD  cotizacion/listar/bodegas/{idProducto} generated::ÔÇª
+  POST      cotizacion/obtener/listado generated::ZDacJNJE57KZÔÇª
+  POST      cotizacion/obtener/listado/expo generated::cNCxBvUÔÇª
+  GET|HEAD  cotizacion/validar-proforma/{id} generated::s5ioenÔÇª
+  POST      crear/vale/lista/espera/obtenerProductos generatedÔÇª
+  GET|HEAD  crear/vale/lista/espera/{id} generated::r3KulJoCZGÔÇª
+  GET|HEAD  crear/vale/{id} generated::mXKblgQuJhaqs3vC ÔÇ║ App\ÔÇª
+  GET|HEAD  credito/{fecha} generated::8WhU4tdTpKiSaBNJ ÔÇ║ App\ÔÇª
+  GET|HEAD  cuentas/cobrar/lista generated::grkbglg8Sm4qLRav  ÔÇª
+  GET|HEAD  cuentas/por/cobrar/listado generated::1zIaFjEgR3CBÔÇª
+  GET|HEAD  cuentas_por_cobrar/pagos generated::AB7nDBDqjgulvVÔÇª
+  GET|HEAD  cuentas_por_cobrar/pagos/excel_cuentas/{cliente} gÔÇª
+  GET|HEAD  cuentas_por_cobrar/pagos/excel_intereses/{cliente} generated::t1NGIySICUaMYVTq ÔÇ║ App\Http\Livewire\CuentasPorCobrar\Pagos@exportCuentasPorCobrarIntereÔÇª
+  PUT       current-team current-team.update ÔÇ║ Laravel\JetstreÔÇª
+  GET|HEAD  dashboard ............................... dashboard
+  GET|HEAD  datos/mes/actual generated::OE7bLCTcqHEuCZ4W ÔÇ║ AppÔÇª
+  GET|HEAD  datos/mes/anterior generated::oxoWN1FexjdBTKwp ÔÇ║ AÔÇª
+  POST      datos/producto/vale generated::TlHaetJmg9QWCLuq ÔÇ║ ÔÇª
+  GET|HEAD  debito generated::IZsx1uxu7rvAfafQ ÔÇ║ App\Http\LiveÔÇª
+  GET|HEAD  debito/anular/{idNota} generated::hoNls9Pqa1uQJfnXÔÇª
+  GET|HEAD  debito/imprimir/copia/{idFactura} generated::DyABOÔÇª
+  GET|HEAD  debito/imprimir/{idFactura} generated::4At8ycg4PdcÔÇª
+  GET|HEAD  debito/lista/facturas generated::kr4q3kjPfhUuDsfN ÔÇª
+  GET|HEAD  debito/lista/montos generated::CvSraZ7oWO9XJGX9 ÔÇ║ ÔÇª
+  GET|HEAD  debito/lista/notas generated::KOMkeSU8jbT8gfWr ÔÇ║ AÔÇª
+  POST      debito/monto/guardar generated::hwgA2XDcUKSbI8wN  ÔÇª
+  POST      debito/notad/guardar generated::QN8m2zWLjfVmvf2l  ÔÇª
+  GET|HEAD  desactivar/categoria/cliente/{idCategoria} generatÔÇª
+  GET|HEAD  desactivar/categoria/precios/{idCategoria} generatÔÇª
+  POST      desactivar/parametro-comision/{id} parametro.comisÔÇª
+  GET|HEAD  descargar-plantilla excel.plantilla ÔÇ║ ExcelControlÔÇª
+  GET|HEAD  descargar/productos/filtros excel.productos.filtroÔÇª
+  GET|HEAD  desglose/factura/{id} generated::8bMWVLERmyKwf3qt ÔÇª
+  GET|HEAD  desglose/productos/{id} generated::alCexAKXUdfA5hyÔÇª
+  GET|HEAD  detalle/producto/unidad/{id} generated::iPor0PvxJQÔÇª
+  POST      detalle/unidades/editar generated::MktbgQBZIhViDffÔÇª
+  GET|HEAD  detalle/unidades/venta generated::ZEGiPW7b9OVZVW2IÔÇª
+  GET|HEAD  detalle/venta/vendedor/{id} generated::bF0HOriapkrÔÇª
+  GET|HEAD  detalle/venta/{id} generated::tEBebublyweq7LJo ÔÇ║ AÔÇª
+  GET|HEAD  editar/configuracion/{estado} generated::2ChjnCDrbÔÇª
+  POST      editar/cotizacion generated::pzoB2JkfgVxjwIqt ÔÇ║ ApÔÇª
+  POST      eliminar/vale generated::Tys9m1E1bryTXbVi ÔÇ║ App\HtÔÇª
+  GET|HEAD  escalas/productos/filtrados generated::U42hr6nHB2IÔÇª
+  GET|HEAD  estadoCuenta/imprimir/aplicpagos/{idClientepdf} geÔÇª
+  GET|HEAD  estadoCuenta/imprimir/{idClientepdf} generated::AMÔÇª
+  POST      estatal/datos/cliente generated::rWHzfqTop7bf6Jfw ÔÇª
+  POST      estatal/datos/producto generated::OEpADqmnLJUZiI6bÔÇª
+  GET|HEAD  estatal/exonerado generated::xdAgQPz98spJJgze ÔÇ║ ApÔÇª
+  POST      estatal/exonerado/datos generated::AzNpU0fSPKzl0CrÔÇª
+  POST      estatal/exonerado/desactivar generated::QA6srXMqLkÔÇª
+  POST      estatal/exonerado/editar generated::zf61bae6sct7ymÔÇª
+  POST      estatal/exonerado/guardar generated::P3b1zLHfJoeSaÔÇª
+  GET|HEAD  estatal/exonerado/listar generated::tHrzuG0U8rnQhKÔÇª
+  GET|HEAD  estatal/exonerado/listar/clientes generated::ne4fFÔÇª
+  POST      estatal/historial/precios generated::nX2PyBjVtTkz3ÔÇª
+  GET|HEAD  estatal/lista/clientes generated::g067qeayYcDgr4H2ÔÇª
+  GET|HEAD  estatal/listar/bodegas/{idProducto} generated::nK2ÔÇª
+  GET|HEAD  estatal/ordenes generated::8qyqxiELKFOo60zO ÔÇ║ App\ÔÇª
+  POST      estatal/ordenes/datos generated::SSoJx2O69TRYJTpO ÔÇª
+  POST      estatal/ordenes/desactivar generated::KnsAw9RIdc90ÔÇª
+  POST      estatal/ordenes/editar generated::sYwxe0P0gfR25XniÔÇª
+  POST      estatal/ordenes/guardar generated::MP3l7eN4muPfBTvÔÇª
+  GET|HEAD  estatal/ordenes/listar generated::0nZZKa4Q5MGoQtFFÔÇª
+  GET|HEAD  estatal/ordenes/listar/clientes generated::zYVsvmrÔÇª
+  GET|HEAD  estatal/tipo/pago generated::pO2pRLUzHg0oKMfe ÔÇ║ ApÔÇª
+  GET|HEAD  exonerado/actaRec/{id} generated::gc9v0TykPqQKEjfGÔÇª
+  GET|HEAD  exonerado/factura/{id} generated::fPrkQGy8BsX9Cs6XÔÇª
+  GET|HEAD  exonerado/facturaCopia/{id} generated::VUa7PLutus6ÔÇª
+  GET|HEAD  exonerado/lista/clientes generated::gcYgxLwHQVyWuaÔÇª
+  GET|HEAD  exonerado/listar/codigos generated::vhGb5wcVCPDwqeÔÇª
+  GET|HEAD  exonerado/listas/facturas generated::GWFNxUVFDYXZKÔÇª
+  POST      exonerado/venta/guardar generated::oV1TZzfUAGalk6xÔÇª
+  GET|HEAD  exonerado/ventas/lista generated::iX2JRAfY6P5s0UsvÔÇª
+  GET|HEAD  expo/clientes generated::BlA7zHuC4XXt1vTW ÔÇ║ App\HtÔÇª
+  POST      expo/cotizacion generated::CnicVhxb2J7PCFDl ÔÇ║ App\ÔÇª
+  GET|HEAD  expo/cotizacion/{id} generated::LkLBnTRQ52Ya5bny  ÔÇª
+  GET|HEAD  factura/cooporativo/{idFactura} generated::5bJ38fIÔÇª
+  GET|HEAD  factura/cooporativoCopia/{idFactura} generated::A1ÔÇª
+  POST      factura/corporativo/anular generated::M8EHjIrhi7dmÔÇª
+  POST      factura/estatal/anular generated::nmE5BO8VKzFLWqWEÔÇª
+  GET|HEAD  facturaCoor/actaRec/{idFactura} generated::9YNmcRoÔÇª
+  GET|HEAD  facturaDia generated::5MptPRs49Yo75Y1B ÔÇ║ App\Http\ÔÇª
+  GET|HEAD  facturas/corporativo generated::ANcc5NDM2eF9Si0Q  ÔÇª
+  GET|HEAD  facturas/corporativo/lista generated::r6l7Uw2osxFtÔÇª
+  GET|HEAD  facturas/corporativo/lista/nd generated::rjslrGWfZÔÇª
+  GET|HEAD  facturas/corporativo/vendedor generated::oxAQLRUKrÔÇª
+  GET|HEAD  facturas/estatal generated::I8qmDPQWM6IrM5Z2 ÔÇ║ AppÔÇª
+  GET|HEAD  filtros/categoria ..... generated::sAiO4Dbdv7v0zzle
+  GET|HEAD  filtros/categoria/precios generated::RVOEAXzYkg0BcÔÇª
+  GET|HEAD  filtros/marca ......... generated::t88vy0hrmG9wRx4P
+  POST      finalizar-excel-precios finalizar.excel.precios ÔÇ║ ÔÇª
+  GET|HEAD  flujo/oferta/crear/{pedidoId} generated::5Ho8r4YTtÔÇª
+  GET|HEAD  flujo/ofertas generated::3qrNHYwMUIjYMB2o ÔÇ║ App\HtÔÇª
+  GET|HEAD  flujo/pedido generated::DYwlxbAaGtwgYe2M ÔÇ║ App\HttÔÇª
+  GET|HEAD  flujo/pedido/editar/{id} generated::6G0TparWHH1sbYÔÇª
+  GET|HEAD  flujo/pedido/exportar/{id} generated::kpA9XtaIJBQrÔÇª
+  GET|HEAD  flujo/pedido/imprimir/{id} generated::uQBSdYWcNNYAÔÇª
+  GET|HEAD  flujo/pedidos/historico generated::XFP0MZDqS52IGsSÔÇª
+  GET|HEAD  forgot-password password.request ÔÇ║ Laravel\FortifyÔÇª
+  POST      forgot-password password.email ÔÇ║ Laravel\Fortify  ÔÇª
+  POST      guardar/categoria/cliente generated::q6dMUViGBKIoCÔÇª
+  POST      guardar/categoria/precios generated::OPGVJkrgzW47fÔÇª
+  POST      guardar/cotizacion generated::aNK37alCqWxK1O60 ÔÇ║ AÔÇª
+  POST      guardar/oferta generated::qZ2IlGXwNbRkQmxz ÔÇ║ App\HÔÇª
+  POST      guardar/parametro/comision generated::fjAo5UTZP0e8ÔÇª
+  POST      guardar/seccion generated::V1pE9dSw8cNJZgKr ÔÇ║ App\ÔÇª
+  POST      guardar/segmento generated::qQVA7w2MkdpaDDGO ÔÇ║ AppÔÇª
+  POST      guardar/vale generated::RGSPtQZo2Htn7jrJ ÔÇ║ App\HttÔÇª
+  GET|HEAD  historico/listar generated::NqlpmwsRKROPg1LH ÔÇ║ AppÔÇª
+  GET|HEAD  historico/listar/mes generated::8LWgub4vXYIONzBa  ÔÇª
+  GET|HEAD  historico/listar/pagos generated::0bi3gXx8dMNyFgIjÔÇª
+  POST      historico/registrar/pago generated::tSr3RvL8rLhZU8ÔÇª
+  POST      importar-excel generated::jSN9AwgxbayW0qf0 ÔÇ║ ExcelÔÇª
+  GET|HEAD  imprimir/entrega/{idEntrega} generated::tgUi3Wd3qkÔÇª
+  GET|HEAD  info/producto/expo/{id} generated::49UviS8wQKqK8wOÔÇª
+  GET|HEAD  inventario/ajuste/ingreso generated::beUY1EHryXrumÔÇª
+  GET|HEAD  inventario/ajustes generated::3MRInz65OltDo0Tb ÔÇ║ AÔÇª
+  GET|HEAD  inventario/compras/incidencias/{id} generated::eHbÔÇª
+  GET|HEAD  inventario/incidencia/bodega/{id} generated::3ToOAÔÇª
+  GET|HEAD  inventario/incidencia/compra/{id} generated::Ig9fgÔÇª
+  GET|HEAD  inventario/retenciones generated::mMsO2XUMO40RsGYUÔÇª
+  GET|HEAD  inventario/retenciones/listar generated::Qtz3I2givÔÇª
+  GET|HEAD  inventario/tipoajuste generated::j9fGqmqBCwJD5BxU ÔÇª
+  POST      inventario/tipoajuste/datos generated::7CqEOSWaLnTÔÇª
+  POST      inventario/tipoajuste/editar generated::yUZZDcDtoRÔÇª
+  POST      inventario/tipoajuste/guardar generated::OF5FIM9FdÔÇª
+  GET|HEAD  inventario/tipoajuste/listar generated::fYMzZ1Ie6RÔÇª
+  GET|HEAD  inventario/translado generated::IZNEvs6GEA7iyMYW  ÔÇª
+  POST      inventario/unidades/datos generated::qDQEoppriaLdsÔÇª
+  POST      inventario/unidades/editar generated::NR7hAhoXnqbSÔÇª
+  POST      inventario/unidades/guardar generated::2i5vxmc8oBOÔÇª
+  GET|HEAD  inventario/unidades/listar generated::oaJ292V6rVJ9ÔÇª
+  GET|HEAD  inventario/unidades/medida generated::nGdsYGLOlewiÔÇª
+  GET|HEAD  linkstorage ........... generated::1Q4vWLeMY6Oq8g4E
+  GET|HEAD  lista/facturas/corporativo generated::96NrN8Y0T3P5ÔÇª
+  GET|HEAD  lista/facturas/corporativo/vendedor generated::PstÔÇª
+  GET|HEAD  lista/facturas/estatal generated::smmcnt2ZnpTOjiF1ÔÇª
+  GET|HEAD  lista/pagos/venta/{id} generated::NskuJzU9mI97j9qbÔÇª
+  GET|HEAD  lista/producto/vale generated::WUuJdQh1NMWCng0B ÔÇ║ ÔÇª
+  GET|HEAD  lista/productos/factura/{id} generated::W0zwY2fg1lÔÇª
+  GET|HEAD  lista/ubicacion/producto/{id} generated::t4cugbpYBÔÇª
+  GET|HEAD  listado/ajustes generated::UZbx7yCfwLUydeYz ÔÇ║ App\ÔÇª
+  GET|HEAD  listado/cardex/com/{idBodega}/{idProducto} generatÔÇª
+  GET|HEAD  listado/cardex/general/{fecha_inicio}/{fecha_final} generated::mxZwlkXNtzkAjBw5 ÔÇ║ App\Http\Livewire\Cardex\CardexGeneral@listarCardÔÇª
+  GET|HEAD  listado/cardex/nuevo/{idProducto}/{idBodega} generÔÇª
+  GET|HEAD  listado/cardex/{idBodega}/{idProducto} generated::ÔÇª
+  GET|HEAD  listado/nota/debito/corporativo/{fechaInicio}/{fechaFinal} generated::rBWyNKhc3mQ9S0SA ÔÇ║ App\Http\Livewire\NotaDebito\ListadoNotasDebito@listarnoÔÇª
+  GET|HEAD  listado/nota/debito/gobierno/{fechaInicio}/{fechaFinal} generated::Ikmm5Lew0QYFG7Z8 ÔÇ║ App\Http\Livewire\NotaDebito\ListadoNotasDebitoND@listarnotasÔÇª
+  GET|HEAD  listado/ventas/estatal/vendedor generated::BdHH2ilÔÇª
+  GET|HEAD  listar/aplicacion/bancos generated::vVj69MywdJxmaZÔÇª
+  GET|HEAD  listar/categoria/cliente generated::cdZIfSBtx9jS5hÔÇª
+  GET|HEAD  listar/categoria/precios generated::WY6iLdOMuQCmlWÔÇª
+  GET|HEAD  listar/cerradas generated::EWtF9yZo6DxPKhmB ÔÇ║ App\ÔÇª
+  GET|HEAD  listar/empleado/comision generated::FObdemER77btlbÔÇª
+  GET|HEAD  listar/nc/aplicacion/datos/{idNotaCredito} generatÔÇª
+  GET|HEAD  listar/nc/aplicacion/{idFactura} generated::iCfJIhÔÇª
+  GET|HEAD  listar/nd/aplicacion/datos/{idNotaDebito} generateÔÇª
+  GET|HEAD  listar/nd/aplicacion/{idFactura} generated::zazjsRÔÇª
+  GET|HEAD  listar/pagos generated::Wruk9H1456X1qYlA ÔÇ║ App\HttÔÇª
+  GET|HEAD  listar/parametros/comision generated::LamOKMgPy8MGÔÇª
+  GET|HEAD  listar/sinCerrar generated::6T0kwfiA5kk49yJA ÔÇ║ AppÔÇª
+  GET|HEAD  listar/techos generated::Y40TTfRU3fzJGm6R ÔÇ║ App\HtÔÇª
+  GET|HEAD  listar/vale/entrega generated::YpA4vIN8CxTjWAFG ÔÇ║ ÔÇª
+  GET|HEAD  livewire/livewire.js generated::QRqL0vspsCmwt3qD  ÔÇª
+  GET|HEAD  livewire/livewire.js.map generated::DWsFWPcFB78dJ5ÔÇª
+  POST      livewire/message/{name} livewire.message ÔÇ║ LivewirÔÇª
+  GET|HEAD  livewire/preview-file/{filename} livewire.preview-ÔÇª
+  POST      livewire/upload-file livewire.upload-file ÔÇ║ LivewiÔÇª
+  GET|HEAD  login login ÔÇ║ Laravel\Fortify ÔÇ║ AuthenticatedSessiÔÇª
+  POST      login generated::Fz4ndCpEOG0rikwt ÔÇ║ Laravel\FortifÔÇª
+  GET|HEAD  logistica/confirmacion generated::c9ZvYyZpkccVSRxgÔÇª
+  GET|HEAD  logistica/confirmacion/distribuciones logistica.coÔÇª
+  POST      logistica/confirmacion/evidencia generated::CxQlm1ÔÇª
+  GET|HEAD  logistica/confirmacion/evidencias/{distribucionFacturaId} generated::3DP16F7lisD9037E ÔÇ║ App\Http\Livewire\Logistica\ConfirmacionEntrega@obtenerEvÔÇª
+  GET|HEAD  logistica/confirmacion/facturas/{distribucionId} gÔÇª
+  POST      logistica/confirmacion/guardar logistica.confirmacÔÇª
+  GET|HEAD  logistica/confirmacion/incidencias/{incidenciaId}/evidencias generated::8MRHzO7BcrTQEEoW ÔÇ║ App\Http\Livewire\Logistica\ConfirmacionEntrega@obtenerEvidenciaÔÇª
+  POST      logistica/confirmacion/marcar-todos/{distribucionFacturaId} generated::umJsnKhPhkpEdoVD ÔÇ║ App\Http\Livewire\Logistica\ConfirmacionEntrega@marcarTodosÔÇª
+  POST      logistica/confirmacion/productos/incidencias/{incidenciaId}/eliminar generated::oPndO1FW0qA5mXlW ÔÇ║ App\Http\Livewire\Logistica\ConfirmacionEntrega@eliminaÔÇª
+  GET|HEAD  logistica/confirmacion/productos/{productoId}/incidencias generated::5Cy2zj0fX16owYoj ÔÇ║ App\Http\Livewire\Logistica\ConfirmacionEntrega@listarIncidenciasÔÇª
+  POST      logistica/confirmacion/productos/{productoId}/incidencias generated::l8c9sDSHKGmsxwno ÔÇ║ App\Http\Livewire\Logistica\ConfirmacionEntrega@registrarIncidenciaÔÇª
+  GET|HEAD  logistica/confirmacion/reporte/{distribucionId} geÔÇª
+  GET|HEAD  logistica/distribuciones logistica.distribuciones ÔÇª
+  POST      logistica/distribuciones/cancelar/{distribucionId} generated::i5oAaQnkQ5KpEXup ÔÇ║ App\Http\Livewire\Logistica\DistribucionEntrega@cancelarDistribucioÔÇª
+  POST      logistica/distribuciones/completar/{distribucionId} generated::2uE8yM5PA43Dh8QC ÔÇ║ App\Http\Livewire\Logistica\DistribucionEntrega@completarDistribuciÔÇª
+  GET|HEAD  logistica/distribuciones/facturas/{distribucionId} generated::RC39eEsHTyUFJM5I ÔÇ║ App\Http\Livewire\Logistica\DistribucionEntrega@obtenerFacturaÔÇª
+  POST      logistica/distribuciones/guardar logistica.distribÔÇª
+  POST      logistica/distribuciones/iniciar/{distribucionId} ÔÇª
+  GET|HEAD  logistica/distribuciones/listar logistica.distribuÔÇª
+  GET|HEAD  logistica/distribuciones/nueva logistica.distribucÔÇª
+  GET|HEAD  logistica/distribuciones/validar-completar/{distribucionId} generated::Yf8fWSCorymmQn6q ÔÇ║ App\Http\Livewire\Logistica\DistribucionEntrega@validarCompletarDiÔÇª
+  GET|HEAD  logistica/distribuciones/validar-incidencias/{distribucionId} generated::lhX23DWychdg9ZwH ÔÇ║ App\Http\Livewire\Logistica\DistribucionEntrega@validarIncidenciasSiÔÇª
+  GET|HEAD  logistica/equipos generated::s6VcbWBdD5bt5sGv ÔÇ║ ApÔÇª
+  POST      logistica/equipos/actualizar generated::Z7YQma3I4zÔÇª
+  POST      logistica/equipos/agregar-miembro generated::HucCxÔÇª
+  POST      logistica/equipos/desactivar/{equipoId} generated:ÔÇª
+  POST      logistica/equipos/guardar logistica.equipos.guardaÔÇª
+  GET|HEAD  logistica/equipos/listar logistica.equipos.listar ÔÇª
+  GET|HEAD  logistica/equipos/miembros/{equipoId} generated::EÔÇª
+  GET|HEAD  logistica/equipos/obtener/{equipoId} generated::3GÔÇª
+  POST      logistica/equipos/remover-miembro/{miembroId} geneÔÇª
+  POST      logistica/facturas/anular-entrega/{facturaId} geneÔÇª
+  GET|HEAD  logistica/facturas/autocompletado logistica.facturÔÇª
+  GET|HEAD  logistica/facturas/buscar logistica.facturas.buscaÔÇª
+  GET|HEAD  logistica/facturas/clientes-autocompletado logistiÔÇª
+  POST      logistica/facturas/confirmar-entrega/{facturaId} gÔÇª
+  POST      logistica/facturas/desbloquear/{facturaId} generatÔÇª
+  GET|HEAD  logistica/facturas/detalle logistica.facturas.detaÔÇª
+  POST      logistica/facturas/incidencias/tratamiento generatÔÇª
+  GET|HEAD  logistica/facturas/incidencias/{facturaId} generatÔÇª
+  GET|HEAD  logistica/facturas/por-cliente logistica.facturas.ÔÇª
+  GET|HEAD  logistica/facturas/por-cliente-id logistica.facturÔÇª
+  GET|HEAD  logistica/facturas/por-numero logistica.facturas.pÔÇª
+  POST      logout logout ÔÇ║ Laravel\Fortify ÔÇ║ AuthenticatedSesÔÇª
+  GET|HEAD  marca/producto generated::cQzR6VZlxbKaqCUE ÔÇ║ App\HÔÇª
+  PUT       menu/actualizar/{id} generated::1UaobwEU7CFvsZrJ  ÔÇª
+  GET|HEAD  menu/gestion menu.gestion ÔÇ║ App\Http\Livewire\MenuÔÇª
+  POST      menu/guardar generated::ordjzhUMYevSij8h ÔÇ║ MenuConÔÇª
+  GET|HEAD  menu/obtener/{id} generated::zJQ827SAy7dfdo8u ÔÇ║ MeÔÇª
+  GET|HEAD  menu/obtener/{id}/submenus generated::ZJLdAYmuuxcMÔÇª
+  GET|HEAD  nota/credito generated::lQ5dj1xd1H1yGlzG ÔÇ║ App\HttÔÇª
+  POST      nota/credito/anular generated::We04uxDBBzRTdWOi ÔÇ║ ÔÇª
+  GET|HEAD  nota/credito/clientes generated::U3B9ukbsI1PMNIK1 ÔÇª
+  POST      nota/credito/datos/factura generated::bnkWVpFwXrSUÔÇª
+  POST      nota/credito/datos/producto generated::IoGgCd2WBKHÔÇª
+  GET|HEAD  nota/credito/facturas generated::KSYs3EXjrPVbjrtm ÔÇª
+  GET|HEAD  nota/credito/gobierno generated::5vk2StLBtmiwfwWI ÔÇª
+  POST      nota/credito/guardar generated::TVlhjpGYtwW5d7M5  ÔÇª
+  GET|HEAD  nota/credito/imprimir/copia/{idNota} generated::lwÔÇª
+  GET|HEAD  nota/credito/imprimir/{idNota} generated::oRI6im1xÔÇª
+  POST      nota/credito/lista/gobierno generated::97wV2TVw2OQÔÇª
+  GET|HEAD  nota/credito/listado generated::c6DUhD0eS087iWZh  ÔÇª
+  POST      nota/credito/listar generated::QjAXaosk3RmcVxf3 ÔÇ║ ÔÇª
+  GET|HEAD  nota/credito/motivos generated::qM1iwV2YTlwL5WMi  ÔÇª
+  POST      nota/credito/obtener/productos generated::bCyjmGktÔÇª
+  GET|HEAD  nota/debito/lista generated::TlOVCSoGO5KLR5Qd ÔÇ║ ApÔÇª
+  GET|HEAD  nota/debito/lista/gobierno generated::DLqD69Zl1lzyÔÇª
+  POST      obtener/listado/ajustes generated::vzNJbo10a3RIgsxÔÇª
+  GET|HEAD  oferta/clientes generated::Iol3KNztTsHpmbGi ÔÇ║ App\ÔÇª
+  GET|HEAD  oferta/imprimir/{id} generated::HVoItJmKVqYNrQbQ  ÔÇª
+  GET|HEAD  orden/compra .......... generated::KK79GstNGCCDmZwp
+  POST      orden/entrega/estatal/factura generated::bP8e413CfÔÇª
+  GET|HEAD  orden/entrega/facturar/{id} generated::35NVAXSPYBvÔÇª
+  POST      orden/entrega/guardar/factura generated::mYWYPJzK8ÔÇª
+  POST      pagos/cerrar/factura generated::MxYG5KHkfI1ihyDl  ÔÇª
+  POST      pagos/creditos/guardar generated::evtOTCrC91Rv8jGSÔÇª
+  POST      pagos/notacredito/guardar generated::wbyTGCYLLgpu0ÔÇª
+  POST      pagos/notadebito/guardar generated::yVoEkXKPtByODcÔÇª
+  POST      pagos/otrosmov/guardar generated::ZhuKJVnTPE97xAPRÔÇª
+  POST      pagos/retencion/guardar generated::UvHR9pttRKLl4T0ÔÇª
+  GET|HEAD  parametro-comision/{id} generated::VjDP4MFINhVTNJQÔÇª
+  GET|HEAD  precios generated::ezmAbtR46VVjrT8d ÔÇ║ App\Http\LivÔÇª
+  POST      preview-excel-precios preview.excel.precios ÔÇ║ ExceÔÇª
+  POST      procesar-excel-precios procesar.excel.precios ÔÇ║ ExÔÇª
+  POST      prodcuto/compra/datos generated::p3dpT0wY4mWfLTO9 ÔÇª
+  POST      producto/actualizar/costos generated::fHKqFllvBFD7ÔÇª
+  POST      producto/categorias-disponibles generated::FHTWPi2ÔÇª
+  GET|HEAD  producto/compra generated::cgEKeTFWSdnErbEo ÔÇ║ App\ÔÇª
+  POST      producto/compra/anular generated::AEyNE021Xn3rVCF5ÔÇª
+  POST      producto/compra/guardar generated::48O0fLbtTScUK68ÔÇª
+  POST      producto/compra/pagos/comprobar generated::5yuHaRyÔÇª
+  POST      producto/compra/pagos/datos generated::owEdCZwL4JUÔÇª
+  POST      producto/compra/pagos/eliminar generated::g2glVqaUÔÇª
+  GET|HEAD  producto/compra/pagos/lista/{id} generated::PiqBklÔÇª
+  POST      producto/compra/pagos/registro generated::pDOEbGGoÔÇª
+  GET|HEAD  producto/compra/pagos/{id} generated::nXojsfZmjXZ3ÔÇª
+  GET|HEAD  producto/compra/recibir/listar/{id} generated::e24ÔÇª
+  GET|HEAD  producto/compra/recibir/{id} generated::2R3TPnMFCnÔÇª
+  POST      producto/compra/retencion generated::xthMRmXcJbKE9ÔÇª
+  GET|HEAD  producto/compras/detalle/{id} generated::sdKMjsqrmÔÇª
+  GET|HEAD  producto/compras/listar generated::88FOX9ISlNIFTs0ÔÇª
+  GET|HEAD  producto/datos/{id} generated::RDezX9eiDWCn2sGZ ÔÇ║ ÔÇª
+  GET|HEAD  producto/detalle/{id} generated::jBehdqnTf78gzKYa ÔÇª
+  POST      producto/editar generated::rq2WpOmE1XQxZ7ox ÔÇ║ App\ÔÇª
+  POST      producto/eliminar generated::1OBAI692sNn30qE8 ÔÇ║ ApÔÇª
+  GET|HEAD  producto/excel generated::ADa8CQOBrTxscZwH ÔÇ║ App\HÔÇª
+  POST      producto/incidencia/bodega generated::oWxptOI0zGVKÔÇª
+  POST      producto/incidencia/compra generated::IutA3Z8TJpdbÔÇª
+  GET|HEAD  producto/lista/bodega/{id} generated::VwEEpcDhGky8ÔÇª
+  GET|HEAD  producto/lista/proveedores generated::SPhoX6ljgftJÔÇª
+  GET|HEAD  producto/listar/compras generated::R8qGDAZ3LC3lC2MÔÇª
+  POST      producto/listar/imagenes generated::ri3vaparmmQVTdÔÇª
+  GET|HEAD  producto/listar/producto generated::TVAjvdVcn6PD3NÔÇª
+  GET|HEAD  producto/listar/productos generated::R9GKur09cyWLRÔÇª
+  POST      producto/marca/datos generated::ZelRxrPIX8ACwgYx  ÔÇª
+  POST      producto/marca/editar generated::YOtnTF3kfDO2mK8N ÔÇª
+  POST      producto/marca/guardar generated::cj2lGg8orlVwVPUVÔÇª
+  GET|HEAD  producto/marca/listar generated::TI3a5Qbv5cXCk98c ÔÇª
+  GET|HEAD  producto/recibir/Umedidas/{idProducto} generated::ÔÇª
+  GET|HEAD  producto/recibir/bodega generated::LjYeWKbovQuO6n8ÔÇª
+  POST      producto/recibir/datos generated::d6Boha1bd1itoGqcÔÇª
+  POST      producto/recibir/excedente generated::FxV2s7CZCzPoÔÇª
+  POST      producto/recibir/guardar generated::i77Mhkx0gIESsaÔÇª
+  POST      producto/recibir/seccion generated::1VNFbrblsjKUflÔÇª
+  POST      producto/recibir/segmento generated::CVwRtQORjxmSQÔÇª
+  POST      producto/registrar generated::9ZKWPO5tSyHt0ekk ÔÇ║ AÔÇª
+  GET|HEAD  producto/registro generated::U5pUFowEBBUrR471 ÔÇ║ ApÔÇª
+  GET|HEAD  producto/sub_categoria/listar/{id} generated::4n7FÔÇª
+  GET|HEAD  producto/tipo/pagos generated::mcz0FukU6AydQwQr ÔÇ║ ÔÇª
+  GET|HEAD  productos/buscar generated::mCoCLiGPTXD2NfIc ÔÇ║ BusÔÇª
+  GET|HEAD  productos/buscar/categorias generated::juypjOtbM4jÔÇª
+  GET|HEAD  productos/buscar/marcas generated::RWgbiloUq6abaIMÔÇª
+  GET|HEAD  productos/buscar/top-vendidos generated::mfwUk5FLPÔÇª
+  GET|HEAD  productos/listar generated::u4N9eeiQPxxm0jxq ÔÇ║ AppÔÇª
+  GET|HEAD  proforma/cotizacion/2 generated::mNfpTCCl2qooQk0U ÔÇª
+  GET|HEAD  proforma/cotizacion/{id} generated::gscENGZoYTchFRÔÇª
+  GET|HEAD  proforma/imprimir/{id} generated::K4jrKUBjjdpsCwz5ÔÇª
+  GET|HEAD  proveedores generated::jc6IleWUdPayYDPl ÔÇ║ App\HttpÔÇª
+  POST      proveedores/crear generated::AwrJQsK5dIYET7ym ÔÇ║ ApÔÇª
+  POST      proveedores/desactivar generated::1NypHsObPXXcmSw2ÔÇª
+  POST      proveedores/editar generated::LCcf0CuNPo0HH71O ÔÇ║ AÔÇª
+  POST      proveedores/editar/guardar generated::XspvWw3o8d9EÔÇª
+  GET|HEAD  proveedores/listar/proveedores generated::CVNgYi2XÔÇª
+  POST      proveedores/obeter/departamentos generated::FGPIeXÔÇª
+  POST      proveedores/obeter/municipios generated::cVKidqmmZÔÇª
+  POST      proveedores/retencion/crear generated::sHEb1aOAQTvÔÇª
+  GET|HEAD  register register ÔÇ║ Laravel\Fortify ÔÇ║ RegisteredUsÔÇª
+  POST      register generated::PUERQKo49GadRx36 ÔÇ║ Laravel\ForÔÇª
+  GET|HEAD  registro/login registro.login ÔÇ║ App\Http\Livewire\ÔÇª
+  POST      registro/tipoC generated::Oz4yT3RFPBua9WNl ÔÇ║ App\HÔÇª
+  GET|HEAD  reporte/Cierrediariorep generated::2jHXb0qqgB97rpiÔÇª
+  GET|HEAD  reporte/Cierrediariorep/consulta/{tipo}/{fechaInicio}/{fechaFinal} generated::0FRyptvTNEHawC4G ÔÇ║ App\Http\Livewire\Reportes\CierredÔÇª
+  POST      reporte/Cierrediariorep/exportar-excel/{tipo}/{fechaInicio}/{fechaFinal} reporte.Cierrediariorep.excel ÔÇ║ App\Http\Livewire\Reportes\CierreÔÇª
+  POST      reporte/Cierrediariorep/exportar-pdf/{tipo}/{fechaInicio}/{fechaFinal} reporte.Cierrediariorep.pdf ÔÇ║ App\Http\Livewire\Reportes\CierreÔÇª
+  GET|HEAD  reporte/Facturasanuladasrep generated::YBpn2UyJdtNÔÇª
+  GET|HEAD  reporte/Facturasanuladasrep/consulta/{tipo}/{fechaInicio}/{fechaFinal} generated::IiOYoB0uyZHC8KQV ÔÇ║ App\Http\Livewire\Reportes\FacturaÔÇª
+  POST      reporte/Facturasanuladasrep/exportar-excel/{tipo}/{fechaInicio}/{fechaFinal} reporte.Facturasanuladasrep.excel ÔÇ║ App\Http\Livewire\Reportes\FacturÔÇª
+  POST      reporte/Facturasanuladasrep/exportar-pdf/{tipo}/{fechaInicio}/{fechaFinal} reporte.Facturasanuladasrep.pdf ÔÇ║ App\Http\Livewire\Reportes\FacturÔÇª
+  GET|HEAD  reporte/Librocobrosrep generated::41pY6ESwE1lfpRbwÔÇª
+  GET|HEAD  reporte/Librocobrosrep/consulta/{tipo}/{fechaInicio}/{fechaFinal} generated::eDaBbNr8cRnIlcoy ÔÇ║ App\Http\Livewire\Reportes\LibrocoÔÇª
+  POST      reporte/Librocobrosrep/exportar-excel/{tipo}/{fechaInicio}/{fechaFinal} reporte.Librocobrosrep.excel ÔÇ║ App\Http\Livewire\Reportes\LibrocÔÇª
+  POST      reporte/Librocobrosrep/exportar-pdf/{tipo}/{fechaInicio}/{fechaFinal} reporte.Librocobrosrep.pdf ÔÇ║ App\Http\Livewire\Reportes\LibrocÔÇª
+  GET|HEAD  reporte/Libroventarep generated::RXqvOgQ9sZR31V9c ÔÇª
+  GET|HEAD  reporte/Libroventarep/consulta/{tipo}/{fechaInicio}/{fechaFinal} generated::ZPY5J21usFvO4aJa ÔÇ║ App\Http\Livewire\Reportes\LibroveÔÇª
+  POST      reporte/Libroventarep/exportar-excel/{tipo}/{fechaInicio}/{fechaFinal} reporte.libro_venta.excel ÔÇ║ App\Http\Livewire\Reportes\LibrovÔÇª
+  POST      reporte/Libroventarep/exportar-pdf/{tipo}/{fechaInicio}/{fechaFinal} reporte.libro_venta.pdf ÔÇ║ App\Http\Livewire\Reportes\LibrovÔÇª
+  GET|HEAD  reporte/clientes generated::bZUJGTFy0SEMd1Ph ÔÇ║ AppÔÇª
+  GET|HEAD  reporte/clientes/consulta-general/{vendedorId}/{estado} generated::epKhp7rkqm1wxHNM ÔÇ║ App\Http\Livewire\Clientes\ReporteClientes@consultaGÔÇª
+  GET|HEAD  reporte/clientes/consulta-gobierno/{vendedorId}/{estado} generated::1gsHK3kEWJFFyr8e ÔÇ║ App\Http\Livewire\Clientes\ReporteClientes@consultaGÔÇª
+  GET|HEAD  reporte/clientes/consulta-sincredito/{vendedorId}/{estado} generated::PRrdFBDFCX5UODxi ÔÇ║ App\Http\Livewire\Clientes\ReporteClientes@consultaSÔÇª
+  POST      reporte/clientes/exportar-excel/{vendedorId}/{estado} reporte.clientes.excel ÔÇ║ App\Http\Livewire\Clientes\ReporteClientes@exportarEÔÇª
+  POST      reporte/clientes/exportar-pdf/{vendedorId}/{estado} reporte.clientes.pdf ÔÇ║ App\Http\Livewire\Clientes\ReporteClientes@exportarPÔÇª
+  GET|HEAD  reporte/comision generated::J3RbXbND3z26R0Z2 ÔÇ║ AppÔÇª
+  GET|HEAD  reporte/comisiones generated::rZx2QMmWrGrQqTIA ÔÇ║ AÔÇª
+  GET|HEAD  reporte/comisiones/consulta/{fechaInicio}/{fechaFinal}/{vendedor} generated::GrrWi95t0reF1D3Q ÔÇ║ App\Http\Livewire\Reportes\ComÔÇª
+  GET|HEAD  reporte/expo/pedidos/{fecha_inicio}/{fecha_final} ÔÇª
+  GET|HEAD  reporte/reporteria generated::P9SOmBsGtbIz5MHI ÔÇ║ AÔÇª
+  GET|HEAD  reporte/reporteria/clientes generated::Tfm1DwQ4rDLÔÇª
+  GET|HEAD  reporte/reporteria/consulta/{fecha_inicio}/{fecha_final} generated::DcLwu6fiXGPsnV4f ÔÇ║ App\Http\Livewire\Reportes\Reporteria@cÔÇª
+  GET|HEAD  reporte/reporteria/productos generated::3hk0qVfJCnÔÇª
+  GET|HEAD  reporte/ventas-cobros generated::mTF2y0R1fwXrtEHG ÔÇª
+  GET|HEAD  reporte/ventas-cobros/consulta/{vendedorId}/{clienteId}/{mes}/{anio} generated::wDW826b15X4wuhRP ÔÇ║ App\Http\Livewire\Reportes\ReporteVeÔÇª
+  POST      reporte/ventas-cobros/exportar-excel/{vendedorId}/{clienteId}/{mes}/{anio} reporte.ventas_cobros.excel ÔÇ║ App\Http\Livewire\Reportes\ReporteVÔÇª
+  POST      reporte/ventas-cobros/exportar-pdf/{vendedorId}/{clienteId}/{mes}/{anio} reporte.ventas_cobros.pdf ÔÇ║ App\Http\Livewire\Reportes\ReporteVÔÇª
+  GET|HEAD  reportes/escalas generated::cW3rVjCefowTqyI4 ÔÇ║ AppÔÇª
+  GET|HEAD  reportes/expo generated::6RbObyhhmN2n1Ozz ÔÇ║ App\HtÔÇª
+  POST      reset-password password.update ÔÇ║ Laravel\Fortify  ÔÇª
+  GET|HEAD  reset-password/{token} password.reset ÔÇ║ Laravel\FoÔÇª
+  PUT       roles/actualizar/{id} generated::IlVbtUUuc2tN2MoA ÔÇª
+  POST      roles/cambiar-estado/{id} generated::0ACEVv7hFFIzRÔÇª
+  DELETE    roles/eliminar/{id} generated::eotPsYJ34npfBJpX ÔÇ║ ÔÇª
+  GET|HEAD  roles/estados generated::wHHTnVQiNYr8YHoQ ÔÇ║ App\HtÔÇª
+  POST      roles/guardar generated::zoebOF7UQVPj3EPG ÔÇ║ App\HtÔÇª
+  GET|HEAD  roles/listar generated::vNnYrbGNCeUmx4f0 ÔÇ║ App\HttÔÇª
+  GET|HEAD  roles/obtener/{id} generated::0fPVMLGnKyFuEakt ÔÇ║ AÔÇª
+  POST      roles/{id}/agregar-usuario generated::3SQoIbbjnUu1ÔÇª
+  GET|HEAD  roles/{id}/permisos generated::IlW4Ez24cyPeaicL ÔÇ║ ÔÇª
+  POST      roles/{id}/quitar-usuario generated::VsCT2WTiCpkwjÔÇª
+  GET|HEAD  roles/{id}/usuarios generated::mPpKUO0pJ5cXSQGn ÔÇ║ ÔÇª
+  POST      ruta/imagen/edit generated::St2q87cNAwWFWjzV ÔÇ║ AppÔÇª
+  GET|HEAD  sanctum/csrf-cookie generated::wwC6ougH4lj0iNsD ÔÇ║ ÔÇª
+  POST      sub_categoria/datos generated::5G1GnwmBKeLzeyM8 ÔÇ║ ÔÇª
+  POST      sub_categoria/editar generated::Z1MnJHy84Oegt0sI  ÔÇª
+  POST      sub_categoria/guardar generated::s3utT9SCTTD5Yul4 ÔÇª
+  GET|HEAD  sub_categoria/listar generated::yz0U02Pk7Larn8Ev  ÔÇª
+  GET|HEAD  sub_categoria/listar/categorias generated::QR34lVyÔÇª
+  GET|HEAD  sub_categoria/sub_categorias generated::Hc67w31fOmÔÇª
+  PUT       submenu/actualizar/{id} generated::pyjwYJJhID0JEQFÔÇª
+  POST      submenu/guardar generated::PSBsd14VkXJOpLVy ÔÇ║ MenuÔÇª
+  GET|HEAD  submenu/obtener/{id} generated::KlYvNaMagKZ3ZF2m  ÔÇª
+  POST      submenu/toggle-estado/{id} generated::XmAyFTIrgiTtÔÇª
+  GET|HEAD  submenus/todos generated::Z8RB6Y2pCOMnrnhT ÔÇ║ App\HÔÇª
+  GET|HEAD  team-invitations/{invitation} team-invitations.accÔÇª
+  GET|HEAD  teams/create teams.create ÔÇ║ Laravel\Jetstream ÔÇ║ TeÔÇª
+  GET|HEAD  teams/{team} teams.show ÔÇ║ Laravel\Jetstream ÔÇ║ TeamÔÇª
+  POST      techo/editar generated::b94zVQx3QBDwmkZC ÔÇ║ App\HttÔÇª
+  POST      techo/guardar generated::HLxDPfTL5FUFVgeV ÔÇ║ App\HtÔÇª
+  GET|HEAD  translado/buscar/categorias generated::nyifu12xGjIÔÇª
+  GET|HEAD  translado/buscar/marcas generated::cs86z9XVoFFFoaDÔÇª
+  GET|HEAD  translado/buscar/productos generated::TT48xqJC42ChÔÇª
+  GET|HEAD  translado/buscar/top-trasladados generated::3ePyPwÔÇª
+  GET|HEAD  translado/destino/lista/{numeroFilas} generated::QÔÇª
+  GET|HEAD  translado/imprimir/{id} generated::hNLRSoS8lQZYEAcÔÇª
+  GET|HEAD  translado/lista/bodegas generated::hAQjKMLqDgyi7L2ÔÇª
+  GET|HEAD  translado/lista/productos generated::eZZCNhViNqbDJÔÇª
+  POST      translado/producto/bodega generated::VSGGsGAwAKB6cÔÇª
+  GET|HEAD  translado/producto/lista/{idBodega}/{idProducto} gÔÇª
+  GET|HEAD  translados/bodegas generated::SpYTtNMh5Onr68go ÔÇ║ AÔÇª
+  GET|HEAD  translados/historial generated::e60GKdwdwXgxePaY  ÔÇª
+  POST      translados/obtener/listado generated::fAeSkoBPx7xiÔÇª
+  POST      translados/obtener/por-traslado generated::pyAlZc5ÔÇª
+  GET|HEAD  user/confirm-password generated::5HiqwDUS13z0QJy5 ÔÇª
+  POST      user/confirm-password password.confirm ÔÇ║ Laravel\FÔÇª
+  GET|HEAD  user/confirmed-password-status password.confirmatiÔÇª
+  PUT       user/password user-password.update ÔÇ║ Laravel\FortiÔÇª
+  GET|HEAD  user/profile profile.show ÔÇ║ Laravel\Jetstream ÔÇ║ UsÔÇª
+  PUT       user/profile-information user-profile-information.ÔÇª
+  GET|HEAD  usuario/activar/{idUsuario} generated::q5M1lU5HuWXÔÇª
+  POST      usuario/actualizar generated::4fVRTjXgezrqK36d ÔÇ║ AÔÇª
+  GET|HEAD  usuario/baja/{idUsuario} generated::P9Yhao5t8lG7ERÔÇª
+  POST      usuario/cambiar-contrasena generated::YrySQ6T4tlfdÔÇª
+  POST      usuario/guardar generated::7VVaqnRLiBdeSWT4 ÔÇ║ App\ÔÇª
+  GET|HEAD  usuario/info/{idUsuario} generated::2eDhhv66hkw69PÔÇª
+  GET|HEAD  usuario/roles/todos generated::N5AOGq8wb10koJki ÔÇ║ ÔÇª
+  GET|HEAD  usuario/roles/{idRol} generated::ayP7XS4mtatdmaqj ÔÇª
+  GET|HEAD  usuarios generated::rI8AKtxHfnA6gfHR ÔÇ║ App\Http\LiÔÇª
+  GET|HEAD  usuarios/dashboard usuarios.dashboard ÔÇ║ App\Http\LÔÇª
+  GET|HEAD  usuarios/listar/usuarios generated::FWekt6R906McOVÔÇª
+  GET|HEAD  usuarios/roles roles.gestion ÔÇ║ App\Http\Livewire\UÔÇª
+  GET|HEAD  usuarios/todos generated::puCiWL0BFaa4TI88 ÔÇ║ App\HÔÇª
+  GET|HEAD  usuarios/widgets usuarios.widgets ÔÇ║ App\Http\LivewÔÇª
+  GET|HEAD  usuarios/{id}/rol-anterior generated::EOyOiTjXoadAÔÇª
+  GET|HEAD  vale/comentarios/{id} generated::B8aMWmVxSUJGuNPa ÔÇª
+  GET|HEAD  vale/crear/factura/{id} generated::T0zaPwy9jbw82F0ÔÇª
+  GET|HEAD  vale/imprimir/{id} generated::FQajyC8oPCgbjUVn ÔÇ║ AÔÇª
+  POST      vale/lista/espera/guardar generated::moaqRGXXtPuIDÔÇª
+  GET|HEAD  vale/listado/facturas generated::VItrkQVyT40Loy8S ÔÇª
+  GET|HEAD  vale/listado/facturas/obtener generated::qATdgGM0xÔÇª
+  GET|HEAD  vale/listado/general generated::BT5DrcTLsX9KM0C2  ÔÇª
+  GET|HEAD  vale/restar/inventario generated::lXZszPAL76TFsA9bÔÇª
+  GET|HEAD  vale/restar/lista generated::lmEYIZguqVEb3FTF ÔÇ║ ApÔÇª
+  POST      vale/restar/lista/anular generated::HD6zt23gxUDoP5ÔÇª
+  POST      vale/restar/lista/eliminar generated::RwE0MiLKNrvgÔÇª
+  POST      venta/cobro/eliminar generated::fSyCsE9tNxaStz1m  ÔÇª
+  GET|HEAD  venta/cobro/{id} generated::dV31RlLbIphsokxs ÔÇ║ AppÔÇª
+  POST      venta/datos/compra generated::l43hKkMpA7D7AZEp ÔÇ║ AÔÇª
+  GET|HEAD  venta/litsado/pagos/{id} generated::bZRTHS7zECd5BiÔÇª
+  POST      venta/registro/cobro generated::Gxg1vVB9Tmiyk8j0  ÔÇª
+  GET|HEAD  ventas/Configuracion generated::du89l9VB9JJcYuKZ  ÔÇª
+  POST      ventas/anulado/detalle generated::lMKlMm23jcldp8feÔÇª
+  POST      ventas/anulado/listado generated::5iqqVcQadOXgbwbTÔÇª
+  GET|HEAD  ventas/anulado/{id} generated::gygTARbt4pyDHZd0 ÔÇ║ ÔÇª
+  POST      ventas/autorizacion/desactivar generated::9XMJsOBRÔÇª
+  POST      ventas/bloquear/estado generated::MFI9esYQXb64o6WTÔÇª
+  GET|HEAD  ventas/cai generated::TIjCCmvj3L4B27VB ÔÇ║ App\Http\ÔÇª
+  POST      ventas/cai/boleta/guardar generated::kSVKtLyFv10w5ÔÇª
+  POST      ventas/cai/datos generated::ErFt4a0qRQxUTDu5 ÔÇ║ AppÔÇª
+  POST      ventas/cai/editar generated::Xxyl2v5YGQhVStr6 ÔÇ║ ApÔÇª
+  POST      ventas/cai/guardar generated::r4r9aBu5K5UWCLnq ÔÇ║ AÔÇª
+  GET|HEAD  ventas/cai/listar generated::bJ6Pa1VuWZv6jxuZ ÔÇ║ ApÔÇª
+  POST      ventas/cambio generated::tTQbe3tkZWkdK94K ÔÇ║ App\HtÔÇª
+  GET|HEAD  ventas/coorporativo/orden/compra generated::w9xexGÔÇª
+  GET|HEAD  ventas/coporativo generated::LlZlL1AriksMHFWV ÔÇ║ ApÔÇª
+  POST      ventas/corporativo/guardar generated::tPPDZvBBKXcnÔÇª
+  GET|HEAD  ventas/corporativo/vendedores generated::s2RisWtQxÔÇª
+  GET|HEAD  ventas/cuentas_por_cobrar generated::anqlvUOD3OWQIÔÇª
+  GET|HEAD  ventas/cuentas_por_cobrar/clientes generated::Wh0wÔÇª
+  GET|HEAD  ventas/cuentas_por_cobrar/excel_cuentas/{cliente} ÔÇª
+  GET|HEAD  ventas/cuentas_por_cobrar/excel_intereses/{cliente} generated::LmTnHJ3q8kBhW67C ÔÇ║ App\Http\Livewire\Ventas\CuentasPorCobrar@exportCuentasPorCobrarInterÔÇª
+  GET|HEAD  ventas/cuentas_por_cobrar/listar/{id} generated::LÔÇª
+  GET|HEAD  ventas/cuentas_por_cobrar/listar_intereses/{id} geÔÇª
+  POST      ventas/datos/cliente generated::BKFwYbaGe9kipPrV  ÔÇª
+  POST      ventas/datos/producto generated::dYav48BXX2GfmIMN ÔÇª
+  POST      ventas/datos/producto/expo generated::ImlCNmGGDSDDÔÇª
+  GET|HEAD  ventas/estado/dc/{idFactura} generated::5uSckAPXFVÔÇª
+  GET|HEAD  ventas/estado/nd/{idFactura} generated::Mp6iNQK0a5ÔÇª
+  GET|HEAD  ventas/estatal generated::iSBxg5KgzUfoODU3 ÔÇ║ App\HÔÇª
+  POST      ventas/estatal/guardar generated::4mjmjwAfPc4t1CJEÔÇª
+  GET|HEAD  ventas/estatal/vendedor generated::DB6li5ShxCsZvqEÔÇª
+  GET|HEAD  ventas/exonerado/factura generated::Js2sgh8QV91ovVÔÇª
+  POST      ventas/historico/precios generated::qEq5wZ9mVkU0o4ÔÇª
+  GET|HEAD  ventas/historico_precios/clientes generated::6NWIIÔÇª
+  GET|HEAD  ventas/historico_precios/productos generated::ukLzÔÇª
+  GET|HEAD  ventas/historico_precios_cliente generated::PIAKb6ÔÇª
+  GET|HEAD  ventas/lista/clientes generated::2O8mm1sZKLA6ufah ÔÇª
+  GET|HEAD  ventas/lista/seleccionar generated::Cg1nuaicWL9F83ÔÇª
+  GET|HEAD  ventas/listado/comparacion generated::4oZDlKIVVZqJÔÇª
+  POST      ventas/listado/dos generated::wSTTT4V0YVKOBx7A ÔÇ║ AÔÇª
+  POST      ventas/listado/uno generated::tbBeYppernmI4Mrf ÔÇ║ AÔÇª
+  GET|HEAD  ventas/listar generated::l0DFAoBBQqBAEOBX ÔÇ║ App\HtÔÇª
+  GET|HEAD  ventas/listar/bodegas/{idProducto} generated::7gKJÔÇª
+  GET|HEAD  ventas/motivo_credito generated::JS6gQYBghyZMxu3o ÔÇª
+  POST      ventas/motivo_credito/datos generated::KQ7uagpkFTwÔÇª
+  POST      ventas/motivo_credito/editar generated::L9NCNC2ZkrÔÇª
+  POST      ventas/motivo_credito/guardar generated::w2QoRZpmNÔÇª
+  GET|HEAD  ventas/motivo_credito/listar generated::ItVY51AQvqÔÇª
+  GET|HEAD  ventas/numero/orden generated::SGvtvlT43QrNydpD ÔÇ║ ÔÇª
+  GET|HEAD  ventas/seleccionar generated::Q0hZkjdCVNH01iee ÔÇ║ AÔÇª
+  POST      ventas/seleccionar/mayor generated::42I8sA9Vp1WadfÔÇª
+  POST      ventas/seleccionar/menor generated::drEhtTBNcb8wQ6ÔÇª
+  GET|HEAD  ventas/sin/restriccion/gobierno generated::9TDQFMIÔÇª
+  GET|HEAD  ventas/sin/restriccion/precio generated::5iX0InGM4ÔÇª
+  GET|HEAD  ventas/solicitud/codigo generated::nu0zsZSq3LYqRnjÔÇª
+  GET|HEAD  ventas/tipo/pago generated::9e6gm1RVzHAxwmWm ÔÇ║ AppÔÇª
+  POST      ventas/verificar/codigo generated::6lu5Hu9FW09FW40ÔÇª
+  POST      {locale}/livewire/message/{name} livewire.message-ÔÇª
+
+                                           Showing [653] routes
+

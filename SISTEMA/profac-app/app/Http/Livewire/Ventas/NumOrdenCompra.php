@@ -16,7 +16,7 @@ class NumOrdenCompra extends Component
 {
     public function render()
     {
-        return view('livewire.ventas.num-orden-compra');
+        return view('livewire.ventas.num-orden-compra-unificado', ['tipoCliente' => 'corporativo', 'nombreTipo' => 'Clientes B']); // Vista unificada
     }
 
     public function listarNumOrdenCompraCoorporativo(){
@@ -26,9 +26,9 @@ class NumOrdenCompra extends Component
         $num_orden_compras = DB::table('numero_orden_compra')
                                 ->join('cliente', 'numero_orden_compra.cliente_id', '=', 'cliente.id')
                                 ->join('users', 'numero_orden_compra.users_id', '=', 'users.id')
-                                ->select('numero_orden_compra.id', 'numero_orden_compra.numero_orden','cliente.nombre', 'users.name','estado_id')
-                                ->where('numero_orden_compra.estado_id', '=', '1')          
-                                ->where('cliente.tipo_cliente_id', '=', '1')                           
+                                ->select('numero_orden_compra.id', 'numero_orden_compra.numero_orden','cliente.nombre', 'users.name','numero_orden_compra.estado_id')
+                                ->where('numero_orden_compra.estado_id', '=', '1')
+                                ->where('cliente.tipo_cliente_id', '=', '1')
                                 ->get();
 
         return Datatables::of($num_orden_compras)
@@ -60,7 +60,7 @@ class NumOrdenCompra extends Component
 
                                 <li>
                                     <a class="dropdown-item" onclick="datosNumOrdenCompra('.$num_orden_compra->id.')" >
-                                        <i class="fa-solid fa-arrows-to-eye text-info"></i> Editar 
+                                        <i class="fa-solid fa-arrows-to-eye text-info"></i> Editar
                                     </a>
                                 </li>
                                 <li>
@@ -75,7 +75,7 @@ class NumOrdenCompra extends Component
                     }
 
                 })
-            
+
 
                 ->rawColumns(['opciones'])
                 ->make(true);
@@ -91,15 +91,15 @@ class NumOrdenCompra extends Component
 
     public function listarClientesCoorporativo(){
         try {
- 
+
          $clientes = DB::SELECT("select id, nombre from cliente where tipo_cliente_id = 1 order by nombre asc");
- 
+
         return response()->json([
          "clientes"=>$clientes,
         ],200);
         } catch (QueryException $e) {
         return response()->json([
-         'message' => 'Ha ocurrido un error', 
+         'message' => 'Ha ocurrido un error',
          'error' => $e
         ],402);
         }
