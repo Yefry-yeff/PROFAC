@@ -1721,7 +1721,7 @@
                             ¿Anular la <strong>Factura #{{ $fac['id'] }}</strong>?
                         </p>
                         <p style="font-size:11px; color:#888; margin:0 0 10px;">
-                            Si la prefactura está vigente, el flujo regresará a Prefactura. Si está vencida, regresará a Ofertas con validación de precios.
+                            El flujo regresará a Ofertas. La oferta ganadora quedará disponible para re-seleccionarse.
                         </p>
                         <div style="margin-bottom:10px;">
                             <label style="font-size:12px; font-weight:700; color:#c0392b; display:block; margin-bottom:4px;">

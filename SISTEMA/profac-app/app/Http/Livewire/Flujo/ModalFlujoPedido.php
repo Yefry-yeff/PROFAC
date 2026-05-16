@@ -1811,7 +1811,7 @@ class ModalFlujoPedido extends Component
 
         DB::beginTransaction();
         try {
-            // 1) Inactivar registro de factura (tipo 3 / legacy tipo 5 con tramite_id)
+            // 1) Inactivar registro de factura en historico_flujo
             DB::table('historico_flujo')
                 ->where('flujo_id', $this->flujoId)
                 ->whereIn('tipo_tramite_id', [3, 5])
@@ -1822,7 +1822,7 @@ class ModalFlujoPedido extends Component
                     'updated_at'    => now(),
                 ]);
 
-            // 1b) Inactivar registros de Entrega (tipo 5) y Cobro (tipo 6) del nuevo modelo
+            // 2) Inactivar registros de Entrega (tipo 5) y Cobro (tipo 6)
             DB::table('historico_flujo')
                 ->where('flujo_id', $this->flujoId)
                 ->whereIn('tipo_tramite_id', [5, 6])
@@ -1833,83 +1833,88 @@ class ModalFlujoPedido extends Component
                     'updated_at'    => now(),
                 ]);
 
-            // 2) Regla de negocio:
-            //    - prefactura vigente -> volver a Prefactura
-            //    - prefactura vencida/no activa -> volver a Ofertas y validar precios
+            // 3) Inactivar la prefactura más reciente de este flujo (sin filtrar por estado,
+            //    porque tras facturar el estado puede haber cambiado a 'facturado' u otro).
             $prefActiva = DB::table('prefactura')
                 ->where('flujo_id', $this->flujoId)
-                ->where('estado', 'activo')
                 ->orderByDesc('id')
                 ->first();
 
-            $prefVigente = false;
-            if ($prefActiva && !empty($prefActiva->fecha_vencimiento)) {
-                $prefVigente = now()->startOfDay()->lte(
-                    \Carbon\Carbon::parse($prefActiva->fecha_vencimiento)->startOfDay()
-                );
+            if ($prefActiva) {
+                DB::table('prefactura')
+                    ->where('id', $prefActiva->id)
+                    ->update(['estado' => 'inactive', 'updated_at' => now()]);
+
+                DB::table('historico_flujo')
+                    ->where('flujo_id', $this->flujoId)
+                    ->where('tipo_tramite_id', 4)
+                    ->where('tramite_id', $prefActiva->id)
+                    ->update([
+                        'estado_id'     => 7,
+                        'observaciones' => 'Inactivada por anulación de Factura #' . $facturaId . '. Motivo: ' . $motivo,
+                        'updated_at'    => now(),
+                    ]);
             }
 
-            if ($prefActiva && $prefVigente) {
-                DB::table('flujo')->where('id', $this->flujoId)->update([
-                    'tipo_tramite_id' => 4,
-                    'updated_by'      => Auth::id(),
-                    'updated_at'      => now(),
-                ]);
-                $this->mensajeExito = 'Factura #' . $facturaId . ' anulada. El flujo volvió a Prefactura.';
-            } else {
-                // Regresar a ofertas y validar vigencia de precios
-                DB::table('flujo')->where('id', $this->flujoId)->update([
-                    'tipo_tramite_id' => 2,
-                    'updated_by'      => Auth::id(),
-                    'updated_at'      => now(),
-                ]);
-                $cotizaciones = DB::table('historico_flujo')
+            // 4) Quitar ganadora — buscar directamente en historico_flujo (más fiable que
+            //    vía prefactura, cuyo cotizacion_id podría ser null o indisponible).
+            $cotizacionId = DB::table('historico_flujo')
+                ->where('flujo_id', $this->flujoId)
+                ->where('tipo_tramite_id', 2)
+                ->where('observaciones', 'ganadora')
+                ->value('tramite_id');
+
+            if ($cotizacionId) {
+                DB::table('historico_flujo')
                     ->where('flujo_id', $this->flujoId)
                     ->where('tipo_tramite_id', 2)
-                    ->whereNotIn('observaciones', ['ganadora'])
-                    ->whereRaw('(observaciones NOT LIKE ? OR observaciones IS NULL)', ['Anulado:%'])
-                    ->pluck('tramite_id')
-                    ->unique();
+                    ->where('tramite_id', $cotizacionId)
+                    ->where('observaciones', 'ganadora')
+                    ->update([
+                        'observaciones' => 'QuitadaGanadora: Factura anulada. Motivo: ' . $motivo,
+                        'updated_at'    => now(),
+                    ]);
 
-                foreach ($cotizaciones as $cotId) {
-                    $preciosCambiaron = $this->verificarCambioPrecios((int) $cotId);
-
-                    if ($preciosCambiaron) {
-                        DB::table('cotizacion')
-                            ->where('id', $cotId)
-                            ->update(['estado_id' => 2, 'updated_at' => now()]);
-
-                        DB::table('historico_flujo')
-                            ->where('flujo_id', $this->flujoId)
-                            ->where('tipo_tramite_id', 2)
-                            ->where('tramite_id', $cotId)
-                            ->update([
-                                'observaciones' => 'VencidaPrecios: Factura anulada, precios cambiaron',
-                                'updated_at'    => now(),
-                            ]);
-                    } else {
-                        DB::table('cotizacion_estado')->insert([
-                            'cotizacion_id' => $cotId,
-                            'flujo_id'      => $this->flujoId,
-                            'ganadora'      => 2,
-                            'comentario'    => 'Oferta activa tras anulación de factura, precios sin cambio',
-                            'estado_id'     => 1,
-                            'created_by'    => Auth::id(),
-                            'updated_by'    => Auth::id(),
-                            'created_at'    => now(),
-                            'updated_at'    => now(),
-                        ]);
-                    }
-                }
-
-                $this->mensajeExito = 'Factura #' . $facturaId . ' anulada. El flujo volvió a Ofertas con validación de precios.';
+                DB::table('cotizacion_estado')->insert([
+                    'cotizacion_id' => $cotizacionId,
+                    'flujo_id'      => $this->flujoId,
+                    'ganadora'      => 2,
+                    'comentario'    => 'Factura #' . $facturaId . ' anulada. Motivo: ' . $motivo,
+                    'estado_id'     => 1,
+                    'created_by'    => Auth::id(),
+                    'updated_by'    => Auth::id(),
+                    'created_at'    => now(),
+                    'updated_at'    => now(),
+                ]);
             }
 
+            // 5) Resetear ciclo de Rev. Inventario para que empiece desde cero
+            DB::table('historico_flujo')
+                ->where('flujo_id', $this->flujoId)
+                ->where('tipo_tramite_id', 9)
+                ->delete();
+
+            // 6) Resetear ciclo de Rev. Crédito (historico_flujo tipo=10).
+            //    El registro en credito_revision se conserva para que creditoVigenteParaFlujo()
+            //    pueda omitir Rev. Crédito si el crédito sigue vigente al re-seleccionar ganadora.
+            DB::table('historico_flujo')
+                ->where('flujo_id', $this->flujoId)
+                ->where('tipo_tramite_id', 10)
+                ->delete();
+
+            // 7) Retroceder flujo a Ofertas
+            DB::table('flujo')->where('id', $this->flujoId)->update([
+                'tipo_tramite_id' => 2,
+                'updated_by'      => Auth::id(),
+                'updated_at'      => now(),
+            ]);
+
             DB::commit();
-            $this->confirmAccionFactura    = null;
-            $this->motivoAnulacionFactura  = '';
-            $this->facturaData             = null;
-            $this->saldoPendienteFactura   = null;
+            $this->confirmAccionFactura   = null;
+            $this->motivoAnulacionFactura = '';
+            $this->facturaData            = null;
+            $this->saldoPendienteFactura  = null;
+            $this->mensajeExito = 'Factura #' . $facturaId . ' anulada. El flujo volvió a Ofertas.';
             $this->emit('pedidoActualizado');
             $this->recargar();
         } catch (\Exception $e) {
