@@ -76,6 +76,42 @@ class DistribucionEntrega extends Component
                 'total_facturas' => count($data['facturas'])
             ]);
 
+            // Verificar que ninguna factura esté ya en otra distribución activa
+            $editarId     = $data['editar_id'] ?? null;
+            $facturaIds   = $data['facturas'];
+            $placeholders = implode(',', array_fill(0, count($facturaIds), '?'));
+            $whereEditar  = $editarId ? ' AND de.id != ?' : '';
+            $params       = $facturaIds;
+            if ($editarId) {
+                $params[] = (int) $editarId;
+            }
+
+            $bloqueadas = DB::select("
+                SELECT def.factura_id, f.cai, de.id as distribucion_id, ee.nombre_equipo
+                FROM distribuciones_entrega_facturas def
+                INNER JOIN distribuciones_entrega de ON def.distribucion_entrega_id = de.id
+                INNER JOIN factura f ON def.factura_id = f.id
+                INNER JOIN equipos_entrega ee ON de.equipo_entrega_id = ee.id
+                WHERE def.factura_id IN ({$placeholders})
+                AND de.estado_id IN (1, 2)
+                AND def.estado_entrega != 'anulada'
+                {$whereEditar}
+            ", $params);
+
+            if (!empty($bloqueadas)) {
+                $detalle = implode('; ', array_map(
+                    fn($b) => "#$b->cai (Equipo: $b->nombre_equipo)",
+                    $bloqueadas
+                ));
+                Log::warning('Facturas ya asignadas detectadas al guardar:', ['bloqueadas' => $bloqueadas]);
+                return response()->json([
+                    'icon'       => 'warning',
+                    'title'      => 'Facturas ya asignadas',
+                    'text'       => "Las siguientes facturas ya están en otra distribución activa: $detalle",
+                    'bloqueadas' => $bloqueadas,
+                ], 422);
+            }
+
             DB::beginTransaction();
             Log::info('Transacción iniciada');
 
@@ -1796,16 +1832,25 @@ class DistribucionEntrega extends Component
                 return response()->json(['disponibles' => true, 'bloqueadas' => []], 200);
             }
 
+            $editarId    = $request->input('editar_id');
             $placeholders = implode(',', array_fill(0, count($facturaIds), '?'));
+            $whereEditar  = $editarId ? ' AND de.id != ?' : '';
+            $params       = $facturaIds;
+            if ($editarId) {
+                $params[] = (int) $editarId;
+            }
+
             $bloqueadas = DB::select("
-                SELECT def.factura_id, f.cai, de.id as distribucion_id
+                SELECT def.factura_id, f.cai, de.id as distribucion_id, ee.nombre_equipo
                 FROM distribuciones_entrega_facturas def
                 INNER JOIN distribuciones_entrega de ON def.distribucion_entrega_id = de.id
                 INNER JOIN factura f ON def.factura_id = f.id
+                INNER JOIN equipos_entrega ee ON de.equipo_entrega_id = ee.id
                 WHERE def.factura_id IN ({$placeholders})
                 AND de.estado_id IN (1, 2)
                 AND def.estado_entrega != 'anulada'
-            ", $facturaIds);
+                {$whereEditar}
+            ", $params);
 
             return response()->json([
                 'disponibles' => count($bloqueadas) === 0,

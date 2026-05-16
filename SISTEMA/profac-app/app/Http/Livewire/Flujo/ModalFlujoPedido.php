@@ -1811,6 +1811,14 @@ class ModalFlujoPedido extends Component
 
         DB::beginTransaction();
         try {
+            // 0) Marcar la factura como anulada
+            DB::table('factura')
+                ->where('id', $facturaId)
+                ->update([
+                    'estado_venta_id' => 2,
+                    'updated_at'      => now(),
+                ]);
+
             // 1) Inactivar registro de factura en historico_flujo
             DB::table('historico_flujo')
                 ->where('flujo_id', $this->flujoId)

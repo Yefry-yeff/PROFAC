@@ -878,7 +878,7 @@ class FacturacionCorporativa extends Component
                 $factura->cliente_id = $request->seleccionarCliente;
                 $factura->vendedor = $request->vendedor;
                 $factura->monto_comision = $montoComision;
-                $factura->tipo_venta_id = 1; // corporativa
+                $factura->tipo_venta_id = 2; // corporativa
                 $factura->estado_factura_id = 1; // se presenta
                 $factura->users_id = Auth::user()->id;
                 $factura->comision_estado_pagado = 0;
@@ -1132,7 +1132,7 @@ class FacturacionCorporativa extends Component
             $factura->cliente_id = $request->seleccionarCliente;
             $factura->vendedor = $request->vendedor;
             $factura->monto_comision = $montoComision;
-            $factura->tipo_venta_id = 1; //coorporativo;
+            $factura->tipo_venta_id = 2; //coorporativo;
             $factura->estado_factura_id = $estado; // se presenta
             $factura->users_id = Auth::user()->id;
             $factura->comision_estado_pagado = 0;
@@ -1275,7 +1275,7 @@ class FacturacionCorporativa extends Component
         $factura->cliente_id = $request->seleccionarCliente;
         $factura->vendedor = $request->vendedor;
         $factura->monto_comision = $montoComision;
-        $factura->tipo_venta_id = 1; //coorporativo;
+        $factura->tipo_venta_id = 2; //coorporativo;
         $factura->estado_factura_id = 2; // se presenta
         $factura->users_id = Auth::user()->id;
         $factura->comision_estado_pagado = 0;
@@ -1404,7 +1404,7 @@ class FacturacionCorporativa extends Component
             $factura->cliente_id = $request->seleccionarCliente;
             $factura->vendedor = $request->vendedor;
             $factura->monto_comision = $montoComision;
-            $factura->tipo_venta_id = 1; //coorporativo;
+            $factura->tipo_venta_id = 2; //coorporativo;
             $factura->estado_factura_id = 2; // se presenta
             $factura->users_id = Auth::user()->id;
             $factura->comision_estado_pagado = 0;
@@ -2009,7 +2009,7 @@ class FacturacionCorporativa extends Component
             $factura->cliente_id = $request->seleccionarCliente;
             $factura->vendedor = $request->vendedor;
             $factura->monto_comision = $montoComision;
-            $factura->tipo_venta_id = 1; //coorporativo;
+            $factura->tipo_venta_id = 2; //coorporativo;
             $factura->estado_factura_id = $listado->estado; // se presenta
             $factura->users_id = Auth::user()->id;
             $factura->comision_estado_pagado = 0;
@@ -2259,7 +2259,7 @@ class FacturacionCorporativa extends Component
         $factura->cliente_id = $request->seleccionarCliente;
         $factura->vendedor = $request->vendedor;
         $factura->monto_comision = $montoComision;
-        $factura->tipo_venta_id = 1; //coorporativo;
+        $factura->tipo_venta_id = 2; //coorporativo;
         $factura->estado_factura_id = $estado;
         $factura->users_id = Auth::user()->id;
         $factura->comision_estado_pagado = 0;
