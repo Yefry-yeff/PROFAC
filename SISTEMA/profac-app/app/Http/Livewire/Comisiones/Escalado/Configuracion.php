@@ -319,6 +319,57 @@ class Configuracion extends Component
 
     /* ── CARGA SELECTIVA ──────────────────────────────────────────────────── */
 
+    /** Roles activos para el filtro de carga selectiva */
+    public function listaRolesParaFiltro()
+    {
+        $roles = DB::table('rol')
+            ->orderBy('nombre')
+            ->select('id', 'nombre')
+            ->get();
+        return response()->json(['roles' => $roles], 200);
+    }
+
+    /** KPIs agregados para las tarjetas de resumen */
+    public function statsComision()
+    {
+        $activos   = DB::table('comision_escala')->where('estado_id', 1)->count();
+        $inactivos = DB::table('comision_escala')->where('estado_id', 2)->count();
+        $roles     = DB::table('comision_escala')->where('estado_id', 1)->distinct('rol_id')->count('rol_id');
+        $catCli    = DB::table('comision_escala')->where('estado_id', 1)->distinct('cliente_categoria_escala_id')->count('cliente_categoria_escala_id');
+        $prom      = DB::table('comision_escala')->where('estado_id', 1)->avg('porcentaje_comision');
+
+        return response()->json([
+            'activos'   => $activos,
+            'inactivos' => $inactivos,
+            'roles'     => $roles,
+            'cat_cli'   => $catCli,
+            'promedio'  => round((float) $prom, 2),
+        ]);
+    }
+
+    /** Resumen agrupado por Rol x Categoría Cliente para el tab de resumen */
+    public function resumenPorRol()
+    {
+        $data = DB::table('comision_escala as ce')
+            ->join('rol as r', 'r.id', '=', 'ce.rol_id')
+            ->join('cliente_categoria_escala as cce', 'cce.id', '=', 'ce.cliente_categoria_escala_id')
+            ->where('ce.estado_id', 1)
+            ->select(
+                'r.nombre as rol',
+                'cce.nombre_categoria as cat_cli',
+                DB::raw('COUNT(*) as total_configs'),
+                DB::raw('ROUND(MIN(ce.porcentaje_comision), 2) as pct_min'),
+                DB::raw('ROUND(AVG(ce.porcentaje_comision), 2) as pct_prom'),
+                DB::raw('ROUND(MAX(ce.porcentaje_comision), 2) as pct_max')
+            )
+            ->groupBy('ce.rol_id', 'r.nombre', 'ce.cliente_categoria_escala_id', 'cce.nombre_categoria')
+            ->orderBy('r.nombre')
+            ->orderBy('cce.nombre_categoria')
+            ->get();
+
+        return response()->json(['data' => $data]);
+    }
+
     /** Categorías de cliente activas para el filtro */
     public function listaCategoriasClienteActivas()
     {
@@ -350,19 +401,21 @@ class Configuracion extends Component
         return response()->json(['categorias' => $q->get()], 200);
     }
 
-    /** Descarga plantilla filtrada por catCli y/o catPrecio */
+    /** Descarga plantilla filtrada por rol, catCli y/o catPrecio */
     public function descargarPlantillaFiltrada(Request $request)
     {
         $catCliIds    = array_filter(array_map('intval', (array) $request->input('cat_cli', [])));
         $catPrecioIds = array_filter(array_map('intval', (array) $request->input('cat_precio', [])));
+        $rolIds       = array_filter(array_map('intval', (array) $request->input('rol', [])));
 
         $fecha  = now()->format('Ymd_His');
-        $sufijo = empty($catCliIds) && empty($catPrecioIds) ? 'todas' : 'filtrada';
+        $sufijo = empty($catCliIds) && empty($catPrecioIds) && empty($rolIds) ? 'todas' : 'filtrada';
 
         return Excel::download(
             new PlantillaComisionMasivaExport(
                 empty($catCliIds)    ? null : array_values($catCliIds),
-                empty($catPrecioIds) ? null : array_values($catPrecioIds)
+                empty($catPrecioIds) ? null : array_values($catPrecioIds),
+                empty($rolIds)       ? null : array_values($rolIds)
             ),
             "plantilla_comisiones_{$sufijo}_{$fecha}.xlsx"
         );

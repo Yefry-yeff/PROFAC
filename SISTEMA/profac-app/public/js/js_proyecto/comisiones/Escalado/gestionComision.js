@@ -106,6 +106,8 @@ function registrarParametroComision() {
     .then(function(res) {
       $('#modalParamComision').modal('hide');
       $('#tbl_listaParametroComision').DataTable().ajax.reload(null, false);
+      if (typeof cargarStats === 'function') { cargarStats(); }
+      _resumenCargado = false;
       Swal.fire({ icon: res.data.icon, title: res.data.title, text: res.data.text });
     })
     .catch(function(err) {
@@ -171,6 +173,8 @@ function desactivarCategoria(id, rol) {
                 .then(function(res) {
                     Swal.fire({ icon: res.data.icon, title: res.data.title, text: res.data.text });
                     $('#tbl_listaParametroComision').DataTable().ajax.reload(null, false);
+                    if (typeof cargarStats === 'function') { cargarStats(); }
+                    _resumenCargado = false;
                 })
                 .catch(function() {
                     Swal.fire({ icon:'error', title:'Error', text:'No se pudo desactivar el parámetro.' });

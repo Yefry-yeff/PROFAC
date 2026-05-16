@@ -234,6 +234,9 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     // Carga selectiva
     Route::get('/comisiones/configuracion/categorias-cliente-activas', [confcomisiones::class,'listaCategoriasClienteActivas'])->name('comision.configuracion.cat.cliente.activas');
     Route::get('/comisiones/configuracion/cat-precio-para-filtro', [confcomisiones::class,'categoriasPrecioParaFiltro'])->name('comision.configuracion.cat.precio.filtro');
+    Route::get('/comisiones/configuracion/roles-para-filtro', [confcomisiones::class,'listaRolesParaFiltro'])->name('comision.configuracion.roles.filtro');
+    Route::get('/comisiones/configuracion/stats', [confcomisiones::class,'statsComision'])->name('comision.configuracion.stats');
+    Route::get('/comisiones/configuracion/resumen-por-rol', [confcomisiones::class,'resumenPorRol'])->name('comision.configuracion.resumen.rol');
     Route::get('/comisiones/configuracion/plantilla-filtrada', [confcomisiones::class,'descargarPlantillaFiltrada'])->name('comision.configuracion.plantilla.filtrada');
     Route::post('/comisiones/configuracion/preview-carga-filtrada', [confcomisiones::class,'previewCargaFiltrada'])->name('comision.configuracion.preview.filtrada');
     Route::post('/comisiones/configuracion/procesar-carga-filtrada', [confcomisiones::class,'procesarCargaFiltrada'])->name('comision.configuracion.procesar.filtrada');

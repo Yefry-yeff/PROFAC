@@ -841,11 +841,15 @@ class Pagos extends Component
                                         @estado,
                                         @msjResultado);");
 
-                                // Registrar comisiones
+                                // Registrar comisiones usando la fecha_pago del modal
                                 $generador = app(GeneradorFacturasComision::class);
+                                $fechaPagoComision = $request->fecha_pago
+                                    ? \Carbon\Carbon::parse($request->fecha_pago)->toDateString()
+                                    : null;
                                 $arrayfacturas_comision = $generador->generar(
                                     (int) $request->idFacturaAbono,
-                                    (int) $request->codAplicPagoAbono
+                                    (int) $request->codAplicPagoAbono,
+                                    $fechaPagoComision
                                 );
 
                                 if (!empty($arrayfacturas_comision)) {

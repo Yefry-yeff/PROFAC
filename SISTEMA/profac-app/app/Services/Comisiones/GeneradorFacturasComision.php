@@ -22,12 +22,18 @@ class GeneradorFacturasComision
      *      user_id+rol_id no está ya en la lista (evita duplicados).
      * monto_comision = precio_unidad * cantidad * (porcentaje / 100)
      */
-    public function generar(int $facturaId, int $aplicacionPagoId): array
+    /**
+     * @param string|null $fechaPago  Fecha del pago del usuario (YYYY-MM-DD).
+     *                                Si es null se usa la fecha actual del sistema.
+     */
+    public function generar(int $facturaId, int $aplicacionPagoId, ?string $fechaPago = null): array
     {
         // Prevenir doble registro
         if (DB::table('facturas_comision')->where('factura_id', $facturaId)->exists()) {
             return [];
         }
+
+        $fechaComision = $fechaPago ?? now()->toDateString();
 
         // Resolver facturador y vendedor con sus roles reales
         $fila = DB::selectOne(
@@ -146,7 +152,7 @@ class GeneradorFacturasComision
 
             // Insertar facturas_comision y obtener ID generado
             $facturaComisionId = DB::table('facturas_comision')->insertGetId([
-                'fecha_cierre_factura'  => now()->toDateString(),
+                'fecha_cierre_factura'  => $fechaComision,
                 'monto_rol'             => round($totalTarget, 4),
                 'factura_id'            => $facturaId,
                 'comision_escala_id'    => null,
@@ -169,7 +175,7 @@ class GeneradorFacturasComision
             // Datos efímeros para ProcesadorComisiones
             $resultado[] = [
                 'facturas_comision_id' => $facturaComisionId,
-                'fecha_cierre_factura' => now()->toDateString(),
+                'fecha_cierre_factura' => $fechaComision,
                 'monto_rol'            => round($totalTarget, 4),
                 'rol_id'               => $rolId,
                 'target_user_id'       => $userId,
