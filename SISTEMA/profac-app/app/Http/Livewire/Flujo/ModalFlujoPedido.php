@@ -66,6 +66,7 @@ class ModalFlujoPedido extends Component
     // ── Factura del flujo activo ─────────────────────────────────────────
     public $facturaData          = null;
     public $confirmAccionFactura = null; // null | 'anular'
+    public $motivoAnulacionFactura = '';
     public $saldoPendienteFactura = null;
     public $estadoEntrega         = null;
     public $estadoCobro           = null;
@@ -424,6 +425,7 @@ class ModalFlujoPedido extends Component
         $this->confirmAccionPrefactura = null;
         $this->facturaData             = null;
         $this->confirmAccionFactura    = null;
+        $this->motivoAnulacionFactura  = '';
         $this->saldoPendienteFactura   = null;
         $this->cobroFacturaData        = null;
         $this->historialPagosFactura   = [];
@@ -1790,13 +1792,20 @@ class ModalFlujoPedido extends Component
 
     public function cancelarConfirmFactura(): void
     {
-        $this->confirmAccionFactura = null;
-        $this->mensajeError         = '';
+        $this->confirmAccionFactura   = null;
+        $this->motivoAnulacionFactura = '';
+        $this->mensajeError           = '';
     }
 
     public function anularFactura(): void
     {
         if (!$this->facturaData || !$this->flujoId) return;
+
+        $motivo = trim($this->motivoAnulacionFactura);
+        if ($motivo === '') {
+            $this->mensajeError = 'Debe indicar el motivo de anulación.';
+            return;
+        }
 
         $facturaId = (int) $this->facturaData['id'];
 
@@ -1809,7 +1818,7 @@ class ModalFlujoPedido extends Component
                 ->where('tramite_id', $facturaId)
                 ->update([
                     'estado_id'     => 7,
-                    'observaciones' => 'Anulada: Factura #' . $facturaId,
+                    'observaciones' => 'Anulada: Factura #' . $facturaId . '. Motivo: ' . $motivo,
                     'updated_at'    => now(),
                 ]);
 
@@ -1820,7 +1829,7 @@ class ModalFlujoPedido extends Component
                 ->whereIn('estado_id', [1, 5])
                 ->update([
                     'estado_id'     => 7,
-                    'observaciones' => 'Anulado por anulación de Factura #' . $facturaId,
+                    'observaciones' => 'Anulado por anulación de Factura #' . $facturaId . '. Motivo: ' . $motivo,
                     'updated_at'    => now(),
                 ]);
 
@@ -1897,9 +1906,10 @@ class ModalFlujoPedido extends Component
             }
 
             DB::commit();
-            $this->confirmAccionFactura = null;
-            $this->facturaData          = null;
-            $this->saldoPendienteFactura = null;
+            $this->confirmAccionFactura    = null;
+            $this->motivoAnulacionFactura  = '';
+            $this->facturaData             = null;
+            $this->saldoPendienteFactura   = null;
             $this->emit('pedidoActualizado');
             $this->recargar();
         } catch (\Exception $e) {
@@ -1964,6 +1974,12 @@ class ModalFlujoPedido extends Component
                 'updated_by'      => Auth::id(),
                 'updated_at'      => now(),
             ]);
+
+            // Eliminar ciclo de Rev. Inventario para que al re-seleccionar ganadora empiece desde cero
+            DB::table('historico_flujo')
+                ->where('flujo_id', $this->flujoId)
+                ->where('tipo_tramite_id', 9)
+                ->delete();
 
             \App\Models\PrefacturaAuditoria::registrar(
                 'reversion_prefactura',
@@ -2043,6 +2059,12 @@ class ModalFlujoPedido extends Component
                 'updated_by'      => Auth::id(),
                 'updated_at'      => now(),
             ]);
+
+            // Eliminar ciclo de Rev. Inventario para que al re-seleccionar ganadora empiece desde cero
+            DB::table('historico_flujo')
+                ->where('flujo_id', $this->flujoId)
+                ->where('tipo_tramite_id', 9)
+                ->delete();
 
             PrefacturaAuditoria::registrar(
                 'anulacion_prefactura',

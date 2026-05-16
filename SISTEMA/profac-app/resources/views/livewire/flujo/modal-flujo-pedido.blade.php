@@ -83,8 +83,8 @@
         $fCancelado                  => 0,
         $finalizadoCompletado        => 8,
         $cobroCompletado             => 7,
-        $tieneEntrega                => 6,
-        $tieneFactura                => 6,
+        $tieneEntrega                => 7,
+        $tieneFactura                => 7,
         $tienePrefact                => 5,
         $tieneRevisionActiva         => 4,   // en revisión de inventario (ciclo activo)
         $tieneRevisionCreditoActiva   => 3,   // en revisión de crédito (pendiente)
@@ -1716,13 +1716,27 @@
                     @if ($confirmAccionFactura === 'anular')
                     <div style="margin-top:10px; background:#fff5f5; border:1px solid #feb2b2;
                                 border-radius:12px; padding:14px;">
-                        <p style="font-size:13px; color:#555; margin:0 0 8px;">
+                        <p style="font-size:13px; color:#555; margin:0 0 4px;">
                             <i class="mr-1 fa fa-ban text-danger"></i>
                             ¿Anular la <strong>Factura #{{ $fac['id'] }}</strong>?
                         </p>
                         <p style="font-size:11px; color:#888; margin:0 0 10px;">
                             Si la prefactura está vigente, el flujo regresará a Prefactura. Si está vencida, regresará a Ofertas con validación de precios.
                         </p>
+                        <div style="margin-bottom:10px;">
+                            <label style="font-size:12px; font-weight:700; color:#c0392b; display:block; margin-bottom:4px;">
+                                <i class="fa fa-comment mr-1"></i> Motivo de anulación <span style="color:#e74c3c;">*</span>
+                            </label>
+                            <textarea wire:model.defer="motivoAnulacionFactura"
+                                      rows="3"
+                                      placeholder="Indique el motivo de la anulación..."
+                                      style="width:100%; border:1px solid #feb2b2; border-radius:8px;
+                                             padding:8px 10px; font-size:12px; resize:vertical;
+                                             background:#fff; outline:none; box-sizing:border-box;"></textarea>
+                            @if($mensajeError && str_contains($mensajeError, 'motivo'))
+                            <p style="font-size:11px; color:#e74c3c; margin:4px 0 0;">{{ $mensajeError }}</p>
+                            @endif
+                        </div>
                         <div style="display:flex; gap:8px;">
                             <button type="button" wire:click="anularFactura"
                                     style="background:linear-gradient(135deg,#e74c3c,#c0392b); color:#fff;
