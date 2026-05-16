@@ -92,11 +92,11 @@ class MisComisiones extends Component
         ));
     }
 
-    /* ── Histórico mensual (DataTable) ─────────────────────────────────── */
     public function listarComisionesEmpleado()
     {
         $userId = Auth::id();
 
+        // Una sola fila por (mes, rol) — acumula todas las capacidades (facturador, rol real, vendedor)
         $datos = DB::select("
             SELECT
                 ce.mes_comision,
@@ -106,12 +106,12 @@ class MisComisiones extends Component
                     WHEN 7 THEN 'Julio'    WHEN 8 THEN 'Agosto'   WHEN 9 THEN 'Septiembre'
                     WHEN 10 THEN 'Octubre' WHEN 11 THEN 'Noviembre' WHEN 12 THEN 'Diciembre'
                 END AS mes_letra,
-                YEAR(ce.mes_comision)          AS anio,
-                r.nombre                       AS rol,
-                ce.comision_acumulada,
-                ce.fecha_ult_modificacion,
-                COUNT(DISTINCT fc.factura_id)  AS cantidad_facturas,
-                COALESCE(SUM(pc.monto_comision * pc.cantidad), 0) AS monto_productos,
+                YEAR(ce.mes_comision)           AS anio,
+                ce.rol_id,
+                r.nombre                        AS rol,
+                SUM(ce.comision_acumulada)      AS comision_acumulada,
+                MAX(ce.fecha_ult_modificacion)  AS fecha_ult_modificacion,
+                COUNT(DISTINCT fc.factura_id)   AS cantidad_facturas,
                 CASE
                     WHEN YEAR(ce.mes_comision)  = YEAR(CURDATE())
                      AND MONTH(ce.mes_comision) = MONTH(CURDATE()) THEN 1
@@ -124,14 +124,11 @@ class MisComisiones extends Component
                 AND fc.estado_id = 1
                 AND YEAR(fc.fecha_cierre_factura)  = YEAR(ce.mes_comision)
                 AND MONTH(fc.fecha_cierre_factura) = MONTH(ce.mes_comision)
-            LEFT JOIN producto_comision pc
-                ON pc.facturas_comision_id = fc.id
-                AND pc.estado_id = 1
             WHERE ce.users_comision = ?
+              AND ce.estado_id = 1
             GROUP BY
-                ce.mes_comision, mes_letra, anio, r.nombre,
-                ce.comision_acumulada, ce.fecha_ult_modificacion, es_mes_actual
-            ORDER BY ce.mes_comision DESC
+                ce.mes_comision, mes_letra, anio, ce.rol_id, r.nombre, es_mes_actual
+            ORDER BY ce.mes_comision DESC, r.nombre ASC
         ", [$userId]);
 
         return Datatables::of($datos)
@@ -217,10 +214,17 @@ class MisComisiones extends Component
     {
         $userId  = Auth::id();
         $periodo = $request->input('periodo'); // formato 'YYYY-MM'
+        $rolId   = (int) $request->input('rol_id', 0);
 
         if (!$periodo) {
             return response()->json(['data' => []]);
         }
+
+        // Filtrar por rol específico si se pasó, de lo contrario mostrar todos los del usuario
+        $rolWhere = $rolId > 0 ? "AND fc.rol_id = {$rolId}" : "AND fc.rol_id IN (
+                  SELECT rol_id FROM comision_empleado WHERE users_comision = ?)";
+
+        $bindings = $rolId > 0 ? [$userId, $periodo] : [$userId, $userId, $periodo];
 
         $datos = DB::select("
             SELECT
@@ -240,13 +244,13 @@ class MisComisiones extends Component
               AND fc.rol_id IN (
                   SELECT rol_id FROM comision_empleado WHERE users_comision = ?
               )
+              {$rolWhere}
               AND DATE_FORMAT(fc.fecha_cierre_factura, '%Y-%m') = ?
             GROUP BY fc.id, fc.factura_id, fc.fecha_cierre_factura, fc.monto_rol, r.nombre, cl.nombre
             ORDER BY fc.fecha_cierre_factura DESC
-        ", [$userId, $periodo]);
+        ", $bindings);
 
         return Datatables::of($datos)
-            ->addColumn('monto_fmt', fn($r) => 'L ' . number_format($r->monto_rol, 2))
             ->rawColumns([])
             ->make(true);
     }

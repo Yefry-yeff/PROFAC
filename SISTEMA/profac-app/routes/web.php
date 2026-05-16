@@ -240,6 +240,8 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/comisiones/configuracion/plantilla-filtrada', [confcomisiones::class,'descargarPlantillaFiltrada'])->name('comision.configuracion.plantilla.filtrada');
     Route::post('/comisiones/configuracion/preview-carga-filtrada', [confcomisiones::class,'previewCargaFiltrada'])->name('comision.configuracion.preview.filtrada');
     Route::post('/comisiones/configuracion/procesar-carga-filtrada', [confcomisiones::class,'procesarCargaFiltrada'])->name('comision.configuracion.procesar.filtrada');
+    Route::get('/comisiones/configuracion/roles-calculo', [confcomisiones::class,'listaRolesCalculo'])->name('comision.configuracion.roles.calculo');
+    Route::post('/comisiones/configuracion/roles-calculo/toggle', [confcomisiones::class,'toggleCalculoRol'])->name('comision.configuracion.roles.calculo.toggle');
 
 
 
@@ -1008,6 +1010,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::post('/pagos/notacredito/guardar', [Pagos::class, 'gestionNC']);
     Route::post('/pagos/notadebito/guardar', [Pagos::class, 'gestionND']);
     Route::post('/pagos/otrosmov/guardar', [Pagos::class, 'guardarOtroMov']);
+    Route::get('/pagos/preview-comisiones', [Pagos::class, 'previewComisionesFactura']);
     Route::post('/pagos/creditos/guardar', [Pagos::class, 'guardarCreditos']);
     Route::post('/pagos/cerrar/factura', [Pagos::class, 'cerrarFactura']);
 

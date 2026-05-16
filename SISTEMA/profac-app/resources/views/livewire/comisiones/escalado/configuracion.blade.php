@@ -169,6 +169,79 @@
     box-shadow: 0 0 0 3px rgba(243,156,18,.12);
 }
 
+/* ── CONTROL CÁLCULO POR ROL — tabla profesional ──────────────────────── */
+#tbl-roles-calculo { width: 100%; border-collapse: collapse; }
+#tbl-roles-calculo thead tr {
+    background: linear-gradient(135deg, #f1f5f9 0%, #e8f0fe 100%);
+}
+#tbl-roles-calculo thead th {
+    padding: 11px 18px;
+    font-size: 10.5px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: .55px;
+    color: #475569;
+    border-bottom: 2px solid #dde6f7;
+    border-top: none;
+    white-space: nowrap;
+}
+#tbl-roles-calculo tbody tr {
+    border-bottom: 1px solid #f1f5f9;
+    transition: background .15s;
+}
+#tbl-roles-calculo tbody tr:nth-child(even) { background: #f8fafc; }
+#tbl-roles-calculo tbody tr:nth-child(odd)  { background: #fff; }
+#tbl-roles-calculo tbody tr:hover { background: #eff6ff !important; }
+#tbl-roles-calculo tbody tr.rc-row-off { opacity: .75; }
+#tbl-roles-calculo tbody td {
+    padding: 11px 18px;
+    font-size: 12.5px; color: #334155;
+    vertical-align: middle;
+}
+.rc-td-nombre {
+    font-weight: 700; color: #1e293b;
+    display: flex; align-items: center; gap: 8px;
+}
+.rc-td-meta { font-size: 11px !important; color: #94a3b8 !important; }
+/* Badges inline */
+.rc-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 10px; border-radius: 20px;
+    font-size: 10px; font-weight: 800; letter-spacing: .25px;
+    white-space: nowrap;
+}
+.rc-badge-on     { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+.rc-badge-off    { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
+.rc-badge-escala { background: #dbeafe; color: #1d4ed8; border: 1px solid #93c5fd; }
+.rc-badge-sin    { background: #f1f5f9; color: #94a3b8; border: 1px solid #e2e8f0; }
+.rc-badge i      { font-size: 8px; }
+/* Avatar circular por rol */
+.rc-avatar {
+    width: 30px; height: 30px; flex-shrink: 0;
+    border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 800;
+    background: linear-gradient(135deg, #1e40af, #3b82f6);
+    color: #fff;
+}
+/* Toggle switch */
+.rc-toggle { position: relative; width: 42px; height: 22px; flex-shrink: 0; display: inline-block; }
+.rc-toggle input { opacity: 0; width: 0; height: 0; }
+.rc-slider {
+    position: absolute; inset: 0;
+    background: #cbd5e1; border-radius: 22px;
+    cursor: pointer; transition: background .2s;
+}
+.rc-slider::before {
+    content: ''; position: absolute;
+    left: 3px; top: 3px;
+    width: 16px; height: 16px;
+    border-radius: 50%; background: #fff;
+    transition: transform .2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,.2);
+}
+.rc-toggle input:checked + .rc-slider { background: #10b981; }
+.rc-toggle input:checked + .rc-slider::before { transform: translateX(20px); }
+.rc-toggle input:disabled + .rc-slider { opacity: .5; cursor: not-allowed; }
+
 /* -- BADGES -- */
 .cc-badge {
     display: inline-flex; align-items: center; gap: 5px;
@@ -835,6 +908,58 @@
             </div>
             <div style="font-size:32px;font-weight:900;color:#fff;line-height:1;" id="kpi_val_prom">—</div>
             <div style="font-size:11px;color:rgba(255,255,255,.7);margin-top:5px;">% promedio de comisión</div>
+        </div>
+
+    </div>
+
+    {{-- ===== PANEL CONTROL CÁLCULO POR ROL ===== --}}
+    <div class="cc-panel" style="margin-top:18px;padding:0;overflow:hidden;">
+
+        <div class="cc-panel-title" style="background:linear-gradient(135deg,#1e40af 0%,#3b82f6 100%);margin:0 0 0 0;border-radius:10px 10px 0 0;">
+            <div class="cc-panel-icon"><i class="fa fa-toggle-on"></i></div>
+            <span>Control de Cálculo de Comisiones por Rol</span>
+            <span style="margin-left:auto;font-size:10px;font-weight:500;opacity:.85;">
+                <i class="fa fa-info-circle mr-1"></i>
+                Activa o desactiva el cálculo al cerrar factura sin modificar los porcentajes configurados
+            </span>
+        </div>
+
+        {{-- Barra de búsqueda + contador --}}
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px 10px;
+                    border-bottom:1px solid #f1f5f9;flex-wrap:wrap;gap:10px;">
+            <div style="position:relative;flex:1;min-width:200px;max-width:320px;">
+                <i class="fa fa-search" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:13px;pointer-events:none;"></i>
+                <input type="text" id="rc-buscador" placeholder="Buscar rol..."
+                    style="width:100%;padding:7px 12px 7px 32px;border:1.5px solid #e2e8f0;border-radius:8px;
+                           font-size:12px;color:#334155;outline:none;transition:border-color .2s,box-shadow .2s;"
+                    onfocus="this.style.borderColor='#3b82f6';this.style.boxShadow='0 0 0 3px rgba(59,130,246,.12)'"
+                    onblur="this.style.borderColor='#e2e8f0';this.style.boxShadow='none'"
+                    oninput="filtrarTablaRoles(this.value)">
+            </div>
+            <div id="rc-contador" style="font-size:11px;color:#94a3b8;white-space:nowrap;"></div>
+        </div>
+
+        <div id="rc-loading" style="text-align:center;padding:40px;color:#94a3b8;">
+            <i class="fa fa-spinner fa-spin fa-lg"></i>
+            <p style="margin-top:8px;font-size:12px;">Cargando roles...</p>
+        </div>
+        <div id="rc-grid" style="display:none;">
+            <div class="table-responsive" style="margin:0;">
+                <table id="tbl-roles-calculo">
+                    <thead>
+                        <tr>
+                            <th style="width:35%;">Rol</th>
+                            <th>Estado</th>
+                            <th>Escala</th>
+                            <th>Último cambio</th>
+                            <th class="text-center" style="width:120px;">Cálculo activo</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbl-roles-calculo-body"></tbody>
+                </table>
+            </div>
+            <div id="rc-pagination" style="display:flex;align-items:center;justify-content:space-between;
+                padding:12px 18px;border-top:1px solid #f1f5f9;flex-wrap:wrap;gap:8px;"></div>
         </div>
 
     </div>
@@ -1712,7 +1837,7 @@ function renderResumenRol(data) {
     return html;
 }
 
-$(document).ready(function() { cargarStats(); });
+$(document).ready(function() { cargarStats(); cargarRolesCalculo(); });
 </script>
 @endpush
 

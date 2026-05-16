@@ -135,7 +135,7 @@ function initTablaHistorico() {
             $(row).css({ cursor: 'pointer' });
             $(row).on('click', function () {
                 var periodo = data.mes_comision ? data.mes_comision.substring(0, 7) : null;
-                if (periodo) abrirDetalleMes(periodo, data.mes_letra + ' ' + data.anio);
+                if (periodo) abrirDetalleMes(periodo, data.mes_letra + ' ' + data.anio, data.rol, data.rol_id || 0);
             });
         }
     });
@@ -194,8 +194,9 @@ function cargarTopProductos(periodo) {
 /* --------------------------------------------------------------------------
  * MODAL DETALLE MES
  * -------------------------------------------------------------------------- */
-function abrirDetalleMes(periodo, label) {
-    $('#mcModalTitle').html('<i class="fa fa-receipt mr-2"></i>Facturas de ' + label);
+function abrirDetalleMes(periodo, label, rol, rolId) {
+    $('#mcModalTitle').html('<i class="fa fa-receipt mr-2"></i>Facturas de ' + label +
+        (rol ? ' <small style="opacity:.7;">(' + rol + ')</small>' : ''));
     $('#mcModalDetalle').addClass('show');
 
     if (tblDetalle) { tblDetalle.destroy(); tblDetalle = null; }
@@ -208,7 +209,7 @@ function abrirDetalleMes(periodo, label) {
         dom: 'lftp',
         ajax: {
             url: '/comision/empleado/detalle-mes',
-            data: { periodo: periodo },
+            data: { periodo: periodo, rol_id: rolId || 0 },
             dataSrc: 'data',
             error: function () {
                 Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo cargar el detalle.' });

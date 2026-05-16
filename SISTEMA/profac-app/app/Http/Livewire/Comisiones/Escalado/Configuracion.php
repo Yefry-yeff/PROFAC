@@ -370,6 +370,62 @@ class Configuracion extends Component
         return response()->json(['data' => $data]);
     }
 
+    /**
+     * Lista todos los roles con su estado de cálculo de comisión (comision_rol_config)
+     * e indica si el rol tiene al menos una escala activa configurada.
+     */
+    public function listaRolesCalculo()
+    {
+        $data = DB::table('rol as r')
+            ->leftJoin('comision_rol_config as crc', 'crc.rol_id', '=', 'r.id')
+            ->leftJoin('users as ub', 'ub.id', '=', 'crc.updated_by')
+            ->select(
+                'r.id',
+                'r.nombre',
+                DB::raw('COALESCE(crc.calcular, 1) AS calcular'),
+                DB::raw('COALESCE(crc.updated_at, NULL) AS ultima_modificacion'),
+                DB::raw('ub.name AS modificado_por'),
+                DB::raw('EXISTS(SELECT 1 FROM comision_escala ce WHERE ce.rol_id = r.id AND ce.estado_id = 1) AS tiene_escala')
+            )
+            ->orderBy('r.nombre')
+            ->get();
+
+        return response()->json(['roles' => $data]);
+    }
+
+    /**
+     * Activa / desactiva el cálculo de comisión para un rol específico.
+     * Hace UPSERT en comision_rol_config.
+     */
+    public function toggleCalculoRol(Request $request)
+    {
+        $rolId = (int) $request->input('rol_id');
+        if (!$rolId) {
+            return response()->json(['error' => 'rol_id requerido'], 422);
+        }
+
+        $actual = DB::table('comision_rol_config')->where('rol_id', $rolId)->value('calcular');
+        // Si no existe el registro aún lo insertamos (debe existir por la migración, pero por seguridad)
+        $nuevoEstado = $actual === null ? 0 : ($actual ? 0 : 1);
+
+        DB::table('comision_rol_config')->updateOrInsert(
+            ['rol_id' => $rolId],
+            [
+                'calcular'   => $nuevoEstado,
+                'updated_by' => Auth::id(),
+                'updated_at' => now(),
+            ]
+        );
+
+        $rolNombre = DB::table('rol')->where('id', $rolId)->value('nombre');
+
+        return response()->json([
+            'calcular'    => $nuevoEstado,
+            'rol_id'      => $rolId,
+            'rol_nombre'  => $rolNombre,
+        ]);
+    }
+
     /** Categorías de cliente activas para el filtro */
     public function listaCategoriasClienteActivas()
     {
