@@ -1,10 +1,10 @@
 <x-app-layout>
 <div class="container-fluid">
     <!-- Header -->
-    <div class="row mb-3">
+    <div class="mb-3 row">
         <div class="col-12">
-            <div class="card shadow-sm">
-                <div class="card-body py-3">
+            <div class="shadow-sm card">
+                <div class="py-3 card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <h4 class="mb-0" id="tituloPagina">
@@ -29,8 +29,8 @@
             <div class="col-lg-8">
                 
                 <!-- Información Básica -->
-                <div class="card shadow-sm mb-3">
-                    <div class="card-header bg-white border-bottom">
+                <div class="mb-3 shadow-sm card">
+                    <div class="bg-white card-header border-bottom">
                         <h6 class="mb-0"><i class="fas fa-info-circle text-primary"></i> Información de la Distribución</h6>
                     </div>
                     <div class="card-body">
@@ -56,7 +56,7 @@
                         </div>
                         <div class="row">
                             <div class="col-12">
-                                <div class="form-group mb-0">
+                                <div class="mb-0 form-group">
                                     <label><i class="fas fa-sticky-note"></i> Observaciones</label>
                                     <textarea class="form-control" name="observaciones" rows="2" 
                                               placeholder="Ingrese observaciones adicionales..."></textarea>
@@ -67,14 +67,14 @@
                 </div>
 
                 <!-- Búsqueda de Facturas -->
-                <div class="card shadow-sm mb-3">
-                    <div class="card-header bg-white border-bottom">
+                <div class="mb-3 shadow-sm card">
+                    <div class="bg-white card-header border-bottom">
                         <h6 class="mb-0"><i class="fas fa-search text-success"></i> Búsqueda de Facturas</h6>
                     </div>
                     <div class="card-body">
                         
                         <!-- Tabs de búsqueda -->
-                        <ul class="nav nav-pills nav-fill mb-3" id="tipoBusquedaTabs" role="tablist">
+                        <ul class="mb-3 nav nav-pills nav-fill" id="tipoBusquedaTabs" role="tablist">
                             <li class="nav-item">
                                 <a class="nav-link active" id="tab-factura" data-toggle="pill" href="#busqueda-factura" role="tab">
                                     <i class="fas fa-file-invoice"></i> Buscar por Número de Factura
@@ -91,9 +91,9 @@
                             
                             <!-- Búsqueda por Factura -->
                             <div class="tab-pane fade show active" id="busqueda-factura" role="tabpanel">
-                                <div class="input-group input-group-lg mb-3">
+                                <div class="mb-3 input-group input-group-lg">
                                     <div class="input-group-prepend">
-                                        <span class="input-group-text bg-primary text-white">
+                                        <span class="text-white input-group-text bg-primary">
                                             <i class="fas fa-file-invoice"></i>
                                         </span>
                                     </div>
@@ -109,7 +109,7 @@
                                 
                                 <!-- Resultados de búsqueda de facturas -->
                                 <div id="resultadosFacturas" style="display: none;">
-                                    <div class="alert alert-info mb-3">
+                                    <div class="mb-3 alert alert-info">
                                         <i class="fas fa-info-circle"></i> 
                                         <span id="mensajeResultadosFacturas">Ingrese al menos 2 caracteres para buscar</span>
                                     </div>
@@ -119,9 +119,9 @@
 
                             <!-- Búsqueda por Cliente -->
                             <div class="tab-pane fade" id="busqueda-cliente" role="tabpanel">
-                                <div class="input-group input-group-lg mb-3">
+                                <div class="mb-3 input-group input-group-lg">
                                     <div class="input-group-prepend">
-                                        <span class="input-group-text bg-info text-white">
+                                        <span class="text-white input-group-text bg-info">
                                             <i class="fas fa-user"></i>
                                         </span>
                                     </div>
@@ -137,11 +137,11 @@
 
                                 <!-- Resultados de búsqueda de clientes -->
                                 <div id="resultadosClientes" style="display: none;">
-                                    <div class="alert alert-info mb-3">
+                                    <div class="mb-3 alert alert-info">
                                         <i class="fas fa-info-circle"></i> 
                                         <span id="mensajeResultadosClientes">Ingrese al menos 3 caracteres para buscar</span>
                                     </div>
-                                    <div id="listaResultadosClientes" class="list-group mb-3"></div>
+                                    <div id="listaResultadosClientes" class="mb-3 list-group"></div>
                                 </div>
 
                                 <!-- Facturas del cliente seleccionado -->
@@ -164,16 +164,16 @@
 
             <!-- Columna Derecha: Preview de Facturas -->
             <div class="col-lg-4">
-                <div class="card shadow-sm sticky-top" style="top: 20px;">
-                    <div class="card-header bg-gradient-success text-white">
+                <div class="shadow-sm card sticky-top" style="top: 20px;">
+                    <div class="text-white card-header bg-gradient-success">
                         <h6 class="mb-0">
                             <i class="fas fa-truck-loading"></i> 
                             Facturas para Distribuir
                         </h6>
                     </div>
-                    <div class="card-body p-0">
+                    <div class="p-0 card-body">
                         <div id="previewFacturasSeleccionadas" class="table-responsive" style="max-height: 450px; overflow-y: auto;">
-                            <table class="table table-sm table-hover mb-0">
+                            <table class="table mb-0 table-sm table-hover">
                                 <thead class="bg-light sticky-top">
                                     <tr>
                                         <th>#Factura</th>
@@ -184,8 +184,8 @@
                                 </thead>
                                 <tbody id="tablaPreviewFacturas">
                                     <tr id="mensajeVacioPreview">
-                                        <td colspan="4" class="text-center text-muted py-5">
-                                            <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
+                                        <td colspan="4" class="py-5 text-center text-muted">
+                                            <i class="mb-3 fas fa-inbox fa-3x d-block"></i>
                                             <p class="mb-0">No hay facturas seleccionadas</p>
                                             <small>Busque y agregue facturas</small>
                                         </td>
@@ -195,7 +195,7 @@
                         </div>
                     </div>
                     <div class="card-footer bg-light">
-                        <div class="mb-3 p-3 bg-white border rounded text-center">
+                        <div class="p-3 mb-3 text-center bg-white border rounded">
                             <h6 class="mb-2 text-muted">Total para Distribuir</h6>
                             <div class="d-flex justify-content-around">
                                 <div>
@@ -228,11 +228,11 @@
 <div class="modal fade" id="modalDetalleFactura" tabindex="-1" role="dialog">
     <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
         <div class="modal-content">
-            <div class="modal-header bg-primary text-white">
+            <div class="text-white modal-header bg-primary">
                 <h5 class="modal-title">
                     <i class="fas fa-file-invoice"></i> Detalle de Factura
                 </h5>
-                <button type="button" class="close text-white" data-dismiss="modal">
+                <button type="button" class="text-white close" data-dismiss="modal">
                     <span>&times;</span>
                 </button>
             </div>
@@ -586,7 +586,7 @@ function seleccionarCliente(clienteId, nombreCliente, facturas) {
         const facturas = data.facturas || [];
         if (!facturas.length) {
             $('#listaFacturasCliente').html(`
-                <div class="alert alert-info mb-0">
+                <div class="mb-0 alert alert-info">
                     <i class="fas fa-info-circle"></i> 
                     Este cliente no tiene facturas disponibles
                 </div>
@@ -655,7 +655,7 @@ function seleccionarCliente(clienteId, nombreCliente, facturas) {
         $('#listaFacturasCliente').html(html);
     }).fail(function() {
         $('#listaFacturasCliente').html(`
-            <div class="alert alert-danger mb-0">
+            <div class="mb-0 alert alert-danger">
                 <i class="fas fa-exclamation-triangle"></i> 
                 Error al cargar las facturas
             </div>
@@ -764,17 +764,22 @@ function guardarDistribucion() {
 
     // Verificar disponibilidad de facturas antes de guardar
     const facturaIds = data.facturas;
-    const queryString = facturaIds.map(id => `facturas[]=${id}`).join('&');
+    const queryString = facturaIds.map(id => `facturas[]=${id}`).join('&')
+        + (data.editar_id ? `&editar_id=${data.editar_id}` : '');
     $.ajax({
         url: '/logistica/facturas/verificar-disponibilidad?' + queryString,
         type: 'GET',
         success: function(check) {
             if (!check.disponibles && check.bloqueadas.length > 0) {
-                const lista = check.bloqueadas.map(b => `#${b.cai}`).join(', ');
+                const rows = check.bloqueadas.map(b =>
+                    `<li><strong>#${b.cai}</strong> &mdash; Equipo: <strong>${b.nombre_equipo}</strong></li>`
+                ).join('');
                 Swal.fire({
                     icon: 'warning',
                     title: 'Facturas ya asignadas',
-                    html: `<p>Las siguientes facturas ya se encuentran asignadas en una distribución pendiente o en proceso:</p><p><strong>${lista}</strong></p><p>Debe eliminarlas de dicha distribución antes de volver a asignarlas.</p>`,
+                    html: `<p>Las siguientes facturas ya se encuentran en una distribución pendiente o en proceso:</p>
+                           <ul style="text-align:left;margin-top:8px">${rows}</ul>
+                           <p style="margin-top:10px">Elimínelas del carrito para poder continuar.</p>`,
                     confirmButtonColor: '#f0ad4e'
                 });
                 return;
@@ -782,7 +787,7 @@ function guardarDistribucion() {
             _enviarGuardarDistribucion(data);
         },
         error: function() {
-            // Si falla la verificación, intentar guardar igual (el backend también valida)
+            // Si falla la verificación, el backend también valida
             _enviarGuardarDistribucion(data);
         }
     });
@@ -1038,7 +1043,7 @@ function seleccionarCliente(clienteId, nombreCliente, facturas) {
     $('#facturasClienteSeleccionado').show();
     
     $('#listaFacturasCliente').html(`
-        <div class="col-12 text-center py-4">
+        <div class="py-4 text-center col-12">
             <i class="fas fa-spinner fa-spin fa-3x text-info"></i>
             <p class="mt-2">Cargando facturas...</p>
         </div>
@@ -1083,20 +1088,20 @@ function mostrarFacturasCliente(facturas, nombreCliente) {
         const btnText = yaAgregada ? '<i class="fas fa-check"></i> Agregada' : '<i class="fas fa-plus"></i> Agregar';
         
         html += `
-        <div class="col-md-6 mb-3">
+        <div class="mb-3 col-md-6">
             <div class="card h-100 ${yaAgregada ? 'border-success' : ''}">
-                <div class="card-body p-3">
-                    <h6 class="card-title text-primary mb-2">
+                <div class="p-3 card-body">
+                    <h6 class="mb-2 card-title text-primary">
                         <i class="fas fa-file-invoice"></i> #${f.cai}
                     </h6>
-                    <p class="card-text mb-1">
+                    <p class="mb-1 card-text">
                         <small class="text-muted"><i class="fas fa-calendar"></i> ${f.fecha_factura}</small>
                     </p>
-                    <p class="card-text mb-2">
+                    <p class="mb-2 card-text">
                         <small class="text-muted"><i class="fas fa-map-marker-alt"></i> ${f.direccion || 'Sin dirección'}</small>
                     </p>
                     <div class="d-flex justify-content-between align-items-center">
-                        <span class="h6 mb-0 text-success">Q${parseFloat(f.total).toFixed(2)}</span>
+                        <span class="mb-0 h6 text-success">Q${parseFloat(f.total).toFixed(2)}</span>
                         <button class="btn btn-sm ${btnClass}" ${disabled}
                                 onclick="agregarFactura(${f.id}, '${f.cai}', '${nombreCliente.replace(/'/g, "\\'")}', '${f.direccion || ''}', ${f.total})">
                             ${btnText}
