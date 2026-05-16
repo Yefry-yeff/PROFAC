@@ -92,17 +92,30 @@ function initChartHistorico() {
 /* --------------------------------------------------------------------------
  * DATATABLE - Historial mensual
  * -------------------------------------------------------------------------- */
+
+/* Devuelve colores según nombre del rol */
+function rolBadge(nombre) {
+    var n = (nombre || '').toLowerCase();
+    if (n.indexOf('admin')       !== -1) return { bg: '#dbeafe', text: '#1d4ed8', icon: 'fa-user-shield' };
+    if (n.indexOf('gerente')     !== -1) return { bg: '#ede9fe', text: '#6d28d9', icon: 'fa-crown' };
+    if (n.indexOf('facturador')  !== -1) return { bg: '#fef3c7', text: '#b45309', icon: 'fa-file-invoice' };
+    if (n.indexOf('televendedor') !== -1) return { bg: '#d1fae5', text: '#065f46', icon: 'fa-headset' };
+    if (n.indexOf('vendedor')    !== -1) return { bg: '#dcfce7', text: '#15803d', icon: 'fa-user-tie' };
+    return { bg: '#f1f5f9', text: '#475569', icon: 'fa-user-tag' };
+}
+
 function initTablaHistorico() {
     tblHistorico = $('#tbl_comisiones_empleado').DataTable({
         destroy: true,
         order: [[0, 'desc']],
-        pageLength: 10,
+        pageLength: 15,
         responsive: true,
         language: { url: '/js/plugins/dataTables/i18n/Spanish.json' },
-        dom: '<"html5buttons"B>lftp',
+        dom: '<"html5buttons"B>ltp',
         buttons: [{
             extend: 'excel',
             title: 'mis_comisiones',
+            text: '<i class="fa fa-file-excel mr-1"></i>Exportar',
             className: 'btn btn-sm btn-outline-secondary'
         }],
         ajax: {
@@ -113,24 +126,114 @@ function initTablaHistorico() {
             }
         },
         columns: [
-            { data: 'mes_letra' },
-            { data: 'anio' },
-            { data: 'rol', defaultContent: '---' },
+            /* 0 — oculto, para ordenar por fecha real */
+            { data: 'mes_comision', visible: false, searchable: false },
+            /* 1 — Rol */
             {
-                data: 'comision_acumulada',
+                data: 'rol',
+                defaultContent: '---',
                 render: function (v) {
-                    return '<strong style="color:#059669;">L ' +
-                        parseFloat(v).toLocaleString('es-HN', { minimumFractionDigits: 2 }) +
-                        '</strong>';
+                    var c = rolBadge(v);
+                    return '<span style="display:inline-flex;align-items:center;gap:5px;' +
+                        'background:' + c.bg + ';color:' + c.text + ';' +
+                        'padding:4px 11px;border-radius:20px;font-size:.76rem;font-weight:700;white-space:nowrap;">' +
+                        '<i class="fa ' + c.icon + '" style="font-size:.7rem;"></i>' + (v || '---') +
+                        '</span>';
                 }
             },
-            { data: 'cantidad_facturas', className: 'text-center' },
+            /* 2 — Comisión */
+            {
+                data: 'comision_acumulada',
+                className: 'text-right',
+                render: function (v) {
+                    var n = parseFloat(v || 0);
+                    var color = n > 0 ? '#059669' : '#94a3b8';
+                    return '<span style="font-size:1rem;font-weight:800;color:' + color + ';letter-spacing:-.3px;">' +
+                        'L&nbsp;' + n.toLocaleString('es-HN', { minimumFractionDigits: 2 }) +
+                        '</span>';
+                }
+            },
+            /* 3 — Facturas */
+            {
+                data: 'cantidad_facturas',
+                className: 'text-center',
+                render: function (v) {
+                    return '<span style="display:inline-block;min-width:28px;background:#dbeafe;' +
+                        'color:#1d4ed8;padding:2px 8px;border-radius:12px;font-size:.8rem;font-weight:700;">' +
+                        (v || 0) + '</span>';
+                }
+            },
+            /* 4 — Última actualización */
             {
                 data: 'fecha_ult_modificacion',
-                render: function (v) { return v ? v.substring(0, 16) : '---'; }
+                render: function (v) {
+                    if (!v) return '<span style="color:#94a3b8;">---</span>';
+                    var parts = v.substring(0, 16).split(' ');
+                    return '<span style="font-size:.8rem;color:#374151;">' +
+                        '<i class="fa fa-clock mr-1" style="color:#94a3b8;font-size:.7rem;"></i>' +
+                        parts[0] + ' <span style="color:#94a3b8;">' + (parts[1] || '') + '</span>' +
+                        '</span>';
+                }
             },
-            { data: 'badge_mes', orderable: false }
+            /* 5 — Estado */
+            {
+                data: 'es_mes_actual',
+                orderable: false,
+                className: 'text-center',
+                render: function (v, type, row) {
+                    if (parseInt(v) === 1) {
+                        return '<span style="background:linear-gradient(90deg,#10b981,#059669);color:#fff;' +
+                            'padding:3px 10px;border-radius:12px;font-size:.72rem;font-weight:700;' +
+                            'display:inline-flex;align-items:center;gap:4px;white-space:nowrap;">' +
+                            '<i class="fa fa-star" style="font-size:.62rem;"></i>MES ACTUAL</span>';
+                    }
+                    return '<span style="background:#f1f5f9;color:#64748b;' +
+                        'padding:3px 10px;border-radius:12px;font-size:.72rem;font-weight:600;">Cerrado</span>';
+                }
+            }
         ],
+        drawCallback: function () {
+            var api   = this.api();
+            var rows  = api.rows({ page: 'current' }).nodes();
+            var last  = null;
+            var loop  = 0;
+
+            /* Pre-calcular totales por período en la página actual */
+            var totalesPeriodo = {};
+            api.rows({ page: 'current' }).data().each(function (d) {
+                var key = d.mes_comision ? d.mes_comision.substring(0, 7) : '';
+                totalesPeriodo[key] = (totalesPeriodo[key] || 0) + parseFloat(d.comision_acumulada || 0);
+            });
+
+            api.rows({ page: 'current' }).every(function () {
+                var d   = this.data();
+                var key = d.mes_comision ? d.mes_comision.substring(0, 7) : '';
+                var lbl = d.mes_letra + ' ' + d.anio;
+
+                if (last !== key) {
+                    var total = (totalesPeriodo[key] || 0)
+                        .toLocaleString('es-HN', { minimumFractionDigits: 2 });
+
+                    $(rows).eq(loop).before(
+                        '<tr class="mc-group-row"><td colspan="6">' +
+                        '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+                        '<span style="display:flex;align-items:center;gap:8px;">' +
+                        '<span style="display:inline-flex;align-items:center;justify-content:center;' +
+                        'width:28px;height:28px;background:#1e3a5f;border-radius:8px;">' +
+                        '<i class="fa fa-calendar-alt" style="color:#7dd3fc;font-size:.75rem;"></i></span>' +
+                        '<strong style="font-size:.88rem;color:#0f172a;">' + lbl + '</strong>' +
+                        '</span>' +
+                        '<span style="font-size:.85rem;font-weight:800;color:#059669;">' +
+                        '<i class="fa fa-sigma mr-1" style="font-size:.7rem;opacity:.7;"></i>' +
+                        'Total del mes:&nbsp;L&nbsp;' + total +
+                        '</span>' +
+                        '</div></td></tr>'
+                    );
+                    last = key;
+                }
+                loop++;
+            });
+        },
         createdRow: function (row, data) {
             $(row).css({ cursor: 'pointer' });
             $(row).on('click', function () {

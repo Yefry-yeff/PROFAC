@@ -157,18 +157,18 @@
 
         {{-- ===== MODAL DE ÉXITO: PEDIDO GUARDADO ===== --}}
         @if ($pedidoGuardadoId)
-            <div class="modal fade show" tabindex="-1" role="dialog"
-                 style="display:block; background:rgba(0,0,0,.55); z-index:2050;"
+            <div class="fv-overlay" style="z-index:2050;" tabindex="-1" role="dialog"
                  data-backdrop="static" data-keyboard="false">
-                <div class="modal-dialog modal-dialog-centered" role="document" style="max-width:420px;">
-                    <div class="modal-content" style="border-radius:20px; overflow:hidden; border:none; box-shadow:0 20px 60px rgba(0,0,0,.18); position:relative;">
+                <div class="fv-dialog-sm" role="document" style="position:relative;">
+                    <div class="fv-modal-content">
                         <button type="button"
                                 wire:click="cerrarModalPedidoGuardado"
                                 aria-label="Cerrar"
-                                style="position:absolute; top:10px; right:10px; width:34px; height:34px; border-radius:50%; border:1px solid #d1d5db; background:#fff; color:#6b7280; z-index:2; cursor:pointer;">
+                                class="fv-modal-close"
+                                style="position:absolute; top:12px; right:12px; background:#fff; color:#6b7280; border:1px solid #e5e7eb; z-index:2;">
                             <i class="fa fa-times"></i>
                         </button>
-                        <div class="modal-body" style="padding:36px 32px 28px; text-align:center;">
+                        <div class="fv-modal-body" style="padding:36px 32px 28px; text-align:center;">
 
                             <div style="width:90px; height:90px; border-radius:50%;
                                         background:linear-gradient(135deg,#00c853,#69f0ae);
@@ -753,27 +753,22 @@
 
     {{-- ==================== MODAL: CREAR NUEVO CLIENTE ==================== --}}
     @if ($showModalCliente)
-    <div
-        class="modal fade show"
-        style="display:block; background:rgba(0,0,0,.55); z-index:1050;"
-        tabindex="-1"
-        role="dialog"
-    >
-        <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
-            <div class="modal-content" style="border-radius:12px; overflow:hidden; border:none; box-shadow:0 10px 40px rgba(0,0,0,.25);">
+    <div class="fv-overlay" style="z-index:2060;" tabindex="-1" role="dialog">
+        <div class="fv-dialog-md" role="document">
+            <div class="fv-modal-content">
 
                 {{-- Header --}}
-                <div class="modal-header" style="background:linear-gradient(135deg,#f39c12,#e67e22); border:none;">
-                    <h5 class="m-0 text-white modal-title">
-                        <i class="fa fa-user-plus"></i> &nbsp;Crear Nuevo Cliente
+                <div class="fv-modal-header fv-hdr-orange">
+                    <h5 class="fv-modal-title">
+                        <i class="fa fa-user-plus mr-2"></i>Crear Nuevo Cliente
                     </h5>
-                    <button type="button" class="text-white close" wire:click="cerrarModalCrearCliente" style="opacity:1;">
-                        <span aria-hidden="true">&times;</span>
+                    <button type="button" class="fv-modal-close" wire:click="cerrarModalCrearCliente">
+                        <i class="fa fa-times"></i>
                     </button>
                 </div>
 
                 {{-- Body --}}
-                <div class="p-4 modal-body">
+                <div class="fv-modal-body">
                     <div class="row">
                         <div class="col-md-6 form-group">
                             <label class="font-weight-bold">Nombre <span class="text-danger">*</span></label>
@@ -832,7 +827,7 @@
                 </div>
 
                 {{-- Footer --}}
-                <div class="modal-footer" style="border-top:1px solid #f0f0f0;">
+                <div class="fv-modal-footer">
                     <button type="button" class="btn btn-default" wire:click="cerrarModalCrearCliente">
                         <i class="fa fa-times"></i> Cancelar
                     </button>

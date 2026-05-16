@@ -94,6 +94,17 @@
 .mc-table tbody td { padding: 10px 12px; vertical-align: middle; border-bottom: 1px solid #f1f5f9; }
 .mc-table tbody tr:hover { background: #f8fafc; }
 .mc-table tbody tr:last-child td { border-bottom: none; }
+/* Fila de cabecera de grupo (mes) */
+.mc-group-row td {
+    background: linear-gradient(90deg, #f0f7ff, #f8fafc);
+    padding: 9px 14px !important;
+    border-top: 2px solid #bfdbfe !important;
+    border-bottom: 1px solid #dbeafe !important;
+    color: #1e3a5f;
+    pointer-events: none;
+    cursor: default !important;
+}
+.mc-group-row:hover td { background: linear-gradient(90deg, #e0f2fe, #f0f7ff) !important; }
 /* Period filter pills */
 .mc-period-pill {
     display: inline-block; padding: 4px 14px; border-radius: 20px;
@@ -274,13 +285,12 @@
             <table id="tbl_comisiones_empleado" class="table mc-table mb-0">
                 <thead>
                     <tr>
-                        <th>Mes</th>
-                        <th>Ano</th>
-                        <th>Rol</th>
-                        <th>Comision</th>
-                        <th>Facturas</th>
-                        <th>Ult. Actualizacion</th>
-                        <th>Estado</th>
+                        <th style="display:none;"></th>{{-- periodo (oculto, para orden) --}}
+                        <th><i class="fa fa-user-tag mr-1" style="color:#3b82f6;"></i>Rol</th>
+                        <th class="text-right"><i class="fa fa-coins mr-1" style="color:#059669;"></i>Comisión</th>
+                        <th class="text-center"><i class="fa fa-receipt mr-1" style="color:#f59e0b;"></i>Facturas</th>
+                        <th><i class="fa fa-clock mr-1" style="color:#94a3b8;"></i>Última Actualización</th>
+                        <th class="text-center"><i class="fa fa-tag mr-1" style="color:#8b5cf6;"></i>Estado</th>
                     </tr>
                 </thead>
                 <tbody></tbody>
