@@ -128,25 +128,37 @@ class ListarVentas extends Component
 
     private function cargarRegistros(): void
     {
-        $q = DB::table('historico_flujo as hf')
-            ->join('flujo as f', 'f.id', '=', 'hf.flujo_id')
-            ->leftJoin('tipos_tramites as tt', 'tt.id', '=', 'hf.tipo_tramite_id')
+        // Una fila por flujo — estado = tipo_tramite_id actual del flujo
+        $q = DB::table('flujo as f')
+            ->leftJoin('tipos_tramites as tt', 'tt.id', '=', 'f.tipo_tramite_id')
             ->leftJoin('pedido as p', DB::raw('CAST(f.identificacion AS UNSIGNED)'), '=', 'p.id')
             ->leftJoin('cliente as c', 'c.id', '=', 'p.cliente_id')
             ->leftJoin('cotizacion as co', DB::raw('CAST(f.identificacion AS UNSIGNED)'), '=', 'co.id')
-            ->leftJoin('users as uc', 'uc.id', '=', 'co.users_id')
             ->select(
-                'hf.id as historico_id',
-                'hf.flujo_id',
-                'hf.tramite_id as documento_id',
-                'hf.created_at',
+                'f.id as flujo_id',
+                'f.created_at',
+                'p.id as pedido_id',
                 DB::raw("COALESCE(c.nombre, co.nombre_cliente, '—') as cliente"),
                 DB::raw("COALESCE(c.rtn, co.RTN, '—') as rtn"),
-                DB::raw("COALESCE(tt.nombre, 'sin_flujo') as estado_flujo"),
-                DB::raw('COALESCE((SELECT COUNT(*) FROM historico_flujo hf2 WHERE hf2.flujo_id = hf.flujo_id AND hf2.tipo_tramite_id = 2), 0) as total_ofertas'),
-                DB::raw("COALESCE((SELECT COUNT(*) FROM historico_flujo hf3 WHERE hf3.flujo_id = hf.flujo_id AND hf3.tipo_tramite_id = 2 AND hf3.observaciones = 'ganadora'), 0) as tiene_ganadora"),
-                DB::raw("CASE WHEN p.id IS NULL THEN 'cotizacion' ELSE 'pedido' END as origen"),
-                DB::raw('CASE WHEN p.id IS NULL THEN NULL ELSE p.id END as pedido_id')
+                DB::raw("CASE
+                    WHEN f.estado_id = 4 OR p.estado = 'cancelado' THEN 'cancelado'
+                    ELSE COALESCE(tt.nombre, 'sin_flujo')
+                 END as estado_flujo"),
+                // Documento: factura→cai, prefactura→id, fallback→pedido id
+                DB::raw("COALESCE(
+                    (SELECT fa.cai
+                     FROM historico_flujo hf3
+                     INNER JOIN factura fa ON fa.id = hf3.tramite_id
+                     WHERE hf3.flujo_id = f.id AND hf3.tipo_tramite_id = 3
+                     ORDER BY hf3.id DESC LIMIT 1),
+                    CAST((SELECT hf4.tramite_id
+                          FROM historico_flujo hf4
+                          WHERE hf4.flujo_id = f.id AND hf4.tipo_tramite_id = 4
+                          ORDER BY hf4.id DESC LIMIT 1) AS CHAR),
+                    CAST(p.id AS CHAR)
+                ) as documento_display"),
+                DB::raw('COALESCE((SELECT COUNT(*) FROM historico_flujo hf2 WHERE hf2.flujo_id = f.id AND hf2.tipo_tramite_id = 2), 0) as total_ofertas'),
+                DB::raw("CASE WHEN p.id IS NULL THEN 'cotizacion' ELSE 'pedido' END as origen")
             );
 
         // Solo ver propios registros si no es administrador
@@ -154,26 +166,54 @@ class ListarVentas extends Component
             $q->where(function ($sub) {
                 $sub->where('p.users_id', Auth::id())
                     ->orWhere('co.users_id', Auth::id())
-                    ->orWhere('hf.created_by', Auth::id());
+                    ->orWhere('f.created_by', Auth::id());
             });
         }
 
-        // Filtro por número de documento
+        // Filtro por número de documento (cualquier entrada del historial + CAI de factura)
         if (trim($this->filtroNumero) !== '') {
-            $q->where('hf.tramite_id', (int) $this->filtroNumero);
+            $num = trim($this->filtroNumero);
+            $q->where(function ($sub) use ($num) {
+                $sub->whereExists(function ($q2) use ($num) {
+                    $q2->select(DB::raw(1))
+                       ->from('historico_flujo as hfx')
+                       ->whereColumn('hfx.flujo_id', 'f.id')
+                       ->where('hfx.tramite_id', (int) $num);
+                })->orWhereExists(function ($q2) use ($num) {
+                    $q2->select(DB::raw(1))
+                       ->from('historico_flujo as hfx2')
+                       ->join('factura as fx', 'fx.id', '=', 'hfx2.tramite_id')
+                       ->whereColumn('hfx2.flujo_id', 'f.id')
+                       ->where('hfx2.tipo_tramite_id', 3)
+                       ->where('fx.cai', 'LIKE', '%' . $num . '%');
+                });
+            });
         }
 
-        // Busqueda principal
+        // Búsqueda principal
         $termRaw = trim($this->busquedaOfr);
         if ($termRaw !== '') {
             $term = '%' . $termRaw . '%';
-            $q->where(function ($sub) use ($term) {
+            $q->where(function ($sub) use ($term, $termRaw) {
                 $sub->where('c.nombre', 'LIKE', $term)
                     ->orWhere('co.nombre_cliente', 'LIKE', $term)
                     ->orWhere('c.rtn', 'LIKE', $term)
                     ->orWhere('co.RTN', 'LIKE', $term)
-                    ->orWhere('hf.flujo_id', 'LIKE', $term)
-                    ->orWhere('hf.tramite_id', 'LIKE', $term);
+                    ->orWhere('f.id', 'LIKE', $term)
+                    ->orWhereExists(function ($q2) use ($termRaw) {
+                        $q2->select(DB::raw(1))
+                           ->from('historico_flujo as hfx')
+                           ->whereColumn('hfx.flujo_id', 'f.id')
+                           ->where('hfx.tramite_id', 'LIKE', '%' . $termRaw . '%');
+                    })
+                    ->orWhereExists(function ($q2) use ($termRaw) {
+                        $q2->select(DB::raw(1))
+                           ->from('historico_flujo as hfx2')
+                           ->join('factura as fx', 'fx.id', '=', 'hfx2.tramite_id')
+                           ->whereColumn('hfx2.flujo_id', 'f.id')
+                           ->where('hfx2.tipo_tramite_id', 3)
+                           ->where('fx.cai', 'LIKE', '%' . $termRaw . '%');
+                    });
             });
         }
 
@@ -181,40 +221,49 @@ class ListarVentas extends Component
         if ($this->filtroEstado !== '') {
             if ($this->filtroEstado === 'sin_flujo') {
                 $q->whereNull('tt.id');
+            } elseif ($this->filtroEstado === 'cancelado') {
+                $q->where(function ($sub) {
+                    $sub->where('f.estado_id', 4)
+                        ->orWhere('p.estado', 'cancelado');
+                });
             } else {
-                $q->where('tt.nombre', $this->filtroEstado);
+                $q->where('tt.nombre', $this->filtroEstado)
+                  ->where(function ($sub) {
+                      $sub->where('f.estado_id', '!=', 4)->orWhereNull('f.estado_id');
+                  })
+                  ->where(function ($sub) {
+                      $sub->whereNull('p.estado')->orWhere('p.estado', '!=', 'cancelado');
+                  });
             }
         }
 
         // Filtro por fecha
         if ($this->filtroFecha !== '') {
-            $q->whereDate('hf.created_at', $this->filtroFecha);
+            $q->whereDate('f.created_at', $this->filtroFecha);
         }
 
         $dir = strtolower($this->sortDirOfr) === 'asc' ? 'asc' : 'desc';
         switch ($this->sortColOfr) {
             case 'flujo_id':
-                $q->orderBy('hf.flujo_id', $dir);
+                $q->orderBy('f.id', $dir);
                 break;
             case 'documento_id':
-                $q->orderBy('hf.tramite_id', $dir);
+                $q->orderByRaw("documento_display {$dir}");
                 break;
             case 'cliente':
                 $q->orderByRaw("COALESCE(c.nombre, co.nombre_cliente, '') {$dir}");
                 break;
             case 'estado_flujo':
-                $q->orderByRaw("COALESCE(tt.nombre, 'sin_flujo') {$dir}");
+                $q->orderByRaw("estado_flujo {$dir}");
                 break;
             case 'total_ofertas':
-                $q->orderBy('total_ofertas', $dir);
+                $q->orderByRaw("total_ofertas {$dir}");
                 break;
             case 'created_at':
             default:
-                $q->orderBy('hf.created_at', $dir);
+                $q->orderBy('f.created_at', $dir);
                 break;
         }
-
-        $q->orderByDesc('hf.id');
 
         $this->registros = $q->get()->toArray();
     }
