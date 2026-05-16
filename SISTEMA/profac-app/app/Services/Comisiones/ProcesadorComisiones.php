@@ -18,8 +18,6 @@ class ProcesadorComisiones
         $rolId  = $factura['rol_id']         ?? null;
         $monto  = (float) ($factura['monto_rol'] ?? 0);
         $fecha  = $factura['fecha_cierre_factura'] ?? now();
-        // tipo_comision: 1=facturador_fijo, 2=facturador_rol, 3=vendedor, 0=legado
-        $tipo   = (int) ($factura['tipo_comision'] ?? 0);
 
         if (!$userId || !$rolId || $monto <= 0) {
             return;
@@ -30,13 +28,13 @@ class ProcesadorComisiones
         // Nombre del empleado (desnormalizado para reportes rápidos)
         $nombre = DB::table('users')->where('id', $userId)->value('name') ?? 'Desconocido';
 
+        // Una sola fila por (usuario, rol, mes) — acumula todas las capacidades
         $comision = modelcomision_empleado::firstOrCreate(
             [
                 'users_comision' => $userId,
                 'rol_id'         => $rolId,
                 'mes_comision'   => $mes,
                 'estado_id'      => 1,
-                'tipo_comision'  => $tipo,   // discriminador de capacidad
             ],
             [
                 'comision_acumulada'     => 0,
