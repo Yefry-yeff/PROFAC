@@ -1357,4 +1357,7 @@ Route::post('/reporte/ventas-cobros/exportar-excel/{vendedorId}/{clienteId}/{mes
 
     // Configuración de tiempo de prefacturación (movido a /configuracion/prefacturacion)
 
+
+    // Ruta auto-generada para: Flujo\RevisionCreditos
+    Route::get('/flujo/revision_creditos', \App\Http\Livewire\Flujo\RevisionCreditos::class);
 });

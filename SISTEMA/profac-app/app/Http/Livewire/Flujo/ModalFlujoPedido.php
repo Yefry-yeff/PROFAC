@@ -1784,9 +1784,10 @@ class ModalFlujoPedido extends Component
      * inactiva prefactura + historico, retrocede flujo a tipo_tramite_id=2,
      * restaura inventario y desmarca la oferta como ganadora.
      */
-    public function revertirPrefacturaAOferta(): void
+    protected function revertirPrefacturaAOferta(): void
     {
         if (!$this->prefacturaData || !$this->flujoId) return;
+        if (!$this->autorizacionId) return;
 
         $prefacturaId = (int) $this->prefacturaData['id'];
         $cotizacionId = (int) ($this->prefacturaData['cotizacion_id'] ?? 0);
@@ -1868,9 +1869,10 @@ class ModalFlujoPedido extends Component
      * Anula la prefactura: la inactiva + inactiva su registro en historico_flujo
      * y retrocede el flujo a Ofertas. No restaura inventario (stock perdido).
      */
-    public function anularPrefactura(): void
+    protected function anularPrefactura(): void
     {
         if (!$this->prefacturaData || !$this->flujoId) return;
+        if (!$this->autorizacionId) return;
 
         $prefacturaId = (int) $this->prefacturaData['id'];
         $cotizacionId = (int) ($this->prefacturaData['cotizacion_id'] ?? 0);

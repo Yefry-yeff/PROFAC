@@ -3261,20 +3261,21 @@
                 return;
             }
             var autorizacionId = data.idAutorizacion;
-            // Desactivar código
-            axios.post('/ventas/autorizacion/desactivar', { idAutorizacion: autorizacionId });
+            // Desactivar código (await para garantizar consumo antes de navegar)
+            axios.post('/ventas/autorizacion/desactivar', { idAutorizacion: autorizacionId })
+                .finally(function() {
+                    $('#modalAutorizacionEditarPref').modal('hide');
 
-            $('#modalAutorizacionEditarPref').modal('hide');
-
-            // Redirigir a formulario de edición
-            var prefId = _prefacturaId;
-            axios.post('/prefactura/' + prefId + '/facturar', {}, {
-                headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') }
-            }).then(function(res) {
-                window.location.href = res.data.url;
-            }).catch(function(err) {
-                Swal.fire({ icon: 'error', title: 'Error', text: (err.response && err.response.data && err.response.data.error) ? err.response.data.error : 'Error al procesar.' });
-            });
+                    // Redirigir a formulario de edición
+                    var prefId = _prefacturaId;
+                    axios.post('/prefactura/' + prefId + '/facturar', {}, {
+                        headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') }
+                    }).then(function(res) {
+                        window.location.href = res.data.url;
+                    }).catch(function(err) {
+                        Swal.fire({ icon: 'error', title: 'Error', text: (err.response && err.response.data && err.response.data.error) ? err.response.data.error : 'Error al procesar.' });
+                    });
+                });
         }).catch(function() {
             errCod.style.display = '';
             errCod.textContent = 'Error al verificar el código.';
@@ -3464,9 +3465,9 @@
                 limpiarFormularioVenta(data);
                 $('#modalExitoFactura').modal('show');
 
-                // Desactivar código si aplica
+                // Desactivar código si aplica (inmediato, sin delay)
                 if (tipoFacturaConfig && tipoFacturaConfig.requiere_codigo_autorizacion) {
-                    setTimeout(function() { desactivarCodigo(); }, 30000);
+                    desactivarCodigo();
                 }
             })
             .catch(err => {

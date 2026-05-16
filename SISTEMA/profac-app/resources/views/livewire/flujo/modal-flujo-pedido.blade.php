@@ -99,10 +99,9 @@
 @endphp
 
 {{-- ── Overlay ─────────────────────────────────────────────────────────── --}}
-<div id="fmpModalWrap" tabindex="-1" role="dialog"
+<div id="fmpModalWrap" role="dialog"
      style="position:fixed; inset:0; z-index:99999;
-            display:flex; align-items:flex-start; justify-content:center; padding:16px;
-            overflow-y:auto; -webkit-overflow-scrolling:touch;
+            display:flex; align-items:center; justify-content:center; padding:16px;
             pointer-events:none;
             background:rgba(15,15,35,.62); backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px);">
 
