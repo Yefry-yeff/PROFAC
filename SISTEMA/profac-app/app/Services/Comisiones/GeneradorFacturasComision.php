@@ -8,18 +8,19 @@ use App\Models\Comisiones\Escalado\modelproducto_comision;
 class GeneradorFacturasComision
 {
     /**
-     * rol_id que se usa SIEMPRE para el facturador,
-     * independientemente del rol real del usuario que creó la factura.
+     * Rol fijo que representa la capacidad de "facturador" en comision_escala.
+     * Se usa independientemente del rol real del usuario que creó la factura.
      */
     const ROL_FACTURADOR_ID = 3;
 
     /**
      * Genera comisiones para la factura indicada.
-     * - Facturador: factura.users_id, siempre con rol ROL_FACTURADOR_ID.
-     * - Vendedor:   factura.vendedor,  con su rol_id real.
-     * - Si son la misma persona generan dos registros separados (uno por rol),
-     *   salvo que su rol real ya sea ROL_FACTURADOR_ID (en ese caso solo uno).
-     * - monto_comision = precio_unidad * cantidad * (porcentaje / 100)
+     * Por cada factura se construyen hasta 3 entradas de comisión:
+     *   1. Facturador (factura.users_id) → siempre con ROL_FACTURADOR_ID (3).
+     *   2. Facturador en su rol real     → si su rol_id real ≠ ROL_FACTURADOR_ID.
+     *   3. Vendedor   (factura.vendedor)  → su rol_id real, si la combinación
+     *      user_id+rol_id no está ya en la lista (evita duplicados).
+     * monto_comision = precio_unidad * cantidad * (porcentaje / 100)
      */
     public function generar(int $facturaId, int $aplicacionPagoId): array
     {
@@ -28,12 +29,14 @@ class GeneradorFacturasComision
             return [];
         }
 
-        // Resolver facturador y vendedor
+        // Resolver facturador y vendedor con sus roles reales
         $fila = DB::selectOne(
             "SELECT f.users_id AS facturador_id,
+                    uf.rol_id   AS facturador_rol,
                     f.vendedor  AS vendedor_id,
                     uv.rol_id   AS vendedor_rol
              FROM factura f
+             INNER JOIN users uf ON uf.id = f.users_id
              INNER JOIN users uv ON uv.id = f.vendedor
              WHERE f.id = ?",
             [$facturaId]
@@ -43,24 +46,30 @@ class GeneradorFacturasComision
             return [];
         }
 
-        // Lista de actores que comisionan: [user_id, rol_id]
-        // Facturador: siempre ROL_FACTURADOR_ID
-        // Vendedor: su rol real. Solo se omite si es la misma persona Y mismo rol.
+        // ── Construcción de targets ──────────────────────────────────────────
+        // Helper: agrega una entrada solo si la combinación user_id+rol_id
+        // no existe ya en la lista (evita duplicar comisiones).
         $targetsList = [];
-        $targetsList[] = [
-            'user_id' => (int) $fila->facturador_id,
-            'rol_id'  => self::ROL_FACTURADOR_ID,
-        ];
+        $pushIfNew = function (int $userId, int $rolId) use (&$targetsList): void {
+            foreach ($targetsList as $t) {
+                if ($t['user_id'] === $userId && $t['rol_id'] === $rolId) {
+                    return;
+                }
+            }
+            $targetsList[] = ['user_id' => $userId, 'rol_id' => $rolId];
+        };
 
-        $mismaPersona = (int) $fila->vendedor_id  === (int) $fila->facturador_id;
-        $mismoRol     = (int) $fila->vendedor_rol === self::ROL_FACTURADOR_ID;
+        // 1. Facturador: siempre con el rol de facturador (hardcoded = 3)
+        $pushIfNew((int) $fila->facturador_id, self::ROL_FACTURADOR_ID);
 
-        if (!$mismaPersona || !$mismoRol) {
-            $targetsList[] = [
-                'user_id' => (int) $fila->vendedor_id,
-                'rol_id'  => (int) $fila->vendedor_rol,
-            ];
+        // 2. Facturador en su rol real (admin, gerente, etc.)
+        //    Solo si su rol real es distinto al de facturador
+        if ((int) $fila->facturador_rol !== self::ROL_FACTURADOR_ID) {
+            $pushIfNew((int) $fila->facturador_id, (int) $fila->facturador_rol);
         }
+
+        // 3. Vendedor con su rol real
+        $pushIfNew((int) $fila->vendedor_id, (int) $fila->vendedor_rol);
 
         $rolIds = array_unique(array_column($targetsList, 'rol_id'));
 
