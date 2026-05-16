@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Validator;
 use Luecano\NumeroALetras\NumeroALetras;
 use PDF;
 use App\Models\PrefacturaAuditoria;
+use App\Models\CreditoRevision;
 use App\Http\Livewire\Ventas\FacturacionCorporativa;
 
 /**
@@ -306,7 +307,7 @@ class PrefacturaController
                     'cotizacion_id' => $cotizacionId,
                     'flujo_id'      => $flujoId,
                     'ganadora'      => 1,
-                    'comentario'    => 'Marcada como ganadora. Enviada a Revisión de Inventario.',
+                    'comentario'    => 'Marcada como ganadora. Enviada a Revisión de Crédito.',
                     'estado_id'     => 1,
                     'created_by'    => Auth::id(),
                     'updated_by'    => Auth::id(),
@@ -314,23 +315,23 @@ class PrefacturaController
                     'updated_at'    => now(),
                 ]);
 
-                // 4. Crear historico_flujo tipo=9
+                // 4. Crear historico_flujo tipo=10 (Revisión de Crédito)
                 DB::table('historico_flujo')->insert([
                     'flujo_id'        => $flujoId,
-                    'tipo_tramite_id' => 9,
+                    'tipo_tramite_id' => 10,
                     'tramite_id'      => $cotizacionId,
                     'estado_id'       => 5,
-                    'observaciones'   => 'En Revisión de Inventario. Oferta #' . $cotizacionId,
+                    'observaciones'   => 'En Revisión de Crédito. Oferta #' . $cotizacionId,
                     'created_by'      => Auth::id(),
                     'updated_by'      => Auth::id(),
                     'created_at'      => now(),
                     'updated_at'      => now(),
                 ]);
 
-                // 5. Avanzar flujo al paso 9
+                // 5. Avanzar flujo al paso 10 (Revisión de Crédito)
                 if ($flujoId) {
                     DB::table('flujo')->where('id', $flujoId)->update([
-                        'tipo_tramite_id' => 9,
+                        'tipo_tramite_id' => 10,
                         'updated_by'      => Auth::id(),
                         'updated_at'      => now(),
                     ]);
@@ -338,10 +339,10 @@ class PrefacturaController
 
                 DB::commit();
                 return response()->json([
-                    'en_revision_inventario' => true,
-                    'cotizacionId'           => $cotizacionId,
-                    'flujoId'                => $flujoId,
-                    'message'                => 'Oferta #' . $cotizacionId . ' enviada a Revisión de Inventario.',
+                    'en_revision_credito' => true,
+                    'cotizacionId'        => $cotizacionId,
+                    'flujoId'             => $flujoId,
+                    'message'             => 'Oferta #' . $cotizacionId . ' enviada a Revisión de Crédito.',
                 ]);
             } catch (\Exception $e) {
                 DB::rollBack();

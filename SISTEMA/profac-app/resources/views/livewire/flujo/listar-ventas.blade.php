@@ -205,10 +205,9 @@
                         <span style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff; border-radius:6px; padding:2px 9px; font-weight:800; font-size:13px;">
                             #{{ $o['flujo_id'] }}
                         </span>
-                        <div style="font-size:10px; color:#b0bec5; margin-top:2px;">Hist #{{ $o['historico_id'] }}</div>
                     </td>
                     <td class="text-center align-middle" style="padding:8px; color:#5d4037; font-weight:700;">
-                        {{ $o['documento_id'] ?? '—' }}
+                        {{ $o['documento_display'] ?? '—' }}
                     </td>
                     <td class="align-middle" style="padding:8px 12px;">
                         <div style="font-weight:700; color:#2c3e50; line-height:1.3;">{{ $o['cliente'] }}</div>

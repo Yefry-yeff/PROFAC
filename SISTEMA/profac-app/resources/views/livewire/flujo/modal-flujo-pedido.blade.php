@@ -25,8 +25,7 @@
         20%,60% { transform:translateX(-6px); }
         40%,80% { transform:translateX(6px);  }
     }
-    body { overflow: hidden !important; }
-    .fmp-dlg  { max-width:920px; width:100%; animation:flujoIn .32s cubic-bezier(.34,1.28,.64,1) both; }
+    .fmp-dlg  { max-width:920px; width:100%; animation:flujoIn .32s cubic-bezier(.34,1.28,.64,1) both; pointer-events:auto; }
     .fmp-cnt  { border-radius:18px !important; overflow:hidden !important; }
     .fmp-body { padding:20px 24px 24px !important; overflow-y:auto; max-height:calc(90vh - 140px); }
     .fmp-foot { padding:12px 24px 18px !important; display:flex !important; flex-wrap:wrap !important; gap:8px !important; justify-content:flex-end !important; }
@@ -56,6 +55,15 @@
     $tieneRevision         = in_array(9, $flujoTipos);   // Revision de Inventario (incluye devueltos)
     $tieneRevisionActiva   = $tieneRevision && !($revisionDevuelta ?? false);  // ciclo activo
     $tieneRevisionDevuelta = $tieneRevision && ($revisionDevuelta ?? false);   // último ciclo devuelto
+
+    // Revisión de Crédito (tipo 10)
+    $tieneRevisionCredito         = in_array(10, $flujoTipos);
+    $creditoRevisionEstado        = $creditoRevisionData['estado'] ?? null;  // 'pendiente'|'aprobado'|'rechazado'
+    // Activa = hay un historico_flujo tipo=10 con estado_id=5 (pendiente), ó el registro ya existe con estado pendiente
+    $tieneRevisionCreditoActiva   = $tieneRevisionCredito && ($revisionCreditoPendiente || $creditoRevisionEstado === 'pendiente');
+    $tieneRevisionCreditoAprobada = $tieneRevisionCredito && ($creditoRevisionEstado === 'aprobado');
+    $tieneRevisionCreditoRechazada= $tieneRevisionCredito && ($creditoRevisionEstado === 'rechazado');
+
     $tienePrefact  = in_array(4, $flujoTipos);
     $tieneFactura  = in_array(3, $flujoTipos) || in_array(5, $flujoTipos);
 
@@ -69,40 +77,45 @@
     $finalizadoCompletado = $entregaEsCompletada && $cobroCompletado;
     $facturaCompletada = in_array(5, $flujoTipos) || in_array(3, $flujoTipos);
 
-    // fPaso: número del paso activo en el stepper (1-5 para el pipeline principal)
-    // 1=Pedido, 2=Ofertas, 3=RevInventario, 4=PreFactura, 5=Factura
+    // fPaso: número del paso activo en el stepper (1-6 para el pipeline principal)
+    // 1=Pedido, 2=Ofertas, 3=RevCrédito, 4=RevInventario, 5=PreFactura, 6=Factura
     $fPaso = match(true) {
-        $fCancelado           => 0,
-        $finalizadoCompletado => 7,
-        $cobroCompletado      => 6,
-        $tieneEntrega         => 5,
-        $tieneFactura         => 5,
-        $tienePrefact         => 4,
-        $tieneRevisionActiva   => 3,   // en revisión de inventario (ciclo activo)
-        $tieneGanadora        => 4,   // ganadora sin revisión → directamente prefactura
-        $tieneOfertas         => 2,
-        default               => 1,
+        $fCancelado                  => 0,
+        $finalizadoCompletado        => 8,
+        $cobroCompletado             => 7,
+        $tieneEntrega                => 7,
+        $tieneFactura                => 7,
+        $tienePrefact                => 5,
+        $tieneRevisionActiva         => 4,   // en revisión de inventario (ciclo activo)
+        $tieneRevisionCreditoActiva   => 3,   // en revisión de crédito (pendiente)
+        $tieneRevisionCreditoRechazada => 3,   // crédito rechazado: mantener en paso 3 (Pendiente en rev. inv y prefact)
+        $tieneGanadora               => 5,   // ganadora sin revisiones → directamente prefactura
+        $tieneOfertas                => 2,
+        default                      => 1,
     };
 
     $fPasos = [
         1 => ['key' => 'pedido',              'icon' => 'fa-shopping-cart', 'title' => 'Pedido'],
         2 => ['key' => 'ofertas',             'icon' => 'fa-tag',           'title' => 'Ofertas'],
-        3 => ['key' => 'revision_inventario', 'icon' => 'fa-search',        'title' => 'Rev. Inventario'],
-        4 => ['key' => 'prefactura',          'icon' => 'fa-file-o',        'title' => 'Pre Factura'],
-        5 => ['key' => 'factura',             'icon' => 'fa-file-text',     'title' => 'Factura'],
+        3 => ['key' => 'revision_credito',    'icon' => 'fa-credit-card',   'title' => 'Rev. Crédito'],
+        4 => ['key' => 'revision_inventario', 'icon' => 'fa-search',        'title' => 'Rev. Inventario'],
+        5 => ['key' => 'prefactura',          'icon' => 'fa-file-o',        'title' => 'Pre Factura'],
+        6 => ['key' => 'factura',             'icon' => 'fa-file-text',     'title' => 'Factura'],
     ];
 
     $pasoMap = [
-        'pedido' => 1, 'ofertas' => 2, 'revision_inventario' => 3,
-        'prefactura' => 4, 'factura' => 5, 'entrega' => 6, 'cobro' => 7, 'finalizado' => 8,
+        'pedido' => 1, 'ofertas' => 2, 'revision_credito' => 3,
+        'revision_inventario' => 4, 'prefactura' => 5, 'factura' => 6,
+        'entrega' => 7, 'cobro' => 8, 'finalizado' => 9,
     ];
     $pasoActivoNum = $pasoMap[$pasoActivo] ?? 1;
 @endphp
 
 {{-- ── Overlay ─────────────────────────────────────────────────────────── --}}
-<div id="fmpModalWrap" tabindex="-1" role="dialog"
+<div id="fmpModalWrap" role="dialog"
      style="position:fixed; inset:0; z-index:99999;
             display:flex; align-items:center; justify-content:center; padding:16px;
+            pointer-events:none;
             background:rgba(15,15,35,.62); backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px);">
 
     <div class="fmp-dlg" role="document">
@@ -166,27 +179,32 @@
                             flex-wrap:nowrap; overflow-x:auto; padding:18px 16px 10px;">
                     @foreach ($fPasos as $paso => $info)
                     @php
-                        $fPasoLinea = min($fPaso, 5);
+                        $fPasoLinea = min($fPaso, 6);
                         $esSinPedido = ($paso === 1 && !empty($d['sin_pedido']));
                         // Pasos que no aplican porque el flujo fue directo (sin ofertas/prefactura)
                         $esSinAplica = !$esSinPedido && !empty($d['sin_pedido']) && (
                             ($paso === 2 && !$tieneOfertas && $fPasoLinea > 2) ||
-                            ($paso === 3 && !$tieneRevision && !$tienePrefact && $fPasoLinea > 3) ||
-                            ($paso === 4 && !$tienePrefact && $fPasoLinea > 4)
+                            ($paso === 3 && !$tieneRevisionCredito && !$tieneRevision && !$tienePrefact && $fPasoLinea > 3) ||
+                            ($paso === 4 && !$tieneRevision && !$tienePrefact && $fPasoLinea > 4) ||
+                            ($paso === 5 && !$tienePrefact && $fPasoLinea > 5)
                         );
-                        $completado = !$esSinPedido && !$esSinAplica && (($paso < $fPasoLinea) || ($paso === 5 && $fPaso > 5));
-                        $activo     = !$esSinPedido && !$esSinAplica && ($paso === $fPasoLinea) && !($paso === 5 && $fPaso > 5);
+                        $completado = !$esSinPedido && !$esSinAplica && (($paso < $fPasoLinea) || ($paso === 6 && $fPaso > 6));
+                        $activo     = !$esSinPedido && !$esSinAplica && ($paso === $fPasoLinea) && !($paso === 6 && $fPaso > 6);
                         $pendiente  = !$esSinPedido && !$esSinAplica && ($paso > $fPasoLinea);
                         $esSeleccionado = ($info['key'] === $pasoActivo);
                         $delay      = ($paso - 1) * 100;
-                        // Rev. Inventario devuelta: mostrar como estado especial (naranja) en vez de pendiente gris
+                        // Rev. Inventario devuelta: mostrar como estado especial (naranja)
                         $esDevuelto = ($info['key'] === 'revision_inventario')
                             && ($tieneRevisionDevuelta ?? false)
                             && !($tieneRevisionActiva ?? false)
                             && $pendiente;
-                        if ($esDevuelto) $pendiente = false;
-                        $labelColor = ($esSinPedido || $esSinAplica) ? '#e74c3c' : ($completado ? '#1ab394' : ($activo ? '#1a7efb' : ($esDevuelto ? '#e67e22' : '#aab')));
-                        $puedeClick = ($completado || $activo || $esDevuelto) && !$esSinPedido && !$esSinAplica;
+                        // Rev. Crédito rechazada: mostrar como rojo con X
+                        $esRechazado = ($info['key'] === 'revision_credito')
+                            && ($tieneRevisionCreditoRechazada ?? false);
+                        if ($esDevuelto)  $pendiente = false;
+                        if ($esRechazado) { $pendiente = false; $completado = false; $activo = false; }
+                        $labelColor = ($esSinPedido || $esSinAplica) ? '#e74c3c' : ($esRechazado ? '#e74c3c' : ($completado ? '#1ab394' : ($activo ? '#1a7efb' : ($esDevuelto ? '#e67e22' : '#aab'))));
+                        $puedeClick = ($completado || $activo || $esDevuelto || $esRechazado) && !$esSinPedido && !$esSinAplica;
                     @endphp
 
                     {{-- Step card --}}
@@ -247,6 +265,20 @@
                                          width:20px; height:20px; display:flex; align-items:center; justify-content:center;
                                          font-size:10px; font-weight:800; border:2px solid #fff; line-height:1;">{{ $paso }}</span>
                         </div>
+                        @elseif ($esRechazado)
+                        <div class="fmp-step-circle" style="position:relative; width:60px; height:60px; margin-bottom:8px; flex-shrink:0;">
+                            <div style="width:60px; height:60px; border-radius:50%;
+                                        background:linear-gradient(135deg,#e74c3c,#c0392b); color:#fff;
+                                        box-shadow:0 4px 16px rgba(231,76,60,.4);
+                                        display:flex; align-items:center; justify-content:center; font-size:22px;
+                                        {{ $esSeleccionado ? 'box-shadow:0 4px 16px rgba(231,76,60,.4), 0 0 0 4px rgba(231,76,60,.25);' : '' }}">
+                                <i class="fa fa-times"
+                                   style="animation:checkPop .4s cubic-bezier(.34,1.56,.64,1) {{ $delay + 200 }}ms both;"></i>
+                            </div>
+                            <span style="position:absolute; top:-4px; right:-4px; background:#c0392b; color:#fff; border-radius:50%;
+                                         width:20px; height:20px; display:flex; align-items:center; justify-content:center;
+                                         font-size:10px; font-weight:800; border:2px solid #fff; line-height:1;">{{ $paso }}</span>
+                        </div>
                         @else
                         <div class="fmp-step-circle" style="width:60px; height:60px; border-radius:50%;
                                     background:#e8eaf0; color:#c0c2cc; margin-bottom:8px;
@@ -278,27 +310,35 @@
                                     <i class="fa fa-map-marker" style="animation:dotBlink 1s ease-in-out infinite;"></i> Actual
                                 @elseif ($esDevuelto)
                                     <i class="fa fa-reply"></i> Devuelto
+                                @elseif ($esRechazado)
+                                    <i class="fa fa-times-circle"></i> Rechazado
                                 @else
                                     <i class="fa fa-clock-o"></i> Pendiente
                                 @endif
                             </div>
-                            @if ($activo && $paso === 4)
+                            @if ($activo && $paso === 5)
                             <div style="font-size:10px; color:#f39c12; margin-top:3px; font-weight:700;
                                         background:rgba(243,156,18,.12); border-radius:8px; padding:1px 6px;">
                                 <i class="fa fa-trophy"></i> Oferta ganadora
                             </div>
                             @endif
-                            @if ($activo && $paso === 3)
+                            @if ($activo && $paso === 4)
                             <div style="font-size:10px; color:#9c27b0; margin-top:3px; font-weight:700;
                                         background:rgba(156,39,176,.1); border-radius:8px; padding:1px 6px;">
                                 <i class="fa fa-search"></i> En revisión
+                            </div>
+                            @endif
+                            @if ($activo && $paso === 3)
+                            <div style="font-size:10px; color:#1565c0; margin-top:3px; font-weight:700;
+                                        background:rgba(21,101,192,.1); border-radius:8px; padding:1px 6px;">
+                                <i class="fa fa-credit-card"></i> Rev. Crédito
                             </div>
                             @endif
                         </div>
                     </div>{{-- /step --}}
 
                     {{-- Conector --}}
-                    @if ($paso < 5)
+                    @if ($paso < 6)
                     @php $connDelay = $delay + 80; @endphp
                     <div style="flex:1; min-width:16px; max-width:40px; height:4px; border-radius:4px;
                                 margin-bottom:30px; position:relative; overflow:hidden; background:#e0e3ee;">
@@ -327,7 +367,7 @@
                     $puedeCobro       = $tieneFactura;
                     $puedeFinal       = $tieneFactura;
 
-                    $facturaLineaCompletada = ($fPaso > 4);
+                    $facturaLineaCompletada = ($fPaso > 5);
 
                     // Colores según estado_id: activo=azul, completado(1)=verde, pendiente(5)=azul, null=gris
                     $entregaColor = $entregaEsCompletada
@@ -555,7 +595,7 @@
 
                 {{-- ── Barra de progreso ─────────────────────────────── --}}
                 @if (!$fCancelado)
-                @php $progressPct = min(round(($fPaso / 7) * 100), 100); @endphp
+                @php $progressPct = min(round(($fPaso / 8) * 100), 100); @endphp
                 <div style="height:5px; border-radius:5px; background:#e8eaf0; margin:0 4px 6px; overflow:hidden;">
                     <div style="height:100%; border-radius:5px;
                                 background:linear-gradient(90deg,#1ab394,#1a7efb);
@@ -894,7 +934,7 @@
                             <i class="mr-1 fa fa-trophy"></i> Ganadora
                         </button>
                         @endif
-                        @if (!$facturaCompletada && $esGanDet && !$esAnuDet)
+                        @if (!$facturaCompletada && $esGanDet && !$esAnuDet && !($tieneRevisionCreditoRechazada ?? false))
                         <button type="button" wire:click="confirmarAccionOferta('quitar_ganadora')"
                                 style="background:linear-gradient(135deg,#e67e22,#d35400); color:#fff;
                                        border:none; border-radius:8px; padding:5px 10px;
@@ -902,7 +942,7 @@
                             <i class="mr-1 fa fa-times-circle"></i> Quitar Ganadora
                         </button>
                         @endif
-                        @if (!$facturaCompletada && !$esAnuDet && !$esVencDet)
+                        @if (!$facturaCompletada && !$esAnuDet && !$esVencDet && !($tieneRevisionCreditoRechazada ?? false))
                         <button type="button" wire:click="confirmarAccionOferta('anular_oferta')"
                                 style="background:linear-gradient(135deg,#e74c3c,#c0392b); color:#fff;
                                        border:none; border-radius:8px; padding:5px 10px;
@@ -1165,6 +1205,75 @@
 
                 @endif
                 {{-- /paso ofertas --}}
+
+                {{-- ══════════════════════════════════════════════════ --}}
+                {{-- PASO: REVISIÓN DE CRÉDITO (informativo en modal)   --}}
+                {{-- ══════════════════════════════════════════════════ --}}
+                @if ($pasoActivo === 'revision_credito')
+                @php
+                    $crEstado     = $creditoRevisionData['estado'] ?? 'pendiente';
+                    $crAprobado   = ($crEstado === 'aprobado');
+                    $crRechazado  = ($crEstado === 'rechazado');
+                    $crColor      = $crAprobado ? '#1b5e20,#2e7d32' : ($crRechazado ? '#b71c1c,#c62828' : '#0d47a1,#1565c0');
+                    $crIcon       = $crAprobado ? 'fa-check-circle' : ($crRechazado ? 'fa-times-circle' : 'fa-credit-card');
+                @endphp
+                <div style="margin-top:14px;">
+                    <div style="background:linear-gradient(135deg,#e3f2fd,#bbdefb);
+                                border:1.5px solid #64b5f6; border-radius:14px;
+                                padding:16px 22px; display:flex; align-items:center; gap:16px; margin-bottom:14px;">
+                        <div style="width:52px; height:52px; border-radius:50%;
+                                    background:linear-gradient(135deg,{{ $crColor }});
+                                    display:flex; align-items:center; justify-content:center;
+                                    font-size:24px; color:#fff; flex-shrink:0;
+                                    box-shadow:0 4px 16px rgba(26,126,251,.35);">
+                            <i class="fa {{ $crIcon }}"></i>
+                        </div>
+                        <div>
+                            <h5 style="color:#0d47a1; font-weight:700; margin:0 0 6px; font-size:15px;">
+                                Revisión de Crédito
+                                <span style="font-size:12px; background:{{ $crAprobado ? '#c8e6c9' : ($crRechazado ? '#ffcdd2' : '#bbdefb') }};
+                                             color:{{ $crAprobado ? '#2e7d32' : ($crRechazado ? '#c62828' : '#1565c0') }};
+                                             border-radius:20px; padding:2px 10px; margin-left:6px; vertical-align:middle;">
+                                    {{ strtoupper($crEstado) }}
+                                </span>
+                            </h5>
+                            <p style="font-size:12px; color:#1565c0; margin:0;">
+                                @if ($crAprobado)
+                                    <i class="mr-1 fa fa-check-circle"></i>
+                                    Crédito aprobado.
+                                    @if(!empty($creditoRevisionData['fecha_aprobacion']))
+                                        Autorizado el {{ \Carbon\Carbon::parse($creditoRevisionData['fecha_aprobacion'])->format('d/m/Y') }}.
+                                    @endif
+                                    @if(!empty($creditoRevisionData['fecha_vencimiento_credito']))
+                                        Vence el {{ \Carbon\Carbon::parse($creditoRevisionData['fecha_vencimiento_credito'])->format('d/m/Y') }}.
+                                    @endif
+                                    @if(!empty($creditoRevisionData['usuario_revision']))
+                                        <span style="display:block; margin-top:4px;">
+                                            <i class="fa fa-user mr-1"></i>Aprobado por: <strong>{{ $creditoRevisionData['usuario_revision_nombre'] ?? '—' }}</strong>
+                                        </span>
+                                    @endif
+                                @elseif ($crRechazado)
+                                    <i class="mr-1 fa fa-times-circle"></i>
+                                    Crédito rechazado.
+                                    @if(!empty($creditoRevisionData['usuario_revision']))
+                                        <span style="display:block; margin-top:4px;">
+                                            <i class="fa fa-user mr-1"></i>Rechazado por: <strong>{{ $creditoRevisionData['usuario_revision_nombre'] ?? '—' }}</strong>
+                                        </span>
+                                    @endif
+                                    @if(!empty($creditoRevisionData['motivo_rechazo']))
+                                        <span style="display:block; margin-top:4px; word-break:break-word; overflow-wrap:anywhere;">
+                                            Motivo: {{ $creditoRevisionData['motivo_rechazo'] }}
+                                        </span>
+                                    @endif
+                                @else
+                                    <i class="mr-1 fa fa-clock-o"></i>
+                                    Pendiente de revisión en la bandeja de Revisión de Crédito.
+                                @endif
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                @endif {{-- /paso revision_credito --}}
 
                 {{-- ══════════════════════════════════════════════════ --}}
                 {{-- PASO: REVISIÓN DE INVENTARIO (informativo)         --}}
@@ -1607,13 +1716,27 @@
                     @if ($confirmAccionFactura === 'anular')
                     <div style="margin-top:10px; background:#fff5f5; border:1px solid #feb2b2;
                                 border-radius:12px; padding:14px;">
-                        <p style="font-size:13px; color:#555; margin:0 0 8px;">
+                        <p style="font-size:13px; color:#555; margin:0 0 4px;">
                             <i class="mr-1 fa fa-ban text-danger"></i>
                             ¿Anular la <strong>Factura #{{ $fac['id'] }}</strong>?
                         </p>
                         <p style="font-size:11px; color:#888; margin:0 0 10px;">
-                            Si la prefactura está vigente, el flujo regresará a Prefactura. Si está vencida, regresará a Ofertas con validación de precios.
+                            El flujo regresará a Ofertas. La oferta ganadora quedará disponible para re-seleccionarse.
                         </p>
+                        <div style="margin-bottom:10px;">
+                            <label style="font-size:12px; font-weight:700; color:#c0392b; display:block; margin-bottom:4px;">
+                                <i class="fa fa-comment mr-1"></i> Motivo de anulación <span style="color:#e74c3c;">*</span>
+                            </label>
+                            <textarea wire:model.defer="motivoAnulacionFactura"
+                                      rows="3"
+                                      placeholder="Indique el motivo de la anulación..."
+                                      style="width:100%; border:1px solid #feb2b2; border-radius:8px;
+                                             padding:8px 10px; font-size:12px; resize:vertical;
+                                             background:#fff; outline:none; box-sizing:border-box;"></textarea>
+                            @if($mensajeError && str_contains($mensajeError, 'motivo'))
+                            <p style="font-size:11px; color:#e74c3c; margin:4px 0 0;">{{ $mensajeError }}</p>
+                            @endif
+                        </div>
                         <div style="display:flex; gap:8px;">
                             <button type="button" wire:click="anularFactura"
                                     style="background:linear-gradient(135deg,#e74c3c,#c0392b); color:#fff;
