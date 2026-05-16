@@ -54,88 +54,68 @@ function cargarRolesEnModal(selected = null) {
 
 
 $('#modalParamComision').on('shown.bs.modal', function () {
-    if (!$('#param_comision_id').val()) {
-        cargarCategoriasClienteEnModal();
-        cargarRolesEnModal();
-    }
+    // Cargar opciones siempre (editar ahora usa #modalEditarPct)
+    cargarCategoriasClienteEnModal();
+    cargarRolesEnModal();
 });
 
 
-$('#modalParamComision').on('hidden.bs.modal', function () {
-  const $sel = $('#categoria_cliente_id');
-  $sel.empty().append('<option value="">Seleccione una categoría...</option>');
-});
-
-
-/*Registro de parametro de comisión */
+/*Registro de parametro de comisión — recoge filas de la tabla dinámica */
 function registrarParametroComision() {
-  const $btn = $('#btn_guardar_parametro_comision');
-  const cat = $('#categoria_cliente_id').val();
-  const idParam = $('#param_comision_id').val(); // si viene lleno, es edición
+  var $btn  = $('#btn_guardar_parametro_comision');
+  var cat   = $('#categoria_cliente_id').val();
+  var rol   = $('#rol_id').val();
+  var nombre = $('#nombre_comescala').val().trim();
 
-  if (!cat) {
-    Swal.fire({ icon:'warning', title:'Falta categoría', text:'Seleccione una categoría de cliente.' });
+  if (!cat || !rol) {
+    Swal.fire({ icon:'warning', title:'Faltan datos', text:'Seleccione rol y categoría de cliente.' });
+    return;
+  }
+  if (!nombre) {
+    Swal.fire({ icon:'warning', title:'Faltan datos', text:'Ingrese un título para la configuración.' });
     return;
   }
 
-  var data = new FormData($('#paramComisionForm').get(0));
+  // Recoger filas con % ingresado
+  var filas = [];
+  $('#tbody_categorias_precio tr').each(function() {
+    var catPreId = $(this).data('cat-id');
+    var pct      = $(this).find('.pct-input').val();
+    if (catPreId && pct !== '' && parseFloat(pct) > 0) {
+      filas.push({ categoria_precios_id: catPreId, porcentaje: pct });
+    }
+  });
 
-  let url = '';
-  if (idParam) {
-    // Editar
-    url = '/actualizar/parametro/comision/' + idParam;
-  } else {
-    // Crear
-    url = '/guardar/parametro/comision';
+  if (!filas.length) {
+    Swal.fire({ icon:'warning', title:'Sin porcentajes', text:'Ingrese al menos un porcentaje mayor a 0.' });
+    return;
   }
+
+  var payload = new FormData();
+  payload.append('nombre_comescala',    nombre);
+  payload.append('categoria_cliente_id', cat);
+  payload.append('rol_id',              rol);
+  filas.forEach(function(f, i) {
+    payload.append('filas[' + i + '][categoria_precios_id]', f.categoria_precios_id);
+    payload.append('filas[' + i + '][porcentaje]',           f.porcentaje);
+  });
 
   $btn.prop('disabled', true);
 
-  axios.post(url, data)
-    .then(response => {
-      let data = response.data;
-      // Cerrar modal y limpiar estado del formulario/validaciones
+  axios.post('/guardar/parametro/comision', payload)
+    .then(function(res) {
       $('#modalParamComision').modal('hide');
-      $('#paramComisionForm').parsley().reset();
-      $('#paramComisionForm')[0].reset();
-      $('#param_comision_id').val(''); // limpiar ID
-
-      // Refrescar DataTable
       $('#tbl_listaParametroComision').DataTable().ajax.reload(null, false);
-
-      // Notificación al usuario
-      Swal.fire({
-        icon: data.icon,
-        title: data.title,
-        text: data.text
-      });
+      Swal.fire({ icon: res.data.icon, title: res.data.title, text: res.data.text });
     })
-    .catch(err => {
-      console.error(err);
-      let data = err.response?.data || { icon: 'error', title: 'Error', text: 'Ha ocurrido un error.' };
-
-      Swal.fire({
-        icon: data.icon,
-        title: data.title,
-        text: data.text
-      });
+    .catch(function(err) {
+      var d = err.response?.data || { icon:'error', title:'Error', text:'Ocurrió un error.' };
+      Swal.fire({ icon: d.icon, title: d.title, text: d.text });
     })
-    .finally(() => {
-      $btn.prop('disabled', false);
-    });
+    .finally(function() { $btn.prop('disabled', false); });
 }
-$('#modalParamComision').on('hidden.bs.modal', function () {
-  const $sel = $('#categoria_cliente_id');
-  $sel.empty().append('<option value="">Seleccione una categoría...</option>');
 
-  $('#paramComisionForm').parsley().reset();
-  $('#paramComisionForm')[0].reset();
-  $('#param_comision_id').val('');
-  $('#modalParamComision .modal-title').text('Parametrización de Comisión'); // volver a título original
-});
-
-
-$(document).on('submit', '#paramComisionForm', function (event) {
+$(document).on('submit', '#paramComisionForm', function(event) {
   event.preventDefault();
   registrarParametroComision();
 });
@@ -148,120 +128,54 @@ function listaParametroComision() {
     destroy: true,
     order: [0, 'desc'],
     language: { "url": "/js/plugins/dataTables/i18n/Spanish.json" },
-    pageLength: 5,
+    pageLength: 10,
     responsive: true,
     deferRender: true,
-        dom: '<"html5buttons"B>lTfgitp',
-        buttons: [
-            {
-                extend: 'excel',
-                title: 'Parametrizacion_comisiones'
-            }
-        ],
+    dom: '<"html5buttons"B>lTfgitp',
+    buttons: [{ extend: 'excel', title: 'Parametrizacion_comisiones' }],
     ajax: {
       url: "/listar/parametros/comision",
-      // Datatables::of(...)->make(true) devuelve {data:[...]}
       dataSrc: 'data',
-      error: function () {
-        Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo cargar la tabla.' });
+      error: function() {
+        Swal.fire({ icon:'error', title:'Error', text:'No se pudo cargar la tabla.' });
       }
     },
     columns: [
         { data: 'id' },
         { data: 'nombre' },
-        { data: 'porcentaje_comision' },
-        /* { data: 'rango_inicial' },
-        { data: 'rango_final' }, */
+        { data: 'porcentaje_comision', render: function(d) { return d + '%'; } },
         { data: 'rol' },
         { data: 'cliente_cat_escala' },
+        { data: 'categoria_precio' },
         { data: 'userRegistro' },
         { data: 'fechaRegistro' },
-        { data: 'estado' },
-        { data: 'opciones' }
+        { data: 'estado', orderable: false },
+        { data: 'opciones', orderable: false }
     ]
   });
 }
 
 function desactivarCategoria(id, rol) {
-
     Swal.fire({
-        title: "¿Estás seguro que deseas desactivar este parámetro?",
-        html: `
-            <b>Advertencia:</b><br>
-            Al desactivar esta configuración,
-            <span class="text-danger font-weight-bold">
-                todos los usuarios asociados al rol ${rol} dejarán de recibir cualquier cálculo de comisiones.
-            </span>
-        `,
-        icon: "warning",
+        title: '¿Desactivar este parámetro?',
+        html: '<b>Advertencia:</b><br>Al desactivar, <span class="text-danger font-weight-bold">el rol ' + rol + ' dejará de recibir comisión por esta categoría de precio.</span>',
+        icon: 'warning',
         showCancelButton: true,
-        confirmButtonText: "Sí, desactivar",
-        cancelButtonText: "Cancelar",
-        confirmButtonColor: "#d33",
-        cancelButtonColor: "#6c757d"
-    }).then((result) => {
-
+        confirmButtonText: 'Sí, desactivar',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#6c757d'
+    }).then(function(result) {
         if (result.isConfirmed) {
             axios.post('/desactivar/parametro-comision/' + id)
-                .then(response => {
-                    Swal.fire({
-                        icon: response.data.icon,
-                        title: response.data.title,
-                        text: response.data.text,
-                    });
-
+                .then(function(res) {
+                    Swal.fire({ icon: res.data.icon, title: res.data.title, text: res.data.text });
                     $('#tbl_listaParametroComision').DataTable().ajax.reload(null, false);
                 })
-                .catch(err => {
-                    console.error(err);
-                    Swal.fire({
-                        icon: "error",
-                        title: "Error",
-                        text: "No se pudo desactivar el parámetro."
-                    });
+                .catch(function() {
+                    Swal.fire({ icon:'error', title:'Error', text:'No se pudo desactivar el parámetro.' });
                 });
         }
-
     });
 }
-
-function editarParametro(id) {
-
-    $('#paramComisionForm').parsley().reset();
-
-    axios.get('/parametro-comision/' + id)
-        .then(response => {
-            const p = response.data;
-
-            // ID oculto
-            $('#param_comision_id').val(p.id);
-
-            // Campos normales
-            $('#nombre_comescala').val(p.nombre);
-            $('#descripcion_comescala').val(p.descripcion);
-            $('#porcentaje_comision').val(p.porcentaje_comision);
-            $('#rango_inicial_comescala').val(p.rango_inicial);
-            $('#rango_final_comescala').val(p.rango_final);
-
-            // Cargar selects con preselección
-            cargarCategoriasClienteEnModal(p.cliente_categoria_escala_id);
-            cargarRolesEnModal(p.rol_id);
-
-            // Cambiar título del modal
-            $('#modalParamComision .modal-title').text('Editar Parámetro de Comisión');
-
-            // Mostrar modal
-            $('#modalParamComision').modal('show');
-        })
-        .catch(() => {
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: 'No se pudo cargar la información.'
-            });
-        });
-}
-
-
-
 
