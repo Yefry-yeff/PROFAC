@@ -265,11 +265,23 @@ class RevisionCreditos extends Component
     public function confirmarAccion(string $accion): void
     {
         $this->confirmAccion    = $accion;
-        $this->fechaAprobacion  = '';
-        $this->fechaVencimiento = '';
+        $this->fechaAprobacion  = $accion === 'aprobar' ? now()->toDateString() : '';
+        $this->fechaVencimiento = $accion === 'aprobar' ? now()->addDays(30)->toDateString() : '';
         $this->motivoRechazo    = '';
         $this->observaciones    = '';
         $this->mensajeError     = '';
+    }
+
+    public function updatedFechaAprobacion(string $value): void
+    {
+        if ($value !== '') {
+            try {
+                $this->fechaVencimiento = Carbon::createFromFormat('Y-m-d', $value)
+                    ->addDays(30)->toDateString();
+            } catch (\Exception $e) {
+                // fecha inválida, no actualizar
+            }
+        }
     }
 
     public function cancelarAccion(): void
@@ -305,14 +317,15 @@ class RevisionCreditos extends Component
         }
 
         $fechaVencimiento = trim($this->fechaVencimiento);
-        $dtVencimiento    = null;
-        if ($fechaVencimiento !== '') {
-            try {
-                $dtVencimiento = Carbon::createFromFormat('Y-m-d', $fechaVencimiento);
-            } catch (\Exception $e) {
-                $this->mensajeError = 'Fecha de vencimiento inválida.';
-                return;
-            }
+        if ($fechaVencimiento === '') {
+            $this->mensajeError = 'Debe indicar la fecha de vencimiento del crédito.';
+            return;
+        }
+        try {
+            $dtVencimiento = Carbon::createFromFormat('Y-m-d', $fechaVencimiento);
+        } catch (\Exception $e) {
+            $this->mensajeError = 'Fecha de vencimiento inválida.';
+            return;
         }
 
         DB::beginTransaction();

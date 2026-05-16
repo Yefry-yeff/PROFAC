@@ -193,7 +193,7 @@
                                         Fecha de Autorización <span style="color:#e74c3c;">*</span>
                                     </label>
                                     <input type="date"
-                                           wire:model.defer="fechaAprobacion"
+                                           wire:model="fechaAprobacion"
                                            class="form-control"
                                            style="border-radius:8px; font-size:13px;"
                                            required>
@@ -201,12 +201,13 @@
                                 </div>
                                 <div class="col-md-4 mb-3">
                                     <label style="font-size:12px; font-weight:700; color:#2e7d32;">
-                                        Fecha de Vencimiento <small style="font-weight:400;">(opcional)</small>
+                                        Fecha de Vencimiento <span style="color:#e74c3c;">*</span>
                                     </label>
                                     <input type="date"
                                            wire:model.defer="fechaVencimiento"
                                            class="form-control"
-                                           style="border-radius:8px; font-size:13px;">
+                                           style="border-radius:8px; font-size:13px;"
+                                           required>
                                     <small class="text-muted">Hasta cuándo es válida la autorización</small>
                                 </div>
                                 <div class="col-md-4 mb-3">

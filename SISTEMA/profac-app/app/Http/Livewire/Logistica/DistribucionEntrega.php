@@ -766,8 +766,8 @@ class DistribucionEntrega extends Component
                 FROM factura f
                 INNER JOIN cliente c ON f.cliente_id = c.id
                 WHERE f.estado_factura_id = 1
-                AND f.fecha_emision >= '2025-08-01'
-                AND f.cai LIKE ?
+                AND f.fecha_emision >= DATE_SUB(CURDATE(), INTERVAL 3 YEAR)
+                AND (f.cai LIKE ? OR f.numero_factura LIKE ? OR CAST(f.id AS CHAR) = ?)
                 AND NOT EXISTS (
                     SELECT 1 FROM distribuciones_entrega_facturas def
                     WHERE def.factura_id = f.id
@@ -780,9 +780,9 @@ class DistribucionEntrega extends Component
                     AND de.estado_id IN (1, 2)
                     AND def.estado_entrega != 'anulada'
                 )
-                ORDER BY f.cai DESC
+                ORDER BY f.fecha_emision DESC, f.cai DESC
                 LIMIT 20
-            ", ["%{$termino}%"]);
+            ", ["%{$termino}%", "%{$termino}%", $termino]);
 
             Log::info('Facturas encontradas', [
                 'total' => count($facturas)
@@ -926,7 +926,7 @@ class DistribucionEntrega extends Component
                 FROM factura f
                 WHERE f.cliente_id = ?
                 AND f.estado_factura_id = 1
-                AND f.fecha_emision >= '2025-08-01'
+                AND f.fecha_emision >= DATE_SUB(CURDATE(), INTERVAL 3 YEAR)
                 AND NOT EXISTS (
                     SELECT 1 FROM distribuciones_entrega_facturas def
                     WHERE def.factura_id = f.id

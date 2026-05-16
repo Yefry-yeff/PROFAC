@@ -812,12 +812,26 @@ class FacturacionCorporativa extends Component
                     ], 200);
                 }
 
-
-
-
-
-
                 $numeroSecuencia = $cai->numero_actual;
+
+                // Si el número actual ya está en uso (contador desfasado), avanzar
+                // hasta encontrar el próximo número libre dentro del rango del CAI.
+                while ($numeroSecuencia <= $cai->cantidad_otorgada
+                    && DB::table('factura')
+                           ->where('cai_id', $cai->id)
+                           ->where('numero_secuencia_cai', $numeroSecuencia)
+                           ->exists()) {
+                    $numeroSecuencia++;
+                }
+
+                if ($numeroSecuencia > $cai->cantidad_otorgada) {
+                    return response()->json([
+                        "title" => "Advertencia",
+                        "icon" => "warning",
+                        "text" => "La factura no puede proceder, ha alcanzado el número máximo de facturación otorgado.",
+                    ], 200);
+                }
+
                 $arrayCai = explode('-', $cai->numero_final);
                 $cuartoSegmentoCAI = sprintf("%'.08d", $numeroSecuencia);
                 $numeroCAI = $arrayCai[0] . '-' . $arrayCai[1] . '-' . $arrayCai[2] . '-' . $cuartoSegmentoCAI;
