@@ -109,33 +109,40 @@ class Cotizacion extends Component
     public function listarClientes(Request $request)
     {
         try {
-            // Administrador y Mercadeo ven TODOS los clientes activos sin restricción de tipo
-            if (Auth::user()->rol_id == 1 || Auth::user()->rol_id == 9) {
-                $listaClientes = DB::SELECT("
+            $rolId   = Auth::user()->rol_id;
+            $like    = '%' . $request->search . '%';
+
+            // Administrador (1), Televendedor/Facturador (3) y Mercadeo (9)
+            // ven TODOS los clientes activos sin restricción
+            if (in_array($rolId, [1, 3, 9])) {
+                $listaClientes = DB::select("
                     SELECT id, nombre AS text
                     FROM cliente
                     WHERE estado_cliente_id = 1
                       AND id <> 1
-                      AND (id LIKE '%" . $request->search . "%' OR nombre LIKE '%" . $request->search . "%')
+                      AND (id LIKE ? OR nombre LIKE ?)
                     ORDER BY nombre
                     LIMIT 20
-                ");
+                ", [$like, $like]);
+
                 return response()->json(["results" => $listaClientes], 200);
             }
 
-            $tipoCotizacion = $request->tipoCotizacion;
+            // Asesor Comercial (2) y cualquier otro rol:
+            // solo los clientes que tienen asignado al usuario como vendedor
+            $listaClientes = DB::select("
+                SELECT id, nombre AS text
+                FROM cliente
+                WHERE estado_cliente_id = 1
+                  AND id <> 1
+                  AND vendedor = ?
+                  AND (id LIKE ? OR nombre LIKE ?)
+                ORDER BY nombre
+                LIMIT 20
+            ", [Auth::id(), $like, $like]);
 
-            if ($tipoCotizacion == 1) {
-                $listaClientes = $this->clientesCorporativo($request);
-            } elseif ($tipoCotizacion == 2) {
-                $listaClientes = $this->clientesEstatal($request);
-            } else {
-                $listaClientes = $this->clientesExonerados($request);
-            }
+            return response()->json(["results" => $listaClientes], 200);
 
-            return response()->json([
-                "results" => $listaClientes,
-            ], 200);
         } catch (QueryException $e) {
             return response()->json([
                 'message' => 'Ha ocurrido un error',
