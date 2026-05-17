@@ -316,13 +316,26 @@
                                 </div>
                                 {{-- Campos condicionales: solo visibles cuando crédito está activo --}}
                                 <div id="credito_campos_condicionales" style="display:none; width:100%" class="col-md-12 row">
-                                <div class="col-md-6">
+                                <div class="col-md-4">
                                     <div class="form-group">
                                         <label>Monto de Crédito <span class="text-danger">*</span></label>
-                                        <input type="text" id="cred_monto" class="form-control" data-type="currency">
+                                        <div class="input-group">
+                                            <div class="input-group-prepend"><span class="input-group-text">L</span></div>
+                                            <input type="text" id="cred_monto" class="form-control" data-type="currency">
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="col-md-6">
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label>Monto Disponible</label>
+                                        <div class="input-group">
+                                            <div class="input-group-prepend"><span class="input-group-text">L</span></div>
+                                            <input type="text" id="cred_monto_disponible" class="form-control" readonly style="background:#f8f9fa; cursor:default;" tabindex="-1">
+                                        </div>
+                                        <small class="text-muted">Calculado automáticamente por el sistema</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
                                     <div class="form-group">
                                         <label>Días de Crédito <span class="text-danger">*</span></label>
                                         <input type="number" id="cred_dias" class="form-control" min="1" max="365">

@@ -131,6 +131,10 @@ function cargarDatosCliente(id) {
                 $('#cred_activo').prop('checked', creditoActivo);
                 toggleCreditoCampos();
                 $('#cred_monto').val(parseFloat(cr.credito || 0).toFixed(2));
+                formatCurrencyInput($('#cred_monto'));
+                var montoDisponible = d.monto_disponible !== undefined ? parseFloat(d.monto_disponible) : (d.datosCliente ? parseFloat(d.datosCliente.credito || 0) : 0);
+                $('#cred_monto_disponible').val(montoDisponible.toFixed(2));
+                formatCurrencyInput($('#cred_monto_disponible'));
                 $('#cred_dias').val(cr.dias_credito);
                 $('#cred_fecha_vigencia').val(cr.fecha_vigencia || '');
                 $('#cred_ref_bancarias').val(cr.referencias_bancarias);
@@ -152,7 +156,9 @@ function cargarDatosCliente(id) {
             $('#ref_referencias').val(cli2.ref_referencias || '');
             $('#ref_tiempo_relacion').val(cli2.ref_tiempo_relacion || '');
             $('#ref_tiempo_credito').val(cli2.ref_tiempo_credito || '');
-            $('#ref_limite_credito').val(cli2.ref_limite_credito ? parseFloat(cli2.ref_limite_credito).toFixed(2) : '');
+            var refLimite = cli2.ref_limite_credito ? parseFloat(cli2.ref_limite_credito).toFixed(2) : '';
+            $('#ref_limite_credito').val(refLimite);
+            if (refLimite) formatCurrencyInput($('#ref_limite_credito'));
             $('#ref_observaciones').val(cli2.ref_observaciones || '');
 
             // Historial crédito
@@ -366,6 +372,11 @@ function guardarCredito() {
     axios.post('/clientes/credito/guardar', payload)
         .then(r => {
             mostrarAlerta(r.data.icon, r.data.title, r.data.text);
+            // Actualizar monto disponible con el valor recalculado por el servidor
+            if (r.data.monto_disponible !== undefined) {
+                $('#cred_monto_disponible').val(parseFloat(r.data.monto_disponible).toFixed(2));
+                formatCurrencyInput($('#cred_monto_disponible'));
+            }
             recargarHistoricoCredito();
             if (clienteIdActual) cargarHistorialCambios(clienteIdActual);
         })
