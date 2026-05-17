@@ -838,11 +838,25 @@
                     {{-- Info de la oferta --}}
                     <div style="background:#fff; border-radius:10px; border:1px solid #e8eaf0;
                                 padding:12px 14px; margin-bottom:10px; font-size:12px; color:#555;">
+                        @php
+                            $diasSolicitadosDet = 0;
+                            if (!empty($ofertaSeleccionada['fecha_emision']) && !empty($ofertaSeleccionada['fecha_vencimiento'])) {
+                                try {
+                                    $diasSolicitadosDet = max(0, \Carbon\Carbon::parse($ofertaSeleccionada['fecha_emision'])->diffInDays(\Carbon\Carbon::parse($ofertaSeleccionada['fecha_vencimiento']), false));
+                                } catch (\Throwable $e) {
+                                    $diasSolicitadosDet = 0;
+                                }
+                            }
+                        @endphp
                         <div style="display:flex; flex-wrap:wrap; gap:12px;">
                             <span><i class="mr-1 fa fa-user text-info"></i>{{ $ofertaSeleccionada['nombre_cliente'] }}</span>
                             @if (!empty($ofertaSeleccionada['fecha_emision']))
                             <span><i class="mr-1 fa fa-calendar text-muted"></i>{{ \Carbon\Carbon::parse($ofertaSeleccionada['fecha_emision'])->format('d/m/Y') }}</span>
                             @endif
+                            @if (!empty($ofertaSeleccionada['fecha_vencimiento']))
+                            <span><i class="mr-1 fa fa-clock-o text-muted"></i>Vence: {{ \Carbon\Carbon::parse($ofertaSeleccionada['fecha_vencimiento'])->format('d/m/Y') }}</span>
+                            @endif
+                            <span><i class="mr-1 fa fa-hourglass-half text-primary"></i>Días solicitados: {{ $diasSolicitadosDet }}</span>
                             <span><i class="mr-1 fa fa-dollar text-success"></i>
                                 Sub: L {{ number_format($ofertaSeleccionada['sub_total'] ?? 0, 2) }}
                             </span>

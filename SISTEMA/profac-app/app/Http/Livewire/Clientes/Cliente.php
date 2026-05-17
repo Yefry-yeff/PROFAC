@@ -18,6 +18,7 @@ use App\Models\ModelCliente;
 use App\Models\ModelContacto;
 use App\Models\logCredito;
 use App\Models\ClienteCredito;
+use App\Services\CreditoService;
 use App\Models\ClienteObservacion;
 use App\Models\ClienteDocumento;
 
@@ -1052,6 +1053,8 @@ class Cliente extends Component
 
             $documentos = DB::select("SELECT * FROM cliente_documentos WHERE cliente_id = ? ORDER BY tipo_documento ASC, id DESC", [$id]);
 
+            $montoDisponible = CreditoService::calcularDisponible((int)$id, (float)($datosCliente->credito_inicial ?? 0));
+
             return response()->json([
                 'datosCliente'     => $datosCliente,
                 'contactos'        => $contactos,
@@ -1067,7 +1070,11 @@ class Cliente extends Component
                 'historicoCredito' => $historicoCredito,
                 'observaciones'    => $observaciones,
                 'documentos'       => $documentos,
-            ], 200);
+                'monto_disponible' => $montoDisponible,
+            ], 200)
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+            ->header('Pragma', 'no-cache')
+            ->header('Expires', '0');
         } catch (QueryException $e) {
             return response()->json(['message' => 'Error', 'error' => $e->getMessage()], 500);
         }
@@ -1239,7 +1246,6 @@ class Cliente extends Component
             // Actualizar crédito en tabla cliente
             $cliente = ModelCliente::findOrFail($id);
             $credito = str_replace(',', '', $request->credito ?? '0');
-            $cliente->credito         = $credito;
             $cliente->credito_inicial = $credito;
             $cliente->dias_credito    = $request->dias_credito ?? $cliente->dias_credito;
             $cliente->vendedor        = $request->vendedor_id ?? $cliente->vendedor;
@@ -1266,9 +1272,12 @@ class Cliente extends Component
                 'users_id'               => Auth::user()->id,
             ]);
 
+            // Recalcular monto disponible con el nuevo límite y persistir en cliente.credito
+            $montoDisponible = CreditoService::actualizarDisponible((int)$id, (float)$credito);
+
             DB::commit();
             try { $this->logHistorial($id, 'Crédito actualizado', 'Monto: L ' . number_format((float)$credito, 2) . ' | Días: ' . ($request->dias_credito ?? 0)); } catch (\Throwable $e) {}
-            return response()->json(['icon' => 'success', 'title' => 'Éxito', 'text' => 'Crédito actualizado con éxito.'], 200);
+            return response()->json(['icon' => 'success', 'title' => 'Éxito', 'text' => 'Crédito actualizado con éxito.', 'monto_disponible' => $montoDisponible], 200);
 
         } catch (QueryException $e) {
             DB::rollBack();

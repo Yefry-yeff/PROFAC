@@ -304,7 +304,7 @@ class Editarcotizacion extends Component
              $cotizacion->nombre_cliente = $request->nombre_cliente_ventas;
              $cotizacion->RTN = $request->rtn_ventas;
              $cotizacion->fecha_emision = $request->fecha_emision;
-             $cotizacion->fecha_vencimiento = $request->fecha_emision;
+             $cotizacion->fecha_vencimiento = $request->fecha_vencimiento ?: $request->fecha_emision;
              $cotizacion->sub_total = $request->subTotalGeneral;
              $cotizacion->sub_total_grabado=$request->subTotalGeneralGrabado;
              $cotizacion->sub_total_excento=$request->subTotalGeneralExcento;

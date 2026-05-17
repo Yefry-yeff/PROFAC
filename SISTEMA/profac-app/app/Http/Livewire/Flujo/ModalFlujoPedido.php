@@ -670,7 +670,7 @@ class ModalFlujoPedido extends Component
             ->select(
                 'c.id', 'c.nombre_cliente', 'c.RTN', 'c.total', 'c.isv',
                 'c.sub_total', 'c.porc_descuento', 'c.monto_descuento',
-                'c.fecha_emision', 'c.created_at', 'c.cliente_id',
+                'c.fecha_emision', 'c.fecha_vencimiento', 'c.created_at', 'c.cliente_id',
                 'c.estado_id as cotizacion_estado_id',
                 'hf.observaciones as hf_observaciones'
             )
@@ -835,18 +835,67 @@ class ModalFlujoPedido extends Component
 
                 } else {
                     // ── Sin crédito vigente: ir a Revisión de Crédito ────────
+                    $fechaEmisionOferta = !empty($cotizacion->fecha_emision)
+                        ? \Carbon\Carbon::parse($cotizacion->fecha_emision)
+                        : null;
+                    $fechaVencimientoOferta = !empty($cotizacion->fecha_vencimiento)
+                        ? \Carbon\Carbon::parse($cotizacion->fecha_vencimiento)
+                        : null;
+                    $diasSolicitados = ($fechaEmisionOferta && $fechaVencimientoOferta)
+                        ? max(0, $fechaEmisionOferta->diffInDays($fechaVencimientoOferta, false))
+                        : 0;
+
+                    $obsRevisionCredito = 'En Revisión de Crédito. Oferta #' . $cotizacionId;
+                    if ($fechaEmisionOferta && $fechaVencimientoOferta) {
+                        $obsRevisionCredito .= ' | Emisión: ' . $fechaEmisionOferta->format('Y-m-d')
+                            . ' | Vence: ' . $fechaVencimientoOferta->format('Y-m-d')
+                            . ' | Días solicitados: ' . $diasSolicitados;
+                    }
+
                     // 4. Crear registro en historico_flujo tipo=10 (Revisión de Crédito)
                     DB::table('historico_flujo')->insert([
                         'flujo_id'        => $this->flujoId,
                         'tipo_tramite_id' => 10,
                         'tramite_id'      => $cotizacionId,
                         'estado_id'       => 5,   // Pendiente
-                        'observaciones'   => 'En Revisión de Crédito. Oferta #' . $cotizacionId,
+                        'observaciones'   => $obsRevisionCredito,
                         'created_by'      => Auth::id(),
                         'updated_by'      => Auth::id(),
                         'created_at'      => now(),
                         'updated_at'      => now(),
                     ]);
+
+                    // 4.1 Crear/actualizar registro pendiente de credito_revision para trazabilidad
+                    $crPendiente = CreditoRevision::where('flujo_id', $this->flujoId)
+                        ->where('estado', CreditoRevision::PENDIENTE)
+                        ->latest('id')
+                        ->first();
+
+                    $obsCredito = trim(
+                        'Solicitud oferta #' . $cotizacionId
+                        . ($fechaEmisionOferta ? ' | Emisión: ' . $fechaEmisionOferta->format('Y-m-d') : '')
+                        . ($fechaVencimientoOferta ? ' | Vence: ' . $fechaVencimientoOferta->format('Y-m-d') : '')
+                        . ' | Días solicitados: ' . $diasSolicitados
+                        . ' | Total oferta: L ' . number_format((float) ($cotizacion->total ?? 0), 2, '.', ',')
+                    );
+
+                    if ($crPendiente) {
+                        $crPendiente->update([
+                            'cotizacion_id'    => $cotizacionId,
+                            'observaciones'    => $obsCredito,
+                            'usuario_revision' => Auth::id(),
+                            'ip_revision'      => request()->ip(),
+                        ]);
+                    } else {
+                        CreditoRevision::create([
+                            'flujo_id'         => $this->flujoId,
+                            'cotizacion_id'    => $cotizacionId,
+                            'estado'           => CreditoRevision::PENDIENTE,
+                            'observaciones'    => $obsCredito,
+                            'usuario_revision' => Auth::id(),
+                            'ip_revision'      => request()->ip(),
+                        ]);
+                    }
 
                     // 5. Avanzar flujo al paso Revisión de Crédito
                     DB::table('flujo')->where('id', $this->flujoId)->update([

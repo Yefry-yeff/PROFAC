@@ -1201,6 +1201,15 @@
                             Una vez aprobada, se continuará con la generación de la prefactura.
                         </p>
 
+                        <div id="revisionCredMeta"
+                             style="display:none; text-align:left; background:#f7fbff; border:1px solid #dbeafe;
+                                    border-radius:10px; padding:10px 12px; margin-bottom:16px; font-size:12px; color:#374151;">
+                            <div><strong>Fecha emisión:</strong> <span id="revMetaEmision">—</span></div>
+                            <div><strong>Fecha vencimiento:</strong> <span id="revMetaVencimiento">—</span></div>
+                            <div><strong>Días solicitados:</strong> <span id="revMetaDias">0</span></div>
+                            <div><strong>Monto oferta:</strong> <span id="revMetaMonto">L 0.00</span></div>
+                        </div>
+
                         {{-- Botón Ver flujo --}}
                         <button onclick="revisionCredAccion('flujo')"
                                 style="width:100%; background:linear-gradient(135deg,#1565c0,#1a7efb); color:#fff; border:none;
@@ -3074,6 +3083,15 @@
                 // ── Revisión de crédito activa: mostrar modal informativo ──
                 if (d.en_revision_credito) {
                     _revisionFlujoId = d.flujoId || idFlujo;
+                    var metaWrap = document.getElementById('revisionCredMeta');
+                    if (metaWrap) {
+                        var fmt = new Intl.NumberFormat('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                        document.getElementById('revMetaEmision').textContent = d.fecha_emision || '—';
+                        document.getElementById('revMetaVencimiento').textContent = d.fecha_vencimiento || '—';
+                        document.getElementById('revMetaDias').textContent = (d.dias_solicitados !== undefined && d.dias_solicitados !== null) ? d.dias_solicitados : 0;
+                        document.getElementById('revMetaMonto').textContent = 'L ' + fmt.format(parseFloat(d.monto_total_oferta || 0));
+                        metaWrap.style.display = '';
+                    }
                     $('#modalExitoOferta').one('hidden.bs.modal', function() {
                         $('#modalRevisionCredito').modal('show');
                         setTimeout(function() { $('.modal-backdrop').last().css('z-index', '2070'); }, 50);
@@ -3131,6 +3149,8 @@
     function revisionCredAccion(tipo) {
         if (tipo === 'flujo') {
             $('#modalRevisionCredito').modal('hide');
+            var metaWrap = document.getElementById('revisionCredMeta');
+            if (metaWrap) metaWrap.style.display = 'none';
             abrirModalFlujoDesdeContexto('ofertas', _ofertaPedidoId, _revisionFlujoId);
         }
     }
