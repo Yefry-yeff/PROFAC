@@ -121,45 +121,58 @@
                         </div>
                         @endif
 
-                        {{-- Productos de la oferta --}}
+                        {{-- Acciones financieras + resumen de solicitud --}}
+                        <div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
+                            @if($clienteId)
+                            <a href="/estadoCuenta/imprimir/aplicpagos/{{ $clienteId }}"
+                               target="_blank"
+                               class="btn btn-primary"
+                               style="border-radius:8px; font-weight:700;">
+                                <i class="mr-1 fa fa-file-text-o"></i> Estado de cuenta
+                            </a>
+                            @endif
+
+                            @if($cotizacionId)
+                            <a href="/cotizacion/imprimir/{{ $cotizacionId }}"
+                               target="_blank"
+                               class="btn btn-default"
+                               style="border-radius:8px; font-weight:700; border:1px solid #d7dde5;">
+                                <i class="mr-1 fa fa-print"></i> Imprimir oferta ganadora
+                            </a>
+                            @endif
+                        </div>
+
                         <div style="border-radius:12px; overflow:hidden; border:1px solid #e8eaf0; margin-bottom:20px;">
                             <div style="background:linear-gradient(135deg,#546e7a,#37474f); padding:10px 16px;">
                                 <span style="color:#fff; font-size:13px; font-weight:700;">
-                                    <i class="mr-1 fa fa-list-ul"></i>
-                                    Productos de la oferta
-                                    <span style="background:rgba(255,255,255,.2); border-radius:20px;
-                                                 padding:1px 10px; font-size:11px; margin-left:6px;">
-                                        {{ count($productos) }}
-                                    </span>
+                                    <i class="mr-1 fa fa-line-chart"></i>
+                                    Validación financiera de la oferta
                                 </span>
                             </div>
-                            @if(count($productos) === 0)
-                            <div style="padding:24px; text-align:center; color:#aaa;">
-                                <i class="fa fa-inbox d-block" style="font-size:28px; margin-bottom:8px; opacity:.4;"></i>
-                                Sin productos registrados.
+                            <div style="padding:14px 16px; background:#fff;">
+                                <div class="row">
+                                    <div class="col-md-4 mb-2">
+                                        <div style="font-size:11px; color:#78909c; text-transform:uppercase; font-weight:700;">Fecha emisión</div>
+                                        <div style="font-size:14px; font-weight:700; color:#2c3e50;">
+                                            {{ $fechaEmisionOferta ? \Carbon\Carbon::parse($fechaEmisionOferta)->format('d/m/Y') : '—' }}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4 mb-2">
+                                        <div style="font-size:11px; color:#78909c; text-transform:uppercase; font-weight:700;">Fecha vencimiento</div>
+                                        <div style="font-size:14px; font-weight:700; color:#2c3e50;">
+                                            {{ $fechaVencimientoOferta ? \Carbon\Carbon::parse($fechaVencimientoOferta)->format('d/m/Y') : '—' }}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4 mb-2">
+                                        <div style="font-size:11px; color:#78909c; text-transform:uppercase; font-weight:700;">Días solicitados del crédito</div>
+                                        <div style="font-size:15px; font-weight:800; color:#1565c0;">{{ $diasSolicitadosCredito }}</div>
+                                    </div>
+                                </div>
+                                <div style="margin-top:10px; padding-top:10px; border-top:1px solid #eef1f5;">
+                                    <div style="font-size:11px; color:#78909c; text-transform:uppercase; font-weight:700;">Monto total de la oferta</div>
+                                    <div style="font-size:20px; font-weight:800; color:#e65100;">L {{ number_format($montoTotalOferta, 2) }}</div>
+                                </div>
                             </div>
-                            @else
-                            <div style="overflow-x:auto;">
-                                <table class="table table-hover" style="font-size:13px; margin:0;">
-                                    <thead style="background:#f8f9fc;">
-                                        <tr>
-                                            <th style="padding:10px 14px; color:#555; font-weight:700;">#</th>
-                                            <th style="padding:10px 14px; color:#555; font-weight:700;">Producto</th>
-                                            <th style="padding:10px 14px; text-align:center; color:#555; font-weight:700;">Cantidad</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @foreach ($productos as $i => $prod)
-                                        <tr style="border-bottom:1px solid #f0f0f0;">
-                                            <td style="padding:10px 14px; color:#90a4ae; font-size:12px;">{{ $i + 1 }}</td>
-                                            <td style="padding:10px 14px; font-weight:600; color:#2c3e50;">{{ $prod['nombre_producto'] }}</td>
-                                            <td style="padding:10px 14px; text-align:center; font-weight:700; color:#1565c0;">{{ $prod['cantidad'] }}</td>
-                                        </tr>
-                                        @endforeach
-                                    </tbody>
-                                </table>
-                            </div>
-                            @endif
                         </div>
 
                         {{-- ── Acciones (solo disponibles en estado Pendiente) ── --}}
@@ -187,6 +200,43 @@
                             <h6 style="color:#2e7d32; font-weight:700; margin-bottom:14px;">
                                 <i class="mr-1 fa fa-check-circle"></i> Confirmar Aprobación de Crédito
                             </h6>
+                            <div style="border:1px solid #c8e6c9; border-radius:10px; background:#fff; padding:12px 14px; margin-bottom:14px;">
+                                <div style="font-size:12px; font-weight:700; color:#2e7d32; margin-bottom:10px; text-transform:uppercase;">
+                                    Datos crediticios del cliente
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-4 mb-3">
+                                        <label style="font-size:12px; font-weight:700; color:#2e7d32;">Monto de crédito</label>
+                                        <input type="number" step="0.01" min="0"
+                                               wire:model.debounce.300ms="montoCreditoEditable"
+                                               class="form-control" style="border-radius:8px; font-size:13px;">
+                                        <small class="text-muted">Editable y se actualiza en cliente</small>
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label style="font-size:12px; font-weight:700; color:#2e7d32;">Monto disponible</label>
+                                        <input type="text" class="form-control" readonly
+                                               value="L {{ number_format($montoDisponibleActual, 2) }}"
+                                               style="border-radius:8px; font-size:13px; background:#f8f9fa; cursor:default;">
+                                        <small class="text-muted">Calculado automáticamente</small>
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label style="font-size:12px; font-weight:700; color:#2e7d32;">Días de crédito</label>
+                                        <input type="number" min="0"
+                                               wire:model.debounce.300ms="diasCreditoEditable"
+                                               class="form-control" style="border-radius:8px; font-size:13px;">
+                                        <small class="text-muted">Editable y se actualiza en cliente</small>
+                                    </div>
+                                </div>
+
+                                @if (!empty($bloqueosAutorizacion))
+                                <div class="alert alert-danger" style="margin-bottom:0; border-radius:8px; font-size:12px;">
+                                    @foreach($bloqueosAutorizacion as $bloqueo)
+                                        <div><i class="mr-1 fa fa-ban"></i> {{ $bloqueo }}</div>
+                                    @endforeach
+                                </div>
+                                @endif
+                            </div>
+
                             <div class="row">
                                 <div class="col-md-4 mb-3">
                                     <label style="font-size:12px; font-weight:700; color:#2e7d32;">
@@ -225,8 +275,9 @@
                                 <button type="button"
                                         wire:click="aprobarCredito"
                                         wire:loading.attr="disabled"
+                                        @if(!$puedeAutorizar) disabled @endif
                                         class="btn btn-success"
-                                        style="border-radius:8px; font-weight:700;">
+                                    style="border-radius:8px; font-weight:700; {{ !$puedeAutorizar ? 'opacity:.6; cursor:not-allowed;' : '' }}">
                                     <span wire:loading.remove wire:target="aprobarCredito">
                                         <i class="mr-1 fa fa-check"></i> Confirmar Aprobación
                                     </span>
@@ -466,7 +517,8 @@
                                             <th style="padding:10px 14px; color:#546e7a;">Flujo</th>
                                             <th style="padding:10px 14px; color:#546e7a;">Cliente</th>
                                             <th style="padding:10px 14px; color:#546e7a;">Oferta</th>
-                                            <th style="padding:10px 14px; color:#546e7a;">Productos</th>
+                                            <th style="padding:10px 14px; color:#546e7a;">Días solicitados</th>
+                                            <th style="padding:10px 14px; color:#546e7a;">Monto oferta</th>
                                             <th style="padding:10px 14px; color:#546e7a;">
                                                 @if ($tabActiva === 'llegando') Fecha ingreso
                                                 @elseif ($tabActiva === 'aprobadas') Fecha aprobación
@@ -512,8 +564,11 @@
                                             <td style="padding:10px 14px; text-align:center;">
                                                 <span style="background:#e8eaf0; border-radius:20px;
                                                              padding:2px 10px; font-size:12px; color:#546e7a;">
-                                                    {{ $r['total_productos'] ?? 0 }}
+                                                    {{ (int)($r['dias_solicitados_credito'] ?? 0) }}
                                                 </span>
+                                            </td>
+                                            <td style="padding:10px 14px; font-weight:700; color:#e65100;">
+                                                L {{ number_format((float)($r['monto_total_oferta'] ?? 0), 2) }}
                                             </td>
                                             <td style="padding:10px 14px; font-size:12px; color:#78909c;">
                                                 @if ($tabActiva === 'llegando')

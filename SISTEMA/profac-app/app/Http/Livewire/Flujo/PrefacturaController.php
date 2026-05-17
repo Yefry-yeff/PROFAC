@@ -11,6 +11,7 @@ use PDF;
 use App\Models\PrefacturaAuditoria;
 use App\Models\CreditoRevision;
 use App\Http\Livewire\Ventas\FacturacionCorporativa;
+use Carbon\Carbon;
 
 /**
  * HTTP controller (non-Livewire) that handles prefactura save & print.
@@ -315,18 +316,71 @@ class PrefacturaController
                     'updated_at'    => now(),
                 ]);
 
+                $ofertaMeta = DB::table('cotizacion')
+                    ->where('id', $cotizacionId)
+                    ->first(['fecha_emision', 'fecha_vencimiento']);
+
+                $fechaEmisionOferta = $ofertaMeta && $ofertaMeta->fecha_emision
+                    ? Carbon::parse($ofertaMeta->fecha_emision)
+                    : null;
+                $fechaVencimientoOferta = $ofertaMeta && $ofertaMeta->fecha_vencimiento
+                    ? Carbon::parse($ofertaMeta->fecha_vencimiento)
+                    : null;
+                $diasSolicitados = ($fechaEmisionOferta && $fechaVencimientoOferta)
+                    ? max(0, $fechaEmisionOferta->diffInDays($fechaVencimientoOferta, false))
+                    : 0;
+
+                $obsRevisionCredito = 'En Revisión de Crédito. Oferta #' . $cotizacionId;
+                if ($fechaEmisionOferta && $fechaVencimientoOferta) {
+                    $obsRevisionCredito .= ' | Emisión: ' . $fechaEmisionOferta->format('Y-m-d')
+                        . ' | Vence: ' . $fechaVencimientoOferta->format('Y-m-d')
+                        . ' | Días solicitados: ' . $diasSolicitados;
+                }
+
                 // 4. Crear historico_flujo tipo=10 (Revisión de Crédito)
                 DB::table('historico_flujo')->insert([
                     'flujo_id'        => $flujoId,
                     'tipo_tramite_id' => 10,
                     'tramite_id'      => $cotizacionId,
                     'estado_id'       => 5,
-                    'observaciones'   => 'En Revisión de Crédito. Oferta #' . $cotizacionId,
+                    'observaciones'   => $obsRevisionCredito,
                     'created_by'      => Auth::id(),
                     'updated_by'      => Auth::id(),
                     'created_at'      => now(),
                     'updated_at'      => now(),
                 ]);
+
+                // 4.1 Crear/actualizar registro pendiente en credito_revision
+                $crPendiente = CreditoRevision::where('flujo_id', $flujoId)
+                    ->where('estado', CreditoRevision::PENDIENTE)
+                    ->latest('id')
+                    ->first();
+
+                $obsCredito = trim(
+                    'Solicitud oferta #' . $cotizacionId
+                    . ($fechaEmisionOferta ? ' | Emisión: ' . $fechaEmisionOferta->format('Y-m-d') : '')
+                    . ($fechaVencimientoOferta ? ' | Vence: ' . $fechaVencimientoOferta->format('Y-m-d') : '')
+                    . ' | Días solicitados: ' . $diasSolicitados
+                    . ' | Total oferta: L ' . number_format((float) ($cotizacion->total ?? 0), 2, '.', ',')
+                );
+
+                if ($crPendiente) {
+                    $crPendiente->update([
+                        'cotizacion_id'    => $cotizacionId,
+                        'observaciones'    => $obsCredito,
+                        'usuario_revision' => Auth::id(),
+                        'ip_revision'      => request()->ip(),
+                    ]);
+                } else {
+                    CreditoRevision::create([
+                        'flujo_id'         => $flujoId,
+                        'cotizacion_id'    => $cotizacionId,
+                        'estado'           => CreditoRevision::PENDIENTE,
+                        'observaciones'    => $obsCredito,
+                        'usuario_revision' => Auth::id(),
+                        'ip_revision'      => request()->ip(),
+                    ]);
+                }
 
                 // 5. Avanzar flujo al paso 10 (Revisión de Crédito)
                 if ($flujoId) {
@@ -342,6 +396,10 @@ class PrefacturaController
                     'en_revision_credito' => true,
                     'cotizacionId'        => $cotizacionId,
                     'flujoId'             => $flujoId,
+                    'fecha_emision'       => $fechaEmisionOferta ? $fechaEmisionOferta->toDateString() : null,
+                    'fecha_vencimiento'   => $fechaVencimientoOferta ? $fechaVencimientoOferta->toDateString() : null,
+                    'dias_solicitados'    => $diasSolicitados,
+                    'monto_total_oferta'  => (float) ($cotizacion->total ?? 0),
                     'message'             => 'Oferta #' . $cotizacionId . ' enviada a Revisión de Crédito.',
                 ]);
             } catch (\Exception $e) {
