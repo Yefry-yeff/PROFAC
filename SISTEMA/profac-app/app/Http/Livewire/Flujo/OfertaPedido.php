@@ -124,7 +124,7 @@ class OfertaPedido extends Component
             $oferta->nombre_cliente    = $request->nombre_cliente_ventas;
             $oferta->RTN               = $request->rtn_ventas;
             $oferta->fecha_emision     = $request->fecha_emision;
-            $oferta->fecha_vencimiento = $request->fecha_emision;
+            $oferta->fecha_vencimiento = $request->fecha_vencimiento ?: $request->fecha_emision;
             $oferta->sub_total         = $request->subTotalGeneral;
             $oferta->sub_total_grabado = $request->subTotalGeneralGrabado;
             $oferta->sub_total_excento = $request->subTotalGeneralExcento ?? 0;

@@ -32,6 +32,7 @@ class RevisionCreditos extends Component
     protected     $flujoData        = null;
     public ?int   $cotizacionId     = null;
     public ?int   $clienteId        = null;
+    public string $tipoPagoSolicitud = 'contado';
     public ?string $fechaEmisionOferta = null;
     public ?string $fechaVencimientoOferta = null;
     public int    $diasSolicitadosCredito = 0;
@@ -56,6 +57,7 @@ class RevisionCreditos extends Component
     public float $montoDisponibleActual   = 0.0;
     public int   $diasCreditoActual       = 0;
     public float $montoCreditoEditable    = 0.0;
+    public string $montoCreditoEditableTexto = '0.00';
     public int   $diasCreditoEditable     = 0;
     public bool  $puedeAutorizar          = false;
     public array $bloqueosAutorizacion    = [];
@@ -230,6 +232,7 @@ class RevisionCreditos extends Component
             $this->fechaEmisionOferta,
             $this->fechaVencimientoOferta
         );
+        $this->tipoPagoSolicitud = $this->diasSolicitadosCredito > 0 ? 'credito' : 'contado';
 
         // Oferta ganadora
         $hfGanadora = DB::table('historico_flujo')
@@ -253,6 +256,7 @@ class RevisionCreditos extends Component
                     $this->montoTotalOferta = (float) ($oferta->total ?? 0);
                 }
                 $this->diasSolicitadosCredito = $this->calcularDiasSolicitados($this->fechaEmisionOferta, $this->fechaVencimientoOferta);
+                $this->tipoPagoSolicitud = $this->diasSolicitadosCredito > 0 ? 'credito' : 'contado';
             }
         }
 
@@ -293,6 +297,7 @@ class RevisionCreditos extends Component
         $this->flujoData              = null;
         $this->cotizacionId           = null;
         $this->clienteId              = null;
+        $this->tipoPagoSolicitud      = 'contado';
         $this->fechaEmisionOferta     = null;
         $this->fechaVencimientoOferta = null;
         $this->diasSolicitadosCredito = 0;
@@ -311,6 +316,7 @@ class RevisionCreditos extends Component
         $this->montoDisponibleActual  = 0.0;
         $this->diasCreditoActual      = 0;
         $this->montoCreditoEditable   = 0.0;
+        $this->montoCreditoEditableTexto = '0.00';
         $this->diasCreditoEditable    = 0;
         $this->puedeAutorizar         = false;
         $this->bloqueosAutorizacion   = [];
@@ -359,6 +365,7 @@ class RevisionCreditos extends Component
         $this->diasCreditoActual  = (int) ($creditoCliente->dias_credito ?? $cliente->dias_credito ?? 0);
 
         $this->montoCreditoEditable = $this->montoCreditoActual;
+        $this->montoCreditoEditableTexto = number_format($this->montoCreditoEditable, 2, '.', ',');
         $this->diasCreditoEditable  = $this->diasCreditoActual;
         $this->montoDisponibleActual = CreditoService::calcularDisponible((int) $this->clienteId, $this->montoCreditoEditable);
 
@@ -369,6 +376,19 @@ class RevisionCreditos extends Component
     {
         $monto = is_numeric($value) ? (float) $value : 0.0;
         $this->montoCreditoEditable = max(0.0, $monto);
+        if ($this->clienteId) {
+            $this->montoDisponibleActual = CreditoService::calcularDisponible((int) $this->clienteId, $this->montoCreditoEditable);
+        }
+        $this->evaluarReglasAutorizacion();
+    }
+
+    public function updatedMontoCreditoEditableTexto($value): void
+    {
+        $valorLimpio = str_replace(',', '', (string) $value);
+        $monto = is_numeric($valorLimpio) ? (float) $valorLimpio : 0.0;
+        $this->montoCreditoEditable = max(0.0, $monto);
+        $this->montoCreditoEditableTexto = number_format($this->montoCreditoEditable, 2, '.', ',');
+
         if ($this->clienteId) {
             $this->montoDisponibleActual = CreditoService::calcularDisponible((int) $this->clienteId, $this->montoCreditoEditable);
         }
@@ -447,6 +467,7 @@ class RevisionCreditos extends Component
 
         $this->montoDisponibleActual = CreditoService::actualizarDisponible((int) $this->clienteId, $montoNuevo);
         $this->montoCreditoActual = $montoNuevo;
+        $this->montoCreditoEditableTexto = number_format($montoNuevo, 2, '.', ',');
         $this->diasCreditoActual  = $diasNuevo;
         $this->evaluarReglasAutorizacion();
     }
@@ -458,8 +479,8 @@ class RevisionCreditos extends Component
     public function confirmarAccion(string $accion): void
     {
         $this->confirmAccion    = $accion;
-        $this->fechaAprobacion  = $accion === 'aprobar' ? now()->toDateString() : '';
-        $this->fechaVencimiento = $accion === 'aprobar' ? now()->addDays(30)->toDateString() : '';
+        $this->fechaAprobacion  = '';
+        $this->fechaVencimiento = '';
         $this->motivoRechazo    = '';
         $this->observaciones    = '';
         $this->mensajeError     = '';
@@ -501,29 +522,10 @@ class RevisionCreditos extends Component
     {
         if (!$this->flujoId) return;
 
-        $fechaAprobacion = trim($this->fechaAprobacion);
-        if ($fechaAprobacion === '') {
-            $this->mensajeError = 'Debe indicar la fecha de autorización del crédito.';
-            return;
-        }
-        try {
-            $dtAprobacion = Carbon::createFromFormat('Y-m-d', $fechaAprobacion);
-        } catch (\Exception $e) {
-            $this->mensajeError = 'Fecha de autorización inválida.';
-            return;
-        }
-
-        $fechaVencimiento = trim($this->fechaVencimiento);
-        if ($fechaVencimiento === '') {
-            $this->mensajeError = 'Debe indicar la fecha de vencimiento del crédito.';
-            return;
-        }
-        try {
-            $dtVencimiento = Carbon::createFromFormat('Y-m-d', $fechaVencimiento);
-        } catch (\Exception $e) {
-            $this->mensajeError = 'Fecha de vencimiento inválida.';
-            return;
-        }
+        $dtAprobacion = now();
+        $dtVencimiento = $this->fechaVencimientoOferta
+            ? Carbon::createFromFormat('Y-m-d', $this->fechaVencimientoOferta)
+            : null;
 
         // Reglas obligatorias de autorización de crédito
         $this->evaluarReglasAutorizacion();

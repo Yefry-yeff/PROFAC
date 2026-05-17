@@ -152,6 +152,10 @@
                             <div style="padding:14px 16px; background:#fff;">
                                 <div class="row">
                                     <div class="col-md-4 mb-2">
+                                        <div style="font-size:11px; color:#78909c; text-transform:uppercase; font-weight:700;">Tipo de pago</div>
+                                        <div style="font-size:14px; font-weight:700; color:#2c3e50; text-transform:capitalize;">{{ $tipoPagoSolicitud }}</div>
+                                    </div>
+                                    <div class="col-md-4 mb-2">
                                         <div style="font-size:11px; color:#78909c; text-transform:uppercase; font-weight:700;">Fecha emisión</div>
                                         <div style="font-size:14px; font-weight:700; color:#2c3e50;">
                                             {{ $fechaEmisionOferta ? \Carbon\Carbon::parse($fechaEmisionOferta)->format('d/m/Y') : '—' }}
@@ -170,7 +174,7 @@
                                 </div>
                                 <div style="margin-top:10px; padding-top:10px; border-top:1px solid #eef1f5;">
                                     <div style="font-size:11px; color:#78909c; text-transform:uppercase; font-weight:700;">Monto total de la oferta</div>
-                                    <div style="font-size:20px; font-weight:800; color:#e65100;">L {{ number_format($montoTotalOferta, 2) }}</div>
+                                    <div style="font-size:20px; font-weight:800; color:#e65100;">L {{ number_format($montoTotalOferta, 2, '.', ',') }}</div>
                                 </div>
                             </div>
                         </div>
@@ -207,15 +211,15 @@
                                 <div class="row">
                                     <div class="col-md-4 mb-3">
                                         <label style="font-size:12px; font-weight:700; color:#2e7d32;">Monto de crédito</label>
-                                        <input type="number" step="0.01" min="0"
-                                               wire:model.debounce.300ms="montoCreditoEditable"
+                                         <input type="text"
+                                             wire:model.lazy="montoCreditoEditableTexto"
                                                class="form-control" style="border-radius:8px; font-size:13px;">
                                         <small class="text-muted">Editable y se actualiza en cliente</small>
                                     </div>
                                     <div class="col-md-4 mb-3">
                                         <label style="font-size:12px; font-weight:700; color:#2e7d32;">Monto disponible</label>
                                         <input type="text" class="form-control" readonly
-                                               value="L {{ number_format($montoDisponibleActual, 2) }}"
+                                             value="L {{ number_format($montoDisponibleActual, 2, '.', ',') }}"
                                                style="border-radius:8px; font-size:13px; background:#f8f9fa; cursor:default;">
                                         <small class="text-muted">Calculado automáticamente</small>
                                     </div>
@@ -236,29 +240,7 @@
                                 </div>
                                 @endif
                             </div>
-
-                            <div class="row">
-                                <div class="col-md-4 mb-3">
-                                    <label style="font-size:12px; font-weight:700; color:#2e7d32;">
-                                        Fecha de Autorización <span style="color:#e74c3c;">*</span>
-                                    </label>
-                                    <input type="date"
-                                           wire:model="fechaAprobacion"
-                                           class="form-control"
-                                           style="border-radius:8px; font-size:13px;"
-                                           required>
-                                    <small class="text-muted">Fecha en que el crédito fue autorizado</small>
-                                </div>
-                                <div class="col-md-4 mb-3">
-                                    <label style="font-size:12px; font-weight:700; color:#2e7d32;">
-                                        Fecha de Vencimiento <span style="color:#e74c3c;">*</span>
-                                    </label>
-                                    <input type="date"
-                                           wire:model.defer="fechaVencimiento"
-                                           class="form-control"
-                                           style="border-radius:8px; font-size:13px;"
-                                           required>
-                                    <small class="text-muted">Hasta cuándo es válida la autorización</small>
+                                    <div class="col-md-12 mb-3">
                                 </div>
                                 <div class="col-md-4 mb-3">
                                     <label style="font-size:12px; font-weight:700; color:#2e7d32;">
@@ -568,7 +550,7 @@
                                                 </span>
                                             </td>
                                             <td style="padding:10px 14px; font-weight:700; color:#e65100;">
-                                                L {{ number_format((float)($r['monto_total_oferta'] ?? 0), 2) }}
+                                                L {{ number_format((float)($r['monto_total_oferta'] ?? 0), 2, '.', ',') }}
                                             </td>
                                             <td style="padding:10px 14px; font-size:12px; color:#78909c;">
                                                 @if ($tabActiva === 'llegando')
