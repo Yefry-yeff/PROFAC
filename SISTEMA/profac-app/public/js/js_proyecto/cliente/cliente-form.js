@@ -87,7 +87,7 @@ function cargarMunicipiosForm() {
    ============================================================ */
 function cargarDatosCliente(id) {
     document.getElementById('form_loading_overlay').style.display = '';
-    axios.get('/clientes/form/datos/' + id)
+    axios.get('/clientes/form/datos/' + id + '?_=' + Date.now())
         .then(r => {
             var d   = r.data;
             var cli = d.datosCliente;
@@ -132,7 +132,7 @@ function cargarDatosCliente(id) {
                 toggleCreditoCampos();
                 $('#cred_monto').val(parseFloat(cr.credito || 0).toFixed(2));
                 formatCurrencyInput($('#cred_monto'));
-                var montoDisponible = d.monto_disponible !== undefined ? parseFloat(d.monto_disponible) : (d.datosCliente ? parseFloat(d.datosCliente.credito || 0) : 0);
+                var montoDisponible = Number.isFinite(parseFloat(d.monto_disponible)) ? parseFloat(d.monto_disponible) : parseFloat(cr.credito || 0);
                 $('#cred_monto_disponible').val(montoDisponible.toFixed(2));
                 formatCurrencyInput($('#cred_monto_disponible'));
                 $('#cred_dias').val(cr.dias_credito);
