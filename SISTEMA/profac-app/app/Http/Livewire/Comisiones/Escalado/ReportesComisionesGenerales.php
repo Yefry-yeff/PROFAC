@@ -23,14 +23,14 @@ class ReportesComisionesGenerales extends Component
     public function listarEmpleados(Request $request)
     {
         $search = $request->input('q', '');
-        
+
         $empleados = DB::table('users')
             ->select('id', 'name')
             ->where('estado_id', 1)
             ->where('name', 'LIKE', "%{$search}%")
             ->limit(20)
             ->get();
-        
+
         return response()->json($empleados);
     }
 
@@ -40,14 +40,14 @@ class ReportesComisionesGenerales extends Component
     public function listarRoles(Request $request)
     {
         $search = $request->input('q', '');
-        
+
         $roles = DB::table('rol')
             ->select('id', 'nombre as name')
             ->where('nombre', 'LIKE', "%{$search}%")
             ->where('estado_id', 1)
             ->limit(20)
             ->get();
-        
+
         return response()->json($roles);
     }
 
@@ -75,6 +75,7 @@ class ReportesComisionesGenerales extends Component
         $query = DB::table('producto_comision as pc')
             ->join('facturas_comision as fc', 'fc.id', '=', 'pc.facturas_comision_id')
             ->join('factura as f', 'f.id', '=', 'fc.factura_id')
+            ->join('cliente as cl', 'cl.id', '=', 'f.cliente_id')
             ->join('producto as p', 'p.id', '=', 'pc.producto_id')
             ->join('comision_empleado as ce', function($join) use ($empleadoId) {
                 $join->on('ce.rol_id', '=', 'fc.rol_id')
@@ -92,6 +93,7 @@ class ReportesComisionesGenerales extends Component
                 'u.id as empleado_id',
                 'u.name as empleado',
                 'f.cai as factura',
+                'cl.nombre as cliente',
                 'p.nombre as producto',
                 'pc.cantidad',
                 'pc.monto_comision',
@@ -292,6 +294,134 @@ class ReportesComisionesGenerales extends Component
                 'fc.monto_rol as total_comision',
                 DB::raw('DATE_FORMAT(fc.fecha_cierre_factura, "%Y-%m-%d") as fecha')
             );
+
+        return DataTables::of($query)->make(true);
+    }
+
+    /**
+     * KPIs del dashboard para el período seleccionado
+     */
+    public function stats(Request $request)
+    {
+        $fi    = $request->input('fechaInicio') . ' 00:00:00';
+        $ff    = $request->input('fechaFin')    . ' 23:59:59';
+        $fiMes = date('Y-m-01', strtotime($request->input('fechaInicio')));
+        $ffMes = date('Y-m-01', strtotime($request->input('fechaFin')));
+
+        $totalComision  = DB::table('facturas_comision')
+            ->whereBetween('fecha_cierre_factura', [$fi, $ff])
+            ->where('estado_id', 1)
+            ->sum('monto_rol') ?? 0;
+
+        $totalFacturas  = DB::table('facturas_comision')
+            ->whereBetween('fecha_cierre_factura', [$fi, $ff])
+            ->where('estado_id', 1)
+            ->distinct('factura_id')
+            ->count('factura_id');
+
+        $totalEmpleados = DB::table('comision_empleado')
+            ->whereBetween('mes_comision', [$fiMes, $ffMes])
+            ->where('estado_id', 1)
+            ->distinct('users_comision')
+            ->count('users_comision');
+
+        $promedio = $totalEmpleados > 0
+            ? round($totalComision / $totalEmpleados, 2)
+            : 0;
+
+        return response()->json([
+            'total_comision'  => number_format($totalComision, 2),
+            'total_facturas'  => $totalFacturas,
+            'total_empleados' => $totalEmpleados,
+            'promedio'        => number_format($promedio, 2),
+        ]);
+    }
+
+    /**
+     * Nómina: un registro por empleado + rol + mes (para RRHH / nómina)
+     */
+    public function reporteNomina(Request $request)
+    {
+        $fiMes = date('Y-m-01', strtotime($request->input('fechaInicio')));
+        $ffMes = date('Y-m-01', strtotime($request->input('fechaFin')));
+
+        $query = DB::table('comision_empleado as ce')
+            ->join('users as u', 'u.id', '=', 'ce.users_comision')
+            ->join('rol as r',   'r.id', '=', 'ce.rol_id')
+            ->whereBetween('ce.mes_comision', [$fiMes, $ffMes])
+            ->where('ce.estado_id', 1)
+            ->select(
+                'ce.id',
+                'u.name as empleado',
+                'r.nombre as rol',
+                DB::raw("DATE_FORMAT(ce.mes_comision,'%M %Y') as mes"),
+                DB::raw("DATE_FORMAT(ce.mes_comision,'%Y-%m')  as mes_clave"),
+                DB::raw('ce.comision_acumulada as total_comision'),
+                DB::raw("(SELECT COUNT(DISTINCT fc2.factura_id)
+                          FROM facturas_comision fc2
+                          WHERE fc2.rol_id    = ce.rol_id
+                            AND fc2.estado_id = 1
+                            AND YEAR(fc2.fecha_cierre_factura)  = YEAR(ce.mes_comision)
+                            AND MONTH(fc2.fecha_cierre_factura) = MONTH(ce.mes_comision)
+                         ) as num_facturas")
+            );
+
+        if ($eid = $request->input('empleado_id')) $query->where('ce.users_comision', $eid);
+        if ($rid = $request->input('rol_id'))      $query->where('ce.rol_id', $rid);
+
+        return DataTables::of($query)->make(true);
+    }
+
+    /**
+     * Ranking de empleados por comisión total en el período
+     */
+    public function reporteRanking(Request $request)
+    {
+        $fiMes = date('Y-m-01', strtotime($request->input('fechaInicio')));
+        $ffMes = date('Y-m-01', strtotime($request->input('fechaFin')));
+
+        $query = DB::table('comision_empleado as ce')
+            ->join('users as u', 'u.id', '=', 'ce.users_comision')
+            ->join('rol as r',   'r.id', '=', 'ce.rol_id')
+            ->whereBetween('ce.mes_comision', [$fiMes, $ffMes])
+            ->where('ce.estado_id', 1)
+            ->groupBy('u.id', 'u.name', 'r.id', 'r.nombre')
+            ->select(
+                DB::raw('CONCAT(u.id,"-",r.id) as id'),
+                'u.name as empleado',
+                'r.nombre as rol',
+                DB::raw('SUM(ce.comision_acumulada) as total_comision'),
+                DB::raw('COUNT(ce.id)               as meses_activos'),
+                DB::raw('MAX(ce.comision_acumulada)  as mejor_mes'),
+                DB::raw('AVG(ce.comision_acumulada)  as promedio_mes')
+            )
+            ->orderByRaw('SUM(ce.comision_acumulada) DESC');
+
+        return DataTables::of($query)->make(true);
+    }
+
+    /**
+     * Comparativo mensual de comisiones
+     */
+    public function reporteComparativo(Request $request)
+    {
+        $fiMes = date('Y-m-01', strtotime($request->input('fechaInicio')));
+        $ffMes = date('Y-m-01', strtotime($request->input('fechaFin')));
+
+        $query = DB::table('comision_empleado as ce')
+            ->whereBetween('ce.mes_comision', [$fiMes, $ffMes])
+            ->where('ce.estado_id', 1)
+            ->groupByRaw('YEAR(ce.mes_comision), MONTH(ce.mes_comision), ce.mes_comision')
+            ->select(
+                DB::raw("DATE_FORMAT(ce.mes_comision,'%Y-%m')  as mes_clave"),
+                DB::raw("DATE_FORMAT(ce.mes_comision,'%M %Y')  as mes"),
+                DB::raw('SUM(ce.comision_acumulada)           as total_comisiones'),
+                DB::raw('COUNT(DISTINCT ce.users_comision)  as empleados'),
+                DB::raw('COUNT(DISTINCT ce.rol_id)          as roles'),
+                DB::raw('MAX(ce.comision_acumulada)          as mayor_comision'),
+                DB::raw('MIN(ce.comision_acumulada)          as menor_comision')
+            )
+            ->orderBy('mes_clave');
 
         return DataTables::of($query)->make(true);
     }

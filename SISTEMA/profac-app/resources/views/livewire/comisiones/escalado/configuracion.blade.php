@@ -788,12 +788,12 @@
                             </span>
                         </div>
                         <div style="display:flex;gap:5px;">
-                            <button type="button" onclick="checklistSelTodos('chk_cat_cli', true)"
+                            <button type="button" onclick="checklistSelTodos('cat_cli', true)"
                                 style="font-size:10px;padding:3px 9px;border-radius:6px;border:none;
                                        background:#667eea;color:#fff;cursor:pointer;font-weight:700;">
                                 <i class="fa fa-check-square-o mr-1"></i>Todos
                             </button>
-                            <button type="button" onclick="checklistSelTodos('chk_cat_cli', false)"
+                            <button type="button" onclick="checklistSelTodos('cat_cli', false)"
                                 style="font-size:10px;padding:3px 9px;border-radius:6px;border:1px solid #cbd5e0;
                                        background:#f8fafc;color:#64748b;cursor:pointer;font-weight:600;">
                                 <i class="fa fa-square-o mr-1"></i>Ninguno
@@ -824,12 +824,12 @@
                             </span>
                         </div>
                         <div style="display:flex;gap:5px;">
-                            <button type="button" onclick="checklistSelTodos('chk_cat_precio', true)"
+                            <button type="button" onclick="checklistSelTodos('cat_precio', true)"
                                 style="font-size:10px;padding:3px 9px;border-radius:6px;border:none;
                                        background:#f59e0b;color:#fff;cursor:pointer;font-weight:700;">
                                 <i class="fa fa-check-square-o mr-1"></i>Todos
                             </button>
-                            <button type="button" onclick="checklistSelTodos('chk_cat_precio', false)"
+                            <button type="button" onclick="checklistSelTodos('cat_precio', false)"
                                 style="font-size:10px;padding:3px 9px;border-radius:6px;border:1px solid #cbd5e0;
                                        background:#f8fafc;color:#64748b;cursor:pointer;font-weight:600;">
                                 <i class="fa fa-square-o mr-1"></i>Ninguno
