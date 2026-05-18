@@ -244,11 +244,7 @@ function listarCategorias() {
       { data: 'id' },
       { data: 'categoria' },
       { data: 'estado' },
-      { data: 'categoriaCliente' },
-      { data: 'porc_a' },
-      { data: 'porc_b' },
-      { data: 'porc_c' },
-      { data: 'porc_d' },
+      { data: 'total_cat' },
       { data: 'creacion' },
       { data: 'registro' },
       { data: 'opciones' }
@@ -481,3 +477,340 @@ $('#btnProcesar').on('click', async function () {
 // Índices sugeridos a nivel de base de datos para mejorar performance en consultas frecuentes:
 // CREATE INDEX idx_ppc_cat_prod ON precios_producto_carga (categoria_precios_id, producto_id);
 // CREATE INDEX idx_ppc_estado   ON precios_producto_carga (estado_id);
+
+/* ===================================================================
+   MODAL: VER CATEGORÍAS DE PRECIO POR CATEGORÍA CLIENTE
+   =================================================================== */
+
+let _catClienteIdActivo  = null;
+let _catClienteNomActivo = null;
+
+function verCategoriasPrecio(id, nombre) {
+  _catClienteIdActivo  = id;
+  _catClienteNomActivo = nombre;
+
+  $('#subtitleVerCatPrecios').text('Categoría cliente: ' + nombre);
+  $('#loadingVerCatPrecios').show();
+  $('#wrapperVerCatPrecios').hide();
+  $('#emptyCatPrecios').hide();
+  $('#modalVerCatPrecios').modal('show');
+
+  axios.get('/listar/categorias/precios/por-cliente/' + id)
+    .then(function (response) {
+      var cats = response.data.categorias || [];
+      var $tbody = $('#tbody_catPrecios_lista');
+      $tbody.empty();
+
+      if (!cats.length) {
+        $('#loadingVerCatPrecios').hide();
+        $('#wrapperVerCatPrecios').show();
+        $('#emptyCatPrecios').show();
+        return;
+      }
+
+      cats.forEach(function (cat) {
+        var estado = cat.estado_id == 1
+          ? '<span class="badge badge-success" style="font-size:.73rem;padding:3px 8px;">Activo</span>'
+          : '<span class="badge badge-secondary" style="font-size:.73rem;padding:3px 8px;">Inactivo</span>';
+
+        var ultAct = cat.fecha_ultima_actualizacion
+          ? String(cat.fecha_ultima_actualizacion).substring(0, 10)
+          : (cat.created_at ? String(cat.created_at).substring(0, 10) : '—');
+
+        var actualizador  = cat.nombre_actualizador || '—';
+        var comisiones    = cat.comisiones || [];
+        var numCom        = comisiones.length;
+        var comisionesB64 = btoa(unescape(encodeURIComponent(JSON.stringify(comisiones))));
+        var nomEsc        = (cat.nombre || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+
+        var btnComision = '<button class="btn-edit-cat" style="font-size:.7rem;" '
+          + 'onclick="abrirModalComisiones(' + cat.id + ',\'' + nomEsc + '\',\'' + comisionesB64 + '\')">'
+          + '<i class="fa fa-percent mr-1"></i>'
+          + (numCom > 0 ? numCom + ' rol' + (numCom > 1 ? 'es' : '') : 'Sin comisiones')
+          + '</button>';
+
+        var deactivarBtn = cat.estado_id == 1
+          ? '<li class="dropdown-divider"></li>'
+            + '<li><a class="dropdown-item item-deact" onclick="desactivarCatPrecioEnModal(' + cat.id + ')">'
+            + '<i class="fa fa-ban mr-1"></i>Desactivar</a></li>'
+          : '';
+
+        var comentEsc = (cat.comentario || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+
+        var acciones = '<div class="cat-action-dropdown dropdown">'
+          + '<button class="dropdown-toggle" data-toggle="dropdown">'
+          + '<i class="fa fa-ellipsis-v mr-1"></i>Acc.</button>'
+          + '<ul class="dropdown-menu dropdown-menu-right">'
+          + '<li><a class="dropdown-item item-edit" onclick="editarCatPrecioInline('
+          + cat.id + ',\'' + nomEsc + '\',\'' + comentEsc + '\','
+          + (cat.porc_precio_a || 0) + ',' + (cat.porc_precio_b || 0) + ','
+          + (cat.porc_precio_c || 0) + ',' + (cat.porc_precio_d || 0) + ')">'
+          + '<i class="fa fa-pencil mr-1"></i>Editar</a></li>'
+          + '<li><a class="dropdown-item item-excel" onclick="descargarPreciosPorCategoria(' + id + ',' + cat.id + ')">'
+          + '<i class="fa fa-file-excel-o mr-1"></i>Excel precios</a></li>'
+          + deactivarBtn
+          + '</ul></div>';
+
+        $tbody.append(
+          '<tr id="fila-cat-' + cat.id + '">'
+          + '<td class="col-hide-xs">' + cat.id + '</td>'
+          + '<td id="td-nombre-' + cat.id + '">' + (cat.nombre || '') + '</td>'
+          + '<td class="text-center" id="td-a-' + cat.id + '">' + (cat.porc_precio_a || 0) + '%</td>'
+          + '<td class="text-center col-hide-xs" id="td-b-' + cat.id + '">' + (cat.porc_precio_b || 0) + '%</td>'
+          + '<td class="text-center col-hide-xs" id="td-c-' + cat.id + '">' + (cat.porc_precio_c || 0) + '%</td>'
+          + '<td class="text-center col-hide-xs" id="td-d-' + cat.id + '">' + (cat.porc_precio_d || 0) + '%</td>'
+          + '<td class="text-center">' + btnComision + '</td>'
+          + '<td class="text-center">' + estado + '</td>'
+          + '<td class="text-center col-hide-sm">' + ultAct + '</td>'
+          + '<td class="text-center col-hide-sm">' + actualizador + '</td>'
+          + '<td class="text-center">' + acciones + '</td>'
+          + '</tr>'
+        );
+      });
+
+      $('#loadingVerCatPrecios').hide();
+      $('#wrapperVerCatPrecios').show();
+    })
+    .catch(function (err) {
+      console.error(err);
+      $('#modalVerCatPrecios').modal('hide');
+      Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudieron cargar las categorías de precio.' });
+    });
+}
+
+function descargarPreciosPorCliente() {
+  if (!_catClienteIdActivo) return;
+  window.location.href = '/exportar/precios/por-cliente/' + _catClienteIdActivo;
+}
+
+function descargarPreciosPorCategoria(clienteId, catPrecioId) {
+  window.location.href = '/exportar/precios/por-categoria/' + clienteId + '/' + catPrecioId;
+}
+
+function desactivarCatPrecioEnModal(catPrecioId) {
+  Swal.fire({
+    icon: 'warning',
+    title: '¿Desactivar categoría?',
+    text: 'Se inactivarán también todos sus precios de producto.',
+    showCancelButton: true,
+    confirmButtonText: 'Sí, desactivar',
+    cancelButtonText: 'Cancelar',
+    confirmButtonColor: '#e74c3c',
+    customClass: { container: 'swal-sobre-modal' }
+  }).then(function (result) {
+    if (!result.isConfirmed) return;
+    axios.get('/desactivar/categoria/precios/' + catPrecioId)
+      .then(function (res) {
+        Swal.fire({
+          icon: res.data.icon, title: res.data.title, text: res.data.text,
+          customClass: { container: 'swal-sobre-modal' }
+        }).then(function () {
+          verCategoriasPrecio(_catClienteIdActivo, _catClienteNomActivo);
+          $('#tbl_listaCategoria').DataTable().ajax.reload(null, false);
+        });
+      })
+      .catch(function (err) {
+        var d = err.response && err.response.data ? err.response.data : {};
+        Swal.fire({ icon: 'error', title: 'Error', text: d.text || 'No se pudo desactivar.',
+          customClass: { container: 'swal-sobre-modal' } });
+      });
+  });
+}
+
+function editarCatPrecioInline(id, nombre, comentario, a, b, c, d) {
+  var nomEsc = (_catClienteNomActivo || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+
+  // Inputs con clase ei-input para poder deshabilitarlos en bloque durante el guardado
+  $('#td-nombre-' + id).html('<input class="form-control form-control-sm ei-input" id="ei-nombre-' + id + '" value="' + nombre + '" style="min-width:130px;">');
+  $('#td-a-' + id).html('<input type="number" class="form-control form-control-sm text-center ei-input" id="ei-a-' + id + '" value="' + a + '" style="width:64px;margin:auto;" min="0" max="100" step="0.01">');
+  $('#td-b-' + id).html('<input type="number" class="form-control form-control-sm text-center ei-input" id="ei-b-' + id + '" value="' + b + '" style="width:64px;margin:auto;" min="0" max="100" step="0.01">');
+  $('#td-c-' + id).html('<input type="number" class="form-control form-control-sm text-center ei-input" id="ei-c-' + id + '" value="' + c + '" style="width:64px;margin:auto;" min="0" max="100" step="0.01">');
+  $('#td-d-' + id).html('<input type="number" class="form-control form-control-sm text-center ei-input" id="ei-d-' + id + '" value="' + d + '" style="width:64px;margin:auto;" min="0" max="100" step="0.01">');
+
+  $('#fila-cat-' + id).css('background', '#fffbf0');
+
+  $('#fila-cat-' + id + ' td:last-child').html(
+    '<div style="display:flex;gap:5px;justify-content:center;align-items:center;">'
+    + '<button id="btn-save-' + id + '" class="btn-save-cat" onclick="guardarCatPrecioInline(' + id + ')" title="Guardar cambios"'
+    + ' style="display:inline-flex;align-items:center;gap:5px;padding:5px 14px;font-size:.78rem;">'
+    + '<i class="fa fa-check"></i><span id="btn-save-lbl-' + id + '">Guardar</span></button>'
+    + '<button id="btn-cancel-' + id + '" class="btn btn-sm" onclick="verCategoriasPrecio(' + _catClienteIdActivo + ',\'' + nomEsc + '\')" title="Cancelar"'
+    + ' style="background:#f0f0f0;border:1px solid #ccc;color:#555;border-radius:6px;padding:5px 10px;font-size:.78rem;">'
+    + '<i class="fa fa-times"></i></button>'
+    + '</div>'
+  );
+}
+
+function guardarCatPrecioInline(id) {
+  var nombre = $('#ei-nombre-' + id).val();
+  if (!nombre || !nombre.trim()) {
+    Swal.fire({ icon: 'warning', title: 'Nombre requerido', text: 'El nombre no puede estar vacío.',
+      customClass: { container: 'swal-sobre-modal' } });
+    return;
+  }
+
+  var payload = {
+    id:            id,
+    nombre:        nombre.trim(),
+    porc_precio_a: parseFloat($('#ei-a-' + id).val()) || 0,
+    porc_precio_b: parseFloat($('#ei-b-' + id).val()) || 0,
+    porc_precio_c: parseFloat($('#ei-c-' + id).val()) || 0,
+    porc_precio_d: parseFloat($('#ei-d-' + id).val()) || 0
+  };
+
+  // ── Estado de carga ──
+  var $btnSave   = $('#btn-save-' + id);
+  var $btnCancel = $('#btn-cancel-' + id);
+  $btnSave.prop('disabled', true)
+    .html('<i class="fa fa-spinner fa-spin"></i><span style="margin-left:5px;">Guardando...</span>');
+  $btnCancel.prop('disabled', true);
+  $('#fila-cat-' + id + ' .ei-input').prop('disabled', true);
+
+  axios.post('/actualizar/categoria/precios', payload)
+    .then(function (res) {
+      var d     = res.data;
+      var prods = d.productos_actualizados
+        ? ' Precios recalculados: <strong>' + d.productos_actualizados + '</strong> producto(s).'
+        : '';
+
+      // Fila flash verde
+      $('#fila-cat-' + id).css('background', '#eafaf1');
+
+      Swal.fire({
+        icon:              d.icon || 'success',
+        title:             d.title || '¡Actualizado!',
+        html:              (d.text || 'Categoría guardada.') + (prods ? '<br><small class="text-muted">' + prods + '</small>' : ''),
+        timer:             2200,
+        timerProgressBar:  true,
+        showConfirmButton: false,
+        customClass:       { container: 'swal-sobre-modal', popup: 'swal2-toast-mini' }
+      }).then(function () {
+        verCategoriasPrecio(_catClienteIdActivo, _catClienteNomActivo);
+        $('#tbl_listaCategoria').DataTable().ajax.reload(null, false);
+      });
+    })
+    .catch(function (err) {
+      var d = err.response && err.response.data ? err.response.data : {};
+      // Restaurar botones en caso de error
+      $btnSave.prop('disabled', false)
+        .html('<i class="fa fa-check"></i><span style="margin-left:5px;">Guardar</span>');
+      $btnCancel.prop('disabled', false);
+      $('#fila-cat-' + id + ' .ei-input').prop('disabled', false);
+      $('#fila-cat-' + id).css('background', '#fff5f5');
+      Swal.fire({ icon: 'error', title: 'Error', text: d.text || 'No se pudo guardar.',
+        customClass: { container: 'swal-sobre-modal' } });
+    });
+}
+
+/* ===================================================================
+   OVERLAY DE COMISIONES POR ROL (mc-popup)
+   =================================================================== */
+
+var _mcCatPrecioId    = null;
+var _mcComisionesData = [];
+var _mcEditing        = false;
+
+function abrirModalComisiones(catPrecioId, catNombre, comisionesB64) {
+  _mcCatPrecioId = catPrecioId;
+  try {
+    _mcComisionesData = JSON.parse(decodeURIComponent(escape(atob(comisionesB64))));
+  } catch (e) {
+    _mcComisionesData = [];
+  }
+  _mcEditing = false;
+
+  $('#mc-modal-subtitle').text(catNombre);
+  $('#mc-buscador').val('');
+  $('#mc-btn-editar').show();
+  $('#mc-btn-aplicar').hide();
+
+  renderMCTable(_mcComisionesData, false);
+  $('#mcOverlay').fadeIn(180);
+}
+
+function cerrarMCIfBg(event) {
+  if (event.target === document.getElementById('mcOverlay')) {
+    cerrarModalComisiones();
+  }
+}
+
+function cerrarModalComisiones() {
+  _mcEditing = false;
+  $('#mcOverlay').fadeOut(180);
+}
+
+function filtrarModalComisiones(value) {
+  var q = (value || '').toLowerCase().trim();
+  var lista = q
+    ? _mcComisionesData.filter(function (c) { return c.rol_nombre.toLowerCase().indexOf(q) !== -1; })
+    : _mcComisionesData;
+  renderMCTable(lista, _mcEditing);
+}
+
+function renderMCTable(comisiones, editing) {
+  var $tbody    = $('#mc-tbody');
+  var $noResult = $('#mc-no-result');
+  $tbody.empty();
+
+  if (!comisiones.length) {
+    $noResult.show();
+    return;
+  }
+  $noResult.hide();
+
+  comisiones.forEach(function (c) {
+    if (editing) {
+      $tbody.append(
+        '<tr><td>' + c.rol_nombre + '</td>'
+        + '<td class="text-center"><input type="number" class="form-control form-control-sm text-center mc-input"'
+        + ' value="' + c.porcentaje_comision + '" min="0" max="100" step="0.01"'
+        + ' data-escala="' + c.escala_id + '" style="width:80px;margin:auto;"></td></tr>'
+      );
+    } else {
+      $tbody.append('<tr><td>' + c.rol_nombre + '</td><td class="text-center">' + c.porcentaje_comision + '%</td></tr>');
+    }
+  });
+}
+
+function activarEdicionMC() {
+  _mcEditing = true;
+  var q = ($('#mc-buscador').val() || '').toLowerCase().trim();
+  var lista = q
+    ? _mcComisionesData.filter(function (c) { return c.rol_nombre.toLowerCase().indexOf(q) !== -1; })
+    : _mcComisionesData;
+  renderMCTable(lista, true);
+  $('#mc-btn-editar').hide();
+  $('#mc-btn-aplicar').show();
+}
+
+function aplicarComisionesModal() {
+  var comisiones = [];
+  $('#mc-tbody .mc-input').each(function () {
+    comisiones.push({
+      escala_id:            $(this).data('escala'),
+      porcentaje_comision:  parseFloat($(this).val()) || 0
+    });
+  });
+
+  axios.post('/actualizar/comision/cat-precio', {
+    cat_precio_id: _mcCatPrecioId,
+    comisiones:    comisiones
+  })
+    .then(function (res) {
+      var d = res.data;
+      cerrarModalComisiones();
+      Swal.fire({
+        icon: d.icon, title: d.title, text: d.text,
+        customClass: { container: 'swal-sobre-modal' }
+      });
+      comisiones.forEach(function (c) {
+        var item = _mcComisionesData.find(function (x) { return x.escala_id == c.escala_id; });
+        if (item) item.porcentaje_comision = c.porcentaje_comision;
+      });
+    })
+    .catch(function (err) {
+      var d = err.response && err.response.data ? err.response.data : {};
+      Swal.fire({ icon: 'error', title: d.title || 'Error', text: d.text || 'No se pudo actualizar.',
+        customClass: { container: 'swal-sobre-modal' } });
+    });
+}

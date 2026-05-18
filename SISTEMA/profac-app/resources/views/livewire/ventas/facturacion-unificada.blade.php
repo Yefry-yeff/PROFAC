@@ -3186,7 +3186,7 @@
 
         if (tipo === 'vale') {
             if (idFactura) {
-                window.location.href = '/crear/vale/' + idFactura;
+                window.location.href = '/crear/vale/lista/espera/' + idFactura;
             }
         }
     }

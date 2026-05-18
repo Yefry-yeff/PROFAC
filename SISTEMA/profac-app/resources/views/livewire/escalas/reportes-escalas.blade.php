@@ -158,6 +158,7 @@
       <li class="nav-item"><a class="nav-link" data-toggle="pill" href="#tab-sinprecio" role="tab"><i class="fa fa-minus-circle tab-alert"></i> Productos sin Precios <span class="rpt-badge" id="badge-sinprecio">—</span></a></li>
       <li class="nav-item"><a class="nav-link" data-toggle="pill" href="#tab-comparativo" role="tab"><i class="fa fa-search"></i> Comparativo</a></li>
       <li class="nav-item"><a class="nav-link" data-toggle="pill" href="#tab-resumen" role="tab"><i class="fa fa-list-alt"></i> Resumen Cat. Precio</a></li>
+      <li class="nav-item"><a class="nav-link" data-toggle="pill" href="#tab-comisiones" role="tab"><i class="fa fa-percent"></i> Comisiones Asignadas</a></li>
     </ul>
   </div>
 
@@ -336,6 +337,56 @@
         <div class="rpt-card-footer">
           <span class="rpt-info"><i class="fa fa-info-circle mr-1"></i>Incluye activas e inactivas según filtro.</span>
           <button class="btn-rpt-excel" onclick="exportarResumen()"><i class="fa fa-file-excel-o"></i> Exportar a Excel</button>
+        </div>
+      </div>
+    </div>
+
+    {{-- TAB 7: Comisiones Asignadas --}}
+    <div class="tab-pane fade rpt-tab-pane" id="tab-comisiones" role="tabpanel">
+      <div class="rpt-card">
+        <div class="rpt-card-header">
+          <div><p class="rpt-title"><i class="fa fa-percent"></i> Comisiones Asignadas por Categoría de Precio</p><p class="rpt-subtitle">Categorías de precio que tienen porcentajes de comisión configurados por rol.</p></div>
+        </div>
+        <div class="rpt-card-filters">
+          <div class="rpt-filter-item">
+            <div class="rpt-filter-label"><i class="fa fa-users"></i> Cat. de Cliente</div>
+            <select id="filtro-comision-cat-cliente" class="form-control form-control-sm select2bs4"><option value="">Todas las categorías</option></select>
+          </div>
+          <div class="rpt-filter-item">
+            <div class="rpt-filter-label"><i class="fa fa-user-circle"></i> Rol</div>
+            <select id="filtro-comision-rol" class="form-control form-control-sm select2bs4"><option value="">Todos los roles</option></select>
+          </div>
+          <div class="rpt-filter-item">
+            <div class="rpt-filter-label"><i class="fa fa-toggle-on"></i> Estado</div>
+            <select id="filtro-comision-estado" class="form-control form-control-sm"><option value="">Todos</option><option value="1">Activos</option><option value="2">Inactivos</option></select>
+          </div>
+          <div class="rpt-filter-item flex-none"><div class="rpt-filter-label">&nbsp;</div>
+            <button class="btn-rpt-primary" onclick="recargarComisiones()"><i class="fa fa-refresh"></i> Aplicar filtros</button>
+          </div>
+        </div>
+        <div id="stats-comisiones" class="rpt-stats" style="display:none;">
+          <div class="rpt-stat-box"><div class="stat-val" id="stat-com-total">—</div><div class="stat-lbl">Total Registros</div></div>
+          <div class="rpt-stat-box"><div class="stat-val text-success" id="stat-com-activos">—</div><div class="stat-lbl">Activos</div></div>
+          <div class="rpt-stat-box"><div class="stat-val" id="stat-com-roles">—</div><div class="stat-lbl">Roles involucrados</div></div>
+          <div class="rpt-stat-box"><div class="stat-val text-warning" id="stat-com-prom">—</div><div class="stat-lbl">% Prom. comisión</div></div>
+        </div>
+        <div class="rpt-card-body">
+          <div id="loading-comisiones" class="rpt-loading"><div class="spinner-border text-warning" role="status"></div><span>Cargando...</span></div>
+          <div class="table-responsive" id="wrapper-comisiones" style="display:none;">
+            <table id="tbl_comisiones" class="table table-sm table-bordered rpt-table" style="width:100%">
+              <thead><tr>
+                <th>ID</th><th>Cat. Cliente</th><th>Cat. Precio</th><th>Rol</th>
+                <th class="text-center">% Comisión</th>
+                <th class="text-center">% Esc. A</th><th class="text-center">% Esc. B</th>
+                <th class="text-center">% Esc. C</th><th class="text-center">% Esc. D</th>
+                <th class="text-center">Estado</th>
+              </tr></thead>
+              <tbody id="tbody-comisiones"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="rpt-card-footer">
+          <span class="rpt-info"><i class="fa fa-info-circle mr-1"></i>Comisiones configuradas en el módulo de Escalas.</span>
         </div>
       </div>
     </div>

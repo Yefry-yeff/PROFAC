@@ -406,6 +406,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/reportes/escalas/sin-precios-prod',    [ReportesEscalas::class, 'productosSinPreciosJson']);
     Route::get('/reportes/escalas/comparativo',         [ReportesEscalas::class, 'comparativoJson']);
     Route::get('/reportes/escalas/resumen-cat-precio',  [ReportesEscalas::class, 'resumenCatPrecioJson']);
+    Route::get('/reportes/escalas/comisiones',          [ReportesEscalas::class, 'comisionesJson']);
 
     // Reportes — descargas Excel
     Route::get('/exportar/cobertura-categorias',    [ReportesEscalas::class, 'descargarCobertura'])->name('exportar.cobertura.categorias');
@@ -548,6 +549,10 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     // Catálogos de jerarquía de roles
     Route::get('/roles/catalogos/niveles', [App\Http\Livewire\Usuarios\Roles::class, 'listarNiveles'])->name('roles.niveles');
     Route::get('/roles/catalogos/areas',   [App\Http\Livewire\Usuarios\Roles::class, 'listarAreas'])->name('roles.areas');
+    Route::get('/roles/reporte-accesos',        [App\Http\Livewire\Usuarios\Roles::class, 'reporteAccesos']);
+    Route::get('/roles/reporte-accesos/excel',  [App\Http\Livewire\Usuarios\Roles::class, 'descargarReporteAccesos']);
+    Route::get('/roles/reporte-usuarios',       [App\Http\Livewire\Usuarios\Roles::class, 'reporteUsuariosPorRol']);
+    Route::get('/roles/reporte-usuarios/excel', [App\Http\Livewire\Usuarios\Roles::class, 'descargarUsuariosPorRol']);
 
     /*----------------------------------------------- /NUEVAS RUTAS DE ACCESO A USUARIOS  */
 

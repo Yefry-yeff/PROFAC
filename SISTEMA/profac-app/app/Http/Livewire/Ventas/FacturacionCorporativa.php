@@ -408,7 +408,11 @@ class FacturacionCorporativa extends Component
             $categoriaEscalaId   = $request->cliente_categoria_escala_id;
 
             if ($categoriaEscalaId) {
-                // Filtrado: solo las categorías de precio ligadas al cce del cliente seleccionado
+                // Filtrado: solo las categorías de precio ligadas al cce del cliente
+                // Si incluir_cp_inactivos=true, muestra también cp con estado_id=2 (p.ej. escalas archivadas)
+                $incluirInactivos = $request->boolean('incluir_cp_inactivos', false);
+                $filtroCpEstado   = $incluirInactivos ? '' : 'AND cp.estado_id = 1';
+
                 $categorias = DB::SELECT("
                     SELECT
                         cp.id,
@@ -420,16 +424,17 @@ class FacturacionCorporativa extends Component
                         AND ppc.producto_id = ?
                         AND ppc.estado_id = 1
                     WHERE cp.cliente_categoria_escala_id = ?
-                        AND cp.estado_id = 1
+                        {$filtroCpEstado}
                     ORDER BY ppc.precio_a DESC
                 ", [$productoId, $categoriaEscalaId]);
             } else {
-                // Fallback sin cliente: todas las cce que tienen precios para el producto
+                // Fallback sin cliente: todas las categoria_precios activas para el producto
+                // Devuelve cp.id (no cce.id) para que sea coherente con /estatal/datos/producto
                 $categorias = DB::SELECT("
                     SELECT
-                        cce.id,
-                        cce.nombre_categoria,
-                        MAX(ppc.precio_a) as precio_a
+                        cp.id,
+                        CONCAT(cce.nombre_categoria, ' - ', cp.nombre) AS nombre_categoria,
+                        ppc.precio_a
                     FROM precios_producto_carga ppc
                     INNER JOIN categoria_precios cp ON ppc.categoria_precios_id = cp.id
                     INNER JOIN cliente_categoria_escala cce ON cp.cliente_categoria_escala_id = cce.id
@@ -437,8 +442,7 @@ class FacturacionCorporativa extends Component
                         AND ppc.estado_id = 1
                         AND cp.estado_id = 1
                         AND cce.estado_id = 1
-                    GROUP BY cce.id, cce.nombre_categoria
-                    ORDER BY precio_a DESC
+                    ORDER BY ppc.precio_a DESC
                 ", [$productoId]);
             }
 
