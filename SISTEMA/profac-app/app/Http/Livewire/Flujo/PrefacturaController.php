@@ -105,7 +105,7 @@ class PrefacturaController
                     'idPrecioSeleccionado'   => $request->{"idPrecioSeleccionado{$idx}"} ?? null,
                     'precioSeleccionado'     => $request->{"precios{$idx}"}          ?? null,
                     'precios_producto_carga_id' => $request->{"precios_producto_carga_id{$idx}"} ?: null,
-                    'resta_inventario'       => $request->{"restaInventario{$idx}"}  ?? 0,
+                    'resta_inventario'       => ((float) ($request->{"restaInventario{$idx}"} ?? 0) > 0) ? 1 : 0,
                     'created_at'             => now(),
                     'updated_at'             => now(),
                 ];
@@ -513,7 +513,7 @@ class PrefacturaController
                     'idPrecioSeleccionado'     => $prod->idPrecioSeleccionado ?? null,
                     'precioSeleccionado'       => $prod->precioSeleccionado ?? null,
                     'precios_producto_carga_id' => $prod->precios_producto_carga_id ?? null,
-                    'resta_inventario'         => $prod->resta_inventario,
+                    'resta_inventario'         => ((float) ($prod->resta_inventario ?? 0) > 0) ? 1 : 0,
                     'created_at'              => now(),
                     'updated_at'              => now(),
                 ];

@@ -209,6 +209,7 @@
                                         <tr>
                                             <th style="padding:10px 14px; color:#555; font-weight:700;">#</th>
                                             <th style="padding:10px 14px; color:#555; font-weight:700;">Producto</th>
+                                            <th style="padding:10px 14px; color:#555; font-weight:700;">Bodega</th>
                                             <th style="padding:10px 14px; text-align:center; color:#555; font-weight:700;">Cantidad</th>
                                             <th style="padding:10px 14px; text-align:center; color:#555; font-weight:700;">Disponible</th>
                                             <th style="padding:10px 14px; text-align:center; color:#555; font-weight:700;">Estado</th>
@@ -222,6 +223,9 @@
                                             <td style="padding:8px 14px; color:#888;">{{ $loop->iteration }}</td>
                                             <td style="padding:8px 14px; color:#2c3e50; font-weight:600;">
                                                 {{ $prod['nombre_producto'] }}
+                                            </td>
+                                            <td style="padding:8px 14px; color:#607d8b; font-size:12px;">
+                                                {{ $prod['nombre_bodega'] ?? '—' }}
                                             </td>
                                             <td style="padding:8px 14px; text-align:center;">
                                                 <span style="background:#e3f2fd; color:#1565c0; border-radius:12px;
@@ -263,10 +267,10 @@
                                                        wire:model.lazy="obsProducto.{{ $prod['idx'] }}"
                                                        placeholder="{{ $prod['falta_stock'] ? 'Ej: reemplazar con Producto X...' : 'Observación opcional...' }}"
                                                        class="form-control form-control-sm"
-                                                       {{ $devuelto ? 'readonly' : '' }}
+                                                       {{ ($devuelto || $soloVisualizacion) ? 'readonly' : '' }}
                                                        style="font-size:12px; border-radius:6px;
                                                               border-color: {{ $prod['falta_stock'] ? '#f9a825' : '#ddd' }};
-                                                              {{ $devuelto ? 'background:#f8f8f8; cursor:default;' : '' }}">
+                                                              {{ ($devuelto || $soloVisualizacion) ? 'background:#f8f8f8; cursor:default;' : '' }}">
                                             </td>
                                         </tr>
                                         @endforeach
@@ -277,7 +281,21 @@
                         </div>
 
                         {{-- Panel de acciones --}}
-                        @if ($devuelto)
+                        @if ($soloVisualizacion)
+                        <div style="background:#e3f2fd; border:1px solid #90caf9; border-radius:12px; padding:16px 20px;">
+                            <div style="display:flex; align-items:flex-start; gap:14px;">
+                                <i class="fa fa-eye" style="color:#1565c0; font-size:22px; flex-shrink:0; margin-top:2px;"></i>
+                                <div>
+                                    <strong style="color:#1565c0; font-size:13px;">
+                                        Vista de Prefactura en modo solo lectura.
+                                    </strong>
+                                    <div style="color:#607d8b; font-size:12px; margin-top:3px;">
+                                        Este detalle se muestra solo para consulta. No se permite editar notas ni ejecutar acciones.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        @elseif ($devuelto)
                         <div style="background:#fff3e0; border:1px solid #ffd54f; border-radius:12px; padding:16px 20px;">
                             <div style="display:flex; align-items:flex-start; gap:14px; margin-bottom:{{ $motivoDevolucionGuardado ? '14px' : '0' }};">
                                 <i class="fa fa-undo" style="color:#e65100; font-size:22px; flex-shrink:0; margin-top:2px;"></i>
@@ -674,6 +692,7 @@
                                         <th style="padding:10px 16px; text-align:center; color:#555; font-weight:700;">Productos</th>
                                         <th style="padding:10px 16px; color:#555; font-weight:700;">Aprobado el</th>
                                         <th style="padding:10px 16px; color:#555; font-weight:700;">Prefactura generada</th>
+                                        <th style="padding:10px 16px; text-align:center; color:#555; font-weight:700;">Ver</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -731,6 +750,15 @@
                                             @else
                                             <span style="font-size:12px; color:#555;">{{ $reg['obs_revision'] ?? '—' }}</span>
                                             @endif
+                                        </td>
+                                        <td style="padding:10px 16px; text-align:center;">
+                                            <button type="button"
+                                                    wire:click="seleccionarFlujo({{ $reg['flujo_id'] }}, true)"
+                                                    style="background:linear-gradient(135deg,#2e7d32,#1b5e20); color:#fff;
+                                                           border:none; border-radius:8px; padding:5px 14px;
+                                                           font-size:12px; font-weight:700; cursor:pointer;">
+                                                <i class="mr-1 fa fa-eye"></i> Ver
+                                            </button>
                                         </td>
                                     </tr>
                                     @endforeach

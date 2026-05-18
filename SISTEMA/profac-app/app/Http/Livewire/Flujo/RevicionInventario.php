@@ -38,6 +38,7 @@ class RevicionInventario extends Component
     // ── Estado de devolución ──────────────────────────────────────────────
     public bool   $devuelto                  = false;  // true si el flujo fue devuelto a Oferta
     public string $motivoDevolucionGuardado  = '';     // motivo leído del historico al abrir un devuelto
+    public bool   $soloVisualizacion         = false;  // true cuando se abre desde pestaña Prefactura
 
     // ── Confirmación de acciones ──────────────────────────────────────────
     public ?string $confirmAccion    = null;  // null | 'prefactura' | 'devolver'
@@ -188,9 +189,10 @@ class RevicionInventario extends Component
     // DETALLE DE FLUJO
     // ─────────────────────────────────────────────────────────────────────
 
-    public function seleccionarFlujo(int $flujoId): void
+    public function seleccionarFlujo(int $flujoId, bool $soloVisualizacion = false): void
     {
         $this->flujoId          = $flujoId;
+        $this->soloVisualizacion = $soloVisualizacion;
         $this->devuelto         = false;
         $this->motivoDevolucionGuardado = '';
         $this->confirmAccion    = null;
@@ -271,7 +273,7 @@ class RevicionInventario extends Component
         // Obtener productos (solo nombre + cantidad + stock actual)
         $prods = DB::table('cotizacion_has_producto as chp')
             ->where('chp.cotizacion_id', $this->cotizacionId)
-            ->select('chp.nombre_producto', 'chp.cantidad', 'chp.producto_id', 'chp.seccion_id', 'chp.resta_inventario')
+            ->select('chp.nombre_producto', 'chp.nombre_bodega', 'chp.cantidad', 'chp.producto_id', 'chp.seccion_id', 'chp.resta_inventario')
             ->get();
 
         $this->productos   = [];
@@ -313,6 +315,7 @@ class RevicionInventario extends Component
             $this->productos[] = [
                 'idx'             => $i,
                 'nombre_producto' => $prod->nombre_producto,
+                'nombre_bodega'   => $prod->nombre_bodega,
                 'cantidad'        => $prod->cantidad,
                 'producto_id'     => $prod->producto_id,
                 'seccion_id'      => $prod->seccion_id,
@@ -354,6 +357,7 @@ class RevicionInventario extends Component
     {
         $this->flujoId          = null;
         $this->flujoData        = null;
+        $this->soloVisualizacion = false;
         $this->devuelto         = false;
         $this->motivoDevolucionGuardado = '';
         $this->cotizacionId     = null;
@@ -464,7 +468,8 @@ class RevicionInventario extends Component
                     'idPrecioSeleccionado'      => $prod->idPrecioSeleccionado ?? null,
                     'precioSeleccionado'        => $prod->precioSeleccionado ?? null,
                     'precios_producto_carga_id' => $prod->precios_producto_carga_id ?? null,
-                    'resta_inventario'          => $prod->resta_inventario,
+                    // Normaliza a bandera 0/1 para evitar desbordes en tinyint.
+                    'resta_inventario'          => ((float) ($prod->resta_inventario ?? 0) > 0) ? 1 : 0,
                     'created_at'               => now(),
                     'updated_at'               => now(),
                 ];
