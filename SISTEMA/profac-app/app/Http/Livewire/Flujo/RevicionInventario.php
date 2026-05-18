@@ -283,6 +283,8 @@ class RevicionInventario extends Component
             $disponible = null;
             $faltaStock = false;
 
+            $disponibleGlobal = null;
+
             // Para registros ya devueltos no recalcular stock (solo mostrar datos)
             if (!$this->devuelto && $prod->resta_inventario && $prod->producto_id && $prod->seccion_id) {
                 $rawStock = (float) DB::table('recibido_bodega')
@@ -302,12 +304,34 @@ class RevicionInventario extends Component
                 $disponible = max(0.0, $rawStock - $reservado);
                 $faltaStock = $disponible < (float) $prod->cantidad;
 
+                // ── Disponible Global: suma de todas las bodegas excepto Paperland (ID 18) ──
+                $rawStockGlobal = (float) DB::table('recibido_bodega as rb')
+                    ->join('seccion as s',   's.id',  '=', 'rb.seccion_id')
+                    ->join('segmento as sg', 'sg.id', '=', 's.segmento_id')
+                    ->where('rb.producto_id', $prod->producto_id)
+                    ->where('rb.cantidad_disponible', '>', 0)
+                    ->where('sg.bodega_id', '!=', 18)
+                    ->sum('rb.cantidad_disponible');
+
+                $reservadoGlobal = (float) DB::table('prefactura_has_producto as php')
+                    ->join('prefactura as pf',  'pf.id',  '=', 'php.prefactura_id')
+                    ->join('seccion as s',       's.id',   '=', 'php.seccion_id')
+                    ->join('segmento as sg',     'sg.id',  '=', 's.segmento_id')
+                    ->where('pf.estado', 'activo')
+                    ->where('php.producto_id', $prod->producto_id)
+                    ->where('php.resta_inventario', 1)
+                    ->where('sg.bodega_id', '!=', 18)
+                    ->sum('php.cantidad');
+
+                $disponibleGlobal = max(0, (int) ($rawStockGlobal - $reservadoGlobal));
+
                 if ($faltaStock) {
                     $this->stockErrors[] = [
-                        'idx'        => $i,
-                        'producto'   => $prod->nombre_producto,
-                        'solicitado' => (int) $prod->cantidad,
-                        'disponible' => (int) $disponible,
+                        'idx'               => $i,
+                        'producto'          => $prod->nombre_producto,
+                        'solicitado'        => (int) $prod->cantidad,
+                        'disponible'        => (int) $disponible,
+                        'disponible_global' => $disponibleGlobal,
                     ];
                 }
             }
@@ -321,6 +345,7 @@ class RevicionInventario extends Component
                 'seccion_id'      => $prod->seccion_id,
                 'resta_inventario'=> $prod->resta_inventario,
                 'disponible'      => $disponible,
+                'disponible_global' => $disponibleGlobal,
                 'falta_stock'     => $faltaStock,
             ];
         }

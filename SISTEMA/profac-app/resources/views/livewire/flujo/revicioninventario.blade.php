@@ -155,6 +155,7 @@
                                         <th style="padding:5px 10px; text-align:left; color:#bf360c;">Producto</th>
                                         <th style="padding:5px 10px; text-align:center; color:#bf360c;">Solicitado</th>
                                         <th style="padding:5px 10px; text-align:center; color:#bf360c;">Disponible</th>
+                                        <th style="padding:5px 10px; text-align:center; color:#1565c0;">Global</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -163,6 +164,7 @@
                                         <td style="padding:5px 10px; color:#2c3e50;">{{ $se['producto'] }}</td>
                                         <td style="padding:5px 10px; text-align:center; font-weight:700; color:#e65100;">{{ $se['solicitado'] }}</td>
                                         <td style="padding:5px 10px; text-align:center; font-weight:700; color:#b71c1c;">{{ $se['disponible'] }}</td>
+                                        <td style="padding:5px 10px; text-align:center; font-weight:700; color:#1565c0;">{{ $se['disponible_global'] ?? '—' }}</td>
                                     </tr>
                                     @endforeach
                                 </tbody>
@@ -212,6 +214,7 @@
                                             <th style="padding:10px 14px; color:#555; font-weight:700;">Bodega</th>
                                             <th style="padding:10px 14px; text-align:center; color:#555; font-weight:700;">Cantidad</th>
                                             <th style="padding:10px 14px; text-align:center; color:#555; font-weight:700;">Disponible</th>
+                                            <th style="padding:10px 14px; text-align:center; color:#1565c0; font-weight:700;">Global</th>
                                             <th style="padding:10px 14px; text-align:center; color:#555; font-weight:700;">Estado</th>
                                             <th style="padding:10px 14px; color:#555; font-weight:700;">Nota / Reemplazo</th>
                                         </tr>
@@ -239,6 +242,16 @@
                                                                  color:{{ $prod['falta_stock'] ? '#b71c1c' : '#2e7d32' }};
                                                                  border-radius:12px; padding:2px 10px; font-weight:700; font-size:13px;">
                                                         {{ (int) $prod['disponible'] }}
+                                                    </span>
+                                                @else
+                                                    <span style="color:#aaa; font-size:12px;">—</span>
+                                                @endif
+                                            </td>
+                                            <td style="padding:8px 14px; text-align:center;">
+                                                @if (isset($prod['disponible_global']) && $prod['disponible_global'] !== null)
+                                                    <span style="background:#e3f2fd; color:#1565c0;
+                                                                 border-radius:12px; padding:2px 10px; font-weight:700; font-size:13px;">
+                                                        {{ $prod['disponible_global'] }}
                                                     </span>
                                                 @else
                                                     <span style="color:#aaa; font-size:12px;">—</span>
