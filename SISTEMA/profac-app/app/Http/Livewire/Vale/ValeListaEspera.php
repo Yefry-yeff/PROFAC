@@ -54,9 +54,10 @@ class ValeListaEspera extends Component
             cliente.rtn,
             cliente.dias_credito,
             cliente_categoria_escala.nombre_categoria,
-            cliente_categoria_escala.id as idcategoriacliente
+            cliente_categoria_escala.id as idcategoriacliente,
+            cliente.categoria_precios_id
        from cliente
-       inner join cliente_categoria_escala on cliente_categoria_escala_id = cliente.cliente_categoria_escala_id
+       inner join cliente_categoria_escala on cliente_categoria_escala.id = cliente.cliente_categoria_escala_id
        inner join factura on factura.cliente_id = cliente.id
        where factura.id = ".$idFactura);
 

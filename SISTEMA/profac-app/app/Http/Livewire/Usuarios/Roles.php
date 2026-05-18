@@ -11,6 +11,9 @@ use App\Models\Estado;
 use App\Models\NivelRol;
 use App\Models\Area;
 use Yajra\DataTables\Facades\DataTables;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\Usuarios\ReporteAccesosRolExport;
+use App\Exports\Usuarios\ReporteUsuariosPorRolExport;
 
 class Roles extends Component
 {
@@ -603,6 +606,94 @@ class Roles extends Component
             return response()->json([
                 'success' => false,
                 'mensaje' => 'Error al listar áreas: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Descargar reporte de accesos en Excel
+     */
+    public function descargarReporteAccesos()
+    {
+        $fecha = now()->format('Y-m-d_His');
+        return Excel::download(new ReporteAccesosRolExport(), "reporte_accesos_roles_{$fecha}.xlsx");
+    }
+
+    /**
+     * Reporte de usuarios activos por rol (JSON)
+     */
+    public function reporteUsuariosPorRol()
+    {
+        try {
+            $rows = DB::table('users as u')
+                ->join('rol as r', 'r.id', '=', 'u.rol_id')
+                ->where('u.estado_id', 1)
+                ->where('r.estado_id', 1)
+                ->select([
+                    'r.id as rol_id',
+                    'r.nombre as rol_nombre',
+                    'u.id as usuario_id',
+                    'u.name as usuario_nombre',
+                    'u.email',
+                    'u.identidad',
+                    'u.telefono',
+                    'u.created_at',
+                ])
+                ->orderBy('r.nombre')
+                ->orderBy('u.name')
+                ->get();
+
+            return response()->json(['success' => true, 'data' => $rows], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'mensaje' => 'Error al generar reporte: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Descargar reporte de usuarios por rol en Excel
+     */
+    public function descargarUsuariosPorRol()
+    {
+        $fecha = now()->format('Y-m-d_His');
+        return Excel::download(new ReporteUsuariosPorRolExport(), "reporte_usuarios_por_rol_{$fecha}.xlsx");
+    }
+
+    /**
+     * Reporte de todos los accesos disponibles por rol (JSON)
+     */
+    public function reporteAccesos()
+    {
+        try {
+            $rows = DB::select("
+                SELECT
+                    r.id           AS rol_id,
+                    r.nombre       AS rol_nombre,
+                    m.id           AS menu_id,
+                    m.nombre_menu,
+                    m.icon         AS menu_icon,
+                    m.orden        AS menu_orden,
+                    sm.id          AS submenu_id,
+                    sm.nombre      AS submenu_nombre,
+                    sm.url         AS submenu_url,
+                    sm.orden       AS submenu_orden
+                FROM rol r
+                LEFT JOIN rol_submenu rs ON rs.rol_id    = r.id
+                LEFT JOIN sub_menu    sm ON sm.id        = rs.sub_menu_id AND sm.estado_id = 1
+                LEFT JOIN menu        m  ON m.id         = sm.menu_id     AND m.estado_id  = 1
+                WHERE r.estado_id = 1
+                ORDER BY r.nombre, m.orden, m.nombre_menu, sm.orden, sm.nombre
+            ");
+
+            return response()->json(['success' => true, 'data' => $rows], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'mensaje' => 'Error al generar reporte: ' . $e->getMessage()
             ], 500);
         }
     }

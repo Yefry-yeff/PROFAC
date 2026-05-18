@@ -21,11 +21,13 @@ class PlantillaComisionMasivaExport implements FromCollection, WithHeadings, Wit
 
     protected ?array $catCliIds    = null;
     protected ?array $catPrecioIds = null;
+    protected ?array $rolIds       = null;
 
-    public function __construct(?array $catCliIds = null, ?array $catPrecioIds = null)
+    public function __construct(?array $catCliIds = null, ?array $catPrecioIds = null, ?array $rolIds = null)
     {
         $this->catCliIds    = $catCliIds;
         $this->catPrecioIds = $catPrecioIds;
+        $this->rolIds       = $rolIds;
     }
 
     public function title(): string
@@ -52,6 +54,9 @@ class PlantillaComisionMasivaExport implements FromCollection, WithHeadings, Wit
             ->where('cce.estado_id', 1)
             ->where('cp.estado_id', 1);
 
+        if (!empty($this->rolIds)) {
+            $q->whereIn('r.id', $this->rolIds);
+        }
         if (!empty($this->catCliIds)) {
             $q->whereIn('cce.id', $this->catCliIds);
         }

@@ -234,9 +234,14 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     // Carga selectiva
     Route::get('/comisiones/configuracion/categorias-cliente-activas', [confcomisiones::class,'listaCategoriasClienteActivas'])->name('comision.configuracion.cat.cliente.activas');
     Route::get('/comisiones/configuracion/cat-precio-para-filtro', [confcomisiones::class,'categoriasPrecioParaFiltro'])->name('comision.configuracion.cat.precio.filtro');
+    Route::get('/comisiones/configuracion/roles-para-filtro', [confcomisiones::class,'listaRolesParaFiltro'])->name('comision.configuracion.roles.filtro');
+    Route::get('/comisiones/configuracion/stats', [confcomisiones::class,'statsComision'])->name('comision.configuracion.stats');
+    Route::get('/comisiones/configuracion/resumen-por-rol', [confcomisiones::class,'resumenPorRol'])->name('comision.configuracion.resumen.rol');
     Route::get('/comisiones/configuracion/plantilla-filtrada', [confcomisiones::class,'descargarPlantillaFiltrada'])->name('comision.configuracion.plantilla.filtrada');
     Route::post('/comisiones/configuracion/preview-carga-filtrada', [confcomisiones::class,'previewCargaFiltrada'])->name('comision.configuracion.preview.filtrada');
     Route::post('/comisiones/configuracion/procesar-carga-filtrada', [confcomisiones::class,'procesarCargaFiltrada'])->name('comision.configuracion.procesar.filtrada');
+    Route::get('/comisiones/configuracion/roles-calculo', [confcomisiones::class,'listaRolesCalculo'])->name('comision.configuracion.roles.calculo');
+    Route::post('/comisiones/configuracion/roles-calculo/toggle', [confcomisiones::class,'toggleCalculoRol'])->name('comision.configuracion.roles.calculo.toggle');
 
 
 
@@ -260,6 +265,12 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/comision/reporte/usuarios', [ReportesComisionesGenerales::class, 'reporteUsuarios']);
     Route::get('/comision/reporte/productos', [ReportesComisionesGenerales::class, 'reporteProductos']);
     Route::get('/comision/reporte/facturas', [ReportesComisionesGenerales::class, 'reporteFacturas']);
+
+    // Rutas nuevas: estadísticas, nómina, ranking y comparativo
+    Route::get('/comision/reporte/stats',       [ReportesComisionesGenerales::class, 'stats']);
+    Route::get('/comision/reporte/nomina',      [ReportesComisionesGenerales::class, 'reporteNomina']);
+    Route::get('/comision/reporte/ranking',     [ReportesComisionesGenerales::class, 'reporteRanking']);
+    Route::get('/comision/reporte/comparativo', [ReportesComisionesGenerales::class, 'reporteComparativo']);
 
     // Ruta para descarga de Excel
     Route::get('/comision/reporte/excel', [ReportesComisionesGenerales::class, 'descargarExcel']);
@@ -395,6 +406,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/reportes/escalas/sin-precios-prod',    [ReportesEscalas::class, 'productosSinPreciosJson']);
     Route::get('/reportes/escalas/comparativo',         [ReportesEscalas::class, 'comparativoJson']);
     Route::get('/reportes/escalas/resumen-cat-precio',  [ReportesEscalas::class, 'resumenCatPrecioJson']);
+    Route::get('/reportes/escalas/comisiones',          [ReportesEscalas::class, 'comisionesJson']);
 
     // Reportes — descargas Excel
     Route::get('/exportar/cobertura-categorias',    [ReportesEscalas::class, 'descargarCobertura'])->name('exportar.cobertura.categorias');
@@ -537,6 +549,10 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     // Catálogos de jerarquía de roles
     Route::get('/roles/catalogos/niveles', [App\Http\Livewire\Usuarios\Roles::class, 'listarNiveles'])->name('roles.niveles');
     Route::get('/roles/catalogos/areas',   [App\Http\Livewire\Usuarios\Roles::class, 'listarAreas'])->name('roles.areas');
+    Route::get('/roles/reporte-accesos',        [App\Http\Livewire\Usuarios\Roles::class, 'reporteAccesos']);
+    Route::get('/roles/reporte-accesos/excel',  [App\Http\Livewire\Usuarios\Roles::class, 'descargarReporteAccesos']);
+    Route::get('/roles/reporte-usuarios',       [App\Http\Livewire\Usuarios\Roles::class, 'reporteUsuariosPorRol']);
+    Route::get('/roles/reporte-usuarios/excel', [App\Http\Livewire\Usuarios\Roles::class, 'descargarUsuariosPorRol']);
 
     /*----------------------------------------------- /NUEVAS RUTAS DE ACCESO A USUARIOS  */
 
@@ -1005,6 +1021,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::post('/pagos/notacredito/guardar', [Pagos::class, 'gestionNC']);
     Route::post('/pagos/notadebito/guardar', [Pagos::class, 'gestionND']);
     Route::post('/pagos/otrosmov/guardar', [Pagos::class, 'guardarOtroMov']);
+    Route::get('/pagos/preview-comisiones', [Pagos::class, 'previewComisionesFactura']);
     Route::post('/pagos/creditos/guardar', [Pagos::class, 'guardarCreditos']);
     Route::post('/pagos/cerrar/factura', [Pagos::class, 'cerrarFactura']);
 

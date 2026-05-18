@@ -2,6 +2,12 @@
 $('#btnEC').addClass('d-none');
 
 $('#tbl_principal_div').addClass('d-none');
+$('#tbl_movimientos_div').addClass('d-none');
+$('#tbl_creditos_abonos_div').addClass('d-none');
+
+// Almacena el FormData del formulario de abonos antes de que el modal
+// lo limpie (hidden.bs.modal destruye selectBanco), para enviarlo al confirmar.
+var _pendingAbonoData = null;
 
 // Fix: prevent aria-hidden focus warning when Bootstrap modals close
 $(document).on('hide.bs.modal', '.modal', function () {
@@ -236,16 +242,22 @@ function modalAbonos(codigoPagoA, caiFactura, idFactura, saldo){
 
 function llamarTablas(){
     $('#tbl_principal_div').removeClass('d-none');
+    $('#tbl_movimientos_div').removeClass('d-none');
+    $('#tbl_creditos_abonos_div').removeClass('d-none');
 
     $("#tbl_cuentas_facturas_cliente").dataTable().fnDestroy();
     $("#tbl_tipo_movimientos_cliente").dataTable().fnDestroy();
     $("#tbl_abonos_cliente").dataTable().fnDestroy();
 
+
     this.listarCuentasPorCobrar();
+
     this.listarMovimientos();
-    this.listarAbonos();
+    this.listarAbonos()
 
     $('#btnEC').removeClass('d-none');
+
+
 }
 
 function listarCuentasPorCobrar() {
@@ -351,12 +363,6 @@ function listarCuentasPorCobrar() {
 
             $('#btnEC').css('display','block');
             $('#btnEC').show();
-
-            // Update badge
-            $('#tbl_cuentas_facturas_cliente').on('draw.dt', function() {
-                var info = $(this).DataTable().page.info();
-                $('#badge-facturas').text(info.recordsTotal);
-            });
 }
 
 function listarMovimientos() {
@@ -452,12 +458,6 @@ function listarMovimientos() {
                 }
 
             });
-
-            // Update badge
-            $('#tbl_tipo_movimientos_cliente').on('draw.dt', function() {
-                var info = $(this).DataTable().page.info();
-                $('#badge-movimientos').text(info.recordsTotal);
-            });
 }
 
 function listarAbonos() {
@@ -540,12 +540,6 @@ function listarAbonos() {
                         });
                 }
 
-            });
-
-            // Update badge
-            $('#tbl_abonos_cliente').on('draw.dt', function() {
-                var info = $(this).DataTable().page.info();
-                $('#badge-abonos').text(info.recordsTotal);
             });
 }
 /////////////////////////////FUNCIONALIDADES DE LAS GESTIONES
@@ -749,15 +743,107 @@ $(document).on('submit', '#formabonos', function(event) {
     $('#btn_notaabono').css('display','none');
     $('#btn_notaabono').hide();
 
-
-    $('#modalAbonos').modal('hide');
-
     event.preventDefault();
+
+    var facturaId        = $('#idFacturaAbono').val();
+    var montoAbono       = $('#montoAbono').val();
+    var aplicacionPagoId = $('#codAplicPagoAbono').val();
+
+    // Consultar si este pago cerrará la factura y qué roles recibirán comisión
+    axios.get('/pagos/preview-comisiones', {
+        params: {
+            factura_id:          facturaId,
+            monto_abono:         montoAbono,
+            aplicacion_pagos_id: aplicacionPagoId
+        }
+    }).then(function(response) {
+        var preview = response.data;
+
+        if (preview.cerrara && preview.targets && preview.targets.length > 0) {
+            // Capturar FormData ANTES de ocultar el modal (el evento
+            // hidden.bs.modal limpia selectBanco, lo que causa banco_id=null)
+            _pendingAbonoData = new FormData($('#formabonos').get(0));
+
+            // Preparar el contenido ANTES de hacer cualquier cambio de modal
+            renderPreviewComisiones(preview.targets);
+
+            // Esperar a que #modalAbonos esté completamente oculto para abrir
+            // el preview (evita que el backdrop de Bootstrap bloquee los clics)
+            $('#modalAbonos').one('hidden.bs.modal', function() {
+                // Limpiar cualquier backdrop residual
+                $('.modal-backdrop').remove();
+                $('body').removeClass('modal-open').css('padding-right', '');
+                $('#modalPreviewComisiones').modal('show');
+            });
+            $('#modalAbonos').modal('hide');
+        } else {
+            // No cerrará o ya fue comisionada — proceder directamente
+            $('#modalAbonos').modal('hide');
+            guardarCreditos();
+        }
+    }).catch(function() {
+        // En caso de error en el preview, proceder igual
+        $('#modalAbonos').modal('hide');
+        guardarCreditos();
+    });
+});
+
+/* Renderiza la tabla de roles a comisionar en el modal de preview */
+function renderPreviewComisiones(targets) {
+    var tipoConfig = {
+        1: { label: 'FACTURADOR', color: '#f59e0b' },
+        2: { label: 'ROL REAL',   color: '#3b82f6' },
+        3: { label: 'VENDEDOR',   color: '#10b981' }
+    };
+
+    var html = '<div class="table-responsive">'
+        + '<table class="table table-bordered table-sm mb-0" style="font-size:.9rem;">'
+        + '<thead style="background:#1e40af;color:#fff;">'
+        + '<tr><th style="width:120px;">Capacidad</th><th>Empleado</th><th>Rol de Comisión</th><th class="text-center" style="width:110px;">Escala Activa</th></tr>'
+        + '</thead><tbody>';
+
+    targets.forEach(function(t) {
+        var cfg   = tipoConfig[t.tipo] || { label: 'N/D', color: '#6b7280' };
+        var badge = '<span style="background:' + cfg.color + ';color:#fff;padding:2px 8px;border-radius:8px;font-size:10px;font-weight:700;">'
+            + cfg.label + '</span>';
+        var escala = t.tiene_escala
+            ? '<span class="badge badge-success" style="font-size:10px;">&#10003; Configurada</span>'
+            : '<span class="badge badge-secondary" style="font-size:10px;">&#8212; Sin escala</span>';
+
+        html += '<tr>'
+            + '<td class="text-center">' + badge + '</td>'
+            + '<td><i class="fa fa-user mr-1 text-muted"></i><strong>' + t.empleado + '</strong></td>'
+            + '<td>' + t.rol_nombre + '</td>'
+            + '<td class="text-center">' + escala + '</td>'
+            + '</tr>';
+    });
+
+    html += '</tbody></table></div>';
+    $('#preview-comisiones-lista').html(html);
+}
+
+/* Confirmar: cerrar preview y ejecutar el guardado */
+$(document).on('click', '#btn-confirmar-y-guardar-pago', function() {
+    $('#modalPreviewComisiones').modal('hide');
     guardarCreditos();
 });
 
+/* Cancelar: cerrar preview y reabrir el modal de abonos */
+$(document).on('click', '#btn-cancel-preview-comision', function() {
+    $('#modalPreviewComisiones').one('hidden.bs.modal', function() {
+        $('.modal-backdrop').remove();
+        $('body').removeClass('modal-open').css('padding-right', '');
+        $('#btn_notaabono').css('display','block').show();
+        $('#modalAbonos').modal('show');
+    });
+    $('#modalPreviewComisiones').modal('hide');
+});
+
 function guardarCreditos(){
-    var data = new FormData($('#formabonos').get(0));
+    // Usar los datos capturados antes del cierre del modal (para no perder
+    // selectBanco que es limpiado por el evento hidden.bs.modal)
+    var data = _pendingAbonoData ? _pendingAbonoData : new FormData($('#formabonos').get(0));
+    _pendingAbonoData = null;
 
     axios.post("/pagos/creditos/guardar", data)
         .then(response => {
@@ -840,10 +926,6 @@ function datosBanco(){
 
         let datos = response.data.result;
         datos.forEach((element) => document.getElementById("selectBanco").innerHTML += '<option  class="form-control" value="'+element.idBanco+'">'+element.banco+'</option>');
-        // Notificar a Select2 que las opciones fueron actualizadas
-        if (typeof $ !== 'undefined' && $('#selectBanco').data('select2')) {
-            $('#selectBanco').trigger('change.select2');
-        }
     })
     .catch(err => {
         let data = err.response.data;

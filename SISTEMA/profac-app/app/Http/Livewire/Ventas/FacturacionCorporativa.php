@@ -155,7 +155,7 @@ class FacturacionCorporativa extends Component
             D.id as 'idBodega',
             CONCAT(D.nombre,'',REPLACE(B.descripcion,'Seccion','')) as 'bodegaSeccion',
             CONCAT(D.nombre,' - ', REPLACE(B.descripcion,'Seccion',''),' - cantidad ',
-                GREATEST(0,
+                FLOOR(GREATEST(0,
                     SUM(A.cantidad_disponible) - COALESCE((
                         SELECT SUM(php2.cantidad)
                         FROM prefactura_has_producto php2
@@ -165,7 +165,7 @@ class FacturacionCorporativa extends Component
                           AND php2.seccion_id  = A.seccion_id
                           AND php2.resta_inventario = 1
                     ), 0)
-                )
+                ))
             ) as 'text'
         FROM recibido_bodega A
             INNER JOIN seccion B ON A.seccion_id = B.id
@@ -206,7 +206,7 @@ class FacturacionCorporativa extends Component
             $listaProductos = DB::SELECT("
          select
             B.id,
-            concat('cod ',B.id,' - ',B.nombre,' - ',B.codigo_barra,' - ','cantidad ',sum(A.cantidad_disponible)) as text
+            concat('cod ',B.id,' - ',B.nombre,' - ',B.codigo_barra,' - ','cantidad ',FLOOR(sum(A.cantidad_disponible))) as text
          from
             recibido_bodega A
             inner join producto B
@@ -408,7 +408,11 @@ class FacturacionCorporativa extends Component
             $categoriaEscalaId   = $request->cliente_categoria_escala_id;
 
             if ($categoriaEscalaId) {
-                // Filtrado: solo las categorías de precio ligadas al cce del cliente seleccionado
+                // Filtrado: solo las categorías de precio ligadas al cce del cliente
+                // Si incluir_cp_inactivos=true, muestra también cp con estado_id=2 (p.ej. escalas archivadas)
+                $incluirInactivos = $request->boolean('incluir_cp_inactivos', false);
+                $filtroCpEstado   = $incluirInactivos ? '' : 'AND cp.estado_id = 1';
+
                 $categorias = DB::SELECT("
                     SELECT
                         cp.id,
@@ -420,16 +424,17 @@ class FacturacionCorporativa extends Component
                         AND ppc.producto_id = ?
                         AND ppc.estado_id = 1
                     WHERE cp.cliente_categoria_escala_id = ?
-                        AND cp.estado_id = 1
+                        {$filtroCpEstado}
                     ORDER BY ppc.precio_a DESC
                 ", [$productoId, $categoriaEscalaId]);
             } else {
-                // Fallback sin cliente: todas las cce que tienen precios para el producto
+                // Fallback sin cliente: todas las categoria_precios activas para el producto
+                // Devuelve cp.id (no cce.id) para que sea coherente con /estatal/datos/producto
                 $categorias = DB::SELECT("
                     SELECT
-                        cce.id,
-                        cce.nombre_categoria,
-                        MAX(ppc.precio_a) as precio_a
+                        cp.id,
+                        CONCAT(cce.nombre_categoria, ' - ', cp.nombre) AS nombre_categoria,
+                        ppc.precio_a
                     FROM precios_producto_carga ppc
                     INNER JOIN categoria_precios cp ON ppc.categoria_precios_id = cp.id
                     INNER JOIN cliente_categoria_escala cce ON cp.cliente_categoria_escala_id = cce.id
@@ -437,8 +442,7 @@ class FacturacionCorporativa extends Component
                         AND ppc.estado_id = 1
                         AND cp.estado_id = 1
                         AND cce.estado_id = 1
-                    GROUP BY cce.id, cce.nombre_categoria
-                    ORDER BY precio_a DESC
+                    ORDER BY ppc.precio_a DESC
                 ", [$productoId]);
             }
 
@@ -701,15 +705,27 @@ class FacturacionCorporativa extends Component
 
 
             if ($request->tipoPagoVenta == 2) {
-                $comprobarCredito = $this->comprobarCreditoCliente($request->seleccionarCliente, $request->totalGeneral);
+                // Si la factura proviene de un flujo con crédito aprobado formalmente
+                // (credito_revision.estado = 'aprobado'), omitir la verificación del
+                // límite global del cliente — la aprobación explícita ya lo cubre.
+                $flujoIdReq = (int) ($request->flujo_id ?? 0);
+                $creditoAprobadoPorFlujo = $flujoIdReq
+                    ? \Illuminate\Support\Facades\DB::table('credito_revision')
+                        ->where('flujo_id', $flujoIdReq)
+                        ->where('estado', 'aprobado')
+                        ->exists()
+                    : false;
 
-                if ($comprobarCredito) {
-                    return response()->json([
-                        'icon' => 'warning',
-                        'title' => 'Advertencia!',
-                        'text' => 'El cliente ' . $request->nombre_cliente_ventas . ', no cuenta con crédito suficiente . Por el momento no se puede emitir factura a este cliente.',
+                if (!$creditoAprobadoPorFlujo) {
+                    $comprobarCredito = $this->comprobarCreditoCliente($request->seleccionarCliente, $request->totalGeneral);
 
-                    ], 401);
+                    if ($comprobarCredito) {
+                        return response()->json([
+                            'icon' => 'warning',
+                            'title' => 'Advertencia!',
+                            'text' => 'El cliente ' . $request->nombre_cliente_ventas . ', no cuenta con crédito suficiente . Por el momento no se puede emitir factura a este cliente.',
+                        ], 401);
+                    }
                 }
             }
 

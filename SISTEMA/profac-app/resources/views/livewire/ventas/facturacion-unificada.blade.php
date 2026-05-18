@@ -2285,6 +2285,7 @@
     // ================================================================
     function obtenerBodegas(id) {
         document.getElementById('bodega').innerHTML = "<option selected disabled>--Seleccione una bodega--</option>";
+        $('#bodega').prop('disabled', false);
         var urlBase = urls.bodegas;
         var url = urlBase.replace('{idProducto}', id);
 
@@ -2906,7 +2907,8 @@
 
     function limpiarFormularioVenta(data) {
         document.getElementById('bloqueImagenes').innerHTML = '';
-        document.getElementById('divProductos').innerHTML = '';
+        var carritoTbodyEl = document.getElementById('carritoTbody');
+        if (carritoTbodyEl) carritoTbodyEl.innerHTML = '';
         document.getElementById("crear_venta").reset();
         $('#crear_venta').parsley().reset();
 
@@ -2931,6 +2933,8 @@
         if (lblProd) { lblProd.classList.add('d-none'); lblProd.textContent = ''; }
         document.getElementById('bodega').innerHTML = '<option value="" selected disabled>--Seleccione un producto--</option>';
         document.getElementById("bodega").disabled = true;
+        var botonAddEl = document.getElementById('botonAdd');
+        if (botonAddEl) botonAddEl.classList.add('d-none');
 
         // Historial de precios
         var histCuerpo = document.getElementById('historialPreciosCuerpo');
@@ -3182,7 +3186,7 @@
 
         if (tipo === 'vale') {
             if (idFactura) {
-                window.location.href = '/crear/vale/' + idFactura;
+                window.location.href = '/crear/vale/lista/espera/' + idFactura;
             }
         }
     }

@@ -696,10 +696,10 @@ class Cliente extends Component
 
             // Leer el archivo y generar preview
             $data = \Maatwebsite\Excel\Facades\Excel::toCollection(new \App\Imports\Escalas\ClientesCategoriaMasivaImport(), $fullPath);
-            
+
             $paraActualizar = [];
             $noActualizables = [];
-            
+
             foreach ($data[0] as $rawRow) {
                 // Normalizar llaves
                 $norm = [];
@@ -717,7 +717,7 @@ class Cliente extends Component
 
                 $idCliente = $row->get('id');
                 $nuevaCat = $row->get('nueva_categoria_id');
-                
+
                 if ($nuevaCat === null || $nuevaCat === '') {
                     $nuevaCat = $row->get('cliente_categoria_escala_id');
                 }
@@ -732,7 +732,7 @@ class Cliente extends Component
 
                 // Validaciones
                 $error = null;
-                
+
                 if (!is_numeric((string)$idCliente) || !is_numeric((string)$nuevaCat)) {
                     $error = 'Valores no numéricos';
                 } else {
@@ -742,7 +742,7 @@ class Cliente extends Component
                     } else {
                         // Verificar si la categoría existe y está activa
                         $categoriaInfo = DB::selectOne("SELECT id, nombre_categoria, estado_id FROM cliente_categoria_escala WHERE id = ?", [(int)$nuevaCat]);
-                        
+
                         if (!$categoriaInfo) {
                             $error = 'Categoría no existe';
                         } elseif ($categoriaInfo->estado_id == 2) {
@@ -750,13 +750,13 @@ class Cliente extends Component
                         } else {
                             $old = (int)($cliente->cliente_categoria_escala_id ?? 0);
                             $new = (int)$nuevaCat;
-                            
+
                             if ($old === $new) {
                                 $error = 'Categoría sin cambios';
                             } else {
                                 // Obtener nombre de categoría antigua
                                 $categoriaAntigua = DB::selectOne("SELECT nombre_categoria FROM cliente_categoria_escala WHERE id = ?", [$old]);
-                                
+
                                 $paraActualizar[] = [
                                     'id' => $cliente->id,
                                     'nombre' => $cliente->nombre,
@@ -770,7 +770,7 @@ class Cliente extends Component
                         }
                     }
                 }
-                
+
                 if ($error) {
                     $noActualizables[] = [
                         'id' => $idCliente ?? 'N/A',
@@ -813,6 +813,7 @@ class Cliente extends Component
 
         $cats = \DB::table('cliente_categoria_escala')
             ->select('id', 'nombre_categoria')
+            ->where('estado_id', 1)
             ->when($q !== '', function ($qq) use ($q) {
                 $qq->where('nombre_categoria', 'like', '%'.$q.'%');
             })
@@ -828,7 +829,7 @@ class Cliente extends Component
         try {
             // Obtener el archivo previamente procesado de la sesión
             $storedPath = session('preview_categorias_file');
-            
+
             if (!$storedPath) {
                 return response()->json([
                     'icon'  => 'warning',
@@ -862,11 +863,11 @@ class Cliente extends Component
             // USAR toCollection CON LA MISMA CLASE DEL PREVIEW
             // Esto asegura que la lectura sea idéntica al preview (usa WithHeadingRow)
             $data = \Maatwebsite\Excel\Facades\Excel::toCollection(new \App\Imports\Escalas\ClientesCategoriaMasivaImport(), $fullPath);
-            
+
             $actualizados = 0;
             $saltados = 0;
             $errores = [];
-            
+
             foreach ($data[0] as $rawRow) {
                 // Normalizar llaves (igual que en el preview)
                 $norm = [];
@@ -883,7 +884,7 @@ class Cliente extends Component
                 $row = collect($norm);
 
                 $idCliente = $row->get('id');
-                
+
                 // Buscar nueva categoría en múltiples campos posibles (igual que preview)
                 $nuevaCat = $row->get('nueva_categoria_id');
                 if ($nuevaCat === null || $nuevaCat === '') {
@@ -916,13 +917,13 @@ class Cliente extends Component
 
                     // Verificar que la categoría exista y esté activa
                     $categoriaInfo = DB::selectOne("SELECT id, nombre_categoria, estado_id FROM cliente_categoria_escala WHERE id = ?", [(int)$nuevaCat]);
-                    
+
                     if (!$categoriaInfo) {
                         $errores[] = "Cliente ID {$idCliente}: Categoría {$nuevaCat} no existe";
                         \DB::rollBack();
                         continue;
                     }
-                    
+
                     if ($categoriaInfo->estado_id == 2) {
                         $errores[] = "Cliente ID {$idCliente}: Categoría inactiva";
                         \DB::rollBack();
@@ -963,7 +964,7 @@ class Cliente extends Component
 
             // Limpiar la sesión
             session()->forget('preview_categorias_file');
-            
+
             // Eliminar el archivo temporal
             if (file_exists($fullPath)) {
                 @unlink($fullPath);
@@ -985,8 +986,8 @@ class Cliente extends Component
 
             // Mensajes específicos según el error
             $userMessage = 'Ocurrió un problema al procesar el archivo.';
-            
-            if (strpos($msg, 'Document is empty') !== false || 
+
+            if (strpos($msg, 'Document is empty') !== false ||
                 strpos($msg, 'simplexml_load_string') !== false) {
                 $userMessage = 'El archivo Excel está vacío o corrupto. Verificá que el archivo contenga datos válidos.';
             } elseif (strpos($msg, 'parse error') !== false) {

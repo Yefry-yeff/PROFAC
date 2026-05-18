@@ -28,6 +28,7 @@ class ProcesadorComisiones
         // Nombre del empleado (desnormalizado para reportes rápidos)
         $nombre = DB::table('users')->where('id', $userId)->value('name') ?? 'Desconocido';
 
+        // Una sola fila por (usuario, rol, mes) — acumula todas las capacidades
         $comision = modelcomision_empleado::firstOrCreate(
             [
                 'users_comision' => $userId,

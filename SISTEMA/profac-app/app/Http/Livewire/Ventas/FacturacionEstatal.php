@@ -449,7 +449,7 @@ class FacturacionEstatal extends Component
             D.id as 'idBodega',
             CONCAT(D.nombre,'',REPLACE(B.descripcion,'Seccion','')) as 'bodegaSeccion',
             CONCAT(D.nombre,' - ', REPLACE(B.descripcion,'Seccion',''),' - cantidad ',
-                GREATEST(0,
+                FLOOR(GREATEST(0,
                     SUM(A.cantidad_disponible) - COALESCE((
                         SELECT SUM(php2.cantidad)
                         FROM prefactura_has_producto php2
@@ -459,7 +459,7 @@ class FacturacionEstatal extends Component
                           AND php2.seccion_id  = A.seccion_id
                           AND php2.resta_inventario = 1
                     ), 0)
-                )
+                ))
             ) as 'text'
         FROM recibido_bodega A
             INNER JOIN seccion B ON A.seccion_id = B.id
@@ -501,7 +501,7 @@ class FacturacionEstatal extends Component
             $listaProductos = DB::SELECT("
          select
             B.id,
-            concat('cod ',B.id,' - ',B.nombre,' - ',B.codigo_barra,' - ','cantidad ',sum(A.cantidad_disponible)) as text
+            concat('cod ',B.id,' - ',B.nombre,' - ',B.codigo_barra,' - ','cantidad ',FLOOR(sum(A.cantidad_disponible))) as text
          from
             recibido_bodega A
             inner join producto B

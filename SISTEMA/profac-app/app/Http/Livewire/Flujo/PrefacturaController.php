@@ -732,12 +732,77 @@ class PrefacturaController
             return response()->json(['error' => 'Prefactura no encontrada o inactiva.'], 404);
         }
 
-        $tipoPago = (int) ($request->tipo_pago ?? 1);
+        // ── Determinar tipo_pago desde revisión de crédito aprobada ──────
+        // Prioridad:
+        //   1. Existe credito_revision.estado='aprobado' para este flujo → Crédito
+        //   2. No existe revisión formal, pero la oferta ganadora tenía plazo de crédito
+        //      (fecha_vencimiento > fecha_emision en la cotización) → Crédito
+        //   3. Ninguna señal de crédito → usar lo que envía el frontend (contado)
+        $flujoIdPara = (int) ($pf->flujo_id ?? 0);
+        $creditoAprobadoReg = $flujoIdPara
+            ? DB::table('credito_revision')
+                ->where('flujo_id', $flujoIdPara)
+                ->where('estado', 'aprobado')
+                ->latest('id')
+                ->first()
+            : null;
+
+        // Días de la cotización ganadora (calculado sólo si no hay revisión formal)
+        $diasCotizacionGanadora = 0;
+        if (!$creditoAprobadoReg && $flujoIdPara) {
+            $ganadoraHf = DB::table('historico_flujo')
+                ->where('flujo_id', $flujoIdPara)
+                ->where('tipo_tramite_id', 2)   // tramite tipo 2 = cotización/oferta
+                ->where('observaciones', 'ganadora')
+                ->latest('id')
+                ->first(['tramite_id']);
+            if ($ganadoraHf && $ganadoraHf->tramite_id) {
+                $cotGanadora = DB::table('cotizacion')
+                    ->where('id', $ganadoraHf->tramite_id)
+                    ->first(['fecha_emision', 'fecha_vencimiento']);
+                if ($cotGanadora && $cotGanadora->fecha_emision && $cotGanadora->fecha_vencimiento) {
+                    $diasCotizacionGanadora = max(0, (int) \Carbon\Carbon::parse($cotGanadora->fecha_emision)
+                        ->diffInDays(\Carbon\Carbon::parse($cotGanadora->fecha_vencimiento), false));
+                }
+            }
+        }
+
+        $tipoPago = ($creditoAprobadoReg || $diasCotizacionGanadora > 0)
+            ? 2
+            : (int) ($request->tipo_pago ?? 1);
 
         // ── Calcular fecha_vencimiento ────────────────────────────────────
+        // fecha_vencimiento = fecha_actual_al_facturar + días_de_crédito_aprobados
+        //
+        // Fuente de días (en orden de prioridad):
+        //   1. credito_revision.dias_credito_aprobados  (aprobado formalmente por el revisor)
+        //   2. cliente.dias_credito                     (configuración global del cliente)
+        //   3. Diferencia de fechas en la cotización ganadora (ruta sin revisión formal)
         $fechaEmision = now()->toDateString();
-        if ($tipoPago === 2 && $pf->cliente_id) {
-            $diasCredito = DB::table('cliente')->where('id', $pf->cliente_id)->value('dias_credito') ?? 0;
+        if ($tipoPago === 2) {
+            // 1. Días aprobados explícitamente en la revisión de crédito
+            if ($creditoAprobadoReg && !is_null($creditoAprobadoReg->dias_credito_aprobados)) {
+                $diasCredito = (int) $creditoAprobadoReg->dias_credito_aprobados;
+            } else {
+                // 2. Configuración global del cliente
+                $diasCredito = $pf->cliente_id
+                    ? (int) (DB::table('cliente')->where('id', $pf->cliente_id)->value('dias_credito') ?? 0)
+                    : 0;
+                // 3. Diferencia de fechas de la cotización ganadora
+                if ($diasCredito === 0) {
+                    if ($diasCotizacionGanadora > 0) {
+                        $diasCredito = $diasCotizacionGanadora;
+                    } elseif ($creditoAprobadoReg && $creditoAprobadoReg->cotizacion_id) {
+                        $cotCred = DB::table('cotizacion')
+                            ->where('id', $creditoAprobadoReg->cotizacion_id)
+                            ->first(['fecha_emision', 'fecha_vencimiento']);
+                        if ($cotCred && $cotCred->fecha_emision && $cotCred->fecha_vencimiento) {
+                            $diasCredito = max(0, (int) \Carbon\Carbon::parse($cotCred->fecha_emision)
+                                ->diffInDays(\Carbon\Carbon::parse($cotCred->fecha_vencimiento), false));
+                        }
+                    }
+                }
+            }
         } else {
             $diasCredito = 0;
         }

@@ -27,6 +27,7 @@ class CreditoRevision extends Model
         'estado',
         'fecha_aprobacion',
         'fecha_vencimiento_credito',
+        'dias_credito_aprobados',
         'motivo_rechazo',
         'observaciones',
         'usuario_revision',

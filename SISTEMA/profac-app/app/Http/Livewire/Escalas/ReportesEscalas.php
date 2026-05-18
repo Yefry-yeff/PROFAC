@@ -278,4 +278,41 @@ class ReportesEscalas extends Component
             "resumen_categorias_precio_{$fecha}.xlsx"
         );
     }
+
+    /* ================================================================
+     *  TAB 7 — Categorías de precio con comisiones asignadas
+     * ================================================================ */
+    public function comisionesJson(Request $request)
+    {
+        $catClienteId = $request->input('cat_cliente_id') ? (int) $request->input('cat_cliente_id') : null;
+        $rolId        = $request->input('rol_id')         ? (int) $request->input('rol_id')         : null;
+        $estadoId     = ($request->input('estado_id') !== null && $request->input('estado_id') !== '')
+                            ? (int) $request->input('estado_id') : null;
+
+        $data = DB::table('comision_escala as ce')
+            ->join('rol as r', 'r.id', '=', 'ce.rol_id')
+            ->join('cliente_categoria_escala as cce', 'cce.id', '=', 'ce.cliente_categoria_escala_id')
+            ->leftJoin('categoria_precios as cp', 'cp.id', '=', 'ce.categoria_precios_id')
+            ->select([
+                'ce.id',
+                'cce.nombre_categoria as categoria_cliente',
+                'cp.nombre as categoria_precio',
+                'r.nombre as rol',
+                'ce.porcentaje_comision',
+                DB::raw("IF(ce.estado_id = 1, 'Activo', 'Inactivo') as estado"),
+                'cp.porc_precio_a',
+                'cp.porc_precio_b',
+                'cp.porc_precio_c',
+                'cp.porc_precio_d',
+            ])
+            ->when($catClienteId, fn ($q) => $q->where('ce.cliente_categoria_escala_id', $catClienteId))
+            ->when($rolId,        fn ($q) => $q->where('ce.rol_id', $rolId))
+            ->when($estadoId !== null, fn ($q) => $q->where('ce.estado_id', $estadoId))
+            ->orderBy('cce.nombre_categoria')
+            ->orderBy('cp.nombre')
+            ->orderBy('r.nombre')
+            ->get();
+
+        return response()->json($data);
+    }
 }

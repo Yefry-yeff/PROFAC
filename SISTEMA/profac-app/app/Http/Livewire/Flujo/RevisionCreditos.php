@@ -553,12 +553,17 @@ class RevisionCreditos extends Component
             $cr             = CreditoRevision::where('flujo_id', $this->flujoId)->latest('id')->first();
             $estadoAnterior = $cr ? $cr->estado : null;
 
+            // Días de crédito aprobados: usar el valor editable actual (puede ser
+            // el original del cliente o el ajustado por el revisor).
+            $diasAprobados = max(0, (int) $this->diasCreditoEditable);
+
             if ($cr) {
                 $cr->update([
                     'estado'                    => CreditoRevision::APROBADO,
                     'cotizacion_id'             => $this->cotizacionId,
                     'fecha_aprobacion'          => $dtAprobacion->toDateString(),
                     'fecha_vencimiento_credito' => $dtVencimiento ? $dtVencimiento->toDateString() : null,
+                    'dias_credito_aprobados'    => $diasAprobados,
                     'motivo_rechazo'            => null,
                     'observaciones'             => trim($this->observaciones) ?: null,
                     'usuario_revision'          => Auth::id(),
@@ -571,6 +576,7 @@ class RevisionCreditos extends Component
                     'estado'                    => CreditoRevision::APROBADO,
                     'fecha_aprobacion'          => $dtAprobacion->toDateString(),
                     'fecha_vencimiento_credito' => $dtVencimiento ? $dtVencimiento->toDateString() : null,
+                    'dias_credito_aprobados'    => $diasAprobados,
                     'observaciones'             => trim($this->observaciones) ?: null,
                     'usuario_revision'          => Auth::id(),
                     'ip_revision'               => $ip,

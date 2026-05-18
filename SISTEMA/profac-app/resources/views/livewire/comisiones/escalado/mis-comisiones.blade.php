@@ -275,11 +275,11 @@
                 <thead>
                     <tr>
                         <th>Mes</th>
-                        <th>Ano</th>
+                        <th>Año</th>
                         <th>Rol</th>
-                        <th>Comision</th>
+                        <th>Comisión</th>
                         <th>Facturas</th>
-                        <th>Ult. Actualizacion</th>
+                        <th>Ult. Actualización</th>
                         <th>Estado</th>
                     </tr>
                 </thead>

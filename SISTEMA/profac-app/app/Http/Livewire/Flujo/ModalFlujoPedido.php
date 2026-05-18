@@ -1506,8 +1506,35 @@ class ModalFlujoPedido extends Component
     {
         if (!$this->prefacturaData || !$this->flujoId) return;
 
+        // Determinar tipo_pago con la misma lógica de prioridades que el backend:
+        // 1. credito_revision aprobado → Crédito
+        // 2. Cotización ganadora tiene días de crédito (fecha_vencimiento > fecha_emision) → Crédito
+        // 3. Sin señal de crédito → Contado
+        $tipoPago = 1;
+
+        if (!empty($this->creditoRevisionData['estado']) &&
+            $this->creditoRevisionData['estado'] === 'aprobado') {
+            $tipoPago = 2;
+        } else {
+            // Fallback: revisar la cotización vinculada a la prefactura
+            $cotizacionId = (int) ($this->prefacturaData['cotizacion_id'] ?? 0);
+            if ($cotizacionId) {
+                $cot = DB::table('cotizacion')
+                    ->where('id', $cotizacionId)
+                    ->first(['fecha_emision', 'fecha_vencimiento']);
+                if ($cot && $cot->fecha_emision && $cot->fecha_vencimiento) {
+                    $dias = (int) \Carbon\Carbon::parse($cot->fecha_emision)
+                        ->diffInDays(\Carbon\Carbon::parse($cot->fecha_vencimiento), false);
+                    if ($dias > 0) {
+                        $tipoPago = 2;
+                    }
+                }
+            }
+        }
+
         $this->dispatchBrowserEvent('fmp-facturar-directo', [
-            'url' => '/prefactura/' . (int) $this->prefacturaData['id'] . '/facturar-directo',
+            'url'       => '/prefactura/' . (int) $this->prefacturaData['id'] . '/facturar-directo',
+            'tipo_pago' => $tipoPago,
         ]);
     }
 

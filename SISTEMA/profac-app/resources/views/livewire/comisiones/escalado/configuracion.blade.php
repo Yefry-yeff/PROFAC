@@ -169,6 +169,79 @@
     box-shadow: 0 0 0 3px rgba(243,156,18,.12);
 }
 
+/* ── CONTROL CÁLCULO POR ROL — tabla profesional ──────────────────────── */
+#tbl-roles-calculo { width: 100%; border-collapse: collapse; }
+#tbl-roles-calculo thead tr {
+    background: linear-gradient(135deg, #f1f5f9 0%, #e8f0fe 100%);
+}
+#tbl-roles-calculo thead th {
+    padding: 11px 18px;
+    font-size: 10.5px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: .55px;
+    color: #475569;
+    border-bottom: 2px solid #dde6f7;
+    border-top: none;
+    white-space: nowrap;
+}
+#tbl-roles-calculo tbody tr {
+    border-bottom: 1px solid #f1f5f9;
+    transition: background .15s;
+}
+#tbl-roles-calculo tbody tr:nth-child(even) { background: #f8fafc; }
+#tbl-roles-calculo tbody tr:nth-child(odd)  { background: #fff; }
+#tbl-roles-calculo tbody tr:hover { background: #eff6ff !important; }
+#tbl-roles-calculo tbody tr.rc-row-off { opacity: .75; }
+#tbl-roles-calculo tbody td {
+    padding: 11px 18px;
+    font-size: 12.5px; color: #334155;
+    vertical-align: middle;
+}
+.rc-td-nombre {
+    font-weight: 700; color: #1e293b;
+    display: flex; align-items: center; gap: 8px;
+}
+.rc-td-meta { font-size: 11px !important; color: #94a3b8 !important; }
+/* Badges inline */
+.rc-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 10px; border-radius: 20px;
+    font-size: 10px; font-weight: 800; letter-spacing: .25px;
+    white-space: nowrap;
+}
+.rc-badge-on     { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+.rc-badge-off    { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
+.rc-badge-escala { background: #dbeafe; color: #1d4ed8; border: 1px solid #93c5fd; }
+.rc-badge-sin    { background: #f1f5f9; color: #94a3b8; border: 1px solid #e2e8f0; }
+.rc-badge i      { font-size: 8px; }
+/* Avatar circular por rol */
+.rc-avatar {
+    width: 30px; height: 30px; flex-shrink: 0;
+    border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 800;
+    background: linear-gradient(135deg, #1e40af, #3b82f6);
+    color: #fff;
+}
+/* Toggle switch */
+.rc-toggle { position: relative; width: 42px; height: 22px; flex-shrink: 0; display: inline-block; }
+.rc-toggle input { opacity: 0; width: 0; height: 0; }
+.rc-slider {
+    position: absolute; inset: 0;
+    background: #cbd5e1; border-radius: 22px;
+    cursor: pointer; transition: background .2s;
+}
+.rc-slider::before {
+    content: ''; position: absolute;
+    left: 3px; top: 3px;
+    width: 16px; height: 16px;
+    border-radius: 50%; background: #fff;
+    transition: transform .2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,.2);
+}
+.rc-toggle input:checked + .rc-slider { background: #10b981; }
+.rc-toggle input:checked + .rc-slider::before { transform: translateX(20px); }
+.rc-toggle input:disabled + .rc-slider { opacity: .5; cursor: not-allowed; }
+
 /* -- BADGES -- */
 .cc-badge {
     display: inline-flex; align-items: center; gap: 5px;
@@ -665,6 +738,42 @@
             {{-- Grid checklists --}}
             <div style="display:flex;gap:0;">
 
+                {{-- Columna Roles --}}
+                <div style="flex:1;padding:20px;border-right:1px solid #edf0f7;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <div style="width:28px;height:28px;border-radius:8px;
+                                        background:linear-gradient(135deg,#7c3aed,#5b21b6);
+                                        display:flex;align-items:center;justify-content:center;">
+                                <i class="fa fa-id-badge" style="color:#fff;font-size:11px;"></i>
+                            </div>
+                            <span style="font-size:12px;font-weight:800;color:#1e293b;text-transform:uppercase;letter-spacing:.4px;">
+                                Rol
+                            </span>
+                        </div>
+                        <div style="display:flex;gap:5px;">
+                            <button type="button" onclick="checklistSelTodos('rol', true)"
+                                style="font-size:10px;padding:3px 9px;border-radius:6px;border:none;
+                                       background:#7c3aed;color:#fff;cursor:pointer;font-weight:700;">
+                                <i class="fa fa-check-square-o mr-1"></i>Todos
+                            </button>
+                            <button type="button" onclick="checklistSelTodos('rol', false)"
+                                style="font-size:10px;padding:3px 9px;border-radius:6px;border:1px solid #cbd5e0;
+                                       background:#f8fafc;color:#64748b;cursor:pointer;font-weight:600;">
+                                <i class="fa fa-square-o mr-1"></i>Ninguno
+                            </button>
+                        </div>
+                    </div>
+                    <div id="lista_chk_rol"
+                         style="max-height:220px;overflow-y:auto;border:1.5px solid #ede9fe;
+                                border-radius:10px;padding:6px 8px;background:#faf5ff;
+                                scrollbar-width:thin;scrollbar-color:#c4b5fd #f5f3ff;">
+                        <div style="text-align:center;color:#a0aec0;font-size:12px;padding:16px 0;">
+                            <i class="fa fa-spinner fa-spin"></i> Cargando...
+                        </div>
+                    </div>
+                </div>
+
                 {{-- Columna Categoría Cliente --}}
                 <div style="flex:1;padding:20px;border-right:1px solid #edf0f7;">
                     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
@@ -679,12 +788,12 @@
                             </span>
                         </div>
                         <div style="display:flex;gap:5px;">
-                            <button type="button" onclick="checklistSelTodos('chk_cat_cli', true)"
+                            <button type="button" onclick="checklistSelTodos('cat_cli', true)"
                                 style="font-size:10px;padding:3px 9px;border-radius:6px;border:none;
                                        background:#667eea;color:#fff;cursor:pointer;font-weight:700;">
                                 <i class="fa fa-check-square-o mr-1"></i>Todos
                             </button>
-                            <button type="button" onclick="checklistSelTodos('chk_cat_cli', false)"
+                            <button type="button" onclick="checklistSelTodos('cat_cli', false)"
                                 style="font-size:10px;padding:3px 9px;border-radius:6px;border:1px solid #cbd5e0;
                                        background:#f8fafc;color:#64748b;cursor:pointer;font-weight:600;">
                                 <i class="fa fa-square-o mr-1"></i>Ninguno
@@ -715,12 +824,12 @@
                             </span>
                         </div>
                         <div style="display:flex;gap:5px;">
-                            <button type="button" onclick="checklistSelTodos('chk_cat_precio', true)"
+                            <button type="button" onclick="checklistSelTodos('cat_precio', true)"
                                 style="font-size:10px;padding:3px 9px;border-radius:6px;border:none;
                                        background:#f59e0b;color:#fff;cursor:pointer;font-weight:700;">
                                 <i class="fa fa-check-square-o mr-1"></i>Todos
                             </button>
-                            <button type="button" onclick="checklistSelTodos('chk_cat_precio', false)"
+                            <button type="button" onclick="checklistSelTodos('cat_precio', false)"
                                 style="font-size:10px;padding:3px 9px;border-radius:6px;border:1px solid #cbd5e0;
                                        background:#f8fafc;color:#64748b;cursor:pointer;font-weight:600;">
                                 <i class="fa fa-square-o mr-1"></i>Ninguno
@@ -742,33 +851,175 @@
 
     </div>
 
-    {{-- ===== TABLA ===== --}}
+    {{-- ===== KPI STRIP ===== --}}
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px;">
+
+        <div style="background:linear-gradient(135deg,#667eea,#764ba2);border-radius:14px;padding:18px 20px;
+                    box-shadow:0 6px 20px rgba(102,126,234,.3);position:relative;overflow:hidden;
+                    animation:cc-fadeInUp .35s .05s ease both;">
+            <div style="position:absolute;top:-16px;right:-16px;width:70px;height:70px;background:rgba(255,255,255,.1);border-radius:50%;"></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                <div style="width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;">
+                    <i class="fa fa-check-circle" style="color:#fff;font-size:16px;"></i>
+                </div>
+                <span style="font-size:10px;font-weight:700;color:rgba(255,255,255,.75);background:rgba(255,255,255,.15);border-radius:20px;padding:3px 9px;letter-spacing:.3px;">ACTIVOS</span>
+            </div>
+            <div style="font-size:32px;font-weight:900;color:#fff;line-height:1;" id="kpi_val_activos">—</div>
+            <div style="font-size:11px;color:rgba(255,255,255,.7);margin-top:5px;">Parámetros configurados</div>
+        </div>
+
+        <div style="background:linear-gradient(135deg,#f39c12,#e67e22);border-radius:14px;padding:18px 20px;
+                    box-shadow:0 6px 20px rgba(243,156,18,.3);position:relative;overflow:hidden;
+                    animation:cc-fadeInUp .35s .1s ease both;">
+            <div style="position:absolute;top:-16px;right:-16px;width:70px;height:70px;background:rgba(255,255,255,.1);border-radius:50%;"></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                <div style="width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;">
+                    <i class="fa fa-id-badge" style="color:#fff;font-size:16px;"></i>
+                </div>
+                <span style="font-size:10px;font-weight:700;color:rgba(255,255,255,.75);background:rgba(255,255,255,.15);border-radius:20px;padding:3px 9px;letter-spacing:.3px;">ROLES</span>
+            </div>
+            <div style="font-size:32px;font-weight:900;color:#fff;line-height:1;" id="kpi_val_roles">—</div>
+            <div style="font-size:11px;color:rgba(255,255,255,.7);margin-top:5px;">Roles con comisión activa</div>
+        </div>
+
+        <div style="background:linear-gradient(135deg,#0ea5e9,#0284c7);border-radius:14px;padding:18px 20px;
+                    box-shadow:0 6px 20px rgba(14,165,233,.3);position:relative;overflow:hidden;
+                    animation:cc-fadeInUp .35s .15s ease both;">
+            <div style="position:absolute;top:-16px;right:-16px;width:70px;height:70px;background:rgba(255,255,255,.1);border-radius:50%;"></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                <div style="width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;">
+                    <i class="fa fa-users" style="color:#fff;font-size:16px;"></i>
+                </div>
+                <span style="font-size:10px;font-weight:700;color:rgba(255,255,255,.75);background:rgba(255,255,255,.15);border-radius:20px;padding:3px 9px;letter-spacing:.3px;">COBERTURA</span>
+            </div>
+            <div style="font-size:32px;font-weight:900;color:#fff;line-height:1;" id="kpi_val_catcli">—</div>
+            <div style="font-size:11px;color:rgba(255,255,255,.7);margin-top:5px;">Categorías cliente cubiertas</div>
+        </div>
+
+        <div style="background:linear-gradient(135deg,#10b981,#059669);border-radius:14px;padding:18px 20px;
+                    box-shadow:0 6px 20px rgba(16,185,129,.3);position:relative;overflow:hidden;
+                    animation:cc-fadeInUp .35s .2s ease both;">
+            <div style="position:absolute;top:-16px;right:-16px;width:70px;height:70px;background:rgba(255,255,255,.1);border-radius:50%;"></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                <div style="width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;">
+                    <i class="fa fa-percent" style="color:#fff;font-size:16px;"></i>
+                </div>
+                <span style="font-size:10px;font-weight:700;color:rgba(255,255,255,.75);background:rgba(255,255,255,.15);border-radius:20px;padding:3px 9px;letter-spacing:.3px;">PROMEDIO</span>
+            </div>
+            <div style="font-size:32px;font-weight:900;color:#fff;line-height:1;" id="kpi_val_prom">—</div>
+            <div style="font-size:11px;color:rgba(255,255,255,.7);margin-top:5px;">% promedio de comisión</div>
+        </div>
+
+    </div>
+
+    {{-- ===== PANEL CONTROL CÁLCULO POR ROL ===== --}}
+    <div class="cc-panel" style="margin-top:18px;padding:0;overflow:hidden;">
+
+        <div class="cc-panel-title" style="background:linear-gradient(135deg,#1e40af 0%,#3b82f6 100%);margin:0 0 0 0;border-radius:10px 10px 0 0;">
+            <div class="cc-panel-icon"><i class="fa fa-toggle-on"></i></div>
+            <span>Control de Cálculo de Comisiones por Rol</span>
+            <span style="margin-left:auto;font-size:10px;font-weight:500;opacity:.85;">
+                <i class="fa fa-info-circle mr-1"></i>
+                Activa o desactiva el cálculo al cerrar factura sin modificar los porcentajes configurados
+            </span>
+        </div>
+
+        {{-- Barra de búsqueda + contador --}}
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px 10px;
+                    border-bottom:1px solid #f1f5f9;flex-wrap:wrap;gap:10px;">
+            <div style="position:relative;flex:1;min-width:200px;max-width:320px;">
+                <i class="fa fa-search" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:13px;pointer-events:none;"></i>
+                <input type="text" id="rc-buscador" placeholder="Buscar rol..."
+                    style="width:100%;padding:7px 12px 7px 32px;border:1.5px solid #e2e8f0;border-radius:8px;
+                           font-size:12px;color:#334155;outline:none;transition:border-color .2s,box-shadow .2s;"
+                    onfocus="this.style.borderColor='#3b82f6';this.style.boxShadow='0 0 0 3px rgba(59,130,246,.12)'"
+                    onblur="this.style.borderColor='#e2e8f0';this.style.boxShadow='none'"
+                    oninput="filtrarTablaRoles(this.value)">
+            </div>
+            <div id="rc-contador" style="font-size:11px;color:#94a3b8;white-space:nowrap;"></div>
+        </div>
+
+        <div id="rc-loading" style="text-align:center;padding:40px;color:#94a3b8;">
+            <i class="fa fa-spinner fa-spin fa-lg"></i>
+            <p style="margin-top:8px;font-size:12px;">Cargando roles...</p>
+        </div>
+        <div id="rc-grid" style="display:none;">
+            <div class="table-responsive" style="margin:0;">
+                <table id="tbl-roles-calculo">
+                    <thead>
+                        <tr>
+                            <th style="width:35%;">Rol</th>
+                            <th>Estado</th>
+                            <th>Escala</th>
+                            <th>Último cambio</th>
+                            <th class="text-center" style="width:120px;">Cálculo activo</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbl-roles-calculo-body"></tbody>
+                </table>
+            </div>
+            <div id="rc-pagination" style="display:flex;align-items:center;justify-content:space-between;
+                padding:12px 18px;border-top:1px solid #f1f5f9;flex-wrap:wrap;gap:8px;"></div>
+        </div>
+
+    </div>
+
+    {{-- ===== PANEL REPORTES CON TABS ===== --}}
     <div class="cc-panel" style="margin-top:0;">
-        <div class="cc-panel-title">
-            <div class="cc-panel-icon"><i class="fa fa-list-ul"></i></div>
-            Parámetros de Comisión Registrados
+
+        {{-- Header con tab switcher --}}
+        <div class="cc-panel-title" style="justify-content:space-between;flex-wrap:wrap;gap:10px;">
+            <div style="display:flex;align-items:center;gap:10px;">
+                <div class="cc-panel-icon"><i class="fa fa-table"></i></div>
+                <span>Parámetros de Comisión</span>
+            </div>
+            <div style="display:flex;background:rgba(255,255,255,.15);border-radius:8px;padding:3px;gap:2px;">
+                <button id="rtab_btn_detalle" onclick="switchReportTab('detalle')"
+                    style="padding:5px 16px;border-radius:6px;border:none;cursor:pointer;font-size:11px;
+                           font-weight:700;transition:all .2s;background:rgba(255,255,255,.9);color:#e67e22;">
+                    <i class="fa fa-list-ul mr-1"></i> Detalle
+                </button>
+                <button id="rtab_btn_resumen" onclick="switchReportTab('resumen')"
+                    style="padding:5px 16px;border-radius:6px;border:none;cursor:pointer;font-size:11px;
+                           font-weight:700;transition:all .2s;background:transparent;color:rgba(255,255,255,.75);">
+                    <i class="fa fa-bar-chart mr-1"></i> Resumen por Rol
+                </button>
+            </div>
         </div>
-        <div class="table-responsive">
-            <table id="tbl_listaParametroComision"
-                   class="table table-sm table-hover w-100"
-                   style="border-collapse:collapse;">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Comisión</th>
-                        <th>%</th>
-                        <th>Rol de Usuario</th>
-                        <th>Categoría Cliente</th>
-                        <th>Categoría Precio</th>
-                        <th>Registrado por</th>
-                        <th>Fecha</th>
-                        <th class="text-center">Estado</th>
-                        <th class="text-center">Acciones</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
+
+        {{-- Tab: Detalle --}}
+        <div id="report_tab_detalle">
+            <div class="table-responsive">
+                <table id="tbl_listaParametroComision"
+                       class="table table-sm table-hover w-100"
+                       style="border-collapse:collapse;">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Comisión</th>
+                            <th>%</th>
+                            <th>Rol de Usuario</th>
+                            <th>Categoría Cliente</th>
+                            <th>Categoría Precio</th>
+                            <th>Registrado por</th>
+                            <th>Fecha</th>
+                            <th class="text-center">Estado</th>
+                            <th class="text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
         </div>
+
+        {{-- Tab: Resumen por Rol --}}
+        <div id="report_tab_resumen" style="display:none;padding:20px 6px 6px;">
+            <div id="cc-resumen-content" style="padding:30px;text-align:center;color:#a0aec0;">
+                <i class="fa fa-spinner fa-spin fa-2x"></i>
+                <p style="margin-top:10px;font-size:13px;">Cargando resumen...</p>
+            </div>
+        </div>
+
     </div>
 
     {{-- ===== MODAL CREAR / EDITAR ===== --}}
@@ -1196,6 +1447,7 @@ function procesarCargaMasiva(input) {
 
 // ── Gestión Masiva — Tab Switcher ────────────────────────────────────────────
 var _catCliCargadas           = false;
+var _rolesCargados            = false;
 var _archivoPendienteFiltrado = null;
 
 function switchTab(tab) {
@@ -1212,8 +1464,19 @@ function switchTab(tab) {
     } else {
         btnS.style.cssText += ';background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;box-shadow:0 2px 8px rgba(102,126,234,.4);';
         btnG.style.cssText += ';background:transparent;color:rgba(255,255,255,.7);box-shadow:none;';
+        if (!_rolesCargados) cargarRolesParaFiltro();
         if (!_catCliCargadas) cargarCatCliParaFiltro();
     }
+}
+
+function cargarRolesParaFiltro() {
+    $.getJSON('{{ route("comision.configuracion.roles.filtro") }}', function(res) {
+        var $lista = $('#lista_chk_rol').empty();
+        (res.roles || []).forEach(function(r) {
+            $lista.append(_chkItemRol(r.id, r.nombre));
+        });
+        _rolesCargados = true;
+    });
 }
 
 /* helper: checkbox item */
@@ -1235,6 +1498,14 @@ function _chkItemPrecio(id, label, subLabel) {
         + '<input type="checkbox" class="chk_cat_precio" value="'+id+'"'
         + ' style="width:14px;height:14px;cursor:pointer;accent-color:#f39c12;">'
         + label + sub + '</label>';
+}
+function _chkItemRol(id, label) {
+    return '<label style="display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:6px;'
+        + 'cursor:pointer;transition:background .12s;font-size:12px;color:#2d3748;font-weight:500;"'
+        + ' onmouseover="this.style.background=\'#f5f3ff\'" onmouseout="this.style.background=\'transparent\'">'
+        + '<input type="checkbox" class="chk_rol" value="'+id+'"'
+        + ' style="width:14px;height:14px;cursor:pointer;accent-color:#7c3aed;">'
+        + label + '</label>';
 }
 
 function cargarCatCliParaFiltro() {
@@ -1286,11 +1557,13 @@ function _getChecked(grupo) {
 }
 
 function descargarPlantillaFiltrada() {
+    var roles     = _getChecked('rol');
     var catCli    = _getChecked('cat_cli');
     var catPrecio = _getChecked('cat_precio');
 
     var base = '{{ route("comision.configuracion.plantilla.filtrada") }}';
     var qs   = [];
+    roles.forEach(function(id)     { qs.push('rol[]='         + id); });
     catCli.forEach(function(id)    { qs.push('cat_cli[]='    + id); });
     catPrecio.forEach(function(id) { qs.push('cat_precio[]=' + id); });
 
@@ -1412,6 +1685,159 @@ function procesarArchivoFiltrado() {
         Swal.fire({ icon: d.icon, title: d.title, text: d.text });
     });
 }
+
+// ── KPI Stats ────────────────────────────────────────────────────────────────
+function cargarStats() {
+    $.getJSON('{{ route("comision.configuracion.stats") }}', function(d) {
+        animarContador('kpi_val_activos', d.activos);
+        animarContador('kpi_val_roles',   d.roles);
+        animarContador('kpi_val_catcli',  d.cat_cli);
+        $('#kpi_val_prom').text(d.promedio + '%');
+    });
+}
+function animarContador(id, target) {
+    var $el = $('#' + id);
+    var current = 0;
+    var step = Math.max(1, Math.ceil(target / 30));
+    var timer = setInterval(function() {
+        current = Math.min(current + step, target);
+        $el.text(current);
+        if (current >= target) clearInterval(timer);
+    }, 30);
+}
+
+// ── Report Tabs ───────────────────────────────────────────────────────────────
+var _resumenCargado = false;
+function switchReportTab(tab) {
+    var isDetalle = (tab === 'detalle');
+    $('#report_tab_detalle').toggle(isDetalle);
+    $('#report_tab_resumen').toggle(!isDetalle);
+    $('#rtab_btn_detalle').css({ background: isDetalle ? 'rgba(255,255,255,.9)' : 'transparent',
+                                  color: isDetalle ? '#e67e22' : 'rgba(255,255,255,.75)' });
+    $('#rtab_btn_resumen').css({ background: !isDetalle ? 'rgba(255,255,255,.9)' : 'transparent',
+                                  color: !isDetalle ? '#e67e22' : 'rgba(255,255,255,.75)' });
+    if (!isDetalle && !_resumenCargado) cargarResumenRol();
+}
+
+function cargarResumenRol() {
+    $('#cc-resumen-content').html(
+        '<div style="padding:30px;text-align:center;color:#a0aec0;">' +
+        '<i class="fa fa-spinner fa-spin fa-2x"></i>' +
+        '<p style="margin-top:10px;font-size:13px;">Cargando resumen...</p></div>'
+    );
+    $.getJSON('{{ route("comision.configuracion.resumen.rol") }}', function(res) {
+        $('#cc-resumen-content').html(renderResumenRol(res.data || []));
+        _resumenCargado = true;
+    }).fail(function() {
+        $('#cc-resumen-content').html(
+            '<div style="padding:20px;text-align:center;color:#e74c3c;font-size:13px;">' +
+            '<i class="fa fa-exclamation-circle mr-1"></i>No se pudo cargar el resumen.</div>'
+        );
+    });
+}
+
+function renderResumenRol(data) {
+    if (!data.length) {
+        return '<div style="padding:40px;text-align:center;color:#a0aec0;">' +
+               '<i class="fa fa-inbox fa-3x" style="margin-bottom:12px;display:block;opacity:.4;"></i>' +
+               '<p style="font-size:13px;">No hay parámetros activos para mostrar.</p></div>';
+    }
+
+    // Agrupar por rol
+    var byRol = {};
+    data.forEach(function(r) {
+        if (!byRol[r.rol]) byRol[r.rol] = [];
+        byRol[r.rol].push(r);
+    });
+
+    // Max global para escala de barras
+    var maxPct = 0;
+    data.forEach(function(r) { if (parseFloat(r.pct_max) > maxPct) maxPct = parseFloat(r.pct_max); });
+    if (maxPct === 0) maxPct = 100;
+
+    var roleColors = ['#667eea','#f39c12','#10b981','#e74c3c','#0ea5e9','#7c3aed','#ec4899','#14b8a6'];
+    var html = '<div style="display:flex;flex-direction:column;gap:20px;padding:4px 0;">';
+    var rolIdx = 0;
+
+    Object.keys(byRol).sort().forEach(function(rol) {
+        var filas = byRol[rol];
+        var color = roleColors[rolIdx % roleColors.length];
+        rolIdx++;
+
+        // Total configs de este rol
+        var totalConfigs = filas.reduce(function(s, r) { return s + parseInt(r.total_configs); }, 0);
+        var promGlobal   = (filas.reduce(function(s, r) { return s + parseFloat(r.pct_prom); }, 0) / filas.length).toFixed(2);
+
+        html += '<div style="border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.06);">';
+
+        // Rol header
+        html += '<div style="background:linear-gradient(135deg,' + color + ',' + color + 'bb);' +
+                'padding:12px 18px;display:flex;align-items:center;gap:10px;">' +
+                '<div style="width:32px;height:32px;border-radius:9px;background:rgba(255,255,255,.2);' +
+                'display:flex;align-items:center;justify-content:center;">' +
+                '<i class="fa fa-id-badge" style="color:#fff;font-size:14px;"></i></div>' +
+                '<span style="font-size:13px;font-weight:800;color:#fff;flex:1;">' + rol + '</span>' +
+                '<div style="display:flex;gap:8px;">' +
+                '<span style="background:rgba(255,255,255,.2);color:#fff;border-radius:20px;' +
+                'padding:3px 11px;font-size:10px;font-weight:700;">' +
+                '<i class="fa fa-list mr-1"></i>' + totalConfigs + ' configs</span>' +
+                '<span style="background:rgba(255,255,255,.2);color:#fff;border-radius:20px;' +
+                'padding:3px 11px;font-size:10px;font-weight:700;">' +
+                '<i class="fa fa-percent mr-1"></i>prom ' + promGlobal + '%</span>' +
+                '</div></div>';
+
+        // Tabla de categorías
+        html += '<div style="background:#fff;border:1px solid #edf0f7;border-top:none;">' +
+                '<table style="width:100%;border-collapse:collapse;font-size:12px;">' +
+                '<thead><tr style="background:#f8fafc;">' +
+                '<th style="padding:8px 16px;text-align:left;font-size:10px;font-weight:800;color:#64748b;' +
+                'text-transform:uppercase;letter-spacing:.3px;">Categoría Cliente</th>' +
+                '<th style="padding:8px 16px;text-align:center;font-size:10px;font-weight:800;color:#64748b;' +
+                'text-transform:uppercase;letter-spacing:.3px;"># Cat. Precio</th>' +
+                '<th style="padding:8px 16px;text-align:center;font-size:10px;font-weight:800;color:#e74c3c;' +
+                'text-transform:uppercase;letter-spacing:.3px;">Mínimo</th>' +
+                '<th style="padding:8px 16px;text-align:center;font-size:10px;font-weight:800;color:#e67e22;' +
+                'text-transform:uppercase;letter-spacing:.3px;">Promedio</th>' +
+                '<th style="padding:8px 16px;text-align:center;font-size:10px;font-weight:800;color:#10b981;' +
+                'text-transform:uppercase;letter-spacing:.3px;">Máximo</th>' +
+                '<th style="padding:8px 16px;font-size:10px;font-weight:800;color:#64748b;' +
+                'text-transform:uppercase;letter-spacing:.3px;min-width:140px;">Cobertura visual</th>' +
+                '</tr></thead><tbody>';
+
+        filas.forEach(function(row, idx) {
+            var prom   = parseFloat(row.pct_prom);
+            var barPct = Math.min((prom / maxPct) * 100, 100).toFixed(1);
+            var bg     = idx % 2 === 0 ? '#fff' : '#fafbfc';
+
+            html += '<tr style="background:' + bg + ';border-top:1px solid #f1f5f9;">' +
+                    '<td style="padding:11px 16px;color:#2d3748;font-weight:600;">' +
+                    '<i class="fa fa-tag mr-1" style="color:' + color + ';font-size:10px;"></i>' +
+                    row.cat_cli + '</td>' +
+                    '<td style="padding:11px 16px;text-align:center;">' +
+                    '<span style="background:#e8f0fe;color:#667eea;border-radius:20px;' +
+                    'padding:2px 10px;font-size:11px;font-weight:700;">' + row.total_configs + '</span></td>' +
+                    '<td style="padding:11px 16px;text-align:center;color:#e74c3c;font-weight:700;">' + row.pct_min + '%</td>' +
+                    '<td style="padding:11px 16px;text-align:center;">' +
+                    '<span style="background:linear-gradient(135deg,#f39c12,#e67e22);color:#fff;' +
+                    'border-radius:20px;padding:3px 12px;font-size:11px;font-weight:800;">' + prom + '%</span></td>' +
+                    '<td style="padding:11px 16px;text-align:center;color:#10b981;font-weight:700;">' + row.pct_max + '%</td>' +
+                    '<td style="padding:11px 16px;">' +
+                    '<div style="background:#f1f5f9;border-radius:20px;height:8px;">' +
+                    '<div style="width:' + barPct + '%;height:100%;border-radius:20px;' +
+                    'background:linear-gradient(90deg,' + color + '55,' + color + ');' +
+                    'transition:width .6s ease;"></div></div>' +
+                    '<div style="font-size:10px;color:#94a3b8;margin-top:2px;text-align:right;">' + prom + '% / ' + maxPct + '%</div>' +
+                    '</td></tr>';
+        });
+
+        html += '</tbody></table></div></div>';
+    });
+
+    html += '</div>';
+    return html;
+}
+
+$(document).ready(function() { cargarStats(); cargarRolesCalculo(); });
 </script>
 @endpush
 

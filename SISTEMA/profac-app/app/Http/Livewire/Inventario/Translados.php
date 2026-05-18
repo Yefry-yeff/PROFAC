@@ -282,7 +282,7 @@ class Translados extends Component
             B.id,
             B.nombre,
             SUM(A.cantidad_disponible) as cantidad_total,
-            CONCAT(B.id, ' - ', B.nombre, '  (Disp: ', SUM(A.cantidad_disponible), ')') as text
+            CONCAT(B.id, ' - ', B.nombre, '  (Disp: ', FLOOR(SUM(A.cantidad_disponible)), ')') as text
         from recibido_bodega A
             inner join producto B
             on A.producto_id = B.id

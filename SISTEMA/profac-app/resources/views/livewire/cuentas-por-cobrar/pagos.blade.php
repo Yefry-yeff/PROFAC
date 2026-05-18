@@ -867,6 +867,38 @@
 
 
 
+{{-- ===== MODAL PREVIEW COMISIONES ===== --}}
+<div class="modal fade" id="modalPreviewComisiones" tabindex="-1" role="dialog" aria-hidden="true" data-backdrop="static" data-keyboard="false">
+    <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header" style="background:#1e40af;color:#fff;border-radius:0;">
+                <h5 class="modal-title">
+                    <i class="fa fa-bell mr-2"></i> Confirmación de Comisiones — Cierre de Factura
+                </h5>
+            </div>
+            <div class="modal-body">
+                <div class="alert mb-3" style="background:#eff6ff;border-left:4px solid #3b82f6;border-radius:4px;padding:10px 14px;">
+                    <i class="fa fa-info-circle mr-1" style="color:#3b82f6;"></i>
+                    Este pago <strong>cerrará completamente la factura</strong>. Los siguientes empleados recibirán comisión automáticamente al confirmar:
+                </div>
+                <div id="preview-comisiones-lista"></div>
+                <div class="alert mb-0 mt-3" style="background:#fffbeb;border-left:4px solid #f59e0b;border-radius:4px;padding:10px 14px;font-size:.84rem;">
+                    <i class="fa fa-exclamation-triangle mr-1" style="color:#f59e0b;"></i>
+                    Una vez registrado el pago las comisiones se procesarán automáticamente y <strong>no se podrán revertir</strong> sin intervención manual.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-cancel-preview-comision">
+                    <i class="fa fa-arrow-left mr-1"></i> Volver al formulario
+                </button>
+                <button type="button" class="btn btn-success btn-sm px-4" id="btn-confirmar-y-guardar-pago">
+                    <i class="fa fa-check-circle mr-1"></i> Confirmar y Registrar Pago
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {{-- ===== MODAL CERRAR FACTURA ===== --}}
 <div class="modal ap-modal fade" id="modalcerrarFact" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered" role="document">
