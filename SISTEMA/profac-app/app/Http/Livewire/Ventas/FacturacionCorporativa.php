@@ -705,15 +705,27 @@ class FacturacionCorporativa extends Component
 
 
             if ($request->tipoPagoVenta == 2) {
-                $comprobarCredito = $this->comprobarCreditoCliente($request->seleccionarCliente, $request->totalGeneral);
+                // Si la factura proviene de un flujo con crédito aprobado formalmente
+                // (credito_revision.estado = 'aprobado'), omitir la verificación del
+                // límite global del cliente — la aprobación explícita ya lo cubre.
+                $flujoIdReq = (int) ($request->flujo_id ?? 0);
+                $creditoAprobadoPorFlujo = $flujoIdReq
+                    ? \Illuminate\Support\Facades\DB::table('credito_revision')
+                        ->where('flujo_id', $flujoIdReq)
+                        ->where('estado', 'aprobado')
+                        ->exists()
+                    : false;
 
-                if ($comprobarCredito) {
-                    return response()->json([
-                        'icon' => 'warning',
-                        'title' => 'Advertencia!',
-                        'text' => 'El cliente ' . $request->nombre_cliente_ventas . ', no cuenta con crédito suficiente . Por el momento no se puede emitir factura a este cliente.',
+                if (!$creditoAprobadoPorFlujo) {
+                    $comprobarCredito = $this->comprobarCreditoCliente($request->seleccionarCliente, $request->totalGeneral);
 
-                    ], 401);
+                    if ($comprobarCredito) {
+                        return response()->json([
+                            'icon' => 'warning',
+                            'title' => 'Advertencia!',
+                            'text' => 'El cliente ' . $request->nombre_cliente_ventas . ', no cuenta con crédito suficiente . Por el momento no se puede emitir factura a este cliente.',
+                        ], 401);
+                    }
                 }
             }
 
