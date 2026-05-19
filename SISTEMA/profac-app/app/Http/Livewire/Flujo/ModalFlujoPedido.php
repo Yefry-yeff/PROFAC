@@ -265,14 +265,23 @@ class ModalFlujoPedido extends Component
             ->count();
 
         // Construir pedidoData compatible con el blade del modal
+        // flujo.nombre tiene prioridad (fue actualizado al confirmar la factura)
+        $clienteNombre = $flujo->nombre
+            ?? ($cotizacion ? ($cotizacion->nombre_cliente ?? null) : null)
+            ?? ($facturaDirecta ? ($facturaDirecta->nombre_cliente ?? null) : null)
+            ?? '—';
+        $clienteRtn = $flujo->cliente_rtn
+            ?? ($cotizacion ? ($cotizacion->RTN ?? null) : null)
+            ?? ($facturaDirecta ? ($facturaDirecta->rtn ?? null) : null);
+
         $this->pedidoData = [
             'id'             => (int) $flujo->identificacion,
             'estado'         => 'activo',
             'observaciones'  => $cotizacion ? ($cotizacion->observaciones ?? null) : null,
-            'created_at'     => $cotizacion ? $cotizacion->created_at : $facturaDirecta->created_at,
-            'cliente'        => $cotizacion ? ($cotizacion->nombre_cliente ?? '—') : ($facturaDirecta->nombre_cliente ?? '—'),
-            'rtn'            => $cotizacion ? ($cotizacion->RTN ?? null) : ($facturaDirecta->rtn ?? null),
-            'cliente_id'     => $cotizacion ? ($cotizacion->cliente_id ?? null) : ($facturaDirecta->cliente_id ?? null),
+            'created_at'     => $cotizacion ? $cotizacion->created_at : ($facturaDirecta ? $facturaDirecta->created_at : $flujo->created_at),
+            'cliente'        => $clienteNombre,
+            'rtn'            => $clienteRtn,
+            'cliente_id'     => $cotizacion ? ($cotizacion->cliente_id ?? null) : ($facturaDirecta ? ($facturaDirecta->cliente_id ?? null) : null),
             'registrado_por' => null,
             'total_ofertas'  => $totalOfertas,
             'has_ganadora'   => $hasGanadora,
