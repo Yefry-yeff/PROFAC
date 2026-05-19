@@ -32,6 +32,7 @@ class FacturacionUnificada extends Component
     public $clientePedido         = null;   // ['id','nombre','rtn','cliente_id']
     public $productosSugeridos    = [];     // [['nombre_pedido','cantidad','similares':[...]]]
     public $productosParaCarrito  = [];     // Productos del duplicado para auto-agregar al carrito
+    public $datosOfertaDuplicada  = null;   // ['tipo_pago_id','fecha_vencimiento','porc_descuento','nota']
 
     // ── Vendedor actual ──────────────────────────────────────────────────
     public $vendedorDefault    = [];
@@ -113,6 +114,22 @@ class FacturacionUnificada extends Component
                     'nombre_pedido' => $p->nombre_producto,
                     'cantidad'      => $p->cantidad,
                     'similares'     => $this->buscarSimilares($p->nombre_producto),
+                ];
+            }
+
+            // Cargar datos de cabecera de la oferta original para pre-llenar el formulario
+            $cotizOrig = DB::table('cotizacion')
+                ->where('id', (int) $cotizId)
+                ->select('tipo_pago_id', 'fecha_vencimiento', 'porc_descuento', 'nota')
+                ->first();
+            if ($cotizOrig) {
+                $this->datosOfertaDuplicada = [
+                    'tipo_pago_id'      => $cotizOrig->tipo_pago_id,
+                    'fecha_vencimiento' => $cotizOrig->fecha_vencimiento
+                        ? \Carbon\Carbon::parse($cotizOrig->fecha_vencimiento)->format('Y-m-d')
+                        : null,
+                    'porc_descuento'    => (float) ($cotizOrig->porc_descuento ?? 0),
+                    'nota'              => $cotizOrig->nota ?? '',
                 ];
             }
         }

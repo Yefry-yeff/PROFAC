@@ -1689,6 +1689,8 @@
     var idAutorizacion = 0;
     var idFactura = 0;
     var public_path = "{{ asset('catalogo/') }}";
+    // Datos de la oferta original cuando se viene de duplicar
+    var _ofertaDuplicada = @json($datosOfertaDuplicada ?? null);
 
     // ================================================================
     // INICIALIZACIÓN
@@ -2155,13 +2157,47 @@
                 });
                 document.getElementById('tipoPagoVenta').innerHTML = htmlPagos;
                 document.getElementById("numero_venta").value = numeroVenta;
-                // Auto-seleccionar "Contado" por defecto
+
                 let selPago = document.getElementById('tipoPagoVenta');
-                for (let i = 0; i < selPago.options.length; i++) {
-                    if (selPago.options[i].text.toLowerCase().includes('contado')) {
-                        selPago.selectedIndex = i;
-                        validarFechaPago();
-                        break;
+
+                // Si es duplicado de oferta, pre-seleccionar el tipo de pago original;
+                // si no, auto-seleccionar "Contado" por defecto
+                if (_ofertaDuplicada && _ofertaDuplicada.tipo_pago_id) {
+                    for (let i = 0; i < selPago.options.length; i++) {
+                        if (selPago.options[i].value == _ofertaDuplicada.tipo_pago_id) {
+                            selPago.selectedIndex = i;
+                            break;
+                        }
+                    }
+                } else {
+                    for (let i = 0; i < selPago.options.length; i++) {
+                        if (selPago.options[i].text.toLowerCase().includes('contado')) {
+                            selPago.selectedIndex = i;
+                            break;
+                        }
+                    }
+                }
+
+                validarFechaPago();
+
+                // Pre-llenar campos adicionales de la oferta duplicada
+                if (_ofertaDuplicada) {
+                    // Fecha vencimiento: solo sobreescribir si el tipo de pago es crédito (id=2)
+                    // Para crédito, la fecha calculada por sumarDiasCredito() se reemplaza
+                    // con la fecha original de la oferta.
+                    if (_ofertaDuplicada.fecha_vencimiento && selPago.value == 2) {
+                        let fv = document.getElementById('fecha_vencimiento');
+                        fv.readOnly = false;
+                        fv.value = _ofertaDuplicada.fecha_vencimiento;
+                    }
+                    // Descuento
+                    if (_ofertaDuplicada.porc_descuento) {
+                        document.getElementById('porDescuento').value = _ofertaDuplicada.porc_descuento;
+                        calcularTotalesInicioPagina();
+                    }
+                    // Nota
+                    if (_ofertaDuplicada.nota) {
+                        document.getElementById('nota_comen').value = _ofertaDuplicada.nota;
                     }
                 }
             })

@@ -237,6 +237,7 @@ class expo extends Component
             $cotizacion->numeroInputs = $request->numeroInputs;
             $cotizacion->porc_descuento = $request->porDescuento;
             $cotizacion->monto_descuento = $request->descuentoGeneral;
+            $cotizacion->tipo_pago_id = $request->tipoPagoVenta ?: null;
             $cotizacion->save();
 
            /*  ALTER TABLE cotizacion ADD COLUMN nota VARCHAR(255) NULL DEFAULT NULL; */
@@ -384,6 +385,7 @@ class expo extends Component
              $cotizacion->numeroInputs = $request->numeroInputs;
              $cotizacion->porc_descuento = $request->porDescuento;
              $cotizacion->monto_descuento =  $request->descuentoGeneral;
+             $cotizacion->tipo_pago_id = $request->tipoPagoVenta ?: null;
              $cotizacion->save();
 
 

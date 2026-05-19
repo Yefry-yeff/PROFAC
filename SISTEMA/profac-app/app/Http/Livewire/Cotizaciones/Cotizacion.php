@@ -308,6 +308,7 @@ class Cotizacion extends Component
             $cotizacion->porc_descuento = $request->porDescuento;
             $cotizacion->monto_descuento = $request->descuentoGeneral;
             $cotizacion->nota = $request->nota;
+            $cotizacion->tipo_pago_id = $request->tipoPagoVenta ?: null;
             $cotizacion->estado_id  = 1;
             $cotizacion->created_by = Auth::id();
             $cotizacion->save();
