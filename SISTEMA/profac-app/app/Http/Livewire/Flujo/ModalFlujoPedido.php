@@ -42,6 +42,7 @@ class ModalFlujoPedido extends Component
 
     // ── Revisión de Crédito: estado del ciclo activo ──────────────────────
     public bool $revisionCreditoPendiente = false; // hay un historico_flujo tipo=10 con estado_id=5
+    public bool $flujoCancelado          = false; // el flujo fue cancelado por rechazo de crédito
 
     // ── Acciones sobre el pedido ──────────────────────────────────────────
     public $confirmAccion    = null;  // null|'anular'|'duplicar'
@@ -185,6 +186,7 @@ class ModalFlujoPedido extends Component
             : false;
         $cr = $this->flujoId ? CreditoRevision::paraFlujo($this->flujoId) : null;
         $this->creditoRevisionData = $this->buildCreditoData($cr);
+        $this->flujoCancelado = ($this->creditoRevisionData['estado'] ?? '') === CreditoRevision::RECHAZADO;
         // Detectar si hay un ciclo de Revisión de Crédito pendiente en historico_flujo
         $this->revisionCreditoPendiente = $this->flujoId
             ? DB::table('historico_flujo')
@@ -325,6 +327,7 @@ class ModalFlujoPedido extends Component
         $this->creditoVigente = CreditoRevision::creditoVigenteParaFlujo($flujoId);
         $cr = CreditoRevision::paraFlujo($flujoId);
         $this->creditoRevisionData = $this->buildCreditoData($cr);
+        $this->flujoCancelado = ($this->creditoRevisionData['estado'] ?? '') === CreditoRevision::RECHAZADO;
         // Detectar si hay un ciclo de Revisión de Crédito pendiente en historico_flujo
         $this->revisionCreditoPendiente = DB::table('historico_flujo')
             ->where('flujo_id', $flujoId)
@@ -441,6 +444,7 @@ class ModalFlujoPedido extends Component
         $this->creditoRevisionData     = [];
         $this->creditoVigente          = false;
         $this->revisionCreditoPendiente = false;
+        $this->flujoCancelado          = false;
     }
 
     // ─────────────────────────────────────────────────────────────────────

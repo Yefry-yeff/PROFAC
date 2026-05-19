@@ -1125,6 +1125,13 @@
                             <i class="mr-1 fa fa-copy text-primary"></i>
                             ¿Duplicar la <strong>Oferta #{{ $ofertaSeleccionada['id'] }}</strong>?
                         </p>
+                        @if ($flujoCancelado)
+                        <div style="background:#fff3cd; border:1px solid #ffc107; border-radius:8px;
+                                    padding:8px 12px; margin-bottom:10px; font-size:12px; color:#856404; text-align:left;">
+                            <i class="mr-1 fa fa-info-circle"></i>
+                            Este flujo fue <strong>rechazado</strong>. La oferta duplicada se creará en un <strong>nuevo flujo independiente</strong>.
+                        </div>
+                        @endif
                         <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
                             <button type="button" wire:click="duplicarOferta(true)"
                                     style="background:linear-gradient(135deg,#1a7efb,#0d6efd); color:#fff;

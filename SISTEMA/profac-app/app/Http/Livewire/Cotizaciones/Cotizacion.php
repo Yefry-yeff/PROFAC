@@ -317,13 +317,19 @@ class Cotizacion extends Component
             $pedidoIdVinculado = $request->pedido_id ? (int) $request->pedido_id : null;
             $flujoIdDirecto    = $request->flujo_id  ? (int) $request->flujo_id  : null;
 
+            // ID del estado "cancelado" para verificar flujos cancelados
+            $canceladoEstadoId = (int) (DB::table('estado_venta')->where('descripcion', 'cancelado')->value('id') ?? 4);
+
             if ($pedidoIdVinculado) {
                 // Flujo con pedido: buscar el flujo del pedido y agregar historico
-                $flujoIdVinculado = DB::table('flujo')
+                $flujoExistente = DB::table('flujo')
                     ->where('identificacion', (string) $pedidoIdVinculado)
                     ->where('tipo_flujo_id', 1)
-                    ->value('id');
-                if ($flujoIdVinculado) {
+                    ->first(['id', 'estado_id']);
+                $flujoIdVinculado = $flujoExistente->id ?? null;
+
+                if ($flujoIdVinculado && (int) $flujoExistente->estado_id !== $canceladoEstadoId) {
+                    // Flujo activo: agregar oferta al flujo existente
                     DB::table('historico_flujo')->insert([
                         'flujo_id'        => $flujoIdVinculado,
                         'tipo_tramite_id' => 2, // 'Ofertas'
@@ -337,22 +343,79 @@ class Cotizacion extends Component
                     ]);
                     DB::table('flujo')->where('id', $flujoIdVinculado)
                         ->update(['tipo_tramite_id' => 2, 'updated_by' => Auth::id(), 'updated_at' => now()]);
+                } else {
+                    // Flujo cancelado o inexistente: crear nuevo flujo para esta cotización
+                    $flujoNuevo = DB::table('flujo')->insertGetId([
+                        'tipo_flujo_id'   => 1,
+                        'identificacion'  => (string) $cotizacion->id,
+                        'nombre'          => $cotizacion->nombre_cliente ?? ('Cotizacion #' . $cotizacion->id),
+                        'cliente_rtn'     => $request->rtn_ventas ?? null,
+                        'tipo_tramite_id' => 2,
+                        'estado_id'       => 1,
+                        'created_by'      => Auth::id(),
+                        'updated_by'      => Auth::id(),
+                        'created_at'      => now(),
+                        'updated_at'      => now(),
+                    ]);
+                    DB::table('historico_flujo')->insert([
+                        'flujo_id'        => $flujoNuevo,
+                        'tipo_tramite_id' => 2,
+                        'tramite_id'      => $cotizacion->id,
+                        'estado_id'       => 1,
+                        'observaciones'   => 'Oferta duplicada desde flujo cancelado (pedido #' . $pedidoIdVinculado . ')',
+                        'created_by'      => Auth::id(),
+                        'updated_by'      => Auth::id(),
+                        'created_at'      => now(),
+                        'updated_at'      => now(),
+                    ]);
+                    $flujoIdVinculado = null; // el flujo del pedido ya no aplica
                 }
             } elseif ($flujoIdDirecto) {
-                // Flujo sin pedido ya existente: agregar nueva oferta al mismo flujo
-                DB::table('historico_flujo')->insert([
-                    'flujo_id'        => $flujoIdDirecto,
-                    'tipo_tramite_id' => 2,
-                    'tramite_id'      => $cotizacion->id,
-                    'estado_id'       => 1,
-                    'observaciones'   => 'Oferta adicional #' . $cotizacion->id . ' registrada en flujo existente',
-                    'created_by'      => Auth::id(),
-                    'updated_by'      => Auth::id(),
-                    'created_at'      => now(),
-                    'updated_at'      => now(),
-                ]);
-                DB::table('flujo')->where('id', $flujoIdDirecto)
-                    ->update(['updated_by' => Auth::id(), 'updated_at' => now()]);
+                // Flujo sin pedido ya existente: verificar si está cancelado
+                $flujoDirecto = DB::table('flujo')->where('id', $flujoIdDirecto)->first(['estado_id']);
+
+                if ($flujoDirecto && (int) $flujoDirecto->estado_id !== $canceladoEstadoId) {
+                    // Flujo activo: agregar nueva oferta al mismo flujo
+                    DB::table('historico_flujo')->insert([
+                        'flujo_id'        => $flujoIdDirecto,
+                        'tipo_tramite_id' => 2,
+                        'tramite_id'      => $cotizacion->id,
+                        'estado_id'       => 1,
+                        'observaciones'   => 'Oferta adicional #' . $cotizacion->id . ' registrada en flujo existente',
+                        'created_by'      => Auth::id(),
+                        'updated_by'      => Auth::id(),
+                        'created_at'      => now(),
+                        'updated_at'      => now(),
+                    ]);
+                    DB::table('flujo')->where('id', $flujoIdDirecto)
+                        ->update(['updated_by' => Auth::id(), 'updated_at' => now()]);
+                } else {
+                    // Flujo cancelado: crear nuevo flujo para esta cotización
+                    $flujoNuevo = DB::table('flujo')->insertGetId([
+                        'tipo_flujo_id'   => 1,
+                        'identificacion'  => (string) $cotizacion->id,
+                        'nombre'          => $cotizacion->nombre_cliente ?? ('Cotizacion #' . $cotizacion->id),
+                        'cliente_rtn'     => $request->rtn_ventas ?? null,
+                        'tipo_tramite_id' => 2,
+                        'estado_id'       => 1,
+                        'created_by'      => Auth::id(),
+                        'updated_by'      => Auth::id(),
+                        'created_at'      => now(),
+                        'updated_at'      => now(),
+                    ]);
+                    DB::table('historico_flujo')->insert([
+                        'flujo_id'        => $flujoNuevo,
+                        'tipo_tramite_id' => 2,
+                        'tramite_id'      => $cotizacion->id,
+                        'estado_id'       => 1,
+                        'observaciones'   => 'Oferta duplicada desde flujo cancelado #' . $flujoIdDirecto,
+                        'created_by'      => Auth::id(),
+                        'updated_by'      => Auth::id(),
+                        'created_at'      => now(),
+                        'updated_at'      => now(),
+                    ]);
+                    $flujoIdDirecto = null; // el flujo directo ya no aplica
+                }
             } else {
                 // Sin pedido ni flujo vinculado: crear un nuevo flujo para esta cotizacion
                 $flujoNuevo = DB::table('flujo')->insertGetId([
