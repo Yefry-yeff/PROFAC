@@ -32,7 +32,16 @@ class ListadoFacturaEstatal extends Component
     public function listarFacturas(){
 
         try {
-
+            $filtroCai        = trim(request()->input('filtroCai', ''));
+            $filtroCliente    = trim(request()->input('filtroCliente', ''));
+            $filtroVendedor   = trim(request()->input('filtroVendedor', ''));
+            $filtroFacturador = trim(request()->input('filtroFacturador', ''));
+            $whereFilters = '';
+            $bindings     = [];
+            if ($filtroCai)        { $whereFilters .= " AND factura.cai LIKE ? ";                                             $bindings[] = "%{$filtroCai}%"; }
+            if ($filtroCliente)    { $whereFilters .= " AND factura.nombre_cliente LIKE ? ";                                  $bindings[] = "%{$filtroCliente}%"; }
+            if ($filtroVendedor)   { $whereFilters .= " AND users.name LIKE ? ";                                              $bindings[] = "%{$filtroVendedor}%"; }
+            if ($filtroFacturador) { $whereFilters .= " AND (SELECT name FROM users WHERE id = factura.users_id) LIKE ? ";    $bindings[] = "%{$filtroFacturador}%"; }
 
                 $listaFacturas = DB::SELECT("
                 select
@@ -61,9 +70,9 @@ class ListadoFacturaEstatal extends Component
                     inner join users
                     on factura.vendedor = users.id
                     cross join (select @i := 0) r
-                where YEAR(factura.created_at) >= (YEAR(NOW())-2) and factura.estado_venta_id<>2 and factura.tipo_venta_id = 2
+                where YEAR(factura.created_at) >= (YEAR(NOW())-2) and factura.estado_venta_id<>2 and factura.tipo_venta_id = 2 {$whereFilters}
                 order by factura.created_at desc
-                ");
+                ", $bindings);
 
 
 

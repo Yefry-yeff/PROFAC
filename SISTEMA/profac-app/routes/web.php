@@ -344,6 +344,26 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
             'pagination' => ['more' => ($page * $per) < $total],
         ]);
     });
+    Route::get('/filtros/facturas/clientes', function(\Illuminate\Http\Request $req) {
+        $q = $req->input('q', '');
+        $results = \Illuminate\Support\Facades\DB::table('factura')
+            ->select('nombre_cliente as text')
+            ->when($q, fn ($b) => $b->where('nombre_cliente', 'LIKE', "%{$q}%"))
+            ->distinct()->orderBy('nombre_cliente')->limit(25)->get();
+        return response()->json([
+            'results' => $results->map(fn ($r) => ['id' => $r->text, 'text' => $r->text]),
+        ]);
+    });
+    Route::get('/filtros/facturas/usuarios', function(\Illuminate\Http\Request $req) {
+        $q = $req->input('q', '');
+        $results = \Illuminate\Support\Facades\DB::table('users')
+            ->select('name as text')
+            ->when($q, fn ($b) => $b->where('name', 'LIKE', "%{$q}%"))
+            ->orderBy('name')->limit(25)->get();
+        return response()->json([
+            'results' => $results->map(fn ($r) => ['id' => $r->text, 'text' => $r->text]),
+        ]);
+    });
     Route::get('/filtros/produtos', function(\Illuminate\Http\Request $req) {
         $q = $req->input('q', '');
         return \Illuminate\Support\Facades\DB::table('producto')
