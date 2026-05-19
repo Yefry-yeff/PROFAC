@@ -404,6 +404,13 @@ class RevisionCreditos extends Component
 
     private function evaluarReglasAutorizacion(): void
     {
+        // Facturas de contado no requieren validación de crédito
+        if ($this->tipoPagoSolicitud === 'contado') {
+            $this->bloqueosAutorizacion = [];
+            $this->puedeAutorizar = true;
+            return;
+        }
+
         $bloqueos = [];
 
         if ($this->montoTotalOferta > $this->montoDisponibleActual) {
