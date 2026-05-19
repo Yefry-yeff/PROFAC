@@ -133,6 +133,22 @@ class FacturacionUnificada extends Component
                 ];
             }
         }
+
+        // Pre-seleccionar cliente cuando se duplica para "Otro cliente" (clienteId sin pedidoId/flujoId)
+        $clienteIdParam = request()->get('clienteId');
+        if ($clienteIdParam && !$pid && !$fid) {
+            $cliente = DB::table('cliente')
+                ->where('id', (int) $clienteIdParam)
+                ->select('id', 'nombre', 'rtn')
+                ->first();
+            if ($cliente) {
+                $this->clientePedido = [
+                    'id'     => $cliente->id,
+                    'nombre' => $cliente->nombre,
+                    'rtn'    => $cliente->rtn ?? '',
+                ];
+            }
+        }
     }
 
     public function updatedBusquedaFlujo()

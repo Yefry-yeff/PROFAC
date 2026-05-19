@@ -44,6 +44,14 @@ class ModalFlujoPedido extends Component
     public bool $revisionCreditoPendiente = false; // hay un historico_flujo tipo=10 con estado_id=5
     public bool $flujoCancelado          = false; // el flujo fue cancelado por rechazo de crédito
 
+    // ── Selector de cliente para "Otro cliente" al duplicar ──────────────
+    public bool   $mostrarSelectorClienteDuplicar  = false;
+    public string $busquedaClienteDuplicar         = '';
+    public array  $resultadosClienteDuplicar       = [];
+    public ?int   $clienteDuplicarId               = null;
+    public string $clienteDuplicarNombre           = '';
+    public string $clienteDuplicarError            = '';
+
     // ── Acciones sobre el pedido ──────────────────────────────────────────
     public $confirmAccion    = null;  // null|'anular'|'duplicar'
     public $motivoAnulacion  = '';
@@ -445,6 +453,12 @@ class ModalFlujoPedido extends Component
         $this->creditoVigente          = false;
         $this->revisionCreditoPendiente = false;
         $this->flujoCancelado          = false;
+        $this->mostrarSelectorClienteDuplicar  = false;
+        $this->busquedaClienteDuplicar         = '';
+        $this->resultadosClienteDuplicar       = [];
+        $this->clienteDuplicarId               = null;
+        $this->clienteDuplicarNombre           = '';
+        $this->clienteDuplicarError            = '';
     }
 
     // ─────────────────────────────────────────────────────────────────────
@@ -733,9 +747,114 @@ class ModalFlujoPedido extends Component
 
     public function cancelarConfirmOferta(): void
     {
-        $this->confirmAccionOferta = null;
-        $this->motivoAnulOferta    = '';
-        $this->mensajeError        = '';
+        $this->confirmAccionOferta             = null;
+        $this->motivoAnulOferta                = '';
+        $this->mensajeError                    = '';
+        $this->mostrarSelectorClienteDuplicar  = false;
+        $this->busquedaClienteDuplicar         = '';
+        $this->resultadosClienteDuplicar       = [];
+        $this->clienteDuplicarId               = null;
+        $this->clienteDuplicarNombre           = '';
+        $this->clienteDuplicarError            = '';
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // DUPLICAR OFERTA → OTRO CLIENTE
+    // ─────────────────────────────────────────────────────────────────────
+
+    public function iniciarDuplicarOtroCliente(): void
+    {
+        $this->mostrarSelectorClienteDuplicar  = true;
+        $this->busquedaClienteDuplicar         = '';
+        $this->resultadosClienteDuplicar       = [];
+        $this->clienteDuplicarId               = null;
+        $this->clienteDuplicarNombre           = '';
+        $this->clienteDuplicarError            = '';
+    }
+
+    public function updatedBusquedaClienteDuplicar(): void
+    {
+        $term = trim($this->busquedaClienteDuplicar);
+        if (strlen($term) < 2) {
+            $this->resultadosClienteDuplicar = [];
+            return;
+        }
+
+        $like  = '%' . $term . '%';
+        $rolId = Auth::user()->rol_id;
+
+        $query = DB::table('cliente')
+            ->where('estado_cliente_id', 1)
+            ->where('id', '!=', 1)
+            ->where(function ($q) use ($like) {
+                $q->where('id', 'LIKE', $like)
+                  ->orWhere('nombre', 'LIKE', $like);
+            });
+
+        // Solo el Administrador (1), Televendedor (3) y Mercadeo (9) ven todos los clientes
+        if (!in_array($rolId, [1, 3, 9])) {
+            $query->where('vendedor', Auth::id());
+        }
+
+        $this->resultadosClienteDuplicar = $query
+            ->select('id', 'nombre')
+            ->orderBy('nombre')
+            ->limit(15)
+            ->get()
+            ->map(fn($c) => ['id' => $c->id, 'nombre' => $c->nombre])
+            ->toArray();
+    }
+
+    public function seleccionarClienteDuplicar(int $clienteId, string $clienteNombre): void
+    {
+        $this->clienteDuplicarId             = $clienteId;
+        $this->clienteDuplicarNombre         = $clienteNombre;
+        $this->busquedaClienteDuplicar       = $clienteNombre;
+        $this->resultadosClienteDuplicar     = [];
+        $this->clienteDuplicarError          = '';
+    }
+
+    public function confirmarDuplicarOtroCliente(): void
+    {
+        if (!$this->clienteDuplicarId) {
+            $this->clienteDuplicarError = 'Debe seleccionar un cliente.';
+            return;
+        }
+
+        $cotizacionId = (int) $this->ofertaSeleccionada['id'];
+
+        // Verificar si los precios del catálogo han cambiado
+        if ($this->verificarCambioPrecios($cotizacionId)) {
+            $this->clienteDuplicarError = 'No se puede duplicar: los precios del catálogo han cambiado.';
+            return;
+        }
+
+        // Validar que el nuevo cliente tenga la misma categoría de precios que el cliente original
+        $originalCategoriaId = DB::table('cotizacion as co')
+            ->join('cliente as cl', 'cl.id', '=', 'co.cliente_id')
+            ->where('co.id', $cotizacionId)
+            ->value('cl.categoria_precios_id');
+
+        $nuevaCategoriaId = DB::table('cliente')
+            ->where('id', $this->clienteDuplicarId)
+            ->value('categoria_precios_id');
+
+        if ((int) $originalCategoriaId !== (int) $nuevaCategoriaId) {
+            $nombreCat = DB::table('categoria_precios')
+                ->where('id', (int) $originalCategoriaId)
+                ->value('nombre') ?? 'desconocida';
+            $this->clienteDuplicarError =
+                "El cliente seleccionado no pertenece a la categoría de precios «{$nombreCat}». No se puede duplicar.";
+            return;
+        }
+
+        // Todo válido: abrir formulario de nueva oferta con el cliente pre-seleccionado
+        $url = '/proforma/cotizacion/2?from=flujo&cotizacionId=' . $cotizacionId
+             . '&clienteId=' . $this->clienteDuplicarId;
+
+        $this->mostrarSelectorClienteDuplicar = false;
+        $this->clienteDuplicarError           = '';
+        $this->dispatchBrowserEvent('abrir-nueva-pestana', ['url' => $url]);
     }
 
     public function ganadoraOferta(): void

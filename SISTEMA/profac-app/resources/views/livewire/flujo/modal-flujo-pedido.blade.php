@@ -1132,6 +1132,9 @@
                             Este flujo fue <strong>rechazado</strong>. La oferta duplicada se creará en un <strong>nuevo flujo independiente</strong>.
                         </div>
                         @endif
+
+                        @if (!$mostrarSelectorClienteDuplicar)
+                        {{-- Botones iniciales --}}
                         <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
                             <button type="button" wire:click="duplicarOferta(true)"
                                     style="background:linear-gradient(135deg,#1a7efb,#0d6efd); color:#fff;
@@ -1139,7 +1142,7 @@
                                            font-size:12px; font-weight:700; cursor:pointer;">
                                 <i class="mr-1 fa fa-user"></i> Mismo cliente
                             </button>
-                            <button type="button" wire:click="duplicarOferta(false)"
+                            <button type="button" wire:click="iniciarDuplicarOtroCliente()"
                                     style="background:linear-gradient(135deg,#1ab394,#0fa37a); color:#fff;
                                            border:none; border-radius:8px; padding:7px 16px;
                                            font-size:12px; font-weight:700; cursor:pointer;">
@@ -1151,6 +1154,72 @@
                                 Cancelar
                             </button>
                         </div>
+                        @else
+                        {{-- Panel selector de cliente para "Otro cliente" --}}
+                        <div style="background:#fff; border:1px solid #c8e6c9; border-radius:10px;
+                                    padding:12px; text-align:left; margin-top:6px;">
+                            <p style="font-size:12px; font-weight:700; color:#2e7d32; margin:0 0 8px;">
+                                <i class="mr-1 fa fa-search"></i> Seleccionar cliente destino
+                            </p>
+                            <div style="position:relative;">
+                                <input type="text"
+                                       wire:model.debounce.350ms="busquedaClienteDuplicar"
+                                       placeholder="Buscar cliente por nombre o código…"
+                                       style="width:100%; padding:7px 10px; border:1px solid #ccc;
+                                              border-radius:6px; font-size:12px; box-sizing:border-box;"
+                                       autocomplete="off" />
+                                @if (count($resultadosClienteDuplicar) > 0)
+                                <ul style="position:absolute; top:100%; left:0; right:0; z-index:9999;
+                                           background:#fff; border:1px solid #ccc; border-top:none;
+                                           border-radius:0 0 6px 6px; margin:0; padding:0;
+                                           list-style:none; max-height:180px; overflow-y:auto;
+                                           box-shadow:0 4px 12px rgba(0,0,0,.12);">
+                                    @foreach ($resultadosClienteDuplicar as $rc)
+                                    <li wire:click="seleccionarClienteDuplicar({{ $rc['id'] }}, '{{ addslashes($rc['nombre']) }}')"
+                                        style="padding:7px 12px; font-size:12px; cursor:pointer;
+                                               border-bottom:1px solid #f0f0f0; color:#333;"
+                                        onmouseover="this.style.background='#e8f5e9'"
+                                        onmouseout="this.style.background=''">
+                                        <span style="font-weight:600;">{{ $rc['nombre'] }}</span>
+                                        <span style="color:#999; font-size:11px;"> #{{ $rc['id'] }}</span>
+                                    </li>
+                                    @endforeach
+                                </ul>
+                                @endif
+                            </div>
+
+                            @if ($clienteDuplicarId)
+                            <div style="margin-top:8px; background:#e8f5e9; border:1px solid #a5d6a7;
+                                        border-radius:6px; padding:7px 10px; font-size:12px; color:#2e7d32;">
+                                <i class="mr-1 fa fa-check-circle"></i>
+                                <strong>{{ $clienteDuplicarNombre }}</strong>
+                                <span style="color:#777;"> #{{ $clienteDuplicarId }}</span>
+                            </div>
+                            @endif
+
+                            @if ($clienteDuplicarError)
+                            <div style="margin-top:6px; background:#fdecea; border:1px solid #ef9a9a;
+                                        border-radius:6px; padding:7px 10px; font-size:12px; color:#c62828;">
+                                <i class="mr-1 fa fa-exclamation-circle"></i> {{ $clienteDuplicarError }}
+                            </div>
+                            @endif
+
+                            <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:10px;">
+                                <button type="button" wire:click="confirmarDuplicarOtroCliente()"
+                                        style="background:linear-gradient(135deg,#1ab394,#0fa37a); color:#fff;
+                                               border:none; border-radius:8px; padding:7px 16px;
+                                               font-size:12px; font-weight:700; cursor:pointer;"
+                                        {{ $clienteDuplicarId ? '' : 'disabled' }}>
+                                    <i class="mr-1 fa fa-check"></i> Duplicar
+                                </button>
+                                <button type="button" wire:click="cancelarConfirmOferta"
+                                        style="background:#f0f0f0; color:#555; border:none;
+                                               border-radius:8px; padding:7px 14px; font-size:12px; cursor:pointer;">
+                                    Cancelar
+                                </button>
+                            </div>
+                        </div>
+                        @endif
                     </div>
                     @endif
 
