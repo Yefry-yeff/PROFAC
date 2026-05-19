@@ -48,6 +48,18 @@ class ListarCotizaciones extends Component
     }
 
     public function listarCotizaciones(Request $request){
+        $filtroCliente  = trim($request->input('filtroCliente', ''));
+        $filtroVendedor = trim($request->input('filtroVendedor', ''));
+        $whereExtra = '';
+        $bindings   = [];
+        if ($filtroCliente !== '') {
+            $whereExtra .= ' AND A.nombre_cliente LIKE ? ';
+            $bindings[] = "%{$filtroCliente}%";
+        }
+        if ($filtroVendedor !== '') {
+            $whereExtra .= ' AND (SELECT name FROM users WHERE id = A.vendedor) LIKE ? ';
+            $bindings[] = "%{$filtroVendedor}%";
+        }
         if (Auth::user()->rol_id == '2') {
                 $cotizaciones = DB::SELECT("
                 select
@@ -67,8 +79,9 @@ class ListarCotizaciones extends Component
                 on A.users_id = B.id
                 where A.tipo_venta_id = ".$request->id."
                 and A.vendedor =  ".Auth::user()->id."
+                {$whereExtra}
                 order by A.created_at desc
-            ");
+            ", $bindings);
         }else{
                 $cotizaciones = DB::SELECT("
                 select
@@ -177,8 +190,9 @@ class ListarCotizaciones extends Component
                     24801,
                     26049
                 )
+                {$whereExtra}
                 order by A.created_at desc
-            ");
+            ", $bindings);
 
         }
 

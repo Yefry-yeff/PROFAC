@@ -54,6 +54,24 @@ class ListadoFacturasAnuladas extends Component
 
         try {
 
+            $filtroNumero   = trim($request->input('filtroNumero', ''));
+            $filtroCliente  = trim($request->input('filtroCliente', ''));
+            $filtroVendedor = trim($request->input('filtroVendedor', ''));
+            $whereExtra = '';
+            $bindings   = [(int) $request->idTipo];
+            if ($filtroNumero !== '') {
+                $whereExtra .= ' AND factura.numero_factura LIKE ? ';
+                $bindings[] = "%{$filtroNumero}%";
+            }
+            if ($filtroCliente !== '') {
+                $whereExtra .= ' AND factura.nombre_cliente LIKE ? ';
+                $bindings[] = "%{$filtroCliente}%";
+            }
+            if ($filtroVendedor !== '') {
+                $whereExtra .= ' AND users.name LIKE ? ';
+                $bindings[] = "%{$filtroVendedor}%";
+            }
+
             $listaFacturas = DB::SELECT("
             select
                 factura.id as id,
@@ -82,9 +100,10 @@ class ListadoFacturasAnuladas extends Component
                 inner join users
                 on factura.vendedor = users.id
                 cross join (select @i := 0) r
-            where ( YEAR(factura.created_at) >= (YEAR(NOW())-2) ) and estado_venta_id=2  and (factura.tipo_venta_id = ".$request->idTipo.")
+            where ( YEAR(factura.created_at) >= (YEAR(NOW())-2) ) and estado_venta_id=2
+              and (factura.tipo_venta_id = ?) {$whereExtra}
             order by factura.created_at desc
-            ");
+            ", $bindings);
 
             return Datatables::of($listaFacturas)
             ->addColumn('opciones', function ($listaFacturas) {

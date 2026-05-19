@@ -364,6 +364,16 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
             'results' => $results->map(fn ($r) => ['id' => $r->text, 'text' => $r->text]),
         ]);
     });
+    Route::get('/filtros/cotizaciones/clientes', function(\Illuminate\Http\Request $req) {
+        $q = $req->input('q', '');
+        $results = \Illuminate\Support\Facades\DB::table('cotizacion')
+            ->select('nombre_cliente as text')
+            ->when($q, fn ($b) => $b->where('nombre_cliente', 'LIKE', "%{$q}%"))
+            ->distinct()->orderBy('nombre_cliente')->limit(25)->get();
+        return response()->json([
+            'results' => $results->map(fn ($r) => ['id' => $r->text, 'text' => $r->text]),
+        ]);
+    });
     Route::get('/filtros/produtos', function(\Illuminate\Http\Request $req) {
         $q = $req->input('q', '');
         return \Illuminate\Support\Facades\DB::table('producto')
