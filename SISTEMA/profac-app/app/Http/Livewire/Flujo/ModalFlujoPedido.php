@@ -1368,8 +1368,11 @@ class ModalFlujoPedido extends Component
                 'p4', 'd' => (float) $l->precio_d,
                 default => (float) $l->precio_base_venta,
             };
-            // Comparar con 4 decimales de tolerancia
-            if (abs((float)$l->precio_unidad - $precioActual) > 0.0001) {
+            // Bloquear solo si el precio de la oferta está POR DEBAJO del precio actual
+            // de la categoría (precio_unidad < precio_actual).
+            // Si el precio bajó en el catálogo pero la oferta fue a un precio superior,
+            // se permite duplicar (la oferta sigue siendo válida respecto al mínimo).
+            if ((float)$l->precio_unidad < $precioActual - 0.0001) {
                 return true;
             }
         }
