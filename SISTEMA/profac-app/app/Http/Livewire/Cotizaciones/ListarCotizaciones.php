@@ -208,13 +208,6 @@ class ListarCotizaciones extends Component
                         <ul class="dropdown-menu" x-placement="bottom-start" style="position: absolute; top: 33px; left: 0px; will-change: top, left;">
 
                             <li>
-                                 <a class="dropdown-item" target="_blank"  href="/cotizacion/edicion/'.$cotizacion->id.'" > <i class="fa-solid fa-file-invoice text-info"></i> Editar </a>
-                            </li>
-                            <li>
-                                <a class="dropdown-item" target="_blank"  href="/cotizacion/facturar/'.$cotizacion->id.'" > <i class="fa-solid fa-file-invoice text-info"></i> Facturar </a>
-                            </li>
-
-                            <li>
                             <a class="dropdown-item" target="_blank"  href="/cotizacion/facturar/srp/corporativo/'.$cotizacion->id.'" > <i class="fa-solid fa-file-invoice text-info"></i> Facturar SR/P </a>
                             </li>
 
@@ -228,12 +221,6 @@ class ListarCotizaciones extends Component
                             <a class="dropdown-item" href="#" onclick="imprimirProformaConValidacion(event,'.$cotizacion->id.')"> <i class="fa-solid fa-print text-success"></i> Imprimir Proforma </a>
                             </li>
 
-                            <li>
-                            <a class="dropdown-item" target="_blank"  href="/cotizacion/imprimir/catalogo/'.$cotizacion->id.'"> <i class="fa-solid fa-print text-success"></i> Catálogo </a>
-                            </li>
-
-
-
                         </ul>
                     </div>';
                 }else{//estatal
@@ -244,25 +231,11 @@ class ListarCotizaciones extends Component
                     <ul class="dropdown-menu" x-placement="bottom-start" style="position: absolute; top: 33px; left: 0px; will-change: top, left;">
 
                         <li>
-                            <a class="dropdown-item" target="_blank"  href="/cotizacion/edicion/'.$cotizacion->id.'" > <i class="fa-solid fa-file-invoice text-info"></i> Editar </a>
-                        </li>
-                        <li>
-                            <a class="dropdown-item" target="_blank"  href="/ventas/estatal/'.$cotizacion->id.'" > <i class="fa-solid fa-file-invoice text-info"></i> Facturar </a>
-                        </li>
-
-
-
-                        <li>
                             <a class="dropdown-item"  target="_blank" href="/cotizacion/imprimir/'.$cotizacion->id.'">  <i class="fa-solid fa-print text-success"></i> Imprimir Cotización </a>
                         </li>
 
                         <li>
                         <a class="dropdown-item" href="#" onclick="imprimirProformaConValidacion(event,'.$cotizacion->id.')"> <i class="fa-solid fa-print text-success"></i> Imprimir Proforma </a>
-                        </li>
-
-
-                        <li>
-                        <a class="dropdown-item" target="_blank"  href="/cotizacion/imprimir/catalogo/'.$cotizacion->id.'"> <i class="fa-solid fa-print text-success"></i> Catálogo </a>
                         </li>
 
 
