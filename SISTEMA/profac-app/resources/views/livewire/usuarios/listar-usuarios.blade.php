@@ -151,7 +151,7 @@
                                 <div class="col-md-6">
                                     <div class="form-group">
                                         <label class="font-weight-bold small">Identidad</label>
-                                        <input class="form-control form-control-sm" type="text" pattern="[A-Za-z0-9]+" id="identidad_usuario" name="identidad_usuario" placeholder="Número de identidad (opcional)">
+                                        <input class="form-control form-control-sm" type="text" id="identidad_usuario" name="identidad_usuario" placeholder="Número de identidad (opcional)">
                                     </div>
                                 </div>
                                 <div class="col-md-6">
