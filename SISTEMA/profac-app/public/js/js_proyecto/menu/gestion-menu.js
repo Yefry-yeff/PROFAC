@@ -6,8 +6,8 @@ $(document).ready(function() {
             "url": "/js/plugins/dataTables/i18n/Spanish.json"
         },
         "order": [[3, 'asc']], // Ordenar por columna Orden
-        "pageLength": 10,
-        "lengthMenu": [[10, 25, 50, 100], [10, 25, 50, 100]]
+        "pageLength": 5,
+        "lengthMenu": [[5, 10, 25, 50], [5, 10, 25, 50]]
     });
 
     $('#tablaSubmenus').DataTable({
@@ -15,8 +15,8 @@ $(document).ready(function() {
             "url": "/js/plugins/dataTables/i18n/Spanish.json"
         },
         "order": [[1, 'asc'], [5, 'asc']], // Ordenar por Menú y Orden
-        "pageLength": 10,
-        "lengthMenu": [[10, 25, 50, 100], [10, 25, 50, 100]]
+        "pageLength": 5,
+        "lengthMenu": [[5, 10, 25, 50], [5, 10, 25, 50]]
     });
 
     // Manejar envío de formulario de Menú

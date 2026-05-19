@@ -1,14 +1,145 @@
+@push('styles')
+<style>
+/* -- Variables PROFAC -- */
+:root {
+    --pf-grad:     linear-gradient(135deg, #f39c12 0%, #e05a00 100%);
+    --pf-orange:   #e67e22;
+    --pf-radius:   8px;
+    --pf-shadow:   0 2px 8px rgba(0,0,0,.10);
+}
+
+/* -- Card principal -- */
+.menu-card {
+    border: 1px solid #e8d5bf;
+    border-radius: var(--pf-radius);
+    box-shadow: var(--pf-shadow);
+    background: #fff;
+    overflow: visible;
+}
+.menu-card-header {
+    background: var(--pf-grad);
+    padding: 12px 20px;
+    border-radius: var(--pf-radius) var(--pf-radius) 0 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.menu-card-header h5 {
+    margin: 0;
+    color: #fff;
+    font-size: .85rem;
+    font-weight: 700;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.menu-card-body { padding: 16px 20px; }
+
+/* -- Botón en header -- */
+.btn-menu-new {
+    background: rgba(255,255,255,.18) !important;
+    color: #fff !important;
+    border: 1.5px solid rgba(255,255,255,.5) !important;
+    border-radius: 5px !important;
+    font-weight: 600 !important;
+    font-size: .78rem;
+    padding: 5px 14px;
+    transition: background .18s;
+    white-space: nowrap;
+}
+.btn-menu-new:hover { background: rgba(255,255,255,.30) !important; color: #fff !important; }
+
+/* -- Tabs -- */
+.tabs-menu .nav-link {
+    font-size: .82rem;
+    font-weight: 600;
+    color: #6c757d;
+    border-radius: 6px 6px 0 0;
+    padding: 7px 16px;
+}
+.tabs-menu .nav-link.active { color: var(--pf-orange); border-color: #dee2e6 #dee2e6 #fff; }
+.tabs-menu .nav-link:hover  { color: var(--pf-orange); }
+
+/* -- Tablas -- */
+#tablaMenus thead th,
+#tablaSubmenus thead th {
+    background: #fdf4e7;
+    color: #7d3f00;
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    border-bottom: 2px solid #f2d49a;
+    white-space: nowrap;
+    padding: 8px 10px;
+    vertical-align: middle;
+}
+#tablaMenus tbody td,
+#tablaSubmenus tbody td { font-size: .83rem; vertical-align: middle; padding: 7px 10px; }
+#tablaMenus tbody tr:hover,
+#tablaSubmenus tbody tr:hover { background: #fffcf5; }
+
+/* -- Modal header gradiente -- */
+.modal-header-menu {
+    background: var(--pf-grad);
+    color: #fff;
+    border-radius: var(--pf-radius) var(--pf-radius) 0 0;
+}
+.modal-header-menu .modal-title { color: #fff; font-size: .95rem; }
+.modal-header-menu .close       { color: #fff; opacity: .8; text-shadow: none; }
+.modal-header-menu .close:hover { opacity: 1; }
+
+/* -- Divisores de sección en modal -- */
+.modal-section-label {
+    font-size: .70rem;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: #6c757d;
+    border-bottom: 1px solid #e9ecef;
+    padding-bottom: 4px;
+    margin-bottom: 12px;
+    margin-top: 4px;
+}
+
+/* -- Focus inputs naranja -- */
+.modal-content .form-control:focus {
+    border-color: #e67e22;
+    box-shadow: 0 0 0 .18rem rgba(230,126,34,.2);
+}
+
+/* -- Roles checklist -- */
+.roles-checklist {
+    background: #fdfaf5;
+    border: 1px solid #e8d5bf !important;
+    border-radius: 6px;
+    max-height: 180px;
+    overflow-y: auto;
+    padding: 10px 14px !important;
+}
+.roles-checklist .form-check-label { font-size: .83rem; }
+
+/* -- Tabla submenús del menú (dentro del modal) -- */
+#tbodySubmenusDelMenu td { font-size: .82rem; vertical-align: middle; }
+
+@media (max-width: 575px) {
+    .modal-dialog.modal-lg { max-width: calc(100vw - 1rem); }
+    .menu-card-body { padding: 10px; }
+}
+</style>
+@endpush
+
 <div>
-    <div class="row wrapper border-bottom white-bg page-heading">
+    <div class="row wrapper border-bottom white-bg page-heading d-flex align-items-center">
         <div class="col-lg-10">
-            <h2>Gestión de Menús</h2>
+            <h2><i class="fa fa-bars mr-2" style="color:#e67e22"></i>Gestión de Menús</h2>
             <ol class="breadcrumb">
-                <li class="breadcrumb-item">
-                    <a href="{{ route('dashboard') }}">Inicio</a>
-                </li>
-                <li class="breadcrumb-item active">
-                    <strong>Gestión de Menús</strong>
-                </li>
+                <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Inicio</a></li>
+                <li class="breadcrumb-item active"><strong>Gestión de Menús</strong></li>
             </ol>
         </div>
     </div>
@@ -33,20 +164,36 @@
             </div>
         @endif
 
-        {{-- Pestañas principales --}}
+        {{-- Card principal con pestañas --}}
         <div class="row">
             <div class="col-lg-12">
-                <div class="ibox">
-                    <div class="ibox-content">
-                        <ul class="nav nav-tabs" id="menuTabs" role="tablist">
+                <div class="menu-card">
+
+                    <div class="menu-card-header">
+                        <h5><i class="fa fa-bars"></i> Gestión de Menús</h5>
+                        <div class="d-flex" style="gap:8px">
+                            <button type="button" class="btn btn-menu-new" id="btnNuevoMenu" onclick="abrirModalMenu()">
+                                <i class="fa fa-plus mr-1"></i> Nuevo Menú
+                            </button>
+                            <button type="button" class="btn btn-menu-new" id="btnNuevoSubmenu" onclick="abrirModalSubmenu()" style="display:none">
+                                <i class="fa fa-plus mr-1"></i> Nuevo Submenu
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="menu-card-body">
+
+                        <ul class="nav nav-tabs tabs-menu" id="menuTabs" role="tablist">
                             <li class="nav-item">
-                                <a class="nav-link active" id="tab-menus" data-toggle="tab" href="#panel-menus" role="tab">
-                                    <i class="fa fa-bars"></i> Menús Principales
+                                <a class="nav-link active" id="tab-menus" data-toggle="tab" href="#panel-menus" role="tab"
+                                   onclick="document.getElementById('btnNuevoMenu').style.display='';document.getElementById('btnNuevoSubmenu').style.display='none'">
+                                    <i class="fa fa-bars mr-1"></i> Menús Principales
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" id="tab-submenus" data-toggle="tab" href="#panel-submenus" role="tab">
-                                    <i class="fa fa-list"></i> Submenús
+                                <a class="nav-link" id="tab-submenus" data-toggle="tab" href="#panel-submenus" role="tab"
+                                   onclick="document.getElementById('btnNuevoMenu').style.display='none';document.getElementById('btnNuevoSubmenu').style.display=''">
+                                    <i class="fa fa-list mr-1"></i> Submenús
                                 </a>
                             </li>
                         </ul>
@@ -54,13 +201,8 @@
                         <div class="tab-content pt-3" id="menuTabsContent">
                             {{-- ==================== PESTAÑA 1: MENÚS PRINCIPALES ==================== --}}
                             <div class="tab-pane fade show active" id="panel-menus" role="tabpanel">
-                                <div class="mb-3 text-right">
-                                    <button type="button" class="btn btn-primary btn-sm" onclick="abrirModalMenu()">
-                                        <i class="fa fa-plus"></i> Nuevo Menú
-                                    </button>
-                                </div>
                                 <div class="table-responsive">
-                                    <table class="table table-striped table-bordered table-hover" id="tablaMenus">
+                                    <table class="table table-bordered table-hover" id="tablaMenus">
                                         <thead>
                                             <tr>
                                                 <th>ID</th>
@@ -110,13 +252,8 @@
 
                             {{-- ==================== PESTAÑA 2: SUBMENÚS ==================== --}}
                             <div class="tab-pane fade" id="panel-submenus" role="tabpanel">
-                                <div class="mb-3 text-right">
-                                    <button type="button" class="btn btn-primary btn-sm" onclick="abrirModalSubmenu()">
-                                        <i class="fa fa-plus"></i> Nuevo Submenu
-                                    </button>
-                                </div>
                                 <div class="table-responsive">
-                                    <table class="table table-striped table-bordered table-hover" id="tablaSubmenus">
+                                    <table class="table table-bordered table-hover" id="tablaSubmenus">
                                         <thead>
                                             <tr>
                                                 <th>ID</th>
@@ -175,56 +312,59 @@
                             </div>
                         </div>
                     </div>
+
                 </div>
             </div>
         </div>
 
     </div>
 
-    <!-- ==================== Modal Menú (Crear / Editar) - Centrado ==================== -->
-    <div class="modal fade" id="modalMenu" tabindex="-1" role="dialog">
-        <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+    <!-- ==================== Modal Menú (Crear / Editar) ==================== -->
+    <div class="modal fade" id="modalMenu" tabindex="-1" role="dialog" aria-labelledby="tituloModalMenu" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable" role="document">
             <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="tituloModalMenu">Nuevo Menú</h5>
+                <div class="modal-header modal-header-menu">
+                    <h5 class="modal-title" id="tituloModalMenu">
+                        <i class="fa fa-bars mr-2"></i>Nuevo Menú
+                    </h5>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
                 <form id="formMenu">
-                    <div class="modal-body">
+                    <div class="modal-body pb-2">
                         <input type="hidden" id="menuId">
-                        
+
+                        <p class="modal-section-label"><i class="fa fa-info-circle mr-1"></i>Información del menú</p>
                         <div class="row">
-                            <div class="col-md-6">
+                            <div class="col-md-8">
                                 <div class="form-group">
-                                    <label>Nombre del Menú *</label>
-                                    <input type="text" class="form-control" id="menuNombre" required>
+                                    <label class="font-weight-bold small">Nombre del Menú <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control form-control-sm" id="menuNombre"
+                                           placeholder="Ej: Ventas, Configuración…" required>
                                 </div>
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <div class="form-group">
-                                    <label>Icono (Font Awesome) *</label>
-                                    <input type="text" class="form-control" id="menuIcono" placeholder="fa fa-home" required>
-                                    <small class="form-text text-muted">
-                                        Ej: fa fa-home, fa fa-users. 
-                                        <a href="https://fontawesome.com/v4/icons/" target="_blank">Ver iconos disponibles</a>
+                                    <label class="font-weight-bold small">Orden <span class="text-danger">*</span></label>
+                                    <input type="number" class="form-control form-control-sm" id="menuOrden" required min="1">
+                                </div>
+                            </div>
+                            <div class="col-md-8">
+                                <div class="form-group">
+                                    <label class="font-weight-bold small">Icono (Font Awesome) <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control form-control-sm" id="menuIcono"
+                                           placeholder="fa fa-home" required>
+                                    <small class="text-muted" style="font-size:.73rem">
+                                        Ej: fa fa-home, fa fa-users.
+                                        <a href="https://fontawesome.com/v4/icons/" target="_blank">Ver iconos</a>
                                     </small>
                                 </div>
                             </div>
-                        </div>
-
-                        <div class="row">
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <div class="form-group">
-                                    <label>Orden *</label>
-                                    <input type="number" class="form-control" id="menuOrden" required min="1">
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label>Estado *</label>
-                                    <select class="form-control" id="menuEstado" required>
+                                    <label class="font-weight-bold small">Estado <span class="text-danger">*</span></label>
+                                    <select class="form-control form-control-sm" id="menuEstado" required>
                                         @foreach($estados as $estado)
                                             <option value="{{ $estado->id }}">{{ $estado->descripcion }}</option>
                                         @endforeach
@@ -233,13 +373,12 @@
                             </div>
                         </div>
 
-                        {{-- Sección de Submenus visible solo al editar --}}
+                        {{-- Sección de Submenús visible solo al editar --}}
                         <div id="seccionSubmenusMenu" style="display:none;">
-                            <hr>
-                            <h5>Submenús de este menú</h5>
+                            <p class="modal-section-label mt-2"><i class="fa fa-list mr-1"></i>Submenús de este menú</p>
                             <div class="table-responsive">
-                                <table class="table table-striped table-bordered table-sm">
-                                    <thead>
+                                <table class="table table-sm table-bordered table-hover">
+                                    <thead class="thead-light">
                                         <tr>
                                             <th>Nombre</th>
                                             <th>URL</th>
@@ -248,83 +387,87 @@
                                             <th>Acción</th>
                                         </tr>
                                     </thead>
-                                    <tbody id="tbodySubmenusDelMenu">
-                                    </tbody>
+                                    <tbody id="tbodySubmenusDelMenu"></tbody>
                                 </table>
                             </div>
                         </div>
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
-                        <button type="submit" class="btn btn-primary">Guardar</button>
+                    <div class="modal-footer py-2">
+                        <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">
+                            <i class="fa fa-times mr-1"></i>Cancelar
+                        </button>
+                        <button type="submit" class="btn btn-primary btn-sm">
+                            <i class="fa fa-save mr-1"></i>Guardar
+                        </button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
 
-    <!-- ==================== Modal Submenu (Crear / Editar) con 2 pestañas - Centrado ==================== -->
-    <div class="modal fade" id="modalSubmenu" tabindex="-1" role="dialog">
-        <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+    <!-- ==================== Modal Submenu (Crear / Editar) ==================== -->
+    <div class="modal fade" id="modalSubmenu" tabindex="-1" role="dialog" aria-labelledby="tituloModalSubmenu" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable" role="document">
             <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="tituloModalSubmenu">Nuevo Submenu</h5>
+                <div class="modal-header modal-header-menu">
+                    <h5 class="modal-title" id="tituloModalSubmenu">
+                        <i class="fa fa-list mr-2"></i>Nuevo Submenú
+                    </h5>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
                 <form id="formSubmenu">
-                    <div class="modal-body">
+                    <div class="modal-body pb-2">
                         <input type="hidden" id="submenuId">
 
                         {{-- Pestañas internas del modal --}}
-                        <ul class="nav nav-tabs" id="submenuModalTabs" role="tablist">
+                        <ul class="nav nav-tabs tabs-menu" id="submenuModalTabs" role="tablist">
                             <li class="nav-item">
                                 <a class="nav-link active" id="tab-datos-generales" data-toggle="tab" href="#panel-datos-generales" role="tab">
-                                    Datos Generales y Acceso
+                                    <i class="fa fa-info-circle mr-1"></i>Datos Generales
                                 </a>
                             </li>
                             <li class="nav-item">
                                 <a class="nav-link" id="tab-datos-tecnicos" data-toggle="tab" href="#panel-datos-tecnicos" role="tab">
-                                    Datos Técnicos
+                                    <i class="fa fa-cog mr-1"></i>Datos Técnicos
                                 </a>
                             </li>
                         </ul>
 
-                        <div class="tab-content pt-3" id="submenuModalTabsContent">
+                        <div class="tab-content border border-top-0 rounded-bottom p-3" id="submenuModalTabsContent" style="background:#fafafa">
+
                             {{-- ---- Pestaña: Datos Generales y Acceso ---- --}}
                             <div class="tab-pane fade show active" id="panel-datos-generales" role="tabpanel">
                                 <div class="row">
                                     <div class="col-md-6">
                                         <div class="form-group">
-                                            <label>Nombre del Submenu *</label>
-                                            <input type="text" class="form-control" id="submenuNombre" required>
+                                            <label class="font-weight-bold small">Nombre del Submenú <span class="text-danger">*</span></label>
+                                            <input type="text" class="form-control form-control-sm" id="submenuNombre" required
+                                                   placeholder="Ej: Listar Clientes…">
                                         </div>
                                     </div>
                                     <div class="col-md-6">
                                         <div class="form-group">
-                                            <label>Menú Principal *</label>
-                                            <select class="form-control" id="submenuMenuId" required>
-                                                <option value="">Seleccione...</option>
+                                            <label class="font-weight-bold small">Menú Principal <span class="text-danger">*</span></label>
+                                            <select class="form-control form-control-sm" id="submenuMenuId" required>
+                                                <option value="">— Seleccione —</option>
                                                 @foreach($menus->where('estado_id', 1) as $menu)
                                                     <option value="{{ $menu->id }}">{{ $menu->nombre_menu }}</option>
                                                 @endforeach
                                             </select>
                                         </div>
                                     </div>
-                                </div>
-
-                                <div class="row">
                                     <div class="col-md-6">
                                         <div class="form-group">
-                                            <label>Orden *</label>
-                                            <input type="number" class="form-control" id="submenuOrden" required min="1">
+                                            <label class="font-weight-bold small">Orden <span class="text-danger">*</span></label>
+                                            <input type="number" class="form-control form-control-sm" id="submenuOrden" required min="1">
                                         </div>
                                     </div>
                                     <div class="col-md-6">
                                         <div class="form-group">
-                                            <label>Estado *</label>
-                                            <select class="form-control" id="submenuEstado" required>
+                                            <label class="font-weight-bold small">Estado <span class="text-danger">*</span></label>
+                                            <select class="form-control form-control-sm" id="submenuEstado" required>
                                                 @foreach($estados as $estado)
                                                     <option value="{{ $estado->id }}">{{ $estado->descripcion }}</option>
                                                 @endforeach
@@ -334,11 +477,11 @@
                                 </div>
 
                                 <div class="form-group">
-                                    <label>Roles con Acceso *</label>
-                                    <div class="border p-3" style="max-height: 200px; overflow-y: auto;">
+                                    <label class="font-weight-bold small">Roles con Acceso <span class="text-danger">*</span></label>
+                                    <div class="roles-checklist border p-3">
                                         @foreach($roles as $rol)
                                             <div class="form-check">
-                                                <input class="form-check-input rol-checkbox" type="checkbox" 
+                                                <input class="form-check-input rol-checkbox" type="checkbox"
                                                        value="{{ $rol->id }}" id="rol{{ $rol->id }}">
                                                 <label class="form-check-label" for="rol{{ $rol->id }}">
                                                     {{ $rol->nombre }}
@@ -346,17 +489,17 @@
                                             </div>
                                         @endforeach
                                     </div>
-                                    <small class="form-text text-muted">Seleccione los roles que pueden ver este submenu</small>
+                                    <small class="text-muted" style="font-size:.73rem">Seleccione los roles que pueden ver este submenú</small>
                                 </div>
                             </div>
 
                             {{-- ---- Pestaña: Datos Técnicos ---- --}}
                             <div class="tab-pane fade" id="panel-datos-tecnicos" role="tabpanel">
                                 <div class="form-group">
-                                    <label>Icono (Font Awesome)</label>
-                                    <input type="text" class="form-control" id="submenuIcono" placeholder="fa fa-list">
-                                    <small class="form-text text-muted">
-                                        Ej: fa fa-home, fa fa-users, fa fa-cog. 
+                                    <label class="font-weight-bold small">Icono (Font Awesome)</label>
+                                    <input type="text" class="form-control form-control-sm" id="submenuIcono" placeholder="fa fa-list">
+                                    <small class="text-muted" style="font-size:.73rem">
+                                        Ej: fa fa-home, fa fa-users, fa fa-cog.
                                         <a href="https://fontawesome.com/v4/icons/" target="_blank">Ver iconos disponibles</a>
                                     </small>
                                 </div>
@@ -364,26 +507,31 @@
                                 <div class="form-group">
                                     <div class="form-check">
                                         <input class="form-check-input" type="checkbox" id="generarArchivos">
-                                        <label class="form-check-label" for="generarArchivos">
-                                            <strong>Generar archivos automáticamente</strong>
+                                        <label class="form-check-label font-weight-bold small" for="generarArchivos">
+                                            Generar archivos automáticamente
                                         </label>
                                     </div>
-                                    <small class="form-text text-muted">
+                                    <small class="text-muted" style="font-size:.73rem">
                                         <i class="fa fa-info-circle"></i> Crea automáticamente: Componente Livewire, Vista Blade y la Ruta en web.php
                                     </small>
                                 </div>
 
                                 <div class="form-group" id="campoUrlRuta" style="display:none;">
-                                    <label>URL/Ruta *</label>
-                                    <input type="text" class="form-control" id="submenuUrl" placeholder="usuarios/listar">
-                                    <small class="form-text text-muted">Sin "/" al inicio. Ej: clientes/listar</small>
+                                    <label class="font-weight-bold small">URL / Ruta <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control form-control-sm" id="submenuUrl" placeholder="usuarios/listar">
+                                    <small class="text-muted" style="font-size:.73rem">Sin "/" al inicio. Ej: clientes/listar</small>
                                 </div>
                             </div>
+
                         </div>
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
-                        <button type="submit" class="btn btn-primary">Guardar</button>
+                    <div class="modal-footer py-2">
+                        <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">
+                            <i class="fa fa-times mr-1"></i>Cancelar
+                        </button>
+                        <button type="submit" class="btn btn-primary btn-sm">
+                            <i class="fa fa-save mr-1"></i>Guardar
+                        </button>
                     </div>
                 </form>
             </div>
