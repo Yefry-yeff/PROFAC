@@ -622,6 +622,61 @@
                                         </div>
                                     </div>
                                 </div>
+                                {{-- ── N° Orden de Compra y Forma F01 (solo cotizaciones) ──────── --}}
+                                @if(($config->codigo ?? '') === 'cotizacion_clientes_a')
+                                <div class="col-12 col-md-4">
+                                    <label class="ofr-label">N° Orden de Compra</label>
+                                    <div class="input-group input-group-sm">
+                                        <input type="text" class="form-control form-control-sm"
+                                            id="numero_orden_compra" name="numero_orden_compra"
+                                            maxlength="100" placeholder="Número de orden de compra (opcional)">
+                                        <div class="input-group-append">
+                                            <label class="mb-0" title="Adjuntar archivo (imagen o PDF)"
+                                                style="background:linear-gradient(135deg,#1565c0,#1976d2); color:#fff;
+                                                       border-radius:0 6px 6px 0; padding:0 10px; font-size:13px;
+                                                       cursor:pointer; display:flex; align-items:center; height:100%;">
+                                                <i class="fa fa-paperclip"></i>
+                                                <input type="file" id="archivo_orden_compra_input"
+                                                    accept=".pdf,image/jpeg,image/png,image/gif"
+                                                    style="display:none"
+                                                    onchange="subirArchivoOferta('orden_compra', this)">
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div id="preview_archivo_orden_compra" style="margin-top:4px; font-size:11px; color:#1565c0; display:none;">
+                                        <i class="fa fa-check-circle mr-1"></i><span id="txt_archivo_orden_compra"></span>
+                                        <a href="#" onclick="limpiarArchivoOferta('orden_compra'); return false;"
+                                            style="color:#c62828; margin-left:6px;"><i class="fa fa-times"></i></a>
+                                    </div>
+                                    <input type="hidden" id="archivo_orden_compra" name="archivo_orden_compra" value="">
+                                </div>
+                                <div class="col-12 col-md-4">
+                                    <label class="ofr-label">N° Forma F01</label>
+                                    <div class="input-group input-group-sm">
+                                        <input type="text" class="form-control form-control-sm"
+                                            id="numero_forma_f01" name="numero_forma_f01"
+                                            maxlength="100" placeholder="Número de Forma F01 (opcional)">
+                                        <div class="input-group-append">
+                                            <label class="mb-0" title="Adjuntar archivo (imagen o PDF)"
+                                                style="background:linear-gradient(135deg,#1565c0,#1976d2); color:#fff;
+                                                       border-radius:0 6px 6px 0; padding:0 10px; font-size:13px;
+                                                       cursor:pointer; display:flex; align-items:center; height:100%;">
+                                                <i class="fa fa-paperclip"></i>
+                                                <input type="file" id="archivo_forma_f01_input"
+                                                    accept=".pdf,image/jpeg,image/png,image/gif"
+                                                    style="display:none"
+                                                    onchange="subirArchivoOferta('forma_f01', this)">
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div id="preview_archivo_forma_f01" style="margin-top:4px; font-size:11px; color:#1565c0; display:none;">
+                                        <i class="fa fa-check-circle mr-1"></i><span id="txt_archivo_forma_f01"></span>
+                                        <a href="#" onclick="limpiarArchivoOferta('forma_f01'); return false;"
+                                            style="color:#c62828; margin-left:6px;"><i class="fa fa-times"></i></a>
+                                    </div>
+                                    <input type="hidden" id="archivo_forma_f01" name="archivo_forma_f01" value="">
+                                </div>
+                                @endif
                             </div>
 
                             </div>{{-- /sec_cliente --}}
@@ -2831,6 +2886,52 @@
                     text: d.text || 'Error al guardar la orden de compra.'
                 });
             });
+    }
+
+    // ================================================================
+    // ARCHIVOS ADJUNTOS EN OFERTA (orden de compra / forma F01)
+    // ================================================================
+    function subirArchivoOferta(tipo, inputEl) {
+        var file = inputEl.files[0];
+        if (!file) return;
+
+        var maxMb = 5;
+        if (file.size > maxMb * 1024 * 1024) {
+            Swal.fire({ icon: 'warning', title: 'Archivo muy grande', text: 'El archivo no debe superar los ' + maxMb + ' MB.' });
+            inputEl.value = '';
+            return;
+        }
+
+        var formData = new FormData();
+        formData.append('archivo', file);
+        formData.append('tipo', tipo);
+        formData.append('_token', '{{ csrf_token() }}');
+
+        var previewEl  = document.getElementById('preview_archivo_'  + tipo);
+        var txtEl      = document.getElementById('txt_archivo_'      + tipo);
+        var hiddenEl   = document.getElementById('archivo_'          + tipo);
+
+        previewEl.style.display = 'none';
+        txtEl.textContent = 'Subiendo...';
+
+        axios.post('/cotizacion/adjunto/subir', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
+            .then(function(res) {
+                hiddenEl.value       = res.data.ruta;
+                txtEl.textContent    = res.data.nombre;
+                previewEl.style.display = 'block';
+            })
+            .catch(function(err) {
+                inputEl.value = '';
+                var d = err.response ? err.response.data : {};
+                Swal.fire({ icon: 'error', title: d.title || 'Error', text: d.text || 'No se pudo subir el archivo.' });
+            });
+    }
+
+    function limpiarArchivoOferta(tipo) {
+        document.getElementById('archivo_' + tipo).value = '';
+        document.getElementById('preview_archivo_' + tipo).style.display = 'none';
+        document.getElementById('txt_archivo_' + tipo).textContent = '';
+        document.getElementById('archivo_' + tipo + '_input').value = '';
     }
 
     // ================================================================

@@ -1733,6 +1733,7 @@ class FacturacionCorporativa extends Component
 
         //dd($productos);
 
+        // 1. Intentar desde el FK a numero_orden_compra
         $ordenCompra = DB::SELECTONE("
         select
         B.numero_orden
@@ -1742,7 +1743,19 @@ class FacturacionCorporativa extends Component
         where A.id =" . $idFactura);
 
         if (empty($ordenCompra->numero_orden)) {
-            $ordenCompra = ["numero_orden" => " N/A"];
+            // 2. Fallback: buscar en la cotización ganadora vinculada al flujo de esta factura
+            $numOrdenCot = DB::table('historico_flujo as hff')
+                ->join('historico_flujo as hfof', function ($j) {
+                    $j->on('hfof.flujo_id', '=', 'hff.flujo_id')
+                      ->where('hfof.tipo_tramite_id', 2)
+                      ->where('hfof.observaciones', 'ganadora');
+                })
+                ->join('cotizacion as c', 'c.id', '=', 'hfof.tramite_id')
+                ->where('hff.tipo_tramite_id', 3)
+                ->where('hff.tramite_id', $idFactura)
+                ->whereNotNull('c.numero_orden_compra')
+                ->value('c.numero_orden_compra');
+            $ordenCompra = ['numero_orden' => $numOrdenCot ?: 'N/A'];
         } else {
             $ordenCompra = ["numero_orden" => $ordenCompra->numero_orden];
         }
@@ -1886,6 +1899,7 @@ class FacturacionCorporativa extends Component
 
         //dd($productos);
 
+        // 1. Intentar desde el FK a numero_orden_compra
         $ordenCompra = DB::SELECTONE("
         select
         B.numero_orden
@@ -1895,7 +1909,19 @@ class FacturacionCorporativa extends Component
         where A.id =" . $idFactura);
 
         if (empty($ordenCompra->numero_orden)) {
-            $ordenCompra = ["numero_orden" => " N/A"];
+            // 2. Fallback: buscar en la cotización ganadora vinculada al flujo de esta factura
+            $numOrdenCot = DB::table('historico_flujo as hff')
+                ->join('historico_flujo as hfof', function ($j) {
+                    $j->on('hfof.flujo_id', '=', 'hff.flujo_id')
+                      ->where('hfof.tipo_tramite_id', 2)
+                      ->where('hfof.observaciones', 'ganadora');
+                })
+                ->join('cotizacion as c', 'c.id', '=', 'hfof.tramite_id')
+                ->where('hff.tipo_tramite_id', 3)
+                ->where('hff.tramite_id', $idFactura)
+                ->whereNotNull('c.numero_orden_compra')
+                ->value('c.numero_orden_compra');
+            $ordenCompra = ['numero_orden' => $numOrdenCot ?: 'N/A'];
         } else {
             $ordenCompra = ["numero_orden" => $ordenCompra->numero_orden];
         }

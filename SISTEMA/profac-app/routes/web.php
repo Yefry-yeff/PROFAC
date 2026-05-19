@@ -770,6 +770,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/proforma/cotizacion/{id}', Cotizacion::class);
     Route::get('/cotizacion/clientes', [Cotizacion::class, 'listarClientes']);
     Route::post('/guardar/cotizacion', [Cotizacion::class, 'guardarCotizacion']);
+    Route::post('/cotizacion/adjunto/subir', [Cotizacion::class, 'subirAdjunto']);
 
     //---------------------------------------Prefactura (oferta ganadora)---------------------------//
     Route::get('/flujo/prefactura/crear', \App\Http\Livewire\Flujo\CrearPrefactura::class)->name('flujo.prefactura.crear');

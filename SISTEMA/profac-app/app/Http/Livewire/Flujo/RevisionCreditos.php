@@ -37,6 +37,11 @@ class RevisionCreditos extends Component
     public ?string $fechaVencimientoOferta = null;
     public int    $diasSolicitadosCredito = 0;
     public float  $montoTotalOferta = 0.0;
+    // Documentos de la oferta
+    public ?string $numeroOrdenCompra    = null;
+    public ?string $archivoOrdenCompra   = null;
+    public ?string $numeroFormaF01       = null;
+    public ?string $archivoFormaF01      = null;
 
     // ── Estado crédito actual ─────────────────────────────────────────────
     public ?string $estadoCredito           = null;
@@ -192,6 +197,10 @@ class RevisionCreditos extends Component
         $this->observaciones    = '';
         $this->mensajeExito     = '';
         $this->mensajeError     = '';
+        $this->numeroOrdenCompra  = null;
+        $this->archivoOrdenCompra = null;
+        $this->numeroFormaF01     = null;
+        $this->archivoFormaF01    = null;
 
         // Info del flujo
         $flujoResult = DB::table('flujo as f')
@@ -215,7 +224,11 @@ class RevisionCreditos extends Component
                 'hfof.tramite_id as cotizacion_id',
                 'c.total as monto_total_oferta',
                 'c.fecha_emision as fecha_emision_oferta',
-                'c.fecha_vencimiento as fecha_vencimiento_oferta'
+                'c.fecha_vencimiento as fecha_vencimiento_oferta',
+                'c.numero_orden_compra',
+                'c.archivo_orden_compra',
+                'c.numero_forma_f01',
+                'c.archivo_forma_f01'
             )
             ->first();
         $this->flujoData = $flujoResult ? (array) $flujoResult : null;
@@ -228,6 +241,10 @@ class RevisionCreditos extends Component
             ? Carbon::parse($flujoResult->fecha_vencimiento_oferta)->toDateString()
             : null;
         $this->montoTotalOferta = (float) ($flujoResult->monto_total_oferta ?? 0);
+        $this->numeroOrdenCompra  = $flujoResult->numero_orden_compra  ?? null;
+        $this->archivoOrdenCompra = $flujoResult->archivo_orden_compra ?? null;
+        $this->numeroFormaF01     = $flujoResult->numero_forma_f01     ?? null;
+        $this->archivoFormaF01    = $flujoResult->archivo_forma_f01    ?? null;
         $this->diasSolicitadosCredito = $this->calcularDiasSolicitados(
             $this->fechaEmisionOferta,
             $this->fechaVencimientoOferta
@@ -246,7 +263,8 @@ class RevisionCreditos extends Component
         if ($this->cotizacionId && (!$this->fechaEmisionOferta || !$this->fechaVencimientoOferta || $this->montoTotalOferta <= 0)) {
             $oferta = DB::table('cotizacion')
                 ->where('id', $this->cotizacionId)
-                ->first(['cliente_id', 'fecha_emision', 'fecha_vencimiento', 'total']);
+                ->first(['cliente_id', 'fecha_emision', 'fecha_vencimiento', 'total',
+                         'numero_orden_compra', 'archivo_orden_compra', 'numero_forma_f01', 'archivo_forma_f01']);
 
             if ($oferta) {
                 $this->clienteId = $this->clienteId ?: (int) ($oferta->cliente_id ?? 0);
@@ -255,6 +273,10 @@ class RevisionCreditos extends Component
                 if ($this->montoTotalOferta <= 0) {
                     $this->montoTotalOferta = (float) ($oferta->total ?? 0);
                 }
+                $this->numeroOrdenCompra  = $this->numeroOrdenCompra  ?: ($oferta->numero_orden_compra  ?? null);
+                $this->archivoOrdenCompra = $this->archivoOrdenCompra ?: ($oferta->archivo_orden_compra ?? null);
+                $this->numeroFormaF01     = $this->numeroFormaF01     ?: ($oferta->numero_forma_f01     ?? null);
+                $this->archivoFormaF01    = $this->archivoFormaF01    ?: ($oferta->archivo_forma_f01    ?? null);
                 $this->diasSolicitadosCredito = $this->calcularDiasSolicitados($this->fechaEmisionOferta, $this->fechaVencimientoOferta);
                 $this->tipoPagoSolicitud = $this->diasSolicitadosCredito > 0 ? 'credito' : 'contado';
             }

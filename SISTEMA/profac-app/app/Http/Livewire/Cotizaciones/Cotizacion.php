@@ -106,6 +106,42 @@ class Cotizacion extends Component
     }
 
 
+    public function subirAdjunto(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'archivo' => 'required|file|mimes:pdf,jpeg,jpg,png,gif|max:5120',
+                'tipo'    => 'required|in:orden_compra,forma_f01',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'title' => 'Archivo inválido',
+                    'text'  => $validator->errors()->first('archivo'),
+                ], 422);
+            }
+
+            $archivo   = $request->file('archivo');
+            $tipo      = $request->input('tipo');
+            $ext       = $archivo->getClientOriginalExtension();
+            $nombre    = 'oferta_' . $tipo . '_' . time() . '_' . uniqid() . '.' . $ext;
+            $carpeta   = public_path('adjuntos_oferta');
+
+            if (!is_dir($carpeta)) {
+                mkdir($carpeta, 0777, true);
+            }
+
+            $archivo->move($carpeta, $nombre);
+
+            return response()->json([
+                'ruta'   => 'adjuntos_oferta/' . $nombre,
+                'nombre' => $archivo->getClientOriginalName(),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['title' => 'Error', 'text' => 'No se pudo subir el archivo.'], 500);
+        }
+    }
+
     public function listarClientes(Request $request)
     {
         try {
@@ -307,8 +343,12 @@ class Cotizacion extends Component
             $cotizacion->numeroInputs = $request->numeroInputs;
             $cotizacion->porc_descuento = $request->porDescuento;
             $cotizacion->monto_descuento = $request->descuentoGeneral;
-            $cotizacion->nota = $request->nota;
+            $cotizacion->nota = $request->nota_comen ?? $request->nota;
             $cotizacion->tipo_pago_id = $request->tipoPagoVenta ?: null;
+            $cotizacion->numero_orden_compra = $request->numero_orden_compra ?: null;
+            $cotizacion->numero_forma_f01    = $request->numero_forma_f01    ?: null;
+            $cotizacion->archivo_orden_compra = $request->archivo_orden_compra ?: null;
+            $cotizacion->archivo_forma_f01    = $request->archivo_forma_f01    ?: null;
             $cotizacion->estado_id  = 1;
             $cotizacion->created_by = Auth::id();
             $cotizacion->save();

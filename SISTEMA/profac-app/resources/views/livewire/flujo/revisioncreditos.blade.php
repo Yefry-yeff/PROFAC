@@ -176,6 +176,40 @@
                                     <div style="font-size:11px; color:#78909c; text-transform:uppercase; font-weight:700;">Monto total de la oferta</div>
                                     <div style="font-size:20px; font-weight:800; color:#e65100;">L {{ number_format($montoTotalOferta, 2, '.', ',') }}</div>
                                 </div>
+                                {{-- Documentos de la oferta --}}
+                                @if($numeroOrdenCompra || $numeroFormaF01)
+                                <div style="margin-top:12px; padding-top:12px; border-top:1px solid #eef1f5;">
+                                    <div style="font-size:11px; color:#78909c; text-transform:uppercase; font-weight:700; margin-bottom:8px;">
+                                        <i class="mr-1 fa fa-paperclip"></i> Documentos de la oferta
+                                    </div>
+                                    <div class="row">
+                                        @if($numeroOrdenCompra)
+                                        <div class="col-md-6 mb-2">
+                                            <div style="font-size:11px; color:#78909c; text-transform:uppercase; font-weight:700;">N° Orden de Compra</div>
+                                            <div style="font-size:14px; font-weight:700; color:#2c3e50;">{{ $numeroOrdenCompra }}</div>
+                                            @if($archivoOrdenCompra)
+                                            <a href="/{{ $archivoOrdenCompra }}" target="_blank"
+                                               style="font-size:12px; color:#1565c0;">
+                                                <i class="fa fa-file mr-1"></i> Ver adjunto
+                                            </a>
+                                            @endif
+                                        </div>
+                                        @endif
+                                        @if($numeroFormaF01)
+                                        <div class="col-md-6 mb-2">
+                                            <div style="font-size:11px; color:#78909c; text-transform:uppercase; font-weight:700;">N° Forma F01</div>
+                                            <div style="font-size:14px; font-weight:700; color:#2c3e50;">{{ $numeroFormaF01 }}</div>
+                                            @if($archivoFormaF01)
+                                            <a href="/{{ $archivoFormaF01 }}" target="_blank"
+                                               style="font-size:12px; color:#1565c0;">
+                                                <i class="fa fa-file mr-1"></i> Ver adjunto
+                                            </a>
+                                            @endif
+                                        </div>
+                                        @endif
+                                    </div>
+                                </div>
+                                @endif
                             </div>
                         </div>
 
