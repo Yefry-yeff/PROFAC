@@ -1640,19 +1640,26 @@ class ModalFlujoPedido extends Component
 
         if (!empty($this->creditoRevisionData['estado']) &&
             $this->creditoRevisionData['estado'] === 'aprobado') {
+            // Revisión de crédito aprobada formalmente: siempre crédito
             $tipoPago = 2;
         } else {
-            // Fallback: revisar la cotización vinculada a la prefactura
+            // Verificar tipo_pago_id de la cotización vinculada a la prefactura
             $cotizacionId = (int) ($this->prefacturaData['cotizacion_id'] ?? 0);
             if ($cotizacionId) {
                 $cot = DB::table('cotizacion')
                     ->where('id', $cotizacionId)
-                    ->first(['fecha_emision', 'fecha_vencimiento']);
-                if ($cot && $cot->fecha_emision && $cot->fecha_vencimiento) {
-                    $dias = (int) \Carbon\Carbon::parse($cot->fecha_emision)
-                        ->diffInDays(\Carbon\Carbon::parse($cot->fecha_vencimiento), false);
-                    if ($dias > 0) {
-                        $tipoPago = 2;
+                    ->first(['fecha_emision', 'fecha_vencimiento', 'tipo_pago_id']);
+                if ($cot) {
+                    if (!is_null($cot->tipo_pago_id)) {
+                        // tipo_pago_id explícito: usar directamente (1=contado, 2=crédito)
+                        $tipoPago = (int) $cot->tipo_pago_id;
+                    } elseif ($cot->fecha_emision && $cot->fecha_vencimiento) {
+                        // Retrocompatibilidad: registros anteriores a la migración (tipo_pago_id NULL)
+                        $dias = (int) \Carbon\Carbon::parse($cot->fecha_emision)
+                            ->diffInDays(\Carbon\Carbon::parse($cot->fecha_vencimiento), false);
+                        if ($dias > 0) {
+                            $tipoPago = 2;
+                        }
                     }
                 }
             }

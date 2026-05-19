@@ -749,6 +749,7 @@ class PrefacturaController
 
         // Días de la cotización ganadora (calculado sólo si no hay revisión formal)
         $diasCotizacionGanadora = 0;
+        $tipoPagoCotizacion     = null; // null = sin dato (registro antiguo), 1 = contado, 2 = crédito
         if (!$creditoAprobadoReg && $flujoIdPara) {
             $ganadoraHf = DB::table('historico_flujo')
                 ->where('flujo_id', $flujoIdPara)
@@ -759,17 +760,32 @@ class PrefacturaController
             if ($ganadoraHf && $ganadoraHf->tramite_id) {
                 $cotGanadora = DB::table('cotizacion')
                     ->where('id', $ganadoraHf->tramite_id)
-                    ->first(['fecha_emision', 'fecha_vencimiento']);
-                if ($cotGanadora && $cotGanadora->fecha_emision && $cotGanadora->fecha_vencimiento) {
-                    $diasCotizacionGanadora = max(0, (int) \Carbon\Carbon::parse($cotGanadora->fecha_emision)
-                        ->diffInDays(\Carbon\Carbon::parse($cotGanadora->fecha_vencimiento), false));
+                    ->first(['fecha_emision', 'fecha_vencimiento', 'tipo_pago_id']);
+                if ($cotGanadora) {
+                    $tipoPagoCotizacion = $cotGanadora->tipo_pago_id; // puede ser null, 1 o 2
+                    // Solo calcular días si no hay tipo_pago_id explícito (registros anteriores a la migración)
+                    if (is_null($tipoPagoCotizacion)
+                        && $cotGanadora->fecha_emision && $cotGanadora->fecha_vencimiento) {
+                        $diasCotizacionGanadora = max(0, (int) \Carbon\Carbon::parse($cotGanadora->fecha_emision)
+                            ->diffInDays(\Carbon\Carbon::parse($cotGanadora->fecha_vencimiento), false));
+                    }
                 }
             }
         }
 
-        $tipoPago = ($creditoAprobadoReg || $diasCotizacionGanadora > 0)
-            ? 2
-            : (int) ($request->tipo_pago ?? 1);
+        // Prioridad: 1) revisión de crédito aprobada  → crédito (siempre gana)
+        //            2) tipo_pago_id explícito en la cotización ganadora (1=contado, 2=crédito)
+        //            3) diferencia de fechas  → retrocompatibilidad con registros sin tipo_pago_id
+        //            4) valor enviado por el frontend (contado por defecto)
+        if ($creditoAprobadoReg) {
+            $tipoPago = 2;
+        } elseif (!is_null($tipoPagoCotizacion)) {
+            $tipoPago = (int) $tipoPagoCotizacion;
+        } elseif ($diasCotizacionGanadora > 0) {
+            $tipoPago = 2;
+        } else {
+            $tipoPago = (int) ($request->tipo_pago ?? 1);
+        }
 
         // ── Calcular fecha_vencimiento ────────────────────────────────────
         // fecha_vencimiento = fecha_actual_al_facturar + días_de_crédito_aprobados
