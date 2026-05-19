@@ -102,6 +102,8 @@ BEGIN
             numero_comprobante,
             comprobante,
             descripcion,
+            id_Bodega_origen,
+            Bodega_origen_nombre,
             id_segmento_origen,
             segmento_origen_nombre,
             id_seccion_origen,
