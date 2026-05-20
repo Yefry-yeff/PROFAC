@@ -242,6 +242,12 @@ class VentasExoneradas extends Component
 
             $numeroVenta = DB::selectOne("select concat(YEAR(NOW()),'-',count(id)+1)  as 'numero' from factura");
 
+            // Obtener datos reales del cliente desde la base de datos basado en cliente_id seleccionado
+            $clienteData = DB::table('cliente')
+                ->where('id', (int) $request->seleccionarCliente)
+                ->select('nombre', 'rtn')
+                ->first();
+
             $validarCAI = new Notificaciones();
             $validarCAI->validarAlertaCAI(ltrim($arrayCai[3],"0"),$numeroSecuencia, 3);
 
@@ -249,8 +255,8 @@ class VentasExoneradas extends Component
             $factura->numero_factura = $numeroVenta->numero;
             $factura->cai = $numeroCAI;
             $factura->numero_secuencia_cai = $numeroSecuencia;
-            $factura->nombre_cliente = $request->nombre_cliente_ventas;
-            $factura->rtn = $request->rtn_ventas;
+            $factura->nombre_cliente = $clienteData->nombre ?? $request->nombre_cliente_ventas;
+            $factura->rtn = $clienteData->rtn ?? $request->rtn_ventas;
             $factura->sub_total = $request->subTotalGeneral;
             $factura->isv = $request->isvGeneral;
             $factura->total = $request->totalGeneral;
