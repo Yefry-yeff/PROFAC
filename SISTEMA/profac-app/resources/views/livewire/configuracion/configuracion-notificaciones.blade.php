@@ -1,141 +1,282 @@
 <div>
-    {{-- Encabezado --}}
-    <div class="row wrapper border-bottom white-bg page-heading">
-        <div class="col-sm-8">
-            <h2><i class="fa fa-bell text-primary"></i> Configuración de Notificaciones</h2>
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Inicio</a></li>
-                <li class="breadcrumb-item active">Notificaciones de Flujo</li>
-            </ol>
-        </div>
-        <div class="col-sm-4 d-flex align-items-center justify-content-end gap-2">
-            {{-- Interruptor global --}}
-            <button wire:click="toggleSistema"
-                class="btn btn-sm {{ $notificacionesActivas ? 'btn-success' : 'btn-default' }}"
-                title="{{ $notificacionesActivas ? 'Haz clic para desactivar las notificaciones' : 'Haz clic para activar las notificaciones' }}">
-                <i class="fa {{ $notificacionesActivas ? 'fa-toggle-on' : 'fa-toggle-off' }}"></i>
-                {{ $notificacionesActivas ? 'Notificaciones ON' : 'Notificaciones OFF' }}
-            </button>
-            <button wire:click="nuevaRegla" class="btn btn-primary btn-sm">
-                <i class="fa fa-plus"></i> Nueva Regla
-            </button>
+    <style>
+/* â”€â”€ Animaciones â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+@keyframes cfgFadeUp {
+    from { opacity:0; transform:translateY(14px); }
+    to   { opacity:1; transform:translateY(0); }
+}
+@keyframes modalIn {
+    from { opacity:0; transform:scale(.95) translateY(-12px); }
+    to   { opacity:1; transform:scale(1) translateY(0); }
+}
+.cfg-card   { animation: cfgFadeUp .25s ease both; }
+.cfg-card:nth-child(2) { animation-delay:.05s; }
+.cfg-card:nth-child(3) { animation-delay:.1s; }
+.cfg-modal-content { animation: modalIn .22s ease-out both; }
+
+/* â”€â”€ Hero header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.cfg-hero {
+    background: linear-gradient(135deg,#1e3a5f 0%,#2563eb 60%,#3b82f6 100%);
+    padding: 28px 32px 24px;
+    color: #fff;
+    position: relative;
+    overflow: hidden;
+}
+.cfg-hero::before {
+    content:'';
+    position:absolute; inset:0;
+    background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+}
+
+/* â”€â”€ Cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.notif-card {
+    background: #fff;
+    border-radius: 12px;
+    border: 1px solid #e8edf5;
+    box-shadow: 0 1px 4px rgba(0,0,0,.04), 0 4px 16px rgba(0,0,0,.04);
+    margin-bottom: 16px;
+    overflow: hidden;
+}
+.notif-card-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid #f0f3f9;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: linear-gradient(135deg,#f8faff 0%,#f0f4ff 100%);
+}
+.notif-badge-tipo {
+    display:inline-flex; align-items:center; gap:6px;
+    background: linear-gradient(135deg,#2563eb,#3b82f6);
+    color:#fff; font-size:10px; font-weight:700; letter-spacing:.5px;
+    padding: 3px 10px; border-radius:20px; text-transform:uppercase;
+}
+
+/* â”€â”€ Tabla mejorada â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.notif-table thead th {
+    font-size:11px; font-weight:700; text-transform:uppercase;
+    letter-spacing:.6px; color:#64748b;
+    background: #f8fafc; border-bottom: 2px solid #e8edf5;
+    padding: 10px 16px;
+}
+.notif-table tbody tr { transition: background .12s; }
+.notif-table tbody tr:hover { background: #f8faff; }
+.notif-table tbody td { padding: 12px 16px; vertical-align: middle; font-size:13px; border-color:#f0f3f9; }
+
+/* â”€â”€ Toggle switch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.toggle-switch { position:relative; display:inline-block; width:36px; height:20px; }
+.toggle-switch input { opacity:0; width:0; height:0; }
+.toggle-slider {
+    position:absolute; inset:0; cursor:pointer;
+    background:#cbd5e1; border-radius:20px; transition:.25s;
+}
+.toggle-slider::before {
+    content:''; position:absolute; height:14px; width:14px; left:3px; bottom:3px;
+    background:#fff; border-radius:50%; transition:.25s;
+    box-shadow:0 1px 3px rgba(0,0,0,.2);
+}
+input:checked + .toggle-slider { background: linear-gradient(135deg,#22c55e,#16a34a); }
+input:checked + .toggle-slider::before { transform: translateX(16px); }
+
+/* â”€â”€ Warning collapsible â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.cfg-warning { border-left: 4px solid #f59e0b; background:#fffbeb; border-radius:0 8px 8px 0; padding:14px 18px; }
+.cfg-warning-toggle { cursor:pointer; user-select:none; }
+    </style>
+
+
+    {{-- â•â• HERO HEADER â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• --}}
+    <div class="cfg-hero">
+        <div class="d-flex align-items-center justify-content-between" style="position:relative;z-index:1;">
+            <div>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb mb-2" style="background:transparent;padding:0;font-size:12px;opacity:.75;">
+                        <li class="breadcrumb-item"><a href="{{ route('dashboard') }}" class="text-white">Inicio</a></li>
+                        <li class="breadcrumb-item active text-white">Notificaciones</li>
+                    </ol>
+                </nav>
+                <h2 class="mb-0 text-white font-weight-bold" style="font-size:1.5rem; letter-spacing:-.3px;">
+                    <i class="fa fa-bell mr-2" style="opacity:.9;"></i> ConfiguraciÃ³n de Notificaciones
+                </h2>
+                <p class="mb-0 mt-1" style="font-size:12px; opacity:.7;">
+                    Define quiÃ©n recibe alertas en cada etapa del flujo de trabajo
+                </p>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                {{-- Toggle sistema --}}
+                <button wire:click="toggleSistema"
+                        class="btn btn-sm font-weight-bold mr-2"
+                        style="border-radius:20px; padding:6px 16px; font-size:12px; border:2px solid {{ $notificacionesActivas ? 'rgba(255,255,255,.5)' : 'rgba(255,255,255,.3)' }};
+                               background:{{ $notificacionesActivas ? 'rgba(34,197,94,.25)' : 'rgba(255,255,255,.12)' }};
+                               color:white; backdrop-filter:blur(4px);"
+                        title="{{ $notificacionesActivas ? 'Haz clic para desactivar' : 'Haz clic para activar' }}">
+                    <i class="fa {{ $notificacionesActivas ? 'fa-toggle-on' : 'fa-toggle-off' }} mr-1"
+                       style="font-size:14px; color:{{ $notificacionesActivas ? '#4ade80' : '#94a3b8' }};"></i>
+                    Notificaciones {{ $notificacionesActivas ? 'ON' : 'OFF' }}
+                </button>
+                <button wire:click="nuevaRegla"
+                        class="btn btn-sm font-weight-bold"
+                        style="border-radius:20px; padding:6px 18px; font-size:12px;
+                               background:rgba(255,255,255,.95); color:#2563eb;
+                               border:none; box-shadow:0 2px 8px rgba(0,0,0,.15);">
+                    <i class="fa fa-plus mr-1"></i> Nueva Regla
+                </button>
+            </div>
         </div>
     </div>
 
-    <div class="wrapper wrapper-content animated fadeInRight">
+    <div class="wrapper wrapper-content" style="padding:24px 32px;">
 
-        {{-- Flash message --}}
+        {{-- â”€â”€ Flash â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ --}}
         @if(session('success'))
-            <div class="alert alert-success alert-dismissible">
-                <button type="button" class="close" data-dismiss="alert"><span>&times;</span></button>
-                <i class="fa fa-check-circle"></i> {{ session('success') }}
+            <div class="alert alert-success alert-dismissible d-flex align-items-center gap-2"
+                 style="border-radius:10px; border:none; box-shadow:0 2px 8px rgba(34,197,94,.2); font-size:13px;">
+                <i class="fa fa-check-circle fa-lg text-success mr-2"></i>
+                <span>{{ session('success') }}</span>
+                <button type="button" class="close ml-auto" data-dismiss="alert">&times;</button>
             </div>
         @endif
 
-        {{-- ── Advertencia de jerarquías incompletas ── --}}
+        {{-- â”€â”€ Advertencia jerarquÃ­as (colapsable) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ --}}
         @if(!empty($rolesIncompletos))
-            <div class="alert alert-warning" role="alert">
-                <div class="d-flex align-items-start gap-2">
-                    <i class="fa fa-exclamation-triangle mt-1 mr-2"></i>
+        <div x-data="{ expanded: false }" class="cfg-warning mb-4">
+            <div class="d-flex align-items-center justify-content-between cfg-warning-toggle" @click="expanded = !expanded">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="fa fa-exclamation-triangle text-warning mr-2"></i>
                     <div>
-                        <strong>Roles con jerarquía organizacional incompleta</strong>
-                        <p class="mb-1 mt-1 text-sm">
-                            Los siguientes roles no tienen <strong>nivel jerárquico</strong> y/o <strong>área</strong> configurados.
-                            Las reglas de notificación por área no funcionarán correctamente para estos roles:
-                        </p>
-                        <ul class="mb-2 pl-3">
-                            @foreach($rolesIncompletos as $rolInc)
-                                <li class="text-sm">
+                        <strong style="font-size:13px; color:#92400e;">
+                            {{ count($rolesIncompletos) }} roles con jerarquÃ­a incompleta
+                        </strong>
+                        <span class="ml-2" style="font-size:12px; color:#b45309;">
+                            â€” Las reglas por Ã¡rea no funcionarÃ¡n para estos roles
+                        </span>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <a href="{{ route('roles.gestion') }}"
+                       class="btn btn-xs btn-warning"
+                       style="border-radius:6px; font-size:11px; padding:3px 10px;">
+                        <i class="fa fa-cog mr-1"></i> Configurar
+                    </a>
+                    <i class="fa text-warning ml-2" :class="expanded ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+                </div>
+            </div>
+            <div x-show="expanded" x-transition style="display:none;">
+                <div class="mt-3 pt-2" style="border-top:1px dashed #fcd34d;">
+                    <div class="row">
+                        @foreach($rolesIncompletos as $rolInc)
+                            <div class="col-md-4 mb-1">
+                                <span style="font-size:12px; color:#78350f;">
+                                    <i class="fa fa-user-tag mr-1 text-warning"></i>
                                     <strong>{{ $rolInc['nombre'] }}</strong>
-                                    <span class="text-muted"> — falta: {{ $rolInc['falta'] }}</span>
-                                </li>
-                            @endforeach
-                        </ul>
-                        <a href="{{ route('roles.gestion') }}" class="btn btn-warning btn-xs">
-                            <i class="fa fa-cog"></i> Configurar jerarquía de roles
-                        </a>
+                                    <span class="text-muted"> â€” falta: {{ $rolInc['falta'] }}</span>
+                                </span>
+                            </div>
+                        @endforeach
                     </div>
                 </div>
             </div>
+        </div>
         @endif
 
-        {{-- ── Tabla de reglas agrupadas por estado de flujo ── --}}
-        @php
-            $grupos = collect($configs)->groupBy('tipo_tramite_id');
-        @endphp
+        {{-- â”€â”€ REGLAS agrupadas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ --}}
+        @php $grupos = collect($configs)->groupBy('tipo_tramite_id'); @endphp
 
         @foreach($grupos as $tipoId => $reglas)
             @php $tramiteNombre = $reglas->first()['tramite_nombre'] ?? 'Tramite #'.$tipoId; @endphp
-            <div class="ibox">
-                <div class="ibox-title d-flex align-items-center justify-content-between">
-                    <h5 class="mb-0">
-                        <span class="badge badge-primary mr-2">Flujo</span>
-                        {{ $tramiteNombre }}
-                    </h5>
-                    <small class="text-muted">{{ $reglas->count() }} regla(s) configurada(s)</small>
+            <div class="notif-card cfg-card">
+                <div class="notif-card-header">
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="notif-badge-tipo">
+                            <i class="fa fa-sitemap" style="font-size:9px;"></i> Flujo
+                        </span>
+                        <span style="font-size:14px; font-weight:700; color:#1e293b;">{{ $tramiteNombre }}</span>
+                    </div>
+                    <span style="font-size:11px; color:#94a3b8; font-weight:600;">
+                        <i class="fa fa-list mr-1"></i>{{ $reglas->count() }} regla(s)
+                    </span>
                 </div>
-                <div class="ibox-content p-0">
-                    <table class="table table-sm table-hover mb-0">
-                        <thead class="thead-light">
+                <div style="overflow:hidden;">
+                    <table class="table table-hover mb-0 notif-table">
+                        <thead>
                             <tr>
                                 <th>Destino</th>
-                                <th>Nivel máximo</th>
+                                <th>Nivel mÃ¡ximo</th>
                                 <th>Cobertura</th>
-                                <th>Escalación</th>
-                                <th class="text-center">Activo</th>
-                                <th class="text-center">Acciones</th>
+                                <th>EscalaciÃ³n</th>
+                                <th class="text-center" style="width:80px;">Activo</th>
+                                <th class="text-center" style="width:90px;">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach($reglas as $reg)
-                                <tr class="{{ !$reg['activo'] ? 'text-muted' : '' }}">
+                                <tr>
                                     <td>
                                         @if($reg['rol_nombre'])
-                                            <i class="fa fa-user-tag text-primary mr-1"></i>
-                                            <strong>{{ $reg['rol_nombre'] }}</strong>
+                                            <span class="d-flex align-items-center gap-2">
+                                                <span style="width:28px;height:28px;background:linear-gradient(135deg,#eff6ff,#dbeafe);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                                                    <i class="fa fa-user-tag text-primary" style="font-size:11px;"></i>
+                                                </span>
+                                                <strong style="color:#1e293b;">{{ $reg['rol_nombre'] }}</strong>
+                                            </span>
                                         @elseif($reg['area_nombre'])
-                                            <i class="fa fa-users text-success mr-1"></i>
-                                            Área: <strong>{{ $reg['area_nombre'] }}</strong>
+                                            <span class="d-flex align-items-center gap-2">
+                                                <span style="width:28px;height:28px;background:linear-gradient(135deg,#f0fdf4,#dcfce7);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                                                    <i class="fa fa-users text-success" style="font-size:11px;"></i>
+                                                </span>
+                                                <span>Ãrea: <strong style="color:#1e293b;">{{ $reg['area_nombre'] }}</strong></span>
+                                            </span>
                                         @else
-                                            <span class="text-muted">Sin targeting</span>
+                                            <span class="text-muted font-italic" style="font-size:12px;">Sin targeting</span>
                                         @endif
                                     </td>
                                     <td>
                                         @if($reg['nivel_max_nombre'])
-                                            <span class="badge badge-secondary">{{ $reg['nivel_max_nombre'] }}</span>
+                                            <span style="display:inline-flex;align-items:center;gap:4px;background:#f1f5f9;color:#475569;padding:3px 10px;border-radius:6px;font-size:11px;font-weight:600;">
+                                                <i class="fa fa-layer-group" style="font-size:10px;"></i>
+                                                {{ $reg['nivel_max_nombre'] }}
+                                            </span>
                                         @else
-                                            <span class="text-muted">—</span>
+                                            <span class="text-muted">â€”</span>
                                         @endif
                                     </td>
                                     <td>
                                         @php $cob = $this->getCobertura($reg['id']); @endphp
-                                        <span class="badge {{ $cob > 0 ? 'badge-success' : 'badge-danger' }}">
+                                        <span style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:700;
+                                              background:{{ $cob > 0 ? 'linear-gradient(135deg,#f0fdf4,#dcfce7)' : 'linear-gradient(135deg,#fef2f2,#fee2e2)' }};
+                                              color:{{ $cob > 0 ? '#15803d' : '#dc2626' }};">
+                                            <i class="fa {{ $cob > 0 ? 'fa-users' : 'fa-user-times' }}" style="font-size:11px;"></i>
                                             {{ $cob }} usuario(s)
                                         </span>
                                     </td>
-                                    <td class="text-sm">
+                                    <td>
                                         @if($reg['escalar_activo'])
-                                            <i class="fa fa-arrow-up text-warning mr-1"></i>
-                                            {{ $reg['escalar_horas'] }}h → {{ $reg['escalar_nivel'] ?? '—' }}
+                                            <span style="display:inline-flex;align-items:center;gap:5px;background:#fffbeb;color:#92400e;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600;border:1px solid #fde68a;">
+                                                <i class="fa fa-arrow-up text-warning" style="font-size:10px;"></i>
+                                                {{ $reg['escalar_horas'] }}h â†’ {{ $reg['escalar_nivel'] ?? '?' }}
+                                            </span>
                                         @else
-                                            <span class="text-muted">—</span>
+                                            <span class="text-muted">â€”</span>
                                         @endif
                                     </td>
                                     <td class="text-center">
-                                        <button wire:click="toggleActivo({{ $reg['id'] }})"
-                                                class="btn btn-xs {{ $reg['activo'] ? 'btn-success' : 'btn-default' }}"
-                                                title="{{ $reg['activo'] ? 'Desactivar' : 'Activar' }}">
-                                            <i class="fa {{ $reg['activo'] ? 'fa-toggle-on' : 'fa-toggle-off' }}"></i>
-                                        </button>
+                                        <label class="toggle-switch mb-0" title="{{ $reg['activo'] ? 'Desactivar' : 'Activar' }}">
+                                            <input type="checkbox" wire:click="toggleActivo({{ $reg['id'] }})"
+                                                   {{ $reg['activo'] ? 'checked' : '' }}>
+                                            <span class="toggle-slider"></span>
+                                        </label>
                                     </td>
                                     <td class="text-center">
                                         <button wire:click="editarRegla({{ $reg['id'] }})"
-                                                class="btn btn-xs btn-warning mr-1" title="Editar">
+                                                class="btn btn-xs mr-1"
+                                                style="background:linear-gradient(135deg,#fef3c7,#fde68a);color:#92400e;border:none;border-radius:6px;padding:4px 8px;"
+                                                title="Editar">
                                             <i class="fa fa-edit"></i>
                                         </button>
                                         <button wire:click="eliminar({{ $reg['id'] }})"
-                                                wire:confirm="¿Eliminar esta regla de notificación?"
-                                                class="btn btn-xs btn-danger" title="Eliminar">
+                                                wire:confirm="Â¿Eliminar esta regla de notificaciÃ³n?"
+                                                class="btn btn-xs"
+                                                style="background:linear-gradient(135deg,#fee2e2,#fecaca);color:#dc2626;border:none;border-radius:6px;padding:4px 8px;"
+                                                title="Eliminar">
                                             <i class="fa fa-trash"></i>
                                         </button>
                                     </td>
@@ -148,37 +289,65 @@
         @endforeach
 
         @if(empty($configs))
-            <div class="ibox">
-                <div class="ibox-content text-center py-5 text-muted">
-                    <i class="fa fa-bell-slash fa-3x mb-3"></i>
-                    <p>No hay reglas de notificación configuradas. Haz clic en <strong>Nueva Regla</strong> para empezar.</p>
+            <div class="notif-card cfg-card">
+                <div class="text-center py-5 px-4">
+                    <div style="width:64px;height:64px;background:linear-gradient(135deg,#f1f5f9,#e2e8f0);border-radius:20px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;">
+                        <i class="fa fa-bell-slash text-muted fa-2x" style="opacity:.4;"></i>
+                    </div>
+                    <h5 style="color:#475569;font-weight:700;">Sin reglas configuradas</h5>
+                    <p class="text-muted mb-3" style="font-size:13px;">
+                        Define quiÃ©n debe recibir notificaciones en cada etapa del flujo.
+                    </p>
+                    <button wire:click="nuevaRegla" class="btn btn-primary"
+                            style="border-radius:8px; padding:8px 24px; font-size:13px;">
+                        <i class="fa fa-plus mr-1"></i> Crear primera regla
+                    </button>
                 </div>
             </div>
         @endif
 
     </div>{{-- /wrapper-content --}}
 
-    {{-- ── MODAL crear / editar ── --}}
+    {{-- â•â• MODAL crear / editar â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• --}}
     @if($showModal)
-    <div class="modal fade show d-block" tabindex="-1" role="dialog" style="background: rgba(0,0,0,0.5);">
-        <div class="modal-dialog modal-lg" role="document">
-            <div class="modal-content">
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title mb-0">
-                        <i class="fa fa-bell mr-2"></i>
-                        {{ $editandoId ? 'Editar Regla' : 'Nueva Regla de Notificación' }}
-                    </h5>
-                    <button wire:click="$set('showModal', false)" class="close text-white">
+    <div class="modal fade show d-block" tabindex="-1" role="dialog"
+         style="background:rgba(15,23,42,.55); backdrop-filter:blur(3px);">
+        <div class="modal-dialog modal-lg" role="document" style="margin-top:60px;">
+            <div class="modal-content cfg-modal-content"
+                 style="border:none; border-radius:16px; overflow:hidden;
+                        box-shadow:0 20px 60px rgba(0,0,0,.25);">
+
+                {{-- Header --}}
+                <div class="modal-header"
+                     style="background:linear-gradient(135deg,#1e3a5f 0%,#2563eb 100%);
+                            border:none; padding:18px 24px;">
+                    <div class="d-flex align-items-center gap-3">
+                        <div style="width:36px;height:36px;background:rgba(255,255,255,.15);border-radius:10px;display:flex;align-items:center;justify-content:center;">
+                            <i class="fa fa-bell text-white" style="font-size:15px;"></i>
+                        </div>
+                        <h5 class="modal-title mb-0 text-white font-weight-bold" style="font-size:15px;">
+                            {{ $editandoId ? 'Editar Regla de NotificaciÃ³n' : 'Nueva Regla de NotificaciÃ³n' }}
+                        </h5>
+                    </div>
+                    <button wire:click="$set('showModal', false)"
+                            class="close text-white" style="opacity:.7; font-size:20px; margin-top:-2px;">
                         <span>&times;</span>
                     </button>
                 </div>
-                <div class="modal-body">
+
+                {{-- Body --}}
+                <div class="modal-body" style="padding:24px; background:#fff;">
                     <div class="row">
+
                         {{-- Estado del flujo --}}
-                        <div class="col-md-12 mb-3">
-                            <label class="font-weight-bold">Estado de Flujo <span class="text-danger">*</span></label>
-                            <select wire:model="tipoTramiteId" class="form-control @error('tipoTramiteId') is-invalid @enderror">
-                                <option value="">-- Seleccionar --</option>
+                        <div class="col-md-12 mb-4">
+                            <label class="font-weight-bold mb-1" style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:#475569;">
+                                Estado de Flujo <span class="text-danger">*</span>
+                            </label>
+                            <select wire:model="tipoTramiteId"
+                                    class="form-control @error('tipoTramiteId') is-invalid @enderror"
+                                    style="border-radius:8px; border-color:#e2e8f0; font-size:13px; height:40px;">
+                                <option value="">â€” Seleccionar etapa â€”</option>
                                 @foreach($tiposTramites as $tt)
                                     <option value="{{ $tt['id'] }}">{{ $tt['nombre'] }}</option>
                                 @endforeach
@@ -187,32 +356,32 @@
                         </div>
 
                         {{-- Tipo de targeting --}}
-                        <div class="col-md-12 mb-3">
-                            <label class="font-weight-bold">Tipo de Destino <span class="text-danger">*</span></label>
-                            <div class="d-flex gap-3 mt-1">
-                                <div class="custom-control custom-radio mr-4">
-                                    <input type="radio" id="tipo_rol" wire:model="targetTipo" value="rol"
-                                           class="custom-control-input">
-                                    <label class="custom-control-label" for="tipo_rol">
-                                        <i class="fa fa-user-tag text-primary mr-1"></i> Rol específico
-                                    </label>
-                                </div>
-                                <div class="custom-control custom-radio">
-                                    <input type="radio" id="tipo_area" wire:model="targetTipo" value="area"
-                                           class="custom-control-input">
-                                    <label class="custom-control-label" for="tipo_area">
-                                        <i class="fa fa-users text-success mr-1"></i> Área / Departamento
-                                    </label>
-                                </div>
+                        <div class="col-md-12 mb-4">
+                            <label class="font-weight-bold mb-2 d-block" style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:#475569;">
+                                Tipo de Destino <span class="text-danger">*</span>
+                            </label>
+                            <div class="d-flex gap-3">
+                                <label style="cursor:pointer;display:flex;align-items:center;gap:8px;padding:10px 16px;border-radius:8px;border:2px solid {{ $targetTipo==='rol' ? '#2563eb' : '#e2e8f0' }};background:{{ $targetTipo==='rol' ? '#eff6ff' : '#fff' }};transition:.15s;font-size:13px;">
+                                    <input type="radio" wire:model="targetTipo" value="rol" style="accent-color:#2563eb;">
+                                    <i class="fa fa-user-tag text-primary"></i> Rol especÃ­fico
+                                </label>
+                                <label style="cursor:pointer;display:flex;align-items:center;gap:8px;padding:10px 16px;border-radius:8px;border:2px solid {{ $targetTipo==='area' ? '#16a34a' : '#e2e8f0' }};background:{{ $targetTipo==='area' ? '#f0fdf4' : '#fff' }};transition:.15s;font-size:13px;">
+                                    <input type="radio" wire:model="targetTipo" value="area" style="accent-color:#16a34a;">
+                                    <i class="fa fa-users text-success"></i> Ãrea / Departamento
+                                </label>
                             </div>
                         </div>
 
-                        {{-- Rol (si targetTipo = rol) --}}
+                        {{-- Rol --}}
                         @if($targetTipo === 'rol')
-                            <div class="col-md-12 mb-3">
-                                <label class="font-weight-bold">Rol <span class="text-danger">*</span></label>
-                                <select wire:model="rolId" class="form-control @error('rolId') is-invalid @enderror">
-                                    <option value="">-- Seleccionar rol --</option>
+                            <div class="col-md-12 mb-4">
+                                <label class="font-weight-bold mb-1" style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:#475569;">
+                                    Rol <span class="text-danger">*</span>
+                                </label>
+                                <select wire:model="rolId"
+                                        class="form-control @error('rolId') is-invalid @enderror"
+                                        style="border-radius:8px; border-color:#e2e8f0; font-size:13px; height:40px;">
+                                    <option value="">â€” Seleccionar rol â€”</option>
                                     @foreach($roles as $r)
                                         <option value="{{ $r['id'] }}">{{ $r['nombre'] }}</option>
                                     @endforeach
@@ -221,25 +390,27 @@
                             </div>
                         @endif
 
-                        {{-- Área + Nivel máximo (si targetTipo = area) --}}
+                        {{-- Ãrea --}}
                         @if($targetTipo === 'area')
-                            <div class="col-md-12 mb-3">
+                            <div class="col-md-12 mb-4">
                                 @if(count($areas) === 0)
-                                    <div class="alert alert-warning py-2 mb-0 d-flex align-items-center justify-content-between">
-                                        <span>
-                                            <i class="fa fa-exclamation-triangle mr-1"></i>
-                                            No hay <strong>áreas</strong> configuradas.
-                                        </span>
+                                    <div class="alert alert-warning d-flex align-items-center justify-content-between py-2"
+                                         style="border-radius:8px; font-size:12px;">
+                                        <span><i class="fa fa-exclamation-triangle mr-1"></i> No hay Ã¡reas configuradas.</span>
                                         <a href="{{ route('configuracion.jerarquia') }}" class="btn btn-xs btn-warning ml-3" target="_blank">
-                                            <i class="fa fa-sitemap mr-1"></i> Configurar áreas
+                                            <i class="fa fa-sitemap mr-1"></i> Configurar
                                         </a>
                                     </div>
                                 @else
                                     <div class="row">
                                         <div class="col-md-6">
-                                            <label class="font-weight-bold">Área <span class="text-danger">*</span></label>
-                                            <select wire:model="areaId" class="form-control @error('areaId') is-invalid @enderror">
-                                                <option value="">-- Seleccionar área --</option>
+                                            <label class="font-weight-bold mb-1" style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:#475569;">
+                                                Ãrea <span class="text-danger">*</span>
+                                            </label>
+                                            <select wire:model="areaId"
+                                                    class="form-control @error('areaId') is-invalid @enderror"
+                                                    style="border-radius:8px; border-color:#e2e8f0; font-size:13px; height:40px;">
+                                                <option value="">â€” Seleccionar Ã¡rea â€”</option>
                                                 @foreach($areas as $a)
                                                     <option value="{{ $a['id'] }}">{{ $a['nombre'] }}</option>
                                                 @endforeach
@@ -247,22 +418,27 @@
                                             @error('areaId') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                         </div>
                                         <div class="col-md-6">
-                                            <label class="font-weight-bold">Nivel máximo a notificar</label>
+                                            <label class="font-weight-bold mb-1" style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:#475569;">
+                                                Nivel mÃ¡ximo
+                                            </label>
                                             @if(count($niveles) === 0)
-                                                <div class="alert alert-warning py-2 d-flex align-items-center justify-content-between">
-                                                    <span class="small"><i class="fa fa-exclamation-triangle mr-1"></i> Sin niveles aún.</span>
+                                                <div class="alert alert-warning py-2 d-flex align-items-center justify-content-between"
+                                                     style="border-radius:8px; font-size:12px;">
+                                                    <span class="small"><i class="fa fa-exclamation-triangle mr-1"></i> Sin niveles.</span>
                                                     <a href="{{ route('configuracion.jerarquia') }}" target="_blank" class="btn btn-xs btn-warning ml-2">
                                                         <i class="fa fa-sitemap"></i> Configurar
                                                     </a>
                                                 </div>
                                             @else
-                                                <select wire:model="nivelMaxId" class="form-control">
-                                                    <option value="">-- Todos los niveles --</option>
+                                                <select wire:model="nivelMaxId"
+                                                        class="form-control"
+                                                        style="border-radius:8px; border-color:#e2e8f0; font-size:13px; height:40px;">
+                                                    <option value="">â€” Todos los niveles â€”</option>
                                                     @foreach($niveles as $n)
                                                         <option value="{{ $n['id'] }}">{{ $n['nombre'] }}</option>
                                                     @endforeach
                                                 </select>
-                                                <small class="text-muted">Ej: "Colaborador" → solo notifica a ese nivel y debajo.</small>
+                                                <small class="text-muted" style="font-size:11px;">Ej: "Colaborador" â†’ solo ese nivel y debajo.</small>
                                             @endif
                                         </div>
                                     </div>
@@ -270,46 +446,59 @@
                             </div>
                         @endif
 
-                        <div class="col-md-12"><hr class="my-2"></div>
+                        {{-- Separador --}}
+                        <div class="col-md-12">
+                            <div style="border-top:1px solid #f1f5f9; margin:4px 0 20px;"></div>
+                        </div>
 
-                        {{-- Escalación --}}
-                        <div class="col-md-12 mb-2">
-                            <div class="custom-control custom-switch">
-                                <input type="checkbox" class="custom-control-input" id="escalarActivo"
-                                       wire:model="escalarActivo">
-                                <label class="custom-control-label font-weight-bold" for="escalarActivo">
-                                    Activar escalación automática
+                        {{-- EscalaciÃ³n --}}
+                        <div class="col-md-12 mb-3">
+                            <div class="d-flex align-items-center justify-content-between p-3"
+                                 style="background:#f8faff; border-radius:10px; border:1px solid #e8edf5;">
+                                <div>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="fa fa-arrow-up text-warning"></i>
+                                        <strong style="font-size:13px; color:#1e293b;">EscalaciÃ³n automÃ¡tica</strong>
+                                    </div>
+                                    <small class="text-muted d-block mt-1" style="font-size:11px;">
+                                        Si no se lee en N horas, se notificarÃ¡ al nivel superior.
+                                    </small>
+                                </div>
+                                <label class="toggle-switch mb-0">
+                                    <input type="checkbox" id="escalarActivo" wire:model="escalarActivo">
+                                    <span class="toggle-slider"></span>
                                 </label>
                             </div>
-                            <small class="text-muted d-block mt-1">
-                                Si la notificación no se lee en N horas, se notificará al nivel superior.
-                            </small>
                         </div>
 
                         @if($escalarActivo)
                             <div class="col-md-6 mb-3">
-                                <label>Escalar después de (horas) <span class="text-danger">*</span></label>
+                                <label class="font-weight-bold mb-1" style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:#475569;">
+                                    Escalar despuÃ©s de (horas) <span class="text-danger">*</span>
+                                </label>
                                 <input type="number" wire:model="escalarHoras"
                                        class="form-control @error('escalarHoras') is-invalid @enderror"
-                                       min="1" max="720" placeholder="Ej: 4">
+                                       min="1" max="720" placeholder="Ej: 4"
+                                       style="border-radius:8px; border-color:#e2e8f0; font-size:13px; height:40px;">
                                 @error('escalarHoras') <div class="invalid-feedback">{{ $message }}</div> @enderror
                             </div>
                             <div class="col-md-6 mb-3">
-                                <label>Escalar al nivel <span class="text-danger">*</span></label>
+                                <label class="font-weight-bold mb-1" style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:#475569;">
+                                    Escalar al nivel <span class="text-danger">*</span>
+                                </label>
                                 @if(count($niveles) === 0)
-                                    <div class="alert alert-warning py-2 mb-0 d-flex align-items-center justify-content-between">
-                                        <span class="small">
-                                            <i class="fa fa-exclamation-triangle mr-1"></i>
-                                            No hay niveles configurados.
-                                        </span>
+                                    <div class="alert alert-warning py-2 mb-0 d-flex align-items-center justify-content-between"
+                                         style="border-radius:8px; font-size:12px;">
+                                        <span class="small"><i class="fa fa-exclamation-triangle mr-1"></i> Sin niveles.</span>
                                         <a href="{{ route('configuracion.jerarquia') }}" class="btn btn-xs btn-warning ml-2" target="_blank">
                                             <i class="fa fa-sitemap mr-1"></i> Configurar
                                         </a>
                                     </div>
                                 @else
                                     <select wire:model="escalarNivelId"
-                                            class="form-control @error('escalarNivelId') is-invalid @enderror">
-                                        <option value="">-- Seleccionar nivel --</option>
+                                            class="form-control @error('escalarNivelId') is-invalid @enderror"
+                                            style="border-radius:8px; border-color:#e2e8f0; font-size:13px; height:40px;">
+                                        <option value="">â€” Seleccionar nivel â€”</option>
                                         @foreach($niveles as $n)
                                             <option value="{{ $n['id'] }}">{{ $n['nombre'] }}</option>
                                         @endforeach
@@ -319,27 +508,44 @@
                             </div>
                         @endif
 
-                        {{-- Activo --}}
-                        <div class="col-md-12 mb-0">
-                            <div class="custom-control custom-switch">
-                                <input type="checkbox" class="custom-control-input" id="activoSwitch"
-                                       wire:model="activo">
-                                <label class="custom-control-label" for="activoSwitch">Regla activa</label>
+                        {{-- Regla activa --}}
+                        <div class="col-md-12">
+                            <div class="d-flex align-items-center justify-content-between p-3"
+                                 style="background:#f8faff; border-radius:10px; border:1px solid #e8edf5;">
+                                <div>
+                                    <strong style="font-size:13px; color:#1e293b;">Regla activa</strong>
+                                    <small class="text-muted d-block" style="font-size:11px;">Las reglas inactivas no generan notificaciones.</small>
+                                </div>
+                                <label class="toggle-switch mb-0">
+                                    <input type="checkbox" id="activoSwitch" wire:model="activo">
+                                    <span class="toggle-slider"></span>
+                                </label>
                             </div>
                         </div>
+
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button wire:click="$set('showModal', false)" class="btn btn-default">
-                        <i class="fa fa-times"></i> Cancelar
+
+                {{-- Footer --}}
+                <div class="modal-footer" style="background:#f8fafc; border-top:1px solid #e8edf5; padding:14px 24px; border-radius:0 0 16px 16px;">
+                    <button wire:click="$set('showModal', false)"
+                            class="btn btn-sm"
+                            style="border-radius:8px; padding:7px 18px; font-size:13px; border:1.5px solid #e2e8f0; background:#fff; color:#475569;">
+                        <i class="fa fa-times mr-1"></i> Cancelar
                     </button>
-                    <button wire:click="guardar" wire:loading.attr="disabled" class="btn btn-primary">
-                        <span wire:loading.remove><i class="fa fa-save"></i> Guardar</span>
-                        <span wire:loading><i class="fa fa-spinner fa-spin"></i> Guardando...</span>
+                    <button wire:click="guardar" wire:loading.attr="disabled"
+                            class="btn btn-sm btn-primary"
+                            style="border-radius:8px; padding:7px 22px; font-size:13px; font-weight:700;
+                                   background:linear-gradient(135deg,#2563eb,#3b82f6); border:none;
+                                   box-shadow:0 2px 8px rgba(37,99,235,.4);">
+                        <span wire:loading.remove><i class="fa fa-save mr-1"></i> Guardar regla</span>
+                        <span wire:loading><i class="fa fa-spinner fa-spin mr-1"></i> Guardando...</span>
                     </button>
                 </div>
+
             </div>
         </div>
     </div>
     @endif
+
 </div>
