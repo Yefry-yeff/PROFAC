@@ -584,7 +584,10 @@ class RevisionCreditos extends Component
 
             // Días de crédito aprobados: usar el valor editable actual (puede ser
             // el original del cliente o el ajustado por el revisor).
-            $diasAprobados = max(0, (int) $this->diasCreditoEditable);
+            // Para ventas de contado (diasSolicitados = 0) siempre es 0.
+            $diasAprobados = ($this->tipoPagoSolicitud === 'contado')
+                ? 0
+                : max(0, (int) $this->diasCreditoEditable);
 
             if ($cr) {
                 $cr->update([
