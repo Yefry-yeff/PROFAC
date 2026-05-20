@@ -95,6 +95,28 @@ class Roles extends Component
                     return '<span class="badge badge-area px-2 py-1" style="border-radius:5px;font-size:.76rem">'
                          . e($rol->area_nombre) . '</span>';
                 })
+                ->addColumn('jerarquia_badge', function ($rol) {
+                    $faltaNivel = !$rol->nivel_id;
+                    $faltaArea  = !$rol->area_id;
+
+                    if ($rol->estado_id != 1) {
+                        return '<span class="text-muted" title="Rol inactivo">—</span>';
+                    }
+
+                    if (!$faltaNivel && !$faltaArea) {
+                        return '<span class="badge badge-success px-2 py-1" style="border-radius:5px;font-size:.76rem;"><i class="fa fa-check mr-1"></i>Completa</span>';
+                    }
+
+                    $falta = [];
+                    if ($faltaNivel) $falta[] = 'nivel';
+                    if ($faltaArea)  $falta[] = 'área';
+                    $tooltip = 'Falta: ' . implode(' y ', $falta);
+
+                    return '<span class="badge badge-warning px-2 py-1" style="border-radius:5px;font-size:.76rem;cursor:pointer;" title="' . $tooltip . '"
+                                  onclick="editarRol(' . $rol->id . ')" data-toggle="tooltip">
+                                <i class="fa fa-exclamation-triangle mr-1"></i>Incompleta
+                            </span>';
+                })
                 ->addColumn('fecha', function ($rol) {
                     return date('d/m/Y', strtotime($rol->created_at));
                 })
@@ -133,7 +155,7 @@ class Roles extends Component
                             </div>
                         </div>';
                 })
-                ->rawColumns(['estado_badge', 'nivel_badge', 'area_badge', 'opciones'])
+                ->rawColumns(['estado_badge', 'nivel_badge', 'area_badge', 'jerarquia_badge', 'opciones'])
                 ->make(true);
 
         } catch (\Exception $e) {

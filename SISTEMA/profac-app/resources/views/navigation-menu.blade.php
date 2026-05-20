@@ -17,6 +17,9 @@
             <div class="absolute right-0 hidden sm:flex sm:items-center sm:mr-3 profile-area">
                 <!-- Teams Dropdown -->
 
+                {{-- Campana de notificaciones --}}
+                @livewire('notificaciones-bell')
+
                 <!-- Settings Dropdown -->
                 <div class="relative ml-3">
                     <x-jet-dropdown align="right" width="48">
@@ -413,7 +416,7 @@
                 {{-- Cuadro de búsqueda en sidebar --}}
                 <li class="search-sidebar" style="padding: 15px 20px;">
                     <div class="input-group">
-                        <input type="text" id="menu-search" class="form-control" placeholder="Buscar en menú..." 
+                        <input type="text" id="menu-search" class="form-control" placeholder="Buscar en menú..."
                                style="background: #ffffff; border: 1px solid #e7eaec; color: #333; border-radius: 4px;">
                         <span class="input-group-addon" style="background: #ffffff; border: 1px solid #e7eaec; border-left: 0;">
                             <i class="fa fa-search" style="color: #999;"></i>
@@ -428,7 +431,7 @@
                         <span class="nav-label">Dashboard</span>
                     </a>
                 </li>
-                
+
                 <style>
                     .dashboard-btn .dashboard-link {
                         display: flex;
@@ -438,18 +441,18 @@
                         color: #ffffff !important;
                         text-decoration: none;
                     }
-                    
+
                     .dashboard-btn .dashboard-link i {
                         font-size: 16px;
                         margin-right: 10px;
                         color: #ffffff !important;
                     }
-                    
+
                     .dashboard-btn .dashboard-link .nav-label {
                         font-size: 14px;
                         color: #ffffff !important;
                     }
-                    
+
                     /* ========== REGLAS GLOBALES PARA ICONOS (MÁXIMA PRIORIDAD) ========== */
                     /* CRÍTICO: Sobrescribir regla de Inspinia que oculta spans en mini-navbar */
                     body.mini-navbar .navbar-default .nav li a i,
@@ -466,7 +469,7 @@
                         height: auto !important;
                         margin: 0 !important;
                     }
-                    
+
                     /* Forzar iconos visibles en TODAS las dimensiones - sobrescribe estilos inline */
                     .navbar-default .nav > li > a i,
                     .navbar-static-side #side-menu li a i,
@@ -480,7 +483,7 @@
                         width: auto !important;
                         height: auto !important;
                     }
-                    
+
                     /* Regla adicional para cuando el sidebar está minimizado */
                     .navbar-static-side[style*="width: 70px"] li a i,
                     .navbar-static-side[style*="width:70px"] li a i {
@@ -490,12 +493,12 @@
 
                     /* ========== ESTILOS UNIVERSALES PARA MODO MINIMIZADO ========== */
                     /* Aplica tanto en escritorio (body.mini-navbar) como en móvil (body:not(.mini-navbar) <768px) */
-                    
+
                     /* Cuando el menú está minimizado en escritorio (clase mini-navbar en body) */
                     body.mini-navbar .navbar-static-side {
                         width: 70px;
                     }
-                    
+
                     /* Iconos blancos en modo minimizado */
                     body.mini-navbar .navbar-default .nav > li > a i,
                     body.mini-navbar .nav > li > a i.fa,
@@ -508,7 +511,7 @@
                         visibility: visible !important;
                         color: #ffffff !important;
                     }
-                    
+
                     /* Submenús como tooltip al hacer hover cuando está minimizado - rojo oscuro */
                     body.mini-navbar .nav li .nav-second-level {
                         display: none !important;
@@ -524,19 +527,19 @@
                         max-height: 400px;
                         overflow-y: auto;
                     }
-                    
+
                     /* Mostrar submenú al hacer hover O al hacer clic (active) cuando está minimizado */
                     body.mini-navbar .nav > li:hover > .nav-second-level,
                     body.mini-navbar .nav > li.active > .nav-second-level {
                         display: block !important;
                     }
-                    
+
                     /* Estilos de items del submenu tooltip */
                     body.mini-navbar .nav li:hover .nav-second-level li,
                     body.mini-navbar .nav li.active .nav-second-level li {
                         border: none !important;
                     }
-                    
+
                     /* Ocultar iconos de los submenús en modo minimizado - ESCRITORIO (MÁXIMA ESPECIFICIDAD) */
                     body.mini-navbar .nav li .nav-second-level li a i,
                     body.mini-navbar .nav-second-level li a i,
@@ -553,7 +556,7 @@
                         margin: 0 !important;
                         padding: 0 !important;
                     }
-                    
+
                     body.mini-navbar .nav li:hover .nav-second-level li a,
                     body.mini-navbar .nav li.active .nav-second-level li a {
                         padding: 12px 20px !important;
@@ -563,44 +566,44 @@
                         border-left: 3px solid transparent;
                         background: transparent !important;
                     }
-                    
+
                     body.mini-navbar .nav li:hover .nav-second-level li a:hover,
                     body.mini-navbar .nav li.active .nav-second-level li a:hover {
                         background: rgba(255,255,255,0.15) !important;
                         border-left: 3px solid rgba(255,255,255,0.7) !important;
                         padding-left: 23px !important;
                     }
-                    
+
                     /* Hover en item principal minimizado */
                     body.mini-navbar .nav > li > a:hover {
                         background: rgba(255,255,255,0.12) !important;
                         border-left: 3px solid rgba(255,255,255,0.6);
                         transition: all 0.3s ease;
                     }
-                    
+
                     /* Indicador visual cuando está activo (clicked) */
                     body.mini-navbar .nav > li.active > a {
                         background: rgba(255,255,255,0.15) !important;
                         border-left: 3px solid rgba(255,255,255,0.8);
                     }
-                    
+
                     /* Ocultar textos y flechas en escritorio minimizado */
                     body.mini-navbar .nav li a span.nav-label,
                     body.mini-navbar .nav li a .fa.arrow {
                         display: none !important;
                     }
-                    
+
                     /* Centrar iconos */
                     body.mini-navbar .nav > li > a {
                         text-align: center;
                         padding: 14px 10px !important;
                     }
-                    
+
                     /* Ocultar búsqueda */
                     body.mini-navbar .search-sidebar {
                         display: none !important;
                     }
-                    
+
                     /* ========== FORZAR ICONOS VISIBLES EN MÓVIL ========== */
                     /* Reglas globales para asegurar iconos visibles en cualquier dimensión */
                     .navbar-default #side-menu > li > a > i,
@@ -612,7 +615,7 @@
                     }
 
                     /* ========== ESTILOS RESPONSIVOS PARA MÓVIL ========== */
-                    
+
                     /* Ajustes específicos para móvil - aplicar los mismos estilos que escritorio */
                     @media (max-width: 768px) {
                         /* Habilitar scroll dentro del menú lateral */
@@ -636,7 +639,7 @@
                         body:not(.mini-navbar) .navbar-static-side {
                             width: 70px !important;
                         }
-                        
+
                         /* Iconos en móvil CERRADO: centrados en la barra de 70px */
                         body:not(.mini-navbar):not(.mobile-sidebar-open) .navbar-default .nav > li > a i,
                         body:not(.mini-navbar):not(.mobile-sidebar-open) .nav > li > a i.fa,
@@ -654,7 +657,7 @@
                             min-width: 20px !important;
                             min-height: 20px !important;
                         }
-                        
+
                         /* Iconos en móvil ABIERTO: tamaño fijo, alineados izquierda */
                         body.mobile-sidebar-open .navbar-default .nav > li > a i,
                         body.mobile-sidebar-open #side-menu > li > a > i {
@@ -668,7 +671,7 @@
                             visibility: visible !important;
                             color: #ffffff !important;
                         }
-                        
+
                         /* Submenús tooltip en móvil (solo cuando el menú está cerrado/mini) */
                         body:not(.mini-navbar):not(.mobile-sidebar-open) .nav li .nav-second-level {
                             display: none !important;
@@ -684,13 +687,13 @@
                             max-height: 400px;
                             overflow-y: auto;
                         }
-                        
+
                         /* Mostrar submenu en hover/clic en móvil (solo cerrado/mini) */
                         body:not(.mini-navbar):not(.mobile-sidebar-open) .nav > li:hover > .nav-second-level,
                         body:not(.mini-navbar):not(.mobile-sidebar-open) .nav > li.active > .nav-second-level {
                             display: block !important;
                         }
-                        
+
                         /* Ocultar iconos de los submenús en modo mini (cerrado) */
                         body:not(.mini-navbar):not(.mobile-sidebar-open) .nav li .nav-second-level li a i,
                         body:not(.mini-navbar):not(.mobile-sidebar-open) .nav-second-level li a i,
@@ -701,7 +704,7 @@
                             height: 0 !important;
                             font-size: 0 !important;
                         }
-                        
+
                         /* Items de submenu tooltip en móvil cerrado */
                         body:not(.mini-navbar):not(.mobile-sidebar-open) .nav li:hover .nav-second-level li a,
                         body:not(.mini-navbar):not(.mobile-sidebar-open) .nav li.active .nav-second-level li a {
@@ -712,33 +715,33 @@
                             border-left: 3px solid transparent;
                             background: transparent !important;
                         }
-                        
+
                         body:not(.mini-navbar):not(.mobile-sidebar-open) .nav li:hover .nav-second-level li a:hover,
                         body:not(.mini-navbar):not(.mobile-sidebar-open) .nav li.active .nav-second-level li a:hover {
                             background: rgba(255,255,255,0.15) !important;
                             border-left: 3px solid rgba(255,255,255,0.7) !important;
                             padding-left: 23px !important;
                         }
-                        
+
                         /* Hover en iconos móvil cerrado */
                         body:not(.mini-navbar):not(.mobile-sidebar-open) .nav > li > a:hover {
                             background: rgba(255,255,255,0.12) !important;
                             border-left: 3px solid rgba(255,255,255,0.6);
                             transition: all 0.3s ease;
                         }
-                        
+
                         /* Item activo móvil cerrado */
                         body:not(.mini-navbar):not(.mobile-sidebar-open) .nav > li.active > a {
                             background: rgba(255,255,255,0.15) !important;
                             border-left: 3px solid rgba(255,255,255,0.8);
                         }
-                        
+
                         /* Ocultar textos y flechas en móvil mini (cerrado) */
                         body:not(.mini-navbar):not(.mobile-sidebar-open) .nav li a span.nav-label,
                         body:not(.mini-navbar):not(.mobile-sidebar-open) .nav li a .fa.arrow {
                             display: none !important;
                         }
-                        
+
                         /* Iconos alineados a la izquierda en móvil cerrado */
                         body:not(.mini-navbar):not(.mobile-sidebar-open) .nav > li > a {
                             text-align: left;
@@ -753,23 +756,23 @@
                             text-align: center !important;
                             margin-right: 0 !important;
                         }
-                        
+
                         /* Dashboard en móvil cerrado: icono a la izquierda */
                         body:not(.mini-navbar):not(.mobile-sidebar-open) .dashboard-btn .dashboard-link {
                             justify-content: flex-start !important;
                             padding: 14px 10px 14px 12px !important;
                         }
-                        
+
                         body:not(.mini-navbar):not(.mobile-sidebar-open) .dashboard-btn .dashboard-link i {
                             margin-right: 0 !important;
                             font-size: 18px;
                         }
-                        
+
                         /* Ocultar búsqueda en móvil cerrado */
                         body:not(.mini-navbar):not(.mobile-sidebar-open) .search-sidebar {
                             display: none !important;
                         }
-                        
+
                         /* === ESTADO ABIERTO (mobile-sidebar-open): icono + nombre === */
                         body.mobile-sidebar-open nav.navbar-static-side {
                             width: 220px !important;
@@ -781,7 +784,7 @@
                             padding-left: 0 !important;
                             margin-left: 0 !important;
                         }
-                        
+
                         body.mobile-sidebar-open .nav > li > a {
                             text-align: left !important;
                             padding: 10px 10px 10px 10px !important;
@@ -789,7 +792,7 @@
                             align-items: center !important;
                             margin: 0 !important;
                         }
-                        
+
                         body.mobile-sidebar-open .nav > li > a i {
                             font-size: 16px !important;
                             width: 20px !important;
@@ -799,19 +802,19 @@
                             margin-right: 8px !important;
                             margin-left: 0 !important;
                         }
-                        
+
                         /* Mostrar labels cuando está abierto */
                         body.mobile-sidebar-open .nav li a span.nav-label {
                             display: inline !important;
                             font-size: 13px !important;
                             color: #ffffff !important;
                         }
-                        
+
                         body.mobile-sidebar-open .nav li a .fa.arrow {
                             display: inline-block !important;
                             margin-left: auto !important;
                         }
-                        
+
                         /* Submenús inline cuando está abierto */
                         body.mobile-sidebar-open .nav li .nav-second-level {
                             display: none;
@@ -836,7 +839,7 @@
                             border-left: 3px solid rgba(255,255,255,0.7) !important;
                             color: #ffffff !important;
                         }
-                        
+
                         /* Dashboard en móvil abierto */
                         body.mobile-sidebar-open .dashboard-btn .dashboard-link {
                             justify-content: flex-start !important;
@@ -850,12 +853,12 @@
                             display: inline !important;
                             font-size: 13px !important;
                         }
-                        
+
                         /* Búsqueda visible cuando está abierto */
                         body.mobile-sidebar-open .search-sidebar {
                             display: block !important;
                         }
-                        
+
                         /* Ajustar contenido principal */
                         body:not(.mini-navbar) #page-wrapper {
                             margin-left: 0 !important;
@@ -863,7 +866,7 @@
                         body.mobile-sidebar-open #page-wrapper {
                             margin-left: 220px !important;
                         }
-                        
+
                         /* Forzar iconos visibles - solo móvil cerrado */
                         body:not(.mobile-sidebar-open) .navbar-default .nav > li > a i,
                         body:not(.mobile-sidebar-open) .navbar-static-side #side-menu li a i {
@@ -876,7 +879,7 @@
                             min-height: 20px !important;
                         }
                     }
-                    
+
                     /* Media query adicional para pantallas muy pequeñas */
                     @media (max-width: 480px) {
                         /* Forzar iconos con máxima especificidad */
@@ -1067,23 +1070,23 @@
                             margin-left: 260px !important;
                         }
                     }
-                    
+
                     /* Asegurar ancho 70px en escritorio minimizado */
                     body.mini-navbar .navbar-static-side {
                         width: 70px !important;
                     }
-                    
+
                     /* Ocultar textos y flechas en escritorio minimizado */
                     body.mini-navbar .nav li a span.nav-label,
                     body.mini-navbar .nav li a .fa.arrow {
                         display: none !important;
                     }
-                    
+
                     /* Ocultar búsqueda en escritorio minimizado */
                     body.mini-navbar .search-sidebar {
                         display: none !important;
                     }
-                    
+
                     /* Botón toggle para expandir/contraer en móvil */
                     @media (max-width: 768px) {
                         .navbar-minimalize {

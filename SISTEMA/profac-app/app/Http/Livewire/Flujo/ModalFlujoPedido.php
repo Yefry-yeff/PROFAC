@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use App\Models\PrefacturaAuditoria;
 use App\Models\CreditoRevision;
+use App\Events\FlujoAvanzadoEvent;
 
 /**
  * Modal reutilizable "Flujo del Pedido".
@@ -956,6 +957,24 @@ class ModalFlujoPedido extends Component
                     $this->ofertaSeleccionada  = null;
                     $this->mensajeExito = 'Oferta #' . $cotizacionId . ' marcada como ganadora. Crédito vigente — enviada a Revisión de Inventario.';
 
+                    // Notificar al personal de logística/inventario
+                    try {
+                        $flujoCtx = DB::table('flujo')
+                            ->where('id', $this->flujoId)
+                            ->select('nombre as cliente', 'id')
+                            ->first();
+                        event(new FlujoAvanzadoEvent(
+                            $this->flujoId,
+                            9,
+                            ['cliente' => $flujoCtx?->cliente ?? 'N/A', 'monto' => $cotizacion->total ?? null]
+                        ));
+                    } catch (\Throwable $notifEx) {
+                        \Log::error('NotificacionFlujo dispatch failed (tipo=9)', [
+                            'flujo_id' => $this->flujoId,
+                            'error'    => $notifEx->getMessage(),
+                        ]);
+                    }
+
                 } else {
                     // ── Sin crédito vigente: ir a Revisión de Crédito ────────
                     $fechaEmisionOferta = !empty($cotizacion->fecha_emision)
@@ -1032,6 +1051,25 @@ class ModalFlujoPedido extends Component
                     $this->confirmAccionOferta = null;
                     $this->ofertaSeleccionada  = null;
                     $this->mensajeExito = 'Oferta #' . $cotizacionId . ' marcada como ganadora y enviada a Revisión de Crédito.';
+
+                    // Notificar al personal de créditos y cobros
+                    try {
+                        \Log::info('[DIAG] Antes event tipo=10', ['flujo_id' => $this->flujoId]);
+                        $flujoCtx2 = DB::table('flujo')
+                            ->where('id', $this->flujoId)
+                            ->select('nombre as cliente')
+                            ->first();
+                        event(new FlujoAvanzadoEvent(
+                            $this->flujoId,
+                            10,
+                            ['cliente' => $flujoCtx2?->cliente ?? 'N/A', 'monto' => $cotizacion->total ?? null]
+                        ));
+                    } catch (\Throwable $notifEx) {
+                        \Log::error('NotificacionFlujo dispatch failed (tipo=10)', [
+                            'flujo_id' => $this->flujoId,
+                            'error'    => $notifEx->getMessage(),
+                        ]);
+                    }
                 }
 
                 $this->emit('pedidoActualizado');
@@ -1199,6 +1237,20 @@ class ModalFlujoPedido extends Component
             $this->confirmAccionOferta = null;
             $this->ofertaSeleccionada  = null;
             $this->mensajeExito = 'Prefactura #' . $prefacturaId . ' generada. Válida por ' . $diasValidez . ' día(s).';
+
+            // Notificar a facturadores (flujo sin revisión de inventario)
+            try {
+                event(new FlujoAvanzadoEvent(
+                    $this->flujoId,
+                    4,
+                    ['cliente' => $cotizacion->nombre_cliente ?? 'N/A', 'monto' => $cotizacion->total ?? null, 'referencia' => 'Prefactura #' . $prefacturaId]
+                ));
+            } catch (\Throwable $notifEx) {
+                \Log::error('NotificacionFlujo dispatch failed (tipo=4)', [
+                    'flujo_id' => $this->flujoId,
+                    'error'    => $notifEx->getMessage(),
+                ]);
+            }
             $this->emit('pedidoActualizado');
             $this->recargar();
 

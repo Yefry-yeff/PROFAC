@@ -3,6 +3,7 @@
 namespace App\Http\Livewire\Flujo;
 
 use Livewire\Component;
+use App\Events\FlujoAvanzadoEvent;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 
@@ -538,6 +539,25 @@ class RevicionInventario extends Component
             DB::commit();
 
             $flujoIdCerrado = $this->flujoId;
+
+            // Notificar a facturadores que hay una prefactura nueva
+            try {
+                $flujoCtx = DB::table('flujo')
+                    ->where('id', $flujoIdCerrado)
+                    ->select('nombre as cliente')
+                    ->first();
+                event(new FlujoAvanzadoEvent(
+                    $flujoIdCerrado,
+                    4,
+                    ['cliente' => $flujoCtx?->cliente ?? $cotizacion->nombre_cliente ?? 'N/A', 'monto' => $cotizacion->total ?? null, 'referencia' => 'Prefactura #' . $prefacturaId]
+                ));
+            } catch (\Throwable $notifEx) {
+                \Log::error('NotificacionFlujo dispatch failed (RevicionInventario tipo=4)', [
+                    'flujo_id' => $flujoIdCerrado,
+                    'error'    => $notifEx->getMessage(),
+                ]);
+            }
+
             $this->cerrarDetalle();
             $this->cargar();
             $this->mensajeExito = 'Flujo #' . $flujoIdCerrado . ': Prefactura #' . $prefacturaId . ' generada. Válida por ' . $diasValidez . ' día(s).';

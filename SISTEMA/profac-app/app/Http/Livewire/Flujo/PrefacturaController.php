@@ -11,6 +11,7 @@ use PDF;
 use App\Models\PrefacturaAuditoria;
 use App\Models\CreditoRevision;
 use App\Http\Livewire\Ventas\FacturacionCorporativa;
+use App\Events\FlujoAvanzadoEvent;
 use Carbon\Carbon;
 
 /**
@@ -115,14 +116,22 @@ class PrefacturaController
                 DB::table('prefactura_has_producto')->insert($arrayProductos);
             }
 
-            // ── Disminuir inventario ────────────────────────────────────────
-            // Only decrease stock for rows where resta_inventario is truthy
+            // ── Disminuir inventario (recibido_bodega) ─────────────────────
             foreach ($arrayProductos as $prod) {
                 if ($prod['resta_inventario'] && $prod['producto_id'] && $prod['seccion_id']) {
-                    DB::table('inventario')
+                    $restante = (float) $prod['cantidad'];
+                    $filas = DB::table('recibido_bodega')
                         ->where('producto_id', $prod['producto_id'])
-                        ->where('seccion_id', $prod['seccion_id'])
-                        ->decrement('existencia', $prod['cantidad'] * ($prod['unidad_medida_venta_id'] ? 1 : 1));
+                        ->where('seccion_id',  $prod['seccion_id'])
+                        ->where('cantidad_disponible', '>', 0)
+                        ->orderByDesc('cantidad_disponible')
+                        ->get(['id', 'cantidad_disponible']);
+                    foreach ($filas as $fila) {
+                        if ($restante <= 0) break;
+                        $descontar = min((float) $fila->cantidad_disponible, $restante);
+                        DB::table('recibido_bodega')->where('id', $fila->id)->decrement('cantidad_disponible', $descontar);
+                        $restante -= $descontar;
+                    }
                 }
             }
 
@@ -392,6 +401,27 @@ class PrefacturaController
                 }
 
                 DB::commit();
+
+                // Notificar al personal de créditos y cobros
+                if ($flujoId) {
+                    try {
+                        $flujoCtxCred = DB::table('flujo')
+                            ->where('id', $flujoId)
+                            ->select('nombre as cliente')
+                            ->first();
+                        event(new \App\Events\FlujoAvanzadoEvent(
+                            $flujoId,
+                            10,
+                            ['cliente' => $flujoCtxCred?->cliente ?? 'N/A', 'monto' => (float) ($cotizacion->total ?? 0)]
+                        ));
+                    } catch (\Throwable $notifEx) {
+                        \Log::error('NotificacionFlujo dispatch failed (PrefacturaController ganadora tipo=10)', [
+                            'flujo_id' => $flujoId,
+                            'error'    => $notifEx->getMessage(),
+                        ]);
+                    }
+                }
+
                 return response()->json([
                     'en_revision_credito' => true,
                     'cotizacionId'        => $cotizacionId,
@@ -690,6 +720,31 @@ class PrefacturaController
             }
 
             DB::commit();
+
+            // Notificar a Cobros y Entregas que hay una nueva factura en proceso
+            if ($flujoId) {
+                try {
+                    $flujoCtx = DB::table('flujo')
+                        ->where('id', $flujoId)
+                        ->select('nombre as cliente')
+                        ->first();
+                    $prefacturaData = DB::table('prefactura')->where('id', $id)->first();
+                    event(new FlujoAvanzadoEvent(
+                        $flujoId,
+                        3,
+                        [
+                            'cliente'    => $flujoCtx?->cliente ?? 'N/A',
+                            'monto'      => $prefacturaData?->total ?? null,
+                            'referencia' => 'Desde Prefactura #' . $id,
+                        ]
+                    ));
+                } catch (\Throwable $notifEx) {
+                    \Log::error('NotificacionFlujo dispatch failed (PrefacturaController tipo=3)', [
+                        'flujo_id' => $flujoId,
+                        'error'    => $notifEx->getMessage(),
+                    ]);
+                }
+            }
 
             $url = '/' . ltrim($tipoFactura->ruta_menu, '/')
                 . '?from=prefactura&prefactura_id=' . $id

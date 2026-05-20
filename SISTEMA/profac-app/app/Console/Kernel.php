@@ -2,6 +2,7 @@
 
 namespace App\Console;
 
+use App\Jobs\EscalarNotificacionesJob;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 
@@ -15,7 +16,8 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
-        // $schedule->command('inspire')->hourly();
+        // Verificar notificaciones sin leer y escalar según configuración
+        $schedule->job(new EscalarNotificacionesJob)->hourly();
     }
 
     /**
