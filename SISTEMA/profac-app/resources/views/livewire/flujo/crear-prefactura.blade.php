@@ -797,6 +797,31 @@
     </script>
     @endif
 
+    {{-- Select2 para vendedor + pre-selección desde oferta ganadora --}}
+    <script>
+    $(function() {
+        $('#vendedor').select2({
+            ajax: {
+                url: '/ventas/corporativo/vendedores',
+                data: function(params) {
+                    return { search: params.term, type: 'public', page: params.page || 1 };
+                }
+            }
+        });
+
+        @if(!empty($vendedorDefault))
+        (function() {
+            var opt = new Option(
+                '{{ addslashes($vendedorDefault['name']) }}',
+                '{{ $vendedorDefault['id'] }}',
+                true, true
+            );
+            $('#vendedor').append(opt).trigger('change');
+        })();
+        @endif
+    });
+    </script>
+
     <script>var public_path = "{{ asset('catalogo/') }}";</script>
     <script src="{{ asset('js/js_proyecto/flujo/oferta.js') }}"></script>
 

@@ -828,11 +828,18 @@ class PrefacturaController
             }
         }
 
-        // Prioridad: 1) revisión de crédito aprobada  → crédito (siempre gana)
+        // Prioridad: 1) revisión de crédito aprobada:
+        //               dias_credito_aprobados > 0 → crédito
+        //               dias_credito_aprobados = 0 → contado (venta contado aprobada en revisión)
+        //               dias_credito_aprobados NULL → preservar comportamiento anterior (crédito)
         //            2) tipo_pago_id explícito en la cotización ganadora (1=contado, 2=crédito)
         //            3) diferencia de fechas  → retrocompatibilidad con registros sin tipo_pago_id
         //            4) valor enviado por el frontend (contado por defecto)
-        if ($creditoAprobadoReg) {
+        if ($creditoAprobadoReg && !is_null($creditoAprobadoReg->dias_credito_aprobados)) {
+            // Registro nuevo: 0 = contado, > 0 = crédito
+            $tipoPago = ((int) $creditoAprobadoReg->dias_credito_aprobados > 0) ? 2 : 1;
+        } elseif ($creditoAprobadoReg) {
+            // Registro antiguo sin dias_credito_aprobados: preservar comportamiento anterior
             $tipoPago = 2;
         } elseif (!is_null($tipoPagoCotizacion)) {
             $tipoPago = (int) $tipoPagoCotizacion;

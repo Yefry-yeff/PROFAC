@@ -266,14 +266,23 @@ class ModalFlujoPedido extends Component
             ->count();
 
         // Construir pedidoData compatible con el blade del modal
+        // flujo.nombre tiene prioridad (fue actualizado al confirmar la factura)
+        $clienteNombre = $flujo->nombre
+            ?? ($cotizacion ? ($cotizacion->nombre_cliente ?? null) : null)
+            ?? ($facturaDirecta ? ($facturaDirecta->nombre_cliente ?? null) : null)
+            ?? '—';
+        $clienteRtn = $flujo->cliente_rtn
+            ?? ($cotizacion ? ($cotizacion->RTN ?? null) : null)
+            ?? ($facturaDirecta ? ($facturaDirecta->rtn ?? null) : null);
+
         $this->pedidoData = [
             'id'             => (int) $flujo->identificacion,
             'estado'         => 'activo',
             'observaciones'  => $cotizacion ? ($cotizacion->observaciones ?? null) : null,
-            'created_at'     => $cotizacion ? $cotizacion->created_at : $facturaDirecta->created_at,
-            'cliente'        => $cotizacion ? ($cotizacion->nombre_cliente ?? '—') : ($facturaDirecta->nombre_cliente ?? '—'),
-            'rtn'            => $cotizacion ? ($cotizacion->RTN ?? null) : ($facturaDirecta->rtn ?? null),
-            'cliente_id'     => $cotizacion ? ($cotizacion->cliente_id ?? null) : ($facturaDirecta->cliente_id ?? null),
+            'created_at'     => $cotizacion ? $cotizacion->created_at : ($facturaDirecta ? $facturaDirecta->created_at : $flujo->created_at),
+            'cliente'        => $clienteNombre,
+            'rtn'            => $clienteRtn,
+            'cliente_id'     => $cotizacion ? ($cotizacion->cliente_id ?? null) : ($facturaDirecta ? ($facturaDirecta->cliente_id ?? null) : null),
             'registrado_por' => null,
             'total_ofertas'  => $totalOfertas,
             'has_ganadora'   => $hasGanadora,
@@ -680,51 +689,62 @@ class ModalFlujoPedido extends Component
 
     public function verOferta(int $cotizacionId): void
     {
-        $row = DB::table('cotizacion as c')
-            ->leftJoin('historico_flujo as hf', function ($j) {
-                $j->on('hf.tramite_id', '=', 'c.id')
-                  ->where('hf.tipo_tramite_id', 2);
-            })
-            ->where('c.id', $cotizacionId)
-            ->select(
-                'c.id', 'c.nombre_cliente', 'c.RTN', 'c.total', 'c.isv',
-                'c.sub_total', 'c.porc_descuento', 'c.monto_descuento',
-                'c.fecha_emision', 'c.fecha_vencimiento', 'c.created_at', 'c.cliente_id',
-                'c.estado_id as cotizacion_estado_id',
-                'hf.observaciones as hf_observaciones'
-            )
-            ->first();
+        try {
+            $row = DB::table('cotizacion as c')
+                ->leftJoin('historico_flujo as hf', function ($j) {
+                    $j->on('hf.tramite_id', '=', 'c.id')
+                      ->where('hf.tipo_tramite_id', 2);
+                })
+                ->where('c.id', $cotizacionId)
+                ->select(
+                    'c.id', 'c.nombre_cliente', 'c.RTN', 'c.total', 'c.isv',
+                    'c.sub_total', 'c.porc_descuento', 'c.monto_descuento',
+                    'c.fecha_emision', 'c.fecha_vencimiento', 'c.created_at', 'c.cliente_id',
+                    'c.estado_id as cotizacion_estado_id',
+                    'hf.observaciones as hf_observaciones'
+                )
+                ->orderByDesc('hf.id')
+                ->first();
 
-        if (!$row) return;
+            if (!$row) {
+                $this->mensajeError = 'No se encontró la oferta #' . $cotizacionId . '.';
+                return;
+            }
 
-        $productos = DB::table('cotizacion_has_producto as chp')
-            ->leftJoin('precios_producto_carga as ppc', 'ppc.id', '=', 'chp.precios_producto_carga_id')
-            ->where('chp.cotizacion_id', $cotizacionId)
-            ->select(
-                'chp.nombre_producto', 'chp.cantidad', 'chp.precio_unidad', 'chp.total',
-                'chp.idPrecioSeleccionado', 'chp.precios_producto_carga_id',
-                // precio actual del sistema para el tipo elegido
-                DB::raw('CASE LOWER(TRIM(chp.idPrecioSeleccionado))
-                    WHEN "p1" THEN ppc.precio_a
-                    WHEN "p2" THEN ppc.precio_b
-                    WHEN "p3" THEN ppc.precio_c
-                    WHEN "p4" THEN ppc.precio_d
-                    WHEN "a" THEN ppc.precio_a
-                    WHEN "b" THEN ppc.precio_b
-                    WHEN "c" THEN ppc.precio_c
-                    WHEN "d" THEN ppc.precio_d
-                    ELSE ppc.precio_base_venta
-                END as precio_actual')
-            )
-            ->get()
-            ->map(fn($r) => (array) $r)
-            ->toArray();
+            $productos = DB::table('cotizacion_has_producto as chp')
+                ->leftJoin('precios_producto_carga as ppc', 'ppc.id', '=', 'chp.precios_producto_carga_id')
+                ->where('chp.cotizacion_id', $cotizacionId)
+                ->select(
+                    'chp.nombre_producto', 'chp.cantidad', 'chp.precio_unidad', 'chp.total',
+                    'chp.idPrecioSeleccionado', 'chp.precios_producto_carga_id',
+                    DB::raw("CASE LOWER(TRIM(chp.idPrecioSeleccionado))
+                        WHEN 'p1' THEN ppc.precio_a
+                        WHEN 'p2' THEN ppc.precio_b
+                        WHEN 'p3' THEN ppc.precio_c
+                        WHEN 'p4' THEN ppc.precio_d
+                        WHEN 'a'  THEN ppc.precio_a
+                        WHEN 'b'  THEN ppc.precio_b
+                        WHEN 'c'  THEN ppc.precio_c
+                        WHEN 'd'  THEN ppc.precio_d
+                        ELSE ppc.precio_base_venta
+                    END as precio_actual")
+                )
+                ->get()
+                ->map(fn($r) => (array) $r)
+                ->toArray();
 
-        $this->ofertaSeleccionada  = array_merge((array) $row, ['productos' => $productos]);
-        $this->confirmAccionOferta = null;
-        $this->motivoAnulOferta    = '';
-        $this->mensajeExito        = '';
-        $this->mensajeError        = '';
+            $this->ofertaSeleccionada  = array_merge((array) $row, ['productos' => $productos]);
+            $this->confirmAccionOferta = null;
+            $this->motivoAnulOferta    = '';
+            $this->mensajeExito        = '';
+            $this->mensajeError        = '';
+        } catch (\Throwable $e) {
+            $this->mensajeError = 'Error al cargar la oferta: ' . $e->getMessage();
+            \Illuminate\Support\Facades\Log::error('verOferta error', [
+                'cotizacion_id' => $cotizacionId,
+                'error'         => $e->getMessage(),
+            ]);
+        }
     }
 
     public function cerrarOferta(): void
@@ -1685,15 +1705,24 @@ class ModalFlujoPedido extends Component
         if (!$this->prefacturaData || !$this->flujoId) return;
 
         // Determinar tipo_pago con la misma lógica de prioridades que el backend:
-        // 1. credito_revision aprobado → Crédito
+        // 1. credito_revision aprobado:
+        //    - dias_credito_aprobados > 0  → Crédito
+        //    - dias_credito_aprobados = 0  → Contado (venta contado aprobada en revisión)
+        //    - dias_credito_aprobados NULL → mantener comportamiento anterior (Crédito)
         // 2. Cotización ganadora tiene días de crédito (fecha_vencimiento > fecha_emision) → Crédito
         // 3. Sin señal de crédito → Contado
         $tipoPago = 1;
 
         if (!empty($this->creditoRevisionData['estado']) &&
             $this->creditoRevisionData['estado'] === 'aprobado') {
-            // Revisión de crédito aprobada formalmente: siempre crédito
-            $tipoPago = 2;
+            $diasAprobados = $this->creditoRevisionData['dias_credito_aprobados'] ?? null;
+            if (!is_null($diasAprobados)) {
+                // Registro nuevo: 0 = contado, > 0 = crédito
+                $tipoPago = ((int) $diasAprobados > 0) ? 2 : 1;
+            } else {
+                // Registro antiguo sin dias_credito_aprobados: preservar comportamiento anterior
+                $tipoPago = 2;
+            }
         } else {
             // Verificar tipo_pago_id de la cotización vinculada a la prefactura
             $cotizacionId = (int) ($this->prefacturaData['cotizacion_id'] ?? 0);

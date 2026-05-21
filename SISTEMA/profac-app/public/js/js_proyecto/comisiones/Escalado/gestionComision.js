@@ -380,10 +380,38 @@ function toggleCalculoRol(rolId, checkbox) {
                     ? '<span class="rc-badge rc-badge-on"><i class="fa fa-circle"></i> Activo</span>'
                     : '<span class="rc-badge rc-badge-off"><i class="fa fa-circle"></i> Inactivo</span>';
 
-                // Corregir estado del checkbox
+                // Columna Último Cambio (índice 3) — actualizar sin recargar
+                if (d.modificado_por) {
+                    row.cells[3].innerHTML = '<i class="fa fa-user-o mr-1"></i>' + d.modificado_por;
+                }
+
+                // Corregir estado del checkbox y su tooltip
                 checkbox.checked  = activo;
                 checkbox.disabled = false;
+                checkbox.closest('label').title = activo ? 'Desactivar' : 'Activar';
             }
+
+            // Actualizar el array en memoria para que filtro/paginación sean consistentes
+            var idx = _rolesCalculo.findIndex(function(r){ return parseInt(r.id) === rolId; });
+            if (idx !== -1) {
+                _rolesCalculo[idx].calcular      = d.calcular;
+                _rolesCalculo[idx].modificado_por = d.modificado_por;
+                // Sincronizar también en _rolesFiltrados si aplica
+                var idxF = _rolesFiltrados.findIndex(function(r){ return parseInt(r.id) === rolId; });
+                if (idxF !== -1) {
+                    _rolesFiltrados[idxF].calcular      = d.calcular;
+                    _rolesFiltrados[idxF].modificado_por = d.modificado_por;
+                }
+            }
+
+            // Actualizar el contador de activos
+            var activos2 = _rolesCalculo.filter(function(r){ return parseInt(r.calcular)===1; }).length;
+            var textoF   = (_rolesFiltrados.length < _rolesCalculo.length)
+                ? _rolesFiltrados.length + ' encontrados &nbsp;/&nbsp; ' : '';
+            $('#rc-contador').html(
+                '<span style="font-weight:700;color:#15803d;">' + activos2 + ' activos</span>' +
+                ' &nbsp;/&nbsp; ' + textoF + _rolesCalculo.length + ' roles'
+            );
 
             Swal.fire({
                 icon:  activo ? 'success' : 'warning',
@@ -391,9 +419,6 @@ function toggleCalculoRol(rolId, checkbox) {
                 text:  'Rol "' + d.rol_nombre + '" ' + (activo ? 'ahora recibe comisiones.' : 'ya no recibirá comisiones al cerrar factura.'),
                 timer: 2500, showConfirmButton: false, toast: true, position: 'top-end'
             });
-
-            // Recargar para actualizar metadatos (modificado_por)
-            setTimeout(cargarRolesCalculo, 700);
         })
         .catch(function() {
             checkbox.checked  = !checkbox.checked;

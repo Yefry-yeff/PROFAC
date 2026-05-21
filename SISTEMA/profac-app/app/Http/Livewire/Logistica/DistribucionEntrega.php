@@ -654,7 +654,7 @@ class DistribucionEntrega extends Component
                 WHERE f.estado_factura_id IN (1, 2)
                 AND f.estado_venta_id = 1
                 AND f.cai = ?
-                AND f.fecha_emision >= CURDATE()
+                AND f.fecha_emision >= '2026-05-16'
                 AND NOT EXISTS (
                     SELECT 1 FROM distribuciones_entrega_facturas def
                     WHERE def.factura_id = f.id
@@ -697,10 +697,10 @@ class DistribucionEntrega extends Component
                             'success' => false,
                             'message' => 'Esta factura ya fue entregada'
                         ], 422);
-                    } elseif ($facturaInfo[0]->fecha_emision < date('Y-m-d')) {
+                    } elseif ($facturaInfo[0]->fecha_emision < date('Y-m-d', strtotime('-7 days'))) {
                         return response()->json([
                             'success' => false,
-                            'message' => 'Esta factura no es de hoy y no está disponible para distribución'
+                            'message' => 'Esta factura es anterior al 16/05/2026 y no está disponible para distribución'
                         ], 422);
                     }
 
@@ -765,7 +765,7 @@ class DistribucionEntrega extends Component
                 INNER JOIN cliente c ON f.cliente_id = c.id
                 WHERE f.estado_factura_id IN (1, 2)
                 AND f.estado_venta_id = 1
-                AND f.fecha_emision >= CURDATE()
+                AND f.fecha_emision >= '2026-05-16'
                 AND c.nombre LIKE ?
                 AND NOT EXISTS (
                     SELECT 1 FROM distribuciones_entrega_facturas def
@@ -831,7 +831,7 @@ class DistribucionEntrega extends Component
                 INNER JOIN cliente c ON f.cliente_id = c.id
                 WHERE f.estado_factura_id IN (1, 2)
                 AND f.estado_venta_id = 1
-                AND f.fecha_emision >= CURDATE()
+                AND f.fecha_emision >= '2026-05-16'
                 AND (f.cai LIKE ? OR f.numero_factura LIKE ? OR CAST(f.id AS CHAR) = ?)
                 AND NOT EXISTS (
                     SELECT 1 FROM distribuciones_entrega_facturas def
@@ -901,7 +901,7 @@ class DistribucionEntrega extends Component
                     (SELECT COUNT(*)
                      FROM factura f2
                      WHERE f2.cliente_id = c.id
-                     AND f2.fecha_emision >= CURDATE()
+                     AND f2.fecha_emision >= '2026-05-16'
                      AND f2.estado_factura_id IN (1, 2)
                      AND f2.estado_venta_id = 1
                      AND NOT EXISTS (
@@ -920,12 +920,12 @@ class DistribucionEntrega extends Component
                 INNER JOIN factura f ON c.id = f.cliente_id
                 WHERE f.estado_factura_id IN (1, 2)
                 AND f.estado_venta_id = 1
-                AND f.fecha_emision >= CURDATE()
+                AND f.fecha_emision >= '2026-05-16'
                 AND c.nombre LIKE ?
                 AND EXISTS (
                     SELECT 1 FROM factura f2
                     WHERE f2.cliente_id = c.id
-                    AND f2.fecha_emision >= CURDATE()
+                    AND f2.fecha_emision >= '2026-05-16'
                     AND f2.estado_factura_id IN (1, 2)
                     AND f2.estado_venta_id = 1
                     AND NOT EXISTS (
@@ -995,7 +995,7 @@ class DistribucionEntrega extends Component
                 WHERE f.cliente_id = ?
                 AND f.estado_factura_id IN (1, 2)
                 AND f.estado_venta_id = 1
-                AND f.fecha_emision >= CURDATE()
+                AND f.fecha_emision >= '2026-05-16'
                 AND NOT EXISTS (
                     SELECT 1 FROM distribuciones_entrega_facturas def
                     WHERE def.factura_id = f.id

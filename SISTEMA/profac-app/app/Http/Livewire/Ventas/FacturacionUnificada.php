@@ -420,11 +420,23 @@ class FacturacionUnificada extends Component
         $this->busquedaPrefactura     = '';
         $this->prefacturasEncontradas = [];
 
+        // Usar el vendedor guardado en la prefactura (viene de la oferta ganadora)
+        $vendedorId     = $this->vendedorDefault['id'] ?? null;
+        $vendedorNombre = $this->vendedorDefault['name'] ?? null;
+        if (!empty($pref->vendedor)) {
+            $userPref = DB::table('users')->where('id', $pref->vendedor)->first(['id', 'name']);
+            if ($userPref) {
+                $vendedorId     = $userPref->id;
+                $vendedorNombre = $userPref->name;
+                $this->vendedorDefault = ['id' => $userPref->id, 'name' => $userPref->name];
+            }
+        }
+
         $this->dispatchBrowserEvent('pedido-seleccionado', [
             'clienteId'      => $this->clientePedido['id'],
             'clienteNombre'  => $this->clientePedido['nombre'],
-            'vendedorId'     => $this->vendedorDefault['id'] ?? null,
-            'vendedorNombre' => $this->vendedorDefault['name'] ?? null,
+            'vendedorId'     => $vendedorId,
+            'vendedorNombre' => $vendedorNombre,
         ]);
     }
     /**

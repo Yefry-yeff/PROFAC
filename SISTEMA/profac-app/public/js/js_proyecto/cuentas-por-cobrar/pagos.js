@@ -16,6 +16,57 @@ $(document).on('hide.bs.modal', '.modal', function () {
     }
 });
 
+/* ── MENÚ CONTEXTUAL ACCIONES ────────────────────────────────────
+   Reemplaza el dropdown de Bootstrap para evitar el clipping de
+   table-responsive y la interferencia de estilos de Inspinia.
+   El menú usa position:fixed y detecta si abrir arriba o abajo.
+──────────────────────────────────────────────────────────────── */
+function apCtxToggle(btn) {
+    var $btn  = $(btn);
+    var $menu = $btn.siblings('.ap-ctx-menu');
+    var isOpen = $menu.is(':visible');
+
+    // Cerrar todos los menús abiertos
+    $('.ap-ctx-menu:visible').hide();
+
+    if (isOpen) return;
+
+    // Mover el menú al body para escapar del overflow del table-responsive
+    if (!$menu.data('ap-moved')) {
+        $menu.data('ap-origin', $menu.parent());
+        $menu.appendTo('body');
+        $menu.data('ap-moved', true);
+        $menu.data('ap-btn', $btn);
+    }
+
+    var rect    = btn.getBoundingClientRect();
+    var menuW   = 240;
+    var winW    = window.innerWidth;
+    var winH    = window.innerHeight;
+    var spaceB  = winH - rect.bottom - 6;
+    var spaceA  = rect.top - 6;
+
+    // Posición horizontal: alinear a la derecha del botón, ajustar si se sale
+    var left = rect.right - menuW;
+    if (left < 8) left = rect.left;
+    if (left + menuW > winW - 8) left = winW - menuW - 8;
+
+    // Posición vertical: abajo si hay espacio, arriba si no
+    $menu.css({ position: 'fixed', left: left, zIndex: 99999, display: 'block', top: -9999 });
+    var menuH = $menu.outerHeight(true);
+    var top   = (spaceB >= menuH || spaceB >= spaceA) ? rect.bottom + 4 : rect.top - menuH - 4;
+    $menu.css('top', top);
+}
+
+// Cerrar al hacer clic fuera
+$(document).on('click', function (e) {
+    if (!$(e.target).closest('.ap-ctx-wrap, .ap-ctx-menu').length) {
+        $('.ap-ctx-menu:visible').hide();
+    }
+});
+// Cerrar al hacer scroll
+$(window).on('scroll resize', function () { $('.ap-ctx-menu:visible').hide(); });
+
 
     $('#cliente').select2({
         ajax: {
@@ -256,6 +307,7 @@ function llamarTablas(){
     this.listarAbonos()
 
     $('#btnEC').removeClass('d-none');
+    $('#apStats').removeClass('d-none');
 
 
 }
@@ -356,6 +408,21 @@ function listarCuentasPorCobrar() {
                                 }
                             });
                         });
+
+                    // ── Stats cards ──
+                    var api = this.api();
+                    var rows = api.data().toArray();
+                    var fmt = function(n){ return 'L. '+parseFloat(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','); };
+                    $('#apStatFacturas').text(rows.length);
+                    $('#apStatCargo').text(fmt(rows.reduce(function(s,r){ return s+parseFloat(r.cargo||0); },0)));
+                    $('#apStatSaldo').text(fmt(rows.reduce(function(s,r){ return s+parseFloat(r.saldo||0); },0)));
+                    $('#apStatAbonado').text(fmt(rows.reduce(function(s,r){ return s+parseFloat(r.abonosCargo||0); },0)));
+                    // ── Badge pestaña Facturas ──
+                    $('#badge-facturas').text(rows.length);
+                },
+                drawCallback: function() {
+                    var count = this.api().data().count();
+                    $('#badge-facturas').text(count);
                 }
 
             });
@@ -455,6 +522,11 @@ function listarMovimientos() {
                                 }
                             });
                         });
+                    // ── Badge pestaña Movimientos ──
+                    $('#badge-movimientos').text(this.api().data().count());
+                },
+                drawCallback: function() {
+                    $('#badge-movimientos').text(this.api().data().count());
                 }
 
             });
@@ -538,6 +610,11 @@ function listarAbonos() {
                                 }
                             });
                         });
+                    // ── Badge pestaña Créditos y Abonos ──
+                    $('#badge-abonos').text(this.api().data().count());
+                },
+                drawCallback: function() {
+                    $('#badge-abonos').text(this.api().data().count());
                 }
 
             });
@@ -759,18 +836,18 @@ $(document).on('submit', '#formabonos', function(event) {
     }).then(function(response) {
         var preview = response.data;
 
-        if (preview.cerrara && preview.targets && preview.targets.length > 0) {
-            // Capturar FormData ANTES de ocultar el modal (el evento
-            // hidden.bs.modal limpia selectBanco, lo que causa banco_id=null)
+        if (preview.cerrara) {
+            // Capturar FormData ANTES de ocultar el modal
             _pendingAbonoData = new FormData($('#formabonos').get(0));
 
-            // Preparar el contenido ANTES de hacer cualquier cambio de modal
-            renderPreviewComisiones(preview.targets);
+            if (preview.targets && preview.targets.length > 0) {
+                renderPreviewComisiones(preview.targets);
+            } else {
+                // Cerrará la factura pero ningún rol tiene configuración activa
+                renderPreviewSinComisiones();
+            }
 
-            // Esperar a que #modalAbonos esté completamente oculto para abrir
-            // el preview (evita que el backdrop de Bootstrap bloquee los clics)
             $('#modalAbonos').one('hidden.bs.modal', function() {
-                // Limpiar cualquier backdrop residual
                 $('.modal-backdrop').remove();
                 $('body').removeClass('modal-open').css('padding-right', '');
                 $('#modalPreviewComisiones').modal('show');
@@ -787,6 +864,29 @@ $(document).on('submit', '#formabonos', function(event) {
         guardarCreditos();
     });
 });
+
+/* Renderiza aviso cuando la factura cierra pero ningún rol tiene configuración activa */
+function renderPreviewSinComisiones() {
+    var html =
+        '<div style="background:#f8fafc;border:1.5px solid #cbd5e1;border-radius:12px;overflow:hidden;">' +
+            '<div style="background:#475569;padding:12px 16px;display:flex;align-items:center;gap:10px;">' +
+                '<i class="fa fa-info-circle" style="color:#94a3b8;font-size:16px;"></i>' +
+                '<span style="color:#e2e8f0;font-size:12.5px;font-weight:700;letter-spacing:.2px;">Sin escala de comisiones aplicable</span>' +
+            '</div>' +
+            '<div style="padding:16px 18px;display:flex;align-items:flex-start;gap:14px;">' +
+                '<i class="fa fa-clock-o" style="color:#94a3b8;font-size:22px;margin-top:1px;flex-shrink:0;"></i>' +
+                '<div>' +
+                    '<p style="margin:0;font-size:13px;font-weight:700;color:#334155;">Esta factura no generará comisiones</p>' +
+                    '<p style="margin:6px 0 0;font-size:12px;color:#64748b;line-height:1.6;">' +
+                        'Es probable que esta factura sea anterior a la configuración actual de escalas de comisiones, ' +
+                        'o que los roles involucrados no tengan una escala activa asignada.<br>' +
+                        '<strong style="color:#475569;">El pago se registrará normalmente</strong>, pero no se procesará ninguna comisión automática.' +
+                    '</p>' +
+                '</div>' +
+            '</div>' +
+        '</div>';
+    $('#preview-comisiones-lista').html(html);
+}
 
 /* Renderiza la tabla de roles a comisionar en el modal de preview */
 function renderPreviewComisiones(targets) {

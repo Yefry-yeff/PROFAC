@@ -138,8 +138,8 @@ class ListarVentas extends Component
                 'f.id as flujo_id',
                 'f.created_at',
                 'p.id as pedido_id',
-                DB::raw("COALESCE(c.nombre, co.nombre_cliente, '—') as cliente"),
-                DB::raw("COALESCE(c.rtn, co.RTN, '—') as rtn"),
+                DB::raw("COALESCE(f.nombre, c.nombre, co.nombre_cliente, '—') as cliente"),
+                DB::raw("COALESCE(f.cliente_rtn, c.rtn, co.RTN, '—') as rtn"),
                 DB::raw("CASE
                     WHEN f.estado_id = 4 OR p.estado = 'cancelado' THEN 'cancelado'
                     ELSE COALESCE(tt.nombre, 'sin_flujo')
@@ -201,8 +201,10 @@ class ListarVentas extends Component
         if ($termRaw !== '') {
             $term = '%' . $termRaw . '%';
             $q->where(function ($sub) use ($term, $termRaw) {
-                $sub->where('c.nombre', 'LIKE', $term)
+                $sub->where('f.nombre', 'LIKE', $term)
+                    ->orWhere('c.nombre', 'LIKE', $term)
                     ->orWhere('co.nombre_cliente', 'LIKE', $term)
+                    ->orWhere('f.cliente_rtn', 'LIKE', $term)
                     ->orWhere('c.rtn', 'LIKE', $term)
                     ->orWhere('co.RTN', 'LIKE', $term)
                     ->orWhere('f.id', 'LIKE', $term)

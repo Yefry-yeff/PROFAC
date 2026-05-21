@@ -96,6 +96,7 @@ use App\Http\Livewire\Ventas\FacturacionUnificada;
 
 
 use App\Http\Livewire\CuentasPorCobrar\Pagos;
+use App\Http\Livewire\CuentasPorCobrar\EstadoCuentaVendedor;
 
 
 use App\Http\Livewire\Vale\CrearVale;
@@ -1064,7 +1065,12 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
 
     Route::get('/estadoCuenta/imprimir/aplicpagos/{idClientepdf}', [Pagos::class, 'imprimirEstadoCuenta']);
 
-
+    /////////////////////////////ESTADO DE CUENTA — CONSULTA VENDEDOR/////////////////////
+    Route::get('/estado_cuenta/vendedor', EstadoCuentaVendedor::class);
+    Route::get('/estado_cuenta/vendedor/clientes', [EstadoCuentaVendedor::class, 'listarClientes']);
+    Route::get('/estado_cuenta/vendedor/listar/{id}', [EstadoCuentaVendedor::class, 'listarEstadoCuenta']);
+    Route::get('/estado_cuenta/vendedor/pdf/{idClientepdf}', [EstadoCuentaVendedor::class, 'imprimirEstadoCuenta']);
+    ///////////////////////////////////////////////////////////////////////////////////
 
 
 

@@ -540,9 +540,16 @@ class FacturacionCorporativa extends Component
                 }
             }
 
+            // Obtener nombre_cliente y rtn desde la factura para sincronizar el flujo
+            $facturaClienteData = DB::table('factura')
+                ->where('id', $facturaId)
+                ->first(['nombre_cliente', 'rtn']);
+
             // 1. Actualizar flujo al estado Flujo conjunto (Entrega + Cobro)
             DB::table('flujo')->where('id', $flujoId)->update([
                 'tipo_tramite_id' => $TIPO_FLUJO_CONJUNTO,
+                'nombre'          => $facturaClienteData->nombre_cliente ?? null,
+                'cliente_rtn'     => $facturaClienteData->rtn ?? null,
                 'updated_by'      => Auth::id(),
                 'updated_at'      => now(),
             ]);

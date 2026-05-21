@@ -63,7 +63,7 @@ class CrearPrefactura extends Component
             $cot = DB::table('cotizacion as c')
                 ->leftJoin('cliente as cl', 'cl.id', '=', 'c.cliente_id')
                 ->where('c.id', $this->cotizacionId)
-                ->select('c.cliente_id', 'c.nombre_cliente', 'c.RTN', 'cl.rtn as cliente_rtn')
+                ->select('c.cliente_id', 'c.nombre_cliente', 'c.RTN', 'cl.rtn as cliente_rtn', 'c.users_id')
                 ->first();
 
             if ($cot) {
@@ -72,6 +72,17 @@ class CrearPrefactura extends Component
                     'nombre' => $cot->nombre_cliente,
                     'rtn'    => $cot->RTN ?: $cot->cliente_rtn,
                 ];
+
+                // Usar el vendedor de la oferta ganadora (quien la creó)
+                if ($cot->users_id) {
+                    $vendedorOferta = DB::table('users')->where('id', $cot->users_id)->value('name');
+                    if ($vendedorOferta) {
+                        $this->vendedorDefault = [
+                            'id'   => $cot->users_id,
+                            'name' => $vendedorOferta,
+                        ];
+                    }
+                }
             }
 
             // Load products for auto-cart
