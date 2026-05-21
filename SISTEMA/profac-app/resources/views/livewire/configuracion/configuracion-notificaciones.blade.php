@@ -12,7 +12,14 @@
 .cfg-card   { animation: cfgFadeUp .25s ease both; }
 .cfg-card:nth-child(2) { animation-delay:.05s; }
 .cfg-card:nth-child(3) { animation-delay:.1s; }
-.cfg-modal-content { animation: modalIn .22s ease-out both; }
+.cfg-modal-content { animation: modalIn .22s ease-out both; display:flex; flex-direction:column; }
+.cfg-modal-content .modal-header { flex-shrink: 0; }
+.cfg-modal-content .modal-footer { flex-shrink: 0; }
+.cfg-modal-body { min-height: 0; scrollbar-width: thin; scrollbar-color: #d1d5db transparent; }
+.cfg-modal-body::-webkit-scrollbar { width: 5px; }
+.cfg-modal-body::-webkit-scrollbar-track { background: transparent; }
+.cfg-modal-body::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 99px; }
+.cfg-modal-body::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
 
 /* â”€â”€ Hero header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .cfg-hero {
@@ -95,10 +102,10 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
                     </ol>
                 </nav>
                 <h2 class="mb-0 text-white font-weight-bold" style="font-size:1.5rem; letter-spacing:-.3px;">
-                    <i class="fa fa-bell mr-2" style="opacity:.9;"></i> ConfiguraciÃ³n de Notificaciones
+                    <i class="fa fa-bell mr-2" style="opacity:.9;"></i> Configuración de Notificaciones
                 </h2>
                 <p class="mb-0 mt-1" style="font-size:12px; opacity:.7;">
-                    Define quiÃ©n recibe alertas en cada etapa del flujo de trabajo
+                    Define quién recibe alertas en cada etapa del flujo de trabajo
                 </p>
             </div>
             <div class="d-flex align-items-center gap-2">
@@ -144,10 +151,10 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
                     <i class="fa fa-exclamation-triangle text-warning mr-2"></i>
                     <div>
                         <strong style="font-size:13px; color:#92400e;">
-                            {{ count($rolesIncompletos) }} roles con jerarquÃ­a incompleta
+                            {{ count($rolesIncompletos) }} roles con jerarquía incompleta
                         </strong>
                         <span class="ml-2" style="font-size:12px; color:#b45309;">
-                            â€” Las reglas por Ã¡rea no funcionarÃ¡n para estos roles
+                            — Las reglas por área no funcionarán para estos roles
                         </span>
                     </div>
                 </div>
@@ -168,7 +175,7 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
                                 <span style="font-size:12px; color:#78350f;">
                                     <i class="fa fa-user-tag mr-1 text-warning"></i>
                                     <strong>{{ $rolInc['nombre'] }}</strong>
-                                    <span class="text-muted"> â€” falta: {{ $rolInc['falta'] }}</span>
+                                    <span class="text-muted"> — falta: {{ $rolInc['falta'] }}</span>
                                 </span>
                             </div>
                         @endforeach
@@ -200,9 +207,9 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
                         <thead>
                             <tr>
                                 <th>Destino</th>
-                                <th>Nivel mÃ¡ximo</th>
+                                <th>Nivel máximo</th>
                                 <th>Cobertura</th>
-                                <th>EscalaciÃ³n</th>
+                                <th>Escalación</th>
                                 <th class="text-center" style="width:80px;">Activo</th>
                                 <th class="text-center" style="width:90px;">Acciones</th>
                             </tr>
@@ -223,7 +230,7 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
                                                 <span style="width:28px;height:28px;background:linear-gradient(135deg,#f0fdf4,#dcfce7);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
                                                     <i class="fa fa-users text-success" style="font-size:11px;"></i>
                                                 </span>
-                                                <span>Ãrea: <strong style="color:#1e293b;">{{ $reg['area_nombre'] }}</strong></span>
+                                                <span>Área: <strong style="color:#1e293b;">{{ $reg['area_nombre'] }}</strong></span>
                                             </span>
                                         @else
                                             <span class="text-muted font-italic" style="font-size:12px;">Sin targeting</span>
@@ -236,7 +243,7 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
                                                 {{ $reg['nivel_max_nombre'] }}
                                             </span>
                                         @else
-                                            <span class="text-muted">â€”</span>
+                                            <span class="text-muted">—</span>
                                         @endif
                                     </td>
                                     <td>
@@ -252,10 +259,10 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
                                         @if($reg['escalar_activo'])
                                             <span style="display:inline-flex;align-items:center;gap:5px;background:#fffbeb;color:#92400e;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600;border:1px solid #fde68a;">
                                                 <i class="fa fa-arrow-up text-warning" style="font-size:10px;"></i>
-                                                {{ $reg['escalar_horas'] }}h â†’ {{ $reg['escalar_nivel'] ?? '?' }}
+                                                {{ $reg['escalar_horas'] }}h → {{ $reg['escalar_nivel'] ?? '?' }}
                                             </span>
                                         @else
-                                            <span class="text-muted">â€”</span>
+                                            <span class="text-muted">—</span>
                                         @endif
                                     </td>
                                     <td class="text-center">
@@ -273,7 +280,7 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
                                             <i class="fa fa-edit"></i>
                                         </button>
                                         <button wire:click="eliminar({{ $reg['id'] }})"
-                                                wire:confirm="Â¿Eliminar esta regla de notificaciÃ³n?"
+                                                wire:confirm="¿Eliminar esta regla de notificación?"
                                                 class="btn btn-xs"
                                                 style="background:linear-gradient(135deg,#fee2e2,#fecaca);color:#dc2626;border:none;border-radius:6px;padding:4px 8px;"
                                                 title="Eliminar">
@@ -296,7 +303,7 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
                     </div>
                     <h5 style="color:#475569;font-weight:700;">Sin reglas configuradas</h5>
                     <p class="text-muted mb-3" style="font-size:13px;">
-                        Define quiÃ©n debe recibir notificaciones en cada etapa del flujo.
+                        Define quién debe recibir notificaciones en cada etapa del flujo.
                     </p>
                     <button wire:click="nuevaRegla" class="btn btn-primary"
                             style="border-radius:8px; padding:8px 24px; font-size:13px;">
@@ -311,22 +318,23 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
     {{-- â•â• MODAL crear / editar â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• --}}
     @if($showModal)
     <div class="modal fade show d-block" tabindex="-1" role="dialog"
-         style="background:rgba(15,23,42,.55); backdrop-filter:blur(3px);">
-        <div class="modal-dialog modal-lg" role="document" style="margin-top:60px;">
+         style="background:rgba(2,8,23,.65); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);">
+        <div class="modal-dialog modal-lg" role="document"
+             style="margin: 4vh auto; max-width:720px;">
             <div class="modal-content cfg-modal-content"
-                 style="border:none; border-radius:16px; overflow:hidden;
-                        box-shadow:0 20px 60px rgba(0,0,0,.25);">
+                 style="border:none; border-radius:16px;
+                        box-shadow:0 25px 60px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.15);">
 
                 {{-- Header --}}
                 <div class="modal-header"
                      style="background:linear-gradient(135deg,#1e3a5f 0%,#2563eb 100%);
-                            border:none; padding:18px 24px;">
+                            border:none; padding:18px 24px; border-radius:16px 16px 0 0;">
                     <div class="d-flex align-items-center gap-3">
                         <div style="width:36px;height:36px;background:rgba(255,255,255,.15);border-radius:10px;display:flex;align-items:center;justify-content:center;">
                             <i class="fa fa-bell text-white" style="font-size:15px;"></i>
                         </div>
                         <h5 class="modal-title mb-0 text-white font-weight-bold" style="font-size:15px;">
-                            {{ $editandoId ? 'Editar Regla de NotificaciÃ³n' : 'Nueva Regla de NotificaciÃ³n' }}
+                            {{ $editandoId ? 'Editar Regla de Notificación' : 'Nueva Regla de Notificación' }}
                         </h5>
                     </div>
                     <button wire:click="$set('showModal', false)"
@@ -336,7 +344,10 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
                 </div>
 
                 {{-- Body --}}
-                <div class="modal-body" style="padding:24px; background:#fff;">
+                <div class="modal-body cfg-modal-body"
+                     style="padding:24px; background:#fff; overflow-y:auto;
+                            max-height:calc(85vh - 130px);
+                            scrollbar-width:thin; scrollbar-color:#d1d5db transparent;">
                     <div class="row">
 
                         {{-- Estado del flujo --}}
@@ -347,7 +358,7 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
                             <select wire:model="tipoTramiteId"
                                     class="form-control @error('tipoTramiteId') is-invalid @enderror"
                                     style="border-radius:8px; border-color:#e2e8f0; font-size:13px; height:40px;">
-                                <option value="">â€” Seleccionar etapa â€”</option>
+                                <option value="">— Seleccionar etapa —</option>
                                 @foreach($tiposTramites as $tt)
                                     <option value="{{ $tt['id'] }}">{{ $tt['nombre'] }}</option>
                                 @endforeach
@@ -363,11 +374,11 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
                             <div class="d-flex gap-3">
                                 <label style="cursor:pointer;display:flex;align-items:center;gap:8px;padding:10px 16px;border-radius:8px;border:2px solid {{ $targetTipo==='rol' ? '#2563eb' : '#e2e8f0' }};background:{{ $targetTipo==='rol' ? '#eff6ff' : '#fff' }};transition:.15s;font-size:13px;">
                                     <input type="radio" wire:model="targetTipo" value="rol" style="accent-color:#2563eb;">
-                                    <i class="fa fa-user-tag text-primary"></i> Rol especÃ­fico
+                                    <i class="fa fa-user-tag text-primary"></i> Rol específico
                                 </label>
                                 <label style="cursor:pointer;display:flex;align-items:center;gap:8px;padding:10px 16px;border-radius:8px;border:2px solid {{ $targetTipo==='area' ? '#16a34a' : '#e2e8f0' }};background:{{ $targetTipo==='area' ? '#f0fdf4' : '#fff' }};transition:.15s;font-size:13px;">
                                     <input type="radio" wire:model="targetTipo" value="area" style="accent-color:#16a34a;">
-                                    <i class="fa fa-users text-success"></i> Ãrea / Departamento
+                                    <i class="fa fa-users text-success"></i> Área / Departamento
                                 </label>
                             </div>
                         </div>
@@ -381,7 +392,7 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
                                 <select wire:model="rolId"
                                         class="form-control @error('rolId') is-invalid @enderror"
                                         style="border-radius:8px; border-color:#e2e8f0; font-size:13px; height:40px;">
-                                    <option value="">â€” Seleccionar rol â€”</option>
+                                    <option value="">— Seleccionar rol —</option>
                                     @foreach($roles as $r)
                                         <option value="{{ $r['id'] }}">{{ $r['nombre'] }}</option>
                                     @endforeach
@@ -396,7 +407,7 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
                                 @if(count($areas) === 0)
                                     <div class="alert alert-warning d-flex align-items-center justify-content-between py-2"
                                          style="border-radius:8px; font-size:12px;">
-                                        <span><i class="fa fa-exclamation-triangle mr-1"></i> No hay Ã¡reas configuradas.</span>
+                                        <span><i class="fa fa-exclamation-triangle mr-1"></i> No hay áreas configuradas.</span>
                                         <a href="{{ route('configuracion.jerarquia') }}" class="btn btn-xs btn-warning ml-3" target="_blank">
                                             <i class="fa fa-sitemap mr-1"></i> Configurar
                                         </a>
@@ -405,12 +416,12 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
                                     <div class="row">
                                         <div class="col-md-6">
                                             <label class="font-weight-bold mb-1" style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:#475569;">
-                                                Ãrea <span class="text-danger">*</span>
+                                                Área <span class="text-danger">*</span>
                                             </label>
                                             <select wire:model="areaId"
                                                     class="form-control @error('areaId') is-invalid @enderror"
                                                     style="border-radius:8px; border-color:#e2e8f0; font-size:13px; height:40px;">
-                                                <option value="">â€” Seleccionar Ã¡rea â€”</option>
+                                                <option value="">— Seleccionar área —</option>
                                                 @foreach($areas as $a)
                                                     <option value="{{ $a['id'] }}">{{ $a['nombre'] }}</option>
                                                 @endforeach
@@ -419,7 +430,7 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
                                         </div>
                                         <div class="col-md-6">
                                             <label class="font-weight-bold mb-1" style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:#475569;">
-                                                Nivel mÃ¡ximo
+                                                Nivel máximo
                                             </label>
                                             @if(count($niveles) === 0)
                                                 <div class="alert alert-warning py-2 d-flex align-items-center justify-content-between"
@@ -433,12 +444,12 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
                                                 <select wire:model="nivelMaxId"
                                                         class="form-control"
                                                         style="border-radius:8px; border-color:#e2e8f0; font-size:13px; height:40px;">
-                                                    <option value="">â€” Todos los niveles â€”</option>
+                                                    <option value="">— Todos los niveles —</option>
                                                     @foreach($niveles as $n)
                                                         <option value="{{ $n['id'] }}">{{ $n['nombre'] }}</option>
                                                     @endforeach
                                                 </select>
-                                                <small class="text-muted" style="font-size:11px;">Ej: "Colaborador" â†’ solo ese nivel y debajo.</small>
+                                                <small class="text-muted" style="font-size:11px;">Ej: "Colaborador" → solo ese nivel y debajo.</small>
                                             @endif
                                         </div>
                                     </div>
@@ -458,10 +469,10 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
                                 <div>
                                     <div class="d-flex align-items-center gap-2">
                                         <i class="fa fa-arrow-up text-warning"></i>
-                                        <strong style="font-size:13px; color:#1e293b;">EscalaciÃ³n automÃ¡tica</strong>
+                                        <strong style="font-size:13px; color:#1e293b;">Escalación automática</strong>
                                     </div>
                                     <small class="text-muted d-block mt-1" style="font-size:11px;">
-                                        Si no se lee en N horas, se notificarÃ¡ al nivel superior.
+                                        Si no se lee en N horas, se notificará al nivel superior.
                                     </small>
                                 </div>
                                 <label class="toggle-switch mb-0">
@@ -474,7 +485,7 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
                         @if($escalarActivo)
                             <div class="col-md-6 mb-3">
                                 <label class="font-weight-bold mb-1" style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:#475569;">
-                                    Escalar despuÃ©s de (horas) <span class="text-danger">*</span>
+                                    Escalar después de (horas) <span class="text-danger">*</span>
                                 </label>
                                 <input type="number" wire:model="escalarHoras"
                                        class="form-control @error('escalarHoras') is-invalid @enderror"
@@ -498,7 +509,7 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
                                     <select wire:model="escalarNivelId"
                                             class="form-control @error('escalarNivelId') is-invalid @enderror"
                                             style="border-radius:8px; border-color:#e2e8f0; font-size:13px; height:40px;">
-                                        <option value="">â€” Seleccionar nivel â€”</option>
+                                        <option value="">— Seleccionar nivel —</option>
                                         @foreach($niveles as $n)
                                             <option value="{{ $n['id'] }}">{{ $n['nombre'] }}</option>
                                         @endforeach

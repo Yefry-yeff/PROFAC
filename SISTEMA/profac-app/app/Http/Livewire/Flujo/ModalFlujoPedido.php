@@ -2018,6 +2018,26 @@ class ModalFlujoPedido extends Component
                 DB::table('historico_flujo')
                     ->where('id', $cobroHist->id)
                     ->update($actualizarCobro);
+
+                // Notificar cobro completado (solo cuando estado_id cambia a 1)
+                if (isset($actualizarCobro['estado_id']) && $actualizarCobro['estado_id'] === 1 && $this->flujoId) {
+                    try {
+                        event(new FlujoAvanzadoEvent(
+                            $this->flujoId,
+                            6,
+                            [
+                                'cliente'    => $this->cobroFacturaData['nombre']  ?? 'N/A',
+                                'monto'      => $this->cobroFacturaData['total']   ?? null,
+                                'referencia' => 'Factura #' . ($this->cobroFacturaData['cai'] ?? $facturaId),
+                            ]
+                        ));
+                    } catch (\Throwable $notifEx) {
+                        \Log::error('NotificacionFlujo dispatch failed (ModalFlujoPedido tipo=6)', [
+                            'flujo_id' => $this->flujoId,
+                            'error'    => $notifEx->getMessage(),
+                        ]);
+                    }
+                }
             }
         }
 
@@ -2031,6 +2051,10 @@ class ModalFlujoPedido extends Component
                 ->exists();
 
             if ($entregaCompletada) {
+                $flujoYaFinalizado = DB::table('flujo')
+                    ->where('id', $this->flujoId)
+                    ->value('tipo_tramite_id') === 8;
+
                 DB::table('flujo')
                     ->where('id', $this->flujoId)
                     ->update([
@@ -2038,6 +2062,26 @@ class ModalFlujoPedido extends Component
                         'updated_by'      => Auth::id(),
                         'updated_at'      => now(),
                     ]);
+
+                // Notificar flujo finalizado (solo la primera vez)
+                if (!$flujoYaFinalizado) {
+                    try {
+                        event(new FlujoAvanzadoEvent(
+                            $this->flujoId,
+                            8,
+                            [
+                                'cliente'    => $this->cobroFacturaData['nombre'] ?? 'N/A',
+                                'monto'      => $this->cobroFacturaData['total']  ?? null,
+                                'referencia' => 'Factura #' . ($this->cobroFacturaData['cai'] ?? ''),
+                            ]
+                        ));
+                    } catch (\Throwable $notifEx) {
+                        \Log::error('NotificacionFlujo dispatch failed (ModalFlujoPedido tipo=8)', [
+                            'flujo_id' => $this->flujoId,
+                            'error'    => $notifEx->getMessage(),
+                        ]);
+                    }
+                }
             }
         }
 
