@@ -622,8 +622,8 @@
                                         </div>
                                     </div>
                                 </div>
-                                {{-- ── N° Orden de Compra y Forma F01 (solo cotizaciones) ──────── --}}
-                                @if(($config->codigo ?? '') === 'cotizacion_clientes_a')
+                                {{-- ── N° Orden de Compra y Forma F01 (cotizaciones y facturación SR/Clientes A) ──────── --}}
+                                @if(in_array(($config->codigo ?? ''), ['cotizacion_clientes_a', 'sin_restriccion_gobierno']))
                                 <div class="col-12 col-md-4">
                                     <label class="ofr-label">N° Orden de Compra</label>
                                     <div class="input-group input-group-sm">
