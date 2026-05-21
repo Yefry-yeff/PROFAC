@@ -66,7 +66,7 @@
         <div class="card border border-dark" style="margin-bottom:3px;">
             <div class="card-header" style="position:relative; padding:5px 10px;">
                 <b>Oferta No. {{ $datos->codigo }}</b>
-                <b style="position:absolute; right:10px; top:5px;">Oferta de: Cotización</b>
+                <b style="position:absolute; right:10px; top:5px;">Oferta de: {{ ucfirst($datos->tipo_pago ?? 'contado') }}</b>
             </div>
             <div class="card-body" style="padding:4px 10px;">
                 <p><b>Registro tributario: 08011986138652</b></p>
@@ -276,7 +276,7 @@
     <div class="card border border-dark" style="margin-left:44px; margin-top:3px; width:45rem;">
         <div class="card-header">
             <b>Oferta No. {{ $datos->codigo }}</b>
-            <b style="position:absolute;right:10px">Oferta de: Cotización</b>
+            <b style="position:absolute;right:10px">Oferta de: {{ ucfirst($datos->tipo_pago ?? 'contado') }}</b>
         </div>
         <div class="card-body">
             <p style="position:absolute;left:20px; top:50px;"><b>Registro tributario: 08011986138652</b></p>
