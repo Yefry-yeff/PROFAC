@@ -459,6 +459,135 @@
 .ap-modal .modal-content { overflow: visible; }
 .ap-modal.modal { overflow-y: auto !important; }
 .ap-modal .modal-dialog { overflow: visible !important; }
+
+/* ── HERO BANNER ── */
+.ap-hero {
+    background: linear-gradient(135deg, #1a202c 0%, #2d3748 60%, #4a5568 100%);
+    border-radius: 16px; padding: 28px 32px; margin: 24px 0 0;
+    color: #fff; display: flex; align-items: center; gap: 20px;
+    box-shadow: 0 8px 32px rgba(0,0,0,.18);
+    animation: ap-fadeInUp .45s ease both;
+    position: relative; overflow: hidden;
+}
+.ap-hero::before {
+    content:''; position: absolute; top:-40px; right:-40px;
+    width: 180px; height: 180px; border-radius: 50%;
+    background: rgba(243,156,18,.12); pointer-events: none;
+}
+.ap-hero::after {
+    content:''; position: absolute; bottom:-50px; right:80px;
+    width: 120px; height: 120px; border-radius: 50%;
+    background: rgba(243,156,18,.07); pointer-events: none;
+}
+.ap-hero-icon {
+    width: 56px; height: 56px; border-radius: 14px;
+    background: rgba(243,156,18,.2); border: 2px solid rgba(243,156,18,.4);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; color: #f39c12; flex-shrink: 0;
+}
+.ap-hero-body h3 { margin: 0; font-size: 18px; font-weight: 800; letter-spacing: .3px; }
+.ap-hero-body p  { margin: 4px 0 0; font-size: 12px; color: rgba(255,255,255,.65); }
+
+/* ── STAT CARDS ── */
+.ap-stat-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 14px; margin-top: 18px;
+    animation: ap-fadeInUp .5s .2s ease both;
+}
+.ap-stat-card {
+    background: #fff; border-radius: 12px; padding: 16px 18px;
+    border-left: 4px solid #f39c12;
+    box-shadow: 0 3px 14px rgba(0,0,0,.06);
+    transition: transform .15s, box-shadow .15s;
+}
+.ap-stat-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,.1); }
+.ap-stat-card.blue  { border-left-color: #4299e1; }
+.ap-stat-card.green { border-left-color: #48bb78; }
+.ap-stat-card.red   { border-left-color: #e53e3e; }
+.ap-stat-label {
+    font-size: 10px; font-weight: 700; color: #a0aec0;
+    text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px;
+}
+.ap-stat-value {
+    font-size: 20px; font-weight: 800; color: #2d3748;
+    font-variant-numeric: tabular-nums;
+}
+.ap-stat-value.red { color: #e53e3e; }
+
+/* ── MENÚ CONTEXTUAL ACCIONES ── */
+.ap-ctx-wrap { display: inline-block; }
+.ap-ctx-menu {
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 24px 64px rgba(0,0,0,.18), 0 4px 18px rgba(0,0,0,.10);
+    padding: 6px;
+    min-width: 236px;
+    border: 1px solid rgba(0,0,0,.06);
+    animation: ap-fadeInUp .15s ease both;
+}
+.ap-ctx-section {
+    padding: 6px 10px 2px;
+    font-size: 9.5px;
+    font-weight: 800;
+    color: #b0bac9;
+    text-transform: uppercase;
+    letter-spacing: .7px;
+}
+.ap-ctx-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 9px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #374151;
+    text-decoration: none !important;
+    cursor: pointer;
+    transition: background .12s;
+    line-height: 1;
+}
+.ap-ctx-item:hover { background: #f4f6fa; color: #111827 !important; text-decoration: none !important; }
+.ap-ctx-item.ap-ctx-highlight {
+    background: linear-gradient(90deg, #f0fdf4, #e6fffa);
+    color: #065f46 !important;
+    font-weight: 700;
+}
+.ap-ctx-item.ap-ctx-highlight:hover { background: linear-gradient(90deg,#dcfce7,#ccfbf1); }
+.ap-ctx-item.ap-ctx-dimmed { opacity: .4; cursor: default; pointer-events: none; }
+.ap-ctx-icon {
+    width: 30px; height: 30px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; font-size: 13px;
+}
+.ap-ctx-icon.ci-blue   { background:#eff6ff; color:#3b82f6; }
+.ap-ctx-icon.ci-red    { background:#fef2f2; color:#ef4444; }
+.ap-ctx-icon.ci-yellow { background:#fffbeb; color:#d97706; }
+.ap-ctx-icon.ci-green  { background:#f0fdf4; color:#16a34a; }
+.ap-ctx-icon.ci-orange { background:#fff7ed; color:#ea580c; }
+.ap-ctx-icon.ci-gray   { background:#f8fafc; color:#64748b; }
+.ap-ctx-icon.ci-teal   { background:#f0fdfa; color:#0d9488; }
+.ap-ctx-divider { height: 1px; background: #f1f5f9; margin: 4px 6px; }
+/* Botón Acciones */
+.ap-actions-toggle {
+    background: #1e293b !important;
+    color: #f8fafc !important;
+    border: none !important;
+    border-radius: 7px !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    padding: 5px 12px !important;
+    white-space: nowrap !important;
+    cursor: pointer !important;
+    letter-spacing: .3px !important;
+    transition: background .15s !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 5px !important;
+}
+.ap-actions-toggle:hover { background: #334155 !important; }
 </style>
 @endpush
 
@@ -480,6 +609,18 @@
 
 {{-- ===== SEARCH CARD ===== --}}
 <div class="wrapper wrapper-content pb-0">
+
+{{-- Hero banner --}}
+<div class="ap-hero">
+    <div class="ap-hero-icon">
+        <i class="fa-solid fa-money-bill-wave"></i>
+    </div>
+    <div class="ap-hero-body">
+        <h3>Aplicación de Pagos</h3>
+        <p>Gestione cobros, notas de crédito/débito y movimientos de cuentas por cobrar.</p>
+    </div>
+</div>
+
 <div class="ap-search-card">
     <div class="ap-search-title">
         <i class="fa fa-file-invoice" style="color:#f39c12;"></i>
@@ -501,6 +642,26 @@
                 <i class="fa fa-file-pdf-o"></i> Estado de Cuenta
             </button>
         </div>
+    </div>
+</div>
+
+{{-- ===== STAT CARDS ===== --}}
+<div class="ap-stat-row d-none" id="apStats">
+    <div class="ap-stat-card">
+        <div class="ap-stat-label"><i class="fa fa-list mr-1"></i> Facturas Pendientes</div>
+        <div class="ap-stat-value" id="apStatFacturas">—</div>
+    </div>
+    <div class="ap-stat-card blue">
+        <div class="ap-stat-label"><i class="fa fa-dollar mr-1"></i> Total Cargo</div>
+        <div class="ap-stat-value" id="apStatCargo">—</div>
+    </div>
+    <div class="ap-stat-card red">
+        <div class="ap-stat-label"><i class="fa-solid fa-scale-unbalanced-flip mr-1"></i> Saldo Total</div>
+        <div class="ap-stat-value red" id="apStatSaldo">—</div>
+    </div>
+    <div class="ap-stat-card green">
+        <div class="ap-stat-label"><i class="fa fa-check-circle mr-1"></i> Total Abonado</div>
+        <div class="ap-stat-value" id="apStatAbonado">—</div>
     </div>
 </div>
 

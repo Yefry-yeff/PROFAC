@@ -417,12 +417,14 @@ class Configuracion extends Component
             ]
         );
 
-        $rolNombre = DB::table('rol')->where('id', $rolId)->value('nombre');
+        $rolNombre     = DB::table('rol')->where('id', $rolId)->value('nombre');
+        $modificadoPor = Auth::user()->name ?? null;
 
         return response()->json([
-            'calcular'    => $nuevoEstado,
-            'rol_id'      => $rolId,
-            'rol_nombre'  => $rolNombre,
+            'calcular'       => $nuevoEstado,
+            'rol_id'         => $rolId,
+            'rol_nombre'     => $rolNombre,
+            'modificado_por' => $modificadoPor,
         ]);
     }
 
