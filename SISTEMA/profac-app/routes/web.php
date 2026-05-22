@@ -845,6 +845,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::post('/cotizacion/obtener/listado', [ListarCotizaciones::class, 'listarCotizaciones']);
     Route::get('/cotizacion/imprimir/{id}', [Cotizacion::class, 'imprimirCotizacion']);
     Route::get('/cotizacion/imprimir/catalogo/{id}', [Cotizacion::class, 'imprimirCatalogo']);
+    Route::get('/oferta/{id}/ficha-pdf', [Cotizacion::class, 'fichaProductosPdf']);
     Route::get('/proforma/imprimir/{id}', [Cotizacion::class, 'imprimirProforma']);
     Route::get('/cotizacion/validar-proforma/{id}', [Cotizacion::class, 'validarProforma']);
     Route::get('/cotizacion/por-pedido/{pedidoId}', [Cotizacion::class, 'ofertasPorPedido']);

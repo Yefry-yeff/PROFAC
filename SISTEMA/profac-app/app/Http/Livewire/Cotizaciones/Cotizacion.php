@@ -790,6 +790,74 @@ class Cotizacion extends Component
 
     }
 
+    public function fichaProductosPdf($ofertaId)
+    {
+        if (!Auth::check()) { abort(403); }
+
+        $id = (int) $ofertaId;
+        if ($id <= 0) { abort(404); }
+
+        $oferta = DB::selectOne("
+            SELECT c.id, c.nombre_cliente, c.RTN, c.fecha_emision, c.fecha_vencimiento,
+                   c.sub_total, c.isv, c.total, c.monto_descuento, c.porc_descuento,
+                   u.name as registrado_por
+            FROM cotizacion c
+            LEFT JOIN users u ON u.id = c.users_id
+            WHERE c.id = ?
+        ", [$id]);
+
+        if (!$oferta) { abort(404); }
+
+        $productos = DB::select("
+            SELECT
+                p.id,
+                p.nombre,
+                p.descripcion,
+                p.codigo_barra,
+                p.codigo_estatal,
+                FORMAT(chp.cantidad, 0) as cantidad,
+                FORMAT(chp.precio_unidad, 2) as precio,
+                FORMAT(chp.sub_total, 2) as sub_total,
+                IF(p.isv = 0, 'Exento', 'Gravado') as tipo_isv,
+                um.nombre as medida,
+                sc.descripcion as sub_categoria,
+                cp.descripcion as categoria,
+                m.nombre as marca
+            FROM cotizacion_has_producto chp
+            INNER JOIN producto p ON chp.producto_id = p.id
+            INNER JOIN unidad_medida_venta umv ON chp.unidad_medida_venta_id = umv.id
+            INNER JOIN unidad_medida um ON um.id = umv.unidad_medida_id
+            INNER JOIN sub_categoria sc ON sc.id = p.sub_categoria_id
+            INNER JOIN categoria_producto cp ON cp.id = sc.categoria_producto_id
+            INNER JOIN marca m ON m.id = p.marca_id
+            WHERE chp.cotizacion_id = ?
+            ORDER BY chp.indice ASC
+        ", [$id]);
+
+        // Fetch images per product (max 2 per product, lightweight)
+        $imagenes = [];
+        if (!empty($productos)) {
+            $productoIds = array_map(fn($p) => $p->id, $productos);
+            $imgs = DB::table('img_producto')
+                ->select('producto_id', 'url_img')
+                ->whereIn('producto_id', $productoIds)
+                ->orderBy('producto_id')->orderBy('id')
+                ->get();
+            foreach ($imgs as $img) {
+                if (!isset($imagenes[$img->producto_id]) || count($imagenes[$img->producto_id]) < 2) {
+                    $imagenes[$img->producto_id][] = $img->url_img;
+                }
+            }
+        }
+
+        $descargadoPor = Auth::user()->name;
+
+        $pdf = PDF::loadView('pdf/ficha-productos-oferta', compact('oferta', 'productos', 'imagenes', 'descargadoPor'))
+            ->setPaper('letter', 'portrait');
+
+        return $pdf->download("Catalogo_Oferta_{$id}.pdf");
+    }
+
     public function imprimirProforma($idFactura)
     {
 

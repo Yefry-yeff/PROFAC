@@ -330,7 +330,7 @@
             <div>
                 <p class="prod-name">
                     <i class="fa fa-cube mr-2" style="color:#e74c3c;"></i>
-                    {{ ucwords(strtolower($producto->nombre)) }}
+                    {{ mb_convert_case($producto->nombre, MB_CASE_TITLE, 'UTF-8') }}
                     <small>#{{ $producto->id }}</small>
                 </p>
             </div>

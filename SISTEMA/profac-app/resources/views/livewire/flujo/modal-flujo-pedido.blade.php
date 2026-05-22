@@ -940,6 +940,13 @@
                             <i class="mr-1 fa fa-print"></i> Imprimir
                         </a>
 
+                        <a href="/oferta/{{ $ofertaSeleccionada['id'] }}/ficha-pdf" target="_blank"
+                           style="text-align:center; background:linear-gradient(135deg,#27ae60,#1e8449); color:#fff;
+                                  border:none; border-radius:8px; padding:5px 10px;
+                                  font-size:11px; font-weight:700; text-decoration:none; display:inline-block;">
+                            <i class="mr-1 fa fa-file-pdf-o"></i> Catálogo PDF
+                        </a>
+
                         @if (!$facturaCompletada && !$esGanDet && !$esAnuDet && !$esVencDet && !$tieneGanadora)
                         <button type="button" wire:click="confirmarAccionOferta('ganadora')"
                                 style="background:linear-gradient(135deg,#1ab394,#0fa37a); color:#fff;
