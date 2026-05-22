@@ -35,63 +35,6 @@
         @endif
 
         {{-- ══════════════════════════════════════════════════════════════ --}}
-        {{-- MÓDULO DE CONFIGURACIÓN                                       --}}
-        {{-- ══════════════════════════════════════════════════════════════ --}}
-        <div class="row">
-            <div class="col-lg-12">
-                <div class="ibox" style="border-radius:14px; overflow:hidden; box-shadow:0 2px 12px rgba(0,0,0,.07);">
-                    <div class="ibox-title d-flex align-items-center justify-content-between"
-                         style="background:linear-gradient(135deg,#34495e,#2c3e50); border:none; padding:12px 20px;">
-                        <h5 style="color:#fff; margin:0; font-weight:700; font-size:14px;">
-                            <i class="mr-2 fa fa-cogs"></i>Configuración del flujo
-                        </h5>
-                        <span style="background:rgba(255,255,255,.15); color:#ecf0f1; border-radius:20px;
-                                     padding:3px 12px; font-size:11px; font-weight:600;">
-                            {{ $configuracionActiva ? 'ACTIVO' : 'INACTIVO' }}
-                        </span>
-                    </div>
-                    <div class="ibox-content" style="padding:20px 24px;">
-                        <div class="row align-items-center">
-                            <div class="col-md-8">
-                                <h5 style="font-weight:700; color:#2c3e50; margin-bottom:6px;">
-                                    <i class="mr-2 fa fa-toggle-{{ $configuracionActiva ? 'on text-success' : 'off text-muted' }}"></i>
-                                    Activar revisión de inventario antes de Prefactura
-                                </h5>
-                                <p class="text-muted" style="font-size:13px; margin:0;">
-                                    @if ($configuracionActiva)
-                                        <span style="color:#27ae60; font-weight:600;">
-                                            <i class="fa fa-check-circle mr-1"></i>Activado:
-                                        </span>
-                                        El flujo será: <strong>Oferta Ganadora → Revisión de Inventario → Prefactura</strong>
-                                    @else
-                                        <span style="color:#7f8c8d; font-weight:600;">
-                                            <i class="fa fa-times-circle mr-1"></i>Desactivado:
-                                        </span>
-                                        El flujo actual es: <strong>Oferta Ganadora → Prefactura</strong> (sin revisión intermedia)
-                                    @endif
-                                </p>
-                            </div>
-                            <div class="col-md-4 text-right">
-                                <button type="button" wire:click="toggleConfiguracion"
-                                        wire:loading.attr="disabled"
-                                        class="btn {{ $configuracionActiva ? 'btn-danger' : 'btn-success' }}"
-                                        style="border-radius:8px; font-weight:700; min-width:160px;">
-                                    <span wire:loading.remove wire:target="toggleConfiguracion">
-                                        <i class="mr-1 fa fa-{{ $configuracionActiva ? 'toggle-off' : 'toggle-on' }}"></i>
-                                        {{ $configuracionActiva ? 'Desactivar' : 'Activar' }}
-                                    </span>
-                                    <span wire:loading wire:target="toggleConfiguracion">
-                                        <i class="fa fa-spinner fa-spin mr-1"></i> Guardando...
-                                    </span>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        {{-- ══════════════════════════════════════════════════════════════ --}}
         {{-- VISTA DETALLE (cuando hay un flujo seleccionado)              --}}
         {{-- ══════════════════════════════════════════════════════════════ --}}
         @if ($flujoId)
@@ -487,9 +430,9 @@
                         {{-- Pestañas --}}
                         <div style="display:flex;">
                             @foreach ([
-                                'llegando'   => ['label' => 'Llegando',        'icon' => 'fa-inbox',       'count' => count($bandejaRegistros)],
-                                'devueltos'  => ['label' => 'Devueltos',       'icon' => 'fa-reply',       'count' => count($bandejaDevueltos)],
-                                'prefactura' => ['label' => 'En Prefactura',   'icon' => 'fa-file-text-o', 'count' => count($bandejaPrefactura)],
+                                'llegando'   => ['label' => 'Llegando',        'icon' => 'fa-inbox',       'count' => $totalLlegando],
+                                'devueltos'  => ['label' => 'Devueltos',       'icon' => 'fa-reply',       'count' => $totalDevueltos],
+                                'prefactura' => ['label' => 'En Prefactura',   'icon' => 'fa-file-text-o', 'count' => $totalPrefactura],
                             ] as $tabKey => $tabInfo)
                             <button type="button" wire:click="cambiarTab('{{ $tabKey }}')"
                                     style="flex:1; padding:10px 14px; border:none; cursor:pointer; font-size:13px;
@@ -512,7 +455,7 @@
 
                         {{-- ══ Pestaña: Llegando ══ --}}
                         @if ($tabActiva === 'llegando')
-                        @if (count($bandejaRegistros) === 0)
+                        @if ($totalLlegando === 0)
                         <div style="padding:40px; text-align:center; color:#aaa;">
                             <i class="fa fa-inbox d-block" style="font-size:40px; margin-bottom:12px; opacity:.3;"></i>
                             @if ($configuracionActiva)
@@ -590,11 +533,32 @@
                                 </tbody>
                             </table>
                         </div>
+                        {{-- Paginación Llegando --}}
+                        @if ($totalLlegando > $porPagina)
+                        @php $totalPagsL = (int) ceil($totalLlegando / $porPagina); @endphp
+                        <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 16px; border-top:1px solid #f0f0f0; background:#f8f9fc;">
+                            <span style="font-size:12px; color:#64748b;">
+                                Mostrando {{ ($paginaLlegando-1)*$porPagina+1 }}–{{ min($paginaLlegando*$porPagina, $totalLlegando) }} de {{ $totalLlegando }}
+                            </span>
+                            <div style="display:flex; gap:4px; align-items:center;">
+                                <button wire:click="cambiarPagina('llegando', {{ max(1,$paginaLlegando-1) }})" {{ $paginaLlegando<=1 ? 'disabled' : '' }}
+                                        style="border:1px solid #e2e8f0; background:#fff; color:#374151; border-radius:6px; padding:4px 10px; font-size:13px; cursor:pointer; {{ $paginaLlegando<=1 ? 'opacity:.4;cursor:not-allowed;' : '' }}">&#8249;</button>
+                                @for ($pg = max(1,$paginaLlegando-2); $pg <= min($totalPagsL,$paginaLlegando+2); $pg++)
+                                <button wire:click="cambiarPagina('llegando', {{ $pg }})"
+                                        style="border:1px solid {{ $paginaLlegando===$pg ? '#1a7efb' : '#e2e8f0' }}; background:{{ $paginaLlegando===$pg ? '#1a7efb' : '#fff' }}; color:{{ $paginaLlegando===$pg ? '#fff' : '#374151' }}; border-radius:6px; padding:4px 10px; font-size:12px; font-weight:{{ $paginaLlegando===$pg ? '700' : '400' }}; cursor:pointer;">
+                                    {{ $pg }}
+                                </button>
+                                @endfor
+                                <button wire:click="cambiarPagina('llegando', {{ min($totalPagsL,$paginaLlegando+1) }})" {{ $paginaLlegando>=$totalPagsL ? 'disabled' : '' }}
+                                        style="border:1px solid #e2e8f0; background:#fff; color:#374151; border-radius:6px; padding:4px 10px; font-size:13px; cursor:pointer; {{ $paginaLlegando>=$totalPagsL ? 'opacity:.4;cursor:not-allowed;' : '' }}">&#8250;</button>
+                            </div>
+                        </div>
+                        @endif
                         @endif
 
                         {{-- ══ Pestaña: Devueltos ══ --}}
                         @elseif ($tabActiva === 'devueltos')
-                        @if (count($bandejaDevueltos) === 0)
+                        @if ($totalDevueltos === 0)
                         <div style="padding:40px; text-align:center; color:#aaa;">
                             <i class="fa fa-reply d-block" style="font-size:40px; margin-bottom:12px; opacity:.3;"></i>
                             <p style="font-size:14px; margin:0;">No hay flujos devueltos a Oferta todavía.</p>
@@ -685,11 +649,32 @@
                                 </tbody>
                             </table>
                         </div>
+                        {{-- Paginación Devueltos --}}
+                        @if ($totalDevueltos > $porPagina)
+                        @php $totalPagsD = (int) ceil($totalDevueltos / $porPagina); @endphp
+                        <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 16px; border-top:1px solid #f0f0f0; background:#f8f9fc;">
+                            <span style="font-size:12px; color:#64748b;">
+                                Mostrando {{ ($paginaDevueltos-1)*$porPagina+1 }}–{{ min($paginaDevueltos*$porPagina, $totalDevueltos) }} de {{ $totalDevueltos }}
+                            </span>
+                            <div style="display:flex; gap:4px; align-items:center;">
+                                <button wire:click="cambiarPagina('devueltos', {{ max(1,$paginaDevueltos-1) }})" {{ $paginaDevueltos<=1 ? 'disabled' : '' }}
+                                        style="border:1px solid #e2e8f0; background:#fff; color:#374151; border-radius:6px; padding:4px 10px; font-size:13px; cursor:pointer; {{ $paginaDevueltos<=1 ? 'opacity:.4;cursor:not-allowed;' : '' }}">&#8249;</button>
+                                @for ($pg = max(1,$paginaDevueltos-2); $pg <= min($totalPagsD,$paginaDevueltos+2); $pg++)
+                                <button wire:click="cambiarPagina('devueltos', {{ $pg }})"
+                                        style="border:1px solid {{ $paginaDevueltos===$pg ? '#e67e22' : '#e2e8f0' }}; background:{{ $paginaDevueltos===$pg ? '#e67e22' : '#fff' }}; color:{{ $paginaDevueltos===$pg ? '#fff' : '#374151' }}; border-radius:6px; padding:4px 10px; font-size:12px; font-weight:{{ $paginaDevueltos===$pg ? '700' : '400' }}; cursor:pointer;">
+                                    {{ $pg }}
+                                </button>
+                                @endfor
+                                <button wire:click="cambiarPagina('devueltos', {{ min($totalPagsD,$paginaDevueltos+1) }})" {{ $paginaDevueltos>=$totalPagsD ? 'disabled' : '' }}
+                                        style="border:1px solid #e2e8f0; background:#fff; color:#374151; border-radius:6px; padding:4px 10px; font-size:13px; cursor:pointer; {{ $paginaDevueltos>=$totalPagsD ? 'opacity:.4;cursor:not-allowed;' : '' }}">&#8250;</button>
+                            </div>
+                        </div>
+                        @endif
                         @endif
 
                         {{-- ══ Pestaña: En Prefactura ══ --}}
                         @else
-                        @if (count($bandejaPrefactura) === 0)
+                        @if ($totalPrefactura === 0)
                         <div style="padding:40px; text-align:center; color:#aaa;">
                             <i class="fa fa-file-text-o d-block" style="font-size:40px; margin-bottom:12px; opacity:.3;"></i>
                             <p style="font-size:14px; margin:0;">Ningún flujo ha sido aprobado a Prefactura aún.</p>
@@ -778,6 +763,27 @@
                                 </tbody>
                             </table>
                         </div>
+                        {{-- Paginación Prefactura --}}
+                        @if ($totalPrefactura > $porPagina)
+                        @php $totalPagsP = (int) ceil($totalPrefactura / $porPagina); @endphp
+                        <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 16px; border-top:1px solid #f0f0f0; background:#f8f9fc;">
+                            <span style="font-size:12px; color:#64748b;">
+                                Mostrando {{ ($paginaPrefactura-1)*$porPagina+1 }}–{{ min($paginaPrefactura*$porPagina, $totalPrefactura) }} de {{ $totalPrefactura }}
+                            </span>
+                            <div style="display:flex; gap:4px; align-items:center;">
+                                <button wire:click="cambiarPagina('prefactura', {{ max(1,$paginaPrefactura-1) }})" {{ $paginaPrefactura<=1 ? 'disabled' : '' }}
+                                        style="border:1px solid #e2e8f0; background:#fff; color:#374151; border-radius:6px; padding:4px 10px; font-size:13px; cursor:pointer; {{ $paginaPrefactura<=1 ? 'opacity:.4;cursor:not-allowed;' : '' }}">&#8249;</button>
+                                @for ($pg = max(1,$paginaPrefactura-2); $pg <= min($totalPagsP,$paginaPrefactura+2); $pg++)
+                                <button wire:click="cambiarPagina('prefactura', {{ $pg }})"
+                                        style="border:1px solid {{ $paginaPrefactura===$pg ? '#2e7d32' : '#e2e8f0' }}; background:{{ $paginaPrefactura===$pg ? '#2e7d32' : '#fff' }}; color:{{ $paginaPrefactura===$pg ? '#fff' : '#374151' }}; border-radius:6px; padding:4px 10px; font-size:12px; font-weight:{{ $paginaPrefactura===$pg ? '700' : '400' }}; cursor:pointer;">
+                                    {{ $pg }}
+                                </button>
+                                @endfor
+                                <button wire:click="cambiarPagina('prefactura', {{ min($totalPagsP,$paginaPrefactura+1) }})" {{ $paginaPrefactura>=$totalPagsP ? 'disabled' : '' }}
+                                        style="border:1px solid #e2e8f0; background:#fff; color:#374151; border-radius:6px; padding:4px 10px; font-size:13px; cursor:pointer; {{ $paginaPrefactura>=$totalPagsP ? 'opacity:.4;cursor:not-allowed;' : '' }}">&#8250;</button>
+                            </div>
+                        </div>
+                        @endif
                         @endif
 
                         @endif {{-- /tabActiva --}}

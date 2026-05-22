@@ -439,7 +439,7 @@
                         <div style="display:flex; align-items:center; gap:10px;">
                             <span style="background:rgba(255,255,255,.15); color:#ecf0f1; border-radius:20px;
                                          padding:3px 14px; font-size:12px; font-weight:600;">
-                                {{ count($bandejaLlegando) }} pendiente(s)
+                                {{ $totalLlegando }} pendiente(s)
                             </span>
                         </div>
                     </div>
@@ -476,9 +476,9 @@
                         <div style="padding:0 20px; border-bottom:2px solid #e8eaf0;">
                             <ul class="nav" style="gap:0; border:none;">
                                 @foreach ([
-                                    ['llegando',   'fa-inbox',         'Llegando',  count($bandejaLlegando),   '#1a5276'],
-                                    ['aprobadas',  'fa-check-circle',  'Aprobadas', count($bandejaAprobadas),  '#27ae60'],
-                                    ['rechazadas', 'fa-times-circle',  'Rechazadas',count($bandejaRechazadas), '#e74c3c'],
+                                    ['llegando',   'fa-inbox',         'Llegando',  $totalLlegando,   '#1a5276'],
+                                    ['aprobadas',  'fa-check-circle',  'Aprobadas', $totalAprobadas,  '#27ae60'],
+                                    ['rechazadas', 'fa-times-circle',  'Rechazadas',$totalRechazadas, '#e74c3c'],
                                 ] as [$tab, $icon, $label, $count, $color])
                                 <li class="nav-item">
                                     <button type="button"
@@ -508,11 +508,21 @@
                                 'rechazadas' => $bandejaRechazadas,
                                 default      => $bandejaLlegando,
                             };
+                            $totalRegistros = match($tabActiva) {
+                                'aprobadas'  => $totalAprobadas,
+                                'rechazadas' => $totalRechazadas,
+                                default      => $totalLlegando,
+                            };
+                            $paginaActual = match($tabActiva) {
+                                'aprobadas'  => $paginaAprobadas,
+                                'rechazadas' => $paginaRechazadas,
+                                default      => $paginaLlegando,
+                            };
                             $esSoloLectura = in_array($tabActiva, ['aprobadas', 'rechazadas']);
                         @endphp
 
                         <div style="padding:16px 20px 20px;">
-                            @if (count($registros) === 0)
+                            @if ($totalRegistros === 0)
                             <div style="text-align:center; padding:40px; color:#aab;">
                                 <i class="fa fa-inbox fa-3x d-block mb-3" style="opacity:.3;"></i>
                                 <p style="font-size:14px; margin:0;">
@@ -614,6 +624,27 @@
                                     </tbody>
                                 </table>
                             </div>
+                            {{-- Paginación --}}
+                            @if ($totalRegistros > $porPagina)
+                            @php $totalPags = (int) ceil($totalRegistros / $porPagina); @endphp
+                            <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 4px; border-top:1px solid #f0f0f0; margin-top:4px;">
+                                <span style="font-size:12px; color:#64748b;">
+                                    Mostrando {{ ($paginaActual-1)*$porPagina+1 }}–{{ min($paginaActual*$porPagina, $totalRegistros) }} de {{ $totalRegistros }}
+                                </span>
+                                <div style="display:flex; gap:4px; align-items:center;">
+                                    <button wire:click="cambiarPagina('{{ $tabActiva }}', {{ max(1,$paginaActual-1) }})" {{ $paginaActual<=1 ? 'disabled' : '' }}
+                                            style="border:1px solid #e2e8f0; background:#fff; color:#374151; border-radius:6px; padding:4px 10px; font-size:13px; cursor:pointer; {{ $paginaActual<=1 ? 'opacity:.4;cursor:not-allowed;' : '' }}">&#8249;</button>
+                                    @for ($pg = max(1,$paginaActual-2); $pg <= min($totalPags,$paginaActual+2); $pg++)
+                                    <button wire:click="cambiarPagina('{{ $tabActiva }}', {{ $pg }})"
+                                            style="border:1px solid {{ $paginaActual===$pg ? '#1a5276' : '#e2e8f0' }}; background:{{ $paginaActual===$pg ? '#1a5276' : '#fff' }}; color:{{ $paginaActual===$pg ? '#fff' : '#374151' }}; border-radius:6px; padding:4px 10px; font-size:12px; font-weight:{{ $paginaActual===$pg ? '700' : '400' }}; cursor:pointer;">
+                                        {{ $pg }}
+                                    </button>
+                                    @endfor
+                                    <button wire:click="cambiarPagina('{{ $tabActiva }}', {{ min($totalPags,$paginaActual+1) }})" {{ $paginaActual>=$totalPags ? 'disabled' : '' }}
+                                            style="border:1px solid #e2e8f0; background:#fff; color:#374151; border-radius:6px; padding:4px 10px; font-size:13px; cursor:pointer; {{ $paginaActual>=$totalPags ? 'opacity:.4;cursor:not-allowed;' : '' }}">&#8250;</button>
+                                </div>
+                            </div>
+                            @endif
                             @endif
                         </div>
 

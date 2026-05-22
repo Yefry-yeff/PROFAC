@@ -119,9 +119,22 @@ $(document).ready(function() {
             { "data": "nombre", "name": "nombre" },
             { "data": "descripcion", "name": "descripcion" },
             { "data": "codigo_barra", "name": "codigo_barra" },
-            { "data": "ISV", "name": "ISV", "searchable": false },
+            {
+                "data": "ISV", "name": "ISV", "searchable": false,
+                "render": function(data) {
+                    if (data == 0)  return '<span class="badge-isv-exento">Exento</span>';
+                    if (data == 15) return '<span class="badge-isv-15">15%</span>';
+                    if (data == 18) return '<span class="badge-isv-18">18%</span>';
+                    return '<span class="badge-isv-15">' + data + '%</span>';
+                }
+            },
             { "data": "categoria", "name": "categoria" },
-            { "data": "existencia", "name": "existencia", "searchable": false },
+            {
+                "data": "existencia", "name": "existencia", "searchable": false,
+                "render": function(data) {
+                    return '<span class="stock-num">' + data + '</span>';
+                }
+            },
             { "data": "disponibilidad", "name": "disponibilidad", "orderable": false, "searchable": false }
         ]
     });

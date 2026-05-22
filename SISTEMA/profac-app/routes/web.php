@@ -28,6 +28,7 @@ use App\Http\Livewire\Registro\Login as RegistroLogin;
 use App\Http\Livewire\Inventario\Producto;
 use App\Http\Livewire\Inventario\Retenciones;
 use App\Http\Livewire\Inventario\DetalleProducto;
+use App\Http\Livewire\Inventario\DisenoProducto;
 use App\Http\Livewire\Inventario\CompraProducto;
 use App\Http\Livewire\Inventario\ListarCompras;
 use App\Http\Livewire\Inventario\DetalleCompra;
@@ -614,6 +615,10 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/detalle/producto/unidad/{id}', [DetalleProducto::class, 'unidadesVenta']);
     Route::get('/detalle/unidades/venta', [DetalleProducto::class, 'obtenerUnidadesMedida']);
     Route::post('/detalle/unidades/editar', [DetalleProducto::class, 'editarUnidadesVenta']);
+
+    // Gestión de Diseño de Producto (sin campos de precios/costos)
+    Route::get('/producto/diseno/{id}', DisenoProducto::class)->name('producto.diseno');
+    Route::post('/producto/diseno/editar', [Producto::class, 'editarProductoDiseno'])->name('producto.diseno.editar');
     Route::get('/producto/compra', CompraProducto::class);
     Route::get('/producto/lista/proveedores', [CompraProducto::class, 'listarProveedores']);
     Route::get('/producto/tipo/pagos', [CompraProducto::class, 'listarFormasPago']);
@@ -1406,6 +1411,9 @@ Route::post('/reporte/ventas-cobros/exportar-excel/{vendedorId}/{clienteId}/{mes
 
     // Ruta auto-generada para: Flujo\RevicionInventario
     Route::get('/flujo/revicion_inventario', \App\Http\Livewire\Flujo\RevicionInventario::class);
+
+    // Configuración del Flujo (solo admin)
+    Route::get('/flujo/configuracion', \App\Http\Livewire\Flujo\ConfiguracionFlujo::class)->name('flujo.configuracion');
 
     // Revisión de Crédito
     Route::get('/flujo/revision_creditos', \App\Http\Livewire\Flujo\RevisionCreditos::class)->name('flujo.revision_creditos');

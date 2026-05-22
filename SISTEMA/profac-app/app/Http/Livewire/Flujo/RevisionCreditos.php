@@ -27,6 +27,15 @@ class RevisionCreditos extends Component
     public string $busqueda          = '';
     public string $tabActiva         = 'llegando';
 
+    // ── Paginación ────────────────────────────────────────────────────────
+    public int $paginaLlegando   = 1;
+    public int $paginaAprobadas  = 1;
+    public int $paginaRechazadas = 1;
+    public int $porPagina        = 10;
+    public int $totalLlegando    = 0;
+    public int $totalAprobadas   = 0;
+    public int $totalRechazadas  = 0;
+
     // ── Detalle del flujo seleccionado ────────────────────────────────────
     public ?int   $flujoId          = null;
     protected     $flujoData        = null;
@@ -86,15 +95,27 @@ class RevisionCreditos extends Component
 
     public function updatedBusqueda(): void
     {
+        $this->paginaLlegando = $this->paginaAprobadas = $this->paginaRechazadas = 1;
+        $this->cargar();
+    }
+
+    public function cambiarPagina(string $tab, int $pagina): void
+    {
+        if ($tab === 'llegando')   $this->paginaLlegando   = max(1, $pagina);
+        if ($tab === 'aprobadas')  $this->paginaAprobadas  = max(1, $pagina);
+        if ($tab === 'rechazadas') $this->paginaRechazadas = max(1, $pagina);
         $this->cargar();
     }
 
     public function cargar(): void
     {
         $term = trim($this->busqueda);
-        $this->bandejaLlegando   = $this->buildBandejaQuery($term, 'llegando');
-        $this->bandejaAprobadas  = $this->buildBandejaQuery($term, 'aprobadas');
-        $this->bandejaRechazadas = $this->buildBandejaQuery($term, 'rechazadas');
+        $this->totalLlegando   = $this->buildBandejaCount($term, 'llegando');
+        $this->totalAprobadas  = $this->buildBandejaCount($term, 'aprobadas');
+        $this->totalRechazadas = $this->buildBandejaCount($term, 'rechazadas');
+        $this->bandejaLlegando   = $this->buildBandejaQuery($term, 'llegando',   $this->paginaLlegando);
+        $this->bandejaAprobadas  = $this->buildBandejaQuery($term, 'aprobadas',  $this->paginaAprobadas);
+        $this->bandejaRechazadas = $this->buildBandejaQuery($term, 'rechazadas', $this->paginaRechazadas);
     }
 
     public function cambiarTab(string $tab): void
@@ -103,7 +124,58 @@ class RevisionCreditos extends Component
         $this->tabActiva = in_array($tab, $allowed) ? $tab : 'llegando';
     }
 
-    private function buildBandejaQuery(string $term, string $tipo): array
+    private function buildBandejaCount(string $term, string $tipo): int
+    {
+        $latestRevSub = DB::table('historico_flujo')
+            ->select('flujo_id', DB::raw('MAX(id) as max_id'))
+            ->where('tipo_tramite_id', 10)
+            ->groupBy('flujo_id');
+
+        $q = DB::table('flujo as f')
+            ->joinSub($latestRevSub, 'lrev', fn($j) => $j->on('lrev.flujo_id', '=', 'f.id'))
+            ->join('historico_flujo as hf', 'hf.id', '=', 'lrev.max_id')
+            ->leftJoin('historico_flujo as hfof', function ($j) {
+                $j->on('hfof.flujo_id', '=', 'f.id')
+                  ->where('hfof.tipo_tramite_id', 2)
+                  ->where('hfof.observaciones', 'ganadora');
+            })
+            ->leftJoin('cotizacion as c', 'c.id', '=', 'hfof.tramite_id')
+            ->leftJoin('pedido as p', DB::raw('CAST(f.identificacion AS UNSIGNED)'), '=', 'p.id')
+            ->leftJoin('credito_revision as cr', 'cr.flujo_id', '=', 'f.id');
+
+        switch ($tipo) {
+            case 'llegando':
+                $q->where('f.tipo_tramite_id', 10)->where('hf.estado_id', 5);
+                break;
+            case 'aprobadas':
+                $q->where('hf.estado_id', 1);
+                break;
+            case 'rechazadas':
+                $q->where('hf.estado_id', 3);
+                break;
+        }
+
+        if ($term !== '') {
+            $like = '%' . $term . '%';
+            if (is_numeric($term)) {
+                $q->where(function ($s) use ($term) {
+                    $s->where('f.id', (int) $term)
+                      ->orWhere('f.identificacion', $term)
+                      ->orWhere('hfof.tramite_id', (int) $term);
+                });
+            } else {
+                $q->where(function ($s) use ($like) {
+                    $s->where('c.nombre_cliente', 'LIKE', $like)
+                      ->orWhere('c.RTN', 'LIKE', $like)
+                      ->orWhere('p.observaciones', 'LIKE', $like);
+                });
+            }
+        }
+
+        return (int) $q->count(DB::raw('DISTINCT f.id'));
+    }
+
+    private function buildBandejaQuery(string $term, string $tipo, int $page = 1): array
     {
         // Subquery: registro MÁS RECIENTE de revisión de crédito (tipo=10) por flujo
         $latestRevSub = DB::table('historico_flujo')
@@ -180,7 +252,8 @@ class RevisionCreditos extends Component
             }
         }
 
-        return $q->orderByDesc('hf.created_at')->get()->map(fn($r) => (array) $r)->toArray();
+        $offset = ($page - 1) * $this->porPagina;
+        return $q->orderByDesc('hf.created_at')->offset($offset)->limit($this->porPagina)->get()->map(fn($r) => (array) $r)->toArray();
     }
 
     // ─────────────────────────────────────────────────────────────────────
