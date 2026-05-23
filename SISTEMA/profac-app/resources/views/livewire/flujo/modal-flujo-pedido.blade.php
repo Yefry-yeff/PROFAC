@@ -885,27 +885,27 @@
                                     <th style="padding:4px 8px; text-align:left;">Producto</th>
                                     <th style="padding:4px 8px; text-align:center;">Cant.</th>
                                     <th style="padding:4px 8px; text-align:right;">P.Unit.</th>
-                                    <th style="padding:4px 8px; text-align:right;">Actual</th>
+                                    <th style="padding:4px 8px; text-align:right;">Escala Act.</th>
                                     <th style="padding:4px 8px; text-align:right;">Total</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach ($ofertaSeleccionada['productos'] as $pr)
                                 @php
-                                    $precioAct   = isset($pr['precio_actual']) ? (float)$pr['precio_actual'] : null;
-                                    $precioOrig  = isset($pr['precio_unidad'])  ? (float)$pr['precio_unidad']  : null;
-                                    $precioCambio = ($precioAct !== null && $precioOrig !== null)
-                                                    && abs($precioOrig - $precioAct) > 0.0001;
+                                    $precioVendedor    = isset($pr['precio_unidad'])       ? (float)$pr['precio_unidad']       : null;
+                                    $precioEscalaActual = isset($pr['precio_escala_actual']) ? (float)$pr['precio_escala_actual'] : null;
+                                    // Bloqueado si la escala actual subió respecto al precio cobrado
+                                    $bloqueado = ($precioVendedor !== null && $precioEscalaActual !== null)
+                                                    && $precioEscalaActual > $precioVendedor + 0.0001;
                                 @endphp
                                 <tr style="border-bottom:1px solid #f0f0f0;">
                                     <td style="padding:4px 8px; color:#2c3e50;">{{ $pr['nombre_producto'] }}</td>
                                     <td style="padding:4px 8px; text-align:center; color:#1a7efb; font-weight:700;">{{ (int)$pr['cantidad'] }}</td>
-                                    <td style="padding:4px 8px; text-align:right; color:{{ $precioCambio ? '#c0392b' : '#555' }};
-                                               {{ $precioCambio ? 'text-decoration:line-through;' : '' }}">
-                                        @if ($pr['precio_unidad']) L {{ number_format($pr['precio_unidad'], 2) }} @else — @endif
+                                    <td style="padding:4px 8px; text-align:right; color:{{ $bloqueado ? '#c0392b' : '#555' }}; font-weight:{{ $bloqueado ? '700' : '400' }};">
+                                        @if ($precioVendedor !== null) L {{ number_format($precioVendedor, 2) }} @else — @endif
                                     </td>
-                                    <td style="padding:4px 8px; text-align:right; color:{{ $precioCambio ? '#27ae60' : '#aaa' }}; font-weight:{{ $precioCambio ? '700' : '400' }};">
-                                        @if ($precioAct !== null) L {{ number_format($precioAct, 2) }} @else — @endif
+                                    <td style="padding:4px 8px; text-align:right; color:{{ $bloqueado ? '#e67e22' : '#aaa' }}; font-weight:{{ $bloqueado ? '700' : '400' }};">
+                                        @if ($precioEscalaActual !== null) L {{ number_format($precioEscalaActual, 2) }} @else — @endif
                                     </td>
                                     <td style="padding:4px 8px; text-align:right; font-weight:700; color:#1ab394;">
                                         @if ($pr['total']) L {{ number_format($pr['total'], 2) }} @else — @endif

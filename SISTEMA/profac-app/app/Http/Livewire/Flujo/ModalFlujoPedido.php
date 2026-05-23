@@ -716,6 +716,9 @@ class ModalFlujoPedido extends Component
                 ->select(
                     'chp.nombre_producto', 'chp.cantidad', 'chp.precio_unidad', 'chp.total',
                     'chp.idPrecioSeleccionado', 'chp.precios_producto_carga_id',
+                    // precio_actual = precio de escala al momento de la venta (guardado en la oferta)
+                    'chp.precioSeleccionado as precio_actual',
+                    // precio_escala_actual = precio de escala vigente hoy (solo para referencia interna)
                     DB::raw("CASE LOWER(TRIM(chp.idPrecioSeleccionado))
                         WHEN 'p1' THEN ppc.precio_a
                         WHEN 'p2' THEN ppc.precio_b
@@ -726,7 +729,7 @@ class ModalFlujoPedido extends Component
                         WHEN 'c'  THEN ppc.precio_c
                         WHEN 'd'  THEN ppc.precio_d
                         ELSE ppc.precio_base_venta
-                    END as precio_actual")
+                    END as precio_escala_actual")
                 )
                 ->get()
                 ->map(fn($r) => (array) $r)
@@ -1341,13 +1344,6 @@ class ModalFlujoPedido extends Component
 
         $cotizacionId = (int) $this->ofertaSeleccionada['id'];
 
-        // ── Validar que los precios no hayan cambiado ─────────────────────
-        if ($this->verificarCambioPrecios($cotizacionId)) {
-            $this->mensajeError = 'No se puede duplicar: uno o más precios de esta oferta han cambiado. Crea una nueva oferta con los precios actualizados.';
-            $this->confirmAccionOferta = null;
-            return;
-        }
-
         // Construir URL base
         $url = '/proforma/cotizacion/2?from=flujo&cotizacionId=' . $cotizacionId;
 
@@ -1495,7 +1491,7 @@ class ModalFlujoPedido extends Component
             ->where('chp.cotizacion_id', $cotizacionId)
             ->whereNotNull('chp.precios_producto_carga_id')
             ->select(
-                'chp.precio_unidad',
+                'chp.precio_unidad',        // precio que el vendedor ingresó en la oferta
                 'chp.idPrecioSeleccionado',
                 'ppc.precio_a', 'ppc.precio_b', 'ppc.precio_c', 'ppc.precio_d',
                 'ppc.precio_base_venta'
@@ -1503,19 +1499,22 @@ class ModalFlujoPedido extends Component
             ->get();
 
         foreach ($lineas as $l) {
+            // Precio de escala vigente hoy
             $selector = strtolower(trim((string) $l->idPrecioSeleccionado));
-            $precioActual = match($selector) {
+            $precioEscalaActual = match($selector) {
                 'p1', 'a' => (float) $l->precio_a,
                 'p2', 'b' => (float) $l->precio_b,
                 'p3', 'c' => (float) $l->precio_c,
                 'p4', 'd' => (float) $l->precio_d,
-                default => (float) $l->precio_base_venta,
+                default   => (float) $l->precio_base_venta,
             };
-            // Bloquear solo si el precio de la oferta está POR DEBAJO del precio actual
-            // de la categoría (precio_unidad < precio_actual).
-            // Si el precio bajó en el catálogo pero la oferta fue a un precio superior,
-            // se permite duplicar (la oferta sigue siendo válida respecto al mínimo).
-            if ((float)$l->precio_unidad < $precioActual - 0.0001) {
+
+            // Precio que el vendedor ingresó en la oferta
+            $precioVendedor = (float) ($l->precio_unidad ?? 0);
+
+            // Bloquear si la escala actual es mayor al precio que cobró el vendedor.
+            // Si la escala bajó o es igual, se permite duplicar.
+            if ($precioEscalaActual > $precioVendedor + 0.0001) {
                 return true;
             }
         }
