@@ -273,7 +273,7 @@ class Producto extends Component
                 3887,
                 3888
                         ];
-            
+
             // Query rápida sin existencia inicial - sin orderBy para que DataTables lo maneje
             $query = DB::table('producto as A')
                 ->select(
@@ -298,17 +298,21 @@ class Producto extends Component
                         ->where('compra.estado_compra_id', 1)
                         ->where('recibido_bodega.producto_id', $producto->codigo)
                         ->sum('recibido_bodega.cantidad_disponible');
-                    
+
                     $existenciaAjuste = DB::table('recibido_bodega')
                         ->whereNull('compra_id')
                         ->where('cantidad_disponible', '<>', 0)
                         ->where('producto_id', $producto->codigo)
                         ->sum('cantidad_disponible');
-                    
+
                     return number_format($existenciaCompra + $existenciaAjuste, 0);
                 })
                 ->addColumn('disponibilidad', function ($producto) {
-                    return '<a href="/producto/detalle/' . $producto->codigo . '" target="_blank" class="btn btn-warning btn-sm" title="Ver detalles"><i class="fa fa-eye"></i> Ver más</a>';
+                    $esAdmin = Auth::user() && Auth::user()->rol_id == 1;
+                    $url = $esAdmin
+                        ? '/producto/detalle/' . $producto->codigo
+                        : '/producto/diseno/'  . $producto->codigo;
+                    return '<a href="' . $url . '" target="_blank" class="btn-ver-mas"><i class="fa fa-eye mr-1"></i>Ver más</a>';
                 })
                 ->filter(function ($query) use ($request) {
                     $q            = trim($request->get('filtro_q', ''));
@@ -574,6 +578,54 @@ class Producto extends Component
                         'errorTh' => $e,
                     ], 402);
                 }
+    }
+
+    /**
+     * Editar producto desde la pantalla de Diseño.
+     * Solo actualiza campos de información general (sin precios ni costos).
+     */
+    public function editarProductoDiseno(Request $request)
+    {
+        try {
+            $codBarra = trim($request['cod_barra_producto_edit'] ?? '');
+
+            if ($codBarra !== '') {
+                $contadorCodBarra = DB::SELECTONE(
+                    "select count(id) as contador from producto where codigo_barra = " .
+                    (int) $codBarra . " and id <> " . (int) $request['id_producto_edit']
+                );
+                if ($contadorCodBarra->contador > 0) {
+                    return response()->json([
+                        'icon'  => 'error',
+                        'title' => 'Error!',
+                        'text'  => 'El código de barra ya está registrado para otro producto.',
+                    ], 401);
+                }
+            }
+
+            $producto = ModelProducto::find($request['id_producto_edit']);
+            if (!$producto) {
+                return response()->json(['message' => 'Producto no encontrado.'], 404);
+            }
+
+            $producto->nombre                  = trim($request['nombre_producto_edit']);
+            $producto->descripcion             = trim($request['descripcion_producto_edit']);
+            $producto->codigo_barra            = $codBarra;
+            $producto->codigo_estatal          = trim($request['cod_estatal_producto_edit'] ?? '');
+            $producto->sub_categoria_id        = $request['sub_categoria_producto_edit'];
+            $producto->unidadad_compra         = trim($request['unidades_editar']);
+            $producto->unidad_medida_compra_id = $request['unidad_producto_editar'];
+            $producto->marca_id                = $request['marca_producto_editar'];
+            $producto->users_id                = Auth::user()->id;
+            $producto->save();
+
+            return response()->json(['message' => 'Producto editado con éxito.'], 200);
+        } catch (QueryException $e) {
+            return response()->json([
+                'message'  => 'Ha ocurrido un error al editar el producto.',
+                'errorTh'  => $e,
+            ], 402);
+        }
     }
 
     public function calcularCostos(Request $request){

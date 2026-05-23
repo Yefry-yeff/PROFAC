@@ -1,22 +1,39 @@
 ﻿
-const $foto_producto = document.querySelector("#foto_producto_edit"),
-$imagenPrevisualizacion = document.querySelector("#imagenPrevisualizacion");
+const $foto_producto = document.querySelector("#foto_producto_edit");
 
-// Escuchar cuando cambie
 $foto_producto.addEventListener("change", () => {
-// Los archivos seleccionados, pueden ser muchos o uno
-const archivos = $foto_producto.files;
-// Si no hay archivos salimos de la función y quitamos la imagen
-if (!archivos || !archivos.length) {
-    $imagenPrevisualizacion.src = "";
-    return;
-}
-// Ahora tomamos el primer archivo, el cual vamos a previsualizar
-const primerArchivo = archivos[0];
-// Lo convertimos a un objeto de tipo objectURL
-const objectURL = URL.createObjectURL(primerArchivo);
-// Y a la fuente de la imagen le ponemos el objectURL
-$imagenPrevisualizacion.src = objectURL;
+    const files = $foto_producto.files;
+    const grid = document.getElementById('previewGrid');
+    const container = document.getElementById('previewContainer');
+    const countEl = document.getElementById('previewCount');
+
+    grid.innerHTML = '';
+
+    if (!files || !files.length) {
+        container.style.display = 'none';
+        return;
+    }
+
+    if (files.length > 10) {
+        Swal.fire({ icon: 'warning', title: 'Máximo 10 imágenes', text: 'Solo se subirán las primeras 10 imágenes seleccionadas.' });
+    }
+
+    const max = Math.min(files.length, 10);
+    countEl.textContent = max;
+    container.style.display = 'block';
+
+    for (let i = 0; i < max; i++) {
+        const file = files[i];
+        const reader = new FileReader();
+        const div = document.createElement('div');
+        div.style.cssText = 'border-radius:8px;overflow:hidden;border:2px solid #e0e6ed;background:#f8fafc;min-height:90px;display:flex;align-items:center;justify-content:center;';
+        const img = document.createElement('img');
+        img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+        reader.onload = (e) => { img.src = e.target.result; };
+        reader.readAsDataURL(file);
+        div.appendChild(img);
+        grid.appendChild(div);
+    }
 });
 
 $(document).on('submit', '#foto_productoForm', function(event) {
@@ -32,12 +49,11 @@ $('#modalSpinnerLoading').modal('show');
 
 let data = new FormData($('#foto_productoForm').get(0));
 
-let totalfiles = document.getElementById('foto_producto_edit').files.length;
+let totalfiles = Math.min(document.getElementById('foto_producto_edit').files.length, 10);
 for (var i = 0; i < totalfiles; i++) {
     data.append("files[]", document.getElementById('foto_producto_edit').files[i]);
 };
 
-console.log(data);
 axios.post('/ruta/imagen/edit', data)
     .then(response => {
 
@@ -46,9 +62,11 @@ axios.post('/ruta/imagen/edit', data)
 
 
         $('#foto_productoForm').parsley().reset();
-        img = document.getElementById('imagenPrevisualizacion');
-        img.src = "";
         document.getElementById("foto_productoForm").reset();
+        const pc = document.getElementById('previewContainer');
+        const pg = document.getElementById('previewGrid');
+        if (pc) pc.style.display = 'none';
+        if (pg) pg.innerHTML = '';
         $('#modal_foto_producto').modal('hide');
 
 
