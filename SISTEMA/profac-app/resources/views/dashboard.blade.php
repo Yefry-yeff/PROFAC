@@ -58,9 +58,11 @@
     {{-- ══════════════════════════════════════════════════════════════════
          MÉTRICAS EMPRESARIALES
     ══════════════════════════════════════════════════════════════════ --}}
+    @if(Auth::user()->rol_id === 1)
     <div style="margin-top:28px;">
         @livewire('usuarios.dashboard-empresarial')
     </div>
+    @endif
   </div>
 
   <script>

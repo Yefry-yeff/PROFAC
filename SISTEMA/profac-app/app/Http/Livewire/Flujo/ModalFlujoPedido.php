@@ -863,11 +863,30 @@ class ModalFlujoPedido extends Component
             ->value('categoria_precios_id');
 
         if ((int) $originalCategoriaId !== (int) $nuevaCategoriaId) {
-            $nombreCat = DB::table('categoria_precios')
-                ->where('id', (int) $originalCategoriaId)
-                ->value('nombre') ?? 'desconocida';
+            // Datos del cliente original de la oferta
+            $clienteOriginal = DB::table('cotizacion as co')
+                ->join('cliente as cl', 'cl.id', '=', 'co.cliente_id')
+                ->leftJoin('categoria_precios as cp', 'cp.id', '=', 'cl.categoria_precios_id')
+                ->where('co.id', $cotizacionId)
+                ->select('cl.nombre as nombre_cliente', 'cp.nombre as nombre_categoria')
+                ->first();
+
+            // Datos del cliente destino seleccionado
+            $clienteDestino = DB::table('cliente as cl')
+                ->leftJoin('categoria_precios as cp', 'cp.id', '=', 'cl.categoria_precios_id')
+                ->where('cl.id', $this->clienteDuplicarId)
+                ->select('cl.nombre as nombre_cliente', 'cp.nombre as nombre_categoria')
+                ->first();
+
+            $nombreClienteOrigen   = $clienteOriginal->nombre_cliente   ?? 'desconocido';
+            $nombreCatOrigen       = $clienteOriginal->nombre_categoria  ?? 'sin categoría';
+            $nombreClienteDestino  = $clienteDestino->nombre_cliente     ?? 'desconocido';
+            $nombreCatDestino      = $clienteDestino->nombre_categoria   ?? 'sin categoría';
+
             $this->clienteDuplicarError =
-                "El cliente seleccionado no pertenece a la categoría de precios «{$nombreCat}». No se puede duplicar.";
+                "No se puede duplicar: categorías de precios distintas. " .
+                "Cliente oferta: {$nombreClienteOrigen} (categoría: {$nombreCatOrigen}). " .
+                "Cliente destino: {$nombreClienteDestino} (categoría: {$nombreCatDestino}).";
             return;
         }
 
