@@ -1668,15 +1668,24 @@
                         </p>
 
                         {{-- Botón solicitar código --}}
-                        <div style="margin-bottom:10px;">
-                            <button type="button" id="btnSolicitarCodigoPrefactura"
-                                    onclick="solicitarCodigoPrefactura(this)"
+                        <div style="margin-bottom:10px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                            <button type="button"
+                                    wire:click="enviarCodigoPrefactura"
+                                    wire:loading.attr="disabled"
+                                    wire:target="enviarCodigoPrefactura"
                                     style="background:linear-gradient(135deg,#f59e0b,#d97706); color:#fff;
                                            border:none; border-radius:8px; padding:6px 14px;
                                            font-size:12px; font-weight:700; cursor:pointer;">
-                                <i class="mr-1 fa fa-send"></i> Solicitar código por correo
+                                <span wire:loading.remove wire:target="enviarCodigoPrefactura">
+                                    <i class="mr-1 fa fa-send"></i> Solicitar código por correo
+                                </span>
+                                <span wire:loading wire:target="enviarCodigoPrefactura">
+                                    <i class="fa fa-spinner fa-spin mr-1"></i> Enviando...
+                                </span>
                             </button>
-                            <span id="msgSolicitarCodigo" style="margin-left:10px; font-size:12px;"></span>
+                            <span id="msgCodigoFlujo" style="font-size:12px; color:#2e7d32; display:none;">
+                                <i class="fa fa-check mr-1"></i> Código enviado. Solicíteselo a su supervisor.
+                            </span>
                         </div>
 
                         <div class="row" style="row-gap:8px;">
@@ -2130,6 +2139,10 @@
 
     if (!window._fmpListenerSet) {
         window._fmpListenerSet = true;
+        window.addEventListener('flujo-codigo-enviado', function() {
+            var msg = document.getElementById('msgCodigoFlujo');
+            if (msg) msg.style.display = 'inline';
+        });
         window.addEventListener('abrir-nueva-pestana', function(e) {
             window.open(e.detail.url, '_blank');
         });

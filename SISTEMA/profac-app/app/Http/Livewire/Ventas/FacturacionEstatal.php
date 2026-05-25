@@ -865,7 +865,20 @@ class FacturacionEstatal extends Component
             $factura->comentario=$request->nota_comen;
             $factura->porc_descuento =$request->porDescuento;
             $factura->monto_descuento=$request->porDescuentoCalculado;
+            if ($request->codigo_autorizacion) {
+                $factura->codigo_autorizacion_id = $request->codigo_autorizacion;
+            }
+            if ($request->tipo_factura_id) {
+                $factura->tipo_factura_id = $request->tipo_factura_id;
+            }
             $factura->save();
+
+            // Marcar código de autorización como utilizado
+            if ($request->codigo_autorizacion) {
+                DB::table('codigo_autorizacion')
+                    ->where('id', $request->codigo_autorizacion)
+                    ->update(['estado_id' => 2]);
+            }
 
 
 

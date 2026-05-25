@@ -1016,7 +1016,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     //---------------------------------------------------------SinRestriccionPrecio-------------------------------------------------------//
 
     // Route::get('/ventas/sin/restriccion/precio', SinRestriccionPrecio::class); // Duplicado - Movido a Facturación Unificada
-    Route::get('/ventas/solicitud/codigo', [SinRestriccionPrecio::class, 'enviarCodigo']);
+    Route::post('/ventas/solicitud/codigo', [SinRestriccionPrecio::class, 'enviarCodigo']);
     Route::post('/ventas/verificar/codigo', [SinRestriccionPrecio::class, 'verificarCodigo']);
     Route::post('/ventas/autorizacion/desactivar', [SinRestriccionPrecio::class, 'desactivarCodigo']);
     //---------------------------------------------------------SinRestriccionPrecio-------------------------------------------------------//
@@ -1100,7 +1100,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Route::get('/ventas/sin/restriccion/precio', SinRestriccionPrecio::class); // Movido a Facturación Unificada
-    Route::get('/ventas/solicitud/codigo', [SinRestriccionPrecio::class, 'enviarCodigo']);
+    Route::post('/ventas/solicitud/codigo', [SinRestriccionPrecio::class, 'enviarCodigo']);
     Route::post('/ventas/verificar/codigo', [SinRestriccionPrecio::class, 'verificarCodigo']);
     Route::post('/ventas/autorizacion/desactivar', [SinRestriccionPrecio::class, 'desactivarCodigo']);
 
