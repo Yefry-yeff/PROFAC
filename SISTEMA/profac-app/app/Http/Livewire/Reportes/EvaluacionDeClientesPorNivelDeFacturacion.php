@@ -106,7 +106,7 @@ class EvaluacionDeClientesPorNivelDeFacturacion extends Component
                 c.nombre                                                                         AS nombre_cliente,
                 COALESCE(ec.descripcion, 'Sin Estado')                                           AS estado,
                 COALESCE((SELECT name FROM users WHERE id = c.vendedor LIMIT 1), 'Sin Vendedor') AS vendedor,
-                uf.numero_secuencia_cai                                                          AS numero_ultima_factura,
+                uf.cai                                                                           AS numero_ultima_factura,
                 uf.fecha_emision                                                                  AS fecha_ultima_factura,
                 COALESCE(uf.total, 0)                                                            AS monto_ultima_factura,
                 COALESCE(

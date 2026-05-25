@@ -57,7 +57,7 @@ class EvaluacionClientesHoja implements FromArray, WithTitle, WithStyles, WithEv
             'NOMBRE CLIENTE',
             'ESTADO',
             'VENDEDOR',
-            'N° ÚLTIMA FACTURA',
+            'N° CAI ÚLTIMA FACTURA',
             'FECHA ÚLTIMA FACTURA',
             'MONTO ÚLTIMA FACTURA',
             'SALDO PENDIENTE',
