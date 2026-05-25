@@ -1,16 +1,16 @@
 <div>
-<nav x-data="{ open: false }" class="sticky bg-white border-b border-gray-100" style=" ">
-    <a class="navbar-minimalize minimalize-styl-2 btn btn-primary " href="#"><i class="fa fa-bars"></i></a>
+<nav x-data="{ open: false }" class="sticky top-0 left-0 right-0 z-40 bg-white border-b border-gray-200 shadow-sm">
+    <a class="navbar-minimalize minimalize-styl-2 btn btn-primary md:hidden flex items-center justify-center w-10 h-10 rounded-lg bg-orange-600 text-white hover:bg-orange-700 transition" href="#"><i class="fa fa-bars"></i></a>
 
     <!-- Primary Navigation Menu -->
-    <div class="px-4 sm:px-6 lg:px-8" style="width:100vw">
+    <div class="px-4 sm:px-6 lg:px-8 w-full">
 
         <div class="relative flex items-center justify-center h-16">
             <!-- Logo centrado -->
             <div class="flex items-center">
                 <a href="{{ route('dashboard') }}">
-                    <img class="object-cover rounded-full animate__animated animate__bounceIn" style="width:4.5rem"
-                        src="{{ asset('img/LOGO_VALENCIA.jpg') }}" />
+                    <img class="object-cover rounded-full shadow-lg border-4 border-orange-500 animate__animated animate__bounceIn" style="width:4.5rem"
+                        src="{{ asset('img/LOGO_VALENCIA.jpg') }}" alt="Logo Valencia" />
                 </a>
             </div>
 
@@ -26,15 +26,15 @@
                         <x-slot name="trigger">
                             @if (Laravel\Jetstream\Jetstream::managesProfilePhotos())
                                 <button
-                                    class="flex text-sm transition border-2 border-transparent rounded-full focus:outline-none focus:border-gray-300">
+                                    class="flex text-sm transition border-2 border-transparent rounded-full focus:outline-none focus:border-orange-400 shadow-md hover:shadow-lg">
                                     @if (Auth::user()->profile_photo_path && file_exists(public_path('storage/' . Auth::user()->profile_photo_path)))
-                                        <img class="object-cover w-8 h-8 rounded-full"
+                                        <img class="object-cover w-8 h-8 rounded-full border-2 border-orange-400"
                                             src="{{ asset('storage/' . Auth::user()->profile_photo_path) }}"
                                             alt="{{ Auth::user()->name }}" />
                                         <!-- Inicial visible solo en móvil -->
-                                        <span class="mobile-initial-avatar" aria-hidden="true">{{ substr(Auth::user()->name, 0, 1) }}</span>
+                                        <span class="mobile-initial-avatar hidden md:inline-flex ml-2 bg-orange-100 text-orange-700 border border-orange-300" aria-hidden="true">{{ substr(Auth::user()->name, 0, 1) }}</span>
                                     @else
-                                        <div class="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 font-bold">
+                                        <div class="w-8 h-8 rounded-full bg-orange-200 flex items-center justify-center text-orange-700 font-bold border border-orange-400">
                                             {{ substr(Auth::user()->name, 0, 1) }}
                                         </div>
                                     @endif
@@ -42,10 +42,9 @@
                             @else
                                 <span class="inline-flex rounded-md">
                                     <button type="button"
-                                        class="inline-flex items-center px-3 py-2 text-sm font-medium leading-4 text-gray-500 transition bg-white border border-transparent rounded-md hover:text-gray-700 focus:outline-none">
+                                        class="inline-flex items-center px-3 py-2 text-sm font-medium leading-4 text-gray-700 transition bg-white border border-orange-300 rounded-md shadow hover:text-orange-700 hover:border-orange-400 focus:outline-none">
                                         {{ Auth::user()->name }}
-
-                                        <svg class="ml-2 -mr-0.5 h-4 w-4" xmlns="http://www.w3.org/2000/svg"
+                                        <svg class="ml-2 -mr-0.5 h-4 w-4 text-orange-500" xmlns="http://www.w3.org/2000/svg"
                                             viewBox="0 0 20 20" fill="currentColor">
                                             <path fill-rule="evenodd"
                                                 d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
@@ -404,8 +403,8 @@
         }
     </style>
 
-    <nav class="navbar-default navbar-static-side " role="navigation">
-        <div class="sidebar-collapse ">
+    <nav class="navbar-default navbar-static-side bg-gradient-to-b from-orange-500 via-orange-700 to-orange-900 text-white" role="navigation">
+        <div class="sidebar-collapse">
             <ul class="nav metismenu scroll-bar-sidebar" id="side-menu" style="">
                 <li class="nav-header">
                     <div class="logo-element">
@@ -414,21 +413,20 @@
                 </li>
 
                 {{-- Cuadro de búsqueda en sidebar --}}
-                <li class="search-sidebar" style="padding: 15px 20px;">
-                    <div class="input-group">
-                        <input type="text" id="menu-search" class="form-control" placeholder="Buscar en menú..."
-                               style="background: #ffffff; border: 1px solid #e7eaec; color: #333; border-radius: 4px;">
-                        <span class="input-group-addon" style="background: #ffffff; border: 1px solid #e7eaec; border-left: 0;">
-                            <i class="fa fa-search" style="color: #999;"></i>
+                <li class="search-sidebar px-4 py-3">
+                    <div class="flex rounded-md shadow-sm">
+                        <input type="text" id="menu-search" class="form-input block w-full rounded-l-md border-gray-300 focus:border-orange-400 focus:ring focus:ring-orange-200 focus:ring-opacity-50 text-gray-700" placeholder="Buscar en menú...">
+                        <span class="inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 bg-white text-gray-400">
+                            <i class="fa fa-search"></i>
                         </span>
                     </div>
                 </li>
 
                 {{-- Botón Dashboard - Siempre visible para todos los roles --}}
                 <li class="dashboard-btn">
-                    <a href="{{ route('dashboard') }}" class="dashboard-link">
-                        <i class="fa fa-area-chart"></i>
-                        <span class="nav-label">Dashboard</span>
+                    <a href="{{ route('dashboard') }}" class="dashboard-link flex items-center gap-2 px-4 py-2 rounded-md hover:bg-orange-600 transition">
+                        <i class="fa fa-area-chart text-lg"></i>
+                        <span class="nav-label font-semibold">Dashboard</span>
                     </a>
                 </li>
 
@@ -1152,9 +1150,9 @@
             </ul>
 
             {{-- Footer anclado al sidebar --}}
-            <div class="sidebar-footer-info">
-                <span class="sf-sistema">PROFAC Sistema</span>
-                <span class="sf-copy">&copy; {{ date('Y') }} D. Valencia &mdash; Todos los derechos reservados</span>
+            <div class="sidebar-footer-info bg-orange-900 text-white text-center py-2 mt-4 rounded-b-lg shadow-inner">
+                <span class="sf-sistema font-bold text-xs tracking-wide block">PROFAC Sistema</span>
+                <span class="sf-copy text-xs text-orange-200">&copy; {{ date('Y') }} D. Valencia &mdash; Todos los derechos reservados</span>
             </div>
 
         </div>
@@ -1178,7 +1176,7 @@
         opacity: 0;
         visibility: hidden;
         transition: opacity 0.25s ease, visibility 0.25s ease;
-        z-index: 1500; /* Debajo del sidebar (2000) */
+        z-index: 1500;
     }
     body.mobile-sidebar-open .mobile-sidebar-overlay {
         opacity: 1;
