@@ -69,6 +69,11 @@ class RevicionInventario extends Component
     {
         $this->cargarConfiguracion();
         $this->cargar();
+
+        $flujoId = request()->integer('flujo_id');
+        if ($flujoId > 0) {
+            $this->seleccionarFlujo($flujoId);
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────

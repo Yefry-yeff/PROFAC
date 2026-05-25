@@ -317,13 +317,14 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
 
     {{-- â•â• MODAL crear / editar â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• --}}
     @if($showModal)
-    <div class="modal fade show d-block" tabindex="-1" role="dialog"
-         style="background:rgba(2,8,23,.65); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);">
-        <div class="modal-dialog modal-lg" role="document"
-             style="margin: 4vh auto; max-width:720px;">
-            <div class="modal-content cfg-modal-content"
+    <div tabindex="-1" role="dialog"
+         style="position:fixed; top:0; left:0; width:100%; height:100vh; z-index:9999;
+                background:rgba(2,8,23,.75); overflow-x:hidden; overflow-y:auto;">
+        <div role="document"
+             style="width:100%; max-width:720px; margin:4vh auto; padding:0 12px;">
+            <div class="cfg-modal-content"
                  style="border:none; border-radius:16px;
-                        box-shadow:0 25px 60px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.15);">
+                        box-shadow:0 25px 60px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.2);">
 
                 {{-- Header --}}
                 <div class="modal-header"
@@ -345,8 +346,7 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
 
                 {{-- Body --}}
                 <div class="modal-body cfg-modal-body"
-                     style="padding:24px; background:#fff; overflow-y:auto;
-                            max-height:calc(85vh - 130px);
+                     style="padding:24px; background:#fff; overflow-y:visible;
                             scrollbar-width:thin; scrollbar-color:#d1d5db transparent;">
                     <div class="row">
 
@@ -538,17 +538,22 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
                 </div>
 
                 {{-- Footer --}}
-                <div class="modal-footer" style="background:#f8fafc; border-top:1px solid #e8edf5; padding:14px 24px; border-radius:0 0 16px 16px;">
+                <div class="modal-footer"
+                     style="background:linear-gradient(135deg,#1e3a5f 0%,#2563eb 100%);
+                            border:none; padding:14px 24px; border-radius:0 0 16px 16px;
+                            display:flex; align-items:center; justify-content:flex-end; gap:10px;">
                     <button wire:click="$set('showModal', false)"
                             class="btn btn-sm"
-                            style="border-radius:8px; padding:7px 18px; font-size:13px; border:1.5px solid #e2e8f0; background:#fff; color:#475569;">
+                            style="border-radius:8px; padding:7px 18px; font-size:13px;
+                                   border:1.5px solid rgba(255,255,255,.35); background:rgba(255,255,255,.1);
+                                   color:#fff; backdrop-filter:blur(4px);">
                         <i class="fa fa-times mr-1"></i> Cancelar
                     </button>
                     <button wire:click="guardar" wire:loading.attr="disabled"
-                            class="btn btn-sm btn-primary"
+                            class="btn btn-sm"
                             style="border-radius:8px; padding:7px 22px; font-size:13px; font-weight:700;
-                                   background:linear-gradient(135deg,#2563eb,#3b82f6); border:none;
-                                   box-shadow:0 2px 8px rgba(37,99,235,.4);">
+                                   background:#fff; color:#1e40af; border:none;
+                                   box-shadow:0 2px 12px rgba(0,0,0,.25);">
                         <span wire:loading.remove><i class="fa fa-save mr-1"></i> Guardar regla</span>
                         <span wire:loading><i class="fa fa-spinner fa-spin mr-1"></i> Guardando...</span>
                     </button>
@@ -559,4 +564,16 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
     </div>
     @endif
 
+    <script>
+        (function () {
+            function syncBodyScroll() {
+                var hasModal = document.querySelector('[wire\\:id] [role="dialog"]');
+                document.body.style.overflow = hasModal ? 'hidden' : '';
+            }
+            document.addEventListener('livewire:load', function () {
+                Livewire.hook('message.processed', function () { syncBodyScroll(); });
+            });
+            syncBodyScroll();
+        })();
+    </script>
 </div>

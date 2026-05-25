@@ -61,9 +61,20 @@
                                 {{ __('Administracion de cuenta') }}
                             </div>
 
+
                             <x-jet-dropdown-link href="{{ route('profile.show') }}">
                                 {{ __('Perfil') }}
                             </x-jet-dropdown-link>
+
+                            @if(optional(Auth::user()->rol)->nombre === 'Administrador' || Auth::user()->rol_id == 1)
+                                <div class="border-t border-gray-100"></div>
+                                <div class="block px-4 py-2 text-xs text-gray-400 uppercase tracking-wide">
+                                    <i class="fa fa-cog mr-1"></i> Administración
+                                </div>
+                                <x-jet-dropdown-link href="{{ route('configuracion.notificaciones.flujo') }}">
+                                    <i class="fa fa-bell mr-2 text-orange-500"></i> Configuración de notificaciones
+                                </x-jet-dropdown-link>
+                            @endif
 
                             @if (Laravel\Jetstream\Jetstream::hasApiFeatures())
                                 <x-jet-dropdown-link href="{{ route('api-tokens.index') }}">

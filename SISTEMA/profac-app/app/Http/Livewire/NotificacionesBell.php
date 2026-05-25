@@ -50,13 +50,8 @@ class NotificacionesBell extends Component
         $notif = Auth::user()->notifications()->where('id', $id)->first();
         if (!$notif) return;
 
-        $url = $notif->data['url'] ?? null;
         $notif->markAsRead();
         $this->cargar();
-
-        if ($url) {
-            $this->redirect($url);
-        }
     }
 
     public function marcarTodasLeidas(): void
