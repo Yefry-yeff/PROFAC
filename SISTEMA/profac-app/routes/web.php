@@ -1409,10 +1409,8 @@ Route::post('/reporte/ventas-cobros/exportar-excel/{vendedorId}/{clienteId}/{mes
     // Revisión de Crédito
     Route::get('/flujo/revision_creditos', \App\Http\Livewire\Flujo\RevisionCreditos::class)->name('flujo.revision_creditos');
 
-    return redirect('/login');
+    // Ruta auto-generada para: Reportes\EvaluacionDeClientesPorNivelDeFacturacion
+    Route::get('/reportes/evaluacion_de_clientes_por_nivel_de_facturacion', \App\Http\Livewire\Reportes\EvaluacionDeClientesPorNivelDeFacturacion::class);
 
-    // Configuración de tiempo de prefacturación (movido a /configuracion/prefacturacion)
-
-
-    // Ruta auto-generada para: Flujo\RevisionCreditos
+    // [auto-routes-anchor]
 });
