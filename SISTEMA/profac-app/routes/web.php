@@ -172,7 +172,6 @@ Route::get('/', function () {
 
 Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->get('/dashboard', function () {
     return view('/dashboard');
-    //return redirect('/bodega');
 })->name('dashboard');
 
 // Rutas de cambio obligatorio de contraseña (fuera del grupo protegido para evitar bucle)

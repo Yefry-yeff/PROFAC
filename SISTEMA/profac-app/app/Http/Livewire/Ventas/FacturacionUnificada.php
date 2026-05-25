@@ -100,6 +100,8 @@ class FacturacionUnificada extends Component
                     'nombre_producto',
                     'nombre_bodega',
                     'precio_unidad',
+                    'precioSeleccionado',
+                    'idPrecioSeleccionado',
                     'cantidad',
                     'isv_producto',
                     'unidad_medida_venta_id',

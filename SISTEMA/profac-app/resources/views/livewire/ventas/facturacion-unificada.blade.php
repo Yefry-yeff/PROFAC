@@ -622,8 +622,8 @@
                                         </div>
                                     </div>
                                 </div>
-                                {{-- ── N° Orden de Compra y Forma F01 (solo cotizaciones) ──────── --}}
-                                @if(($config->codigo ?? '') === 'cotizacion_clientes_a')
+                                {{-- ── N° Orden de Compra y Forma F01 (cotizaciones y facturación SR/Clientes A) ──────── --}}
+                                @if(in_array(($config->codigo ?? ''), ['cotizacion_clientes_a', 'sin_restriccion_gobierno']))
                                 <div class="col-12 col-md-4">
                                     <label class="ofr-label">N° Orden de Compra</label>
                                     <div class="input-group input-group-sm">
@@ -3830,7 +3830,8 @@
 
                 axios.post(urls.datos_producto, {
                     idProducto: prod.producto_id,
-                    categoria_cliente_venta_id: categoriaId
+                    categoria_cliente_venta_id: categoriaId,
+                    precios_producto_carga_id: prod.precios_producto_carga_id || null
                 }).then(function (response) {
                     var producto = response.data.producto;
                     var arrayUnidades = response.data.unidades;
@@ -3844,24 +3845,36 @@
                         htmlSelectUnidades += '<option ' + sel + ' value="' + u.id + '" data-id="' + u.idUnidadVenta + '">' + u.nombre + '</option>';
                     });
 
-                    // Precio real de la oferta original (puede ser base/especial, distinto de precio_a)
-                    var precioUsar = parseFloat(prod.precio_unidad) || parseFloat(producto.precio1);
-                    var precioUsarFmt = precioUsar.toFixed(2);
+                    // Precio de escala actual según el idPrecioSeleccionado de la oferta original
+                    var idEscala = ((prod.idPrecioSeleccionado || '') + '').toLowerCase().trim();
+                    var precioEscalaActual;
+                    switch (idEscala) {
+                        case 'a': case 'p1': precioEscalaActual = parseFloat(producto.precio1 || 0); break;
+                        case 'b': case 'p2': precioEscalaActual = parseFloat(producto.precio2 || 0); break;
+                        case 'c': case 'p3': precioEscalaActual = parseFloat(producto.precio3 || 0); break;
+                        case 'd': case 'p4': precioEscalaActual = parseFloat(producto.precio4 || 0); break;
+                        default:             precioEscalaActual = parseFloat(producto.precio1 || 0); break;
+                    }
+                    // PRECIO OPC = precio de escala actual; P. UNITARIO = precio que cobró el vendedor
+                    var precioOpcFmt    = precioEscalaActual.toFixed(2);
+                    var precioUnidFmt   = (parseFloat(prod.precio_unidad) || precioEscalaActual).toFixed(2);
 
                     // Precios
                     var htmlprecios = '';
                     if (tipoFacturaConfig && tipoFacturaConfig.multiples_precios) {
-                        htmlprecios = '<option value="' + producto.precio1 + '" data-id="p1" selected>' + producto.precio1 + ' - A</option>';
-                        if (producto.precio2) htmlprecios += '<option value="' + producto.precio2 + '" data-id="p2">' + producto.precio2 + ' - B</option>';
-                        if (producto.precio3) htmlprecios += '<option value="' + producto.precio3 + '" data-id="p3">' + producto.precio3 + ' - C</option>';
-                        if (producto.precio4) htmlprecios += '<option value="' + producto.precio4 + '" data-id="p4">' + producto.precio4 + ' - D</option>';
+                        var escalaMap = { 'p1': 'A', 'a': 'A', 'p2': 'B', 'b': 'B', 'p3': 'C', 'c': 'C', 'p4': 'D', 'd': 'D' };
+                        var letraEscala = escalaMap[idEscala] || 'A';
+                        htmlprecios = '<option value="' + producto.precio1 + '" data-id="p1"' + (letraEscala === 'A' ? ' selected' : '') + '>' + producto.precio1 + ' - A</option>';
+                        if (producto.precio2) htmlprecios += '<option value="' + producto.precio2 + '" data-id="p2"' + (letraEscala === 'B' ? ' selected' : '') + '>' + producto.precio2 + ' - B</option>';
+                        if (producto.precio3) htmlprecios += '<option value="' + producto.precio3 + '" data-id="p3"' + (letraEscala === 'C' ? ' selected' : '') + '>' + producto.precio3 + ' - C</option>';
+                        if (producto.precio4) htmlprecios += '<option value="' + producto.precio4 + '" data-id="p4"' + (letraEscala === 'D' ? ' selected' : '') + '>' + producto.precio4 + ' - D</option>';
                     } else {
-                        // Usar el precio original del duplicado: puede ser precio base/especial (ej. Co-Distribuidor)
-                        htmlprecios = '<option value="' + precioUsarFmt + '" data-id="p1" selected>' + precioUsarFmt + ' - Oferta</option>';
+                        // Escala actual como única opción de referencia
+                        htmlprecios = '<option value="' + precioOpcFmt + '" data-id="p1" selected>' + precioOpcFmt + ' - Escala</option>';
                     }
 
-                    // El mínimo debe corresponder al precio cargado, no forzar precio_a cuando viene de duplicado
-                    var minPrecio = (tipoFacturaConfig && tipoFacturaConfig.multiples_precios) ? '' : 'min="' + precioUsarFmt + '"';
+                    // min = precio de escala actual (precio mínimo de referencia)
+                    var minPrecio = (tipoFacturaConfig && tipoFacturaConfig.multiples_precios) ? '' : 'min="' + precioOpcFmt + '"';
                     var cantidadUsar = prod.cantidad || 1;
                     var bodegaTexto = prod.nombre_bodega || '';
                     var idBodega = prod['Bodega_id'] || '';
@@ -3901,7 +3914,7 @@
                             </select>
                         </td>
                         <td style="vertical-align:middle; padding:4px 6px;">
-                            <input type="number" id="precio${idx}" name="precio${idx}" value="${precioUsar}" class="form-control form-control-sm"
+                            <input type="number" id="precio${idx}" name="precio${idx}" value="${precioUnidFmt}" class="form-control form-control-sm"
                                 ${minPrecio} data-parsley-required step="any" autocomplete="off" style="min-width:80px; font-size:11px;"
                                 onchange="calcularTotales(precio${idx},cantidad${idx},${producto.isv},unidad${idx},${idx},restaInventario${idx})">
                         </td>

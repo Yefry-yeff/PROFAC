@@ -604,6 +604,30 @@ class FacturacionEstatal extends Component
                 'idProducto' => $request['idProducto'],
             ]);
 
+            // Fallback: buscar por precios_producto_carga_id cuando la categoria no devolvió resultado
+            if (!$producto && !empty($request['precios_producto_carga_id'])) {
+                $producto = DB::selectOne("
+                    SELECT
+                        p.id,
+                        CONCAT(p.id,' - ',p.nombre) AS nombre,
+                        p.isv,
+                        p.ultimo_costo_compra AS ultimo_costo_compra,
+                        ppc.precio_base_venta AS precio_base,
+                        ppc.precio_a AS precio1,
+                        ppc.precio_b AS precio2,
+                        ppc.precio_c AS precio3,
+                        ppc.precio_d AS precio4,
+                        ppc.id AS precios_producto_carga_id
+                    FROM producto p
+                    JOIN precios_producto_carga ppc ON ppc.producto_id = p.id AND ppc.id = :ppc_id
+                    WHERE p.id = :idProducto
+                    LIMIT 1;
+                ", [
+                    'ppc_id'    => (int) $request['precios_producto_carga_id'],
+                    'idProducto' => $request['idProducto'],
+                ]);
+            }
+
 
             if (!$producto) {
                 $nombreProducto = DB::table('producto')

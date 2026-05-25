@@ -527,12 +527,14 @@ class expo extends Component
             B.rtn,
             users.name,
             (select name from users where id = A.vendedor) as vendedor,
-            A.nota
+            A.nota,
+            IFNULL(TP.descripcion, 'contado') as tipo_pago
             from cotizacion A
             inner join cliente B
             on A.cliente_id = B.id
             inner join users
             ON users.id = A.users_id
+            left join tipo_pago_venta TP on TP.id = A.tipo_pago_id
             where A.id =".$idFactura
         );
 
