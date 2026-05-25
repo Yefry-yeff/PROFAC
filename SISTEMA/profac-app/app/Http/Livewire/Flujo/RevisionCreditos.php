@@ -27,6 +27,10 @@ class RevisionCreditos extends Component
     public string $busqueda          = '';
     public string $tabActiva         = 'llegando';
 
+    // ── Paginación ────────────────────────────────────────────────────────
+    public int   $perPage = 8;
+    public array $paginas  = ['llegando' => 1, 'aprobadas' => 1, 'rechazadas' => 1];
+
     // ── Detalle del flujo seleccionado ────────────────────────────────────
     public ?int   $flujoId          = null;
     protected     $flujoData        = null;
@@ -48,6 +52,8 @@ class RevisionCreditos extends Component
     public ?string $fechaAprobacionActual   = null;
     public ?string $fechaVencimientoActual  = null;
     public ?string $motivoRechazoActual     = null;
+    public ?string $obsAprobacionActual      = null;
+    public ?string $usuarioAprobadorActual   = null;
     public array   $historialCredito        = [];
 
     // ── Confirmación de acciones ──────────────────────────────────────────
@@ -86,7 +92,24 @@ class RevisionCreditos extends Component
 
     public function updatedBusqueda(): void
     {
+        $this->paginas = ['llegando' => 1, 'aprobadas' => 1, 'rechazadas' => 1];
         $this->cargar();
+    }
+
+    public function updatedPerPage(): void
+    {
+        $this->paginas = ['llegando' => 1, 'aprobadas' => 1, 'rechazadas' => 1];
+    }
+
+    public function irPagina(string $tab, int $pagina): void
+    {
+        $total = count(match($tab) {
+            'aprobadas'  => $this->bandejaAprobadas,
+            'rechazadas' => $this->bandejaRechazadas,
+            default      => $this->bandejaLlegando,
+        });
+        $maxPagina = max(1, (int) ceil($total / $this->perPage));
+        $this->paginas[$tab] = max(1, min($pagina, $maxPagina));
     }
 
     public function cargar(): void
@@ -122,6 +145,7 @@ class RevisionCreditos extends Component
             ->leftJoin('cotizacion as c', 'c.id', '=', 'hfof.tramite_id')
             ->leftJoin('pedido as p', DB::raw('CAST(f.identificacion AS UNSIGNED)'), '=', 'p.id')
             ->leftJoin('credito_revision as cr', 'cr.flujo_id', '=', 'f.id')
+            ->leftJoin('users as ur', 'ur.id', '=', 'cr.usuario_revision')
             ->select(
                 'f.id as flujo_id',
                 'f.identificacion',
@@ -140,14 +164,17 @@ class RevisionCreditos extends Component
                 'cr.estado as estado_credito',
                 'cr.fecha_aprobacion',
                 'cr.fecha_vencimiento_credito',
-                'cr.motivo_rechazo'
+                'cr.motivo_rechazo',
+                'cr.observaciones as obs_credito',
+                'ur.name as usuario_aprobador'
             )
             ->groupBy(
                 'f.id', 'f.identificacion', 'hf.created_at', 'hf.updated_at',
                 'hfof.tramite_id', 'c.cliente_id', 'c.fecha_emision', 'c.fecha_vencimiento', 'c.total',
                 'c.nombre_cliente', 'p.observaciones', 'c.RTN',
                 'hf.observaciones', 'hf.estado_id', 'cr.estado',
-                'cr.fecha_aprobacion', 'cr.fecha_vencimiento_credito', 'cr.motivo_rechazo'
+                'cr.fecha_aprobacion', 'cr.fecha_vencimiento_credito', 'cr.motivo_rechazo',
+                'cr.observaciones', 'ur.name'
             );
 
         switch ($tipo) {
@@ -293,6 +320,10 @@ class RevisionCreditos extends Component
             $this->fechaVencimientoActual  = $cr->fecha_vencimiento_credito
                 ? Carbon::parse($cr->fecha_vencimiento_credito)->format('Y-m-d') : null;
             $this->motivoRechazoActual     = $cr->motivo_rechazo;
+            $this->obsAprobacionActual     = $cr->observaciones;
+            $this->usuarioAprobadorActual  = $cr->usuario_revision
+                ? DB::table('users')->where('id', $cr->usuario_revision)->value('name')
+                : null;
 
             // Historial
             $this->historialCredito = DB::table('credito_revision_historial as crh')
@@ -309,6 +340,8 @@ class RevisionCreditos extends Component
             $this->fechaAprobacionActual  = null;
             $this->fechaVencimientoActual = null;
             $this->motivoRechazoActual    = null;
+            $this->obsAprobacionActual    = null;
+            $this->usuarioAprobadorActual = null;
             $this->historialCredito       = [];
         }
     }
@@ -328,6 +361,8 @@ class RevisionCreditos extends Component
         $this->fechaAprobacionActual  = null;
         $this->fechaVencimientoActual = null;
         $this->motivoRechazoActual    = null;
+        $this->obsAprobacionActual    = null;
+        $this->usuarioAprobadorActual = null;
         $this->historialCredito       = [];
         $this->confirmAccion          = null;
         $this->fechaAprobacion        = '';
@@ -794,8 +829,23 @@ class RevisionCreditos extends Component
 
     public function render()
     {
+        $paginaActual     = $this->paginas[$this->tabActiva] ?? 1;
+        $registrosActivos = match($this->tabActiva) {
+            'aprobadas'  => $this->bandejaAprobadas,
+            'rechazadas' => $this->bandejaRechazadas,
+            default      => $this->bandejaLlegando,
+        };
+        $totalRegistros  = count($registrosActivos);
+        $totalPaginas    = max(1, (int) ceil($totalRegistros / $this->perPage));
+        $offset          = ($paginaActual - 1) * $this->perPage;
+        $registrosPagina = array_slice($registrosActivos, $offset, $this->perPage);
+
         return view('livewire.flujo.revisioncreditos', [
-            'flujoData' => $this->flujoData,
+            'flujoData'       => $this->flujoData,
+            'registrosPagina' => $registrosPagina,
+            'totalRegistros'  => $totalRegistros,
+            'totalPaginas'    => $totalPaginas,
+            'paginaActual'    => $paginaActual,
         ]);
     }
 }
