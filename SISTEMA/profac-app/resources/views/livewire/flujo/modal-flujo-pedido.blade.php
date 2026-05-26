@@ -25,10 +25,10 @@
         20%,60% { transform:translateX(-6px); }
         40%,80% { transform:translateX(6px);  }
     }
-    .fmp-dlg  { max-width:920px; width:100%; animation:flujoIn .32s cubic-bezier(.34,1.28,.64,1) both; pointer-events:auto; }
-    .fmp-cnt  { border-radius:18px !important; overflow:hidden !important; }
-    .fmp-body { padding:20px 24px 16px !important; overflow-y:auto !important; max-height:75vh !important; }
-    .fmp-foot { padding:10px 24px 14px !important; display:flex !important; flex-wrap:wrap !important; gap:8px !important; justify-content:flex-end !important; flex-shrink:0 !important; background:#fff !important; border-top:1px solid #eaecf0 !important; }
+    .fmp-dlg  { max-width:920px; width:100%; max-height:calc(100% - 32px); display:flex; flex-direction:column; animation:flujoIn .32s cubic-bezier(.34,1.28,.64,1) both; pointer-events:auto; }
+    .fmp-cnt  { border-radius:18px !important; overflow:hidden !important; display:flex !important; flex-direction:column !important; max-height:100% !important; }
+    .fmp-body { padding:20px 24px 16px !important; overflow-y:auto !important; flex:1 1 auto !important; min-height:0 !important; }
+    .fmp-foot { padding:10px 24px 14px !important; display:flex !important; flex-wrap:wrap !important; gap:8px !important; justify-content:flex-end !important; flex-shrink:0 !important; background:#e8ecf4 !important; border-top:2px solid #d0d7e4 !important; }
     .fmp-pipeline { scrollbar-width:thin; scrollbar-color:#e0e3ee transparent; -webkit-overflow-scrolling:touch; scroll-behavior:smooth; }
     .fmp-pipeline::-webkit-scrollbar { height:4px; }
     .fmp-pipeline::-webkit-scrollbar-thumb { background:#d0d4e4; border-radius:4px; }
@@ -45,6 +45,50 @@
     .fmp-offers-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
     .fmp-offers-wrap table { min-width:480px; }
     .fmp-info-grid { display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:#666; }
+    /* ── Tablas de productos / detalles ── */
+    .fmp-body table thead tr {
+        background: linear-gradient(135deg,#2d3748 0%,#1a252f 100%) !important;
+    }
+    .fmp-body table thead th {
+        color: #a8c8e0 !important;
+        font-weight: 700 !important;
+        padding: 8px 10px !important;
+        border: none !important;
+        font-size: 11px;
+        letter-spacing: .3px;
+    }
+    .fmp-body table tbody tr:nth-child(even) > td {
+        background: #f5f7fb;
+    }
+    .fmp-body table tbody tr:hover > td {
+        background: #eef2ff !important;
+        transition: background .1s;
+    }
+    .fmp-body table tbody td {
+        border-bottom: 1px solid #eaedf5 !important;
+        vertical-align: middle;
+    }
+    /* ── Tarjetas de contenido por paso ── */
+    .fmp-step-card-wrap {
+        background: #fff;
+        border-radius: 12px;
+        border: 1px solid #d8ddf0;
+        box-shadow: 0 2px 10px rgba(0,0,0,.06);
+        overflow: hidden;
+        margin-top: 12px;
+    }
+    .fmp-step-card-wrap .fmp-card-title {
+        padding: 9px 16px;
+        font-size: 12px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        border-bottom: 1px solid #e8ecf4;
+    }
+    .fmp-step-card-wrap .fmp-card-body {
+        padding: 12px 14px;
+    }
 </style>
 
 @php
@@ -114,7 +158,7 @@
 {{-- ── Overlay ─────────────────────────────────────────────────────────── --}}
 <div id="fmpModalWrap" role="dialog"
      style="position:fixed; inset:0; z-index:99999;
-            display:flex; align-items:flex-start; justify-content:center; padding:24px 16px;
+            display:flex; align-items:center; justify-content:center; padding:16px;
             overflow-y:auto;
             background:rgba(15,15,35,.62); backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px);">
 
@@ -155,7 +199,7 @@
             </div>
 
             {{-- ── Body ───────────────────────────────────────────────── --}}
-            <div class="modal-body fmp-body" style="background:#f8f9fc;">
+            <div class="modal-body fmp-body" style="background:#e8ecf4;">
 
                 {{-- Banner cancelado --}}
                 @if ($fCancelado)
@@ -175,6 +219,7 @@
                 @else
 
                 {{-- ── Stepper pipeline ─────────────────────────────── --}}
+                <div style="background:#fff; border-radius:14px; margin-bottom:14px; box-shadow:0 3px 14px rgba(0,0,0,.08); overflow:hidden; border-top:3px solid #f39c12;">
                 <div class="fmp-pipeline" style="display:flex; align-items:center; justify-content:flex-start;
                             flex-wrap:nowrap; overflow-x:auto; padding:18px 16px 10px;">
                     @foreach ($fPasos as $paso => $info)
@@ -596,12 +641,21 @@
                 {{-- ── Barra de progreso ─────────────────────────────── --}}
                 @if (!$fCancelado)
                 @php $progressPct = min(round(($fPaso / 8) * 100), 100); @endphp
-                <div style="height:5px; border-radius:5px; background:#e8eaf0; margin:0 4px 6px; overflow:hidden;">
-                    <div style="height:100%; border-radius:5px;
-                                background:linear-gradient(90deg,#1ab394,#1a7efb);
+                <div style="margin:0 0 0; background:#e0e4ee; height:6px; overflow:hidden;">
+                    <div style="height:100%;
+                                background:linear-gradient(90deg,#f39c12,#1a7efb,#1ab394);
                                 width:{{ $progressPct }}%; transition:width .6s ease;"></div>
                 </div>
+                <div style="padding:5px 16px 6px; background:#fafbff; display:flex; align-items:center; justify-content:space-between;">
+                    <span style="font-size:11px; color:#8892a4; font-weight:600;">
+                        <i class="fa fa-tasks mr-1"></i> Progreso del flujo
+                    </span>
+                    <span style="font-size:11px; font-weight:800; color:{{ $progressPct >= 100 ? '#1ab394' : '#1a7efb' }};">
+                        {{ $progressPct }}%
+                    </span>
+                </div>
                 @endif
+                </div>{{-- /stepper-card --}}
 
                 @endif {{-- /cancelado --}}
 
@@ -648,8 +702,8 @@
                 @endif
 
                 {{-- ── Info grid ─────────────────────────────────────── --}}
-                <div class="fmp-info-grid" style="margin-top:12px; padding:12px 16px; background:#fff;
-                            border-radius:12px; border:1px solid #e8eaf0;">
+                <div class="fmp-info-grid" style="margin-top:10px; padding:10px 16px; background:linear-gradient(135deg,#fff 0%,#f5f7ff 100%);
+                            border-radius:12px; border:1px solid #dce1ef; box-shadow:0 2px 8px rgba(0,0,0,.05);">
                     <span>
                         @if(!empty($d['sin_pedido']))
                         <i class="mr-1 fa fa-times-circle" style="color:#e74c3c;"></i>
@@ -719,7 +773,7 @@
                             </span>
                         </span>
                     </div>
-                    <div style="background:#fff; max-height:200px; overflow-y:auto; padding:10px 14px;">
+                    <div style="background:#fff; max-height:200px; overflow-y:auto;">
                         @if (count($pedidoDetalles) === 0)
                         <p class="text-center text-muted" style="font-size:12px; margin:12px 0;">
                             <i class="mb-1 fa fa-inbox d-block" style="opacity:.3; font-size:22px;"></i>
@@ -994,10 +1048,10 @@
                             </p>
                             <table style="width:100%; font-size:11px; border-collapse:collapse;">
                                 <thead>
-                                    <tr style="background:#f8bbd0;">
-                                        <th style="padding:3px 8px; text-align:left;">Producto</th>
-                                        <th style="padding:3px 8px; text-align:center;">Solicitado</th>
-                                        <th style="padding:3px 8px; text-align:center;">Disponible</th>
+                                    <tr style="background:#f8bbd0 !important;">
+                                        <th style="padding:3px 8px; text-align:left; color:#b71c1c !important;">Producto</th>
+                                        <th style="padding:3px 8px; text-align:center; color:#b71c1c !important;">Solicitado</th>
+                                        <th style="padding:3px 8px; text-align:center; color:#b71c1c !important;">Disponible</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -2058,12 +2112,14 @@
             </div>{{-- /modal-body --}}
 
             {{-- ── Footer ─────────────────────────────────────────────── --}}
-            <div class="modal-footer fmp-foot" style="border:none; background:#f8f9fc;">
+            <div class="modal-footer fmp-foot" style="border:none; background:#e8ecf4;">
 
                 <button type="button" wire:click="cerrar"
-                        style="border-radius:20px; padding:6px 20px; background:#f0f0f0;
-                               border:none; color:#555; font-size:13px; cursor:pointer;">
-                    <i class="mr-1 fa fa-times"></i> Cerrar
+                        style="border-radius:20px; padding:6px 20px;
+                               background:linear-gradient(135deg,#546e7a,#37474f);
+                               border:none; color:#fff; font-size:13px; font-weight:700; cursor:pointer;
+                               box-shadow:0 2px 6px rgba(0,0,0,.15);">
+                    <i class="mr-1 fa fa-times-circle"></i> Cerrar
                 </button>
 
                   @if (!$fCancelado && $pasoActivo === 'pedido')
