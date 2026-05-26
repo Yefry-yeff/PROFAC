@@ -54,6 +54,11 @@ class ListarVentas extends Component
     {
         $this->esAdmin = Auth::user()->rol_id === 1;
         $this->cargarRegistros();
+
+        // Si viene desde una notificación (?flujo_id=X), abrir el modal directamente
+        if ($flujoId = (int) request()->get('flujo_id')) {
+            $this->abrirFlujoDesdeRegistro($flujoId);
+        }
     }
 
     // ── Actualización de filtros ──────────────────────────────────────────

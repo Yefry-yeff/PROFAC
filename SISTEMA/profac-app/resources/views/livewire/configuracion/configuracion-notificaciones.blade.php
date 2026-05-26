@@ -1,4 +1,4 @@
-<div>
+﻿<div>
     <style>
 /* â”€â”€ Animaciones â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 @keyframes cfgFadeUp {
@@ -207,9 +207,7 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
                         <thead>
                             <tr>
                                 <th>Destino</th>
-                                <th>Nivel máximo</th>
                                 <th>Cobertura</th>
-                                <th>Escalación</th>
                                 <th class="text-center" style="width:80px;">Activo</th>
                                 <th class="text-center" style="width:90px;">Acciones</th>
                             </tr>
@@ -237,16 +235,6 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
                                         @endif
                                     </td>
                                     <td>
-                                        @if($reg['nivel_max_nombre'])
-                                            <span style="display:inline-flex;align-items:center;gap:4px;background:#f1f5f9;color:#475569;padding:3px 10px;border-radius:6px;font-size:11px;font-weight:600;">
-                                                <i class="fa fa-layer-group" style="font-size:10px;"></i>
-                                                {{ $reg['nivel_max_nombre'] }}
-                                            </span>
-                                        @else
-                                            <span class="text-muted">—</span>
-                                        @endif
-                                    </td>
-                                    <td>
                                         @php $cob = $this->getCobertura($reg['id']); @endphp
                                         <span style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:700;
                                               background:{{ $cob > 0 ? 'linear-gradient(135deg,#f0fdf4,#dcfce7)' : 'linear-gradient(135deg,#fef2f2,#fee2e2)' }};
@@ -254,16 +242,6 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
                                             <i class="fa {{ $cob > 0 ? 'fa-users' : 'fa-user-times' }}" style="font-size:11px;"></i>
                                             {{ $cob }} usuario(s)
                                         </span>
-                                    </td>
-                                    <td>
-                                        @if($reg['escalar_activo'])
-                                            <span style="display:inline-flex;align-items:center;gap:5px;background:#fffbeb;color:#92400e;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600;border:1px solid #fde68a;">
-                                                <i class="fa fa-arrow-up text-warning" style="font-size:10px;"></i>
-                                                {{ $reg['escalar_horas'] }}h → {{ $reg['escalar_nivel'] ?? '?' }}
-                                            </span>
-                                        @else
-                                            <span class="text-muted">—</span>
-                                        @endif
                                     </td>
                                     <td class="text-center">
                                         <label class="toggle-switch mb-0" title="{{ $reg['activo'] ? 'Desactivar' : 'Activar' }}">
@@ -366,158 +344,22 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
                             @error('tipoTramiteId') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
 
-                        {{-- Tipo de targeting --}}
-                        <div class="col-md-12 mb-4">
-                            <label class="font-weight-bold mb-2 d-block" style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:#475569;">
-                                Tipo de Destino <span class="text-danger">*</span>
-                            </label>
-                            <div class="d-flex gap-3">
-                                <label style="cursor:pointer;display:flex;align-items:center;gap:8px;padding:10px 16px;border-radius:8px;border:2px solid {{ $targetTipo==='rol' ? '#2563eb' : '#e2e8f0' }};background:{{ $targetTipo==='rol' ? '#eff6ff' : '#fff' }};transition:.15s;font-size:13px;">
-                                    <input type="radio" wire:model="targetTipo" value="rol" style="accent-color:#2563eb;">
-                                    <i class="fa fa-user-tag text-primary"></i> Rol específico
-                                </label>
-                                <label style="cursor:pointer;display:flex;align-items:center;gap:8px;padding:10px 16px;border-radius:8px;border:2px solid {{ $targetTipo==='area' ? '#16a34a' : '#e2e8f0' }};background:{{ $targetTipo==='area' ? '#f0fdf4' : '#fff' }};transition:.15s;font-size:13px;">
-                                    <input type="radio" wire:model="targetTipo" value="area" style="accent-color:#16a34a;">
-                                    <i class="fa fa-users text-success"></i> Área / Departamento
-                                </label>
-                            </div>
-                        </div>
-
                         {{-- Rol --}}
-                        @if($targetTipo === 'rol')
-                            <div class="col-md-12 mb-4">
-                                <label class="font-weight-bold mb-1" style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:#475569;">
-                                    Rol <span class="text-danger">*</span>
-                                </label>
-                                <select wire:model="rolId"
-                                        class="form-control @error('rolId') is-invalid @enderror"
-                                        style="border-radius:8px; border-color:#e2e8f0; font-size:13px; height:40px;">
-                                    <option value="">— Seleccionar rol —</option>
-                                    @foreach($roles as $r)
-                                        <option value="{{ $r['id'] }}">{{ $r['nombre'] }}</option>
-                                    @endforeach
-                                </select>
-                                @error('rolId') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                            </div>
-                        @endif
-
-                        {{-- Ãrea --}}
-                        @if($targetTipo === 'area')
-                            <div class="col-md-12 mb-4">
-                                @if(count($areas) === 0)
-                                    <div class="alert alert-warning d-flex align-items-center justify-content-between py-2"
-                                         style="border-radius:8px; font-size:12px;">
-                                        <span><i class="fa fa-exclamation-triangle mr-1"></i> No hay áreas configuradas.</span>
-                                        <a href="{{ route('configuracion.jerarquia') }}" class="btn btn-xs btn-warning ml-3" target="_blank">
-                                            <i class="fa fa-sitemap mr-1"></i> Configurar
-                                        </a>
-                                    </div>
-                                @else
-                                    <div class="row">
-                                        <div class="col-md-6">
-                                            <label class="font-weight-bold mb-1" style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:#475569;">
-                                                Área <span class="text-danger">*</span>
-                                            </label>
-                                            <select wire:model="areaId"
-                                                    class="form-control @error('areaId') is-invalid @enderror"
-                                                    style="border-radius:8px; border-color:#e2e8f0; font-size:13px; height:40px;">
-                                                <option value="">— Seleccionar área —</option>
-                                                @foreach($areas as $a)
-                                                    <option value="{{ $a['id'] }}">{{ $a['nombre'] }}</option>
-                                                @endforeach
-                                            </select>
-                                            @error('areaId') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="font-weight-bold mb-1" style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:#475569;">
-                                                Nivel máximo
-                                            </label>
-                                            @if(count($niveles) === 0)
-                                                <div class="alert alert-warning py-2 d-flex align-items-center justify-content-between"
-                                                     style="border-radius:8px; font-size:12px;">
-                                                    <span class="small"><i class="fa fa-exclamation-triangle mr-1"></i> Sin niveles.</span>
-                                                    <a href="{{ route('configuracion.jerarquia') }}" target="_blank" class="btn btn-xs btn-warning ml-2">
-                                                        <i class="fa fa-sitemap"></i> Configurar
-                                                    </a>
-                                                </div>
-                                            @else
-                                                <select wire:model="nivelMaxId"
-                                                        class="form-control"
-                                                        style="border-radius:8px; border-color:#e2e8f0; font-size:13px; height:40px;">
-                                                    <option value="">— Todos los niveles —</option>
-                                                    @foreach($niveles as $n)
-                                                        <option value="{{ $n['id'] }}">{{ $n['nombre'] }}</option>
-                                                    @endforeach
-                                                </select>
-                                                <small class="text-muted" style="font-size:11px;">Ej: "Colaborador" → solo ese nivel y debajo.</small>
-                                            @endif
-                                        </div>
-                                    </div>
-                                @endif
-                            </div>
-                        @endif
-
-                        {{-- Separador --}}
-                        <div class="col-md-12">
-                            <div style="border-top:1px solid #f1f5f9; margin:4px 0 20px;"></div>
+                        <div class="col-md-12 mb-4">
+                            <label class="font-weight-bold mb-1" style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:#475569;">
+                                Rol <span class="text-danger">*</span>
+                            </label>
+                            <select wire:model="rolId"
+                                    class="form-control @error('rolId') is-invalid @enderror"
+                                    style="border-radius:8px; border-color:#e2e8f0; font-size:13px; height:40px;">
+                                <option value="">— Seleccionar rol —</option>
+                                @foreach($roles as $r)
+                                    <option value="{{ $r['id'] }}">{{ $r['nombre'] }}</option>
+                                @endforeach
+                            </select>
+                            @error('rolId') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
 
-                        {{-- EscalaciÃ³n --}}
-                        <div class="col-md-12 mb-3">
-                            <div class="d-flex align-items-center justify-content-between p-3"
-                                 style="background:#f8faff; border-radius:10px; border:1px solid #e8edf5;">
-                                <div>
-                                    <div class="d-flex align-items-center gap-2">
-                                        <i class="fa fa-arrow-up text-warning"></i>
-                                        <strong style="font-size:13px; color:#1e293b;">Escalación automática</strong>
-                                    </div>
-                                    <small class="text-muted d-block mt-1" style="font-size:11px;">
-                                        Si no se lee en N horas, se notificará al nivel superior.
-                                    </small>
-                                </div>
-                                <label class="toggle-switch mb-0">
-                                    <input type="checkbox" id="escalarActivo" wire:model="escalarActivo">
-                                    <span class="toggle-slider"></span>
-                                </label>
-                            </div>
-                        </div>
-
-                        @if($escalarActivo)
-                            <div class="col-md-6 mb-3">
-                                <label class="font-weight-bold mb-1" style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:#475569;">
-                                    Escalar después de (horas) <span class="text-danger">*</span>
-                                </label>
-                                <input type="number" wire:model="escalarHoras"
-                                       class="form-control @error('escalarHoras') is-invalid @enderror"
-                                       min="1" max="720" placeholder="Ej: 4"
-                                       style="border-radius:8px; border-color:#e2e8f0; font-size:13px; height:40px;">
-                                @error('escalarHoras') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="font-weight-bold mb-1" style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:#475569;">
-                                    Escalar al nivel <span class="text-danger">*</span>
-                                </label>
-                                @if(count($niveles) === 0)
-                                    <div class="alert alert-warning py-2 mb-0 d-flex align-items-center justify-content-between"
-                                         style="border-radius:8px; font-size:12px;">
-                                        <span class="small"><i class="fa fa-exclamation-triangle mr-1"></i> Sin niveles.</span>
-                                        <a href="{{ route('configuracion.jerarquia') }}" class="btn btn-xs btn-warning ml-2" target="_blank">
-                                            <i class="fa fa-sitemap mr-1"></i> Configurar
-                                        </a>
-                                    </div>
-                                @else
-                                    <select wire:model="escalarNivelId"
-                                            class="form-control @error('escalarNivelId') is-invalid @enderror"
-                                            style="border-radius:8px; border-color:#e2e8f0; font-size:13px; height:40px;">
-                                        <option value="">— Seleccionar nivel —</option>
-                                        @foreach($niveles as $n)
-                                            <option value="{{ $n['id'] }}">{{ $n['nombre'] }}</option>
-                                        @endforeach
-                                    </select>
-                                    @error('escalarNivelId') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                @endif
-                            </div>
-                        @endif
 
                         {{-- Regla activa --}}
                         <div class="col-md-12">

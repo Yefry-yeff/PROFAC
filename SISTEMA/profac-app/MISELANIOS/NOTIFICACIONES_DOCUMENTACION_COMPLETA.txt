@@ -188,13 +188,20 @@ DEDUPLICACIÓN:
 
 
 ================================================================================
-6. VÍA POR ÁREA/DEPARTAMENTO (DESHABILITADA — VERSIÓN FUTURA)
+6. VÍA POR ÁREA/DEPARTAMENTO (ARQUITECTURA LISTA — UI DESACTIVADA)
 ================================================================================
 
-Esta vía está diseñada en el código pero NO se usa en la versión actual.
-Se reserva para una próxima versión del sistema.
+Esta vía tiene toda la arquitectura implementada en el código y en la BD pero
+la opción NO aparece en el modal de nueva regla hasta que la jerarquía esté lista.
 
-CÓMO FUNCIONARÍA:
+ESTADO ACTUAL:
+  - UI: la opción "Área / Departamento" fue retirada del modal de configuración.
+    El campo targetTipo existe en el componente Livewire pero siempre vale 'rol'.
+  - BD: columnas area_id y nivel_max_id existen en notificacion_flujo_config.
+  - Código: el branch elseif ($this->area_id) en resolverUsuariosDestino() existe
+    y está codificado, pero como area_id = NULL en todas las reglas, nunca ejecuta.
+
+CÓMO FUNCIONARÍA UNA VEZ HABILITADA:
   En lugar de un rol específico, se configura un area_id.
   Opcionalmente se puede filtrar por nivel jerárquico con nivel_max_id:
     - Los roles del área se filtran por nivel jerárquico
@@ -205,31 +212,37 @@ CÓMO FUNCIONARÍA:
 TABLA INVOLUCRADA: nivel_rol
   Esta tabla actualmente está vacía (no hay registros de niveles configurados).
 
-CÓDIGO DISPONIBLE EN: NotificacionFlujoConfig::resolverUsuariosDestino()
-  El branch del elseif ($this->area_id) ya existe y está codificado,
-  pero como area_id siempre es NULL en las reglas actuales, nunca se ejecuta.
-
-POR QUÉ ESTÁ DESHABILITADA:
-  Para usar esta vía se necesitaría:
-  a) Poblar la tabla nivel_rol con los niveles jerárquicos
-  b) Asignar area_id y nivel_id a los roles correspondientes en la tabla rol
-  c) Crear reglas con area_id en notificacion_flujo_config
-
-  Por ahora es más simple y suficiente manejar solo por rol directo.
+PARA HABILITAR EN EL FUTURO:
+  1. Poblar la tabla nivel_rol con los niveles jerárquicos
+  2. Asignar area_id y nivel_id a los roles en la tabla rol
+  3. Volver a agregar en la vista el <label> radio de "Área / Departamento"
+     y el bloque @if($targetTipo === 'area') con sus campos
+  4. Agregar columna "Nivel máximo" de vuelta en la tabla de reglas
 
 
 ================================================================================
-7. ESCALACIÓN (COLUMNAS PREPARADAS, NO IMPLEMENTADA)
+7. ESCALACIÓN (ARQUITECTURA LISTA — UI DESACTIVADA)
 ================================================================================
 
 Las columnas escalar_activo, escalar_horas y escalar_nivel_id existen en la tabla
-pero no hay ninguna lógica activa que las use.
+pero la UI del modal no muestra la sección de escalación.
+
+ESTADO ACTUAL:
+  - UI: la sección "Escalación automática" fue retirada del modal de configuración.
+    Los campos Livewire ($escalarActivo, $escalarHoras, $escalarNivelId) y la lógica
+    de guardar() permanecen intactos en el componente PHP.
+    La columna "Escalación" fue retirada de la tabla de reglas.
+  - BD: columnas escalar_activo, escalar_horas, escalar_nivel_id siguen existiendo.
 
 LA IDEA ORIGINAL: si una notificación no es atendida en X horas, escalar al nivel
 superior del área. Esto requeriría un sistema de Jobs programados (queue workers)
 o comandos de consola que verifiquen notificaciones sin leer periódicamente.
 
-ESTADO: diseño en BD completo, código no implementado.
+PARA HABILITAR EN EL FUTURO:
+  1. La jerarquía (nivel_rol + área) debe estar configurada primero.
+  2. Volver a agregar en la vista el bloque «Escalación automática» con su toggle.
+  3. Implementar el Job que detecte notificaciones no leídas pasado escalar_horas.
+  4. Agregar columna "Escalación" de vuelta en la tabla de reglas.
 
 
 ================================================================================
@@ -293,7 +306,7 @@ PASO 9 — FlujoNotification arma el payload:
     "mensaje": "Flujo #50 · DISTRIBUIDORA UNIVERSAL | L 15,000.00 · Prefactura #123",
     "icono": "fa-boxes",
     "color": "#FF9800",
-    "url": "/flujo/revicion_inventario",
+    "url": "/flujo/revicion_inventario?flujo_id=50",
     "leida": false,
     "flujo_id": 50
   }
@@ -304,6 +317,27 @@ PASO 10 — Laravel escribe en la tabla notifications:
 PASO 11 — El header de la app lee las notificaciones no leídas:
   Componente de campana → muestra el badge con el conteo
   Al hacer clic → lista las notificaciones con título, mensaje y enlace
+
+PASO 12 — El usuario hace clic en una notificación de flujo de ventas:
+  La campana renderiza:
+    <a href="/flujo/ventas/historico?flujo_id=50"
+       wire:click="marcarLeida('...')">
+  Comportamiento:
+    a) marcarLeida() marca la notificación como leída (AJAX)
+    b) El navegador sigue el href hacia /flujo/ventas/historico?flujo_id=50
+
+PASO 13 — ListarVentas::mount() detecta el parámetro flujo_id:
+  Archivo: app/Http/Livewire/Flujo/ListarVentas.php
+  Código añadido en mount():
+    if ($flujoId = (int) request()->get('flujo_id')) {
+        $this->abrirFlujoDesdeRegistro($flujoId);
+    }
+  Cadena de resolución:
+    abrirFlujoDesdeRegistro(50)
+      → DB::table('flujo')->where('id',50)->value('identificacion') → pedido_id
+      → emit('abrirFlujoPedido', $pedidoId)
+      → ModalFlujoPedido escucha el evento y abre el modal del flujo correspondiente
+  Resultado: el modal del flujo se abre automáticamente al cargar la página.
 
 
 ================================================================================
@@ -453,7 +487,7 @@ EJEMPLO DE data (campo JSON):
     "mensaje": "Flujo #50 · DISTRIBUIDORA UNIVERSAL | L 15,000.00",
     "icono": "fa-boxes",
     "color": "#FF9800",
-    "url": "/flujo/revicion_inventario",
+    "url": "/flujo/revicion_inventario?flujo_id=50",
     "leida": false,
     "flujo_id": 50
   }
@@ -540,9 +574,8 @@ OPCIÓN A — Desde la pantalla (recomendado):
   1. Ir a /configuracion/notificaciones
   2. Clic en "Nueva regla"
   3. Seleccionar paso: "Rev. Crédito"
-  4. Seleccionar vía: "Rol"
-  5. Seleccionar rol: "Créditos y Cobros"
-  6. Guardar
+  4. Seleccionar rol: "Créditos y Cobros"  ← único tipo de destino disponible por ahora
+  5. Guardar
 
 OPCIÓN B — Directamente en BD:
   INSERT INTO notificacion_flujo_config

@@ -14,6 +14,7 @@
 7. Casos especiales y bifurcaciones
 8. Resumen visual de estados en flujo.tipo_tramite_id
 9. Cómo leer el historial de un flujo real
+10. Navegación directa desde notificación (deep-link)
 
 
 ================================================================================
@@ -526,6 +527,42 @@ Para ver todos los flujos activos (sin finalizar):
   LEFT JOIN tipos_tramites tt ON tt.id = f.tipo_tramite_id
   WHERE f.tipo_tramite_id != 8   -- excluir Finalizado
   ORDER BY f.updated_at DESC;
+
+
+================================================================================
+10. NAVEGACIÓN DIRECTA DESDE NOTIFICACIÓN (DEEP-LINK)
+================================================================================
+
+Cuando el sistema envía una notificación de flujo de ventas (tipos 1-8 y 11),
+la URL almacenada en el payload tiene la forma:
+
+  /flujo/ventas/historico?flujo_id=X
+
+Al hacer clic en la campana, el navegador carga esa URL. El componente
+ListarVentas (app/Http/Livewire/Flujo/ListarVentas.php) detecta el parámetro
+en mount() y abre automáticamente el modal del flujo correspondiente:
+
+  public function mount()
+  {
+      $this->esAdmin = Auth::user()->rol_id === 1;
+      $this->cargarRegistros();
+
+      // Deep-link desde notificación: ?flujo_id=X
+      if ($flujoId = (int) request()->get('flujo_id')) {
+          $this->abrirFlujoDesdeRegistro($flujoId);
+      }
+  }
+
+Cadena de resolución interna:
+  abrirFlujoDesdeRegistro($flujoId)
+    → DB::table('flujo')->where('id', $flujoId)->value('identificacion')
+    → pedidoId = flujo.identificacion (apunta al pedido vinculado)
+    → emit('abrirFlujoPedido', $pedidoId)
+    → ModalFlujoPedido::abrir($pedidoId) — abre el modal con toda la data
+
+NOTA: Los tipos 9 (Revisión de Inventario) y 10 (Revisión de Crédito) apuntan
+a rutas distintas (/flujo/revicion_inventario y /flujo/revision_creditos) y no
+pasan por ListarVentas, por lo que el deep-link no aplica para esos tipos.
 
 
 ================================================================================
