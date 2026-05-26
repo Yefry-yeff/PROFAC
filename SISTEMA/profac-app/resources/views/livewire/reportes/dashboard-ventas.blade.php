@@ -75,7 +75,7 @@
                             <button class="btn btn-primary btn-sm btn-block mb-1" onclick="dashboardVentas.cargarHistorico()">
                                 <i class="fas fa-search"></i> Consultar
                             </button>
-                            <button class="btn btn-success btn-sm btn-block" onclick="dashboardVentas.exportarExcel('hist')">
+                            <button class="btn btn-success btn-sm btn-block" onclick="dashboardVentas.exportarExcel()">
                                 <i class="fas fa-file-excel"></i> Excel + Gráficas
                             </button>
                         </div>
@@ -244,7 +244,7 @@
                         </button>
                     </div>
                     <div class="col-md-2 d-flex align-items-end">
-                        <button class="btn btn-success btn-sm btn-block" onclick="dashboardVentas.exportarExcel('sem')">
+                        <button class="btn btn-success btn-sm btn-block" onclick="dashboardVentas.exportarExcel()">
                             <i class="fas fa-file-excel"></i> Excel + Gráficas
                         </button>
                     </div>
@@ -419,7 +419,7 @@
 
             {{-- Filtros P3 --}}
             <div class="mb-3 border card card-body bg-light">
-                <div class="row g-2">
+                <div class="row g-2 mb-2">
                     <div class="col-md-2">
                         <label class="small font-weight-bold">Fecha inicio</label>
                         <input type="date" class="form-control form-control-sm" id="a-fi">
@@ -451,8 +451,19 @@
                             <option value="">Todas</option>
                         </select>
                     </div>
-                    <div class="col-md-2 d-flex align-items-end">
-                        <button class="btn btn-primary btn-sm btn-block" onclick="dashboardVentas.cargarAnalitica()">
+                    <div class="col-md-2">
+                        <label class="small font-weight-bold">Marca</label>
+                        <select class="form-control form-control-sm" id="a-marca">
+                            <option value="">Todas</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="row g-2">
+                    <div class="col-md-12 d-flex justify-content-end" style="gap:6px">
+                        <button class="btn btn-outline-secondary btn-sm" onclick="dashboardVentas.limpiarFiltrosAdv()">
+                            <i class="fas fa-times"></i> Limpiar
+                        </button>
+                        <button class="btn btn-primary btn-sm px-4" onclick="dashboardVentas.cargarAnalitica()">
                             <i class="fas fa-search"></i> Consultar
                         </button>
                     </div>
@@ -516,7 +527,7 @@
                     <div class="shadow-sm card">
                         <div class="py-2 card-header d-flex justify-content-between align-items-center">
                             <span class="font-weight-bold">Tabla Vendedores</span>
-                            <button class="btn btn-sm btn-success" onclick="dashboardVentas.exportarExcel('adv')">
+                            <button class="btn btn-sm btn-success" onclick="dashboardVentas.exportarExcel()">
                                 <i class="fas fa-file-excel"></i> Excel + Gráficas
                             </button>
                         </div>
@@ -562,7 +573,7 @@
                                 <span class="mr-1 badge badge-success">A — Top 70%</span>
                                 <span class="mr-1 badge badge-warning">B — 70–90%</span>
                                 <span class="mr-1 badge badge-danger">C — 90–100%</span>
-                                <button class="ml-2 btn btn-sm btn-success" onclick="dashboardVentas.exportarExcel('adv')">
+                                <button class="ml-2 btn btn-sm btn-success" onclick="dashboardVentas.exportarExcel()">
                                     <i class="fas fa-file-excel"></i> Excel + Gráficas
                                 </button>
                             </div>
@@ -625,7 +636,7 @@
                     <div class="shadow-sm card">
                         <div class="py-2 card-header d-flex justify-content-between align-items-center">
                             <span class="font-weight-bold">Tabla Productos</span>
-                            <button class="btn btn-sm btn-success" onclick="dashboardVentas.exportarExcel('adv')">
+                            <button class="btn btn-sm btn-success" onclick="dashboardVentas.exportarExcel()">
                                 <i class="fas fa-file-excel"></i> Excel + Gráficas
                             </button>
                         </div>

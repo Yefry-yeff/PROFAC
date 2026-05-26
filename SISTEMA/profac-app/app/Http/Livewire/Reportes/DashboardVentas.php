@@ -375,10 +375,14 @@ class DashboardVentas extends Component
         $fi    = $request->fecha_inicio ?? date('Y-01-01');
         $ff    = $request->fecha_final  ?? date('Y-m-d');
         $cat   = $request->categoria    ? (int)$request->categoria    : null;
+        $marca = $request->marca        ? (int)$request->marca        : null;
+        $vend  = $request->vendedor     ? (int)$request->vendedor     : null;
         $limit = $request->limite       ? (int)$request->limite       : 20;
 
         $where = "f.estado_venta_id = 1 AND f.fecha_emision BETWEEN '$fi' AND '$ff'";
-        if ($cat) $where .= " AND sc.categoria_producto_id = $cat";
+        if ($cat)   $where .= " AND sc.categoria_producto_id = $cat";
+        if ($marca) $where .= " AND p.marca_id = $marca";
+        if ($vend)  $where .= " AND f.vendedor = $vend";
 
         $rows = DB::SELECT("
             SELECT
@@ -464,7 +468,15 @@ class DashboardVentas extends Component
             ORDER BY anio DESC
         ");
 
-        return response()->json(compact('vendedores', 'tiposCliente', 'categorias', 'anios'));
+        $marcas = DB::SELECT("
+            SELECT DISTINCT m.id, m.nombre
+            FROM marca m
+            INNER JOIN producto p ON p.marca_id = m.id
+            INNER JOIN venta_has_producto vhp ON vhp.producto_id = p.id
+            ORDER BY m.nombre
+        ");
+
+        return response()->json(compact('vendedores', 'tiposCliente', 'categorias', 'anios', 'marcas'));
     }
 
     // ─── Ventas por vendedor por día (semana) ────────────────────────────────

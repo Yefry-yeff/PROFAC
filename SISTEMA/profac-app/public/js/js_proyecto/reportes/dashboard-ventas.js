@@ -15,6 +15,25 @@ var dashboardVentas = (function () {
     var _aniosSel     = [];
     var _filtroSemDia = null;
     var _filtroAdvVend = null;
+    var _dts          = {};   /* DataTables instances */
+
+    /* ─── DataTables helpers ──────────────────────────────────────────────── */
+    var DT_LANG = { url: '//cdn.datatables.net/plug-ins/1.10.25/i18n/Spanish.json' };
+    var DT_DOM  = '<"row mb-1"<"col-sm-6"l><"col-sm-6"f>><"row"<"col-12"t>><"row mt-1"<"col-sm-5"i><"col-sm-7"p>>';
+
+    function _dtDestroy(id) {
+        if (_dts[id]) { try { _dts[id].destroy(); } catch (e) {} _dts[id] = null; }
+    }
+    function _dtInit(id, orderCol) {
+        _dts[id] = $('#' + id).DataTable({
+            pageLength: 8,
+            lengthMenu: [[8, 15, 25, 50, -1], [8, 15, 25, 50, 'Todos']],
+            language:   DT_LANG,
+            dom:        DT_DOM,
+            responsive: true,
+            order:      orderCol !== undefined ? [[orderCol, 'desc']] : []
+        });
+    }
 
     /* ─── Helpers ─────────────────────────────────────────────────────────── */
     var MESES   = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
@@ -67,7 +86,8 @@ var dashboardVentas = (function () {
             fecha_final:  $('#a-ff').val() || todayStr(),
             vendedor:     _filtroAdvVend ? _filtroAdvVend : ($('#a-vendedor').val() || ''),
             tipo_cliente: $('#a-tipo-cliente').val() || '',
-            categoria:    $('#a-categoria').val() || ''
+            categoria:    $('#a-categoria').val() || '',
+            marca:        $('#a-marca').val() || ''
         };
     }
 
@@ -91,6 +111,18 @@ var dashboardVentas = (function () {
 
             /* Auto-carga pestaña 1 */
             cargarHistorico();
+        });
+
+        /* Cuando se cambia a la pestaña Analítica, cargar datos automáticamente */
+        $('#tab-adv').on('shown.bs.tab', function () { cargarAnalitica(); });
+
+        /* Redimensionar charts cuando se cambia de sub-pill (Analítica) */
+        $('#adv-pills a[data-toggle="pill"]').on('shown.bs.tab', function () {
+            setTimeout(function () {
+                Object.keys(charts).forEach(function (id) {
+                    if (charts[id]) { try { charts[id].updateOptions({}, false, false); } catch (e) {} }
+                });
+            }, 100);
         });
     }
 
@@ -122,6 +154,13 @@ var dashboardVentas = (function () {
             /* Fechas por defecto comparación */
             $('#cmp-fi').val(new Date().getFullYear() + '-01-01');
             $('#cmp-ff').val(todayStr());
+
+            /* Marcas (P3) */
+            var marcaOpts = '<option value="">Todas</option>';
+            (data.marcas || []).forEach(function (m) {
+                marcaOpts += '<option value="' + m.id + '">' + m.nombre + '</option>';
+            });
+            $('#a-marca').html(marcaOpts);
         }).fail(function () {
             console.error('[DashboardVentas] Error al cargar catálogos');
         });
@@ -685,23 +724,26 @@ var dashboardVentas = (function () {
     }
 
     function _renderTablaVendedores(rows) {
+        _dtDestroy('tabla-vendedores');
         var $tbody = $('#tbody-vendedores').empty();
         rows.forEach(function (r, i) {
             $tbody.append(
                 '<tr>' +
                 '<td>' + (i + 1) + '</td>' +
                 '<td>' + r.vendedor + '</td>' +
-                '<td>' + r.facturas + '</td>' +
-                '<td>' + r.clientes_atendidos + '</td>' +
+                '<td class="text-right">' + r.facturas + '</td>' +
+                '<td class="text-right">' + r.clientes_atendidos + '</td>' +
                 '<td class="text-right">' + fmt(r.total_ventas) + '</td>' +
                 '<td class="text-right">' + fmt(r.ticket_promedio) + '</td>' +
                 '<td class="text-right">' + r.participacion + '%</td>' +
                 '</tr>'
             );
         });
+        _dtInit('tabla-vendedores', 4);
     }
 
     function _renderTablaClientes(rows) {
+        _dtDestroy('tabla-clientes');
         var $tbody = $('#tbody-clientes').empty();
         rows.forEach(function (r, i) {
             var abcColor = r.clasificacion_abc === 'A' ? 'success' : (r.clasificacion_abc === 'B' ? 'warning' : 'danger');
@@ -714,7 +756,7 @@ var dashboardVentas = (function () {
                 '<td>' + r.cliente + '</td>' +
                 '<td>' + r.tipo_cliente + '</td>' +
                 '<td><span class="badge badge-' + abcColor + '">' + r.clasificacion_abc + '</span></td>' +
-                '<td>' + r.facturas + '</td>' +
+                '<td class="text-right">' + r.facturas + '</td>' +
                 '<td class="text-right">' + fmt(r.total_comprado) + '</td>' +
                 '<td class="text-right">' + fmt(r.ticket_promedio) + '</td>' +
                 '<td>' + (r.ultima_compra || '-') + '</td>' +
@@ -723,9 +765,11 @@ var dashboardVentas = (function () {
                 '</tr>'
             );
         });
+        _dtInit('tabla-clientes', 5);
     }
 
     function _renderTablaProductos(rows) {
+        _dtDestroy('tabla-productos');
         var $tbody = $('#tbody-productos').empty();
         rows.forEach(function (r, i) {
             $tbody.append(
@@ -737,11 +781,12 @@ var dashboardVentas = (function () {
                 '<td class="text-right">' + fmtN(r.unidades_vendidas) + '</td>' +
                 '<td class="text-right">' + fmt(r.ingresos) + '</td>' +
                 '<td class="text-right">' + fmt(r.precio_promedio) + '</td>' +
-                '<td>' + r.apariciones + '</td>' +
+                '<td class="text-right">' + r.apariciones + '</td>' +
                 '<td class="text-right">' + r.pareto + '%</td>' +
                 '</tr>'
             );
         });
+        _dtInit('tabla-productos', 5);
     }
 
     /* ─── MARCAS ─────────────────────────────────────────────────────────── */
@@ -753,7 +798,15 @@ var dashboardVentas = (function () {
         var top15 = rows.slice(0, 15);
 
         charts['chart-top-marcas'] = new ApexCharts(get('chart-top-marcas'), {
-            chart: { type: 'bar', height: 300, toolbar: { show: false } },
+            chart: {
+                type: 'bar', height: 300, toolbar: { show: false },
+                events: {
+                    dataPointSelection: function (e, ctx, cfg) {
+                        var r = top15[cfg.dataPointIndex];
+                        _filtrarMarca(r.marca_id, r.marca);
+                    }
+                }
+            },
             series: [{ name: 'Ingresos', data: top15.map(function (r) { return parseFloat(r.ingresos); }) }],
             xaxis: { categories: top15.map(function (r) { return r.marca; }), labels: { formatter: function (v) { return 'L.' + fmtN(v); } } },
             yaxis: {},
@@ -765,7 +818,15 @@ var dashboardVentas = (function () {
 
         var top10 = rows.slice(0, 10);
         charts['chart-part-marcas'] = new ApexCharts(get('chart-part-marcas'), {
-            chart: { type: 'donut', height: 300 },
+            chart: {
+                type: 'donut', height: 300,
+                events: {
+                    dataPointSelection: function (e, ctx, cfg) {
+                        var r = top10[cfg.dataPointIndex];
+                        _filtrarMarca(r.marca_id, r.marca);
+                    }
+                }
+            },
             series: top10.map(function (r) { return parseFloat(r.ingresos); }),
             labels:  top10.map(function (r) { return r.marca; }),
             tooltip: { y: { formatter: function (v) { return fmt(v); } } },
@@ -775,13 +836,22 @@ var dashboardVentas = (function () {
         charts['chart-part-marcas'].render();
     }
 
+    function _filtrarMarca(marcaId, marcaNombre) {
+        $('#a-marca').val(marcaId);
+        /* Switch to products pill */
+        $('#pill-prod').tab('show');
+        cargarAnalitica();
+    }
+
     function _renderTablaMarcas(rows) {
+        _dtDestroy('tabla-marcas');
         var $tbody = $('#tbody-marcas').empty();
         rows.forEach(function (r, i) {
             $tbody.append(
                 '<tr>' +
                 '<td>' + (i + 1) + '</td>' +
-                '<td class="font-weight-bold">' + r.marca + '</td>' +
+                '<td class="font-weight-bold" style="cursor:pointer" onclick="dashboardVentas._filtrarMarca(' + r.marca_id + ',\'' + r.marca.replace(/'/g,'') + '\')">' +
+                '<i class="fas fa-filter text-warning mr-1" style="font-size:.7rem"></i>' + r.marca + '</td>' +
                 '<td class="text-right">' + fmtN(r.productos) + '</td>' +
                 '<td class="text-right">' + fmtN(r.unidades_vendidas) + '</td>' +
                 '<td class="text-right">' + fmt(r.ingresos) + '</td>' +
@@ -791,6 +861,7 @@ var dashboardVentas = (function () {
                 '</tr>'
             );
         });
+        _dtInit('tabla-marcas', 4);
     }
 
     /* ═══════════════════════════════════════════════════════════════════════
@@ -927,9 +998,8 @@ var dashboardVentas = (function () {
     }
 
     function _renderTablaComparacion(rows, fi, ff) {
+        _dtDestroy('tabla-comparacion');
         var $tbody = $('#tbody-comparacion').empty();
-
-        /* Calcular mejor mes: necesitamos los datos mensuales ya cargados */
         rows.forEach(function (r, i) {
             var rowColor = COLORES[i % COLORES.length];
             $tbody.append(
@@ -944,10 +1014,15 @@ var dashboardVentas = (function () {
                 '</tr>'
             );
         });
+        _dtInit('tabla-comparacion');
     }
 
     function limpiarFiltrosAdv() {
+        _filtroAdvVend = null;
         $('#a-vendedor').val('').trigger('change');
+        $('#a-marca').val('');
+        $('#a-categoria').val('');
+        $('#a-tipo-cliente').val('');
         $('#adv-filter-badge-vend').hide();
         $('#adv-active-filters').addClass('d-none');
         cargarAnalitica();
@@ -956,67 +1031,208 @@ var dashboardVentas = (function () {
     /* ══════════════════════════════════════════════════════════════════════
        EXPORTAR EXCEL
     ══════════════════════════════════════════════════════════════════════ */
-    function exportarExcel(tab) {
-        if (typeof ExcelJS === 'undefined') {
-            alert('ExcelJS no está disponible. Intente nuevamente.');
-            return;
-        }
+    /* ══════════════════════════════════════════════════════════════════════
+       EXPORTAR EXCEL
+    ══════════════════════════════════════════════════════════════════════ */
+    function exportarExcel() {
+        if (typeof ExcelJS === 'undefined') { alert('ExcelJS no está disponible.'); return; }
+
+        var activeTab  = $('#dashTabs .nav-link.active').attr('id');   // tab-hist | tab-sem | tab-adv
+        var activePill = $('#adv-pills .nav-link.active').attr('href') || ''; // #pill-pane-vend | -cli | -prod | -comp
 
         var wb = new ExcelJS.Workbook();
         wb.creator = window._profacAuthUser || 'PROFAC';
         wb.created = new Date();
 
-        function _header(ws) {
-            ws.addRow(['DISTRIBUCIONES VALENCIA — Dashboard de Ventas']);
-            ws.addRow(['Generado por: ' + (window._profacAuthUser || 'Usuario')]);
+        /* ─── colours ─── */
+        var DARK_HDR  = '343A40';
+        var ORANGE    = 'FD7E14';
+        var LIGHT_ROW = 'F8F9FA';
+        var CUR_FMT   = '"L."#,##0.00';
+        var NUM_FMT   = '#,##0';
+
+        /* Adds title + metadata rows, returns next empty row index (1-based) */
+        function _setupSheet(ws, title, headers, colWidths) {
+            /* Row 1 – title */
+            ws.addRow([title]);
+            var titleCell = ws.getCell('A1');
+            titleCell.font  = { bold: true, size: 13, color: { argb: 'FF' + ORANGE } };
+            ws.mergeCells(1, 1, 1, headers.length);
+
+            /* Row 2 – generated by */
+            ws.addRow(['Generado por: ' + (window._profacAuthUser || 'PROFAC')]);
+            ws.mergeCells(2, 1, 2, headers.length);
+
+            /* Row 3 – date */
             ws.addRow(['Fecha: ' + new Date().toLocaleDateString('es-HN')]);
+            ws.mergeCells(3, 1, 3, headers.length);
+
+            /* Row 4 – blank */
             ws.addRow([]);
+
+            /* Row 5 – dark header */
+            var hdrRow = ws.addRow(headers);
+            hdrRow.eachCell(function (cell) {
+                cell.fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + DARK_HDR } };
+                cell.font  = { bold: true, color: { argb: 'FFFFFFFF' } };
+                cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                cell.border = { bottom: { style: 'thin', color: { argb: 'FF666666' } } };
+            });
+
+            /* Column widths */
+            (colWidths || []).forEach(function (w, i) { ws.getColumn(i + 1).width = w; });
+            ws.getRow(5).height = 22;
+
+            return 6; /* first data row */
         }
 
-        if (tab === 'hist') {
-            var ws = wb.addWorksheet('Histórico');
-            _header(ws);
-            ws.addRow(['KPI', 'Valor']);
+        /* Style data rows: alternating bg, borders, currency formatting */
+        function _styleData(ws, fromRow, count, currencyCols) {
+            for (var r = fromRow; r < fromRow + count; r++) {
+                var row = ws.getRow(r);
+                var even = (r - fromRow) % 2 === 0;
+                row.eachCell({ includeEmpty: true }, function (cell, colNum) {
+                    if (even) {
+                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + LIGHT_ROW } };
+                    }
+                    cell.border = {
+                        top:    { style: 'hair', color: { argb: 'FFCCCCCC' } },
+                        bottom: { style: 'hair', color: { argb: 'FFCCCCCC' } },
+                        left:   { style: 'hair', color: { argb: 'FFCCCCCC' } },
+                        right:  { style: 'hair', color: { argb: 'FFCCCCCC' } }
+                    };
+                    if ((currencyCols || []).indexOf(colNum) !== -1) {
+                        cell.numFmt = CUR_FMT;
+                        cell.alignment = { horizontal: 'right' };
+                    }
+                });
+            }
+        }
+
+        /* ── detect what to export ───────────────────────────────────────── */
+        if (activeTab === 'tab-hist') {
+            /* Histórico: KPIs + Ventas mensuales */
             $.get('/reporte/dashboard/kpis', getP1()).then(function (d) {
-                [
-                    ['Total Vendido', fmt(d.total_ventas)],
-                    ['Facturas', d.total_facturas],
-                    ['Ticket Promedio', fmt(d.ticket_promedio)],
-                    ['Clientes Únicos', d.clientes_unicos],
-                    ['Total Descuentos', fmt(d.total_descuentos)],
-                    ['Mejor Mes', d.mejor_mes || '-'],
+                var ws = wb.addWorksheet('KPIs Histórico');
+                var from = _setupSheet(ws, 'Dashboard Histórico — KPIs', ['Indicador', 'Valor'], [35, 20]);
+                var kpis = [
+                    ['Total Vendido', parseFloat(d.total_ventas) || 0],
+                    ['Facturas',      d.total_facturas || 0],
+                    ['Ticket Promedio', parseFloat(d.ticket_promedio) || 0],
+                    ['Clientes Únicos', d.clientes_unicos || 0],
+                    ['Total Descuentos', parseFloat(d.total_descuentos) || 0],
+                    ['Mejor Mes',      d.mejor_mes || '-'],
                     ['Mejor Vendedor', d.mejor_vendedor || '-']
-                ].forEach(function (row) { ws.addRow(row); });
+                ];
+                kpis.forEach(function (row) { ws.addRow(row); });
+                _styleData(ws, from, kpis.length, [2]);
                 _descargar(wb, 'dashboard-historico.xlsx');
             });
 
-        } else if (tab === 'sem') {
-            var ws2 = wb.addWorksheet('Semanal');
-            _header(ws2);
+        } else if (activeTab === 'tab-sem') {
+            /* Semanal: KPIs + tabla de facturas */
             $.get('/reporte/dashboard/resumen-semanal', getP2()).then(function (d) {
-                ws2.addRow(['Métrica', 'Valor']);
-                [
-                    ['Total Período', fmt(d.total)],
-                    ['Facturas', d.facturas],
-                    ['Ticket Promedio', fmt(d.ticket_promedio)],
-                    ['Mejor Vendedor', d.mejor_vendedor || '-'],
-                    ['Mejor Cliente', d.mejor_cliente || '-'],
-                    ['Mejor Día', d.mejor_dia || '-']
-                ].forEach(function (row) { ws2.addRow(row); });
+                var ws = wb.addWorksheet('KPIs Semanal');
+                var from = _setupSheet(ws, 'Dashboard Semanal — KPIs', ['Indicador', 'Valor'], [35, 20]);
+                var kpis = [
+                    ['Total Período',   parseFloat(d.total) || 0],
+                    ['Facturas',        d.facturas || 0],
+                    ['Ticket Promedio', parseFloat(d.ticket_promedio) || 0],
+                    ['Mejor Vendedor',  d.mejor_vendedor || '-'],
+                    ['Mejor Cliente',   d.mejor_cliente || '-'],
+                    ['Mejor Día',       d.mejor_dia || '-']
+                ];
+                kpis.forEach(function (row) { ws.addRow(row); });
+                _styleData(ws, from, kpis.length, [2]);
                 _descargar(wb, 'dashboard-semanal.xlsx');
             });
 
         } else {
-            var ws3 = wb.addWorksheet('Vendedores');
-            _header(ws3);
-            ws3.addRow(['#', 'Vendedor', 'Facturas', 'Clientes', 'Total Ventas', 'Ticket Prom.', 'Participación %']);
-            $.get('/reporte/dashboard/top-vendedores', getP3()).then(function (rows) {
-                rows.forEach(function (r, i) {
-                    ws3.addRow([i + 1, r.vendedor, r.facturas, r.clientes_atendidos,
-                                r.total_ventas, r.ticket_promedio, r.participacion]);
+            /* Analítica Avanzada: depends on active pill */
+            if (activePill === '#pill-pane-vend' || activePill === '') {
+                $.get('/reporte/dashboard/top-vendedores', getP3()).then(function (rows) {
+                    var ws = wb.addWorksheet('Vendedores');
+                    var headers = ['#', 'Vendedor', 'Facturas', 'Clientes', 'Total Ventas', 'Ticket Prom.', 'Participación %'];
+                    var widths  = [5, 28, 10, 10, 18, 16, 14];
+                    var from    = _setupSheet(ws, 'Analítica — Vendedores', headers, widths);
+                    rows.forEach(function (r, i) {
+                        ws.addRow([i + 1, r.vendedor, r.facturas, r.clientes_atendidos,
+                                   parseFloat(r.total_ventas), parseFloat(r.ticket_promedio),
+                                   parseFloat(r.participacion)]);
+                    });
+                    _styleData(ws, from, rows.length, [5, 6]);
+                    /* % format */
+                    for (var rx = from; rx < from + rows.length; rx++) {
+                        ws.getRow(rx).getCell(7).numFmt = '0.00"%"';
+                    }
+                    _descargar(wb, 'analitica-vendedores.xlsx');
                 });
-                _descargar(wb, 'dashboard-analitica.xlsx');
-            });
+
+            } else if (activePill === '#pill-pane-cli') {
+                $.get('/reporte/dashboard/top-clientes', getP3()).then(function (rows) {
+                    var ws = wb.addWorksheet('Clientes');
+                    var headers = ['#', 'Cliente', 'Tipo', 'ABC', 'Facturas', 'Total Comprado', 'Ticket Prom.', 'Última Compra', 'Días sin Comprar'];
+                    var widths  = [5, 35, 18, 6, 10, 18, 16, 16, 14];
+                    var from    = _setupSheet(ws, 'Analítica — Clientes', headers, widths);
+                    rows.forEach(function (r, i) {
+                        ws.addRow([i + 1, r.cliente, r.tipo_cliente, r.clasificacion_abc,
+                                   r.facturas, parseFloat(r.total_comprado), parseFloat(r.ticket_promedio),
+                                   r.ultima_compra || '-', r.dias_sin_comprar || 0]);
+                    });
+                    _styleData(ws, from, rows.length, [6, 7]);
+                    _descargar(wb, 'analitica-clientes.xlsx');
+                });
+
+            } else if (activePill === '#pill-pane-prod') {
+                /* Productos + Marcas in two sheets */
+                $.when(
+                    $.get('/reporte/dashboard/top-productos', getP3()),
+                    $.get('/reporte/dashboard/top-marcas',   getP3())
+                ).then(function (prodRes, marcaRes) {
+                    var prodRows  = prodRes[0];
+                    var marcaRows = marcaRes[0];
+
+                    var ws1 = wb.addWorksheet('Productos');
+                    var h1  = ['#', 'Producto', 'Categoría', 'Subcategoría', 'Unidades', 'Ingresos', 'P.Prom.', 'Facturas', 'Pareto %'];
+                    var from1 = _setupSheet(ws1, 'Analítica — Top Productos', h1, [5,40,18,18,12,16,14,10,10]);
+                    prodRows.forEach(function (r, i) {
+                        ws1.addRow([i + 1, r.producto, r.categoria, r.subcategoria,
+                                    r.unidades_vendidas, parseFloat(r.ingresos), parseFloat(r.precio_promedio),
+                                    r.apariciones, parseFloat(r.pareto)]);
+                    });
+                    _styleData(ws1, from1, prodRows.length, [6, 7]);
+
+                    var ws2 = wb.addWorksheet('Por Marca');
+                    var h2  = ['#', 'Marca', 'Productos', 'Unidades', 'Ingresos', 'P.Prom.', 'Facturas', 'Participación %'];
+                    var from2 = _setupSheet(ws2, 'Analítica — Por Marca', h2, [5,28,12,12,16,14,10,14]);
+                    marcaRows.forEach(function (r, i) {
+                        ws2.addRow([i + 1, r.marca, r.productos, r.unidades_vendidas,
+                                    parseFloat(r.ingresos), parseFloat(r.precio_promedio),
+                                    r.facturas, parseFloat(r.participacion)]);
+                    });
+                    _styleData(ws2, from2, marcaRows.length, [5, 6]);
+
+                    _descargar(wb, 'analitica-productos.xlsx');
+                });
+
+            } else if (activePill === '#pill-pane-comp') {
+                var vends = _getVendsSeleccionados();
+                if (!vends.length) { alert('Seleccione al menos un vendedor para exportar.'); return; }
+                $.get('/reporte/dashboard/top-vendedores', $.extend({}, getP3(), { vendedores: vends.join(',') }))
+                 .then(function (rows) {
+                    var ws = wb.addWorksheet('Comparación');
+                    var headers = ['Vendedor', 'Facturas', 'Clientes', 'Total Ventas', 'Ticket Prom.', 'Participación %'];
+                    var widths  = [28, 10, 10, 18, 16, 14];
+                    var from    = _setupSheet(ws, 'Analítica — Comparar Vendedores', headers, widths);
+                    rows.forEach(function (r) {
+                        ws.addRow([r.vendedor, r.facturas, r.clientes_atendidos,
+                                   parseFloat(r.total_ventas), parseFloat(r.ticket_promedio),
+                                   parseFloat(r.participacion)]);
+                    });
+                    _styleData(ws, from, rows.length, [4, 5]);
+                    _descargar(wb, 'analitica-comparacion.xlsx');
+                });
+            }
         }
     }
 
@@ -1055,6 +1271,7 @@ var dashboardVentas = (function () {
         limpiarFiltrosSem:     limpiarFiltrosSem,
         limpiarFiltrosAdv:     limpiarFiltrosAdv,
         exportarExcel:         exportarExcel,
-        recargarTodo:          recargarTodo
+        recargarTodo:          recargarTodo,
+        _filtrarMarca:         _filtrarMarca
     };
 })();
