@@ -44,7 +44,14 @@ class ConfiguracionNotificaciones extends Component
 
     public function mount(): void
     {
-        $this->notificacionesActivas = Cache::get('notificaciones_sistema_activo', false);
+        // Cache-Aside: si caché existe úsala; si no (tras cache:clear), lee BD y repobla caché
+        $this->notificacionesActivas = (bool)(int) Cache::remember(
+            'notificaciones_sistema_activo',
+            3600,
+            fn () => DB::table('configuracion_sistema')
+                ->where('clave', 'notificaciones_sistema_activo')
+                ->value('valor') ?? '0'
+        );
         $this->cargarCatalogos();
         $this->cargarConfigs();
         $this->verificarJerarquias();
@@ -53,6 +60,16 @@ class ConfiguracionNotificaciones extends Component
     public function toggleSistema(): void
     {
         $this->notificacionesActivas = !$this->notificacionesActivas;
+
+        // Cache-Aside: escribir en BD primero (fuente de verdad)
+        DB::table('configuracion_sistema')
+            ->where('clave', 'notificaciones_sistema_activo')
+            ->update([
+                'valor'      => $this->notificacionesActivas ? '1' : '0',
+                'updated_at' => now(),
+            ]);
+
+        // Luego actualizar caché para que el listener no haga una query innecesaria
         Cache::forever('notificaciones_sistema_activo', $this->notificacionesActivas);
 
         $estado = $this->notificacionesActivas ? 'ACTIVADAS' : 'DESACTIVADAS';

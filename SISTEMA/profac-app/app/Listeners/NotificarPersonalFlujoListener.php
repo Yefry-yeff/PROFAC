@@ -6,6 +6,7 @@ use App\Events\FlujoAvanzadoEvent;
 use App\Models\NotificacionFlujoConfig;
 use App\Notifications\FlujoNotification;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 
 class NotificarPersonalFlujoListener
@@ -17,8 +18,16 @@ class NotificarPersonalFlujoListener
             'tipo_tramite_id' => $event->tipoTramiteId,
         ]);
 
-        // Respetar interruptor global (se activa desde pantalla de configuración)
-        if (!Cache::get('notificaciones_sistema_activo', false)) {
+        // Cache-Aside: caché primero; si miss (tras cache:clear) leer BD y repoblar
+        $sistemaActivo = (bool)(int) Cache::remember(
+            'notificaciones_sistema_activo',
+            3600,
+            fn () => DB::table('configuracion_sistema')
+                ->where('clave', 'notificaciones_sistema_activo')
+                ->value('valor') ?? '0'
+        );
+
+        if (!$sistemaActivo) {
             \Log::info('NotificacionFlujo: sistema desactivado, saltando.');
             return;
         }

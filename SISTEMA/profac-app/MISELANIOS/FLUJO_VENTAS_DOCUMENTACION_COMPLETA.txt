@@ -1,0 +1,534 @@
+================================================================================
+  PROFAC - FLUJO DE VENTAS: DOCUMENTACIÓN COMPLETA Y FUNCIONAL
+  Versión: Mayo 2026 | Sistema: profac-app | Framework: Laravel + Livewire
+================================================================================
+
+ÍNDICE
+------
+1. Concepto general del flujo
+2. Tablas catálogo con IDs reales
+3. Tablas operativas (estructura)
+4. Configuraciones que controlan el flujo
+5. Flujo cronológico completo — RUTA A: Rev. Inventario ACTIVA
+6. Flujo cronológico completo — RUTA B: Rev. Inventario INACTIVA
+7. Casos especiales y bifurcaciones
+8. Resumen visual de estados en flujo.tipo_tramite_id
+9. Cómo leer el historial de un flujo real
+
+
+================================================================================
+1. CONCEPTO GENERAL DEL FLUJO
+================================================================================
+
+El flujo de ventas es el recorrido cronológico que sigue una venta desde que
+el cliente hace un pedido hasta que se cobra el dinero. Cada venta tiene:
+
+  - Una fila en la tabla FLUJO que actúa como "encabezado" o "contenedor".
+    Su columna tipo_tramite_id indica el estado ACTUAL del flujo.
+
+  - Múltiples filas en HISTORICO_FLUJO que registran cada paso que ocurrió,
+    con fecha, responsable y estado. Es el trazado completo de la venta.
+
+El FLUJO no lleva los documentos en sí (cotizaciones, prefacturas, facturas);
+esos viven en sus propias tablas. El FLUJO solo lleva el ID del documento
+en historico_flujo.tramite_id como referencia cruzada.
+
+Punto de entrada del flujo:
+  Un PEDIDO (tabla pedido) es ingresado por un Asesor Comercial o Televendedor.
+  Al crear el pedido se crea automáticamente un registro en FLUJO con:
+      flujo.tipo_flujo_id  = 1       (tipo "ventas")
+      flujo.identificacion = pedido.id  (clave que vincula flujo → pedido)
+      flujo.tipo_tramite_id = 1      (estado inicial: "pedido")
+
+
+================================================================================
+2. TABLAS CATÁLOGO CON IDs REALES
+================================================================================
+
+────────────────────────────────────────────────────────────────────────────────
+TABLA: tipos_tramites  (define qué TIPO DE PASO puede tener un flujo)
+────────────────────────────────────────────────────────────────────────────────
+ID | Nombre                  | Uso en el flujo
+---+-------------------------+------------------------------------------------
+ 1 | pedido                  | Estado inicial. Hay cotizaciones en proceso.
+ 2 | Ofertas                 | Se están evaluando/creando cotizaciones (ofertas).
+ 3 | factura                 | Se emitió la factura final al cliente.
+ 4 | prefactura              | Se generó una prefactura a partir de la oferta ganadora.
+ 5 | Entrega                 | La mercancía está en proceso de entrega.
+ 6 | Cobro                   | El cobro está pendiente.
+ 7 | Entrega y Cobro         | Entrega y cobro se gestionan como una sola unidad.
+ 8 | Finalizado              | Entrega completada + cobro saldado = flujo cerrado.
+ 9 | Revision de Inventario  | Paso opcional: logística verifica stock antes de prefactura.
+10 | Revision de Credito     | Paso opcional: finanzas aprueba/rechaza crédito al cliente.
+11 | Prefactura Anulada      | Evento especial: una prefactura fue anulada por autorización.
+
+IMPORTANTE: El ID de tipos_tramites es el mismo que se usa en:
+  - flujo.tipo_tramite_id (estado actual del flujo)
+  - historico_flujo.tipo_tramite_id (tipo de cada paso registrado)
+  - notificacion_flujo_config.tipo_tramite_id (reglas de notificación)
+
+────────────────────────────────────────────────────────────────────────────────
+TABLA: flujo_etapas  (catálogo visual del pipeline — alimenta el dropdown
+                      de configuración de notificaciones)
+────────────────────────────────────────────────────────────────────────────────
+ID | tipo_tramite_id | nombre_display   | orden | es_opcional | activo
+---+-----------------+------------------+-------+-------------+-------
+ 1 |  1              | Pedido           |   1   |      0      |   1
+ 2 |  2              | Ofertas          |   2   |      0      |   1
+ 3 |  9              | Rev. Inventario  |   3   |      1      |   1   ← opcional
+ 4 | 10              | Rev. Crédito     |   4   |      1      |   1   ← opcional
+ 5 |  4              | Prefactura       |   5   |      0      |   1
+ 6 |  3              | Factura          |   6   |      0      |   1
+ 7 |  5              | Entrega          |   7   |      0      |   1
+ 8 |  6              | Cobro            |   8   |      0      |   1
+ 9 |  7              | Entrega y Cobro  |   9   |      1      |   1   ← opcional
+10 |  8              | Finalizado       |  10   |      0      |   1
+11 | 11              | Pref. Anulada    |  11   |      1      |   1   ← evento especial
+
+Nota: el orden visual en pantalla sigue la columna "orden", no el ID.
+      Los pasos opcionales pueden no aparecer en todos los flujos.
+
+────────────────────────────────────────────────────────────────────────────────
+TABLA: estado_venta  (catálogo de estados para varios documentos)
+────────────────────────────────────────────────────────────────────────────────
+ID | descripcion
+---+---------------------
+ 1 | activo
+ 2 | anulado
+ 3 | devolucion
+ 4 | vencido
+ 5 | pendiente
+ 6 | activa
+ 7 | cancelado
+ 8 | pre_factura
+ 9 | Revision
+10 | Revision de Credito
+
+Este catálogo se usa principalmente en historico_flujo.estado_id:
+  estado_id = 1  → paso completado / activo
+  estado_id = 5  → paso pendiente (en espera de acción)
+  estado_id = 7  → paso cancelado / inactivado / anulado
+
+────────────────────────────────────────────────────────────────────────────────
+TABLA: rol  (roles de usuarios del sistema)
+────────────────────────────────────────────────────────────────────────────────
+ID | Nombre
+---+------------------------------
+ 1 | Administrador
+ 2 | Asesor Comercial
+ 3 | Televendedor
+ 4 | Créditos y Cobros
+ 5 | Auxiliar Administrativo
+ 6 | Auxiliar Contable
+ 7 | Auditoria y Logistica
+ 8 | Recursos Humanos
+ 9 | Mercadeo
+10 | Picking
+11 | Equipo de Entregas
+12 | Apoyo Temporal
+13 | Temporal
+14 | Televendedor Tgu
+15 | Tele-Asesor Comercial
+16 | Gestor de entregas
+17 | Motoristas
+18 | Auditoria
+19 | Gerente De Marca
+
+
+================================================================================
+3. TABLAS OPERATIVAS — ESTRUCTURA
+================================================================================
+
+────────────────────────────────────────────────────────────────────────────────
+TABLA: flujo  (una fila por venta, refleja el estado ACTUAL)
+────────────────────────────────────────────────────────────────────────────────
+Columna          | Tipo            | Descripción
+-----------------+-----------------+-------------------------------------------
+id               | bigint PK       | Identificador del flujo
+tipo_flujo_id    | bigint FK       | Tipo de flujo (1 = ventas)
+identificacion   | varchar(255)    | ID del documento origen (pedido.id o cotizacion.id)
+nombre           | varchar(255)    | Nombre del cliente (se actualiza al facturar)
+cliente_rtn      | varchar(30)     | RTN del cliente
+tipo_tramite_id  | bigint FK       | ← ESTADO ACTUAL del flujo (apunta a tipos_tramites)
+created_by       | bigint FK       | Usuario que creó el flujo
+updated_by       | bigint FK       | Último usuario que lo modificó
+estado_id        | int FK          | Estado general (referencia a estado_venta)
+created_at       | timestamp       | Fecha de creación
+updated_at       | timestamp       | Fecha de última modificación
+
+────────────────────────────────────────────────────────────────────────────────
+TABLA: historico_flujo  (una fila por paso, es el trazado completo)
+────────────────────────────────────────────────────────────────────────────────
+Columna          | Tipo            | Descripción
+-----------------+-----------------+-------------------------------------------
+id               | bigint PK       | Identificador del registro
+flujo_id         | bigint FK       | Apunta a flujo.id
+tramite_id       | bigint nullable | ID del documento involucrado en este paso
+                 |                 | (cotizacion.id, prefactura.id, factura.id,
+                 |                 |  aplicacion_pagos.id, etc.)
+tipo_tramite_id  | bigint FK       | Tipo de paso (apunta a tipos_tramites)
+observaciones    | text nullable   | Notas del paso (ej: "ganadora", motivo de anulación)
+created_by       | bigint FK       | Usuario que ejecutó este paso
+updated_by       | bigint FK       | Último que modificó este registro
+estado_id        | int FK          | Estado del paso: 1=completado, 5=pendiente, 7=cancelado
+created_at       | timestamp       | Cuándo ocurrió este paso
+updated_at       | timestamp       | Cuándo fue la última modificación
+
+────────────────────────────────────────────────────────────────────────────────
+OTROS DOCUMENTOS VINCULADOS AL FLUJO
+────────────────────────────────────────────────────────────────────────────────
+cotizacion         → la oferta/propuesta enviada al cliente
+cotizacion_estado  → auditoría de estados de cotizaciones (ganadora, quitada, etc.)
+prefactura         → documento previo a la factura, creado desde la oferta ganadora
+prefactura_has_producto → productos de la prefactura
+prefactura_auditoria    → log de acciones sobre prefacturas (anulaciones, etc.)
+factura            → documento fiscal definitivo
+venta_has_producto → productos de la factura
+aplicacion_pagos   → registro del cobro / control de saldo pendiente
+abonos_creditos    → historial de pagos recibidos
+credito_revision   → registro de la revisión de crédito del cliente
+
+
+================================================================================
+4. CONFIGURACIONES QUE CONTROLAN EL FLUJO
+================================================================================
+
+────────────────────────────────────────────────────────────────────────────────
+TABLA: configuracion_revision_inventario
+────────────────────────────────────────────────────────────────────────────────
+  id=1 | activo=1 (actualmente ACTIVO)
+
+  Qué controla: si la columna activo=1, cuando se marca una oferta como ganadora
+  el sistema NO crea la prefactura directamente. En cambio abre el paso de
+  Revisión de Crédito (tipo=10) primero, y luego Revisión de Inventario (tipo=9).
+
+  Si activo=0: al marcar ganadora se crea la prefactura directamente, sin pasar
+  por crédito ni inventario. El mensaje del sistema lo confirma:
+  "Revisión de inventario DESACTIVADA. Las ofertas ganadoras pasarán directamente
+  a Prefactura."
+
+────────────────────────────────────────────────────────────────────────────────
+TABLA: configuracion_prefactura
+────────────────────────────────────────────────────────────────────────────────
+  Controla: días de validez de la prefactura (días_validez).
+  Cuando expira, la prefactura se marca como vencida.
+
+────────────────────────────────────────────────────────────────────────────────
+TABLA: credito_revision
+────────────────────────────────────────────────────────────────────────────────
+  Una fila por flujo. Registra el resultado de la revisión de crédito:
+    estado: 'pendiente' | 'aprobado' | 'rechazado'
+    fecha_vencimiento_credito: hasta cuándo es válida la aprobación
+    dias_credito_aprobados: 0=contado, >0=crédito con días plazo
+
+  Si existe un crédito APROBADO y NO VENCIDO para un flujo, al marcar ganadora
+  una nueva oferta se SALTA la Revisión de Crédito y va directo a Rev. Inventario.
+  Esto se llama "crédito vigente".
+
+
+================================================================================
+5. FLUJO CRONOLÓGICO COMPLETO — RUTA A: Rev. Inventario ACTIVA
+================================================================================
+
+Este es el flujo estándar actual (configuracion_revision_inventario.activo = 1).
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ PASO 1 — PEDIDO INGRESADO                                                   │
+│   Quién: Asesor Comercial, Televendedor                                     │
+│   Tabla pedido: se crea con estado='activo'                                 │
+│   Tabla flujo: se crea con tipo_tramite_id=1 ("pedido")                     │
+│   Tabla historico_flujo: tipo_tramite_id=1, tramite_id=pedido.id,           │
+│                          estado_id=1                                        │
+│   flujo.tipo_tramite_id = 1                                                 │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                   ↓
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ PASO 2 — OFERTA(S) CREADAS                                                  │
+│   Quién: Asesor Comercial                                                   │
+│   Tabla cotizacion: se crean una o más cotizaciones para el pedido          │
+│   Tabla historico_flujo: por cada cotizacion, tipo_tramite_id=2,            │
+│                          tramite_id=cotizacion.id, estado_id=1              │
+│   Tabla flujo: tipo_tramite_id se actualiza a 2 ("Ofertas")                 │
+│   flujo.tipo_tramite_id = 2                                                 │
+│                                                                             │
+│   NOTA: Puede haber múltiples cotizaciones (ofertas) por pedido.            │
+│   La ganadora se identifica por observaciones='ganadora' en historico_flujo │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                   ↓
+             ┌─────────────────────────────────────────────┐
+             │ ¿Ya existe un CRÉDITO VIGENTE para el flujo? │
+             └────────────────┬────────────┬───────────────┘
+                             SÍ           NO
+                              ↓            ↓
+┌──────────────────────────────┐  ┌──────────────────────────────────────────┐
+│ PASO 3A — REVISIÓN INVENTARIO│  │ PASO 3B — REVISIÓN DE CRÉDITO            │
+│ (salta crédito)              │  │   Quién: Créditos y Cobros (o Admin)     │
+│   flujo.tipo_tramite_id = 9  │  │   Tabla historico_flujo: tipo=10,        │
+│   historico_flujo tipo=9,    │  │              tramite_id=cotizacion.id,   │
+│     estado_id=5 (pendiente)  │  │              estado_id=5 (pendiente)     │
+└──────────────────────────────┘  │   Tabla flujo: tipo_tramite_id = 10      │
+                                  │   Tabla credito_revision: estado=pendiente│
+                                  │                                          │
+                                  │   APROBADO → credito_revision.estado =   │
+                                  │     'aprobado', dias_credito_aprobados   │
+                                  │     (0=contado, >0=días plazo)           │
+                                  │   historico_flujo tipo=10, estado_id=1   │
+                                  │   → crea/reactiva historico_flujo tipo=9 │
+                                  │     estado_id=5                          │
+                                  │   flujo.tipo_tramite_id = 9              │
+                                  │                                          │
+                                  │   RECHAZADO → credito_revision.estado =  │
+                                  │     'rechazado'                          │
+                                  │   flujo queda CANCELADO (no avanza)      │
+                                  └──────────────────────────────────────────┘
+                                                        ↓
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ PASO 4 — REVISIÓN DE INVENTARIO                                             │
+│   Quién: Logística / Auditoria y Logistica                                  │
+│   Pantalla: /flujo/revicion_inventario                                      │
+│   flujo.tipo_tramite_id = 9                                                 │
+│   historico_flujo: tipo=9, tramite_id=cotizacion.id, estado_id=5            │
+│                                                                             │
+│   APROBADO → Crea la prefactura                                             │
+│     Tabla prefactura: se crea con estado='activo'                           │
+│     Tabla prefactura_has_producto: productos copiados de cotizacion         │
+│     historico_flujo tipo=9, estado_id=1 (cerrado)                          │
+│     historico_flujo tipo=4, tramite_id=prefactura.id, estado_id=1          │
+│     flujo.tipo_tramite_id = 4                                               │
+│                                                                             │
+│   DEVUELTO A OFERTA → historico_flujo tipo=9, estado_id=7                  │
+│     flujo.tipo_tramite_id = 2 (vuelve a Ofertas)                            │
+│     La cotización queda disponible para ser re-seleccionada como ganadora   │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                   ↓
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ PASO 5 — PREFACTURA                                                         │
+│   flujo.tipo_tramite_id = 4                                                 │
+│   Tabla prefactura: estado='activo', con fecha_vencimiento                  │
+│   Tabla historico_flujo: tipo=4, tramite_id=prefactura.id, estado_id=1     │
+│                                                                             │
+│   Acciones posibles desde el Modal del Flujo:                               │
+│                                                                             │
+│   ─ FACTURAR (facturarPrefacturaDirecta o formulario de facturación):       │
+│     → Avanza al PASO 6 (Factura)                                            │
+│                                                                             │
+│   ─ ANULAR prefactura (requiere código de autorización + motivo):           │
+│     prefactura.estado = 'inactive'                                          │
+│     historico_flujo tipo=4, estado_id=7 (cancelado)                        │
+│     flujo.tipo_tramite_id = 2 (vuelve a Ofertas)                            │
+│     cotizacion.estado retrocede                                             │
+│     Se elimina ciclo de Rev. Inventario (tipo=9) del historial              │
+│     Se registra en prefactura_auditoria                                     │
+│     Se dispara EVENTO NOTIFICACIÓN tipo=11 (Prefactura Anulada)             │
+│                                                                             │
+│   ─ REVERTIR A OFERTA (requiere autorización):                              │
+│     Similar a anular pero sin marcar la prefactura como inactive desde aquí │
+│     flujo.tipo_tramite_id = 2 (vuelve a Ofertas)                            │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                   ↓
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ PASO 6 — FACTURA EMITIDA                                                    │
+│   Quién: Auxiliar Administrativo / Auxiliar Contable                        │
+│   flujo.tipo_tramite_id = 3                                                 │
+│   Tabla factura: se crea la factura definitiva                              │
+│   Tabla venta_has_producto: productos de la factura                         │
+│   Tabla historico_flujo: tipo=3, tramite_id=factura.id, estado_id=1        │
+│                                                                             │
+│   Al crear la factura, automáticamente se crean:                            │
+│     historico_flujo tipo=5, tramite_id=NULL, estado_id=5 (Entrega pendiente)│
+│     historico_flujo tipo=6, tramite_id=NULL, estado_id=5 (Cobro pendiente)  │
+│     O bien tipo=7 si se trabaja Entrega y Cobro juntos                      │
+│                                                                             │
+│   flujo.nombre se actualiza con el nombre del cliente de la factura         │
+│                                                                             │
+│   Lógica del tipo de pago (tipo_pago_id en factura):                        │
+│     1. Si credito_revision aprobado y dias_credito_aprobados = 0 → Contado  │
+│     2. Si credito_revision aprobado y dias_credito_aprobados > 0 → Crédito  │
+│     3. Si cotizacion.tipo_pago_id = 1 → Contado                            │
+│     4. Si cotizacion.tipo_pago_id = 2 → Crédito                            │
+│     5. Si cotizacion tiene fecha_vencimiento > fecha_emision → Crédito      │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                   ↓
+         ┌─────────────────────────────────────────────────────────┐
+         │ El flujo se gestiona ahora en paralelo: ENTREGA y COBRO  │
+         └──────────────┬──────────────────────────────────────────┘
+                        ↓
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ PASO 7 — ENTREGA                                                            │
+│   flujo.tipo_tramite_id = 5 (mientras Cobro no haya terminado)              │
+│   Tabla historico_flujo: tipo=5, tramite_id=distribucion.id, estado_id=5   │
+│   Tabla distribuciones / logística de entrega (módulo separado)            │
+│                                                                             │
+│   COMPLETADA → historico_flujo tipo=5, estado_id=1                         │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                   +
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ PASO 7 — COBRO                                                              │
+│   Tabla aplicacion_pagos: saldo inicial = total de la factura               │
+│   Tabla abonos_creditos: historial de pagos recibidos                       │
+│   Tabla historico_flujo: tipo=6, tramite_id=aplicacion_pagos.id,           │
+│                          estado_id=5 (pendiente)                            │
+│                                                                             │
+│   COMPLETADO (aplicacion_pagos.saldo <= 0) →                               │
+│     historico_flujo tipo=6, estado_id=1                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                   ↓
+        ┌──────────────────────────────────────────────────────────┐
+        │ ¿Entrega completada (tipo=5, estado_id=1)                │
+        │ Y Cobro completado (saldo <= 0)?                         │
+        └────────────────┬─────────────────────────────────────────┘
+                        SÍ
+                         ↓
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ PASO 8 — FINALIZADO                                                         │
+│   flujo.tipo_tramite_id = 8                                                 │
+│   El flujo queda cerrado. No se pueden hacer más acciones.                  │
+│   Se dispara EVENTO NOTIFICACIÓN tipo=8 (Flujo Finalizado)                 │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+6. FLUJO CRONOLÓGICO COMPLETO — RUTA B: Rev. Inventario INACTIVA
+================================================================================
+
+Cuando configuracion_revision_inventario.activo = 0:
+Al marcar una oferta como ganadora NO se pasa por crédito ni inventario.
+La prefactura se crea directamente.
+
+Diferencias respecto a Ruta A:
+  - PASO 3 desaparece (sin Rev. Crédito)
+  - PASO 4 desaparece (sin Rev. Inventario)
+  - Al marcar ganadora se valida el stock directamente en el modal
+    (stock_real - reservado en prefacturas activas)
+  - Si no hay stock suficiente: se muestra error, no se crea prefactura
+  - Si hay stock: se crea la prefactura inmediatamente
+  - PASO 5 en adelante: igual que Ruta A
+
+
+================================================================================
+7. CASOS ESPECIALES Y BIFURCACIONES
+================================================================================
+
+────────────────────────────────────────────────────────────────────────────────
+CASO: Múltiples ofertas, cambio de ganadora
+────────────────────────────────────────────────────────────────────────────────
+  Un pedido puede tener varias cotizaciones (ofertas). En cualquier momento
+  del paso Ofertas se puede cambiar cuál es la ganadora.
+
+  Al cambiar ganadora:
+    - historico_flujo de la anterior ganadora: observaciones='QuitadaGanadora:...'
+    - Si ya existía prefactura de la anterior ganadora: prefactura.estado='inactive',
+      historico_flujo tipo=4, estado_id=7
+    - La nueva ganadora arranca el proceso de Rev. Crédito / Rev. Inventario / Prefactura
+
+────────────────────────────────────────────────────────────────────────────────
+CASO: Prefactura vencida
+────────────────────────────────────────────────────────────────────────────────
+  La prefactura tiene fecha_vencimiento (default: 7 días desde creación,
+  configurable en configuracion_prefactura.dias_validez).
+
+  Al abrir el modal y ya pasó la fecha de vencimiento:
+    - prefactura.estado = 'vencido'  (se procesa en la primera carga del modal)
+    - historico_flujo tipo=4, estado_id=4 (vencido)
+    - flujo.tipo_tramite_id = 2 (vuelve a Ofertas)
+    - Hay que volver a marcar ganadora para crear nueva prefactura
+
+────────────────────────────────────────────────────────────────────────────────
+CASO: Anulación de factura
+────────────────────────────────────────────────────────────────────────────────
+  Sólo posible si hay un saldo completo pendiente (no hay abonos).
+  anularFactura() requiere motivo.
+  factura.estado = 'inactive'
+  historico_flujo tipo=3, estado_id=7
+  flujo.tipo_tramite_id = 4 (vuelve a Prefactura, que queda "activa" de nuevo)
+
+────────────────────────────────────────────────────────────────────────────────
+CASO: Flujo sin pedido previo (cotización directa o factura directa)
+────────────────────────────────────────────────────────────────────────────────
+  Algunos flujos se abren con abrirDesdeFlujo(flujoId) cuando no tienen
+  un pedido vinculado. Esto ocurre en facturas directo o cotizaciones
+  especiales. El modal los maneja igualmente; el campo sin_pedido=true
+  en pedidoData indica esta situación.
+
+────────────────────────────────────────────────────────────────────────────────
+CASO: Crédito rechazado
+────────────────────────────────────────────────────────────────────────────────
+  rechazarCredito() en RevisionCreditos.php:
+    credito_revision.estado = 'rechazado'
+    historico_flujo tipo=10, estado_id=7
+    El flujo queda marcado como cancelado (flujoCancelado=true en el modal)
+    No avanza a ningún paso posterior.
+    Para reactivarlo se debe limpiar el rechazo manualmente.
+
+
+================================================================================
+8. RESUMEN VISUAL DE ESTADOS EN flujo.tipo_tramite_id
+================================================================================
+
+ tipo_tramite_id | Qué significa en este momento
+-----------------+---------------------------------------------------------------
+        1        | Pedido ingresado, esperando que el asesor cree cotizaciones
+        2        | En etapa de Ofertas (una o más cotizaciones creadas)
+       10        | Esperando Revisión de Crédito (Créditos y Cobros debe actuar)
+        9        | Esperando Revisión de Inventario (Logística debe actuar)
+        4        | Prefactura lista, esperando ser facturada
+        3        | Factura emitida, entrega y cobro en proceso
+        5        | Entrega en proceso (alias visible cuando flujo está en entrega)
+        6        | Cobro pendiente (alias visible)
+        7        | Entrega y Cobro gestionados juntos
+        8        | FINALIZADO (entrega + cobro completados)
+       11        | Evento: una prefactura fue anulada (el flujo volvió a tipo=2)
+
+
+================================================================================
+9. CÓMO LEER EL HISTORIAL DE UN FLUJO REAL
+================================================================================
+
+Para ver el recorrido completo de un flujo, por ejemplo el flujo #50:
+
+  SELECT
+    hf.id,
+    hf.tipo_tramite_id,
+    tt.nombre            AS paso,
+    hf.tramite_id        AS id_documento,
+    hf.estado_id,
+    ev.descripcion       AS estado,
+    hf.observaciones,
+    hf.created_at,
+    u.name               AS usuario
+  FROM historico_flujo hf
+  LEFT JOIN tipos_tramites tt ON tt.id = hf.tipo_tramite_id
+  LEFT JOIN estado_venta ev   ON ev.id = hf.estado_id
+  LEFT JOIN users u           ON u.id  = hf.created_by
+  WHERE hf.flujo_id = 50
+  ORDER BY hf.id ASC;
+
+Para ver el estado actual del flujo:
+
+  SELECT
+    f.id,
+    f.nombre             AS cliente,
+    f.identificacion     AS pedido_id,
+    tt.nombre            AS estado_actual,
+    f.updated_at
+  FROM flujo f
+  LEFT JOIN tipos_tramites tt ON tt.id = f.tipo_tramite_id
+  WHERE f.id = 50;
+
+Para ver todos los flujos activos (sin finalizar):
+
+  SELECT
+    f.id,
+    f.nombre             AS cliente,
+    tt.nombre            AS estado_actual,
+    f.updated_at
+  FROM flujo f
+  LEFT JOIN tipos_tramites tt ON tt.id = f.tipo_tramite_id
+  WHERE f.tipo_tramite_id != 8   -- excluir Finalizado
+  ORDER BY f.updated_at DESC;
+
+
+================================================================================
+FIN DEL DOCUMENTO
+Generado: Mayo 25, 2026 | Responsable técnico: profac-app
+================================================================================
