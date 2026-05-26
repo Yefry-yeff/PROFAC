@@ -6,9 +6,10 @@
     .btn-export-excel{ background:#1e7e34; color:#fff; border:none; }
     .btn-export-excel:hover{ background:#155724; color:#fff; }
     .tab-label-badge { font-size:.75rem; vertical-align:middle; }
-    .x-mark  { color:#1ab394; font-weight:700; }
-    .sol-mark { color:#e74c3c; font-size:.8rem; }
-    .na-mark  { color:#95a5a6; font-size:.8rem; }
+    .x-mark      { color:#1ab394; font-weight:700; }
+    .fisico-mark { color:#856404; font-weight:600; }
+    .sol-mark    { color:#e74c3c; font-size:.8rem; }
+    .na-mark     { color:#95a5a6; font-size:.8rem; }
 </style>
 @endpush
 

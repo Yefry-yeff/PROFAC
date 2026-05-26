@@ -77,7 +77,22 @@ $(document).ready(function() {
                         data: 'opciones'
                     },
 
-                ]
+                ],
+                drawCallback: function () {
+                    var api  = this.api();
+                    var data = api.data();
+                    var total     = data.length;
+                    var activos   = 0;
+                    var inactivos = 0;
+                    data.each(function (row) {
+                        var estado = (row.estado || '').toString();
+                        if (estado.indexOf('INACTIVO') !== -1) { inactivos++; }
+                        else if (estado.indexOf('ACTIVO') !== -1) { activos++; }
+                    });
+                    $('#cli-stat-total').text(total);
+                    $('#cli-stat-activos').text(activos);
+                    $('#cli-stat-inactivos').text(inactivos);
+                }
 
 
             });

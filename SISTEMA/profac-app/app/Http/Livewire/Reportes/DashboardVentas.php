@@ -327,31 +327,62 @@ class DashboardVentas extends Component
     // ─── PESTAÑA 3: Top clientes ────────────────────────────────────────────
     public function topClientes(Request $request)
     {
-        $fi    = $request->fecha_inicio ?? date('Y-01-01');
-        $ff    = $request->fecha_final  ?? date('Y-m-d');
+        $fi    = $request->fecha_inicio  ?? date('Y-01-01');
+        $ff    = $request->fecha_final   ?? date('Y-m-d');
         $vend  = $request->vendedor      ? (int)$request->vendedor      : null;
+        $tc    = $request->tipo_cliente  ? (int)$request->tipo_cliente  : null;
+        $cat   = $request->categoria     ? (int)$request->categoria     : null;
+        $marca = $request->marca         ? (int)$request->marca         : null;
         $limit = $request->limite        ? (int)$request->limite        : 20;
 
         $where = "f.estado_venta_id = 1 AND f.fecha_emision BETWEEN '$fi' AND '$ff'";
-        if ($vend) $where .= " AND f.vendedor = $vend";
+        if ($vend)  $where .= " AND f.vendedor = $vend";
+        if ($tc)    $where .= " AND cli.tipo_cliente_id = $tc";
 
-        $rows = DB::SELECT("
-            SELECT
-                cli.nombre                                  AS cliente,
-                tc.descripcion                              AS tipo_cliente,
-                COUNT(DISTINCT f.id)                        AS facturas,
-                SUM(f.total)                                AS total_comprado,
-                AVG(f.total)                                AS ticket_promedio,
-                MAX(f.fecha_emision)                        AS ultima_compra,
-                DATEDIFF(CURDATE(), MAX(f.fecha_emision))   AS dias_sin_comprar
-            FROM factura f
-            INNER JOIN cliente cli     ON cli.id = f.cliente_id
-            INNER JOIN tipo_cliente tc ON tc.id  = cli.tipo_cliente_id
-            WHERE $where
-            GROUP BY f.cliente_id, cli.nombre, tc.descripcion
-            ORDER BY total_comprado DESC
-            LIMIT $limit
-        ");
+        /* Si hay filtro de categoría o marca necesitamos el JOIN de productos */
+        if ($cat || $marca) {
+            if ($cat)   $where .= " AND sc.categoria_producto_id = $cat";
+            if ($marca) $where .= " AND p.marca_id = $marca";
+
+            $rows = DB::SELECT("
+                SELECT
+                    cli.nombre                                      AS cliente,
+                    tc.descripcion                                  AS tipo_cliente,
+                    COUNT(DISTINCT f.id)                            AS facturas,
+                    SUM(vhp.sub_total_s)                            AS total_comprado,
+                    AVG(vhp.sub_total_s)                            AS ticket_promedio,
+                    MAX(f.fecha_emision)                            AS ultima_compra,
+                    DATEDIFF(CURDATE(), MAX(f.fecha_emision))       AS dias_sin_comprar
+                FROM factura f
+                INNER JOIN cliente cli                  ON cli.id = f.cliente_id
+                INNER JOIN tipo_cliente tc              ON tc.id  = cli.tipo_cliente_id
+                INNER JOIN venta_has_producto vhp       ON vhp.factura_id = f.id
+                INNER JOIN producto p                   ON p.id   = vhp.producto_id
+                INNER JOIN sub_categoria sc             ON sc.id  = p.sub_categoria_id
+                WHERE $where
+                GROUP BY f.cliente_id, cli.nombre, tc.descripcion
+                ORDER BY total_comprado DESC
+                LIMIT $limit
+            ");
+        } else {
+            $rows = DB::SELECT("
+                SELECT
+                    cli.nombre                                  AS cliente,
+                    tc.descripcion                              AS tipo_cliente,
+                    COUNT(DISTINCT f.id)                        AS facturas,
+                    SUM(f.total)                                AS total_comprado,
+                    AVG(f.total)                                AS ticket_promedio,
+                    MAX(f.fecha_emision)                        AS ultima_compra,
+                    DATEDIFF(CURDATE(), MAX(f.fecha_emision))   AS dias_sin_comprar
+                FROM factura f
+                INNER JOIN cliente cli     ON cli.id = f.cliente_id
+                INNER JOIN tipo_cliente tc ON tc.id  = cli.tipo_cliente_id
+                WHERE $where
+                GROUP BY f.cliente_id, cli.nombre, tc.descripcion
+                ORDER BY total_comprado DESC
+                LIMIT $limit
+            ");
+        }
 
         // Clasificación ABC: A=70%, B=20%, C=10%
         $total_global = array_sum(array_column($rows, 'total_comprado'));

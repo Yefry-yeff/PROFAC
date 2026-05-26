@@ -590,6 +590,9 @@ var dashboardVentas = (function () {
             _renderTopCli(rows);
             _renderAbcCli(rows);
             _renderTablaClientes(rows);
+            /* También muestra el resumen de compradores en la pestaña Productos */
+            _renderCliProd(rows);
+            _renderTablaCliProd(rows);
         });
 
         /* Productos */
@@ -689,7 +692,24 @@ var dashboardVentas = (function () {
         var top20 = rows.slice(0, 20);
 
         charts['chart-top-prod'] = new ApexCharts(get('chart-top-prod'), {
-            chart: { type: 'bar', height: 320, toolbar: { show: false } },
+            chart: {
+                type: 'bar', height: 320, toolbar: { show: false },
+                events: {
+                    dataPointSelection: function (e, ctx, cfg) {
+                        var r = top20[cfg.dataPointIndex];
+                        /* Buscar el ID de categoría por texto en el select */
+                        var catVal = $('#a-categoria option').filter(function () {
+                            return $.trim($(this).text()) === $.trim(r.categoria);
+                        }).val();
+                        if (catVal) {
+                            $('#a-categoria').val(catVal);
+                        }
+                        /* Mostrar badge de producto activo */
+                        $('#cli-prod-filtro').text('Cat: ' + r.categoria).removeClass('d-none');
+                        cargarAnalitica();
+                    }
+                }
+            },
             series: [{ name: 'Ingresos', data: top20.map(function (r) { return parseFloat(r.ingresos); }) }],
             xaxis: { categories: top20.map(function (r) { return r.producto; }), labels: { formatter: function (v) { return 'L.' + fmtN(v); } } },
             yaxis: {},
@@ -706,7 +726,20 @@ var dashboardVentas = (function () {
         var top20 = rows.slice(0, 20);
 
         charts['chart-pareto'] = new ApexCharts(get('chart-pareto'), {
-            chart: { type: 'line', height: 320, toolbar: { show: false } },
+            chart: {
+                type: 'line', height: 320, toolbar: { show: false },
+                events: {
+                    dataPointSelection: function (e, ctx, cfg) {
+                        var r = top20[cfg.dataPointIndex];
+                        var catVal = $('#a-categoria option').filter(function () {
+                            return $.trim($(this).text()) === $.trim(r.categoria);
+                        }).val();
+                        if (catVal) { $('#a-categoria').val(catVal); }
+                        $('#cli-prod-filtro').text('Cat: ' + r.categoria).removeClass('d-none');
+                        cargarAnalitica();
+                    }
+                }
+            },
             series: [
                 { name: 'Ingresos', type: 'column', data: top20.map(function (r) { return parseFloat(r.ingresos); }) },
                 { name: 'Pareto %', type: 'line',   data: top20.map(function (r) { return parseFloat(r.pareto); }) }
@@ -862,6 +895,54 @@ var dashboardVentas = (function () {
             );
         });
         _dtInit('tabla-marcas', 4);
+    }
+
+    /* ─── CLIENTES EN PESTAÑA PRODUCTOS ──────────────────────────────────── */
+    function _renderCliProd(rows) {
+        destroyChart('chart-cli-prod');
+        if (!rows || !rows.length) return;
+        var top10 = rows.slice(0, 10);
+
+        charts['chart-cli-prod'] = new ApexCharts(get('chart-cli-prod'), {
+            chart: {
+                type: 'bar', height: 280, toolbar: { show: false },
+                events: {
+                    dataPointSelection: function (e, ctx, cfg) {
+                        /* Al hacer clic en un cliente, ir a la pestaña Clientes */
+                        $('#pill-cli').tab('show');
+                    }
+                }
+            },
+            series: [{ name: 'Total Comprado', data: top10.map(function (r) { return parseFloat(r.total_comprado); }) }],
+            xaxis: {
+                categories: top10.map(function (r) { return r.cliente; }),
+                labels: { formatter: function (v) { return 'L.' + fmtN(v); } }
+            },
+            yaxis: {},
+            tooltip: { y: { formatter: function (v) { return fmt(v); } } },
+            colors: ['#36b9cc'],
+            plotOptions: { bar: { borderRadius: 4, horizontal: true } }
+        });
+        charts['chart-cli-prod'].render();
+    }
+
+    function _renderTablaCliProd(rows) {
+        _dtDestroy('tabla-cli-prod');
+        var $tbody = $('#tbody-cli-prod').empty();
+        rows.slice(0, 20).forEach(function (r, i) {
+            var abcColor = r.clasificacion_abc === 'A' ? 'success' : (r.clasificacion_abc === 'B' ? 'warning' : 'danger');
+            $tbody.append(
+                '<tr>' +
+                '<td>' + (i + 1) + '</td>' +
+                '<td>' + r.cliente + '</td>' +
+                '<td>' + r.tipo_cliente + '</td>' +
+                '<td class="text-center"><span class="badge badge-' + abcColor + '">' + r.clasificacion_abc + '</span></td>' +
+                '<td class="text-right">' + r.facturas + '</td>' +
+                '<td class="text-right">' + fmt(r.total_comprado) + '</td>' +
+                '</tr>'
+            );
+        });
+        _dtInit('tabla-cli-prod', 5);
     }
 
     /* ═══════════════════════════════════════════════════════════════════════
@@ -1025,6 +1106,7 @@ var dashboardVentas = (function () {
         $('#a-tipo-cliente').val('');
         $('#adv-filter-badge-vend').hide();
         $('#adv-active-filters').addClass('d-none');
+        $('#cli-prod-filtro').addClass('d-none').text('');
         cargarAnalitica();
     }
 

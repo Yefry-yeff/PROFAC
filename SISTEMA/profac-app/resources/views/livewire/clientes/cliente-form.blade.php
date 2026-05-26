@@ -30,7 +30,14 @@
     .doc-repo-card { border: 1px solid #dee2e6; border-radius: 6px; overflow: hidden; height: 100%; display:flex; flex-direction:column; }
     .doc-repo-card-header { background: #e6f5f2; color: #1ab394; font-size: 0.78rem; font-weight: 700;
         padding: 8px 12px; text-transform: uppercase; letter-spacing: .04em;
-        border-bottom: 1px solid #b2ddd5; display:flex; align-items:center; gap:6px; }
+        border-bottom: 1px solid #b2ddd5; display:flex; align-items:center; gap:6px; justify-content:space-between; }
+    .doc-fisico-check { display:flex; align-items:center; gap:4px; cursor:pointer; white-space:nowrap;
+        font-size:0.72rem; font-weight:600; text-transform:none; letter-spacing:0;
+        color:#856404; background:#fff3cd; border:1px solid #ffc107; border-radius:10px;
+        padding:2px 7px; transition:background .2s; flex-shrink:0; }
+    .doc-fisico-check:hover { background:#ffe8a1; }
+    .doc-fisico-check.activo { color:#155724; background:#d4edda; border-color:#28a745; }
+    .doc-fisico-check input { margin:0; cursor:pointer; accent-color:#28a745; }
     .doc-repo-card-body { padding: 10px 12px; background: #fff; flex:1; }
     .tipo-doc-label { font-size: 0.78rem; font-weight: 600; color: #555; margin-bottom: 4px;
         text-transform: uppercase; letter-spacing: .04em; }
@@ -527,7 +534,13 @@
                         <div class="col-md-6 col-lg-3 mb-3">
                             <div class="doc-repo-card">
                                 <div class="doc-repo-card-header">
-                                    <i class="fa {{ $info['icon'] }}"></i> {{ $info['label'] }}
+                                    <span><i class="fa {{ $info['icon'] }}"></i> {{ $info['label'] }}</span>
+                                    <label class="doc-fisico-check mb-0" id="lbl_fisico_{{ $slug }}" title="Marcar: tienen el documento físico pero sin versión digital">
+                                        <input type="checkbox" id="chk_fisico_{{ $slug }}"
+                                               onchange="toggleDocFisico('{{ $slug }}', this)"
+                                               onclick="event.stopPropagation()">
+                                        Tiene físico
+                                    </label>
                                 </div>
                                 <div class="doc-repo-card-body">
                                     <div id="docs_list_{{ $slug }}" class="mb-2">

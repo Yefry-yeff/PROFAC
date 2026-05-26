@@ -172,6 +172,7 @@ function cargarDatosCliente(id) {
 
             // Repositorio
             renderDocumentos(d.documentos || []);
+            renderDocFisico(d.doc_fisico || []);
         })
         .catch(err => {
             console.error(err);
@@ -599,7 +600,47 @@ function subirDocumento(tipo) {
 
 function cargarRepositorioDocumentos(id) {
     axios.get('/clientes/documentos/' + id)
-        .then(r => renderDocumentos(r.data.documentos || []));
+        .then(r => {
+            renderDocumentos(r.data.documentos || []);
+            renderDocFisico(r.data.doc_fisico || []);
+        });
+}
+
+function renderDocFisico(tipos) {
+    var slugs = ['escritura_empresa','dni_representante','rtn','permiso_operacion','croquis','contrato_arrendamiento','foto_establecimiento'];
+    slugs.forEach(function (slug) {
+        var chk = document.getElementById('chk_fisico_' + slug);
+        var lbl = document.getElementById('lbl_fisico_' + slug);
+        if (!chk) return;
+        var activo = tipos.indexOf(slug) !== -1;
+        chk.checked = activo;
+        if (lbl) {
+            if (activo) lbl.classList.add('activo'); else lbl.classList.remove('activo');
+        }
+    });
+}
+
+function toggleDocFisico(slug, checkbox) {
+    if (!checkClienteCreado()) {
+        checkbox.checked = !checkbox.checked; // revert
+        return;
+    }
+    var formData = new FormData();
+    formData.append('_token',         document.getElementById('csrf_token').value);
+    formData.append('cliente_id',     clienteIdActual);
+    formData.append('tipo_documento', slug);
+
+    axios.post('/clientes/documento/fisico/toggle', formData)
+        .then(function (r) {
+            var lbl = document.getElementById('lbl_fisico_' + slug);
+            if (lbl) {
+                if (r.data.activo) lbl.classList.add('activo'); else lbl.classList.remove('activo');
+            }
+            if (clienteIdActual) cargarHistorialCambios(clienteIdActual);
+        })
+        .catch(function () {
+            checkbox.checked = !checkbox.checked; // revert on error
+        });
 }
 
 function renderDocumentos(rows) {

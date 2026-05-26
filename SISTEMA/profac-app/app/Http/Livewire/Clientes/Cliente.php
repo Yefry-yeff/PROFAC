@@ -272,55 +272,33 @@ class Cliente extends Component
             return Datatables::of($clientes)
             ->addColumn('opciones', function ($cliente) {
 
-                if($cliente->estado_cliente_id == 1){
-                    return
-                    '<div class="btn-group">
-                        <button data-toggle="dropdown" class="btn btn-warning dropdown-toggle" aria-expanded="false">Ver
-                            más</button>
-                        <ul class="dropdown-menu" x-placement="bottom-start" style="position: absolute; top: 33px; left: 0px; will-change: top, left;">
+                $activarDesactivar = $cliente->estado_cliente_id == 1
+                    ? '<a class="dropdown-item" onclick="desactivarClienteModal('.$cliente->idCliente.')"><i class="fa fa-times text-danger mr-2"></i>Desactivar</a>'
+                    : '<a class="dropdown-item" onclick="activarCliente('.$cliente->idCliente.')"><i class="fa fa-check-circle text-success mr-2"></i>Activar</a>';
 
-                            <li>
-                                <a class="dropdown-item" href="/clientes/form/'.$cliente->idCliente.'" > <i class="fa fa-pencil m-r-5 text-warning"></i> Editar Cliente </a>
-                                <a class="dropdown-item" onclick="modalEditarFotografia('.$cliente->idCliente.')" > <i class="fa-solid fa-camera  m-r-5 text-success"></i> Cambiar Fotografia del cliente </a>
-                                <a class="dropdown-item" onclick="desactivarClienteModal('.$cliente->idCliente.')" > <i class="fa fa-times text-danger" aria-hidden="true"></i> Desactivar Cliente </a>
-
-                            </li>
-
-
-
-                        </ul>
-                    </div>';
-                }else{
-                    return
-                    '<div class="btn-group">
-                        <button data-toggle="dropdown" class="btn btn-warning dropdown-toggle" aria-expanded="false">Ver
-                            más</button>
-                        <ul class="dropdown-menu" x-placement="bottom-start" style="position: absolute; top: 33px; left: 0px; will-change: top, left;">
-
-                            <li>
-                                <a class="dropdown-item" href="/clientes/form/'.$cliente->idCliente.'" > <i class="fa fa-pencil m-r-5 text-warning"></i> Editar Cliente </a>
-                                <a class="dropdown-item" onclick="modalEditarFotografia('.$cliente->idCliente.')" > <i class="fa-solid fa-camera  m-r-5 text-success"></i> Cambiar Fotografia del cliente </a>
-                                <a class="dropdown-item" onclick="activarCliente('.$cliente->idCliente.')" > <i class="fa fa-check-circle text-info" aria-hidden="true"></i> Activar Cliente </a>
-
-                            </li>
-
-
-
-                        </ul>
-                    </div>';
-
-                }
-
-
+                return
+                '<div class="cli-dropdown dropdown">
+                    <button class="btn-cli-menu" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        <i class="fa fa-ellipsis-v"></i>
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-right">
+                        <a class="dropdown-item" href="/clientes/form/'.$cliente->idCliente.'">
+                            <i class="fa fa-pencil text-warning mr-2"></i>Editar cliente
+                        </a>
+                        <a class="dropdown-item" onclick="modalEditarFotografia('.$cliente->idCliente.')">
+                            <i class="fa fa-camera text-info mr-2"></i>Cambiar fotografía
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        '.$activarDesactivar.'
+                    </div>
+                </div>';
             })
             ->addColumn('estado', function ($cliente) {
                 if ($cliente->estado_cliente_id === 1) {
-                    return '<td><span class="badge bg-primary">ACTIVO</span></td>';
+                    return '<span class="badge badge-activo">ACTIVO</span>';
                 } else {
-
-                    return '<td><span class="badge bg-danger">INACTIVO</span></td>';
+                    return '<span class="badge badge-inactivo">INACTIVO</span>';
                 }
-
             })
             ->rawColumns(['opciones','estado'])
             ->make(true);
@@ -1054,6 +1032,10 @@ class Cliente extends Component
 
             $documentos = DB::select("SELECT * FROM cliente_documentos WHERE cliente_id = ? ORDER BY tipo_documento ASC, id DESC", [$id]);
 
+            /* Tipos de documento marcados como "tiene físico" */
+            $docFisico = DB::select("SELECT tipo_documento FROM cliente_doc_fisico WHERE cliente_id = ?", [$id]);
+            $docFisicoList = array_column((array)$docFisico, 'tipo_documento');
+
             $montoDisponible = CreditoService::calcularDisponible((int)$id, (float)($datosCliente->credito_inicial ?? 0));
 
             return response()->json([
@@ -1071,6 +1053,7 @@ class Cliente extends Component
                 'historicoCredito' => $historicoCredito,
                 'observaciones'    => $observaciones,
                 'documentos'       => $documentos,
+                'doc_fisico'       => $docFisicoList,
                 'monto_disponible' => $montoDisponible,
             ], 200)
             ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
@@ -1404,9 +1387,52 @@ class Cliente extends Component
      */
     public function listarDocumentos(Request $request)
     {
-        $id   = $request->route('id');
-        $rows = DB::select("SELECT * FROM cliente_documentos WHERE cliente_id = ? ORDER BY tipo_documento ASC, id DESC", [$id]);
-        return response()->json(['documentos' => $rows], 200);
+        $id      = $request->route('id');
+        $rows    = DB::select("SELECT * FROM cliente_documentos WHERE cliente_id = ? ORDER BY tipo_documento ASC, id DESC", [$id]);
+        $fisico  = DB::select("SELECT tipo_documento FROM cliente_doc_fisico WHERE cliente_id = ?", [$id]);
+        return response()->json([
+            'documentos' => $rows,
+            'doc_fisico' => array_column((array)$fisico, 'tipo_documento'),
+        ], 200);
+    }
+
+    /**
+     * POST /clientes/documento/fisico/toggle
+     * Marca o desmarca un tipo de documento como "tiene físico sin digital"
+     */
+    public function toggleDocFisico(Request $request)
+    {
+        try {
+            $clienteId = (int)$request->cliente_id;
+            $tipo      = $request->tipo_documento;
+            $tiposPermitidos = array_keys(ClienteDocumento::$tipos);
+
+            if (!$clienteId || !in_array($tipo, $tiposPermitidos, true)) {
+                return response()->json(['icon' => 'error', 'title' => 'Error', 'text' => 'Datos inválidos.'], 422);
+            }
+
+            $exists = DB::selectOne(
+                "SELECT id FROM cliente_doc_fisico WHERE cliente_id = ? AND tipo_documento = ?",
+                [$clienteId, $tipo]
+            );
+
+            if ($exists) {
+                DB::delete("DELETE FROM cliente_doc_fisico WHERE cliente_id = ? AND tipo_documento = ?", [$clienteId, $tipo]);
+                $activo = false;
+                try { $this->logHistorial($clienteId, 'Documento físico desmarcado', ClienteDocumento::$tipos[$tipo] ?? $tipo); } catch (\Throwable $e) {}
+            } else {
+                DB::insert(
+                    "INSERT INTO cliente_doc_fisico (cliente_id, tipo_documento, created_at, updated_at) VALUES (?, ?, NOW(), NOW())",
+                    [$clienteId, $tipo]
+                );
+                $activo = true;
+                try { $this->logHistorial($clienteId, 'Documento físico marcado', ClienteDocumento::$tipos[$tipo] ?? $tipo); } catch (\Throwable $e) {}
+            }
+
+            return response()->json(['activo' => $activo], 200);
+        } catch (\Exception $e) {
+            return response()->json(['icon' => 'error', 'title' => 'Error', 'text' => 'Error al guardar.'], 500);
+        }
     }
 
     /**

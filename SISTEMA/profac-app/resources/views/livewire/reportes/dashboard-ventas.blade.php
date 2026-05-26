@@ -633,6 +633,41 @@
                         </div>
                     </div>
 
+                    {{-- Resumen de compradores --}}
+                    <div class="mb-3 row">
+                        <div class="col-md-6">
+                            <div class="shadow-sm card">
+                                <div class="py-2 card-header d-flex align-items-center justify-content-between">
+                                    <span class="font-weight-bold"><i class="fas fa-users mr-1 text-info"></i>Top Compradores del Período</span>
+                                    <span id="cli-prod-filtro" class="badge badge-info d-none" style="font-size:.7rem;max-width:160px;white-space:normal;text-align:right"></span>
+                                </div>
+                                <div class="p-2 card-body"><div id="chart-cli-prod" style="min-height:280px"></div></div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="shadow-sm card">
+                                <div class="py-2 card-header">
+                                    <span class="font-weight-bold"><i class="fas fa-list-ol mr-1 text-info"></i>Ranking de Compradores</span>
+                                </div>
+                                <div class="p-2 card-body table-responsive">
+                                    <table class="table table-striped table-sm" id="tabla-cli-prod" style="width:100%">
+                                        <thead class="thead-dark">
+                                            <tr>
+                                                <th>#</th>
+                                                <th>Cliente</th>
+                                                <th>Tipo</th>
+                                                <th class="text-center">ABC</th>
+                                                <th class="text-right">Facturas</th>
+                                                <th class="text-right">Total</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="tbody-cli-prod"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="shadow-sm card">
                         <div class="py-2 card-header d-flex justify-content-between align-items-center">
                             <span class="font-weight-bold">Tabla Productos</span>
