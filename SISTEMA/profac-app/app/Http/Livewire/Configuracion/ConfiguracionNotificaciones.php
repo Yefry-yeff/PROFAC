@@ -3,6 +3,7 @@
 namespace App\Http\Livewire\Configuracion;
 
 use App\Models\Area;
+use App\Models\FlujoEtapa;
 use App\Models\NivelRol;
 use App\Models\NotificacionFlujoConfig;
 use App\Models\Rol;
@@ -60,10 +61,15 @@ class ConfiguracionNotificaciones extends Component
 
     private function cargarCatalogos(): void
     {
-        $this->tiposTramites = DB::table('tipos_tramites')
-            ->orderBy('id')
-            ->get(['id', 'nombre'])
-            ->map(fn ($r) => ['id' => $r->id, 'nombre' => $r->nombre])
+        // Lee desde flujo_etapas (catálogo ordenado del pipeline de venta).
+        // Al agregar un paso nuevo al flujo, basta con insertar una fila ahí
+        // y automáticamente aparecerá disponible en la configuración de notificaciones.
+        $this->tiposTramites = FlujoEtapa::activas()
+            ->map(fn ($e) => [
+                'id'          => $e->tipo_tramite_id,
+                'nombre'      => $e->nombre_display,
+                'es_opcional' => $e->es_opcional,
+            ])
             ->toArray();
 
         $this->roles   = Rol::where('estado_id', 1)->orderBy('nombre')->get(['id', 'nombre'])->toArray();

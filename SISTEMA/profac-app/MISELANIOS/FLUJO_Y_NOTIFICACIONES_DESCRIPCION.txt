@@ -1,0 +1,559 @@
+================================================================================
+  SISTEMA PROFAC - DESCRIPCIÓN DEL FLUJO DE VENTA Y SISTEMA DE NOTIFICACIONES
+  Generado: 25/05/2026 | Versión del sistema analizada
+================================================================================
+
+ÍNDICE
+------
+1. Arquitectura general del flujo
+2. Descripción de cada paso del flujo
+3. Catálogo de estados (estado_venta / historico_flujo)
+4. Cómo funciona el sistema de notificaciones
+5. Puntos de disparo de notificaciones (FlujoAvanzadoEvent)
+6. Configuración de notificaciones por rol/área
+7. Tabla catálogo flujo_etapas (nueva)
+8. Brechas y notas de diseño futuro
+
+
+================================================================================
+1. ARQUITECTURA GENERAL DEL FLUJO
+================================================================================
+
+El flujo de venta es un pipeline lineal que va desde que se registra un pedido
+hasta que se cobra la factura. Cada paso queda registrado en dos tablas clave:
+
+  flujo
+  ├── id
+  ├── tipo_flujo_id      → 1 = "venta" (único tipo actualmente)
+  ├── identificacion     → ID del pedido o cotización de origen
+  ├── nombre             → Nombre del cliente (se actualiza al emitir factura)
+  ├── cliente_rtn        → RTN del cliente
+  ├── tipo_tramite_id    → Paso ACTUAL del flujo (FK a tipos_tramites)
+  └── estado_id          → Estado global del flujo
+
+  historico_flujo
+  ├── id
+  ├── flujo_id           → FK a flujo
+  ├── tipo_tramite_id    → Qué tipo de paso es este registro
+  ├── tramite_id         → ID del documento asociado (pedido, cotizacion, factura...)
+  ├── estado_id          → Estado del registro en este paso
+  ├── observaciones      → Notas adicionales (ej: "ganadora")
+  ├── created_by / updated_by
+  └── timestamps
+
+La tabla "flujo" tiene siempre UN registro por transacción de venta.
+La tabla "historico_flujo" tiene UN registro por cada PASO que atravesó esa venta.
+
+Hay DOS formas de arrancar un flujo:
+  a) CON PEDIDO: El vendedor crea un pedido → se genera el flujo automáticamente.
+  b) SIN PEDIDO (directo): Se crea una cotización sin pedido previo → el flujo
+     arranca directamente en el paso de Ofertas.
+
+CATÁLOGO DE TIPOS DE TRÁMITE (tipos_tramites)
+  id=1   → pedido
+  id=2   → Ofertas
+  id=3   → factura
+  id=4   → prefactura
+  id=5   → Entrega
+  id=6   → Cobro
+  id=7   → Entrega y Cobro (atajo: entrega y cobro simultáneos)
+  id=8   → Finalizado
+  id=9   → Revision de Inventario  (opcional, activable)
+  id=10  → Revision de Credito     (opcional, solo clientes a crédito)
+
+
+================================================================================
+2. DESCRIPCIÓN DE CADA PASO DEL FLUJO
+================================================================================
+
+FLUJO MÍNIMO (sin pasos opcionales):
+  Pedido → Ofertas → Prefactura → Factura → Entrega → Cobro → Finalizado
+
+FLUJO MÁXIMO (con todos los pasos activos):
+  Pedido → Ofertas → Rev. Inventario → Rev. Crédito → Prefactura → Factura
+         → Entrega → Cobro → Finalizado
+
+────────────────────────────────────────────────────────────────────────────────
+PASO 1 — PEDIDO  (tipo_tramite_id = 1)
+────────────────────────────────────────────────────────────────────────────────
+Qué es:
+  El cliente (o vendedor en nombre del cliente) envía una solicitud formal de
+  productos. No tiene precios; es una lista de necesidades.
+
+Qué se hace:
+  - El vendedor registra el pedido con los productos y cantidades solicitadas.
+  - El sistema crea automáticamente un registro en "flujo" con tipo_flujo_id=1
+    y avanza flujo.tipo_tramite_id = 1.
+  - Se crea también un historico_flujo con tipo_tramite_id=1, estado_id=1 (activo).
+
+Tabla afectada: pedido, pedido_detalle, flujo, historico_flujo
+
+Estados del pedido:
+  pendiente  → recién creado, esperando cotización
+  activo     → tiene ofertas/cotizaciones en proceso
+  cancelado  → anulado manualmente (requiere motivo)
+
+Acciones disponibles en el sistema:
+  - Ver detalle del pedido
+  - Anular el pedido (cancela todo el flujo)
+  - Duplicar el pedido (abre formulario con los mismos productos)
+  - Imprimir / Exportar a Excel
+
+Regla de negocio:
+  Un pedido cancelado NO puede continuar al paso de Ofertas.
+  Si se cancela luego de que hay ofertas, el flujo queda en estado cancelado
+  pero los historico_flujo anteriores quedan como registro.
+
+────────────────────────────────────────────────────────────────────────────────
+PASO 2 — OFERTAS / COTIZACIONES  (tipo_tramite_id = 2)
+────────────────────────────────────────────────────────────────────────────────
+Qué es:
+  El equipo de ventas elabora una o más cotizaciones (ofertas de precio) para
+  responder al pedido del cliente. El cliente elige cuál acepta.
+
+Qué se hace:
+  - Se crea una cotización (tabla "cotizacion" + "cotizacion_has_producto").
+  - Se registra en historico_flujo con tipo_tramite_id=2, estado_id=1 (activa).
+  - Pueden existir múltiples ofertas para un mismo pedido/flujo.
+  - Una de ellas se marca como "ganadora" (hf.observaciones = 'ganadora').
+  - Las demás pueden quedar como "perdedoras" (cotizacion_estado.ganadora=2)
+    o "anuladas" (cotizacion_estado.ganadora=3).
+
+Tabla afectada: cotizacion, cotizacion_has_producto, cotizacion_estado,
+                historico_flujo, flujo
+
+Estados de la cotización en cotizacion_estado:
+  ganadora   (1) → el cliente aceptó esta oferta; avanza el flujo
+  perdedora  (2) → fue quitada de la posición ganadora
+  anulada    (3) → eliminada del proceso
+
+Regla de negocio al marcar GANADORA:
+  El sistema evalúa dos condiciones antes de avanzar:
+
+  a) Si la revisión de inventario está ACTIVADA (configuracion_revision_inventario.activo=1):
+     - Si ya hay crédito vigente → va directamente a Rev. Inventario (paso 9)
+     - Si no hay crédito vigente → va a Rev. Crédito (paso 10) primero
+
+  b) Si la revisión de inventario está DESACTIVADA:
+     - Si el cliente es a crédito sin crédito vigente → va a Rev. Crédito (paso 10)
+     - Si es de contado o ya tiene crédito aprobado → va a Prefactura (paso 4)
+
+Acciones disponibles:
+  - Crear nueva oferta para el pedido
+  - Ver detalle de oferta (productos, montos, fechas)
+  - Marcar como ganadora
+  - Anular oferta (requiere motivo)
+  - Duplicar oferta (mismo cliente u otro cliente con misma categoría de precios)
+  - Quitar ganadora (devuelve al estado sin ganadora)
+
+────────────────────────────────────────────────────────────────────────────────
+PASO 3 (OPCIONAL) — REVISIÓN DE INVENTARIO  (tipo_tramite_id = 9)
+────────────────────────────────────────────────────────────────────────────────
+Qué es:
+  Un paso de validación interna donde el personal de bodega/logística confirma
+  que el inventario disponible cubre los productos de la oferta ganadora antes
+  de proceder con la prefactura.
+
+Qué se hace:
+  - Se crea un historico_flujo con tipo_tramite_id=9, estado_id=5 (pendiente).
+  - El flujo queda bloqueado hasta que el revisor actúe.
+  - El revisor puede:
+      APROBAR  → flujo.tipo_tramite_id avanza a 4 (Prefactura)
+                 historico_flujo.estado_id → 1 (activo/aprobado)
+      DEVOLVER → el paso queda inactivo (estado_id=7), flujo regresa a Ofertas.
+                 El vendedor puede seleccionar otra oferta y reiniciar el ciclo.
+
+  NOTA: Puede haber múltiples ciclos de Revisión de Inventario si se devuelve
+  y el vendedor vuelve a marcar una ganadora.
+
+Tabla afectada: historico_flujo, flujo, configuracion_revision_inventario
+
+Configuración global:
+  Tabla: configuracion_revision_inventario
+  Campo: activo (0=desactivado, 1=activado)
+  Si está desactivado, el flujo salta directamente de Ofertas a Rev. Crédito
+  o Prefactura.
+
+PANTALLA dedicada: /flujo/revicion_inventario
+  - Lista todos los flujos esperando revisión de inventario.
+
+────────────────────────────────────────────────────────────────────────────────
+PASO 4 (OPCIONAL) — REVISIÓN DE CRÉDITO  (tipo_tramite_id = 10)
+────────────────────────────────────────────────────────────────────────────────
+Qué es:
+  Validación financiera requerida para clientes que compran a crédito y no
+  tienen una autorización de crédito vigente. El departamento de finanzas
+  evalúa si se puede otorgar crédito para esta venta.
+
+Qué se hace:
+  - Se crea un historico_flujo con tipo_tramite_id=10, estado_id=5 (pendiente).
+  - Se crea un registro en "credito_revision" vinculado al flujo.
+  - El revisor de crédito puede:
+      APROBAR  → credito_revision.estado = 'aprobado'
+                 Se registra fecha_aprobacion y fecha_vencimiento_credito.
+                 Si la rev. de inventario está activa → avanza a paso 9.
+                 Si no → avanza a Prefactura (paso 4).
+      RECHAZAR → credito_revision.estado = 'rechazado'
+                 EL FLUJO QUEDA CANCELADO. No puede avanzar.
+                 Se registra el motivo_rechazo.
+
+  NOTA: Si ya existe un crédito APROBADO Y VIGENTE (fecha_vencimiento_credito
+  no expirada), se omite este paso automáticamente.
+
+Tabla afectada: historico_flujo, flujo, credito_revision,
+                credito_revision_historial
+
+Crédito vigente:
+  Se evalúa con: credito_revision.estado = 'aprobado'
+                 Y credito_revision.fecha_vencimiento_credito >= HOY
+
+PANTALLA dedicada: /flujo/revision_creditos
+  - Lista flujos esperando revisión de crédito.
+  - También muestra flujos de Rev. Inventario pendiente para contexto.
+
+────────────────────────────────────────────────────────────────────────────────
+PASO 5 — PREFACTURA  (tipo_tramite_id = 4)
+────────────────────────────────────────────────────────────────────────────────
+Qué es:
+  Documento pre-aprobatorio emitido antes de la factura fiscal. Permite al
+  cliente revisar y confirmar montos, productos y condiciones antes de que
+  se emita la factura definitiva. Tiene fecha de vencimiento configurable.
+
+Qué se hace:
+  - El vendedor genera la prefactura a partir de la oferta ganadora.
+  - Se registra en tabla "prefactura" y "prefactura_has_producto".
+  - Se crea historico_flujo tipo=4, estado_id=1 (activo).
+  - flujo.tipo_tramite_id = 4.
+  - Tiene validez en días (configuracion_prefactura.dias_validez, por defecto 7).
+
+Tabla afectada: prefactura, prefactura_has_producto, historico_flujo, flujo,
+                configuracion_prefactura, prefactura_auditoria
+
+Estados de la prefactura:
+  activo     → vigente, puede convertirse en factura
+  vencida    → pasó la fecha de vencimiento (historico_flujo.estado_id=4)
+               El flujo puede re-activar la prefactura o crear una nueva.
+  convertida → fue procesada y se emitió la factura correspondiente
+
+Acciones disponibles:
+  - Generar/imprimir prefactura
+  - Convertir a factura (avanza al paso 6)
+  - Revertir prefactura (devuelve al paso de Ofertas)
+  - Anular prefactura (requiere autorización con código)
+  - Procesar vencimiento automático si la fecha expiró
+
+Regla de negocio:
+  Si los precios del catálogo cambiaron desde que se creó la prefactura,
+  la cotización vinculada se inactiva (estado_id=2) y hay que rehacer
+  el proceso desde Ofertas.
+
+────────────────────────────────────────────────────────────────────────────────
+PASO 6 — FACTURA  (tipo_tramite_id = 3)
+────────────────────────────────────────────────────────────────────────────────
+Qué es:
+  La factura fiscal oficial que formaliza la venta. Es el documento legal
+  con número de CAI, RTN del cliente y todos los datos tributarios.
+
+Qué se hace:
+  - Se genera a partir de la prefactura (o directamente en ventas para
+    flujos sin pedido).
+  - Se registra en tabla "factura" y tablas asociadas de productos/pagos.
+  - Se crea historico_flujo tipo=3, estado_id=1 (activo).
+  - flujo.tipo_tramite_id = 3.
+  - El nombre del cliente en "flujo.nombre" se actualiza con el nombre de factura.
+
+Tabla afectada: factura, factura_has_producto (venta_producto), historico_flujo,
+                flujo, pago_venta, aplicacion_pagos
+
+Estados de la factura (factura.estado_venta_id):
+  1 → activo    → factura válida, en proceso de entrega/cobro
+  2 → anulado   → factura cancelada (requiere motivo, afecta inventario)
+  3 → devolucion→ nota de crédito emitida
+
+Acciones disponibles:
+  - Ver/imprimir factura
+  - Registrar entrega (avanza a paso 7)
+  - Anular factura (requiere motivo y confirmar)
+
+────────────────────────────────────────────────────────────────────────────────
+PASO 7 — ENTREGA  (tipo_tramite_id = 5) 
+         o ENTREGA Y COBRO (tipo_tramite_id = 7)
+────────────────────────────────────────────────────────────────────────────────
+Qué es:
+  Gestión logística de la entrega física de los productos al cliente.
+  Puede combinarse con el cobro si el pago es al momento de la entrega
+  (tipo_tramite_id = 7 = "Entrega y Cobro").
+
+Qué se hace:
+  - El área de logística programa y ejecuta la distribución.
+  - Se registran distribuciones de entrega con hora de salida/llegada.
+  - Se pueden registrar incidencias y evidencias fotográficas.
+  - El pedido.sub_estado_entrega evoluciona:
+      sin_entrega → en_camino → entregado
+
+Tabla afectada: distribuciones_entrega, distribuciones_entrega_facturas,
+                entregas_evidencias, entregas_incidencias_tratamientos,
+                pedido (sub_estado_entrega)
+
+Sub-estados de entrega (pedido.sub_estado_entrega):
+  sin_entrega → no se ha programado ninguna ruta
+  en_camino   → el distribuidor salió con la mercancía
+  entregado   → el cliente recibió los productos
+
+PANTALLA dedicada: /logistica/distribucion_entrega
+  - Gestión completa de rutas y distribuciones.
+
+────────────────────────────────────────────────────────────────────────────────
+PASO 8 — COBRO  (tipo_tramite_id = 6)
+────────────────────────────────────────────────────────────────────────────────
+Qué es:
+  Registro y aplicación de los pagos recibidos contra la factura. El flujo
+  queda activo hasta que el saldo sea cero.
+
+Qué se hace:
+  - Se registran abonos/pagos en "aplicacion_pagos" o "pago_venta".
+  - El saldo pendiente se calcula: total_factura - sum(pagos_aplicados).
+  - Cuando saldo = 0 → el flujo puede marcarse como Finalizado.
+  - Para clientes a crédito, los pagos se aplican con procedimiento almacenado
+    (sp_aplicacion_pagos).
+
+Tabla afectada: aplicacion_pagos, abonos_creditos, pago_venta, factura
+
+Estados de cobro observados en la UI:
+  pendiente   → saldo_pendiente > 0
+  al_dia      → todos los pagos al corriente (crédito)
+  completado  → saldo = 0
+
+────────────────────────────────────────────────────────────────────────────────
+PASO 9 — FINALIZADO  (tipo_tramite_id = 8)
+────────────────────────────────────────────────────────────────────────────────
+Qué es:
+  Estado terminal del flujo. Indica que la venta fue completada: producto
+  entregado y pago recibido en su totalidad.
+
+Qué se hace:
+  - Se crea historico_flujo tipo=8, estado_id=1.
+  - flujo.tipo_tramite_id = 8.
+  - No se permiten más acciones sobre el flujo (solo lectura).
+
+────────────────────────────────────────────────────────────────────────────────
+CANCELACIÓN DEL FLUJO (transversal)
+────────────────────────────────────────────────────────────────────────────────
+El flujo puede cancelarse desde cualquier paso en dos situaciones:
+
+  a) El vendedor anula el pedido manualmente (requiere motivo).
+     pedido.estado = 'cancelado', flujo.estado_id = 7 (cancelado)
+
+  b) El revisor de crédito rechaza la solicitud de crédito.
+     credito_revision.estado = 'rechazado', flujo queda bloqueado.
+     No se puede reactivar automáticamente; requiere intervención manual.
+
+
+================================================================================
+3. CATÁLOGO DE ESTADOS (estado_venta usado en historico_flujo.estado_id)
+================================================================================
+
+  id=1  → activo          Registro vigente y en operación normal
+  id=2  → anulado         Documento cancelado (facturas, pedidos)
+  id=3  → devolucion      Nota de crédito / devolución
+  id=4  → vencido         Prefactura cuya fecha de validez expiró
+  id=5  → pendiente       Esperando acción de un responsable (revisiones)
+  id=6  → activa          Alias de activo usado en algunos contextos
+  id=7  → cancelado       Inactivado / devuelto (revisiones devueltas al paso anterior)
+  id=8  → pre_factura     Estado de prefactura en algunos contextos
+  id=9  → Revision        Estado genérico de revisión
+  id=10 → Revision de Credito  Estado específico para el paso de crédito
+
+
+================================================================================
+4. CÓMO FUNCIONA EL SISTEMA DE NOTIFICACIONES ACTUALMENTE
+================================================================================
+
+El sistema de notificaciones está implementado con el patrón Evento-Listener
+de Laravel + Canal "database" (tabla "notifications" estándar de Laravel).
+
+COMPONENTES:
+  App\Events\FlujoAvanzadoEvent         → Evento lanzado cuando el flujo avanza
+  App\Listeners\NotificarPersonalFlujoListener → Procesa el evento y envía notifs
+  App\Notifications\FlujoNotification   → Formatea la notificación para cada usuario
+  App\Models\NotificacionFlujoConfig    → Reglas: quién recibe qué notificación
+  tabla notifications                   → Almacena las notificaciones enviadas
+
+FLUJO INTERNO DE UNA NOTIFICACIÓN:
+  1. Una acción del usuario avanza el flujo (ej: marcar oferta como ganadora).
+  2. El controlador lanza: event(new FlujoAvanzadoEvent($flujoId, $tipoTramiteId, $contexto))
+  3. NotificarPersonalFlujoListener::handle() se ejecuta.
+  4. Verifica si el sistema de notificaciones está activo globalmente
+     (Cache::get('notificaciones_sistema_activo')).
+  5. Consulta NotificacionFlujoConfig para encontrar reglas activas del
+     tipo_tramite_id recibido.
+  6. Para cada regla, resuelve los usuarios destino (por rol o por área+nivel).
+  7. Envía FlujoNotification a cada usuario → se guarda en tabla "notifications".
+  8. La UI lee las notificaciones no leídas y las muestra en el panel superior.
+
+INTERRUPTOR GLOBAL:
+  La pantalla /configuracion/notificaciones tiene un toggle que activa/desactiva
+  TODO el sistema. El estado se guarda en Cache con clave 'notificaciones_sistema_activo'.
+  Si está OFF → ningún evento genera notificación, aunque existan reglas configuradas.
+
+
+================================================================================
+5. PUNTOS DE DISPARO DE FlujoAvanzadoEvent (dónde se lanza el evento)
+================================================================================
+
+Los puntos actuales donde se dispara el evento, con el tipo_tramite_id que envía:
+
+  ARCHIVO: ModalFlujoPedido.php
+  ├── Línea ~986  → tipo=2 (Ofertas)        Cuando se crea una nueva oferta en un pedido
+  ├── Línea ~1082 → tipo=9 (Rev.Inventario) Cuando la oferta ganadora envía a Rev.Inventario
+  ├── Línea ~1263 → tipo=10(Rev.Crédito)    Cuando la oferta ganadora envía a Rev.Crédito
+  ├── Línea ~2054 → tipo=5 (Entrega)        Cuando se registra el proceso de entrega
+  └── Línea ~2098 → tipo=6 (Cobro)          Cuando se registra un pago
+
+  ARCHIVO: PrefacturaController.php
+  ├── Línea ~412  → tipo=4 (Prefactura)     Cuando se guarda/crea una nueva prefactura
+  └── Línea ~732  → tipo=3 (Factura)        Cuando la prefactura se convierte en factura
+
+  ARCHIVO: RevisionCreditos.php
+  └── Línea ~768  → tipo=4 (Prefactura)     Cuando el crédito es aprobado y avanza a prefactura
+
+  ARCHIVO: RevicionInventario.php
+  └── Línea ~621  → tipo=4 o 10             Cuando el inventario es aprobado
+
+  ARCHIVO: DistribucionEntrega.php (Logística)
+  └── Línea ~1458 → tipo=5 o 7             Cuando se confirma la distribución de entrega
+
+CONTEXTO enviado con el evento (array $contexto):
+  [
+    'cliente'    => nombre del cliente del flujo,
+    'monto'      => monto total de la factura/cotización (si aplica),
+    'referencia' => número de documento (si aplica),
+  ]
+
+
+================================================================================
+6. CONFIGURACIÓN DE NOTIFICACIONES POR ROL/ÁREA
+================================================================================
+
+Tabla: notificacion_flujo_config
+
+Cada regla define:
+  tipo_tramite_id  → para qué paso del flujo aplica esta regla
+  rol_id           → notificar a TODOS los usuarios con este rol (nullable)
+  area_id          → notificar a TODOS los usuarios de esta área (nullable)
+  nivel_max_id     → dentro del área, solo niveles con orden >= este nivel
+                     (ej: notificar solo supervisores y gerentes, no colaboradores)
+  escalar_activo   → si el usuario no lee en N horas, escalar a otro nivel
+  escalar_horas    → cuántas horas antes de escalar
+  escalar_nivel_id → a qué nivel jerárquico escalar
+  activo           → si esta regla está operativa
+
+REGLAS DE TARGETING:
+  - Si tiene rol_id: se notifica a todos los usuarios con ese rol exacto.
+  - Si tiene area_id: se notifica a todos los roles del área, opcionalmente
+    filtrados por nivel jerárquico (nivel_max_id).
+  - Si no tiene ni uno ni otro: la regla no notifica a nadie.
+
+RESOLUCIÓN DE USUARIOS (NotificacionFlujoConfig::resolverUsuariosDestino()):
+  1. Busca usuarios con estado_id=1 (activos).
+  2. Filtra por rol directo O por roles del área con filtro de nivel.
+  3. Elimina duplicados por ID antes de enviar.
+
+JERARQUÍA DE NIVELES (tabla nivel_rol):
+  Los niveles tienen un campo "orden" donde un número menor = nivel más alto.
+  Ejemplo: Gerente=1, Director=2, Supervisor=3, Colaborador=4
+  El filtro nivel_max_id notifica a todos con orden <= nivel_max.orden,
+  es decir, a los niveles más altos o iguales al máximo definido.
+
+PANTALLA DE CONFIGURACIÓN: /configuracion/notificaciones
+  - Toggle global ON/OFF
+  - Tabla de reglas activas
+  - Crear/editar/eliminar reglas
+  - El dropdown de "Estado de Flujo" usa la tabla flujo_etapas (orden del pipeline)
+
+
+================================================================================
+7. TABLA CATÁLOGO flujo_etapas (NUEVA - creada 25/05/2026)
+================================================================================
+
+Propósito:
+  Centralizar en BD el orden, nombre visual e ícono de cada paso del flujo.
+  Antes estos datos estaban hardcodeados en el blade y en el componente PHP.
+  Ahora el sistema de notificaciones y cualquier pantalla pueden consultar
+  los pasos desde la base de datos.
+
+Estructura:
+  id              → tinyint, PK
+  tipo_tramite_id → FK a tipos_tramites (UNIQUE: 1 etapa por tipo de trámite)
+  nombre_display  → Etiqueta corta para UI ("Rev. Crédito", "Prefactura"...)
+  icono           → Clase Font Awesome (ej: "fa-credit-card")
+  orden           → Posición en el pipeline (1-10)
+  es_opcional     → 1 si el paso no aparece en todos los flujos
+  activo          → Para desactivar un paso sin borrarlo
+  updated_by      → FK a users (auditoría)
+
+Beneficio principal:
+  Si en el futuro se agrega un nuevo paso al flujo (tipo_tramite nuevo), basta
+  con insertar una fila en flujo_etapas con el orden correcto. El sistema de
+  notificaciones lo detectará automáticamente sin cambios en el código.
+
+Modelo PHP: App\Models\FlujoEtapa
+  - FlujoEtapa::activas() → retorna etapas ordenadas, con cache de 1 hora
+  - El cache se invalida automáticamente al guardar o eliminar una etapa.
+
+Datos actuales:
+  orden=1   Pedido             (tipo=1,  obligatorio)
+  orden=2   Ofertas            (tipo=2,  obligatorio)
+  orden=3   Rev. Inventario    (tipo=9,  opcional)
+  orden=4   Rev. Crédito       (tipo=10, opcional)
+  orden=5   Prefactura         (tipo=4,  obligatorio)
+  orden=6   Factura            (tipo=3,  obligatorio)
+  orden=7   Entrega            (tipo=5,  obligatorio)
+  orden=8   Cobro              (tipo=6,  obligatorio)
+  orden=9   Entrega y Cobro    (tipo=7,  opcional - atajo)
+  orden=10  Finalizado         (tipo=8,  obligatorio)
+
+
+================================================================================
+8. BRECHAS Y NOTAS DE DISEÑO FUTURO
+================================================================================
+
+BRECHAS IDENTIFICADAS:
+
+  a) El stepper visual del modal (modal-flujo-pedido.blade.php) sigue usando
+     el array $fPasos hardcodeado (solo 6 pasos en el pipeline principal).
+     Pendiente: migrar el stepper a consultar flujo_etapas dinámicamente.
+
+  b) FlujoNotification::TRAMITE_CONFIG es un array privado hardcodeado en la
+     clase de notificación. Si se agrega un nuevo tipo_tramite, hay que editar
+     esa clase manualmente.
+     Pendiente: mover la configuración visual (título, ícono, color, URL) a la
+     tabla flujo_etapas (agregar columnas titulo_notif, color, url_notif).
+
+  c) La escalación de notificaciones (escalar_activo, escalar_horas) está
+     modelada en la tabla pero NO está implementada en el Listener.
+     Pendiente: crear un Job programado que revise notificaciones no leídas
+     después de N horas y reenvíe a un nivel superior.
+
+  d) No existe notificación al VENDEDOR cuando su flujo es aprobado o rechazado
+     en Rev. Crédito o Rev. Inventario. Solo se notifica al personal revisor.
+     Pendiente: agregar disparo de evento hacia el vendedor al aprobar/rechazar.
+
+  e) El interruptor global (Cache) se pierde si el caché se limpia.
+     Pendiente: persistir el estado del interruptor en una tabla de configuración
+     en lugar de solo en caché.
+
+PASOS PARA AGREGAR UN NUEVO PASO AL FLUJO EN EL FUTURO:
+  1. Insertar en tipos_tramites:
+     INSERT INTO tipos_tramites (nombre, estado) VALUES ('Nuevo Paso', 'activo');
+  2. Insertar en flujo_etapas con el orden correcto entre los pasos existentes.
+  3. Agregar el case en FlujoNotification::TRAMITE_CONFIG con título, ícono, color, URL.
+  4. Implementar la lógica en el controlador que mueve el flujo a ese nuevo paso.
+  5. Disparar FlujoAvanzadoEvent con el nuevo tipo_tramite_id.
+  6. (Opcional) Actualizar el stepper del blade si el paso es visible en el pipeline.
+  7. Configurar en notificacion_flujo_config quién debe ser notificado.
+
+
+================================================================================
+FIN DEL DOCUMENTO
+================================================================================

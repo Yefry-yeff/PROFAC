@@ -24,6 +24,7 @@ class FlujoNotification extends Notification
         8  => ['titulo' => 'Flujo Finalizado',        'icono' => 'fa-check-circle',        'color' => '#4CAF50', 'url' => '/flujo/ventas/historico'],
         9  => ['titulo' => 'Revisión de Inventario',  'icono' => 'fa-boxes',               'color' => '#FF9800', 'url' => '/flujo/revicion_inventario'],
         10 => ['titulo' => 'Revisión de Crédito',     'icono' => 'fa-credit-card',         'color' => '#2196F3', 'url' => '/flujo/revision_creditos'],
+        11 => ['titulo' => 'Prefactura Anulada',       'icono' => 'fa-times-circle',        'color' => '#F44336', 'url' => '/flujo/ventas/historico'],
     ];
 
     public function __construct(

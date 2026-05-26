@@ -2368,6 +2368,7 @@ class ModalFlujoPedido extends Component
 
         $prefacturaId = (int) $this->prefacturaData['id'];
         $cotizacionId = (int) ($this->prefacturaData['cotizacion_id'] ?? 0);
+        $montoTotal   = $this->prefacturaData['total'] ?? null;
 
         DB::beginTransaction();
         try {
@@ -2424,6 +2425,31 @@ class ModalFlujoPedido extends Component
             );
 
             DB::commit();
+
+            // Notificar que la prefactura fue anulada (tipo_tramite_id = 11)
+            try {
+                $flujoCtx = DB::table('flujo')
+                    ->where('id', $this->flujoId)
+                    ->select('nombre as cliente')
+                    ->first();
+                $motivoCorto = trim($this->motivoAutorizacion ?? '');
+                event(new FlujoAvanzadoEvent(
+                    $this->flujoId,
+                    11,
+                    [
+                        'cliente'    => $flujoCtx?->cliente ?? 'N/A',
+                        'monto'      => $montoTotal,
+                        'referencia' => 'Prefactura #' . $prefacturaId
+                                        . ($motivoCorto ? ' | Motivo: ' . substr($motivoCorto, 0, 60) : ''),
+                    ]
+                ));
+            } catch (\Throwable $notifEx) {
+                \Log::error('NotificacionFlujo dispatch failed (tipo=11 prefactura anulada)', [
+                    'flujo_id' => $this->flujoId,
+                    'error'    => $notifEx->getMessage(),
+                ]);
+            }
+
             $this->prefacturaData          = null;
             $this->confirmAccionPrefactura = null;
             $this->mostrarAutorizacionPrefactura = false;
