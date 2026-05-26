@@ -1,6 +1,9 @@
 <div>
 @if ($showModal && $pedidoData)
 <style>
+    /* Fix: Animate.css leaves transform:matrix(identity) on .wrapper-content after
+       fadeInRight animation — this breaks position:fixed viewport coverage */
+    div.wrapper-content { transform: none !important; }
     @@keyframes flujoIn {
         from { opacity:0; transform:scale(.94) translateY(-24px); }
         to   { opacity:1; transform:scale(1)  translateY(0);      }
@@ -160,7 +163,7 @@
      style="position:fixed; inset:0; z-index:99999;
             display:flex; align-items:center; justify-content:center; padding:16px;
             overflow-y:auto;
-            background:rgba(15,15,35,.62); backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px);">
+            background:rgba(15,15,35,.97);">
 
     <div class="fmp-dlg" role="document">
         <div class="modal-content fmp-cnt" style="border:none; box-shadow:0 20px 60px rgba(0,0,0,.35);">
@@ -2254,5 +2257,67 @@
                 });
         });
     }
+
+    /* ── Backdrop que cubre el hueco inferior fuera del overlay constrained ── */
+    (function () {
+        var MODAL_ID    = 'fmpModalWrap';
+        var BACKDROP_ID = 'fmpBackdrop';
+
+        function createBackdrop() {
+            if (document.getElementById(BACKDROP_ID)) return;
+            var mw = document.getElementById(MODAL_ID);
+            var pw = document.getElementById('page-wrapper');
+            if (!mw) return;
+            var mwB    = Math.round(mw.getBoundingClientRect().bottom) - 2;
+            var bdLeft = pw ? Math.round(pw.getBoundingClientRect().left) : 235;
+            var bd = document.createElement('div');
+            bd.id = BACKDROP_ID;
+            bd.style.cssText = [
+                'position:fixed',
+                'top:'  + mwB    + 'px',
+                'left:' + bdLeft + 'px',
+                'right:0',
+                'bottom:0',
+                'z-index:99998',
+                'background:rgba(15,15,35,.97)',
+                'pointer-events:none'
+            ].join(';');
+            document.body.appendChild(bd);
+        }
+
+        function removeBackdrop() {
+            var bd = document.getElementById(BACKDROP_ID);
+            if (bd) bd.remove();
+        }
+
+        function syncBackdrop() {
+            document.getElementById(MODAL_ID) ? createBackdrop() : removeBackdrop();
+        }
+
+        var obs = new MutationObserver(function (mutations) {
+            for (var i = 0; i < mutations.length; i++) {
+                var m = mutations[i];
+                for (var j = 0; j < m.addedNodes.length; j++) {
+                    var n = m.addedNodes[j];
+                    if (n.id === MODAL_ID || (n.querySelector && n.querySelector('#' + MODAL_ID))) {
+                        createBackdrop(); return;
+                    }
+                }
+                for (var j = 0; j < m.removedNodes.length; j++) {
+                    var n = m.removedNodes[j];
+                    if (n.id === MODAL_ID || (n.querySelector && n.querySelector('#' + MODAL_ID))) {
+                        removeBackdrop(); return;
+                    }
+                }
+            }
+        });
+        obs.observe(document.body, { childList: true, subtree: true });
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', syncBackdrop);
+        } else {
+            syncBackdrop();
+        }
+    })();
 </script>
 </div>
