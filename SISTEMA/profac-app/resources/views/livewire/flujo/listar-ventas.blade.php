@@ -260,4 +260,19 @@
 
     {{-- Modal global de flujo (igual que listar-pedidos-para-ofertar) --}}
     <livewire:flujo.modal-flujo-pedido />
+
+    {{-- Deep-link desde notificación: abre el modal una vez que Alpine+Livewire están listos --}}
+    @if($autoOpenPedidoId > 0)
+    <div
+        wire:ignore
+        x-data="{ pedidoId: {{ $autoOpenPedidoId }} }"
+        x-init="$nextTick(() => Livewire.emit('abrirFlujoPedido', pedidoId))"
+    ></div>
+    @elseif($autoOpenCotizacionId > 0)
+    <div
+        wire:ignore
+        x-data="{ flujoId: {{ $autoOpenCotizacionId }} }"
+        x-init="$nextTick(() => Livewire.emit('abrirFlujoCotizacion', flujoId))"
+    ></div>
+    @endif
 </div>

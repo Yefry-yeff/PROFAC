@@ -27,8 +27,8 @@
     }
     .fmp-dlg  { max-width:920px; width:100%; animation:flujoIn .32s cubic-bezier(.34,1.28,.64,1) both; pointer-events:auto; }
     .fmp-cnt  { border-radius:18px !important; overflow:hidden !important; }
-    .fmp-body { padding:20px 24px 24px !important; overflow-y:auto; max-height:calc(90vh - 140px); }
-    .fmp-foot { padding:12px 24px 18px !important; display:flex !important; flex-wrap:wrap !important; gap:8px !important; justify-content:flex-end !important; }
+    .fmp-body { padding:20px 24px 16px !important; overflow-y:auto !important; max-height:75vh !important; }
+    .fmp-foot { padding:10px 24px 14px !important; display:flex !important; flex-wrap:wrap !important; gap:8px !important; justify-content:flex-end !important; flex-shrink:0 !important; background:#fff !important; border-top:1px solid #eaecf0 !important; }
     .fmp-pipeline { scrollbar-width:thin; scrollbar-color:#e0e3ee transparent; -webkit-overflow-scrolling:touch; scroll-behavior:smooth; }
     .fmp-pipeline::-webkit-scrollbar { height:4px; }
     .fmp-pipeline::-webkit-scrollbar-thumb { background:#d0d4e4; border-radius:4px; }
@@ -114,8 +114,8 @@
 {{-- ── Overlay ─────────────────────────────────────────────────────────── --}}
 <div id="fmpModalWrap" role="dialog"
      style="position:fixed; inset:0; z-index:99999;
-            display:flex; align-items:center; justify-content:center; padding:16px;
-            pointer-events:none;
+            display:flex; align-items:flex-start; justify-content:center; padding:24px 16px;
+            overflow-y:auto;
             background:rgba(15,15,35,.62); backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px);">
 
     <div class="fmp-dlg" role="document">
