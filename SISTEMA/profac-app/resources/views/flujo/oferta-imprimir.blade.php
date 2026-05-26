@@ -164,7 +164,7 @@
         <div class="card" style="position:absolute;left:0px; width:26rem; height:15rem;">
             <div class="card-body">
                 <p class="card-text" style="position:absolute;left:10px; top:2px; font-size:14px;">
-                    <b>Vendedor: {{ $oferta->vendedor_nombre }}</b>
+                    <b>Asesor comercial: {{ $oferta->vendedor_nombre }}</b>
                 </p>
                 <p class="card-text" style="position:absolute;left:200px; top:2px; font-size:14px;">
                     <b>Cotizador: {{ $oferta->cotizador }}</b>

@@ -173,6 +173,10 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->get('/
     return view('/dashboard');
 })->name('dashboard');
 
+Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])
+    ->get('/dashboard/comercial', App\Http\Livewire\Dashboard\DashboardComercial::class)
+    ->name('dashboard.comercial');
+
 // Rutas de cambio obligatorio de contraseña (fuera del grupo protegido para evitar bucle)
 Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('/cambiar-contrasena', function () {

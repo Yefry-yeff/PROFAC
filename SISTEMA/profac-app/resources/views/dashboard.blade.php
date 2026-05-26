@@ -55,14 +55,10 @@
       </div>
     </div>
 
-    {{-- ══════════════════════════════════════════════════════════════════
-         MÉTRICAS EMPRESARIALES
-    ══════════════════════════════════════════════════════════════════ --}}
-    @if(Auth::user()->rol_id === 1)
+    {{-- ══ Dashboard Comercial ══ --}}
     <div style="margin-top:28px;">
-        @livewire('usuarios.dashboard-empresarial')
+        @livewire('dashboard.dashboard-comercial')
     </div>
-    @endif
   </div>
 
   <script>
