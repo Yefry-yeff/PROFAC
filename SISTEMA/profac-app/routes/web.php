@@ -172,8 +172,11 @@ Route::get('/', function () {
 
 Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->get('/dashboard', function () {
     return view('/dashboard');
-    //return redirect('/bodega');
 })->name('dashboard');
+
+Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])
+    ->get('/dashboard/comercial', App\Http\Livewire\Dashboard\DashboardComercial::class)
+    ->name('dashboard.comercial');
 
 // Rutas de cambio obligatorio de contraseña (fuera del grupo protegido para evitar bucle)
 Route::middleware(['auth:sanctum', 'verified'])->group(function () {
@@ -1026,7 +1029,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     //---------------------------------------------------------SinRestriccionPrecio-------------------------------------------------------//
 
     // Route::get('/ventas/sin/restriccion/precio', SinRestriccionPrecio::class); // Duplicado - Movido a Facturación Unificada
-    Route::get('/ventas/solicitud/codigo', [SinRestriccionPrecio::class, 'enviarCodigo']);
+    Route::post('/ventas/solicitud/codigo', [SinRestriccionPrecio::class, 'enviarCodigo']);
     Route::post('/ventas/verificar/codigo', [SinRestriccionPrecio::class, 'verificarCodigo']);
     Route::post('/ventas/autorizacion/desactivar', [SinRestriccionPrecio::class, 'desactivarCodigo']);
     //---------------------------------------------------------SinRestriccionPrecio-------------------------------------------------------//
@@ -1110,7 +1113,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Route::get('/ventas/sin/restriccion/precio', SinRestriccionPrecio::class); // Movido a Facturación Unificada
-    Route::get('/ventas/solicitud/codigo', [SinRestriccionPrecio::class, 'enviarCodigo']);
+    Route::post('/ventas/solicitud/codigo', [SinRestriccionPrecio::class, 'enviarCodigo']);
     Route::post('/ventas/verificar/codigo', [SinRestriccionPrecio::class, 'verificarCodigo']);
     Route::post('/ventas/autorizacion/desactivar', [SinRestriccionPrecio::class, 'desactivarCodigo']);
 
@@ -1422,10 +1425,8 @@ Route::post('/reporte/ventas-cobros/exportar-excel/{vendedorId}/{clienteId}/{mes
     // Revisión de Crédito
     Route::get('/flujo/revision_creditos', \App\Http\Livewire\Flujo\RevisionCreditos::class)->name('flujo.revision_creditos');
 
-    return redirect('/login');
+    // Ruta auto-generada para: Reportes\EvaluacionDeClientesPorNivelDeFacturacion
+    Route::get('/reportes/evaluacion_de_clientes_por_nivel_de_facturacion', \App\Http\Livewire\Reportes\EvaluacionDeClientesPorNivelDeFacturacion::class);
 
-    // Configuración de tiempo de prefacturación (movido a /configuracion/prefacturacion)
-
-
-    // Ruta auto-generada para: Flujo\RevisionCreditos
+    // [auto-routes-anchor]
 });

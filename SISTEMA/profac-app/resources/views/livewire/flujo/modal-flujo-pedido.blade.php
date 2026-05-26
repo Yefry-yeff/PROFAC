@@ -885,27 +885,27 @@
                                     <th style="padding:4px 8px; text-align:left;">Producto</th>
                                     <th style="padding:4px 8px; text-align:center;">Cant.</th>
                                     <th style="padding:4px 8px; text-align:right;">P.Unit.</th>
-                                    <th style="padding:4px 8px; text-align:right;">Actual</th>
+                                    <th style="padding:4px 8px; text-align:right;">Escala Act.</th>
                                     <th style="padding:4px 8px; text-align:right;">Total</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach ($ofertaSeleccionada['productos'] as $pr)
                                 @php
-                                    $precioAct   = isset($pr['precio_actual']) ? (float)$pr['precio_actual'] : null;
-                                    $precioOrig  = isset($pr['precio_unidad'])  ? (float)$pr['precio_unidad']  : null;
-                                    $precioCambio = ($precioAct !== null && $precioOrig !== null)
-                                                    && abs($precioOrig - $precioAct) > 0.0001;
+                                    $precioVendedor    = isset($pr['precio_unidad'])       ? (float)$pr['precio_unidad']       : null;
+                                    $precioEscalaActual = isset($pr['precio_escala_actual']) ? (float)$pr['precio_escala_actual'] : null;
+                                    // Bloqueado si la escala actual subió respecto al precio cobrado
+                                    $bloqueado = ($precioVendedor !== null && $precioEscalaActual !== null)
+                                                    && $precioEscalaActual > $precioVendedor + 0.0001;
                                 @endphp
                                 <tr style="border-bottom:1px solid #f0f0f0;">
                                     <td style="padding:4px 8px; color:#2c3e50;">{{ $pr['nombre_producto'] }}</td>
                                     <td style="padding:4px 8px; text-align:center; color:#1a7efb; font-weight:700;">{{ (int)$pr['cantidad'] }}</td>
-                                    <td style="padding:4px 8px; text-align:right; color:{{ $precioCambio ? '#c0392b' : '#555' }};
-                                               {{ $precioCambio ? 'text-decoration:line-through;' : '' }}">
-                                        @if ($pr['precio_unidad']) L {{ number_format($pr['precio_unidad'], 2) }} @else — @endif
+                                    <td style="padding:4px 8px; text-align:right; color:{{ $bloqueado ? '#c0392b' : '#555' }}; font-weight:{{ $bloqueado ? '700' : '400' }};">
+                                        @if ($precioVendedor !== null) L {{ number_format($precioVendedor, 2) }} @else — @endif
                                     </td>
-                                    <td style="padding:4px 8px; text-align:right; color:{{ $precioCambio ? '#27ae60' : '#aaa' }}; font-weight:{{ $precioCambio ? '700' : '400' }};">
-                                        @if ($precioAct !== null) L {{ number_format($precioAct, 2) }} @else — @endif
+                                    <td style="padding:4px 8px; text-align:right; color:{{ $bloqueado ? '#e67e22' : '#aaa' }}; font-weight:{{ $bloqueado ? '700' : '400' }};">
+                                        @if ($precioEscalaActual !== null) L {{ number_format($precioEscalaActual, 2) }} @else — @endif
                                     </td>
                                     <td style="padding:4px 8px; text-align:right; font-weight:700; color:#1ab394;">
                                         @if ($pr['total']) L {{ number_format($pr['total'], 2) }} @else — @endif
@@ -1675,15 +1675,24 @@
                         </p>
 
                         {{-- Botón solicitar código --}}
-                        <div style="margin-bottom:10px;">
-                            <button type="button" id="btnSolicitarCodigoPrefactura"
-                                    onclick="solicitarCodigoPrefactura(this)"
+                        <div style="margin-bottom:10px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                            <button type="button"
+                                    wire:click="enviarCodigoPrefactura"
+                                    wire:loading.attr="disabled"
+                                    wire:target="enviarCodigoPrefactura"
                                     style="background:linear-gradient(135deg,#f59e0b,#d97706); color:#fff;
                                            border:none; border-radius:8px; padding:6px 14px;
                                            font-size:12px; font-weight:700; cursor:pointer;">
-                                <i class="mr-1 fa fa-send"></i> Solicitar código por correo
+                                <span wire:loading.remove wire:target="enviarCodigoPrefactura">
+                                    <i class="mr-1 fa fa-send"></i> Solicitar código por correo
+                                </span>
+                                <span wire:loading wire:target="enviarCodigoPrefactura">
+                                    <i class="fa fa-spinner fa-spin mr-1"></i> Enviando...
+                                </span>
                             </button>
-                            <span id="msgSolicitarCodigo" style="margin-left:10px; font-size:12px;"></span>
+                            <span id="msgCodigoFlujo" style="font-size:12px; color:#2e7d32; display:none;">
+                                <i class="fa fa-check mr-1"></i> Código enviado. Solicíteselo a su supervisor.
+                            </span>
                         </div>
 
                         <div class="row" style="row-gap:8px;">
@@ -2137,6 +2146,10 @@
 
     if (!window._fmpListenerSet) {
         window._fmpListenerSet = true;
+        window.addEventListener('flujo-codigo-enviado', function() {
+            var msg = document.getElementById('msgCodigoFlujo');
+            if (msg) msg.style.display = 'inline';
+        });
         window.addEventListener('abrir-nueva-pestana', function(e) {
             window.open(e.detail.url, '_blank');
         });

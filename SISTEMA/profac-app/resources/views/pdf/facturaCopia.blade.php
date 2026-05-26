@@ -204,12 +204,13 @@
                         <div class="card-body">
 
 
-                            <p class="card-text" style="position:absolute;left:10px;  top:2px; font-size:14px;"><b>Vendedor:
+                            <p class="card-text" style="position:absolute;left:10px;  top:2px; font-size:14px;"><b>Asesor comercial:
                             </b>
                             {{ $cai->vendedor }} </p>
-                            <p class="card-text" style="position:absolute;left:200px;  top:2px; font-size:14px;"><b>Facturador:
+                            <p class="card-text" style="position:absolute;left:200px;  top:2px; font-size:14px;"><b>Tele asesor:
                                 </b>
                                 {{ $cai->facturador }} </p>
+                            <p class="card-text" style="position:absolute;left:10px;  top:18px; font-size:11px;"><b>Asesor de entrega:</b> {{ $cai->asesor_entrega ?? '' }}</p>
 
                             <p class="card-text" style="position:absolute;left:0px;  top:28px; font-size:11px;">
                                 ____________________________________________________________________</p>

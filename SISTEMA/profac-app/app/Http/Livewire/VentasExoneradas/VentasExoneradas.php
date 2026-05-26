@@ -606,7 +606,8 @@ class VentasExoneradas extends Component
         E.corrOrd as correlativoexo,
         A.estado_venta_id,
         users.name as vendedor,
-        (select name from users where id = A.users_id ) as facturador
+        (select name from users where id = A.users_id ) as facturador,
+        (select u.name from comprovante_entrega ce inner join users u on ce.users_id = u.id where ce.id = A.comprovante_entrega_id) as asesor_entrega
        from factura A
        inner join cai B
        on A.cai_id = B.id
@@ -762,7 +763,8 @@ class VentasExoneradas extends Component
         E.corrOrd as correlativoexo,
         A.estado_venta_id,
         users.name as vendedor,
-        (select name from users where id = A.users_id ) as facturador
+        (select name from users where id = A.users_id ) as facturador,
+        (select u.name from comprovante_entrega ce inner join users u on ce.users_id = u.id where ce.id = A.comprovante_entrega_id) as asesor_entrega
        from factura A
        inner join cai B
        on A.cai_id = B.id

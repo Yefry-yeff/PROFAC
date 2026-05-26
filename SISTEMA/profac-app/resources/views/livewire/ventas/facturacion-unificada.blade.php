@@ -622,8 +622,8 @@
                                         </div>
                                     </div>
                                 </div>
-                                {{-- ── N° Orden de Compra y Forma F01 (solo cotizaciones) ──────── --}}
-                                @if(($config->codigo ?? '') === 'cotizacion_clientes_a')
+                                {{-- ── N° Orden de Compra y Forma F01 (cotizaciones y facturación SR/Clientes A) ──────── --}}
+                                @if(in_array(($config->codigo ?? ''), ['cotizacion_clientes_a', 'sin_restriccion_gobierno']))
                                 <div class="col-12 col-md-4">
                                     <label class="ofr-label">N° Orden de Compra</label>
                                     <div class="input-group input-group-sm">
@@ -943,29 +943,42 @@
         </div>
 
         {{-- ============================================================== --}}
-        {{-- MODAL: Solicitar código de autorización                        --}}
+        {{-- MODAL: Solicitar autorización SR (con tabla de precios)        --}}
         {{-- (Visible solo para tipos que requieren código)                 --}}
         {{-- ============================================================== --}}
-        <div class="modal fade" id="modal_solicitar_codigo" data-backdrop="static" tabindex="-1" role="dialog" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal fade" id="modal_sr_autorizacion" data-backdrop="static" tabindex="-1" role="dialog" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
                 <div class="modal-content">
-                    <div class="modal-header">
-                        <h3 class="modal-title">Solicitar código</h3>
+                    <div class="modal-header" style="background:linear-gradient(135deg,#e65100,#f9a826); border:none; padding:14px 20px;">
+                        <h3 class="modal-title" style="color:#fff; font-size:16px; font-weight:700; margin:0;">
+                            <i class="fa-solid fa-shield-halved mr-2"></i>Solicitar Autorización SR
+                        </h3>
                     </div>
                     <div class="modal-body">
-                        <div class="text-center">
-                            <button class="btn btn-primary btn-large-dim" type="button" onclick="solicitarCodigo()">
-                                <i class="fa-solid fa-paper-plane"></i>
-                            </button>
+                        <p class="mb-3 text-muted" style="font-size:12px;">
+                            Se enviará un código de autorización por correo al departamento de autorizaciones.
+                            Las filas marcadas en <span style="color:#c62828; font-weight:700;">rojo</span> tienen precio inferior al precio de escala (OPC).
+                        </p>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered" style="font-size:12px; margin-bottom:0;">
+                                <thead style="background:#f5f5f5;">
+                                    <tr>
+                                        <th>Producto</th>
+                                        <th style="text-align:right; white-space:nowrap;">Precio OPC</th>
+                                        <th style="text-align:right; white-space:nowrap;">P.Unitario</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="srTableBody"></tbody>
+                            </table>
                         </div>
-                        <div id="div_imprimir" class="mt-2 text-center d-none">
-                            <a id="btn_imprimir" target="_blank" class="text-white btn add-btn btn-success">
-                                <i class="fa-solid fa-file-invoice"></i> Imprimir Factura
-                            </a>
+                        <div class="text-center mt-3">
+                            <button class="btn btn-primary" type="button" id="btnSolicitarCodigo" onclick="solicitarCodigo()">
+                                <i class="fa-solid fa-paper-plane mr-1"></i> Solicitar Código
+                            </button>
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" onclick="history.back()">Salir</button>
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
                     </div>
                 </div>
             </div>
@@ -1757,11 +1770,6 @@
     function inicializarFormulario() {
         obtenerTipoPago();
         inicializarSelect2();
-
-        // Si requiere código de autorización, mostrar modal
-        if (tipoFacturaConfig && tipoFacturaConfig.requiere_codigo_autorizacion) {
-            $('#modal_solicitar_codigo').modal('show');
-        }
     }
 
     function inicializarSelect2() {
@@ -2019,14 +2027,27 @@
     // CÓDIGO DE AUTORIZACIÓN (sin restricción gobierno / sin restricción precio)
     // ================================================================
     function solicitarCodigo() {
-        axios.get('/ventas/solicitud/codigo')
+        var btnSolicitar = document.getElementById('btnSolicitarCodigo');
+        if (btnSolicitar) btnSolicitar.disabled = true;
+        var flujoIdSR   = document.getElementById('flujo_vinculado_id')?.value || '';
+        var numVentaSR  = document.getElementById('numero_venta')?.value || '';
+        axios.post('/ventas/solicitud/codigo', {
+            productos:    window._srProductos || [],
+            flujo_id:     flujoIdSR,
+            numero_venta: numVentaSR,
+        })
             .then(response => {
-                $("#modal_solicitar_codigo").removeClass("fade").modal("hide");
-                $("#modalPermiso").modal("show").addClass("fade");
+                $('#modal_sr_autorizacion').removeClass('fade').modal('hide');
+                document.getElementById('codigo').value = '';
+                document.getElementById('mensajeCodigo').classList.add('d-none');
+                $('#modalPermiso').modal('show').addClass('fade');
             })
             .catch(err => {
                 console.log(err);
                 Swal.fire({ icon: 'error', title: 'Error', text: 'Error al solicitar código' });
+            })
+            .finally(function() {
+                if (btnSolicitar) btnSolicitar.disabled = false;
             });
     }
 
@@ -2041,9 +2062,11 @@
             .then(response => {
                 let data = response.data;
                 if (data.estado == 1) {
-                    $("#modalPermiso").removeClass("fade").modal("hide");
+                    $('#modalPermiso').removeClass('fade').modal('hide');
                     document.getElementById('mensajeCodigo').classList.add('d-none');
                     document.getElementById('codigo_autorizacion').value = data.idAutorizacion;
+                    // Proceder automáticamente con el guardado
+                    guardarVenta();
                 } else {
                     document.getElementById('mensajeCodigo').classList.remove('d-none');
                     document.getElementById('codigo_autorizacion').value = '';
@@ -3508,8 +3531,44 @@
 
     $(document).on('submit', '#crear_venta', function(event) {
         event.preventDefault();
+        // Para tipos SR: interceptar si aún no tiene código de autorización
+        if (tipoFacturaConfig && tipoFacturaConfig.requiere_codigo_autorizacion) {
+            var codigoId = document.getElementById('codigo_autorizacion').value;
+            if (!codigoId) {
+                mostrarModalSrAutorizacion();
+                return;
+            }
+        }
         guardarVenta();
     });
+
+    function mostrarModalSrAutorizacion() {
+        var tbody = document.getElementById('srTableBody');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        var productosSR = [];
+        for (var i = 0; i < arregloIdInputs.length; i++) {
+            var idx = arregloIdInputs[i];
+            var nombreEl = document.getElementById('nombre' + idx);
+            var precioSelectEl = document.getElementById('precios' + idx);
+            var precioUnitEl = document.getElementById('precio' + idx);
+            var nombre = nombreEl ? nombreEl.value : '—';
+            var precioOpc = precioSelectEl ? parseFloat(precioSelectEl.value) || 0 : 0;
+            var precioUnitario = precioUnitEl ? parseFloat(precioUnitEl.value) || 0 : 0;
+            var esBajo = precioUnitario < precioOpc;
+            // Solo agregar al arreglo y mostrar en tabla si el precio está por debajo del OPC
+            if (!esBajo) continue;
+            productosSR.push({ nombre: nombre, precioOpc: precioOpc, precioUnitario: precioUnitario });
+            var tr = '<tr style="background:#ffebee;">'
+                + '<td>' + nombre + '</td>'
+                + '<td style="text-align:right;">' + precioOpc.toFixed(2) + '</td>'
+                + '<td style="text-align:right;color:#c62828;font-weight:700;">' + precioUnitario.toFixed(2) + '</td>'
+                + '</tr>';
+            tbody.insertAdjacentHTML('beforeend', tr);
+        }
+        window._srProductos = productosSR;
+        $('#modal_sr_autorizacion').modal('show');
+    }
 
     function guardarVenta() {
         document.getElementById("btn_venta_coorporativa").disabled = true;
@@ -3574,7 +3633,8 @@
                     idAutorizacion = document.getElementById('codigo_autorizacion').value;
                     idFactura = data.idFactura;
                     var urlImprimir = urls.imprimir || '/factura/cooporativo/{id}';
-                    document.getElementById('btn_imprimir').href = urlImprimir.replace('{id}', idFactura);
+                    var btnImprimir = document.getElementById('btn_imprimir');
+                    if (btnImprimir) btnImprimir.href = urlImprimir.replace('{id}', idFactura);
                 }
 
                 if (data.idFactura == 0) {
@@ -3626,16 +3686,18 @@
                 limpiarFormularioVenta(data);
                 $('#modalExitoFactura').modal('show');
 
-                // Desactivar código si aplica (inmediato, sin delay)
-                if (tipoFacturaConfig && tipoFacturaConfig.requiere_codigo_autorizacion) {
-                    desactivarCodigo();
-                }
+                // Limpiar código de autorización para próxima venta
+                document.getElementById('codigo_autorizacion').value = '';
             })
             .catch(err => {
                 document.getElementById("btn_venta_coorporativa").disabled = false;
                 let data = err.response ? err.response.data : {};
-                console.log(err);
-                Swal.fire({ icon: data.icon || 'error', title: data.title || 'Error', text: data.text || 'Error al guardar' });
+                console.error('Error al guardar – status:', err.response ? err.response.status : 'sin respuesta', '| body:', data);
+                let msg = data.text || data.mensaje || data.message || 'Error al guardar';
+                if (data.errors) {
+                    msg = Object.values(data.errors).flat().join('<br>');
+                }
+                Swal.fire({ icon: data.icon || 'error', title: data.title || 'Error', html: msg });
             });
     }
 
@@ -3830,7 +3892,8 @@
 
                 axios.post(urls.datos_producto, {
                     idProducto: prod.producto_id,
-                    categoria_cliente_venta_id: categoriaId
+                    categoria_cliente_venta_id: categoriaId,
+                    precios_producto_carga_id: prod.precios_producto_carga_id || null
                 }).then(function (response) {
                     var producto = response.data.producto;
                     var arrayUnidades = response.data.unidades;
@@ -3844,24 +3907,36 @@
                         htmlSelectUnidades += '<option ' + sel + ' value="' + u.id + '" data-id="' + u.idUnidadVenta + '">' + u.nombre + '</option>';
                     });
 
-                    // Precio real de la oferta original (puede ser base/especial, distinto de precio_a)
-                    var precioUsar = parseFloat(prod.precio_unidad) || parseFloat(producto.precio1);
-                    var precioUsarFmt = precioUsar.toFixed(2);
+                    // Precio de escala actual según el idPrecioSeleccionado de la oferta original
+                    var idEscala = ((prod.idPrecioSeleccionado || '') + '').toLowerCase().trim();
+                    var precioEscalaActual;
+                    switch (idEscala) {
+                        case 'a': case 'p1': precioEscalaActual = parseFloat(producto.precio1 || 0); break;
+                        case 'b': case 'p2': precioEscalaActual = parseFloat(producto.precio2 || 0); break;
+                        case 'c': case 'p3': precioEscalaActual = parseFloat(producto.precio3 || 0); break;
+                        case 'd': case 'p4': precioEscalaActual = parseFloat(producto.precio4 || 0); break;
+                        default:             precioEscalaActual = parseFloat(producto.precio1 || 0); break;
+                    }
+                    // PRECIO OPC = precio de escala actual; P. UNITARIO = precio que cobró el vendedor
+                    var precioOpcFmt    = precioEscalaActual.toFixed(2);
+                    var precioUnidFmt   = (parseFloat(prod.precio_unidad) || precioEscalaActual).toFixed(2);
 
                     // Precios
                     var htmlprecios = '';
                     if (tipoFacturaConfig && tipoFacturaConfig.multiples_precios) {
-                        htmlprecios = '<option value="' + producto.precio1 + '" data-id="p1" selected>' + producto.precio1 + ' - A</option>';
-                        if (producto.precio2) htmlprecios += '<option value="' + producto.precio2 + '" data-id="p2">' + producto.precio2 + ' - B</option>';
-                        if (producto.precio3) htmlprecios += '<option value="' + producto.precio3 + '" data-id="p3">' + producto.precio3 + ' - C</option>';
-                        if (producto.precio4) htmlprecios += '<option value="' + producto.precio4 + '" data-id="p4">' + producto.precio4 + ' - D</option>';
+                        var escalaMap = { 'p1': 'A', 'a': 'A', 'p2': 'B', 'b': 'B', 'p3': 'C', 'c': 'C', 'p4': 'D', 'd': 'D' };
+                        var letraEscala = escalaMap[idEscala] || 'A';
+                        htmlprecios = '<option value="' + producto.precio1 + '" data-id="p1"' + (letraEscala === 'A' ? ' selected' : '') + '>' + producto.precio1 + ' - A</option>';
+                        if (producto.precio2) htmlprecios += '<option value="' + producto.precio2 + '" data-id="p2"' + (letraEscala === 'B' ? ' selected' : '') + '>' + producto.precio2 + ' - B</option>';
+                        if (producto.precio3) htmlprecios += '<option value="' + producto.precio3 + '" data-id="p3"' + (letraEscala === 'C' ? ' selected' : '') + '>' + producto.precio3 + ' - C</option>';
+                        if (producto.precio4) htmlprecios += '<option value="' + producto.precio4 + '" data-id="p4"' + (letraEscala === 'D' ? ' selected' : '') + '>' + producto.precio4 + ' - D</option>';
                     } else {
-                        // Usar el precio original del duplicado: puede ser precio base/especial (ej. Co-Distribuidor)
-                        htmlprecios = '<option value="' + precioUsarFmt + '" data-id="p1" selected>' + precioUsarFmt + ' - Oferta</option>';
+                        // Escala actual como única opción de referencia
+                        htmlprecios = '<option value="' + precioOpcFmt + '" data-id="p1" selected>' + precioOpcFmt + ' - Escala</option>';
                     }
 
-                    // El mínimo debe corresponder al precio cargado, no forzar precio_a cuando viene de duplicado
-                    var minPrecio = (tipoFacturaConfig && tipoFacturaConfig.multiples_precios) ? '' : 'min="' + precioUsarFmt + '"';
+                    // min = precio de escala actual (precio mínimo de referencia)
+                    var minPrecio = (tipoFacturaConfig && tipoFacturaConfig.multiples_precios) ? '' : 'min="' + precioOpcFmt + '"';
                     var cantidadUsar = prod.cantidad || 1;
                     var bodegaTexto = prod.nombre_bodega || '';
                     var idBodega = prod['Bodega_id'] || '';
@@ -3901,7 +3976,7 @@
                             </select>
                         </td>
                         <td style="vertical-align:middle; padding:4px 6px;">
-                            <input type="number" id="precio${idx}" name="precio${idx}" value="${precioUsar}" class="form-control form-control-sm"
+                            <input type="number" id="precio${idx}" name="precio${idx}" value="${precioUnidFmt}" class="form-control form-control-sm"
                                 ${minPrecio} data-parsley-required step="any" autocomplete="off" style="min-width:80px; font-size:11px;"
                                 onchange="calcularTotales(precio${idx},cantidad${idx},${producto.isv},unidad${idx},${idx},restaInventario${idx})">
                         </td>

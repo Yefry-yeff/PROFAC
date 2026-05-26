@@ -94,19 +94,33 @@
                         {{-- Resumen del crédito si ya fue procesado --}}
                         @if ($esAprobado)
                         <div style="background:#e8f5e9; border:1px solid #a5d6a7; border-radius:12px; padding:14px 18px; margin-bottom:18px;">
-                            <h6 style="color:#2e7d32; font-weight:700; margin-bottom:6px;">
+                            <h6 style="color:#2e7d32; font-weight:700; margin-bottom:8px;">
                                 <i class="mr-1 fa fa-check-circle"></i> Crédito Aprobado
                             </h6>
-                            <div style="font-size:13px; color:#2c3e50;">
+                            <div style="font-size:13px; color:#2c3e50; display:flex; flex-wrap:wrap; gap:18px;">
                                 @if ($fechaAprobacionActual)
-                                    <span class="mr-3"><strong>Fecha autorización:</strong>
-                                        {{ \Carbon\Carbon::parse($fechaAprobacionActual)->format('d/m/Y') }}
-                                    </span>
+                                <div>
+                                    <div style="font-size:11px; color:#66bb6a; font-weight:700; text-transform:uppercase;">Fecha autorización</div>
+                                    <div style="font-weight:700;">{{ \Carbon\Carbon::parse($fechaAprobacionActual)->format('d/m/Y') }}</div>
+                                </div>
                                 @endif
                                 @if ($fechaVencimientoActual)
-                                    <span><strong>Vence:</strong>
-                                        {{ \Carbon\Carbon::parse($fechaVencimientoActual)->format('d/m/Y') }}
-                                    </span>
+                                <div>
+                                    <div style="font-size:11px; color:#66bb6a; font-weight:700; text-transform:uppercase;">Vence</div>
+                                    <div style="font-weight:700;">{{ \Carbon\Carbon::parse($fechaVencimientoActual)->format('d/m/Y') }}</div>
+                                </div>
+                                @endif
+                                @if ($usuarioAprobadorActual)
+                                <div>
+                                    <div style="font-size:11px; color:#66bb6a; font-weight:700; text-transform:uppercase;">Aprobado por</div>
+                                    <div style="font-weight:700;">{{ $usuarioAprobadorActual }}</div>
+                                </div>
+                                @endif
+                                @if ($obsAprobacionActual)
+                                <div>
+                                    <div style="font-size:11px; color:#66bb6a; font-weight:700; text-transform:uppercase;">Comentario</div>
+                                    <div>{{ $obsAprobacionActual }}</div>
+                                </div>
                                 @endif
                             </div>
                         </div>
@@ -439,7 +453,7 @@
                         <div style="display:flex; align-items:center; gap:10px;">
                             <span style="background:rgba(255,255,255,.15); color:#ecf0f1; border-radius:20px;
                                          padding:3px 14px; font-size:12px; font-weight:600;">
-                                {{ $totalLlegando }} pendiente(s)
+                                {{ count($bandejaLlegando) }} pendiente(s)
                             </span>
                         </div>
                     </div>
@@ -447,7 +461,7 @@
                     <div class="ibox-content" style="padding:0;">
 
                         {{-- Buscador --}}
-                        <div style="padding:16px 20px; border-bottom:1px solid #f0f2f5;">
+                        <div style="padding:16px 20px; border-bottom:1px solid #f0f2f5; display:flex; flex-wrap:wrap; gap:10px; align-items:center;">
                             <div class="input-group" style="max-width:420px;">
                                 <div class="input-group-prepend">
                                     <span class="input-group-text" style="background:#1a5276; border-color:#1a5276; color:#fff;">
@@ -470,15 +484,28 @@
                                 </div>
                                 @endif
                             </div>
+                            <div class="d-flex align-items-center" style="gap:6px;">
+                                <label style="font-size:12px; color:#78909c; font-weight:600; margin:0; white-space:nowrap;">
+                                    Filas por p&aacute;gina:
+                                </label>
+                                <select wire:model="perPage"
+                                        class="form-control form-control-sm"
+                                        style="width:70px; font-size:13px; border-radius:8px;">
+                                    <option value="8">8</option>
+                                    <option value="15">15</option>
+                                    <option value="25">25</option>
+                                    <option value="50">50</option>
+                                </select>
+                            </div>
                         </div>
 
                         {{-- Pestañas --}}
                         <div style="padding:0 20px; border-bottom:2px solid #e8eaf0;">
                             <ul class="nav" style="gap:0; border:none;">
                                 @foreach ([
-                                    ['llegando',   'fa-inbox',         'Llegando',  $totalLlegando,   '#1a5276'],
-                                    ['aprobadas',  'fa-check-circle',  'Aprobadas', $totalAprobadas,  '#27ae60'],
-                                    ['rechazadas', 'fa-times-circle',  'Rechazadas',$totalRechazadas, '#e74c3c'],
+                                    ['llegando',   'fa-inbox',         'Llegando',  count($bandejaLlegando),   '#1a5276'],
+                                    ['aprobadas',  'fa-check-circle',  'Aprobadas', count($bandejaAprobadas),  '#27ae60'],
+                                    ['rechazadas', 'fa-times-circle',  'Rechazadas',count($bandejaRechazadas), '#e74c3c'],
                                 ] as [$tab, $icon, $label, $count, $color])
                                 <li class="nav-item">
                                     <button type="button"
@@ -503,21 +530,6 @@
 
                         {{-- Contenido de la pestaña activa --}}
                         @php
-                            $registros = match($tabActiva) {
-                                'aprobadas'  => $bandejaAprobadas,
-                                'rechazadas' => $bandejaRechazadas,
-                                default      => $bandejaLlegando,
-                            };
-                            $totalRegistros = match($tabActiva) {
-                                'aprobadas'  => $totalAprobadas,
-                                'rechazadas' => $totalRechazadas,
-                                default      => $totalLlegando,
-                            };
-                            $paginaActual = match($tabActiva) {
-                                'aprobadas'  => $paginaAprobadas,
-                                'rechazadas' => $paginaRechazadas,
-                                default      => $paginaLlegando,
-                            };
                             $esSoloLectura = in_array($tabActiva, ['aprobadas', 'rechazadas']);
                         @endphp
 
@@ -551,11 +563,15 @@
                                                 @else Motivo rechazo
                                                 @endif
                                             </th>
+                                            @if ($tabActiva === 'aprobadas')
+                                            <th style="padding:10px 14px; color:#546e7a;">Aprobado por</th>
+                                            <th style="padding:10px 14px; color:#546e7a;">Comentario</th>
+                                            @endif
                                             <th style="padding:10px 14px; color:#546e7a; text-align:center;">Acción</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        @foreach ($registros as $reg)
+                                        @foreach ($registrosPagina as $reg)
                                         @php $r = (array) $reg; @endphp
                                         <tr style="border-bottom:1px solid #f0f2f5; transition:background .15s;"
                                             onmouseover="this.style.background='#f8f9fc'"
@@ -609,6 +625,14 @@
                                                     </span>
                                                 @endif
                                             </td>
+                                            @if ($tabActiva === 'aprobadas')
+                                            <td style="padding:10px 14px; font-size:12px; color:#2c3e50;">
+                                                {{ $r['usuario_aprobador'] ?? '—' }}
+                                            </td>
+                                            <td style="padding:10px 14px; font-size:12px; color:#546e7a;">
+                                                {{ $r['obs_credito'] ? \Illuminate\Support\Str::limit($r['obs_credito'], 50) : '—' }}
+                                            </td>
+                                            @endif
                                             <td style="padding:10px 14px; text-align:center;">
                                                 <button type="button"
                                                         wire:click="seleccionarFlujo({{ $r['flujo_id'] }})"
@@ -624,28 +648,66 @@
                                     </tbody>
                                 </table>
                             </div>
+                            @endif
+
                             {{-- Paginación --}}
-                            @if ($totalRegistros > $porPagina)
-                            @php $totalPags = (int) ceil($totalRegistros / $porPagina); @endphp
-                            <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 4px; border-top:1px solid #f0f0f0; margin-top:4px;">
-                                <span style="font-size:12px; color:#64748b;">
-                                    Mostrando {{ ($paginaActual-1)*$porPagina+1 }}–{{ min($paginaActual*$porPagina, $totalRegistros) }} de {{ $totalRegistros }}
-                                </span>
-                                <div style="display:flex; gap:4px; align-items:center;">
-                                    <button wire:click="cambiarPagina('{{ $tabActiva }}', {{ max(1,$paginaActual-1) }})" {{ $paginaActual<=1 ? 'disabled' : '' }}
-                                            style="border:1px solid #e2e8f0; background:#fff; color:#374151; border-radius:6px; padding:4px 10px; font-size:13px; cursor:pointer; {{ $paginaActual<=1 ? 'opacity:.4;cursor:not-allowed;' : '' }}">&#8249;</button>
-                                    @for ($pg = max(1,$paginaActual-2); $pg <= min($totalPags,$paginaActual+2); $pg++)
-                                    <button wire:click="cambiarPagina('{{ $tabActiva }}', {{ $pg }})"
-                                            style="border:1px solid {{ $paginaActual===$pg ? '#1a5276' : '#e2e8f0' }}; background:{{ $paginaActual===$pg ? '#1a5276' : '#fff' }}; color:{{ $paginaActual===$pg ? '#fff' : '#374151' }}; border-radius:6px; padding:4px 10px; font-size:12px; font-weight:{{ $paginaActual===$pg ? '700' : '400' }}; cursor:pointer;">
-                                        {{ $pg }}
-                                    </button>
-                                    @endfor
-                                    <button wire:click="cambiarPagina('{{ $tabActiva }}', {{ min($totalPags,$paginaActual+1) }})" {{ $paginaActual>=$totalPags ? 'disabled' : '' }}
-                                            style="border:1px solid #e2e8f0; background:#fff; color:#374151; border-radius:6px; padding:4px 10px; font-size:13px; cursor:pointer; {{ $paginaActual>=$totalPags ? 'opacity:.4;cursor:not-allowed;' : '' }}">&#8250;</button>
+                            @if ($totalRegistros > 0)
+                            @php
+                                $rangoInicio = max(1, $paginaActual - 2);
+                                $rangoFin    = min($totalPaginas, $paginaActual + 2);
+                            @endphp
+                            <div class="d-flex align-items-center justify-content-between mt-3" style="font-size:13px; flex-wrap:wrap; gap:8px;">
+                                <div style="color:#78909c;">
+                                    Mostrando
+                                    <strong>{{ ($paginaActual - 1) * $perPage + 1 }}</strong>
+                                    –
+                                    <strong>{{ min($paginaActual * $perPage, $totalRegistros) }}</strong>
+                                    de <strong>{{ $totalRegistros }}</strong> registros
                                 </div>
+                                @if ($totalPaginas > 1)
+                                <ul class="pagination pagination-sm mb-0" style="flex-wrap:wrap;">
+                                    <li class="page-item {{ $paginaActual <= 1 ? 'disabled' : '' }}">
+                                        <button type="button"
+                                                wire:click="irPagina('{{ $tabActiva }}', {{ $paginaActual - 1 }})"
+                                                class="page-link">
+                                            <i class="fa fa-chevron-left"></i>
+                                        </button>
+                                    </li>
+                                    @if ($rangoInicio > 1)
+                                    <li class="page-item">
+                                        <button type="button" wire:click="irPagina('{{ $tabActiva }}', 1)" class="page-link">1</button>
+                                    </li>
+                                    @if ($rangoInicio > 2)
+                                    <li class="page-item disabled"><span class="page-link">&hellip;</span></li>
+                                    @endif
+                                    @endif
+                                    @for ($i = $rangoInicio; $i <= $rangoFin; $i++)
+                                    <li class="page-item {{ $paginaActual === $i ? 'active' : '' }}">
+                                        <button type="button"
+                                                wire:click="irPagina('{{ $tabActiva }}', {{ $i }})"
+                                                class="page-link">{{ $i }}</button>
+                                    </li>
+                                    @endfor
+                                    @if ($rangoFin < $totalPaginas)
+                                    @if ($rangoFin < $totalPaginas - 1)
+                                    <li class="page-item disabled"><span class="page-link">&hellip;</span></li>
+                                    @endif
+                                    <li class="page-item">
+                                        <button type="button" wire:click="irPagina('{{ $tabActiva }}', {{ $totalPaginas }})" class="page-link">{{ $totalPaginas }}</button>
+                                    </li>
+                                    @endif
+                                    <li class="page-item {{ $paginaActual >= $totalPaginas ? 'disabled' : '' }}">
+                                        <button type="button"
+                                                wire:click="irPagina('{{ $tabActiva }}', {{ $paginaActual + 1 }})"
+                                                class="page-link">
+                                            <i class="fa fa-chevron-right"></i>
+                                        </button>
+                                    </li>
+                                </ul>
+                                @endif
                             </div>
                             @endif
-                            @endif
+
                         </div>
 
                     </div>

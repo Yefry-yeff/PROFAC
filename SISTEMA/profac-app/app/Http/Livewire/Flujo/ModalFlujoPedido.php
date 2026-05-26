@@ -5,9 +5,11 @@ namespace App\Http\Livewire\Flujo;
 use Livewire\Component;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use App\Models\PrefacturaAuditoria;
 use App\Models\CreditoRevision;
-use App\Events\FlujoAvanzadoEvent;
+use App\Models\ModelCodigoAutorizacion;
 
 /**
  * Modal reutilizable "Flujo del Pedido".
@@ -717,6 +719,9 @@ class ModalFlujoPedido extends Component
                 ->select(
                     'chp.nombre_producto', 'chp.cantidad', 'chp.precio_unidad', 'chp.total',
                     'chp.idPrecioSeleccionado', 'chp.precios_producto_carga_id',
+                    // precio_actual = precio de escala al momento de la venta (guardado en la oferta)
+                    'chp.precioSeleccionado as precio_actual',
+                    // precio_escala_actual = precio de escala vigente hoy (solo para referencia interna)
                     DB::raw("CASE LOWER(TRIM(chp.idPrecioSeleccionado))
                         WHEN 'p1' THEN ppc.precio_a
                         WHEN 'p2' THEN ppc.precio_b
@@ -727,7 +732,7 @@ class ModalFlujoPedido extends Component
                         WHEN 'c'  THEN ppc.precio_c
                         WHEN 'd'  THEN ppc.precio_d
                         ELSE ppc.precio_base_venta
-                    END as precio_actual")
+                    END as precio_escala_actual")
                 )
                 ->get()
                 ->map(fn($r) => (array) $r)
@@ -861,11 +866,30 @@ class ModalFlujoPedido extends Component
             ->value('categoria_precios_id');
 
         if ((int) $originalCategoriaId !== (int) $nuevaCategoriaId) {
-            $nombreCat = DB::table('categoria_precios')
-                ->where('id', (int) $originalCategoriaId)
-                ->value('nombre') ?? 'desconocida';
+            // Datos del cliente original de la oferta
+            $clienteOriginal = DB::table('cotizacion as co')
+                ->join('cliente as cl', 'cl.id', '=', 'co.cliente_id')
+                ->leftJoin('categoria_precios as cp', 'cp.id', '=', 'cl.categoria_precios_id')
+                ->where('co.id', $cotizacionId)
+                ->select('cl.nombre as nombre_cliente', 'cp.nombre as nombre_categoria')
+                ->first();
+
+            // Datos del cliente destino seleccionado
+            $clienteDestino = DB::table('cliente as cl')
+                ->leftJoin('categoria_precios as cp', 'cp.id', '=', 'cl.categoria_precios_id')
+                ->where('cl.id', $this->clienteDuplicarId)
+                ->select('cl.nombre as nombre_cliente', 'cp.nombre as nombre_categoria')
+                ->first();
+
+            $nombreClienteOrigen   = $clienteOriginal->nombre_cliente   ?? 'desconocido';
+            $nombreCatOrigen       = $clienteOriginal->nombre_categoria  ?? 'sin categoría';
+            $nombreClienteDestino  = $clienteDestino->nombre_cliente     ?? 'desconocido';
+            $nombreCatDestino      = $clienteDestino->nombre_categoria   ?? 'sin categoría';
+
             $this->clienteDuplicarError =
-                "El cliente seleccionado no pertenece a la categoría de precios «{$nombreCat}». No se puede duplicar.";
+                "No se puede duplicar: categorías de precios distintas. " .
+                "Cliente oferta: {$nombreClienteOrigen} (categoría: {$nombreCatOrigen}). " .
+                "Cliente destino: {$nombreClienteDestino} (categoría: {$nombreCatDestino}).";
             return;
         }
 
@@ -977,24 +1001,6 @@ class ModalFlujoPedido extends Component
                     $this->ofertaSeleccionada  = null;
                     $this->mensajeExito = 'Oferta #' . $cotizacionId . ' marcada como ganadora. Crédito vigente — enviada a Revisión de Inventario.';
 
-                    // Notificar al personal de logística/inventario
-                    try {
-                        $flujoCtx = DB::table('flujo')
-                            ->where('id', $this->flujoId)
-                            ->select('nombre as cliente', 'id')
-                            ->first();
-                        event(new FlujoAvanzadoEvent(
-                            $this->flujoId,
-                            9,
-                            ['cliente' => $flujoCtx?->cliente ?? 'N/A', 'monto' => $cotizacion->total ?? null]
-                        ));
-                    } catch (\Throwable $notifEx) {
-                        \Log::error('NotificacionFlujo dispatch failed (tipo=9)', [
-                            'flujo_id' => $this->flujoId,
-                            'error'    => $notifEx->getMessage(),
-                        ]);
-                    }
-
                 } else {
                     // ── Sin crédito vigente: ir a Revisión de Crédito ────────
                     $fechaEmisionOferta = !empty($cotizacion->fecha_emision)
@@ -1071,25 +1077,6 @@ class ModalFlujoPedido extends Component
                     $this->confirmAccionOferta = null;
                     $this->ofertaSeleccionada  = null;
                     $this->mensajeExito = 'Oferta #' . $cotizacionId . ' marcada como ganadora y enviada a Revisión de Crédito.';
-
-                    // Notificar al personal de créditos y cobros
-                    try {
-                        \Log::info('[DIAG] Antes event tipo=10', ['flujo_id' => $this->flujoId]);
-                        $flujoCtx2 = DB::table('flujo')
-                            ->where('id', $this->flujoId)
-                            ->select('nombre as cliente')
-                            ->first();
-                        event(new FlujoAvanzadoEvent(
-                            $this->flujoId,
-                            10,
-                            ['cliente' => $flujoCtx2?->cliente ?? 'N/A', 'monto' => $cotizacion->total ?? null]
-                        ));
-                    } catch (\Throwable $notifEx) {
-                        \Log::error('NotificacionFlujo dispatch failed (tipo=10)', [
-                            'flujo_id' => $this->flujoId,
-                            'error'    => $notifEx->getMessage(),
-                        ]);
-                    }
                 }
 
                 $this->emit('pedidoActualizado');
@@ -1257,20 +1244,6 @@ class ModalFlujoPedido extends Component
             $this->confirmAccionOferta = null;
             $this->ofertaSeleccionada  = null;
             $this->mensajeExito = 'Prefactura #' . $prefacturaId . ' generada. Válida por ' . $diasValidez . ' día(s).';
-
-            // Notificar a facturadores (flujo sin revisión de inventario)
-            try {
-                event(new FlujoAvanzadoEvent(
-                    $this->flujoId,
-                    4,
-                    ['cliente' => $cotizacion->nombre_cliente ?? 'N/A', 'monto' => $cotizacion->total ?? null, 'referencia' => 'Prefactura #' . $prefacturaId]
-                ));
-            } catch (\Throwable $notifEx) {
-                \Log::error('NotificacionFlujo dispatch failed (tipo=4)', [
-                    'flujo_id' => $this->flujoId,
-                    'error'    => $notifEx->getMessage(),
-                ]);
-            }
             $this->emit('pedidoActualizado');
             $this->recargar();
 
@@ -1392,13 +1365,6 @@ class ModalFlujoPedido extends Component
         if (!$this->ofertaSeleccionada) return;
 
         $cotizacionId = (int) $this->ofertaSeleccionada['id'];
-
-        // ── Validar que los precios no hayan cambiado ─────────────────────
-        if ($this->verificarCambioPrecios($cotizacionId)) {
-            $this->mensajeError = 'No se puede duplicar: uno o más precios de esta oferta han cambiado. Crea una nueva oferta con los precios actualizados.';
-            $this->confirmAccionOferta = null;
-            return;
-        }
 
         // Construir URL base
         $url = '/proforma/cotizacion/2?from=flujo&cotizacionId=' . $cotizacionId;
@@ -1547,7 +1513,7 @@ class ModalFlujoPedido extends Component
             ->where('chp.cotizacion_id', $cotizacionId)
             ->whereNotNull('chp.precios_producto_carga_id')
             ->select(
-                'chp.precio_unidad',
+                'chp.precio_unidad',        // precio que el vendedor ingresó en la oferta
                 'chp.idPrecioSeleccionado',
                 'ppc.precio_a', 'ppc.precio_b', 'ppc.precio_c', 'ppc.precio_d',
                 'ppc.precio_base_venta'
@@ -1555,19 +1521,22 @@ class ModalFlujoPedido extends Component
             ->get();
 
         foreach ($lineas as $l) {
+            // Precio de escala vigente hoy
             $selector = strtolower(trim((string) $l->idPrecioSeleccionado));
-            $precioActual = match($selector) {
+            $precioEscalaActual = match($selector) {
                 'p1', 'a' => (float) $l->precio_a,
                 'p2', 'b' => (float) $l->precio_b,
                 'p3', 'c' => (float) $l->precio_c,
                 'p4', 'd' => (float) $l->precio_d,
-                default => (float) $l->precio_base_venta,
+                default   => (float) $l->precio_base_venta,
             };
-            // Bloquear solo si el precio de la oferta está POR DEBAJO del precio actual
-            // de la categoría (precio_unidad < precio_actual).
-            // Si el precio bajó en el catálogo pero la oferta fue a un precio superior,
-            // se permite duplicar (la oferta sigue siendo válida respecto al mínimo).
-            if ((float)$l->precio_unidad < $precioActual - 0.0001) {
+
+            // Precio que el vendedor ingresó en la oferta
+            $precioVendedor = (float) ($l->precio_unidad ?? 0);
+
+            // Bloquear si la escala actual es mayor al precio que cobró el vendedor.
+            // Si la escala bajó o es igual, se permite duplicar.
+            if ($precioEscalaActual > $precioVendedor + 0.0001) {
                 return true;
             }
         }
@@ -1637,6 +1606,52 @@ class ModalFlujoPedido extends Component
         $this->autorizadorId = null;
         $this->motivoAutorizacion = '';
         $this->mensajeError = '';
+    }
+
+    public function enviarCodigoPrefactura(): void
+    {
+        $accion   = $this->accionAutorizacionPrefactura ?? 'desconocida';
+        $flujoId  = $this->flujoId;
+        $usuario  = Auth::user()->name ?? 'N/A';
+
+        $accionLabel = match($accion) {
+            'editar_factura'       => 'Editar Prefactura/Factura',
+            'anular_prefactura'    => 'Anular Prefactura',
+            'revertir_prefactura'  => 'Pasar Prefactura a Oferta',
+            default                => ucfirst(str_replace('_', ' ', $accion)),
+        };
+
+        $codigo = rand(1000, 9999);
+
+        $autorizacion = new ModelCodigoAutorizacion;
+        $autorizacion->codigo    = $codigo;
+        $autorizacion->users_id  = Auth::user()->id;
+        $autorizacion->estado_id = 1;
+        $autorizacion->save();
+
+        $viewData = [
+            'codigo'       => $codigo,
+            'accionLabel'  => $accionLabel,
+            'flujoId'      => $flujoId,
+            'usuario'      => $usuario,
+        ];
+
+        // Preview en log
+        try {
+            $html = view('email.solicitud-flujo', $viewData)->render();
+            Log::info("=== EMAIL PREVIEW solicitud flujo ({$accionLabel}) ===\n" . strip_tags($html, '<table><tr><td><th><b><strong>'));
+        } catch (\Throwable $e) {
+            Log::warning('No se pudo previsualizar email flujo: ' . $e->getMessage());
+        }
+
+        $for = ['autorizaciones@distribucionesvalencia.hn'];
+        Mail::send('email.solicitud-flujo', $viewData, function ($msj) use ($accionLabel, $for) {
+            $msj->from(env('MAIL_FROM_ADRESS'), 'Soporte Técnico Distribuciones Valencia');
+            $msj->subject('Solicitud de autorización – ' . $accionLabel);
+            $msj->to($for);
+        });
+
+        $this->dispatchBrowserEvent('flujo-codigo-enviado');
     }
 
     public function cancelarAutorizacionPrefactura(): void
@@ -2047,26 +2062,6 @@ class ModalFlujoPedido extends Component
                 DB::table('historico_flujo')
                     ->where('id', $cobroHist->id)
                     ->update($actualizarCobro);
-
-                // Notificar cobro completado (solo cuando estado_id cambia a 1)
-                if (isset($actualizarCobro['estado_id']) && $actualizarCobro['estado_id'] === 1 && $this->flujoId) {
-                    try {
-                        event(new FlujoAvanzadoEvent(
-                            $this->flujoId,
-                            6,
-                            [
-                                'cliente'    => $this->cobroFacturaData['nombre']  ?? 'N/A',
-                                'monto'      => $this->cobroFacturaData['total']   ?? null,
-                                'referencia' => 'Factura #' . ($this->cobroFacturaData['cai'] ?? $facturaId),
-                            ]
-                        ));
-                    } catch (\Throwable $notifEx) {
-                        \Log::error('NotificacionFlujo dispatch failed (ModalFlujoPedido tipo=6)', [
-                            'flujo_id' => $this->flujoId,
-                            'error'    => $notifEx->getMessage(),
-                        ]);
-                    }
-                }
             }
         }
 
@@ -2080,10 +2075,6 @@ class ModalFlujoPedido extends Component
                 ->exists();
 
             if ($entregaCompletada) {
-                $flujoYaFinalizado = DB::table('flujo')
-                    ->where('id', $this->flujoId)
-                    ->value('tipo_tramite_id') === 8;
-
                 DB::table('flujo')
                     ->where('id', $this->flujoId)
                     ->update([
@@ -2091,26 +2082,6 @@ class ModalFlujoPedido extends Component
                         'updated_by'      => Auth::id(),
                         'updated_at'      => now(),
                     ]);
-
-                // Notificar flujo finalizado (solo la primera vez)
-                if (!$flujoYaFinalizado) {
-                    try {
-                        event(new FlujoAvanzadoEvent(
-                            $this->flujoId,
-                            8,
-                            [
-                                'cliente'    => $this->cobroFacturaData['nombre'] ?? 'N/A',
-                                'monto'      => $this->cobroFacturaData['total']  ?? null,
-                                'referencia' => 'Factura #' . ($this->cobroFacturaData['cai'] ?? ''),
-                            ]
-                        ));
-                    } catch (\Throwable $notifEx) {
-                        \Log::error('NotificacionFlujo dispatch failed (ModalFlujoPedido tipo=8)', [
-                            'flujo_id' => $this->flujoId,
-                            'error'    => $notifEx->getMessage(),
-                        ]);
-                    }
-                }
             }
         }
 
@@ -2368,7 +2339,6 @@ class ModalFlujoPedido extends Component
 
         $prefacturaId = (int) $this->prefacturaData['id'];
         $cotizacionId = (int) ($this->prefacturaData['cotizacion_id'] ?? 0);
-        $montoTotal   = $this->prefacturaData['total'] ?? null;
 
         DB::beginTransaction();
         try {
@@ -2425,31 +2395,6 @@ class ModalFlujoPedido extends Component
             );
 
             DB::commit();
-
-            // Notificar que la prefactura fue anulada (tipo_tramite_id = 11)
-            try {
-                $flujoCtx = DB::table('flujo')
-                    ->where('id', $this->flujoId)
-                    ->select('nombre as cliente')
-                    ->first();
-                $motivoCorto = trim($this->motivoAutorizacion ?? '');
-                event(new FlujoAvanzadoEvent(
-                    $this->flujoId,
-                    11,
-                    [
-                        'cliente'    => $flujoCtx?->cliente ?? 'N/A',
-                        'monto'      => $montoTotal,
-                        'referencia' => 'Prefactura #' . $prefacturaId
-                                        . ($motivoCorto ? ' | Motivo: ' . substr($motivoCorto, 0, 60) : ''),
-                    ]
-                ));
-            } catch (\Throwable $notifEx) {
-                \Log::error('NotificacionFlujo dispatch failed (tipo=11 prefactura anulada)', [
-                    'flujo_id' => $this->flujoId,
-                    'error'    => $notifEx->getMessage(),
-                ]);
-            }
-
             $this->prefacturaData          = null;
             $this->confirmAccionPrefactura = null;
             $this->mostrarAutorizacionPrefactura = false;

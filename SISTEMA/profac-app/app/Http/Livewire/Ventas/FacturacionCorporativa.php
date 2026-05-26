@@ -941,7 +941,16 @@ class FacturacionCorporativa extends Component
                 $factura->comentario = $request->nota_comen;
                 $factura->porc_descuento = $request->porDescuento;
                 $factura->monto_descuento = $request->porDescuentoCalculado;
+                if ($request->tipo_factura_id) {
+                    $factura->tipo_factura_id = $request->tipo_factura_id;
+                }
                 $factura->save();
+
+                if ($request->codigo_autorizacion) {
+                    DB::table('codigo_autorizacion')
+                        ->where('id', $request->codigo_autorizacion)
+                        ->update(['estado_id' => 2]);
+                }
 
                 $caiUpdated =  ModelCAI::find($cai->id);
                 $caiUpdated->numero_actual = $numeroSecuencia + 1;
@@ -1197,7 +1206,16 @@ class FacturacionCorporativa extends Component
             $factura->codigo_autorizacion_id = $request->codigo_autorizacion;
             $factura->comprovante_entrega_id = $request->idComprobante;
             $factura->comentario = $request->nota_comen;
+            if ($request->tipo_factura_id) {
+                $factura->tipo_factura_id = $request->tipo_factura_id;
+            }
             $factura->save();
+
+            if ($request->codigo_autorizacion) {
+                DB::table('codigo_autorizacion')
+                    ->where('id', $request->codigo_autorizacion)
+                    ->update(['estado_id' => 2]);
+            }
 
             $caiUpdated = ModelCAI::find($cai->id);
             $caiUpdated->numero_actual = $numeroSecuenciaUpdated;
@@ -1340,8 +1358,16 @@ class FacturacionCorporativa extends Component
         $factura->codigo_autorizacion_id = $request->codigo_autorizacion;
         $factura->comprovante_entrega_id = $request->idComprobante;
         $factura->comentario = $request->nota_comen;
+        if ($request->tipo_factura_id) {
+            $factura->tipo_factura_id = $request->tipo_factura_id;
+        }
         $factura->save();
 
+        if ($request->codigo_autorizacion) {
+            DB::table('codigo_autorizacion')
+                ->where('id', $request->codigo_autorizacion)
+                ->update(['estado_id' => 2]);
+        }
 
         $caiUpdated = ModelCAI::find($cai->id);
         $caiUpdated->numero_actual = $numeroSecuenciaUpdated;
@@ -1469,9 +1495,16 @@ class FacturacionCorporativa extends Component
             $factura->codigo_autorizacion_id = $request->codigo_autorizacion;
             $factura->comprovante_entrega_id = $request->idComprobante;
             $factura->comentario = $request->nota_comen;
+            if ($request->tipo_factura_id) {
+                $factura->tipo_factura_id = $request->tipo_factura_id;
+            }
             $factura->save();
 
-
+            if ($request->codigo_autorizacion) {
+                DB::table('codigo_autorizacion')
+                    ->where('id', $request->codigo_autorizacion)
+                    ->update(['estado_id' => 2]);
+            }
 
             // if(!empty($existencia)){
             //     $caiUpdated =  ModelCAI::find($cai->cai_id);
@@ -1674,6 +1707,7 @@ class FacturacionCorporativa extends Component
         DATE_FORMAT(A.fecha_vencimiento,'%d/%m/%Y' ) as fecha_vencimiento,
         users.name as vendedor,
         (select name from users where id = A.users_id ) as facturador,
+        (select u.name from comprovante_entrega ce inner join users u on ce.users_id = u.id where ce.id = A.comprovante_entrega_id) as asesor_entrega,
         D.id as factura,
         (select hf.flujo_id from historico_flujo hf where hf.tramite_id = A.id and hf.tipo_tramite_id in (3, 5) limit 1) as flujo_id
 
@@ -1836,6 +1870,7 @@ class FacturacionCorporativa extends Component
         DATE_FORMAT(A.fecha_vencimiento,'%d/%m/%Y' ) as fecha_vencimiento,
         users.name as vendedor,
         (select name from users where id = A.users_id ) as facturador,
+        (select u.name from comprovante_entrega ce inner join users u on ce.users_id = u.id where ce.id = A.comprovante_entrega_id) as asesor_entrega,
         D.id as factura
 
        from factura A
@@ -2100,8 +2135,16 @@ class FacturacionCorporativa extends Component
             $factura->codigo_autorizacion_id = $request->codigo_autorizacion;
             $factura->comprovante_entrega_id = $request->idComprobante;
             $factura->comentario = $request->nota_comen;
+            if ($request->tipo_factura_id) {
+                $factura->tipo_factura_id = $request->tipo_factura_id;
+            }
             $factura->save();
 
+            if ($request->codigo_autorizacion) {
+                DB::table('codigo_autorizacion')
+                    ->where('id', $request->codigo_autorizacion)
+                    ->update(['estado_id' => 2]);
+            }
 
             //DB::delete("DELETE FROM enumeracion WHERE id = ".$listado->id);
             DB::update("UPDATE enumeracion SET eliminado =  1 WHERE id = " . $listado->id);
@@ -2353,8 +2396,16 @@ class FacturacionCorporativa extends Component
         $factura->comentario = $request->nota_comen;
         $factura->porc_descuento = $request->porDescuento;
         $factura->monto_descuento = $request->porDescuentoCalculado;
+        if ($request->tipo_factura_id) {
+            $factura->tipo_factura_id = $request->tipo_factura_id;
+        }
         $factura->save();
 
+        if ($request->codigo_autorizacion) {
+            DB::table('codigo_autorizacion')
+                ->where('id', $request->codigo_autorizacion)
+                ->update(['estado_id' => 2]);
+        }
 
         $caiUpdated = ModelCAI::find($cai->id);
         $caiUpdated->numero_actual = $numeroSecuenciaUpdated;

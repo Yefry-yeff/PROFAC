@@ -55,11 +55,9 @@
       </div>
     </div>
 
-    {{-- ══════════════════════════════════════════════════════════════════
-         MÉTRICAS EMPRESARIALES
-    ══════════════════════════════════════════════════════════════════ --}}
+    {{-- ══ Dashboard Comercial ══ --}}
     <div style="margin-top:28px;">
-        @livewire('usuarios.dashboard-empresarial')
+        @livewire('dashboard.dashboard-comercial')
     </div>
   </div>
 

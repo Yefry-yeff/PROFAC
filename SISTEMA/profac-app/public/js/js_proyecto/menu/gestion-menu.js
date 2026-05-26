@@ -30,6 +30,49 @@ $(document).ready(function() {
         e.preventDefault();
         guardarSubmenu();
     });
+
+    // Mostrar/ocultar campo URL según checkbox
+    $('#generarArchivos').on('change', function() {
+        if ($(this).is(':checked')) {
+            $('#campoUrlRuta').show();
+            if (!$('#submenuUrl').val()) {
+                autoGenerarUrl();
+            }
+        } else {
+            $('#campoUrlRuta').hide();
+        }
+    });
+
+    // Auto-generar URL cuando cambia el menú principal
+    $('#submenuMenuId').on('change', function() {
+        if ($('#generarArchivos').is(':checked') && !$('#submenuUrl').data('editado')) {
+            autoGenerarUrl();
+        }
+    });
+
+    // Auto-generar URL desde el nombre si checkbox activo y URL no fue editada manualmente
+    $('#submenuNombre').on('input', function() {
+        if ($('#generarArchivos').is(':checked') && !$('#submenuUrl').data('editado')) {
+            autoGenerarUrl();
+        }
+    });
+
+    // Marcar URL como editada manualmente
+    $('#submenuUrl').on('input', function() {
+        $(this).data('editado', $(this).val() !== '' && $(this).val() !== autoGenerarSlug($('#submenuNombre').val()));
+    });
+
+    // Preview de icono en tiempo real
+    $('#submenuIcono').on('input', function() {
+        actualizarPreviewIcono(this.value, 'previewSubmenuIcono');
+        var estilosPro = ['fa-duotone', 'fa-light', 'fa-thin'];
+        var valor = extraerClaseIcono(this.value);
+        var esPro = estilosPro.some(function(e) { return valor.indexOf(e) !== -1; });
+        $('#alertaIconoPro').toggle(esPro);
+    });
+    $('#menuIcono').on('input', function() {
+        actualizarPreviewIcono(this.value, 'previewMenuIcono');
+    });
 });
 
 /**
@@ -42,6 +85,7 @@ function abrirModalMenu() {
     $('#menuOrden').val('');
     $('#menuEstado').val('1');
     $('#tituloModalMenu').text('Nuevo Menú');
+    actualizarPreviewIcono('', 'previewMenuIcono');
     $('#modalMenu').modal('show');
 }
 
@@ -58,6 +102,7 @@ function editarMenu(idMenu) {
             $('#menuOrden').val(menu.orden);
             $('#menuEstado').val(menu.estado_id);
             $('#tituloModalMenu').text('Editar Menú');
+            actualizarPreviewIcono(menu.icon || '', 'previewMenuIcono');
             $('#modalMenu').modal('show');
         })
         .catch(error => {
@@ -73,7 +118,7 @@ function guardarMenu() {
     const menuId = $('#menuId').val();
     const datos = {
         nombre_menu: $('#menuNombre').val(),
-        icon: $('#menuIcono').val(),
+        icon: extraerClaseIcono($('#menuIcono').val()),
         orden: $('#menuOrden').val(),
         estado_id: $('#menuEstado').val()
     };
@@ -113,12 +158,17 @@ function abrirModalSubmenu() {
     $('#submenuId').val('');
     $('#submenuMenuId').val('');
     $('#submenuNombre').val('');
-    $('#submenuUrl').val('');
+    $('#submenuUrl').val('').data('editado', false).prop('readonly', false).removeClass('bg-light');
     $('#submenuIcono').val('');
     $('#submenuOrden').val('');
     $('#submenuEstado').val('1');
     $('.rol-checkbox').prop('checked', false);
-    $('#generarArchivos').prop('checked', true); // Activado por defecto
+    $('#generarArchivos').prop('checked', true);
+    $('#campoUrlRuta').show();
+    $('#iconoBloqueoUrl').hide();
+    $('#hintUrlNuevo').show();
+    $('#hintUrlEdicion').hide();
+    actualizarPreviewIcono('', 'previewSubmenuIcono');
     $('#tituloModalSubmenu').text('Nuevo Submenu');
     $('#modalSubmenu').modal('show');
 }
@@ -146,6 +196,13 @@ function editarSubmenu(idSubmenu) {
                 });
             }
             
+            $('#generarArchivos').prop('checked', false);
+            $('#campoUrlRuta').show();
+            $('#submenuUrl').prop('readonly', true).addClass('bg-light').data('editado', true);
+            $('#iconoBloqueoUrl').show();
+            $('#hintUrlNuevo').hide();
+            $('#hintUrlEdicion').show();
+            actualizarPreviewIcono(submenu.icono || '', 'previewSubmenuIcono');
             $('#tituloModalSubmenu').text('Editar Submenu');
             $('#modalSubmenu').modal('show');
         })
@@ -176,7 +233,7 @@ function guardarSubmenu() {
         menu_id: $('#submenuMenuId').val(),
         nombre: $('#submenuNombre').val(),
         url: $('#submenuUrl').val(),
-        icono: $('#submenuIcono').val(),
+        icono: extraerClaseIcono($('#submenuIcono').val()),
         orden: $('#submenuOrden').val(),
         estado_id: $('#submenuEstado').val(),
         roles: rolesSeleccionados,
@@ -229,4 +286,51 @@ function guardarSubmenu() {
             console.error('Error al guardar submenu:', error);
             Swal.fire('Error', error.response?.data?.mensaje || 'No se pudo guardar el submenu', 'error');
         });
+}
+
+/**
+ * Extrae la clase CSS de un icono: acepta clase directa ("fa fa-home")
+ * o HTML completo ('<i class="fa-duotone fa-light fa-home"></i>')
+ */
+function extraerClaseIcono(valor) {
+    if (!valor) return '';
+    var match = valor.match(/<i[^>]*class="([^"]+)"/);
+    return match ? match[1].trim() : valor.trim();
+}
+
+/**
+ * Actualiza el preview del icono en el recuadro correspondiente.
+ * Espera que existan: #{previewId}El (el <i>) y #{previewId}Clase (el <code>)
+ */
+function actualizarPreviewIcono(valor, previewId) {
+    var clase = extraerClaseIcono(valor);
+    if (clase) {
+        $('#' + previewId + 'El').attr('class', clase);
+        $('#' + previewId + 'Clase').text(clase);
+    } else {
+        $('#' + previewId + 'El').attr('class', 'fa fa-question-circle text-muted');
+        $('#' + previewId + 'Clase').text('escribe un icono…');
+    }
+}
+
+/**
+ * Genera un slug URL a partir de texto (sin acentos, minúsculas, guiones bajos)
+ */
+function autoGenerarSlug(texto) {
+    return (texto || '').toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9\s\/]/g, '')
+        .trim()
+        .replace(/\s+/g, '_');
+}
+
+/**
+ * Auto-rellena el campo URL desde menú + nombre del submenú
+ */
+function autoGenerarUrl() {
+    var menuTexto = $('#submenuMenuId option:selected').text().replace('\u2014 Seleccione \u2014', '').trim();
+    var slugMenu   = autoGenerarSlug(menuTexto);
+    var slugNombre = autoGenerarSlug($('#submenuNombre').val());
+    var url = (slugMenu && slugNombre) ? slugMenu + '/' + slugNombre : slugNombre;
+    $('#submenuUrl').val(url);
 }
