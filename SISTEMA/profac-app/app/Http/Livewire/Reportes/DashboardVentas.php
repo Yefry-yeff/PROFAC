@@ -519,4 +519,87 @@ class DashboardVentas extends Component
 
         return response()->json($rows);
     }
+
+    // ─── Top marcas por ingresos ─────────────────────────────────────────────
+    public function topMarcas(Request $request)
+    {
+        $fi   = $request->fecha_inicio ?? date('Y-01-01');
+        $ff   = $request->fecha_final  ?? date('Y-m-d');
+        $vend = $request->vendedor      ? (int)$request->vendedor : null;
+        $cat  = $request->categoria     ? (int)$request->categoria : null;
+
+        $where = "f.estado_venta_id = 1 AND f.fecha_emision BETWEEN '$fi' AND '$ff'";
+        if ($vend) $where .= " AND f.vendedor = $vend";
+        if ($cat)  $where .= " AND sc.categoria_producto_id = $cat";
+
+        $rows = DB::SELECT("
+            SELECT
+                m.id                                        AS marca_id,
+                m.nombre                                    AS marca,
+                COUNT(DISTINCT f.id)                        AS facturas,
+                COUNT(DISTINCT p.id)                        AS productos,
+                SUM(vhp.cantidad)                           AS unidades_vendidas,
+                SUM(vhp.sub_total_s)                        AS ingresos,
+                AVG(vhp.precio_unidad)                      AS precio_promedio
+            FROM factura f
+            INNER JOIN venta_has_producto vhp ON vhp.factura_id = f.id
+            INNER JOIN producto p              ON p.id = vhp.producto_id
+            INNER JOIN marca m                 ON m.id = p.marca_id
+            INNER JOIN sub_categoria sc        ON sc.id = p.sub_categoria_id
+            WHERE $where
+            GROUP BY m.id, m.nombre
+            ORDER BY ingresos DESC
+        ");
+
+        $total_global = array_sum(array_column($rows, 'ingresos'));
+        $acumulado = 0;
+        foreach ($rows as &$r) {
+            $acumulado += $r->ingresos;
+            $r->pareto          = $total_global > 0 ? round(($acumulado / $total_global) * 100, 2) : 0;
+            $r->participacion   = $total_global > 0 ? round(($r->ingresos / $total_global) * 100, 2) : 0;
+            $r->ingresos        = round((float)$r->ingresos, 2);
+            $r->precio_promedio = round((float)$r->precio_promedio, 2);
+        }
+
+        return response()->json($rows);
+    }
+
+    // ─── Ventas mensuales por múltiples vendedores (comparación) ────────────
+    public function ventasMesVendedores(Request $request)
+    {
+        $fi    = $request->fecha_inicio ?? date('Y-01-01');
+        $ff    = $request->fecha_final  ?? date('Y-m-d');
+        $vends = $request->vendedores   ?? [];
+
+        if (!is_array($vends)) $vends = explode(',', $vends);
+        $vends = array_filter(array_map('intval', $vends));
+
+        if (empty($vends)) {
+            return response()->json([]);
+        }
+
+        $inVends = implode(',', $vends);
+
+        $rows = DB::SELECT("
+            SELECT
+                u.id                                        AS vendedor_id,
+                u.name                                      AS vendedor,
+                MONTH(f.fecha_emision)                      AS mes,
+                SUM(f.total)                                AS total,
+                COUNT(DISTINCT f.id)                        AS facturas
+            FROM factura f
+            INNER JOIN users u ON u.id = f.vendedor
+            WHERE f.estado_venta_id = 1
+              AND f.fecha_emision BETWEEN '$fi' AND '$ff'
+              AND f.vendedor IN ($inVends)
+            GROUP BY u.id, u.name, mes
+            ORDER BY u.name, mes
+        ");
+
+        foreach ($rows as &$r) {
+            $r->total = round((float)$r->total, 2);
+        }
+
+        return response()->json($rows);
+    }
 }
