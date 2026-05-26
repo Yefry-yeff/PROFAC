@@ -190,7 +190,7 @@
 
                     <div class="card border border-dark" style="position:absolute;left:0px; width:26rem;">
                         <div class="card-body" style="padding:4px 8px;">
-                            <p style="margin:0 0 1px; font-size:10px;"><b>Vendedor:</b> {{ $cai->vendedor }} &nbsp; <b>Facturador:</b> {{ $cai->facturador }}</p>
+                            <p style="margin:0 0 1px; font-size:10px;"><b>Asesor comercial:</b> {{ $cai->vendedor }} &nbsp; <b>Tele asesor:</b> {{ $cai->facturador }} &nbsp; <b>Asesor de entrega:</b> {{ $cai->asesor_entrega ?? '' }}</p>
                             <p style="margin:0 0 2px; font-size:10px;"><b>Trámite #{{ $cai->flujo_id ?? '—' }}</b></p>
                             <hr style="margin:2px 0; border-top:1px solid #999;">
                             <p style="margin:0 0 1px; font-size:9px;">1. Por cada cheque devuelto se cobra 750 lempiras.</p>

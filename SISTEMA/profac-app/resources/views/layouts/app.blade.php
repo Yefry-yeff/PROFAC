@@ -7,7 +7,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <title>{{ config('app.name', 'D. VALENCIA') }}</title>
-    <link rel="icon" type="image/x-icon" href="/img/valencia-fondo-transparente.png">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     @livewireStyles
     @stack('styles')<!--Por esta ranura se cargan los estilos de las paginas individuales-->

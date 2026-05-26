@@ -356,9 +356,23 @@
                                     <input type="text" class="form-control form-control-sm" id="menuIcono"
                                            placeholder="fa fa-home" required>
                                     <small class="text-muted" style="font-size:.73rem">
-                                        Ej: fa fa-home, fa fa-users.
-                                        <a href="https://fontawesome.com/v4/icons/" target="_blank">Ver iconos</a>
+                                        Acepta clase o HTML completo: <code>&lt;i class="fa-solid fa-home"&gt;&lt;/i&gt;</code>
+                                        &mdash; <a href="https://fontawesome.com/search?o=r&m=free" target="_blank">Ver iconos gratuitos</a><br>
+                                        <span class="text-warning" style="font-size:.70rem"><i class="fa fa-exclamation-triangle"></i> Los estilos <code>fa-duotone</code>, <code>fa-light</code> y <code>fa-thin</code> son Pro (de pago).</span>
                                     </small>
+                                    {{-- Preview del icono --}}
+                                    <div class="d-flex align-items-center mt-2 p-2 border rounded" id="previewMenuIcono"
+                                         style="gap:12px;background:#f8f9fa;min-height:52px">
+                                        <div style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;
+                                                    font-size:1.7rem;border-radius:6px;background:#fff;
+                                                    border:1px solid #dee2e6;color:#495057;flex-shrink:0">
+                                            <i class="fa fa-question-circle text-muted" id="previewMenuIconoEl"></i>
+                                        </div>
+                                        <div style="overflow:hidden">
+                                            <div class="text-muted" style="font-size:.70rem">Vista previa</div>
+                                            <code id="previewMenuIconoClase" style="font-size:.70rem;color:#6c757d">escribe un icono…</code>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             <div class="col-md-4">
@@ -497,11 +511,25 @@
                             <div class="tab-pane fade" id="panel-datos-tecnicos" role="tabpanel">
                                 <div class="form-group">
                                     <label class="font-weight-bold small">Icono (Font Awesome)</label>
-                                    <input type="text" class="form-control form-control-sm" id="submenuIcono" placeholder="fa fa-list">
+                                    <input type="text" class="form-control form-control-sm" id="submenuIcono" placeholder="fa-solid fa-home">
                                     <small class="text-muted" style="font-size:.73rem">
-                                        Ej: fa fa-home, fa fa-users, fa fa-cog.
-                                        <a href="https://fontawesome.com/v4/icons/" target="_blank">Ver iconos disponibles</a>
+                                        Acepta clase o HTML completo: <code>&lt;i class="fa-solid fa-home"&gt;&lt;/i&gt;</code>
+                                        &mdash; <a href="https://fontawesome.com/search?o=r&m=free" target="_blank">Ver iconos gratuitos</a><br>
+                                        <span class="text-warning" style="font-size:.70rem"><i class="fa fa-exclamation-triangle"></i> Los estilos <code>fa-duotone</code>, <code>fa-light</code> y <code>fa-thin</code> son Pro (de pago) y no se mostrarán.</span>
                                     </small>
+                                    {{-- Preview del icono --}}
+                                    <div class="d-flex align-items-center mt-2 p-2 border rounded" id="previewSubmenuIcono"
+                                         style="gap:12px;background:#f8f9fa;min-height:52px">
+                                        <div style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;
+                                                    font-size:1.7rem;border-radius:6px;background:#fff;
+                                                    border:1px solid #dee2e6;color:#495057;flex-shrink:0">
+                                            <i class="fa fa-question-circle text-muted" id="previewSubmenuIconoEl"></i>
+                                        </div>
+                                        <div style="overflow:hidden">
+                                            <div class="text-muted" style="font-size:.70rem">Vista previa</div>
+                                            <code id="previewSubmenuIconoClase" style="font-size:.70rem;color:#6c757d">escribe un icono…</code>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <div class="form-group">
@@ -516,10 +544,23 @@
                                     </small>
                                 </div>
 
-                                <div class="form-group" id="campoUrlRuta" style="display:none;">
-                                    <label class="font-weight-bold small">URL / Ruta <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control form-control-sm" id="submenuUrl" placeholder="usuarios/listar">
-                                    <small class="text-muted" style="font-size:.73rem">Sin "/" al inicio. Ej: clientes/listar</small>
+                                <div id="alertaIconoPro" class="alert alert-warning py-1 px-2" style="display:none;font-size:.75rem">
+                                    <i class="fa fa-exclamation-triangle"></i>
+                                    Este icono usa un estilo <strong>Pro</strong> (<code>fa-duotone</code> / <code>fa-light</code> / <code>fa-thin</code>) que requiere una licencia de pago.
+                                    Usa iconos gratuitos: <code>fa-solid fa-chart-line</code>, <code>fa-solid fa-users</code>, etc.
+                                    <a href="https://fontawesome.com/search?o=r&m=free" target="_blank">Buscar icono gratis</a>
+                                </div>
+
+                                <div class="form-group" id="campoUrlRuta">
+                                    <label class="font-weight-bold small">
+                                        URL / Ruta <span class="text-danger">*</span>
+                                        <span id="iconoBloqueoUrl" style="display:none" class="text-secondary ml-1"><i class="fa fa-lock"></i></span>
+                                    </label>
+                                    <input type="text" class="form-control form-control-sm" id="submenuUrl" placeholder="menu/nombre_submenu">
+                                    <small class="text-muted" id="hintUrlNuevo" style="font-size:.73rem">Se genera automáticamente desde el menú y el nombre.</small>
+                                    <small class="text-warning" id="hintUrlEdicion" style="display:none;font-size:.73rem">
+                                        <i class="fa fa-lock"></i> La ruta no puede modificarse una vez creado el submenú.
+                                    </small>
                                 </div>
                             </div>
 

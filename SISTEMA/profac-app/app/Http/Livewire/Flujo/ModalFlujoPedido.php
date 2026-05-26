@@ -5,8 +5,11 @@ namespace App\Http\Livewire\Flujo;
 use Livewire\Component;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use App\Models\PrefacturaAuditoria;
 use App\Models\CreditoRevision;
+use App\Models\ModelCodigoAutorizacion;
 
 /**
  * Modal reutilizable "Flujo del Pedido".
@@ -1603,6 +1606,52 @@ class ModalFlujoPedido extends Component
         $this->autorizadorId = null;
         $this->motivoAutorizacion = '';
         $this->mensajeError = '';
+    }
+
+    public function enviarCodigoPrefactura(): void
+    {
+        $accion   = $this->accionAutorizacionPrefactura ?? 'desconocida';
+        $flujoId  = $this->flujoId;
+        $usuario  = Auth::user()->name ?? 'N/A';
+
+        $accionLabel = match($accion) {
+            'editar_factura'       => 'Editar Prefactura/Factura',
+            'anular_prefactura'    => 'Anular Prefactura',
+            'revertir_prefactura'  => 'Pasar Prefactura a Oferta',
+            default                => ucfirst(str_replace('_', ' ', $accion)),
+        };
+
+        $codigo = rand(1000, 9999);
+
+        $autorizacion = new ModelCodigoAutorizacion;
+        $autorizacion->codigo    = $codigo;
+        $autorizacion->users_id  = Auth::user()->id;
+        $autorizacion->estado_id = 1;
+        $autorizacion->save();
+
+        $viewData = [
+            'codigo'       => $codigo,
+            'accionLabel'  => $accionLabel,
+            'flujoId'      => $flujoId,
+            'usuario'      => $usuario,
+        ];
+
+        // Preview en log
+        try {
+            $html = view('email.solicitud-flujo', $viewData)->render();
+            Log::info("=== EMAIL PREVIEW solicitud flujo ({$accionLabel}) ===\n" . strip_tags($html, '<table><tr><td><th><b><strong>'));
+        } catch (\Throwable $e) {
+            Log::warning('No se pudo previsualizar email flujo: ' . $e->getMessage());
+        }
+
+        $for = ['autorizaciones@distribucionesvalencia.hn'];
+        Mail::send('email.solicitud-flujo', $viewData, function ($msj) use ($accionLabel, $for) {
+            $msj->from(env('MAIL_FROM_ADRESS'), 'Soporte Técnico Distribuciones Valencia');
+            $msj->subject('Solicitud de autorización – ' . $accionLabel);
+            $msj->to($for);
+        });
+
+        $this->dispatchBrowserEvent('flujo-codigo-enviado');
     }
 
     public function cancelarAutorizacionPrefactura(): void

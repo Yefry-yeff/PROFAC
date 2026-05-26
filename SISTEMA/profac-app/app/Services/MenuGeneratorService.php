@@ -323,13 +323,12 @@ class {$className} extends Component
             
             // Verificar que la ruta no existe ya
             if (strpos($contenido, "/{$url}'") === false) {
-                // Agregar la ruta antes del último cierre de archivo
-                $lineaRuta = "\n    // Ruta auto-generada para: {$componenteNombre}\n    {$rutaTexto}\n";
-                
-                // Buscar la última llave de cierre del middleware group o el final del archivo
-                $posUltimoCierre = strrpos($contenido, '});');
-                if ($posUltimoCierre !== false) {
-                    $contenido = substr($contenido, 0, $posUltimoCierre) . $lineaRuta . substr($contenido, $posUltimoCierre);
+                // Agregar la ruta antes del ancla // [auto-routes-anchor]
+                $lineaRuta = "\n    // Ruta auto-generada para: {$componenteNombre}\n    {$rutaTexto}\n\n";
+                $ancla = '    // [auto-routes-anchor]';
+                $posAncla = strpos($contenido, $ancla);
+                if ($posAncla !== false) {
+                    $contenido = substr($contenido, 0, $posAncla) . $lineaRuta . substr($contenido, $posAncla);
                     File::put($webPhpPath, $contenido);
                 }
             }

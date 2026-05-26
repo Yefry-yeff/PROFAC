@@ -28,13 +28,8 @@ class RevisionCreditos extends Component
     public string $tabActiva         = 'llegando';
 
     // ── Paginación ────────────────────────────────────────────────────────
-    public int $paginaLlegando   = 1;
-    public int $paginaAprobadas  = 1;
-    public int $paginaRechazadas = 1;
-    public int $porPagina        = 10;
-    public int $totalLlegando    = 0;
-    public int $totalAprobadas   = 0;
-    public int $totalRechazadas  = 0;
+    public int   $perPage = 8;
+    public array $paginas  = ['llegando' => 1, 'aprobadas' => 1, 'rechazadas' => 1];
 
     // ── Detalle del flujo seleccionado ────────────────────────────────────
     public ?int   $flujoId          = null;
@@ -57,6 +52,8 @@ class RevisionCreditos extends Component
     public ?string $fechaAprobacionActual   = null;
     public ?string $fechaVencimientoActual  = null;
     public ?string $motivoRechazoActual     = null;
+    public ?string $obsAprobacionActual      = null;
+    public ?string $usuarioAprobadorActual   = null;
     public array   $historialCredito        = [];
 
     // ── Confirmación de acciones ──────────────────────────────────────────
@@ -95,27 +92,32 @@ class RevisionCreditos extends Component
 
     public function updatedBusqueda(): void
     {
-        $this->paginaLlegando = $this->paginaAprobadas = $this->paginaRechazadas = 1;
+        $this->paginas = ['llegando' => 1, 'aprobadas' => 1, 'rechazadas' => 1];
         $this->cargar();
     }
 
-    public function cambiarPagina(string $tab, int $pagina): void
+    public function updatedPerPage(): void
     {
-        if ($tab === 'llegando')   $this->paginaLlegando   = max(1, $pagina);
-        if ($tab === 'aprobadas')  $this->paginaAprobadas  = max(1, $pagina);
-        if ($tab === 'rechazadas') $this->paginaRechazadas = max(1, $pagina);
-        $this->cargar();
+        $this->paginas = ['llegando' => 1, 'aprobadas' => 1, 'rechazadas' => 1];
+    }
+
+    public function irPagina(string $tab, int $pagina): void
+    {
+        $total = count(match($tab) {
+            'aprobadas'  => $this->bandejaAprobadas,
+            'rechazadas' => $this->bandejaRechazadas,
+            default      => $this->bandejaLlegando,
+        });
+        $maxPagina = max(1, (int) ceil($total / $this->perPage));
+        $this->paginas[$tab] = max(1, min($pagina, $maxPagina));
     }
 
     public function cargar(): void
     {
         $term = trim($this->busqueda);
-        $this->totalLlegando   = $this->buildBandejaCount($term, 'llegando');
-        $this->totalAprobadas  = $this->buildBandejaCount($term, 'aprobadas');
-        $this->totalRechazadas = $this->buildBandejaCount($term, 'rechazadas');
-        $this->bandejaLlegando   = $this->buildBandejaQuery($term, 'llegando',   $this->paginaLlegando);
-        $this->bandejaAprobadas  = $this->buildBandejaQuery($term, 'aprobadas',  $this->paginaAprobadas);
-        $this->bandejaRechazadas = $this->buildBandejaQuery($term, 'rechazadas', $this->paginaRechazadas);
+        $this->bandejaLlegando   = $this->buildBandejaQuery($term, 'llegando');
+        $this->bandejaAprobadas  = $this->buildBandejaQuery($term, 'aprobadas');
+        $this->bandejaRechazadas = $this->buildBandejaQuery($term, 'rechazadas');
     }
 
     public function cambiarTab(string $tab): void
@@ -124,58 +126,7 @@ class RevisionCreditos extends Component
         $this->tabActiva = in_array($tab, $allowed) ? $tab : 'llegando';
     }
 
-    private function buildBandejaCount(string $term, string $tipo): int
-    {
-        $latestRevSub = DB::table('historico_flujo')
-            ->select('flujo_id', DB::raw('MAX(id) as max_id'))
-            ->where('tipo_tramite_id', 10)
-            ->groupBy('flujo_id');
-
-        $q = DB::table('flujo as f')
-            ->joinSub($latestRevSub, 'lrev', fn($j) => $j->on('lrev.flujo_id', '=', 'f.id'))
-            ->join('historico_flujo as hf', 'hf.id', '=', 'lrev.max_id')
-            ->leftJoin('historico_flujo as hfof', function ($j) {
-                $j->on('hfof.flujo_id', '=', 'f.id')
-                  ->where('hfof.tipo_tramite_id', 2)
-                  ->where('hfof.observaciones', 'ganadora');
-            })
-            ->leftJoin('cotizacion as c', 'c.id', '=', 'hfof.tramite_id')
-            ->leftJoin('pedido as p', DB::raw('CAST(f.identificacion AS UNSIGNED)'), '=', 'p.id')
-            ->leftJoin('credito_revision as cr', 'cr.flujo_id', '=', 'f.id');
-
-        switch ($tipo) {
-            case 'llegando':
-                $q->where('f.tipo_tramite_id', 10)->where('hf.estado_id', 5);
-                break;
-            case 'aprobadas':
-                $q->where('hf.estado_id', 1);
-                break;
-            case 'rechazadas':
-                $q->where('hf.estado_id', 3);
-                break;
-        }
-
-        if ($term !== '') {
-            $like = '%' . $term . '%';
-            if (is_numeric($term)) {
-                $q->where(function ($s) use ($term) {
-                    $s->where('f.id', (int) $term)
-                      ->orWhere('f.identificacion', $term)
-                      ->orWhere('hfof.tramite_id', (int) $term);
-                });
-            } else {
-                $q->where(function ($s) use ($like) {
-                    $s->where('c.nombre_cliente', 'LIKE', $like)
-                      ->orWhere('c.RTN', 'LIKE', $like)
-                      ->orWhere('p.observaciones', 'LIKE', $like);
-                });
-            }
-        }
-
-        return (int) $q->count(DB::raw('DISTINCT f.id'));
-    }
-
-    private function buildBandejaQuery(string $term, string $tipo, int $page = 1): array
+    private function buildBandejaQuery(string $term, string $tipo): array
     {
         // Subquery: registro MÁS RECIENTE de revisión de crédito (tipo=10) por flujo
         $latestRevSub = DB::table('historico_flujo')
@@ -194,6 +145,7 @@ class RevisionCreditos extends Component
             ->leftJoin('cotizacion as c', 'c.id', '=', 'hfof.tramite_id')
             ->leftJoin('pedido as p', DB::raw('CAST(f.identificacion AS UNSIGNED)'), '=', 'p.id')
             ->leftJoin('credito_revision as cr', 'cr.flujo_id', '=', 'f.id')
+            ->leftJoin('users as ur', 'ur.id', '=', 'cr.usuario_revision')
             ->select(
                 'f.id as flujo_id',
                 'f.identificacion',
@@ -212,14 +164,17 @@ class RevisionCreditos extends Component
                 'cr.estado as estado_credito',
                 'cr.fecha_aprobacion',
                 'cr.fecha_vencimiento_credito',
-                'cr.motivo_rechazo'
+                'cr.motivo_rechazo',
+                'cr.observaciones as obs_credito',
+                'ur.name as usuario_aprobador'
             )
             ->groupBy(
                 'f.id', 'f.identificacion', 'hf.created_at', 'hf.updated_at',
                 'hfof.tramite_id', 'c.cliente_id', 'c.fecha_emision', 'c.fecha_vencimiento', 'c.total',
                 'c.nombre_cliente', 'p.observaciones', 'c.RTN',
                 'hf.observaciones', 'hf.estado_id', 'cr.estado',
-                'cr.fecha_aprobacion', 'cr.fecha_vencimiento_credito', 'cr.motivo_rechazo'
+                'cr.fecha_aprobacion', 'cr.fecha_vencimiento_credito', 'cr.motivo_rechazo',
+                'cr.observaciones', 'ur.name'
             );
 
         switch ($tipo) {
@@ -252,8 +207,7 @@ class RevisionCreditos extends Component
             }
         }
 
-        $offset = ($page - 1) * $this->porPagina;
-        return $q->orderByDesc('hf.created_at')->offset($offset)->limit($this->porPagina)->get()->map(fn($r) => (array) $r)->toArray();
+        return $q->orderByDesc('hf.created_at')->get()->map(fn($r) => (array) $r)->toArray();
     }
 
     // ─────────────────────────────────────────────────────────────────────
@@ -366,6 +320,10 @@ class RevisionCreditos extends Component
             $this->fechaVencimientoActual  = $cr->fecha_vencimiento_credito
                 ? Carbon::parse($cr->fecha_vencimiento_credito)->format('Y-m-d') : null;
             $this->motivoRechazoActual     = $cr->motivo_rechazo;
+            $this->obsAprobacionActual     = $cr->observaciones;
+            $this->usuarioAprobadorActual  = $cr->usuario_revision
+                ? DB::table('users')->where('id', $cr->usuario_revision)->value('name')
+                : null;
 
             // Historial
             $this->historialCredito = DB::table('credito_revision_historial as crh')
@@ -382,6 +340,8 @@ class RevisionCreditos extends Component
             $this->fechaAprobacionActual  = null;
             $this->fechaVencimientoActual = null;
             $this->motivoRechazoActual    = null;
+            $this->obsAprobacionActual    = null;
+            $this->usuarioAprobadorActual = null;
             $this->historialCredito       = [];
         }
     }
@@ -401,6 +361,8 @@ class RevisionCreditos extends Component
         $this->fechaAprobacionActual  = null;
         $this->fechaVencimientoActual = null;
         $this->motivoRechazoActual    = null;
+        $this->obsAprobacionActual    = null;
+        $this->usuarioAprobadorActual = null;
         $this->historialCredito       = [];
         $this->confirmAccion          = null;
         $this->fechaAprobacion        = '';
@@ -867,8 +829,23 @@ class RevisionCreditos extends Component
 
     public function render()
     {
+        $paginaActual     = $this->paginas[$this->tabActiva] ?? 1;
+        $registrosActivos = match($this->tabActiva) {
+            'aprobadas'  => $this->bandejaAprobadas,
+            'rechazadas' => $this->bandejaRechazadas,
+            default      => $this->bandejaLlegando,
+        };
+        $totalRegistros  = count($registrosActivos);
+        $totalPaginas    = max(1, (int) ceil($totalRegistros / $this->perPage));
+        $offset          = ($paginaActual - 1) * $this->perPage;
+        $registrosPagina = array_slice($registrosActivos, $offset, $this->perPage);
+
         return view('livewire.flujo.revisioncreditos', [
-            'flujoData' => $this->flujoData,
+            'flujoData'       => $this->flujoData,
+            'registrosPagina' => $registrosPagina,
+            'totalRegistros'  => $totalRegistros,
+            'totalPaginas'    => $totalPaginas,
+            'paginaActual'    => $paginaActual,
         ]);
     }
 }

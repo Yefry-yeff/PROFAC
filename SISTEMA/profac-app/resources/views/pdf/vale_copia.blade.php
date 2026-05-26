@@ -185,7 +185,7 @@
                 style="position:absolute;left:0px; margin-top:{{ $altura }}px;   width:26rem; height:15rem;">
                 <div class="card-body">
 
-                    <p class="card-text" style="position:absolute;left:10px;  top:2px; font-size:14px;"><b>Vendedor:
+                    <p class="card-text" style="position:absolute;left:10px;  top:2px; font-size:14px;"><b>Asesor comercial:
                         </b>
                         {{ $vale->name }} </p>
 
