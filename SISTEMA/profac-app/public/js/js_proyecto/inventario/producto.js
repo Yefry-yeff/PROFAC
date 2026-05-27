@@ -88,6 +88,7 @@ var filtroDescripcion = '';
 var filtroIsv         = '';
 var filtroCategoriaId = '';
 var filtroMarcaId     = '';
+var filtroEstado      = '';
 
 $(document).ready(function() {
     cargarFiltros();
@@ -112,6 +113,7 @@ $(document).ready(function() {
                 d.filtro_isv         = filtroIsv;
                 d.filtro_categoria_id = filtroCategoriaId;
                 d.filtro_marca_id    = filtroMarcaId;
+                d.filtro_estado      = filtroEstado;
             }
         },
         "columns": [
@@ -134,8 +136,7 @@ $(document).ready(function() {
                 "render": function(data) {
                     return '<span class="stock-num">' + data + '</span>';
                 }
-            },
-            { "data": "disponibilidad", "name": "disponibilidad", "orderable": false, "searchable": false }
+            },            { "data": "estado", "name": "estado", "orderable": false, "searchable": false },            { "data": "disponibilidad", "name": "disponibilidad", "orderable": false, "searchable": false }
         ]
     });
 })
@@ -164,6 +165,7 @@ function aplicarFiltros() {
     filtroIsv         = document.getElementById('fprod_isv').value;
     filtroCategoriaId = document.getElementById('fprod_categoria').value;
     filtroMarcaId     = document.getElementById('fprod_marca').value;
+    filtroEstado      = document.getElementById('fprod_estado').value;
     $('#tbl_productosListar').DataTable().ajax.reload();
 }
 
@@ -173,7 +175,8 @@ function limpiarFiltros() {
     document.getElementById('fprod_isv').value         = '';
     document.getElementById('fprod_categoria').value   = '';
     document.getElementById('fprod_marca').value       = '';
-    filtroQ = ''; filtroDescripcion = ''; filtroIsv = ''; filtroCategoriaId = ''; filtroMarcaId = '';
+    document.getElementById('fprod_estado').value      = '';
+    filtroQ = ''; filtroDescripcion = ''; filtroIsv = ''; filtroCategoriaId = ''; filtroMarcaId = ''; filtroEstado = '';
     $('#tbl_productosListar').DataTable().ajax.reload();
 }
 
@@ -184,12 +187,137 @@ function exportarExcel() {
         filtro_isv:          filtroIsv,
         filtro_categoria_id: filtroCategoriaId,
         filtro_marca_id:     filtroMarcaId,
+        filtro_estado:       filtroEstado,
     });
     window.location.href = '/producto/excel?' + params.toString();
 }
 
 function disponibilidadProducto(id){
     axios.post("/producto/detalle", {"id":id})
+}
+
+function abrirEditarProducto(id) {
+    axios.get('/producto/datos/' + id)
+    .then(function(response) {
+        var d  = response.data;
+        var p  = d.datosProducto;
+
+        // Campos básicos
+        document.getElementById('id_producto_edit').value              = p.id;
+        document.getElementById('nombre_producto_edit').value          = p.nombre;
+        document.getElementById('descripcion_producto_edit').value     = p.descripcion;
+        document.getElementById('isv_producto_edit').value             = p.isv;
+        document.getElementById('cod_barra_producto_edit').value       = p.codigo_barra || '';
+        document.getElementById('cod_estatal_producto_edit').value     = p.codigo_estatal || '';
+        document.getElementById('precioBase_edit').value               = p.precio_base;
+        document.getElementById('costo_promedio_edit').value           = p.costo_promedio;
+        document.getElementById('ultimo_costo_compra_edit').value      = p.ultimo_costo_compra;
+        document.getElementById('unidades_editar').value               = p.unidadad_compra;
+        document.getElementById('precio1_edit').value                  = p.precio1;
+        document.getElementById('precio2_edit').value                  = p.precio2;
+        document.getElementById('precio3_edit').value                  = p.precio3;
+        document.getElementById('precio4_edit').value                  = p.precio4;
+
+        // Marcas
+        var marcaHtml = '';
+        d.marcas.forEach(function(m) {
+            marcaHtml += '<option value="' + m.id + '"' + (m.id == p.marca_id ? ' selected' : '') + '>' + m.nombre + '</option>';
+        });
+        document.getElementById('marca_producto_editar').innerHTML = marcaHtml;
+
+        // Categorías
+        var catHtml = '';
+        d.categorias.forEach(function(c) {
+            catHtml += '<option value="' + c.id + '"' + (c.id == d.categoria.id ? ' selected' : '') + '>' + c.descripcion + '</option>';
+        });
+        document.getElementById('categoria_producto_edit').innerHTML = catHtml;
+
+        // Subcategorías
+        var subHtml = '';
+        d.subCategorias.forEach(function(s) {
+            subHtml += '<option value="' + s.id + '"' + (s.id == p.sub_categoria_id ? ' selected' : '') + '>' + s.descripcion + '</option>';
+        });
+        document.getElementById('sub_categoria_producto_edit').innerHTML = subHtml;
+
+        // Unidades
+        var uniHtml = '';
+        d.unidades.forEach(function(u) {
+            uniHtml += '<option value="' + u.id + '"' + (u.id == p.unidad_medida_compra_id ? ' selected' : '') + '>' + u.nombre + '</option>';
+        });
+        document.getElementById('unidad_producto_editar').innerHTML = uniHtml;
+
+        $('#modal_producto_editar').modal('show');
+    })
+    .catch(function() {
+        Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo cargar el producto.' });
+    });
+}
+
+function listarSubCategoriasEdit() {
+    var catId = document.getElementById('categoria_producto_edit').value;
+    axios.get('/producto/sub_categoria/listar/' + catId)
+    .then(function(response) {
+        var html = '';
+        response.data.sub_categorias.forEach(function(s) {
+            html += '<option value="' + s.id + '">' + s.descripcion + '</option>';
+        });
+        document.getElementById('sub_categoria_producto_edit').innerHTML = html;
+    })
+    .catch(function() {});
+}
+
+function validacionPrecioEdit() {
+    var base = parseFloat(document.getElementById('precioBase_edit').value) || 0;
+    document.getElementById('precio1_edit').value = (base + base * 0.03).toFixed(2);
+    document.getElementById('precio2_edit').value = (base + base * 0.06).toFixed(2);
+    document.getElementById('precio3_edit').value = (base + base * 0.10).toFixed(2);
+    document.getElementById('precio4_edit').value = (base + base * 0.30).toFixed(2);
+}
+
+function guardarEdicionProducto() {
+    var form = document.getElementById('editarProductoForm');
+    var data = new FormData(form);
+    $('#modalSpinnerLoading').modal('show');
+    axios.post('/producto/editar', data)
+    .then(function() {
+        $('#modalSpinnerLoading').modal('hide');
+        $('#modal_producto_editar').modal('hide');
+        $('#tbl_productosListar').DataTable().ajax.reload();
+        Swal.fire({ icon: 'success', title: '¡Listo!', text: 'Producto editado correctamente.' });
+    })
+    .catch(function(err) {
+        $('#modalSpinnerLoading').modal('hide');
+        var data = err.response ? err.response.data : {};
+        Swal.fire({ icon: data.icon || 'error', title: data.title || 'Error', text: data.text || 'No se pudo editar el producto.' });
+    });
+}
+
+function cambiarEstadoProducto(id, nuevoEstado) {
+    var esActivar = nuevoEstado === 1;
+    Swal.fire({
+        title: esActivar ? '¿Activar producto?' : '¿Inactivar producto?',
+        text: esActivar
+            ? 'El producto volverá a estar disponible.'
+            : 'El producto quedará inactivo y no aparecerá en ventas.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: esActivar ? '#28a745' : '#e05a00',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: esActivar ? 'Sí, activar' : 'Sí, inactivar',
+        cancelButtonText: 'Cancelar'
+    }).then(function(result) {
+        if (result.isConfirmed) {
+            axios.post('/producto/inactivar', { id: id, estado: nuevoEstado })
+            .then(function() {
+                var txt = esActivar ? 'Producto activado.' : 'Producto inactivado.';
+                Swal.fire({ icon: 'success', title: '¡Listo!', text: txt });
+                $('#tbl_productosListar').DataTable().ajax.reload();
+            })
+            .catch(function() {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo cambiar el estado del producto.' });
+            });
+        }
+    });
 }
 
 ///////////////////////////////////////////////////////////////////
