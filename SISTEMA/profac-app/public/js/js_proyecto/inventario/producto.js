@@ -88,6 +88,7 @@ var filtroDescripcion = '';
 var filtroIsv         = '';
 var filtroCategoriaId = '';
 var filtroMarcaId     = '';
+var filtroEstado      = '';
 
 $(document).ready(function() {
     cargarFiltros();
@@ -112,6 +113,7 @@ $(document).ready(function() {
                 d.filtro_isv         = filtroIsv;
                 d.filtro_categoria_id = filtroCategoriaId;
                 d.filtro_marca_id    = filtroMarcaId;
+                d.filtro_estado      = filtroEstado;
             }
         },
         "columns": [
@@ -122,6 +124,7 @@ $(document).ready(function() {
             { "data": "ISV", "name": "ISV", "searchable": false },
             { "data": "categoria", "name": "categoria" },
             { "data": "existencia", "name": "existencia", "searchable": false },
+            { "data": "estado", "name": "estado", "orderable": false, "searchable": false },
             { "data": "disponibilidad", "name": "disponibilidad", "orderable": false, "searchable": false }
         ]
     });
@@ -151,6 +154,7 @@ function aplicarFiltros() {
     filtroIsv         = document.getElementById('fprod_isv').value;
     filtroCategoriaId = document.getElementById('fprod_categoria').value;
     filtroMarcaId     = document.getElementById('fprod_marca').value;
+    filtroEstado      = document.getElementById('fprod_estado').value;
     $('#tbl_productosListar').DataTable().ajax.reload();
 }
 
@@ -160,7 +164,8 @@ function limpiarFiltros() {
     document.getElementById('fprod_isv').value         = '';
     document.getElementById('fprod_categoria').value   = '';
     document.getElementById('fprod_marca').value       = '';
-    filtroQ = ''; filtroDescripcion = ''; filtroIsv = ''; filtroCategoriaId = ''; filtroMarcaId = '';
+    document.getElementById('fprod_estado').value      = '';
+    filtroQ = ''; filtroDescripcion = ''; filtroIsv = ''; filtroCategoriaId = ''; filtroMarcaId = ''; filtroEstado = '';
     $('#tbl_productosListar').DataTable().ajax.reload();
 }
 
@@ -177,6 +182,56 @@ function exportarExcel() {
 
 function disponibilidadProducto(id){
     axios.post("/producto/detalle", {"id":id})
+}
+
+function abrirEditarProducto(id) {
+    axios.get('/producto/datos/' + id)
+    .then(function(response) {
+        var d = response.data;
+        var p = d.datosProducto;
+        document.getElementById('id_producto_edit').value          = p.id;
+        document.getElementById('nombre_producto_edit').value      = p.nombre;
+        document.getElementById('descripcion_producto_edit').value = p.descripcion;
+        document.getElementById('isv_producto_edit').value         = p.isv;
+        document.getElementById('cod_barra_producto_edit').value   = p.codigo_barra || '';
+        document.getElementById('cod_estatal_producto_edit').value = p.codigo_estatal || '';
+        document.getElementById('precioBase_edit').value           = p.precio_base;
+        document.getElementById('costo_promedio_edit').value       = p.costo_promedio;
+        document.getElementById('ultimo_costo_compra_edit').value  = p.ultimo_costo_compra;
+        document.getElementById('marca_producto_edit').value       = p.marca_id;
+        $('#modal_producto_editar').modal('show');
+    })
+    .catch(function() {
+        Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo cargar el producto.' });
+    });
+}
+
+function cambiarEstadoProducto(id, nuevoEstado) {
+    var esActivar = nuevoEstado === 1;
+    Swal.fire({
+        title: esActivar ? '¿Activar producto?' : '¿Inactivar producto?',
+        text: esActivar
+            ? 'El producto volverá a estar disponible.'
+            : 'El producto quedará inactivo y no aparecerá en ventas.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: esActivar ? '#28a745' : '#e05a00',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: esActivar ? 'Sí, activar' : 'Sí, inactivar',
+        cancelButtonText: 'Cancelar'
+    }).then(function(result) {
+        if (result.isConfirmed) {
+            axios.post('/producto/inactivar', { id: id, estado: nuevoEstado })
+            .then(function() {
+                var txt = esActivar ? 'Producto activado.' : 'Producto inactivado.';
+                Swal.fire({ icon: 'success', title: '¡Listo!', text: txt });
+                $('#tbl_productosListar').DataTable().ajax.reload();
+            })
+            .catch(function() {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo cambiar el estado del producto.' });
+            });
+        }
+    });
 }
 
 ///////////////////////////////////////////////////////////////////

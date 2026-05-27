@@ -283,7 +283,8 @@ class Producto extends Component
                     'A.isv as ISV',
                     'C.descripcion as categoria',
                     'A.codigo_barra',
-                    'A.created_at'
+                    'A.created_at',
+                    'A.estado_producto_id'
                 )
                 ->join('sub_categoria as B', 'A.sub_categoria_id', '=', 'B.id')
                 ->join('categoria_producto as C', 'C.id', '=', 'B.categoria_producto_id')
@@ -307,8 +308,29 @@ class Producto extends Component
                     
                     return number_format($existenciaCompra + $existenciaAjuste, 0);
                 })
+                ->addColumn('estado', function ($producto) {
+                    if ($producto->estado_producto_id == 1) {
+                        return '<span class="badge-activo">Activo</span>';
+                    }
+                    return '<span class="badge-inactivo">Inactivo</span>';
+                })
                 ->addColumn('disponibilidad', function ($producto) {
-                    return '<a href="/producto/detalle/' . $producto->codigo . '" target="_blank" class="btn btn-warning btn-sm" title="Ver detalles"><i class="fa fa-eye"></i> Ver más</a>';
+                    $editBtn = '<a class="dropdown-item" href="#" onclick="abrirEditarProducto('.$producto->codigo.')"><i class="fa fa-edit mr-1"></i> Editar</a>';
+                    if ($producto->estado_producto_id == 1) {
+                        $toggleBtn = '<a class="dropdown-item text-danger" href="#" onclick="cambiarEstadoProducto('.$producto->codigo.', 2)"><i class="fa fa-ban mr-1"></i> Inactivar</a>';
+                    } else {
+                        $toggleBtn = '<a class="dropdown-item text-success" href="#" onclick="cambiarEstadoProducto('.$producto->codigo.', 1)"><i class="fa fa-check-circle mr-1"></i> Activar</a>';
+                    }
+                    return '
+                    <div class="prod-dropdown dropdown">
+                        <button class="btn-prod-menu" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            <i class="fa fa-ellipsis-v"></i>
+                        </button>
+                        <div class="dropdown-menu dropdown-menu-right">'.
+                            $editBtn.
+                            $toggleBtn.
+                        '</div>
+                    </div>';
                 })
                 ->filter(function ($query) use ($request) {
                     $q            = trim($request->get('filtro_q', ''));
@@ -348,6 +370,11 @@ class Producto extends Component
                     if ($marcaId) {
                         $query->where('A.marca_id', $marcaId);
                     }
+
+                    $estadoId = (int) $request->get('filtro_estado', 0);
+                    if ($estadoId) {
+                        $query->where('A.estado_producto_id', $estadoId);
+                    }
                 })
                 ->orderColumn('codigo', function ($query, $order) {
                     $query->orderBy('A.id', $order);
@@ -367,15 +394,29 @@ class Producto extends Component
                 ->orderColumn('categoria', function ($query, $order) {
                     $query->orderBy('C.descripcion', $order);
                 })
-                ->rawColumns(['disponibilidad'])
+                ->rawColumns(['disponibilidad', 'estado'])
                 ->make(true);
         } catch (QueryException $e) {
-
-
             return response()->json([
                 'message' => 'Ha ocurrido un error al listar los productos.',
                 'errorTh' => $e,
             ], 402);
+        }
+    }
+
+    public function inactivarProducto(Request $request)
+    {
+        try {
+            $id     = (int) $request->id;
+            $estado = (int) $request->estado; // 1 = Activo, 2 = Inactivo
+            if (!$id || !in_array($estado, [1, 2])) {
+                return response()->json(['message' => 'Parámetros inválidos.'], 422);
+            }
+            DB::table('producto')->where('id', $id)->update(['estado_producto_id' => $estado]);
+            $msg = $estado === 1 ? 'Producto activado correctamente.' : 'Producto inactivado correctamente.';
+            return response()->json(['message' => $msg], 200);
+        } catch (QueryException $e) {
+            return response()->json(['message' => 'Error al cambiar el estado del producto.', 'error' => $e->getMessage()], 500);
         }
     }
 

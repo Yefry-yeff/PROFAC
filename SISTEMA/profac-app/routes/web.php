@@ -613,6 +613,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/producto/datos/{id}', [Producto::class, 'listarModalProductoEdit']);
 
     Route::get('/producto/listar/productos', [Producto::class, 'listarProductos']);
+    Route::post('/producto/inactivar', [Producto::class, 'inactivarProducto']);
     Route::post('/producto/actualizar/costos', [Producto::class, 'calcularCostos']);
     Route::get('/producto/detalle/{id}', DetalleProducto::class);
     Route::get('/detalle/producto/unidad/{id}', [DetalleProducto::class, 'unidadesVenta']);
