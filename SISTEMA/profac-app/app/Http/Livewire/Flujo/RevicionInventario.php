@@ -47,6 +47,15 @@ class RevicionInventario extends Component
     // ── Configuración ──────────────────────────────────────────────────────
     public bool $configuracionActiva = false;
 
+    // ── Paginación ────────────────────────────────────────────────────────
+    public int $paginaLlegando   = 1;
+    public int $paginaDevueltos  = 1;
+    public int $paginaPrefactura = 1;
+    public int $porPagina        = 10;
+    public int $totalLlegando    = 0;
+    public int $totalDevueltos   = 0;
+    public int $totalPrefactura  = 0;
+
     // ── Mensajes ──────────────────────────────────────────────────────────
     public string $mensajeExito = '';
     public string $mensajeError = '';
@@ -96,15 +105,27 @@ class RevicionInventario extends Component
 
     public function updatedBusqueda(): void
     {
+        $this->paginaLlegando = $this->paginaDevueltos = $this->paginaPrefactura = 1;
+        $this->cargar();
+    }
+
+    public function cambiarPagina(string $tab, int $pagina): void
+    {
+        if ($tab === 'llegando')   $this->paginaLlegando   = max(1, $pagina);
+        if ($tab === 'devueltos')  $this->paginaDevueltos  = max(1, $pagina);
+        if ($tab === 'prefactura') $this->paginaPrefactura = max(1, $pagina);
         $this->cargar();
     }
 
     public function cargar(): void
     {
         $term = trim($this->busqueda);
-        $this->bandejaRegistros  = $this->buildBandejaQuery($term, 'llegando');
-        $this->bandejaDevueltos  = $this->buildBandejaQuery($term, 'devueltos');
-        $this->bandejaPrefactura = $this->buildBandejaQuery($term, 'prefactura');
+        $this->totalLlegando   = $this->buildBandejaCount($term, 'llegando');
+        $this->totalDevueltos  = $this->buildBandejaCount($term, 'devueltos');
+        $this->totalPrefactura = $this->buildBandejaCount($term, 'prefactura');
+        $this->bandejaRegistros  = $this->buildBandejaQuery($term, 'llegando',   $this->paginaLlegando);
+        $this->bandejaDevueltos  = $this->buildBandejaQuery($term, 'devueltos',  $this->paginaDevueltos);
+        $this->bandejaPrefactura = $this->buildBandejaQuery($term, 'prefactura', $this->paginaPrefactura);
     }
 
     public function cambiarTab(string $tab): void
@@ -112,7 +133,52 @@ class RevicionInventario extends Component
         $this->tabActiva = in_array($tab, ['llegando', 'devueltos', 'prefactura']) ? $tab : 'llegando';
     }
 
-    private function buildBandejaQuery(string $term, string $tipo): array
+    private function buildBandejaCount(string $term, string $tipo): int
+    {
+        $latestRevSub = DB::table('historico_flujo')
+            ->select('flujo_id', DB::raw('MAX(id) as max_id'))
+            ->where('tipo_tramite_id', 9)
+            ->groupBy('flujo_id');
+
+        $q = DB::table('flujo as f')
+            ->joinSub($latestRevSub, 'lrev', function ($j) { $j->on('lrev.flujo_id', '=', 'f.id'); })
+            ->join('historico_flujo as hf', 'hf.id', '=', 'lrev.max_id')
+            ->leftJoin('historico_flujo as hfof', function ($j) {
+                $j->on('hfof.flujo_id', '=', 'f.id')
+                  ->where('hfof.tipo_tramite_id', 2)
+                  ->where('hfof.observaciones', 'ganadora');
+            })
+            ->leftJoin('cotizacion as c', 'c.id', '=', 'hfof.tramite_id')
+            ->leftJoin('pedido as p', DB::raw('CAST(f.identificacion AS UNSIGNED)'), '=', 'p.id')
+            ->leftJoin('cliente as cl', function ($j) {
+                $j->on('cl.id', '=', 'c.cliente_id')->orOn('cl.id', '=', 'p.cliente_id');
+            });
+
+        if ($tipo === 'llegando') {
+            $q->where('f.tipo_tramite_id', 9)->where('hf.estado_id', '!=', 7);
+        } elseif ($tipo === 'devueltos') {
+            $q->where('hf.estado_id', 7);
+        } else {
+            $q->where('hf.estado_id', 1);
+        }
+
+        if ($term !== '') {
+            $like = '%' . $term . '%';
+            if (is_numeric($term)) {
+                $q->where(function ($s) use ($term) {
+                    $s->where('f.id', (int) $term)->orWhere('f.identificacion', $term)->orWhere('hfof.tramite_id', (int) $term);
+                });
+            } else {
+                $q->where(function ($s) use ($like) {
+                    $s->where('c.nombre_cliente', 'LIKE', $like)->orWhere('c.RTN', 'LIKE', $like)->orWhere('p.observaciones', 'LIKE', $like);
+                });
+            }
+        }
+
+        return (int) $q->count(DB::raw('DISTINCT f.id'));
+    }
+
+    private function buildBandejaQuery(string $term, string $tipo, int $page = 1): array
     {
         // Subquery: obtiene solo el registro MÁS RECIENTE de revisión (tipo=9) por flujo.
         // Esto evita que flujos con múltiples ciclos aparezcan duplicados en bandeja.
@@ -182,7 +248,8 @@ class RevicionInventario extends Component
             }
         }
 
-        return $q->orderByDesc('hf.created_at')->get()->map(fn($r) => (array) $r)->toArray();
+        $offset = ($page - 1) * $this->porPagina;
+        return $q->orderByDesc('hf.created_at')->offset($offset)->limit($this->porPagina)->get()->map(fn($r) => (array) $r)->toArray();
     }
 
     // ─────────────────────────────────────────────────────────────────────
