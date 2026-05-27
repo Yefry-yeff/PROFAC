@@ -115,7 +115,7 @@ class ListadoFacturaEstatal extends Component
                 ", $bindings);
             }
 
-            return Datatables::of($listaFacturas)($listaFacturas)
+            return Datatables::of($listaFacturas)
             ->addColumn('opciones', function ($listaFacturas) {
 
                 if($listaFacturas->estado_venta_id==2){
