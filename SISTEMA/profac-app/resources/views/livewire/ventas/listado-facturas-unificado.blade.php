@@ -87,24 +87,38 @@
     .modal-header-fact {
         background: var(--pf-grad); color: #fff;
         border-radius: var(--pf-radius) var(--pf-radius) 0 0;
+        padding: 14px 20px;
     }
-    .modal-header-fact .modal-title { color: #fff; font-size: .95rem; }
-    .modal-header-fact .close { color: #fff; opacity: .8; text-shadow: none; }
+    .modal-header-fact .modal-title { color: #fff; font-size: .95rem; font-weight: 700; }
+    .modal-header-fact .close { color: #fff; opacity: .8; text-shadow: none; font-size: 1.4rem; }
     .modal-header-fact .close:hover { opacity: 1; }
     .modal-section-label {
-        font-size: .70rem; font-weight: 700;
-        letter-spacing: .06em; text-transform: uppercase;
-        color: #6c757d; border-bottom: 1px solid #e9ecef;
-        padding-bottom: 4px; margin-bottom: 12px; margin-top: 4px;
+        font-size: .68rem; font-weight: 700;
+        letter-spacing: .07em; text-transform: uppercase;
+        color: #e67e22; border-bottom: 2px solid #fdebd0;
+        padding-bottom: 5px; margin-bottom: 14px; margin-top: 6px;
+        display: flex; align-items: center; gap: 5px;
     }
-    .modal-content .form-control:focus {
+    .modal-section-label i { color: #e67e22; }
+    #modalFiltros .modal-body { background: #fdfaf6; padding: 18px 20px 8px; }
+    #modalFiltros .modal-footer { background: #f8f4ef; border-top: 1px solid #ead9c8; padding: 10px 20px; }
+    #modalFiltros .form-group label { font-size: .78rem; font-weight: 600; color: #555; margin-bottom: 3px; }
+    #modalFiltros .form-control, #modalFiltros .form-control-sm {
+        border-color: #ddd; border-radius: 5px; font-size: .82rem;
+    }
+    #modalFiltros .form-control:focus {
         border-color: #e67e22;
-        box-shadow: 0 0 0 .18rem rgba(230,126,34,.2);
+        box-shadow: 0 0 0 .15rem rgba(230,126,34,.18);
+    }
+    .modal-filter-grid {
+        background: #fff; border: 1px solid #ead9c8;
+        border-radius: 7px; padding: 14px 16px 6px;
+        margin-bottom: 14px;
     }
     /* -- Tipo buttons en modal -- */
     .tipo-filter-btn {
-        font-size: .80rem; font-weight: 600;
-        padding: 5px 18px; border-radius: 20px !important;
+        font-size: .78rem; font-weight: 600;
+        padding: 5px 16px; border-radius: 20px !important;
         border: 1.5px solid #dee2e6;
         background: #fff; color: #555;
         transition: all .15s; cursor: pointer; outline: none;
@@ -113,11 +127,17 @@
         background: var(--pf-grad) !important;
         color: #fff !important;
         border-color: transparent !important;
-        box-shadow: none !important;
+        box-shadow: 0 2px 6px rgba(230,126,34,.3) !important;
     }
     .tipo-filter-btn:hover:not(.active) {
         background: #fff8f0; border-color: #e67e22; color: #c0622a;
     }
+    .date-input-icon { position: relative; }
+    .date-input-icon i {
+        position: absolute; left: 9px; top: 50%; transform: translateY(-50%);
+        color: #aaa; font-size: .78rem; pointer-events: none;
+    }
+    .date-input-icon input { padding-left: 28px; }
     /* -- Select2 sobre el modal -- */
     .select2-container--open {
         z-index: 99999 !important;
@@ -197,60 +217,94 @@
                 </div>
                 <div class="modal-body pb-2">
 
-                    <p class="modal-section-label"><i class="fa fa-tag mr-1"></i>Tipo de factura</p>
-                    <div class="mb-3 d-flex flex-wrap" style="gap:8px">
-                        <button type="button" class="tipo-filter-btn {{ $tipoVenta == 'estatal'     ? 'active' : '' }}" data-tipo="estatal">
-                            <i class="fa fa-circle mr-1" style="font-size:.65rem"></i>Clientes A
-                        </button>
-                        <button type="button" class="tipo-filter-btn {{ $tipoVenta == 'corporativo' ? 'active' : '' }}" data-tipo="corporativo">
-                            <i class="fa fa-circle mr-1" style="font-size:.65rem"></i>Clientes B
-                        </button>
-                        <button type="button" class="tipo-filter-btn {{ $tipoVenta == 'exonerado'   ? 'active' : '' }}" data-tipo="exonerado">
-                            <i class="fa fa-circle mr-1" style="font-size:.65rem"></i>Exoneradas
-                        </button>
+                    {{-- ── Tipo de factura ── --}}
+                    <p class="modal-section-label"><i class="fa fa-tag"></i>Tipo de factura</p>
+                    <div class="modal-filter-grid mb-3">
+                        <div class="d-flex flex-wrap" style="gap:8px">
+                            <button type="button" class="tipo-filter-btn {{ $tipoVenta == 'estatal'     ? 'active' : '' }}" data-tipo="estatal">
+                                <i class="fa fa-circle mr-1" style="font-size:.6rem"></i>Clientes A
+                            </button>
+                            <button type="button" class="tipo-filter-btn {{ $tipoVenta == 'corporativo' ? 'active' : '' }}" data-tipo="corporativo">
+                                <i class="fa fa-circle mr-1" style="font-size:.6rem"></i>Clientes B
+                            </button>
+                            <button type="button" class="tipo-filter-btn {{ $tipoVenta == 'exonerado'   ? 'active' : '' }}" data-tipo="exonerado">
+                                <i class="fa fa-circle mr-1" style="font-size:.6rem"></i>Exoneradas
+                            </button>
+                        </div>
                     </div>
 
-                    <p class="modal-section-label"><i class="fa fa-search mr-1"></i>Criterios de búsqueda</p>
-                    <div class="row">
-                        <div class="col-md-12">
-                            <div class="form-group">
-                                <label class="font-weight-bold small">N° Factura</label>
-                                <input type="text" class="form-control form-control-sm" id="filtroCai"
-                                       placeholder="Ej: 000-001-01-00041992 o solo el número 41992">
+                    {{-- ── Rango de fechas ── --}}
+                    <p class="modal-section-label"><i class="fa fa-calendar"></i>Rango de fechas</p>
+                    <div class="modal-filter-grid">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Desde</label>
+                                    <div class="date-input-icon">
+                                        <i class="fa fa-calendar-o"></i>
+                                        <input type="date" class="form-control form-control-sm" id="filtroDesde">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Hasta</label>
+                                    <div class="date-input-icon">
+                                        <i class="fa fa-calendar-o"></i>
+                                        <input type="date" class="form-control form-control-sm" id="filtroHasta">
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        <div class="col-md-12">
-                            <div class="form-group">
-                                <label class="font-weight-bold small">Cliente</label>
-                                <select id="filtroCliente" class="form-control" style="width:100%">
-                                    <option></option>
-                                </select>
+                    </div>
+
+                    {{-- ── Criterios de búsqueda ── --}}
+                    <p class="modal-section-label"><i class="fa fa-search"></i>Criterios de búsqueda</p>
+                    <div class="modal-filter-grid">
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="form-group">
+                                    <label>N° Factura</label>
+                                    <input type="text" class="form-control form-control-sm" id="filtroCai"
+                                           placeholder="Ej: 000-001-01-00041992 o solo el número 41992">
+                                </div>
                             </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label class="font-weight-bold small">Vendedor</label>
-                                <select id="filtroVendedor" class="form-control" style="width:100%">
-                                    <option></option>
-                                </select>
+                            <div class="col-md-12">
+                                <div class="form-group">
+                                    <label>Cliente</label>
+                                    <select id="filtroCliente" class="form-control" style="width:100%">
+                                        <option></option>
+                                    </select>
+                                </div>
                             </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label class="font-weight-bold small">Facturador</label>
-                                <select id="filtroFacturador" class="form-control" style="width:100%">
-                                    <option></option>
-                                </select>
+                            @if(!$esVendedor)
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Vendedor</label>
+                                    <select id="filtroVendedor" class="form-control" style="width:100%">
+                                        <option></option>
+                                    </select>
+                                </div>
                             </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Facturador</label>
+                                    <select id="filtroFacturador" class="form-control" style="width:100%">
+                                        <option></option>
+                                    </select>
+                                </div>
+                            </div>
+                            @endif
                         </div>
                     </div>
 
                 </div>
                 <div class="modal-footer py-2">
-                    <button type="button" class="btn btn-secondary btn-sm" onclick="limpiarFiltros()">
-                        <i class="fa fa-eraser mr-1"></i>Limpiar
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="limpiarFiltros()">
+                        <i class="fa fa-eraser mr-1"></i>Limpiar filtros
                     </button>
-                    <button type="button" class="btn btn-primary btn-sm" onclick="aplicarFiltros()">
+                    <button type="button" class="btn btn-sm" onclick="aplicarFiltros()"
+                        style="background:linear-gradient(135deg,#f39c12,#e05a00);color:#fff;border:none;font-weight:600;padding:6px 20px;border-radius:5px">
                         <i class="fa fa-search mr-1"></i>Buscar
                     </button>
                 </div>
@@ -293,7 +347,7 @@
             var urlHistoryVendedor = { corporativo: '/facturas/corporativo/vendedor', estatal: '/ventas/estatal/vendedor', exonerado: '/exonerado/ventas/lista' };
 
             // ── Filtros activos ──────────────────────────────────────────────
-            var filtros = { tipo: tipoVenta, cai: '', cliente: '', vendedor: '', facturador: '' };
+            var filtros = { tipo: tipoVenta, cai: '', cliente: '', vendedor: '', facturador: '', desde: '', hasta: '' };
 
             // ── Construcción dinámica de columnas ────────────────────────────
             function buildColumnas(tipo, esVend) {
@@ -359,6 +413,8 @@
                             d.filtroCliente    = filtros.cliente;
                             d.filtroVendedor   = filtros.vendedor;
                             d.filtroFacturador = filtros.facturador;
+                            d.filtroDesde      = filtros.desde;
+                            d.filtroHasta      = filtros.hasta;
                         }
                     },
                     "columns": columnas,
@@ -378,6 +434,8 @@
                 filtros.cliente    = $('#filtroCliente').val() || '';
                 filtros.vendedor   = $('#filtroVendedor').val() || '';
                 filtros.facturador = $('#filtroFacturador').val() || '';
+                filtros.desde      = document.getElementById('filtroDesde').value || '';
+                filtros.hasta      = document.getElementById('filtroHasta').value || '';
 
                 $('#modalFiltros').modal('hide');
                 document.getElementById('fact-placeholder').style.display = 'none';
@@ -403,6 +461,8 @@
 
             function limpiarFiltros() {
                 document.getElementById('filtroCai').value = '';
+                document.getElementById('filtroDesde').value = '';
+                document.getElementById('filtroHasta').value = '';
                 $('#filtroCliente').val(null).trigger('change');
                 $('#filtroVendedor').val(null).trigger('change');
                 $('#filtroFacturador').val(null).trigger('change');
@@ -418,7 +478,7 @@
                 var parts = [];
                 parts.push('<span class="badge ' + (cfg.badgeClass || 'badge-secondary') + '" style="font-size:.75rem;padding:4px 10px">' +
                            '<i class="fa fa-tag mr-1"></i>' + (cfg.label || filtros.tipo) + '</span>');
-                var labels = { cai: 'N° Factura', cliente: 'Cliente', vendedor: 'Vendedor', facturador: 'Facturador' };
+                var labels = { cai: 'N° Factura', cliente: 'Cliente', vendedor: 'Vendedor', facturador: 'Facturador', desde: 'Desde', hasta: 'Hasta' };
                 Object.keys(labels).forEach(function(key) {
                     if (filtros[key]) {
                         parts.push('<span class="filtro-badge"><i class="fa fa-filter" style="font-size:.68rem"></i>' +
@@ -437,7 +497,8 @@
             function quitarFiltro(key) {
                 filtros[key] = '';
                 var select2Keys = ['cliente', 'vendedor', 'facturador'];
-                var ids = { cai: 'filtroCai', cliente: 'filtroCliente', vendedor: 'filtroVendedor', facturador: 'filtroFacturador' };
+                var dateKeys    = ['desde', 'hasta'];
+                var ids = { cai: 'filtroCai', cliente: 'filtroCliente', vendedor: 'filtroVendedor', facturador: 'filtroFacturador', desde: 'filtroDesde', hasta: 'filtroHasta' };
                 if (ids[key]) {
                     if (select2Keys.indexOf(key) >= 0) {
                         $('#' + ids[key]).val(null).trigger('change');

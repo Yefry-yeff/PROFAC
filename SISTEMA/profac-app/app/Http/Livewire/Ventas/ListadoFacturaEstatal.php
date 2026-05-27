@@ -36,13 +36,21 @@ class ListadoFacturaEstatal extends Component
             $filtroCliente    = trim(request()->input('filtroCliente', ''));
             $filtroVendedor   = trim(request()->input('filtroVendedor', ''));
             $filtroFacturador = trim(request()->input('filtroFacturador', ''));
+            $filtroDesde      = trim(request()->input('filtroDesde', ''));
+            $filtroHasta      = trim(request()->input('filtroHasta', ''));
             $whereFilters = '';
             $bindings     = [];
             if ($filtroCai)        { $whereFilters .= " AND factura.cai LIKE ? ";                                             $bindings[] = "%{$filtroCai}%"; }
             if ($filtroCliente)    { $whereFilters .= " AND factura.nombre_cliente LIKE ? ";                                  $bindings[] = "%{$filtroCliente}%"; }
             if ($filtroVendedor)   { $whereFilters .= " AND users.name LIKE ? ";                                              $bindings[] = "%{$filtroVendedor}%"; }
             if ($filtroFacturador) { $whereFilters .= " AND (SELECT name FROM users WHERE id = factura.users_id) LIKE ? ";    $bindings[] = "%{$filtroFacturador}%"; }
+            if ($filtroDesde && $filtroHasta) { $whereFilters .= " AND DATE(factura.created_at) BETWEEN ? AND ? "; $bindings[] = $filtroDesde; $bindings[] = $filtroHasta; }
+            elseif ($filtroDesde)  { $whereFilters .= " AND DATE(factura.created_at) >= ? "; $bindings[] = $filtroDesde; }
+            elseif ($filtroHasta)  { $whereFilters .= " AND DATE(factura.created_at) <= ? "; $bindings[] = $filtroHasta; }
 
+            $esAdmin = in_array(Auth::user()->rol_id, [1, 3, 5]);
+
+            if ($esAdmin) {
                 $listaFacturas = DB::SELECT("
                 select
                     factura.id as id,
@@ -74,11 +82,40 @@ class ListadoFacturaEstatal extends Component
                 order by factura.created_at desc
                 ", $bindings);
 
+            } else {
 
+                $listaFacturas = DB::SELECT("
+                select
+                    factura.id as id,
+                    @i := @i + 1 as contador,
+                    numero_factura,
+                    cai,
+                    fecha_emision,
+                    factura.nombre_cliente as nombre,
+                    tipo_pago_venta.descripcion,
+                    fecha_vencimiento,
+                    FORMAT(sub_total,2) as sub_total,
+                    FORMAT(isv,2) as isv,
+                    FORMAT(total,2) as total,
+                    factura.credito,
+                    users.name as creado_por,
+                    (select if(sum(monto) is null,0,sum(monto)) from pago_venta where estado_venta_id = 1 and factura_id = factura.id) as monto_pagado,
+                    factura.estado_venta_id,
+                    factura.created_at as fecha_registro
+                from factura
+                    inner join cliente on factura.cliente_id = cliente.id
+                    inner join tipo_pago_venta on factura.tipo_pago_id = tipo_pago_venta.id
+                    inner join users on factura.vendedor = users.id
+                    cross join (select @i := 0) r
+                where YEAR(factura.created_at) >= (YEAR(NOW())-2)
+                    and factura.estado_venta_id <> 2
+                    and factura.tipo_venta_id = 2
+                    and factura.vendedor = ".Auth::user()->id." {$whereFilters}
+                order by factura.created_at desc
+                ", $bindings);
+            }
 
-
-
-            return Datatables::of($listaFacturas)
+            return Datatables::of($listaFacturas)($listaFacturas)
             ->addColumn('opciones', function ($listaFacturas) {
 
                 if($listaFacturas->estado_venta_id==2){

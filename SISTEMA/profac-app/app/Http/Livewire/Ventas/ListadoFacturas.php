@@ -32,12 +32,17 @@ class ListadoFacturas extends Component
             $filtroCliente    = trim(request()->input('filtroCliente', ''));
             $filtroVendedor   = trim(request()->input('filtroVendedor', ''));
             $filtroFacturador = trim(request()->input('filtroFacturador', ''));
+            $filtroDesde      = trim(request()->input('filtroDesde', ''));
+            $filtroHasta      = trim(request()->input('filtroHasta', ''));
             $whereFilters = '';
             $bindings     = [];
             if ($filtroCai)        { $whereFilters .= " AND A.cai LIKE ? ";                                              $bindings[] = "%{$filtroCai}%"; }
             if ($filtroCliente)    { $whereFilters .= " AND factura.nombre_cliente LIKE ? ";                             $bindings[] = "%{$filtroCliente}%"; }
             if ($filtroVendedor)   { $whereFilters .= " AND users.name LIKE ? ";                                         $bindings[] = "%{$filtroVendedor}%"; }
             if ($filtroFacturador) { $whereFilters .= " AND (SELECT name FROM users WHERE id = factura.users_id) LIKE ? "; $bindings[] = "%{$filtroFacturador}%"; }
+            if ($filtroDesde && $filtroHasta) { $whereFilters .= " AND DATE(factura.created_at) BETWEEN ? AND ? "; $bindings[] = $filtroDesde; $bindings[] = $filtroHasta; }
+            elseif ($filtroDesde)  { $whereFilters .= " AND DATE(factura.created_at) >= ? "; $bindings[] = $filtroDesde; }
+            elseif ($filtroHasta)  { $whereFilters .= " AND DATE(factura.created_at) <= ? "; $bindings[] = $filtroHasta; }
 
             if(Auth::user()->rol_id  == '1' || Auth::user()->rol_id  == '5' || Auth::user()->rol_id == '3' ){
 
