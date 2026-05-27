@@ -556,6 +556,8 @@
                         'croquis'                => ['label' => 'Croquis',                      'icon' => 'fa-map-o'],
                         'contrato_arrendamiento' => ['label' => 'Contrato de Arrendamiento',    'icon' => 'fa-handshake-o'],
                         'foto_establecimiento'   => ['label' => 'Fotos de Establecimiento',     'icon' => 'fa-camera'],
+                        'letra_cambio'           => ['label' => 'Letra de Cambio',              'icon' => 'fa-file-text'],
+                        'aval_solidario'         => ['label' => 'Aval Solidario',               'icon' => 'fa-users'],
                     ];
                     @endphp
                     <div class="row">
