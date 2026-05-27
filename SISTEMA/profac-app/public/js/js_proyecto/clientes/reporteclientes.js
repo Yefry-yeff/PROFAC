@@ -76,7 +76,7 @@ function initTablas() {
         ],
         language: { url: '/vendor/datatables/spanish.json', processing: 'Cargando...' },
         scrollX: true,
-        pageLength: 25
+        pageLength: 10
     });
 
     /* ── Hoja 2: Sin Crédito ─────────────────────────────── */
@@ -99,7 +99,7 @@ function initTablas() {
         ],
         language: { url: '/vendor/datatables/spanish.json', processing: 'Cargando...' },
         scrollX: true,
-        pageLength: 25
+        pageLength: 10
     });
 
     /* ── Hoja 3: Gobierno ────────────────────────────────── */
@@ -122,7 +122,7 @@ function initTablas() {
         ],
         language: { url: '/vendor/datatables/spanish.json', processing: 'Cargando...' },
         scrollX: true,
-        pageLength: 25
+        pageLength: 10
     });
 }
 
@@ -139,7 +139,7 @@ function exportarPdf() {
     var tok = document.createElement('input');
     tok.type  = 'hidden';
     tok.name  = '_token';
-    tok.value = document.getElementById('csrf_token') ? document.getElementById('csrf_token').value : '';
+    tok.value = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
     form.appendChild(tok);
     document.body.appendChild(form);
     form.submit();
@@ -154,7 +154,7 @@ function exportarExcel() {
     var tok = document.createElement('input');
     tok.type  = 'hidden';
     tok.name  = '_token';
-    tok.value = document.getElementById('csrf_token') ? document.getElementById('csrf_token').value : '';
+    tok.value = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
     form.appendChild(tok);
     document.body.appendChild(form);
     form.submit();

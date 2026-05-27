@@ -1,4 +1,4 @@
-<div>
+﻿<div>
     @push('styles')
     <style>
 /* ── Variables PROFAC ─────────────────────────────────────────────── */
@@ -145,6 +145,27 @@
 .modal-header-cli .modal-title { color: #fff; font-size: .95rem; }
 .modal-header-cli .close       { color: #fff; opacity: .8; text-shadow: none; }
 .modal-header-cli .close:hover { opacity: 1; }
+
+/* ── Secciones del modal crear/editar ────────────────────────────── */
+.modal-sec-title {
+    background: #fdf4e7;
+    border-left: 3px solid #e67e22;
+    padding: 5px 10px;
+    font-size: .74rem;
+    font-weight: 700;
+    color: #7d3f00;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    border-radius: 0 4px 4px 0;
+    margin-bottom: 2px;
+}
+
+/* ── Tabs del modal crear ─────────────────────────────────────────── */
+.nav-cli-crear { border-bottom: 2px solid #e8d5bf; margin-bottom: 0; }
+.nav-cli-crear .nav-link { color:#7d3f00; font-size:.8rem; font-weight:600; padding:7px 16px; border-radius:6px 6px 0 0; border:1px solid transparent; transition:background .15s,color .15s; }
+.nav-cli-crear .nav-link.active { background:#fdf4e7; border-color:#e8d5bf #e8d5bf #fdf4e7; color:#e67e22; }
+.nav-cli-crear .nav-link:hover:not(.active) { background:#fff8f0; border-color:#e8d5bf #e8d5bf transparent; color:#c0622a; }
+.tab-err-badge { display:inline-block; background:#dc3545; color:#fff; border-radius:50%; font-size:.63rem; width:15px; height:15px; line-height:15px; text-align:center; margin-left:4px; vertical-align:middle; font-weight:700; }
 
 /* ── Select2 ──────────────────────────────────────────────────────── */
 .select2-container .select2-dropdown { z-index: 2055 !important; }
@@ -300,155 +321,199 @@
                         </button>
                     </div>
                     <div class="modal-body">
-                        <form id="clientesCreacionForm" name="clientesCreacionForm" data-parsley-validate>
+                        <form id="clientesCreacionForm" name="clientesCreacionForm" novalidate>
                             <input type="hidden" name="_token" value="{!! csrf_token() !!}">
-                            <div class="row" id="row_datos">
-                                <div class="col-md-4">
-                                    <label class="col-form-label focus-label">
-                                        Categoría de cliente / Escala de precios <span class="text-danger">*</span>
-                                    </label>
-                                    <select class="form-group form-control"
-                                            id="cliente_categoria_escala_id_crear"
-                                            name="cliente_categoria_escala_id_crear"
-                                            data-url="{{ route('clientes.categorias.escala') }}"
-                                            required>
-                                        <option value="" selected disabled>--- Seleccione una categoría ---</option>
-                                    </select>
-                                </div>
+                            <input type="hidden" name="credito" value="0">
+                            <input type="hidden" name="dias_credito" value="0">
 
-                                <div class="col-md-12">
-                                    <label class="col-form-label focus-label">Nombre del cliente<span class="text-danger">*</span></label>
-                                    <input class="form-control" required type="text" id="nombre_cliente" name="nombre_cliente"
-                                        data-parsley-required maxlength="60">
-                                </div>
-                                <div class="col-md-12">
-                                    <label class="col-form-label focus-label">Dirección<span class="text-danger">*</span></label>
-                                    <textarea name="direccion_cliente" placeholder="Escriba aquí..." required id="direccion_cliente" cols="30" rows="3"
-                                        class="form-group form-control" data-parsley-required maxlength="142"></textarea>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="col-form-label focus-label">Credito Disponible<span class="text-danger">*</span></label>
-                                    <input data-type="currency"  id="credito" name="credito" type="text"  step="any" class="form-group form-control" data-parsley-required>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="col-form-label focus-label" for="dias_credito">Dias de credito<span class="text-danger">*</span></label>
-                                    <input   id="dias_credito" name="dias_credito" type="number"  min="0" max="120" class="form-group form-control" data-parsley-required>
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="col-form-label focus-label">RTN<span class="text-danger">*</span></label>
-                                    <input class="form-group form-control" required type="text" name="rtn_cliente"
-                                        id="rtn_cliente" data-parsley-required pattern="[0-9]{14}">
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="col-form-label focus-label">Correo electrónico<span class="text-danger">*</span></label>
-                                    <input class="form-group form-control" type="text" name="correo_cliente" id="correo_cliente"
-                                        data-parsley-required>
-                                </div>
+                            <!-- ── Pestañas ──────────────────────────────── -->
+                            <ul class="nav nav-cli-crear mb-0" id="tabsCrearCliente" role="tablist">
+                                <li class="nav-item">
+                                    <a class="nav-link active" id="tab-crear-datos-tab" data-toggle="tab"
+                                        href="#tab-crear-datos" role="tab">
+                                        <i class="fa fa-user mr-1"></i>Datos
+                                        <span class="tab-err-badge d-none" id="badge-tab-crear-datos">!</span>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" id="tab-crear-contacto-tab" data-toggle="tab"
+                                        href="#tab-crear-contacto" role="tab">
+                                        <i class="fa fa-phone mr-1"></i>Contacto
+                                        <span class="tab-err-badge d-none" id="badge-tab-crear-contacto">!</span>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" id="tab-crear-ubicacion-tab" data-toggle="tab"
+                                        href="#tab-crear-ubicacion" role="tab">
+                                        <i class="fa fa-map-marker mr-1"></i>Ubicación
+                                        <span class="tab-err-badge d-none" id="badge-tab-crear-ubicacion">!</span>
+                                    </a>
+                                </li>
+                            </ul>
 
-                                <div class="col-md-4">
-                                    <label class="col-form-label focus-label">Teléfono del cliente<span class="text-danger">*</span></label>
-                                    <input class="form-group form-control" type="text" name="telefono_cliente" id="telefono_cliente"
-                                        data-parsley-required>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="col-form-label focus-label">Nombre de contácto 1<span class="text-danger">*</span></label>
-                                    <input class="form-control" required type="text" id="contacto[]"
-                                        name="contacto[]" data-parsley-required>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="col-form-label focus-label">Teléfono contacto 1<span class="text-danger">*</span></label>
-                                    <input class="form-group form-control" required type="text" name="telefono[]" id="telefono[]" data-parsley-required pattern="[0-9]{8}">
-                                </div>
+                            <!-- ── Contenido de pestañas ──────────────────── -->
+                            <div class="tab-content border border-top-0 rounded-bottom p-3 mb-2">
 
-                                <div class="col-md-6">
-                                    <label class="col-form-label focus-label">Nombre de contácto 2</label>
-                                    <input class="form-control"  type="text" id="contacto[]"
-                                        name="contacto[]" >
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="col-form-label focus-label">Teléfono contacto 2</label>
-                                    <input class="form-group form-control"  type="text" name="telefono[]"
-                                        id="telefono[]" pattern="[0-9]{8}">
-                                </div>
+                                <!-- TAB 1: Datos del Cliente -->
+                                <div class="tab-pane fade show active" id="tab-crear-datos" role="tabpanel">
+                                    <div class="row">
+                                        <div class="col-md-5">
+                                            <div class="form-group mb-2">
+                                                <label class="col-form-label focus-label">Categoría / Escala de precios <span class="text-danger">*</span></label>
+                                                <select class="form-control"
+                                                        id="cliente_categoria_escala_id_crear"
+                                                        name="cliente_categoria_escala_id_crear"
+                                                        data-url="{{ route('clientes.categorias.escala') }}">
+                                                    <option value="" selected disabled>--- Seleccione una categoría ---</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-7">
+                                            <div class="form-group mb-2">
+                                                <label class="col-form-label focus-label">Nombre del cliente <span class="text-danger">*</span></label>
+                                                <input class="form-control" type="text" id="nombre_cliente" name="nombre_cliente" maxlength="60">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="form-group mb-2">
+                                                <label class="col-form-label focus-label">RTN <span class="text-danger">*</span></label>
+                                                <input class="form-control" type="text" name="rtn_cliente" id="rtn_cliente" maxlength="14" placeholder="14 dígitos">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="form-group mb-2">
+                                                <label class="col-form-label focus-label">Tipo de Personalidad <span class="text-danger">*</span></label>
+                                                <select class="form-control" name="tipo_personalidad" id="tipo_personalidad">
+                                                    <option disabled selected>---Seleccione---</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="form-group mb-2">
+                                                <label class="col-form-label focus-label">Tipo de cliente <span class="text-danger">*</span></label>
+                                                <select class="form-control" name="categoria_cliente" id="categoria_cliente">
+                                                    <option selected disabled>---Seleccione---</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="form-group mb-2">
+                                                <label class="col-form-label focus-label">Vendedor <span class="text-danger">*</span></label>
+                                                <select class="form-control" name="vendedor_cliente" id="vendedor_cliente">
+                                                    <option selected disabled>---Seleccione---</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>{{-- /tab-crear-datos --}}
 
+                                <!-- TAB 2: Contacto -->
+                                <div class="tab-pane fade" id="tab-crear-contacto" role="tabpanel">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="form-group mb-2">
+                                                <label class="col-form-label focus-label">Correo electrónico <span class="text-danger">*</span></label>
+                                                <input class="form-control" type="text" name="correo_cliente" id="correo_cliente">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-group mb-2">
+                                                <label class="col-form-label focus-label">Teléfono del cliente <span class="text-danger">*</span></label>
+                                                <input class="form-control" type="text" name="telefono_cliente" id="telefono_cliente">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-group mb-2">
+                                                <label class="col-form-label focus-label">Nombre de contácto 1 <span class="text-danger">*</span></label>
+                                                <input class="form-control" type="text" id="contacto[]" name="contacto[]">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-group mb-2">
+                                                <label class="col-form-label focus-label">Teléfono contacto 1 <span class="text-danger">*</span></label>
+                                                <input class="form-control" type="text" name="telefono[]" id="telefono[]">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-group mb-2">
+                                                <label class="col-form-label focus-label">Nombre de contácto 2 <small class="text-muted">(opcional)</small></label>
+                                                <input class="form-control" type="text" id="contacto[]" name="contacto[]">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-group mb-2">
+                                                <label class="col-form-label focus-label">Teléfono contacto 2 <small class="text-muted">(opcional)</small></label>
+                                                <input class="form-control" type="text" name="telefono[]" id="telefono[]">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>{{-- /tab-crear-contacto --}}
 
-                                <div class="col-md-6">
-                                    <label class="col-form-label focus-label">Longitud</label>
-                                    <input class="form-group form-control"  type="text" name="longitud_cliente"
-                                        id="longitud_cliente" >
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="col-form-label focus-label">Latitud</label>
-                                    <input class="form-group form-control"  type="text" name="latitud_cliente"
-                                        id="latitud_clientee" >
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="col-form-label focus-label">Pais<span class="text-danger">*</span></label>
-                                    <select class="form-group form-control" name="pais_cliente" id="pais_cliente"
-                                    onchange="obtenerDepartamentos()">
-                                        <option selected disabled>---Seleccione un pais---</option>
+                                <!-- TAB 3: Ubicación -->
+                                <div class="tab-pane fade" id="tab-crear-ubicacion" role="tabpanel">
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <div class="form-group mb-2">
+                                                <label class="col-form-label focus-label">País <span class="text-danger">*</span></label>
+                                                <select class="form-control" name="pais_cliente" id="pais_cliente" onchange="obtenerDepartamentos()">
+                                                    <option selected disabled>---Seleccione un país---</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="form-group mb-2">
+                                                <label class="col-form-label focus-label">Departamento <span class="text-danger">*</span></label>
+                                                <select class="form-control" name="departamento_cliente" id="departamento_cliente" onchange="obtenerMunicipios()">
+                                                    <option selected disabled>---Seleccione un departamento---</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="form-group mb-2">
+                                                <label class="col-form-label focus-label">Municipio <span class="text-danger">*</span></label>
+                                                <select class="form-control" name="municipio_cliente" id="municipio_cliente">
+                                                    <option selected disabled>---Seleccione un municipio---</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-12">
+                                            <div class="form-group mb-2">
+                                                <label class="col-form-label focus-label">Dirección <span class="text-danger">*</span></label>
+                                                <textarea name="direccion_cliente" placeholder="Escriba aquí..." id="direccion_cliente"
+                                                    cols="30" rows="2" class="form-control" maxlength="142"></textarea>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-group mb-2">
+                                                <label class="col-form-label focus-label">Latitud</label>
+                                                <input class="form-control" type="text" name="latitud_cliente" id="latitud_clientee">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-group mb-2">
+                                                <label class="col-form-label focus-label">Longitud</label>
+                                                <input class="form-control" type="text" name="longitud_cliente" id="longitud_cliente">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-5">
+                                            <div class="form-group mb-2">
+                                                <label for="foto_cliente" class="col-form-label focus-label">Fotografía:</label>
+                                                <input type="file" id="foto_cliente" name="foto_cliente" class="form-control-file"
+                                                    accept="image/png, image/gif, image/jpeg, image/jpg">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-7">
+                                            <img id="imagenPrevisualizacion" class="ancho-imagen">
+                                        </div>
+                                    </div>
+                                </div>{{-- /tab-crear-ubicacion --}}
 
-                                    </select>
-                                </div>
-
-
-
-                                <div class="col-md-4">
-                                    <label class="col-form-label focus-label">Departamento<span class="text-danger">*</span></label>
-                                    <select class="form-group form-control" name="departamento_cliente" id="departamento_cliente"
-                                        onchange="obtenerMunicipios()">
-                                        <option selected disabled>---Seleccione un departamento---</option>
-
-                                    </select>
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="col-form-label focus-label">Municipio<span class="text-danger">*</span></label>
-                                    <select class="form-group form-control" name="municipio_cliente" id="municipio_cliente"
-                                        data-parsley-required >
-                                        <option selected disabled>---Seleccione un municipio---</option>
-
-                                    </select>
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="col-form-label focus-label">Tipo de Personalidad<span class="text-danger">*</span> </label>
-                                    <select class="form-group form-control" name="tipo_personalidad" id="tipo_personalidad"
-                                        data-parsley-required>
-                                        <option disabled selected>---Seleccione una opción---</option>
-
-
-                                    </select>
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="col-form-label focus-label">Tipo de cliente<span class="text-danger">*</span></label>
-                                    <select class="form-group form-control" name="categoria_cliente" id="categoria_cliente"
-                                        data-parsley-required>
-                                        <option selected disabled>---Seleccione una opción---</option>
-
-                                    </select>
-                                </div>
-
-                                <div class="col-md-4">
-                                    <label class="col-form-label focus-label">Vendedor<span class="text-danger">*</span></label>
-                                    <select class="form-group form-control" name="vendedor_cliente" id="vendedor_cliente"
-                                        data-parsley-required>
-                                        <option selected disabled>---Seleccione una opción---</option>
-
-                                    </select>
-                                </div>
-                                <div class="col-md-5">
-                                    <label for="foto_cliente" class="col-form-label focus-label">Fotografía: </label>
-                                    <input class="" type="file" id="foto_cliente" name="foto_cliente" accept="image/png, image/gif, image/jpeg, image/jpg" >
-
-                                </div>
-                                <div class=" col-md-7">
-                                    <img id="imagenPrevisualizacion" class="ancho-imagen">
-
-                                </div>
-                            </div>
+                            </div>{{-- /tab-content --}}
                         </form>
-                        <button id="btn_crear_cliente" type="submit" class="btn btn-sm btn-primary float-left mt-4"
-                            form="clientesCreacionForm"><strong>Crear
-                               Cliente</strong></button>
+                        <button id="btn_crear_cliente" type="button" class="btn btn-sm btn-primary mt-2" onclick="registrarCliente()">
+                            <i class="fa fa-check mr-1"></i><strong>Crear Cliente</strong>
+                        </button>
+                    </div>
                     </div>
 
                 </div>
