@@ -303,6 +303,21 @@ $(document).ready(function() {
 
        }
 
+        // Máscara automática ####-#### para teléfono empresa (crear)
+        $(document).on('input', '#telefono_cliente', function () {
+            var digits = this.value.replace(/\D/g, '').substring(0, 8);
+            this.value = digits.length > 4 ? digits.substring(0, 4) + '-' + digits.substring(4) : digits;
+        });
+
+        // Máscara automática ####-#### para teléfono contacto 1 (primer input name="telefono[]")
+        $(document).on('input', '[name="telefono[]"]', function () {
+            // Solo aplicar al primer elemento (contacto 1)
+            var allTels = document.getElementsByName('telefono[]');
+            if (this !== allTels[0]) return;
+            var digits = this.value.replace(/\D/g, '').substring(0, 8);
+            this.value = digits.length > 4 ? digits.substring(0, 4) + '-' + digits.substring(4) : digits;
+        });
+
         // Resetear pestañas y errores al abrir el modal crear
         $('#modal_clientes_crear').on('show.bs.modal', function () {
             $('#tab-crear-datos-tab').tab('show');
@@ -335,9 +350,9 @@ $(document).ready(function() {
               errores.datos.push('Nombre del cliente');
           }
           var rtn = $('#rtn_cliente').val().trim();
-          if (!rtn || !/^[0-9]{14}$/.test(rtn)) {
+          if (!rtn) {
               $('#rtn_cliente').addClass('is-invalid');
-              errores.datos.push('RTN (debe tener 14 dígitos numéricos)');
+              errores.datos.push('RTN');
           }
           if (!$('#tipo_personalidad').val()) {
               $('#tipo_personalidad').addClass('is-invalid');
@@ -353,13 +368,10 @@ $(document).ready(function() {
           }
 
           // ── Tab Contacto ───────────────────────────────────────────
-          if (!$('#correo_cliente').val().trim()) {
-              $('#correo_cliente').addClass('is-invalid');
-              errores.contacto.push('Correo electrónico');
-          }
-          if (!$('#telefono_cliente').val().trim()) {
+          var telCliente = $('#telefono_cliente').val().trim();
+          if (!telCliente || !/^[0-9]{4}-[0-9]{4}$/.test(telCliente)) {
               $('#telefono_cliente').addClass('is-invalid');
-              errores.contacto.push('Teléfono del cliente');
+              errores.contacto.push('Teléfono del cliente (formato ####-####)');
           }
           var contactos = document.getElementsByName('contacto[]');
           var telefonos = document.getElementsByName('telefono[]');
@@ -367,9 +379,9 @@ $(document).ready(function() {
               if (contactos[0]) $(contactos[0]).addClass('is-invalid');
               errores.contacto.push('Nombre Contacto 1');
           }
-          if (!telefonos[0] || !telefonos[0].value.trim()) {
+          if (!telefonos[0] || !telefonos[0].value.trim() || !/^[0-9]{4}-[0-9]{4}$/.test(telefonos[0].value.trim())) {
               if (telefonos[0]) $(telefonos[0]).addClass('is-invalid');
-              errores.contacto.push('Teléfono Contacto 1');
+              errores.contacto.push('Teléfono Contacto 1 (formato ####-####)');
           }
           // Contacto 2: ambos o ninguno
           var c2nombre = contactos[1] ? contactos[1].value.trim() : '';
@@ -445,8 +457,16 @@ $(document).ready(function() {
               })
               .catch(function(err) {
                   var res = err.response ? err.response.data : {};
-                  $('#modal_clientes_crear').modal('hide');
                   document.getElementById('btn_crear_cliente').disabled = false;
+                  if (res.type === 'rtn_duplicado') {
+                      // Mantener modal abierto, resaltar campo RTN
+                      $('#rtn_cliente').addClass('is-invalid');
+                      $('#badge-tab-crear-datos').removeClass('d-none');
+                      $('#tab-crear-datos-tab').tab('show');
+                      Swal.fire({ icon: 'warning', title: res.title, text: res.text });
+                      return;
+                  }
+                  $('#modal_clientes_crear').modal('hide');
                   Swal.fire({
                       icon: res.icon || 'error',
                       title: res.title || 'Error',

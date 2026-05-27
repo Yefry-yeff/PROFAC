@@ -44,7 +44,9 @@ class Cliente extends Component
         order by name ASC
         ");
 
-        return view('livewire.clientes.cliente',compact('clientes'));
+        $metodosPago = DB::select("SELECT id, descripcion FROM tipo_pago_cobro ORDER BY descripcion ASC");
+
+        return view('livewire.clientes.cliente', compact('clientes', 'metodosPago'));
     }
 
     public function opbtenerPais(){
@@ -110,6 +112,17 @@ class Cliente extends Component
     }
 
     public function guardarCliente(Request $request){
+        // Verificar RTN duplicado antes de cualquier operación
+        $rtnNuevo = trim($request->rtn_cliente ?? '');
+        if ($rtnNuevo !== '' && ModelCliente::where('rtn', $rtnNuevo)->exists()) {
+            return response()->json([
+                'icon'  => 'warning',
+                'title' => 'RTN duplicado',
+                'text'  => 'Ya existe un cliente registrado con el RTN "' . $rtnNuevo . '". Verifique el número e intente de nuevo.',
+                'type'  => 'rtn_duplicado',
+            ], 422);
+        }
+
        try {
 
        DB::beginTransaction();
@@ -149,6 +162,9 @@ class Cliente extends Component
             $cliente->estado_cliente_id = 1;
             $cliente->municipio_id = $request->municipio_cliente;
             $cliente->cliente_categoria_escala_id = $request->cliente_categoria_escala_id_crear;
+            $cliente->ano_operacion           = $request->ano_operacion ?? null;
+            $cliente->dni_representante_legal = trim($request->dni_representante_legal ?? '');
+            $cliente->metodo_pago             = trim($request->metodo_pago ?? '');
             $cliente->save();
 
 
@@ -196,6 +212,9 @@ class Cliente extends Component
                 $cliente->municipio_id = $request->municipio_cliente;
 
             $cliente->cliente_categoria_escala_id = $request->cliente_categoria_escala_id_crear;
+                $cliente->ano_operacion           = $request->ano_operacion ?? null;
+                $cliente->dni_representante_legal = trim($request->dni_representante_legal ?? '');
+                $cliente->metodo_pago             = trim($request->metodo_pago ?? '');
                 $cliente->save();
 
 

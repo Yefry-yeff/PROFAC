@@ -167,6 +167,9 @@
 .nav-cli-crear .nav-link:hover:not(.active) { background:#fff8f0; border-color:#e8d5bf #e8d5bf transparent; color:#c0622a; }
 .tab-err-badge { display:inline-block; background:#dc3545; color:#fff; border-radius:50%; font-size:.63rem; width:15px; height:15px; line-height:15px; text-align:center; margin-left:4px; vertical-align:middle; font-weight:700; }
 
+/* ── SweetAlert2 sobre modales ────────────────────────────────────── */
+.swal2-container { z-index: 99999 !important; }
+
 /* ── Select2 ──────────────────────────────────────────────────────── */
 .select2-container .select2-dropdown { z-index: 2055 !important; }
 .select2-dropdown { z-index: 3050 !important; max-height: 200px; overflow-y: auto; scroll-behavior: smooth; }
@@ -377,7 +380,7 @@
                                         <div class="col-md-4">
                                             <div class="form-group mb-2">
                                                 <label class="col-form-label focus-label">RTN <span class="text-danger">*</span></label>
-                                                <input class="form-control" type="text" name="rtn_cliente" id="rtn_cliente" maxlength="14" placeholder="14 dígitos">
+                                                <input class="form-control" type="text" name="rtn_cliente" id="rtn_cliente">
                                             </div>
                                         </div>
                                         <div class="col-md-4">
@@ -404,6 +407,29 @@
                                                 </select>
                                             </div>
                                         </div>
+                                        <div class="col-md-4">
+                                            <div class="form-group mb-2">
+                                                <label class="col-form-label focus-label">A&ntilde;o de Operaci&oacute;n</label>
+                                                <input class="form-control" type="number" name="ano_operacion" id="ano_operacion" min="1900" max="2100" placeholder="Ej. 2010">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="form-group mb-2">
+                                                <label class="col-form-label focus-label">DNI Representante Legal</label>
+                                                <input class="form-control" type="text" name="dni_representante_legal" id="dni_representante_legal" maxlength="20">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="form-group mb-2">
+                                                <label class="col-form-label focus-label">M&eacute;todo de Pago</label>
+                                                <select class="form-control" name="metodo_pago" id="metodo_pago_crear">
+                                                    <option value="" selected>---Seleccione---</option>
+                                                    @foreach($metodosPago as $mp)
+                                                    <option value="{{ $mp->descripcion }}">{{ $mp->descripcion }}</option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>{{-- /tab-crear-datos --}}
 
@@ -412,14 +438,14 @@
                                     <div class="row">
                                         <div class="col-md-6">
                                             <div class="form-group mb-2">
-                                                <label class="col-form-label focus-label">Correo electrónico <span class="text-danger">*</span></label>
+                                                <label class="col-form-label focus-label">Correo electrónico</label>
                                                 <input class="form-control" type="text" name="correo_cliente" id="correo_cliente">
                                             </div>
                                         </div>
                                         <div class="col-md-6">
                                             <div class="form-group mb-2">
                                                 <label class="col-form-label focus-label">Teléfono del cliente <span class="text-danger">*</span></label>
-                                                <input class="form-control" type="text" name="telefono_cliente" id="telefono_cliente">
+                                                <input class="form-control" type="text" name="telefono_cliente" id="telefono_cliente" maxlength="9" placeholder="####-####">
                                             </div>
                                         </div>
                                         <div class="col-md-6">
@@ -431,7 +457,7 @@
                                         <div class="col-md-6">
                                             <div class="form-group mb-2">
                                                 <label class="col-form-label focus-label">Teléfono contacto 1 <span class="text-danger">*</span></label>
-                                                <input class="form-control" type="text" name="telefono[]" id="telefono[]">
+                                                <input class="form-control" type="text" name="telefono[]" id="telefono[]" maxlength="9" placeholder="####-####">
                                             </div>
                                         </div>
                                         <div class="col-md-6">
