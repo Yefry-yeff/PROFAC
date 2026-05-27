@@ -279,6 +279,20 @@
             overflow-x: hidden !important;
             /* Dejar espacio para el footer anclado */
         }
+        /* Scrollbar personalizado para que no muestre el fondo naranja del sidebar */
+        .scroll-bar-sidebar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .scroll-bar-sidebar::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.15);
+        }
+        .scroll-bar-sidebar::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.35);
+            border-radius: 2px;
+        }
+        .scroll-bar-sidebar::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.55);
+        }
         .sidebar-footer-info {
             flex-shrink: 0;
             border-top: 1px solid rgba(255,255,255,0.2);
@@ -597,6 +611,52 @@
                     body.mini-navbar .nav li a .fa.arrow {
                         display: none !important;
                     }
+
+                    /* FIX: Si mobile-sidebar-open está activo, mostrar siempre los labels (mayor especificidad) */
+                    body.mini-navbar.mobile-sidebar-open .nav li a span.nav-label,
+                    body.mini-navbar.mobile-sidebar-open .nav li a .fa.arrow,
+                    body.mini-navbar.mobile-sidebar-open .dashboard-btn .dashboard-link .nav-label {
+                        display: inline !important;
+                    }
+                    body.mini-navbar.mobile-sidebar-open .navbar-static-side {
+                        width: 260px !important;
+                    }
+                    body.mini-navbar.mobile-sidebar-open .nav > li > a {
+                        text-align: left !important;
+                        padding: 10px 10px !important;
+                        display: flex !important;
+                        align-items: center !important;
+                    }
+                    body.mini-navbar.mobile-sidebar-open .nav > li > a i {
+                        font-size: 16px !important;
+                        width: 20px !important;
+                        min-width: 20px !important;
+                        flex-shrink: 0 !important;
+                        margin-right: 8px !important;
+                        text-align: center !important;
+                    }
+                    body.mini-navbar.mobile-sidebar-open .search-sidebar {
+                        display: block !important;
+                    }
+
+                    /* Cancelar el flyout naranja de mini-navbar al hacer hover */
+                    body.mini-navbar.mobile-sidebar-open .nav li:hover > .nav-second-level,
+                    body.mini-navbar.mobile-sidebar-open .nav li:focus > .nav-second-level {
+                        display: none !important;
+                    }
+                    /* Restaurar posición/color normal de submenús en mobile-sidebar-open */
+                    body.mini-navbar.mobile-sidebar-open .nav .nav-second-level {
+                        position: static !important;
+                        left: auto !important;
+                        background-color: transparent !important;
+                        padding: 0 !important;
+                        box-shadow: none !important;
+                    }
+                    /* Mostrar submenú del item activo/abierto */
+                    body.mini-navbar.mobile-sidebar-open .nav > li.active > .nav-second-level,
+                    body.mini-navbar.mobile-sidebar-open .nav > li.open > .nav-second-level {
+                        display: block !important;
+                    }
                     
                     /* Centrar iconos */
                     body.mini-navbar .nav > li > a {
@@ -631,14 +691,19 @@
                             overflow-y: auto !important;
                             overflow-x: hidden !important;
                         }
-                        /* Asegurar que el sidebar esté visible en pantalla */
+                        /* Sidebar: por defecto FUERA de pantalla en móvil */
                         .navbar-static-side {
                             position: fixed !important;
                             top: 65px !important;
-                            left: 0 !important;
+                            left: -300px !important;
                             height: calc(100vh - 65px) !important;
                             display: flex !important;
                             z-index: 2000 !important;
+                            transition: left 0.25s ease !important;
+                        }
+                        /* Sidebar: deslizarse a la vista cuando está abierto */
+                        body.mobile-sidebar-open .navbar-static-side {
+                            left: 0 !important;
                         }
                         /* Ancho minimizado por defecto en móvil */
                         body:not(.mini-navbar) .navbar-static-side {
@@ -864,12 +929,9 @@
                             display: block !important;
                         }
                         
-                        /* Ajustar contenido principal */
-                        body:not(.mini-navbar) #page-wrapper {
+                        /* Contenido: siempre ancho completo en móvil (sidebar es overlay) */
+                        #page-wrapper {
                             margin-left: 0 !important;
-                        }
-                        body.mobile-sidebar-open #page-wrapper {
-                            margin-left: 220px !important;
                         }
                         
                         /* Forzar iconos visibles - solo móvil cerrado */
@@ -1114,7 +1176,7 @@
                         }
 
                         body.mini-navbar #page-wrapper {
-                            margin-left: 70px !important;
+                            margin-left: 0 !important;
                         }
 
                         body.mini-navbar .nav li a span.nav-label,
@@ -1178,6 +1240,47 @@
     visibility: visible !important;
 }
 
+/* ====== FIX CRÍTICO: cuando mobile-sidebar-open está activo, mostrar siempre los nav-labels ======
+   Cuando ambas clases coexisten (mini-navbar + mobile-sidebar-open), mobile-sidebar-open gana.
+   La especificidad (0,4,4) supera cualquier regla de body.mini-navbar (0,3,4). */
+body.mini-navbar.mobile-sidebar-open .nav li a span.nav-label,
+body.mini-navbar.mobile-sidebar-open .nav li a .fa.arrow,
+body.mini-navbar.mobile-sidebar-open .dashboard-btn .dashboard-link .nav-label {
+    display: inline !important;
+}
+body.mini-navbar.mobile-sidebar-open .navbar-static-side {
+    width: 220px !important;
+}
+body.mini-navbar.mobile-sidebar-open .nav > li > a {
+    text-align: left !important;
+    padding: 10px 10px !important;
+    display: flex !important;
+    align-items: center !important;
+}
+body.mini-navbar.mobile-sidebar-open .nav > li > a i {
+    font-size: 16px !important;
+    width: 20px !important;
+    min-width: 20px !important;
+    flex-shrink: 0 !important;
+    margin-right: 8px !important;
+    text-align: center !important;
+}
+body.mini-navbar.mobile-sidebar-open .search-sidebar {
+    display: block !important;
+}
+body.mini-navbar.mobile-sidebar-open .nav li .nav-second-level {
+    display: none;
+    position: static !important;
+    width: 100% !important;
+    left: auto !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    background: rgba(0,0,0,0.12) !important;
+}
+body.mini-navbar.mobile-sidebar-open .nav > li.active > .nav-second-level {
+    display: block !important;
+}
+
 /* Overlay para mobile/tablet */
 @media (max-width: 992px) {
     .mobile-sidebar-overlay {
@@ -1208,11 +1311,20 @@ document.addEventListener('DOMContentLoaded', function () {
     const overlay = document.querySelector('.mobile-sidebar-overlay');
     function isNonDesktop() { return window.innerWidth <= 992; }
 
+    // FIX: En no-escritorio, eliminar mini-navbar que INSPINIA pudo haber añadido
+    // desde localStorage al cargar la página (mini-navbar y mobile-sidebar-open son mutuamente excluyentes)
+    if (isNonDesktop()) {
+        document.body.classList.remove('mini-navbar');
+    }
+
     function toggleMobileSidebar(e) {
         if (!toggleBtn) return;
         if (isNonDesktop()) {
             if (e) e.preventDefault();
             const isOpen = document.body.classList.toggle('mobile-sidebar-open');
+            // FIX: Asegurar que mini-navbar nunca esté activo en no-escritorio
+            // (INSPINIA también dispara su handler y añade mini-navbar al mismo botón)
+            document.body.classList.remove('mini-navbar');
             // Al cerrar, limpiar submenús activos para que no queden flotando
             if (!isOpen) {
                 document.querySelectorAll('#side-menu > li').forEach(li => li.classList.remove('active'));
@@ -1250,6 +1362,9 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!isNonDesktop()) {
             document.body.classList.remove('mobile-sidebar-open');
             document.querySelectorAll('#side-menu > li').forEach(li => li.classList.remove('active'));
+        } else {
+            // FIX: Al reducir la pantalla a no-escritorio, quitar mini-navbar
+            document.body.classList.remove('mini-navbar');
         }
     });
 });
