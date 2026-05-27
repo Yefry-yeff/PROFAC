@@ -7,9 +7,9 @@
 
         /* ── Page header ── */
         .det-page-header {
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%);
+            background: linear-gradient(135deg, #f39c12 0%, #e05a00 100%);
             padding: 22px 28px 18px;
-            border-bottom: 3px solid #e74c3c;
+            border-bottom: 3px solid rgba(255,255,255,.25);
         }
         .det-page-header .prod-name {
             color: #fff;
@@ -35,19 +35,19 @@
         .det-page-header .breadcrumb-item + .breadcrumb-item::before { color: rgba(255,255,255,.35); }
         .det-header-actions { display: flex; gap: 10px; flex-wrap: wrap; }
         .btn-det-edit {
-            background: linear-gradient(135deg, #f39c12, #e67e22);
-            color: #fff; border: none; border-radius: 8px;
+            background: rgba(255,255,255,.18);
+            color: #fff; border: 1.5px solid rgba(255,255,255,.6); border-radius: 8px;
             padding: 8px 18px; font-weight: 600; font-size: .85rem;
-            transition: all .2s; box-shadow: 0 3px 10px rgba(243,156,18,.3);
+            transition: all .2s;
         }
-        .btn-det-edit:hover { transform: translateY(-1px); box-shadow: 0 5px 15px rgba(243,156,18,.45); color: #fff; }
+        .btn-det-edit:hover { background: rgba(255,255,255,.30); color: #fff; }
         .btn-det-foto {
-            background: linear-gradient(135deg, #1abc9c, #16a085);
-            color: #fff; border: none; border-radius: 8px;
+            background: rgba(255,255,255,.10);
+            color: #fff; border: 1.5px solid rgba(255,255,255,.45); border-radius: 8px;
             padding: 8px 18px; font-weight: 600; font-size: .85rem;
-            transition: all .2s; box-shadow: 0 3px 10px rgba(26,188,156,.3);
+            transition: all .2s;
         }
-        .btn-det-foto:hover { transform: translateY(-1px); box-shadow: 0 5px 15px rgba(26,188,156,.45); color: #fff; }
+        .btn-det-foto:hover { background: rgba(255,255,255,.25); color: #fff; }
 
         /* ── Body wrapper ── */
         .det-body { padding: 20px 24px; }
@@ -62,7 +62,7 @@
             height: 100%;
         }
         .det-carousel-card .card-header-bar {
-            background: linear-gradient(90deg, #0f3460, #16213e);
+            background: linear-gradient(135deg, #f39c12, #e05a00);
             padding: 11px 18px;
             display: flex; align-items: center; gap: 8px;
         }
@@ -91,7 +91,7 @@
             color: #fff !important;
         }
         #carouselExampleBigIndicators .carousel-indicators li {
-            background-color: #0f3460;
+            background-color: #e05a00;
             border-radius: 50%;
             width: 9px; height: 9px;
         }
@@ -117,7 +117,7 @@
             margin-bottom: 18px;
         }
         .det-info-card .card-header-bar {
-            background: linear-gradient(90deg, #0f3460, #16213e);
+            background: linear-gradient(135deg, #f39c12, #e05a00);
             padding: 11px 18px;
             display: flex; align-items: center; gap: 8px;
         }
@@ -142,9 +142,9 @@
             flex-shrink: 0;
             padding-top: 2px;
         }
-        .info-value { color: #1a1a2e; font-weight: 500; }
+        .info-value { color: #3a1800; font-weight: 500; }
         .info-badge-id {
-            background: #0f3460; color: #fff;
+            background: linear-gradient(135deg, #f39c12, #e05a00); color: #fff;
             border-radius: 6px; padding: 2px 10px;
             font-size: .82rem; font-weight: 700;
         }
@@ -169,7 +169,7 @@
             text-align: center;
             transition: all .2s;
         }
-        .price-card:hover { border-color: #0f3460; background: #f0f6ff; }
+        .price-card:hover { border-color: #e05a00; background: #fdf4e7; }
         .price-card .pc-label {
             font-size: .7rem; font-weight: 700;
             text-transform: uppercase; letter-spacing: .5px;
@@ -177,25 +177,25 @@
         }
         .price-card .pc-badge {
             display: inline-block;
-            background: #0f3460; color: #fff;
+            background: linear-gradient(135deg, #f39c12, #e05a00); color: #fff;
             border-radius: 5px; padding: 2px 8px;
             font-size: .75rem; font-weight: 700;
             margin-bottom: 8px;
         }
         .price-card .pc-value {
-            font-size: 1.1rem; font-weight: 700; color: #1a1a2e;
+            font-size: 1.1rem; font-weight: 700; color: #3a1800;
             display: block;
         }
         .price-card .pc-currency { font-size: .72rem; color: #888; margin-top: 2px; }
-        .price-card-base { border-color: #1abc9c; }
-        .price-card-base .pc-badge { background: #1abc9c; }
+        .price-card-base { border-color: #e08e0b; }
+        .price-card-base .pc-badge { background: linear-gradient(135deg, #e08e0b, #c04e00); }
         .cost-row {
             display: flex; justify-content: space-between; align-items: center;
             padding: 9px 0; border-bottom: 1px solid #f0f2f5; font-size: .875rem;
         }
         .cost-row:last-child { border-bottom: none; }
         .cost-row .cost-label { color: #888; font-size: .78rem; font-weight: 600; text-transform: uppercase; }
-        .cost-row .cost-value { font-weight: 700; color: #1a1a2e; }
+        .cost-row .cost-value { font-weight: 700; color: #3a1800; }
 
         /* ── Table cards ── */
         .det-table-card {
@@ -206,32 +206,32 @@
             margin-bottom: 20px;
         }
         .det-table-card .card-header-bar {
-            background: linear-gradient(90deg, #0f3460, #16213e);
+            background: linear-gradient(135deg, #f39c12, #e05a00);
             padding: 12px 18px;
             display: flex; align-items: center; justify-content: space-between;
         }
         .det-table-card .card-header-bar span { color: #fff; font-weight: 600; font-size: .9rem; }
         .det-table-card .table-wrap { padding: 14px 16px 8px; }
         .det-table-card table thead th {
-            background: #f8fafc;
-            border-bottom: 2px solid #e0e6ed;
-            color: #1a1a2e;
+            background: #fdf4e7;
+            border-bottom: 2px solid #f2d49a;
+            color: #7d3f00;
             font-size: .75rem; font-weight: 700;
             text-transform: uppercase; letter-spacing: .4px;
             padding: 9px 10px; white-space: nowrap;
         }
-        .det-table-card table tbody tr:hover { background: #f0f6ff; }
+        .det-table-card table tbody tr:hover { background: #fffcf5; }
         .det-table-card table tbody td {
             vertical-align: middle; font-size: .875rem;
             padding: 9px 10px; border-color: #f0f2f5;
         }
         .stock-total-chip {
             display: inline-flex; align-items: center; gap: 8px;
-            background: linear-gradient(135deg, #1abc9c, #16a085);
+            background: linear-gradient(135deg, #f39c12, #e05a00);
             color: #fff; border-radius: 24px;
             padding: 6px 18px; font-size: .88rem; font-weight: 700;
             margin-bottom: 12px;
-            box-shadow: 0 3px 10px rgba(26,188,156,.3);
+            box-shadow: 0 3px 10px rgba(243,156,18,.3);
         }
 
         /* ── Modales modernos ── */
@@ -240,7 +240,7 @@
             box-shadow: 0 20px 60px rgba(0,0,0,.25);
         }
         .modal-modern .modal-header {
-            background: linear-gradient(135deg, #1a1a2e 0%, #0f3460 100%);
+            background: linear-gradient(135deg, #f39c12 0%, #e05a00 100%);
             border: none; padding: 18px 24px;
         }
         .modal-modern .modal-title { color: #fff; font-weight: 700; font-size: 1.05rem; }
@@ -258,7 +258,7 @@
         .ms-section-title {
             font-size: .75rem; font-weight: 700;
             text-transform: uppercase; letter-spacing: .7px;
-            color: #0f3460; border-bottom: 2px solid #e8ecef;
+            color: #7d3f00; border-bottom: 2px solid #e8d5bf;
             padding-bottom: 7px; margin-bottom: 14px;
             display: flex; align-items: center; gap: 7px;
         }
@@ -271,8 +271,8 @@
             transition: border-color .2s, box-shadow .2s;
         }
         .ms-section .form-control:focus {
-            border-color: #0f3460;
-            box-shadow: 0 0 0 3px rgba(15,52,96,.1);
+            border-color: #e05a00;
+            box-shadow: 0 0 0 3px rgba(224,90,0,.12);
         }
         .ms-section .form-control:disabled { background: #f8fafc; color: #999; }
         .ms-price-group { position: relative; }
@@ -282,7 +282,7 @@
         }
         .ms-price-group .form-control { padding-left: 28px; }
         .ms-price-badge {
-            display: inline-block; background: #0f3460; color: #fff;
+            display: inline-block; background: linear-gradient(135deg, #f39c12, #e05a00); color: #fff;
             border-radius: 4px; padding: 2px 7px; font-size: .7rem;
             font-weight: 700; margin-bottom: 3px;
         }
@@ -296,11 +296,11 @@
         }
         .spinner-ring {
             display: inline-block; width: 50px; height: 50px;
-            border: 5px solid #e8ecef; border-top-color: #0f3460;
+            border: 5px solid #e8d5bf; border-top-color: #e05a00;
             border-radius: 50%; animation: spin .8s linear infinite; margin-bottom: 14px;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
-        .spinner-overlay-box p { margin: 0; font-size: 1rem; font-weight: 600; color: #1a1a2e; }
+        .spinner-overlay-box p { margin: 0; font-size: 1rem; font-weight: 600; color: #7d3f00; }
         .spinner-overlay-box small { color: #888; font-size: .8rem; }
 
         /* foto upload */
@@ -309,7 +309,7 @@
             padding: 20px; text-align: center; cursor: pointer;
             transition: border-color .2s, background .2s;
         }
-        .foto-drop-area:hover { border-color: #0f3460; background: #f0f6ff; }
+        .foto-drop-area:hover { border-color: #e05a00; background: #fdf4e7; }
         .foto-drop-area i { font-size: 1.8rem; color: #aaa; display: block; margin-bottom: 6px; }
         .foto-drop-area span { font-size: .8rem; color: #888; }
         #imagenPrevisualizacion {
@@ -329,7 +329,7 @@
         <div style="display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:14px;">
             <div>
                 <p class="prod-name">
-                    <i class="fa fa-cube mr-2" style="color:#e74c3c;"></i>
+                    <i class="fa fa-cube mr-2" style="color:rgba(255,255,255,.85);"></i>
                     {{ mb_convert_case($producto->nombre, MB_CASE_TITLE, 'UTF-8') }}
                     <small>#{{ $producto->id }}</small>
                 </p>

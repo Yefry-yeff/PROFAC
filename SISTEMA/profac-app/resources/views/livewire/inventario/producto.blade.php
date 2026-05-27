@@ -7,9 +7,9 @@
 
         /* ── Page header ── */
         .prod-page-header {
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%);
+            background: linear-gradient(135deg, #f39c12 0%, #e05a00 100%);
             padding: 20px 28px 18px;
-            border-bottom: 3px solid #e74c3c;
+            border-bottom: 3px solid rgba(255,255,255,.25);
             margin-bottom: 0;
         }
         .prod-page-header h2 {
@@ -43,7 +43,7 @@
             flex-wrap: wrap;
         }
         .prod-action-bar .btn-register {
-            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            background: linear-gradient(135deg, #f39c12, #e05a00);
             color: #fff;
             border: none;
             border-radius: 8px;
@@ -51,11 +51,11 @@
             font-weight: 600;
             font-size: .85rem;
             transition: all .2s;
-            box-shadow: 0 3px 10px rgba(231,76,60,.3);
+            box-shadow: 0 3px 10px rgba(243,156,18,.3);
         }
         .prod-action-bar .btn-register:hover {
             transform: translateY(-1px);
-            box-shadow: 0 5px 15px rgba(231,76,60,.45);
+            box-shadow: 0 5px 15px rgba(243,156,18,.45);
             color: #fff;
         }
         .prod-action-bar .btn-excel {
@@ -84,7 +84,7 @@
             overflow: hidden;
         }
         .prod-filter-card .filter-header {
-            background: linear-gradient(90deg, #0f3460, #16213e);
+            background: linear-gradient(135deg, #f39c12, #e05a00);
             padding: 12px 20px;
             display: flex;
             align-items: center;
@@ -115,12 +115,12 @@
             transition: border-color .2s, box-shadow .2s;
         }
         .prod-filter-body .form-control:focus {
-            border-color: #0f3460;
-            box-shadow: 0 0 0 3px rgba(15,52,96,.1);
+            border-color: #e05a00;
+            box-shadow: 0 0 0 3px rgba(224,90,0,.12);
         }
         .prod-filter-actions { display: flex; gap: 8px; margin-top: 14px; }
         .btn-filter-apply {
-            background: #0f3460;
+            background: linear-gradient(135deg, #f39c12, #e05a00);
             color: #fff;
             border: none;
             border-radius: 8px;
@@ -129,7 +129,7 @@
             font-weight: 600;
             transition: all .2s;
         }
-        .btn-filter-apply:hover { background: #16213e; color: #fff; }
+        .btn-filter-apply:hover { background: linear-gradient(135deg, #e08e0b, #c04e00); color: #fff; }
         .btn-filter-clear {
             background: #f0f2f5;
             color: #555;
@@ -151,7 +151,7 @@
             overflow: hidden;
         }
         .prod-table-card .table-header {
-            background: linear-gradient(90deg, #0f3460, #16213e);
+            background: linear-gradient(135deg, #f39c12, #e05a00);
             padding: 14px 20px;
             display: flex;
             align-items: center;
@@ -163,9 +163,9 @@
             font-size: .95rem;
         }
         #tbl_productosListar thead th {
-            background: #f8fafc;
-            border-bottom: 2px solid #e0e6ed;
-            color: #1a1a2e;
+            background: #fdf4e7;
+            border-bottom: 2px solid #f2d49a;
+            color: #7d3f00;
             font-size: .78rem;
             font-weight: 700;
             text-transform: uppercase;
@@ -176,7 +176,7 @@
         #tbl_productosListar tbody tr {
             transition: background .15s;
         }
-        #tbl_productosListar tbody tr:hover { background: #f0f6ff; }
+        #tbl_productosListar tbody tr:hover { background: #fffcf5; }
         #tbl_productosListar tbody td {
             vertical-align: middle;
             font-size: .875rem;
@@ -194,7 +194,7 @@
             cursor: pointer; transition: background .2s;
         }
         .prod-dropdown .btn-prod-menu:hover { background: #fdf4e7; }
-        .stock-num { font-weight: 700; color: #1a1a2e; }
+        .stock-num { font-weight: 700; color: #7d3f00; }
         .btn-ver-mas {
             background: linear-gradient(135deg, #f39c12, #e67e22);
             color: #fff;
@@ -235,7 +235,7 @@
             box-shadow: 0 20px 60px rgba(0,0,0,.25);
         }
         #modal_producto_crear .modal-header {
-            background: linear-gradient(135deg, #1a1a2e 0%, #0f3460 100%);
+            background: linear-gradient(135deg, #f39c12 0%, #e05a00 100%);
             border: none;
             padding: 20px 24px;
         }
@@ -262,8 +262,8 @@
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: .8px;
-            color: #0f3460;
-            border-bottom: 2px solid #e8ecef;
+            color: #7d3f00;
+            border-bottom: 2px solid #e8d5bf;
             padding-bottom: 8px;
             margin-bottom: 16px;
             display: flex;
@@ -284,8 +284,8 @@
             transition: border-color .2s, box-shadow .2s;
         }
         .form-section .form-control:focus {
-            border-color: #0f3460;
-            box-shadow: 0 0 0 3px rgba(15,52,96,.1);
+            border-color: #e05a00;
+            box-shadow: 0 0 0 3px rgba(224,90,0,.12);
         }
         .form-section .form-control:disabled {
             background: #f8fafc;
@@ -306,7 +306,7 @@
         .price-input-group .form-control { padding-left: 28px; }
         .price-badge {
             display: inline-block;
-            background: #0f3460;
+            background: linear-gradient(135deg, #f39c12, #e05a00);
             color: #fff;
             border-radius: 4px;
             padding: 2px 7px;
@@ -333,7 +333,7 @@
             cursor: pointer;
             transition: border-color .2s, background .2s;
         }
-        .foto-upload-area:hover { border-color: #0f3460; background: #f0f6ff; }
+        .foto-upload-area:hover { border-color: #e05a00; background: #fdf4e7; }
         .foto-upload-area i { font-size: 1.6rem; color: #aaa; display: block; margin-bottom: 4px; }
         .foto-upload-area span { font-size: .8rem; color: #888; }
 
@@ -350,8 +350,8 @@
             display: inline-block;
             width: 52px;
             height: 52px;
-            border: 5px solid #e8ecef;
-            border-top-color: #0f3460;
+            border: 5px solid #e8d5bf;
+            border-top-color: #e05a00;
             border-radius: 50%;
             animation: spin .8s linear infinite;
             margin-bottom: 16px;
@@ -361,7 +361,7 @@
             margin: 0;
             font-size: 1rem;
             font-weight: 600;
-            color: #1a1a2e;
+            color: #7d3f00;
         }
         .spinner-overlay-box small { color: #888; font-size: .8rem; }
 
@@ -380,7 +380,7 @@
     <div class="prod-page-header">
         <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
             <div>
-                <h2><i class="fa fa-cube mr-2" style="color:#e74c3c;"></i> Catálogo de Productos</h2>
+                    <h2><i class="fa fa-cube mr-2" style="color:rgba(255,255,255,.85);"></i> Catálogo de Productos</h2>
                 <ol class="breadcrumb">
                     <li class="breadcrumb-item"><i class="fa fa-home mr-1"></i> Inventario</li>
                     <li class="breadcrumb-item active">Catálogo de Productos</li>
