@@ -194,6 +194,14 @@
 
     <!---menu lateral de la plantilla--->
     <style>
+        /* Fix: Tailwind CSS .collapse { visibility: collapse } hides MetisMenu submenu text.
+           Icons show because they have visibility:visible !important, but text nodes inherit collapse.
+           Override here (in body) so it takes effect AFTER app.css loads. */
+        .metismenu .collapse,
+        #side-menu .collapse {
+            visibility: visible !important;
+        }
+
         /* ====== HEADER: fijo en la parte superior, nunca se mueve ====== */
         nav.sticky {
             position: fixed !important;
@@ -1163,6 +1171,13 @@
 
 @push('styles')
 <style>
+/* Fix: Tailwind CSS defines .collapse { visibility: collapse } which hides text in MetisMenu submenus.
+   Override to ensure submenu content is visible (display:none on .collapse already handles hiding). */
+.metismenu .collapse,
+#side-menu .collapse {
+    visibility: visible !important;
+}
+
 /* Overlay para mobile/tablet */
 @media (max-width: 992px) {
     .mobile-sidebar-overlay {
