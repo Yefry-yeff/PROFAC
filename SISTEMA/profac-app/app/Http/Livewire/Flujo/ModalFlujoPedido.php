@@ -10,6 +10,9 @@ use Illuminate\Support\Facades\Mail;
 use App\Models\PrefacturaAuditoria;
 use App\Models\CreditoRevision;
 use App\Models\ModelCodigoAutorizacion;
+use App\Models\ModelRecibirBodega;
+use App\Models\ModelCliente;
+use App\Models\ModelLogTranslados;
 
 /**
  * Modal reutilizable "Flujo del Pedido".
@@ -2123,6 +2126,54 @@ class ModalFlujoPedido extends Component
                     'estado_venta_id' => 2,
                     'updated_at'      => now(),
                 ]);
+
+            // 0.1) Devolver unidades al inventario (inverso de restarUnidadesInventario)
+            $lotes = DB::select(
+                'SELECT lote, numero_unidades_resta_inventario, unidad_medida_venta_id
+                 FROM venta_has_producto
+                 WHERE factura_id = ?',
+                [$facturaId]
+            );
+
+            $logInventario = [];
+            foreach ($lotes as $lote) {
+                $recibidoBodega = ModelRecibirBodega::find($lote->lote);
+                if ($recibidoBodega) {
+                    $recibidoBodega->cantidad_disponible += $lote->numero_unidades_resta_inventario;
+                    $recibidoBodega->save();
+
+                    $logInventario[] = [
+                        'origen'                 => $lote->lote,
+                        'destino'                => $lote->lote,
+                        'factura_id'             => $facturaId,
+                        'cantidad'               => $lote->numero_unidades_resta_inventario,
+                        'unidad_medida_venta_id' => $lote->unidad_medida_venta_id,
+                        'users_id'               => Auth::id(),
+                        'descripcion'            => 'Factura Anulada',
+                        'created_at'             => now(),
+                        'updated_at'             => now(),
+                    ];
+                }
+            }
+
+            if (!empty($logInventario)) {
+                ModelLogTranslados::insert($logInventario);
+            }
+
+            // 0.2) Restaurar crédito del cliente
+            $facturaRow = DB::table('factura')->where('id', $facturaId)->first();
+            if ($facturaRow) {
+                $cliente = ModelCliente::find($facturaRow->cliente_id);
+                if ($cliente) {
+                    $cliente->credito = $cliente->credito + $facturaRow->total;
+                    $cliente->save();
+                }
+            }
+
+            // 0.3) Inactivar aplicaciones de pago de esta factura
+            DB::table('aplicacion_pagos')
+                ->where('factura_id', $facturaId)
+                ->update(['estado' => 2, 'updated_at' => now()]);
 
             // 1) Inactivar registro de factura en historico_flujo
             DB::table('historico_flujo')
