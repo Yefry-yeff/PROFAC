@@ -79,7 +79,18 @@ class VentasExoneradas extends Component
     }
 
     public function obtenerCodigoExoneracion(Request $request){
-        $codigos = DB::SELECT("select id, codigo as text from codigo_exoneracion where estado_id = 1 and cliente_id = ".$request->idCliente);
+        $idCliente = (int) $request->input('idCliente', 0);
+
+        if ($idCliente <= 0) {
+            return response()->json([
+                'results' => []
+            ], 200);
+        }
+
+        $codigos = DB::SELECT(
+            'select id, codigo as text from codigo_exoneracion where estado_id = 1 and cliente_id = ?',
+            [$idCliente]
+        );
 
         return response()->json([
             'results'=>$codigos
@@ -88,6 +99,8 @@ class VentasExoneradas extends Component
 
     public function guardarVenta(Request $request)
     {
+
+        $factura = null;
 
 
         $validator = Validator::make($request->all(), [
@@ -102,7 +115,6 @@ class VentasExoneradas extends Component
             'seleccionarCliente' => 'required',
             'nombre_cliente_ventas' => 'required',
             'tipoPagoVenta' => 'required',
-            'bodega' => 'required',
             'restriccion' => 'required',
             'tipo_venta_id'=>'required|integer|between:3,3',
             'codigo'=>'required'
@@ -206,6 +218,14 @@ class VentasExoneradas extends Component
                     from cai
                     where tipo_documento_fiscal_id = 1 and estado_id = 1");
 
+            if (!$cai) {
+                return response()->json([
+                    'icon' => 'warning',
+                    'title' => 'Advertencia!',
+                    'text' => 'No hay un CAI activo configurado para facturacion.',
+                ], 401);
+            }
+
             $arrayNumeroFinal = explode('-', $cai->numero_final);
             $numero_final= (string)((int)($arrayNumeroFinal[3]));
 
@@ -291,6 +311,14 @@ class VentasExoneradas extends Component
 
 
             $codigoExoneracion = ModelCodigoExoneracion::find($request->codigo);
+            if (!$codigoExoneracion) {
+                DB::rollBack();
+                return response()->json([
+                    'icon' => 'warning',
+                    'title' => 'Advertencia!',
+                    'text' => 'El codigo de exoneracion seleccionado no existe o ya no esta disponible.',
+                ], 401);
+            }
             $codigoExoneracion->estado_id = 2;
             $codigoExoneracion->save();
 
@@ -369,7 +397,7 @@ class VentasExoneradas extends Component
                 'icon' => "error",
                 'text' => 'Ha ocurrido un error.',
                 'title' => 'Error!',
-                'idFactura' => $factura->id,
+                'idFactura' => $factura ? $factura->id : 0,
                 'mensajeError'=>$e
             ], 402);
         }
