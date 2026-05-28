@@ -1,9 +1,13 @@
 <div>
 @if ($showModal && $pedidoData)
 <style>
-    /* Fix: Animate.css leaves transform:matrix(identity) on .wrapper-content after
-       fadeInRight animation — this breaks position:fixed viewport coverage */
-    div.wrapper-content { transform: none !important; }
+    /* Fix: Animate.css / AdminLTE animations leave transform on wrapper elements,
+       which creates a new stacking context and breaks position:fixed children */
+    div.wrapper-content,
+    div.content-wrapper,
+    div.wrapper,
+    div.main-sidebar,
+    .sidebar-wrapper { transform: none !important; }
     @@keyframes flujoIn {
         from { opacity:0; transform:scale(.94) translateY(-24px); }
         to   { opacity:1; transform:scale(1)  translateY(0);      }
@@ -28,7 +32,7 @@
         20%,60% { transform:translateX(-6px); }
         40%,80% { transform:translateX(6px);  }
     }
-    .fmp-dlg  { max-width:920px; width:100%; max-height:calc(100% - 32px); display:flex; flex-direction:column; animation:flujoIn .32s cubic-bezier(.34,1.28,.64,1) both; pointer-events:auto; }
+    .fmp-dlg  { max-width:920px; width:100%; max-height:calc(100vh - 48px); display:flex; flex-direction:column; animation:flujoIn .32s cubic-bezier(.34,1.28,.64,1) both; pointer-events:auto; }
     .fmp-cnt  { border-radius:18px !important; overflow:hidden !important; display:flex !important; flex-direction:column !important; max-height:100% !important; }
     .fmp-body { padding:20px 24px 16px !important; overflow-y:auto !important; flex:1 1 auto !important; min-height:0 !important; }
     .fmp-foot { padding:10px 24px 14px !important; display:flex !important; flex-wrap:wrap !important; gap:8px !important; justify-content:flex-end !important; flex-shrink:0 !important; background:#e8ecf4 !important; border-top:2px solid #d0d7e4 !important; }
@@ -161,9 +165,11 @@
 {{-- ── Overlay ─────────────────────────────────────────────────────────── --}}
 <div id="fmpModalWrap" role="dialog"
      style="position:fixed; inset:0; z-index:99999;
-            display:flex; align-items:center; justify-content:center; padding:16px;
             overflow-y:auto;
             background:rgba(15,15,35,.97);">
+    {{-- Inner wrapper: handles centering independently from scroll --}}
+    <div style="display:flex; align-items:center; justify-content:center;
+                min-height:100%; padding:16px; box-sizing:border-box;">
 
     <div class="fmp-dlg" role="document">
         <div class="modal-content fmp-cnt" style="border:none; box-shadow:0 20px 60px rgba(0,0,0,.35);">
@@ -2177,6 +2183,7 @@
 
         </div>
     </div>
+    </div>{{-- /centering-wrapper --}}
 </div>{{-- /overlay --}}
 
 @endif
