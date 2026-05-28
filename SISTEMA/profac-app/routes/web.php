@@ -1439,5 +1439,9 @@ Route::post('/reporte/ventas-cobros/exportar-excel/{vendedorId}/{clienteId}/{mes
     // Ruta auto-generada para: Reportes\EvaluacionDeClientesPorNivelDeFacturacion
     Route::get('/reportes/evaluacion_de_clientes_por_nivel_de_facturacion', \App\Http\Livewire\Reportes\EvaluacionDeClientesPorNivelDeFacturacion::class);
 
+
+    // Ruta auto-generada para: Reportes\AnaliticaDeProductos
+    Route::get('/reportes/analitica_de_productos', \App\Http\Livewire\Reportes\AnaliticaDeProductos::class);
+
     // [auto-routes-anchor]
 });
