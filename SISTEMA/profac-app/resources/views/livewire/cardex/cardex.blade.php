@@ -219,10 +219,10 @@
                     </div>
                 </div>
                 <div class="modal-footer py-2">
-                    <button type="button" class="btn btn-secondary btn-sm" onclick="limpiarFiltrosCardex()">
+                    <button type="button" class="btn btn-secondary btn-sm" id="btnCdxLimpiar">
                         <i class="fa fa-eraser mr-1"></i>Limpiar
                     </button>
-                    <button type="button" class="btn btn-primary btn-sm" onclick="aplicarFiltrosCardex()">
+                    <button type="button" class="btn btn-primary btn-sm" id="btnCdxBuscar">
                         <i class="fa fa-search mr-1"></i>Buscar
                     </button>
                 </div>
@@ -290,5 +290,61 @@
 
 </div>
 @push('scripts')
-    <script src="{{ asset('js/js_proyecto/cardex/cardexGeneral.js') }}"></script>
+    <script src="{{ asset('js/js_proyecto/cardex/cardexGeneral.js') }}?v={{ @filemtime(public_path('js/js_proyecto/cardex/cardexGeneral.js')) }}"></script>
+    <script>
+        (function() {
+            function blurActiveElement() {
+                if (document.activeElement && typeof document.activeElement.blur === 'function') {
+                    document.activeElement.blur();
+                }
+            }
+
+            // Fallbacks if the external JS file is unavailable in production.
+            window.aplicarFiltrosCardex = window.aplicarFiltrosCardex || function() {
+                blurActiveElement();
+                if (window.jQuery && $.fn.DataTable && $.fn.DataTable.isDataTable('#tbl_cardex')) {
+                    $('#tbl_cardex').DataTable().ajax.reload();
+                }
+                if (window.jQuery) {
+                    $('#modalFiltrosCardex').modal('hide');
+                }
+            };
+
+            window.limpiarFiltrosCardex = window.limpiarFiltrosCardex || function() {
+                var ids = ['cdxFiltroDesde', 'cdxFiltroHasta', 'cdxFiltroProducto', 'cdxFiltroCai', 'cdxTipoDocumento', 'cdxIdDocumento'];
+                ids.forEach(function(id) {
+                    var el = document.getElementById(id);
+                    if (el) {
+                        el.value = '';
+                    }
+                });
+
+                if (window.jQuery) {
+                    $('#cdxFiltroUsuario').val(null).trigger('change');
+                    $('#cdxFiltroBodegaOrigen').val(null).trigger('change');
+                    $('#cdxFiltroBodegaDestino').val(null).trigger('change');
+                }
+            };
+
+            var btnBuscar = document.getElementById('btnCdxBuscar');
+            if (btnBuscar) {
+                btnBuscar.addEventListener('click', function() {
+                    window.aplicarFiltrosCardex();
+                });
+            }
+
+            var btnLimpiar = document.getElementById('btnCdxLimpiar');
+            if (btnLimpiar) {
+                btnLimpiar.addEventListener('click', function() {
+                    window.limpiarFiltrosCardex();
+                });
+            }
+
+            if (window.jQuery) {
+                $('#modalFiltrosCardex').on('hide.bs.modal', function() {
+                    blurActiveElement();
+                });
+            }
+        })();
+    </script>
 @endpush
