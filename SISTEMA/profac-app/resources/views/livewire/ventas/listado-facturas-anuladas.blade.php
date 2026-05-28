@@ -213,13 +213,29 @@
                             <i class="fa fa-circle mr-1" style="font-size:.65rem"></i>Exoneradas
                         </button>
                     </div>
+                    <p class="modal-section-label"><i class="fa fa-calendar mr-1"></i>Rango de fechas</p>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="font-weight-bold small">Desde</label>
+                                <input type="date" class="form-control form-control-sm" id="anulFiltroDesde">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="font-weight-bold small">Hasta</label>
+                                <input type="date" class="form-control form-control-sm" id="anulFiltroHasta">
+                            </div>
+                        </div>
+                    </div>
+
                     <p class="modal-section-label"><i class="fa fa-search mr-1"></i>Criterios de b&uacute;squeda</p>
                     <div class="row">
                         <div class="col-md-12">
                             <div class="form-group">
                                 <label class="font-weight-bold small">N° Factura</label>
-                                <input type="text" class="form-control form-control-sm" id="anulFiltroNumero"
-                                       placeholder="Ej: 0001 o número parcial">
+                                <input type="text" class="form-control form-control-sm" id="anulFiltroCai"
+                                       placeholder="Ej: 000-001-01-00041992 o solo 41992">
                             </div>
                         </div>
                         <div class="col-md-12">
@@ -234,6 +250,14 @@
                             <div class="form-group">
                                 <label class="font-weight-bold small">Vendedor</label>
                                 <select id="anulFiltroVendedor" class="form-control" style="width:100%">
+                                    <option></option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label class="font-weight-bold small">Facturador</label>
+                                <select id="anulFiltroFacturador" class="form-control" style="width:100%">
                                     <option></option>
                                 </select>
                             </div>
@@ -318,9 +342,12 @@
             var anulUrlHistory  = { 1: '/ventas/anulado/corporativo', 2: '/ventas/anulado/estatal', 3: '/ventas/anulado/exonerado' };
             var anulFiltros = {
                 idTipo:   {{ $idTipoVenta }},
-                numero:   '',
+                cai:      '',
                 cliente:  '',
-                vendedor: ''
+                vendedor: '',
+                facturador: '',
+                desde: '',
+                hasta: ''
             };
 
             // ── Tipo buttons en modal ────────────────────────────────────────
@@ -333,9 +360,12 @@
             function aplicarFiltrosAnul() {
                 var activeBtn = document.querySelector('#modalFiltrosAnul .tipo-filter-btn.active');
                 if (activeBtn) anulFiltros.idTipo = parseInt(activeBtn.dataset.idtipo);
-                anulFiltros.numero   = document.getElementById('anulFiltroNumero').value.trim();
+                anulFiltros.cai      = document.getElementById('anulFiltroCai').value.trim();
                 anulFiltros.cliente  = $('#anulFiltroCliente').val()  || '';
                 anulFiltros.vendedor = $('#anulFiltroVendedor').val() || '';
+                anulFiltros.facturador = $('#anulFiltroFacturador').val() || '';
+                anulFiltros.desde    = document.getElementById('anulFiltroDesde').value || '';
+                anulFiltros.hasta    = document.getElementById('anulFiltroHasta').value || '';
 
                 $('#modalFiltrosAnul').modal('hide');
                 document.getElementById('anul-placeholder').style.display  = 'none';
@@ -365,12 +395,18 @@
 
             // ── Limpiar filtros ──────────────────────────────────────────────
             function limpiarFiltrosAnul() {
-                document.getElementById('anulFiltroNumero').value = '';
+                document.getElementById('anulFiltroCai').value = '';
+                document.getElementById('anulFiltroDesde').value = '';
+                document.getElementById('anulFiltroHasta').value = '';
                 $('#anulFiltroCliente').val(null).trigger('change');
                 $('#anulFiltroVendedor').val(null).trigger('change');
-                anulFiltros.numero   = '';
+                $('#anulFiltroFacturador').val(null).trigger('change');
+                anulFiltros.cai      = '';
                 anulFiltros.cliente  = '';
                 anulFiltros.vendedor = '';
+                anulFiltros.facturador = '';
+                anulFiltros.desde = '';
+                anulFiltros.hasta = '';
                 $('#modalFiltrosAnul .tipo-filter-btn').removeClass('active');
                 $('#modalFiltrosAnul .tipo-filter-btn[data-idtipo="{{ $idTipoVenta }}"]').addClass('active');
             }
@@ -379,20 +415,29 @@
             function renderBadgesAnul() {
                 var bar  = document.getElementById('filtrosBarAnul');
                 var html = '<span class="filtro-badge"><i class="fa fa-tag mr-1"></i>Tipo: ' + (anulNombresTipo[anulFiltros.idTipo] || '') + '</span>';
-                if (anulFiltros.numero)
-                    html += '<span class="filtro-badge">N° Factura: ' + anulFiltros.numero + ' <span class="filtro-remove" onclick="quitarFiltroAnul(\'numero\')">×</span></span>';
+                if (anulFiltros.cai)
+                    html += '<span class="filtro-badge">N° Factura: ' + anulFiltros.cai + ' <span class="filtro-remove" onclick="quitarFiltroAnul(\'cai\')">×</span></span>';
                 if (anulFiltros.cliente)
                     html += '<span class="filtro-badge">Cliente: ' + ($('#anulFiltroCliente option:selected').text() || anulFiltros.cliente) + ' <span class="filtro-remove" onclick="quitarFiltroAnul(\'cliente\')">×</span></span>';
                 if (anulFiltros.vendedor)
                     html += '<span class="filtro-badge">Vendedor: ' + ($('#anulFiltroVendedor option:selected').text() || anulFiltros.vendedor) + ' <span class="filtro-remove" onclick="quitarFiltroAnul(\'vendedor\')">×</span></span>';
+                if (anulFiltros.facturador)
+                    html += '<span class="filtro-badge">Facturador: ' + ($('#anulFiltroFacturador option:selected').text() || anulFiltros.facturador) + ' <span class="filtro-remove" onclick="quitarFiltroAnul(\'facturador\')">×</span></span>';
+                if (anulFiltros.desde)
+                    html += '<span class="filtro-badge">Desde: ' + anulFiltros.desde + ' <span class="filtro-remove" onclick="quitarFiltroAnul(\'desde\')">×</span></span>';
+                if (anulFiltros.hasta)
+                    html += '<span class="filtro-badge">Hasta: ' + anulFiltros.hasta + ' <span class="filtro-remove" onclick="quitarFiltroAnul(\'hasta\')">×</span></span>';
                 bar.innerHTML = html;
                 bar.style.display = '';
             }
 
             function quitarFiltroAnul(key) {
-                if (key === 'numero')   { anulFiltros.numero   = ''; document.getElementById('anulFiltroNumero').value = ''; }
+                if (key === 'cai')      { anulFiltros.cai      = ''; document.getElementById('anulFiltroCai').value = ''; }
                 if (key === 'cliente')  { anulFiltros.cliente  = ''; $('#anulFiltroCliente').val(null).trigger('change'); }
                 if (key === 'vendedor') { anulFiltros.vendedor = ''; $('#anulFiltroVendedor').val(null).trigger('change'); }
+                if (key === 'facturador') { anulFiltros.facturador = ''; $('#anulFiltroFacturador').val(null).trigger('change'); }
+                if (key === 'desde')    { anulFiltros.desde    = ''; document.getElementById('anulFiltroDesde').value = ''; }
+                if (key === 'hasta')    { anulFiltros.hasta    = ''; document.getElementById('anulFiltroHasta').value = ''; }
                 renderBadgesAnul();
                 if ($.fn.DataTable.isDataTable('#tbl_listar_compras'))
                     $('#tbl_listar_compras').DataTable().ajax.reload();
@@ -413,9 +458,12 @@
                         'headers': { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
                         'data': function(d) {
                             d.idTipo         = anulFiltros.idTipo;
-                            d.filtroNumero   = anulFiltros.numero;
+                            d.filtroCai      = anulFiltros.cai;
                             d.filtroCliente  = anulFiltros.cliente;
                             d.filtroVendedor = anulFiltros.vendedor;
+                            d.filtroFacturador = anulFiltros.facturador;
+                            d.filtroDesde    = anulFiltros.desde;
+                            d.filtroHasta    = anulFiltros.hasta;
                         }
                     },
                     "columns": [
@@ -483,6 +531,7 @@
                 }
                 $('#anulFiltroCliente').select2(s2opts('/filtros/facturas/clientes', 'Buscar cliente...'));
                 $('#anulFiltroVendedor').select2(s2opts('/filtros/facturas/usuarios', 'Buscar vendedor...'));
+                $('#anulFiltroFacturador').select2(s2opts('/filtros/facturas/usuarios', 'Buscar facturador...'));
 
                 $(document).on('select2:open', function() {
                     $(document).off('focusin.modal');
