@@ -525,6 +525,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
 
     /* ---- Documentos ---- */
     Route::post('/clientes/documento/subir',           [Cliente::class, 'subirDocumento'])->name('clientes.documento.subir');
+    Route::post('/clientes/documento/fisico/toggle',   [Cliente::class, 'toggleDocFisico'])->name('clientes.documento.fisico.toggle');
     Route::get('/clientes/documentos/{id}',            [Cliente::class, 'listarDocumentos'])->name('clientes.documentos');
     Route::get('/clientes/documento/ver/{id}',         [Cliente::class, 'verDocumento'])->name('clientes.documento.ver');
     Route::get('/clientes/documento/descargar/{id}',   [Cliente::class, 'descargarDocumento'])->name('clientes.documento.descargar');
@@ -616,6 +617,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/producto/datos/{id}', [Producto::class, 'listarModalProductoEdit']);
 
     Route::get('/producto/listar/productos', [Producto::class, 'listarProductos']);
+    Route::post('/producto/inactivar', [Producto::class, 'inactivarProducto']);
     Route::post('/producto/actualizar/costos', [Producto::class, 'calcularCostos']);
     Route::get('/producto/detalle/{id}', DetalleProducto::class);
     Route::get('/detalle/producto/unidad/{id}', [DetalleProducto::class, 'unidadesVenta']);
@@ -1257,6 +1259,8 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/reporte/dashboard/ventas-vendedor-dia',     [DashboardVentas::class,'ventasPorVendedorDia']);
     Route::get('/reporte/dashboard/participacion-tipo-cliente', [DashboardVentas::class,'participacionTipoCliente']);
     Route::get('/reporte/dashboard/top-clientes-vendedor',   [DashboardVentas::class,'topClientesPorVendedor']);
+    Route::get('/reporte/dashboard/top-marcas',              [DashboardVentas::class,'topMarcas']);
+    Route::get('/reporte/dashboard/ventas-mes-vendedores',   [DashboardVentas::class,'ventasMesVendedores']);
 
     Route::get('/reporte/reporteria/consulta/{fecha_inicio}/{fecha_final}', [Reporteria::class,'consulta']);
     Route::get('/reporte/reporteria/productos', [Reporteria::class,'catalogoProductos']);

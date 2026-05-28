@@ -75,7 +75,7 @@
                             <button class="btn btn-primary btn-sm btn-block mb-1" onclick="dashboardVentas.cargarHistorico()">
                                 <i class="fas fa-search"></i> Consultar
                             </button>
-                            <button class="btn btn-success btn-sm btn-block" onclick="dashboardVentas.exportarExcel('hist')">
+                            <button class="btn btn-success btn-sm btn-block" onclick="dashboardVentas.exportarExcel()">
                                 <i class="fas fa-file-excel"></i> Excel + Gráficas
                             </button>
                         </div>
@@ -244,7 +244,7 @@
                         </button>
                     </div>
                     <div class="col-md-2 d-flex align-items-end">
-                        <button class="btn btn-success btn-sm btn-block" onclick="dashboardVentas.exportarExcel('sem')">
+                        <button class="btn btn-success btn-sm btn-block" onclick="dashboardVentas.exportarExcel()">
                             <i class="fas fa-file-excel"></i> Excel + Gráficas
                         </button>
                     </div>
@@ -419,7 +419,7 @@
 
             {{-- Filtros P3 --}}
             <div class="mb-3 border card card-body bg-light">
-                <div class="row g-2">
+                <div class="row g-2 mb-2">
                     <div class="col-md-2">
                         <label class="small font-weight-bold">Fecha inicio</label>
                         <input type="date" class="form-control form-control-sm" id="a-fi">
@@ -451,8 +451,19 @@
                             <option value="">Todas</option>
                         </select>
                     </div>
-                    <div class="col-md-2 d-flex align-items-end">
-                        <button class="btn btn-primary btn-sm btn-block" onclick="dashboardVentas.cargarAnalitica()">
+                    <div class="col-md-2">
+                        <label class="small font-weight-bold">Marca</label>
+                        <select class="form-control form-control-sm" id="a-marca">
+                            <option value="">Todas</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="row g-2">
+                    <div class="col-md-12 d-flex justify-content-end" style="gap:6px">
+                        <button class="btn btn-outline-secondary btn-sm" onclick="dashboardVentas.limpiarFiltrosAdv()">
+                            <i class="fas fa-times"></i> Limpiar
+                        </button>
+                        <button class="btn btn-primary btn-sm px-4" onclick="dashboardVentas.cargarAnalitica()">
                             <i class="fas fa-search"></i> Consultar
                         </button>
                     </div>
@@ -488,6 +499,11 @@
                         <i class="mr-1 fas fa-box"></i>Productos
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link" id="pill-comp" data-toggle="pill" href="#pill-pane-comp">
+                        <i class="mr-1 fas fa-balance-scale"></i>Comparar Vendedores
+                    </a>
+                </li>
             </ul>
 
             <div class="tab-content">
@@ -511,7 +527,7 @@
                     <div class="shadow-sm card">
                         <div class="py-2 card-header d-flex justify-content-between align-items-center">
                             <span class="font-weight-bold">Tabla Vendedores</span>
-                            <button class="btn btn-sm btn-success" onclick="dashboardVentas.exportarExcel('adv')">
+                            <button class="btn btn-sm btn-success" onclick="dashboardVentas.exportarExcel()">
                                 <i class="fas fa-file-excel"></i> Excel + Gráficas
                             </button>
                         </div>
@@ -557,7 +573,7 @@
                                 <span class="mr-1 badge badge-success">A — Top 70%</span>
                                 <span class="mr-1 badge badge-warning">B — 70–90%</span>
                                 <span class="mr-1 badge badge-danger">C — 90–100%</span>
-                                <button class="ml-2 btn btn-sm btn-success" onclick="dashboardVentas.exportarExcel('adv')">
+                                <button class="ml-2 btn btn-sm btn-success" onclick="dashboardVentas.exportarExcel()">
                                     <i class="fas fa-file-excel"></i> Excel + Gráficas
                                 </button>
                             </div>
@@ -600,10 +616,62 @@
                             </div>
                         </div>
                     </div>
+
+                    {{-- Marcas --}}
+                    <div class="mb-3 row">
+                        <div class="col-md-6">
+                            <div class="shadow-sm card">
+                                <div class="py-2 card-header"><span class="font-weight-bold"><i class="fas fa-tag mr-1 text-warning"></i>Top Marcas por Ingresos</span></div>
+                                <div class="p-2 card-body"><div id="chart-top-marcas" style="min-height:300px"></div></div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="shadow-sm card">
+                                <div class="py-2 card-header"><span class="font-weight-bold"><i class="fas fa-chart-pie mr-1 text-warning"></i>Participación por Marca (%)</span></div>
+                                <div class="p-2 card-body"><div id="chart-part-marcas" style="min-height:300px"></div></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Resumen de compradores --}}
+                    <div class="mb-3 row">
+                        <div class="col-md-6">
+                            <div class="shadow-sm card">
+                                <div class="py-2 card-header d-flex align-items-center justify-content-between">
+                                    <span class="font-weight-bold"><i class="fas fa-users mr-1 text-info"></i>Top Compradores del Período</span>
+                                    <span id="cli-prod-filtro" class="badge badge-info d-none" style="font-size:.7rem;max-width:160px;white-space:normal;text-align:right"></span>
+                                </div>
+                                <div class="p-2 card-body"><div id="chart-cli-prod" style="min-height:280px"></div></div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="shadow-sm card">
+                                <div class="py-2 card-header">
+                                    <span class="font-weight-bold"><i class="fas fa-list-ol mr-1 text-info"></i>Ranking de Compradores</span>
+                                </div>
+                                <div class="p-2 card-body table-responsive">
+                                    <table class="table table-striped table-sm" id="tabla-cli-prod" style="width:100%">
+                                        <thead class="thead-dark">
+                                            <tr>
+                                                <th>#</th>
+                                                <th>Cliente</th>
+                                                <th>Tipo</th>
+                                                <th class="text-center">ABC</th>
+                                                <th class="text-right">Facturas</th>
+                                                <th class="text-right">Total</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="tbody-cli-prod"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="shadow-sm card">
                         <div class="py-2 card-header d-flex justify-content-between align-items-center">
                             <span class="font-weight-bold">Tabla Productos</span>
-                            <button class="btn btn-sm btn-success" onclick="dashboardVentas.exportarExcel('adv')">
+                            <button class="btn btn-sm btn-success" onclick="dashboardVentas.exportarExcel()">
                                 <i class="fas fa-file-excel"></i> Excel + Gráficas
                             </button>
                         </div>
@@ -623,6 +691,104 @@
                                     </tr>
                                 </thead>
                                 <tbody id="tbody-productos"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    {{-- Tabla Marcas --}}
+                    <div class="mt-3 shadow-sm card">
+                        <div class="py-2 card-header">
+                            <span class="font-weight-bold"><i class="fas fa-tag mr-1 text-warning"></i>Tabla por Marca</span>
+                        </div>
+                        <div class="p-2 card-body table-responsive">
+                            <table class="table table-striped table-sm" id="tabla-marcas" style="width:100%">
+                                <thead class="thead-dark">
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Marca</th>
+                                        <th>Productos</th>
+                                        <th>Unidades</th>
+                                        <th>Ingresos</th>
+                                        <th>Precio Prom.</th>
+                                        <th>Facturas</th>
+                                        <th>Participación %</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-marcas"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- COMPARAR VENDEDORES --}}
+                <div class="tab-pane fade" id="pill-pane-comp">
+                    {{-- Filtros comparación --}}
+                    <div class="mb-3 border card card-body bg-light">
+                        <div class="row g-2 align-items-end">
+                            <div class="col-md-2">
+                                <label class="small font-weight-bold">Fecha inicio</label>
+                                <input type="date" class="form-control form-control-sm" id="cmp-fi">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="small font-weight-bold">Fecha fin</label>
+                                <input type="date" class="form-control form-control-sm" id="cmp-ff">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="small font-weight-bold">Seleccionar vendedores a comparar</label>
+                                <div id="cmp-vend-checks" class="d-flex flex-wrap py-1 border rounded bg-white px-2" style="gap:8px; min-height:38px; max-height:100px; overflow-y:auto;"></div>
+                            </div>
+                            <div class="col-md-2 d-flex align-items-end">
+                                <button class="btn btn-primary btn-sm btn-block" onclick="dashboardVentas.cargarComparacion()">
+                                    <i class="fas fa-exchange-alt"></i> Comparar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- KPI cards comparación --}}
+                    <div class="mb-3 row" id="cmp-kpi-cards"></div>
+
+                    {{-- Gráficas comparación --}}
+                    <div class="mb-3 row">
+                        <div class="col-12">
+                            <div class="shadow-sm card">
+                                <div class="py-2 card-header"><span class="font-weight-bold"><i class="fas fa-chart-line mr-1"></i> Evolución Mensual por Vendedor</span></div>
+                                <div class="p-2 card-body"><div id="chart-cmp-evolucion" style="min-height:380px"></div></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3 row">
+                        <div class="col-md-6">
+                            <div class="shadow-sm card">
+                                <div class="py-2 card-header"><span class="font-weight-bold"><i class="fas fa-chart-bar mr-1"></i> Total del Período</span></div>
+                                <div class="p-2 card-body"><div id="chart-cmp-total" style="min-height:300px"></div></div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="shadow-sm card">
+                                <div class="py-2 card-header"><span class="font-weight-bold"><i class="fas fa-chart-pie mr-1"></i> Participación de Mercado</span></div>
+                                <div class="p-2 card-body"><div id="chart-cmp-part" style="min-height:300px"></div></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Tabla comparación --}}
+                    <div class="shadow-sm card">
+                        <div class="py-2 card-header"><span class="font-weight-bold">Resumen por Vendedor</span></div>
+                        <div class="p-2 card-body table-responsive">
+                            <table class="table table-bordered table-sm" id="tabla-comparacion" style="width:100%">
+                                <thead class="thead-dark">
+                                    <tr>
+                                        <th>Vendedor</th>
+                                        <th>Facturas</th>
+                                        <th>Clientes</th>
+                                        <th>Total Ventas</th>
+                                        <th>Ticket Prom.</th>
+                                        <th>Participación %</th>
+                                        <th>Mejor Mes</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-comparacion"></tbody>
                             </table>
                         </div>
                     </div>
@@ -652,13 +818,6 @@
 
 #dashboardVentas .card-header { background: #f8f9fc; font-size: .85rem; }
 
-/* DT headers dark — all tables */
-#tabla-vendedores thead th, #tabla-clientes thead th, #tabla-productos thead th,
-#tabla-semanal thead th {
-    background-color: #343a40 !important;
-    color: #fff !important;
-    border-color: #454d55 !important;
-}
 /* Year toggle pills */
 .year-pill { border-radius: 20px !important; font-size: .75rem !important; padding: 2px 10px !important; }
 
@@ -688,6 +847,18 @@
 /* Clickable chart cards */
 .bi-clickable-chart { transition: box-shadow .2s ease; }
 .bi-clickable-chart:hover { box-shadow: 0 4px 16px rgba(236,64,27,.18) !important; }
+/* Vendor comparison checkboxes */
+.cmp-vend-label { display:flex; align-items:center; gap:5px; cursor:pointer; font-size:.82rem; padding:3px 8px; border-radius:4px; border:1px solid #dee2e6; background:#fff; transition:all .15s; }
+.cmp-vend-label:hover { border-color:#EC401B; background:rgba(236,64,27,.06); }
+.cmp-vend-check:checked + .cmp-vend-label { border-color:#EC401B; background:rgba(236,64,27,.12); font-weight:600; color:#EC401B; }
+.cmp-vend-check { display:none; }
+#tabla-vendedores thead th, #tabla-clientes thead th, #tabla-productos thead th,
+#tabla-marcas thead th, #tabla-comparacion thead th,
+#tabla-semanal thead th {
+    background-color: #343a40 !important;
+    color: #fff !important;
+    border-color: #454d55 !important;
+}
 /* Active filter bar */
 .bi-filter-bar {
     background: linear-gradient(90deg, rgba(236,64,27,.06) 0%, rgba(241,85,51,.04) 100%);

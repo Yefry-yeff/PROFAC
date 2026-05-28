@@ -66,8 +66,6 @@
 <body>
 
 @php
-    $altura =20;
-    $altura2 = 320;
     $contadorFilas = 0;
 @endphp
 
@@ -160,118 +158,72 @@
                 </table>
             </div>
         </div>
-            @if($contadorFilas>4 and $contadorFilas<24)
-                @php
-                    $altura = 170;
-                    $altura2 = 530;
-                @endphp
-                <div style="page-break-after: always"></div>
-            @else
-                @php
-                $altura = 20;
-                @endphp
-            @endif
+        <div style="margin-left:44px; margin-top:10px; width:45rem;">
+            <table style="width:100%; border:none; border-collapse:collapse;">
+                <tr>
+                    <td style="width:58%; border:none; vertical-align:top; padding:0 8px 0 0;">
+                        <div class="card border border-dark" style="height:auto; min-height:12rem;">
+                            <div class="card-body" style="padding:8px 10px;">
+                                <p class="card-text" style="font-size:12px; margin:0 0 4px 0;"><b>Registrado por:</b> {{$datos->registrado_por}}</p>
+                                @if($datos->estado_factura_id)
+                                    <p class="card-text" style="font-size:10px; margin:0 0 6px 0;">
+                                        @if($datos->estado_factura_id==1)
+                                            N{{$datos->numero_factura}}-CF11
+                                        @else
+                                            N{{$datos->numero_factura}}-CF12
+                                        @endif
+                                    </p>
+                                @endif
+                                <hr style="margin:4px 0; border-top:1px solid #999;">
+                                <p class="card-text" style="font-size:11px; margin:0 0 6px 0;"><b>Nota:</b> {{ $datos->comentario }}</p>
+                                <p class="card-text" style="font-size:11px; margin:0;">
+                                    @if($flagCentavos == false)
+                                        <b>"{{$numeroLetras." CON CERO CENTAVOS"}}"</b>
+                                    @else
+                                        <b>"{{$numeroLetras }}"</b>
+                                    @endif
+                                </p>
+                            </div>
+                        </div>
+                    </td>
+                    <td style="width:42%; border:none; vertical-align:top; padding:0 0 0 8px;">
+                        <div class="card border border-dark" style="height:auto; min-height:12rem;">
+                            <div class="card-body" style="padding:6px 10px;">
+                                <table style="width:100%; border:none; border-collapse:collapse; font-size:11px;">
+                                    <tr><td style="border:none; padding:1px 0;">Importe Exonerado:</td><td style="border:none; padding:1px 0; text-align:right;">L. 0.00</td></tr>
+                                    <tr><td style="border:none; padding:1px 0;">Importe Gravado 15%:</td><td style="border:none; padding:1px 0; text-align:right;">L. {{$importes->sub_total_grabado}}</td></tr>
+                                    <tr><td style="border:none; padding:1px 0;">Importe Gravado 18%:</td><td style="border:none; padding:1px 0; text-align:right;">L. 0.00</td></tr>
+                                    <tr><td style="border:none; padding:1px 0;">Importe Exento:</td><td style="border:none; padding:1px 0; text-align:right;">L. {{$importes->sub_total_excento}}</td></tr>
+                                    <tr><td style="border:none; padding:1px 0;">Desc. y Rebajas: {{$importes->porc_descuento}}%</td><td style="border:none; padding:1px 0; text-align:right;">L. {{$importes->monto_descuento}}</td></tr>
+                                    <tr><td style="border:none; padding:1px 0;">Sub Total:</td><td style="border:none; padding:1px 0; text-align:right;">L. {{$importes->sub_total}}</td></tr>
+                                    <tr><td style="border:none; padding:1px 0;">Impuesto sobre venta 15%:</td><td style="border:none; padding:1px 0; text-align:right;">L. {{$importes->isv}}</td></tr>
+                                    <tr><td style="border:none; padding:1px 0;">Impuesto sobre venta 18%:</td><td style="border:none; padding:1px 0; text-align:right;">L. 0.00</td></tr>
+                                    <tr><td style="border:none; padding:3px 0 1px; border-top:1px solid #999;"><b>Total a Pagar:</b></td><td style="border:none; padding:3px 0 1px; text-align:right; border-top:1px solid #999;"><b>L. {{$importes->total}}</b></td></tr>
+                                </table>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            </table>
+        </div>
 
+        <p style="margin:6px 44px 0; font-size:9px; text-align:right;">Original: Cliente, Copia obligado tributario emisor.</p>
 
-
-        <div style=" position: relative; margin-left:44px;">
-            <div class="card border border-dark" style="position:absolute;left:0px; margin-top:{{$altura}}px;   width:26rem; height:15rem;">
-                <div class="card-body">
-
-                    <p class="card-text" style="position:absolute;left:10px;  top:2px; font-size:14px;"><b>Registrado por:</b> {{$datos->registrado_por}} </p>
-
-
-
-                        @if($datos->estado_factura_id)
-
-                            @if($datos->estado_factura_id==1)
-                            <span style = "font-size: 10px;position:absolute;left:10px">N{{$datos->numero_factura}}-CF11</span></p>
-                            @else
-                            <span style = "font-size: 10px;position:absolute;left:10px">N{{$datos->numero_factura}}-CF12</span></p>
-                            @endif
-
-                        @endif
-
-
-
-
-                    <p class="card-text" style="position:absolute;left:0px;  top:28px; font-size:11px;">
-                        ____________________________________________________________________</p>
-
-
-
-                        <p class="card-text" style="position:absolute;left:10px;  top:70px; font-size:12px; max-width:420px"><b>Nota: </b>
-                            {{ $datos->comentario }}</p>
-
-                    @if($flagCentavos == false)
-                    <p class="card-text" style="position:absolute;left:10px;  top:240px; font-size:12px;">"{{$numeroLetras." CON CERO CENTAVOS"}}"</p>
-
-                    @else
-                    <p class="card-text" style="position:absolute;left:10px;  top:240px; font-size:12px;">"{{$numeroLetras }}"</p>
-                    @endif
-                </div>
-            </div>
-
-            <div class="card border border-dark"
-                style="position:absolute;left:430px; margin-top:{{$altura}}px;   width:18rem; height:15rem;">
-                <div class="card-body">
-                    <div>
-                        <p class="card-text " style="position:absolute; left:10px;  top:10px; font-size:14px;">Importe Exonerado:</p>
-                        <p class="card-text" style="position:absolute;  right:10px;  top:10px; font-size:14px;">L. 0.00</p>
-                    </div>
-                    <div>
-                        <p class="card-text" style="position:absolute; left:10px;  top:28px; font-size:14px;">Importe Gravado 15%: </p>
-                        <p class="card-text" style="position:absolute; right:10px;  top:28px; font-size:14px;">L. {{$importes->sub_total_grabado}}</p>
-                    </div>
-                    <div>
-                        <p class="card-text" style="position:absolute; left:10px;  top:46px; font-size:14px;">Importe Gravado 18%: </p>
-                        <p class="card-text" style="position:absolute; right:10px;  top:46px; font-size:14px;">L. 0.00</p>
-                    </div>
-
-                    <div>
-                        <p class="card-text" style="position:absolute; left:10px;  top:64px; font-size:14px;">Importe Exento:  </p>
-                        <p class="card-text" style="position:absolute; right:10px;  top:64px; font-size:14px;">L. {{$importes->sub_total_excento}}</p>
-                    </div>
-
-
-                    {{-- <p class="card-text" style="position:absolute; left:10px;  top:65px; font-size:16px;">Total Importe:
-                    </p>
-                    <p class="card-text" style="position:absolute; left:200px;  top:65px; font-size:16px;">1200.00</p> --}}
-
-                    <p class="card-text" style="position:absolute; left:10px;  top:85px; font-size:14px;">Desc. y Rebajas: {{$importes->porc_descuento}}%
-                    </p>
-                    <p class="card-text" style="position:absolute; right:10px;  top:85px; font-size:14px;">L. {{$importes->monto_descuento}}</p>
-
-                    <p class="card-text" style="position:absolute; left:10px;  top:105px; font-size:14px;">Sub Total:</p>
-                    <p class="card-text" style="position:absolute; right:10px;  top:105px; font-size:14px;">L. {{$importes->sub_total}}</p>
-
-                    <p class="card-text" style="position:absolute; left:10px;  top:130px; font-size:14px;">Impuesto sobre
-                        venta 15%: </p>
-                    <p class="card-text" style="position:absolute; right:10px;  top:130px; font-size:14px;"> L. {{$importes->isv}}</p>
-
-                    <p class="card-text" style="position:absolute; left:10px;  top:148px; font-size:14px;">Impuesto sobre
-                        venta 18%: </p>
-                    <p class="card-text" style="position:absolute; right:10px;  top:148px; font-size:14px;"> L. 0.00</p>
-
-                    <p class="card-text" style="position:absolute; left:10px;  top:185px; font-size:16px;"><b>Total a
-                            Pagar: </b></p>
-                    <p class="card-text" style="position:absolute; right:10px;  top:185px; font-size:16px;"><b>L. {{$importes->total}}</b>
-                    </p>
-                </div>
-            </div>
-
-            <div style="position:absolute;left:0px;  margin-top:{{$altura2}}px;  width:45rem;">
-                <p class="card-text" style="position:absolute;left:20px;  top:10px;">
-                    _______________________________________</p>
-                <p class="card-text" style="position:absolute;left:450px;  top:10px;">
-                    _______________________________________</p>
-                <p class="card-text" style="position:absolute;left:80px;  top:25px; ">{{$datos->nombre_cliente}}</p>
-                <p class="card-text" style="position:absolute;left:495px;  top:25px;">DISTRIBUCIONES VALENCIA</p>
-                <p class="card-text" style="position:absolute;left:460px;  top:-60px;">Original: Cliente, Copia obligado tributario emisor. </p>
-            </div>
-
-
-
+        <div style="margin-left:44px; margin-top:14px; width:45rem;">
+            <table style="width:100%; border:none; border-collapse:collapse; font-size:10px;">
+                <tr>
+                    <td style="width:50%; border:none; vertical-align:top; padding:0 20px 0 0;">
+                        <p style="margin:0; border-top:1px solid #000; padding-top:3px;">Cliente: {{$datos->nombre_cliente}}</p>
+                        <p style="margin:4px 0 0;">Recibido por: _______________________</p>
+                        <p style="margin:4px 0 0;">DNI: ________________________________</p>
+                        <p style="margin:4px 0 0;">Cargo: ______________________________</p>
+                        <p style="margin:4px 0 0;">Telefono: ___________________________</p>
+                    </td>
+                    <td style="width:50%; border:none; vertical-align:top; padding:0 0 0 20px; text-align:center;">
+                        <p style="margin:0; border-top:1px solid #000; padding-top:3px; text-align:center;">DISTRIBUCIONES VALENCIA</p>
+                    </td>
+                </tr>
+            </table>
         </div>
 
         {{-- @if($datosEntrega->estadoVale==2)

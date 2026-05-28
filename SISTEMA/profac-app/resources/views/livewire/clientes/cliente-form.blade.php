@@ -30,7 +30,14 @@
     .doc-repo-card { border: 1px solid #dee2e6; border-radius: 6px; overflow: hidden; height: 100%; display:flex; flex-direction:column; }
     .doc-repo-card-header { background: #e6f5f2; color: #1ab394; font-size: 0.78rem; font-weight: 700;
         padding: 8px 12px; text-transform: uppercase; letter-spacing: .04em;
-        border-bottom: 1px solid #b2ddd5; display:flex; align-items:center; gap:6px; }
+        border-bottom: 1px solid #b2ddd5; display:flex; align-items:center; gap:6px; justify-content:space-between; }
+    .doc-fisico-check { display:flex; align-items:center; gap:4px; cursor:pointer; white-space:nowrap;
+        font-size:0.72rem; font-weight:600; text-transform:none; letter-spacing:0;
+        color:#856404; background:#fff3cd; border:1px solid #ffc107; border-radius:10px;
+        padding:2px 7px; transition:background .2s; flex-shrink:0; }
+    .doc-fisico-check:hover { background:#ffe8a1; }
+    .doc-fisico-check.activo { color:#155724; background:#d4edda; border-color:#28a745; }
+    .doc-fisico-check input { margin:0; cursor:pointer; accent-color:#28a745; }
     .doc-repo-card-body { padding: 10px 12px; background: #fff; flex:1; }
     .tipo-doc-label { font-size: 0.78rem; font-weight: 600; color: #555; margin-bottom: 4px;
         text-transform: uppercase; letter-spacing: .04em; }
@@ -43,6 +50,19 @@
     .historial-resize { resize: vertical; overflow-y: auto; height: 168px; min-height: 100px; }
     .credito-hist-wrap { resize: vertical; overflow-y: auto; height: 110px; min-height: 80px;
         border: 1px solid #dee2e6; border-radius: 4px; padding: 6px; background: #fafafa; }
+    .ref-add-card { background:#fdf4e7; border:1px solid #e8d5bf; border-radius:6px; padding:12px 14px; }
+    .ref-add-title { font-size:.75rem; font-weight:700; color:#7d3f00; text-transform:uppercase; letter-spacing:.04em; margin:0 0 8px; }
+    .ref-label { font-size:.8rem; font-weight:600; color:#555; margin-bottom:2px; display:block; }
+    .ref-entry-card { border:1px solid #e0e7ef; border-radius:6px; padding:10px 12px; margin-bottom:8px; background:#f8f9fa; }
+    .ref-entry-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
+    .ref-entry-num { font-size:.72rem; font-weight:700; color:#e67e22; background:#fff3e0; border-radius:4px; padding:2px 8px; border:1px solid #ffd07a; }
+    .ref-entry-fields { display:flex; flex-wrap:wrap; gap:4px 18px; margin-top:6px; }
+    .ref-entry-field { display:flex; flex-direction:column; }
+    .ref-field-label { font-size:.68rem; font-weight:700; color:#999; text-transform:uppercase; letter-spacing:.03em; }
+    .ref-field-val { font-size:.82rem; color:#333; }
+    .ref-entry-comentario { font-size:.83rem; color:#444; word-break:break-word; }
+    .btn-ref-del { background:none; border:none; color:#dc3545; padding:2px 4px; font-size:.85rem; line-height:1; cursor:pointer; flex-shrink:0; }
+    .btn-ref-del:hover { color:#a71d2a; }
 </style>
 @endpush
 
@@ -168,7 +188,7 @@
                                 </div>
                                 <div class="col-md-6 col-lg-4">
                                     <div class="form-group">
-                                        <label>Vendedor</label>
+                                        <label>Vendedor <span class="text-danger">*</span></label>
                                         <select id="dp_vendedor" class="form-control">
                                             <option value="" disabled selected>-- Seleccione --</option>
                                             @foreach($clientes as $v)
@@ -214,19 +234,19 @@
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group">
-                                        <label>Teléfono Empresa</label>
+                                        <label>Teléfono Empresa <span class="text-danger">*</span></label>
                                         <input type="text" id="ct_telefono" class="form-control" maxlength="20">
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group">
-                                        <label>Nombre Contacto 1</label>
+                                        <label>Nombre Contacto 1 <span class="text-danger">*</span></label>
                                         <input type="text" id="ct_nombre1" class="form-control" maxlength="100">
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group">
-                                        <label>Teléfono Contacto 1</label>
+                                        <label>Teléfono Contacto 1 <span class="text-danger">*</span></label>
                                         <input type="text" id="ct_telefono1" class="form-control" maxlength="20">
                                     </div>
                                 </div>
@@ -420,44 +440,60 @@
                         {{-- ===== TAB 6: COMENTARIOS REFERENCIAS ===== --}}
                         <div class="tab-pane fade tab-section" id="tab-refs" role="tabpanel">
                             <p class="form-section-title">Comentarios y Referencias</p>
-                            <div class="row">
-                                <div class="col-md-12">
-                                    <div class="form-group">
-                                        <label>Referencias</label>
-                                        <textarea id="ref_referencias" class="form-control" rows="3" maxlength="1000" placeholder="Ingrese referencias del cliente..."></textarea>
+
+                            {{-- Formulario para agregar una nueva entrada de referencia --}}
+                            <div class="ref-add-card mb-3">
+                                <p class="ref-add-title"><i class="fa fa-plus-circle mr-1"></i> Nueva Referencia</p>
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <div class="form-group mb-2">
+                                            <label class="ref-label">Comentario / Referencia</label>
+                                            <textarea id="ref_comentario_input" class="form-control form-control-sm" rows="2"
+                                                maxlength="300" placeholder="Describa la referencia..."></textarea>
+                                        </div>
                                     </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-group">
-                                        <label>Tiempo de Relación</label>
-                                        <input type="text" id="ref_tiempo_relacion" class="form-control" maxlength="100" placeholder="Ej. 2 años">
+                                    <div class="col-md-4">
+                                        <div class="form-group mb-2">
+                                            <label class="ref-label">Tiempo de Relación</label>
+                                            <input type="text" id="ref_tiempo_relacion_input" class="form-control form-control-sm"
+                                                maxlength="100" placeholder="Ej. 2 años">
+                                        </div>
                                     </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-group">
-                                        <label>Tiempo de Crédito</label>
-                                        <input type="text" id="ref_tiempo_credito" class="form-control" maxlength="100" placeholder="Ej. 1 año">
+                                    <div class="col-md-4">
+                                        <div class="form-group mb-2">
+                                            <label class="ref-label">Tiempo de Crédito</label>
+                                            <input type="text" id="ref_tiempo_credito_input" class="form-control form-control-sm"
+                                                maxlength="100" placeholder="Ej. 1 año">
+                                        </div>
                                     </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-group">
-                                        <label>Límite de Crédito</label>
-                                        <div class="input-group">
-                                            <div class="input-group-prepend"><span class="input-group-text">L</span></div>
-                                            <input type="text" id="ref_limite_credito" class="form-control" placeholder="0.00" data-type="currency">
+                                    <div class="col-md-4">
+                                        <div class="form-group mb-2">
+                                            <label class="ref-label">Límite de Crédito</label>
+                                            <div class="input-group input-group-sm">
+                                                <div class="input-group-prepend"><span class="input-group-text">L</span></div>
+                                                <input type="text" id="ref_limite_credito_input" class="form-control"
+                                                    placeholder="0.00" data-type="currency">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-12">
+                                        <div class="form-group mb-2">
+                                            <label class="ref-label">Observaciones</label>
+                                            <textarea id="ref_observaciones_input" class="form-control form-control-sm" rows="2"
+                                                maxlength="500" placeholder="Observaciones adicionales..."></textarea>
                                         </div>
                                     </div>
                                 </div>
-                                <div class="col-md-6">&nbsp;</div>
-                                <div class="col-md-12">
-                                    <div class="form-group">
-                                        <label>Observaciones</label>
-                                        <textarea id="ref_observaciones" class="form-control" rows="3" maxlength="1000" placeholder="Observaciones adicionales..."></textarea>
-                                    </div>
-                                </div>
+                                <button type="button" class="btn btn-sm btn-success" onclick="agregarRefEntrada()">
+                                    <i class="fa fa-plus"></i> Agregar Referencia
+                                </button>
                             </div>
+
+                            {{-- Lista de referencias agregadas --}}
+                            <div id="ref_entradas_list"></div>
+
                             <button class="btn btn-primary mt-2" onclick="guardarReferencias()" id="btn_guardar_refs">
-                                <i class="fa fa-save"></i> Guardar Comentarios/Referencias
+                                <i class="fa fa-save"></i> Guardar Referencias
                             </button>
                         </div>
 
@@ -520,6 +556,8 @@
                         'croquis'                => ['label' => 'Croquis',                      'icon' => 'fa-map-o'],
                         'contrato_arrendamiento' => ['label' => 'Contrato de Arrendamiento',    'icon' => 'fa-handshake-o'],
                         'foto_establecimiento'   => ['label' => 'Fotos de Establecimiento',     'icon' => 'fa-camera'],
+                        'letra_cambio'           => ['label' => 'Letra de Cambio',              'icon' => 'fa-file-text'],
+                        'aval_solidario'         => ['label' => 'Aval Solidario',               'icon' => 'fa-users'],
                     ];
                     @endphp
                     <div class="row">
@@ -527,7 +565,13 @@
                         <div class="col-md-6 col-lg-3 mb-3">
                             <div class="doc-repo-card">
                                 <div class="doc-repo-card-header">
-                                    <i class="fa {{ $info['icon'] }}"></i> {{ $info['label'] }}
+                                    <span><i class="fa {{ $info['icon'] }}"></i> {{ $info['label'] }}</span>
+                                    <label class="doc-fisico-check mb-0" id="lbl_fisico_{{ $slug }}" title="Marcar: tienen el documento físico pero sin versión digital">
+                                        <input type="checkbox" id="chk_fisico_{{ $slug }}"
+                                               onchange="toggleDocFisico('{{ $slug }}', this)"
+                                               onclick="event.stopPropagation()">
+                                        Tiene físico
+                                    </label>
                                 </div>
                                 <div class="doc-repo-card-body">
                                     <div id="docs_list_{{ $slug }}" class="mb-2">

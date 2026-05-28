@@ -21,5 +21,7 @@ class ClienteDocumento extends Model
         'croquis'                 => 'Croquis',
         'contrato_arrendamiento'  => 'Contrato de Arrendamiento',
         'foto_establecimiento'    => 'Fotos de Establecimiento',
+        'letra_cambio'            => 'Letra de Cambio',
+        'aval_solidario'          => 'Aval Solidario',
     ];
 }
