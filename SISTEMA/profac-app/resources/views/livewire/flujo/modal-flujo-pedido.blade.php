@@ -36,7 +36,13 @@
     .fmp-step-icon-sm { font-size:11px; margin-top:2px; }
     .fmp-step-clickable { cursor:pointer; transition:transform .15s ease; }
     .fmp-step-clickable:hover { transform:translateY(-3px); }
+    .fmp-overlay {
+        align-items:flex-start !important;
+        justify-content:center;
+        padding:72px 16px 16px !important;
+    }
     @@media (max-width: 575px) {
+        .fmp-overlay { padding:12px !important; }
         .fmp-step-circle { width:44px !important; height:44px !important; }
         .fmp-step-circle > div { width:44px !important; height:44px !important; }
         .fmp-step-num { font-size:15px !important; }
@@ -113,8 +119,9 @@
 
 {{-- ── Overlay ─────────────────────────────────────────────────────────── --}}
 <div id="fmpModalWrap" role="dialog"
+    class="fmp-overlay"
      style="position:fixed; inset:0; z-index:99999;
-            display:flex; align-items:center; justify-content:center; padding:16px;
+          display:flex;
             pointer-events:none;
             background:rgba(15,15,35,.62); backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px);">
 
@@ -135,7 +142,7 @@
                         <span style="background:rgba(255,255,255,.22); border-radius:20px;
                                      padding:2px 12px; font-size:14px; margin-left:6px;">
                             @if(!empty($d['sin_pedido']))
-                                <i class="mr-1 fa fa-times-circle"></i> Sin pedido
+                                <i class="mr-1 fa fa-hashtag"></i> Flujo #{{ $d['flujo_id'] ?? $flujoId ?? $d['id'] }}
                             @else
                                 #{{ $d['id'] }}
                             @endif
@@ -294,14 +301,14 @@
                             <div style="font-size:12px; font-weight:700; color:{{ $labelColor }};
                                         {{ $esSeleccionado ? 'text-decoration:underline;' : '' }}">
                                 @if($esSinPedido)
-                                Sin pedido
+                                Flujo #{{ $d['flujo_id'] ?? $flujoId ?? $d['id'] }}
                                 @else
                                 {{ $info['title'] }}
                                 @endif
                             </div>
                             <div style="font-size:10px; color:{{ $labelColor }}; opacity:{{ $pendiente ? '.5' : '1' }};">
                                 @if ($esSinPedido)
-                                    <i class="fa fa-times-circle"></i> Sin pedido
+                                    <i class="fa fa-hashtag"></i> Flujo #{{ $d['flujo_id'] ?? $flujoId ?? $d['id'] }}
                                 @elseif ($esSinAplica)
                                     <i class="fa fa-times-circle"></i> N/A
                                 @elseif ($completado)
@@ -652,8 +659,8 @@
                             border-radius:12px; border:1px solid #e8eaf0;">
                     <span>
                         @if(!empty($d['sin_pedido']))
-                        <i class="mr-1 fa fa-times-circle" style="color:#e74c3c;"></i>
-                        <strong style="color:#e74c3c;">Sin pedido</strong>
+                    <i class="mr-1 fa fa-hashtag" style="color:#1a7efb;"></i>
+                    <strong style="color:#1a7efb;">Flujo #{{ $d['flujo_id'] ?? $flujoId ?? $d['id'] }}</strong>
                         @else
                         <i class="mr-1 fa fa-hashtag text-primary"></i>
                         <strong>Pedido #{{ $d['id'] }}</strong>

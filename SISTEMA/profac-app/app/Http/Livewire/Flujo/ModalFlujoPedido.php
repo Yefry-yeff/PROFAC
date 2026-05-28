@@ -282,6 +282,7 @@ class ModalFlujoPedido extends Component
 
         $this->pedidoData = [
             'id'             => (int) $flujo->identificacion,
+            'flujo_id'       => (int) $flujoId,
             'estado'         => 'activo',
             'observaciones'  => $cotizacion ? ($cotizacion->observaciones ?? null) : null,
             'created_at'     => $cotizacion ? $cotizacion->created_at : ($facturaDirecta ? $facturaDirecta->created_at : $flujo->created_at),
