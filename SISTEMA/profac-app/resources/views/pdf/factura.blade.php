@@ -125,8 +125,8 @@
                         <td style="width:33%; border:none; padding:2px 0 1px; text-align:right;"><b>Identificativo del registro de la SAG</b></td>
                     </tr>
                     <tr>
-                        <td style="border:none; height:14px; border-bottom:1px solid #aaa;"></td>
-                        <td style="border:none; height:14px; border-bottom:1px solid #aaa;"></td>
+                        <td style="border:none; height:14px; border-bottom:1px solid #aaa;">{{ !empty($correlativoExonerado) ? strtoupper($correlativoExonerado) : '' }}</td>
+                        <td style="border:none; height:14px; border-bottom:1px solid #aaa; text-align:center;">{{ !empty($constanciaExonerado) ? strtoupper($constanciaExonerado) : '' }}</td>
                         <td style="border:none; height:14px; border-bottom:1px solid #aaa;"></td>
                     </tr>
                 </table>

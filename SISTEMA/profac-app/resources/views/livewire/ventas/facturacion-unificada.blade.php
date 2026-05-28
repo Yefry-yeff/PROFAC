@@ -602,28 +602,7 @@
                                         </div>
                                     </div>
                                 </div>
-                                {{-- Orden de compra (oculto por defecto) --}}
-                                <div class="col-12 col-md-4" id="campo_orden_compra"
-                                    style="{{ ($config->requiere_orden_compra ?? false) ? '' : 'display:none' }}">
-                                    <label class="ofr-label">Orden de Compra</label>
-                                    <div class="input-group input-group-sm">
-                                        <select class="form-control form-control-sm" name="ordenCompra" id="ordenCompra">
-                                            <option value="" selected disabled>--Seleccionar--</option>
-                                        </select>
-                                        <div class="input-group-append">
-                                            <button type="button" id="btnNuevaOrdenInline"
-                                                onclick="abrirModalNuevaOrden()"
-                                                title="Crear nueva orden de compra"
-                                                style="background:linear-gradient(135deg,#1b5e20,#2e7d32); color:#fff; border:none;
-                                                       border-radius:0 6px 6px 0; padding:0 10px; font-size:13px;
-                                                       font-weight:700; cursor:pointer; white-space:nowrap;">
-                                                <i class="fa fa-plus"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                                {{-- ── N° Orden de Compra y Forma F01 (cotizaciones y facturación SR/Clientes A) ──────── --}}
-                                @if(in_array(($config->codigo ?? ''), ['cotizacion_clientes_a', 'sin_restriccion_gobierno']))
+                                {{-- ── N° Orden de Compra y Forma F01 ──────── --}}
                                 <div class="col-12 col-md-4">
                                     <label class="ofr-label">N° Orden de Compra</label>
                                     <div class="input-group input-group-sm">
@@ -676,7 +655,6 @@
                                     </div>
                                     <input type="hidden" id="archivo_forma_f01" name="archivo_forma_f01" value="">
                                 </div>
-                                @endif
                             </div>
 
                             </div>{{-- /sec_cliente --}}
@@ -1969,6 +1947,44 @@
     // ================================================================
     // BROWSER EVENTS: Pedido vinculado / desvinculado (Livewire → JS)
     // ================================================================
+    function aplicarDocumentosComercialesEnFormulario(d) {
+        var numeroOrdenEl = document.getElementById('numero_orden_compra');
+        var numeroF01El   = document.getElementById('numero_forma_f01');
+        var archOrdenEl   = document.getElementById('archivo_orden_compra');
+        var archF01El     = document.getElementById('archivo_forma_f01');
+
+        if (numeroOrdenEl) numeroOrdenEl.value = d.numeroOrdenCompra || '';
+        if (numeroF01El) numeroF01El.value = d.numeroFormaF01 || '';
+        if (archOrdenEl) archOrdenEl.value = d.archivoOrdenCompra || '';
+        if (archF01El) archF01El.value = d.archivoFormaF01 || '';
+
+        var previewOrden = document.getElementById('preview_archivo_orden_compra');
+        var txtOrden     = document.getElementById('txt_archivo_orden_compra');
+        var rutaOrden    = d.archivoOrdenCompra || '';
+        if (previewOrden && txtOrden) {
+            if (rutaOrden) {
+                previewOrden.style.display = 'block';
+                txtOrden.textContent = rutaOrden.split('/').pop();
+            } else {
+                previewOrden.style.display = 'none';
+                txtOrden.textContent = '';
+            }
+        }
+
+        var previewF01 = document.getElementById('preview_archivo_forma_f01');
+        var txtF01     = document.getElementById('txt_archivo_forma_f01');
+        var rutaF01    = d.archivoFormaF01 || '';
+        if (previewF01 && txtF01) {
+            if (rutaF01) {
+                previewF01.style.display = 'block';
+                txtF01.textContent = rutaF01.split('/').pop();
+            } else {
+                previewF01.style.display = 'none';
+                txtF01.textContent = '';
+            }
+        }
+    }
+
     window.addEventListener('pedido-seleccionado', function(e) {
         var d = e.detail;
         // Re-habilitar Select2 de cliente (puede estar disabled en re-render)
@@ -1995,6 +2011,8 @@
             $('#vendedor').append(optV).trigger('change');
         }
 
+        aplicarDocumentosComercialesEnFormulario(d);
+
         // Bloquear cliente cuando hay pedido vinculado
         $('#seleccionarCliente').prop('disabled', true);
     });
@@ -2007,6 +2025,8 @@
         $('#seleccionarCliente').empty().append('<option value="" selected disabled>--Seleccionar un cliente--</option>').trigger('change');
         document.getElementById('nombre_cliente_ventas').value = '';
         document.getElementById('rtn_ventas').value = '';
+
+        aplicarDocumentosComercialesEnFormulario({});
 
         // Restaurar vendedor por defecto
         if (d.vendedorId) {
@@ -2797,6 +2817,7 @@
         if (!idCliente) return;
 
         var selectEl = document.getElementById('ordenCompra');
+        if (!selectEl) return;
         selectEl.innerHTML = '<option value="" disabled selected>Cargando...</option>';
 
         axios.get(urls.orden_compra, { params: { idCliente: idCliente } })
@@ -2882,6 +2903,7 @@
                     .then(function(res) {
                         var ordenes = res.data.results || [];
                         var selectEl = document.getElementById('ordenCompra');
+                        if (!selectEl) return;
                         var html = '<option value="" disabled>--Seleccionar--</option>';
                         ordenes.forEach(function(o) {
                             var sel = (o.text === numeroOrden) ? ' selected' : '';
@@ -3332,7 +3354,8 @@
 
         if (tipo === 'imprimir') {
             if (idFactura) {
-                window.open('/factura/cooporativo/' + idFactura, '_blank');
+                var printUrl = (urls && urls.imprimir) ? urls.imprimir : '/factura/cooporativo/{id}';
+                window.open(printUrl.replace('{id}', idFactura), '_blank');
             }
             return;
         }
@@ -3749,6 +3772,11 @@
                     clienteNombre: {!! json_encode($clientePedido['nombre']) !!},
                     vendedorId:    {!! (int)($vendedorDefault['id'] ?? 0) !!},
                     vendedorNombre:{!! json_encode($vendedorDefault['name'] ?? '') !!},
+                    flujoId:       {!! json_encode($flujoVinculadoId ?? null) !!},
+                    numeroOrdenCompra: {!! json_encode($documentosComerciales['numero_orden_compra'] ?? null) !!},
+                    archivoOrdenCompra: {!! json_encode($documentosComerciales['archivo_orden_compra'] ?? null) !!},
+                    numeroFormaF01: {!! json_encode($documentosComerciales['numero_forma_f01'] ?? null) !!},
+                    archivoFormaF01: {!! json_encode($documentosComerciales['archivo_forma_f01'] ?? null) !!},
                 }
             }));
         });
@@ -3801,6 +3829,12 @@
                 var isvUsar      = parseFloat(prod.isv || 0);
                 var totalUsar    = parseFloat(prod.total || 0);
                 var isvPct       = parseFloat(prod.isv_producto || 0);
+                var esExonerada  = (codigoActual === 'exoneradas') || (tipoFacturaConfig && !tipoFacturaConfig.aplica_isv);
+                if (esExonerada) {
+                    isvUsar = 0;
+                    isvPct = 0;
+                    totalUsar = subTotalUsar;
+                }
                 var bodegaTexto  = prod.nombre_bodega || '';
                 var idBodega     = prod.Bodega_id || '';
                 var idSeccion    = prod.seccion_id || '';

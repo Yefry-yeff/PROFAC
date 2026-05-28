@@ -28,6 +28,7 @@ use App\Models\PrefacturaAuditoria;
 use App\Models\User;
 use App\Http\Controllers\CAI\Notificaciones;
 use App\Models\Escalas\modelCategoriaCliente;
+use App\Http\Livewire\VentasExoneradas\VentasExoneradas as VentasExoneradasController;
 
 class FacturacionCorporativa extends Component
 {
@@ -1031,6 +1032,22 @@ class FacturacionCorporativa extends Component
                     ->update(['estado' => 'facturado', 'updated_at' => now()]);
             }
 
+            // Persistir documentos comerciales en flujo si viene de un flujo vinculado
+            if (!empty($request->flujo_id)) {
+                $docUpdate = array_filter([
+                    'numero_orden_compra'  => $request->numero_orden_compra  ?: null,
+                    'archivo_orden_compra' => $request->archivo_orden_compra ?: null,
+                    'numero_forma_f01'     => $request->numero_forma_f01     ?: null,
+                    'archivo_forma_f01'    => $request->archivo_forma_f01    ?: null,
+                    'numero_exoneracion'   => $request->numero_exoneracion   ?: null,
+                    'archivo_exoneracion'  => $request->archivo_exoneracion  ?: null,
+                ], fn($v) => $v !== null);
+                if (!empty($docUpdate)) {
+                    $docUpdate['updated_at'] = now();
+                    DB::table('flujo')->where('id', (int) $request->flujo_id)->update($docUpdate);
+                }
+            }
+
             DB::commit();
 
             if (($request->modo ?? null) === 'editar_factura' && !empty($request->prefactura_id) && !empty($request->autorizacion_id)) {
@@ -1666,6 +1683,10 @@ class FacturacionCorporativa extends Component
 
     public function imprimirFacturaCoorporativa($idFactura)
     {
+        $tipoVentaId = (int) (DB::table('factura')->where('id', $idFactura)->value('tipo_venta_id') ?? 0);
+        if ($tipoVentaId === 3) {
+            return (new VentasExoneradasController())->imprimirFacturaExonerada($idFactura);
+        }
 
         $cai = DB::SELECTONE("
         select
@@ -1827,6 +1848,10 @@ class FacturacionCorporativa extends Component
 
     public function imprimirFacturaCoorporativaCopia($idFactura)
     {
+        $tipoVentaId = (int) (DB::table('factura')->where('id', $idFactura)->value('tipo_venta_id') ?? 0);
+        if ($tipoVentaId === 3) {
+            return (new VentasExoneradasController())->imprimirFacturaExoneradaCopia($idFactura);
+        }
 
         $cai = DB::SELECTONE("
         select

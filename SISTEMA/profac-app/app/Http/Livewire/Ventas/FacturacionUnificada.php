@@ -39,6 +39,44 @@ class FacturacionUnificada extends Component
 
     // ── Pedido preview (para modal de detalle) ────────────────────────────
     public $pedidoDetalle      = null;
+    public $documentosComerciales = [
+        'numero_orden_compra'  => null,
+        'archivo_orden_compra' => null,
+        'numero_forma_f01'     => null,
+        'archivo_forma_f01'    => null,
+    ];
+
+    private function cargarDocumentosComercialesDesdeFlujo(?int $flujoId): void
+    {
+        $this->documentosComerciales = [
+            'numero_orden_compra'  => null,
+            'archivo_orden_compra' => null,
+            'numero_forma_f01'     => null,
+            'archivo_forma_f01'    => null,
+        ];
+
+        if (empty($flujoId)) {
+            return;
+        }
+
+        $doc = DB::table('flujo')
+            ->where('id', (int) $flujoId)
+            ->first([
+                'numero_orden_compra',
+                'archivo_orden_compra',
+                'numero_forma_f01',
+                'archivo_forma_f01',
+            ]);
+
+        if ($doc) {
+            $this->documentosComerciales = [
+                'numero_orden_compra'  => $doc->numero_orden_compra ?? null,
+                'archivo_orden_compra' => $doc->archivo_orden_compra ?? null,
+                'numero_forma_f01'     => $doc->numero_forma_f01 ?? null,
+                'archivo_forma_f01'    => $doc->archivo_forma_f01 ?? null,
+            ];
+        }
+    }
 
     public function mount($codigo = null)
     {
@@ -341,6 +379,7 @@ class FacturacionUnificada extends Component
 
         $this->flujoVinculadoId = $flujoId;
         $this->flujoVinculado   = (array) $f;
+        $this->cargarDocumentosComercialesDesdeFlujo((int) $flujoId);
         $this->clientePedido    = [
             'id'     => $f->cliente_id,
             'nombre' => $f->cliente,
@@ -355,6 +394,11 @@ class FacturacionUnificada extends Component
             'clienteNombre'  => $this->clientePedido['nombre'],
             'vendedorId'     => $this->vendedorDefault['id'] ?? null,
             'vendedorNombre' => $this->vendedorDefault['name'] ?? null,
+            'flujoId'        => $this->flujoVinculadoId,
+            'numeroOrdenCompra' => $this->documentosComerciales['numero_orden_compra'] ?? null,
+            'archivoOrdenCompra' => $this->documentosComerciales['archivo_orden_compra'] ?? null,
+            'numeroFormaF01' => $this->documentosComerciales['numero_forma_f01'] ?? null,
+            'archivoFormaF01' => $this->documentosComerciales['archivo_forma_f01'] ?? null,
         ]);
     }
 
@@ -384,6 +428,7 @@ class FacturacionUnificada extends Component
 
         // Ligado de flujo (solo prefacturas)
         $this->flujoVinculadoId = $pref->flujo_id ? (int) $pref->flujo_id : null;
+        $this->cargarDocumentosComercialesDesdeFlujo($this->flujoVinculadoId);
         $this->flujoVinculado   = $pref->flujo_id ? [
             'flujo_id'  => (int) $pref->flujo_id,
             'cliente'   => $pref->nombre_cliente,
@@ -439,6 +484,11 @@ class FacturacionUnificada extends Component
             'clienteNombre'  => $this->clientePedido['nombre'],
             'vendedorId'     => $vendedorId,
             'vendedorNombre' => $vendedorNombre,
+            'flujoId'        => $this->flujoVinculadoId,
+            'numeroOrdenCompra' => $this->documentosComerciales['numero_orden_compra'] ?? null,
+            'archivoOrdenCompra' => $this->documentosComerciales['archivo_orden_compra'] ?? null,
+            'numeroFormaF01' => $this->documentosComerciales['numero_forma_f01'] ?? null,
+            'archivoFormaF01' => $this->documentosComerciales['archivo_forma_f01'] ?? null,
         ]);
     }
     /**
