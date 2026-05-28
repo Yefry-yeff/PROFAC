@@ -207,6 +207,13 @@
 
     <!---menu lateral de la plantilla--->
     <style>
+        /* ── Fix: colisión Tailwind .collapse (visibility:collapse) vs Bootstrap .collapse ── */
+        #side-menu .nav-second-level,
+        #side-menu .nav-second-level li,
+        #side-menu .nav-second-level li a {
+            visibility: visible !important;
+        }
+
         /* ====== HEADER: fijo en la parte superior, nunca se mueve ====== */
         nav.sticky {
             position: fixed !important;
@@ -1209,11 +1216,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!toggleBtn) return;
         if (isNonDesktop()) {
             if (e) e.preventDefault();
-            const isOpen = document.body.classList.toggle('mobile-sidebar-open');
-            // Al cerrar, limpiar submenús activos para que no queden flotando
-            if (!isOpen) {
-                document.querySelectorAll('#side-menu > li').forEach(li => li.classList.remove('active'));
-            }
+            document.body.classList.toggle('mobile-sidebar-open');
         }
     }
 
@@ -1225,19 +1228,16 @@ document.addEventListener('DOMContentLoaded', function () {
     if (overlay) {
         overlay.addEventListener('click', () => {
             document.body.classList.remove('mobile-sidebar-open');
-            // Cerrar submenús activos
-            document.querySelectorAll('#side-menu > li').forEach(li => li.classList.remove('active'));
         });
     }
 
-    // Cerrar submenús y sidebar al hacer clic fuera del menú en móvil/tablet
+    // Cerrar sidebar al hacer clic fuera del menú en móvil/tablet
     document.addEventListener('click', (e) => {
         if (!isNonDesktop()) return;
         const clickedInsideMenu = e.target.closest('#side-menu');
         const clickedToggle = e.target.closest('.navbar-minimalize');
         const clickedOverlay = e.target.closest('.mobile-sidebar-overlay');
         if (!clickedInsideMenu && !clickedToggle && !clickedOverlay) {
-            document.querySelectorAll('#side-menu > li').forEach(li => li.classList.remove('active'));
             document.body.classList.remove('mobile-sidebar-open');
         }
     });
@@ -1246,7 +1246,6 @@ document.addEventListener('DOMContentLoaded', function () {
     window.addEventListener('resize', () => {
         if (!isNonDesktop()) {
             document.body.classList.remove('mobile-sidebar-open');
-            document.querySelectorAll('#side-menu > li').forEach(li => li.classList.remove('active'));
         }
     });
 });
