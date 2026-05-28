@@ -1810,52 +1810,6 @@
                             <i class="fa fa-print"></i> Imprimir factura
                         </a>
 
-                        <button type="button" wire:click="confirmarAccionFactura('anular')"
-                                style="background:linear-gradient(135deg,#e74c3c,#c0392b); color:#fff;
-                                       border:none; border-radius:8px; padding:6px 14px;
-                                       font-size:12px; font-weight:700; cursor:pointer;">
-                            <i class="mr-1 fa fa-ban"></i> Anular Factura
-                        </button>
-                    </div>
-                    @endif
-
-                    @if ($confirmAccionFactura === 'anular')
-                    <div style="margin-top:10px; background:#fff5f5; border:1px solid #feb2b2;
-                                border-radius:12px; padding:14px;">
-                        <p style="font-size:13px; color:#555; margin:0 0 4px;">
-                            <i class="mr-1 fa fa-ban text-danger"></i>
-                            ¿Anular la <strong>Factura #{{ $fac['id'] }}</strong>?
-                        </p>
-                        <p style="font-size:11px; color:#888; margin:0 0 10px;">
-                            El flujo regresará a Ofertas. La oferta ganadora quedará disponible para re-seleccionarse.
-                        </p>
-                        <div style="margin-bottom:10px;">
-                            <label style="font-size:12px; font-weight:700; color:#c0392b; display:block; margin-bottom:4px;">
-                                <i class="fa fa-comment mr-1"></i> Motivo de anulación <span style="color:#e74c3c;">*</span>
-                            </label>
-                            <textarea wire:model.defer="motivoAnulacionFactura"
-                                      rows="3"
-                                      placeholder="Indique el motivo de la anulación..."
-                                      style="width:100%; border:1px solid #feb2b2; border-radius:8px;
-                                             padding:8px 10px; font-size:12px; resize:vertical;
-                                             background:#fff; outline:none; box-sizing:border-box;"></textarea>
-                            @if($mensajeError && str_contains($mensajeError, 'motivo'))
-                            <p style="font-size:11px; color:#e74c3c; margin:4px 0 0;">{{ $mensajeError }}</p>
-                            @endif
-                        </div>
-                        <div style="display:flex; gap:8px;">
-                            <button type="button" wire:click="anularFactura"
-                                    style="background:linear-gradient(135deg,#e74c3c,#c0392b); color:#fff;
-                                           border:none; border-radius:8px; padding:7px 18px;
-                                           font-size:12px; font-weight:700; cursor:pointer;">
-                                <i class="mr-1 fa fa-ban"></i> Confirmar anulación
-                            </button>
-                            <button type="button" wire:click="cancelarConfirmFactura"
-                                    style="background:#f0f0f0; color:#555; border:none;
-                                           border-radius:8px; padding:7px 16px; font-size:12px; cursor:pointer;">
-                                Cancelar
-                            </button>
-                        </div>
                     </div>
                     @endif
                 </div>
