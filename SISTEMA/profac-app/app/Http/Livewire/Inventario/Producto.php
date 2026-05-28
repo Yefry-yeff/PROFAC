@@ -568,22 +568,27 @@ class Producto extends Component
             $producto = ModelProducto::find($request['id_producto_edit']);
             $producto->nombre = trim($request['nombre_producto_edit']);
             $producto->descripcion = trim($request['descripcion_producto_edit']);
-            $producto->isv = trim($request['isv_producto_edit']);
             $producto->codigo_barra = $codBarra;
             $producto->codigo_estatal = trim($request['cod_estatal_producto_edit']);
             $producto->sub_categoria_id = $request['sub_categoria_producto_edit'];
-            $producto->precio_base = trim($request['precioBase_edit']);
-            $producto->costo_promedio = $request['costo_promedio_editar'];
             $producto->unidadad_compra = trim($request['unidades_editar']);
-            $producto->ultimo_costo_compra = trim($request->ultimo_costo_compra_editar);
             $producto->unidad_medida_compra_id = $request['unidad_producto_editar'];
-            $producto->precio1 = $request['precio1'];
-            $producto->precio2 = $request['precio2'];
-            $producto->precio3 = $request['precio3'];
-            $producto->precio4 = $request['precio4'];
             $producto->marca_id= $request->marca_producto_editar;
             $producto->tiempo_recuperacion_meses = $request->tiempo_recuperacion_meses_edit ?: null;
             $producto->origen = trim($request->origen_edit ?? '') ?: null;
+
+            // Solo el administrador puede modificar ISV y precios/costos
+            if (Auth::user()->rol_id == 1) {
+                $producto->isv = trim($request['isv_producto_edit']);
+                $producto->precio_base = trim($request['precioBase_edit']);
+                $producto->costo_promedio = $request['costo_promedio_editar'];
+                $producto->ultimo_costo_compra = trim($request->ultimo_costo_compra_editar);
+                $producto->precio1 = $request['precio1'];
+                $producto->precio2 = $request['precio2'];
+                $producto->precio3 = $request['precio3'];
+                $producto->precio4 = $request['precio4'];
+            }
+
             $producto->users_id = Auth::user()->id;
             $producto->save();
 

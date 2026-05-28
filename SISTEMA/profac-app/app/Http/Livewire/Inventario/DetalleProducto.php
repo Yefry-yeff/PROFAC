@@ -23,9 +23,6 @@ class DetalleProducto extends Component
     public $idProducto;
     public function mount($id)
     {
-        if (Auth::user()->rol_id != 1) {
-            return redirect()->to('/producto/diseno/' . $id);
-        }
         $this->idProducto = $id;
     }
 
@@ -186,7 +183,9 @@ class DetalleProducto extends Component
 
 
 
-        return view('livewire.inventario.detalle-producto',  compact('producto', "precios", "imagenes", "lotes", "categorias", "unidades","marcas"));
+        $esAdmin = Auth::user()->rol_id == 1;
+
+        return view('livewire.inventario.detalle-producto',  compact('producto', 'precios', 'imagenes', 'lotes', 'categorias', 'unidades', 'marcas', 'esAdmin'));
     }
 
     public function unidadesVenta($id){

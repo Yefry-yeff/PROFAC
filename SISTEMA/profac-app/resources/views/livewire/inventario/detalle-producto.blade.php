@@ -122,31 +122,31 @@
             display: flex; align-items: center; gap: 8px;
         }
         .det-info-card .card-header-bar span { color: #fff; font-weight: 600; font-size: .85rem; }
-        .det-info-card .card-body-inner { padding: 12px 16px; }
+        .det-info-card .card-body-inner { padding: 9px 14px; }
 
         .info-row {
             display: flex; align-items: baseline;
-            padding: 5px 0;
+            padding: 2px 0;
             border-bottom: 1px solid #f5f5f5;
-            font-size: .82rem;
+            font-size: .8rem;
             gap: 8px;
         }
         .info-row:last-child { border-bottom: none; }
         .info-label {
-            min-width: 130px;
+            min-width: 125px;
             color: #aaa;
-            font-size: .7rem;
+            font-size: .68rem;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: .4px;
             flex-shrink: 0;
         }
-        .info-value { color: #2d1600; font-weight: 500; font-size: .82rem; }
+        .info-value { color: #2d1600; font-weight: 500; font-size: .8rem; }
         .info-section-title {
-            font-size: .65rem; font-weight: 700; text-transform: uppercase;
+            font-size: .63rem; font-weight: 700; text-transform: uppercase;
             letter-spacing: .6px; color: #e05a00;
             border-bottom: 1.5px solid #fde8cc;
-            padding-bottom: 3px; margin: 10px 0 2px;
+            padding-bottom: 2px; margin: 6px 0 1px;
             display: flex; align-items: center; gap: 5px;
         }
         .info-section-title:first-child { margin-top: 0; }
@@ -357,14 +357,12 @@
                 </p>
             </div>
             <div class="det-header-actions">
-                @if (Auth::user()->rol_id == '1' || Auth::user()->rol_id == '10' || Auth::user()->rol_id == '18' || Auth::user()->rol_id == '9')
                 <button class="btn-det-edit" data-toggle="modal" data-target="#modal_producto_editar">
                     <i class="fa fa-pencil mr-1"></i> Editar Producto
                 </button>
                 <button class="btn-det-foto" data-toggle="modal" data-target="#modal_foto_producto">
                     <i class="fa fa-camera mr-1"></i> Subir Fotografía
                 </button>
-                @endif
             </div>
         </div>
     </div>
@@ -458,6 +456,7 @@
                             <span class="info-label">Descripción</span>
                             <span class="info-value">{{ $producto->descripcion }}</span>
                         </div>
+                        @if($esAdmin)
                         <div class="info-row">
                             <span class="info-label">ISV</span>
                             <span class="info-value">
@@ -470,6 +469,7 @@
                                 @endif
                             </span>
                         </div>
+                        @endif
                         <div class="info-row">
                             <span class="info-label">Cód. Estatal</span>
                             <span class="info-value">{{ $producto->codigo_estatal ?: '—' }}</span>
@@ -621,11 +621,13 @@
                                     <i class="fa fa-info-circle"></i> General
                                 </a>
                             </li>
+                            @if($esAdmin)
                             <li class="nav-item">
                                 <a class="nav-link" data-toggle="tab" href="#tab-det-edit-precios">
                                     <i class="fa fa-dollar"></i> Precios
                                 </a>
                             </li>
+                            @endif
                             <li class="nav-item">
                                 <a class="nav-link" data-toggle="tab" href="#tab-det-edit-clasif">
                                     <i class="fa fa-tag"></i> Clasificación
@@ -648,6 +650,23 @@
                                         <textarea placeholder="Descripción detallada…" required id="descripcion_producto_edit"
                                             name="descripcion_producto_edit" rows="3" class="form-control"></textarea>
                                     </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label>Código de barra</label>
+                                        <input class="form-control" type="number" name="cod_barra_producto_edit"
+                                            id="cod_barra_producto_edit" min="0" placeholder="Opcional">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label>Código estatal</label>
+                                        <input class="form-control" type="number" name="cod_estatal_producto_edit"
+                                            id="cod_estatal_producto_edit" min="0" placeholder="Opcional">
+                                    </div>
+                                </div>
+                            </div>
+
+                            {{-- Tab 2: Precios (solo admin) --}}
+                            @if($esAdmin)
+                            <div class="tab-pane fade" id="tab-det-edit-precios">
+                                <div class="row">
                                     <div class="col-md-4 mb-3">
                                         <label>ISV <span class="text-danger">*</span></label>
                                         <select class="form-control" name="isv_producto_edit" id="isv_producto_edit">
@@ -656,22 +675,6 @@
                                             <option value="18">18% de ISV</option>
                                         </select>
                                     </div>
-                                    <div class="col-md-4 mb-3">
-                                        <label>Código de barra</label>
-                                        <input class="form-control" type="number" name="cod_barra_producto_edit"
-                                            id="cod_barra_producto_edit" min="0" placeholder="Opcional">
-                                    </div>
-                                    <div class="col-md-4 mb-3">
-                                        <label>Código estatal</label>
-                                        <input class="form-control" type="number" name="cod_estatal_producto_edit"
-                                            id="cod_estatal_producto_edit" min="0" placeholder="Opcional">
-                                    </div>
-                                </div>
-                            </div>
-
-                            {{-- Tab 2: Precios --}}
-                            <div class="tab-pane fade" id="tab-det-edit-precios">
-                                <div class="row">
                                     <div class="col-md-4 mb-3">
                                         <label>Precio base <span class="text-danger">*</span></label>
                                         <div class="ms-price-group">
@@ -729,6 +732,7 @@
                                     </div>
                                 </div>
                             </div>
+                            @endif
 
                             {{-- Tab 3: Clasificación --}}
                             <div class="tab-pane fade" id="tab-det-edit-clasif">

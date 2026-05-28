@@ -26,6 +26,7 @@ use App\Http\Livewire\Proveedores;
 use App\Http\Livewire\Usuarios\ListarUsuarios;
 use App\Http\Livewire\Registro\Login as RegistroLogin;
 use App\Http\Livewire\Inventario\Producto;
+use App\Http\Livewire\Inventario\ProductoApoyo;
 use App\Http\Livewire\Inventario\Retenciones;
 use App\Http\Livewire\Inventario\DetalleProducto;
 use App\Http\Livewire\Inventario\DisenoProducto;
@@ -618,6 +619,12 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
 
     Route::get('/producto/listar/productos', [Producto::class, 'listarProductos']);
     Route::post('/producto/inactivar', [Producto::class, 'inactivarProducto']);
+
+    // Catálogo Apoyo (vendedores — sin precios)
+    Route::get('/producto/apoyo/registro', ProductoApoyo::class);
+    Route::post('/producto/apoyo/registrar', [ProductoApoyo::class, 'crearProducto']);
+    Route::get('/apoyo/listar/productos', [ProductoApoyo::class, 'listarProductos']);
+    Route::post('/apoyo/inactivar', [ProductoApoyo::class, 'inactivarProducto']);
     Route::post('/producto/actualizar/costos', [Producto::class, 'calcularCostos']);
     Route::get('/producto/detalle/{id}', DetalleProducto::class);
     Route::get('/detalle/producto/unidad/{id}', [DetalleProducto::class, 'unidadesVenta']);

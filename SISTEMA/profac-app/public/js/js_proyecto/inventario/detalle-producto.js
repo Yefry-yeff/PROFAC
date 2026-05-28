@@ -152,9 +152,9 @@ axios.get("/producto/datos/" + idProducto)
 
         document.getElementById("nombre_producto_edit").value = datos.datosProducto.nombre;
         document.getElementById("descripcion_producto_edit").value = datos.datosProducto.descripcion;
-        document.getElementById("isv_producto_edit").value = datos.datosProducto.isv;
-        document.getElementById("isv_producto_edit").innerHTML += '<option selected value="' + datos
-            .datosProducto.isv + '">' + datos.datosProducto.isv + ' % de ISV</option>';
+        // isv_producto_edit: existe solo para admin (select) — se asigna con .value
+        var isvEl = document.getElementById("isv_producto_edit");
+        if (isvEl) isvEl.value = datos.datosProducto.isv;
         document.getElementById("cod_barra_producto_edit").value = datos.datosProducto.codigo_barra;
         document.getElementById("cod_estatal_producto_edit").value = datos.datosProducto.codigo_estatal;
         document.getElementById("precioBase_edit").value = datos.datosProducto.precio_base;
