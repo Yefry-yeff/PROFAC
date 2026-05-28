@@ -697,6 +697,18 @@
                                         <input class="form-control" min="1" type="number" name="unidades_venta"
                                             id="unidades_venta" step="any" required placeholder="Ej: 1">
                                     </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label>Tiempo de recuperación en meses</label>
+                                        <input class="form-control" type="number" min="1" max="999"
+                                            name="tiempo_recuperacion_meses" id="tiempo_recuperacion_meses"
+                                            placeholder="Ej: 3">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label>Origen</label>
+                                        <input class="form-control" type="text" maxlength="200"
+                                            name="origen" id="origen"
+                                            placeholder="Ej: China, Honduras...">
+                                    </div>
                                 </div>
                             </div>
 
@@ -884,6 +896,18 @@
                                         <label>Cantidad unidades compra <span class="text-danger">*</span></label>
                                         <input class="form-control" type="number" min="1" step="any"
                                             name="unidades_editar" id="unidades_editar" data-parsley-required>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label>Tiempo de recuperación en meses</label>
+                                        <input class="form-control" type="number" min="1" max="999"
+                                            name="tiempo_recuperacion_meses_edit" id="tiempo_recuperacion_meses_edit"
+                                            placeholder="Ej: 3">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label>Origen</label>
+                                        <input class="form-control" type="text" maxlength="200"
+                                            name="origen_edit" id="origen_edit"
+                                            placeholder="Ej: China, Honduras...">
                                     </div>
                                 </div>
                             </div>

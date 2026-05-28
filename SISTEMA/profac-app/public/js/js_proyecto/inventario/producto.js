@@ -217,6 +217,8 @@ function abrirEditarProducto(id) {
         document.getElementById('precio2_edit').value                  = p.precio2;
         document.getElementById('precio3_edit').value                  = p.precio3;
         document.getElementById('precio4_edit').value                  = p.precio4;
+        document.getElementById('tiempo_recuperacion_meses_edit').value = p.tiempo_recuperacion_meses || '';
+        document.getElementById('origen_edit').value                   = p.origen || '';
 
         // Marcas
         var marcaHtml = '';

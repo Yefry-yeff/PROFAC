@@ -59,6 +59,12 @@ class ConfiguracionNotificaciones extends Component
 
     public function toggleSistema(): void
     {
+        // Bloquear activación si no hay ninguna regla configurada
+        if (!$this->notificacionesActivas && empty($this->configs)) {
+            session()->flash('error', 'No se pueden activar las notificaciones: primero debes crear al menos una regla de notificación.');
+            return;
+        }
+
         $this->notificacionesActivas = !$this->notificacionesActivas;
 
         // Cache-Aside: escribir en BD primero (fuente de verdad)

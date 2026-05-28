@@ -1,4 +1,4 @@
-﻿<div>
+<div>
     <style>
 /* â”€â”€ Animaciones â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 @keyframes cfgFadeUp {
@@ -110,15 +110,22 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
             </div>
             <div class="d-flex align-items-center gap-2">
                 {{-- Toggle sistema --}}
+                @php $sinReglas = !$notificacionesActivas && empty($configs); @endphp
                 <button wire:click="toggleSistema"
                         class="btn btn-sm font-weight-bold mr-2"
-                        style="border-radius:20px; padding:6px 16px; font-size:12px; border:2px solid {{ $notificacionesActivas ? 'rgba(255,255,255,.5)' : 'rgba(255,255,255,.3)' }};
-                               background:{{ $notificacionesActivas ? 'rgba(34,197,94,.25)' : 'rgba(255,255,255,.12)' }};
-                               color:white; backdrop-filter:blur(4px);"
-                        title="{{ $notificacionesActivas ? 'Haz clic para desactivar' : 'Haz clic para activar' }}">
+                        @if($sinReglas) disabled title="Primero debes crear al menos una regla de notificación" @else title="{{ $notificacionesActivas ? 'Haz clic para desactivar' : 'Haz clic para activar' }}" @endif
+                        style="border-radius:20px; padding:6px 16px; font-size:12px;
+                               border:2px solid {{ $notificacionesActivas ? 'rgba(255,255,255,.5)' : ($sinReglas ? 'rgba(255,255,255,.15)' : 'rgba(255,255,255,.3)') }};
+                               background:{{ $notificacionesActivas ? 'rgba(34,197,94,.25)' : ($sinReglas ? 'rgba(255,255,255,.06)' : 'rgba(255,255,255,.12)') }};
+                               color:{{ $sinReglas ? 'rgba(255,255,255,.4)' : 'white' }};
+                               backdrop-filter:blur(4px);
+                               cursor:{{ $sinReglas ? 'not-allowed' : 'pointer' }};">
                     <i class="fa {{ $notificacionesActivas ? 'fa-toggle-on' : 'fa-toggle-off' }} mr-1"
-                       style="font-size:14px; color:{{ $notificacionesActivas ? '#4ade80' : '#94a3b8' }};"></i>
+                       style="font-size:14px; color:{{ $notificacionesActivas ? '#4ade80' : ($sinReglas ? 'rgba(148,163,184,.4)' : '#94a3b8') }};"></i>
                     Notificaciones {{ $notificacionesActivas ? 'ON' : 'OFF' }}
+                    @if($sinReglas)
+                        <i class="fa fa-lock ml-1" style="font-size:10px; opacity:.6;"></i>
+                    @endif
                 </button>
                 <button wire:click="nuevaRegla"
                         class="btn btn-sm font-weight-bold"
@@ -139,6 +146,15 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
                  style="border-radius:10px; border:none; box-shadow:0 2px 8px rgba(34,197,94,.2); font-size:13px;">
                 <i class="fa fa-check-circle fa-lg text-success mr-2"></i>
                 <span>{{ session('success') }}</span>
+                <button type="button" class="close ml-auto" data-dismiss="alert">&times;</button>
+            </div>
+        @endif
+
+        @if(session('error'))
+            <div class="alert alert-danger alert-dismissible d-flex align-items-center gap-2"
+                 style="border-radius:10px; border:none; box-shadow:0 2px 8px rgba(220,38,38,.2); font-size:13px;">
+                <i class="fa fa-exclamation-circle fa-lg text-danger mr-2"></i>
+                <span>{{ session('error') }}</span>
                 <button type="button" class="close ml-auto" data-dismiss="alert">&times;</button>
             </div>
         @endif

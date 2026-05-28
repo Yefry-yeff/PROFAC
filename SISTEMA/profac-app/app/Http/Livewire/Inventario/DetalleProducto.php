@@ -57,7 +57,10 @@ class DetalleProducto extends Component
             A.marca_id,
             A.sub_categoria_id,
             unidad_medida_compra_id,
-            unidadad_compra
+            unidadad_compra,
+            F.nombre as 'marca',
+            A.tiempo_recuperacion_meses,
+            A.origen
 
         from  producto A
         inner join sub_categoria B
@@ -68,6 +71,8 @@ class DetalleProducto extends Component
         on A.unidad_medida_compra_id = C.id
         inner join users D
         on A.users_id = D.id
+        left join marca F
+        on A.marca_id = F.id
         where A.id = " . $id . "
         ");
 

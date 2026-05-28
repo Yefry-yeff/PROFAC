@@ -20,6 +20,8 @@ class ModelProducto extends Model
         'categoria_id',
         'unidad_medida_compra_id',
         'marca_id',
-        'ultimo_costo_compra'
+        'ultimo_costo_compra',
+        'tiempo_recuperacion_meses',
+        'origen',
     ];
 }

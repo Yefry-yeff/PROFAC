@@ -247,6 +247,9 @@ axios.get("/producto/datos/" + idProducto)
         document.getElementById('unidad_producto_editar').innerHTML = htmlUnidades;
         document.getElementById('sub_categoria_producto_edit').innerHTML = htmlSubCategorias;
 
+        document.getElementById('tiempo_recuperacion_meses_edit').value = datos.datosProducto.tiempo_recuperacion_meses || '';
+        document.getElementById('origen_edit').value = datos.datosProducto.origen || '';
+
 
 
 
@@ -319,8 +322,6 @@ axios.post("/producto/editar", data)
     .then(response => {
         $('#modalSpinnerLoading').modal('hide');
 
-
-        $('#editarProductoForm').parsley().reset();
         document.getElementById("editarProductoForm").reset();
         $('#modal_producto_editar').modal('hide');
 

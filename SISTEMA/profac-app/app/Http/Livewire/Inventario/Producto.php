@@ -104,6 +104,8 @@ class Producto extends Component
             $producto->precio_base = trim($request['precioBase']);
             $producto->ultimo_costo_compra = trim($request->ultimo_costo_compra);
             $producto->marca_id = $request->marca_producto;
+            $producto->tiempo_recuperacion_meses = $request->tiempo_recuperacion_meses ?: null;
+            $producto->origen = trim($request->origen ?? '')  ?: null;
             $producto->users_id = Auth::user()->id;
             $producto->estado_producto_id = 1;
             $producto->unidad_medida_compra_id = $request->unidad_producto;
@@ -486,8 +488,9 @@ class Producto extends Component
                 marca_id,
                 unidad_medida_compra_id,
                 unidadad_compra,
-                ultimo_costo_compra
-
+                ultimo_costo_compra,
+                tiempo_recuperacion_meses,
+                origen
 
             from producto where id =".$id);
 
@@ -579,6 +582,8 @@ class Producto extends Component
             $producto->precio3 = $request['precio3'];
             $producto->precio4 = $request['precio4'];
             $producto->marca_id= $request->marca_producto_editar;
+            $producto->tiempo_recuperacion_meses = $request->tiempo_recuperacion_meses_edit ?: null;
+            $producto->origen = trim($request->origen_edit ?? '') ?: null;
             $producto->users_id = Auth::user()->id;
             $producto->save();
 
