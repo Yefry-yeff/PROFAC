@@ -1793,24 +1793,22 @@ class FacturacionCorporativa extends Component
         on A.numero_orden_compra_id = B.id
         where A.id =" . $idFactura);
 
+        $flujoFacturaId = DB::table('historico_flujo')
+            ->where('tipo_tramite_id', 3)
+            ->where('tramite_id', $idFactura)
+            ->value('flujo_id');
+
+        $flujoDocData = $flujoFacturaId
+            ? DB::table('flujo')->where('id', $flujoFacturaId)->first(['numero_orden_compra', 'numero_forma_f01'])
+            : null;
+
         if (empty($ordenCompra->numero_orden)) {
-            // 2. Fallback: buscar en la cotización ganadora vinculada al flujo de esta factura
-            $numOrdenCot = DB::table('historico_flujo as hff')
-                ->join('historico_flujo as hfof', function ($j) {
-                    $j->on('hfof.flujo_id', '=', 'hff.flujo_id')
-                      ->where('hfof.tipo_tramite_id', 2)
-                      ->where('hfof.observaciones', 'ganadora');
-                })
-                ->join('cotizacion as c', 'c.id', '=', 'hfof.tramite_id')
-                ->where('hff.tipo_tramite_id', 3)
-                ->where('hff.tramite_id', $idFactura)
-                ->whereNotNull('c.numero_orden_compra')
-                ->value('c.numero_orden_compra');
-            $ordenCompra = ['numero_orden' => $numOrdenCot ?: 'N/A'];
+            $ordenCompra = ['numero_orden' => ($flujoDocData->numero_orden_compra ?? null) ?: 'N/A'];
         } else {
             $ordenCompra = ["numero_orden" => $ordenCompra->numero_orden];
         }
 
+        $formaF01 = ($flujoDocData->numero_forma_f01 ?? null) ?: null;
 
         if (fmod($importes->total, 1) == 0.0) {
             $flagCentavos = false;
@@ -1822,7 +1820,7 @@ class FacturacionCorporativa extends Component
         $formatter->apocope = true;
         $numeroLetras = $formatter->toMoney($importes->total, 2, 'LEMPIRAS', 'CENTAVOS');
 
-        $pdf = PDF::loadView('/pdf/factura', compact('cai', 'cliente', 'importes', 'productos', 'numeroLetras', 'importesConCentavos', 'flagCentavos', 'ordenCompra'))->setPaper('letter');
+        $pdf = PDF::loadView('/pdf/factura', compact('cai', 'cliente', 'importes', 'productos', 'numeroLetras', 'importesConCentavos', 'flagCentavos', 'ordenCompra', 'formaF01'))->setPaper('letter');
 
         return $pdf->stream("factura_numero" . $cai->numero_factura . ".pdf");
     }
@@ -1960,24 +1958,22 @@ class FacturacionCorporativa extends Component
         on A.numero_orden_compra_id = B.id
         where A.id =" . $idFactura);
 
+        $flujoFacturaId = DB::table('historico_flujo')
+            ->where('tipo_tramite_id', 3)
+            ->where('tramite_id', $idFactura)
+            ->value('flujo_id');
+
+        $flujoDocData = $flujoFacturaId
+            ? DB::table('flujo')->where('id', $flujoFacturaId)->first(['numero_orden_compra', 'numero_forma_f01'])
+            : null;
+
         if (empty($ordenCompra->numero_orden)) {
-            // 2. Fallback: buscar en la cotización ganadora vinculada al flujo de esta factura
-            $numOrdenCot = DB::table('historico_flujo as hff')
-                ->join('historico_flujo as hfof', function ($j) {
-                    $j->on('hfof.flujo_id', '=', 'hff.flujo_id')
-                      ->where('hfof.tipo_tramite_id', 2)
-                      ->where('hfof.observaciones', 'ganadora');
-                })
-                ->join('cotizacion as c', 'c.id', '=', 'hfof.tramite_id')
-                ->where('hff.tipo_tramite_id', 3)
-                ->where('hff.tramite_id', $idFactura)
-                ->whereNotNull('c.numero_orden_compra')
-                ->value('c.numero_orden_compra');
-            $ordenCompra = ['numero_orden' => $numOrdenCot ?: 'N/A'];
+            $ordenCompra = ['numero_orden' => ($flujoDocData->numero_orden_compra ?? null) ?: 'N/A'];
         } else {
             $ordenCompra = ["numero_orden" => $ordenCompra->numero_orden];
         }
 
+        $formaF01 = ($flujoDocData->numero_forma_f01 ?? null) ?: null;
 
         if (fmod($importes->total, 1) == 0.0) {
             $flagCentavos = false;
@@ -1989,7 +1985,7 @@ class FacturacionCorporativa extends Component
         $formatter->apocope = true;
         $numeroLetras = $formatter->toMoney($importes->total, 2, 'LEMPIRAS', 'CENTAVOS');
 
-        $pdf = PDF::loadView('/pdf/facturaCopia', compact('cai', 'cliente', 'importes', 'productos', 'numeroLetras', 'importesConCentavos', 'flagCentavos', 'ordenCompra'))->setPaper('letter');
+        $pdf = PDF::loadView('/pdf/facturaCopia', compact('cai', 'cliente', 'importes', 'productos', 'numeroLetras', 'importesConCentavos', 'flagCentavos', 'ordenCompra', 'formaF01'))->setPaper('letter');
 
         return $pdf->stream("factura_numero" . $cai->numero_factura . ".pdf");
     }

@@ -345,13 +345,19 @@ class Cotizacion extends Component
             $cotizacion->monto_descuento = $request->descuentoGeneral;
             $cotizacion->nota = $request->nota_comen ?? $request->nota;
             $cotizacion->tipo_pago_id = $request->tipoPagoVenta ?: null;
-            $cotizacion->numero_orden_compra = $request->numero_orden_compra ?: null;
-            $cotizacion->numero_forma_f01    = $request->numero_forma_f01    ?: null;
-            $cotizacion->archivo_orden_compra = $request->archivo_orden_compra ?: null;
-            $cotizacion->archivo_forma_f01    = $request->archivo_forma_f01    ?: null;
             $cotizacion->estado_id  = 1;
             $cotizacion->created_by = Auth::id();
             $cotizacion->save();
+
+            $numeroOrdenCompra = $request->numero_orden_compra ?: null;
+            $archivoOrdenCompra = $request->archivo_orden_compra ?: null;
+            $numeroFormaF01 = $request->numero_forma_f01 ?: null;
+            $archivoFormaF01 = $request->archivo_forma_f01 ?: null;
+            $numeroExoneracion = $request->numero_exoneracion
+                ?: ($request->codigo_exoneracion
+                    ?: ($request->codigo
+                        ?: $request->codigoExoneracion));
+            $archivoExoneracion = $request->archivo_exoneracion ?: null;
 
             // ── Registrar en historico_flujo / crear flujo según si hay pedido/flujo vinculado ──
             $pedidoIdVinculado = $request->pedido_id ? (int) $request->pedido_id : null;
@@ -382,7 +388,17 @@ class Cotizacion extends Component
                         'updated_at'      => now(),
                     ]);
                     DB::table('flujo')->where('id', $flujoIdVinculado)
-                        ->update(['tipo_tramite_id' => 2, 'updated_by' => Auth::id(), 'updated_at' => now()]);
+                        ->update([
+                            'tipo_tramite_id'      => 2,
+                            'numero_orden_compra'  => $numeroOrdenCompra,
+                            'archivo_orden_compra' => $archivoOrdenCompra,
+                            'numero_forma_f01'     => $numeroFormaF01,
+                            'archivo_forma_f01'    => $archivoFormaF01,
+                            'numero_exoneracion'   => $numeroExoneracion,
+                            'archivo_exoneracion'  => $archivoExoneracion,
+                            'updated_by'           => Auth::id(),
+                            'updated_at'           => now(),
+                        ]);
                 } else {
                     // Flujo cancelado o inexistente: crear nuevo flujo para esta cotización
                     $flujoNuevo = DB::table('flujo')->insertGetId([
@@ -390,6 +406,12 @@ class Cotizacion extends Component
                         'identificacion'  => (string) $cotizacion->id,
                         'nombre'          => $cotizacion->nombre_cliente ?? ('Cotizacion #' . $cotizacion->id),
                         'cliente_rtn'     => $request->rtn_ventas ?? null,
+                        'numero_orden_compra'  => $numeroOrdenCompra,
+                        'archivo_orden_compra' => $archivoOrdenCompra,
+                        'numero_forma_f01'     => $numeroFormaF01,
+                        'archivo_forma_f01'    => $archivoFormaF01,
+                        'numero_exoneracion'   => $numeroExoneracion,
+                        'archivo_exoneracion'  => $archivoExoneracion,
                         'tipo_tramite_id' => 2,
                         'estado_id'       => 1,
                         'created_by'      => Auth::id(),
@@ -428,7 +450,16 @@ class Cotizacion extends Component
                         'updated_at'      => now(),
                     ]);
                     DB::table('flujo')->where('id', $flujoIdDirecto)
-                        ->update(['updated_by' => Auth::id(), 'updated_at' => now()]);
+                        ->update([
+                            'numero_orden_compra'  => $numeroOrdenCompra,
+                            'archivo_orden_compra' => $archivoOrdenCompra,
+                            'numero_forma_f01'     => $numeroFormaF01,
+                            'archivo_forma_f01'    => $archivoFormaF01,
+                            'numero_exoneracion'   => $numeroExoneracion,
+                            'archivo_exoneracion'  => $archivoExoneracion,
+                            'updated_by'           => Auth::id(),
+                            'updated_at'           => now(),
+                        ]);
                 } else {
                     // Flujo cancelado: crear nuevo flujo para esta cotización
                     $flujoNuevo = DB::table('flujo')->insertGetId([
@@ -436,6 +467,12 @@ class Cotizacion extends Component
                         'identificacion'  => (string) $cotizacion->id,
                         'nombre'          => $cotizacion->nombre_cliente ?? ('Cotizacion #' . $cotizacion->id),
                         'cliente_rtn'     => $request->rtn_ventas ?? null,
+                        'numero_orden_compra'  => $numeroOrdenCompra,
+                        'archivo_orden_compra' => $archivoOrdenCompra,
+                        'numero_forma_f01'     => $numeroFormaF01,
+                        'archivo_forma_f01'    => $archivoFormaF01,
+                        'numero_exoneracion'   => $numeroExoneracion,
+                        'archivo_exoneracion'  => $archivoExoneracion,
                         'tipo_tramite_id' => 2,
                         'estado_id'       => 1,
                         'created_by'      => Auth::id(),
@@ -463,6 +500,12 @@ class Cotizacion extends Component
                     'identificacion'  => (string) $cotizacion->id,
                     'nombre'          => $cotizacion->nombre_cliente ?? ('Cotizacion #' . $cotizacion->id),
                     'cliente_rtn'     => $request->rtn_ventas ?? null,
+                    'numero_orden_compra'  => $numeroOrdenCompra,
+                    'archivo_orden_compra' => $archivoOrdenCompra,
+                    'numero_forma_f01'     => $numeroFormaF01,
+                    'archivo_forma_f01'    => $archivoFormaF01,
+                    'numero_exoneracion'   => $numeroExoneracion,
+                    'archivo_exoneracion'  => $archivoExoneracion,
                     'tipo_tramite_id' => 2,
                     'estado_id'       => 1,
                     'created_by'      => Auth::id(),

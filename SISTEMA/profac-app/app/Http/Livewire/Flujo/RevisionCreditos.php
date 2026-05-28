@@ -252,10 +252,10 @@ class RevisionCreditos extends Component
                 'c.total as monto_total_oferta',
                 'c.fecha_emision as fecha_emision_oferta',
                 'c.fecha_vencimiento as fecha_vencimiento_oferta',
-                'c.numero_orden_compra',
-                'c.archivo_orden_compra',
-                'c.numero_forma_f01',
-                'c.archivo_forma_f01'
+                'f.numero_orden_compra',
+                'f.archivo_orden_compra',
+                'f.numero_forma_f01',
+                'f.archivo_forma_f01'
             )
             ->first();
         $this->flujoData = $flujoResult ? (array) $flujoResult : null;
@@ -287,26 +287,52 @@ class RevisionCreditos extends Component
             ->first(['tramite_id']);
 
         $this->cotizacionId = $hfGanadora ? (int) $hfGanadora->tramite_id : null;
-        if ($this->cotizacionId && (!$this->fechaEmisionOferta || !$this->fechaVencimientoOferta || $this->montoTotalOferta <= 0)) {
-            $oferta = DB::table('cotizacion')
-                ->where('id', $this->cotizacionId)
-                ->first(['cliente_id', 'fecha_emision', 'fecha_vencimiento', 'total',
-                         'numero_orden_compra', 'archivo_orden_compra', 'numero_forma_f01', 'archivo_forma_f01']);
+        $cotizacionIdCredito = DB::table('credito_revision')
+            ->where('flujo_id', $flujoId)
+            ->whereNotNull('cotizacion_id')
+            ->orderByDesc('id')
+            ->value('cotizacion_id');
 
-            if ($oferta) {
+        $cotizacionIdUltimaOferta = DB::table('historico_flujo')
+            ->where('flujo_id', $flujoId)
+            ->where('tipo_tramite_id', 2)
+            ->orderByDesc('id')
+            ->value('tramite_id');
+
+        $candidatasCotizacion = array_values(array_unique(array_filter([
+            $this->cotizacionId,
+            $cotizacionIdCredito ? (int) $cotizacionIdCredito : null,
+            $cotizacionIdUltimaOferta ? (int) $cotizacionIdUltimaOferta : null,
+        ])));
+
+        $necesitaCompletarOferta =
+            !$this->fechaEmisionOferta ||
+            !$this->fechaVencimientoOferta ||
+            $this->montoTotalOferta <= 0;
+
+        if ($necesitaCompletarOferta && count($candidatasCotizacion) > 0) {
+            foreach ($candidatasCotizacion as $cotizacionCandId) {
+                $oferta = DB::table('cotizacion')
+                    ->where('id', $cotizacionCandId)
+                    ->first(['id', 'cliente_id', 'fecha_emision', 'fecha_vencimiento', 'total']);
+
+                if (!$oferta) {
+                    continue;
+                }
+
+                if (!$this->cotizacionId) {
+                    $this->cotizacionId = (int) $oferta->id;
+                }
                 $this->clienteId = $this->clienteId ?: (int) ($oferta->cliente_id ?? 0);
                 $this->fechaEmisionOferta = $this->fechaEmisionOferta ?: ($oferta->fecha_emision ? Carbon::parse($oferta->fecha_emision)->toDateString() : null);
                 $this->fechaVencimientoOferta = $this->fechaVencimientoOferta ?: ($oferta->fecha_vencimiento ? Carbon::parse($oferta->fecha_vencimiento)->toDateString() : null);
                 if ($this->montoTotalOferta <= 0) {
                     $this->montoTotalOferta = (float) ($oferta->total ?? 0);
                 }
-                $this->numeroOrdenCompra  = $this->numeroOrdenCompra  ?: ($oferta->numero_orden_compra  ?? null);
-                $this->archivoOrdenCompra = $this->archivoOrdenCompra ?: ($oferta->archivo_orden_compra ?? null);
-                $this->numeroFormaF01     = $this->numeroFormaF01     ?: ($oferta->numero_forma_f01     ?? null);
-                $this->archivoFormaF01    = $this->archivoFormaF01    ?: ($oferta->archivo_forma_f01    ?? null);
-                $this->diasSolicitadosCredito = $this->calcularDiasSolicitados($this->fechaEmisionOferta, $this->fechaVencimientoOferta);
-                $this->tipoPagoSolicitud = $this->diasSolicitadosCredito > 0 ? 'credito' : 'contado';
             }
+
+            $this->diasSolicitadosCredito = $this->calcularDiasSolicitados($this->fechaEmisionOferta, $this->fechaVencimientoOferta);
+            $this->tipoPagoSolicitud = $this->diasSolicitadosCredito > 0 ? 'credito' : 'contado';
         }
 
         $this->cargarDatosCreditoCliente();

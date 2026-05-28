@@ -111,7 +111,10 @@
                             <p style="margin:0 0 2px;"><b>Hora:</b> {{ $cai->hora }}</p>
                             <p style="margin:0 0 2px;"><b>Vence:</b> {{ $cai->fecha_vencimiento }}</p>
                             <p style="margin:0 0 2px;"><b>RTN:</b> {{ $cliente->rtn }}</p>
-                            <p style="margin:0;"><b>Orden N°:</b> {{ $ordenCompra['numero_orden'] }}</p>
+                            <p style="margin:0 0 2px;"><b>Orden N°:</b> {{ $ordenCompra['numero_orden'] }}</p>
+                            @if(!empty($formaF01))
+                            <p style="margin:0;"><b>F-01 N°:</b> {{ $formaF01 }}</p>
+                            @endif
                         </td>
                     </tr>
                 </table>
