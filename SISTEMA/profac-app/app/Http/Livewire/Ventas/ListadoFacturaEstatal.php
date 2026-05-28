@@ -115,8 +115,13 @@ class ListadoFacturaEstatal extends Component
                 ", $bindings);
             }
 
+            $puedeAnular = ((int) Auth::user()->rol_id === 1);
+
             return Datatables::of($listaFacturas)
-            ->addColumn('opciones', function ($listaFacturas) {
+            ->addColumn('opciones', function ($listaFacturas) use ($puedeAnular) {
+                $opcionAnular = $puedeAnular
+                    ? '<li><a class="dropdown-item" onclick="anularVentaConfirmar('.$listaFacturas->id.')" > <i class="fa-solid fa-ban text-danger"></i> Anular Factura </a></li>'
+                    : '';
 
                 if($listaFacturas->estado_venta_id==2){
                     return
@@ -169,6 +174,8 @@ class ListadoFacturaEstatal extends Component
                              <a class="dropdown-item" href="/crear/vale/'.$listaFacturas->id.'" > <i class="fa-solid fa-calendar-days text-success"></i> Agendar Entrega </a>
                              </li>
 
+                             '.$opcionAnular.'
+
 
                         </ul>
                     </div>';
@@ -213,6 +220,14 @@ class ListadoFacturaEstatal extends Component
     }
 
     public function anularVentaRegistro(Request $request){
+        if ((int) Auth::user()->rol_id !== 1) {
+            return response()->json([
+                "text" => "No autorizado para anular facturas estatales.",
+                "icon" => "warning",
+                "title" => "Acceso denegado",
+            ], 403);
+        }
+
         $arrayLog = [];
         try {
         DB::beginTransaction();

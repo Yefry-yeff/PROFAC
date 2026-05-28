@@ -54,14 +54,17 @@ class ListadoFacturasAnuladas extends Component
 
         try {
 
-            $filtroNumero   = trim($request->input('filtroNumero', ''));
-            $filtroCliente  = trim($request->input('filtroCliente', ''));
-            $filtroVendedor = trim($request->input('filtroVendedor', ''));
+            $filtroCai        = trim($request->input('filtroCai', ''));
+            $filtroCliente    = trim($request->input('filtroCliente', ''));
+            $filtroVendedor   = trim($request->input('filtroVendedor', ''));
+            $filtroFacturador = trim($request->input('filtroFacturador', ''));
+            $filtroDesde      = trim($request->input('filtroDesde', ''));
+            $filtroHasta      = trim($request->input('filtroHasta', ''));
             $whereExtra = '';
             $bindings   = [(int) $request->idTipo];
-            if ($filtroNumero !== '') {
-                $whereExtra .= ' AND factura.numero_factura LIKE ? ';
-                $bindings[] = "%{$filtroNumero}%";
+            if ($filtroCai !== '') {
+                $whereExtra .= ' AND factura.cai LIKE ? ';
+                $bindings[] = "%{$filtroCai}%";
             }
             if ($filtroCliente !== '') {
                 $whereExtra .= ' AND factura.nombre_cliente LIKE ? ';
@@ -70,6 +73,21 @@ class ListadoFacturasAnuladas extends Component
             if ($filtroVendedor !== '') {
                 $whereExtra .= ' AND users.name LIKE ? ';
                 $bindings[] = "%{$filtroVendedor}%";
+            }
+            if ($filtroFacturador !== '') {
+                $whereExtra .= ' AND (SELECT name FROM users WHERE id = factura.users_id) LIKE ? ';
+                $bindings[] = "%{$filtroFacturador}%";
+            }
+            if ($filtroDesde !== '' && $filtroHasta !== '') {
+                $whereExtra .= ' AND DATE(factura.created_at) BETWEEN ? AND ? ';
+                $bindings[] = $filtroDesde;
+                $bindings[] = $filtroHasta;
+            } elseif ($filtroDesde !== '') {
+                $whereExtra .= ' AND DATE(factura.created_at) >= ? ';
+                $bindings[] = $filtroDesde;
+            } elseif ($filtroHasta !== '') {
+                $whereExtra .= ' AND DATE(factura.created_at) <= ? ';
+                $bindings[] = $filtroHasta;
             }
 
             $listaFacturas = DB::SELECT("

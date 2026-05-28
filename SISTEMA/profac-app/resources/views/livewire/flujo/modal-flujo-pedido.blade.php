@@ -1,13 +1,6 @@
 <div>
 @if ($showModal && $pedidoData)
 <style>
-    /* Fix: Animate.css / AdminLTE animations leave transform on wrapper elements,
-       which creates a new stacking context and breaks position:fixed children */
-    div.wrapper-content,
-    div.content-wrapper,
-    div.wrapper,
-    div.main-sidebar,
-    .sidebar-wrapper { transform: none !important; }
     @@keyframes flujoIn {
         from { opacity:0; transform:scale(.94) translateY(-24px); }
         to   { opacity:1; transform:scale(1)  translateY(0);      }
@@ -32,10 +25,10 @@
         20%,60% { transform:translateX(-6px); }
         40%,80% { transform:translateX(6px);  }
     }
-    .fmp-dlg  { max-width:920px; width:100%; max-height:calc(100vh - 48px); display:flex; flex-direction:column; animation:flujoIn .32s cubic-bezier(.34,1.28,.64,1) both; pointer-events:auto; }
-    .fmp-cnt  { border-radius:18px !important; overflow:hidden !important; display:flex !important; flex-direction:column !important; max-height:100% !important; }
-    .fmp-body { padding:20px 24px 16px !important; overflow-y:auto !important; flex:1 1 auto !important; min-height:0 !important; }
-    .fmp-foot { padding:10px 24px 14px !important; display:flex !important; flex-wrap:wrap !important; gap:8px !important; justify-content:flex-end !important; flex-shrink:0 !important; background:#e8ecf4 !important; border-top:2px solid #d0d7e4 !important; }
+    .fmp-dlg  { max-width:920px; width:100%; animation:flujoIn .32s cubic-bezier(.34,1.28,.64,1) both; pointer-events:auto; }
+    .fmp-cnt  { border-radius:18px !important; overflow:hidden !important; }
+    .fmp-body { padding:20px 24px 24px !important; overflow-y:auto; max-height:calc(90vh - 140px); }
+    .fmp-foot { padding:12px 24px 18px !important; display:flex !important; flex-wrap:wrap !important; gap:8px !important; justify-content:flex-end !important; }
     .fmp-pipeline { scrollbar-width:thin; scrollbar-color:#e0e3ee transparent; -webkit-overflow-scrolling:touch; scroll-behavior:smooth; }
     .fmp-pipeline::-webkit-scrollbar { height:4px; }
     .fmp-pipeline::-webkit-scrollbar-thumb { background:#d0d4e4; border-radius:4px; }
@@ -43,7 +36,13 @@
     .fmp-step-icon-sm { font-size:11px; margin-top:2px; }
     .fmp-step-clickable { cursor:pointer; transition:transform .15s ease; }
     .fmp-step-clickable:hover { transform:translateY(-3px); }
+    .fmp-overlay {
+        align-items:flex-start !important;
+        justify-content:center;
+        padding:72px 16px 16px !important;
+    }
     @@media (max-width: 575px) {
+        .fmp-overlay { padding:12px !important; }
         .fmp-step-circle { width:44px !important; height:44px !important; }
         .fmp-step-circle > div { width:44px !important; height:44px !important; }
         .fmp-step-num { font-size:15px !important; }
@@ -52,50 +51,6 @@
     .fmp-offers-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
     .fmp-offers-wrap table { min-width:480px; }
     .fmp-info-grid { display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:#666; }
-    /* ── Tablas de productos / detalles ── */
-    .fmp-body table thead tr {
-        background: linear-gradient(135deg,#2d3748 0%,#1a252f 100%) !important;
-    }
-    .fmp-body table thead th {
-        color: #a8c8e0 !important;
-        font-weight: 700 !important;
-        padding: 8px 10px !important;
-        border: none !important;
-        font-size: 11px;
-        letter-spacing: .3px;
-    }
-    .fmp-body table tbody tr:nth-child(even) > td {
-        background: #f5f7fb;
-    }
-    .fmp-body table tbody tr:hover > td {
-        background: #eef2ff !important;
-        transition: background .1s;
-    }
-    .fmp-body table tbody td {
-        border-bottom: 1px solid #eaedf5 !important;
-        vertical-align: middle;
-    }
-    /* ── Tarjetas de contenido por paso ── */
-    .fmp-step-card-wrap {
-        background: #fff;
-        border-radius: 12px;
-        border: 1px solid #d8ddf0;
-        box-shadow: 0 2px 10px rgba(0,0,0,.06);
-        overflow: hidden;
-        margin-top: 12px;
-    }
-    .fmp-step-card-wrap .fmp-card-title {
-        padding: 9px 16px;
-        font-size: 12px;
-        font-weight: 700;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        border-bottom: 1px solid #e8ecf4;
-    }
-    .fmp-step-card-wrap .fmp-card-body {
-        padding: 12px 14px;
-    }
 </style>
 
 @php
@@ -164,12 +119,11 @@
 
 {{-- ── Overlay ─────────────────────────────────────────────────────────── --}}
 <div id="fmpModalWrap" role="dialog"
+    class="fmp-overlay"
      style="position:fixed; inset:0; z-index:99999;
-            overflow-y:auto;
-            background:rgba(15,15,35,.97);">
-    {{-- Inner wrapper: handles centering independently from scroll --}}
-    <div style="display:flex; align-items:center; justify-content:center;
-                min-height:100%; padding:16px; box-sizing:border-box;">
+          display:flex;
+            pointer-events:none;
+            background:rgba(15,15,35,.62); backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px);">
 
     <div class="fmp-dlg" role="document">
         <div class="modal-content fmp-cnt" style="border:none; box-shadow:0 20px 60px rgba(0,0,0,.35);">
@@ -188,7 +142,7 @@
                         <span style="background:rgba(255,255,255,.22); border-radius:20px;
                                      padding:2px 12px; font-size:14px; margin-left:6px;">
                             @if(!empty($d['sin_pedido']))
-                                <i class="mr-1 fa fa-times-circle"></i> Sin pedido
+                                <i class="mr-1 fa fa-hashtag"></i> Flujo #{{ $d['flujo_id'] ?? $flujoId ?? $d['id'] }}
                             @else
                                 #{{ $d['id'] }}
                             @endif
@@ -208,7 +162,7 @@
             </div>
 
             {{-- ── Body ───────────────────────────────────────────────── --}}
-            <div class="modal-body fmp-body" style="background:#e8ecf4;">
+            <div class="modal-body fmp-body" style="background:#f8f9fc;">
 
                 {{-- Banner cancelado --}}
                 @if ($fCancelado)
@@ -228,7 +182,6 @@
                 @else
 
                 {{-- ── Stepper pipeline ─────────────────────────────── --}}
-                <div style="background:#fff; border-radius:14px; margin-bottom:14px; box-shadow:0 3px 14px rgba(0,0,0,.08); overflow:hidden; border-top:3px solid #f39c12;">
                 <div class="fmp-pipeline" style="display:flex; align-items:center; justify-content:flex-start;
                             flex-wrap:nowrap; overflow-x:auto; padding:18px 16px 10px;">
                     @foreach ($fPasos as $paso => $info)
@@ -348,14 +301,14 @@
                             <div style="font-size:12px; font-weight:700; color:{{ $labelColor }};
                                         {{ $esSeleccionado ? 'text-decoration:underline;' : '' }}">
                                 @if($esSinPedido)
-                                Sin pedido
+                                Flujo #{{ $d['flujo_id'] ?? $flujoId ?? $d['id'] }}
                                 @else
                                 {{ $info['title'] }}
                                 @endif
                             </div>
                             <div style="font-size:10px; color:{{ $labelColor }}; opacity:{{ $pendiente ? '.5' : '1' }};">
                                 @if ($esSinPedido)
-                                    <i class="fa fa-times-circle"></i> Sin pedido
+                                    <i class="fa fa-hashtag"></i> Flujo #{{ $d['flujo_id'] ?? $flujoId ?? $d['id'] }}
                                 @elseif ($esSinAplica)
                                     <i class="fa fa-times-circle"></i> N/A
                                 @elseif ($completado)
@@ -650,21 +603,12 @@
                 {{-- ── Barra de progreso ─────────────────────────────── --}}
                 @if (!$fCancelado)
                 @php $progressPct = min(round(($fPaso / 8) * 100), 100); @endphp
-                <div style="margin:0 0 0; background:#e0e4ee; height:6px; overflow:hidden;">
-                    <div style="height:100%;
-                                background:linear-gradient(90deg,#f39c12,#1a7efb,#1ab394);
+                <div style="height:5px; border-radius:5px; background:#e8eaf0; margin:0 4px 6px; overflow:hidden;">
+                    <div style="height:100%; border-radius:5px;
+                                background:linear-gradient(90deg,#1ab394,#1a7efb);
                                 width:{{ $progressPct }}%; transition:width .6s ease;"></div>
                 </div>
-                <div style="padding:5px 16px 6px; background:#fafbff; display:flex; align-items:center; justify-content:space-between;">
-                    <span style="font-size:11px; color:#8892a4; font-weight:600;">
-                        <i class="fa fa-tasks mr-1"></i> Progreso del flujo
-                    </span>
-                    <span style="font-size:11px; font-weight:800; color:{{ $progressPct >= 100 ? '#1ab394' : '#1a7efb' }};">
-                        {{ $progressPct }}%
-                    </span>
-                </div>
                 @endif
-                </div>{{-- /stepper-card --}}
 
                 @endif {{-- /cancelado --}}
 
@@ -711,12 +655,12 @@
                 @endif
 
                 {{-- ── Info grid ─────────────────────────────────────── --}}
-                <div class="fmp-info-grid" style="margin-top:10px; padding:10px 16px; background:linear-gradient(135deg,#fff 0%,#f5f7ff 100%);
-                            border-radius:12px; border:1px solid #dce1ef; box-shadow:0 2px 8px rgba(0,0,0,.05);">
+                <div class="fmp-info-grid" style="margin-top:12px; padding:12px 16px; background:#fff;
+                            border-radius:12px; border:1px solid #e8eaf0;">
                     <span>
                         @if(!empty($d['sin_pedido']))
-                        <i class="mr-1 fa fa-times-circle" style="color:#e74c3c;"></i>
-                        <strong style="color:#e74c3c;">Sin pedido</strong>
+                    <i class="mr-1 fa fa-hashtag" style="color:#1a7efb;"></i>
+                    <strong style="color:#1a7efb;">Flujo #{{ $d['flujo_id'] ?? $flujoId ?? $d['id'] }}</strong>
                         @else
                         <i class="mr-1 fa fa-hashtag text-primary"></i>
                         <strong>Pedido #{{ $d['id'] }}</strong>
@@ -782,7 +726,7 @@
                             </span>
                         </span>
                     </div>
-                    <div style="background:#fff; max-height:200px; overflow-y:auto;">
+                    <div style="background:#fff; max-height:200px; overflow-y:auto; padding:10px 14px;">
                         @if (count($pedidoDetalles) === 0)
                         <p class="text-center text-muted" style="font-size:12px; margin:12px 0;">
                             <i class="mb-1 fa fa-inbox d-block" style="opacity:.3; font-size:22px;"></i>
@@ -1057,10 +1001,10 @@
                             </p>
                             <table style="width:100%; font-size:11px; border-collapse:collapse;">
                                 <thead>
-                                    <tr style="background:#f8bbd0 !important;">
-                                        <th style="padding:3px 8px; text-align:left; color:#b71c1c !important;">Producto</th>
-                                        <th style="padding:3px 8px; text-align:center; color:#b71c1c !important;">Solicitado</th>
-                                        <th style="padding:3px 8px; text-align:center; color:#b71c1c !important;">Disponible</th>
+                                    <tr style="background:#f8bbd0;">
+                                        <th style="padding:3px 8px; text-align:left;">Producto</th>
+                                        <th style="padding:3px 8px; text-align:center;">Solicitado</th>
+                                        <th style="padding:3px 8px; text-align:center;">Disponible</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -1873,52 +1817,6 @@
                             <i class="fa fa-print"></i> Imprimir factura
                         </a>
 
-                        <button type="button" wire:click="confirmarAccionFactura('anular')"
-                                style="background:linear-gradient(135deg,#e74c3c,#c0392b); color:#fff;
-                                       border:none; border-radius:8px; padding:6px 14px;
-                                       font-size:12px; font-weight:700; cursor:pointer;">
-                            <i class="mr-1 fa fa-ban"></i> Anular Factura
-                        </button>
-                    </div>
-                    @endif
-
-                    @if ($confirmAccionFactura === 'anular')
-                    <div style="margin-top:10px; background:#fff5f5; border:1px solid #feb2b2;
-                                border-radius:12px; padding:14px;">
-                        <p style="font-size:13px; color:#555; margin:0 0 4px;">
-                            <i class="mr-1 fa fa-ban text-danger"></i>
-                            ¿Anular la <strong>Factura #{{ $fac['id'] }}</strong>?
-                        </p>
-                        <p style="font-size:11px; color:#888; margin:0 0 10px;">
-                            El flujo regresará a Ofertas. La oferta ganadora quedará disponible para re-seleccionarse.
-                        </p>
-                        <div style="margin-bottom:10px;">
-                            <label style="font-size:12px; font-weight:700; color:#c0392b; display:block; margin-bottom:4px;">
-                                <i class="fa fa-comment mr-1"></i> Motivo de anulación <span style="color:#e74c3c;">*</span>
-                            </label>
-                            <textarea wire:model.defer="motivoAnulacionFactura"
-                                      rows="3"
-                                      placeholder="Indique el motivo de la anulación..."
-                                      style="width:100%; border:1px solid #feb2b2; border-radius:8px;
-                                             padding:8px 10px; font-size:12px; resize:vertical;
-                                             background:#fff; outline:none; box-sizing:border-box;"></textarea>
-                            @if($mensajeError && str_contains($mensajeError, 'motivo'))
-                            <p style="font-size:11px; color:#e74c3c; margin:4px 0 0;">{{ $mensajeError }}</p>
-                            @endif
-                        </div>
-                        <div style="display:flex; gap:8px;">
-                            <button type="button" wire:click="anularFactura"
-                                    style="background:linear-gradient(135deg,#e74c3c,#c0392b); color:#fff;
-                                           border:none; border-radius:8px; padding:7px 18px;
-                                           font-size:12px; font-weight:700; cursor:pointer;">
-                                <i class="mr-1 fa fa-ban"></i> Confirmar anulación
-                            </button>
-                            <button type="button" wire:click="cancelarConfirmFactura"
-                                    style="background:#f0f0f0; color:#555; border:none;
-                                           border-radius:8px; padding:7px 16px; font-size:12px; cursor:pointer;">
-                                Cancelar
-                            </button>
-                        </div>
                     </div>
                     @endif
                 </div>
@@ -2121,14 +2019,12 @@
             </div>{{-- /modal-body --}}
 
             {{-- ── Footer ─────────────────────────────────────────────── --}}
-            <div class="modal-footer fmp-foot" style="border:none; background:#e8ecf4;">
+            <div class="modal-footer fmp-foot" style="border:none; background:#f8f9fc;">
 
                 <button type="button" wire:click="cerrar"
-                        style="border-radius:20px; padding:6px 20px;
-                               background:linear-gradient(135deg,#546e7a,#37474f);
-                               border:none; color:#fff; font-size:13px; font-weight:700; cursor:pointer;
-                               box-shadow:0 2px 6px rgba(0,0,0,.15);">
-                    <i class="mr-1 fa fa-times-circle"></i> Cerrar
+                        style="border-radius:20px; padding:6px 20px; background:#f0f0f0;
+                               border:none; color:#555; font-size:13px; cursor:pointer;">
+                    <i class="mr-1 fa fa-times"></i> Cerrar
                 </button>
 
                   @if (!$fCancelado && $pasoActivo === 'pedido')
@@ -2183,7 +2079,6 @@
 
         </div>
     </div>
-    </div>{{-- /centering-wrapper --}}
 </div>{{-- /overlay --}}
 
 @endif
@@ -2264,67 +2159,5 @@
                 });
         });
     }
-
-    /* ── Backdrop que cubre el hueco inferior fuera del overlay constrained ── */
-    (function () {
-        var MODAL_ID    = 'fmpModalWrap';
-        var BACKDROP_ID = 'fmpBackdrop';
-
-        function createBackdrop() {
-            if (document.getElementById(BACKDROP_ID)) return;
-            var mw = document.getElementById(MODAL_ID);
-            var pw = document.getElementById('page-wrapper');
-            if (!mw) return;
-            var mwB    = Math.round(mw.getBoundingClientRect().bottom) - 2;
-            var bdLeft = pw ? Math.round(pw.getBoundingClientRect().left) : 235;
-            var bd = document.createElement('div');
-            bd.id = BACKDROP_ID;
-            bd.style.cssText = [
-                'position:fixed',
-                'top:'  + mwB    + 'px',
-                'left:' + bdLeft + 'px',
-                'right:0',
-                'bottom:0',
-                'z-index:99998',
-                'background:rgba(15,15,35,.97)',
-                'pointer-events:none'
-            ].join(';');
-            document.body.appendChild(bd);
-        }
-
-        function removeBackdrop() {
-            var bd = document.getElementById(BACKDROP_ID);
-            if (bd) bd.remove();
-        }
-
-        function syncBackdrop() {
-            document.getElementById(MODAL_ID) ? createBackdrop() : removeBackdrop();
-        }
-
-        var obs = new MutationObserver(function (mutations) {
-            for (var i = 0; i < mutations.length; i++) {
-                var m = mutations[i];
-                for (var j = 0; j < m.addedNodes.length; j++) {
-                    var n = m.addedNodes[j];
-                    if (n.id === MODAL_ID || (n.querySelector && n.querySelector('#' + MODAL_ID))) {
-                        createBackdrop(); return;
-                    }
-                }
-                for (var j = 0; j < m.removedNodes.length; j++) {
-                    var n = m.removedNodes[j];
-                    if (n.id === MODAL_ID || (n.querySelector && n.querySelector('#' + MODAL_ID))) {
-                        removeBackdrop(); return;
-                    }
-                }
-            }
-        });
-        obs.observe(document.body, { childList: true, subtree: true });
-
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', syncBackdrop);
-        } else {
-            syncBackdrop();
-        }
-    })();
 </script>
 </div>

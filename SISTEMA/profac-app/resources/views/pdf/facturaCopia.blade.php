@@ -111,7 +111,10 @@
                             <p style="margin:0 0 2px;"><b>Hora:</b> {{ $cai->hora }}</p>
                             <p style="margin:0 0 2px;"><b>Vence:</b> {{ $cai->fecha_vencimiento }}</p>
                             <p style="margin:0 0 2px;"><b>RTN:</b> {{ $cliente->rtn }}</p>
-                            <p style="margin:0;"><b>Orden N°:</b> {{ $ordenCompra['numero_orden'] }}</p>
+                            <p style="margin:0 0 2px;"><b>Orden N°:</b> {{ $ordenCompra['numero_orden'] }}</p>
+                            @if(!empty($formaF01))
+                            <p style="margin:0;"><b>F-01 N°:</b> {{ $formaF01 }}</p>
+                            @endif
                         </td>
                     </tr>
                 </table>
@@ -122,8 +125,8 @@
                         <td style="width:33%; border:none; padding:2px 0 1px; text-align:right;"><b>Identificativo del registro de la SAG</b></td>
                     </tr>
                     <tr>
-                        <td style="border:none; height:14px; border-bottom:1px solid #aaa;"></td>
-                        <td style="border:none; height:14px; border-bottom:1px solid #aaa;"></td>
+                        <td style="border:none; height:14px; border-bottom:1px solid #aaa;">{{ !empty($correlativoExonerado) ? strtoupper($correlativoExonerado) : '' }}</td>
+                        <td style="border:none; height:14px; border-bottom:1px solid #aaa; text-align:center;">{{ !empty($constanciaExonerado) ? strtoupper($constanciaExonerado) : '' }}</td>
                         <td style="border:none; height:14px; border-bottom:1px solid #aaa;"></td>
                     </tr>
                 </table>

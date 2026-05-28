@@ -111,9 +111,9 @@
                 <p class="card-text" style="position:absolute;left:500px;  top:127px;"><b>Identificativo del registro de
                         la SAG</b></p>
 
-                <p class="card-text" style="position:absolute;left:250px;  top:147px;">R-{{strtoupper($cai->codigo_exoneracion)}}</p>
+                <p class="card-text" style="position:absolute;left:250px;  top:141px;">{{strtoupper($cai->codigo_exoneracion)}}</p>
 
-                <p class="card-text" style="position:absolute;left:20px;  top:147px;">{{strtoupper($cai->correlativoexo)}}</p>
+                <p class="card-text" style="position:absolute;left:20px;  top:141px;">{{strtoupper($cai->correlativoexo)}}</p>
 
 
                 <p class="card-text" style="position:absolute;left:520px;  top:10px;"><b>Fecha:</b> {{$cai->fecha_emision}}</p>

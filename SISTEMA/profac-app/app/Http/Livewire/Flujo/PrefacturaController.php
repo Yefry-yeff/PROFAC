@@ -787,6 +787,36 @@ class PrefacturaController
             return response()->json(['error' => 'Prefactura no encontrada o inactiva.'], 404);
         }
 
+        // ── Traer número de orden desde la oferta y mapearlo a FK de factura ──
+        $ordenCompraId = null;
+        $numeroOrdenOferta = '';
+        if (!empty($pf->flujo_id)) {
+            $numeroOrdenOferta = trim((string) (DB::table('flujo')
+                ->where('id', (int) $pf->flujo_id)
+                ->value('numero_orden_compra') ?? ''));
+        }
+
+        if ($numeroOrdenOferta !== '') {
+            $ordenExistente = DB::table('numero_orden_compra')
+                ->where('cliente_id', (int) $pf->cliente_id)
+                ->where('numero_orden', $numeroOrdenOferta)
+                ->orderByDesc('id')
+                ->first(['id']);
+
+            if ($ordenExistente) {
+                $ordenCompraId = (int) $ordenExistente->id;
+            } else {
+                $ordenCompraId = (int) DB::table('numero_orden_compra')->insertGetId([
+                    'numero_orden' => $numeroOrdenOferta,
+                    'cliente_id'   => (int) $pf->cliente_id,
+                    'estado_id'    => 1,
+                    'users_id'     => Auth::id(),
+                    'created_at'   => now(),
+                    'updated_at'   => now(),
+                ]);
+            }
+        }
+
         // ── Determinar tipo_pago desde revisión de crédito aprobada ──────
         // Prioridad:
         //   1. Existe credito_revision.estado='aprobado' para este flujo → Crédito
@@ -959,7 +989,7 @@ class PrefacturaController
             'nota_comen'               => $pf->nota,
             'codigo_autorizacion'      => null,
             'idComprobante'            => null,
-            'ordenCompra'              => null,
+            'ordenCompra'              => $ordenCompraId,
             'pedido_id'                => $pedidoId,
             'flujo_id'                 => $pf->flujo_id,
         ], $productoData);
