@@ -49,10 +49,14 @@
                             <h5 style="color:#fff; margin:0; font-weight:700; font-size:15px;">
                                 <i class="mr-2 fa fa-search"></i>
                                 Revisando Flujo #{{ $flujoId }}
-                                @if($flujoData)
-                                    — {{ $flujoData['cliente'] ?? '—' }}
-                                @endif
                             </h5>
+                            @if($flujoData)
+                            <small style="color:rgba(255,255,255,.88); font-size:11px; display:block; margin-top:3px;">
+                                Cliente: <strong>{{ $flujoData['cliente'] ?? '—' }}</strong>
+                                <span style="opacity:.65;">|</span>
+                                Vendedor: <strong>{{ $flujoData['vendedor_nombre'] ?? '—' }}</strong>
+                            </small>
+                            @endif
                             @if($flujoData && $flujoData['pedido_id'])
                             <small style="color:rgba(255,255,255,.8); font-size:11px;">
                                 Pedido #{{ $flujoData['pedido_id'] }}

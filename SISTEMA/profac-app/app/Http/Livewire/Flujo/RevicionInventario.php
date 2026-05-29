@@ -343,6 +343,25 @@ class RevicionInventario extends Component
             return;
         }
 
+        $cotizacionInfo = DB::table('cotizacion as c')
+            ->leftJoin('cliente as cl', 'cl.id', '=', 'c.cliente_id')
+            ->leftJoin('users as v', 'v.id', '=', 'c.vendedor')
+            ->where('c.id', $this->cotizacionId)
+            ->select(
+                'c.cliente_id',
+                'c.vendedor',
+                DB::raw('COALESCE(cl.nombre, c.nombre_cliente, "N/A") as cliente_nombre'),
+                DB::raw('COALESCE(v.name, "N/A") as vendedor_nombre')
+            )
+            ->first();
+
+        if ($cotizacionInfo) {
+            $this->flujoData['cliente_id'] = $cotizacionInfo->cliente_id;
+            $this->flujoData['cliente'] = $cotizacionInfo->cliente_nombre;
+            $this->flujoData['vendedor'] = $cotizacionInfo->vendedor;
+            $this->flujoData['vendedor_nombre'] = $cotizacionInfo->vendedor_nombre;
+        }
+
         // Obtener productos (solo nombre + cantidad + stock actual)
         $prods = DB::table('cotizacion_has_producto as chp')
             ->leftJoin('unidad_medida_venta as umv', 'umv.id', '=', 'chp.unidad_medida_venta_id')
