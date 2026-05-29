@@ -291,6 +291,10 @@
             };
 
             window.limpiarFiltrosCardex = window.limpiarFiltrosCardex || function() {
+                var now = new Date();
+                var y = now.getFullYear();
+                var m = String(now.getMonth() + 1).padStart(2, '0');
+                var last = String(new Date(y, now.getMonth() + 1, 0).getDate()).padStart(2, '0');
                 var ids = ['cdxFiltroDesde', 'cdxFiltroHasta', 'cdxFiltroProducto', 'cdxFiltroCai', 'cdxTipoDocumento', 'cdxIdDocumento'];
                 ids.forEach(function(id) {
                     var el = document.getElementById(id);
@@ -300,9 +304,17 @@
                 });
 
                 if (window.jQuery) {
+                    var desde = document.getElementById('cdxFiltroDesde');
+                    var hasta = document.getElementById('cdxFiltroHasta');
+                    if (desde) desde.value = y + '-' + m + '-01';
+                    if (hasta) hasta.value = y + '-' + m + '-' + last;
                     $('#cdxFiltroUsuario').val(null).trigger('change');
                     $('#cdxFiltroBodegaOrigen').val(null).trigger('change');
                     $('#cdxFiltroBodegaDestino').val(null).trigger('change');
+
+                    if ($.fn.DataTable && $.fn.DataTable.isDataTable('#tbl_cardex')) {
+                        $('#tbl_cardex').DataTable().ajax.reload();
+                    }
                 }
             };
 
