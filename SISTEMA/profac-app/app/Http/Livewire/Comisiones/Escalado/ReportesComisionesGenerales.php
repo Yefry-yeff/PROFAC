@@ -427,6 +427,65 @@ class ReportesComisionesGenerales extends Component
     }
 
     /**
+     * Reporte de comisiones reversadas (anulación de pagos)
+     */
+    public function reporteReversiones(Request $request)
+    {
+        $fechaInicio = $request->input('fechaInicio') . ' 00:00:00';
+        $fechaFin = $request->input('fechaFin') . ' 23:59:59';
+
+        $query = DB::table('comision_reversiones as cr')
+            ->leftJoin('factura as f', 'f.id', '=', 'cr.factura_id')
+            ->leftJoin('cliente as cl', 'cl.id', '=', 'f.cliente_id')
+            ->leftJoin('users as ua', 'ua.id', '=', 'cr.usr_anulo')
+            ->whereBetween('cr.created_at', [$fechaInicio, $fechaFin])
+            ->select(
+                'cr.id',
+                'cr.abono_id',
+                'cr.factura_id',
+                'cr.aplicacion_pagos_id',
+                'cr.monto_abono_anulado',
+                'cr.tenia_comisiones',
+                'cr.comisiones_revertidas',
+                'cr.motivo',
+                'cr.factura_reabierta',
+                'cr.created_at',
+                'f.cai as factura',
+                'cl.nombre as cliente',
+                'ua.name as usuario_anulo'
+            );
+
+        return DataTables::of($query)
+            ->addColumn('total_revertido', function ($row) {
+                $items = [];
+                if (!empty($row->comisiones_revertidas)) {
+                    $tmp = json_decode($row->comisiones_revertidas, true);
+                    if (is_array($tmp)) {
+                        $items = $tmp;
+                    }
+                }
+
+                $total = 0;
+                foreach ($items as $it) {
+                    $total += (float) ($it['monto_revertido'] ?? 0);
+                }
+
+                return round($total, 2);
+            })
+            ->addColumn('comisiones_afectadas', function ($row) {
+                $items = [];
+                if (!empty($row->comisiones_revertidas)) {
+                    $tmp = json_decode($row->comisiones_revertidas, true);
+                    if (is_array($tmp)) {
+                        $items = $tmp;
+                    }
+                }
+                return count($items);
+            })
+            ->make(true);
+    }
+
+    /**
      * Descargar reporte en Excel
      */
     public function descargarExcel(Request $request)

@@ -275,6 +275,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/comision/reporte/usuarios', [ReportesComisionesGenerales::class, 'reporteUsuarios']);
     Route::get('/comision/reporte/productos', [ReportesComisionesGenerales::class, 'reporteProductos']);
     Route::get('/comision/reporte/facturas', [ReportesComisionesGenerales::class, 'reporteFacturas']);
+    Route::get('/comision/reporte/reversiones', [ReportesComisionesGenerales::class, 'reporteReversiones']);
 
     // Rutas nuevas: estadísticas, nómina, ranking y comparativo
     Route::get('/comision/reporte/stats',       [ReportesComisionesGenerales::class, 'stats']);
