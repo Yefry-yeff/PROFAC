@@ -207,6 +207,7 @@
                                             <th style="padding:10px 14px; color:#555; font-weight:700;">#</th>
                                             <th style="padding:10px 14px; color:#555; font-weight:700;">Producto</th>
                                             <th style="padding:10px 14px; color:#555; font-weight:700;">Bodega</th>
+                                            <th style="padding:10px 10px; color:#555; font-weight:700; white-space:nowrap;">Unidad</th>
                                             <th style="padding:10px 14px; text-align:center; color:#555; font-weight:700;">Cantidad</th>
                                             <th style="padding:10px 14px; text-align:center; color:#555; font-weight:700;">Disponible</th>
                                             <th style="padding:10px 14px; text-align:center; color:#1565c0; font-weight:700;">Global</th>
@@ -218,7 +219,7 @@
                                     <tbody>
                                         @if(count($this->productosFiltrados) === 0)
                                         <tr>
-                                            <td colspan="9" style="padding:20px; text-align:center; color:#78909c; background:#fff;">
+                                            <td colspan="10" style="padding:20px; text-align:center; color:#78909c; background:#fff;">
                                                 <i class="fa fa-filter d-block" style="font-size:24px; margin-bottom:6px; opacity:.55;"></i>
                                                 No hay productos que coincidan con los filtros.
                                             </td>
@@ -234,6 +235,11 @@
                                                 </td>
                                                 <td style="padding:8px 14px; color:#607d8b; font-size:12px;">
                                                     {{ $prod['nombre_bodega'] ?? '—' }}
+                                                </td>
+                                                <td style="padding:8px 10px; color:#607d8b; font-size:12px; white-space:nowrap;">
+                                                    <span style="background:#f1f5f9; color:#334155; border-radius:999px; padding:1px 8px; font-weight:600; display:inline-block; font-size:11px; line-height:1.2;">
+                                                        {{ $prod['unidad_medida'] ?? '—' }}
+                                                    </span>
                                                 </td>
                                                 <td style="padding:8px 14px; text-align:center;">
                                                     <span style="background:#e3f2fd; color:#1565c0; border-radius:12px;

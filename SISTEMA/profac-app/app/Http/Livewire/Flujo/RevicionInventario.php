@@ -345,8 +345,10 @@ class RevicionInventario extends Component
 
         // Obtener productos (solo nombre + cantidad + stock actual)
         $prods = DB::table('cotizacion_has_producto as chp')
+            ->leftJoin('unidad_medida_venta as umv', 'umv.id', '=', 'chp.unidad_medida_venta_id')
+            ->leftJoin('unidad_medida as um', 'um.id', '=', 'umv.unidad_medida_id')
             ->where('chp.cotizacion_id', $this->cotizacionId)
-            ->select('chp.nombre_producto', 'chp.nombre_bodega', 'chp.cantidad', 'chp.producto_id', 'chp.seccion_id', 'chp.resta_inventario')
+            ->select('chp.nombre_producto', 'chp.nombre_bodega', 'chp.cantidad', 'chp.producto_id', 'chp.seccion_id', 'chp.resta_inventario', 'chp.unidad_medida_venta_id', 'um.nombre as unidad_medida')
             ->get();
 
         $this->productos   = [];
@@ -413,6 +415,7 @@ class RevicionInventario extends Component
                 'idx'             => $i,
                 'nombre_producto' => $prod->nombre_producto,
                 'nombre_bodega'   => $prod->nombre_bodega,
+                'unidad_medida'   => $prod->unidad_medida,
                 'cantidad'        => $prod->cantidad,
                 'producto_id'     => $prod->producto_id,
                 'seccion_id'      => $prod->seccion_id,
