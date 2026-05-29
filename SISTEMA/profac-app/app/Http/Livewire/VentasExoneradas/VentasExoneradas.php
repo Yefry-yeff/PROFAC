@@ -754,7 +754,8 @@ class VentasExoneradas extends Component
                 inner join bodega H
                 on G.bodega_id = H.id
                 where A.id=".$idFactura."
-                group by codigo, descripcion, medida, bodega, seccion, precio"
+                group by codigo, descripcion, medida, bodega, seccion, precio, B.indice
+                order by B.indice asc"
 
 
 
@@ -950,7 +951,8 @@ class VentasExoneradas extends Component
                 inner join bodega H
                 on G.bodega_id = H.id
                 where A.id=".$idFactura."
-                group by codigo, descripcion, medida, bodega, seccion, precio
+                group by codigo, descripcion, medida, bodega, seccion, precio, B.indice
+                order by B.indice asc
 
                 "
 
@@ -1142,7 +1144,8 @@ class VentasExoneradas extends Component
                 inner join bodega H
                 on G.bodega_id = H.id
                 where A.id=".$idFactura."
-                group by codigo, descripcion, medida, bodega, seccion, precio
+                group by codigo, descripcion, medida, bodega, seccion, precio, B.indice
+                order by B.indice asc
 
                  "
 
