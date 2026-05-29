@@ -112,6 +112,21 @@ class Cliente extends Component
     }
 
     public function guardarCliente(Request $request){
+        $validator = Validator::make($request->all(), [
+            'correo_cliente' => 'required|email',
+        ], [
+            'correo_cliente.required' => 'El correo del cliente es obligatorio.',
+            'correo_cliente.email' => 'El correo del cliente no tiene un formato valido.',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'icon' => 'warning',
+                'title' => 'Validacion',
+                'text' => $validator->errors()->first(),
+            ], 422);
+        }
+
         // Verificar RTN duplicado antes de cualquier operación
         $rtnNuevo = trim($request->rtn_cliente ?? '');
         if ($rtnNuevo !== '' && ModelCliente::where('rtn', $rtnNuevo)->exists()) {
@@ -1088,6 +1103,21 @@ class Cliente extends Component
      */
     public function crearClienteCompleto(Request $request)
     {
+        $validator = Validator::make($request->all(), [
+            'correo' => 'required|email',
+        ], [
+            'correo.required' => 'El correo del cliente es obligatorio.',
+            'correo.email' => 'El correo del cliente no tiene un formato valido.',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'icon'  => 'warning',
+                'title' => 'Validacion',
+                'text'  => $validator->errors()->first(),
+            ], 422);
+        }
+
         try {
             DB::beginTransaction();
 
