@@ -259,27 +259,7 @@
                                         <th>Usuario</th>
                                     </tr>
                                 </thead>
-                                <tbody>
-                                    <tfoot>
-                                        <tr>
-                                            <th>Fecha de gestion</th>
-                                            <th>Producto</th>
-                                            <th>Código</th>
-                                            <th>Factura</th>
-                                            <th>Ajuste</th>
-                                            <th>Compra</th>
-                                            <th>Comprobante</th>
-                                            <th>Vale T.1</th>
-                                            <th>Vale T.2</th>
-                                            <th>N. Crédito</th>
-                                            <th>Descripcion</th>
-                                            <th>Origen</th>
-                                            <th>Destino</th>
-                                            <th>Cantidad</th>
-                                            <th>Usuario</th>
-                                        </tr>
-                                    </tfoot>
-                                </tbody>
+                                <tbody></tbody>
                             </table>
                         </div>
                     </div>

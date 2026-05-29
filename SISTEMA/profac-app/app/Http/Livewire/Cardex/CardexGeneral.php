@@ -179,34 +179,59 @@ class CardexGeneral extends Component
                 }
             }
 
-            if ($idDocumento !== '') {
+            if ($tipoDocumento !== '') {
                 switch ($tipoDocumento) {
                     case 'ajuste':
                         if ($colAjuste) {
-                            $query->where("c.$colAjuste", $idDocumento);
+                            if ($idDocumento !== '') {
+                                $query->where("c.$colAjuste", $idDocumento);
+                            } else {
+                                $query->whereNotNull("c.$colAjuste");
+                            }
                         }
                         break;
                     case 'compra':
                         if ($colCompra) {
-                            $query->where("c.$colCompra", $idDocumento);
+                            if ($idDocumento !== '') {
+                                $query->where("c.$colCompra", $idDocumento);
+                            } else {
+                                $query->whereNotNull("c.$colCompra");
+                            }
                         }
                         break;
                     case 'comprobante':
                         if ($colComprobante) {
-                            $query->where("c.$colComprobante", $idDocumento);
+                            if ($idDocumento !== '') {
+                                $query->where("c.$colComprobante", $idDocumento);
+                            } else {
+                                $query->whereNotNull("c.$colComprobante");
+                            }
                         }
                         break;
                     case 'vale':
                         if ($colVale1 || $colVale2) {
                             $query->where(function ($q) use ($idDocumento, $colVale1, $colVale2) {
-                                if ($colVale1) {
-                                    $q->where("c.$colVale1", $idDocumento);
-                                }
-                                if ($colVale2) {
+                                if ($idDocumento !== '') {
                                     if ($colVale1) {
-                                        $q->orWhere("c.$colVale2", $idDocumento);
-                                    } else {
-                                        $q->where("c.$colVale2", $idDocumento);
+                                        $q->where("c.$colVale1", $idDocumento);
+                                    }
+                                    if ($colVale2) {
+                                        if ($colVale1) {
+                                            $q->orWhere("c.$colVale2", $idDocumento);
+                                        } else {
+                                            $q->where("c.$colVale2", $idDocumento);
+                                        }
+                                    }
+                                } else {
+                                    if ($colVale1) {
+                                        $q->whereNotNull("c.$colVale1");
+                                    }
+                                    if ($colVale2) {
+                                        if ($colVale1) {
+                                            $q->orWhereNotNull("c.$colVale2");
+                                        } else {
+                                            $q->whereNotNull("c.$colVale2");
+                                        }
                                     }
                                 }
                             });
@@ -214,7 +239,11 @@ class CardexGeneral extends Component
                         break;
                     case 'nota_credito':
                         if ($colNotaCredito) {
-                            $query->where("c.$colNotaCredito", $idDocumento);
+                            if ($idDocumento !== '') {
+                                $query->where("c.$colNotaCredito", $idDocumento);
+                            } else {
+                                $query->whereNotNull("c.$colNotaCredito");
+                            }
                         }
                         break;
                 }
