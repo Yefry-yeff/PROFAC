@@ -693,12 +693,12 @@ class VentasExoneradas extends Component
         $importes = DB::SELECTONE("
         select
          total,
-         isv,
+         COALESCE((select sum(round(vhp.sub_total_s * (p.isv / 100), 2)) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv != 0 and vhp.factura_id = ".$idFactura."),0) as isv,
          sub_total,
-         FORMAT((select sum(sub_total_s) from venta_has_producto where isv != 0 and factura_id = ".$idFactura."),2) as sub_total_grabado,
+         FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv != 0 and vhp.factura_id = ".$idFactura."),2) as sub_total_grabado,
          COALESCE(sub_total_excento, 0) as sub_total_excento,
          porc_descuento,
-        FORMAT((select sum(sub_total_s) from venta_has_producto where isv = 0 and factura_id = ".$idFactura."),2) as subtotal_excentovale,
+        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv = 0 and vhp.factura_id = ".$idFactura."),2) as subtotal_excentovale,
          monto_descuento
          from factura
          where id = ".$idFactura);
@@ -706,28 +706,26 @@ class VentasExoneradas extends Component
          $importesConCentavos= DB::SELECTONE("
          select
          FORMAT(total,2) as total,
-         FORMAT(isv,2) as isv,
+         FORMAT(COALESCE((select sum(round(vhp.sub_total_s * (p.isv / 100), 2)) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv != 0 and vhp.factura_id = ".$idFactura."),0),2) as isv,
          FORMAT(sub_total,2) as sub_total,
-        FORMAT((select sum(sub_total_s) from venta_has_producto where isv != 0 and factura_id = ".$idFactura."),2) as sub_total_grabado,
+        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv != 0 and vhp.factura_id = ".$idFactura."),2) as sub_total_grabado,
         FORMAT(COALESCE(sub_total_excento, 0),2) as sub_total_excento,
-        FORMAT((select sum(sub_total_s) from venta_has_producto where isv = 0 and factura_id = ".$idFactura."),2) as subtotal_excentovale,
+        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv = 0 and vhp.factura_id = ".$idFactura."),2) as subtotal_excentovale,
          FORMAT(porc_descuento,2) as porc_descuento,
          FORMAT(monto_descuento,2) as monto_descuento
          from factura where factura.id = ".$idFactura);
 
-        // Regla exonerada en impresión: todo el importe va a exento y no se cobra ISV.
-        $importeExento = (float) ($importes->sub_total ?? 0);
-        $importes->sub_total_grabado = 0;
-        $importes->sub_total_excento = $importeExento;
-        $importes->subtotal_excentovale = number_format($importeExento, 2, '.', '');
-        $importes->isv = 0;
-        $importes->total = $importeExento;
+                // En facturas exoneradas el impuesto sobre venta debe ser siempre 0.
+                $importes->isv = 0;
+                $importes->total = round((float) $importes->sub_total, 2);
 
-        $importesConCentavos->sub_total_grabado = '0.00';
-        $importesConCentavos->sub_total_excento = number_format($importeExento, 2, '.', ',');
-        $importesConCentavos->subtotal_excentovale = number_format($importeExento, 2, '.', ',');
-        $importesConCentavos->isv = '0.00';
-        $importesConCentavos->total = number_format($importeExento, 2, '.', ',');
+                $importesConCentavos->isv = '0.00';
+                $importesConCentavos->total = number_format(
+                    (float) str_replace(',', '', $importesConCentavos->sub_total),
+                    2,
+                    '.',
+                    ','
+                );
 
        $productos = DB::SELECT("
             select
@@ -737,7 +735,7 @@ class VentasExoneradas extends Component
                 if(C.isv = 0, 'SI' , 'NO' ) as excento,
                 if(B.seccion_id = 0, 'N/A',H.nombre) as bodega,
                 if(B.seccion_id = 0, 'N/A',REPLACE(REPLACE(F.descripcion,'Seccion',''),' ', '')) as seccion,
-                    (B.sub_total/B.cantidad) as precio,
+                    FORMAT(B.precio_unidad,2) as precio,
                     sum(B.cantidad_s) as cantidad,
                     sum(B.sub_total_s) as importe
 
@@ -759,7 +757,8 @@ class VentasExoneradas extends Component
                 inner join bodega H
                 on G.bodega_id = H.id
                 where A.id=".$idFactura."
-                group by codigo, descripcion, medida, bodega, seccion, precio"
+                group by codigo, descripcion, medida, bodega, seccion, precio, B.indice
+                order by B.indice asc"
 
 
 
@@ -811,6 +810,8 @@ class VentasExoneradas extends Component
         $formatter = new NumeroALetras();
         $numeroLetras = $formatter->toMoney($importes->total, 2, 'LEMPIRAS', 'CENTAVOS');
 
+        $esExonerada = true;
+
         $pdf = PDF::loadView('/pdf/factura', compact(
             'cai',
             'cliente',
@@ -822,7 +823,8 @@ class VentasExoneradas extends Component
             'ordenCompra',
             'formaF01',
             'correlativoExonerado',
-            'constanciaExonerado'
+            'constanciaExonerado',
+            'esExonerada'
         ))->setPaper('letter');
 
         return $pdf->stream("factura_numero" . $cai->numero_factura.".pdf");
@@ -891,12 +893,12 @@ class VentasExoneradas extends Component
        $importes = DB::SELECTONE("
        select
         total,
-        isv,
+        COALESCE((select sum(round(vhp.sub_total_s * (p.isv / 100), 2)) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv != 0 and vhp.factura_id = ".$idFactura."),0) as isv,
         sub_total,
-        FORMAT((select sum(sub_total_s) from venta_has_producto where isv != 0 and factura_id = ".$idFactura."),2) as sub_total_grabado,
+        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv != 0 and vhp.factura_id = ".$idFactura."),2) as sub_total_grabado,
         COALESCE(sub_total_excento, 0) as sub_total_excento,
         porc_descuento,
-        FORMAT((select sum(sub_total_s) from venta_has_producto where isv = 0 and factura_id = ".$idFactura."),2) as subtotal_excentovale,
+        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv = 0 and vhp.factura_id = ".$idFactura."),2) as subtotal_excentovale,
         monto_descuento
         from factura
         where id = ".$idFactura);
@@ -904,28 +906,26 @@ class VentasExoneradas extends Component
         $importesConCentavos= DB::SELECTONE("
         select
         FORMAT(total,2) as total,
-        FORMAT(isv,2) as isv,
+        FORMAT(COALESCE((select sum(round(vhp.sub_total_s * (p.isv / 100), 2)) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv != 0 and vhp.factura_id = ".$idFactura."),0),2) as isv,
         FORMAT(sub_total,2) as sub_total,
-        FORMAT((select sum(sub_total_s) from venta_has_producto where isv != 0 and factura_id = ".$idFactura."),2) as sub_total_grabado,
+        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv != 0 and vhp.factura_id = ".$idFactura."),2) as sub_total_grabado,
         FORMAT(COALESCE(sub_total_excento, 0),2) as sub_total_excento,
         FORMAT(porc_descuento,2) as porc_descuento,
-        FORMAT((select sum(sub_total_s) from venta_has_producto where isv = 0 and factura_id = ".$idFactura."),2) as subtotal_excentovale,
+        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv = 0 and vhp.factura_id = ".$idFactura."),2) as subtotal_excentovale,
         FORMAT(monto_descuento,2) as monto_descuento
         from factura where factura.id = ".$idFactura);
 
-        // Regla exonerada en impresión: todo el importe va a exento y no se cobra ISV.
-        $importeExento = (float) ($importes->sub_total ?? 0);
-        $importes->sub_total_grabado = 0;
-        $importes->sub_total_excento = $importeExento;
-        $importes->subtotal_excentovale = number_format($importeExento, 2, '.', '');
+        // En facturas exoneradas el impuesto sobre venta debe ser siempre 0.
         $importes->isv = 0;
-        $importes->total = $importeExento;
+        $importes->total = round((float) $importes->sub_total, 2);
 
-        $importesConCentavos->sub_total_grabado = '0.00';
-        $importesConCentavos->sub_total_excento = number_format($importeExento, 2, '.', ',');
-        $importesConCentavos->subtotal_excentovale = number_format($importeExento, 2, '.', ',');
         $importesConCentavos->isv = '0.00';
-        $importesConCentavos->total = number_format($importeExento, 2, '.', ',');
+        $importesConCentavos->total = number_format(
+            (float) str_replace(',', '', $importesConCentavos->sub_total),
+            2,
+            '.',
+            ','
+        );
 
         $productos = DB::SELECT("
             select
@@ -957,7 +957,8 @@ class VentasExoneradas extends Component
                 inner join bodega H
                 on G.bodega_id = H.id
                 where A.id=".$idFactura."
-                group by codigo, descripcion, medida, bodega, seccion, precio
+                group by codigo, descripcion, medida, bodega, seccion, precio, B.indice
+                order by B.indice asc
 
                 "
 
@@ -1014,6 +1015,8 @@ class VentasExoneradas extends Component
 
 
 
+        $esExonerada = true;
+
         $pdf = PDF::loadView('/pdf/facturaCopia', compact(
             'cai',
             'cliente',
@@ -1025,7 +1028,8 @@ class VentasExoneradas extends Component
             'ordenCompra',
             'formaF01',
             'correlativoExonerado',
-            'constanciaExonerado'
+            'constanciaExonerado',
+            'esExonerada'
         ))->setPaper('letter');
 
         return $pdf->stream("factura_numero" . $cai->numero_factura.".pdf");
@@ -1096,10 +1100,10 @@ class VentasExoneradas extends Component
          total,
          isv,
          sub_total,
-         FORMAT((select sum(sub_total_s) from venta_has_producto where isv != 0 and factura_id = ".$idFactura."),2) as sub_total_grabado,
+         FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv != 0 and vhp.factura_id = ".$idFactura."),2) as sub_total_grabado,
          COALESCE(sub_total_excento, 0) as sub_total_excento,
          porc_descuento,
-        FORMAT((select sum(sub_total_s) from venta_has_producto where isv = 0 and factura_id = ".$idFactura."),2) as subtotal_excentovale,
+        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv = 0 and vhp.factura_id = ".$idFactura."),2) as subtotal_excentovale,
          monto_descuento
          from factura
          where id = ".$idFactura);
@@ -1109,9 +1113,9 @@ class VentasExoneradas extends Component
          FORMAT(total,2) as total,
          FORMAT(isv,2) as isv,
          FORMAT(sub_total,2) as sub_total,
-        FORMAT((select sum(sub_total_s) from venta_has_producto where isv != 0 and factura_id = ".$idFactura."),2) as sub_total_grabado,
+        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv != 0 and vhp.factura_id = ".$idFactura."),2) as sub_total_grabado,
         FORMAT(COALESCE(sub_total_excento, 0),2) as sub_total_excento,
-        FORMAT((select sum(sub_total_s) from venta_has_producto where isv = 0 and factura_id = ".$idFactura."),2) as subtotal_excentovale,
+        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv = 0 and vhp.factura_id = ".$idFactura."),2) as subtotal_excentovale,
          FORMAT(porc_descuento,2) as porc_descuento,
          FORMAT(monto_descuento,2) as monto_descuento
          from factura where factura.id = ".$idFactura);
@@ -1146,7 +1150,8 @@ class VentasExoneradas extends Component
                 inner join bodega H
                 on G.bodega_id = H.id
                 where A.id=".$idFactura."
-                group by codigo, descripcion, medida, bodega, seccion, precio
+                group by codigo, descripcion, medida, bodega, seccion, precio, B.indice
+                order by B.indice asc
 
                  "
 
@@ -1177,4 +1182,5 @@ class VentasExoneradas extends Component
 
     }
 }
+
 

@@ -368,6 +368,15 @@ $(document).ready(function() {
           }
 
           // ── Tab Contacto ───────────────────────────────────────────
+          var correoCliente = $('#correo_cliente').val().trim();
+          if (!correoCliente) {
+              $('#correo_cliente').addClass('is-invalid');
+              errores.contacto.push('Correo electronico');
+          } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correoCliente)) {
+              $('#correo_cliente').addClass('is-invalid');
+              errores.contacto.push('Correo electronico (formato invalido)');
+          }
+
           var telCliente = $('#telefono_cliente').val().trim();
           if (!telCliente || !/^[0-9]{4}-[0-9]{4}$/.test(telCliente)) {
               $('#telefono_cliente').addClass('is-invalid');

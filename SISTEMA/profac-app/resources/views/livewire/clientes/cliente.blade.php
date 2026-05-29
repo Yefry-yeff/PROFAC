@@ -438,8 +438,8 @@
                                     <div class="row">
                                         <div class="col-md-6">
                                             <div class="form-group mb-2">
-                                                <label class="col-form-label focus-label">Correo electrónico</label>
-                                                <input class="form-control" type="text" name="correo_cliente" id="correo_cliente">
+                                                <label class="col-form-label focus-label">Correo electrónico <span class="text-danger">*</span></label>
+                                                <input class="form-control" type="email" name="correo_cliente" id="correo_cliente" required>
                                             </div>
                                         </div>
                                         <div class="col-md-6">

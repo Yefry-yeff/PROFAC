@@ -11,6 +11,17 @@ var cdxFiltros = {
     bodegaDestino: ''
 };
 
+function cdxGetDefaultDates() {
+    var now = new Date();
+    var y = now.getFullYear();
+    var m = String(now.getMonth() + 1).padStart(2, '0');
+    var lastDay = new Date(y, now.getMonth() + 1, 0).getDate();
+    return {
+        desde: y + '-' + m + '-01',
+        hasta: y + '-' + m + '-' + String(lastDay).padStart(2, '0')
+    };
+}
+
 function s2opts(url, placeholder) {
     return {
         ajax: {
@@ -42,6 +53,8 @@ function cdxRenderBadges() {
     var bar = document.getElementById('cdxFiltrosBar');
     if (!bar) return;
 
+    var defaults = cdxGetDefaultDates();
+
     var parts = [];
     var labels = {
         desde: 'Desde',
@@ -57,6 +70,12 @@ function cdxRenderBadges() {
 
     Object.keys(labels).forEach(function(key) {
         if (!cdxFiltros[key]) return;
+
+        if ((key === 'desde' && cdxFiltros[key] === defaults.desde) ||
+            (key === 'hasta' && cdxFiltros[key] === defaults.hasta)) {
+            return;
+        }
+
         var shown = cdxFiltros[key];
         if (key === 'usuario') {
             shown = $('#cdxFiltroUsuario option:selected').text() || shown;
@@ -195,8 +214,9 @@ function aplicarFiltrosCardex() {
 }
 
 function limpiarFiltrosCardex() {
-    document.getElementById('cdxFiltroDesde').value = '';
-    document.getElementById('cdxFiltroHasta').value = '';
+    var defaults = cdxGetDefaultDates();
+    document.getElementById('cdxFiltroDesde').value = defaults.desde;
+    document.getElementById('cdxFiltroHasta').value = defaults.hasta;
     document.getElementById('cdxFiltroProducto').value = '';
     document.getElementById('cdxFiltroCai').value = '';
     document.getElementById('cdxTipoDocumento').value = '';
@@ -206,8 +226,8 @@ function limpiarFiltrosCardex() {
     $('#cdxFiltroBodegaDestino').val(null).trigger('change');
 
     cdxFiltros = {
-        desde: '',
-        hasta: '',
+        desde: defaults.desde,
+        hasta: defaults.hasta,
         producto: '',
         cai: '',
         tipoDocumento: '',
@@ -217,6 +237,11 @@ function limpiarFiltrosCardex() {
         bodegaDestino: ''
     };
     cdxRenderBadges();
+
+    if ($.fn.DataTable.isDataTable('#tbl_cardex')) {
+        var dt = $('#tbl_cardex').DataTable();
+        dt.ajax.url(cdxBuildUrl()).load();
+    }
 }
 
 function cargaCardex() {

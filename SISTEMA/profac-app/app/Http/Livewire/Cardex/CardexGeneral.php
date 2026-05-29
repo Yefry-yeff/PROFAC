@@ -57,6 +57,43 @@ class CardexGeneral extends Component
             $colSecDestino  = $pick(['id_seccion_destino']);
             $colFechaGestion = $pick(['fecha_gestion', 'fechaGestion']);
             $colFechaOrden = $colFechaGestion ?: 'fecha_creacion';
+            $fechaBaseExpr = "COALESCE(c.fecha_creacion, c.created_at, c.updated_at)";
+
+            if ($colFechaGestion) {
+                $fechaOrdenExpr = "c.$colFechaOrden";
+            } else {
+                $caseFechaPartes = [];
+
+                if ($colAjuste) {
+                    $caseFechaPartes[] = "WHEN c.$colAjuste IS NOT NULL THEN COALESCE(a.created_at, a.updated_at, a.fecha, $fechaBaseExpr)";
+                }
+
+                if ($colCompra) {
+                    $caseFechaPartes[] = "WHEN c.$colCompra IS NOT NULL THEN COALESCE(co.created_at, co.updated_at, co.fecha_recepcion, co.fecha_emision, $fechaBaseExpr)";
+                }
+
+                if ($colComprobante) {
+                    $caseFechaPartes[] = "WHEN c.$colComprobante IS NOT NULL THEN COALESCE(ce.created_at, ce.updated_at, ce.fecha_emision, $fechaBaseExpr)";
+                }
+
+                if ($colVale1) {
+                    $caseFechaPartes[] = "WHEN c.$colVale1 IS NOT NULL THEN COALESCE(v1.created_at, v1.updated_at, $fechaBaseExpr)";
+                }
+
+                if ($colVale2) {
+                    $caseFechaPartes[] = "WHEN c.$colVale2 IS NOT NULL THEN COALESCE(v2.created_at, v2.updated_at, $fechaBaseExpr)";
+                }
+
+                if ($colNotaCredito) {
+                    $caseFechaPartes[] = "WHEN c.$colNotaCredito IS NOT NULL THEN COALESCE(nc.created_at, nc.updated_at, nc.fecha, $fechaBaseExpr)";
+                }
+
+                if (!empty($caseFechaPartes)) {
+                    $fechaOrdenExpr = 'CASE ' . implode(' ', $caseFechaPartes) . " ELSE $fechaBaseExpr END";
+                } else {
+                    $fechaOrdenExpr = $fechaBaseExpr;
+                }
+            }
 
             $origenExpr = "''";
             if ($colBodOrigen && $colSecOrigen) {
@@ -83,17 +120,25 @@ class CardexGeneral extends Component
             if ($colAjuste) {
                 $query->leftJoin('ajuste as a', 'a.id', '=', "c.$colAjuste");
             }
+            if ($colCompra) {
+                $query->leftJoin('compra as co', 'co.id', '=', "c.$colCompra");
+                $query->leftJoin('users as cu', 'cu.id', '=', 'co.users_id');
+            }
             if ($colComprobante) {
                 $query->leftJoin('comprovante_entrega as ce', 'ce.id', '=', "c.$colComprobante");
+                $query->leftJoin('users as ceu', 'ceu.id', '=', 'ce.users_id');
             }
             if ($colVale1) {
                 $query->leftJoin('vale as v1', 'v1.id', '=', "c.$colVale1");
+                $query->leftJoin('users as v1u', 'v1u.id', '=', 'v1.users_id');
             }
             if ($colVale2) {
                 $query->leftJoin('vale as v2', 'v2.id', '=', "c.$colVale2");
+                $query->leftJoin('users as v2u', 'v2u.id', '=', 'v2.users_id');
             }
             if ($colNotaCredito) {
                 $query->leftJoin('nota_credito as nc', 'nc.id', '=', "c.$colNotaCredito");
+                $query->leftJoin('users as ncu', 'ncu.id', '=', 'nc.users_id');
             }
             if ($colUsuario) {
                 $query->leftJoin('users as u', 'u.id', '=', "c.$colUsuario");
@@ -111,8 +156,75 @@ class CardexGeneral extends Component
                 $query->leftJoin('seccion as sd', 'sd.id', '=', "c.$colSecDestino");
             }
 
+            $usuarioExpr = 'NULL';
+            if ($colUsuario) {
+                $baseUsuarioExpr = "COALESCE(u.name, CAST(c.$colUsuario AS CHAR))";
+                $usuarioCasePartes = [];
+
+                if ($colCompra) {
+                    $usuarioCasePartes[] = "WHEN c.$colCompra IS NOT NULL THEN COALESCE(cu.name, $baseUsuarioExpr)";
+                }
+
+                if ($colComprobante) {
+                    $usuarioCasePartes[] = "WHEN c.$colComprobante IS NOT NULL THEN COALESCE(ceu.name, $baseUsuarioExpr)";
+                }
+
+                if ($colVale1) {
+                    $usuarioCasePartes[] = "WHEN c.$colVale1 IS NOT NULL THEN COALESCE(v1u.name, $baseUsuarioExpr)";
+                }
+
+                if ($colVale2) {
+                    $usuarioCasePartes[] = "WHEN c.$colVale2 IS NOT NULL THEN COALESCE(v2u.name, $baseUsuarioExpr)";
+                }
+
+                if ($colNotaCredito) {
+                    $usuarioCasePartes[] = "WHEN c.$colNotaCredito IS NOT NULL THEN COALESCE(ncu.name, $baseUsuarioExpr)";
+                }
+
+                $usuarioExpr = !empty($usuarioCasePartes)
+                    ? 'CASE ' . implode(' ', $usuarioCasePartes) . " ELSE $baseUsuarioExpr END"
+                    : $baseUsuarioExpr;
+            } elseif ($colUsuarioNombre) {
+                $baseUsuarioExpr = "c.$colUsuarioNombre";
+                $usuarioCasePartes = [];
+
+                if ($colCompra) {
+                    $usuarioCasePartes[] = "WHEN c.$colCompra IS NOT NULL THEN COALESCE(cu.name, $baseUsuarioExpr)";
+                }
+
+                if ($colComprobante) {
+                    $usuarioCasePartes[] = "WHEN c.$colComprobante IS NOT NULL THEN COALESCE(ceu.name, $baseUsuarioExpr)";
+                }
+
+                if ($colVale1) {
+                    $usuarioCasePartes[] = "WHEN c.$colVale1 IS NOT NULL THEN COALESCE(v1u.name, $baseUsuarioExpr)";
+                }
+
+                if ($colVale2) {
+                    $usuarioCasePartes[] = "WHEN c.$colVale2 IS NOT NULL THEN COALESCE(v2u.name, $baseUsuarioExpr)";
+                }
+
+                if ($colNotaCredito) {
+                    $usuarioCasePartes[] = "WHEN c.$colNotaCredito IS NOT NULL THEN COALESCE(ncu.name, $baseUsuarioExpr)";
+                }
+
+                $usuarioExpr = !empty($usuarioCasePartes)
+                    ? 'CASE ' . implode(' ', $usuarioCasePartes) . " ELSE $baseUsuarioExpr END"
+                    : $baseUsuarioExpr;
+            } elseif ($colCompra) {
+                $usuarioExpr = 'cu.name';
+            } elseif ($colComprobante) {
+                $usuarioExpr = 'ceu.name';
+            } elseif ($colVale1) {
+                $usuarioExpr = 'v1u.name';
+            } elseif ($colVale2) {
+                $usuarioExpr = 'v2u.name';
+            } elseif ($colNotaCredito) {
+                $usuarioExpr = 'ncu.name';
+            }
+
             $query->select([
-                DB::raw("DATE_FORMAT(c.$colFechaOrden, '%Y-%m-%d %H:%i:%s') as fechaIngreso"),
+                DB::raw("DATE_FORMAT($fechaOrdenExpr, '%Y-%m-%d %H:%i:%s') as fechaIngreso"),
                 DB::raw($colProductoId ? 'COALESCE(c.producto, p.nombre) as producto' : 'c.producto as producto'),
                 DB::raw($colProductoId ? "c.$colProductoId as codigoProducto" : 'NULL as codigoProducto'),
                 DB::raw($colFactura ? "c.$colFactura as factura" : 'NULL as factura'),
@@ -132,15 +244,15 @@ class CardexGeneral extends Component
                 DB::raw("$origenExpr as origen"),
                 DB::raw("$destinoExpr as destino"),
                 DB::raw('c.cantidad as cantidad'),
-                DB::raw($colUsuario ? "COALESCE(u.name, CAST(c.$colUsuario AS CHAR)) as usuario" : ($colUsuarioNombre ? "c.$colUsuarioNombre as usuario" : 'NULL as usuario')),
+                DB::raw("$usuarioExpr as usuario"),
             ]);
 
             if ($filtroDesde !== '' && $filtroHasta !== '') {
-                $query->whereBetween(DB::raw("DATE(c.$colFechaOrden)"), [$filtroDesde, $filtroHasta]);
+                $query->whereBetween(DB::raw("DATE($fechaOrdenExpr)"), [$filtroDesde, $filtroHasta]);
             } elseif ($filtroDesde !== '') {
-                $query->whereDate("c.$colFechaOrden", '>=', $filtroDesde);
+                $query->whereDate(DB::raw($fechaOrdenExpr), '>=', $filtroDesde);
             } elseif ($filtroHasta !== '') {
-                $query->whereDate("c.$colFechaOrden", '<=', $filtroHasta);
+                $query->whereDate(DB::raw($fechaOrdenExpr), '<=', $filtroHasta);
             }
 
             if ($filtroProducto !== '') {
@@ -162,8 +274,12 @@ class CardexGeneral extends Component
             }
 
             if ($filtroUsuario !== '') {
-                if ($colUsuario) {
-                    $query->where("c.$colUsuario", $filtroUsuario);
+                if ($usuarioExpr !== 'NULL') {
+                    $usuarioNormalizado = mb_strtolower($filtroUsuario);
+                    $query->whereRaw(
+                        'LOWER(' . $usuarioExpr . ') LIKE ?',
+                        ['%' . $usuarioNormalizado . '%']
+                    );
                 }
             }
 
@@ -179,34 +295,59 @@ class CardexGeneral extends Component
                 }
             }
 
-            if ($idDocumento !== '') {
+            if ($tipoDocumento !== '') {
                 switch ($tipoDocumento) {
                     case 'ajuste':
                         if ($colAjuste) {
-                            $query->where("c.$colAjuste", $idDocumento);
+                            if ($idDocumento !== '') {
+                                $query->where("c.$colAjuste", $idDocumento);
+                            } else {
+                                $query->whereNotNull("c.$colAjuste");
+                            }
                         }
                         break;
                     case 'compra':
                         if ($colCompra) {
-                            $query->where("c.$colCompra", $idDocumento);
+                            if ($idDocumento !== '') {
+                                $query->where("c.$colCompra", $idDocumento);
+                            } else {
+                                $query->whereNotNull("c.$colCompra");
+                            }
                         }
                         break;
                     case 'comprobante':
                         if ($colComprobante) {
-                            $query->where("c.$colComprobante", $idDocumento);
+                            if ($idDocumento !== '') {
+                                $query->where("c.$colComprobante", $idDocumento);
+                            } else {
+                                $query->whereNotNull("c.$colComprobante");
+                            }
                         }
                         break;
                     case 'vale':
                         if ($colVale1 || $colVale2) {
                             $query->where(function ($q) use ($idDocumento, $colVale1, $colVale2) {
-                                if ($colVale1) {
-                                    $q->where("c.$colVale1", $idDocumento);
-                                }
-                                if ($colVale2) {
+                                if ($idDocumento !== '') {
                                     if ($colVale1) {
-                                        $q->orWhere("c.$colVale2", $idDocumento);
-                                    } else {
-                                        $q->where("c.$colVale2", $idDocumento);
+                                        $q->where("c.$colVale1", $idDocumento);
+                                    }
+                                    if ($colVale2) {
+                                        if ($colVale1) {
+                                            $q->orWhere("c.$colVale2", $idDocumento);
+                                        } else {
+                                            $q->where("c.$colVale2", $idDocumento);
+                                        }
+                                    }
+                                } else {
+                                    if ($colVale1) {
+                                        $q->whereNotNull("c.$colVale1");
+                                    }
+                                    if ($colVale2) {
+                                        if ($colVale1) {
+                                            $q->orWhereNotNull("c.$colVale2");
+                                        } else {
+                                            $q->whereNotNull("c.$colVale2");
+                                        }
                                     }
                                 }
                             });
@@ -214,14 +355,18 @@ class CardexGeneral extends Component
                         break;
                     case 'nota_credito':
                         if ($colNotaCredito) {
-                            $query->where("c.$colNotaCredito", $idDocumento);
+                            if ($idDocumento !== '') {
+                                $query->where("c.$colNotaCredito", $idDocumento);
+                            } else {
+                                $query->whereNotNull("c.$colNotaCredito");
+                            }
                         }
                         break;
                 }
             }
 
             $listaCardex = $query
-                ->orderByDesc("c.$colFechaOrden")
+                ->orderByRaw("$fechaOrdenExpr DESC")
                 ->get();
 
             
