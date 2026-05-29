@@ -180,6 +180,9 @@ function aplicarFiltrosCardex() {
     cdxFiltros.bodegaOrigen = $('#cdxFiltroBodegaOrigen').val() || '';
     cdxFiltros.bodegaDestino = $('#cdxFiltroBodegaDestino').val() || '';
 
+    if (document.activeElement && typeof document.activeElement.blur === 'function') {
+        document.activeElement.blur();
+    }
     $('#modalFiltrosCardex').modal('hide');
     cdxRenderBadges();
 
@@ -233,6 +236,12 @@ $(document).ready(function() {
 
     cdxFiltros.desde = document.getElementById('cdxFiltroDesde').value || '';
     cdxFiltros.hasta = document.getElementById('cdxFiltroHasta').value || '';
+
+    $('#modalFiltrosCardex').on('hide.bs.modal', function() {
+        if (document.activeElement && typeof document.activeElement.blur === 'function') {
+            document.activeElement.blur();
+        }
+    });
 
     initDataTableCardex();
     cdxRenderBadges();
