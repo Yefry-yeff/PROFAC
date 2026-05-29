@@ -693,7 +693,7 @@ class VentasExoneradas extends Component
         $importes = DB::SELECTONE("
         select
          total,
-         isv,
+         COALESCE((select sum(round(vhp.sub_total_s * (p.isv / 100), 2)) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv != 0 and vhp.factura_id = ".$idFactura."),0) as isv,
          sub_total,
          FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv != 0 and vhp.factura_id = ".$idFactura."),2) as sub_total_grabado,
          COALESCE(sub_total_excento, 0) as sub_total_excento,
@@ -706,7 +706,7 @@ class VentasExoneradas extends Component
          $importesConCentavos= DB::SELECTONE("
          select
          FORMAT(total,2) as total,
-         FORMAT(isv,2) as isv,
+         FORMAT(COALESCE((select sum(round(vhp.sub_total_s * (p.isv / 100), 2)) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv != 0 and vhp.factura_id = ".$idFactura."),0),2) as isv,
          FORMAT(sub_total,2) as sub_total,
         FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv != 0 and vhp.factura_id = ".$idFactura."),2) as sub_total_grabado,
         FORMAT(COALESCE(sub_total_excento, 0),2) as sub_total_excento,
@@ -714,6 +714,15 @@ class VentasExoneradas extends Component
          FORMAT(porc_descuento,2) as porc_descuento,
          FORMAT(monto_descuento,2) as monto_descuento
          from factura where factura.id = ".$idFactura);
+
+                $importes->total = round((float) $importes->sub_total + (float) $importes->isv, 2);
+                $importesConCentavos->total = number_format(
+                        ((float) str_replace(',', '', $importesConCentavos->sub_total)) +
+                        ((float) str_replace(',', '', $importesConCentavos->isv)),
+                        2,
+                        '.',
+                        ','
+                );
 
        $productos = DB::SELECT("
             select
@@ -880,7 +889,7 @@ class VentasExoneradas extends Component
        $importes = DB::SELECTONE("
        select
         total,
-        isv,
+        COALESCE((select sum(round(vhp.sub_total_s * (p.isv / 100), 2)) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv != 0 and vhp.factura_id = ".$idFactura."),0) as isv,
         sub_total,
         FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv != 0 and vhp.factura_id = ".$idFactura."),2) as sub_total_grabado,
         COALESCE(sub_total_excento, 0) as sub_total_excento,
@@ -893,7 +902,7 @@ class VentasExoneradas extends Component
         $importesConCentavos= DB::SELECTONE("
         select
         FORMAT(total,2) as total,
-        FORMAT(isv,2) as isv,
+        FORMAT(COALESCE((select sum(round(vhp.sub_total_s * (p.isv / 100), 2)) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv != 0 and vhp.factura_id = ".$idFactura."),0),2) as isv,
         FORMAT(sub_total,2) as sub_total,
         FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv != 0 and vhp.factura_id = ".$idFactura."),2) as sub_total_grabado,
         FORMAT(COALESCE(sub_total_excento, 0),2) as sub_total_excento,
@@ -901,6 +910,15 @@ class VentasExoneradas extends Component
         FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv = 0 and vhp.factura_id = ".$idFactura."),2) as subtotal_excentovale,
         FORMAT(monto_descuento,2) as monto_descuento
         from factura where factura.id = ".$idFactura);
+
+        $importes->total = round((float) $importes->sub_total + (float) $importes->isv, 2);
+        $importesConCentavos->total = number_format(
+            ((float) str_replace(',', '', $importesConCentavos->sub_total)) +
+            ((float) str_replace(',', '', $importesConCentavos->isv)),
+            2,
+            '.',
+            ','
+        );
 
         $productos = DB::SELECT("
             select
