@@ -598,6 +598,16 @@ class RevicionInventario extends Component
         $this->mensajeError     = '';
     }
 
+    public function confirmarPrefactura(): void
+    {
+        $this->confirmarAccion('prefactura');
+    }
+
+    public function confirmarDevolucion(): void
+    {
+        $this->confirmarAccion('devolver');
+    }
+
     public function cancelarAccion(): void
     {
         $this->confirmAccion    = null;
@@ -635,6 +645,20 @@ class RevicionInventario extends Component
         $productos = DB::table('cotizacion_has_producto')
             ->where('cotizacion_id', $this->cotizacionId)
             ->get();
+
+        if ($productos->isEmpty()) {
+            $this->mensajeError = 'La oferta no tiene productos para generar prefactura.';
+            return;
+        }
+
+        $tramitePrefacturaId = (int) (DB::table('tipos_tramites')
+            ->whereRaw('LOWER(nombre) = ?', ['prefactura'])
+            ->value('id') ?? 0);
+
+        if ($tramitePrefacturaId <= 0) {
+            $this->mensajeError = 'No se encontró el tipo de trámite de Prefactura.';
+            return;
+        }
 
         $config      = DB::table('configuracion_prefactura')->first();
         $diasValidez = $config ? (int) $config->dias_validez : 7;
@@ -715,7 +739,7 @@ class RevicionInventario extends Component
             // Registrar en historico_flujo el paso de prefactura
             DB::table('historico_flujo')->insert([
                 'flujo_id'        => $this->flujoId,
-                'tipo_tramite_id' => 4,
+                'tipo_tramite_id' => $tramitePrefacturaId,
                 'tramite_id'      => $prefacturaId,
                 'estado_id'       => 1,
                 'observaciones'   => 'Prefactura #' . $prefacturaId . ' creada desde Revisión de Inventario.',
@@ -727,7 +751,7 @@ class RevicionInventario extends Component
 
             // Avanzar flujo a prefactura
             DB::table('flujo')->where('id', $this->flujoId)->update([
-                'tipo_tramite_id' => 4,
+                'tipo_tramite_id' => $tramitePrefacturaId,
                 'updated_by'      => Auth::id(),
                 'updated_at'      => now(),
             ]);
@@ -758,7 +782,7 @@ class RevicionInventario extends Component
             $this->cargar();
             $this->mensajeExito = 'Flujo #' . $flujoIdCerrado . ': Prefactura #' . $prefacturaId . ' generada. Válida por ' . $diasValidez . ' día(s).';
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             DB::rollBack();
             $this->mensajeError = 'Error al crear la prefactura: ' . $e->getMessage();
         }
@@ -853,7 +877,7 @@ class RevicionInventario extends Component
             $this->cargar();
             $this->mensajeExito = 'Flujo #' . $this->flujoId . ' devuelto a Oferta correctamente. Se registraron las observaciones.';
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             DB::rollBack();
             $this->mensajeError = 'Error al devolver a Oferta: ' . $e->getMessage();
         }

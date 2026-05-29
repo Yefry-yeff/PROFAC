@@ -359,31 +359,47 @@
                             @endif
                         </div>
                         @elseif ($confirmAccion === null)
+                        @php
+                            $puedePasarPrefactura = count($stockErrors) === 0
+                                && count($productos) > 0
+                                && collect($obsProducto)->filter()->isEmpty()
+                                && $this->todosProductosRevisados();
+
+                            $puedeDevolverOferta = $this->todosProductosRevisados();
+
+                            $motivoBloqueoPrefactura = ! $this->todosProductosRevisados()
+                                ? 'Debe marcar todos los productos como revisados'
+                                : (collect($obsProducto)->filter()->isNotEmpty()
+                                    ? 'Elimine las notas/reemplazos antes de pasar a Prefactura'
+                                    : 'Hay productos sin stock suficiente');
+                        @endphp
                         <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center;">
                             {{-- Pasar a Prefactura --}}
-                                @if (count($stockErrors) === 0 && count($productos) > 0 && collect($obsProducto)->filter()->isEmpty() && $this->todosProductosRevisados())
-                            <button type="button" wire:click="confirmarAccion('prefactura')"
-                                    style="background:linear-gradient(135deg,#1ab394,#0fa37a); color:#fff;
-                                           border:none; border-radius:10px; padding:9px 22px;
-                                           font-size:13px; font-weight:700; cursor:pointer;
-                                           box-shadow:0 3px 10px rgba(26,179,148,.4);">
-                                <i class="mr-1 fa fa-file-o"></i> Pasar a Prefactura
+                            <button type="button"
+                                    wire:key="btn-prefactura-{{ $flujoId }}-{{ $puedePasarPrefactura ? 'on' : 'off' }}"
+                                    wire:click.prevent="confirmarPrefactura"
+                                    wire:loading.attr="disabled"
+                                    wire:target="confirmarPrefactura"
+                                    {{ $puedePasarPrefactura ? '' : 'disabled' }}
+                                    title="{{ $puedePasarPrefactura ? '' : $motivoBloqueoPrefactura }}"
+                                    style="background:{{ $puedePasarPrefactura ? 'linear-gradient(135deg,#1ab394,#0fa37a)' : '#ccc' }};
+                                           color:#fff; border:none; border-radius:10px; padding:9px 22px;
+                                           font-size:13px; font-weight:700;
+                                           cursor:{{ $puedePasarPrefactura ? 'pointer' : 'not-allowed' }};
+                                           box-shadow:{{ $puedePasarPrefactura ? '0 3px 10px rgba(26,179,148,.4)' : 'none' }};">
+                                <i class="mr-1 fa fa-{{ $puedePasarPrefactura ? 'file-o' : 'ban' }}"></i> Pasar a Prefactura
                             </button>
-                            @else
-                            <button type="button" disabled
-                                    style="background:#ccc; color:#fff; border:none; border-radius:10px;
-                                           padding:9px 22px; font-size:13px; font-weight:700; cursor:not-allowed;"
-                                    title="{{ ! $this->todosProductosRevisados() ? 'Debe marcar todos los productos como revisados' : (collect($obsProducto)->filter()->isNotEmpty() ? 'Elimine las notas/reemplazos antes de pasar a Prefactura' : 'Hay productos sin stock suficiente') }}">
-                                <i class="mr-1 fa fa-ban"></i> Pasar a Prefactura
-                            </button>
-                            @endif
 
                             {{-- Devolver a Oferta --}}
-                                <button type="button" wire:click="confirmarAccion('devolver')"
-                                    {{ $this->todosProductosRevisados() ? '' : 'disabled' }}
+                                <button type="button"
+                                    wire:key="btn-devolver-{{ $flujoId }}-{{ $puedeDevolverOferta ? 'on' : 'off' }}"
+                                    wire:click.prevent="confirmarDevolucion"
+                                    wire:loading.attr="disabled"
+                                    wire:target="confirmarDevolucion"
+                                    {{ $puedeDevolverOferta ? '' : 'disabled' }}
                                     style="background:linear-gradient(135deg,#e74c3c,#c0392b); color:#fff;
                                            border:none; border-radius:10px; padding:9px 22px;
-                                       font-size:13px; font-weight:700; cursor:{{ $this->todosProductosRevisados() ? 'pointer' : 'not-allowed' }};
+                                       font-size:13px; font-weight:700; cursor:{{ $puedeDevolverOferta ? 'pointer' : 'not-allowed' }};
                                            box-shadow:0 3px 10px rgba(231,76,60,.35);">
                                 <i class="mr-1 fa fa-reply"></i> Devolver a Oferta
                             </button>
@@ -399,6 +415,12 @@
                             <p style="font-size:12px; color:#555; margin-bottom:14px;">
                                 Se creará la prefactura basada en la oferta ganadora y el flujo avanzará al siguiente paso.
                             </p>
+                            @if ($mensajeError)
+                            <div style="background:#fce4ec; border-radius:8px; padding:7px 12px;
+                                        font-size:12px; color:#b71c1c; margin-bottom:10px;">
+                                <i class="mr-1 fa fa-exclamation-triangle"></i>{{ $mensajeError }}
+                            </div>
+                            @endif
                             <div style="display:flex; gap:10px;">
                                 <button type="button" wire:click="pasarAPrefactura"
                                         wire:loading.attr="disabled"
