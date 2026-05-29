@@ -732,7 +732,7 @@ class VentasExoneradas extends Component
                 if(C.isv = 0, 'SI' , 'NO' ) as excento,
                 if(B.seccion_id = 0, 'N/A',H.nombre) as bodega,
                 if(B.seccion_id = 0, 'N/A',REPLACE(REPLACE(F.descripcion,'Seccion',''),' ', '')) as seccion,
-                    (B.sub_total/B.cantidad) as precio,
+                    FORMAT(B.precio_unidad,2) as precio,
                     sum(B.cantidad_s) as cantidad,
                     sum(B.sub_total_s) as importe
 
