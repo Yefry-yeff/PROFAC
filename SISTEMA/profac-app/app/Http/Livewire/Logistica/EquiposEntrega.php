@@ -13,10 +13,34 @@ use Auth;
 
 class EquiposEntrega extends Component
 {
+    private const EQUIPOS_OCULTOS = [1, 2, 3, 4, 5, 6, 8, 11, 12, 16, 20];
+
     public function render()
     {
         $usuarios = User::orderBy('name')->get();
         return view('livewire.logistica.equipos-entrega', compact('usuarios'));
+    }
+
+    /**
+     * Inactiva equipos y miembros que deben quedar ocultos en esta pantalla.
+     */
+    private function sincronizarEquiposOcultos(): void
+    {
+        DB::table('equipos_entrega_miembros')
+            ->whereIn('equipo_entrega_id', self::EQUIPOS_OCULTOS)
+            ->where('estado_id', 1)
+            ->update([
+                'estado_id' => 2,
+                'updated_at' => now(),
+            ]);
+
+        DB::table('equipos_entrega')
+            ->whereIn('id', self::EQUIPOS_OCULTOS)
+            ->where('estado_id', 1)
+            ->update([
+                'estado_id' => 2,
+                'updated_at' => now(),
+            ]);
     }
 
     /**
@@ -97,6 +121,9 @@ class EquiposEntrega extends Component
     public function listarEquipos()
     {
         try {
+            $this->sincronizarEquiposOcultos();
+
+            $equiposOcultos = implode(',', self::EQUIPOS_OCULTOS);
             $datos = DB::select("
                 SELECT 
                     e.id,
@@ -109,6 +136,7 @@ class EquiposEntrega extends Component
                     (SELECT SUM(porcentaje_comision) FROM equipos_entrega_miembros WHERE equipo_entrega_id = e.id AND estado_id = 1) as total_porcentaje
                 FROM equipos_entrega e
                 INNER JOIN users u ON e.users_id_creador = u.id
+                WHERE e.id NOT IN ({$equiposOcultos})
                 ORDER BY e.id DESC
             ");
 
@@ -317,26 +345,28 @@ class EquiposEntrega extends Component
                 ], 422);
             }
 
-            // Verificar que el usuario no esté ya en el equipo
-            $existe = EquipoEntregaMiembro::where('equipo_entrega_id', $request->equipo_id)
-                ->where('user_id', $request->user_id)
-                ->where('estado_id', 1)
-                ->exists();
+            DB::transaction(function () use ($request) {
+                $existente = EquipoEntregaMiembro::where('equipo_entrega_id', $request->equipo_id)
+                    ->where('user_id', $request->user_id)
+                    ->first();
 
-            if ($existe) {
-                return response()->json([
-                    'icon' => 'warning',
-                    'title' => 'Usuario duplicado',
-                    'text' => 'Este usuario ya es miembro del equipo',
-                ], 422);
-            }
+                // El índice único uk_equipo_user no permite dos filas con el mismo equipo/usuario.
+                // Para crear un registro nuevo, primero se marca inactivo y se elimina el previo.
+                if ($existente) {
+                    if ((int) $existente->estado_id === 1) {
+                        $existente->estado_id = 2;
+                        $existente->save();
+                    }
+                    $existente->delete();
+                }
 
-            EquipoEntregaMiembro::create([
-                'equipo_entrega_id' => $request->equipo_id,
-                'user_id' => $request->user_id,
-                'porcentaje_comision' => $request->porcentaje,
-                'estado_id' => 1,
-            ]);
+                EquipoEntregaMiembro::create([
+                    'equipo_entrega_id' => $request->equipo_id,
+                    'user_id' => $request->user_id,
+                    'porcentaje_comision' => $request->porcentaje,
+                    'estado_id' => 1,
+                ]);
+            });
 
             return response()->json([
                 'icon' => 'success',
