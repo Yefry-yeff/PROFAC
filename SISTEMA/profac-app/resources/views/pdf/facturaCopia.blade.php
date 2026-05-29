@@ -241,7 +241,7 @@
                                 </tr>
                                 <tr>
                                     <td style="border:none; padding:1px 0;">Impuesto sobre venta 15%:</td>
-                                    <td style="border:none; padding:1px 0; text-align:right;">L. {{ $importesConCentavos->isv }}</td>
+                                    <td style="border:none; padding:1px 0; text-align:right;">L. @if (!empty($esExonerada)) 0.00 @else {{ $importesConCentavos->isv }} @endif</td>
                                 </tr>
                                 <tr>
                                     <td style="border:none; padding:1px 0;">Impuesto sobre venta 18%:</td>

@@ -715,13 +715,16 @@ class VentasExoneradas extends Component
          FORMAT(monto_descuento,2) as monto_descuento
          from factura where factura.id = ".$idFactura);
 
-                $importes->total = round((float) $importes->sub_total + (float) $importes->isv, 2);
+                // En facturas exoneradas el impuesto sobre venta debe ser siempre 0.
+                $importes->isv = 0;
+                $importes->total = round((float) $importes->sub_total, 2);
+
+                $importesConCentavos->isv = '0.00';
                 $importesConCentavos->total = number_format(
-                        ((float) str_replace(',', '', $importesConCentavos->sub_total)) +
-                        ((float) str_replace(',', '', $importesConCentavos->isv)),
-                        2,
-                        '.',
-                        ','
+                    (float) str_replace(',', '', $importesConCentavos->sub_total),
+                    2,
+                    '.',
+                    ','
                 );
 
        $productos = DB::SELECT("
@@ -912,10 +915,13 @@ class VentasExoneradas extends Component
         FORMAT(monto_descuento,2) as monto_descuento
         from factura where factura.id = ".$idFactura);
 
-        $importes->total = round((float) $importes->sub_total + (float) $importes->isv, 2);
+        // En facturas exoneradas el impuesto sobre venta debe ser siempre 0.
+        $importes->isv = 0;
+        $importes->total = round((float) $importes->sub_total, 2);
+
+        $importesConCentavos->isv = '0.00';
         $importesConCentavos->total = number_format(
-            ((float) str_replace(',', '', $importesConCentavos->sub_total)) +
-            ((float) str_replace(',', '', $importesConCentavos->isv)),
+            (float) str_replace(',', '', $importesConCentavos->sub_total),
             2,
             '.',
             ','
