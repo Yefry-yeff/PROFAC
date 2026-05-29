@@ -1077,6 +1077,8 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::post('/pagos/otrosmov/guardar', [Pagos::class, 'guardarOtroMov']);
     Route::get('/pagos/preview-comisiones', [Pagos::class, 'previewComisionesFactura']);
     Route::post('/pagos/creditos/guardar', [Pagos::class, 'guardarCreditos']);
+    Route::get('/pagos/abono/impacto/{abono_id}', [Pagos::class, 'impactoAnularAbono']);
+    Route::post('/pagos/abono/anular', [Pagos::class, 'anularAbono']);
     Route::post('/pagos/cerrar/factura', [Pagos::class, 'cerrarFactura']);
 
 
