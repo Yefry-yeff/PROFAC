@@ -287,7 +287,7 @@
                 </div>
                 <div class="ii-alert-actions">
                     <span class="ii-alert-tipo ii-badge-{{ $alerta['prioridad'] }}">{{ ucfirst($alerta['prioridad']) }}</span>
-                    <a href="/producto/detalle/{{ $alerta['producto_id'] }}" target="_blank" class="ii-btn-xs">
+                    <a href="/reportes/analitica_de_productos/{{ $alerta['producto_id'] }}" target="_blank" class="ii-btn-xs">
                         {{ $alerta['accion'] }}
                     </a>
                 </div>
@@ -408,7 +408,7 @@
                     </td>
                     <td><span class="ii-badge ii-badge-{{ $badge }}">{{ $icon }} {{ $estado }}</span></td>
                     <td>
-                        <a href="/producto/detalle/{{ $prod->id }}" target="_blank" style="color:#2980b9;font-size:12px;">
+                        <a href="/reportes/analitica_de_productos/{{ $prod->id }}" target="_blank" style="color:#2980b9;font-size:12px;">
                             <i class="fa fa-external-link"></i>
                         </a>
                     </td>

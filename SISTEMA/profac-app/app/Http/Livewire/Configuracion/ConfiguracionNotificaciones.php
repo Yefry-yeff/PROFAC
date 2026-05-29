@@ -2,6 +2,8 @@
 
 namespace App\Http\Livewire\Configuracion;
 
+use App\Jobs\AlertasRotacionInventarioJob;
+use App\Models\AlertaRotacionConfig;
 use App\Models\Area;
 use App\Models\FlujoEtapa;
 use App\Models\NivelRol;
@@ -42,6 +44,23 @@ class ConfiguracionNotificaciones extends Component
     // ─── Estado global del sistema de notificaciones ──────────────────────────
     public bool $notificacionesActivas = false;
 
+    // ─── Alertas de Rotación e Inventario ────────────────────────────────────────
+    public bool    $showAlertaModal        = false;
+    public ?int    $alertaEditandoId       = null;
+    public string  $alertaNombre           = '';
+    public string  $alertaTipo             = '';
+    public string  $alertaPrioridad        = 'media';
+    public string  $alertaIcono            = 'fa-exclamation-triangle';
+    public string  $alertaColor            = '#f59e0b';
+    public bool    $alertaActivo           = false;
+    public string  $alertaTargetTipo       = 'rol';
+    public ?int    $alertaRolId            = null;
+    public ?int    $alertaAreaId           = null;
+    public ?int    $alertaParametroDias    = null;
+    public ?float  $alertaParametroUmbral  = null;
+    public array   $alertasReglas          = [];
+    public ?string $alertaMensajeEjecucion = null;
+
     public function mount(): void
     {
         // Cache-Aside: si caché existe úsala; si no (tras cache:clear), lee BD y repobla caché
@@ -55,6 +74,7 @@ class ConfiguracionNotificaciones extends Component
         $this->cargarCatalogos();
         $this->cargarConfigs();
         $this->verificarJerarquias();
+        $this->cargarAlertasReglas();
     }
 
     public function toggleSistema(): void
@@ -252,8 +272,205 @@ class ConfiguracionNotificaciones extends Component
         $this->resetErrorBag();
     }
 
+    // ─── Alertas: carga ───────────────────────────────────────────────────────
+
+    private function cargarAlertasReglas(): void
+    {
+        $this->alertasReglas = AlertaRotacionConfig::with(['rol', 'area'])
+            ->orderByRaw("FIELD(tipo,'recuperacion_proxima','recuperacion_vencida','sin_ventas','baja_rotacion','sobreinventario','incremento_demanda')")
+            ->orderBy('parametro_dias')
+            ->orderBy('parametro_umbral')
+            ->get()
+            ->map(fn ($r) => [
+                'id'               => $r->id,
+                'nombre'           => $r->nombre,
+                'tipo'             => $r->tipo,
+                'prioridad'        => $r->prioridad,
+                'prioridad_label'  => $r->prioridad_label,
+                'prioridad_color'  => $r->prioridad_color,
+                'icono'            => $r->icono,
+                'color'            => $r->color,
+                'activo'           => $r->activo,
+                'parametro_dias'   => $r->parametro_dias,
+                'parametro_umbral' => $r->parametro_umbral,
+                'descripcion'      => $r->descripcion_parametro,
+                'rol_nombre'       => $r->rol?->nombre,
+                'area_nombre'      => $r->area?->nombre,
+                'rol_id'           => $r->rol_id,
+                'area_id'          => $r->area_id,
+            ])
+            ->toArray();
+    }
+
+    // ─── Alertas: CRUD ────────────────────────────────────────────────────────
+
+    public function alertaNuevaRegla(): void
+    {
+        $this->alertaResetForm();
+        $this->showAlertaModal = true;
+    }
+
+    public function alertaEditar(int $id): void
+    {
+        $r = AlertaRotacionConfig::findOrFail($id);
+        $this->alertaEditandoId      = $id;
+        $this->alertaNombre          = $r->nombre;
+        $this->alertaTipo            = $r->tipo;
+        $this->alertaPrioridad       = $r->prioridad;
+        $this->alertaIcono           = $r->icono;
+        $this->alertaColor           = $r->color;
+        $this->alertaActivo          = $r->activo;
+        $this->alertaRolId           = $r->rol_id;
+        $this->alertaAreaId          = $r->area_id;
+        $this->alertaParametroDias   = $r->parametro_dias;
+        $this->alertaParametroUmbral = $r->parametro_umbral;
+        $this->alertaTargetTipo      = $r->rol_id ? 'rol' : 'area';
+        $this->showAlertaModal       = true;
+    }
+
+    public function alertaGuardar(): void
+    {
+        $this->validate([
+            'alertaNombre'          => 'required|string|max:120',
+            'alertaTipo'            => 'required|in:recuperacion_proxima,recuperacion_vencida,sin_ventas,baja_rotacion,sobreinventario,incremento_demanda',
+            'alertaPrioridad'       => 'required|in:informativa,media,alta,critica',
+            'alertaRolId'           => 'nullable|integer',
+            'alertaAreaId'          => 'nullable|integer',
+            'alertaParametroDias'   => 'nullable|integer|min:1|max:365',
+            'alertaParametroUmbral' => 'nullable|numeric|min:0',
+        ]);
+
+        $data = [
+            'nombre'           => trim($this->alertaNombre),
+            'tipo'             => $this->alertaTipo,
+            'prioridad'        => $this->alertaPrioridad,
+            'icono'            => $this->alertaIcono ?: 'fa-exclamation-triangle',
+            'color'            => $this->alertaColor  ?: '#f59e0b',
+            'activo'           => $this->alertaActivo,
+            'rol_id'           => $this->alertaTargetTipo === 'rol'  ? $this->alertaRolId  : null,
+            'area_id'          => $this->alertaTargetTipo === 'area' ? $this->alertaAreaId : null,
+            'parametro_dias'   => $this->alertaParametroDias,
+            'parametro_umbral' => $this->alertaParametroUmbral,
+        ];
+
+        if ($this->alertaEditandoId) {
+            AlertaRotacionConfig::where('id', $this->alertaEditandoId)->update($data);
+            session()->flash('success_alertas', 'Regla actualizada correctamente.');
+        } else {
+            AlertaRotacionConfig::create($data);
+            session()->flash('success_alertas', 'Nueva regla creada correctamente.');
+        }
+
+        $this->showAlertaModal = false;
+        $this->alertaResetForm();
+        $this->cargarAlertasReglas();
+    }
+
+    public function alertaToggleActivo(int $id): void
+    {
+        $r = AlertaRotacionConfig::findOrFail($id);
+        $r->update(['activo' => !$r->activo]);
+        $this->cargarAlertasReglas();
+    }
+
+    public function alertaEliminar(int $id): void
+    {
+        AlertaRotacionConfig::destroy($id);
+        session()->flash('success_alertas', 'Regla eliminada.');
+        $this->cargarAlertasReglas();
+    }
+
+    public function alertaEjecutarAhora(): void
+    {
+        // Lanza el job como proceso PHP independiente para no bloquear la petición HTTP.
+        // Necesario cuando QUEUE_CONNECTION=sync (no hay worker separado).
+        $php     = PHP_BINARY;
+        $artisan = escapeshellarg(base_path('artisan'));
+
+        if (PHP_OS_FAMILY === 'Windows') {
+            pclose(popen("start /B \"\" \"{$php}\" {$artisan} alertas:evaluar-rotacion", 'r'));
+        } else {
+            exec("{$php} {$artisan} alertas:evaluar-rotacion > /dev/null 2>&1 &");
+        }
+
+        $this->alertaMensajeEjecucion = 'Evaluación enviada. Las notificaciones aparecerán en la campana en breve.';
+    }
+
+    private function alertaResetForm(): void
+    {
+        $this->alertaEditandoId      = null;
+        $this->alertaNombre          = '';
+        $this->alertaTipo            = '';
+        $this->alertaPrioridad       = 'media';
+        $this->alertaIcono           = 'fa-exclamation-triangle';
+        $this->alertaColor           = '#f59e0b';
+        $this->alertaActivo          = false;
+        $this->alertaTargetTipo      = 'rol';
+        $this->alertaRolId           = null;
+        $this->alertaAreaId          = null;
+        $this->alertaParametroDias   = null;
+        $this->alertaParametroUmbral = null;
+        $this->resetErrorBag();
+    }
+
+    private function getTiposAlertasCatalogo(): array
+    {
+        return [
+            'recuperacion_proxima' => [
+                'label'              => 'Recuperación próxima',
+                'desc'               => 'Avisa N días antes de que el producto alcance su tiempo de recuperación.',
+                'param_dias'         => true,
+                'param_umbral'       => false,
+                'param_dias_label'   => 'Días de anticipación',
+                'param_umbral_label' => null,
+            ],
+            'recuperacion_vencida' => [
+                'label'              => 'Recuperación vencida',
+                'desc'               => 'Alerta cuando la fecha límite de recuperación ya fue superada y aún hay stock.',
+                'param_dias'         => false,
+                'param_umbral'       => false,
+                'param_dias_label'   => null,
+                'param_umbral_label' => null,
+            ],
+            'sin_ventas' => [
+                'label'              => 'Sin ventas recientes',
+                'desc'               => 'Dispara si el producto no registra ventas en N días y tiene stock.',
+                'param_dias'         => true,
+                'param_umbral'       => false,
+                'param_dias_label'   => 'Días sin ventas',
+                'param_umbral_label' => null,
+            ],
+            'baja_rotacion' => [
+                'label'              => 'Baja rotación',
+                'desc'               => 'Alerta si las ventas de los últimos 60 días están por debajo del umbral mínimo.',
+                'param_dias'         => false,
+                'param_umbral'       => true,
+                'param_dias_label'   => null,
+                'param_umbral_label' => 'Ventas mínimas (60 días)',
+            ],
+            'sobreinventario' => [
+                'label'              => 'Sobreinventario',
+                'desc'               => 'Avisa si la cobertura (stock / promedio mensual) supera X meses.',
+                'param_dias'         => false,
+                'param_umbral'       => true,
+                'param_dias_label'   => null,
+                'param_umbral_label' => 'Meses de cobertura máxima',
+            ],
+            'incremento_demanda' => [
+                'label'              => 'Incremento de demanda',
+                'desc'               => 'Notifica cuando las ventas crecen X% o más respecto al periodo anterior.',
+                'param_dias'         => false,
+                'param_umbral'       => true,
+                'param_dias_label'   => null,
+                'param_umbral_label' => 'Crecimiento mínimo (%)',
+            ],
+        ];
+    }
+
     public function render()
     {
-        return view('livewire.configuracion.configuracion-notificaciones');
+        return view('livewire.configuracion.configuracion-notificaciones', [
+            'tiposAlertas' => $this->getTiposAlertasCatalogo(),
+        ]);
     }
 }
