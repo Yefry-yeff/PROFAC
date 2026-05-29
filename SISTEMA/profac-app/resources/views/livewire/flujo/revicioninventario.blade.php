@@ -127,20 +127,72 @@
                                 Todos los productos tienen stock disponible. Puede pasar a Prefactura.
                             </span>
                         </div>
+                        <div style="background:#e3f2fd; border:1px solid #90caf9; border-radius:10px;
+                                    padding:10px 16px; margin-bottom:16px;">
+                            <span style="color:#1565c0; font-weight:700; font-size:13px;">
+                                <i class="mr-1 fa fa-check-square-o"></i>
+                                Marque todos los productos como revisados para habilitar las acciones.
+                            </span>
+                        </div>
                         @endif
                         @endif
 
                         {{-- Tabla de productos --}}
                         <div style="border-radius:12px; overflow:hidden; border:1px solid #e8eaf0; margin-bottom:20px;">
                             <div style="background:linear-gradient(135deg,#546e7a,#37474f); padding:10px 16px;">
-                                <span style="color:#fff; font-size:13px; font-weight:700;">
-                                    <i class="mr-1 fa fa-list-ul"></i>
-                                    Productos de la oferta
-                                    <span style="background:rgba(255,255,255,.2); border-radius:20px;
-                                                 padding:1px 10px; font-size:11px; margin-left:6px;">
-                                        {{ count($productos) }}
+                                <div class="d-flex flex-wrap justify-content-between align-items-center" style="gap:10px;">
+                                    <span style="color:#fff; font-size:13px; font-weight:700;">
+                                        <i class="mr-1 fa fa-list-ul"></i>
+                                        Productos de la oferta
+                                        <span style="background:rgba(255,255,255,.2); border-radius:20px;
+                                                     padding:1px 10px; font-size:11px; margin-left:6px;">
+                                            {{ count($this->productosFiltrados) }} / {{ count($productos) }}
+                                        </span>
                                     </span>
-                                </span>
+                                    <button type="button"
+                                            wire:click="limpiarFiltrosTabla"
+                                            class="btn btn-sm btn-light"
+                                            style="border-radius:8px; font-size:12px; font-weight:700;">
+                                        <i class="fa fa-eraser mr-1"></i> Limpiar filtros
+                                    </button>
+                                </div>
+                            </div>
+                            <div style="background:#f8fafc; border-bottom:1px solid #e8eaf0; padding:12px 14px;">
+                                <div class="row" style="row-gap:10px;">
+                                    <div class="col-md-4">
+                                        <label class="mb-1" style="font-size:12px; font-weight:700; color:#334155;">Producto</label>
+                                        <input type="text"
+                                               wire:model.debounce.350ms="filtroProducto"
+                                               class="form-control form-control-sm"
+                                               placeholder="Buscar por nombre..."
+                                               style="border-radius:8px;">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="mb-1" style="font-size:12px; font-weight:700; color:#334155;">Bodega</label>
+                                        <input type="text"
+                                               wire:model.debounce.350ms="filtroBodega"
+                                               class="form-control form-control-sm"
+                                               placeholder="Buscar por bodega..."
+                                               style="border-radius:8px;">
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="mb-1" style="font-size:12px; font-weight:700; color:#334155;">Estado</label>
+                                        <select wire:model="filtroEstado" class="form-control form-control-sm" style="border-radius:8px;">
+                                            <option value="">Todos</option>
+                                            <option value="ok">OK</option>
+                                            <option value="sin_stock">Sin stock</option>
+                                            <option value="sin_control">Sin control</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="mb-1" style="font-size:12px; font-weight:700; color:#334155;">Revisado</label>
+                                        <select wire:model="filtroRevisado" class="form-control form-control-sm" style="border-radius:8px;">
+                                            <option value="">Todos</option>
+                                            <option value="si">Marcados</option>
+                                            <option value="no">Pendientes</option>
+                                        </select>
+                                    </div>
+                                </div>
                             </div>
                             @if(count($productos) === 0)
                             <div style="padding:24px; text-align:center; color:#aaa;">
@@ -149,7 +201,7 @@
                             </div>
                             @else
                             <div style="overflow-x:auto;">
-                                <table class="table table-hover" style="font-size:13px; margin:0;">
+                                <table class="table table-hover table-sm mb-0" style="font-size:13px; margin:0;">
                                     <thead style="background:#f8f9fc;">
                                         <tr>
                                             <th style="padding:10px 14px; color:#555; font-weight:700;">#</th>
@@ -158,78 +210,99 @@
                                             <th style="padding:10px 14px; text-align:center; color:#555; font-weight:700;">Cantidad</th>
                                             <th style="padding:10px 14px; text-align:center; color:#555; font-weight:700;">Disponible</th>
                                             <th style="padding:10px 14px; text-align:center; color:#1565c0; font-weight:700;">Global</th>
+                                            <th style="padding:10px 14px; text-align:center; color:#2e7d32; font-weight:700;">Revisado</th>
                                             <th style="padding:10px 14px; text-align:center; color:#555; font-weight:700;">Estado</th>
                                             <th style="padding:10px 14px; color:#555; font-weight:700;">Nota / Reemplazo</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        @foreach ($productos as $prod)
-                                        <tr style="border-bottom:1px solid #f0f0f0;
-                                                   {{ $prod['falta_stock'] ? 'background:#fff8f5;' : '' }}">
-                                            <td style="padding:8px 14px; color:#888;">{{ $loop->iteration }}</td>
-                                            <td style="padding:8px 14px; color:#2c3e50; font-weight:600;">
-                                                {{ $prod['nombre_producto'] }}
-                                            </td>
-                                            <td style="padding:8px 14px; color:#607d8b; font-size:12px;">
-                                                {{ $prod['nombre_bodega'] ?? '—' }}
-                                            </td>
-                                            <td style="padding:8px 14px; text-align:center;">
-                                                <span style="background:#e3f2fd; color:#1565c0; border-radius:12px;
-                                                             padding:2px 10px; font-weight:700; font-size:13px;">
-                                                    {{ (int)$prod['cantidad'] }}
-                                                </span>
-                                            </td>
-                                            <td style="padding:8px 14px; text-align:center;">
-                                                @if ($prod['disponible'] !== null)
-                                                    <span style="background:{{ $prod['falta_stock'] ? '#fce4ec' : '#e8f5e9' }};
-                                                                 color:{{ $prod['falta_stock'] ? '#b71c1c' : '#2e7d32' }};
-                                                                 border-radius:12px; padding:2px 10px; font-weight:700; font-size:13px;">
-                                                        {{ (int) $prod['disponible'] }}
-                                                    </span>
-                                                @else
-                                                    <span style="color:#aaa; font-size:12px;">—</span>
-                                                @endif
-                                            </td>
-                                            <td style="padding:8px 14px; text-align:center;">
-                                                @if (isset($prod['disponible_global']) && $prod['disponible_global'] !== null)
-                                                    <span style="background:#e3f2fd; color:#1565c0;
-                                                                 border-radius:12px; padding:2px 10px; font-weight:700; font-size:13px;">
-                                                        {{ $prod['disponible_global'] }}
-                                                    </span>
-                                                @else
-                                                    <span style="color:#aaa; font-size:12px;">—</span>
-                                                @endif
-                                            </td>
-                                            <td style="padding:8px 14px; text-align:center;">
-                                                @if ($prod['falta_stock'])
-                                                    <span style="background:#fce4ec; color:#b71c1c; border-radius:8px;
-                                                                 padding:3px 10px; font-size:11px; font-weight:700;">
-                                                        <i class="fa fa-exclamation-triangle mr-1"></i>Sin stock
-                                                    </span>
-                                                @elseif ($prod['disponible'] !== null)
-                                                    <span style="background:#e8f5e9; color:#2e7d32; border-radius:8px;
-                                                                 padding:3px 10px; font-size:11px; font-weight:700;">
-                                                        <i class="fa fa-check mr-1"></i>OK
-                                                    </span>
-                                                @else
-                                                    <span style="background:#f3e5f5; color:#6a1b9a; border-radius:8px;
-                                                                 padding:3px 10px; font-size:11px;">
-                                                        <i class="fa fa-info-circle mr-1"></i>Sin control
-                                                    </span>
-                                                @endif
-                                            </td>
-                                            <td style="padding:6px 14px;">
-                                                <input type="text"
-                                                       wire:model.lazy="obsProducto.{{ $prod['idx'] }}"
-                                                       placeholder="{{ $prod['falta_stock'] ? 'Ej: reemplazar con Producto X...' : 'Observación opcional...' }}"
-                                                       class="form-control form-control-sm"
-                                                       {{ ($devuelto || $soloVisualizacion) ? 'readonly' : '' }}
-                                                       style="font-size:12px; border-radius:6px;
-                                                              border-color: {{ $prod['falta_stock'] ? '#f9a825' : '#ddd' }};
-                                                              {{ ($devuelto || $soloVisualizacion) ? 'background:#f8f8f8; cursor:default;' : '' }}">
+                                        @if(count($this->productosFiltrados) === 0)
+                                        <tr>
+                                            <td colspan="9" style="padding:20px; text-align:center; color:#78909c; background:#fff;">
+                                                <i class="fa fa-filter d-block" style="font-size:24px; margin-bottom:6px; opacity:.55;"></i>
+                                                No hay productos que coincidan con los filtros.
                                             </td>
                                         </tr>
-                                        @endforeach
+                                        @else
+                                            @foreach ($this->productosFiltrados as $prod)
+                                            <tr style="border-bottom:1px solid #f0f0f0;
+                                                       {{ $prod['falta_stock'] ? 'background:#fff8f5;' : '' }}
+                                                       {{ !empty($productosRevisados[$prod['idx']]) ? 'box-shadow: inset 4px 0 0 #2e7d32;' : '' }}">
+                                                <td style="padding:8px 14px; color:#888;">{{ $loop->iteration }}</td>
+                                                <td style="padding:8px 14px; color:#2c3e50; font-weight:600;">
+                                                    {{ $prod['nombre_producto'] }}
+                                                </td>
+                                                <td style="padding:8px 14px; color:#607d8b; font-size:12px;">
+                                                    {{ $prod['nombre_bodega'] ?? '—' }}
+                                                </td>
+                                                <td style="padding:8px 14px; text-align:center;">
+                                                    <span style="background:#e3f2fd; color:#1565c0; border-radius:12px;
+                                                                 padding:2px 10px; font-weight:700; font-size:13px;">
+                                                        {{ (int)$prod['cantidad'] }}
+                                                    </span>
+                                                </td>
+                                                <td style="padding:8px 14px; text-align:center;">
+                                                    @if ($prod['disponible'] !== null)
+                                                        <span style="background:{{ $prod['falta_stock'] ? '#fce4ec' : '#e8f5e9' }};
+                                                                     color:{{ $prod['falta_stock'] ? '#b71c1c' : '#2e7d32' }};
+                                                                     border-radius:12px; padding:2px 10px; font-weight:700; font-size:13px;">
+                                                            {{ (int) $prod['disponible'] }}
+                                                        </span>
+                                                    @else
+                                                        <span style="color:#aaa; font-size:12px;">—</span>
+                                                    @endif
+                                                </td>
+                                                <td style="padding:8px 14px; text-align:center;">
+                                                    @if (isset($prod['disponible_global']) && $prod['disponible_global'] !== null)
+                                                        <span style="background:#e3f2fd; color:#1565c0;
+                                                                     border-radius:12px; padding:2px 10px; font-weight:700; font-size:13px;">
+                                                            {{ $prod['disponible_global'] }}
+                                                        </span>
+                                                    @else
+                                                        <span style="color:#aaa; font-size:12px;">—</span>
+                                                    @endif
+                                                </td>
+                                                <td style="padding:8px 14px; text-align:center;">
+                                                    <div class="custom-control custom-checkbox d-inline-flex align-items-center">
+                                                        <input type="checkbox"
+                                                               class="custom-control-input"
+                                                               id="rev_{{ $prod['idx'] }}"
+                                                               wire:model="productosRevisados.{{ $prod['idx'] }}"
+                                                               {{ ($devuelto || $soloVisualizacion) ? 'disabled' : '' }}>
+                                                        <label class="custom-control-label" for="rev_{{ $prod['idx'] }}"></label>
+                                                    </div>
+                                                </td>
+                                                <td style="padding:8px 14px; text-align:center;">
+                                                    @if ($prod['falta_stock'])
+                                                        <span style="background:#fce4ec; color:#b71c1c; border-radius:8px;
+                                                                     padding:3px 10px; font-size:11px; font-weight:700;">
+                                                            <i class="fa fa-exclamation-triangle mr-1"></i>Sin stock
+                                                        </span>
+                                                    @elseif ($prod['disponible'] !== null)
+                                                        <span style="background:#e8f5e9; color:#2e7d32; border-radius:8px;
+                                                                     padding:3px 10px; font-size:11px; font-weight:700;">
+                                                            <i class="fa fa-check mr-1"></i>OK
+                                                        </span>
+                                                    @else
+                                                        <span style="background:#f3e5f5; color:#6a1b9a; border-radius:8px;
+                                                                     padding:3px 10px; font-size:11px;">
+                                                            <i class="fa fa-info-circle mr-1"></i>Sin control
+                                                        </span>
+                                                    @endif
+                                                </td>
+                                                <td style="padding:6px 14px;">
+                                                    <input type="text"
+                                                           wire:model.lazy="obsProducto.{{ $prod['idx'] }}"
+                                                           placeholder="{{ $prod['falta_stock'] ? 'Ej: reemplazar con Producto X...' : 'Observación opcional...' }}"
+                                                           class="form-control form-control-sm"
+                                                           {{ ($devuelto || $soloVisualizacion) ? 'readonly' : '' }}
+                                                           style="font-size:12px; border-radius:6px;
+                                                                  border-color: {{ $prod['falta_stock'] ? '#f9a825' : '#ddd' }};
+                                                                  {{ ($devuelto || $soloVisualizacion) ? 'background:#f8f8f8; cursor:default;' : '' }}">
+                                                </td>
+                                            </tr>
+                                            @endforeach
+                                        @endif
                                     </tbody>
                                 </table>
                             </div>
@@ -278,7 +351,7 @@
                         @elseif ($confirmAccion === null)
                         <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center;">
                             {{-- Pasar a Prefactura --}}
-                            @if (count($stockErrors) === 0 && count($productos) > 0 && collect($obsProducto)->filter()->isEmpty())
+                                @if (count($stockErrors) === 0 && count($productos) > 0 && collect($obsProducto)->filter()->isEmpty() && $this->todosProductosRevisados())
                             <button type="button" wire:click="confirmarAccion('prefactura')"
                                     style="background:linear-gradient(135deg,#1ab394,#0fa37a); color:#fff;
                                            border:none; border-radius:10px; padding:9px 22px;
@@ -290,16 +363,17 @@
                             <button type="button" disabled
                                     style="background:#ccc; color:#fff; border:none; border-radius:10px;
                                            padding:9px 22px; font-size:13px; font-weight:700; cursor:not-allowed;"
-                                    title="{{ collect($obsProducto)->filter()->isNotEmpty() ? 'Elimine las notas/reemplazos antes de pasar a Prefactura' : 'Hay productos sin stock suficiente' }}">
+                                    title="{{ ! $this->todosProductosRevisados() ? 'Debe marcar todos los productos como revisados' : (collect($obsProducto)->filter()->isNotEmpty() ? 'Elimine las notas/reemplazos antes de pasar a Prefactura' : 'Hay productos sin stock suficiente') }}">
                                 <i class="mr-1 fa fa-ban"></i> Pasar a Prefactura
                             </button>
                             @endif
 
                             {{-- Devolver a Oferta --}}
-                            <button type="button" wire:click="confirmarAccion('devolver')"
+                                <button type="button" wire:click="confirmarAccion('devolver')"
+                                    {{ $this->todosProductosRevisados() ? '' : 'disabled' }}
                                     style="background:linear-gradient(135deg,#e74c3c,#c0392b); color:#fff;
                                            border:none; border-radius:10px; padding:9px 22px;
-                                           font-size:13px; font-weight:700; cursor:pointer;
+                                       font-size:13px; font-weight:700; cursor:{{ $this->todosProductosRevisados() ? 'pointer' : 'not-allowed' }};
                                            box-shadow:0 3px 10px rgba(231,76,60,.35);">
                                 <i class="mr-1 fa fa-reply"></i> Devolver a Oferta
                             </button>

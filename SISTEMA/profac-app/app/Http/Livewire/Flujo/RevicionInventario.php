@@ -31,6 +31,11 @@ class RevicionInventario extends Component
     public ?int   $cotizacionId     = null;   // ID de la cotizacion ganadora
     public array  $productos        = [];     // {nombre_producto, cantidad, disponible, falta_stock}
     public array  $stockErrors      = [];     // productos con stock insuficiente
+    public array  $productosRevisados = [];   // checkbox por producto
+    public string $filtroProducto   = '';
+    public string $filtroBodega     = '';
+    public string $filtroEstado     = '';
+    public string $filtroRevisado   = '';
 
     // ── Observaciones por producto (para notas de reemplazo) ──────────────
     public array  $obsProducto      = [];     // ['idx' => 'texto obs']
@@ -268,6 +273,7 @@ class RevicionInventario extends Component
         $this->mensajeError     = '';
         $this->obsProducto      = [];
         $this->stockErrors      = [];
+        $this->productosRevisados = [];
 
         // Detectar el estado del ciclo ACTUAL mirando el registro MÁS RECIENTE de tipo=9.
         // Si el último registro tiene estado_id=7 → ciclo cerrado/devuelto (modo lectura).
@@ -415,6 +421,8 @@ class RevicionInventario extends Component
                 'disponible_global' => $disponibleGlobal,
                 'falta_stock'     => $faltaStock,
             ];
+
+            $this->productosRevisados[$i] = false;
         }
 
         // ── Si el flujo está devuelto, cargar motivo y notas de productos ──
@@ -458,8 +466,97 @@ class RevicionInventario extends Component
         $this->confirmAccion    = null;
         $this->motivoDevolucion = '';
         $this->obsProducto      = [];
+        $this->productosRevisados = [];
+        $this->filtroProducto   = '';
+        $this->filtroBodega     = '';
+        $this->filtroEstado     = '';
+        $this->filtroRevisado   = '';
         $this->mensajeExito     = '';
         $this->mensajeError     = '';
+    }
+
+    /**
+     * Limpiar filtros de la tabla de productos.
+     */
+    public function limpiarFiltrosTabla(): void
+    {
+        $this->filtroProducto = '';
+        $this->filtroBodega   = '';
+        $this->filtroEstado   = '';
+        $this->filtroRevisado = '';
+    }
+
+    /**
+     * Verifica si todos los productos visibles fueron marcados como revisados.
+     */
+    public function todosProductosRevisados(): bool
+    {
+        if (empty($this->productos)) {
+            return false;
+        }
+
+        foreach ($this->productos as $prod) {
+            $idx = $prod['idx'];
+            if (empty($this->productosRevisados[$idx])) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Productos visibles según filtros de la tabla.
+     */
+    public function getProductosFiltradosProperty(): array
+    {
+        $textoProducto = trim(mb_strtolower($this->filtroProducto));
+        $textoBodega   = trim(mb_strtolower($this->filtroBodega));
+        $estado        = trim($this->filtroEstado);
+        $revisado      = trim($this->filtroRevisado);
+
+        return collect($this->productos)
+            ->filter(function (array $prod) use ($textoProducto, $textoBodega, $estado, $revisado) {
+                $nombreProducto = mb_strtolower($prod['nombre_producto'] ?? '');
+                $nombreBodega   = mb_strtolower($prod['nombre_bodega'] ?? '');
+                $estaRevisado    = !empty($this->productosRevisados[$prod['idx']] ?? false);
+
+                if ($textoProducto !== '' && mb_strpos($nombreProducto, $textoProducto) === false) {
+                    return false;
+                }
+
+                if ($textoBodega !== '' && mb_strpos($nombreBodega, $textoBodega) === false) {
+                    return false;
+                }
+
+                if ($estado !== '') {
+                    if ($estado === 'sin_stock' && !($prod['falta_stock'] ?? false)) {
+                        return false;
+                    }
+
+                    if ($estado === 'ok' && ($prod['falta_stock'] ?? false)) {
+                        return false;
+                    }
+
+                    if ($estado === 'sin_control' && ($prod['disponible'] !== null)) {
+                        return false;
+                    }
+                }
+
+                if ($revisado !== '') {
+                    if ($revisado === 'si' && !$estaRevisado) {
+                        return false;
+                    }
+
+                    if ($revisado === 'no' && $estaRevisado) {
+                        return false;
+                    }
+                }
+
+                return true;
+            })
+            ->values()
+            ->toArray();
     }
 
     // ─────────────────────────────────────────────────────────────────────
@@ -488,6 +585,11 @@ class RevicionInventario extends Component
     {
         if (!$this->flujoId || !$this->cotizacionId) {
             $this->mensajeError = 'No hay flujo u oferta seleccionada.';
+            return;
+        }
+
+        if (!$this->todosProductosRevisados()) {
+            $this->mensajeError = 'Debe marcar como revisados todos los productos antes de pasar a Prefactura.';
             return;
         }
 
@@ -623,6 +725,11 @@ class RevicionInventario extends Component
     public function devolverAOferta(): void
     {
         if (!$this->flujoId) return;
+
+        if (!$this->todosProductosRevisados()) {
+            $this->mensajeError = 'Debe marcar como revisados todos los productos antes de devolver a Oferta.';
+            return;
+        }
 
         $motivo = trim($this->motivoDevolucion);
         if ($motivo === '') {
