@@ -216,12 +216,12 @@
                         <div class="card-body" style="padding:4px 8px;">
                             <table style="width:100%; border:none; border-collapse:collapse; font-size:10px;">
                                 <tr>
-                                    <td style="border:none; padding:1px 0;">Importe exonerado:</td>
-                                    <td style="border:none; padding:1px 0; text-align:right;">L. 0.00</td>
+                                    <td style="border:none; padding:1px 0;">Importe Exonerado:</td>
+                                    <td style="border:none; padding:1px 0; text-align:right;">L. @if (!empty($esExonerada)) {{ $importesConCentavos->sub_total_grabado ?? '0.00' }} @else 0.00 @endif</td>
                                 </tr>
                                 <tr>
                                     <td style="border:none; padding:1px 0;">Importe Gravado 15%:</td>
-                                    <td style="border:none; padding:1px 0; text-align:right;">L. {{ $importesConCentavos->sub_total_grabado }}</td>
+                                    <td style="border:none; padding:1px 0; text-align:right;">L. @if (empty($esExonerada)) {{ $importesConCentavos->sub_total_grabado }} @else 0.00 @endif</td>
                                 </tr>
                                 <tr>
                                     <td style="border:none; padding:1px 0;">Importe Gravado 18%:</td>
