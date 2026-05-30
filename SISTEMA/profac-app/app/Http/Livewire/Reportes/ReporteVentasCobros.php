@@ -99,6 +99,23 @@ class ReporteVentasCobros extends Component
                    AND pv.estado_venta_id = 1),
             0)                                                          AS monto_pagado,
 
+                        /* ── Retención ISV (solo cuando estado_retencion_isv = 2) ── */
+                        COALESCE(
+                                (SELECT ap_ret.retencion_isv_factura
+                                 FROM aplicacion_pagos ap_ret
+                                 WHERE ap_ret.factura_id = f.id
+                                     AND ap_ret.estado_retencion_isv = 2
+                                 ORDER BY ap_ret.id DESC LIMIT 1),
+                        0)                                                          AS monto_retencion,
+
+                        COALESCE(
+                                (SELECT NULLIF(TRIM(ap_ret.comentario_retencion), '')
+                                 FROM aplicacion_pagos ap_ret
+                                 WHERE ap_ret.factura_id = f.id
+                                     AND ap_ret.estado_retencion_isv = 2
+                                 ORDER BY ap_ret.id DESC LIMIT 1),
+                        'No aplica')                                               AS numero_retencion,
+
             /* ── Saldo pendiente (calculado) ── */
             COALESCE(f.total, 0)
                 - COALESCE(
