@@ -5,26 +5,24 @@ namespace App\Http\Livewire\Flujo;
 use Livewire\Component;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
-use PhpOffice\PhpSpreadsheet\Spreadsheet;
-use PhpOffice\PhpSpreadsheet\Writer\Xlsx as XlsxWriter;
 
 class ListarVentas extends Component
 {
-    // ── Filtros ────────────────────────────────────────────────────────────
-    public $busquedaCliente = '';
-    public $filtroEstado    = '';
-    public $filtroFecha     = '';
-    public $filtroNumero    = ''; 
-      // filtro por nº de documento
+    // ── Filtros y sort (misma mecanica que listar-pedidos-para-ofertar) ──
+    public $busquedaOfr  = '';
+    public $filtroEstado = '';
+    public $filtroFecha  = '';
+    public $filtroNumero = '';
+    public $sortColOfr   = 'created_at';
+    public $sortDirOfr   = 'desc';
 
     // ── Control de acceso ─────────────────────────────────────────────────
     public $esAdmin = false;
 
-    // ── Paginación simple ──────────────────────────────────────────────────
-    public $pagina       = 1;
-    public $porPagina    = 15;
-    public $totalPedidos = 0;
-    public $totalPaginas = 0;
+    // ── Paginación y datos ────────────────────────────────────────────────
+    public int $paginaOfr = 1;
+    public int $perPage   = 5;
+    public $registros     = [];
 
     // ── Confirmación de cancelación ──────────────────────────────────────────
     public $pedidoAnularId   = null;
@@ -55,13 +53,36 @@ class ListarVentas extends Component
     public function mount()
     {
         $this->esAdmin = Auth::user()->rol_id === 1;
+        $this->cargarRegistros();
     }
 
-    // ── Actualización de filtros → volver a página 1 ──────────────────────
-    public function updatedBusquedaCliente() { $this->pagina = 1; }
-    public function updatedFiltroEstado()    { $this->pagina = 1; }
-    public function updatedFiltroFecha()     { $this->pagina = 1; }
-    public function updatedFiltroNumero()    { $this->pagina = 1; }
+    // ── Actualización de filtros ──────────────────────────────────────────
+    public function updatedBusquedaOfr() { $this->paginaOfr = 1; $this->cargarRegistros(); }
+    public function updatedFiltroEstado() { $this->paginaOfr = 1; $this->cargarRegistros(); }
+    public function updatedFiltroFecha() { $this->paginaOfr = 1; $this->cargarRegistros(); }
+    public function updatedFiltroNumero() { $this->paginaOfr = 1; $this->cargarRegistros(); }
+
+    public function sortByOfr(string $column): void
+    {
+        $allowed = [
+            'flujo_id', 'documento_id', 'cliente',
+            'estado_flujo', 'total_ofertas', 'created_at'
+        ];
+
+        if (!in_array($column, $allowed, true)) {
+            return;
+        }
+
+        if ($this->sortColOfr === $column) {
+            $this->sortDirOfr = $this->sortDirOfr === 'asc' ? 'desc' : 'asc';
+        } else {
+            $this->sortColOfr = $column;
+            $this->sortDirOfr = 'asc';
+        }
+
+        $this->paginaOfr = 1;
+        $this->cargarRegistros();
+    }
 
     public function updatedBusquedaUsuario()
     {
@@ -89,101 +110,181 @@ class ListarVentas extends Component
         ];
     }
 
-    // ── Obtener pedidos filtrados ──────────────────────────────────────────
-    private function query()
+    public function ofrPrev(): void
     {
-        $q = DB::table('pedido as p')
-            ->join('cliente as c', 'c.id', '=', 'p.cliente_id')
-            ->join('users as u', 'u.id', '=', 'p.users_id')
-            ->leftJoin('historico_flujo as hf', function ($join) {
-                $join->on('hf.tramite_id', '=', 'p.id')
-                     ->where('hf.tipo_tramite_id', '=', 1); // 1 = 'pedido' en tipos_tramites
-            })
-            ->leftJoin('flujo as f', 'f.id', '=', 'hf.flujo_id')
-            ->leftJoin('tipos_tramites as te', 'te.id', '=', 'f.tipo_tramite_id')
-            ->leftJoin('estado_venta as ev_hf', 'ev_hf.id', '=', 'hf.estado_id')
+        if ($this->paginaOfr > 1) {
+            $this->paginaOfr--;
+        }
+    }
+
+    public function ofrNext(): void
+    {
+        $total = count($this->registros);
+        $lastPage = max(1, (int) ceil($total / $this->perPage));
+        if ($this->paginaOfr < $lastPage) {
+            $this->paginaOfr++;
+        }
+    }
+
+    private function cargarRegistros(): void
+    {
+        // Una fila por flujo — estado = tipo_tramite_id actual del flujo
+        $q = DB::table('flujo as f')
+            ->leftJoin('tipos_tramites as tt', 'tt.id', '=', 'f.tipo_tramite_id')
+            ->leftJoin('pedido as p', DB::raw('CAST(f.identificacion AS UNSIGNED)'), '=', 'p.id')
+            ->leftJoin('cliente as c', 'c.id', '=', 'p.cliente_id')
+            ->leftJoin('cotizacion as co', DB::raw('CAST(f.identificacion AS UNSIGNED)'), '=', 'co.id')
             ->select(
-                'p.id',
-                'c.nombre as cliente',
-                'c.rtn',
-                'p.estado',
-                'p.users_id',
-                'u.name as registrado_por',
-                'p.observaciones',
-                'p.created_at',
-                'p.updated_at as pedido_updated_at',
                 'f.id as flujo_id',
-                'te.nombre as estatus_flujo',
-                'ev_hf.descripcion as estado_flujo',
-                DB::raw('(SELECT COUNT(*) FROM pedido_detalle pd WHERE pd.pedido_id = p.id) as total_productos'),
-                DB::raw('(SELECT COUNT(*) FROM historico_flujo hf INNER JOIN flujo f ON f.id = hf.flujo_id WHERE f.identificacion = CAST(p.id AS CHAR) AND f.tipo_flujo_id = 1 AND hf.tipo_tramite_id = 2) as has_ofertas'),
-                DB::raw('(SELECT COUNT(*) FROM historico_flujo hf INNER JOIN flujo f ON f.id = hf.flujo_id WHERE f.identificacion = CAST(p.id AS CHAR) AND f.tipo_flujo_id = 1 AND hf.tipo_tramite_id = 2 AND hf.observaciones = \'ganadora\') as has_ganadora')
-            )
-            ->orderByDesc('p.created_at');
+                'f.created_at',
+                'p.id as pedido_id',
+                DB::raw("COALESCE(f.nombre, c.nombre, co.nombre_cliente, '—') as cliente"),
+                DB::raw("COALESCE(f.cliente_rtn, c.rtn, co.RTN, '—') as rtn"),
+                DB::raw("CASE
+                    WHEN f.estado_id = 4 OR p.estado = 'cancelado' THEN 'cancelado'
+                    ELSE COALESCE(tt.nombre, 'sin_flujo')
+                 END as estado_flujo"),
+                // Documento: factura→cai, prefactura→id, fallback→pedido id
+                // Factura activa → CAI; ofertas → vacío; prefactura → id; resto → pedido id
+                DB::raw("COALESCE(
+                    (SELECT fa.cai
+                     FROM historico_flujo hf3
+                     INNER JOIN factura fa ON fa.id = hf3.tramite_id
+                     WHERE hf3.flujo_id = f.id AND hf3.tipo_tramite_id = 3
+                       AND fa.estado_venta_id = 1
+                     ORDER BY hf3.id DESC LIMIT 1),
+                    CASE
+                        WHEN f.tipo_tramite_id = 2 THEN NULL
+                        WHEN f.tipo_tramite_id = 4
+                             THEN CAST((SELECT hf4.tramite_id
+                                        FROM historico_flujo hf4
+                                        WHERE hf4.flujo_id = f.id AND hf4.tipo_tramite_id = 4
+                                        ORDER BY hf4.id DESC LIMIT 1) AS CHAR)
+                        ELSE CAST(p.id AS CHAR)
+                    END
+                ) as documento_display"),
+                DB::raw('COALESCE((SELECT COUNT(*) FROM historico_flujo hf2 WHERE hf2.flujo_id = f.id AND hf2.tipo_tramite_id = 2), 0) as total_ofertas'),
+                DB::raw("CASE WHEN p.id IS NULL THEN 'cotizacion' ELSE 'pedido' END as origen")
+            );
 
         // Solo ver propios registros si no es administrador
         if (!$this->esAdmin) {
-            $q->where('p.users_id', Auth::id());
+            $q->where(function ($sub) {
+                $sub->where('p.users_id', Auth::id())
+                    ->orWhere('co.users_id', Auth::id())
+                    ->orWhere('f.created_by', Auth::id());
+            });
         }
 
-        // Filtro por número de documento
+        // Filtro por número de documento (cualquier entrada del historial + CAI de factura)
         if (trim($this->filtroNumero) !== '') {
-            $q->where('p.id', (int) $this->filtroNumero);
+            $num = trim($this->filtroNumero);
+            $q->where(function ($sub) use ($num) {
+                $sub->whereExists(function ($q2) use ($num) {
+                    $q2->select(DB::raw(1))
+                       ->from('historico_flujo as hfx')
+                       ->whereColumn('hfx.flujo_id', 'f.id')
+                       ->where('hfx.tramite_id', (int) $num);
+                })->orWhereExists(function ($q2) use ($num) {
+                    $q2->select(DB::raw(1))
+                       ->from('historico_flujo as hfx2')
+                       ->join('factura as fx', 'fx.id', '=', 'hfx2.tramite_id')
+                       ->whereColumn('hfx2.flujo_id', 'f.id')
+                       ->where('hfx2.tipo_tramite_id', 3)
+                       ->where('fx.cai', 'LIKE', '%' . $num . '%');
+                });
+            });
         }
 
-        // Filtro por cliente
-        if (strlen(trim($this->busquedaCliente)) >= 2) {
-            $term = '%' . trim($this->busquedaCliente) . '%';
-            $q->where(function ($sub) use ($term) {
-                $sub->where('c.nombre', 'LIKE', $term)
-                    ->orWhere('c.rtn', 'LIKE', $term);
+        // Búsqueda principal
+        $termRaw = trim($this->busquedaOfr);
+        if ($termRaw !== '') {
+            $term = '%' . $termRaw . '%';
+            $q->where(function ($sub) use ($term, $termRaw) {
+                $sub->where('f.nombre', 'LIKE', $term)
+                    ->orWhere('c.nombre', 'LIKE', $term)
+                    ->orWhere('co.nombre_cliente', 'LIKE', $term)
+                    ->orWhere('f.cliente_rtn', 'LIKE', $term)
+                    ->orWhere('c.rtn', 'LIKE', $term)
+                    ->orWhere('co.RTN', 'LIKE', $term)
+                    ->orWhere('f.id', 'LIKE', $term)
+                    ->orWhereExists(function ($q2) use ($termRaw) {
+                        $q2->select(DB::raw(1))
+                           ->from('historico_flujo as hfx')
+                           ->whereColumn('hfx.flujo_id', 'f.id')
+                           ->where('hfx.tramite_id', 'LIKE', '%' . $termRaw . '%');
+                    })
+                    ->orWhereExists(function ($q2) use ($termRaw) {
+                        $q2->select(DB::raw(1))
+                           ->from('historico_flujo as hfx2')
+                           ->join('factura as fx', 'fx.id', '=', 'hfx2.tramite_id')
+                           ->whereColumn('hfx2.flujo_id', 'f.id')
+                           ->where('hfx2.tipo_tramite_id', 3)
+                           ->where('fx.cai', 'LIKE', '%' . $termRaw . '%');
+                    });
             });
         }
 
         // Filtro por estado
         if ($this->filtroEstado !== '') {
             if ($this->filtroEstado === 'sin_flujo') {
-                $q->whereNull('f.id');
+                $q->whereNull('tt.id');
+            } elseif ($this->filtroEstado === 'cancelado') {
+                $q->where(function ($sub) {
+                    $sub->where('f.estado_id', 4)
+                        ->orWhere('p.estado', 'cancelado');
+                });
             } else {
-                $q->where('te.nombre', $this->filtroEstado);
+                $q->where('tt.nombre', $this->filtroEstado)
+                  ->where(function ($sub) {
+                      $sub->where('f.estado_id', '!=', 4)->orWhereNull('f.estado_id');
+                  })
+                  ->where(function ($sub) {
+                      $sub->whereNull('p.estado')->orWhere('p.estado', '!=', 'cancelado');
+                  });
             }
         }
 
         // Filtro por fecha
         if ($this->filtroFecha !== '') {
-            $q->whereDate('p.created_at', $this->filtroFecha);
+            $q->whereDate('f.created_at', $this->filtroFecha);
         }
 
-        return $q;
-    }
-
-    public function getTotalPaginasProperty(): int
-    {
-        return (int) ceil($this->totalPedidos / $this->porPagina);
-    }
-
-    // ── Paginación ─────────────────────────────────────────────────────────
-    public function paginaAnterior() { if ($this->pagina > 1) $this->pagina--; }
-    public function paginaSiguiente()
-    {
-        if ($this->pagina < $this->totalPaginas) $this->pagina++;
-    }
-
-    public function irPagina(int $p)
-    {
-        if ($p >= 1 && $p <= $this->totalPaginas) {
-            $this->pagina = $p;
+        $dir = strtolower($this->sortDirOfr) === 'asc' ? 'asc' : 'desc';
+        switch ($this->sortColOfr) {
+            case 'flujo_id':
+                $q->orderBy('f.id', $dir);
+                break;
+            case 'documento_id':
+                $q->orderByRaw("documento_display {$dir}");
+                break;
+            case 'cliente':
+                $q->orderByRaw("COALESCE(c.nombre, co.nombre_cliente, '') {$dir}");
+                break;
+            case 'estado_flujo':
+                $q->orderByRaw("estado_flujo {$dir}");
+                break;
+            case 'total_ofertas':
+                $q->orderByRaw("total_ofertas {$dir}");
+                break;
+            case 'created_at':
+            default:
+                $q->orderBy('f.created_at', $dir);
+                break;
         }
+
+        $this->registros = $q->get()->toArray();
     }
 
     // ── Limpiar filtros ────────────────────────────────────────────────────
     public function limpiarFiltros()
     {
-        $this->busquedaCliente = '';
+        $this->busquedaOfr     = '';
         $this->filtroEstado    = '';
         $this->filtroFecha     = '';
         $this->filtroNumero    = '';
-        $this->pagina          = 1;
+        $this->paginaOfr       = 1;
+        $this->cargarRegistros();
     }
 
     // ── Anular pedido ──────────────────────────────────────────────────────
@@ -211,20 +312,20 @@ class ListarVentas extends Component
 
             // Actualizar el flujo si existe
             $hf = DB::table('historico_flujo')
-                ->where('tipo_tramite_id', 1) // 'pedido' en tipos_tramites
+                ->where('tramite_tipo', 'pedido')
                 ->where('tramite_id', $this->pedidoAnularId)
                 ->first();
 
             if ($hf) {
-                // Estatus 'cancelado' — actualizar estado_id en historico
+                // Estatus 'cancelado' — buscamos o usamos el estado directamente en historico
                 DB::table('historico_flujo')
                     ->where('id', $hf->id)
-                    ->update(['estado_id' => DB::table('estado_venta')->where('descripcion', 'cancelado')->value('id'), 'updated_by' => Auth::id(), 'updated_at' => now()]);
+                    ->update(['estado' => 'cancelado', 'updated_by' => Auth::id(), 'updated_at' => now()]);
 
-                // Buscar estatus "cancelado" en tipos_tramites o marcar flujo como inactivo
+                // Buscar estatus "cancelado" en tipos_estatus o marcar flujo como inactivo
                 DB::table('flujo')
                     ->where('id', $hf->flujo_id)
-                    ->update(['updated_by' => Auth::id(), 'updated_at' => now()]);
+                    ->update(['estado' => 'cancelado', 'updated_by' => Auth::id(), 'updated_at' => now()]);
             }
 
             DB::commit();
@@ -245,18 +346,17 @@ class ListarVentas extends Component
             ->join('users as u', 'u.id', '=', 'p.users_id')
             ->leftJoin('historico_flujo as hf', function ($join) {
                 $join->on('hf.tramite_id', '=', 'p.id')
-                     ->where('hf.tipo_tramite_id', '=', 1); // 1 = 'pedido' en tipos_tramites
+                     ->where('hf.tipo_tramite_id', '=', 'pedido');
             })
             ->leftJoin('flujo as f', 'f.id', '=', 'hf.flujo_id')
-            ->leftJoin('tipos_tramites as te', 'te.id', '=', 'f.tipo_tramite_id')
-            ->leftJoin('estado_venta as ev_hf', 'ev_hf.id', '=', 'hf.estado_id')
+            ->leftJoin('tipos_estatus as te', 'te.id', '=', 'f.estado_id')
             ->select(
                 'p.id', 'p.estado', 'p.sub_estado_entrega', 'p.observaciones', 'p.created_at', 'p.updated_at',
                 'c.nombre as cliente',
                 'u.name as registrado_por',
                 'f.id as flujo_id',
                 'te.nombre as estatus_flujo',
-                'ev_hf.descripcion as estado_flujo',
+                'hf.estado_id as estado_flujo',
                 'hf.observaciones as obs_flujo'
             )
             ->where('p.id', $id)
@@ -283,6 +383,40 @@ class ListarVentas extends Component
             ]);
             $this->showModalFlujo  = true;
         }
+    }
+
+    /** Abre el componente de flujo para origen pedido (igual a ofertar) */
+    public function abrirModalPedido(int $pedidoId): void
+    {
+        $this->emit('abrirFlujoPedido', $pedidoId);
+    }
+
+    /** Abre el componente de flujo para origen cotizacion (igual a ofertar) */
+    public function abrirModalCotizacion(int $flujoId): void
+    {
+        $this->emit('abrirFlujoCotizacion', $flujoId);
+    }
+
+    /**
+     * Abre flujo desde fila de historial.
+     * Prioriza modal-flujo-pedido; si no existe pedido asociado, abre flujo de cotizacion.
+     */
+    public function abrirFlujoDesdeRegistro(int $flujoId, int $pedidoId = 0): void
+    {
+        if ($pedidoId > 0) {
+            $this->emit('abrirFlujoPedido', $pedidoId);
+            return;
+        }
+
+        $identificacion = DB::table('flujo')->where('id', $flujoId)->value('identificacion');
+        $pedidoDetectado = (int) DB::table('pedido')->where('id', (int) $identificacion)->value('id');
+
+        if ($pedidoDetectado > 0) {
+            $this->emit('abrirFlujoPedido', $pedidoDetectado);
+            return;
+        }
+
+        $this->emit('abrirFlujoCotizacion', $flujoId);
     }
 
     public function cerrarFlujo()
@@ -331,7 +465,7 @@ class ListarVentas extends Component
 
             // Actualizar auditoría en flujo si existe
             $hf = DB::table('historico_flujo')
-                ->where('tipo_tramite_id', 1) // 'pedido' en tipos_tramites
+                ->where('tramite_tipo', 'pedido')
                 ->where('tramite_id', $this->pedidoReasignarId)
                 ->first();
 
@@ -399,17 +533,17 @@ class ListarVentas extends Component
 
             // Avanzar flujo al estatus prefactura (id=4)
             $hf = DB::table('historico_flujo')
-                ->where('tipo_tramite_id', 1) // 'pedido' en tipos_tramites
+                ->where('tramite_tipo', 'pedido')
                 ->where('tramite_id', $this->pedidoGanadoraId)
                 ->first();
 
             if ($hf) {
                 DB::table('flujo')
                     ->where('id', $hf->flujo_id)
-                    ->update(['tipo_tramite_id' => 4, 'updated_by' => Auth::id(), 'updated_at' => now()]);
+                    ->update(['estatus_id' => 4, 'updated_by' => Auth::id(), 'updated_at' => now()]);
                 DB::table('historico_flujo')
                     ->where('id', $hf->id)
-                    ->update(['estado_id' => DB::table('estado_venta')->where('descripcion', 'pre_factura')->value('id'), 'updated_by' => Auth::id(), 'updated_at' => now()]);
+                    ->update(['estado' => 'pre_factura', 'updated_by' => Auth::id(), 'updated_at' => now()]);
             }
 
             DB::commit();
@@ -431,14 +565,8 @@ class ListarVentas extends Component
     // ── Render ─────────────────────────────────────────────────────────────
     public function render()
     {
-        $this->totalPedidos  = $this->query()->count();
-        $this->totalPaginas  = (int) ceil($this->totalPedidos / $this->porPagina);
-        $offset  = ($this->pagina - 1) * $this->porPagina;
-        $pedidos = $this->query()->skip($offset)->take($this->porPagina)->get();
-
         return view('livewire.flujo.listar-ventas', [
-            'pedidos'      => $pedidos,
-            'totalPaginas' => $this->totalPaginas,
+            'registros' => $this->registros,
         ]);
     }
 }

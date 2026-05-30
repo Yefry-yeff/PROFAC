@@ -24,6 +24,7 @@ use App\Models\ModelCliente;
 use App\Models\Escalas\modelCategoriaCliente;
 use App\Models\logCredito;
 use App\Models\ModelNumOrdenCompra;
+use App\Models\PrefacturaAuditoria;
 use App\Http\Controllers\CAI\Notificaciones;
 use Exception;
 
@@ -394,6 +395,7 @@ class FacturacionEstatal extends Component
                 'cliente.dias_credito',
                 'cliente_categoria_escala.nombre_categoria',
                 'cliente_categoria_escala.id as idcategoriacliente',
+                'cliente.categoria_precios_id',
             )
             ->join(
                 'cliente',
@@ -438,23 +440,46 @@ class FacturacionEstatal extends Component
     public function listarBodegas(Request $request)
     {
         try {
-
+            $prodId = (int) $request->idProducto;
+            $search = addslashes($request->search ?? '');
+            // Stock neto = cantidad_disponible - reservado en prefacturas activas
             $results = DB::SELECT("
-        select
+        SELECT
             A.seccion_id as id,
             D.id as 'idBodega',
             CONCAT(D.nombre,'',REPLACE(B.descripcion,'Seccion','')) as 'bodegaSeccion',
-            concat(D.nombre,' - ', REPLACE(B.descripcion,'Seccion',''),' - cantidad ',sum(A.cantidad_disponible)) as 'text'
-        from recibido_bodega A
-            inner join seccion B
-            on A.seccion_id = B.id
-            inner join segmento C
-            on B.segmento_id = C.id
-            inner join bodega D
-            on C.bodega_id = D.id
-        where  A.cantidad_disponible <> 0 and producto_id = " . $request->idProducto . "
-        and (D.nombre LIKE '%" . $request->search . "%' or B.descripcion LIKE '%" . $request->search . "%')
-        group by A.seccion_id
+            CONCAT(D.nombre,' - ', REPLACE(B.descripcion,'Seccion',''),' - cantidad ',
+                FLOOR(GREATEST(0,
+                    SUM(A.cantidad_disponible) - COALESCE((
+                        SELECT SUM(php2.cantidad)
+                        FROM prefactura_has_producto php2
+                        INNER JOIN prefactura pf2 ON pf2.id = php2.prefactura_id
+                        WHERE pf2.estado = 'activo'
+                          AND php2.producto_id = {$prodId}
+                          AND php2.seccion_id  = A.seccion_id
+                          AND php2.resta_inventario = 1
+                    ), 0)
+                ))
+            ) as 'text'
+        FROM recibido_bodega A
+            INNER JOIN seccion B ON A.seccion_id = B.id
+            INNER JOIN segmento C ON B.segmento_id = C.id
+            INNER JOIN bodega D ON C.bodega_id = D.id
+        WHERE A.cantidad_disponible <> 0
+          AND A.producto_id = {$prodId}
+          AND (D.nombre LIKE '%{$search}%' OR B.descripcion LIKE '%{$search}%')
+        GROUP BY A.seccion_id
+        HAVING GREATEST(0,
+            SUM(A.cantidad_disponible) - COALESCE((
+                SELECT SUM(php3.cantidad)
+                FROM prefactura_has_producto php3
+                INNER JOIN prefactura pf3 ON pf3.id = php3.prefactura_id
+                WHERE pf3.estado = 'activo'
+                  AND php3.producto_id = {$prodId}
+                  AND php3.seccion_id  = A.seccion_id
+                  AND php3.resta_inventario = 1
+            ), 0)
+        ) > 0
             ");
 
             return response()->json([
@@ -476,7 +501,7 @@ class FacturacionEstatal extends Component
             $listaProductos = DB::SELECT("
          select
             B.id,
-            concat('cod ',B.id,' - ',B.nombre,' - ',B.codigo_barra,' - ','cantidad ',sum(A.cantidad_disponible)) as text
+            concat('cod ',B.id,' - ',B.nombre,' - ',B.codigo_barra,' - ','cantidad ',FLOOR(sum(A.cantidad_disponible))) as text
          from
             recibido_bodega A
             inner join producto B
@@ -565,23 +590,43 @@ class FacturacionEstatal extends Component
                     ppc.precio_d AS precio4,
                     ppc.id AS precios_producto_carga_id
                 FROM producto p
-                JOIN cliente_categoria_escala cce
-                    ON cce.id = :categoria_cliente_venta_id
-                    AND cce.estado_id = 1
-                JOIN categoria_precios cp
-                    ON cp.cliente_categoria_escala_id = cce.id
-                    AND cp.estado_id = 1
                 JOIN precios_producto_carga ppc
                     ON ppc.producto_id = p.id
-                    AND ppc.categoria_precios_id = cp.id
+                    AND ppc.categoria_precios_id = :categoria_cliente_venta_id
                     AND ppc.estado_id = 1
+                JOIN categoria_precios cp
+                    ON cp.id = ppc.categoria_precios_id
+                    AND cp.estado_id = 1
                 WHERE p.id = :idProducto
                 LIMIT 1;
             ", [
                 'categoria_cliente_venta_id' => $request['categoria_cliente_venta_id'],
                 'idProducto' => $request['idProducto'],
-
             ]);
+
+            // Fallback: buscar por precios_producto_carga_id cuando la categoria no devolvió resultado
+            if (!$producto && !empty($request['precios_producto_carga_id'])) {
+                $producto = DB::selectOne("
+                    SELECT
+                        p.id,
+                        CONCAT(p.id,' - ',p.nombre) AS nombre,
+                        p.isv,
+                        p.ultimo_costo_compra AS ultimo_costo_compra,
+                        ppc.precio_base_venta AS precio_base,
+                        ppc.precio_a AS precio1,
+                        ppc.precio_b AS precio2,
+                        ppc.precio_c AS precio3,
+                        ppc.precio_d AS precio4,
+                        ppc.id AS precios_producto_carga_id
+                    FROM producto p
+                    JOIN precios_producto_carga ppc ON ppc.producto_id = p.id AND ppc.id = :ppc_id
+                    WHERE p.id = :idProducto
+                    LIMIT 1;
+                ", [
+                    'ppc_id'    => (int) $request['precios_producto_carga_id'],
+                    'idProducto' => $request['idProducto'],
+                ]);
+            }
 
 
             if (!$producto) {
@@ -589,13 +634,13 @@ class FacturacionEstatal extends Component
                     ->where('id', $request['idProducto'])
                     ->value('nombre');
 
-                $nombreCategoria = DB::table('cliente_categoria_escala')
+                $nombreCategoria = DB::table('categoria_precios')
                     ->where('id', $request['categoria_cliente_venta_id'])
-                    ->value('nombre_categoria');
+                    ->value('nombre');
 
                if (!$producto) {
                     return response()->json([
-                        'message' => "El producto <b>{$nombreProducto}</b> no tiene una escala de precios asignada para la categoría de cliente <b>{$nombreCategoria}</b>."
+                        'message' => "El producto <b>{$nombreProducto}</b> no tiene precios asignados para la categoría <b>{$nombreCategoria}</b>."
                     ], 404);
                 }
 
@@ -691,12 +736,23 @@ class FacturacionEstatal extends Component
             $keyNombre = "nombre" . $arrayInputs[$j];
             $keyBodega = "bodega" . $arrayInputs[$j];
 
-            $resultado = DB::selectONE("select
-            if(sum(cantidad_disponible) is null,0,sum(cantidad_disponible)) as cantidad_disponoble
-            from recibido_bodega
-            where cantidad_disponible <> 0
-            and producto_id = " . $request->$keyIdProducto . "
-            and seccion_id = " . $request->$keyIdSeccion);
+            // Stock neto = stock_real - reservado en prefacturas activas
+            $resultado = DB::selectONE("
+                SELECT GREATEST(0,
+                    IFNULL((SELECT SUM(rb2.cantidad_disponible) FROM recibido_bodega rb2
+                             WHERE rb2.cantidad_disponible > 0
+                               AND rb2.producto_id = " . (int)$request->$keyIdProducto . "
+                               AND rb2.seccion_id  = " . (int)$request->$keyIdSeccion . "), 0)
+                    -
+                    IFNULL((SELECT SUM(php2.cantidad)
+                             FROM prefactura_has_producto php2
+                             INNER JOIN prefactura pf2 ON pf2.id = php2.prefactura_id
+                             WHERE pf2.estado = 'activo'
+                               AND php2.producto_id = " . (int)$request->$keyIdProducto . "
+                               AND php2.seccion_id  = " . (int)$request->$keyIdSeccion . "
+                               AND php2.resta_inventario = 1), 0)
+                ) AS cantidad_disponoble
+            ");
 
             if ($request->$keyRestaInventario > $resultado->cantidad_disponoble) {
                 $mensaje = $mensaje . "Unidades insuficientes para el producto: <b>" . $request->$keyNombre . "</b> en la bodega con sección :<b>" . $request->$keyBodega . "</b><br><br>";
@@ -772,12 +828,18 @@ class FacturacionEstatal extends Component
             $validarCAI = new Notificaciones();
             $validarCAI->validarAlertaCAI(ltrim($arrayCai[3],"0"),$numeroSecuencia, 2);
 
+            // Obtener datos reales del cliente desde la base de datos basado en cliente_id seleccionado
+            $clienteData = DB::table('cliente')
+                ->where('id', (int) $request->seleccionarCliente)
+                ->select('nombre', 'rtn')
+                ->first();
+
             $factura = new ModelFactura;
             $factura->numero_factura = $numeroVenta->numero;
             $factura->cai = $numeroCAI;
             $factura->numero_secuencia_cai = $numeroSecuencia;
-            $factura->nombre_cliente = $request->nombre_cliente_ventas;
-            $factura->rtn = $request->rtn_ventas;
+            $factura->nombre_cliente = $clienteData->nombre ?? $request->nombre_cliente_ventas;
+            $factura->rtn = $clienteData->rtn ?? $request->rtn_ventas;
             $factura->sub_total = $request->subTotalGeneral;
             $factura->sub_total_grabado=$request->subTotalGeneralGrabado;
             $factura->sub_total_excento=$request->subTotalGeneralExcento;
@@ -803,7 +865,20 @@ class FacturacionEstatal extends Component
             $factura->comentario=$request->nota_comen;
             $factura->porc_descuento =$request->porDescuento;
             $factura->monto_descuento=$request->porDescuentoCalculado;
+            if ($request->codigo_autorizacion) {
+                $factura->codigo_autorizacion_id = $request->codigo_autorizacion;
+            }
+            if ($request->tipo_factura_id) {
+                $factura->tipo_factura_id = $request->tipo_factura_id;
+            }
             $factura->save();
+
+            // Marcar código de autorización como utilizado
+            if ($request->codigo_autorizacion) {
+                DB::table('codigo_autorizacion')
+                    ->where('id', $request->codigo_autorizacion)
+                    ->update(['estado_id' => 2]);
+            }
 
 
 
@@ -878,7 +953,36 @@ class FacturacionEstatal extends Component
 
 
             $numeroVenta = DB::selectOne("select concat(YEAR(NOW()),'-',count(id)+1)  as 'numero' from factura");
+
+            // Persistir documentos comerciales en flujo si viene de un flujo vinculado
+            if (!empty($request->flujo_id)) {
+                $docUpdate = array_filter([
+                    'numero_orden_compra'  => $request->numero_orden_compra  ?: null,
+                    'archivo_orden_compra' => $request->archivo_orden_compra ?: null,
+                    'numero_forma_f01'     => $request->numero_forma_f01     ?: null,
+                    'archivo_forma_f01'    => $request->archivo_forma_f01    ?: null,
+                    'numero_exoneracion'   => $request->numero_exoneracion   ?: null,
+                    'archivo_exoneracion'  => $request->archivo_exoneracion  ?: null,
+                ], fn($v) => $v !== null);
+                if (!empty($docUpdate)) {
+                    $docUpdate['updated_at'] = now();
+                    DB::table('flujo')->where('id', (int) $request->flujo_id)->update($docUpdate);
+                }
+            }
+
             DB::commit();
+
+            if (($request->modo ?? null) === 'editar_factura' && !empty($request->prefactura_id) && !empty($request->autorizacion_id)) {
+                PrefacturaAuditoria::registrar(
+                    'edicion_factura',
+                    (int) $request->prefactura_id,
+                    (int) $factura->id,
+                    ['prefactura_id' => (int) $request->prefactura_id, 'total' => $request->totalGeneral],
+                    ['factura_id' => (int) $factura->id, 'total' => $request->totalGeneral, 'tipo_pago' => $request->tipoPagoVenta],
+                    $request->motivo ?? null,
+                    (int) $request->autorizacion_id
+                );
+            }
 
             return response()->json([
                 'icon' => "success",

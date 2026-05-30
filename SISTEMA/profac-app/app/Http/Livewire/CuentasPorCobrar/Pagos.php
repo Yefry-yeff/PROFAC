@@ -196,84 +196,37 @@ class Pagos extends Component
                         }else{
 
                             //dd($cuenta);
-                            if ($cuenta->retencion_aplicada == 0) {
-                                return
-                                    '
-                                        <div class="btn-group">
-                                            <button data-toggle="dropdown" class="btn btn-warning dropdown-toggle" aria-expanded="false">Ver más</button>
-                                            <ul class="dropdown-menu" x-placement="bottom-start"
-                                                style="position: absolute; top: 33px; left: 0px; will-change: top, left;">
+                            $retencionItem = ($cuenta->retencion_aplicada == 0)
+                                ? '<a class="ap-ctx-item" onclick="modalRetencion('.$cuenta->codigoPago.','.$cuenta->isv.','.$cuenta->estadoRetencion.',\''.$cuenta->codigoFactura.'\','.$cuenta->idFactura.')">
+                                        <span class="ap-ctx-icon ci-yellow"><i class="fa fa-percent"></i></span>Gestionar retención</a>'
+                                : '<a class="ap-ctx-item ap-ctx-dimmed">
+                                        <span class="ap-ctx-icon ci-green"><i class="fa fa-check"></i></span>Retención gestionada</a>';
 
-
-                                                <li>
-                                                    <a class="dropdown-item" href="/detalle/venta/'.$cuenta->idFactura.'" > <i class="fa-solid fa-arrows-to-eye text-info"></i> Detalle de venta </a>
-                                                </li>
-
-                                                <li>
-                                                    <a class="dropdown-item" onclick="modalRetencion('.$cuenta->codigoPago.' , '.$cuenta->isv.', '.$cuenta->estadoRetencion.', '."'".$cuenta->codigoFactura."'".', '.$cuenta->idFactura.')">  <i class="fa-solid fa-cash-register text-success"></i> Gestionar retencion </a>
-                                                </li>
-
-                                                <li>
-                                                    <a class="dropdown-item" onclick="modalNotaCredito('.$cuenta->codigoPago.' , '."'".$cuenta->codigoFactura."'".', '.$cuenta->idFactura.', '.$cuenta->tieneNC.')"> <i class="fa-solid fa-cash-register text-success"></i> Notas de credito </a>
-                                                </li>
-
-                                                <li>
-                                                    <a class="dropdown-item" onclick="modalNotaDebito('.$cuenta->codigoPago.' , '."'".$cuenta->codigoFactura."'".', '.$cuenta->idFactura.', '.$cuenta->tieneND.')"> <i class="fa-solid fa-cash-register text-success"></i> Notas de debito </a>
-                                                </li>
-
-                                                <li>
-                                                    <a class="dropdown-item" onclick="modalOtrosMovimientos('.$cuenta->codigoPago.' , '."'".$cuenta->codigoFactura."'".', '.$cuenta->idFactura.')"> <i class="fa-solid fa-cash-register text-success"></i> Otros movimientos </a>
-                                                </li>
-
-                                                <li>
-                                                    <a class="dropdown-item" onclick="modalAbonos('.$cuenta->codigoPago.' , '."'".$cuenta->codigoFactura."'".', '.$cuenta->idFactura.')"> <i class="fa-solid fa-cash-register text-success"></i> Creditos/Pago </a>
-                                                </li>
-
-
-
-                                            </ul>
-                                        </div>
-                                ';
-                            }else{
-
-                                return
-                                    '
-                                        <div class="btn-group">
-                                            <button data-toggle="dropdown" class="btn btn-warning dropdown-toggle" aria-expanded="false">Ver más</button>
-                                            <ul class="dropdown-menu" x-placement="bottom-start"
-                                                style="position: absolute; top: 33px; left: 0px; will-change: top, left;">
-
-
-                                                <li>
-                                                    <a class="dropdown-item" href="/detalle/venta/'.$cuenta->idFactura.'" > <i class="fa-solid fa-arrows-to-eye text-info"></i> Detalle de venta </a>
-                                                </li>
-
-                                                <li>
-                                                    <a class="dropdown-item" >  <i class="fa-solid fa-check text-success"></i> Retencion Gestionada </a>
-                                                </li>
-
-                                                <li>
-                                                    <a class="dropdown-item" onclick="modalNotaCredito('.$cuenta->codigoPago.' , '."'".$cuenta->codigoFactura."'".', '.$cuenta->idFactura.', '.$cuenta->tieneNC.')"> <i class="fa-solid fa-cash-register text-success"></i> Notas de credito </a>
-                                                </li>
-
-                                                <li>
-                                                    <a class="dropdown-item" onclick="modalNotaDebito('.$cuenta->codigoPago.' , '."'".$cuenta->codigoFactura."'".', '.$cuenta->idFactura.', '.$cuenta->tieneND.')"> <i class="fa-solid fa-cash-register text-success"></i> Notas de debito </a>
-                                                </li>
-
-                                                <li>
-                                                    <a class="dropdown-item" onclick="modalOtrosMovimientos('.$cuenta->codigoPago.' , '."'".$cuenta->codigoFactura."'".', '.$cuenta->idFactura.')"> <i class="fa-solid fa-cash-register text-success"></i> Otros movimientos </a>
-                                                </li>
-
-                                                <li>
-                                                    <a class="dropdown-item" onclick="modalAbonos('.$cuenta->codigoPago.' , '."'".$cuenta->codigoFactura."'".', '.$cuenta->idFactura.')"> <i class="fa-solid fa-cash-register text-success"></i> Creditos/Pago </a>
-                                                </li>
-
-
-
-                                            </ul>
-                                        </div>
-                                ';
-                            }
+                            $btnBase = '
+                                <div class="ap-ctx-wrap">
+                                    <button class="ap-actions-toggle" onclick="apCtxToggle(this)">
+                                        <i class="fa fa-sliders"></i> Acciones
+                                    </button>
+                                    <div class="ap-ctx-menu" style="display:none;">
+                                        <div class="ap-ctx-section">Factura #'.$cuenta->codigoFactura.'</div>
+                                        <a class="ap-ctx-item" href="/detalle/venta/'.$cuenta->idFactura.'">
+                                            <span class="ap-ctx-icon ci-blue"><i class="fa fa-eye"></i></span>Detalle de venta</a>
+                                        <a class="ap-ctx-item" href="/factura/cooporativo/'.$cuenta->idFactura.'" target="_blank">
+                                            <span class="ap-ctx-icon ci-red"><i class="fa fa-file-pdf-o"></i></span>Imprimir factura</a>
+                                        <div class="ap-ctx-divider"></div>
+                                        '.$retencionItem.'
+                                        <a class="ap-ctx-item" onclick="modalNotaCredito('.$cuenta->codigoPago.',\''.$cuenta->codigoFactura.'\','.$cuenta->idFactura.','.$cuenta->tieneNC.')">
+                                            <span class="ap-ctx-icon ci-green"><i class="fa fa-arrow-down"></i></span>Nota de crédito</a>
+                                        <a class="ap-ctx-item" onclick="modalNotaDebito('.$cuenta->codigoPago.',\''.$cuenta->codigoFactura.'\','.$cuenta->idFactura.','.$cuenta->tieneND.')">
+                                            <span class="ap-ctx-icon ci-orange"><i class="fa fa-arrow-up"></i></span>Nota de débito</a>
+                                        <a class="ap-ctx-item" onclick="modalOtrosMovimientos('.$cuenta->codigoPago.',\''.$cuenta->codigoFactura.'\','.$cuenta->idFactura.','.$cuenta->saldo.')">
+                                            <span class="ap-ctx-icon ci-gray"><i class="fa fa-refresh"></i></span>Otros movimientos</a>
+                                        <div class="ap-ctx-divider"></div>
+                                        <a class="ap-ctx-item ap-ctx-highlight" onclick="modalAbonos('.$cuenta->codigoPago.',\''.$cuenta->codigoFactura.'\','.$cuenta->idFactura.','.$cuenta->saldo.')">
+                                            <span class="ap-ctx-icon ci-teal"><i class="fa fa-money"></i></span>Registrar pago</a>
+                                    </div>
+                                </div>';
+                            return $btnBase;
                         }
                     }
 
@@ -697,33 +650,17 @@ class Pagos extends Component
 
 
                                 $generador = app(GeneradorFacturasComision::class);
-
                                 $arrayfacturas_comision = $generador->generar(
-                                    $request->idFacturaom,
-                                    $request->codAplicPagoom,
-                                    $creditoCli->cliente_categoria_escala_id
+                                    (int) $request->idFacturaom,
+                                    (int) $request->codAplicPagoom
                                 );
 
-                                /*recuperar factura, vendedor y teleoperacior del id factura*/
-
-
-                                $datos_factura = DB::SELECTONE("select users_id as 'teleoperador', vendedor from factura where id =".$request->idFacturaom);
-
-                                    /*Variables constantes porque es la estructura en duro de cualquier factura */
-
-                                    $idTelevendedor = $datos_factura->teleoperador;
-                                    $idVendedor = $datos_factura->vendedor;
-
+                                if (!empty($arrayfacturas_comision)) {
                                     $procesador = app(ProcesadorComisiones::class);
-
-                                    $contexto = [
-                                        'televendedor_id' => $idTelevendedor,
-                                        'vendedor_id'     => $idVendedor,
-                                    ];
-
                                     foreach ($arrayfacturas_comision as $factura) {
-                                        $procesador->procesar($factura, $contexto);
+                                        $procesador->procesar($factura);
                                     }
+                                }
 
 
                            if ($cuentas22[0]->estado == -1) {
@@ -752,6 +689,122 @@ class Pagos extends Component
     }
 
     ///////////////////////////////GESTIONES DE creditos y abonos
+
+    /**
+     * Previsualiza qué roles recibirían comisión si este pago cierra la factura.
+     * No modifica ningún dato — solo lectura.
+     */
+    public function previewComisionesFactura(Request $request)
+    {
+        $facturaId        = (int) $request->input('factura_id');
+        $montoAbono       = (float) $request->input('monto_abono', 0);
+        $aplicacionPagoId = (int) $request->input('aplicacion_pagos_id');
+
+        // Si la factura ya fue comisionada, no habrá nuevas comisiones
+        if (DB::table('facturas_comision')->where('factura_id', $facturaId)->exists()) {
+            return response()->json(['cerrara' => false, 'ya_comisionada' => true, 'targets' => []]);
+        }
+
+        // Verificar si el monto abonado cierra la factura (saldo queda en 0)
+        $saldo = (float) DB::table('aplicacion_pagos')->where('id', $aplicacionPagoId)->value('saldo');
+        if ($saldo <= 0 || $montoAbono < $saldo) {
+            return response()->json(['cerrara' => false, 'ya_comisionada' => false, 'targets' => []]);
+        }
+
+        // Obtener facturador y vendedor con sus roles
+        $fila = DB::selectOne(
+            "SELECT f.users_id AS facturador_id,
+                    uf.rol_id   AS facturador_rol,
+                    uf.name     AS facturador_nombre,
+                    f.vendedor  AS vendedor_id,
+                    uv.rol_id   AS vendedor_rol,
+                    uv.name     AS vendedor_nombre
+             FROM factura f
+             INNER JOIN users uf ON uf.id = f.users_id
+             INNER JOIN users uv ON uv.id = f.vendedor
+             WHERE f.id = ?",
+            [$facturaId]
+        );
+
+        if (!$fila) {
+            return response()->json(['cerrara' => false, 'ya_comisionada' => false, 'targets' => []]);
+        }
+
+        $roles          = DB::table('rol')->pluck('nombre', 'id');
+        $rolesConEscala = DB::table('comision_escala')
+            ->where('estado_id', 1)
+            ->pluck('rol_id')
+            ->unique()
+            ->flip()
+            ->all();
+
+        // Roles desactivados en el panel de control — mismo filtro que el generador.
+        // Los roles que NO aparecen en comision_rol_config se asumen habilitados.
+        $rolesDesactivados = DB::table('comision_rol_config')
+            ->where('calcular', 0)
+            ->pluck('rol_id')
+            ->flip()
+            ->all();
+
+        $targets = [];
+
+        // Capacidad 1 — Facturador con rol fijo ROL_FACTURADOR_ID (3 = Televendedor)
+        $rolFijo = GeneradorFacturasComision::ROL_FACTURADOR_ID;
+        if (!isset($rolesDesactivados[$rolFijo])) {
+            $targets[] = [
+                'capacidad'    => 'Facturador',
+                'tipo'         => 1,
+                'empleado'     => $fila->facturador_nombre,
+                'rol_id'       => $rolFijo,
+                'rol_nombre'   => $roles[$rolFijo] ?? 'Desconocido',
+                'tiene_escala' => isset($rolesConEscala[$rolFijo]),
+            ];
+        }
+
+        // Capacidad 2 — Facturador en su rol real (si difiere del fijo)
+        // Se omite si su rol real es ROL_VENDEDOR_ID y es la misma persona que el vendedor.
+        $facturadorRol     = (int) $fila->facturador_rol;
+        $mismaPersona      = ((int) $fila->facturador_id === (int) $fila->vendedor_id);
+        $rolRealEsVendedor = ($facturadorRol === GeneradorFacturasComision::ROL_VENDEDOR_ID);
+
+        if ($facturadorRol !== $rolFijo && !($rolRealEsVendedor && $mismaPersona)) {
+            if (!isset($rolesDesactivados[$facturadorRol])) {
+                $targets[] = [
+                    'capacidad'    => 'Rol Real',
+                    'tipo'         => 2,
+                    'empleado'     => $fila->facturador_nombre,
+                    'rol_id'       => $facturadorRol,
+                    'rol_nombre'   => $roles[$facturadorRol] ?? 'Desconocido',
+                    'tiene_escala' => isset($rolesConEscala[$facturadorRol]),
+                ];
+            }
+        }
+
+        // Capacidad 3 — Vendedor con rol fijo ROL_VENDEDOR_ID (2 = Asesor Comercial)
+        $rolVendedor = GeneradorFacturasComision::ROL_VENDEDOR_ID;
+        if (!isset($rolesDesactivados[$rolVendedor])) {
+            $targets[] = [
+                'capacidad'    => 'Vendedor',
+                'tipo'         => 3,
+                'empleado'     => $fila->vendedor_nombre,
+                'rol_id'       => $rolVendedor,
+                'rol_nombre'   => $roles[$rolVendedor] ?? 'Desconocido',
+                'tiene_escala' => isset($rolesConEscala[$rolVendedor]),
+            ];
+        }
+
+        // Filtrar: solo roles con escala activa configurada (los desactivados ya fueron excluidos arriba)
+        $targets = array_values(array_filter($targets, function ($t) {
+            return $t['tiene_escala'] === true;
+        }));
+
+        return response()->json([
+            'cerrara'        => true,
+            'ya_comisionada' => false,
+            'sin_config'     => count($targets) === 0,
+            'targets'        => $targets,
+        ]);
+    }
 
     public function guardarCreditos( Request $request){
 
@@ -858,41 +911,22 @@ class Pagos extends Component
                                    @estado,
                                    @msjResultado);"); */
 
-                                $existePrecioCargado = DB::table('venta_has_producto')
-                                    ->whereNotNull('precios_producto_carga_id')
-                                    ->where('factura_id', $request->idFacturaAbono)
-                                    ->exists();
+                                // Registrar comisiones usando la fecha_pago del modal
+                                $generador = app(GeneradorFacturasComision::class);
+                                $fechaPagoComision = $request->fecha_pago
+                                    ? \Carbon\Carbon::parse($request->fecha_pago)->toDateString()
+                                    : null;
+                                $arrayfacturas_comision = $generador->generar(
+                                    (int) $request->idFacturaAbono,
+                                    (int) $request->codAplicPagoAbono,
+                                    $fechaPagoComision
+                                );
 
-                                if ($existePrecioCargado) {
-
-                                    $generador = app(GeneradorFacturasComision::class);
-
-                                    $arrayfacturas_comision = $generador->generar(
-                                        $request->idFacturaAbono,
-                                        $request->codAplicPagoAbono,
-                                        $creditoCli->cliente_categoria_escala_id
-                                    );
-
-                                    /*recuperar factura, vendedor y teleoperacior del id factura*/
-
-
-                                    $datos_factura = DB::SELECTONE("select users_id as 'teleoperador', vendedor from factura where id =".$request->idFacturaAbono);
-
-                                        /*Variables constantes porque es la estructura en duro de cualquier factura */
-
-                                        $idTelevendedor = $datos_factura->teleoperador;
-                                        $idVendedor = $datos_factura->vendedor;
-
-                                        $procesador = app(ProcesadorComisiones::class);
-
-                                        $contexto = [
-                                            'televendedor_id' => $idTelevendedor,
-                                            'vendedor_id'     => $idVendedor,
-                                        ];
-
-                                        foreach ($arrayfacturas_comision as $factura) {
-                                            $procesador->procesar($factura, $contexto);
-                                        }
+                                if (!empty($arrayfacturas_comision)) {
+                                    $procesador = app(ProcesadorComisiones::class);
+                                    foreach ($arrayfacturas_comision as $factura) {
+                                        $procesador->procesar($factura);
+                                    }
                                 }
 
 
@@ -1081,6 +1115,27 @@ class Pagos extends Component
                 ],402);
             }
 
+            // Registrar comisiones al cierre manual de factura
+            $apCierre = DB::selectone(
+                "SELECT ap.factura_id, ap.saldo
+                 FROM aplicacion_pagos ap
+                 WHERE ap.id = " . (int) $request->codAplicCierre
+            );
+
+            if ($apCierre && $apCierre->saldo == 0) {
+                $generador = app(GeneradorFacturasComision::class);
+                $arrayfacturas_comision = $generador->generar(
+                    (int) $apCierre->factura_id,
+                    (int) $request->codAplicCierre
+                );
+
+                if (!empty($arrayfacturas_comision)) {
+                    $procesador = app(ProcesadorComisiones::class);
+                    foreach ($arrayfacturas_comision as $factura) {
+                        $procesador->procesar($factura);
+                    }
+                }
+            }
 
         } catch (QueryException $e) {
             DB::rollback();

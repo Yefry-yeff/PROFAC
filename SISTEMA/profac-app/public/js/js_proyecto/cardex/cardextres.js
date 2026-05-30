@@ -58,7 +58,7 @@ function cargaCardex(){
         "language": {
             "url": "/js/plugins/dataTables/i18n/Spanish.json"
         },
-        pageLength: 8,
+        pageLength: 5,
         responsive: true,
         dom: '<"html5buttons"B>lTfgitp',
         buttons: [{

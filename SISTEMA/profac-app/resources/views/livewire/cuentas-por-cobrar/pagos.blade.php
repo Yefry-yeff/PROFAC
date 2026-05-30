@@ -402,15 +402,192 @@
 .ap-empty-state i { font-size:52px; display:block; margin-bottom:14px; opacity:.3; }
 .ap-empty-state p { font-size:14px; }
 
-/* Select2 */
-.ap-form-group .select2-container--default .select2-selection--single {
-    border:1.5px solid #dde2ec!important; border-radius:9px!important;
-    height:40px!important; background:#fff!important;
+/* ── Select2 — caja de selección ── */
+.ap-modal .select2-container { width: 100% !important; }
+.ap-modal .select2-container .select2-selection--single {
+    height: 40px !important;
+    border: 1.5px solid #dde2ec !important;
+    border-radius: 9px !important;
+    background: #fff !important;
+    display: flex; align-items: center;
+    transition: border-color .18s, box-shadow .18s;
 }
-.ap-form-group .select2-container--default .select2-selection--single .select2-selection__rendered {
-    line-height:38px!important; font-size:13px; color:#2d3748;
+.ap-modal .select2-container--open .select2-selection--single,
+.ap-modal .select2-container .select2-selection--single:focus {
+    border-color: #f39c12 !important;
+    box-shadow: 0 0 0 3px rgba(243,156,18,.15) !important;
+    outline: none !important;
 }
-.ap-form-group .select2-container--default .select2-selection--single .select2-selection__arrow { height:38px!important; }
+.ap-modal .select2-selection__rendered {
+    color: #2d3748 !important;
+    font-size: 13px !important;
+    line-height: 38px !important;
+    padding-left: 13px !important;
+    padding-right: 30px !important;
+}
+.ap-modal .select2-selection__arrow { height: 38px !important; right: 8px !important; }
+/* ── Dropdown flotante — z-index superior al tema Inspinia (2040) ── */
+.ap-select2-drop.select2-dropdown {
+    border: 1.5px solid #f39c12 !important;
+    border-radius: 9px !important;
+    box-shadow: 0 8px 32px rgba(243,156,18,.22) !important;
+    font-size: 13px !important;
+    z-index: 99999 !important;
+    overflow: hidden;
+}
+.ap-select2-drop .select2-search--dropdown input {
+    border: 1.5px solid #dde2ec;
+    border-radius: 7px;
+    padding: 6px 10px;
+    font-size: 13px;
+}
+.ap-select2-drop .select2-search--dropdown input:focus {
+    border-color: #f39c12;
+    box-shadow: 0 0 0 3px rgba(243,156,18,.12);
+    outline: none;
+}
+.ap-select2-drop .select2-results__option {
+    padding: 8px 14px;
+    font-size: 13px;
+    color: #2d3748;
+}
+.ap-select2-drop .select2-results__option--highlighted {
+    background: linear-gradient(135deg, #f39c12, #e67e22) !important;
+    color: #fff !important;
+}
+/* Permite que el dropdown desborde el modal sin ser recortado */
+.ap-modal .modal-content { overflow: visible; }
+.ap-modal.modal { overflow-y: auto !important; }
+.ap-modal .modal-dialog { overflow: visible !important; }
+
+/* ── HERO BANNER ── */
+.ap-hero {
+    background: linear-gradient(135deg, #1a202c 0%, #2d3748 60%, #4a5568 100%);
+    border-radius: 16px; padding: 28px 32px; margin: 24px 0 0;
+    color: #fff; display: flex; align-items: center; gap: 20px;
+    box-shadow: 0 8px 32px rgba(0,0,0,.18);
+    animation: ap-fadeInUp .45s ease both;
+    position: relative; overflow: hidden;
+}
+.ap-hero::before {
+    content:''; position: absolute; top:-40px; right:-40px;
+    width: 180px; height: 180px; border-radius: 50%;
+    background: rgba(243,156,18,.12); pointer-events: none;
+}
+.ap-hero::after {
+    content:''; position: absolute; bottom:-50px; right:80px;
+    width: 120px; height: 120px; border-radius: 50%;
+    background: rgba(243,156,18,.07); pointer-events: none;
+}
+.ap-hero-icon {
+    width: 56px; height: 56px; border-radius: 14px;
+    background: rgba(243,156,18,.2); border: 2px solid rgba(243,156,18,.4);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; color: #f39c12; flex-shrink: 0;
+}
+.ap-hero-body h3 { margin: 0; font-size: 18px; font-weight: 800; letter-spacing: .3px; }
+.ap-hero-body p  { margin: 4px 0 0; font-size: 12px; color: rgba(255,255,255,.65); }
+
+/* ── STAT CARDS ── */
+.ap-stat-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 14px; margin-top: 18px;
+    animation: ap-fadeInUp .5s .2s ease both;
+}
+.ap-stat-card {
+    background: #fff; border-radius: 12px; padding: 16px 18px;
+    border-left: 4px solid #f39c12;
+    box-shadow: 0 3px 14px rgba(0,0,0,.06);
+    transition: transform .15s, box-shadow .15s;
+}
+.ap-stat-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,.1); }
+.ap-stat-card.blue  { border-left-color: #4299e1; }
+.ap-stat-card.green { border-left-color: #48bb78; }
+.ap-stat-card.red   { border-left-color: #e53e3e; }
+.ap-stat-label {
+    font-size: 10px; font-weight: 700; color: #a0aec0;
+    text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px;
+}
+.ap-stat-value {
+    font-size: 20px; font-weight: 800; color: #2d3748;
+    font-variant-numeric: tabular-nums;
+}
+.ap-stat-value.red { color: #e53e3e; }
+
+/* ── MENÚ CONTEXTUAL ACCIONES ── */
+.ap-ctx-wrap { display: inline-block; }
+.ap-ctx-menu {
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 24px 64px rgba(0,0,0,.18), 0 4px 18px rgba(0,0,0,.10);
+    padding: 6px;
+    min-width: 236px;
+    border: 1px solid rgba(0,0,0,.06);
+    animation: ap-fadeInUp .15s ease both;
+}
+.ap-ctx-section {
+    padding: 6px 10px 2px;
+    font-size: 9.5px;
+    font-weight: 800;
+    color: #b0bac9;
+    text-transform: uppercase;
+    letter-spacing: .7px;
+}
+.ap-ctx-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 9px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #374151;
+    text-decoration: none !important;
+    cursor: pointer;
+    transition: background .12s;
+    line-height: 1;
+}
+.ap-ctx-item:hover { background: #f4f6fa; color: #111827 !important; text-decoration: none !important; }
+.ap-ctx-item.ap-ctx-highlight {
+    background: linear-gradient(90deg, #f0fdf4, #e6fffa);
+    color: #065f46 !important;
+    font-weight: 700;
+}
+.ap-ctx-item.ap-ctx-highlight:hover { background: linear-gradient(90deg,#dcfce7,#ccfbf1); }
+.ap-ctx-item.ap-ctx-dimmed { opacity: .4; cursor: default; pointer-events: none; }
+.ap-ctx-icon {
+    width: 30px; height: 30px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; font-size: 13px;
+}
+.ap-ctx-icon.ci-blue   { background:#eff6ff; color:#3b82f6; }
+.ap-ctx-icon.ci-red    { background:#fef2f2; color:#ef4444; }
+.ap-ctx-icon.ci-yellow { background:#fffbeb; color:#d97706; }
+.ap-ctx-icon.ci-green  { background:#f0fdf4; color:#16a34a; }
+.ap-ctx-icon.ci-orange { background:#fff7ed; color:#ea580c; }
+.ap-ctx-icon.ci-gray   { background:#f8fafc; color:#64748b; }
+.ap-ctx-icon.ci-teal   { background:#f0fdfa; color:#0d9488; }
+.ap-ctx-divider { height: 1px; background: #f1f5f9; margin: 4px 6px; }
+/* Botón Acciones */
+.ap-actions-toggle {
+    background: #1e293b !important;
+    color: #f8fafc !important;
+    border: none !important;
+    border-radius: 7px !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    padding: 5px 12px !important;
+    white-space: nowrap !important;
+    cursor: pointer !important;
+    letter-spacing: .3px !important;
+    transition: background .15s !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 5px !important;
+}
+.ap-actions-toggle:hover { background: #334155 !important; }
 </style>
 @endpush
 
@@ -432,6 +609,18 @@
 
 {{-- ===== SEARCH CARD ===== --}}
 <div class="wrapper wrapper-content pb-0">
+
+{{-- Hero banner --}}
+<div class="ap-hero">
+    <div class="ap-hero-icon">
+        <i class="fa-solid fa-money-bill-wave"></i>
+    </div>
+    <div class="ap-hero-body">
+        <h3>Aplicación de Pagos</h3>
+        <p>Gestione cobros, notas de crédito/débito y movimientos de cuentas por cobrar.</p>
+    </div>
+</div>
+
 <div class="ap-search-card">
     <div class="ap-search-title">
         <i class="fa fa-file-invoice" style="color:#f39c12;"></i>
@@ -453,6 +642,26 @@
                 <i class="fa fa-file-pdf-o"></i> Estado de Cuenta
             </button>
         </div>
+    </div>
+</div>
+
+{{-- ===== STAT CARDS ===== --}}
+<div class="ap-stat-row d-none" id="apStats">
+    <div class="ap-stat-card">
+        <div class="ap-stat-label"><i class="fa fa-list mr-1"></i> Facturas Pendientes</div>
+        <div class="ap-stat-value" id="apStatFacturas">—</div>
+    </div>
+    <div class="ap-stat-card blue">
+        <div class="ap-stat-label"><i class="fa fa-dollar mr-1"></i> Total Cargo</div>
+        <div class="ap-stat-value" id="apStatCargo">—</div>
+    </div>
+    <div class="ap-stat-card red">
+        <div class="ap-stat-label"><i class="fa-solid fa-scale-unbalanced-flip mr-1"></i> Saldo Total</div>
+        <div class="ap-stat-value red" id="apStatSaldo">—</div>
+    </div>
+    <div class="ap-stat-card green">
+        <div class="ap-stat-label"><i class="fa fa-check-circle mr-1"></i> Total Abonado</div>
+        <div class="ap-stat-value" id="apStatAbonado">—</div>
     </div>
 </div>
 
@@ -524,7 +733,7 @@
 <div class="modal ap-modal fade" id="modalNC" tabindex="-1" role="dialog">
     <div class="modal-dialog modal-dialog-centered" role="document">
         <div class="modal-content">
-            <div class="modal-header green">
+            <div class="modal-header orange">
                 <h5 class="modal-title">
                     <i class="fa fa-arrow-down"></i> Aplicación de Nota de Crédito
                 </h5>
@@ -583,7 +792,7 @@
                     </div>
                     <div class="modal-footer px-0 pb-0">
                         <button type="button" class="btn btn-outline-secondary btn-sm" data-dismiss="modal">Cancelar</button>
-                        <button id="btn_notacredito" type="submit" class="ap-btn-save green">
+                        <button id="btn_notacredito" type="submit" class="ap-btn-save orange">
                             <i class="fa fa-save"></i> Gestionar
                         </button>
                     </div>
@@ -597,7 +806,7 @@
 <div class="modal ap-modal fade" id="modalND" tabindex="-1" role="dialog">
     <div class="modal-dialog modal-dialog-centered" role="document">
         <div class="modal-content">
-            <div class="modal-header red">
+            <div class="modal-header orange">
                 <h5 class="modal-title">
                     <i class="fa fa-arrow-up"></i> Aplicación de Nota de Débito
                 </h5>
@@ -656,7 +865,7 @@
                     </div>
                     <div class="modal-footer px-0 pb-0">
                         <button type="button" class="btn btn-outline-secondary btn-sm" data-dismiss="modal">Cancelar</button>
-                        <button id="btn_notadebito" type="submit" class="ap-btn-save red">
+                        <button id="btn_notadebito" type="submit" class="ap-btn-save orange">
                             <i class="fa fa-save"></i> Gestionar
                         </button>
                     </div>
@@ -671,7 +880,7 @@
 <div class="modal ap-modal fade" id="modalOtrosMovimientos" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
         <div class="modal-content">
-            <div class="modal-header blue">
+            <div class="modal-header orange">
                 <h5 class="modal-title">
                     <i class="fa fa-exchange"></i> Otros Movimientos — Cobros / Rebajas
                 </h5>
@@ -705,7 +914,7 @@
                         </div>
                         <div class="col-md-6">
                             <div class="ap-form-group">
-                                <label><i class="fa fa-dollar mr-1"></i> Monto a Aplicar</label>
+                                <label><i class="fa fa-dollar mr-1"></i> Monto a Aplicar <span id="om-saldo-label" style="color:#1a7a4a;font-weight:600;font-size:.82rem;"></span></label>
                                 <input required type="number" step="any" min="0" class="form-control" id="montoTM" name="montoTM" placeholder="0.00">
                             </div>
                         </div>
@@ -733,7 +942,7 @@
 <div class="modal ap-modal fade" id="modalAbonos" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
         <div class="modal-content">
-            <div class="modal-header green">
+            <div class="modal-header orange">
                 <h5 class="modal-title">
                     <i class="fa fa-credit-card"></i> Aplicar Crédito / Abono
                 </h5>
@@ -757,7 +966,7 @@
                         </div>
                         <div class="col-md-6">
                             <div class="ap-form-group">
-                                <label><i class="fa fa-dollar mr-1"></i> Monto a Abonar</label>
+                                <label><i class="fa fa-dollar mr-1"></i> Monto a Abonar <span id="abono-saldo-label" style="color:#1a7a4a;font-weight:600;font-size:.82rem;"></span></label>
                                 <input required type="number" min="0" step="any" class="form-control" id="montoAbono" name="montoAbono" placeholder="0.00">
                             </div>
                         </div>
@@ -807,7 +1016,7 @@
                     </div>
                     <div class="modal-footer px-0 pb-0">
                         <button type="button" class="btn btn-outline-secondary btn-sm" data-dismiss="modal">Cancelar</button>
-                        <button id="btn_notaabono" type="submit" class="ap-btn-save green">
+                        <button id="btn_notaabono" type="submit" class="ap-btn-save orange">
                             <i class="fa fa-check-circle"></i> Registrar Abono
                         </button>
                     </div>
@@ -819,11 +1028,43 @@
 
 
 
+{{-- ===== MODAL PREVIEW COMISIONES ===== --}}
+<div class="modal fade" id="modalPreviewComisiones" tabindex="-1" role="dialog" aria-hidden="true" data-backdrop="static" data-keyboard="false">
+    <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header" style="background:#1e40af;color:#fff;border-radius:0;">
+                <h5 class="modal-title">
+                    <i class="fa fa-bell mr-2"></i> Confirmación de Comisiones — Cierre de Factura
+                </h5>
+            </div>
+            <div class="modal-body">
+                <div class="alert mb-3" style="background:#eff6ff;border-left:4px solid #3b82f6;border-radius:4px;padding:10px 14px;">
+                    <i class="fa fa-info-circle mr-1" style="color:#3b82f6;"></i>
+                    Este pago <strong>cerrará completamente la factura</strong>. Los siguientes empleados recibirán comisión automáticamente al confirmar:
+                </div>
+                <div id="preview-comisiones-lista"></div>
+                <div class="alert mb-0 mt-3" style="background:#fffbeb;border-left:4px solid #f59e0b;border-radius:4px;padding:10px 14px;font-size:.84rem;">
+                    <i class="fa fa-exclamation-triangle mr-1" style="color:#f59e0b;"></i>
+                    Una vez registrado el pago las comisiones se procesarán automáticamente y <strong>no se podrán revertir</strong> sin intervención manual.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-cancel-preview-comision">
+                    <i class="fa fa-arrow-left mr-1"></i> Volver al formulario
+                </button>
+                <button type="button" class="btn btn-success btn-sm px-4" id="btn-confirmar-y-guardar-pago">
+                    <i class="fa fa-check-circle mr-1"></i> Confirmar y Registrar Pago
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {{-- ===== MODAL CERRAR FACTURA ===== --}}
 <div class="modal ap-modal fade" id="modalcerrarFact" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered" role="document">
         <div class="modal-content">
-            <div class="modal-header dark">
+            <div class="modal-header orange">
                 <h5 class="modal-title">
                     <i class="fa fa-lock"></i> Cerrar Factura
                 </h5>
@@ -1054,6 +1295,165 @@ function switchTab(tabId, btn) {
 
     btn.classList.add('active');
 }
+
+// ── Select2 en modal de abonos ──
+function initAbonosSelects() {
+    // selectMetodoPago: opciones estáticas, sin buscador
+    var $metodo = $('#selectMetodoPago');
+    try { if ($metodo.data('select2')) $metodo.select2('destroy'); } catch(e) {}
+    $metodo.select2({
+        dropdownParent: $('#modalAbonos'),
+        dropdownCssClass: 'ap-select2-drop',
+        minimumResultsForSearch: Infinity,
+        width: '100%',
+        language: { noResults: function() { return 'Sin resultados'; } }
+    });
+
+    // selectBanco: opciones dinámicas via AJAX → usar MutationObserver
+    var $banco = $('#selectBanco');
+    try { if ($banco.data('select2')) $banco.select2('destroy'); } catch(e) {}
+    $banco.select2({
+        dropdownParent: $('#modalAbonos'),
+        dropdownCssClass: 'ap-select2-drop',
+        width: '100%',
+        language: { noResults: function() { return 'Sin resultados'; } }
+    });
+    // Cuando datosBanco() agregue <option> al <select>, Select2 se refresca
+    if ($banco.data('_mo')) { try { $banco.data('_mo').disconnect(); } catch(e) {} }
+    var mo = new MutationObserver(function() { $banco.trigger('change.select2'); });
+    mo.observe($banco[0], { childList: true });
+    $banco.data('_mo', mo);
+}
+
+function destroyAbonosSelects() {
+    ['#selectMetodoPago', '#selectBanco'].forEach(function(id) {
+        var $el = $(id);
+        try { if ($el.data('_mo')) { $el.data('_mo').disconnect(); $el.data('_mo', null); } } catch(e) {}
+        try { if ($el.data('select2')) $el.select2('destroy'); } catch(e) {}
+    });
+}
+
+$('#modalAbonos').on('shown.bs.modal', function() {
+    initAbonosSelects();
+});
+$('#modalAbonos').on('hidden.bs.modal', function() {
+    destroyAbonosSelects();
+    document.getElementById('selectBanco').innerHTML = '';
+});
+
+// ── Select2 en modal Otros Movimientos ──
+function initOtrosMovSelects() {
+    var $tipo = $('#selecttipoMovimiento');
+    try { if ($tipo.data('select2')) $tipo.select2('destroy'); } catch(e) {}
+    $tipo.select2({
+        dropdownParent: $('#modalOtrosMovimientos'),
+        dropdownCssClass: 'ap-select2-drop',
+        minimumResultsForSearch: Infinity,
+        width: '100%',
+        language: { noResults: function() { return 'Sin resultados'; } }
+    });
+}
+
+function destroyOtrosMovSelects() {
+    var $tipo = $('#selecttipoMovimiento');
+    try { if ($tipo.data('select2')) $tipo.select2('destroy'); } catch(e) {}
+}
+
+$('#modalOtrosMovimientos').on('shown.bs.modal', function() {
+    initOtrosMovSelects();
+});
+$('#modalOtrosMovimientos').on('hidden.bs.modal', function() {
+    destroyOtrosMovSelects();
+});
+
+// ── Select2 en modal Retención ISV ──
+function initRetencionSelects() {
+    var $ret = $('#selectTiporetencion');
+    try { if ($ret.data('select2')) $ret.select2('destroy'); } catch(e) {}
+    $ret.select2({
+        dropdownParent: $('#modalretencion'),
+        dropdownCssClass: 'ap-select2-drop',
+        minimumResultsForSearch: Infinity,
+        width: '100%',
+        language: { noResults: function() { return 'Sin resultados'; } }
+    });
+}
+
+function destroyRetencionSelects() {
+    var $ret = $('#selectTiporetencion');
+    try { if ($ret.data('select2')) $ret.select2('destroy'); } catch(e) {}
+}
+
+$('#modalretencion').on('shown.bs.modal', function() {
+    initRetencionSelects();
+});
+$('#modalretencion').on('hidden.bs.modal', function() {
+    destroyRetencionSelects();
+});
+
+// ── Select2 en modal Nota de Crédito ──
+function initNCSelects() {
+    // #selectNotaCredito: opciones ya cargadas vía AJAX antes de abrir el modal
+    var $nc = $('#selectNotaCredito');
+    try { if ($nc.data('select2')) $nc.select2('destroy'); } catch(e) {}
+    $nc.select2({
+        dropdownParent: $('#modalNC'),
+        dropdownCssClass: 'ap-select2-drop',
+        width: '100%',
+        language: { noResults: function() { return 'Sin resultados'; } }
+    });
+    // Re-lanzar datosNotaCredito al cambiar selección vía Select2
+    $nc.off('change.nc').on('change.nc', function() { datosNotaCredito(); });
+
+    var $accion = $('#selectAplicado');
+    try { if ($accion.data('select2')) $accion.select2('destroy'); } catch(e) {}
+    $accion.select2({
+        dropdownParent: $('#modalNC'),
+        dropdownCssClass: 'ap-select2-drop',
+        minimumResultsForSearch: Infinity,
+        width: '100%',
+        language: { noResults: function() { return 'Sin resultados'; } }
+    });
+}
+function destroyNCSelects() {
+    ['#selectNotaCredito','#selectAplicado'].forEach(function(id) {
+        var $el = $(id);
+        try { if ($el.data('select2')) { $el.off('change.nc'); $el.select2('destroy'); } } catch(e) {}
+    });
+}
+$('#modalNC').on('shown.bs.modal', function() { initNCSelects(); });
+$('#modalNC').on('hidden.bs.modal', function() { destroyNCSelects(); });
+
+// ── Select2 en modal Nota de Débito ──
+function initNDSelects() {
+    var $nd = $('#selectNotaDebito');
+    try { if ($nd.data('select2')) $nd.select2('destroy'); } catch(e) {}
+    $nd.select2({
+        dropdownParent: $('#modalND'),
+        dropdownCssClass: 'ap-select2-drop',
+        width: '100%',
+        language: { noResults: function() { return 'Sin resultados'; } }
+    });
+    $nd.off('change.nd').on('change.nd', function() { datosNotaDebito(); });
+
+    var $accion = $('#selectAplicadond');
+    try { if ($accion.data('select2')) $accion.select2('destroy'); } catch(e) {}
+    $accion.select2({
+        dropdownParent: $('#modalND'),
+        dropdownCssClass: 'ap-select2-drop',
+        minimumResultsForSearch: Infinity,
+        width: '100%',
+        language: { noResults: function() { return 'Sin resultados'; } }
+    });
+}
+function destroyNDSelects() {
+    ['#selectNotaDebito','#selectAplicadond'].forEach(function(id) {
+        var $el = $(id);
+        try { if ($el.data('select2')) { $el.off('change.nd'); $el.select2('destroy'); } } catch(e) {}
+    });
+}
+$('#modalND').on('shown.bs.modal', function() { initNDSelects(); });
+$('#modalND').on('hidden.bs.modal', function() { destroyNDSelects(); });
 </script>
 @endpush
 </div>{{-- /Livewire root --}}

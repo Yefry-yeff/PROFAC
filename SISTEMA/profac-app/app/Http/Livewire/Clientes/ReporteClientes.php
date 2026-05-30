@@ -56,15 +56,25 @@ class ReporteClientes extends Component
             END                                                    AS condiciones_credito,
 
             /* DOCUMENTOS */
-            CASE WHEN d_escritura.id IS NOT NULL THEN 'X' ELSE 'SOLICITAR' END AS doc_escritura,
-            CASE WHEN d_dni.id       IS NOT NULL THEN 'X' ELSE 'SOLICITAR' END AS doc_dni,
-            CASE WHEN d_rtn.id       IS NOT NULL THEN 'X' ELSE 'SOLICITAR' END AS doc_rtn,
-            CASE WHEN d_permiso.id   IS NOT NULL THEN 'X' ELSE 'SOLICITAR' END AS doc_permiso,
+            CASE WHEN d_escritura.id IS NOT NULL THEN 'X'
+                 WHEN f_escritura.tipo_documento IS NOT NULL THEN 'FISICO'
+                 ELSE 'SOLICITAR' END                             AS doc_escritura,
+            CASE WHEN d_dni.id IS NOT NULL THEN 'X'
+                 WHEN f_dni.tipo_documento IS NOT NULL THEN 'FISICO'
+                 ELSE 'SOLICITAR' END                             AS doc_dni,
+            CASE WHEN d_rtn.id IS NOT NULL THEN 'X'
+                 WHEN f_rtn.tipo_documento IS NOT NULL THEN 'FISICO'
+                 ELSE 'SOLICITAR' END                             AS doc_rtn,
+            CASE WHEN d_permiso.id IS NOT NULL THEN 'X'
+                 WHEN f_permiso.tipo_documento IS NOT NULL THEN 'FISICO'
+                 ELSE 'SOLICITAR' END                             AS doc_permiso,
 
             /* AÑO INICIO OPERACION */
             COALESCE(c.ano_operacion,'')                           AS anio_operacion,
 
-            CASE WHEN d_croquis.id   IS NOT NULL THEN 'X' ELSE 'SOLICITAR' END AS doc_croquis,
+            CASE WHEN d_croquis.id IS NOT NULL THEN 'X'
+                 WHEN f_croquis.tipo_documento IS NOT NULL THEN 'FISICO'
+                 ELSE 'SOLICITAR' END                             AS doc_croquis,
 
             /* REFERENCIAS BANCARIAS */
             CASE
@@ -96,21 +106,25 @@ class ReporteClientes extends Component
             COALESCE(u_cred.name,'')                               AS realizo,
 
             /* LETRA DE CAMBIO */
-            CASE
-                WHEN cc.id IS NOT NULL AND cc.credito_activo=1 THEN
-                    CASE WHEN cc.letra_cambio=1 THEN 'X' ELSE 'SOLICITAR' END
-                ELSE 'N/A'
-            END                                                    AS letra_cambio,
+            CASE WHEN d_letra.id IS NOT NULL THEN 'X'
+                 WHEN f_letra.tipo_documento IS NOT NULL THEN 'FISICO'
+                 WHEN cc.id IS NOT NULL AND cc.credito_activo=1 THEN
+                     CASE WHEN cc.letra_cambio=1 THEN 'X' ELSE 'SOLICITAR' END
+                 ELSE 'SOLICITAR' END                             AS letra_cambio,
 
             /* AVAL SOLIDARIO */
-            CASE
-                WHEN cc.id IS NOT NULL AND cc.credito_activo=1 THEN
-                    CASE WHEN cc.aval_solidario=1 THEN 'X' ELSE 'SOLICITAR' END
-                ELSE 'N/A'
-            END                                                    AS aval_solidario,
+            CASE WHEN d_aval.id IS NOT NULL THEN 'X'
+                 WHEN f_aval.tipo_documento IS NOT NULL THEN 'FISICO'
+                 WHEN cc.id IS NOT NULL AND cc.credito_activo=1 THEN
+                     CASE WHEN cc.aval_solidario=1 THEN 'X' ELSE 'SOLICITAR' END
+                 ELSE 'SOLICITAR' END                             AS aval_solidario,
 
-            CASE WHEN d_contrato.id  IS NOT NULL THEN 'X' ELSE 'SOLICITAR' END AS doc_contrato,
-            CASE WHEN d_fotos.id     IS NOT NULL THEN 'X' ELSE 'SOLICITAR' END AS doc_fotos,
+            CASE WHEN d_contrato.id IS NOT NULL THEN 'X'
+                 WHEN f_contrato.tipo_documento IS NOT NULL THEN 'FISICO'
+                 ELSE 'SOLICITAR' END                             AS doc_contrato,
+            CASE WHEN d_fotos.id IS NOT NULL THEN 'X'
+                 WHEN f_fotos.tipo_documento IS NOT NULL THEN 'FISICO'
+                 ELSE 'SOLICITAR' END                             AS doc_fotos,
 
             COALESCE(ec.descripcion,'')                            AS estado_cliente,
             COALESCE(cc.credito,0)                                 AS monto_credito,
@@ -131,6 +145,17 @@ class ReporteClientes extends Component
         LEFT JOIN cliente_documentos d_croquis   ON d_croquis.cliente_id   = c.id AND d_croquis.tipo_documento   = 'croquis'
         LEFT JOIN cliente_documentos d_contrato  ON d_contrato.cliente_id  = c.id AND d_contrato.tipo_documento  = 'contrato_arrendamiento'
         LEFT JOIN cliente_documentos d_fotos     ON d_fotos.cliente_id     = c.id AND d_fotos.tipo_documento     = 'fotos_establecimiento'
+        LEFT JOIN cliente_documentos d_letra     ON d_letra.cliente_id     = c.id AND d_letra.tipo_documento     = 'letra_cambio'
+        LEFT JOIN cliente_documentos d_aval      ON d_aval.cliente_id      = c.id AND d_aval.tipo_documento      = 'aval_solidario'
+        LEFT JOIN cliente_doc_fisico f_escritura ON f_escritura.cliente_id = c.id AND f_escritura.tipo_documento = 'escritura_empresa'
+        LEFT JOIN cliente_doc_fisico f_dni       ON f_dni.cliente_id       = c.id AND f_dni.tipo_documento       = 'dni_representante'
+        LEFT JOIN cliente_doc_fisico f_rtn       ON f_rtn.cliente_id       = c.id AND f_rtn.tipo_documento       = 'rtn'
+        LEFT JOIN cliente_doc_fisico f_permiso   ON f_permiso.cliente_id   = c.id AND f_permiso.tipo_documento   = 'permiso_operacion'
+        LEFT JOIN cliente_doc_fisico f_croquis   ON f_croquis.cliente_id   = c.id AND f_croquis.tipo_documento   = 'croquis'
+        LEFT JOIN cliente_doc_fisico f_contrato  ON f_contrato.cliente_id  = c.id AND f_contrato.tipo_documento  = 'contrato_arrendamiento'
+        LEFT JOIN cliente_doc_fisico f_fotos     ON f_fotos.cliente_id     = c.id AND f_fotos.tipo_documento     = 'fotos_establecimiento'
+        LEFT JOIN cliente_doc_fisico f_letra     ON f_letra.cliente_id     = c.id AND f_letra.tipo_documento     = 'letra_cambio'
+        LEFT JOIN cliente_doc_fisico f_aval      ON f_aval.cliente_id      = c.id AND f_aval.tipo_documento      = 'aval_solidario'
         LEFT JOIN (
             SELECT cliente_id, observacion
             FROM cliente_observaciones

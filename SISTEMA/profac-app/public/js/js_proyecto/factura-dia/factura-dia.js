@@ -41,6 +41,9 @@ function cargaConsulta(){
                 data: 'vendedor'
             },
             {
+                data: 'vendedora'
+            },
+            {
                 data: 'subtotal'
             },
 

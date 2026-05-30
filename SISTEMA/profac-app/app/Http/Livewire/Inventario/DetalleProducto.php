@@ -23,7 +23,9 @@ class DetalleProducto extends Component
     public $idProducto;
     public function mount($id)
     {
-
+        if (Auth::user()->rol_id != 1) {
+            return redirect()->to('/producto/diseno/' . $id);
+        }
         $this->idProducto = $id;
     }
 

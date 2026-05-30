@@ -155,70 +155,76 @@
 
     <div class="wrapper wrapper-content animated fadeInRight">
 
-        {{-- ===== PANEL DE ACCIONES POST-GUARDADO ===== --}}
+        {{-- ===== MODAL DE ÉXITO: PEDIDO GUARDADO ===== --}}
         @if ($pedidoGuardadoId)
-            <div class="row panel-exito">
-                <div class="col-lg-12">
-                    <div class="ibox mb-0" style="border-radius:12px; overflow:hidden; border:2px solid #1ab394; box-shadow:0 6px 28px rgba(26,179,148,.18);">
+            <div class="modal fade show" tabindex="-1" role="dialog"
+                 style="display:block; background:rgba(0,0,0,.55); z-index:2050;"
+                 data-backdrop="static" data-keyboard="false">
+                <div class="modal-dialog modal-dialog-centered" role="document" style="max-width:420px;">
+                    <div class="modal-content" style="border-radius:20px; overflow:hidden; border:none; box-shadow:0 20px 60px rgba(0,0,0,.18); position:relative;">
+                        <button type="button"
+                                wire:click="cerrarModalPedidoGuardado"
+                                aria-label="Cerrar"
+                                style="position:absolute; top:10px; right:10px; width:34px; height:34px; border-radius:50%; border:1px solid #d1d5db; background:#fff; color:#6b7280; z-index:2; cursor:pointer;">
+                            <i class="fa fa-times"></i>
+                        </button>
+                        <div class="modal-body" style="padding:36px 32px 28px; text-align:center;">
 
-                        {{-- Header compacto --}}
-                        <div class="ibox-title py-2 px-3" style="background:linear-gradient(135deg,#f39c12 0%,#e67e22 100%); border:none;">
-                            <div class="d-flex align-items-center justify-content-between">
-                                <span style="color:#fff; font-size:14px; font-weight:600;">
-                                    <i class="fa fa-check-circle mr-1"></i>
-                                    ¡Pedido <strong>#{{ $pedidoGuardadoId }}</strong> registrado con éxito!
-                                </span>
-                                <span style="color:rgba(255,255,255,.8); font-size:12px;">¿Qué desea hacer?</span>
-                            </div>
-                        </div>
-
-                        <div class="ibox-content py-3 px-3">
-                            <div class="accion-grid">
-
-                                <a href="/proforma/cotizacion/2?from=flujo&pedidoId={{ $pedidoGuardadoId }}" class="accion-btn"
-                                   style="background:linear-gradient(135deg,#1a7efb,#0d6efd); box-shadow:0 4px 14px rgba(26,126,251,.35);"
-                                   title="Crear Oferta">
-                                    <i class="fa fa-file-text-o accion-icon"></i>
-                                    <span class="accion-label">CREAR OFERTA</span>
-                                </a>
-
-                                <a href="/flujo/pedido/imprimir/{{ $pedidoGuardadoId }}" target="_blank"
-                                   class="accion-btn"
-                                   style="background:linear-gradient(135deg,#1ab394,#0fa37a); box-shadow:0 4px 14px rgba(26,179,148,.35);"
-                                   title="Imprimir">
-                                    <i class="fa fa-print accion-icon"></i>
-                                    <span class="accion-label">IMPRIMIR</span>
-                                </a>
-
-                                <a href="/flujo/pedido/exportar/{{ $pedidoGuardadoId }}" class="accion-btn"
-                                   style="background:linear-gradient(135deg,#217346,#1a5c38); box-shadow:0 4px 14px rgba(33,115,70,.35);"
-                                   title="Exportar Excel">
-                                    <i class="fa fa-file-excel-o accion-icon"></i>
-                                    <span class="accion-label">EXCEL</span>
-                                </a>
-
-                                <a href="{{ route('flujo.pedidos') }}" class="accion-btn"
-                                   style="background:linear-gradient(135deg,#6c5ce7,#5544d0); box-shadow:0 4px 14px rgba(108,92,231,.35);"
-                                   title="Ver historial">
-                                    <i class="fa fa-list-alt accion-icon"></i>
-                                    <span class="accion-label">HISTORIAL</span>
-                                </a>
-
+                            <div style="width:90px; height:90px; border-radius:50%;
+                                        background:linear-gradient(135deg,#00c853,#69f0ae);
+                                        display:flex; align-items:center; justify-content:center;
+                                        margin:0 auto 20px; box-shadow:0 8px 24px rgba(0,200,83,.30);">
+                                <i class="fa fa-check" style="font-size:46px; color:#fff; line-height:1;"></i>
                             </div>
 
-                            <div class="text-center mt-3">
+                            <h4 style="font-weight:800; color:#1b5e20; margin-bottom:6px; font-size:18px;">¡Pedido guardado!</h4>
+                            <p style="color:#546e7a; font-size:13px; margin-bottom:24px;">Pedido #{{ $pedidoGuardadoId }} registrado exitosamente.</p>
+
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+
                                 <button type="button" wire:click="nuevoPedido"
-                                        class="btn btn-default btn-sm"
-                                        style="border-radius:20px; font-size:12px; color:#888;">
-                                    <i class="fa fa-plus-circle mr-1"></i>Registrar otro pedido
+                                        style="background:#f0fdf4; color:#1b5e20; border:1.5px solid #a7f3d0;
+                                               border-radius:10px; padding:11px 8px; font-size:12px; font-weight:700;
+                                               cursor:pointer; text-align:center; transition:background .15s;"
+                                        onmouseover="this.style.background='#dcfce7'" onmouseout="this.style.background='#f0fdf4'">
+                                    <i class="fa fa-plus-circle d-block" style="font-size:20px; margin-bottom:4px; color:#16a34a;"></i>
+                                    Nuevo pedido
                                 </button>
+
+                                    <button type="button"
+                                              data-pedido-id="{{ $pedidoGuardadoId }}"
+                                              onclick="abrirFlujoPedidoDesdeExito(this.dataset.pedidoId)"
+                                    style="background:#eff6ff; color:#1e40af; border:1.5px solid #bfdbfe;
+                                        border-radius:10px; padding:11px 8px; font-size:12px; font-weight:700;
+                                        cursor:pointer; text-align:center; transition:background .15s; text-decoration:none;"
+                                    onmouseover="this.style.background='#dbeafe'" onmouseout="this.style.background='#eff6ff'">
+                                    <i class="fa fa-sitemap d-block" style="font-size:20px; margin-bottom:4px; color:#2563eb;"></i>
+                                    Ver flujo
+                                    </button>
+
+                                <button type="button" onclick="window.open('/flujo/pedido/imprimir/{{ $pedidoGuardadoId }}', '_blank')"
+                                        style="background:#fafafa; color:#374151; border:1.5px solid #e5e7eb;
+                                               border-radius:10px; padding:11px 8px; font-size:12px; font-weight:700;
+                                               cursor:pointer; text-align:center; transition:background .15s;"
+                                        onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='#fafafa'">
+                                    <i class="fa fa-print d-block" style="font-size:20px; margin-bottom:4px; color:#6b7280;"></i>
+                                    Imprimir pedido
+                                </button>
+
+                                <a href="/proforma/cotizacion/2?from=flujo&pedidoId={{ $pedidoGuardadoId }}"
+                                   style="background:linear-gradient(135deg,#e65100,#f9a826); color:#fff; border:none;
+                                          border-radius:10px; padding:11px 8px; font-size:12px; font-weight:700;
+                                          cursor:pointer; text-align:center; box-shadow:0 3px 10px rgba(230,81,0,.25); transition:opacity .15s; text-decoration:none;"
+                                   onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">
+                                    <i class="fa fa-file-text-o d-block" style="font-size:20px; margin-bottom:4px;"></i>
+                                    Generar oferta
+                                </a>
+
                             </div>
                         </div>
-
                     </div>
                 </div>
             </div>
-            <div style="height:16px;"></div>
         @endif
 
         @if ($mensajeError)
@@ -236,20 +242,20 @@
                             <h5 class="m-0" style="color:#fff;">
                                 <i class="fa fa-shopping-cart"></i> &nbsp;Registrar Pedido
                             </h5>
-                            <div class="d-flex align-items-center" style="gap:10px;">
-                                <div class="d-flex align-items-center" style="background:rgba(255,255,255,.18); border-radius:8px; padding:3px 10px 3px 10px; gap:6px;">
-                                    <span style="color:rgba(255,255,255,.85); font-size:12px; font-weight:600; white-space:nowrap;">N° Pedido:</span>
-                                    <input type="text" value="{{ $pedidoGuardadoId ?? $numeroPedido }}"
-                                        style="width:60px; background:transparent; border:none; outline:none; color:#fff; font-weight:700; font-size:14px; text-align:center;" readonly>
-                                </div>
-                                <a href="{{ route('flujo.ventas') }}" class="btn btn-outline-light btn-sm" style="border-radius:8px; font-size:12px; font-weight:600;">
-                                    <i class="fa fa-arrow-left mr-1"></i> Volver
-                                </a>
-                            </div>
+                            <a href="{{ route('flujo.ventas') }}" class="btn btn-outline-light btn-sm" style="border-radius:8px; font-size:12px; font-weight:600;">
+                                <i class="mr-1 fa fa-arrow-left"></i> Volver
+                            </a>
                         </div>
                     </div>
 
                     <div class="ibox-content pedido-ibox-content" style="padding: 24px;">
+
+                        {{-- N° Pedido --}}
+                        <div class="mb-3 d-flex align-items-center" style="gap:10px;">
+                            <span style="background:linear-gradient(135deg,#f39c12,#e67e22); color:#fff; border-radius:8px; padding:5px 14px; font-size:13px; font-weight:700; box-shadow:0 2px 8px rgba(243,156,18,.3);">
+                                <i class="mr-1 fa fa-hashtag"></i> N° Pedido: {{ $pedidoGuardadoId ?? $numeroPedido }}
+                            </span>
+                        </div>
 
                         {{-- ==================== SECCIÓN 1: CLIENTE ==================== --}}
                         <div class="pedido-section-heading">
@@ -287,7 +293,7 @@
                                     </div>
                                 </div>
                                 @error('clienteSeleccionado')
-                                    <small class="text-danger mt-1 d-block"><i class="fa fa-exclamation-circle"></i> {{ $message }}</small>
+                                    <small class="mt-1 text-danger d-block"><i class="fa fa-exclamation-circle"></i> {{ $message }}</small>
                                 @enderror
 
                                 {{-- Sugerencias --}}
@@ -295,36 +301,36 @@
                                 <div class="sugerencias-box" style="position:absolute; z-index:50; left:0; right:0; top:calc(100% + 4px);">
                                     @foreach ($resultadosBusqueda as $r)
                                     <button type="button"
-                                            class="sugerencia-item list-group-item list-group-item-action border-0 py-2 px-3"
+                                            class="px-3 py-2 border-0 sugerencia-item list-group-item list-group-item-action"
                                             wire:click="seleccionarCliente({{ $r['id'] }})">
                                         <div class="d-flex justify-content-between align-items-center">
                                             <div>
-                                                <i class="fa fa-user-circle-o text-primary mr-1" style="font-size:12px;"></i>
+                                                <i class="mr-1 fa fa-user-circle-o text-primary" style="font-size:12px;"></i>
                                                 <strong style="font-size:13px;">{{ $r['nombre'] }}</strong>
                                             </div>
                                             @if ($r['rtn'])
-                                            <span class="badge badge-light border" style="font-size:10px; color:#666;">{{ $r['rtn'] }}</span>
+                                            <span class="border badge badge-light" style="font-size:10px; color:#666;">{{ $r['rtn'] }}</span>
                                             @endif
                                         </div>
                                         @if (!empty($r['direccion']))
                                         <small class="text-muted d-block" style="font-size:11px; margin-top:1px;">
-                                            <i class="fa fa-map-marker mr-1"></i>{{ Str::limit($r['direccion'], 60) }}
+                                            <i class="mr-1 fa fa-map-marker"></i>{{ Str::limit($r['direccion'], 60) }}
                                         </small>
                                         @endif
                                     </button>
                                     @endforeach
                                     <button type="button"
-                                            class="list-group-item list-group-item-action border-0 py-2 px-3 text-success"
+                                            class="px-3 py-2 border-0 list-group-item list-group-item-action text-success"
                                             wire:click="abrirModalCrearCliente"
                                             style="font-size:12px; background:#f0fdf4; border-top:1px solid #dcfce7 !important;">
-                                        <i class="fa fa-plus-circle mr-1"></i>
+                                        <i class="mr-1 fa fa-plus-circle"></i>
                                         No lo veo — <strong>Crear nuevo cliente</strong>
                                     </button>
                                 </div>
                                 @elseif ($hasBuscado && strlen(trim($busqueda)) >= 2)
                                 <div style="background:#fff8e1; border:1px solid #ffc107; border-radius:8px; padding:8px 12px; font-size:12px; margin-top:4px; display:flex; align-items:center; justify-content:space-between;">
-                                    <span><i class="fa fa-info-circle text-warning mr-1"></i>Sin resultados para <strong>"{{ $busqueda }}"</strong></span>
-                                    <button type="button" class="btn btn-success btn-sm ml-2" wire:click="abrirModalCrearCliente" style="border-radius:20px; font-size:11px;">
+                                    <span><i class="mr-1 fa fa-info-circle text-warning"></i>Sin resultados para <strong>"{{ $busqueda }}"</strong></span>
+                                    <button type="button" class="ml-2 btn btn-success btn-sm" wire:click="abrirModalCrearCliente" style="border-radius:20px; font-size:11px;">
                                         <i class="fa fa-plus"></i> Crear
                                     </button>
                                 </div>
@@ -333,7 +339,7 @@
                                 {{-- Cliente ya seleccionado: botón cambiar compact --}}
                                 <button type="button" class="btn btn-outline-secondary btn-sm w-100" wire:click="limpiarCliente"
                                         style="border-radius:8px; font-size:12px;">
-                                    <i class="fa fa-times mr-1"></i>Cambiar cliente
+                                    <i class="mr-1 fa fa-times"></i>Cambiar cliente
                                 </button>
                                 @endif
                             </div>
@@ -347,7 +353,7 @@
                                     <div style="flex:0 0 auto;">
                                         <div style="font-size:10px; text-transform:uppercase; letter-spacing:.8px; color:#999; line-height:1;">Cliente</div>
                                         <div style="font-size:15px; font-weight:700; color:#1a7efb; margin-top:2px;">
-                                            <i class="fa fa-user-circle mr-1"></i>{{ $clienteSeleccionado['nombre'] }}
+                                            <i class="mr-1 fa fa-user-circle"></i>{{ $clienteSeleccionado['nombre'] }}
                                         </div>
                                     </div>
                                     <div style="display:flex; gap:16px; flex-wrap:wrap; flex:1;">
@@ -391,14 +397,14 @@
                         <div class="row align-items-stretch">
 
                             {{-- ─────────── IZQUIERDA: lista editable de ítems ─────────── --}}
-                            <div class="col-12 col-md-7 mb-3 d-flex flex-column">
-                                <div class="card productos-card mb-0 flex-grow-1" style="box-shadow:0 2px 10px rgba(0,0,0,.06);">
-                                    <div class="card-body p-0">
+                            <div class="mb-3 col-12 col-md-7 d-flex flex-column">
+                                <div class="mb-0 card productos-card flex-grow-1" style="box-shadow:0 2px 10px rgba(0,0,0,.06);">
+                                    <div class="p-0 card-body">
                                         <div class="table-responsive">
                                             <table class="table mb-0">
                                                 <thead>
                                                     <tr>
-                                                        <th class="text-center pl-3" style="width:38px;">#</th>
+                                                        <th class="pl-3 text-center" style="width:38px;">#</th>
                                                         <th>Producto <span class="text-danger">*</span></th>
                                                         <th class="text-center" style="width:110px;">Cantidad <span class="text-danger">*</span></th>
                                                         <th style="width:40px;"></th>
@@ -407,10 +413,10 @@
                                                 <tbody>
                                                     @foreach ($items as $i => $item)
                                                     <tr wire:key="item-{{ $i }}" style="border-bottom:1px solid #f0f4ff; transition:background .1s;" onmouseover="this.style.background='#fafbff'" onmouseout="this.style.background=''">
-                                                        <td class="align-middle text-center pl-3">
+                                                        <td class="pl-3 text-center align-middle">
                                                             <span class="text-muted" style="font-size:11px;">{{ $i + 1 }}</span>
                                                         </td>
-                                                        <td class="align-middle py-2">
+                                                        <td class="py-2 align-middle">
                                                             <input
                                                                 type="text"
                                                                 wire:model.lazy="items.{{ $i }}.nombre_producto"
@@ -421,7 +427,7 @@
                                                                 <div class="invalid-feedback">{{ $message }}</div>
                                                             @enderror
                                                         </td>
-                                                        <td class="align-middle py-2 text-center">
+                                                        <td class="py-2 text-center align-middle">
                                                             <input
                                                                 type="number"
                                                                 wire:model.lazy="items.{{ $i }}.cantidad"
@@ -434,7 +440,7 @@
                                                                 <div class="invalid-feedback">{{ $message }}</div>
                                                             @enderror
                                                         </td>
-                                                        <td class="align-middle text-center py-2 pr-2">
+                                                        <td class="py-2 pr-2 text-center align-middle">
                                                             @if (count($items) > 1)
                                                             <button
                                                                 type="button"
@@ -453,20 +459,20 @@
                                     </div>
                                     <div class="card-footer d-flex align-items-center" style="gap:10px;">
                                         <button type="button" class="btn btn-outline-primary btn-sm" wire:click="agregarItem" style="border-radius:20px; font-size:12px;">
-                                            <i class="fa fa-plus-circle mr-1"></i>Agregar fila
+                                            <i class="mr-1 fa fa-plus-circle"></i>Agregar fila
                                         </button>
                                         <small class="text-muted" style="font-size:12px;">
-                                            <i class="fa fa-list-ul mr-1"></i>{{ count($items) }} producto(s) en el pedido
+                                            <i class="mr-1 fa fa-list-ul"></i>{{ count($items) }} producto(s) en el pedido
                                         </small>
                                     </div>
                                 </div>
                             </div>
 
                             {{-- ─────────── DERECHA: importar desde Excel ─────────── --}}
-                            <div class="col-12 col-md-5 mb-3 d-flex flex-column">
+                            <div class="mb-3 col-12 col-md-5 d-flex flex-column">
                                 {{-- ── ESTADO: ya importado ── --}}
                                 @if ($excelImportado)
-                                <div class="d-flex align-items-center justify-content-between px-3 py-3"
+                                <div class="px-3 py-3 d-flex align-items-center justify-content-between"
                                      style="background:linear-gradient(90deg,#f0fdf4,#ecfdf5); border:1.5px solid #86efac; border-radius:12px;">
                                     <div class="d-flex align-items-center" style="gap:10px;">
                                         <div style="width:34px; height:34px; background:#dcfce7; border-radius:50%; display:flex; align-items:center; justify-content:center;">
@@ -484,21 +490,21 @@
                                         style="border-radius:20px; font-size:11px;"
                                         title="Importar otro Excel"
                                     >
-                                        <i class="fa fa-refresh mr-1"></i>Nuevo Excel
+                                        <i class="mr-1 fa fa-refresh"></i>Nuevo Excel
                                     </button>
                                 </div>
 
                                 {{-- ── ESTADO: zona de carga + vista previa ── --}}
                                 @else
-                                <div class="card excel-card mb-0 flex-grow-1 d-flex flex-column justify-content-center">
+                                <div class="mb-0 card excel-card flex-grow-1 d-flex flex-column justify-content-center">
 
                                     {{-- Cabecera solo si no hay preview activo --}}
                                     @if (!$showExcelPreview)
-                                    <div class="card-body text-center py-4 px-3">
+                                    <div class="px-3 py-4 text-center card-body">
                                         <div style="width:54px; height:54px; background:linear-gradient(135deg,#dbeafe,#d1fae5); border-radius:50%; margin:0 auto 10px; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 8px rgba(26,179,148,.15);">
                                             <i class="fa fa-file-excel-o" style="font-size:22px; color:#1ab394;"></i>
                                         </div>
-                                        <h6 class="font-weight-bold mb-1" style="color:#1e3a5f; font-size:14px;">Importar desde Excel</h6>
+                                        <h6 class="mb-1 font-weight-bold" style="color:#1e3a5f; font-size:14px;">Importar desde Excel</h6>
                                         <p class="mb-3" style="font-size:11px; color:#7a8fa6; line-height:1.7;">
                                             Sube un <strong>.xlsx</strong> con dos columnas:<br>
                                             <code style="background:#e0f2fe; color:#0369a1; padding:1px 5px; border-radius:3px; font-size:10px;">Producto</code>
@@ -509,14 +515,14 @@
                                         <div style="position:relative; display:inline-block;">
                                             <label
                                                 for="inputExcel"
-                                                class="btn btn-success btn-sm px-4 mb-1"
+                                                class="px-4 mb-1 btn btn-success btn-sm"
                                                 style="border-radius:20px; cursor:pointer; font-size:12px; box-shadow:0 2px 6px rgba(26,179,148,.3);"
                                             >
                                                 <span wire:loading.remove wire:target="archivoExcel">
-                                                    <i class="fa fa-upload mr-1"></i> Seleccionar .xlsx
+                                                    <i class="mr-1 fa fa-upload"></i> Seleccionar .xlsx
                                                 </span>
                                                 <span wire:loading wire:target="archivoExcel">
-                                                    <i class="fa fa-spinner fa-spin mr-1"></i> Procesando...
+                                                    <i class="mr-1 fa fa-spinner fa-spin"></i> Procesando...
                                                 </span>
                                             </label>
                                             <input
@@ -529,7 +535,7 @@
                                         </div>
                                         <div>
                                             <a href="#" wire:click.prevent="descargarPlantilla" style="font-size:11px; color:#64748b;">
-                                                <i class="fa fa-download mr-1"></i>Descargar plantilla .xlsx
+                                                <i class="mr-1 fa fa-download"></i>Descargar plantilla .xlsx
                                             </a>
                                         </div>
                                     </div>
@@ -537,16 +543,16 @@
 
                                     {{-- Errores --}}
                                     @if ($mensajeExcelError)
-                                    <div class="px-3 pb-2 pt-2">
-                                        <div class="alert alert-warning py-2 px-3 mb-0" style="border-radius:8px; font-size:12px;">
-                                            <i class="fa fa-exclamation-triangle mr-1"></i>{{ $mensajeExcelError }}
+                                    <div class="px-3 pt-2 pb-2">
+                                        <div class="px-3 py-2 mb-0 alert alert-warning" style="border-radius:8px; font-size:12px;">
+                                            <i class="mr-1 fa fa-exclamation-triangle"></i>{{ $mensajeExcelError }}
                                         </div>
                                     </div>
                                     @endif
                                     @error('archivoExcel')
-                                    <div class="px-3 pb-2 pt-2">
-                                        <div class="alert alert-warning py-2 px-3 mb-0" style="border-radius:8px; font-size:12px;">
-                                            <i class="fa fa-exclamation-triangle mr-1"></i>{{ $message }}
+                                    <div class="px-3 pt-2 pb-2">
+                                        <div class="px-3 py-2 mb-0 alert alert-warning" style="border-radius:8px; font-size:12px;">
+                                            <i class="mr-1 fa fa-exclamation-triangle"></i>{{ $message }}
                                         </div>
                                     </div>
                                     @enderror
@@ -563,23 +569,23 @@
                                     <div style="border-top:2px solid #93c5fd;">
 
                                         {{-- Barra seleccionados + seleccionar todos --}}
-                                        <div class="d-flex justify-content-between align-items-center px-3 py-2" style="background:#eff6ff; border-bottom:1px solid #bfdbfe;">
+                                        <div class="px-3 py-2 d-flex justify-content-between align-items-center" style="background:#eff6ff; border-bottom:1px solid #bfdbfe;">
                                             <span style="font-size:12px; font-weight:600; color:#1d4ed8;">
-                                                <i class="fa fa-check-square-o mr-1"></i>
+                                                <i class="mr-1 fa fa-check-square-o"></i>
                                                 {{ $seleccionadosExcel }}&nbsp;/&nbsp;{{ $totalExcel }}
                                                 <span style="color:#64748b; font-weight:400;">seleccionados</span>
                                             </span>
                                             <div style="display:flex; gap:6px; align-items:center;">
                                                 <button type="button" wire:click="seleccionarTodosExcel"
-                                                    class="btn btn-link p-0"
+                                                    class="p-0 btn btn-link"
                                                     style="font-size:11px; color:#1d4ed8; text-decoration:none; font-weight:600;">Todos</button>
                                                 <span style="color:#cbd5e1; font-size:10px;">|</span>
                                                 <button type="button" wire:click="deseleccionarTodosExcel"
-                                                    class="btn btn-link p-0"
+                                                    class="p-0 btn btn-link"
                                                     style="font-size:11px; color:#94a3b8; text-decoration:none;">Ninguno</button>
                                                 <span style="color:#cbd5e1; font-size:10px;">|</span>
                                                 <button type="button" wire:click="limpiarExcel"
-                                                    class="btn btn-link p-0"
+                                                    class="p-0 btn btn-link"
                                                     style="font-size:11px; color:#ef4444; text-decoration:none;"
                                                     title="Cancelar importación">
                                                     <i class="fa fa-times"></i>
@@ -589,12 +595,12 @@
 
                                         {{-- Tabla paginada (10 por página) --}}
                                         <div style="background:#fff;">
-                                            <table class="table table-sm mb-0" style="font-size:12px;">
+                                            <table class="table mb-0 table-sm" style="font-size:12px;">
                                                 <thead style="background:#f8fafc; border-bottom:1px solid #e2e8f0;">
                                                     <tr>
-                                                        <th class="text-center py-2 pl-2" style="width:34px;"></th>
+                                                        <th class="py-2 pl-2 text-center" style="width:34px;"></th>
                                                         <th class="py-2" style="color:#475569; font-weight:600;">Producto</th>
-                                                        <th class="text-center py-2" style="width:64px; color:#475569; font-weight:600;">Cant.</th>
+                                                        <th class="py-2 text-center" style="width:64px; color:#475569; font-weight:600;">Cant.</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -602,18 +608,18 @@
                                                     @php $checked = !empty($excelSeleccionados[$pi]); @endphp
                                                     <tr wire:key="prev-{{ $pi }}"
                                                         style="border-bottom:1px solid #f1f5f9; {{ $checked ? '' : 'opacity:.35;' }} transition:opacity .15s;">
-                                                        <td class="text-center align-middle pl-2 py-2">
+                                                        <td class="py-2 pl-2 text-center align-middle">
                                                             <input
                                                                 type="checkbox"
                                                                 wire:model="excelSeleccionados.{{ $pi }}"
                                                                 style="width:14px; height:14px; cursor:pointer; accent-color:#10b981;"
                                                             >
                                                         </td>
-                                                        <td class="align-middle py-2"
+                                                        <td class="py-2 align-middle"
                                                             style="{{ $checked ? 'color:#1e293b;' : 'text-decoration:line-through; color:#94a3b8;' }}">
                                                             {{ $prow['nombre_producto'] }}
                                                         </td>
-                                                        <td class="text-center align-middle py-2 font-weight-bold"
+                                                        <td class="py-2 text-center align-middle font-weight-bold"
                                                             style="{{ $checked ? 'color:#10b981;' : 'color:#cbd5e1;' }}">
                                                             {{ $prow['cantidad'] }}
                                                         </td>
@@ -625,7 +631,7 @@
 
                                         {{-- Paginación --}}
                                         @if ($totalPags > 1)
-                                        <div class="d-flex justify-content-between align-items-center px-3 py-2"
+                                        <div class="px-3 py-2 d-flex justify-content-between align-items-center"
                                              style="background:#fafafa; border-top:1px solid #e2e8f0;">
                                             <button
                                                 type="button"
@@ -650,16 +656,16 @@
                                         @endif
 
                                         {{-- Pie: confirmar --}}
-                                        <div class="d-flex justify-content-end align-items-center px-3 py-2"
+                                        <div class="px-3 py-2 d-flex justify-content-end align-items-center"
                                              style="border-top:1px solid #e2e8f0; background:#f8fafc;">
                                             <button
                                                 type="button"
-                                                class="btn btn-success btn-sm px-4"
+                                                class="px-4 btn btn-success btn-sm"
                                                 wire:click="importarDesdeExcel"
                                                 style="border-radius:20px; font-size:12px; {{ $seleccionadosExcel === 0 ? 'opacity:.45; cursor:not-allowed;' : 'box-shadow:0 2px 6px rgba(16,185,129,.3);' }}"
                                                 {{ $seleccionadosExcel === 0 ? 'disabled' : '' }}
                                             >
-                                                <i class="fa fa-check mr-1"></i>
+                                                <i class="mr-1 fa fa-check"></i>
                                                 Agregar {{ $seleccionadosExcel }} al pedido
                                             </button>
                                         </div>
@@ -684,7 +690,7 @@
                         <div class="row align-items-end">
 
                             {{-- Textarea --}}
-                            <div class="col-12 col-md-7 mb-3 mb-md-0">
+                            <div class="mb-3 col-12 col-md-7 mb-md-0">
                                 <textarea
                                     wire:model.lazy="observaciones"
                                     class="form-control"
@@ -695,7 +701,7 @@
                             </div>
 
                             {{-- Botón guardar --}}
-                            <div class="col-12 col-md-5 text-right">
+                            <div class="text-right col-12 col-md-5">
                                 <button
                                     type="button"
                                     class="btn btn-primary btn-block btn-lg"
@@ -708,10 +714,10 @@
                                     onmouseout="this.style.transform='';this.style.boxShadow='0 4px 16px rgba(26,126,251,.35)';"
                                 >
                                     <span wire:loading.remove wire:target="guardarPedido">
-                                        <i class="fa fa-save mr-1"></i> Registrar Pedido
+                                        <i class="mr-1 fa fa-save"></i> Registrar Pedido
                                     </span>
                                     <span wire:loading wire:target="guardarPedido">
-                                        <i class="fa fa-spinner fa-spin mr-1"></i> Registrando...
+                                        <i class="mr-1 fa fa-spinner fa-spin"></i> Registrando...
                                     </span>
                                 </button>
                             </div>
@@ -725,8 +731,21 @@
 
     </div>{{-- /wrapper-content --}}
 
+    {{-- Modal global de flujo (escucha abrirFlujoPedido / abrirFlujoCotizacion) --}}
+    <livewire:flujo.modal-flujo-pedido />
+
     {{-- ===== SCROLL TO TOP ON SAVE ===== --}}
     <script>
+        function abrirFlujoPedidoDesdeExito(pedidoId) {
+            var pId = pedidoId ? parseInt(pedidoId, 10) : null;
+            if (!pId) {
+                Swal.fire({ icon: 'info', title: 'Sin pedido', text: 'No se encontró el pedido para abrir el flujo.' });
+                return;
+            }
+
+            Livewire.emit('abrirFlujoPedido', pId, 'pedido');
+        }
+
         window.addEventListener('scroll-top', function() {
             window.scrollTo({ top: 0, behavior: 'smooth' });
         });
@@ -745,16 +764,16 @@
 
                 {{-- Header --}}
                 <div class="modal-header" style="background:linear-gradient(135deg,#f39c12,#e67e22); border:none;">
-                    <h5 class="modal-title text-white m-0">
+                    <h5 class="m-0 text-white modal-title">
                         <i class="fa fa-user-plus"></i> &nbsp;Crear Nuevo Cliente
                     </h5>
-                    <button type="button" class="close text-white" wire:click="cerrarModalCrearCliente" style="opacity:1;">
+                    <button type="button" class="text-white close" wire:click="cerrarModalCrearCliente" style="opacity:1;">
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
 
                 {{-- Body --}}
-                <div class="modal-body p-4">
+                <div class="p-4 modal-body">
                     <div class="row">
                         <div class="col-md-6 form-group">
                             <label class="font-weight-bold">Nombre <span class="text-danger">*</span></label>
@@ -799,7 +818,7 @@
                                 style="border-radius:6px;"
                             >
                         </div>
-                        <div class="col-12 form-group mb-0">
+                        <div class="mb-0 col-12 form-group">
                             <label class="font-weight-bold">Dirección</label>
                             <textarea
                                 wire:model.lazy="nc_direccion"
@@ -817,7 +836,7 @@
                     <button type="button" class="btn btn-default" wire:click="cerrarModalCrearCliente">
                         <i class="fa fa-times"></i> Cancelar
                     </button>
-                    <button type="button" class="btn btn-primary px-4" wire:click="guardarNuevoCliente">
+                    <button type="button" class="px-4 btn btn-primary" wire:click="guardarNuevoCliente">
                         <span wire:loading.remove wire:target="guardarNuevoCliente">
                             <i class="fa fa-save"></i> Guardar Cliente
                         </span>

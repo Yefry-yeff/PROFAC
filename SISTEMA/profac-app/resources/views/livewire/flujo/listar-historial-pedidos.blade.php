@@ -28,7 +28,7 @@
     </style>
 
     {{-- ── Filtros ─────────────────────────────────────────────────────────── --}}
-    <div class="d-flex flex-wrap align-items-end gap-2 mb-3">
+    <div class="flex-wrap gap-2 mb-3 d-flex align-items-end">
 
         {{-- Búsqueda --}}
         <div class="input-group" style="max-width:320px;">
@@ -47,7 +47,7 @@
 
         {{-- Filtro de estado --}}
         <select wire:model="filtroEstado"
-                class="form-control shadow-sm"
+                class="shadow-sm form-control"
                 style="max-width:190px; border-radius:8px; font-size:13px;">
             <option value="">Todos los estados</option>
             <option value="pedido">Pedido</option>
@@ -60,19 +60,19 @@
 
         {{-- Spinner --}}
         <div wire:loading style="line-height:34px;">
-            <i class="fa fa-spinner fa-spin text-primary ml-2"></i>
+            <i class="ml-2 fa fa-spinner fa-spin text-primary"></i>
         </div>
     </div>
 
     {{-- ── Conteo ───────────────────────────────────────────────────────────── --}}
     <div class="mb-2 d-flex align-items-center">
         <small style="color:#78909c;">
-            <i class="fa fa-list mr-1"></i>
+            <i class="mr-1 fa fa-list"></i>
             {{ count($pedidos) }} registro(s)
         </small>
         @if(!$esAdmin)
         &nbsp;
-        <span class="badge badge-warning ml-1" style="font-size:10px; vertical-align:middle;">
+        <span class="ml-1 badge badge-warning" style="font-size:10px; vertical-align:middle;">
             <i class="fa fa-user"></i> Solo tus pedidos
         </span>
         @endif
@@ -80,13 +80,13 @@
 
     {{-- ── Tabla ────────────────────────────────────────────────────────────── --}}
     @if(count($pedidos) === 0)
-        <div class="text-center py-5">
-            <i class="fa fa-inbox fa-3x mb-3 d-block" style="color:#b2dfdb;"></i>
+        <div class="py-5 text-center">
+            <i class="mb-3 fa fa-inbox fa-3x d-block" style="color:#b2dfdb;"></i>
             <p style="color:#78909c; font-size:14px;">No se encontraron pedidos con los filtros aplicados.</p>
         </div>
     @else
     <div class="table-responsive">
-        <table class="table table-bordered mb-0" style="font-size:13px; border-color:#dee2e6;">
+        <table class="table mb-0 table-bordered" style="font-size:13px; border-color:#dee2e6;">
             <thead>
                 <tr>
                     {{-- # --}}
@@ -196,7 +196,7 @@
                     <td class="text-center align-middle" style="padding:8px 6px;">
                         @if($p['total_ofertas'] > 0)
                             <span class="hist-badge" style="background:#fff3e0; color:#e65100;">
-                                <i class="fa fa-tag mr-1"></i>{{ $p['total_ofertas'] }}
+                                <i class="mr-1 fa fa-tag"></i>{{ $p['total_ofertas'] }}
                             </span>
                         @else
                             <span style="color:#cfd8dc;">—</span>
@@ -224,7 +224,7 @@
                     @if($esAdmin)
                     {{-- Registrado por --}}
                     <td class="align-middle" style="font-size:11px; color:#546e7a; padding:8px 10px;">
-                        <i class="fa fa-user-circle mr-1 text-muted"></i>{{ $p['registrado_por'] ?? '—' }}
+                        <i class="mr-1 fa fa-user-circle text-muted"></i>{{ $p['registrado_por'] ?? '—' }}
                     </td>
                     @endif
                 </tr>

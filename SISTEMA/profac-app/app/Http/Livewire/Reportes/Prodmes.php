@@ -49,6 +49,7 @@ SELECT
     END AS 'TIPO CLIENTE (AoB)',
 
     UPPER(us.name) AS 'VENDEDOR',
+    UPPER(uf.name) AS 'FACTURADOR',
     RIGHT(A.cai, 5) AS 'FACTURA',
     cli.nombre AS 'CLIENTE',
 
@@ -119,6 +120,7 @@ INNER JOIN producto C ON B.producto_id = C.id
 INNER JOIN cliente cli ON cli.id = A.cliente_id
 INNER JOIN tipo_pago_venta tpv ON tpv.id = A.tipo_pago_id
 INNER JOIN users us ON us.id = A.vendedor
+LEFT JOIN users uf ON uf.id = A.users_id
 
 WHERE
     A.estado_venta_id = 1

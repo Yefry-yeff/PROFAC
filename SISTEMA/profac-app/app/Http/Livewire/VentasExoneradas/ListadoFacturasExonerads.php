@@ -30,6 +30,21 @@ class ListadoFacturasExonerads extends Component
     public function listarFacturas(){
 
         try {
+            $filtroCai        = trim(request()->input('filtroCai', ''));
+            $filtroCliente    = trim(request()->input('filtroCliente', ''));
+            $filtroVendedor   = trim(request()->input('filtroVendedor', ''));
+            $filtroFacturador = trim(request()->input('filtroFacturador', ''));
+            $filtroDesde      = trim(request()->input('filtroDesde', ''));
+            $filtroHasta      = trim(request()->input('filtroHasta', ''));
+            $whereFilters = '';
+            $bindings     = [];
+            if ($filtroCai)        { $whereFilters .= " AND factura.cai LIKE ? ";                                              $bindings[] = "%{$filtroCai}%"; }
+            if ($filtroCliente)    { $whereFilters .= " AND factura.nombre_cliente LIKE ? ";                                   $bindings[] = "%{$filtroCliente}%"; }
+            if ($filtroVendedor)   { $whereFilters .= " AND users.name LIKE ? ";                                               $bindings[] = "%{$filtroVendedor}%"; }
+            if ($filtroFacturador) { $whereFilters .= " AND (SELECT name FROM users WHERE id = factura.users_id) LIKE ? ";     $bindings[] = "%{$filtroFacturador}%"; }
+            if ($filtroDesde && $filtroHasta) { $whereFilters .= " AND DATE(factura.created_at) BETWEEN ? AND ? "; $bindings[] = $filtroDesde; $bindings[] = $filtroHasta; }
+            elseif ($filtroDesde)  { $whereFilters .= " AND DATE(factura.created_at) >= ? "; $bindings[] = $filtroDesde; }
+            elseif ($filtroHasta)  { $whereFilters .= " AND DATE(factura.created_at) <= ? "; $bindings[] = $filtroHasta; }
 
             if((Auth::user()->rol_id == 1 || Auth::user()->rol_id == 3 || Auth::user()->rol_id == 5)){
                 $listaFacturas = DB::SELECT("
@@ -59,9 +74,9 @@ class ListadoFacturasExonerads extends Component
                     inner join users
                     on factura.vendedor = users.id
                     cross join (select @i := 0) r
-                where YEAR(factura.created_at) >= (YEAR(NOW())-2) and factura.estado_venta_id<>2 and factura.tipo_venta_id = 3
+                where YEAR(factura.created_at) >= (YEAR(NOW())-2) and factura.estado_venta_id<>2 and factura.tipo_venta_id = 3 {$whereFilters}
                 order by factura.created_at desc
-                ");
+                ", $bindings);
 
             }else{
 
@@ -92,9 +107,9 @@ class ListadoFacturasExonerads extends Component
                     on factura.vendedor = users.id
                     cross join (select @i := 0) r
                 where YEAR(factura.created_at) >= (YEAR(NOW())-2) and factura.estado_venta_id<>2 and factura.tipo_venta_id = 3
-                and factura.vendedor =".Auth::user()->id."
+                and factura.vendedor =".Auth::user()->id."{$whereFilters}
                 order by factura.created_at desc
-                ");
+                ", $bindings);
             }
 
 

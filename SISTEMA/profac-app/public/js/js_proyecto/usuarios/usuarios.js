@@ -61,7 +61,7 @@ $(document).ready(function()
         "language": {
             "url": "/js/plugins/dataTables/i18n/Spanish.json"
         },
-        pageLength: 10,
+        pageLength: 5,
         responsive: true,
         autoWidth: false,
         scrollX: false,
@@ -77,10 +77,10 @@ $(document).ready(function()
             { data: 'contador',      width: '4%'  },
             { data: 'id',            width: '5%'  },
             { data: 'nombre',        width: '18%' },
-            { data: 'telefono',      width: '10%' },
+            { data: 'telefono',      width: '10%',  visible: false },
             { data: 'email',         width: '18%' },
             { data: 'identidad',     width: '10%' },
-            { data: 'fecha_nacimiento', width: '10%', responsivePriority: 4 },
+            { data: 'fecha_nacimiento', width: '10%', responsivePriority: 4, visible: false },
             { data: 'tipo_usuario',  width: '8%'  },
             {
                 data: 'estado',

@@ -79,9 +79,21 @@ class CrearComprovante extends Component
          //dd($request->all());
 
         if ($validator->fails()) {
+            $campos = array_keys($validator->errors()->toArray());
+            $etiquetas = [
+                'comentario' => 'Nota',
+                'seleccionarCliente' => 'Cliente',
+                'tipoPagoVenta' => 'Tipo de Pago',
+                'bodega' => 'Bodega',
+                'subTotalGeneral' => 'Subtotal',
+                'totalGeneral' => 'Total',
+                'arregloIdInputs' => 'Productos en carrito',
+            ];
+            $nombres = array_map(fn($c) => $etiquetas[$c] ?? $c, $campos);
             return response()->json([
-                'mensaje' => 'Ha ocurrido un error al crear la compra.',
-                'errors' => $validator->errors()
+                'icon'  => 'warning',
+                'title' => 'Campos requeridos',
+                'text'  => 'Los siguientes campos son obligatorios: ' . implode(', ', $nombres) . '.',
             ], 406);
         }
 
@@ -295,13 +307,12 @@ class CrearComprovante extends Component
             ], 200);
         } catch (QueryException $e) {
             DB::rollback();
+            \Log::error('Error en guardarComprovante (QueryException): ' . $e->getMessage());
 
             return response()->json([
-                'error' => $e,
-                'icon' => "error",
-                'text' => 'Ha ocurrido un error.',
+                'icon'  => 'error',
                 'title' => 'Error!',
-                'idComprobante' => $comprovante ? $comprovante->id : 0,
+                'text'  => 'Ha ocurrido un error al guardar la orden. Por favor intente de nuevo.',
             ], 402);
         }
     }

@@ -252,8 +252,14 @@ class ListarPedidosParaOfertar extends Component
     {
         DB::beginTransaction();
         try {
+            // Verificar si la revisión de inventario está activa
+            $configRevision = DB::table('configuracion_revision_inventario')->first();
+            $revisionActiva = $configRevision && (bool) $configRevision->activo;
+
+            $nuevoTipo = $revisionActiva ? 9 : 4;
+
             DB::table('flujo')->where('id', $flujoId)
-                ->update(['tipo_tramite_id' => 4, 'updated_by' => Auth::id(), 'updated_at' => now()]);
+                ->update(['tipo_tramite_id' => $nuevoTipo, 'updated_by' => Auth::id(), 'updated_at' => now()]);
 
             DB::table('historico_flujo')
                 ->where('flujo_id', $flujoId)
@@ -261,8 +267,22 @@ class ListarPedidosParaOfertar extends Component
                 ->where('tramite_id', $ofertaId)
                 ->update(['observaciones' => 'ganadora', 'updated_by' => Auth::id(), 'updated_at' => now()]);
 
+            if ($revisionActiva) {
+                DB::table('historico_flujo')->insert([
+                    'flujo_id'        => $flujoId,
+                    'tipo_tramite_id' => 9,
+                    'tramite_id'      => $ofertaId,
+                    'estado_id'       => 5,
+                    'observaciones'   => 'En Revisión de Inventario. Oferta #' . $ofertaId,
+                    'created_by'      => Auth::id(),
+                    'updated_by'      => Auth::id(),
+                    'created_at'      => now(),
+                    'updated_at'      => now(),
+                ]);
+            }
+
             DB::commit();
-            $this->mensajeExito = 'Oferta #' . $ofertaId . ' marcada como ganadora.';
+            $this->mensajeExito = 'Oferta #' . $ofertaId . ($revisionActiva ? ' enviada a Revisión de Inventario.' : ' marcada como ganadora.');
             $this->mensajeError = '';
         } catch (\Exception $e) {
             DB::rollBack();

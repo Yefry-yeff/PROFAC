@@ -18,39 +18,60 @@ class HistoricoPreciosCliente extends Component
 
     public function render()
     {
-        return view('livewire.ventas.historico-precios-cliente');
+        return view('livewire.ventas.historico-precios-cliente', [
+            'rolId'      => Auth::user()->rol_id ?? 0,
+            'userName'   => Auth::user()->name ?? '',
+        ]);
     }
 
     public function listarClientes(Request $request){
         try {
- 
-         //$clientes = DB::SELECT("select id, nombre as text from cliente where estado_cliente_id = 1");//Clientes Activos
-         $clientes = DB::SELECT("select id, concat(id,' - ',nombre) as text from cliente where (id LIKE '%".$request->search."%' or nombre Like '%".$request->search."%') limit 15");//Todos los Clientes
+            $search  = $request->input('search', '');
+            $rolId   = Auth::user()->rol_id ?? 0;
+            $userId  = Auth::id();
 
-        return response()->json([
-            'results'=>$clientes,
-        ],200);
-       
+            if ($rolId == 2) {
+                // Vendedor: solo sus clientes asignados
+                $clientes = DB::select(
+                    "SELECT id, CONCAT(id, ' - ', nombre) AS text
+                     FROM cliente
+                     WHERE estado_cliente_id = 1
+                       AND vendedor = ?
+                       AND (id LIKE ? OR nombre LIKE ?)
+                     ORDER BY nombre LIMIT 20",
+                    [$userId, "%{$search}%", "%{$search}%"]
+                );
+            } else {
+                // Administrador u otros roles: todos los clientes activos
+                $clientes = DB::select(
+                    "SELECT id, CONCAT(id, ' - ', nombre) AS text
+                     FROM cliente
+                     WHERE estado_cliente_id = 1
+                       AND (id LIKE ? OR nombre LIKE ?)
+                     ORDER BY nombre LIMIT 20",
+                    ["%{$search}%", "%{$search}%"]
+                );
+            }
+
+            return response()->json(['results' => $clientes], 200);
+
         } catch (QueryException $e) {
-        return response()->json([
-         'message' => 'Ha ocurrido un error', 
-         'error' => $e
-        ],402);
+            return response()->json(['message' => 'Ha ocurrido un error', 'error' => $e], 402);
         }
     }
 
     public function listarProductos(Request $request){
         try {
- 
+
          $productos = DB::SELECT("select id, concat(id,' - ',nombre) as text from producto where (id LIKE '%".$request->search."%' or nombre Like '%".$request->search."%') limit 15");//Todos los productos
 
         return response()->json([
             'results'=>$productos,
         ],200);
-       
+
         } catch (QueryException $e) {
         return response()->json([
-         'message' => 'Ha ocurrido un error', 
+         'message' => 'Ha ocurrido un error',
          'error' => $e
         ],402);
         }
@@ -58,7 +79,7 @@ class HistoricoPreciosCliente extends Component
 
     public function listarHistoricoPrecios(Request $request){
         try{
-            
+
 
             $historicos = DB::SELECT("select
             A.id,
@@ -96,7 +117,7 @@ class HistoricoPreciosCliente extends Component
                     </div>
                 ';
                 })
-            
+
 
                 ->rawColumns(['opciones'])
                 ->make(true);

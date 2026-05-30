@@ -624,6 +624,186 @@ a.btn.btn-pf-primary:hover {
 }
 .btn-deact-cat:active { transform: scale(.96); }
 .edit-cat-input { font-size: .8rem !important; height: 28px !important; padding: 2px 6px !important; }
+
+/* ── Overlay custom % Comisiones por Rol ── */
+#mcOverlay {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    z-index: 9999;
+    background: rgba(0,0,0,.55);
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+.mc-popup {
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.35);
+    width: calc(100% - 32px);
+    max-width: 500px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    animation: mc-popup-in .22s cubic-bezier(.22,.68,0,1.15) both;
+    overflow: hidden;
+}
+@keyframes mc-popup-in {
+    from { opacity:0; transform: scale(.94) translateY(12px); }
+    to   { opacity:1; transform: scale(1)   translateY(0); }
+}
+.mc-popup-header {
+    background: linear-gradient(135deg, #1a7a4a 0%, #0f5132 100%);
+    border-radius: 14px 14px 0 0;
+    padding: 14px 20px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-shrink: 0;
+}
+.mc-popup-title { color: #fff; font-size: .92rem; font-weight: 700; }
+.mc-popup-subtitle { color: rgba(255,255,255,.78); font-size: .74rem; margin-top: 3px; }
+.mc-popup-close {
+    background: none; border: none; color: #fff; opacity: .8;
+    font-size: 1.3rem; line-height: 1; cursor: pointer; padding: 0 0 0 12px;
+    flex-shrink: 0;
+}
+.mc-popup-close:hover { opacity: 1; }
+.mc-popup-body { padding: 16px 20px 12px; overflow-y: auto; flex: 1; }
+.mc-popup-footer {
+    background: #f8f8f8;
+    border-top: 1px solid #e2e8e4;
+    border-radius: 0 0 14px 14px;
+    padding: 10px 20px;
+    display: flex;
+    justify-content: space-between;
+    flex-shrink: 0;
+}
+.mc-search-box {
+    position: relative;
+    margin-bottom: 12px;
+}
+.mc-search-box input {
+    border-radius: 20px;
+    padding-left: 32px;
+    font-size: .82rem;
+    height: 32px;
+    border: 1px solid #c8ddd3;
+    background: #f6fbf8;
+}
+.mc-search-box input:focus { border-color: #4caf50; box-shadow: 0 0 0 2px rgba(76,175,80,.15); outline: none; }
+.mc-search-box .fa { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: #6aab84; font-size: .75rem; pointer-events: none; }
+#tblMC-wrap {
+    max-height: 340px;
+    overflow-y: auto;
+    border-radius: 8px;
+    border: 1px solid #ddeee6;
+}
+#tblMC {
+    width: 100%;
+    font-size: .82rem;
+    margin: 0;
+    border-collapse: collapse;
+}
+#tblMC thead th {
+    background: #e8f5e9;
+    color: #2e7d32;
+    font-size: .71rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    padding: 8px 12px;
+    border-bottom: 2px solid #c8e6c9;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+#tblMC td {
+    padding: 6px 12px;
+    border-bottom: 1px solid #f0f7f1;
+    vertical-align: middle;
+}
+#tblMC tbody tr:last-child td { border-bottom: none; }
+#tblMC tbody tr:hover { background: #f1faf4; }
+.mc-pct-badge {
+    display: inline-flex;
+    align-items: center;
+    background: #e8f5e9;
+    color: #1b5e20;
+    border-radius: 10px;
+    padding: 2px 11px;
+    font-size: .78rem;
+    font-weight: 700;
+    min-width: 52px;
+    justify-content: center;
+}
+.mc-pct-input {
+    width: 70px;
+    height: 28px;
+    padding: 2px 6px;
+    font-size: .82rem;
+    border: 1px solid #a5d6a7;
+    border-radius: 6px;
+    text-align: center;
+    background: #f6fbf8;
+    transition: border-color .15s, box-shadow .15s;
+}
+.mc-pct-input:focus { outline: none; border-color: #4caf50; box-shadow: 0 0 0 2px rgba(76,175,80,.18); }
+#mc-no-result { text-align: center; color: #999; padding: 20px; font-size: .8rem; display: none; }
+.btn-mc-ver {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: linear-gradient(135deg, #27ae60 0%, #1a7a4a 100%);
+    color: #fff; border: none;
+    font-size: .71rem; padding: 3px 10px;
+    border-radius: 20px; font-weight: 600; cursor: pointer;
+    box-shadow: 0 1px 3px rgba(39,174,96,.3);
+    transition: background .15s, box-shadow .15s, transform .1s;
+    white-space: nowrap;
+}
+.btn-mc-ver:hover {
+    background: linear-gradient(135deg, #1e8449 0%, #186a3b 100%);
+    box-shadow: 0 2px 6px rgba(39,174,96,.4);
+    color: #fff;
+}
+.btn-mc-ver:active { transform: scale(.96); }
+.btn-mc-ver-edit {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: linear-gradient(135deg, #2471a3 0%, #1a5276 100%);
+    color: #fff; border: none;
+    font-size: .71rem; padding: 3px 10px;
+    border-radius: 20px; font-weight: 600; cursor: pointer;
+    box-shadow: 0 1px 3px rgba(36,113,163,.3);
+    white-space: nowrap;
+    transition: background .15s, transform .1s;
+}
+.btn-mc-ver-edit:hover { background: linear-gradient(135deg, #1a5276 0%, #0f2d4c 100%); color: #fff; }
+.btn-mc-ver-edit:active { transform: scale(.96); }
+.btn-mc-ver-sin {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: #f4f4f4; color: #aaa;
+    border: 1px dashed #ccc;
+    font-size: .71rem; padding: 3px 10px;
+    border-radius: 20px; font-weight: 500; cursor: default;
+    white-space: nowrap;
+}
+.btn-mc-aplicar {
+    background: linear-gradient(135deg, #27ae60 0%, #1e8449 100%);
+    color: #fff; border: none;
+    font-size: .8rem; padding: 6px 18px;
+    border-radius: 8px; font-weight: 600; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px;
+    box-shadow: 0 1px 4px rgba(39,174,96,.35);
+    transition: background .15s;
+}
+.btn-mc-aplicar:hover { background: linear-gradient(135deg, #1e8449 0%, #186a3b 100%); color: #fff; }
+.btn-mc-cerrar {
+    background: #f0f0f0; color: #555;
+    border: 1px solid #d0d0d0;
+    font-size: .8rem; padding: 6px 18px;
+    border-radius: 8px; font-weight: 600; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 5px;
+    transition: background .15s;
+}
+.btn-mc-cerrar:hover { background: #e0e0e0; color: #333; }
 </style>
 @endpush
 
@@ -1098,6 +1278,7 @@ a.btn.btn-pf-primary:hover {
                   <th class="text-center col-hide-xs">% B</th>
                   <th class="text-center col-hide-xs">% C</th>
                   <th class="text-center col-hide-xs">% D</th>
+                  <th class="text-center">% Comisión</th>
                   <th class="text-center">Estado</th>
                   <th class="text-center col-hide-sm">Últ. actualización</th>
                   <th class="text-center col-hide-sm">Actualizado por</th>
@@ -1133,6 +1314,57 @@ a.btn.btn-pf-primary:hover {
   </div>
 </div>
 
+
+
+<!-- OVERLAY CUSTOM: % COMISIONES POR ROL -->
+<div id="mcOverlay" onclick="cerrarMCIfBg(event)">
+  <div class="mc-popup">
+
+    <div class="mc-popup-header">
+      <div>
+        <div class="mc-popup-title"><i class="fa fa-percent mr-1"></i> % Comisión por Rol</div>
+        <div class="mc-popup-subtitle" id="mc-modal-subtitle"></div>
+      </div>
+      <button class="mc-popup-close" onclick="cerrarModalComisiones()" aria-label="Cerrar">&times;</button>
+    </div>
+
+    <div class="mc-popup-body">
+      <div class="mc-search-box">
+        <i class="fa fa-search"></i>
+        <input type="text" id="mc-buscador" class="form-control"
+               placeholder="Buscar rol..." autocomplete="off"
+               oninput="filtrarModalComisiones(this.value)">
+      </div>
+      <div id="tblMC-wrap">
+        <table id="tblMC">
+          <thead>
+            <tr>
+              <th style="width:58%">Rol</th>
+              <th class="text-center" style="width:42%">% Comisión</th>
+            </tr>
+          </thead>
+          <tbody id="mc-tbody"></tbody>
+        </table>
+        <div id="mc-no-result">Sin resultados para la búsqueda.</div>
+      </div>
+    </div>
+
+    <div class="mc-popup-footer">
+      <button class="btn-mc-cerrar" onclick="cerrarModalComisiones()">
+        <i class="fa fa-times mr-1"></i>Cerrar
+      </button>
+      <div style="display:flex;gap:8px;">
+        <button class="btn-mc-ver-edit" id="mc-btn-editar" onclick="activarEdicionMC()">
+          <i class="fa fa-pencil"></i> Editar
+        </button>
+        <button class="btn-mc-aplicar" id="mc-btn-aplicar" onclick="aplicarComisionesModal()" style="display:none;">
+          <i class="fa fa-check mr-1"></i>Aplicar cambios
+        </button>
+      </div>
+    </div>
+
+  </div>
+</div>
 
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>

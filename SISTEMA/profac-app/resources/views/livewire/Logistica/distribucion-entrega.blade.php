@@ -1,172 +1,348 @@
-﻿<div>
-    <style>
-        /* Estilos para scroll en tabla de detalle */
-        #bodyDetalleDistribucion .table-responsive::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-        
-        #bodyDetalleDistribucion .table-responsive::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 10px;
-        }
-        
-        #bodyDetalleDistribucion .table-responsive::-webkit-scrollbar-thumb {
-            background: #888;
-            border-radius: 10px;
-        }
-        
-        #bodyDetalleDistribucion .table-responsive::-webkit-scrollbar-thumb:hover {
-            background: #555;
-        }
+﻿@push('styles')
+<style>
+    /* ===== DISTRIBUCIÓN ENTREGA ===== */
+    .de-page { font-family: 'Source Sans Pro', sans-serif; }
 
-        /* Animación para botones */
-        .btn-group .btn {
-            transition: all 0.2s ease;
-        }
+    .de-main-card {
+        border: none;
+        border-radius: 14px;
+        overflow: hidden;
+        box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+        margin-bottom: 1.5rem;
+    }
 
-        .btn-group .btn:hover {
-            transform: scale(1.1);
-        }
+    .de-header {
+        background: linear-gradient(135deg, #0f766e 0%, #0d9488 60%, #14b8a6 100%);
+        padding: 1.5rem 1.75rem;
+        border-bottom: none;
+    }
 
-        /* Asegurar que SweetAlert aparezca sobre modales */
-        .swal2-container {
-            z-index: 10000 !important;
-        }
+    .de-hero-icon {
+        width: 52px; height: 52px;
+        background: rgba(255,255,255,0.18);
+        border-radius: 12px;
+        display: flex; align-items: center; justify-content: center;
+        margin-right: 1rem;
+        font-size: 1.5rem; color: #fff;
+        flex-shrink: 0;
+    }
 
-        .swal2-popup {
-            z-index: 10001 !important;
-        }
+    .de-header h4 { color: #fff; font-weight: 700; margin: 0; font-size: 1.25rem; }
+    .de-header small { color: rgba(255,255,255,0.8); font-size: 0.82rem; }
 
-        /* Ocultar card-body de cards colapsadas al cargar */
-        .collapsed-card .card-body {
-            display: none;
-        }
+    .de-btn-primary {
+        background: rgba(255,255,255,0.15);
+        border: 1.5px solid rgba(255,255,255,0.5);
+        color: #fff;
+        border-radius: 8px;
+        padding: 0.5rem 1.2rem;
+        font-weight: 600;
+        transition: background 0.2s, border-color 0.2s;
+        white-space: nowrap;
+    }
+    .de-btn-primary:hover {
+        background: rgba(255,255,255,0.28);
+        border-color: #fff;
+        color: #fff;
+        text-decoration: none;
+    }
 
-        /* Asegurar que las tablas ocupen todo el ancho */
-        .table-responsive {
-            width: 100%;
-        }
-        
-        .table {
-            width: 100% !important;
-        }
-    </style>
+    /* Nav tabs */
+    .de-tabs { border-bottom: 2px solid #e9ecef; }
+    .de-tabs .nav-link {
+        border: none;
+        border-bottom: 3px solid transparent;
+        color: #6c757d;
+        font-weight: 600;
+        padding: 0.85rem 1.25rem;
+        margin-bottom: -2px;
+        border-radius: 0;
+        transition: color 0.2s;
+    }
+    .de-tabs .nav-link:hover { color: #0f766e; }
+    .de-tabs .nav-link.active {
+        color: #0f766e;
+        border-bottom-color: #0f766e;
+        background: transparent;
+    }
+    .de-tabs .nav-link i { margin-right: 0.4rem; }
 
-    <div class="row">
-        <div class="col-md-12">
-            <div class="text-right mb-3">
-                <a href="{{ route('logistica.distribuciones.nueva') }}" class="btn btn-primary">
-                    <i class="fa fa-plus"></i> Nueva Distribución
+    /* Loading overlay */
+    .de-loading-overlay {
+        position: fixed; inset: 0;
+        background: rgba(255,255,255,0.92);
+        z-index: 9000;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        transition: opacity 0.4s;
+    }
+    .de-loading-overlay.is-hidden { opacity: 0; pointer-events: none; }
+    .de-loader {
+        width: 48px; height: 48px;
+        border: 5px solid #e0f2f1;
+        border-top-color: #0f766e;
+        border-radius: 50%;
+        animation: de-spin 0.8s linear infinite;
+    }
+    @keyframes de-spin { to { transform: rotate(360deg); } }
+
+    /* Scrollbar en modal detalle */
+    #bodyDetalleDistribucion .table-responsive::-webkit-scrollbar { width: 8px; height: 8px; }
+    #bodyDetalleDistribucion .table-responsive::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+    #bodyDetalleDistribucion .table-responsive::-webkit-scrollbar-thumb { background: #888; border-radius: 10px; }
+    #bodyDetalleDistribucion .table-responsive::-webkit-scrollbar-thumb:hover { background: #555; }
+
+    /* SweetAlert z-index */
+    .swal2-container { z-index: 10000 !important; }
+    .swal2-popup { z-index: 10001 !important; }
+
+    /* ====================================================
+       AdminLTE: posicionar modales dentro del área de
+       contenido (excluye el sidebar ~250px y el header ~57px)
+    ==================================================== */
+    @media (min-width: 992px) {
+        .modal {
+            padding-left: 250px !important;
+            padding-top:  57px  !important;
+        }
+        .modal-backdrop {
+            left:   250px !important;
+            top:    57px  !important;
+            width:  calc(100% - 250px) !important;
+            height: calc(100% - 57px)  !important;
+        }
+        /* Los modales centrados no necesitan margin-top adicional */
+        .modal-dialog-centered {
+            min-height: calc(100% - 57px - 2rem);
+        }
+    }
+    .modal-dialog {
+        margin-top: 1.5rem;
+    }
+
+    /* ===== Modal Detalle Distribución ===== */
+    #modalDetalleDistribucion .modal-content {
+        border: none;
+        border-radius: 14px;
+        overflow: hidden;
+        box-shadow: 0 8px 40px rgba(0,0,0,0.18);
+    }
+    #modalDetalleDistribucion .de-modal-header {
+        background: linear-gradient(135deg, #0f766e 0%, #0d9488 55%, #14b8a6 100%);
+        padding: 1.25rem 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    #modalDetalleDistribucion .de-modal-header h5 {
+        color: #fff;
+        font-weight: 700;
+        font-size: 1.05rem;
+        margin: 0;
+    }
+    #modalDetalleDistribucion .de-modal-header .de-modal-meta {
+        color: rgba(255,255,255,0.82);
+        font-size: 0.8rem;
+        margin-top: 2px;
+    }
+    #modalDetalleDistribucion .de-modal-header .btn-close-modal {
+        background: rgba(255,255,255,0.18);
+        border: 1.5px solid rgba(255,255,255,0.4);
+        color: #fff;
+        border-radius: 8px;
+        width: 32px; height: 32px;
+        display: flex; align-items: center; justify-content: center;
+        cursor: pointer;
+        transition: background .15s;
+        flex-shrink: 0;
+    }
+    #modalDetalleDistribucion .de-modal-header .btn-close-modal:hover {
+        background: rgba(255,255,255,0.32);
+    }
+    #modalDetalleDistribucion .de-stat-strip {
+        display: flex;
+        gap: 0;
+        border-bottom: 1px solid #e9ecef;
+        background: #f8fffe;
+    }
+    #modalDetalleDistribucion .de-stat-item {
+        flex: 1;
+        text-align: center;
+        padding: .75rem .5rem;
+        border-right: 1px solid #e9ecef;
+    }
+    #modalDetalleDistribucion .de-stat-item:last-child { border-right: none; }
+    #modalDetalleDistribucion .de-stat-item .de-stat-num {
+        font-size: 1.5rem;
+        font-weight: 800;
+        line-height: 1;
+        margin-bottom: 2px;
+    }
+    #modalDetalleDistribucion .de-stat-item .de-stat-lbl {
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        color: #78909c;
+        font-weight: 600;
+    }
+    #modalDetalleDistribucion .modal-body {
+        padding: 0;
+    }
+    #modalDetalleDistribucion .de-table-wrap {
+        padding: 1rem 1.25rem;
+        max-height: 55vh;
+        overflow-y: auto;
+    }
+    #modalDetalleDistribucion .de-table-wrap::-webkit-scrollbar { width: 6px; }
+    #modalDetalleDistribucion .de-table-wrap::-webkit-scrollbar-track { background: #f1f5f9; }
+    #modalDetalleDistribucion .de-table-wrap::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 3px; }
+    #modalDetalleDistribucion .de-dist-table thead th {
+        background: #0f766e;
+        color: #fff;
+        font-size: .78rem;
+        text-transform: uppercase;
+        letter-spacing: .05em;
+        border: none;
+        padding: .6rem .75rem;
+        position: sticky;
+        top: 0;
+        z-index: 2;
+    }
+    #modalDetalleDistribucion .de-dist-table tbody tr:hover { background: #f0fdfa; }
+    #modalDetalleDistribucion .de-dist-table td { vertical-align: middle; font-size: .88rem; border-color: #e9ecef; }
+    #modalDetalleDistribucion .modal-footer {
+        background: #f8fffe;
+        border-top: 1px solid #e0f2f1;
+        padding: .75rem 1.25rem;
+        gap: .5rem;
+    }
+
+    /* Botones en tabla */
+    .btn-group .btn { transition: all 0.2s ease; }
+    .btn-group .btn:hover { transform: scale(1.1); }
+
+    /* Tablas */
+    .table-responsive { width: 100%; }
+    .table { width: 100% !important; }
+</style>
+@endpush
+
+<div class="de-page">
+
+    <!-- Loading overlay -->
+    <div id="pageLoadingDE" class="de-loading-overlay">
+        <div class="de-loader"></div>
+        <p class="mt-3 text-muted small">Cargando distribuciones...</p>
+    </div>
+
+    <!-- Tarjeta principal con pestañas -->
+    <div class="card de-main-card">
+
+        <!-- Header -->
+        <div class="card-header de-header">
+            <div class="d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center">
+                    <div class="de-hero-icon">
+                        <i class="fas fa-truck"></i>
+                    </div>
+                    <div>
+                        <h4>Distribución de Entregas</h4>
+                        <small>Gestión de rutas y distribución de facturas</small>
+                    </div>
+                </div>
+                <a href="{{ route('logistica.distribuciones.nueva') }}" class="btn de-btn-primary">
+                    <i class="fas fa-plus"></i> Nueva Distribución
                 </a>
             </div>
         </div>
-    </div>
 
-    <!-- Distribuciones Pendientes de Tratar -->
-    <div class="row">
-        <div class="col-md-12">
-            <div class="card card-warning collapsed-card">
-                <div class="card-header">
-                    <h3 class="card-title"><i class="fas fa-clock"></i> Distribuciones Pendientes de Tratar</h3>
-                    <div class="card-tools">
-                        <button type="button" class="btn btn-tool" data-card-widget="collapse">
-                            <i class="fas fa-plus"></i>
-                        </button>
-                    </div>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table id="tablaPendientes" class="table table-bordered table-striped table-sm mb-0">
-                            <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>Fecha</th>
-                                    <th>Equipo</th>
-                                    <th>Descripción</th>
-                                    <th>Progreso</th>
-                                    <th>Estado</th>
-                                    <th>Creador</th>
-                                    <th>F. Actualización</th>
-                                    <th>Usuario Autorizó</th>
-                                    <th>Opciones</th>
-                                </tr>
-                            </thead>
-                            <tbody></tbody>
-                        </table>
-                    </div>
+        <!-- Pestañas -->
+        <ul class="px-3 pt-2 nav de-tabs" id="tabsDistribucion" role="tablist">
+            <li class="nav-item">
+                <a class="nav-link active" data-toggle="tab" href="#tab-pendientes" role="tab">
+                    <i class="fas fa-clock text-warning"></i> Pendientes de Tratar
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-toggle="tab" href="#tab-proceso" role="tab">
+                    <i class="fas fa-truck text-info"></i> Sin Finalizar
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-toggle="tab" href="#tab-completadas" role="tab">
+                    <i class="fas fa-check-circle text-success"></i> Completadas
+                </a>
+            </li>
+        </ul>
+
+        <!-- Contenido de pestañas -->
+        <div class="p-3 card-body tab-content">
+
+            <!-- Pestaña: Pendientes de Tratar -->
+            <div class="tab-pane fade show active" id="tab-pendientes" role="tabpanel">
+                <div class="table-responsive">
+                    <table id="tablaPendientes" class="table mb-0 table-bordered table-striped table-sm">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Fecha</th>
+                                <th>Equipo</th>
+                                <th>Descripción</th>
+                                <th>Progreso</th>
+                                <th>Estado</th>
+                                <th>Creador</th>
+                                <th>F. Actualización</th>
+                                <th>Usuario Autorizó</th>
+                                <th>Opciones</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
                 </div>
             </div>
-        </div>
-    </div>
 
-    <!-- Distribuciones Sin Finalizar -->
-    <div class="row">
-        <div class="col-md-12">
-            <div class="card card-info collapsed-card">
-                <div class="card-header">
-                    <h3 class="card-title"><i class="fas fa-truck"></i> Distribuciones Sin Finalizar</h3>
-                    <div class="card-tools">
-                        <button type="button" class="btn btn-tool" data-card-widget="collapse">
-                            <i class="fas fa-plus"></i>
-                        </button>
-                    </div>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table id="tablaEnProceso" class="table table-bordered table-striped table-sm mb-0">
-                            <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>Fecha</th>
-                                    <th>Equipo</th>
-                                    <th>Descripción</th>
-                                    <th>Progreso</th>
-                                    <th>Estado</th>
-                                    <th>Creador</th>
-                                    <th>Opciones</th>
-                                </tr>
-                            </thead>
-                            <tbody></tbody>
-                        </table>
-                    </div>
+            <!-- Pestaña: Sin Finalizar -->
+            <div class="tab-pane fade" id="tab-proceso" role="tabpanel">
+                <div class="table-responsive">
+                    <table id="tablaEnProceso" class="table mb-0 table-bordered table-striped table-sm">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Fecha</th>
+                                <th>Equipo</th>
+                                <th>Descripción</th>
+                                <th>Progreso</th>
+                                <th>Estado</th>
+                                <th>Creador</th>
+                                <th>Opciones</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
                 </div>
             </div>
-        </div>
-    </div>
 
-    <!-- Distribuciones Completadas -->
-    <div class="row">
-        <div class="col-md-12">
-            <div class="card card-success collapsed-card">
-                <div class="card-header">
-                    <h3 class="card-title"><i class="fas fa-check-circle"></i> Distribuciones completadas</h3>
-                    <div class="card-tools">
-                        <button type="button" class="btn btn-tool" data-card-widget="collapse">
-                            <i class="fas fa-plus"></i>
-                        </button>
-                    </div>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table id="tablaCompletadas" class="table table-bordered table-striped table-sm mb-0">
-                            <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>Fecha</th>
-                                    <th>Equipo</th>
-                                    <th>Descripción</th>
-                                    <th>Progreso</th>
-                                    <th>Estado</th>
-                                    <th>Creador</th>
-                                    <th>Opciones</th>
-                                </tr>
-                            </thead>
-                            <tbody></tbody>
-                        </table>
-                    </div>
+            <!-- Pestaña: Completadas -->
+            <div class="tab-pane fade" id="tab-completadas" role="tabpanel">
+                <div class="table-responsive">
+                    <table id="tablaCompletadas" class="table mb-0 table-bordered table-striped table-sm">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Fecha</th>
+                                <th>Equipo</th>
+                                <th>Descripción</th>
+                                <th>Progreso</th>
+                                <th>Estado</th>
+                                <th>Creador</th>
+                                <th>Opciones</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
                 </div>
             </div>
+
         </div>
     </div>
 
@@ -175,17 +351,17 @@
         <div class="modal-dialog modal-xl" style="max-width: 95%;">
             <div class="modal-content">
                 <div class="modal-header bg-gradient-primary">
-                    <h5 class="modal-title text-white">
+                    <h5 class="text-white modal-title">
                         <i class="fas fa-truck-loading"></i> Nueva Distribución de Entrega
                     </h5>
-                    <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+                    <button type="button" class="text-white close" data-dismiss="modal">&times;</button>
                 </div>
                 <div class="modal-body" style="background: #f4f6f9;">
                     <form id="formNuevaDistribucion">
                         
                         <!-- Información Básica -->
-                        <div class="card shadow-sm mb-3">
-                            <div class="card-header bg-white">
+                        <div class="mb-3 shadow-sm card">
+                            <div class="bg-white card-header">
                                 <h6 class="mb-0"><i class="fas fa-info-circle text-primary"></i> Información de la Distribución</h6>
                             </div>
                             <div class="card-body">
@@ -218,7 +394,7 @@
                                 </div>
                                 <div class="row">
                                     <div class="col-12">
-                                        <div class="form-group mb-0">
+                                        <div class="mb-0 form-group">
                                             <label><i class="fas fa-sticky-note"></i> Observaciones</label>
                                             <textarea class="form-control" name="observaciones" rows="2" 
                                                       placeholder="Ingrese observaciones adicionales..."></textarea>
@@ -229,16 +405,16 @@
                         </div>
 
                         <!-- Búsqueda de Facturas -->
-                        <div class="card shadow-sm mb-3">
-                            <div class="card-header bg-white">
+                        <div class="mb-3 shadow-sm card">
+                            <div class="bg-white card-header">
                                 <h6 class="mb-0"><i class="fas fa-search text-success"></i> Búsqueda de Facturas</h6>
                             </div>
                             <div class="card-body">
                                 
                                 <!-- Búsqueda por Factura -->
-                                <div class="input-group input-group-lg mb-3">
+                                <div class="mb-3 input-group input-group-lg">
                                     <div class="input-group-prepend">
-                                        <span class="input-group-text bg-primary text-white">
+                                        <span class="text-white input-group-text bg-primary">
                                             <i class="fas fa-file-invoice"></i>
                                         </span>
                                     </div>
@@ -264,17 +440,17 @@
                         </div>
 
                         <!-- Preview de Facturas Seleccionadas -->
-                        <div class="card shadow-sm">
-                            <div class="card-header bg-gradient-success text-white">
+                        <div class="shadow-sm card">
+                            <div class="text-white card-header bg-gradient-success">
                                 <h6 class="mb-0">
                                     <i class="fas fa-clipboard-list"></i> 
                                     Facturas para Distribuir 
-                                    <span class="badge badge-light ml-2" id="totalFacturasSeleccionadas">0</span>
+                                    <span class="ml-2 badge badge-light" id="totalFacturasSeleccionadas">0</span>
                                 </h6>
                             </div>
-                            <div class="card-body p-0">
+                            <div class="p-0 card-body">
                                 <div id="previewFacturasSeleccionadas" class="table-responsive" style="max-height: 300px; overflow-y: auto;">
-                                    <table class="table table-sm table-hover mb-0">
+                                    <table class="table mb-0 table-sm table-hover">
                                         <thead class="bg-light sticky-top">
                                             <tr>
                                                 <th width="100">#Factura</th>
@@ -286,8 +462,8 @@
                                         </thead>
                                         <tbody id="tablaPreviewFacturas">
                                             <tr id="mensajeVacioPreview">
-                                                <td colspan="5" class="text-center text-muted py-4">
-                                                    <i class="fas fa-inbox fa-3x mb-2"></i>
+                                                <td colspan="5" class="py-4 text-center text-muted">
+                                                    <i class="mb-2 fas fa-inbox fa-3x"></i>
                                                     <p>No hay facturas seleccionadas</p>
                                                 </td>
                                             </tr>
@@ -300,7 +476,7 @@
                                     <div class="col-6">
                                         <strong>Total a Distribuir:</strong>
                                     </div>
-                                    <div class="col-6 text-right">
+                                    <div class="text-right col-6">
                                         <h5 class="mb-0 text-success">
                                             <i class="fas fa-dollar-sign"></i> 
                                             <span id="totalMontoDistribucion">0.00</span>
@@ -326,22 +502,57 @@
 
     <!-- Modal: Detalle de Distribución -->
     <div class="modal fade" id="modalDetalleDistribucion" data-backdrop="static">
-        <div class="modal-dialog modal-xl" style="max-width: 90%;">
+        <div class="modal-dialog modal-xl" style="max-width:92%; margin-left:auto; margin-right:auto;">
             <div class="modal-content">
-                <div class="modal-header bg-gradient-info">
-                    <h5 class="modal-title text-white" id="tituloDetalleDistribucion">
-                        <i class="fas fa-list"></i> Detalle de Distribución
-                    </h5>
-                    <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+
+                <!-- Header con gradiente teal -->
+                <div class="de-modal-header">
+                    <div>
+                        <h5><i class="mr-2 fas fa-truck"></i><span id="tituloDetalleDistribucion">Detalle de Distribución</span></h5>
+                        <div class="de-modal-meta" id="metaDetalleDistribucion"></div>
+                    </div>
+                    <button class="btn-close-modal" data-dismiss="modal" title="Cerrar">&times;</button>
                 </div>
-                <div class="modal-body" id="bodyDetalleDistribucion">
-                    <!-- Contenido dinámico -->
+
+                <!-- Strip de estadísticas -->
+                <div class="de-stat-strip" id="statStripDistribucion">
+                    <div class="de-stat-item">
+                        <div class="de-stat-num text-primary" id="statTotal">-</div>
+                        <div class="de-stat-lbl"><i class="fas fa-file-invoice"></i> Total Facturas</div>
+                    </div>
+                    <div class="de-stat-item">
+                        <div class="de-stat-num text-success" id="statEntregadas">-</div>
+                        <div class="de-stat-lbl"><i class="fas fa-check-circle"></i> Entregadas</div>
+                    </div>
+                    <div class="de-stat-item">
+                        <div class="de-stat-num text-warning" id="statPendientes">-</div>
+                        <div class="de-stat-lbl"><i class="fas fa-clock"></i> Pendientes</div>
+                    </div>
                 </div>
-                <div class="modal-footer bg-light">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">
+
+                <!-- Cuerpo: tabla de facturas -->
+                <div class="modal-body">
+                    <div class="de-table-wrap" id="bodyDetalleDistribucion">
+                        <!-- Contenido dinámico -->
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-success" onclick="imprimirCartaEntrega()">
+                        <i class="fas fa-print"></i> Imprimir
+                    </button>
+                    <button type="button" class="btn btn-warning" onclick="editarDistribucion()">
+                        <i class="fas fa-edit"></i> Editar
+                    </button>
+                    <button type="button" id="btnFinalizarEntrega" class="btn btn-danger" onclick="finalizarEntrega()" style="display:none;">
+                        <i class="fas fa-flag-checkered"></i> Finalizar entrega
+                    </button>
+                    <button type="button" class="ml-auto btn btn-secondary" data-dismiss="modal">
                         <i class="fas fa-times"></i> Cerrar
                     </button>
                 </div>
+
             </div>
         </div>
     </div>
@@ -351,10 +562,10 @@
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header bg-gradient-warning">
-                    <h5 class="modal-title text-white">
+                    <h5 class="text-white modal-title">
                         <i class="fas fa-exclamation-triangle"></i> Incidencias de la Factura
                     </h5>
-                    <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+                    <button type="button" class="text-white close" data-dismiss="modal">&times;</button>
                 </div>
                 <div class="modal-body" id="bodyIncidencias">
                     <!-- Contenido dinámico -->
@@ -366,12 +577,42 @@
         </div>
     </div>
 
-    <!-- Modal: Ver Imágenes de Incidencia -->
+    <!-- Modal: Hora de Salida del Equipo -->
+    <div class="modal fade" id="modalHoraSalida" data-backdrop="static" data-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered" style="max-width: 400px;">
+            <div class="modal-content" style="border-radius: 16px; overflow: hidden;">
+                <div class="text-white modal-header bg-gradient-info">
+                    <h5 class="modal-title"><i class="fas fa-clock"></i> Hora de Salida del Equipo</h5>
+                </div>
+                <div class="p-4 text-center modal-body">
+                    <p class="mb-3 text-muted">Registre la hora en que el equipo sale a ruta</p>
+                    <input type="time" id="inputHoraSalida" class="mb-3 text-center form-control form-control-lg"
+                           style="font-size:1.8rem; height:65px; letter-spacing:2px;">
+                    <div class="text-left">
+                        <label class="mb-1 text-muted small">Observaciones de salida <span class="text-muted">(opcional)</span></label>
+                        <textarea id="inputObservacionesSalida" class="form-control" rows="2"
+                                  placeholder="Ej: equipo completo, carga verificada..."></textarea>
+                    </div>
+                    <small class="mt-2 text-muted d-block">Se guardará junto con el inicio de la distribución</small>
+                </div>
+                <div class="modal-footer d-flex justify-content-between">
+                    <button type="button" class="btn btn-secondary" onclick="$('#modalHoraSalida').modal('hide')">
+                        <i class="fas fa-times"></i> Cancelar
+                    </button>
+                    <button type="button" class="btn btn-info" onclick="confirmarHoraSalidaYIniciar()">
+                        <i class="fas fa-play"></i> Iniciar Distribución
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Imágenes de Incidencia -->
     <div class="modal fade" id="modalImagenesIncidencia" tabindex="-1" role="dialog" style="z-index: 1060;">
         <div class="modal-dialog modal-lg" role="document">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title mb-0">
+                    <h5 class="mb-0 modal-title">
                         <i class="fas fa-images"></i> Evidencias Fotográficas
                     </h5>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
@@ -379,7 +620,7 @@
                     </button>
                 </div>
                 <div class="modal-body" id="bodyImagenesIncidencia">
-                    <div class="text-center py-4">
+                    <div class="py-4 text-center">
                         <i class="fas fa-spinner fa-spin fa-2x text-muted"></i>
                         <p class="mt-2 text-muted">Cargando imágenes...</p>
                     </div>
@@ -397,37 +638,24 @@
 let tablaPendientes, tablaEnProceso, tablaCompletadas, facturasSelTmp = [];
 
 $(document).ready(() => {
-    // Agregar easing personalizado para animaciones más suaves
-    $.easing.easeInOutCubic = function(x) {
-        return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
-    };
-    
-    // Manejador manual para colapsar/expandir las tarjetas con animaciones suaves y elegantes
-    $('[data-card-widget="collapse"]').on('click', function(e) {
-        e.preventDefault();
-        const $card = $(this).closest('.card');
-        const $cardBody = $card.find('.card-body');
-        const $icon = $(this).find('i');
-        
-        if ($card.hasClass('collapsed-card')) {
-            // Expandir con animación suave y elegante
-            $card.removeClass('collapsed-card');
-            $cardBody.stop(true, true).slideDown({
-                duration: 600,
-                easing: 'easeInOutCubic'
-            });
-            $icon.removeClass('fa-plus').addClass('fa-minus');
-        } else {
-            // Colapsar con animación suave y elegante
-            $card.addClass('collapsed-card');
-            $cardBody.stop(true, true).slideUp({
-                duration: 500,
-                easing: 'easeInOutCubic'
-            });
-            $icon.removeClass('fa-minus').addClass('fa-plus');
-        }
+    // Ajustar columnas de DataTable al cambiar de pestaña
+    $('a[data-toggle="tab"]').on('shown.bs.tab', function () {
+        $.fn.dataTable.tables({ visible: true, api: true }).columns.adjust();
     });
-    
+
+    setTimeout(() => ocultarLoaderDE(), 1500);
+
+    // Auto-abrir detalle si viene con ?ver=ID en la URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const verDistribucionId = urlParams.get('ver');
+    if (verDistribucionId) {
+        // Esperar que los DataTables terminen de cargar para abrir el modal
+        setTimeout(() => verFacturas(parseInt(verDistribucionId)), 1800);
+        // Limpiar el param de la URL sin recargar
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+    }
+
     // Configuración base común de DataTables
     const configBase = {
         processing: true,
@@ -518,6 +746,10 @@ $(document).ready(() => {
     });
 });
 
+function ocultarLoaderDE() {
+    $('#pageLoadingDE').addClass('is-hidden');
+}
+
 // ========== FUNCIÓN HELPER ==========
 function recargarTodasLasTablas(mantenerPaginacion = true) {
     if (mantenerPaginacion) {
@@ -599,17 +831,17 @@ function mostrarResultadosFacturas(facturas) {
         const btnText = yaAgregada ? '<i class="fas fa-check"></i> Agregada' : '<i class="fas fa-plus"></i> Agregar';
         
         html += `
-        <div class="col-md-6 col-lg-4 mb-3">
+        <div class="mb-3 col-md-6 col-lg-4">
             <div class="card h-100 shadow-sm ${yaAgregada ? 'border-success' : ''}">
-                <div class="card-body p-3">
-                    <h6 class="card-title text-primary mb-2">
+                <div class="p-3 card-body">
+                    <h6 class="mb-2 card-title text-primary">
                         <i class="fas fa-file-invoice"></i> #${f.cai}
                     </h6>
-                    <p class="card-text mb-2">
+                    <p class="mb-2 card-text">
                         <small class="text-muted"><i class="fas fa-user"></i> ${f.cliente}</small>
                     </p>
                     <div class="d-flex justify-content-between align-items-center">
-                        <span class="h6 mb-0 text-success">Q${parseFloat(f.total).toFixed(2)}</span>
+                        <span class="mb-0 h6 text-success">Q${parseFloat(f.total).toFixed(2)}</span>
                         <button class="btn btn-sm ${btnClass}" ${disabled}
                                 onclick="agregarFactura(${f.id}, '${f.cai}', '${f.cliente.replace(/'/g, "\\'")}', '${f.direccion || ''}', ${f.total})">
                             ${btnText}
@@ -749,122 +981,255 @@ function guardarDistribucion() {
 
 function verFacturas(id) {
     $('#modalDetalleDistribucion').data('distribucion-id', id).modal('show');
-    $('#tituloDetalleDistribucion').html('<i class="fas fa-spinner fa-spin"></i> Cargando...');
-    $('#bodyDetalleDistribucion').html('<div class="text-center py-5"><i class="fas fa-spinner fa-spin fa-3x text-primary"></i><p class="mt-3">Cargando facturas...</p></div>');
-    
+    $('#tituloDetalleDistribucion').html('<i class="mr-1 fas fa-spinner fa-spin"></i> Cargando...');
+    $('#metaDetalleDistribucion').html('');
+    $('#statTotal, #statEntregadas, #statPendientes').html('<i class="fas fa-spinner fa-spin"></i>');
+    $('#bodyDetalleDistribucion').html(
+        '<div class="py-5 text-center"><i class="fas fa-spinner fa-spin fa-2x" style="color:#0f766e;"></i>' +
+        '<p class="mt-3 text-muted">Cargando facturas...</p></div>'
+    );
+
     $.get("{{ url('/logistica/distribuciones/facturas') }}/" + id, function(r) {
         const distribucion = r.distribucion || {};
-        $('#tituloDetalleDistribucion').html(`<i class="fas fa-truck"></i> ${distribucion.nombre_equipo} - ${distribucion.fecha_programada}`);
-        
-        let html = `
-            <div class="mb-3">
-                <div class="row">
-                    <div class="col-md-4">
-                        <div class="info-box bg-light">
-                            <span class="info-box-icon bg-info"><i class="fas fa-file-invoice"></i></span>
-                            <div class="info-box-content">
-                                <span class="info-box-text">Total Facturas</span>
-                                <span class="info-box-number">${r.facturas.length}</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="info-box bg-light">
-                            <span class="info-box-icon bg-success"><i class="fas fa-check"></i></span>
-                            <div class="info-box-content">
-                                <span class="info-box-text">Entregadas</span>
-                                <span class="info-box-number">${r.facturas.filter(f => f.estado_entrega === 'entregado').length}</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="info-box bg-light">
-                            <span class="info-box-icon bg-warning"><i class="fas fa-exclamation-triangle"></i></span>
-                            <div class="info-box-content">
-                                <span class="info-box-text">Pendientes</span>
-                                <span class="info-box-number">${r.facturas.filter(f => f.estado_entrega === 'sin_entrega').length}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="table-responsive" style="max-height: 450px; overflow-y: auto;">
-                <table class="table table-sm table-hover" id="tablaFacturasDetalle">
-                    <thead class="thead-light" style="position: sticky; top: 0; z-index: 10;">
-                        <tr>
-                            <th width="50">#</th>
-                            <th>Factura</th>
-                            <th>Cliente</th>
-                            <th width="100">Estado</th>
-                            <th width="80" class="text-center">Incidencias</th>
-                            <th width="80" class="text-center">Tratadas</th>
-                            <th width="200">Opciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>`;
-        
-        if (r.facturas.length === 0) {
-            html += '<tr><td colspan="7" class="text-center py-4 text-muted">No hay facturas asignadas</td></tr>';
+        const total      = r.facturas.length;
+        const entregadas = r.facturas.filter(f => f.estado_entrega === 'entregado').length;
+        const pendientes = r.facturas.filter(f => f.estado_entrega === 'sin_entrega').length;
+
+        // Actualizar header
+        $('#tituloDetalleDistribucion').text(distribucion.nombre_equipo + ' — Distribución #' + distribucion.id);
+        $('#metaDetalleDistribucion').text('Fecha programada: ' + distribucion.fecha_programada);
+
+        // Stats strip
+        $('#statTotal').text(total);
+        $('#statEntregadas').text(entregadas);
+        $('#statPendientes').text(pendientes);
+
+        // Mostrar botón "Finalizar entrega" solo cuando la distribución está en proceso (estado 2)
+        $('#btnFinalizarEntrega').toggle(distribucion.estado_id === 2);
+
+        // Tabla
+        let html = `<table class="table table-sm table-hover de-dist-table w-100">
+            <thead>
+                <tr>
+                    <th width="40">#</th>
+                    <th>Factura</th>
+                    <th>Cliente</th>
+                    <th width="110">Estado</th>
+                    <th width="90" class="text-center">Incidencias</th>
+                    <th width="80" class="text-center">Tratadas</th>
+                    <th width="160" class="text-center">Opciones</th>
+                </tr>
+            </thead>
+            <tbody>`;
+
+        if (total === 0) {
+            html += '<tr><td colspan="7" class="py-4 text-center text-muted"><i class="mb-2 fas fa-inbox fa-2x d-block"></i>No hay facturas asignadas</td></tr>';
         } else {
-            // Verificar si la distribución está completada o cancelada
             const soloLectura = distribucion.estado_id === 3 || distribucion.estado_id === 4;
-            
-            r.facturas.forEach((f, index) => {
-                const estadoBadge = f.estado_entrega === 'entregado' ? 'success' : 
-                                   f.estado_entrega === 'parcial' ? 'warning' : 'secondary';
-                const estadoTexto = f.estado_entrega === 'sin_entrega' ? 'Sin Entrega' : 
-                                   f.estado_entrega.charAt(0).toUpperCase() + f.estado_entrega.slice(1);
-                // Considerar bloqueada si ya fue entregada (completa o parcial)
-                const bloqueado = f.estado_entrega === 'entregado' || f.estado_entrega === 'parcial';
-                const totalIncidencias = parseInt(f.total_incidencias) || 0;
-                const incidenciasTratadas = parseInt(f.incidencias_tratadas) || 0;
-                const todasTratadas = totalIncidencias > 0 && totalIncidencias === incidenciasTratadas;
-                const tieneIncidenciasSinTratar = totalIncidencias > 0 && incidenciasTratadas < totalIncidencias;
-                
+
+            r.facturas.forEach(f => {
+                const estadoBadge = f.estado_entrega === 'entregado' ? 'success' :
+                                    f.estado_entrega === 'parcial'   ? 'warning' :
+                                    f.estado_entrega === 'anulada'   ? 'danger'  : 'secondary';
+                const estadoTexto = f.estado_entrega === 'sin_entrega' ? 'Sin Entrega'
+                    : f.estado_entrega === 'anulada' ? 'Anulada'
+                    : f.estado_entrega.charAt(0).toUpperCase() + f.estado_entrega.slice(1);
+                const bloqueado  = f.estado_entrega === 'entregado' || f.estado_entrega === 'parcial';
+                const esAnulada  = f.estado_entrega === 'anulada';
+                const totalInc   = parseInt(f.total_incidencias) || 0;
+                const tratadas   = parseInt(f.incidencias_tratadas) || 0;
+                const todasTrat  = totalInc > 0 && totalInc === tratadas;
+                const sinTratar  = totalInc > 0 && tratadas < totalInc;
+
                 html += `<tr>
-                    <td>${f.orden_entrega}</td>
-                    <td><strong>#${f.cai}</strong></td>
+                    <td class="text-muted">${f.orden_entrega}</td>
+                    <td><span class="font-weight-bold text-primary">#${f.cai}</span></td>
                     <td>${f.cliente}</td>
-                    <td><span class="badge badge-${estadoBadge}">${estadoTexto}</span></td>
-                    <td class="text-center">${totalIncidencias > 0 ? `<span class="badge badge-${tieneIncidenciasSinTratar ? 'warning' : 'info'}">${totalIncidencias}</span>` : '<span class="text-muted">0</span>'}</td>
-                    <td class="text-center">${totalIncidencias > 0 ? (todasTratadas ? '<span class="badge badge-success"><i class="fas fa-check"></i> Sí</span>' : '<span class="badge badge-danger"><i class="fas fa-times"></i> No</span>') : '<span class="text-muted">N/A</span>'}</td>
-                    <td>
-                        <div class="btn-group btn-group-sm" role="group">
-                            ${!soloLectura && bloqueado ? `<button class="btn btn-warning" onclick="desbloquearFactura(${f.id})" title="Desbloquear">
-                                <i class="fas fa-unlock"></i>
-                            </button>` : ''}
-                            ${!soloLectura && f.estado_entrega === 'sin_entrega' && !bloqueado ? `<button class="btn btn-danger" onclick="anularEntrega(${f.id})" title="Cancelar Entrega">
-                                <i class="fas fa-times"></i>
-                            </button>` : ''}
-                            ${!soloLectura && f.estado_entrega !== 'sin_entrega' && !bloqueado ? `<button class="btn btn-danger" onclick="anularEntrega(${f.id})" title="Anular Entrega">
-                                <i class="fas fa-times"></i>
-                            </button>` : ''}
-                            <button class="btn btn-info" onclick="verIncidencias(${f.id})" title="Ver Incidencias">
+                    <td><span class="badge badge-${estadoBadge} px-2 py-1">${estadoTexto}</span></td>
+                    <td class="text-center">
+                        ${totalInc > 0
+                            ? `<span class="badge badge-${sinTratar ? 'warning' : 'info'}">${totalInc}</span>`
+                            : '<span class="text-muted small">0</span>'}
+                    </td>
+                    <td class="text-center">
+                        ${totalInc > 0
+                            ? (todasTrat
+                                ? '<span class="badge badge-success"><i class="fas fa-check"></i> Sí</span>'
+                                : '<span class="badge badge-danger"><i class="fas fa-times"></i> No</span>')
+                            : '<span class="text-muted small">N/A</span>'}
+                    </td>
+                    <td class="text-center">
+                        <div class="btn-group btn-group-sm">
+                            ${!soloLectura && bloqueado
+                                ? `<button class="btn btn-warning" onclick="desbloquearFactura(${f.id})" title="Desbloquear"><i class="fas fa-unlock"></i></button>`
+                                : ''}
+                            ${!soloLectura && !bloqueado && !esAnulada
+                                ? `<button class="btn btn-danger" onclick="anularEntrega(${f.id})" title="Cancelar"><i class="fas fa-times"></i></button>`
+                                : ''}
+                            <button class="btn btn-info" onclick="verIncidencias(${f.id})" title="Incidencias">
                                 <i class="fas fa-exclamation-circle"></i>
                             </button>
-                            ${!soloLectura && f.estado_entrega === 'sin_entrega' && !bloqueado ? `<button class="btn btn-success" onclick="confirmarEntregaFactura(${f.id}, ${distribucion.id})" title="Confirmar Entrega">
-                                <i class="fas fa-check"></i>
-                            </button>` : ''}
+                            ${!soloLectura && f.estado_entrega === 'sin_entrega' && !bloqueado
+                                ? `<button class="btn btn-success" onclick="confirmarEntregaFactura(${f.id}, ${distribucion.id})" title="Confirmar Entrega"><i class="fas fa-check"></i></button>`
+                                : ''}
                         </div>
                     </td>
                 </tr>`;
             });
         }
-        
-        html += '</tbody></table></div>';
+
+        html += '</tbody></table>';
         $('#bodyDetalleDistribucion').html(html);
+
     }).fail(function() {
-        $('#bodyDetalleDistribucion').html('<div class="alert alert-danger">Error al cargar las facturas</div>');
+        $('#tituloDetalleDistribucion').text('Error');
+        $('#bodyDetalleDistribucion').html('<div class="m-3 alert alert-danger"><i class="fas fa-exclamation-triangle"></i> Error al cargar las facturas</div>');
     });
 }
 
 function iniciarDistribucion(id) {
-    Swal.fire({title: 'Iniciar?', icon: 'question', showCancelButton: true, confirmButtonColor: '#28a745'}).then(r => {
-        if (r.isConfirmed) {
-            $.post("{{ url('/logistica/distribuciones/iniciar') }}/" + id, {_token: $('meta[name="csrf-token"]').attr('content')}, r => {
-                Swal.fire(r.title, r.text, r.icon);
-                recargarTodasLasTablas(false);
-            }).fail(x => Swal.fire(x.responseJSON.title, x.responseJSON.text, x.responseJSON.icon));
+    // Mostrar modal de hora de salida antes de iniciar
+    const ahora = new Date();
+    const horaActual = ahora.getHours().toString().padStart(2,'0') + ':' + ahora.getMinutes().toString().padStart(2,'0');
+    $('#inputHoraSalida').val(horaActual);
+    $('#modalHoraSalida').data('distribucion-id', id).modal('show');
+}
+
+function confirmarHoraSalidaYIniciar() {
+    const id = $('#modalHoraSalida').data('distribucion-id');
+    const horaSalida = $('#inputHoraSalida').val();
+    if (!horaSalida) {
+        Swal.fire({icon: 'warning', title: 'Hora requerida', text: 'Ingrese la hora de salida del equipo'});
+        return;
+    }
+    $('#modalHoraSalida').modal('hide');
+    $.post("{{ url('/logistica/distribuciones/iniciar') }}/" + id, {
+        _token: $('meta[name="csrf-token"]').attr('content'),
+        hora_salida: horaSalida,
+        observaciones_salida: $('#inputObservacionesSalida').val()
+    }, function(r) {
+        Swal.fire({icon: r.icon, title: r.title, text: r.text, confirmButtonColor: '#28a745'});
+        recargarTodasLasTablas(false);
+    }).fail(x => Swal.fire({icon: 'error', title: x.responseJSON?.title || 'Error', text: x.responseJSON?.text || 'Error al iniciar'}));
+}
+
+function imprimirCartaEntrega() {
+    const id = $('#modalDetalleDistribucion').data('distribucion-id');
+    if (!id) return;
+    window.open('/logistica/distribuciones/' + id + '/carta-entrega', '_blank');
+}
+
+function editarDistribucion() {
+    const id = $('#modalDetalleDistribucion').data('distribucion-id');
+    if (!id) return;
+    window.location.href = '/logistica/distribuciones/nueva?editar=' + id;
+}
+
+function finalizarEntrega() {
+    const distribucionId = $('#modalDetalleDistribucion').data('distribucion-id');
+    if (!distribucionId) return;
+
+    // Paso 1: verificar incidencias sin tratar
+    $.ajax({
+        url: "{{ url('/logistica/distribuciones/validar-incidencias') }}/" + distribucionId,
+        type: 'GET',
+        success: function(val) {
+            if (!val.puede_confirmar) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Incidencias sin tratar',
+                    html: val.mensaje,
+                    confirmButtonColor: '#f0ad4e'
+                });
+                return;
+            }
+
+            // Paso 2: contar facturas pendientes
+            const pendientes = parseInt($('#statPendientes').text()) || 0;
+
+            // Cerrar modal antes de SweetAlert
+            $('#modalDetalleDistribucion').modal('hide');
+
+            setTimeout(() => {
+                if (pendientes > 0) {
+                    // Hay facturas sin entregar → pedir motivo de anulación masiva
+                    Swal.fire({
+                        title: 'Finalizar entrega',
+                        html: '<div style="text-align:left;padding:0 0.25rem">' +
+                              '<p style="font-size:0.85rem;color:#6c757d;margin:0 0 0.75rem">' +
+                              'Hay <strong>' + pendientes + '</strong> factura(s) aún pendiente(s). ' +
+                              'Al finalizar, quedarán como <strong>Anuladas</strong>.</p>' +
+                              '<label style="font-size:0.8rem;font-weight:600;color:#495057;display:block;margin-bottom:4px">' +
+                              'Motivo de anulación <span style="color:#dc3545">*</span></label>' +
+                              '<textarea id="motivoFinalizacion" rows="2" placeholder="Motivo general de anulación..." ' +
+                              'style="width:100%;font-size:0.85rem;padding:6px 10px;border:1px solid #ced4da;border-radius:6px;resize:none;outline:none;box-sizing:border-box;"></textarea>' +
+                              '</div>',
+                        icon: 'warning',
+                        width: 440,
+                        showCancelButton: true,
+                        confirmButtonColor: '#dc3545',
+                        cancelButtonColor: '#6c757d',
+                        confirmButtonText: 'Sí, finalizar',
+                        cancelButtonText: 'Cancelar',
+                        customClass: { htmlContainer: 'swal-compact' },
+                        didOpen: () => {
+                            document.getElementById('motivoFinalizacion').focus();
+                        },
+                        preConfirm: () => {
+                            const motivo = document.getElementById('motivoFinalizacion').value.trim();
+                            if (!motivo) {
+                                Swal.showValidationMessage('El motivo es obligatorio.');
+                                return false;
+                            }
+                            return motivo;
+                        }
+                    }).then(result => {
+                        if (result.isConfirmed) {
+                            _ejecutarFinalizacion(distribucionId, result.value);
+                        } else {
+                            verFacturas(distribucionId);
+                        }
+                    });
+                } else {
+                    // No hay pendientes → confirmar y finalizar directamente
+                    Swal.fire({
+                        title: '¿Finalizar entrega?',
+                        text: 'Todas las facturas están resueltas. Se marcará la distribución como completada.',
+                        icon: 'question',
+                        showCancelButton: true,
+                        confirmButtonColor: '#28a745',
+                        cancelButtonColor: '#6c757d',
+                        confirmButtonText: 'Sí, finalizar',
+                        cancelButtonText: 'Cancelar'
+                    }).then(result => {
+                        if (result.isConfirmed) {
+                            _ejecutarFinalizacion(distribucionId, '');
+                        } else {
+                            verFacturas(distribucionId);
+                        }
+                    });
+                }
+            }, 300);
+        },
+        error: function() {
+            Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo validar las incidencias.', confirmButtonColor: '#dc3545' });
+        }
+    });
+}
+
+function _ejecutarFinalizacion(distribucionId, motivo) {
+    Swal.fire({ title: 'Finalizando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    $.ajax({
+        url: "{{ url('/logistica/distribuciones/finalizar') }}/" + distribucionId,
+        type: 'POST',
+        data: { _token: $('meta[name="csrf-token"]').attr('content'), motivo: motivo },
+        success: function(r) {
+            Swal.fire({ icon: r.icon || 'success', title: r.title, text: r.text, confirmButtonColor: '#28a745' })
+                .then(() => recargarTodasLasTablas(false));
+        },
+        error: function(x) {
+            Swal.fire({ icon: 'error', title: x.responseJSON?.title || 'Error', text: x.responseJSON?.text || 'Error al finalizar.', confirmButtonColor: '#dc3545' })
+                .then(() => verFacturas(distribucionId));
         }
     });
 }
@@ -1002,20 +1367,35 @@ function anularEntrega(facturaId) {
     setTimeout(() => {
         Swal.fire({
             title: '¿Anular entrega?',
-            text: 'Esto cambiará el estado de la factura a "Sin Entrega".',
+            html: '<div style="text-align:left;padding:0 0.25rem">' +
+                  '<p style="font-size:0.85rem;color:#6c757d;margin:0 0 0.75rem">El estado cambiará a <strong>Sin Entrega</strong>.</p>' +
+                  '<label style="font-size:0.8rem;font-weight:600;color:#495057;display:block;margin-bottom:4px">Motivo <span style="color:#dc3545">*</span></label>' +
+                  '<textarea id="motivoAnulacion" rows="2" placeholder="Motivo de anulación..." style="width:100%;font-size:0.85rem;padding:6px 10px;border:1px solid #ced4da;border-radius:6px;resize:none;outline:none;box-sizing:border-box;"></textarea>' +
+                  '</div>',
             icon: 'warning',
+            width: 420,
             showCancelButton: true,
             confirmButtonColor: '#dc3545',
             cancelButtonColor: '#6c757d',
             confirmButtonText: 'Sí, anular',
-            cancelButtonText: 'Cancelar'
+            cancelButtonText: 'Cancelar',
+            customClass: { htmlContainer: 'swal-compact' },
+            preConfirm: () => {
+                const motivo = document.getElementById('motivoAnulacion').value.trim();
+                if (!motivo) {
+                    Swal.showValidationMessage('El motivo de anulación es obligatorio.');
+                    return false;
+                }
+                return motivo;
+            }
         }).then((result) => {
             if (result.isConfirmed) {
             $.ajax({
                 url: "{{ url('/logistica/facturas/anular-entrega') }}/" + facturaId,
                 type: 'POST',
                 data: {
-                    _token: $('meta[name="csrf-token"]').attr('content')
+                    _token: $('meta[name="csrf-token"]').attr('content'),
+                    motivo: result.value
                 },
                 success: function(r) {
                     Swal.fire({
@@ -1071,7 +1451,7 @@ $('#modalImagenesIncidencia').on('hidden.bs.modal', function () {
 
 function verImagenesIncidenciaDistribucion(incidenciaId) {
     $('#modalImagenesIncidencia').modal('show');
-    $('#bodyImagenesIncidencia').html('<div class="text-center py-4"><i class="fas fa-spinner fa-spin fa-2x text-muted"></i><p class="mt-2 text-muted">Cargando imágenes...</p></div>');
+    $('#bodyImagenesIncidencia').html('<div class="py-4 text-center"><i class="fas fa-spinner fa-spin fa-2x text-muted"></i><p class="mt-2 text-muted">Cargando imágenes...</p></div>');
     
     const url = "{{ url('/logistica/confirmacion/incidencias') }}/" + incidenciaId + "/evidencias";
     
@@ -1079,33 +1459,33 @@ function verImagenesIncidenciaDistribucion(incidenciaId) {
         .done(resp => {
             const evidencias = resp.evidencias || [];
             if (!evidencias.length) {
-                $('#bodyImagenesIncidencia').html('<div class="alert alert-info mb-0"><i class="fas fa-info-circle"></i> Esta incidencia no tiene evidencias fotográficas.</div>');
+                $('#bodyImagenesIncidencia').html('<div class="mb-0 alert alert-info"><i class="fas fa-info-circle"></i> Esta incidencia no tiene evidencias fotográficas.</div>');
                 return;
             }
             
             let grid = '<div class="row">';
             evidencias.forEach(e => {
-                grid += `<div class="col-6 col-md-4 mb-3">
-                    <div class="border rounded p-2" style="height:200px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f8f9fa;">
+                grid += `<div class="mb-3 col-6 col-md-4">
+                    <div class="p-2 border rounded" style="height:200px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f8f9fa;">
                         <a href="${e.url}" target="_blank" title="Ver imagen completa">
                             <img src="${e.url}" alt="evidencia" class="img-fluid" style="max-height:180px;max-width:100%;object-fit:contain;">
                         </a>
                     </div>
-                    ${e.descripcion ? `<small class="text-muted d-block mt-1">${e.descripcion}</small>` : ''}
+                    ${e.descripcion ? `<small class="mt-1 text-muted d-block">${e.descripcion}</small>` : ''}
                 </div>`;
             });
             grid += '</div>';
             $('#bodyImagenesIncidencia').html(grid);
         })
         .fail(() => {
-            $('#bodyImagenesIncidencia').html('<div class="alert alert-danger mb-0"><i class="fas fa-exclamation-triangle"></i> Error al cargar las imágenes.</div>');
+            $('#bodyImagenesIncidencia').html('<div class="mb-0 alert alert-danger"><i class="fas fa-exclamation-triangle"></i> Error al cargar las imágenes.</div>');
         });
 }
 
 function verIncidencias(facturaId) {
     console.log('Cargando incidencias para factura ID:', facturaId);
     $('#modalIncidencias').modal('show');
-    $('#bodyIncidencias').html('<div class="text-center py-4"><i class="fas fa-spinner fa-spin fa-2x text-primary"></i><p class="mt-3">Cargando incidencias...</p></div>');
+    $('#bodyIncidencias').html('<div class="py-4 text-center"><i class="fas fa-spinner fa-spin fa-2x text-primary"></i><p class="mt-3">Cargando incidencias...</p></div>');
     
     const url = "{{ url('/logistica/facturas/incidencias') }}/" + facturaId;
     console.log('URL de incidencias:', url);
@@ -1122,7 +1502,7 @@ function verIncidencias(facturaId) {
             } else {
                 html = `<div class="mb-3">
                     <h6>Factura: <strong>#${r.factura?.cai || 'N/A'}</strong></h6>
-                    <p class="text-muted mb-0">Cliente: ${r.factura?.cliente || 'N/A'}</p>
+                    <p class="mb-0 text-muted">Cliente: ${r.factura?.cliente || 'N/A'}</p>
                 </div>
                 <div class="table-responsive">
                     <table class="table table-sm table-bordered">
@@ -1157,7 +1537,7 @@ function verIncidencias(facturaId) {
                 });
                 
                 html += `</tbody></table></div>
-                <div class="alert alert-light mt-3">
+                <div class="mt-3 alert alert-light">
                     <strong>Total de incidencias:</strong> ${r.incidencias.length}
                 </div>
                 <hr>
@@ -1173,11 +1553,11 @@ function verIncidencias(facturaId) {
                     html += `<h6 class="text-muted small"><i class="fas fa-history"></i> Historial de Tratamientos (${r.tratamientos.length})</h6>`;
                     r.tratamientos.forEach((t, index) => {
                         html += `
-                            <div class="alert alert-success mb-2">
+                            <div class="mb-2 alert alert-success">
                                 <div class="d-flex justify-content-between align-items-start">
                                     <div style="flex: 1;">
                                         <strong>Tratamiento #${r.tratamientos.length - index}:</strong>
-                                        <p class="mb-1 mt-1" style="white-space: pre-wrap;">${t.tratamiento}</p>
+                                        <p class="mt-1 mb-1" style="white-space: pre-wrap;">${t.tratamiento}</p>
                                         <small class="text-muted">
                                             <i class="fas fa-user"></i> ${t.usuario_registro} · 
                                             <i class="fas fa-calendar"></i> ${new Date(t.tratamiento_fecha).toLocaleString('es-HN')}
@@ -1195,7 +1575,7 @@ function verIncidencias(facturaId) {
                     html += `
                         <div class="alert alert-warning">
                             <i class="fas fa-exclamation-triangle"></i> <strong>Tratamiento No Disponible</strong>
-                            <p class="mb-0 mt-2">No se puede registrar tratamiento mientras la factura esté en estado <strong>"Sin Entrega"</strong>.</p>
+                            <p class="mt-2 mb-0">No se puede registrar tratamiento mientras la factura esté en estado <strong>"Sin Entrega"</strong>.</p>
                             <p class="mb-0">Primero debe confirmar la entrega de la factura para poder registrar el tratamiento de las incidencias.</p>
                         </div>`;
                 } else {
@@ -1204,9 +1584,9 @@ function verIncidencias(facturaId) {
                         <div class="card bg-light">
                             <div class="card-body">
                                 <h6 class="card-title"><i class="fas fa-plus-circle"></i> Agregar Nuevo Tratamiento</h6>
-                                <p class="text-muted small mb-2">Registra un nuevo tratamiento que se aplicará a todas las incidencias de esta factura.</p>
+                                <p class="mb-2 text-muted small">Registra un nuevo tratamiento que se aplicará a todas las incidencias de esta factura.</p>
                                 <textarea id="tratamientoIncidencias" class="form-control" rows="3" placeholder="Describe el tratamiento o solución aplicada..."></textarea>
-                                <button type="button" class="btn btn-success btn-sm mt-2" onclick="guardarTratamiento(${facturaId})">
+                                <button type="button" class="mt-2 btn btn-success btn-sm" onclick="guardarTratamiento(${facturaId})">
                                     <i class="fas fa-save"></i> Guardar Tratamiento
                                 </button>
                             </div>
@@ -1315,24 +1695,46 @@ function confirmarEntregaFactura(facturaId, distribucionId) {
                 });
                 return;
             }
-            
+
+            // Cerrar el modal antes de mostrar SweetAlert para evitar aria-hidden
+            $('#modalDetalleDistribucion').modal('hide');
+
+            setTimeout(() => {
             // Si pasa la validación, proceder con la confirmación
             Swal.fire({
-                title: '¿Confirmar entrega completa?',
-                text: 'Esto cambiará el estado de la factura a "Entregado".',
+                title: '¿Confirmar entrega?',
+                html: '<div style="text-align:left;padding:0 0.25rem">' +
+                      '<p style="font-size:0.85rem;color:#6c757d;margin:0 0 0.75rem">El estado cambiará a <strong>Entregado</strong>.</p>' +
+                      '<label style="font-size:0.8rem;font-weight:600;color:#495057;display:block;margin-bottom:4px">Observación <span style="color:#dc3545">*</span></label>' +
+                      '<textarea id="motivoConfirmacion" rows="2" placeholder="Observación de la entrega..." style="width:100%;font-size:0.85rem;padding:6px 10px;border:1px solid #ced4da;border-radius:6px;resize:none;outline:none;box-sizing:border-box;"></textarea>' +
+                      '</div>',
                 icon: 'question',
+                width: 420,
                 showCancelButton: true,
                 confirmButtonColor: '#28a745',
                 cancelButtonColor: '#6c757d',
                 confirmButtonText: 'Sí, confirmar',
-                cancelButtonText: 'Cancelar'
+                cancelButtonText: 'Cancelar',
+                customClass: { htmlContainer: 'swal-compact' },
+                didOpen: () => {
+                    document.getElementById('motivoConfirmacion').focus();
+                },
+                preConfirm: () => {
+                    const motivo = document.getElementById('motivoConfirmacion').value.trim();
+                    if (!motivo) {
+                        Swal.showValidationMessage('El motivo de confirmación es obligatorio.');
+                        return false;
+                    }
+                    return motivo;
+                }
             }).then((result) => {
                 if (result.isConfirmed) {
                     $.ajax({
                         url: "{{ url('/logistica/facturas/confirmar-entrega') }}/" + facturaId,
                         type: 'POST',
                         data: {
-                            _token: $('meta[name="csrf-token"]').attr('content')
+                            _token: $('meta[name="csrf-token"]').attr('content'),
+                            motivo: result.value
                         },
                         success: function(r) {
                             Swal.fire({
@@ -1340,12 +1742,9 @@ function confirmarEntregaFactura(facturaId, distribucionId) {
                                 title: r.title || 'Confirmada',
                                 text: r.text || 'La entrega ha sido confirmada como completa',
                                 confirmButtonColor: '#28a745'
+                            }).then(() => {
+                                verFacturas(distribucionId);
                             });
-                            // Recargar el modal de detalle
-                            const modalDistribucionId = $('#modalDetalleDistribucion').data('distribucion-id');
-                            if (modalDistribucionId) {
-                                verFacturas(modalDistribucionId);
-                            }
                             // Recargar la tabla principal
                             recargarTodasLasTablas(true);
                         },
@@ -1355,11 +1754,17 @@ function confirmarEntregaFactura(facturaId, distribucionId) {
                                 title: x.responseJSON?.title || 'Error',
                                 text: x.responseJSON?.text || 'No se pudo confirmar la entrega',
                                 confirmButtonColor: '#dc3545'
+                            }).then(() => {
+                                verFacturas(distribucionId);
                             });
                         }
                     });
+                } else {
+                    // Cancelado → reabrir modal
+                    verFacturas(distribucionId);
                 }
             });
+            }, 300); // fin setTimeout
         },
         error: function(x) {
             Swal.fire({

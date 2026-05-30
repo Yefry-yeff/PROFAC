@@ -6,6 +6,7 @@
 
 var clienteIdActual = null;   // se establece al crear o al cargar edición
 var modoEdicion     = false;
+var refEntradas     = [];     // lista de entradas de referencia (objetos completos)
 
 $(document).ready(function () {
     var rawId = document.getElementById('cliente_id_form').value;
@@ -25,6 +26,9 @@ $(document).ready(function () {
         mostrarAvisoRepo(true);
         toggleCreditoCampos();
     }
+
+    // Enter en campo de comentario de referencia
+
 
     // Formato moneda en campo crédito y límite referencia
     $('#cred_monto, #ref_limite_credito').on('keyup blur', function () {
@@ -87,7 +91,7 @@ function cargarMunicipiosForm() {
    ============================================================ */
 function cargarDatosCliente(id) {
     document.getElementById('form_loading_overlay').style.display = '';
-    axios.get('/clientes/form/datos/' + id)
+    axios.get('/clientes/form/datos/' + id + '?_=' + Date.now())
         .then(r => {
             var d   = r.data;
             var cli = d.datosCliente;
@@ -131,6 +135,10 @@ function cargarDatosCliente(id) {
                 $('#cred_activo').prop('checked', creditoActivo);
                 toggleCreditoCampos();
                 $('#cred_monto').val(parseFloat(cr.credito || 0).toFixed(2));
+                formatCurrencyInput($('#cred_monto'));
+                var montoDisponible = Number.isFinite(parseFloat(d.monto_disponible)) ? parseFloat(d.monto_disponible) : parseFloat(cr.credito || 0);
+                $('#cred_monto_disponible').val(montoDisponible.toFixed(2));
+                formatCurrencyInput($('#cred_monto_disponible'));
                 $('#cred_dias').val(cr.dias_credito);
                 $('#cred_fecha_vigencia').val(cr.fecha_vigencia || '');
                 $('#cred_ref_bancarias').val(cr.referencias_bancarias);
@@ -149,11 +157,11 @@ function cargarDatosCliente(id) {
 
             // Tab Comentarios Referencias
             var cli2 = d.datosCliente;
-            $('#ref_referencias').val(cli2.ref_referencias || '');
-            $('#ref_tiempo_relacion').val(cli2.ref_tiempo_relacion || '');
-            $('#ref_tiempo_credito').val(cli2.ref_tiempo_credito || '');
-            $('#ref_limite_credito').val(cli2.ref_limite_credito ? parseFloat(cli2.ref_limite_credito).toFixed(2) : '');
-            $('#ref_observaciones').val(cli2.ref_observaciones || '');
+            try {
+                var rawRefs = (cli2.ref_referencias || '').trim();
+                refEntradas = (rawRefs && rawRefs.charAt(0) === '[') ? JSON.parse(rawRefs) : [];
+            } catch(e) { refEntradas = []; }
+            renderRefEntradas();
 
             // Historial crédito
             renderHistoricoCredito(d.historicoCredito || []);
@@ -166,6 +174,7 @@ function cargarDatosCliente(id) {
 
             // Repositorio
             renderDocumentos(d.documentos || []);
+            renderDocFisico(d.doc_fisico || []);
         })
         .catch(err => {
             console.error(err);
@@ -180,8 +189,58 @@ function cargarDatosCliente(id) {
    GUARDAR DATOS PRINCIPALES (+ crear cliente si modo nuevo)
    ============================================================ */
 function guardarDatosPrincipales() {
-    var nombre = $('#dp_nombre').val().trim();
-    if (!nombre) { mostrarAlerta('warning', 'Falta', 'Ingrese el nombre del cliente.'); return; }
+    // Limpiar estado previo
+    $('.form-control').removeClass('is-invalid');
+
+    // === Tab 1: Datos Principales ===
+    var nombre   = $('#dp_nombre').val().trim();
+    var rtn      = $('#dp_rtn').val().trim();
+    var escala   = $('#dp_escala').val();
+    var tipoCli  = $('#dp_tipo_cliente').val();
+    var tipoPers = $('#dp_tipo_personalidad').val();
+    var vendedor = $('#dp_vendedor').val();
+    var errDatos = [];
+    if (!nombre)   { $('#dp_nombre').addClass('is-invalid');            errDatos.push('Nombre del Cliente'); }
+    if (!rtn)      { $('#dp_rtn').addClass('is-invalid');               errDatos.push('RTN'); }
+    if (!escala)   { $('#dp_escala').addClass('is-invalid');            errDatos.push('Categoría'); }
+    if (!tipoCli)  { $('#dp_tipo_cliente').addClass('is-invalid');      errDatos.push('Tipo de Cliente'); }
+    if (!tipoPers) { $('#dp_tipo_personalidad').addClass('is-invalid'); errDatos.push('Tipo de Personalidad'); }
+    if (!vendedor) { $('#dp_vendedor').addClass('is-invalid');          errDatos.push('Vendedor'); }
+    if (errDatos.length) {
+        $('#tab-datos-tab').tab('show');
+        mostrarAlerta('warning', 'Datos Principales incompletos', 'Complete los siguientes campos: ' + errDatos.join(', ') + '.');
+        return;
+    }
+
+    // === Tab 2: Contacto ===
+    var telEmpresa = $('#ct_telefono').val().trim();
+    var nombre1    = $('#ct_nombre1').val().trim();
+    var tel1       = $('#ct_telefono1').val().trim();
+    var errCont = [];
+    if (!telEmpresa) { $('#ct_telefono').addClass('is-invalid');  errCont.push('Teléfono Empresa'); }
+    if (!nombre1)    { $('#ct_nombre1').addClass('is-invalid');   errCont.push('Nombre Contacto 1'); }
+    if (!tel1)       { $('#ct_telefono1').addClass('is-invalid'); errCont.push('Teléfono Contacto 1'); }
+    if (errCont.length) {
+        $('#tab-contacto-tab').tab('show');
+        mostrarAlerta('warning', 'Contacto incompleto', 'Complete los siguientes campos: ' + errCont.join(', ') + '.');
+        return;
+    }
+
+    // === Tab 3: Dirección ===
+    var pais      = $('#dir_pais').val();
+    var depto     = $('#dir_depto').val();
+    var municipio = $('#dir_municipio').val();
+    var direccion = $('#dir_direccion').val().trim();
+    var errDir = [];
+    if (!pais)      { $('#dir_pais').addClass('is-invalid');      errDir.push('País'); }
+    if (!depto)     { $('#dir_depto').addClass('is-invalid');     errDir.push('Departamento'); }
+    if (!municipio) { $('#dir_municipio').addClass('is-invalid'); errDir.push('Municipio'); }
+    if (!direccion) { $('#dir_direccion').addClass('is-invalid'); errDir.push('Dirección Completa'); }
+    if (errDir.length) {
+        $('#tab-direccion-tab').tab('show');
+        mostrarAlerta('warning', 'Dirección incompleta', 'Complete los siguientes campos: ' + errDir.join(', ') + '.');
+        return;
+    }
 
     var payload = {
         _token:                    document.getElementById('csrf_token').value,
@@ -366,6 +425,11 @@ function guardarCredito() {
     axios.post('/clientes/credito/guardar', payload)
         .then(r => {
             mostrarAlerta(r.data.icon, r.data.title, r.data.text);
+            // Actualizar monto disponible con el valor recalculado por el servidor
+            if (r.data.monto_disponible !== undefined) {
+                $('#cred_monto_disponible').val(parseFloat(r.data.monto_disponible).toFixed(2));
+                formatCurrencyInput($('#cred_monto_disponible'));
+            }
             recargarHistoricoCredito();
             if (clienteIdActual) cargarHistorialCambios(clienteIdActual);
         })
@@ -485,11 +549,11 @@ function guardarReferencias() {
     var payload = {
         _token:              document.getElementById('csrf_token').value,
         cliente_id:          clienteIdActual,
-        ref_referencias:     $('#ref_referencias').val().trim(),
-        ref_tiempo_relacion: $('#ref_tiempo_relacion').val().trim(),
-        ref_tiempo_credito:  $('#ref_tiempo_credito').val().trim(),
-        ref_limite_credito:  ($('#ref_limite_credito').val() || '').replace(/,/g, ''),
-        ref_observaciones:   $('#ref_observaciones').val().trim(),
+        ref_referencias:     JSON.stringify(refEntradas),
+        ref_tiempo_relacion: '',
+        ref_tiempo_credito:  '',
+        ref_limite_credito:  null,
+        ref_observaciones:   '',
     };
     $('#btn_guardar_refs').prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i>');
     axios.post('/clientes/referencias/guardar', payload)
@@ -502,6 +566,80 @@ function guardarReferencias() {
             mostrarAlerta(d.icon || 'error', d.title || 'Error', d.text || 'Error al guardar.');
         })
         .finally(() => $('#btn_guardar_refs').prop('disabled', false).html('<i class="fa fa-save"></i> Guardar Comentarios/Referencias'));
+}
+
+/* ============================================================
+   ENTRADAS DE REFERENCIA (multi-bloque completo)
+   ============================================================ */
+function renderRefEntradas() {
+    var cont = document.getElementById('ref_entradas_list');
+    if (!cont) return;
+    if (!refEntradas.length) {
+        cont.innerHTML = '<p class="text-muted mb-0" style="font-size:.82rem">Sin referencias registradas. Use el formulario de arriba para agregar.</p>';
+        return;
+    }
+    var html = '';
+    refEntradas.forEach(function (e, i) {
+        html += '<div class="ref-entry-card">' +
+            '<div class="ref-entry-header">' +
+            '<span class="ref-entry-num">Referencia #' + (i + 1) + '</span>' +
+            '<button class="btn-ref-del" title="Eliminar" onclick="eliminarRefEntrada(' + i + ')">' +
+            '<i class="fa fa-times"></i></button>' +
+            '</div>';
+        if (e.comentario) {
+            html += '<div class="ref-entry-comentario">' + escapeHtml(e.comentario) + '</div>';
+        }
+        html += '<div class="ref-entry-fields">';
+        if (e.tiempo_relacion) {
+            html += '<div class="ref-entry-field"><span class="ref-field-label">T. Relaci\u00f3n</span>' +
+                '<span class="ref-field-val">' + escapeHtml(e.tiempo_relacion) + '</span></div>';
+        }
+        if (e.tiempo_credito) {
+            html += '<div class="ref-entry-field"><span class="ref-field-label">T. Cr\u00e9dito</span>' +
+                '<span class="ref-field-val">' + escapeHtml(e.tiempo_credito) + '</span></div>';
+        }
+        if (e.limite_credito) {
+            html += '<div class="ref-entry-field"><span class="ref-field-label">L\u00edmite</span>' +
+                '<span class="ref-field-val">L ' + escapeHtml(String(e.limite_credito)) + '</span></div>';
+        }
+        if (e.observaciones) {
+            html += '<div class="ref-entry-field"><span class="ref-field-label">Obs.</span>' +
+                '<span class="ref-field-val">' + escapeHtml(e.observaciones) + '</span></div>';
+        }
+        html += '</div></div>';
+    });
+    cont.innerHTML = html;
+}
+
+function agregarRefEntrada() {
+    var comentario    = (document.getElementById('ref_comentario_input').value    || '').trim();
+    var tRelacion     = (document.getElementById('ref_tiempo_relacion_input').value || '').trim();
+    var tCredito      = (document.getElementById('ref_tiempo_credito_input').value  || '').trim();
+    var limiteRaw     = (document.getElementById('ref_limite_credito_input').value  || '').replace(/,/g, '').trim();
+    var observaciones = (document.getElementById('ref_observaciones_input').value   || '').trim();
+    if (!comentario && !tRelacion && !tCredito && !limiteRaw && !observaciones) {
+        mostrarAlerta('warning', 'Atenci\u00f3n', 'Ingrese al menos un dato para la referencia.');
+        return;
+    }
+    refEntradas.push({
+        comentario:      comentario,
+        tiempo_relacion: tRelacion,
+        tiempo_credito:  tCredito,
+        limite_credito:  limiteRaw,
+        observaciones:   observaciones,
+    });
+    renderRefEntradas();
+    document.getElementById('ref_comentario_input').value    = '';
+    document.getElementById('ref_tiempo_relacion_input').value = '';
+    document.getElementById('ref_tiempo_credito_input').value  = '';
+    document.getElementById('ref_limite_credito_input').value  = '';
+    document.getElementById('ref_observaciones_input').value   = '';
+    document.getElementById('ref_comentario_input').focus();
+}
+
+function eliminarRefEntrada(idx) {
+    refEntradas.splice(idx, 1);
+    renderRefEntradas();
 }
 
 /* ============================================================
@@ -588,7 +726,47 @@ function subirDocumento(tipo) {
 
 function cargarRepositorioDocumentos(id) {
     axios.get('/clientes/documentos/' + id)
-        .then(r => renderDocumentos(r.data.documentos || []));
+        .then(r => {
+            renderDocumentos(r.data.documentos || []);
+            renderDocFisico(r.data.doc_fisico || []);
+        });
+}
+
+function renderDocFisico(tipos) {
+    var slugs = ['escritura_empresa','dni_representante','rtn','permiso_operacion','croquis','contrato_arrendamiento','foto_establecimiento'];
+    slugs.forEach(function (slug) {
+        var chk = document.getElementById('chk_fisico_' + slug);
+        var lbl = document.getElementById('lbl_fisico_' + slug);
+        if (!chk) return;
+        var activo = tipos.indexOf(slug) !== -1;
+        chk.checked = activo;
+        if (lbl) {
+            if (activo) lbl.classList.add('activo'); else lbl.classList.remove('activo');
+        }
+    });
+}
+
+function toggleDocFisico(slug, checkbox) {
+    if (!checkClienteCreado()) {
+        checkbox.checked = !checkbox.checked; // revert
+        return;
+    }
+    var formData = new FormData();
+    formData.append('_token',         document.getElementById('csrf_token').value);
+    formData.append('cliente_id',     clienteIdActual);
+    formData.append('tipo_documento', slug);
+
+    axios.post('/clientes/documento/fisico/toggle', formData)
+        .then(function (r) {
+            var lbl = document.getElementById('lbl_fisico_' + slug);
+            if (lbl) {
+                if (r.data.activo) lbl.classList.add('activo'); else lbl.classList.remove('activo');
+            }
+            if (clienteIdActual) cargarHistorialCambios(clienteIdActual);
+        })
+        .catch(function () {
+            checkbox.checked = !checkbox.checked; // revert on error
+        });
 }
 
 function renderDocumentos(rows) {

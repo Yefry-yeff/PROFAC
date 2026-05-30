@@ -72,6 +72,7 @@ class Editarcotizacion extends Component
                 'cliente.dias_credito',
                 'cliente_categoria_escala.nombre_categoria',
                 'cliente_categoria_escala.id as idcategoriacliente',
+                'cliente.categoria_precios_id',
             )
             ->join(
                 'cliente',
@@ -305,7 +306,7 @@ class Editarcotizacion extends Component
              $cotizacion->nombre_cliente = $request->nombre_cliente_ventas;
              $cotizacion->RTN = $request->rtn_ventas;
              $cotizacion->fecha_emision = $request->fecha_emision;
-             $cotizacion->fecha_vencimiento = $request->fecha_emision;
+             $cotizacion->fecha_vencimiento = $request->fecha_vencimiento ?: $request->fecha_emision;
              $cotizacion->sub_total = $request->subTotalGeneral;
              $cotizacion->sub_total_grabado=$request->subTotalGeneralGrabado;
              $cotizacion->sub_total_excento=$request->subTotalGeneralExcento;
@@ -320,6 +321,7 @@ class Editarcotizacion extends Component
              $cotizacion->porc_descuento = $request->porDescuento;
              $cotizacion->monto_descuento = $request->porDescuentoCalculado;
              $cotizacion->nota = $request->nota;
+             $cotizacion->tipo_pago_id = $request->tipoPagoVenta ?: null;
              $cotizacion->save();
 
 

@@ -80,7 +80,7 @@
         <button wire:click="$set('tab','pedidos')"
                 class="ofp-tab-btn {{ $tab === 'pedidos' ? 'active-ped' : '' }}">
             <i class="fa fa-shopping-cart mr-1"></i>
-            Pedidos listos para ofertar
+            Pedidos sin ofertas
             <span class="ofp-count" style="{{ $tab === 'pedidos' ? 'background:#1565c0; color:#fff;' : 'background:#e3f2fd; color:#1565c0;' }}">
                 {{ count($pedidos) }}
             </span>
@@ -93,9 +93,7 @@
                 {{ count($ofertas) }}
             </span>
         </button>
-        <div wire:loading style="display:inline-block; line-height:40px; margin-left:8px;">
-            <i class="fa fa-spinner fa-spin text-muted" style="font-size:13px;"></i>
-        </div>
+
     </div>
 
     {{-- ════════════════════════════════════════════════════════════════

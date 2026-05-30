@@ -126,7 +126,7 @@ class OfertaPedido extends Component
             $oferta->nombre_cliente    = $request->nombre_cliente_ventas;
             $oferta->RTN               = $request->rtn_ventas;
             $oferta->fecha_emision     = $request->fecha_emision;
-            $oferta->fecha_vencimiento = $request->fecha_emision;
+            $oferta->fecha_vencimiento = $request->fecha_vencimiento ?: $request->fecha_emision;
             $oferta->sub_total         = $request->subTotalGeneral;
             $oferta->sub_total_grabado = $request->subTotalGeneralGrabado;
             $oferta->sub_total_excento = $request->subTotalGeneralExcento ?? 0;
@@ -205,6 +205,7 @@ class OfertaPedido extends Component
                     'tipo_flujo_id'   => 1,
                     'identificacion'  => (string) $request->pedido_id,
                     'nombre'          => $request->nombre_cliente_ventas,
+                    'cliente_rtn'     => $request->rtn_ventas ?? null,
                     'tipo_tramite_id' => 2,
                     'created_by'    => Auth::id(),
                     'updated_by'    => Auth::id(),

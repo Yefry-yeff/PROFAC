@@ -190,6 +190,84 @@
             font-weight: 600;
             font-size: 13px;
         }
+
+        .fv-card-note {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            background: #f8fafc;
+            border: 1px solid #e6edf5;
+            border-radius: 12px;
+            padding: 14px 16px;
+            margin-bottom: 18px;
+        }
+        .fv-card-note i {
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 15px;
+        }
+        .fv-card-note strong {
+            display: block;
+            color: #243447;
+            font-size: 13px;
+            font-weight: 700;
+            margin-bottom: 2px;
+        }
+        .fv-card-note span {
+            display: block;
+            color: #6b7c8f;
+            font-size: 12px;
+            line-height: 1.45;
+        }
+        .fv-options-grid {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 18px;
+        }
+        @media (max-width: 1200px) { .fv-options-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+        @media (max-width: 768px) { .fv-options-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+        @media (max-width: 576px) { .fv-options-grid { grid-template-columns: 1fr; } }
+
+        .fv-option-card {
+            min-height: 100%;
+            border: none;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            transition: transform 0.25s ease, box-shadow 0.25s ease;
+            cursor: pointer;
+            overflow: hidden;
+            background: #fff;
+        }
+        .fv-option-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 12px 32px rgba(0,0,0,0.15);
+        }
+        .fv-option-card .card-icon-wrap {
+            padding: 18px 16px 14px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            min-height: 170px;
+        }
+        .fv-option-card .card-desc {
+            font-size: 12px;
+            color: #7c8b99;
+            line-height: 1.45;
+            margin-top: 8px;
+        }
+        .fv-option-card .card-footer-bar {
+            color: #fff;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 10px 14px;
+            text-align: center;
+        }
     </style>
 
     <div class="row wrapper border-bottom white-bg page-heading">
@@ -259,13 +337,6 @@
                     <p class="vnav-desc">Elabora y envía cotizaciones a clientes</p>
                 </div>
 
-                {{-- PREFACTURA --}}
-                <div class="vnav-item vnav-prefactura" wire:click="selectPrefactura">
-                    <div class="vnav-icon"><i class="fa fa-file-invoice"></i></div>
-                    <div class="vnav-title">Prefactura</div>
-                    <p class="vnav-desc">Genera prefactura desde oferta ganadora</p>
-                </div>
-
                 {{-- FACTURA --}}
                 <div class="vnav-item vnav-factura" wire:click="selectFactura">
                     <div class="vnav-icon"><i class="fa fa-receipt"></i></div>
@@ -297,41 +368,20 @@
                 <div class="banner-icon d-none d-md-block"><i class="fa fa-clipboard-list"></i></div>
             </div>
 
-            <div class="row justify-content-center">
+            <div class="vnav-grid" style="grid-template-columns: repeat(2, 1fr); max-width: 600px;">
 
                 {{-- Historial de Pedidos --}}
-                <div class="mb-4 col-lg-3 col-md-4 col-sm-6">
-                    <div class="flujo-card ibox" style="border-top:4px solid transparent; cursor:pointer;"
-                         onmouseover="this.style.borderTopColor='#1a73e8';this.style.transform='translateY(-6px)';"
-                         onmouseout="this.style.borderTopColor='transparent';this.style.transform='';"
-                         wire:click="selectHistorialPedidos">
-                        <div class="card-icon-wrap">
-                            <div class="icon-circle" style="background:rgba(26,115,232,0.12); color:#1a73e8;">
-                                <i class="fa fa-history"></i>
-                            </div>
-                            <div class="card-label">Historial de Pedidos</div>
-                            <div class="card-desc">Consulta todos los pedidos, genera ofertas o anula</div>
-                        </div>
-                        <div class="card-footer-bar" style="background:#1a73e8;">
-                            <i class="mr-1 fa fa-arrow-right"></i> Ver Historial
-                        </div>
-                    </div>
+                <div class="vnav-item vnav-historial" wire:click="selectHistorialPedidos">
+                    <div class="vnav-icon"><i class="fa fa-history"></i></div>
+                    <div class="vnav-title">Historial de Pedidos</div>
+                    <p class="vnav-desc">Consulta todos los pedidos, genera ofertas o anula</p>
                 </div>
 
                 {{-- Ingresar Pedido --}}
-                <div class="mb-4 col-lg-3 col-md-4 col-sm-6">
-                    <div class="flujo-card flujo-pedido ibox" wire:click="selectIngresarPedido">
-                        <div class="card-icon-wrap">
-                            <div class="icon-circle">
-                                <i class="fa fa-plus-circle"></i>
-                            </div>
-                            <div class="card-label">Ingresar Pedido</div>
-                            <div class="card-desc">Registra un nuevo pedido de cliente</div>
-                        </div>
-                        <div class="card-footer-bar">
-                            <i class="mr-1 fa fa-arrow-right"></i> Nuevo Pedido
-                        </div>
-                    </div>
+                <div class="vnav-item vnav-pedido" wire:click="selectIngresarPedido">
+                    <div class="vnav-icon"><i class="fa fa-plus-circle"></i></div>
+                    <div class="vnav-title">Ingresar Pedido</div>
+                    <p class="vnav-desc">Registra un nuevo pedido de cliente</p>
                 </div>
 
             </div>
@@ -415,27 +465,55 @@
                 </div>
             </div>
 
-            {{-- Prefacturas pendientes de convertir a factura --}}
+            {{-- Prefacturas pendientes de convertir a factura (oculto) --}}
+            {{-- 
             <div class="mb-4 ibox" style="border-radius:16px; overflow:hidden; box-shadow:0 4px 20px rgba(0,0,0,.07);">
-                <div class="ibox-title" style="background:linear-gradient(135deg,#e65100,#f9a826); border:none; padding:14px 22px;">
+                <div class="ibox-title d-flex align-items-center justify-content-between"
+                     style="background:linear-gradient(135deg,#e65100,#f9a826); border:none; padding:14px 22px;">
                     <h5 style="color:#fff; margin:0; font-weight:700;">
                         <i class="mr-2 fa fa-file-invoice"></i> Prefacturas listas para facturar
                     </h5>
+                    <span style="background:rgba(255,255,255,.18); color:#fff; border-radius:20px; padding:4px 12px; font-size:11px; font-weight:700;">
+                        Ofertas ganadoras en prefactura
+                    </span>
                 </div>
                 <div class="ibox-content" style="padding:20px 24px;">
+                    <div class="fv-card-note">
+                        <i class="fa fa-check-circle" style="background:#fff3e0; color:#e65100;"></i>
+                        <div>
+                            <strong>Facturación desde prefactura</strong>
+                            <span>Seleccione una prefactura para abrir el flujo de facturación con cliente, productos, precios y totales ya cargados en el componente actual.</span>
+                        </div>
+                    </div>
                     <livewire:flujo.listar-prefacturas-para-factura />
                 </div>
             </div>
+            --}}
 
-            <h5 style="color:#546e7a; font-weight:700; margin-bottom:16px; text-align:center;">
-                <i class="mr-2 fa fa-plus-circle"></i> — O crea una factura nueva —
-            </h5>
+            <div class="ibox" style="border-radius:16px; overflow:hidden; box-shadow:0 4px 20px rgba(0,0,0,.07);">
+                <div class="ibox-title d-flex align-items-center justify-content-between"
+                     style="background:linear-gradient(135deg,#1565c0,#1a73e8); border:none; padding:14px 22px;">
+                    <h5 style="color:#fff; margin:0; font-weight:700;">
+                        <i class="mr-2 fa fa-plus-circle"></i> Facturar
+                    </h5>
+                    <span style="background:rgba(255,255,255,.18); color:#fff; border-radius:20px; padding:4px 12px; font-size:11px; font-weight:700;">
+                        Crear factura desde cero
+                    </span>
+                </div>
+                <div class="ibox-content" style="padding:20px 24px;">
+                    <div class="fv-card-note">
+                        <i class="fa fa-receipt" style="background:#e3f2fd; color:#1565c0;"></i>
+                        <div>
+                            <strong>Facturación manual</strong>
+                            <span>Elija el tipo de factura para crear una nueva venta con selección de cliente, productos, cantidades, precios y totales, manteniendo el flujo actual del sistema.</span>
+                        </div>
+                    </div>
 
-            <div class="row justify-content-center">
+                    <div class="fv-options-grid">
 
                 {{-- CLIENTES A --}}
-                <div class="mb-4 col-lg-3 col-md-4 col-sm-6">
-                    <div class="flujo-card flujo-ca ibox" wire:click="selectFacturaSubtype('clientes_a')">
+                <div>
+                    <div class="fv-option-card flujo-ca" wire:click="selectFacturaSubtype('clientes_a')">
                         <div class="card-icon-wrap">
                             <div class="icon-circle">
                                 <i class="fa fa-user-tie"></i>
@@ -450,8 +528,8 @@
                 </div>
 
                 {{-- CLIENTES B --}}
-                <div class="mb-4 col-lg-3 col-md-4 col-sm-6">
-                    <div class="flujo-card flujo-cb ibox" wire:click="selectFacturaSubtype('clientes_b')">
+                <div>
+                    <div class="fv-option-card flujo-cb" wire:click="selectFacturaSubtype('clientes_b')">
                         <div class="card-icon-wrap">
                             <div class="icon-circle">
                                 <i class="fa fa-users"></i>
@@ -466,8 +544,8 @@
                 </div>
 
                 {{-- SR / CLIENTES A --}}
-                <div class="mb-4 col-lg-3 col-md-4 col-sm-6">
-                    <div class="flujo-card flujo-sra ibox" wire:click="selectFacturaSubtype('sr_clientes_a')">
+                <div>
+                    <div class="fv-option-card flujo-sra" wire:click="selectFacturaSubtype('sr_clientes_a')">
                         <div class="card-icon-wrap">
                             <div class="icon-circle">
                                 <i class="fa fa-shield-alt"></i>
@@ -482,8 +560,8 @@
                 </div>
 
                 {{-- SR / CLIENTES B --}}
-                <div class="mb-4 col-lg-3 col-md-4 col-sm-6">
-                    <div class="flujo-card flujo-srb ibox" wire:click="selectFacturaSubtype('sr_clientes_b')">
+                <div>
+                    <div class="fv-option-card flujo-srb" wire:click="selectFacturaSubtype('sr_clientes_b')">
                         <div class="card-icon-wrap">
                             <div class="icon-circle">
                                 <i class="fa fa-lock-open"></i>
@@ -498,8 +576,8 @@
                 </div>
 
                 {{-- EXONERADA --}}
-                <div class="mb-4 col-lg-3 col-md-4 col-sm-6">
-                    <div class="flujo-card flujo-exonerada ibox" wire:click="selectFacturaSubtype('exonerada')">
+                <div>
+                    <div class="fv-option-card flujo-exonerada" wire:click="selectFacturaSubtype('exonerada')">
                         <div class="card-icon-wrap">
                             <div class="icon-circle">
                                 <i class="fa fa-file-invoice"></i>
@@ -513,6 +591,8 @@
                     </div>
                 </div>
 
+                    </div>
+                </div>
             </div>
 
         @endif

@@ -55,11 +55,9 @@
       </div>
     </div>
 
-    {{-- ══════════════════════════════════════════════════════════════════
-         WIDGETS DEL DASHBOARD (métricas, gráficos, tablas)
-    ══════════════════════════════════════════════════════════════════ --}}
-    <div style="margin-top:24px;">
-        @livewire('usuarios.dashboard', ['showConfigPanel' => false])
+    {{-- ══ Dashboard Comercial ══ --}}
+    <div style="margin-top:28px;">
+        @livewire('dashboard.dashboard-comercial')
     </div>
   </div>
 

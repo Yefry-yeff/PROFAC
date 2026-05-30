@@ -198,6 +198,41 @@
 .dataTables_wrapper { width: 100% !important; }
 #tablaRoles { width: 100% !important; }
 
+/* -- Reporte de Accesos -- */
+.rpt-rol-card {
+    border: 1px solid #e8d5bf;
+    border-radius: 7px;
+    overflow: hidden;
+}
+.rpt-rol-header {
+    background: #fdf4e7;
+    padding: 9px 14px;
+    border-bottom: 1px solid #e8d5bf;
+    user-select: none;
+}
+.rpt-rol-header:hover { background: #fce8cc; }
+.rpt-rol-body { padding: 10px 14px; }
+.rpt-menu-label {
+    font-size: .72rem;
+    font-weight: 700;
+    color: #7d3f00;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    margin-bottom: 5px;
+}
+.rpt-submenu-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 4px; }
+.rpt-chip {
+    background: #fff8ee;
+    border: 1px solid #f2d49a;
+    border-radius: 12px;
+    padding: 2px 10px;
+    font-size: .75rem;
+    color: #555;
+    white-space: nowrap;
+}
+.rpt-chip:hover { background: #fde8b0; }
+#reporteAccesosBuscar:focus { border-color: #e67e22; box-shadow: 0 0 0 .18rem rgba(230,126,34,.2); }
+
 /* -- Responsive -- */
 @media (max-width: 767px) {
     .roles-card-body { padding: 10px; }
@@ -250,9 +285,17 @@
 
                     <div class="roles-card-header">
                         <h5><i class="fa fa-shield"></i> Roles del Sistema</h5>
-                        <button type="button" class="btn btn-roles-new" onclick="abrirModalRol()">
-                            <i class="fa fa-plus mr-1"></i> Nuevo Rol
-                        </button>
+                        <div class="d-flex" style="gap:8px">
+                            <button type="button" class="btn btn-roles-new" onclick="abrirReporteUsuarios()" style="background:rgba(255,255,255,.12)!important">
+                                <i class="fa fa-users mr-1"></i> Usuarios por Rol
+                            </button>
+                            <button type="button" class="btn btn-roles-new" onclick="abrirReporteAccesos()" style="background:rgba(255,255,255,.12)!important">
+                                <i class="fa fa-list-alt mr-1"></i> Accesos por Rol
+                            </button>
+                            <button type="button" class="btn btn-roles-new" onclick="abrirModalRol()">
+                                <i class="fa fa-plus mr-1"></i> Nuevo Rol
+                            </button>
+                        </div>
                     </div>
 
                     <div class="roles-card-body">
@@ -537,6 +580,110 @@
                     <button type="button" class="btn btn-warning btn-sm"
                             onclick="event.stopPropagation(); confirmarQuitarPermisoDelRol(); return false;">
                         <i class="fa fa-check mr-1"></i>Sí, quitar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Reporte de Accesos -->
+    <div class="modal fade" id="modalReporteAccesos" tabindex="-1" role="dialog" aria-labelledby="tituloReporteAccesos" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable" role="document">
+            <div class="modal-content">
+                <div class="modal-header" style="background:linear-gradient(135deg,#f39c12 0%,#e05a00 100%);color:#fff">
+                    <h5 class="modal-title" id="tituloReporteAccesos" style="font-size:.87rem;font-weight:700">
+                        <i class="fa fa-list-alt mr-2"></i>Reporte de Accesos por Rol
+                    </h5>
+                    <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
+                </div>
+                <div class="modal-body p-0">
+                    <!-- Barra de búsqueda y stats -->
+                    <div class="px-3 pt-3 pb-2 border-bottom" style="background:#fdf9f4">
+                        <div class="d-flex align-items-center" style="gap:10px;flex-wrap:wrap">
+                            <div class="flex-grow-1">
+                                <div class="input-group input-group-sm">
+                                    <div class="input-group-prepend">
+                                        <span class="input-group-text" style="background:#fff"><i class="fa fa-search text-muted"></i></span>
+                                    </div>
+                                    <input type="text" id="reporteAccesosBuscar" class="form-control form-control-sm"
+                                           placeholder="Buscar por rol, menú o submenú…">
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-center" style="gap:8px;white-space:nowrap">
+                                <span class="badge" style="background:#fdf4e7;color:#7d3f00;border:1px solid #e8d5bf;border-radius:10px;padding:4px 10px;font-size:.75rem">
+                                    <i class="fa fa-shield mr-1"></i>
+                                    <span id="reporteAccesosTotalRoles">-</span> roles
+                                </span>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="window.location.href='/roles/reporte-accesos/excel'" style="font-size:.75rem">
+                                    <i class="fa fa-file-excel-o mr-1"></i>Descargar Excel
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Cuerpo del reporte -->
+                    <div id="reporteAccesosCuerpo" style="padding:14px;max-height:62vh;overflow-y:auto">
+                        <div class="text-center py-5">
+                            <div class="spinner-border text-warning" role="status"></div>
+                            <p class="mt-2 text-muted small">Cargando…</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer py-2">
+                    <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">
+                        <i class="fa fa-times mr-1"></i>Cerrar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Reporte Usuarios por Rol -->
+    <div class="modal fade" id="modalReporteUsuarios" tabindex="-1" role="dialog" aria-labelledby="tituloReporteUsuarios" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable" role="document">
+            <div class="modal-content">
+                <div class="modal-header" style="background:linear-gradient(135deg,#f39c12 0%,#e05a00 100%);color:#fff">
+                    <h5 class="modal-title" id="tituloReporteUsuarios" style="font-size:.87rem;font-weight:700">
+                        <i class="fa fa-users mr-2"></i>Usuarios Activos por Rol
+                    </h5>
+                    <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
+                </div>
+                <div class="modal-body p-0">
+                    <div class="px-3 pt-3 pb-2 border-bottom" style="background:#fdf9f4">
+                        <div class="d-flex align-items-center" style="gap:10px;flex-wrap:wrap">
+                            <div class="flex-grow-1">
+                                <div class="input-group input-group-sm">
+                                    <div class="input-group-prepend">
+                                        <span class="input-group-text" style="background:#fff"><i class="fa fa-search text-muted"></i></span>
+                                    </div>
+                                    <input type="text" id="reporteUsuariosBuscar" class="form-control form-control-sm"
+                                           placeholder="Buscar por rol, nombre o correo&hellip;">
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-center" style="gap:8px;white-space:nowrap">
+                                <span class="badge" style="background:#fdf4e7;color:#7d3f00;border:1px solid #e8d5bf;border-radius:10px;padding:4px 10px;font-size:.75rem">
+                                    <i class="fa fa-users mr-1"></i>
+                                    <span id="reporteUsuariosTotalUsuarios">-</span> usuarios
+                                </span>
+                                <span class="badge" style="background:#fdf4e7;color:#7d3f00;border:1px solid #e8d5bf;border-radius:10px;padding:4px 10px;font-size:.75rem">
+                                    <i class="fa fa-shield mr-1"></i>
+                                    <span id="reporteUsuariosTotalRoles">-</span> roles
+                                </span>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="window.location.href='/roles/reporte-usuarios/excel'" style="font-size:.75rem">
+                                    <i class="fa fa-file-excel-o mr-1"></i>Descargar Excel
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="reporteUsuariosCuerpo" style="padding:14px;max-height:62vh;overflow-y:auto">
+                        <div class="text-center py-5">
+                            <div class="spinner-border text-warning" role="status"></div>
+                            <p class="mt-2 text-muted small">Cargando&hellip;</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer py-2">
+                    <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">
+                        <i class="fa fa-times mr-1"></i>Cerrar
                     </button>
                 </div>
             </div>

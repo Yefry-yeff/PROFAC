@@ -18,6 +18,7 @@ use App\Models\ModelCliente;
 use App\Models\ModelContacto;
 use App\Models\logCredito;
 use App\Models\ClienteCredito;
+use App\Services\CreditoService;
 use App\Models\ClienteObservacion;
 use App\Models\ClienteDocumento;
 
@@ -43,7 +44,9 @@ class Cliente extends Component
         order by name ASC
         ");
 
-        return view('livewire.clientes.cliente',compact('clientes'));
+        $metodosPago = DB::select("SELECT id, descripcion FROM tipo_pago_cobro ORDER BY descripcion ASC");
+
+        return view('livewire.clientes.cliente', compact('clientes', 'metodosPago'));
     }
 
     public function opbtenerPais(){
@@ -109,6 +112,32 @@ class Cliente extends Component
     }
 
     public function guardarCliente(Request $request){
+        $validator = Validator::make($request->all(), [
+            'correo_cliente' => 'required|email',
+        ], [
+            'correo_cliente.required' => 'El correo del cliente es obligatorio.',
+            'correo_cliente.email' => 'El correo del cliente no tiene un formato valido.',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'icon' => 'warning',
+                'title' => 'Validacion',
+                'text' => $validator->errors()->first(),
+            ], 422);
+        }
+
+        // Verificar RTN duplicado antes de cualquier operación
+        $rtnNuevo = trim($request->rtn_cliente ?? '');
+        if ($rtnNuevo !== '' && ModelCliente::where('rtn', $rtnNuevo)->exists()) {
+            return response()->json([
+                'icon'  => 'warning',
+                'title' => 'RTN duplicado',
+                'text'  => 'Ya existe un cliente registrado con el RTN "' . $rtnNuevo . '". Verifique el número e intente de nuevo.',
+                'type'  => 'rtn_duplicado',
+            ], 422);
+        }
+
        try {
 
        DB::beginTransaction();
@@ -148,6 +177,9 @@ class Cliente extends Component
             $cliente->estado_cliente_id = 1;
             $cliente->municipio_id = $request->municipio_cliente;
             $cliente->cliente_categoria_escala_id = $request->cliente_categoria_escala_id_crear;
+            $cliente->ano_operacion           = $request->ano_operacion ?? null;
+            $cliente->dni_representante_legal = trim($request->dni_representante_legal ?? '');
+            $cliente->metodo_pago             = trim($request->metodo_pago ?? '');
             $cliente->save();
 
 
@@ -195,6 +227,9 @@ class Cliente extends Component
                 $cliente->municipio_id = $request->municipio_cliente;
 
             $cliente->cliente_categoria_escala_id = $request->cliente_categoria_escala_id_crear;
+                $cliente->ano_operacion           = $request->ano_operacion ?? null;
+                $cliente->dni_representante_legal = trim($request->dni_representante_legal ?? '');
+                $cliente->metodo_pago             = trim($request->metodo_pago ?? '');
                 $cliente->save();
 
 
@@ -271,55 +306,33 @@ class Cliente extends Component
             return Datatables::of($clientes)
             ->addColumn('opciones', function ($cliente) {
 
-                if($cliente->estado_cliente_id == 1){
-                    return
-                    '<div class="btn-group">
-                        <button data-toggle="dropdown" class="btn btn-warning dropdown-toggle" aria-expanded="false">Ver
-                            más</button>
-                        <ul class="dropdown-menu" x-placement="bottom-start" style="position: absolute; top: 33px; left: 0px; will-change: top, left;">
+                $activarDesactivar = $cliente->estado_cliente_id == 1
+                    ? '<a class="dropdown-item" onclick="desactivarClienteModal('.$cliente->idCliente.')"><i class="fa fa-times text-danger mr-2"></i>Desactivar</a>'
+                    : '<a class="dropdown-item" onclick="activarCliente('.$cliente->idCliente.')"><i class="fa fa-check-circle text-success mr-2"></i>Activar</a>';
 
-                            <li>
-                                <a class="dropdown-item" href="/clientes/form/'.$cliente->idCliente.'" > <i class="fa fa-pencil m-r-5 text-warning"></i> Editar Cliente </a>
-                                <a class="dropdown-item" onclick="modalEditarFotografia('.$cliente->idCliente.')" > <i class="fa-solid fa-camera  m-r-5 text-success"></i> Cambiar Fotografia del cliente </a>
-                                <a class="dropdown-item" onclick="desactivarClienteModal('.$cliente->idCliente.')" > <i class="fa fa-times text-danger" aria-hidden="true"></i> Desactivar Cliente </a>
-
-                            </li>
-
-
-
-                        </ul>
-                    </div>';
-                }else{
-                    return
-                    '<div class="btn-group">
-                        <button data-toggle="dropdown" class="btn btn-warning dropdown-toggle" aria-expanded="false">Ver
-                            más</button>
-                        <ul class="dropdown-menu" x-placement="bottom-start" style="position: absolute; top: 33px; left: 0px; will-change: top, left;">
-
-                            <li>
-                                <a class="dropdown-item" href="/clientes/form/'.$cliente->idCliente.'" > <i class="fa fa-pencil m-r-5 text-warning"></i> Editar Cliente </a>
-                                <a class="dropdown-item" onclick="modalEditarFotografia('.$cliente->idCliente.')" > <i class="fa-solid fa-camera  m-r-5 text-success"></i> Cambiar Fotografia del cliente </a>
-                                <a class="dropdown-item" onclick="activarCliente('.$cliente->idCliente.')" > <i class="fa fa-check-circle text-info" aria-hidden="true"></i> Activar Cliente </a>
-
-                            </li>
-
-
-
-                        </ul>
-                    </div>';
-
-                }
-
-
+                return
+                '<div class="cli-dropdown dropdown">
+                    <button class="btn-cli-menu" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        <i class="fa fa-ellipsis-v"></i>
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-right">
+                        <a class="dropdown-item" href="/clientes/form/'.$cliente->idCliente.'">
+                            <i class="fa fa-pencil text-warning mr-2"></i>Editar cliente
+                        </a>
+                        <a class="dropdown-item" onclick="modalEditarFotografia('.$cliente->idCliente.')">
+                            <i class="fa fa-camera text-info mr-2"></i>Cambiar fotografía
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        '.$activarDesactivar.'
+                    </div>
+                </div>';
             })
             ->addColumn('estado', function ($cliente) {
                 if ($cliente->estado_cliente_id === 1) {
-                    return '<td><span class="badge bg-primary">ACTIVO</span></td>';
+                    return '<span class="badge badge-activo">ACTIVO</span>';
                 } else {
-
-                    return '<td><span class="badge bg-danger">INACTIVO</span></td>';
+                    return '<span class="badge badge-inactivo">INACTIVO</span>';
                 }
-
             })
             ->rawColumns(['opciones','estado'])
             ->make(true);
@@ -695,10 +708,10 @@ class Cliente extends Component
 
             // Leer el archivo y generar preview
             $data = \Maatwebsite\Excel\Facades\Excel::toCollection(new \App\Imports\Escalas\ClientesCategoriaMasivaImport(), $fullPath);
-            
+
             $paraActualizar = [];
             $noActualizables = [];
-            
+
             foreach ($data[0] as $rawRow) {
                 // Normalizar llaves
                 $norm = [];
@@ -716,7 +729,7 @@ class Cliente extends Component
 
                 $idCliente = $row->get('id');
                 $nuevaCat = $row->get('nueva_categoria_id');
-                
+
                 if ($nuevaCat === null || $nuevaCat === '') {
                     $nuevaCat = $row->get('cliente_categoria_escala_id');
                 }
@@ -731,7 +744,7 @@ class Cliente extends Component
 
                 // Validaciones
                 $error = null;
-                
+
                 if (!is_numeric((string)$idCliente) || !is_numeric((string)$nuevaCat)) {
                     $error = 'Valores no numéricos';
                 } else {
@@ -741,7 +754,7 @@ class Cliente extends Component
                     } else {
                         // Verificar si la categoría existe y está activa
                         $categoriaInfo = DB::selectOne("SELECT id, nombre_categoria, estado_id FROM cliente_categoria_escala WHERE id = ?", [(int)$nuevaCat]);
-                        
+
                         if (!$categoriaInfo) {
                             $error = 'Categoría no existe';
                         } elseif ($categoriaInfo->estado_id == 2) {
@@ -749,13 +762,13 @@ class Cliente extends Component
                         } else {
                             $old = (int)($cliente->cliente_categoria_escala_id ?? 0);
                             $new = (int)$nuevaCat;
-                            
+
                             if ($old === $new) {
                                 $error = 'Categoría sin cambios';
                             } else {
                                 // Obtener nombre de categoría antigua
                                 $categoriaAntigua = DB::selectOne("SELECT nombre_categoria FROM cliente_categoria_escala WHERE id = ?", [$old]);
-                                
+
                                 $paraActualizar[] = [
                                     'id' => $cliente->id,
                                     'nombre' => $cliente->nombre,
@@ -769,7 +782,7 @@ class Cliente extends Component
                         }
                     }
                 }
-                
+
                 if ($error) {
                     $noActualizables[] = [
                         'id' => $idCliente ?? 'N/A',
@@ -812,6 +825,7 @@ class Cliente extends Component
 
         $cats = \DB::table('cliente_categoria_escala')
             ->select('id', 'nombre_categoria')
+            ->where('estado_id', 1)
             ->when($q !== '', function ($qq) use ($q) {
                 $qq->where('nombre_categoria', 'like', '%'.$q.'%');
             })
@@ -827,7 +841,7 @@ class Cliente extends Component
         try {
             // Obtener el archivo previamente procesado de la sesión
             $storedPath = session('preview_categorias_file');
-            
+
             if (!$storedPath) {
                 return response()->json([
                     'icon'  => 'warning',
@@ -861,11 +875,11 @@ class Cliente extends Component
             // USAR toCollection CON LA MISMA CLASE DEL PREVIEW
             // Esto asegura que la lectura sea idéntica al preview (usa WithHeadingRow)
             $data = \Maatwebsite\Excel\Facades\Excel::toCollection(new \App\Imports\Escalas\ClientesCategoriaMasivaImport(), $fullPath);
-            
+
             $actualizados = 0;
             $saltados = 0;
             $errores = [];
-            
+
             foreach ($data[0] as $rawRow) {
                 // Normalizar llaves (igual que en el preview)
                 $norm = [];
@@ -882,7 +896,7 @@ class Cliente extends Component
                 $row = collect($norm);
 
                 $idCliente = $row->get('id');
-                
+
                 // Buscar nueva categoría en múltiples campos posibles (igual que preview)
                 $nuevaCat = $row->get('nueva_categoria_id');
                 if ($nuevaCat === null || $nuevaCat === '') {
@@ -915,13 +929,13 @@ class Cliente extends Component
 
                     // Verificar que la categoría exista y esté activa
                     $categoriaInfo = DB::selectOne("SELECT id, nombre_categoria, estado_id FROM cliente_categoria_escala WHERE id = ?", [(int)$nuevaCat]);
-                    
+
                     if (!$categoriaInfo) {
                         $errores[] = "Cliente ID {$idCliente}: Categoría {$nuevaCat} no existe";
                         \DB::rollBack();
                         continue;
                     }
-                    
+
                     if ($categoriaInfo->estado_id == 2) {
                         $errores[] = "Cliente ID {$idCliente}: Categoría inactiva";
                         \DB::rollBack();
@@ -962,7 +976,7 @@ class Cliente extends Component
 
             // Limpiar la sesión
             session()->forget('preview_categorias_file');
-            
+
             // Eliminar el archivo temporal
             if (file_exists($fullPath)) {
                 @unlink($fullPath);
@@ -984,8 +998,8 @@ class Cliente extends Component
 
             // Mensajes específicos según el error
             $userMessage = 'Ocurrió un problema al procesar el archivo.';
-            
-            if (strpos($msg, 'Document is empty') !== false || 
+
+            if (strpos($msg, 'Document is empty') !== false ||
                 strpos($msg, 'simplexml_load_string') !== false) {
                 $userMessage = 'El archivo Excel está vacío o corrupto. Verificá que el archivo contenga datos válidos.';
             } elseif (strpos($msg, 'parse error') !== false) {
@@ -1052,6 +1066,12 @@ class Cliente extends Component
 
             $documentos = DB::select("SELECT * FROM cliente_documentos WHERE cliente_id = ? ORDER BY tipo_documento ASC, id DESC", [$id]);
 
+            /* Tipos de documento marcados como "tiene físico" */
+            $docFisico = DB::select("SELECT tipo_documento FROM cliente_doc_fisico WHERE cliente_id = ?", [$id]);
+            $docFisicoList = array_column((array)$docFisico, 'tipo_documento');
+
+            $montoDisponible = CreditoService::calcularDisponible((int)$id, (float)($datosCliente->credito_inicial ?? 0));
+
             return response()->json([
                 'datosCliente'     => $datosCliente,
                 'contactos'        => $contactos,
@@ -1067,7 +1087,12 @@ class Cliente extends Component
                 'historicoCredito' => $historicoCredito,
                 'observaciones'    => $observaciones,
                 'documentos'       => $documentos,
-            ], 200);
+                'doc_fisico'       => $docFisicoList,
+                'monto_disponible' => $montoDisponible,
+            ], 200)
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+            ->header('Pragma', 'no-cache')
+            ->header('Expires', '0');
         } catch (QueryException $e) {
             return response()->json(['message' => 'Error', 'error' => $e->getMessage()], 500);
         }
@@ -1078,6 +1103,21 @@ class Cliente extends Component
      */
     public function crearClienteCompleto(Request $request)
     {
+        $validator = Validator::make($request->all(), [
+            'correo' => 'required|email',
+        ], [
+            'correo.required' => 'El correo del cliente es obligatorio.',
+            'correo.email' => 'El correo del cliente no tiene un formato valido.',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'icon'  => 'warning',
+                'title' => 'Validacion',
+                'text'  => $validator->errors()->first(),
+            ], 422);
+        }
+
         try {
             DB::beginTransaction();
 
@@ -1239,7 +1279,6 @@ class Cliente extends Component
             // Actualizar crédito en tabla cliente
             $cliente = ModelCliente::findOrFail($id);
             $credito = str_replace(',', '', $request->credito ?? '0');
-            $cliente->credito         = $credito;
             $cliente->credito_inicial = $credito;
             $cliente->dias_credito    = $request->dias_credito ?? $cliente->dias_credito;
             $cliente->vendedor        = $request->vendedor_id ?? $cliente->vendedor;
@@ -1266,9 +1305,12 @@ class Cliente extends Component
                 'users_id'               => Auth::user()->id,
             ]);
 
+            // Recalcular monto disponible con el nuevo límite y persistir en cliente.credito
+            $montoDisponible = CreditoService::actualizarDisponible((int)$id, (float)$credito);
+
             DB::commit();
             try { $this->logHistorial($id, 'Crédito actualizado', 'Monto: L ' . number_format((float)$credito, 2) . ' | Días: ' . ($request->dias_credito ?? 0)); } catch (\Throwable $e) {}
-            return response()->json(['icon' => 'success', 'title' => 'Éxito', 'text' => 'Crédito actualizado con éxito.'], 200);
+            return response()->json(['icon' => 'success', 'title' => 'Éxito', 'text' => 'Crédito actualizado con éxito.', 'monto_disponible' => $montoDisponible], 200);
 
         } catch (QueryException $e) {
             DB::rollBack();
@@ -1394,9 +1436,52 @@ class Cliente extends Component
      */
     public function listarDocumentos(Request $request)
     {
-        $id   = $request->route('id');
-        $rows = DB::select("SELECT * FROM cliente_documentos WHERE cliente_id = ? ORDER BY tipo_documento ASC, id DESC", [$id]);
-        return response()->json(['documentos' => $rows], 200);
+        $id      = $request->route('id');
+        $rows    = DB::select("SELECT * FROM cliente_documentos WHERE cliente_id = ? ORDER BY tipo_documento ASC, id DESC", [$id]);
+        $fisico  = DB::select("SELECT tipo_documento FROM cliente_doc_fisico WHERE cliente_id = ?", [$id]);
+        return response()->json([
+            'documentos' => $rows,
+            'doc_fisico' => array_column((array)$fisico, 'tipo_documento'),
+        ], 200);
+    }
+
+    /**
+     * POST /clientes/documento/fisico/toggle
+     * Marca o desmarca un tipo de documento como "tiene físico sin digital"
+     */
+    public function toggleDocFisico(Request $request)
+    {
+        try {
+            $clienteId = (int)$request->cliente_id;
+            $tipo      = $request->tipo_documento;
+            $tiposPermitidos = array_keys(ClienteDocumento::$tipos);
+
+            if (!$clienteId || !in_array($tipo, $tiposPermitidos, true)) {
+                return response()->json(['icon' => 'error', 'title' => 'Error', 'text' => 'Datos inválidos.'], 422);
+            }
+
+            $exists = DB::selectOne(
+                "SELECT id FROM cliente_doc_fisico WHERE cliente_id = ? AND tipo_documento = ?",
+                [$clienteId, $tipo]
+            );
+
+            if ($exists) {
+                DB::delete("DELETE FROM cliente_doc_fisico WHERE cliente_id = ? AND tipo_documento = ?", [$clienteId, $tipo]);
+                $activo = false;
+                try { $this->logHistorial($clienteId, 'Documento físico desmarcado', ClienteDocumento::$tipos[$tipo] ?? $tipo); } catch (\Throwable $e) {}
+            } else {
+                DB::insert(
+                    "INSERT INTO cliente_doc_fisico (cliente_id, tipo_documento, created_at, updated_at) VALUES (?, ?, NOW(), NOW())",
+                    [$clienteId, $tipo]
+                );
+                $activo = true;
+                try { $this->logHistorial($clienteId, 'Documento físico marcado', ClienteDocumento::$tipos[$tipo] ?? $tipo); } catch (\Throwable $e) {}
+            }
+
+            return response()->json(['activo' => $activo], 200);
+        } catch (\Exception $e) {
+            return response()->json(['icon' => 'error', 'title' => 'Error', 'text' => 'Error al guardar.'], 500);
+        }
     }
 
     /**

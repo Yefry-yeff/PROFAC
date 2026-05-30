@@ -292,14 +292,16 @@ function obtenerImagenes() {
 function cargarCategoriasProducto() {
     let productoId = $('#seleccionarProducto').val();
     let clienteId = $('#seleccionarCliente').val();
+    let categoriaEscalaId = $('#categoria_cliente_venta_id').data('categoria-cliente-id') || null;
 
     if (productoId) {
         // Limpiar categoría mientras se carga
         $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>Cargando categorías...</option>');
 
-        // Cargar categorías del producto
+        // Cargar categorías del producto filtradas por la categoría del cliente
         axios.post('/producto/categorias-disponibles', {
-            producto_id: productoId
+            producto_id: productoId,
+            cliente_categoria_escala_id: categoriaEscalaId
         })
         .then(response => {
             let categorias = response.data.categorias;
@@ -307,17 +309,14 @@ function cargarCategoriasProducto() {
             if (categorias.length > 0) {
                 $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>--Seleccione una categoría--</option>');
 
-                // Si hay un cliente seleccionado, obtener su categoría
-                let categoriaClienteId = null;
-                if (clienteId) {
-                    categoriaClienteId = $('#categoria_cliente_venta_id').data('categoria-cliente-id');
-                }
-
                 // Ordenar categorías por precio_a de mayor a menor
                 categorias.sort((a, b) => (parseFloat(b.precio_a) || 0) - (parseFloat(a.precio_a) || 0));
 
-                // Mostrar todas las categorías disponibles con precio
-                categorias.forEach(categoria => {
+                // Usar el tier específico del cliente si existe, si no el de mayor precio
+                let categoriaPrecioId = $('#categoria_cliente_venta_id').data('categoria-precio-id') || null;
+                let haySeleccionada = false;
+
+                categorias.forEach((categoria, index) => {
                     let precio = parseFloat(categoria.precio_a) || 0;
                     let precioFormateado = new Intl.NumberFormat('es-HN', {
                         style: 'currency',
@@ -325,10 +324,18 @@ function cargarCategoriasProducto() {
                         minimumFractionDigits: 2,
                     }).format(precio);
                     let textoOpcion = `${categoria.nombre_categoria} - ${precioFormateado}`;
-                    let isSelected = (categoriaClienteId && categoria.id == categoriaClienteId);
+                    let isSelected = categoriaPrecioId
+                        ? (categoria.id == categoriaPrecioId)
+                        : (index === 0);
+                    if (isSelected) haySeleccionada = true;
                     let option = new Option(textoOpcion, categoria.id, isSelected, isSelected);
                     $('#categoria_cliente_venta_id').append(option);
                 });
+
+                // Si el tier del cliente no estaba en la lista, seleccionar el primero
+                if (!haySeleccionada && categorias.length > 0) {
+                    $('#categoria_cliente_venta_id option:nth-child(2)').prop('selected', true);
+                }
 
                 // SIEMPRE mantener habilitado el select
                 $('#categoria_cliente_venta_id').prop('disabled', false);
@@ -438,114 +445,68 @@ function agregarProductoCarrito() {
 
 
             html = `
-            <div id='${numeroInputs}' class="row no-gutters">
-                                <div class="form-group col-12 col-sm-12 col-md-2 col-lg-2 col-xl-2">
-                                    <div class="d-flex">
-
-                                        <button class="btn btn-danger" type="button" style="display: inline" onclick="eliminarInput(${numeroInputs})"><i
-                                                class="fa-regular fa-rectangle-xmark"></i>
-                                        </button>
-
-                                        <input id="idProducto${numeroInputs}" name="idProducto${numeroInputs}" type="hidden" value="${producto.id}">
-
-                                        <div style="width:100%">
-                                            <label for="nombre${numeroInputs}" class="sr-only">Nombre del producto</label>
-                                            <input type="text" placeholder="Nombre del producto" id="nombre${numeroInputs}"
-                                                name="nombre${numeroInputs}" class="form-control"
-                                                data-parsley-required "
-                                                autocomplete="off"
-                                                readonly
-                                                value='${producto.nombre}'
-
-                                                >
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="form-group col-12 col-sm-12 col-md-1 col-lg-1 col-xl-1">
-                                    <label for="" class="sr-only">cantidad</label>
-                                    <input type="text" value="${bodega}" placeholder="bodega-seccion" id="bodega${numeroInputs}"
-                                        name="bodega${numeroInputs}" class="form-control"
-                                        autocomplete="off"  readonly  >
-                                </div>
-
-                                <div class="form-group col-12 col-sm-12 col-md-1 col-lg-1 col-xl-1">
-                                    <label for="precio${numeroInputs}" class="sr-only">Precio</label>
-                                    <input type="number" placeholder="Precio Unidad" id="precio${numeroInputs}"
-                                        name="precio${numeroInputs}" value="${producto.precio1}" class="form-control"  data-parsley-required step="any"
-                                        autocomplete="off" min="${producto.precio1}" onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
-
-
-                                </div>
-
-                                <div class="form-group col-12 col-sm-12 col-md-1 col-lg-1 col-xl-1">
-                                    <label for="cantidad${numeroInputs}" class="sr-only">cantidad</label>
-                                    <input type="number" placeholder="Cantidad" id="cantidad${numeroInputs}"
-                                        name="cantidad${numeroInputs}" class="form-control" min="0" data-parsley-required
-                                        autocomplete="off" onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
-                                </div>
-
-                                <div class="form-group col-12 col-sm-12 col-md-1 col-lg-1 col-xl-1">
-                                    <label for="" class="sr-only">unidad</label>
-                                    <select class="form-control" name="unidad${numeroInputs}" id="unidad${numeroInputs}"
-                                        data-parsley-required style="height:35.7px;"
-                                        onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
-                                                ${htmlSelectUnidades}
-                                    </select>
-
-
-                                </div>
-
-
-
-
-                                <div class="form-group col-12 col-sm-12 col-md-2 col-lg-2 col-xl-2">
-                                    <label for="subTotalMostrar${numeroInputs}" class="sr-only">Sub Total</label>
-                                    <input type="text" placeholder="Sub total producto" id="subTotalMostrar${numeroInputs}"
-                                        name="subTotalMostrar${numeroInputs}" class="form-control"
-                                        autocomplete="off"
-                                        readonly required>
-
-                                    <input id="subTotal${numeroInputs}" name="subTotal${numeroInputs}" type="hidden" value="" required>
-                                </div>
-
-                                <div class="form-group col-12 col-sm-12 col-md-2 col-lg-2 col-xl-2">
-                                    <label for="isvProductoMostrar${numeroInputs}" class="sr-only">ISV</label>
-                                    <input type="text" placeholder="ISV" id="isvProductoMostrar${numeroInputs}"
-                                        name="isvProductoMostrar${numeroInputs}" class="form-control"
-                                        autocomplete="off"
-                                        readonly >
-
-                                        <input id="isvProducto${numeroInputs}" name="isvProducto${numeroInputs}" type="hidden" value="" required>
-                                        <input type="hidden" id="acumuladoDescuento${numeroInputs}" name="acumuladoDescuento${numeroInputs}" >
-                                </div>
-
-
-
-                                <div class="form-group col-12 col-sm-12 col-md-2 col-lg-2 col-xl-2">
-                                    <label for="totalMostrar${numeroInputs}" class="sr-only">Total</label>
-                                    <input type="text" placeholder="Total del producto" id="totalMostrar${numeroInputs}"
-                                        name="totalMostrar${numeroInputs}" class="form-control"
-                                        autocomplete="off"
-                                        readonly >
-
-                                        <input id="total${numeroInputs}" name="total${numeroInputs}" type="hidden" value="" required>
-
-
-                                </div>
-
-                                <input id="idBodega${numeroInputs}" name="idBodega${numeroInputs}" type="hidden" value="${idBodega}">
-                                <input id="idSeccion${numeroInputs}" name="idSeccion${numeroInputs}" type="hidden" value="${idSeccion}">
-                                <input id="restaInventario${numeroInputs}" name="restaInventario${numeroInputs}" type="hidden" value="">
-                                <input id="isv${numeroInputs}" name="isv${numeroInputs}" type="hidden" value="${producto.isv}">
-                                <input id="precios_producto_carga_id${numeroInputs}" name="precios_producto_carga_id${numeroInputs}" type="hidden" value="${producto.precios_producto_carga_id}">
-
-
-
-            </div>
+            <tr id="${numeroInputs}">
+                <td style="vertical-align:middle; text-align:center; padding:4px 6px;">
+                    <button class="btn btn-danger btn-sm" type="button" onclick="eliminarInput(${numeroInputs})">
+                        <i class="fa fa-times"></i>
+                    </button>
+                    <input id="idProducto${numeroInputs}" name="idProducto${numeroInputs}" type="hidden" value="${producto.id}">
+                </td>
+                <td style="vertical-align:middle; padding:4px 6px;">
+                    <input type="text" id="nombre${numeroInputs}" name="nombre${numeroInputs}"
+                        class="form-control form-control-sm" data-parsley-required autocomplete="off"
+                        readonly value='${producto.nombre}'>
+                </td>
+                <td style="vertical-align:middle; padding:4px 6px;">
+                    <input type="text" id="bodega${numeroInputs}" name="bodega${numeroInputs}"
+                        class="form-control form-control-sm" autocomplete="off" readonly value="${bodega}">
+                </td>
+                <td style="vertical-align:middle; padding:4px 6px;">
+                    <input type="number" id="precio${numeroInputs}" name="precio${numeroInputs}"
+                        class="form-control form-control-sm" data-parsley-required step="any"
+                        autocomplete="off" value="${producto.precio1}" min="${producto.precio1}"
+                        onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
+                </td>
+                <td style="vertical-align:middle; padding:4px 6px;">
+                    <input type="number" id="cantidad${numeroInputs}" name="cantidad${numeroInputs}"
+                        class="form-control form-control-sm" min="0" data-parsley-required autocomplete="off"
+                        onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
+                </td>
+                <td style="vertical-align:middle; padding:4px 6px;">
+                    <select class="form-control form-control-sm" name="unidad${numeroInputs}" id="unidad${numeroInputs}"
+                        data-parsley-required
+                        onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
+                        ${htmlSelectUnidades}
+                    </select>
+                </td>
+                <td style="vertical-align:middle; padding:4px 6px;">
+                    <input type="text" id="subTotalMostrar${numeroInputs}" name="subTotalMostrar${numeroInputs}"
+                        class="form-control form-control-sm" autocomplete="off" readonly required>
+                    <input id="subTotal${numeroInputs}" name="subTotal${numeroInputs}" type="hidden" value="" required>
+                </td>
+                <td style="vertical-align:middle; padding:4px 6px;">
+                    <input type="text" id="isvProductoMostrar${numeroInputs}" name="isvProductoMostrar${numeroInputs}"
+                        class="form-control form-control-sm" autocomplete="off" readonly>
+                    <input id="isvProducto${numeroInputs}" name="isvProducto${numeroInputs}" type="hidden" value="" required>
+                    <input type="hidden" id="acumuladoDescuento${numeroInputs}" name="acumuladoDescuento${numeroInputs}">
+                </td>
+                <td style="vertical-align:middle; padding:4px 6px; background:rgba(230,81,0,.05);">
+                    <input type="text" id="totalMostrar${numeroInputs}" name="totalMostrar${numeroInputs}"
+                        class="form-control form-control-sm" autocomplete="off" readonly
+                        style="font-weight:700; color:#e65100;">
+                    <input id="total${numeroInputs}" name="total${numeroInputs}" type="hidden" value="" required>
+                    <input id="idBodega${numeroInputs}" name="idBodega${numeroInputs}" type="hidden" value="${idBodega}">
+                    <input id="idSeccion${numeroInputs}" name="idSeccion${numeroInputs}" type="hidden" value="${idSeccion}">
+                    <input id="restaInventario${numeroInputs}" name="restaInventario${numeroInputs}" type="hidden" value="">
+                    <input id="isv${numeroInputs}" name="isv${numeroInputs}" type="hidden" value="${producto.isv}">
+                    <input id="precios_producto_carga_id${numeroInputs}" name="precios_producto_carga_id${numeroInputs}" type="hidden" value="${producto.precios_producto_carga_id}">
+                </td>
+            </tr>
             `;
 
             arregloIdInputs.splice(numeroInputs, 0, numeroInputs);
             document.getElementById('divProductos').insertAdjacentHTML('beforeend', html);
+            if (typeof actualizarCartUI === 'function') actualizarCartUI();
 
             return;
 
@@ -572,6 +533,7 @@ function eliminarInput(id) {
         arregloIdInputs.splice(myIndex, 1);
         this.totalesGenerales();
     }
+    if (typeof actualizarCartUI === 'function') actualizarCartUI();
 
 }
 
@@ -738,23 +700,23 @@ function validarFechaPago() {
 
     tipoPago = document.getElementById('tipoPagoVenta').value;
 
+    // La fecha de vencimiento siempre es de solo lectura (se calcula automáticamente)
+    document.getElementById('fecha_vencimiento').readOnly = true;
+
     if (tipoPago == 2) {
 
-        // Es crédito - habilitar y requerir fecha de vencimiento
-        document.getElementById('fecha_vencimiento').readOnly = false;
+        // Es crédito: vencimiento = emisión + días de crédito del cliente
         document.getElementById('fecha_vencimiento').setAttribute('data-parsley-required', 'true');
-        this.sumarDiasCredito();
+        sumarDiasCredito();
 
     } else {
-        // Es contado - deshabilitar y no requerir fecha de vencimiento
-        document.getElementById('fecha_vencimiento').value = "{{ date('Y-m-d') }}";
-        document.getElementById('fecha_vencimiento').readOnly = true;
+        // Es contado: vencimiento = misma fecha de emisión
+        document.getElementById('fecha_vencimiento').value = document.getElementById('fecha_emision').value;
         document.getElementById('fecha_vencimiento').removeAttribute('data-parsley-required');
 
     }
 
     return 0;
-
 
 }
 
@@ -779,6 +741,7 @@ function obtenerDatosCliente() {
 
                     $('#categoria_cliente_nombre').text(data.nombre_categoria);
                     $('#categoria_cliente_venta_id').data('categoria-cliente-id', data.idcategoriacliente);
+                    $('#categoria_cliente_venta_id').data('categoria-precio-id', data.categoria_precios_id || null);
 
                     // Si ya hay un producto seleccionado, recargar todas sus categorías
                     // con la nueva categoría del cliente pre-seleccionada
@@ -798,6 +761,7 @@ function obtenerDatosCliente() {
 
                     $('#categoria_cliente_nombre').text(data.nombre_categoria);
                     $('#categoria_cliente_venta_id').data('categoria-cliente-id', data.idcategoriacliente);
+                    $('#categoria_cliente_venta_id').data('categoria-precio-id', data.categoria_precios_id || null);
 
                     // Si ya hay un producto seleccionado, recargar todas sus categorías
                     // con la nueva categoría del cliente pre-seleccionada
@@ -839,6 +803,20 @@ $(document).on('submit', '#crear_venta',
     });
 
 function guardarVenta() {
+
+    // Validate all required fields before submitting
+    var parsleyForm = $('#crear_venta').parsley();
+    parsleyForm.validate();
+    if (!parsleyForm.isValid()) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Campos requeridos',
+            text: 'Por favor complete todos los campos obligatorios antes de guardar.',
+            confirmButtonText: 'Entendido',
+            confirmButtonColor: '#19A689',
+        });
+        return;
+    }
 
     document.getElementById("guardar_cotizacion_btn").disabled = true;
 
@@ -954,17 +932,19 @@ function guardarVenta() {
 }
 
 function sumarDiasCredito() {
-    tipoPago = document.getElementById('tipoPagoVenta').value;
+    let tipoPago = document.getElementById('tipoPagoVenta').value;
+    let fechaEmision = document.getElementById("fecha_emision").value;
+
+    if (!fechaEmision) return;
 
     if (tipoPago == 2) {
-
-        let fechaEmision = document.getElementById("fecha_emision").value;
+        // Crédito: emisión + días de crédito del cliente
         let date = new Date(fechaEmision);
         date.setDate(date.getDate() + diasCredito);
-        let suma = date.toISOString().split('T')[0];
-        //console.log( diasCredito);
+        document.getElementById("fecha_vencimiento").value = date.toISOString().split('T')[0];
 
-        document.getElementById("fecha_vencimiento").value = suma;
-
+    } else if (tipoPago) {
+        // Contado: vencimiento = misma fecha de emisión
+        document.getElementById("fecha_vencimiento").value = fechaEmision;
     }
 }

@@ -106,24 +106,79 @@ class Cotizacion extends Component
     }
 
 
+    public function subirAdjunto(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'archivo' => 'required|file|mimes:pdf,jpeg,jpg,png,gif|max:5120',
+                'tipo'    => 'required|in:orden_compra,forma_f01',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'title' => 'Archivo inválido',
+                    'text'  => $validator->errors()->first('archivo'),
+                ], 422);
+            }
+
+            $archivo   = $request->file('archivo');
+            $tipo      = $request->input('tipo');
+            $ext       = $archivo->getClientOriginalExtension();
+            $nombre    = 'oferta_' . $tipo . '_' . time() . '_' . uniqid() . '.' . $ext;
+            $carpeta   = public_path('adjuntos_oferta');
+
+            if (!is_dir($carpeta)) {
+                mkdir($carpeta, 0777, true);
+            }
+
+            $archivo->move($carpeta, $nombre);
+
+            return response()->json([
+                'ruta'   => 'adjuntos_oferta/' . $nombre,
+                'nombre' => $archivo->getClientOriginalName(),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['title' => 'Error', 'text' => 'No se pudo subir el archivo.'], 500);
+        }
+    }
+
     public function listarClientes(Request $request)
     {
         try {
+            $rolId   = Auth::user()->rol_id;
+            $like    = '%' . $request->search . '%';
 
+            // Administrador (1), Televendedor/Facturador (3) y Mercadeo (9)
+            // ven TODOS los clientes activos sin restricción
+            if (in_array($rolId, [1, 3, 9])) {
+                $listaClientes = DB::select("
+                    SELECT id, nombre AS text
+                    FROM cliente
+                    WHERE estado_cliente_id = 1
+                      AND id <> 1
+                      AND (id LIKE ? OR nombre LIKE ?)
+                    ORDER BY nombre
+                    LIMIT 20
+                ", [$like, $like]);
 
-           $tipoCotizacion = $request->tipoCotizacion;
-
-            if($tipoCotizacion==1){
-                $listaClientes = $this->clientesCorporativo($request);
-            }elseif ($tipoCotizacion==2){
-                $listaClientes = $this->clientesEstatal($request);
-            }else{
-                $listaClientes = $this->clientesExonerados($request);
+                return response()->json(["results" => $listaClientes], 200);
             }
 
-            return response()->json([
-                "results" => $listaClientes,
-            ], 200);
+            // Asesor Comercial (2) y cualquier otro rol:
+            // solo los clientes que tienen asignado al usuario como vendedor
+            $listaClientes = DB::select("
+                SELECT id, nombre AS text
+                FROM cliente
+                WHERE estado_cliente_id = 1
+                  AND id <> 1
+                  AND vendedor = ?
+                  AND (id LIKE ? OR nombre LIKE ?)
+                ORDER BY nombre
+                LIMIT 20
+            ", [Auth::id(), $like, $like]);
+
+            return response()->json(["results" => $listaClientes], 200);
+
         } catch (QueryException $e) {
             return response()->json([
                 'message' => 'Ha ocurrido un error',
@@ -245,9 +300,8 @@ class Cotizacion extends Component
             'numeroInputs' => 'required',
             'seleccionarCliente' => 'required',
             'nombre_cliente_ventas' => 'required',
-            'bodega' => 'required',
-            'seleccionarProducto' => 'required',
-
+            // bodega y seleccionarProducto son campos del buscador de productos,
+            // no son datos a guardar — los productos reales vienen en bodega{idx}, idProducto{idx}, etc.
 
 
         ]);
@@ -275,7 +329,7 @@ class Cotizacion extends Component
             $cotizacion->nombre_cliente = $request->nombre_cliente_ventas;
             $cotizacion->RTN = $request->rtn_ventas;
             $cotizacion->fecha_emision = $request->fecha_emision;
-            $cotizacion->fecha_vencimiento = $request->fecha_emision;
+            $cotizacion->fecha_vencimiento = $request->fecha_vencimiento ?: $request->fecha_emision;
             $cotizacion->sub_total = $request->subTotalGeneral;
             $cotizacion->sub_total_grabado=$request->subTotalGeneralGrabado;
             $cotizacion->sub_total_excento=$request->subTotalGeneralExcento;
@@ -289,20 +343,39 @@ class Cotizacion extends Component
             $cotizacion->numeroInputs = $request->numeroInputs;
             $cotizacion->porc_descuento = $request->porDescuento;
             $cotizacion->monto_descuento = $request->descuentoGeneral;
-            $cotizacion->nota = $request->nota;
+            $cotizacion->nota = $request->nota_comen ?? $request->nota;
+            $cotizacion->tipo_pago_id = $request->tipoPagoVenta ?: null;
+            $cotizacion->estado_id  = 1;
+            $cotizacion->created_by = Auth::id();
             $cotizacion->save();
 
-            // ── Registrar en historico_flujo / crear flujo según si hay pedido vinculado ──
+            $numeroOrdenCompra = $request->numero_orden_compra ?: null;
+            $archivoOrdenCompra = $request->archivo_orden_compra ?: null;
+            $numeroFormaF01 = $request->numero_forma_f01 ?: null;
+            $archivoFormaF01 = $request->archivo_forma_f01 ?: null;
+            $numeroExoneracion = $request->numero_exoneracion
+                ?: ($request->codigo_exoneracion
+                    ?: ($request->codigo
+                        ?: $request->codigoExoneracion));
+            $archivoExoneracion = $request->archivo_exoneracion ?: null;
+
+            // ── Registrar en historico_flujo / crear flujo según si hay pedido/flujo vinculado ──
             $pedidoIdVinculado = $request->pedido_id ? (int) $request->pedido_id : null;
-            $flujoIdVinculado  = null;
+            $flujoIdDirecto    = $request->flujo_id  ? (int) $request->flujo_id  : null;
+
+            // ID del estado "cancelado" para verificar flujos cancelados
+            $canceladoEstadoId = (int) (DB::table('estado_venta')->where('descripcion', 'cancelado')->value('id') ?? 4);
+
             if ($pedidoIdVinculado) {
-                // Buscar el flujo del pedido (por identificacion+tipo_flujo_id; no filtrar por tipo_tramite_id
-                // porque pudo ya haberse actualizado a 2 si hay otra oferta previa)
-                $flujoIdVinculado = DB::table('flujo')
+                // Flujo con pedido: buscar el flujo del pedido y agregar historico
+                $flujoExistente = DB::table('flujo')
                     ->where('identificacion', (string) $pedidoIdVinculado)
                     ->where('tipo_flujo_id', 1)
-                    ->value('id');
-                if ($flujoIdVinculado) {
+                    ->first(['id', 'estado_id']);
+                $flujoIdVinculado = $flujoExistente->id ?? null;
+
+                if ($flujoIdVinculado && (int) $flujoExistente->estado_id !== $canceladoEstadoId) {
+                    // Flujo activo: agregar oferta al flujo existente
                     DB::table('historico_flujo')->insert([
                         'flujo_id'        => $flujoIdVinculado,
                         'tipo_tramite_id' => 2, // 'Ofertas'
@@ -314,17 +387,126 @@ class Cotizacion extends Component
                         'created_at'      => now(),
                         'updated_at'      => now(),
                     ]);
-                    // Avanzar el flujo al estado "Oferta" (tipo_tramite_id=2)
                     DB::table('flujo')->where('id', $flujoIdVinculado)
-                        ->update(['tipo_tramite_id' => 2, 'updated_by' => Auth::id(), 'updated_at' => now()]);
+                        ->update([
+                            'tipo_tramite_id'      => 2,
+                            'numero_orden_compra'  => $numeroOrdenCompra,
+                            'archivo_orden_compra' => $archivoOrdenCompra,
+                            'numero_forma_f01'     => $numeroFormaF01,
+                            'archivo_forma_f01'    => $archivoFormaF01,
+                            'numero_exoneracion'   => $numeroExoneracion,
+                            'archivo_exoneracion'  => $archivoExoneracion,
+                            'updated_by'           => Auth::id(),
+                            'updated_at'           => now(),
+                        ]);
+                } else {
+                    // Flujo cancelado o inexistente: crear nuevo flujo para esta cotización
+                    $flujoNuevo = DB::table('flujo')->insertGetId([
+                        'tipo_flujo_id'   => 1,
+                        'identificacion'  => (string) $cotizacion->id,
+                        'nombre'          => $cotizacion->nombre_cliente ?? ('Cotizacion #' . $cotizacion->id),
+                        'cliente_rtn'     => $request->rtn_ventas ?? null,
+                        'numero_orden_compra'  => $numeroOrdenCompra,
+                        'archivo_orden_compra' => $archivoOrdenCompra,
+                        'numero_forma_f01'     => $numeroFormaF01,
+                        'archivo_forma_f01'    => $archivoFormaF01,
+                        'numero_exoneracion'   => $numeroExoneracion,
+                        'archivo_exoneracion'  => $archivoExoneracion,
+                        'tipo_tramite_id' => 2,
+                        'estado_id'       => 1,
+                        'created_by'      => Auth::id(),
+                        'updated_by'      => Auth::id(),
+                        'created_at'      => now(),
+                        'updated_at'      => now(),
+                    ]);
+                    DB::table('historico_flujo')->insert([
+                        'flujo_id'        => $flujoNuevo,
+                        'tipo_tramite_id' => 2,
+                        'tramite_id'      => $cotizacion->id,
+                        'estado_id'       => 1,
+                        'observaciones'   => 'Oferta duplicada desde flujo cancelado (pedido #' . $pedidoIdVinculado . ')',
+                        'created_by'      => Auth::id(),
+                        'updated_by'      => Auth::id(),
+                        'created_at'      => now(),
+                        'updated_at'      => now(),
+                    ]);
+                    $flujoIdVinculado = null; // el flujo del pedido ya no aplica
+                }
+            } elseif ($flujoIdDirecto) {
+                // Flujo sin pedido ya existente: verificar si está cancelado
+                $flujoDirecto = DB::table('flujo')->where('id', $flujoIdDirecto)->first(['estado_id']);
+
+                if ($flujoDirecto && (int) $flujoDirecto->estado_id !== $canceladoEstadoId) {
+                    // Flujo activo: agregar nueva oferta al mismo flujo
+                    DB::table('historico_flujo')->insert([
+                        'flujo_id'        => $flujoIdDirecto,
+                        'tipo_tramite_id' => 2,
+                        'tramite_id'      => $cotizacion->id,
+                        'estado_id'       => 1,
+                        'observaciones'   => 'Oferta adicional #' . $cotizacion->id . ' registrada en flujo existente',
+                        'created_by'      => Auth::id(),
+                        'updated_by'      => Auth::id(),
+                        'created_at'      => now(),
+                        'updated_at'      => now(),
+                    ]);
+                    DB::table('flujo')->where('id', $flujoIdDirecto)
+                        ->update([
+                            'numero_orden_compra'  => $numeroOrdenCompra,
+                            'archivo_orden_compra' => $archivoOrdenCompra,
+                            'numero_forma_f01'     => $numeroFormaF01,
+                            'archivo_forma_f01'    => $archivoFormaF01,
+                            'numero_exoneracion'   => $numeroExoneracion,
+                            'archivo_exoneracion'  => $archivoExoneracion,
+                            'updated_by'           => Auth::id(),
+                            'updated_at'           => now(),
+                        ]);
+                } else {
+                    // Flujo cancelado: crear nuevo flujo para esta cotización
+                    $flujoNuevo = DB::table('flujo')->insertGetId([
+                        'tipo_flujo_id'   => 1,
+                        'identificacion'  => (string) $cotizacion->id,
+                        'nombre'          => $cotizacion->nombre_cliente ?? ('Cotizacion #' . $cotizacion->id),
+                        'cliente_rtn'     => $request->rtn_ventas ?? null,
+                        'numero_orden_compra'  => $numeroOrdenCompra,
+                        'archivo_orden_compra' => $archivoOrdenCompra,
+                        'numero_forma_f01'     => $numeroFormaF01,
+                        'archivo_forma_f01'    => $archivoFormaF01,
+                        'numero_exoneracion'   => $numeroExoneracion,
+                        'archivo_exoneracion'  => $archivoExoneracion,
+                        'tipo_tramite_id' => 2,
+                        'estado_id'       => 1,
+                        'created_by'      => Auth::id(),
+                        'updated_by'      => Auth::id(),
+                        'created_at'      => now(),
+                        'updated_at'      => now(),
+                    ]);
+                    DB::table('historico_flujo')->insert([
+                        'flujo_id'        => $flujoNuevo,
+                        'tipo_tramite_id' => 2,
+                        'tramite_id'      => $cotizacion->id,
+                        'estado_id'       => 1,
+                        'observaciones'   => 'Oferta duplicada desde flujo cancelado #' . $flujoIdDirecto,
+                        'created_by'      => Auth::id(),
+                        'updated_by'      => Auth::id(),
+                        'created_at'      => now(),
+                        'updated_at'      => now(),
+                    ]);
+                    $flujoIdDirecto = null; // el flujo directo ya no aplica
                 }
             } else {
-                // Sin pedido: crear un nuevo registro en flujo para esta cotizacion
+                // Sin pedido ni flujo vinculado: crear un nuevo flujo para esta cotizacion
                 $flujoNuevo = DB::table('flujo')->insertGetId([
                     'tipo_flujo_id'   => 1,
                     'identificacion'  => (string) $cotizacion->id,
                     'nombre'          => $cotizacion->nombre_cliente ?? ('Cotizacion #' . $cotizacion->id),
-                    'tipo_tramite_id' => 2, // Oferta directa (sin pedido previo)
+                    'cliente_rtn'     => $request->rtn_ventas ?? null,
+                    'numero_orden_compra'  => $numeroOrdenCompra,
+                    'archivo_orden_compra' => $archivoOrdenCompra,
+                    'numero_forma_f01'     => $numeroFormaF01,
+                    'archivo_forma_f01'    => $archivoFormaF01,
+                    'numero_exoneracion'   => $numeroExoneracion,
+                    'archivo_exoneracion'  => $archivoExoneracion,
+                    'tipo_tramite_id' => 2,
                     'estado_id'       => 1,
                     'created_by'      => Auth::id(),
                     'updated_by'      => Auth::id(),
@@ -429,6 +611,7 @@ class Cotizacion extends Component
             'title'     => 'Exito!',
             'idFactura' => $cotizacion->id,
             'pedidoId'  => $pedidoIdVinculado ?: null,
+            'flujoId'   => $flujoIdVinculado ?? $flujoIdDirecto ?? $flujoNuevo ?? null,
         ],200);
 
         } catch (QueryException $e) {
@@ -528,12 +711,15 @@ class Cotizacion extends Component
             B.rtn,
             users.name as cotizador,
             (select name from users where id = A.vendedor) as vendedor,
-            A.nota
+            A.nota,
+            (select hf.flujo_id from historico_flujo hf where hf.tramite_id = A.id and hf.tipo_tramite_id = 2 limit 1) as flujo_id,
+            IFNULL(TP.descripcion, 'contado') as tipo_pago
             from cotizacion A
             inner join cliente B
             on A.cliente_id = B.id
             inner join users
             ON users.id = A.users_id
+            left join tipo_pago_venta TP on TP.id = A.tipo_pago_id
             where A.id =".$idFactura
         );
 
@@ -647,6 +833,74 @@ class Cotizacion extends Component
 
         return $pdf->stream("catalogo.pdf");
 
+    }
+
+    public function fichaProductosPdf($ofertaId)
+    {
+        if (!Auth::check()) { abort(403); }
+
+        $id = (int) $ofertaId;
+        if ($id <= 0) { abort(404); }
+
+        $oferta = DB::selectOne("
+            SELECT c.id, c.nombre_cliente, c.RTN, c.fecha_emision, c.fecha_vencimiento,
+                   c.sub_total, c.isv, c.total, c.monto_descuento, c.porc_descuento,
+                   u.name as registrado_por
+            FROM cotizacion c
+            LEFT JOIN users u ON u.id = c.users_id
+            WHERE c.id = ?
+        ", [$id]);
+
+        if (!$oferta) { abort(404); }
+
+        $productos = DB::select("
+            SELECT
+                p.id,
+                p.nombre,
+                p.descripcion,
+                p.codigo_barra,
+                p.codigo_estatal,
+                FORMAT(chp.cantidad, 0) as cantidad,
+                FORMAT(chp.precio_unidad, 2) as precio,
+                FORMAT(chp.sub_total, 2) as sub_total,
+                IF(p.isv = 0, 'Exento', 'Gravado') as tipo_isv,
+                um.nombre as medida,
+                sc.descripcion as sub_categoria,
+                cp.descripcion as categoria,
+                m.nombre as marca
+            FROM cotizacion_has_producto chp
+            INNER JOIN producto p ON chp.producto_id = p.id
+            INNER JOIN unidad_medida_venta umv ON chp.unidad_medida_venta_id = umv.id
+            INNER JOIN unidad_medida um ON um.id = umv.unidad_medida_id
+            INNER JOIN sub_categoria sc ON sc.id = p.sub_categoria_id
+            INNER JOIN categoria_producto cp ON cp.id = sc.categoria_producto_id
+            INNER JOIN marca m ON m.id = p.marca_id
+            WHERE chp.cotizacion_id = ?
+            ORDER BY chp.indice ASC
+        ", [$id]);
+
+        // Fetch images per product (max 2 per product, lightweight)
+        $imagenes = [];
+        if (!empty($productos)) {
+            $productoIds = array_map(fn($p) => $p->id, $productos);
+            $imgs = DB::table('img_producto')
+                ->select('producto_id', 'url_img')
+                ->whereIn('producto_id', $productoIds)
+                ->orderBy('producto_id')->orderBy('id')
+                ->get();
+            foreach ($imgs as $img) {
+                if (!isset($imagenes[$img->producto_id]) || count($imagenes[$img->producto_id]) < 2) {
+                    $imagenes[$img->producto_id][] = $img->url_img;
+                }
+            }
+        }
+
+        $descargadoPor = Auth::user()->name;
+
+        $pdf = PDF::loadView('pdf/ficha-productos-oferta', compact('oferta', 'productos', 'imagenes', 'descargadoPor'))
+            ->setPaper('letter', 'portrait');
+
+        return $pdf->download("Catalogo_Oferta_{$id}.pdf");
     }
 
     public function imprimirProforma($idFactura)
@@ -819,22 +1073,35 @@ class Cotizacion extends Component
     {
         try {
 
+            // Stock neto = cantidad_disponible - reservado en prefacturas activas
             $results = DB::SELECT("
-        select
+        SELECT
             A.seccion_id as id,
             D.id as 'idBodega',
             CONCAT(D.nombre,'',REPLACE(B.descripcion,'Seccion','')) as 'bodegaSeccion',
-            concat(D.nombre,' - ', REPLACE(B.descripcion,'Seccion',''),' - cantidad ',sum(A.cantidad_disponible)) as 'text'
-        from recibido_bodega A
-            inner join seccion B
-            on A.seccion_id = B.id
-            inner join segmento C
-            on B.segmento_id = C.id
-            inner join bodega D
-            on C.bodega_id = D.id
-        where  producto_id = " . $request->idProducto . "
-        and (D.nombre LIKE '%" . $request->search . "%' or B.descripcion LIKE '%" . $request->search . "%')
-        group by A.seccion_id
+            concat(D.nombre,' - ', REPLACE(B.descripcion,'Seccion',''),' - cantidad ',
+                GREATEST(0,
+                    sum(A.cantidad_disponible) - COALESCE((
+                        SELECT SUM(php2.cantidad)
+                        FROM prefactura_has_producto php2
+                        INNER JOIN prefactura pf2 ON pf2.id = php2.prefactura_id
+                        WHERE pf2.estado = 'activo'
+                          AND php2.producto_id = A.producto_id
+                          AND php2.seccion_id  = A.seccion_id
+                          AND php2.resta_inventario = 1
+                    ), 0)
+                )
+            ) as 'text'
+        FROM recibido_bodega A
+            INNER JOIN seccion B
+            ON A.seccion_id = B.id
+            INNER JOIN segmento C
+            ON B.segmento_id = C.id
+            INNER JOIN bodega D
+            ON C.bodega_id = D.id
+        WHERE  producto_id = " . (int)$request->idProducto . "
+        AND (D.nombre LIKE '%" . addslashes($request->search) . "%' OR B.descripcion LIKE '%" . addslashes($request->search) . "%')
+        GROUP BY A.seccion_id
             ");
 
             return response()->json([

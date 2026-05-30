@@ -52,11 +52,8 @@ class expo extends Component
                 FROM producto p
                 JOIN cliente cli
                 ON cli.id = :idCliente
-                JOIN cliente_categoria_escala cce
-                ON cce.id = cli.cliente_categoria_escala_id
-                AND cce.estado_id = 1
                 JOIN categoria_precios cp
-                ON cp.cliente_categoria_escala_id = cce.id
+                ON cp.id = cli.categoria_precios_id
                 AND cp.estado_id = 1
                 JOIN precios_producto_carga ppc
                 ON ppc.producto_id = p.id
@@ -225,7 +222,7 @@ class expo extends Component
             $cotizacion->nombre_cliente = $request->nombre_cliente_ventas;
             $cotizacion->RTN = $request->rtn_ventas;
             $cotizacion->fecha_emision = $request->fecha_emision;
-            $cotizacion->fecha_vencimiento = $request->fecha_emision;
+            $cotizacion->fecha_vencimiento = $request->fecha_vencimiento ?: $request->fecha_emision;
             $cotizacion->sub_total = $request->subTotalGeneral;
             $cotizacion->sub_total_grabado=$request->subTotalGeneralGrabado;
             $cotizacion->sub_total_excento=$request->subTotalGeneralExcento;
@@ -240,6 +237,7 @@ class expo extends Component
             $cotizacion->numeroInputs = $request->numeroInputs;
             $cotizacion->porc_descuento = $request->porDescuento;
             $cotizacion->monto_descuento = $request->descuentoGeneral;
+            $cotizacion->tipo_pago_id = $request->tipoPagoVenta ?: null;
             $cotizacion->save();
 
            /*  ALTER TABLE cotizacion ADD COLUMN nota VARCHAR(255) NULL DEFAULT NULL; */
@@ -373,7 +371,7 @@ class expo extends Component
              $cotizacion->nombre_cliente = $request->nombre_cliente_ventas;
              $cotizacion->RTN = $request->rtn_ventas;
              $cotizacion->fecha_emision = $request->fecha_emision;
-             $cotizacion->fecha_vencimiento = $request->fecha_emision;
+               $cotizacion->fecha_vencimiento = $request->fecha_vencimiento ?: $request->fecha_emision;
              $cotizacion->sub_total = $request->subTotalGeneral;
              $cotizacion->sub_total_grabado=$request->subTotalGeneralGrabado;
              $cotizacion->sub_total_excento=$request->subTotalGeneralExcento;
@@ -387,6 +385,7 @@ class expo extends Component
              $cotizacion->numeroInputs = $request->numeroInputs;
              $cotizacion->porc_descuento = $request->porDescuento;
              $cotizacion->monto_descuento =  $request->descuentoGeneral;
+             $cotizacion->tipo_pago_id = $request->tipoPagoVenta ?: null;
              $cotizacion->save();
 
 
@@ -528,12 +527,14 @@ class expo extends Component
             B.rtn,
             users.name,
             (select name from users where id = A.vendedor) as vendedor,
-            A.nota
+            A.nota,
+            IFNULL(TP.descripcion, 'contado') as tipo_pago
             from cotizacion A
             inner join cliente B
             on A.cliente_id = B.id
             inner join users
             ON users.id = A.users_id
+            left join tipo_pago_venta TP on TP.id = A.tipo_pago_id
             where A.id =".$idFactura
         );
 
@@ -754,7 +755,7 @@ class expo extends Component
             A.seccion_id as id,
             D.id as 'idBodega',
             CONCAT(D.nombre,'',REPLACE(B.descripcion,'Seccion','')) as 'bodegaSeccion',
-            concat(D.nombre,' - ', REPLACE(B.descripcion,'Seccion',''),' - cantidad ',sum(A.cantidad_disponible)) as 'text'
+            concat(D.nombre,' - ', REPLACE(B.descripcion,'Seccion',''),' - cantidad ',FLOOR(sum(A.cantidad_disponible))) as 'text'
         from recibido_bodega A
             inner join seccion B
             on A.seccion_id = B.id
@@ -785,7 +786,7 @@ class expo extends Component
             $listaProductos = DB::SELECT("
          select
             B.id,
-            concat('cod ',B.id,' - ',B.nombre,' - ',B.codigo_barra,' - ','cantidad ',sum(A.cantidad_disponible)) as text
+            concat('cod ',B.id,' - ',B.nombre,' - ',B.codigo_barra,' - ','cantidad ',FLOOR(sum(A.cantidad_disponible))) as text
          from
             recibido_bodega A
             inner join producto B

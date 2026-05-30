@@ -34,8 +34,25 @@ class ListadoFacturaEstatal extends Component
     public function listarFacturas(){
 
         try {
+            $filtroCai        = trim(request()->input('filtroCai', ''));
+            $filtroCliente    = trim(request()->input('filtroCliente', ''));
+            $filtroVendedor   = trim(request()->input('filtroVendedor', ''));
+            $filtroFacturador = trim(request()->input('filtroFacturador', ''));
+            $filtroDesde      = trim(request()->input('filtroDesde', ''));
+            $filtroHasta      = trim(request()->input('filtroHasta', ''));
+            $whereFilters = '';
+            $bindings     = [];
+            if ($filtroCai)        { $whereFilters .= " AND factura.cai LIKE ? ";                                             $bindings[] = "%{$filtroCai}%"; }
+            if ($filtroCliente)    { $whereFilters .= " AND factura.nombre_cliente LIKE ? ";                                  $bindings[] = "%{$filtroCliente}%"; }
+            if ($filtroVendedor)   { $whereFilters .= " AND users.name LIKE ? ";                                              $bindings[] = "%{$filtroVendedor}%"; }
+            if ($filtroFacturador) { $whereFilters .= " AND (SELECT name FROM users WHERE id = factura.users_id) LIKE ? ";    $bindings[] = "%{$filtroFacturador}%"; }
+            if ($filtroDesde && $filtroHasta) { $whereFilters .= " AND DATE(factura.created_at) BETWEEN ? AND ? "; $bindings[] = $filtroDesde; $bindings[] = $filtroHasta; }
+            elseif ($filtroDesde)  { $whereFilters .= " AND DATE(factura.created_at) >= ? "; $bindings[] = $filtroDesde; }
+            elseif ($filtroHasta)  { $whereFilters .= " AND DATE(factura.created_at) <= ? "; $bindings[] = $filtroHasta; }
 
+            $esAdmin = in_array(Auth::user()->rol_id, [1, 3, 5]);
 
+            if ($esAdmin) {
                 $listaFacturas = DB::SELECT("
                 select
                     factura.id as id,
@@ -63,16 +80,50 @@ class ListadoFacturaEstatal extends Component
                     inner join users
                     on factura.vendedor = users.id
                     cross join (select @i := 0) r
-                where YEAR(factura.created_at) >= (YEAR(NOW())-2) and factura.estado_venta_id<>2 and factura.tipo_venta_id = 2
+                where YEAR(factura.created_at) >= (YEAR(NOW())-2) and factura.estado_venta_id<>2 and factura.tipo_venta_id = 2 {$whereFilters}
                 order by factura.created_at desc
-                ");
+                ", $bindings);
 
+            } else {
 
+                $listaFacturas = DB::SELECT("
+                select
+                    factura.id as id,
+                    @i := @i + 1 as contador,
+                    numero_factura,
+                    cai,
+                    fecha_emision,
+                    factura.nombre_cliente as nombre,
+                    tipo_pago_venta.descripcion,
+                    fecha_vencimiento,
+                    FORMAT(sub_total,2) as sub_total,
+                    FORMAT(isv,2) as isv,
+                    FORMAT(total,2) as total,
+                    factura.credito,
+                    users.name as creado_por,
+                    (select if(sum(monto) is null,0,sum(monto)) from pago_venta where estado_venta_id = 1 and factura_id = factura.id) as monto_pagado,
+                    factura.estado_venta_id,
+                    factura.created_at as fecha_registro
+                from factura
+                    inner join cliente on factura.cliente_id = cliente.id
+                    inner join tipo_pago_venta on factura.tipo_pago_id = tipo_pago_venta.id
+                    inner join users on factura.vendedor = users.id
+                    cross join (select @i := 0) r
+                where YEAR(factura.created_at) >= (YEAR(NOW())-2)
+                    and factura.estado_venta_id <> 2
+                    and factura.tipo_venta_id = 2
+                    and factura.vendedor = ".Auth::user()->id." {$whereFilters}
+                order by factura.created_at desc
+                ", $bindings);
+            }
 
-
+            $puedeAnular = ((int) Auth::user()->rol_id === 1);
 
             return Datatables::of($listaFacturas)
-            ->addColumn('opciones', function ($listaFacturas) {
+            ->addColumn('opciones', function ($listaFacturas) use ($puedeAnular) {
+                $opcionAnular = $puedeAnular
+                    ? '<li><a class="dropdown-item" onclick="anularVentaConfirmar('.$listaFacturas->id.')" > <i class="fa-solid fa-ban text-danger"></i> Anular Factura </a></li>'
+                    : '';
 
                 if($listaFacturas->estado_venta_id==2){
                     return
@@ -120,13 +171,12 @@ class ListadoFacturaEstatal extends Component
                             <a class="dropdown-item" target="_blank"  href="/facturaCoor/actaRec/'.$listaFacturas->id.'"> <i class="fa-solid fa-print text-info"></i> Imprimir Acta de Recepción </a>
                             </li>
 
-                            <li>
-                            <a class="dropdown-item"  onclick="anularVentaConfirmar('.$listaFacturas->id.')" > <i class="fa-solid fa-ban text-danger"></i> Anular Factura </a>
-                             </li>
 
                              <li>
                              <a class="dropdown-item" href="/crear/vale/'.$listaFacturas->id.'" > <i class="fa-solid fa-calendar-days text-success"></i> Agendar Entrega </a>
                              </li>
+
+                             '.$opcionAnular.'
 
 
                         </ul>
@@ -172,6 +222,14 @@ class ListadoFacturaEstatal extends Component
     }
 
     public function anularVentaRegistro(Request $request){
+        if ((int) Auth::user()->rol_id !== 1) {
+            return response()->json([
+                "text" => "No autorizado para anular facturas estatales.",
+                "icon" => "warning",
+                "title" => "Acceso denegado",
+            ], 403);
+        }
+
         $arrayLog = [];
         try {
         DB::beginTransaction();

@@ -1,359 +1,325 @@
-<style>
-/* === CARD COMISIÓN === */
-.comision-card {
-    border: none;
-    border-radius: 14px;
-    box-shadow: 0 4px 12px rgba(0,0,0,.08);
-    transition: all .25s ease;
-    background-color: #fff;
-}
-
-.comision-card:hover {
-    transform: translateY(-6px);
-    box-shadow: 0 12px 28px rgba(0,0,0,.15);
-}
-
-/* === PROGRESS === */
-.progress {
-    border-radius: 10px;
+﻿<style>
+/* ==================== DASHBOARD COMISIONES ==================== */
+.mc-hero {
+    background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%);
+    border-radius: 16px;
+    padding: 32px 36px;
+    margin-bottom: 24px;
+    position: relative;
     overflow: hidden;
 }
-
-.progress-grow {
-    animation: growProgress 1s ease-out;
-}
-
-@keyframes growProgress {
-    from { width: 0; }
-}
-
-/* === MOBILE / TABLET: CARDS POR SLIDE === */
-@media (max-width: 767.98px) {
-    .carousel-item .row > div {
-        display: none;
-    }
-    .carousel-item .row > div:first-child {
-        display: block;
-    }
-}
-
-@media (max-width: 991.98px) and (min-width: 768px) {
-    .carousel-item .row > div:nth-child(n+3) {
-        display: none;
-    }
-}
-
-/* === MES ACTUAL === */
-.mes-actual-dot {
-    width: 10px;
-    height: 10px;
-    background-color: #28a745;
-    border-radius: 50%;
-    display: inline-block;
-    margin-right: 6px;
-}
-
-/* === FLECHAS OVERLAY, SOLO HOVER === */
-#carouselComisiones .carousel-control-prev,
-#carouselComisiones .carousel-control-next {
-    width: 60px;
-    opacity: 0;
-    transition: opacity .25s ease;
+.mc-hero::before {
+    content: '';
+    position: absolute;
+    top: -60px; right: -60px;
+    width: 240px; height: 240px;
+    background: radial-gradient(circle, rgba(16,185,129,.18) 0%, transparent 70%);
     pointer-events: none;
 }
-
-/* Íconos más suaves */
-#carouselComisiones .carousel-control-prev-icon,
-#carouselComisiones .carousel-control-next-icon {
-    background-size: 60% 60%;
-    opacity: 0.7;
+.mc-hero::after {
+    content: '';
+    position: absolute;
+    bottom: -40px; left: -40px;
+    width: 180px; height: 180px;
+    background: radial-gradient(circle, rgba(59,130,246,.15) 0%, transparent 70%);
+    pointer-events: none;
 }
-
-/* Mostrar flechas solo en hover */
-#carouselComisiones:hover .carousel-control-prev,
-#carouselComisiones:hover .carousel-control-next {
-    opacity: 1;
-    pointer-events: auto;
-}
-/* === FONDO SUAVE PARA FLECHAS === */
-#carouselComisiones .carousel-control-prev,
-#carouselComisiones .carousel-control-next {
-    background: rgba(0, 0, 0, 0.25); /* fondo oscuro suave */
-    border-radius: 80%;
-}
-
-/* Íconos más visibles */
-#carouselComisiones .carousel-control-prev-icon,
-#carouselComisiones .carousel-control-next-icon {
-    opacity: 1;                 /* totalmente visibles */
-    background-size: 50% 50%;   /* un poco más grandes */
-}
-
-/* Hover más claro */
-#carouselComisiones:hover .carousel-control-prev,
-#carouselComisiones:hover .carousel-control-next {
-    background: rgba(0, 0, 0, 0.15);
-}
-
-
-/* === OCULTAR FLECHAS EN MOBILE === */
-@media (max-width: 767.98px) {
-    #carouselComisiones .carousel-control-prev,
-    #carouselComisiones .carousel-control-next {
-        display: none;
-    }
-}
-.comision-card {
-    text-align: center;
-}
-.comision-card h3 {
-    letter-spacing: 0.5px;
-}
-/* Fondo con personalidad */
-.comision-highlight {
-    background: linear-gradient(145deg, #f8f9fa, #ffffff);
-    box-shadow: 0 8px 22px rgba(0,0,0,.12);
-    border-radius: 18px;
-}
-
-/* Sticker del dólar */
-.icon-sticker {
-    width: 52px;
-    height: 52px;
-    background: #e6f4ea;
+.mc-avatar {
+    width: 64px; height: 64px;
     border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 26px;
-    box-shadow: 0 4px 10px rgba(0,0,0,.15);
+    background: linear-gradient(135deg, #10b981, #3b82f6);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px; font-weight: 800; color: #fff;
+    flex-shrink: 0;
+    box-shadow: 0 4px 16px rgba(16,185,129,.4);
 }
-
-/* Mes actual más protagonista */
-.mes-actual-dot {
-    width: 10px;
-    height: 10px;
-    background-color: #28a745;
-    border-radius: 50%;
-    display: inline-block;
-}
-
-/* Hover con energía */
-.comision-card:hover {
-    transform: translateY(-8px) scale(1.01);
-}
-
-/* === CARD TABLA === */
-.card-tabla-comisiones {
+.mc-hero-name { font-size: 1.45rem; font-weight: 700; color: #f8fafc; margin-bottom: 2px; }
+.mc-hero-sub  { font-size: .82rem; color: #94a3b8; }
+.mc-hero-total-label { font-size: .75rem; color: #64748b; text-transform: uppercase; letter-spacing: .6px; }
+.mc-hero-total-val   { font-size: 2rem; font-weight: 800; color: #10b981; line-height: 1.1; }
+/* KPI Cards */
+.mc-kpi {
+    background: #fff;
     border-radius: 14px;
+    padding: 18px 20px;
+    box-shadow: 0 2px 12px rgba(0,0,0,.07);
+    border-left: 4px solid transparent;
+    transition: transform .2s, box-shadow .2s;
+    height: 100%;
+}
+.mc-kpi:hover { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(0,0,0,.12); }
+.mc-kpi.kpi-green  { border-left-color: #10b981; }
+.mc-kpi.kpi-blue   { border-left-color: #3b82f6; }
+.mc-kpi.kpi-amber  { border-left-color: #f59e0b; }
+.mc-kpi.kpi-purple { border-left-color: #8b5cf6; }
+.mc-kpi.kpi-rose   { border-left-color: #f43f5e; }
+.mc-kpi.kpi-teal   { border-left-color: #14b8a6; }
+.mc-kpi-icon {
+    width: 42px; height: 42px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; margin-bottom: 12px;
+}
+.mc-kpi-icon.bg-green  { background: #d1fae5; color: #059669; }
+.mc-kpi-icon.bg-blue   { background: #dbeafe; color: #2563eb; }
+.mc-kpi-icon.bg-amber  { background: #fef3c7; color: #d97706; }
+.mc-kpi-icon.bg-purple { background: #ede9fe; color: #7c3aed; }
+.mc-kpi-icon.bg-rose   { background: #ffe4e6; color: #e11d48; }
+.mc-kpi-icon.bg-teal   { background: #ccfbf1; color: #0d9488; }
+.mc-kpi-label { font-size: .72rem; text-transform: uppercase; letter-spacing: .5px; color: #64748b; margin-bottom: 4px; }
+.mc-kpi-val   { font-size: 1.35rem; font-weight: 800; color: #0f172a; line-height: 1; margin-bottom: 2px; }
+.mc-kpi-sub   { font-size: .73rem; color: #94a3b8; }
+/* Section card */
+.mc-card {
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 2px 12px rgba(0,0,0,.06);
+    margin-bottom: 22px;
     overflow: hidden;
 }
-
-/* === TABLA BASE === */
-.table-comisiones {
-    border-collapse: separate;
-    border-spacing: 0;
-    font-size: 0.88rem;
+.mc-card-header {
+    padding: 16px 22px;
+    background: linear-gradient(90deg, #0f172a, #1e3a5f);
+    display: flex; align-items: center; justify-content: space-between;
 }
-
-/* Header elegante */
-.table-comisiones thead th {
-    background: linear-gradient(180deg, #f8f9fa, #ffffff);
-    text-transform: uppercase;
-    font-size: 0.72rem;
-    letter-spacing: .5px;
-    color: #495057;
-    border-bottom: 1px solid #dee2e6;
-    padding: 12px 10px;
+.mc-card-header h6 { color: #f1f5f9; font-size: .92rem; font-weight: 700; margin: 0; }
+.mc-card-body { padding: 20px 22px; }
+/* Table */
+.mc-table { font-size: .84rem; width: 100%; }
+.mc-table thead th {
+    background: #f8fafc;
+    font-size: .7rem; text-transform: uppercase; letter-spacing: .4px;
+    color: #475569; font-weight: 700;
+    padding: 10px 12px; border-bottom: 2px solid #e2e8f0;
 }
-
-/* Celdas */
-.table-comisiones tbody td {
-    padding: 10px;
-    vertical-align: middle;
-    transition: all .2s ease;
+.mc-table tbody td { padding: 10px 12px; vertical-align: middle; border-bottom: 1px solid #f1f5f9; }
+.mc-table tbody tr:hover { background: #f8fafc; }
+.mc-table tbody tr:last-child td { border-bottom: none; }
+/* Period filter pills */
+.mc-period-pill {
+    display: inline-block; padding: 4px 14px; border-radius: 20px;
+    font-size: .75rem; font-weight: 600; cursor: pointer;
+    border: 1.5px solid #cbd5e1; color: #475569;
+    transition: all .15s; background: transparent;
+    margin-left: 4px;
 }
-
-/* Hover fila (movimiento suave) */
-.table-comisiones tbody tr {
-    transition: transform .15s ease, box-shadow .15s ease;
+.mc-period-pill.active, .mc-period-pill:hover {
+    background: #10b981; color: #fff; border-color: #10b981;
 }
-
-.table-comisiones tbody tr:hover {
-    background-color: #f8f9fc;
-    transform: scale(1.003);
-    box-shadow: 0 6px 18px rgba(0,0,0,.06);
-    position: relative;
-    z-index: 1;
+/* Progress bar top productos */
+.mc-prog-bar {
+    height: 6px; border-radius: 3px;
+    background: #e2e8f0; overflow: hidden; margin-top: 4px;
 }
-
-/* Primera columna destacada */
-.table-comisiones tbody td:first-child {
-    font-weight: bold;
-    color: #007bff;
+.mc-prog-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, #10b981, #3b82f6); transition: width .6s ease; }
+/* Modal overlay */
+.mc-modal-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,.55);
+    z-index: 1050; display: none; align-items: center; justify-content: center;
 }
-
-/* Columna Acciones */
-.table-comisiones td:last-child {
-    text-align: center;
+.mc-modal-backdrop.show { display: flex; }
+.mc-modal-box {
+    background: #fff; border-radius: 16px; width: 92%; max-width: 860px;
+    max-height: 88vh; overflow: hidden; display: flex; flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0,0,0,.3);
 }
-
-/* Botones de acción más lindos */
-.table-comisiones .btn {
-    padding: 4px 8px;
-    font-size: 0.75rem;
+.mc-modal-header {
+    background: linear-gradient(90deg, #0f172a, #1e3a5f);
+    padding: 16px 22px; display: flex; align-items: center; justify-content: space-between;
 }
-
-/* Estado como badge */
-.badge-estado {
-    padding: 5px 10px;
-    border-radius: 12px;
-    font-size: 0.7rem;
-    font-weight: 600;
+.mc-modal-header h6 { color: #f1f5f9; margin: 0; font-weight: 700; }
+.mc-modal-close { background: none; border: none; color: #94a3b8; font-size: 1.3rem; cursor: pointer; line-height:1; }
+.mc-modal-close:hover { color: #fff; }
+.mc-modal-body { padding: 20px 22px; overflow-y: auto; }
+@media (max-width: 767px) {
+    .mc-hero { padding: 20px 16px; }
+    .mc-hero-total-val { font-size: 1.5rem; }
+    .mc-kpi-val { font-size: 1.1rem; }
 }
-
-/* Scroll suave */
-.table-responsive {
-    scrollbar-width: thin;
-}
-
-
 </style>
 
-<div class="card shadow-sm border-0 mb-3">
-    <!-- HEADER -->
-    <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center">
-        <h4 class="mb-0">
-            Usuario <b>{{ $info->name }}</b>,
-            Rol en sistema/comisiones: <b>{{ $info->rol }}</b>
-        </h4>
-    </div>
-    <!-- BODY -->
-    <div class="card-body">
+<div>
 
-        <div id="carouselComisiones"
-            class="carousel slide"
-            data-ride="carousel"
-            data-interval="4500"
-            data-pause="hover">
-
-            <!-- INDICADORES -->
-            <ol class="carousel-indicators">
-                @foreach ($meses->chunk(4) as $index => $grupoMeses)
-                    <li data-target="#carouselComisiones"
-                        data-slide-to="{{ $index }}"
-                        class="{{ $index == 0 ? 'active' : '' }}">
-                    </li>
-                @endforeach
-            </ol>
-
-            <!-- SLIDES -->
-            <div class="carousel-inner">
-
-                @foreach ($meses->chunk(4) as $index => $grupoMeses)
-                    <div class="carousel-item {{ $index == 0 ? 'active' : '' }}">
-                        <div class="row">
-
-                            @foreach ($grupoMeses as $mes)
-                                <div class="col-xl-3 col-lg-4 col-md-6 mb-4"><div class="card comision-card h-100 border-0 comision-highlight">
-
-                                    <div class="card-body d-flex flex-column align-items-center text-center position-relative">
-
-                                        {{-- Sticker / Icono --}}
-                                        @if($mes->comision_acumulada > 0)
-                                            💰
-                                        @else
-                                            📉
-                                        @endif
-
-                                        <h5 class="font-weight-bold d-flex align-items-center justify-content-center mb-1">
-                                            @if (\Carbon\Carbon::parse($mes->mes_comision)->isCurrentMonth())
-                                                <span class="mes-actual-dot mr-1"></span>
-                                            @endif
-                                            {{ $mes->mes_anio }}
-                                        </h5>
-
-                                        <small class="text-uppercase text-muted mb-2">
-                                            Comisión mensual
-                                        </small>
-
-                                        <div class="my-3">
-                                            <h2 class="text-success font-weight-bold mb-0">
-                                                L {{ number_format($mes->comision_acumulada, 2) }}
-                                            </h2>
-                                            <small class="text-muted">
-                                                Comisión acumulada
-                                            </small>
-                                        </div>
-
-                                    </div>
-                                </div>
-
-                                </div>
-                            @endforeach
-
-                        </div>
-                    </div>
-                @endforeach
-
+{{-- HERO BANNER --}}
+<div class="mc-hero">
+    <div class="d-flex align-items-start justify-content-between flex-wrap" style="gap:16px;">
+        <div class="d-flex align-items-center" style="gap:16px;">
+            <div class="mc-avatar">{{ strtoupper(substr($info->name, 0, 2)) }}</div>
+            <div>
+                <div class="mc-hero-name">{{ $info->name }}</div>
+                <div class="mc-hero-sub">
+                    <i class="fa fa-shield-alt mr-1" style="color:#3b82f6;"></i>{{ $info->rol }}
+                    &nbsp;&bull;&nbsp;
+                    <i class="fa fa-id-badge mr-1" style="color:#10b981;"></i>ID {{ $info->id }}
+                    &nbsp;&bull;&nbsp;
+                    <i class="fa fa-calendar-check mr-1" style="color:#f59e0b;"></i>
+                    {{ $kpis->meses_activos }} {{ $kpis->meses_activos == 1 ? 'mes activo' : 'meses activos' }}
+                </div>
             </div>
-
-            <!-- CONTROLES -->
-            <a class="carousel-control-prev"
-            href="#carouselComisiones"
-            role="button"
-            data-slide="prev">
-                <span class="carousel-control-prev-icon"></span>
-            </a>
-
-            <a class="carousel-control-next"
-            href="#carouselComisiones"
-            role="button"
-            data-slide="next">
-                <span class="carousel-control-next-icon"></span>
-            </a>
-
         </div>
-
+        <div class="text-right">
+            <div class="mc-hero-total-label"><i class="fa fa-history mr-1"></i>Total historico</div>
+            <div class="mc-hero-total-val">L {{ number_format($kpis->total_historico, 2) }}</div>
+            <div class="mc-hero-sub" style="font-size:.7rem;">{{ $kpis->facturas_totales }} facturas en total</div>
+        </div>
     </div>
+</div>
+
+{{-- KPI CARDS --}}
+@php
+    $promedio  = $kpis->meses_activos > 0 ? round($kpis->total_historico / $kpis->meses_activos, 2) : 0;
+    $variacion = null;
+    if(count($historicoMeses) >= 2) {
+        $ultimo    = $historicoMeses[0]->comision_acumulada ?? 0;
+        $penultimo = $historicoMeses[1]->comision_acumulada ?? 0;
+        $variacion = $penultimo > 0 ? round((($ultimo - $penultimo) / $penultimo) * 100, 1) : null;
+    }
+@endphp
+
+<div class="row mb-3">
+    <div class="col-6 col-md-4 col-xl-2 mb-3">
+        <div class="mc-kpi kpi-green h-100">
+            <div class="mc-kpi-icon bg-green"><i class="fa fa-calendar-alt"></i></div>
+            <div class="mc-kpi-label">Mes actual</div>
+            <div class="mc-kpi-val">L {{ number_format($kpis->total_mes_actual, 2) }}</div>
+            <div class="mc-kpi-sub">{{ $kpis->facturas_mes_actual }} facturas</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-2 mb-3">
+        <div class="mc-kpi kpi-amber h-100">
+            <div class="mc-kpi-icon bg-amber"><i class="fa fa-trophy"></i></div>
+            <div class="mc-kpi-label">Mejor mes</div>
+            <div class="mc-kpi-val">L {{ $mejorMes ? number_format($mejorMes->comision_acumulada, 2) : '0.00' }}</div>
+            <div class="mc-kpi-sub">{{ $mejorMes ? \Carbon\Carbon::parse($mejorMes->mes_comision)->isoFormat('MMM YYYY') : '---' }}</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-2 mb-3">
+        <div class="mc-kpi kpi-blue h-100">
+            <div class="mc-kpi-icon bg-blue"><i class="fa fa-chart-line"></i></div>
+            <div class="mc-kpi-label">Ano {{ date('Y') }}</div>
+            <div class="mc-kpi-val">L {{ number_format($kpis->total_anio_actual, 2) }}</div>
+            <div class="mc-kpi-sub">acumulado ano</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-2 mb-3">
+        <div class="mc-kpi kpi-purple h-100">
+            <div class="mc-kpi-icon bg-purple"><i class="fa fa-file-invoice-dollar"></i></div>
+            <div class="mc-kpi-label">Facturas</div>
+            <div class="mc-kpi-val">{{ $kpis->facturas_totales }}</div>
+            <div class="mc-kpi-sub">total historicas</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-2 mb-3">
+        <div class="mc-kpi kpi-teal h-100">
+            <div class="mc-kpi-icon bg-teal"><i class="fa fa-equals"></i></div>
+            <div class="mc-kpi-label">Promedio mensual</div>
+            <div class="mc-kpi-val">L {{ number_format($promedio, 2) }}</div>
+            <div class="mc-kpi-sub">entre {{ $kpis->meses_activos }} meses</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-2 mb-3">
+        <div class="mc-kpi kpi-rose h-100">
+            <div class="mc-kpi-icon bg-rose"><i class="fa fa-exchange-alt"></i></div>
+            <div class="mc-kpi-label">Variacion</div>
+            @if($variacion !== null)
+                <div class="mc-kpi-val {{ $variacion >= 0 ? 'text-success' : 'text-danger' }}" style="font-size:1.2rem;">
+                    {{ $variacion >= 0 ? '+' : '' }}{{ $variacion }}%
+                </div>
+                <div class="mc-kpi-sub">vs mes anterior</div>
+            @else
+                <div class="mc-kpi-val" style="font-size:1.1rem;color:#94a3b8;">---</div>
+                <div class="mc-kpi-sub">sin datos</div>
+            @endif
+        </div>
+    </div>
+</div>
+
+{{-- GRAFICA + TOP PRODUCTOS --}}
+<div class="row mb-2">
+    <div class="col-lg-7 mb-3">
+        <div class="mc-card h-100">
+            <div class="mc-card-header">
+                <h6><i class="fa fa-chart-area mr-2" style="color:#10b981;"></i>Historico de Comisiones</h6>
+                <span style="font-size:.72rem;color:#94a3b8;" id="chart-periodo-label"></span>
+            </div>
+            <div class="mc-card-body" style="padding-bottom:14px;">
+                <canvas id="mcChartHistorico" height="130"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-5 mb-3">
+        <div class="mc-card h-100">
+            <div class="mc-card-header" style="flex-wrap:wrap;gap:8px;">
+                <h6><i class="fa fa-box-open mr-2" style="color:#f59e0b;"></i>Top Productos</h6>
+                <div>
+                    <span class="mc-period-pill active" onclick="topPeriodo(this,'todo')">Todo</span>
+                    <span class="mc-period-pill" onclick="topPeriodo(this,'anio')">{{ date('Y') }}</span>
+                    <span class="mc-period-pill" onclick="topPeriodo(this,'mes')">Este mes</span>
+                </div>
+            </div>
+            <div class="mc-card-body" id="top-productos-body" style="padding-top:10px;max-height:320px;overflow-y:auto;">
+                <div class="text-center py-4"><i class="fa fa-spinner fa-spin text-muted"></i></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- HISTORIAL MENSUAL --}}
+<div class="mc-card">
+    <div class="mc-card-header">
+        <h6><i class="fa fa-table mr-2" style="color:#3b82f6;"></i>Historial Mensual de Comisiones</h6>
+        <small style="color:#64748b;">Haz clic en una fila para ver el detalle de facturas</small>
+    </div>
+    <div class="mc-card-body p-0">
+        <div class="table-responsive">
+            <table id="tbl_comisiones_empleado" class="table mc-table mb-0">
+                <thead>
+                    <tr>
+                        <th>Mes</th>
+                        <th>Año</th>
+                        <th>Rol</th>
+                        <th>Comisión</th>
+                        <th>Facturas</th>
+                        <th>Ult. Actualización</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{{-- MODAL DETALLE MES --}}
+<div class="mc-modal-backdrop" id="mcModalDetalle">
+    <div class="mc-modal-box">
+        <div class="mc-modal-header">
+            <h6 id="mcModalTitle"><i class="fa fa-receipt mr-2"></i>Facturas del mes</h6>
+            <button class="mc-modal-close" onclick="cerrarModal()"><i class="fa fa-times"></i></button>
+        </div>
+        <div class="mc-modal-body">
+            <div class="table-responsive">
+                <table id="tbl_detalle_mes" class="table mc-table mb-0">
+                    <thead>
+                        <tr>
+                            <th>#Factura</th>
+                            <th>Fecha</th>
+                            <th>Cliente</th>
+                            <th>Rol</th>
+                            <th>Monto Comision</th>
+                            <th>Productos</th>
+                            <th>Unidades</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
 
 </div>
-<!-- CARD LISTADO -->
-<div class="card card-tabla-comisiones border-0 shadow-sm mb-3">
 
-  <!-- Header -->
-  <div class="card-header bg-white d-flex justify-content-between align-items-center py-3 border-bottom">
-    <h6 class="mb-0 font-weight-bold text-primary">
-      📋 Lista de comisiones por mes
-    </h6>
-  </div>
-
-  <!-- Body -->
-  <div class="card-body p-0">
-    <div class="table-responsive">
-
-      <table id="tbl_comisiones_empleado"
-             class="table table-comisiones mb-0">
-
-        <thead>
-          <tr>
-            <th>Id Empleado</th>
-            <th>Empleado</th>
-            <th>Año</th>
-            <th>Mes</th>
-            <th>Total Mes</th>
-            <th>Facturas cerradas</th>
-            <th>Ultima Actualización</th>
-          </tr>
-        </thead>
-
-        <tbody></tbody>
-
-      </table>
-
-    </div>
-  </div>
-</div>
 @push('scripts')
-    <script src="{{ asset('js/js_proyecto/comisiones/Escalado/misComisiones.js') }}"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="{{ asset('js/js_proyecto/comisiones/Escalado/misComisiones.js') }}"></script>
 @endpush
