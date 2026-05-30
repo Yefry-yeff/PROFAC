@@ -19,9 +19,9 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
     protected $rows;
     protected $usuario;
 
-    /* 29 columnas: A..AC */
-    const LAST_COL  = 'AC';
-    const COL_COUNT = 29;
+    /* 30 columnas: A..AD */
+    const LAST_COL  = 'AD';
+    const COL_COUNT = 30;
 
     public function __construct($rows, $usuario = 'Sistema')
     {
@@ -65,6 +65,7 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
             'GRAVADO',
             'EXENTO',
             'ABONOS',
+            'DETALLE ABONOS',
             'SUBTOTAL',
             'ISV',
             'TOTAL',
@@ -99,6 +100,7 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
                 $r->gravado   > 0  ? (float) $r->gravado    : '',
                 $r->exento    > 0  ? (float) $r->exento     : '',
                 $r->abonos    > 0  ? (float) $r->abonos     : '',
+                $r->detalle_abonos ?? 'No aplica',
                 (float) $r->sub_total,
                 (float) $r->isv,
                 (float) $r->total,
@@ -178,6 +180,7 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
         $sheet->getColumnDimension('AA')->setAutoSize(true);
         $sheet->getColumnDimension('AB')->setAutoSize(true);
         $sheet->getColumnDimension('AC')->setAutoSize(true);
+        $sheet->getColumnDimension('AD')->setAutoSize(true);
 
         return [];
     }
@@ -206,21 +209,21 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
                     ->setVertical(Alignment::VERTICAL_CENTER);
 
                 // Alinear izquierda las columnas de texto
-                foreach (['C','D','F','G','H','I','T','Z','AA','AC'] as $c) {
+                foreach (['C','D','F','G','H','I','N','U','AA','AB','AD'] as $c) {
                     $sheet->getStyle("{$c}5:{$c}{$lastRow}")->getAlignment()
                         ->setHorizontal(Alignment::HORIZONTAL_LEFT);
                 }
 
-                // Alinear derecha y formato moneda para columnas J..S
-                foreach (['J','K','L','M','N','O','P','Q','R','S'] as $c) {
+                // Alinear derecha y formato moneda para columnas J..T
+                foreach (['J','K','L','M','O','P','Q','R','S','T'] as $c) {
                     $sheet->getStyle("{$c}5:{$c}{$lastRow}")
                         ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
                     $sheet->getStyle("{$c}5:{$c}{$lastRow}")
                         ->getNumberFormat()->setFormatCode('"L" #,##0.00');
                 }
 
-                // Formato días vencidos (columna W)
-                $sheet->getStyle("W5:W{$lastRow}")
+                // Formato días vencidos (columna X)
+                $sheet->getStyle("X5:X{$lastRow}")
                     ->getNumberFormat()->setFormatCode('0" días"');
 
                 // ── Loop por fila solo para colores (mínimo necesario) ──
@@ -242,15 +245,15 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
                             ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB($bg);
                     }
 
-                    // Colorear estado crédito (columna X)
-                    $estado = $sheet->getCell("X{$row}")->getValue();
+                    // Colorear estado crédito (columna Y)
+                    $estado = $sheet->getCell("Y{$row}")->getValue();
                     $bgEstado = match($estado) {
                         'Vencida'   => 'FADBD8',
                         'Cancelada' => 'D5F5E3',
                         'Contado'   => 'D6EAF8',
                         default     => 'FDFEFE',
                     };
-                    $sheet->getStyle("X{$row}")->getFill()
+                    $sheet->getStyle("Y{$row}")->getFill()
                         ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB($bgEstado);
 
                     $sheet->getRowDimension($row)->setRowHeight(15);

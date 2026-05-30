@@ -105,6 +105,7 @@
                 <th>GRAVADO</th>
                 <th>EXENTO</th>
                 <th>ABONOS</th>
+                <th>DETALLE ABONOS</th>
                 <th>SUBTOTAL</th>
                 <th>ISV</th>
                 <th>TOTAL</th>
@@ -138,6 +139,7 @@
                 <td class="text-right">{{ $r->gravado   > 0 ? lps($r->gravado)   : '-' }}</td>
                 <td class="text-right">{{ $r->exento    > 0 ? lps($r->exento)    : '-' }}</td>
                 <td class="text-right">{{ $r->abonos    > 0 ? lps($r->abonos)    : '-' }}</td>
+                <td class="text-left">{{ $r->detalle_abonos ?? 'No aplica' }}</td>
                 <td class="text-right">{{ lps($r->sub_total) }}</td>
                 <td class="text-right">{{ lps($r->isv) }}</td>
                 <td class="text-right">{{ lps($r->total) }}</td>

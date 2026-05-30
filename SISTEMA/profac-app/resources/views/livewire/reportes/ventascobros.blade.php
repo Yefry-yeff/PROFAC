@@ -381,6 +381,7 @@
                                         <th>GRAVADO</th>
                                         <th>EXENTO</th>
                                         <th>ABONOS</th>
+                                        <th>DETALLE ABONOS</th>
                                         <th>SUBTOTAL</th>
                                         <th>ISV</th>
                                         <th>TOTAL</th>

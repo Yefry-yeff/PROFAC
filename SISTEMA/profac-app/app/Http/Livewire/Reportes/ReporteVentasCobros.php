@@ -96,17 +96,35 @@ class ReporteVentasCobros extends Component
                    AND ac.estado_abono = 1),
             0)                                                          AS abonos,
 
+            COALESCE(
+                (SELECT GROUP_CONCAT(
+                        CONCAT(
+                            DATE_FORMAT(ac.fecha_pago, '%d/%m/%Y'),
+                            ' L ', FORMAT(ac.monto_abonado, 2),
+                            IF(
+                                ac.id = (
+                                    SELECT MAX(acx.id)
+                                    FROM abonos_creditos acx
+                                    INNER JOIN aplicacion_pagos apx ON apx.id = acx.aplicacion_pagos_id
+                                    WHERE apx.factura_id = f.id
+                                      AND acx.estado_abono = 1
+                                ),
+                                ' (ULTIMO)',
+                                ''
+                            )
+                        )
+                        ORDER BY ac.id
+                        SEPARATOR ' | '
+                    )
+                 FROM abonos_creditos ac
+                 INNER JOIN aplicacion_pagos ap ON ap.id = ac.aplicacion_pagos_id
+                 WHERE ap.factura_id = f.id
+                   AND ac.estado_abono = 1),
+            'No aplica')                                               AS detalle_abonos,
+
                         /* ── Monto pagado (si la retención = subtotal, cuenta como pago total) ── */
                         CASE
-                                WHEN COALESCE(
-                                        (SELECT ap_ret.retencion_isv_factura
-                                         FROM aplicacion_pagos ap_ret
-                                         WHERE ap_ret.factura_id = f.id
-                                             AND ap_ret.estado_retencion_isv = 2
-                                         ORDER BY ap_ret.id DESC LIMIT 1),
-                                0) = COALESCE(f.sub_total, 0)
-                                AND COALESCE(f.sub_total, 0) > 0
-                                THEN COALESCE(f.total, 0)
+                                WHEN apc.id IS NOT NULL THEN GREATEST(COALESCE(f.total, 0) - COALESCE(apc.saldo, 0), 0)
                                 ELSE COALESCE(
                                         (SELECT SUM(pv.monto)
                                          FROM pago_venta pv
@@ -116,48 +134,36 @@ class ReporteVentasCobros extends Component
                         END                                                        AS monto_pagado,
 
                         /* ── Retención ISV (solo cuando estado_retencion_isv = 2) ── */
-                        COALESCE(
-                                (SELECT ap_ret.retencion_isv_factura
-                                 FROM aplicacion_pagos ap_ret
-                                 WHERE ap_ret.factura_id = f.id
-                                     AND ap_ret.estado_retencion_isv = 2
-                                 ORDER BY ap_ret.id DESC LIMIT 1),
-                        0)                                                          AS monto_retencion,
+            CASE
+                WHEN COALESCE(apc.estado_retencion_isv, 0) = 2
+                    THEN COALESCE(apc.retencion_isv_factura, 0)
+                ELSE 0
+            END                                                        AS monto_retencion,
 
-                        COALESCE(
-                                (SELECT NULLIF(TRIM(ap_ret.comentario_retencion), '')
-                                 FROM aplicacion_pagos ap_ret
-                                 WHERE ap_ret.factura_id = f.id
-                                     AND ap_ret.estado_retencion_isv = 2
-                                 ORDER BY ap_ret.id DESC LIMIT 1),
-                        'No aplica')                                               AS numero_retencion,
+            CASE
+                WHEN COALESCE(apc.estado_retencion_isv, 0) = 2
+                    THEN COALESCE(NULLIF(TRIM(apc.comentario_retencion), ''), 'No aplica')
+                ELSE 'No aplica'
+            END                                                        AS numero_retencion,
 
             /* ── Saldo pendiente (calculado) ── */
-                        COALESCE(f.total, 0)
-                                - COALESCE(
-                                        (SELECT SUM(ac.monto_abonado)
-                                         FROM abonos_creditos ac
-                                         INNER JOIN aplicacion_pagos ap ON ap.id = ac.aplicacion_pagos_id
-                                         WHERE ap.factura_id = f.id
-                                             AND ac.estado_abono = 1),
-                                    0)
-                                - CASE
-                                        WHEN COALESCE(
-                                                (SELECT ap_ret.retencion_isv_factura
-                                                 FROM aplicacion_pagos ap_ret
-                                                 WHERE ap_ret.factura_id = f.id
-                                                     AND ap_ret.estado_retencion_isv = 2
-                                                 ORDER BY ap_ret.id DESC LIMIT 1),
-                                        0) = COALESCE(f.sub_total, 0)
-                                        AND COALESCE(f.sub_total, 0) > 0
-                                        THEN COALESCE(f.total, 0)
-                                        ELSE COALESCE(
-                                                (SELECT SUM(pv.monto)
-                                                 FROM pago_venta pv
-                                                 WHERE pv.factura_id = f.id
-                                                     AND pv.estado_venta_id = 1),
-                                        0)
-                                    END                                                    AS saldo_pendiente,
+            CASE
+                WHEN apc.id IS NOT NULL THEN COALESCE(apc.saldo, 0)
+                ELSE COALESCE(f.total, 0)
+                    - COALESCE(
+                        (SELECT SUM(ac.monto_abonado)
+                         FROM abonos_creditos ac
+                         INNER JOIN aplicacion_pagos ap ON ap.id = ac.aplicacion_pagos_id
+                         WHERE ap.factura_id = f.id
+                           AND ac.estado_abono = 1),
+                    0)
+                    - COALESCE(
+                        (SELECT SUM(pv.monto)
+                         FROM pago_venta pv
+                         WHERE pv.factura_id = f.id
+                           AND pv.estado_venta_id = 1),
+                    0)
+            END                                                        AS saldo_pendiente,
 
             /* ── Fechas ── */
             f.fecha_emision                                             AS fecha_venta,
@@ -169,24 +175,7 @@ class ReporteVentasCobros extends Component
             /* ── Créditos vencidos ── */
             CASE
                 WHEN f.credito = 0 THEN 'Contado'
-                WHEN COALESCE(f.total,0)
-                     - COALESCE((SELECT SUM(ac2.monto_abonado)
-                                 FROM abonos_creditos ac2
-                                 INNER JOIN aplicacion_pagos ap2 ON ap2.id = ac2.aplicacion_pagos_id
-                                 WHERE ap2.factura_id = f.id AND ac2.estado_abono = 1), 0)
-                                         - CASE
-                                                 WHEN COALESCE(
-                                                         (SELECT ap_ret.retencion_isv_factura
-                                                            FROM aplicacion_pagos ap_ret
-                                                            WHERE ap_ret.factura_id = f.id
-                                                                AND ap_ret.estado_retencion_isv = 2
-                                                            ORDER BY ap_ret.id DESC LIMIT 1),
-                                                 0) = COALESCE(f.sub_total, 0)
-                                                 AND COALESCE(f.sub_total, 0) > 0
-                                                 THEN COALESCE(f.total, 0)
-                                                 ELSE COALESCE((SELECT SUM(pv2.monto) FROM pago_venta pv2
-                                                                                WHERE pv2.factura_id = f.id AND pv2.estado_venta_id = 1), 0)
-                                             END <= 0 THEN 'Cancelada'
+                WHEN (COALESCE(apc.estado_cerrado, 0) = 2 OR COALESCE(apc.saldo, 0) <= 0) THEN 'Cancelada'
                 WHEN f.fecha_vencimiento < CURDATE() THEN 'Vencida'
                 ELSE 'Vigente'
             END                                                         AS creditos_vencidos,
@@ -239,6 +228,14 @@ class ReporteVentasCobros extends Component
         LEFT  JOIN estado_venta ev      ON ev.id = f.estado_venta_id
         LEFT  JOIN tipo_pago_venta tpv  ON tpv.id = f.tipo_pago_id
         LEFT  JOIN numero_orden_compra noc ON noc.id = f.numero_orden_compra_id
+                LEFT  JOIN aplicacion_pagos apc ON apc.id = (
+                        SELECT apx.id
+                        FROM aplicacion_pagos apx
+                        WHERE apx.factura_id = f.id
+                            AND apx.estado = 1
+                        ORDER BY apx.id DESC
+                        LIMIT 1
+                )
         WHERE {$where}
         ORDER BY f.numero_secuencia_cai ASC
         ";
