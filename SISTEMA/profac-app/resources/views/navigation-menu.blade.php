@@ -1,21 +1,24 @@
 <div>
-<nav x-data="{ open: false }" class="sticky bg-white border-b border-gray-100" style=" ">
-    <a class="navbar-minimalize minimalize-styl-2 btn btn-primary " href="#"><i class="fa fa-bars"></i></a>
+<nav x-data="{ open: false }" class="sticky top-0 left-0 right-0 z-40 bg-white border-b border-gray-200 shadow-sm">
+    <a class="navbar-minimalize minimalize-styl-2 btn btn-primary md:hidden flex items-center justify-center w-10 h-10 rounded-lg bg-orange-600 text-white hover:bg-orange-700 transition" href="#"><i class="fa fa-bars"></i></a>
 
     <!-- Primary Navigation Menu -->
-    <div class="px-4 sm:px-6 lg:px-8" style="width:100vw">
+    <div class="px-4 sm:px-6 lg:px-8 w-full">
 
         <div class="relative flex items-center justify-center h-16">
             <!-- Logo centrado -->
             <div class="flex items-center">
                 <a href="{{ route('dashboard') }}">
-                    <img class="object-cover rounded-full animate__animated animate__bounceIn" style="width:4.5rem"
-                        src="{{ asset('img/LOGO_VALENCIA.jpg') }}" />
+                    <img class="object-cover rounded-full shadow-lg border-4 border-orange-500 animate__animated animate__bounceIn" style="width:4.5rem"
+                        src="{{ asset('img/LOGO_VALENCIA.jpg') }}" alt="Logo Valencia" />
                 </a>
             </div>
 
             <div class="absolute right-0 hidden sm:flex sm:items-center sm:mr-3 profile-area">
                 <!-- Teams Dropdown -->
+
+                {{-- Campana de notificaciones --}}
+                @livewire('notificaciones-bell')
 
                 <!-- Settings Dropdown -->
                 <div class="relative ml-3">
@@ -23,15 +26,15 @@
                         <x-slot name="trigger">
                             @if (Laravel\Jetstream\Jetstream::managesProfilePhotos())
                                 <button
-                                    class="flex text-sm transition border-2 border-transparent rounded-full focus:outline-none focus:border-gray-300">
+                                    class="flex text-sm transition border-2 border-transparent rounded-full focus:outline-none focus:border-orange-400 shadow-md hover:shadow-lg">
                                     @if (Auth::user()->profile_photo_path && file_exists(public_path('storage/' . Auth::user()->profile_photo_path)))
-                                        <img class="object-cover w-8 h-8 rounded-full"
+                                        <img class="object-cover w-8 h-8 rounded-full border-2 border-orange-400"
                                             src="{{ asset('storage/' . Auth::user()->profile_photo_path) }}"
                                             alt="{{ Auth::user()->name }}" />
                                         <!-- Inicial visible solo en móvil -->
-                                        <span class="mobile-initial-avatar" aria-hidden="true">{{ substr(Auth::user()->name, 0, 1) }}</span>
+                                        <span class="mobile-initial-avatar hidden md:inline-flex ml-2 bg-orange-100 text-orange-700 border border-orange-300" aria-hidden="true">{{ substr(Auth::user()->name, 0, 1) }}</span>
                                     @else
-                                        <div class="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 font-bold">
+                                        <div class="w-8 h-8 rounded-full bg-orange-200 flex items-center justify-center text-orange-700 font-bold border border-orange-400">
                                             {{ substr(Auth::user()->name, 0, 1) }}
                                         </div>
                                     @endif
@@ -39,10 +42,9 @@
                             @else
                                 <span class="inline-flex rounded-md">
                                     <button type="button"
-                                        class="inline-flex items-center px-3 py-2 text-sm font-medium leading-4 text-gray-500 transition bg-white border border-transparent rounded-md hover:text-gray-700 focus:outline-none">
+                                        class="inline-flex items-center px-3 py-2 text-sm font-medium leading-4 text-gray-700 transition bg-white border border-orange-300 rounded-md shadow hover:text-orange-700 hover:border-orange-400 focus:outline-none">
                                         {{ Auth::user()->name }}
-
-                                        <svg class="ml-2 -mr-0.5 h-4 w-4" xmlns="http://www.w3.org/2000/svg"
+                                        <svg class="ml-2 -mr-0.5 h-4 w-4 text-orange-500" xmlns="http://www.w3.org/2000/svg"
                                             viewBox="0 0 20 20" fill="currentColor">
                                             <path fill-rule="evenodd"
                                                 d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
@@ -59,9 +61,20 @@
                                 {{ __('Administracion de cuenta') }}
                             </div>
 
+
                             <x-jet-dropdown-link href="{{ route('profile.show') }}">
                                 {{ __('Perfil') }}
                             </x-jet-dropdown-link>
+
+                            @if(optional(Auth::user()->rol)->nombre === 'Administrador' || Auth::user()->rol_id == 1)
+                                <div class="border-t border-gray-100"></div>
+                                <div class="block px-4 py-2 text-xs text-gray-400 uppercase tracking-wide">
+                                    <i class="fa fa-cog mr-1"></i> Administración
+                                </div>
+                                <x-jet-dropdown-link href="{{ route('configuracion.notificaciones.flujo') }}">
+                                    <i class="fa fa-bell mr-2 text-orange-500"></i> Configuración de notificaciones
+                                </x-jet-dropdown-link>
+                            @endif
 
                             @if (Laravel\Jetstream\Jetstream::hasApiFeatures())
                                 <x-jet-dropdown-link href="{{ route('api-tokens.index') }}">
@@ -194,11 +207,10 @@
 
     <!---menu lateral de la plantilla--->
     <style>
-        /* Fix: Tailwind CSS .collapse { visibility: collapse } hides MetisMenu submenu text.
-           Icons show because they have visibility:visible !important, but text nodes inherit collapse.
-           Override here (in body) so it takes effect AFTER app.css loads. */
-        .metismenu .collapse,
-        #side-menu .collapse {
+        /* ── Fix: colisión Tailwind .collapse (visibility:collapse) vs Bootstrap .collapse ── */
+        #side-menu .nav-second-level,
+        #side-menu .nav-second-level li,
+        #side-menu .nav-second-level li a {
             visibility: visible !important;
         }
 
@@ -278,20 +290,6 @@
             overflow-y: auto !important;
             overflow-x: hidden !important;
             /* Dejar espacio para el footer anclado */
-        }
-        /* Scrollbar personalizado para que no muestre el fondo naranja del sidebar */
-        .scroll-bar-sidebar::-webkit-scrollbar {
-            width: 4px;
-        }
-        .scroll-bar-sidebar::-webkit-scrollbar-track {
-            background: rgba(0, 0, 0, 0.15);
-        }
-        .scroll-bar-sidebar::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.35);
-            border-radius: 2px;
-        }
-        .scroll-bar-sidebar::-webkit-scrollbar-thumb:hover {
-            background: rgba(255, 255, 255, 0.55);
         }
         .sidebar-footer-info {
             flex-shrink: 0;
@@ -423,8 +421,8 @@
         }
     </style>
 
-    <nav class="navbar-default navbar-static-side " role="navigation">
-        <div class="sidebar-collapse ">
+    <nav class="navbar-default navbar-static-side bg-gradient-to-b from-orange-500 via-orange-700 to-orange-900 text-white" role="navigation">
+        <div class="sidebar-collapse">
             <ul class="nav metismenu scroll-bar-sidebar" id="side-menu" style="">
                 <li class="nav-header">
                     <div class="logo-element">
@@ -433,24 +431,23 @@
                 </li>
 
                 {{-- Cuadro de búsqueda en sidebar --}}
-                <li class="search-sidebar" style="padding: 15px 20px;">
-                    <div class="input-group">
-                        <input type="text" id="menu-search" class="form-control" placeholder="Buscar en menú..." 
-                               style="background: #ffffff; border: 1px solid #e7eaec; color: #333; border-radius: 4px;">
-                        <span class="input-group-addon" style="background: #ffffff; border: 1px solid #e7eaec; border-left: 0;">
-                            <i class="fa fa-search" style="color: #999;"></i>
+                <li class="search-sidebar px-4 py-3">
+                    <div class="flex rounded-md shadow-sm">
+                        <input type="text" id="menu-search" class="form-input block w-full rounded-l-md border-gray-300 focus:border-orange-400 focus:ring focus:ring-orange-200 focus:ring-opacity-50 text-gray-700" placeholder="Buscar en menú...">
+                        <span class="inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 bg-white text-gray-400">
+                            <i class="fa fa-search"></i>
                         </span>
                     </div>
                 </li>
 
                 {{-- Botón Dashboard - Siempre visible para todos los roles --}}
                 <li class="dashboard-btn">
-                    <a href="{{ route('dashboard') }}" class="dashboard-link">
-                        <i class="fa fa-area-chart"></i>
-                        <span class="nav-label">Dashboard</span>
+                    <a href="{{ route('dashboard') }}" class="dashboard-link flex items-center gap-2 px-4 py-2 rounded-md hover:bg-orange-600 transition">
+                        <i class="fa fa-area-chart text-lg"></i>
+                        <span class="nav-label font-semibold">Dashboard</span>
                     </a>
                 </li>
-                
+
                 <style>
                     .dashboard-btn .dashboard-link {
                         display: flex;
@@ -460,18 +457,18 @@
                         color: #ffffff !important;
                         text-decoration: none;
                     }
-                    
+
                     .dashboard-btn .dashboard-link i {
                         font-size: 16px;
                         margin-right: 10px;
                         color: #ffffff !important;
                     }
-                    
+
                     .dashboard-btn .dashboard-link .nav-label {
                         font-size: 14px;
                         color: #ffffff !important;
                     }
-                    
+
                     /* ========== REGLAS GLOBALES PARA ICONOS (MÁXIMA PRIORIDAD) ========== */
                     /* CRÍTICO: Sobrescribir regla de Inspinia que oculta spans en mini-navbar */
                     body.mini-navbar .navbar-default .nav li a i,
@@ -488,7 +485,7 @@
                         height: auto !important;
                         margin: 0 !important;
                     }
-                    
+
                     /* Forzar iconos visibles en TODAS las dimensiones - sobrescribe estilos inline */
                     .navbar-default .nav > li > a i,
                     .navbar-static-side #side-menu li a i,
@@ -502,7 +499,7 @@
                         width: auto !important;
                         height: auto !important;
                     }
-                    
+
                     /* Regla adicional para cuando el sidebar está minimizado */
                     .navbar-static-side[style*="width: 70px"] li a i,
                     .navbar-static-side[style*="width:70px"] li a i {
@@ -512,12 +509,12 @@
 
                     /* ========== ESTILOS UNIVERSALES PARA MODO MINIMIZADO ========== */
                     /* Aplica tanto en escritorio (body.mini-navbar) como en móvil (body:not(.mini-navbar) <768px) */
-                    
+
                     /* Cuando el menú está minimizado en escritorio (clase mini-navbar en body) */
                     body.mini-navbar .navbar-static-side {
                         width: 70px;
                     }
-                    
+
                     /* Iconos blancos en modo minimizado */
                     body.mini-navbar .navbar-default .nav > li > a i,
                     body.mini-navbar .nav > li > a i.fa,
@@ -530,7 +527,7 @@
                         visibility: visible !important;
                         color: #ffffff !important;
                     }
-                    
+
                     /* Submenús como tooltip al hacer hover cuando está minimizado - rojo oscuro */
                     body.mini-navbar .nav li .nav-second-level {
                         display: none !important;
@@ -546,19 +543,19 @@
                         max-height: 400px;
                         overflow-y: auto;
                     }
-                    
+
                     /* Mostrar submenú al hacer hover O al hacer clic (active) cuando está minimizado */
                     body.mini-navbar .nav > li:hover > .nav-second-level,
                     body.mini-navbar .nav > li.active > .nav-second-level {
                         display: block !important;
                     }
-                    
+
                     /* Estilos de items del submenu tooltip */
                     body.mini-navbar .nav li:hover .nav-second-level li,
                     body.mini-navbar .nav li.active .nav-second-level li {
                         border: none !important;
                     }
-                    
+
                     /* Ocultar iconos de los submenús en modo minimizado - ESCRITORIO (MÁXIMA ESPECIFICIDAD) */
                     body.mini-navbar .nav li .nav-second-level li a i,
                     body.mini-navbar .nav-second-level li a i,
@@ -575,7 +572,7 @@
                         margin: 0 !important;
                         padding: 0 !important;
                     }
-                    
+
                     body.mini-navbar .nav li:hover .nav-second-level li a,
                     body.mini-navbar .nav li.active .nav-second-level li a {
                         padding: 12px 20px !important;
@@ -585,90 +582,44 @@
                         border-left: 3px solid transparent;
                         background: transparent !important;
                     }
-                    
+
                     body.mini-navbar .nav li:hover .nav-second-level li a:hover,
                     body.mini-navbar .nav li.active .nav-second-level li a:hover {
                         background: rgba(255,255,255,0.15) !important;
                         border-left: 3px solid rgba(255,255,255,0.7) !important;
                         padding-left: 23px !important;
                     }
-                    
+
                     /* Hover en item principal minimizado */
                     body.mini-navbar .nav > li > a:hover {
                         background: rgba(255,255,255,0.12) !important;
                         border-left: 3px solid rgba(255,255,255,0.6);
                         transition: all 0.3s ease;
                     }
-                    
+
                     /* Indicador visual cuando está activo (clicked) */
                     body.mini-navbar .nav > li.active > a {
                         background: rgba(255,255,255,0.15) !important;
                         border-left: 3px solid rgba(255,255,255,0.8);
                     }
-                    
+
                     /* Ocultar textos y flechas en escritorio minimizado */
                     body.mini-navbar .nav li a span.nav-label,
                     body.mini-navbar .nav li a .fa.arrow {
                         display: none !important;
                     }
 
-                    /* FIX: Si mobile-sidebar-open está activo, mostrar siempre los labels (mayor especificidad) */
-                    body.mini-navbar.mobile-sidebar-open .nav li a span.nav-label,
-                    body.mini-navbar.mobile-sidebar-open .nav li a .fa.arrow,
-                    body.mini-navbar.mobile-sidebar-open .dashboard-btn .dashboard-link .nav-label {
-                        display: inline !important;
-                    }
-                    body.mini-navbar.mobile-sidebar-open .navbar-static-side {
-                        width: 260px !important;
-                    }
-                    body.mini-navbar.mobile-sidebar-open .nav > li > a {
-                        text-align: left !important;
-                        padding: 10px 10px !important;
-                        display: flex !important;
-                        align-items: center !important;
-                    }
-                    body.mini-navbar.mobile-sidebar-open .nav > li > a i {
-                        font-size: 16px !important;
-                        width: 20px !important;
-                        min-width: 20px !important;
-                        flex-shrink: 0 !important;
-                        margin-right: 8px !important;
-                        text-align: center !important;
-                    }
-                    body.mini-navbar.mobile-sidebar-open .search-sidebar {
-                        display: block !important;
-                    }
-
-                    /* Cancelar el flyout naranja de mini-navbar al hacer hover */
-                    body.mini-navbar.mobile-sidebar-open .nav li:hover > .nav-second-level,
-                    body.mini-navbar.mobile-sidebar-open .nav li:focus > .nav-second-level {
-                        display: none !important;
-                    }
-                    /* Restaurar posición/color normal de submenús en mobile-sidebar-open */
-                    body.mini-navbar.mobile-sidebar-open .nav .nav-second-level {
-                        position: static !important;
-                        left: auto !important;
-                        background-color: transparent !important;
-                        padding: 0 !important;
-                        box-shadow: none !important;
-                    }
-                    /* Mostrar submenú del item activo/abierto */
-                    body.mini-navbar.mobile-sidebar-open .nav > li.active > .nav-second-level,
-                    body.mini-navbar.mobile-sidebar-open .nav > li.open > .nav-second-level {
-                        display: block !important;
-                    }
-                    
                     /* Centrar iconos */
                     body.mini-navbar .nav > li > a {
                         text-align: center;
                         padding: 14px 10px !important;
                     }
-                    
+
                     /* Ocultar búsqueda */
                     body.mini-navbar .search-sidebar {
                         display: none !important;
                     }
-                    
+
                     /* ========== FORZAR ICONOS VISIBLES EN MÓVIL ========== */
                     /* Reglas globales para asegurar iconos visibles en cualquier dimensión */
                     .navbar-default #side-menu > li > a > i,
@@ -680,7 +631,7 @@
                     }
 
                     /* ========== ESTILOS RESPONSIVOS PARA MÓVIL ========== */
-                    
+
                     /* Ajustes específicos para móvil - aplicar los mismos estilos que escritorio */
                     @media (max-width: 768px) {
                         /* Habilitar scroll dentro del menú lateral */
@@ -691,25 +642,20 @@
                             overflow-y: auto !important;
                             overflow-x: hidden !important;
                         }
-                        /* Sidebar: por defecto FUERA de pantalla en móvil */
+                        /* Asegurar que el sidebar esté visible en pantalla */
                         .navbar-static-side {
                             position: fixed !important;
                             top: 65px !important;
-                            left: -300px !important;
+                            left: 0 !important;
                             height: calc(100vh - 65px) !important;
                             display: flex !important;
                             z-index: 2000 !important;
-                            transition: left 0.25s ease !important;
-                        }
-                        /* Sidebar: deslizarse a la vista cuando está abierto */
-                        body.mobile-sidebar-open .navbar-static-side {
-                            left: 0 !important;
                         }
                         /* Ancho minimizado por defecto en móvil */
                         body:not(.mini-navbar) .navbar-static-side {
                             width: 70px !important;
                         }
-                        
+
                         /* Iconos en móvil CERRADO: centrados en la barra de 70px */
                         body:not(.mini-navbar):not(.mobile-sidebar-open) .navbar-default .nav > li > a i,
                         body:not(.mini-navbar):not(.mobile-sidebar-open) .nav > li > a i.fa,
@@ -727,7 +673,7 @@
                             min-width: 20px !important;
                             min-height: 20px !important;
                         }
-                        
+
                         /* Iconos en móvil ABIERTO: tamaño fijo, alineados izquierda */
                         body.mobile-sidebar-open .navbar-default .nav > li > a i,
                         body.mobile-sidebar-open #side-menu > li > a > i {
@@ -741,7 +687,7 @@
                             visibility: visible !important;
                             color: #ffffff !important;
                         }
-                        
+
                         /* Submenús tooltip en móvil (solo cuando el menú está cerrado/mini) */
                         body:not(.mini-navbar):not(.mobile-sidebar-open) .nav li .nav-second-level {
                             display: none !important;
@@ -757,13 +703,13 @@
                             max-height: 400px;
                             overflow-y: auto;
                         }
-                        
+
                         /* Mostrar submenu en hover/clic en móvil (solo cerrado/mini) */
                         body:not(.mini-navbar):not(.mobile-sidebar-open) .nav > li:hover > .nav-second-level,
                         body:not(.mini-navbar):not(.mobile-sidebar-open) .nav > li.active > .nav-second-level {
                             display: block !important;
                         }
-                        
+
                         /* Ocultar iconos de los submenús en modo mini (cerrado) */
                         body:not(.mini-navbar):not(.mobile-sidebar-open) .nav li .nav-second-level li a i,
                         body:not(.mini-navbar):not(.mobile-sidebar-open) .nav-second-level li a i,
@@ -774,7 +720,7 @@
                             height: 0 !important;
                             font-size: 0 !important;
                         }
-                        
+
                         /* Items de submenu tooltip en móvil cerrado */
                         body:not(.mini-navbar):not(.mobile-sidebar-open) .nav li:hover .nav-second-level li a,
                         body:not(.mini-navbar):not(.mobile-sidebar-open) .nav li.active .nav-second-level li a {
@@ -785,33 +731,33 @@
                             border-left: 3px solid transparent;
                             background: transparent !important;
                         }
-                        
+
                         body:not(.mini-navbar):not(.mobile-sidebar-open) .nav li:hover .nav-second-level li a:hover,
                         body:not(.mini-navbar):not(.mobile-sidebar-open) .nav li.active .nav-second-level li a:hover {
                             background: rgba(255,255,255,0.15) !important;
                             border-left: 3px solid rgba(255,255,255,0.7) !important;
                             padding-left: 23px !important;
                         }
-                        
+
                         /* Hover en iconos móvil cerrado */
                         body:not(.mini-navbar):not(.mobile-sidebar-open) .nav > li > a:hover {
                             background: rgba(255,255,255,0.12) !important;
                             border-left: 3px solid rgba(255,255,255,0.6);
                             transition: all 0.3s ease;
                         }
-                        
+
                         /* Item activo móvil cerrado */
                         body:not(.mini-navbar):not(.mobile-sidebar-open) .nav > li.active > a {
                             background: rgba(255,255,255,0.15) !important;
                             border-left: 3px solid rgba(255,255,255,0.8);
                         }
-                        
+
                         /* Ocultar textos y flechas en móvil mini (cerrado) */
                         body:not(.mini-navbar):not(.mobile-sidebar-open) .nav li a span.nav-label,
                         body:not(.mini-navbar):not(.mobile-sidebar-open) .nav li a .fa.arrow {
                             display: none !important;
                         }
-                        
+
                         /* Iconos alineados a la izquierda en móvil cerrado */
                         body:not(.mini-navbar):not(.mobile-sidebar-open) .nav > li > a {
                             text-align: left;
@@ -826,23 +772,23 @@
                             text-align: center !important;
                             margin-right: 0 !important;
                         }
-                        
+
                         /* Dashboard en móvil cerrado: icono a la izquierda */
                         body:not(.mini-navbar):not(.mobile-sidebar-open) .dashboard-btn .dashboard-link {
                             justify-content: flex-start !important;
                             padding: 14px 10px 14px 12px !important;
                         }
-                        
+
                         body:not(.mini-navbar):not(.mobile-sidebar-open) .dashboard-btn .dashboard-link i {
                             margin-right: 0 !important;
                             font-size: 18px;
                         }
-                        
+
                         /* Ocultar búsqueda en móvil cerrado */
                         body:not(.mini-navbar):not(.mobile-sidebar-open) .search-sidebar {
                             display: none !important;
                         }
-                        
+
                         /* === ESTADO ABIERTO (mobile-sidebar-open): icono + nombre === */
                         body.mobile-sidebar-open nav.navbar-static-side {
                             width: 220px !important;
@@ -854,7 +800,7 @@
                             padding-left: 0 !important;
                             margin-left: 0 !important;
                         }
-                        
+
                         body.mobile-sidebar-open .nav > li > a {
                             text-align: left !important;
                             padding: 10px 10px 10px 10px !important;
@@ -862,7 +808,7 @@
                             align-items: center !important;
                             margin: 0 !important;
                         }
-                        
+
                         body.mobile-sidebar-open .nav > li > a i {
                             font-size: 16px !important;
                             width: 20px !important;
@@ -872,19 +818,19 @@
                             margin-right: 8px !important;
                             margin-left: 0 !important;
                         }
-                        
+
                         /* Mostrar labels cuando está abierto */
                         body.mobile-sidebar-open .nav li a span.nav-label {
                             display: inline !important;
                             font-size: 13px !important;
                             color: #ffffff !important;
                         }
-                        
+
                         body.mobile-sidebar-open .nav li a .fa.arrow {
                             display: inline-block !important;
                             margin-left: auto !important;
                         }
-                        
+
                         /* Submenús inline cuando está abierto */
                         body.mobile-sidebar-open .nav li .nav-second-level {
                             display: none;
@@ -909,7 +855,7 @@
                             border-left: 3px solid rgba(255,255,255,0.7) !important;
                             color: #ffffff !important;
                         }
-                        
+
                         /* Dashboard en móvil abierto */
                         body.mobile-sidebar-open .dashboard-btn .dashboard-link {
                             justify-content: flex-start !important;
@@ -923,17 +869,20 @@
                             display: inline !important;
                             font-size: 13px !important;
                         }
-                        
+
                         /* Búsqueda visible cuando está abierto */
                         body.mobile-sidebar-open .search-sidebar {
                             display: block !important;
                         }
-                        
-                        /* Contenido: siempre ancho completo en móvil (sidebar es overlay) */
-                        #page-wrapper {
+
+                        /* Ajustar contenido principal */
+                        body:not(.mini-navbar) #page-wrapper {
                             margin-left: 0 !important;
                         }
-                        
+                        body.mobile-sidebar-open #page-wrapper {
+                            margin-left: 220px !important;
+                        }
+
                         /* Forzar iconos visibles - solo móvil cerrado */
                         body:not(.mobile-sidebar-open) .navbar-default .nav > li > a i,
                         body:not(.mobile-sidebar-open) .navbar-static-side #side-menu li a i {
@@ -946,7 +895,7 @@
                             min-height: 20px !important;
                         }
                     }
-                    
+
                     /* Media query adicional para pantallas muy pequeñas */
                     @media (max-width: 480px) {
                         /* Forzar iconos con máxima especificidad */
@@ -1137,23 +1086,23 @@
                             margin-left: 260px !important;
                         }
                     }
-                    
+
                     /* Asegurar ancho 70px en escritorio minimizado */
                     body.mini-navbar .navbar-static-side {
                         width: 70px !important;
                     }
-                    
+
                     /* Ocultar textos y flechas en escritorio minimizado */
                     body.mini-navbar .nav li a span.nav-label,
                     body.mini-navbar .nav li a .fa.arrow {
                         display: none !important;
                     }
-                    
+
                     /* Ocultar búsqueda en escritorio minimizado */
                     body.mini-navbar .search-sidebar {
                         display: none !important;
                     }
-                    
+
                     /* Botón toggle para expandir/contraer en móvil */
                     @media (max-width: 768px) {
                         .navbar-minimalize {
@@ -1176,7 +1125,7 @@
                         }
 
                         body.mini-navbar #page-wrapper {
-                            margin-left: 0 !important;
+                            margin-left: 70px !important;
                         }
 
                         body.mini-navbar .nav li a span.nav-label,
@@ -1219,9 +1168,9 @@
             </ul>
 
             {{-- Footer anclado al sidebar --}}
-            <div class="sidebar-footer-info">
-                <span class="sf-sistema">PROFAC Sistema</span>
-                <span class="sf-copy">&copy; {{ date('Y') }} D. Valencia &mdash; Todos los derechos reservados</span>
+            <div class="sidebar-footer-info bg-orange-900 text-white text-center py-2 mt-4 rounded-b-lg shadow-inner">
+                <span class="sf-sistema font-bold text-xs tracking-wide block">PROFAC Sistema</span>
+                <span class="sf-copy text-xs text-orange-200">&copy; {{ date('Y') }} D. Valencia &mdash; Todos los derechos reservados</span>
             </div>
 
         </div>
@@ -1233,54 +1182,6 @@
 
 @push('styles')
 <style>
-/* Fix: Tailwind CSS defines .collapse { visibility: collapse } which hides text in MetisMenu submenus.
-   Override to ensure submenu content is visible (display:none on .collapse already handles hiding). */
-.metismenu .collapse,
-#side-menu .collapse {
-    visibility: visible !important;
-}
-
-/* ====== FIX CRÍTICO: cuando mobile-sidebar-open está activo, mostrar siempre los nav-labels ======
-   Cuando ambas clases coexisten (mini-navbar + mobile-sidebar-open), mobile-sidebar-open gana.
-   La especificidad (0,4,4) supera cualquier regla de body.mini-navbar (0,3,4). */
-body.mini-navbar.mobile-sidebar-open .nav li a span.nav-label,
-body.mini-navbar.mobile-sidebar-open .nav li a .fa.arrow,
-body.mini-navbar.mobile-sidebar-open .dashboard-btn .dashboard-link .nav-label {
-    display: inline !important;
-}
-body.mini-navbar.mobile-sidebar-open .navbar-static-side {
-    width: 220px !important;
-}
-body.mini-navbar.mobile-sidebar-open .nav > li > a {
-    text-align: left !important;
-    padding: 10px 10px !important;
-    display: flex !important;
-    align-items: center !important;
-}
-body.mini-navbar.mobile-sidebar-open .nav > li > a i {
-    font-size: 16px !important;
-    width: 20px !important;
-    min-width: 20px !important;
-    flex-shrink: 0 !important;
-    margin-right: 8px !important;
-    text-align: center !important;
-}
-body.mini-navbar.mobile-sidebar-open .search-sidebar {
-    display: block !important;
-}
-body.mini-navbar.mobile-sidebar-open .nav li .nav-second-level {
-    display: none;
-    position: static !important;
-    width: 100% !important;
-    left: auto !important;
-    box-shadow: none !important;
-    border-radius: 0 !important;
-    background: rgba(0,0,0,0.12) !important;
-}
-body.mini-navbar.mobile-sidebar-open .nav > li.active > .nav-second-level {
-    display: block !important;
-}
-
 /* Overlay para mobile/tablet */
 @media (max-width: 992px) {
     .mobile-sidebar-overlay {
@@ -1293,7 +1194,7 @@ body.mini-navbar.mobile-sidebar-open .nav > li.active > .nav-second-level {
         opacity: 0;
         visibility: hidden;
         transition: opacity 0.25s ease, visibility 0.25s ease;
-        z-index: 1500; /* Debajo del sidebar (2000) */
+        z-index: 1500;
     }
     body.mobile-sidebar-open .mobile-sidebar-overlay {
         opacity: 1;
@@ -1311,24 +1212,11 @@ document.addEventListener('DOMContentLoaded', function () {
     const overlay = document.querySelector('.mobile-sidebar-overlay');
     function isNonDesktop() { return window.innerWidth <= 992; }
 
-    // FIX: En no-escritorio, eliminar mini-navbar que INSPINIA pudo haber añadido
-    // desde localStorage al cargar la página (mini-navbar y mobile-sidebar-open son mutuamente excluyentes)
-    if (isNonDesktop()) {
-        document.body.classList.remove('mini-navbar');
-    }
-
     function toggleMobileSidebar(e) {
         if (!toggleBtn) return;
         if (isNonDesktop()) {
             if (e) e.preventDefault();
-            const isOpen = document.body.classList.toggle('mobile-sidebar-open');
-            // FIX: Asegurar que mini-navbar nunca esté activo en no-escritorio
-            // (INSPINIA también dispara su handler y añade mini-navbar al mismo botón)
-            document.body.classList.remove('mini-navbar');
-            // Al cerrar, limpiar submenús activos para que no queden flotando
-            if (!isOpen) {
-                document.querySelectorAll('#side-menu > li').forEach(li => li.classList.remove('active'));
-            }
+            document.body.classList.toggle('mobile-sidebar-open');
         }
     }
 
@@ -1340,19 +1228,16 @@ document.addEventListener('DOMContentLoaded', function () {
     if (overlay) {
         overlay.addEventListener('click', () => {
             document.body.classList.remove('mobile-sidebar-open');
-            // Cerrar submenús activos
-            document.querySelectorAll('#side-menu > li').forEach(li => li.classList.remove('active'));
         });
     }
 
-    // Cerrar submenús y sidebar al hacer clic fuera del menú en móvil/tablet
+    // Cerrar sidebar al hacer clic fuera del menú en móvil/tablet
     document.addEventListener('click', (e) => {
         if (!isNonDesktop()) return;
         const clickedInsideMenu = e.target.closest('#side-menu');
         const clickedToggle = e.target.closest('.navbar-minimalize');
         const clickedOverlay = e.target.closest('.mobile-sidebar-overlay');
         if (!clickedInsideMenu && !clickedToggle && !clickedOverlay) {
-            document.querySelectorAll('#side-menu > li').forEach(li => li.classList.remove('active'));
             document.body.classList.remove('mobile-sidebar-open');
         }
     });
@@ -1361,10 +1246,6 @@ document.addEventListener('DOMContentLoaded', function () {
     window.addEventListener('resize', () => {
         if (!isNonDesktop()) {
             document.body.classList.remove('mobile-sidebar-open');
-            document.querySelectorAll('#side-menu > li').forEach(li => li.classList.remove('active'));
-        } else {
-            // FIX: Al reducir la pantalla a no-escritorio, quitar mini-navbar
-            document.body.classList.remove('mini-navbar');
         }
     });
 });

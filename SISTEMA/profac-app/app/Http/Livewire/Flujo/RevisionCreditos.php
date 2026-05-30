@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use App\Models\CreditoRevision;
 use App\Models\CreditoRevisionHistorial;
 use App\Services\CreditoService;
+use App\Events\FlujoAvanzadoEvent;
 use Carbon\Carbon;
 
 /**
@@ -84,6 +85,10 @@ class RevisionCreditos extends Component
     public function mount(): void
     {
         $this->cargar();
+        $flujoId = request()->integer('flujo_id');
+        if ($flujoId > 0) {
+            $this->seleccionarFlujo($flujoId);
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────
@@ -741,6 +746,25 @@ class RevisionCreditos extends Component
             DB::commit();
 
             $flujoIdCerrado = $this->flujoId;
+
+            // Notificar al personal de logística/inventario
+            try {
+                $flujoCtx = DB::table('flujo')
+                    ->where('id', $flujoIdCerrado)
+                    ->select('nombre as cliente')
+                    ->first();
+                event(new FlujoAvanzadoEvent(
+                    $flujoIdCerrado,
+                    9,
+                    ['cliente' => $flujoCtx?->cliente ?? 'N/A', 'monto' => $this->montoTotalOferta ?? null]
+                ));
+            } catch (\Throwable $notifEx) {
+                \Log::error('NotificacionFlujo dispatch failed (RevisionCreditos tipo=9)', [
+                    'flujo_id' => $flujoIdCerrado,
+                    'error'    => $notifEx->getMessage(),
+                ]);
+            }
+
             $this->cerrarDetalle();
             $this->cargar();
             $this->mensajeExito = 'Flujo #' . $flujoIdCerrado . ': Crédito aprobado y enviado a Revisión de Inventario.';

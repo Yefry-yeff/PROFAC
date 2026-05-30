@@ -304,6 +304,11 @@ table.dataTable tbody td { font-size: 13px; vertical-align: middle; }
                 <i class="fa fa-chart-area"></i> Comparativo Mensual
             </a>
         </li>
+        <li class="nav-item">
+            <a class="nav-link" data-toggle="tab" href="#tab-reversiones" role="tab">
+                <i class="fa fa-undo"></i> Reversiones
+            </a>
+        </li>
     </ul>
 
     <div class="tab-content rrhh-tab-content" id="rrhhTabContent">
@@ -547,6 +552,45 @@ table.dataTable tbody td { font-size: 13px; vertical-align: middle; }
                             <th class="text-right">Mayor Comisión Individual (L.)</th>
                             <th class="text-right">Menor Comisión Individual (L.)</th>
                             <th class="text-right">Total Comisiones (L.)</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        {{-- TAB 8: COMISIONES REVERSADAS --}}
+        <div class="tab-pane fade" id="tab-reversiones" role="tabpanel">
+            <div class="tab-toolbar">
+                <div class="tab-title">
+                    <i class="fa fa-undo" style="color:#dc2626;"></i>
+                    Auditoría de Comisiones Reversadas
+                </div>
+                <button class="btn-export" onclick="exportarExcel('reversiones')">
+                    <i class="fa fa-file-excel"></i> Exportar Excel
+                </button>
+            </div>
+            <div style="background:#fef2f2;border:1.5px solid #fecaca;border-radius:10px;padding:12px 16px;font-size:13px;color:#991b1b;margin-bottom:14px;">
+                <i class="fa fa-info-circle mr-2"></i>
+                Registro histórico de anulaciones de pago que impactaron comisiones: quién anuló, factura afectada, motivo y total revertido.
+            </div>
+            <div id="reversionesEmptyState" class="empty-state">
+                <i class="fa fa-undo"></i>
+                <p>Seleccione un período y presione <strong>Generar Reporte</strong></p>
+            </div>
+            <div id="reversionesTableWrap" style="display:none;">
+                <table id="dtReversiones" class="table table-hover table-sm w-100">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Factura / CAI</th>
+                            <th>Cliente</th>
+                            <th>Anulado por</th>
+                            <th class="text-right">Abono Anulado (L.)</th>
+                            <th class="text-right">Total Revertido (L.)</th>
+                            <th class="text-center">Comisiones Afectadas</th>
+                            <th class="text-center">Factura Reabierta</th>
+                            <th>Motivo</th>
                         </tr>
                     </thead>
                     <tbody></tbody>

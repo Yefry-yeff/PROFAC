@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Http\Request;
 use DataTables;
+use App\Events\FlujoAvanzadoEvent;
 
 class DistribucionEntrega extends Component
 {
@@ -40,12 +41,12 @@ class DistribucionEntrega extends Component
             Log::info('=== INICIO guardarDistribucion ===');
             Log::info('Request completo:', $request->all());
             Log::info('Request JSON:', $request->json()->all());
-            
+
             // Obtener datos del request (ya sea JSON o form-data)
             $data = $request->json()->all() ?: $request->all();
-            
+
             Log::info('Datos procesados:', $data);
-            
+
             $validator = Validator::make($data, [
                 'equipo_entrega_id' => 'required|exists:equipos_entrega,id',
                 'fecha_programada' => 'required|date',
@@ -58,7 +59,7 @@ class DistribucionEntrega extends Component
                 'facturas.required' => 'Debe agregar al menos una factura',
                 'facturas.*.exists' => 'Una o más facturas no existen',
             ]);
-            
+
             if ($validator->fails()) {
                 Log::warning('Validación fallida:', $validator->errors()->toArray());
                 return response()->json([
@@ -203,7 +204,7 @@ class DistribucionEntrega extends Component
                 'file' => $e->getFile(),
                 'trace' => $e->getTraceAsString()
             ]);
-            
+
             return response()->json([
                 'icon' => 'error',
                 'title' => 'Error',
@@ -220,10 +221,10 @@ class DistribucionEntrega extends Component
         try {
             // Obtener filtro de tipo de tabla
             $tipoTabla = $request->get('tipo');
-            
+
             // Construir la consulta base con subconsultas
             $query = "
-                SELECT 
+                SELECT
                     d.id,
                     d.fecha_programada,
                     d.observaciones,
@@ -236,16 +237,16 @@ class DistribucionEntrega extends Component
                     (SELECT COUNT(*) FROM distribuciones_entrega_facturas WHERE distribucion_entrega_id = d.id AND estado_entrega = 'entregado') as facturas_entregadas,
                     (SELECT COUNT(*) FROM distribuciones_entrega_facturas WHERE distribucion_entrega_id = d.id AND estado_entrega = 'parcial') as facturas_parciales,
                     (SELECT COUNT(*) FROM distribuciones_entrega_facturas WHERE distribucion_entrega_id = d.id AND estado_entrega = 'sin_entrega') as facturas_sin_entrega,
-                    (SELECT MAX(df.updated_at) 
-                     FROM distribuciones_entrega_facturas df 
-                     WHERE df.distribucion_entrega_id = d.id 
+                    (SELECT MAX(df.updated_at)
+                     FROM distribuciones_entrega_facturas df
+                     WHERE df.distribucion_entrega_id = d.id
                      AND df.estado_entrega IN ('entregado', 'parcial')
                     ) as fecha_ultima_confirmacion,
-                    (SELECT u2.name 
+                    (SELECT u2.name
                      FROM distribuciones_entrega_facturas df2
                      LEFT JOIN entregas_productos ep ON ep.distribucion_factura_id = df2.id
                      LEFT JOIN users u2 ON u2.id = ep.user_id_registro
-                     WHERE df2.distribucion_entrega_id = d.id 
+                     WHERE df2.distribucion_entrega_id = d.id
                      AND df2.estado_entrega IN ('entregado', 'parcial')
                      ORDER BY df2.updated_at DESC
                      LIMIT 1
@@ -254,16 +255,16 @@ class DistribucionEntrega extends Component
                 INNER JOIN equipos_entrega e ON d.equipo_entrega_id = e.id
                 INNER JOIN users u ON d.users_id_creador = u.id
             ";
-            
+
             $whereConditions = [];
-            
+
             if ($tipoTabla === 'pendientes') {
                 // Tabla 1: Distribuciones pendientes de tratar
                 // Estado pendiente (1) O (estado en proceso Y todas las facturas tienen estado distinto a 'sin_entrega')
                 $whereConditions[] = "(
-                    d.estado_id = 1 
+                    d.estado_id = 1
                     OR (
-                        d.estado_id = 2 
+                        d.estado_id = 2
                         AND (SELECT COUNT(*) FROM distribuciones_entrega_facturas WHERE distribucion_entrega_id = d.id AND estado_entrega = 'sin_entrega') = 0
                         AND (SELECT COUNT(*) FROM distribuciones_entrega_facturas WHERE distribucion_entrega_id = d.id) > 0
                     )
@@ -278,13 +279,13 @@ class DistribucionEntrega extends Component
                 // Tabla 3: Distribuciones completadas (sin cambios)
                 $whereConditions[] = "d.estado_id = 3";
             }
-            
+
             if (!empty($whereConditions)) {
                 $query .= " WHERE " . implode(' AND ', $whereConditions);
             }
-            
+
             $query .= " ORDER BY d.fecha_programada DESC, d.id DESC";
-            
+
             $datos = DB::select($query);
 
             return Datatables::of($datos)
@@ -325,9 +326,9 @@ class DistribucionEntrega extends Component
                     $entregadas = $datos->facturas_entregadas;
                     $parciales = $datos->facturas_parciales;
                     $sinEntregar = $total - $entregadas - $parciales;
-                    
+
                     $porcentaje = $total > 0 ? round(($entregadas / $total) * 100) : 0;
-                    
+
                     return "
                         <div>
                             <small>
@@ -361,14 +362,14 @@ class DistribucionEntrega extends Component
                         // Solo mostrar botón de confirmar si NO hay facturas sin entregar
                         $facturasSinEntregar = $datos->facturas_sin_entrega ?? 0;
                         $botonConfirmar = '';
-                        
+
                         if ($facturasSinEntregar == 0) {
                             $botonConfirmar = '
                                 <button type="button" class="btn btn-sm btn-primary" onclick="abrirConfirmacion(' . $datos->id . ')" title="Confirmar entregas">
                                     <i class="fa fa-check-circle"></i>
                                 </button>';
                         }
-                        
+
                         return '
                             <div class="btn-group">
                                 <button type="button" class="btn btn-sm btn-info" onclick="verFacturas(' . $datos->id . ')" title="Ver facturas">
@@ -404,9 +405,9 @@ class DistribucionEntrega extends Component
         try {
             // Obtener información de la distribución
             $distribucion = ModelDistribucionEntrega::with('equipo')->findOrFail($distribucionId);
-            
+
             $facturas = DB::select("
-                SELECT 
+                SELECT
                     df.id,
                     df.factura_id,
                     df.orden_entrega,
@@ -418,7 +419,7 @@ class DistribucionEntrega extends Component
                     c.direccion,
                     (SELECT COUNT(*) FROM entregas_productos WHERE distribucion_factura_id = df.id AND entregado = 1) as productos_entregados,
                     (SELECT COUNT(*) FROM entregas_productos WHERE distribucion_factura_id = df.id) as total_productos,
-                    (SELECT COUNT(DISTINCT i.id) 
+                    (SELECT COUNT(DISTINCT i.id)
                      FROM entregas_productos ep
                      INNER JOIN entregas_productos_incidencias i ON i.entrega_producto_id = ep.id
                      WHERE ep.distribucion_factura_id = df.id
@@ -582,9 +583,9 @@ class DistribucionEntrega extends Component
     {
         try {
             $busqueda = $request->input('q', '');
-            
+
             $facturas = DB::select("
-                SELECT 
+                SELECT
                     f.id,
                     f.cai,
                     f.total,
@@ -593,16 +594,16 @@ class DistribucionEntrega extends Component
                     c.direccion,
                     c.telefono,
                     (
-                        SELECT COUNT(*) 
+                        SELECT COUNT(*)
                         FROM distribuciones_entrega_facturas df
                         INNER JOIN distribuciones_entrega d ON df.distribucion_entrega_id = d.id
-                        WHERE df.factura_id = f.id 
+                        WHERE df.factura_id = f.id
                         AND d.estado_id IN (1, 2)
                     ) as entregas_pendientes,
                     (
-                        SELECT COUNT(*) 
+                        SELECT COUNT(*)
                         FROM distribuciones_entrega_facturas df
-                        WHERE df.factura_id = f.id 
+                        WHERE df.factura_id = f.id
                         AND df.estado_entrega = 'entregado'
                     ) as entregas_completadas
                 FROM facturacion f
@@ -639,9 +640,9 @@ class DistribucionEntrega extends Component
     {
         try {
             $numero = $request->input('numero', '');
-            
+
             $factura = DB::select("
-                SELECT 
+                SELECT
                     f.id,
                     f.cai,
                     f.total,
@@ -677,11 +678,11 @@ class DistribucionEntrega extends Component
             } else {
                 // Verificar si existe pero no cumple condiciones
                 $facturaExiste = DB::select("SELECT id FROM factura WHERE cai = ? LIMIT 1", [$numero]);
-                
+
                 if (!empty($facturaExiste)) {
                     // Verificar por qué no es válida
                     $facturaInfo = DB::select("
-                        SELECT 
+                        SELECT
                             f.fecha_emision,
                             CASE WHEN EXISTS (
                                 SELECT 1 FROM distribuciones_entrega_facturas def
@@ -690,7 +691,7 @@ class DistribucionEntrega extends Component
                         FROM factura f
                         WHERE f.cai = ?
                     ", [$numero]);
-                    
+
                     if ($facturaInfo[0]->ya_entregada) {
                         return response()->json([
                             'success' => false,
@@ -702,7 +703,7 @@ class DistribucionEntrega extends Component
                             'message' => 'Esta factura es anterior al 16/05/2026 y no está disponible para distribución'
                         ], 422);
                     }
-                    
+
                     // Verificar si está en distribución pendiente
                     $enPendiente = DB::select("
                         SELECT de.id as distribucion_id
@@ -720,7 +721,7 @@ class DistribucionEntrega extends Component
                         ], 422);
                     }
                 }
-                
+
                 return response()->json([
                     'success' => false,
                     'message' => 'Factura no encontrada o no disponible'
@@ -744,16 +745,16 @@ class DistribucionEntrega extends Component
     {
         try {
             $termino = $request->input('termino', '');
-            
+
             if (strlen($termino) < 3) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Ingrese al menos 3 caracteres para buscar'
                 ], 422);
             }
-            
+
             $facturas = DB::select("
-                SELECT 
+                SELECT
                     f.id,
                     f.cai,
                     f.total,
@@ -804,21 +805,21 @@ class DistribucionEntrega extends Component
     {
         try {
             $termino = $request->input('termino', '');
-            
+
             Log::info('Búsqueda de facturas autocompletado', [
                 'termino' => $termino,
                 'longitud' => strlen($termino)
             ]);
-            
+
             if (strlen($termino) < 2) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Ingrese al menos 2 caracteres'
                 ], 422);
             }
-            
+
             $facturas = DB::select("
-                SELECT 
+                SELECT
                     f.id,
                     f.cai,
                     f.total,
@@ -862,7 +863,7 @@ class DistribucionEntrega extends Component
                 'message' => $e->getMessage(),
                 'line' => $e->getLine()
             ]);
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Error al buscar facturas',
@@ -878,27 +879,27 @@ class DistribucionEntrega extends Component
     {
         try {
             $termino = $request->input('termino', '');
-            
+
             Log::info('Búsqueda de clientes autocompletado', [
                 'termino' => $termino,
                 'longitud' => strlen($termino)
             ]);
-            
+
             if (strlen($termino) < 3) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Ingrese al menos 3 caracteres'
                 ], 422);
             }
-            
+
             // Mostrar TODOS los clientes activos que tienen facturas disponibles
             // sin filtrar por el término de búsqueda aún
             $clientes = DB::select("
                 SELECT DISTINCT
                     c.id,
                     c.nombre,
-                    (SELECT COUNT(*) 
-                     FROM factura f2 
+                    (SELECT COUNT(*)
+                     FROM factura f2
                      WHERE f2.cliente_id = c.id
                      AND f2.fecha_emision >= '2026-05-16'
                      AND f2.estado_factura_id IN (1, 2)
@@ -961,7 +962,7 @@ class DistribucionEntrega extends Component
                 'line' => $e->getLine(),
                 'trace' => $e->getTraceAsString()
             ]);
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Error al buscar clientes',
@@ -978,13 +979,13 @@ class DistribucionEntrega extends Component
     {
         try {
             $clienteId = $request->input('cliente_id');
-            
+
             Log::info('Obtener facturas por cliente ID', [
                 'cliente_id' => $clienteId
             ]);
-            
+
             $facturas = DB::select("
-                SELECT 
+                SELECT
                     f.id,
                     f.cai,
                     f.total,
@@ -1026,7 +1027,7 @@ class DistribucionEntrega extends Component
                 'cliente_id' => $request->input('cliente_id'),
                 'line' => $e->getLine()
             ]);
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Error al obtener facturas',
@@ -1042,14 +1043,14 @@ class DistribucionEntrega extends Component
     {
         try {
             $facturaId = $request->input('factura_id');
-            
+
             Log::info('Obtener detalle de factura', [
                 'factura_id' => $facturaId
             ]);
-            
+
             // Datos de la factura
             $factura = DB::selectOne("
-                SELECT 
+                SELECT
                     f.id,
                     f.cai,
                     f.total,
@@ -1064,10 +1065,10 @@ class DistribucionEntrega extends Component
                 INNER JOIN cliente c ON f.cliente_id = c.id
                 WHERE f.id = ?
             ", [$facturaId]);
-            
+
             // Detalle de productos
             $productos = DB::select("
-                SELECT 
+                SELECT
                     vhp.producto_id as id,
                     vhp.cantidad,
                     vhp.precio_unidad as precio_unitario,
@@ -1082,7 +1083,7 @@ class DistribucionEntrega extends Component
                 WHERE vhp.factura_id = ?
                 ORDER BY p.nombre
             ", [$facturaId]);
-            
+
             return response()->json([
                 'success' => true,
                 'factura' => $factura,
@@ -1095,7 +1096,7 @@ class DistribucionEntrega extends Component
                 'factura_id' => $request->input('factura_id'),
                 'line' => $e->getLine()
             ]);
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Error al obtener detalle de factura',
@@ -1111,7 +1112,7 @@ class DistribucionEntrega extends Component
     {
         try {
             $distribucion = ModelDistribucionEntrega::findOrFail($distribucionId);
-            
+
             if ($distribucion->estado_id != 1) {
                 return response()->json([
                     'icon' => 'warning',
@@ -1138,12 +1139,12 @@ class DistribucionEntrega extends Component
                 $estadosTexto = $facturasConflicto->map(function($item) {
                     return $item->estado_id == 2 ? 'En Proceso' : 'Completada';
                 })->unique()->implode(', ');
-                
+
                 return response()->json([
                     'icon' => 'warning',
                     'title' => 'Facturas en uso',
-                    'text' => 'Esta distribución contiene ' . $facturasConflicto->count() . 
-                             ' factura(s) que ya están en otra distribución con estado: ' . $estadosTexto . 
+                    'text' => 'Esta distribución contiene ' . $facturasConflicto->count() .
+                             ' factura(s) que ya están en otra distribución con estado: ' . $estadosTexto .
                              '. No se puede iniciar hasta que esas distribuciones finalicen.',
                 ], 422);
             }
@@ -1175,7 +1176,7 @@ class DistribucionEntrega extends Component
     {
         try {
             $distribucion = ModelDistribucionEntrega::findOrFail($distribucionId);
-            
+
             if (!in_array($distribucion->estado_id, [1, 2])) {
                 return response()->json([
                     'icon' => 'warning',
@@ -1209,12 +1210,12 @@ class DistribucionEntrega extends Component
     {
         try {
             Log::info("=== Validando si se puede completar distribución ID: {$distribucionId} ===");
-            
+
             $errores = [];
-            
+
             // Validar que no haya facturas con estado "sin_entrega"
             $facturasSinEntrega = DB::select("
-                SELECT 
+                SELECT
                     df.id,
                     f.cai
                 FROM distribuciones_entrega_facturas df
@@ -1227,12 +1228,12 @@ class DistribucionEntrega extends Component
                 $listaFacturas = array_map(function($f) {
                     return "Factura #{$f->cai}";
                 }, $facturasSinEntrega);
-                
-                $errores[] = '<strong>Facturas sin entrega:</strong><ul class="mb-2">' . 
-                            implode('', array_map(fn($f) => "<li>{$f}</li>", $listaFacturas)) . 
+
+                $errores[] = '<strong>Facturas sin entrega:</strong><ul class="mb-2">' .
+                            implode('', array_map(fn($f) => "<li>{$f}</li>", $listaFacturas)) .
                             '</ul>';
             }
-            
+
             // Validar que no haya incidencias sin tratamiento
             $facturasConIncidenciasSinTratamiento = DB::select("
                 SELECT DISTINCT
@@ -1248,46 +1249,46 @@ class DistribucionEntrega extends Component
                     AND t.id IS NULL
                 GROUP BY def.id, f.cai
             ", [$distribucionId]);
-            
+
             if (count($facturasConIncidenciasSinTratamiento) > 0) {
                 $listaIncidencias = array_map(function($f) {
                     return "Factura #{$f->cai} ({$f->total_incidencias} incidencia(s) sin tratar)";
                 }, $facturasConIncidenciasSinTratamiento);
-                
-                $errores[] = '<strong>Facturas con incidencias sin tratamiento:</strong><ul class="mb-2">' . 
-                            implode('', array_map(fn($f) => "<li>{$f}</li>", $listaIncidencias)) . 
+
+                $errores[] = '<strong>Facturas con incidencias sin tratamiento:</strong><ul class="mb-2">' .
+                            implode('', array_map(fn($f) => "<li>{$f}</li>", $listaIncidencias)) .
                             '</ul>';
             }
-            
+
             if (count($errores) > 0) {
                 $mensaje = '<div class="text-left">';
                 $mensaje .= '<p class="mb-2">No se puede completar la distribución por los siguientes motivos:</p>';
                 $mensaje .= implode('', $errores);
                 $mensaje .= '<p class="mb-0 mt-2"><strong>Por favor, corrija estos problemas antes de completar la distribución.</strong></p>';
                 $mensaje .= '</div>';
-                
+
                 Log::info("Validación fallida. Errores encontrados: " . count($errores));
-                
+
                 return response()->json([
                     'puede_completar' => false,
                     'mensaje' => $mensaje
                 ], 200);
             }
-            
+
             Log::info("Validación exitosa. La distribución puede ser completada.");
-            
+
             return response()->json([
                 'puede_completar' => true,
                 'mensaje' => 'Todas las validaciones pasaron correctamente'
             ], 200);
-            
+
         } catch (\Exception $e) {
             Log::error("Error al validar distribución:", [
                 'distribucion_id' => $distribucionId,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Error al validar la distribución: ' . $e->getMessage()
@@ -1302,21 +1303,21 @@ class DistribucionEntrega extends Component
     {
         try {
             Log::info("=== Completando distribución ID: {$distribucionId} ===");
-            
+
             $distribucion = ModelDistribucionEntrega::findOrFail($distribucionId);
-            
+
             Log::info("Distribución encontrada:", [
                 'id' => $distribucion->id,
                 'estado_actual' => $distribucion->estado_id,
                 'fecha_programada' => $distribucion->fecha_programada
             ]);
-            
+
             if ($distribucion->estado_id != 2) {
                 Log::warning("Intento de completar distribución con estado inválido:", [
                     'distribucion_id' => $distribucion->id,
                     'estado_actual' => $distribucion->estado_id
                 ]);
-                
+
                 return response()->json([
                     'icon' => 'warning',
                     'title' => 'Estado inválido',
@@ -1326,7 +1327,7 @@ class DistribucionEntrega extends Component
 
             // Validar que no haya facturas con estado "sin_entrega"
             $facturasSinEntrega = DB::select("
-                SELECT 
+                SELECT
                     df.id,
                     f.cai
                 FROM distribuciones_entrega_facturas df
@@ -1339,14 +1340,14 @@ class DistribucionEntrega extends Component
                 $listaFacturas = array_map(function($f) {
                     return "Factura #{$f->cai}";
                 }, $facturasSinEntrega);
-                
+
                 Log::warning("Intento de completar distribución con facturas sin entrega:", [
                     'distribucion_id' => $distribucion->id,
                     'facturas_sin_entrega' => $listaFacturas
                 ]);
-                
+
                 $mensaje = 'Las siguientes facturas aún están sin entrega: ' . implode(', ', $listaFacturas);
-                
+
                 return response()->json([
                     'icon' => 'warning',
                     'title' => 'Facturas pendientes',
@@ -1374,14 +1375,14 @@ class DistribucionEntrega extends Component
                 $listaIncidencias = array_map(function($f) {
                     return "Factura #{$f->cai} ({$f->total_incidencias} incidencia(s))";
                 }, $facturasConIncidenciasSinTratamiento);
-                
+
                 Log::warning("Intento de completar distribución con incidencias sin tratamiento:", [
                     'distribucion_id' => $distribucion->id,
                     'facturas_con_incidencias' => $listaIncidencias
                 ]);
-                
+
                 $mensaje = 'Las siguientes facturas tienen incidencias sin tratamiento: ' . implode(', ', $listaIncidencias);
-                
+
                 return response()->json([
                     'icon' => 'warning',
                     'title' => 'Incidencias pendientes',
@@ -1400,6 +1401,8 @@ class DistribucionEntrega extends Component
                 ->where('distribucion_entrega_id', $distribucionId)
                 ->pluck('factura_id');
 
+            $notifFlujoIds = [];
+
             foreach ($facturaIds as $facturaId) {
                 $flujoId = DB::table('historico_flujo')
                     ->whereIn('tipo_tramite_id', [3, 5])
@@ -1411,6 +1414,8 @@ class DistribucionEntrega extends Component
                 if (!$flujoId) {
                     continue;
                 }
+
+                $notifFlujoIds[] = $flujoId;
 
                 $registroEntrega = DB::table('historico_flujo')
                     ->where('flujo_id', $flujoId)
@@ -1443,7 +1448,30 @@ class DistribucionEntrega extends Component
             }
 
             DB::commit();
-            
+
+            // Notificar a los responsables de Entrega (tipo 5) por cada flujo completado
+            foreach (array_unique($notifFlujoIds) as $notifFlujoId) {
+                try {
+                    $flujoCtx = DB::table('flujo')
+                        ->where('id', $notifFlujoId)
+                        ->first(['nombre']);
+                    event(new FlujoAvanzadoEvent(
+                        (int) $notifFlujoId,
+                        5,
+                        [
+                            'cliente'    => $flujoCtx?->nombre ?? 'N/A',
+                            'referencia' => 'Distribución #' . $distribucionId,
+                        ]
+                    ));
+                } catch (\Throwable $notifEx) {
+                    Log::error('NotificacionFlujo dispatch failed (DistribucionEntrega tipo=5)', [
+                        'flujo_id'        => $notifFlujoId,
+                        'distribucion_id' => $distribucionId,
+                        'error'           => $notifEx->getMessage(),
+                    ]);
+                }
+            }
+
             Log::info("Distribución completada exitosamente:", [
                 'distribucion_id' => $distribucion->id,
                 'nuevo_estado' => $distribucion->estado_id
@@ -1464,7 +1492,7 @@ class DistribucionEntrega extends Component
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            
+
             return response()->json([
                 'icon' => 'error',
                 'title' => 'Error',
@@ -1480,13 +1508,13 @@ class DistribucionEntrega extends Component
     {
         try {
             Log::info("=== Obteniendo incidencias para factura ID: {$facturaId} ===");
-            
+
             $factura = DistribucionEntregaFactura::with('factura')->findOrFail($facturaId);
             Log::info("Factura encontrada:", ['factura_id' => $factura->id, 'cai' => $factura->factura->cai ?? 'N/A']);
-            
+
             // Obtener todos los productos de entrega de esta factura con sus incidencias
             $incidencias = DB::select("
-                SELECT 
+                SELECT
                     i.id,
                     i.tipo,
                     i.descripcion,
@@ -1502,10 +1530,10 @@ class DistribucionEntrega extends Component
                 WHERE def.id = ?
                 ORDER BY i.created_at DESC
             ", [$facturaId]);
-            
+
             // Obtener TODOS los tratamientos para las incidencias de esta factura
             $tratamientos = DB::select("
-                SELECT 
+                SELECT
                     t.tratamiento,
                     t.created_at as tratamiento_fecha,
                     u.name as usuario_registro
@@ -1517,10 +1545,10 @@ class DistribucionEntrega extends Component
                 GROUP BY t.tratamiento, t.created_at, u.name
                 ORDER BY t.created_at DESC
             ", [$facturaId]);
-            
+
             Log::info("Total de incidencias encontradas: " . count($incidencias));
             Log::info("Total de tratamientos encontrados: " . count($tratamientos));
-            
+
             return response()->json([
                 'success' => true,
                 'factura' => [
@@ -1532,14 +1560,14 @@ class DistribucionEntrega extends Component
                 'incidencias' => $incidencias,
                 'tratamientos' => $tratamientos,
             ], 200);
-            
+
         } catch (\Exception $e) {
             Log::error("Error al obtener incidencias de factura:", [
                 'factura_id' => $facturaId,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Error al obtener incidencias',
@@ -1638,37 +1666,37 @@ class DistribucionEntrega extends Component
     {
         try {
             Log::info("=== Desbloqueando factura ID: {$facturaId} ===");
-            
+
             $factura = DistribucionEntregaFactura::findOrFail($facturaId);
             Log::info("Factura encontrada:", [
                 'id' => $factura->id,
                 'estado_actual' => $factura->estado_entrega
             ]);
-            
+
             // Cambiar estado a sin_entrega para desbloquear
             $factura->estado_entrega = 'sin_entrega';
             $factura->fecha_entrega_real = null;
             $factura->save();
-            
+
             Log::info("Factura desbloqueada exitosamente:", [
                 'factura_id' => $factura->id,
                 'nuevo_estado' => $factura->estado_entrega
             ]);
-            
+
             return response()->json([
                 'success' => true,
                 'icon' => 'success',
                 'title' => 'Desbloqueada',
                 'text' => 'La factura ha sido cambiada a estado "Sin Entrega"'
             ], 200);
-            
+
         } catch (\Exception $e) {
             Log::error("Error al desbloquear factura:", [
                 'factura_id' => $facturaId,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            
+
             return response()->json([
                 'success' => false,
                 'icon' => 'error',
@@ -1685,7 +1713,7 @@ class DistribucionEntrega extends Component
     {
         try {
             Log::info("=== Anulando entrega de factura ID: {$facturaId} ===");
-            
+
             $request = request();
             $motivo = trim($request->input('motivo', ''));
 
@@ -1694,33 +1722,33 @@ class DistribucionEntrega extends Component
                 'id' => $factura->id,
                 'estado_actual' => $factura->estado_entrega
             ]);
-            
+
             // Cambiar estado a anulada
             $factura->estado_entrega = 'anulada';
             $factura->fecha_entrega_real = null;
             $factura->motivo_anulacion = $motivo ?: null;
             $factura->save();
-            
+
             Log::info("Entrega anulada exitosamente:", [
                 'factura_id' => $factura->id,
                 'nuevo_estado' => $factura->estado_entrega,
                 'motivo' => $motivo
             ]);
-            
+
             return response()->json([
                 'success' => true,
                 'icon' => 'success',
                 'title' => 'Anulada',
                 'text' => 'La entrega ha sido anulada correctamente'
             ], 200);
-            
+
         } catch (\Exception $e) {
             Log::error("Error al anular entrega:", [
                 'factura_id' => $facturaId,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            
+
             return response()->json([
                 'success' => false,
                 'icon' => 'error',
@@ -1737,7 +1765,7 @@ class DistribucionEntrega extends Component
     {
         try {
             Log::info("=== Confirmando entrega de factura ID: {$facturaId} ===");
-            
+
             $request = request();
             $motivo = trim($request->input('motivo', ''));
 
@@ -1746,34 +1774,34 @@ class DistribucionEntrega extends Component
                 'id' => $factura->id,
                 'estado_actual' => $factura->estado_entrega
             ]);
-            
+
             // Cambiar estado a entregado
             $factura->estado_entrega = 'entregado';
             $factura->fecha_entrega_real = now();
             $factura->motivo_confirmacion = $motivo ?: null;
             $factura->save();
-            
+
             Log::info("Entrega confirmada exitosamente:", [
                 'factura_id' => $factura->id,
                 'nuevo_estado' => $factura->estado_entrega,
                 'fecha_entrega' => $factura->fecha_entrega_real,
                 'motivo' => $motivo
             ]);
-            
+
             return response()->json([
                 'success' => true,
                 'icon' => 'success',
                 'title' => 'Confirmada',
                 'text' => 'La entrega ha sido confirmada como completa'
             ], 200);
-            
+
         } catch (\Exception $e) {
             Log::error("Error al confirmar entrega:", [
                 'factura_id' => $facturaId,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            
+
             return response()->json([
                 'success' => false,
                 'icon' => 'error',
@@ -1790,7 +1818,7 @@ class DistribucionEntrega extends Component
     {
         try {
             Log::info("=== Validando incidencias sin tratamiento para distribución ID: {$distribucionId} ===");
-            
+
             // Obtener todas las facturas de la distribución que tienen incidencias sin tratamiento
             $facturasConIncidenciasSinTratamiento = DB::select("
                 SELECT DISTINCT
@@ -1806,12 +1834,12 @@ class DistribucionEntrega extends Component
                     AND t.id IS NULL
                 GROUP BY def.id, f.cai
             ", [$distribucionId]);
-            
+
             if (count($facturasConIncidenciasSinTratamiento) > 0) {
                 $listaFacturas = array_map(function($f) {
                     return "Factura #{$f->cai} ({$f->total_incidencias} incidencia(s))";
                 }, $facturasConIncidenciasSinTratamiento);
-                
+
                 $mensaje = '<div class="text-left">';
                 $mensaje .= '<p class="mb-2">Las siguientes facturas tienen incidencias sin tratamiento:</p>';
                 $mensaje .= '<ul class="mb-2">';
@@ -1821,30 +1849,30 @@ class DistribucionEntrega extends Component
                 $mensaje .= '</ul>';
                 $mensaje .= '<p class="mb-0"><strong>Debe registrar el tratamiento de las incidencias antes de confirmar la entrega.</strong></p>';
                 $mensaje .= '</div>';
-                
+
                 Log::info("Facturas con incidencias sin tratamiento encontradas: " . count($facturasConIncidenciasSinTratamiento));
-                
+
                 return response()->json([
                     'puede_confirmar' => false,
                     'mensaje' => $mensaje,
                     'facturas_pendientes' => $facturasConIncidenciasSinTratamiento
                 ], 200);
             }
-            
+
             Log::info("No hay incidencias sin tratamiento. Puede confirmar entrega.");
-            
+
             return response()->json([
                 'puede_confirmar' => true,
                 'mensaje' => 'No hay incidencias pendientes de tratamiento'
             ], 200);
-            
+
         } catch (\Exception $e) {
             Log::error("Error al validar incidencias sin tratamiento:", [
                 'distribucion_id' => $distribucionId,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Error al validar incidencias: ' . $e->getMessage()

@@ -1,6 +1,6 @@
 /* === RRHH COMISIONES — REPORTERÍA === */
 var dtNomina=null, dtDetalle=null, dtRanking=null, dtRol=null,
-    dtFacturas=null, dtProductos=null, dtComparativo=null;
+    dtFacturas=null, dtProductos=null, dtComparativo=null, dtReversiones=null;
 
 $(document).ready(function(){
     // Fechas por defecto: mes actual
@@ -100,6 +100,7 @@ function cargarTab(tabId,f){
     else if(tabId==='#tab-facturas') cargarFacturas(f);
     else if(tabId==='#tab-productos')cargarProductos(f);
     else if(tabId==='#tab-comparativo')cargarComparativo(f);
+    else if(tabId==='#tab-reversiones')cargarReversiones(f);
 }
 
 function cargarStats(f){
@@ -278,6 +279,49 @@ function cargarComparativo(f){
     });
 }
 
+function cargarReversiones(f){
+    $('#reversionesEmptyState').hide();$('#reversionesTableWrap').show();
+    if(dtReversiones){dtReversiones.destroy();$('#dtReversiones tbody').empty();}
+    dtReversiones=$('#dtReversiones').DataTable({
+        processing:true,serverSide:true,language:lang(),order:[[0,'desc']],pageLength:25,
+        ajax:{url:'/comision/reporte/reversiones',data:f,type:'GET'},
+        columns:[
+            {data:'created_at',className:'text-center',
+             render:function(d){
+                 if(!d)return'—';
+                 var txt=String(d).replace('T',' ');
+                 return '<span style="font-size:12px;color:#64748b;">'+esc(txt)+'</span>';
+             }},
+            {data:'factura',
+             render:function(d){
+                 return d
+                    ? '<code style="background:#f1f5f9;padding:2px 6px;border-radius:4px;font-size:11px;">'+esc(d)+'</code>'
+                    : '—';
+             }},
+            {data:'cliente',render:function(d){return esc(d||'—');}},
+            {data:'usuario_anulo',render:function(d){return '<strong>'+esc(d||'—')+'</strong>'; }},
+            {data:'monto_abono_anulado',className:'text-right',
+             render:function(d){return fmtMoney(d);}},
+            {data:'total_revertido',className:'text-right',
+             render:function(d){return '<strong class="monto-com">'+fmtMoney(d)+'</strong>'; }},
+            {data:'comisiones_afectadas',className:'text-center',
+             render:function(d){return '<span class="badge badge-secondary">'+(d||0)+'</span>'; }},
+            {data:'factura_reabierta',className:'text-center',
+             render:function(d){
+                 return parseInt(d,10)===1
+                    ? '<span class="badge badge-warning">Sí</span>'
+                    : '<span class="badge badge-light">No</span>';
+             }},
+            {data:'motivo',
+             render:function(d){
+                 if(!d)return '—';
+                 var txt = esc(d);
+                 return txt.length > 90 ? txt.substring(0,90)+'…' : txt;
+             }}
+        ]
+    });
+}
+
 function limpiarFiltros(){
     var hoy=new Date(),ini=new Date(hoy.getFullYear(),hoy.getMonth(),1);
     $('#fpFechaInicio').val(fmtDate(ini));
@@ -287,7 +331,7 @@ function limpiarFiltros(){
     $('#kpiComision,#kpiEmpleados,#kpiFacturas,#kpiPromedio').text('—');
     $('#badgePeriodo .badge,#textPeriodo').text('');
     $('.empty-state').show();
-    $('#nominaTableWrap,#detalleTableWrap,#rankingTableWrap,#rolTableWrap,#facturasTableWrap,#productosTableWrap,#comparativoTableWrap').hide();
+    $('#nominaTableWrap,#detalleTableWrap,#rankingTableWrap,#rolTableWrap,#facturasTableWrap,#productosTableWrap,#comparativoTableWrap,#reversionesTableWrap').hide();
     if(dtNomina){dtNomina.destroy();dtNomina=null;$('#dtNomina tbody').empty();}
     if(dtDetalle){dtDetalle.destroy();dtDetalle=null;$('#dtDetalle tbody').empty();}
     if(dtRanking){dtRanking.destroy();dtRanking=null;$('#dtRanking tbody').empty();}
@@ -295,6 +339,7 @@ function limpiarFiltros(){
     if(dtFacturas){dtFacturas.destroy();dtFacturas=null;$('#dtFacturas tbody').empty();}
     if(dtProductos){dtProductos.destroy();dtProductos=null;$('#dtProductos tbody').empty();}
     if(dtComparativo){dtComparativo.destroy();dtComparativo=null;$('#dtComparativo tbody').empty();}
+    if(dtReversiones){dtReversiones.destroy();dtReversiones=null;$('#dtReversiones tbody').empty();}
 }
 
 function exportarExcel(tipo){

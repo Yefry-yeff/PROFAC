@@ -49,11 +49,29 @@ class ListarVentas extends Component
     public $mensajeExito = '';
     public $mensajeError = '';
 
+    // ── Deep-link desde notificación (?flujo_id=X) ────────────────────────
+    // Se resuelve en mount() y Alpine x-init lo usa para abrir el modal.
+    public int $autoOpenPedidoId     = 0;
+    public int $autoOpenCotizacionId = 0;
+
     // ── Ciclo de vida ──────────────────────────────────────────────────────
     public function mount()
     {
         $this->esAdmin = Auth::user()->rol_id === 1;
         $this->cargarRegistros();
+
+        // Si viene desde una notificación (?flujo_id=X), resolver pedido_id en PHP.
+        // Las propiedades autoOpen* se leen en el blade via Alpine x-init.
+        if ($flujoId = (int) request()->get('flujo_id')) {
+            $identificacion = DB::table('flujo')->where('id', $flujoId)->value('identificacion');
+            $pedidoId       = (int) DB::table('pedido')->where('id', (int) $identificacion)->value('id');
+
+            if ($pedidoId > 0) {
+                $this->autoOpenPedidoId = $pedidoId;
+            } else {
+                $this->autoOpenCotizacionId = $flujoId;
+            }
+        }
     }
 
     // ── Actualización de filtros ──────────────────────────────────────────

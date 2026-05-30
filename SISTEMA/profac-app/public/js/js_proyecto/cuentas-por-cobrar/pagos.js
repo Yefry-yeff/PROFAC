@@ -1008,6 +1008,101 @@ function AnularOtroMov(idOtroMov){
 
 }
 
+function modalAnularAbono(idAbono, correlativo) {
+    axios.get('/pagos/abono/impacto/' + idAbono)
+        .then(function (response) {
+            var d = response.data;
+
+            var html = ''
+                + '<div style="text-align:left; font-size:13px;">'
+                + '<p><b>Factura:</b> ' + (d.correlativo_factura || correlativo || '-') + '</p>'
+                + '<p><b>Monto a anular:</b> L. ' + Number(d.monto_abono || 0).toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</p>'
+                + '<p><b>Saldo resultante:</b> L. ' + Number(d.saldo_resultante || 0).toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</p>';
+
+            if (d.factura_estaba_cerrada) {
+                html += '<div class="alert alert-warning" style="padding:8px; margin-top:8px;">'
+                     + '<b>Atención:</b> La factura está cerrada y se reabrirá al anular este pago. '
+                     + 'Esto habilita nuevamente operaciones como notas de crédito/débito y otros ajustes.'
+                     + '</div>';
+            }
+
+            if (d.tiene_comisiones && Array.isArray(d.comisiones) && d.comisiones.length > 0) {
+                html += '<div class="alert alert-danger" style="padding:8px; margin-top:8px;">'
+                     + '<b>Comisiones a reversar:</b><ul style="margin:6px 0 0 18px;">';
+
+                d.comisiones.forEach(function (c) {
+                    html += '<li>'
+                         + (c.usuario_nombre || 'Empleado') + ' (' + (c.rol_nombre || 'Rol') + ') - '
+                         + 'L. ' + Number(c.monto_revertido || 0).toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                         + '</li>';
+                });
+
+                html += '</ul></div>';
+            }
+
+            html += '</div>';
+
+            Swal.fire({
+                icon: 'warning',
+                title: 'Confirmar anulación de pago',
+                html: html,
+                input: 'textarea',
+                inputLabel: 'Motivo de anulación (obligatorio)',
+                inputPlaceholder: 'Escriba el motivo de la anulación...',
+                inputAttributes: {
+                    'aria-label': 'Motivo de anulación'
+                },
+                showCancelButton: true,
+                confirmButtonText: 'Sí, anular pago',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#d33',
+                preConfirm: function (motivo) {
+                    if (!motivo || !motivo.trim()) {
+                        Swal.showValidationMessage('Debe ingresar un motivo para continuar.');
+                        return false;
+                    }
+                    return motivo.trim();
+                }
+            }).then(function (result) {
+                if (!result.isConfirmed) return;
+
+                var formData = new FormData();
+                formData.append('abono_id', idAbono);
+                formData.append('motivo', result.value);
+
+                axios.post('/pagos/abono/anular', formData)
+                    .then(function (resp) {
+                        $('#tbl_cuentas_facturas_cliente').DataTable().ajax.reload();
+                        $('#tbl_abonos_cliente').DataTable().ajax.reload();
+
+                        Swal.fire({
+                            icon: (resp.data && resp.data.icon) ? resp.data.icon : 'success',
+                            title: (resp.data && resp.data.title) ? resp.data.title : 'Éxito',
+                            text: (resp.data && resp.data.text) ? resp.data.text : 'Pago anulado correctamente.'
+                        });
+                    })
+                    .catch(function (err) {
+                        var data = (err.response && err.response.data) ? err.response.data : {};
+                        Swal.fire({
+                            icon: data.icon || 'error',
+                            title: data.title || 'Error',
+                            text: data.text || 'No fue posible anular el pago.'
+                        });
+                        console.error(err);
+                    });
+            });
+        })
+        .catch(function (err) {
+            var data = (err.response && err.response.data) ? err.response.data : {};
+            Swal.fire({
+                icon: data.icon || 'error',
+                title: data.title || 'Error',
+                text: data.error || data.text || 'No se pudo cargar el impacto de la anulación.'
+            });
+            console.error(err);
+        });
+}
+
 function metodoPago() {
     var metodo = document.getElementById('selectMetodoPago').value;
     var selectBanco = document.getElementById('selectBanco');

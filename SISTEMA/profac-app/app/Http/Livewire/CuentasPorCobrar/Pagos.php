@@ -21,6 +21,7 @@ use App\Exports\CuentasPorCobrarExport;
 use App\Exports\CuentasPorCobrarInteresExport;
 use App\Models\AplicacionPagos\Modelotros_movimientos;
 use App\Models\AplicacionPagos\Modelabonos_creditos;
+use App\Models\AplicacionPagos\ModelComisionReversionLog;
 use App\Models\Comisiones\Escalado\modelproducto_comision;
 use App\Models\Comisiones\Escalado\modelfacturas_comision;
 use App\Models\Comisiones\Escalado\modelcomision_empleado;
@@ -305,6 +306,7 @@ class Pagos extends Component
             ac.aplicacion_pagos_id as 'codigoPago',
             (select cai from factura where id = ac.factura_id) as correlativo,
             FORMAT(ac.monto_abonado, 2) as monto,
+            ac.monto_abonado as monto_real,
             ac.comentario as 'comentarioabono',
             ac.estado_abono as 'estadoAbono',
             (select name from users where id = ac.usr_registro) as 'userRegistro',
@@ -323,11 +325,11 @@ class Pagos extends Component
 
         return Datatables::of($consulta)
                 ->addColumn('acciones', function ($consulta) {
+                    if (Auth::user()->rol_id == '2') {
+                        return '<span class="badge badge-info">Sin Acciones</span>';
+                    }
 
-                    return
-                        '
-                                <span class="badge badge-info">Sin Acciones</span>
-                        ';
+                    return '<button class="btn btn-sm btn-outline-danger" onclick="modalAnularAbono(' . $consulta->codigoAbono . ',\'' . $consulta->correlativo . '\')"><i class="fa fa-ban"></i> Anular pago</button>';
                 })
 
 
@@ -700,8 +702,9 @@ class Pagos extends Component
         $montoAbono       = (float) $request->input('monto_abono', 0);
         $aplicacionPagoId = (int) $request->input('aplicacion_pagos_id');
 
-        // Si la factura ya fue comisionada, no habrá nuevas comisiones
-        if (DB::table('facturas_comision')->where('factura_id', $facturaId)->exists()) {
+        // Si la factura ya tiene comisiones activas, no habrá nuevas comisiones.
+        // Si solo tiene comisiones inactivas (revertidas), sí puede recalcular.
+        if (DB::table('facturas_comision')->where('factura_id', $facturaId)->where('estado_id', 1)->exists()) {
             return response()->json(['cerrara' => false, 'ya_comisionada' => true, 'targets' => []]);
         }
 
@@ -814,6 +817,7 @@ class Pagos extends Component
             $cm = "'";
             $name = '';
             $path = '';
+          $comentarioAbono = str_replace("'", "''", (string) $request->comentarioAbono);
 
 
 
@@ -862,7 +866,7 @@ class Pagos extends Component
                            '0',
                            '".Auth::user()->id."',
                            '".$request->idFacturaAbono."',
-                           '.$request->comentarioAbono.',
+                           '".$comentarioAbono."',
                            '".$request->codAplicPagoAbono."',
                            '0',
                            '".$request->montoAbono."',
@@ -894,22 +898,53 @@ class Pagos extends Component
 
 
                        $saldoActual2 = DB::selectone('select saldo from aplicacion_pagos where id = '.$request->codAplicPagoAbono);
+                       $saldoDespues = (float) ($saldoActual2->saldo ?? 0);
 
-                       if($saldoActual2->saldo == 0){
-                            //dd("Prueba de que llega aqui esta mierda");
-                           /* $cuentas22 = DB::select("
+                       if($saldoDespues <= 0.0001){
+                           // Normalizar a 0 exacto para evitar residuos decimales.
+                           DB::table('aplicacion_pagos')
+                               ->where('id', (int) $request->codAplicPagoAbono)
+                               ->update(['saldo' => 0, 'updated_at' => now()]);
+
+                           $cuentas22 = DB::select("
 
                                CALL sp_aplicacion_pagos(
                                    '9',
                                    '0',
                                    '".Auth::user()->id."',
                                    '0',
-                                   'CIERRE POR SALDO 0',
+                                   'CIERRE AUTOMATICO POR SALDO 0 (ABONO)',
                                    '".$request->codAplicPagoAbono."',
                                    '0',
                                    '0',
                                    @estado,
-                                   @msjResultado);"); */
+                                   @msjResultado);");
+
+                           if ($cuentas22[0]->estado == -1) {
+                               return response()->json([
+                                   "text" => "Ha ocurrido un error al cerrar automaticamente la factura.",
+                                   "icon" => "error",
+                                   "title"=>"Error!"
+                               ],402);
+                           }
+
+                           // Blindaje: si por cualquier motivo no cerró en SP, cerrar por fallback.
+                           $apPostCierre = DB::table('aplicacion_pagos')
+                               ->where('id', (int) $request->codAplicPagoAbono)
+                               ->select('estado_cerrado')
+                               ->first();
+
+                           if (!$apPostCierre || (int) $apPostCierre->estado_cerrado !== 2) {
+                               DB::table('aplicacion_pagos')
+                                   ->where('id', (int) $request->codAplicPagoAbono)
+                                   ->update([
+                                       'estado_cerrado'       => 2,
+                                       'usr_cerro'            => Auth::id(),
+                                       'fecha_cierre_factura' => now(),
+                                       'ultimo_usr_actualizo' => Auth::id(),
+                                       'updated_at'           => now(),
+                                   ]);
+                           }
 
                                 // Registrar comisiones usando la fecha_pago del modal
                                 $generador = app(GeneradorFacturasComision::class);
@@ -1154,6 +1189,287 @@ class Pagos extends Component
         $pdf = PDF::loadView('/pdf/estadocuentaAplicacion', compact('estadoCuenta'))->setPaper('letter')->setPaper("A4", "landscape");
 
         return $pdf->stream("ESTADO_CUENTA.pdf");
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  ANULACIÓN DE ABONO
+    // ══════════════════════════════════════════════════════════════════
+
+    /**
+     * Devuelve el impacto que tendría anular un abono (solo lectura).
+     * Usado para construir la advertencia antes de confirmar.
+     */
+    public function impactoAnularAbono(Request $request, $abono_id = null)
+    {
+        $abonoId = (int) ($abono_id ?? $request->input('abono_id'));
+
+        $abono = DB::selectOne(
+            "SELECT ac.id, ac.monto_abonado, ac.factura_id, ac.aplicacion_pagos_id,
+                    ac.comentario, ac.estado_abono,
+                    (SELECT cai FROM factura WHERE id = ac.factura_id) AS correlativo_factura,
+                    ap.estado_cerrado, ap.saldo, ap.credito_abonos,
+                    (SELECT nombre FROM cliente WHERE id = ap.cliente_id) AS nombre_cliente,
+                    (SELECT credito_inicial FROM cliente WHERE id = ap.cliente_id) AS credito_inicial_cliente
+             FROM abonos_creditos ac
+             INNER JOIN aplicacion_pagos ap ON ap.id = ac.aplicacion_pagos_id
+             WHERE ac.id = ?",
+            [$abonoId]
+        );
+
+        if (!$abono) {
+            return response()->json(['error' => 'Abono no encontrado.'], 404);
+        }
+
+        if ($abono->estado_abono != 1) {
+            return response()->json(['error' => 'Este abono ya fue anulado.'], 422);
+        }
+
+        $estabasCerrada  = ((int) $abono->estado_cerrado === 2);
+        $comisiones      = [];
+
+        $rows = DB::select(
+            "SELECT fc.id AS facturas_comision_id,
+                    fc.rol_id,
+                    fc.tipo_comision,
+                    fc.monto_rol,
+                    fc.aplicacion_pagos_id AS ap_id_comision,
+                    u.id   AS usuario_id,
+                    u.name AS usuario_nombre,
+                    r.nombre AS rol_nombre,
+                    ce.id  AS comision_empleado_id,
+                    ce.mes_comision,
+                    ce.comision_acumulada
+             FROM facturas_comision fc
+             INNER JOIN users u ON (
+                 CASE fc.tipo_comision
+                     WHEN 1 THEN u.id = (SELECT users_id FROM factura WHERE id = fc.factura_id)
+                     WHEN 2 THEN u.id = (SELECT users_id FROM factura WHERE id = fc.factura_id)
+                     WHEN 3 THEN u.id = (SELECT vendedor FROM factura WHERE id = fc.factura_id)
+                     ELSE 1=0
+                 END
+             )
+             LEFT JOIN rol r ON r.id = fc.rol_id
+             LEFT JOIN comision_empleado ce
+                 ON ce.users_comision = u.id
+                 AND ce.rol_id        = fc.rol_id
+                 AND ce.estado_id     = 1
+                 AND ce.mes_comision  = DATE_FORMAT(fc.fecha_cierre_factura, '%Y-%m-01')
+             WHERE fc.factura_id = ?
+               AND fc.estado_id  = 1",
+            [$abono->factura_id]
+        );
+
+        foreach ($rows as $row) {
+            $comisiones[] = [
+                'facturas_comision_id' => $row->facturas_comision_id,
+                'usuario_nombre'       => $row->usuario_nombre,
+                'rol_nombre'           => $row->rol_nombre ?? 'Sin rol',
+                'monto_revertido'      => (float) $row->monto_rol,
+                'mes_afectado'         => $row->mes_comision,
+                'comision_acumulada'   => (float) $row->comision_acumulada,
+            ];
+        }
+
+        $saldoResultante = (float) $abono->saldo + (float) $abono->monto_abonado;
+
+        return response()->json([
+            'abono_id'             => $abonoId,
+            'correlativo_factura'  => $abono->correlativo_factura,
+            'factura_id'           => $abono->factura_id,
+            'aplicacion_pagos_id'  => $abono->aplicacion_pagos_id,
+            'monto_abono'          => (float) $abono->monto_abonado,
+            'nombre_cliente'       => $abono->nombre_cliente,
+            'factura_estaba_cerrada' => $estabasCerrada,
+            'saldo_resultante'     => $saldoResultante,
+            'tiene_comisiones'     => !empty($comisiones),
+            'comisiones'           => $comisiones,
+            'restaura_credito'     => ((float) $abono->credito_inicial_cliente > 0),
+        ]);
+    }
+
+    /**
+     * Ejecuta la anulación completa del abono en una transacción única.
+     */
+    public function anularAbono(Request $request)
+    {
+        $abonoId = (int) $request->input('abono_id');
+        $motivo  = trim($request->input('motivo', ''));
+
+        if ($motivo === '') {
+            return response()->json([
+                'icon'  => 'warning',
+                'title' => 'Advertencia',
+                'text'  => 'Debe ingresar un motivo para anular el pago.',
+            ], 422);
+        }
+
+        DB::beginTransaction();
+        try {
+            // 1. Cargar abono y verificar que pueda anularse
+            $abono = DB::selectOne(
+                'SELECT ac.*, ap.estado_cerrado, ap.saldo, ap.credito_abonos,
+                        ap.cliente_id, f.total AS total_factura
+                 FROM abonos_creditos ac
+                 INNER JOIN aplicacion_pagos ap ON ap.id = ac.aplicacion_pagos_id
+                 INNER JOIN factura f            ON f.id  = ac.factura_id
+                 WHERE ac.id = ? FOR UPDATE',
+                [$abonoId]
+            );
+
+            if (!$abono) {
+                DB::rollBack();
+                return response()->json(['icon' => 'error', 'title' => 'Error', 'text' => 'Abono no encontrado.'], 404);
+            }
+
+            if ((int) $abono->estado_abono !== 1) {
+                DB::rollBack();
+                return response()->json(['icon' => 'warning', 'title' => 'Advertencia', 'text' => 'Este abono ya fue anulado anteriormente.'], 422);
+            }
+
+            $monto           = (float) $abono->monto_abonado;
+            $factura_id      = (int)   $abono->factura_id;
+            $apId            = (int)   $abono->aplicacion_pagos_id;
+            $clienteId       = (int)   $abono->cliente_id;
+            $estabasCerrada  = ((int)  $abono->estado_cerrado === 2);
+
+            // 2. Marcar abono como anulado
+            DB::table('abonos_creditos')
+                ->where('id', $abonoId)
+                ->update(['estado_abono' => 0, 'updated_at' => now()]);
+
+            // 3. Revertir saldo en aplicacion_pagos
+            DB::table('aplicacion_pagos')
+                ->where('id', $apId)
+                ->update([
+                    'saldo'               => DB::raw('saldo + ' . $monto),
+                    'credito_abonos'      => DB::raw('GREATEST(0, credito_abonos - ' . $monto . ')'),
+                    'ultimo_usr_actualizo' => Auth::id(),
+                    'updated_at'          => now(),
+                ]);
+
+            // 4. Si la factura estaba cerrada, reabrirla
+            if ($estabasCerrada) {
+                DB::table('aplicacion_pagos')
+                    ->where('id', $apId)
+                    ->update([
+                        'estado_cerrado'       => 0,
+                        'usr_cerro'            => 0,
+                        'fecha_cierre_factura' => null,
+                        'updated_at'           => now(),
+                    ]);
+            }
+
+            // 5. Restaurar crédito del cliente si aplica
+            $clienteData = DB::table('cliente')->where('id', $clienteId)
+                ->select('credito_inicial', 'credito')->first();
+
+            if ($clienteData && (float) $clienteData->credito_inicial > 0) {
+                DB::table('cliente')
+                    ->where('id', $clienteId)
+                    ->update(['credito' => DB::raw('credito - ' . $monto)]);
+            }
+
+            // 6. Revertir comisiones activas de la factura (esté cerrada o no)
+            $comisionesRevertidas = [];
+
+            $filas = DB::select(
+                "SELECT fc.id AS fc_id, fc.rol_id, fc.tipo_comision, fc.monto_rol,
+                        u.id AS user_id, u.name AS user_nombre,
+                        ce.id AS ce_id, ce.mes_comision
+                 FROM facturas_comision fc
+                 INNER JOIN users u ON (
+                     CASE fc.tipo_comision
+                         WHEN 1 THEN u.id = (SELECT users_id FROM factura WHERE id = fc.factura_id)
+                         WHEN 2 THEN u.id = (SELECT users_id FROM factura WHERE id = fc.factura_id)
+                         WHEN 3 THEN u.id = (SELECT vendedor FROM factura WHERE id = fc.factura_id)
+                         ELSE 1=0
+                     END
+                 )
+                 LEFT JOIN comision_empleado ce
+                     ON ce.users_comision = u.id
+                     AND ce.rol_id        = fc.rol_id
+                     AND ce.estado_id     = 1
+                     AND ce.mes_comision  = DATE_FORMAT(fc.fecha_cierre_factura, '%Y-%m-01')
+                 WHERE fc.factura_id = ? AND fc.estado_id = 1",
+                [$factura_id]
+            );
+
+            foreach ($filas as $fila) {
+                $montoRol = (float) $fila->monto_rol;
+
+                // Descontar de comision_empleado (nunca bajar de 0)
+                if ($fila->ce_id) {
+                    DB::table('comision_empleado')
+                        ->where('id', $fila->ce_id)
+                        ->update([
+                            'comision_acumulada'     => DB::raw('GREATEST(0, comision_acumulada - ' . $montoRol . ')'),
+                            'fecha_ult_modificacion' => now(),
+                            'updated_at'             => now(),
+                        ]);
+                }
+
+                $comisionesRevertidas[] = [
+                    'facturas_comision_id' => $fila->fc_id,
+                    'usuario_id'           => $fila->user_id,
+                    'usuario_nombre'       => $fila->user_nombre,
+                    'rol_id'               => $fila->rol_id,
+                    'tipo_comision'        => $fila->tipo_comision,
+                    'monto_revertido'      => $montoRol,
+                    'mes_afectado'         => $fila->mes_comision,
+                    'comision_empleado_id' => $fila->ce_id,
+                ];
+            }
+
+            // Marcar facturas_comision como revertidas (estado_id = 2 = inactivo)
+            if (!empty($comisionesRevertidas)) {
+                $fcIds = array_column($comisionesRevertidas, 'facturas_comision_id');
+                DB::table('facturas_comision')
+                    ->whereIn('id', $fcIds)
+                    ->update(['estado_id' => 2, 'updated_at' => now()]);
+
+                // Marcar líneas de producto_comision asociadas
+                DB::table('producto_comision')
+                    ->whereIn('facturas_comision_id', $fcIds)
+                    ->update(['estado_id' => 2, 'updated_at' => now()]);
+            }
+
+            // 7. Registrar log de reversión
+            ModelComisionReversionLog::create([
+                'abono_id'              => $abonoId,
+                'factura_id'            => $factura_id,
+                'aplicacion_pagos_id'   => $apId,
+                'monto_abono_anulado'   => $monto,
+                'tenia_comisiones'      => !empty($comisionesRevertidas),
+                'comisiones_revertidas' => !empty($comisionesRevertidas) ? $comisionesRevertidas : null,
+                'motivo'                => $motivo,
+                'factura_reabierta'     => $estabasCerrada,
+                'usr_anulo'             => Auth::id(),
+            ]);
+
+            DB::commit();
+
+            $msg = 'Pago anulado correctamente.';
+            if ($estabasCerrada) {
+                $msg .= ' La factura ha sido reabierta.';
+                if (!empty($comisionesRevertidas)) {
+                    $msg .= ' Las comisiones asociadas fueron revertidas.';
+                }
+            }
+
+            return response()->json([
+                'icon'  => 'success',
+                'title' => '¡Anulado!',
+                'text'  => $msg,
+            ]);
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return response()->json([
+                'icon'  => 'error',
+                'title' => 'Error',
+                'text'  => 'Ocurrió un error al anular el pago: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 
 

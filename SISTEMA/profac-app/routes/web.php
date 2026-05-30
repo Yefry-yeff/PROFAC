@@ -26,6 +26,7 @@ use App\Http\Livewire\Proveedores;
 use App\Http\Livewire\Usuarios\ListarUsuarios;
 use App\Http\Livewire\Registro\Login as RegistroLogin;
 use App\Http\Livewire\Inventario\Producto;
+use App\Http\Livewire\Inventario\ProductoApoyo;
 use App\Http\Livewire\Inventario\Retenciones;
 use App\Http\Livewire\Inventario\DetalleProducto;
 use App\Http\Livewire\Inventario\DisenoProducto;
@@ -220,6 +221,10 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/datos/mes/anterior', [Configuracion::class, 'datosMesAnterior']);
     Route::get('/editar/configuracion/{estado}', [Configuracion::class, 'editarEstado']);
     Route::get('/configuracion/excel', [Configuracion::class, 'exportarExcel']);
+    Route::get('/configuracion/notificaciones/flujo', \App\Http\Livewire\Configuracion\ConfiguracionNotificaciones::class)->name('configuracion.notificaciones.flujo');
+    Route::get('/notificaciones/historial', \App\Http\Livewire\NotificacionesHistorial::class)->name('notificaciones.historial');
+    Route::get('/alertas/rotacion/{id}/reporte', \App\Http\Livewire\Alertas\AlertasRotacionReporte::class)->name('alertas.rotacion.reporte');
+    Route::get('/configuracion/jerarquia', \App\Http\Livewire\Configuracion\JerarquiaOrganizacional::class)->name('configuracion.jerarquia');
 
     /*
     Inicio de todas las rutas de la Escala de precios
@@ -270,6 +275,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/comision/reporte/usuarios', [ReportesComisionesGenerales::class, 'reporteUsuarios']);
     Route::get('/comision/reporte/productos', [ReportesComisionesGenerales::class, 'reporteProductos']);
     Route::get('/comision/reporte/facturas', [ReportesComisionesGenerales::class, 'reporteFacturas']);
+    Route::get('/comision/reporte/reversiones', [ReportesComisionesGenerales::class, 'reporteReversiones']);
 
     // Rutas nuevas: estadísticas, nómina, ranking y comparativo
     Route::get('/comision/reporte/stats',       [ReportesComisionesGenerales::class, 'stats']);
@@ -615,6 +621,12 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
 
     Route::get('/producto/listar/productos', [Producto::class, 'listarProductos']);
     Route::post('/producto/inactivar', [Producto::class, 'inactivarProducto']);
+
+    // Catálogo Apoyo (vendedores — sin precios)
+    Route::get('/producto/apoyo/registro', ProductoApoyo::class);
+    Route::post('/producto/apoyo/registrar', [ProductoApoyo::class, 'crearProducto']);
+    Route::get('/apoyo/listar/productos', [ProductoApoyo::class, 'listarProductos']);
+    Route::post('/apoyo/inactivar', [ProductoApoyo::class, 'inactivarProducto']);
     Route::post('/producto/actualizar/costos', [Producto::class, 'calcularCostos']);
     Route::get('/producto/detalle/{id}', DetalleProducto::class);
     Route::get('/detalle/producto/unidad/{id}', [DetalleProducto::class, 'unidadesVenta']);
@@ -1066,6 +1078,8 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::post('/pagos/otrosmov/guardar', [Pagos::class, 'guardarOtroMov']);
     Route::get('/pagos/preview-comisiones', [Pagos::class, 'previewComisionesFactura']);
     Route::post('/pagos/creditos/guardar', [Pagos::class, 'guardarCreditos']);
+    Route::get('/pagos/abono/impacto/{abono_id}', [Pagos::class, 'impactoAnularAbono']);
+    Route::post('/pagos/abono/anular', [Pagos::class, 'anularAbono']);
     Route::post('/pagos/cerrar/factura', [Pagos::class, 'cerrarFactura']);
 
 
@@ -1431,6 +1445,13 @@ Route::post('/reporte/ventas-cobros/exportar-excel/{vendedorId}/{clienteId}/{mes
 
     // Ruta auto-generada para: Reportes\EvaluacionDeClientesPorNivelDeFacturacion
     Route::get('/reportes/evaluacion_de_clientes_por_nivel_de_facturacion', \App\Http\Livewire\Reportes\EvaluacionDeClientesPorNivelDeFacturacion::class);
+
+
+    // Ruta auto-generada para: Reportes\AnaliticaDeProductos
+    Route::get('/reportes/analitica_de_productos', \App\Http\Livewire\Reportes\AnaliticaDeProductos::class);
+
+    // Análisis individual de producto (sección 2 de Analítica de Productos)
+    Route::get('/reportes/analitica_de_productos/{productoId}', \App\Http\Livewire\Reportes\AnalisisProductoIndividual::class);
 
     // [auto-routes-anchor]
 });

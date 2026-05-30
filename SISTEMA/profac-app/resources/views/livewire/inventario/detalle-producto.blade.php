@@ -118,31 +118,38 @@
         }
         .det-info-card .card-header-bar {
             background: linear-gradient(135deg, #f39c12, #e05a00);
-            padding: 11px 18px;
+            padding: 9px 16px;
             display: flex; align-items: center; gap: 8px;
         }
-        .det-info-card .card-header-bar span { color: #fff; font-weight: 600; font-size: .9rem; }
-        .det-info-card .card-body-inner { padding: 16px 20px; }
+        .det-info-card .card-header-bar span { color: #fff; font-weight: 600; font-size: .85rem; }
+        .det-info-card .card-body-inner { padding: 9px 14px; }
 
-        /* Info rows */
         .info-row {
-            display: flex; align-items: flex-start;
-            padding: 8px 0;
-            border-bottom: 1px solid #f0f2f5;
-            font-size: .875rem;
+            display: flex; align-items: baseline;
+            padding: 2px 0;
+            border-bottom: 1px solid #f5f5f5;
+            font-size: .8rem;
+            gap: 8px;
         }
         .info-row:last-child { border-bottom: none; }
         .info-label {
-            min-width: 160px;
-            color: #888;
-            font-size: .78rem;
-            font-weight: 600;
+            min-width: 125px;
+            color: #aaa;
+            font-size: .68rem;
+            font-weight: 700;
             text-transform: uppercase;
             letter-spacing: .4px;
             flex-shrink: 0;
-            padding-top: 2px;
         }
-        .info-value { color: #3a1800; font-weight: 500; }
+        .info-value { color: #2d1600; font-weight: 500; font-size: .8rem; }
+        .info-section-title {
+            font-size: .63rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: .6px; color: #e05a00;
+            border-bottom: 1.5px solid #fde8cc;
+            padding-bottom: 2px; margin: 6px 0 1px;
+            display: flex; align-items: center; gap: 5px;
+        }
+        .info-section-title:first-child { margin-top: 0; }
         .info-badge-id {
             background: linear-gradient(135deg, #f39c12, #e05a00); color: #fff;
             border-radius: 6px; padding: 2px 10px;
@@ -233,6 +240,21 @@
             margin-bottom: 12px;
             box-shadow: 0 3px 10px rgba(243,156,18,.3);
         }
+
+        /* ── Tabs de modales ── */
+        .prod-modal-tabs { border-bottom: 2px solid #e8d5bf; margin-bottom: 16px; }
+        .prod-modal-tabs .nav-item { margin-bottom: -2px; }
+        .prod-modal-tabs .nav-link {
+            color: #7d3f00; font-weight: 600; font-size:.82rem; padding:8px 14px;
+            border: 2px solid transparent; border-radius: 8px 8px 0 0;
+            transition: all .2s;
+        }
+        .prod-modal-tabs .nav-link:hover { background:#fdf4e7; color:#e05a00; }
+        .prod-modal-tabs .nav-link.active {
+            background: linear-gradient(135deg,#f39c12,#e05a00);
+            color:#fff !important; border-color: #e05a00 #e05a00 #fff;
+        }
+        .prod-modal-tabs .nav-link i { margin-right:5px; }
 
         /* ── Modales modernos ── */
         .modal-modern .modal-content {
@@ -335,14 +357,12 @@
                 </p>
             </div>
             <div class="det-header-actions">
-                @if (Auth::user()->rol_id == '1' || Auth::user()->rol_id == '10' || Auth::user()->rol_id == '18' || Auth::user()->rol_id == '9')
                 <button class="btn-det-edit" data-toggle="modal" data-target="#modal_producto_editar">
                     <i class="fa fa-pencil mr-1"></i> Editar Producto
                 </button>
                 <button class="btn-det-foto" data-toggle="modal" data-target="#modal_foto_producto">
                     <i class="fa fa-camera mr-1"></i> Subir Fotografía
                 </button>
-                @endif
             </div>
         </div>
     </div>
@@ -421,6 +441,9 @@
                         <span>Información General</span>
                     </div>
                     <div class="card-body-inner">
+
+                        {{-- Identificación --}}
+                        <div class="info-section-title"><i class="fa fa-barcode"></i> Identificación</div>
                         <div class="info-row">
                             <span class="info-label">ID interno</span>
                             <span class="info-value"><span class="info-badge-id">{{ $producto->id }}</span></span>
@@ -433,6 +456,7 @@
                             <span class="info-label">Descripción</span>
                             <span class="info-value">{{ $producto->descripcion }}</span>
                         </div>
+                        @if($esAdmin)
                         <div class="info-row">
                             <span class="info-label">ISV</span>
                             <span class="info-value">
@@ -445,6 +469,7 @@
                                 @endif
                             </span>
                         </div>
+                        @endif
                         <div class="info-row">
                             <span class="info-label">Cód. Estatal</span>
                             <span class="info-value">{{ $producto->codigo_estatal ?: '—' }}</span>
@@ -453,6 +478,9 @@
                             <span class="info-label">Cód. de Barra</span>
                             <span class="info-value">{{ $producto->codigo_barra ?: '—' }}</span>
                         </div>
+
+                        {{-- Clasificación --}}
+                        <div class="info-section-title"><i class="fa fa-tag"></i> Clasificación</div>
                         <div class="info-row">
                             <span class="info-label">Marca</span>
                             <span class="info-value">{{ $producto->marca ?? '—' }}</span>
@@ -469,6 +497,30 @@
                             <span class="info-label">Unidad de medida</span>
                             <span class="info-value">{{ $producto->unidad_medida }}</span>
                         </div>
+
+                        {{-- Recuperación y Origen --}}
+                        @if($producto->tiempo_recuperacion_meses || $producto->origen)
+                        <div class="info-section-title"><i class="fa fa-clock-o"></i> Recuperación y Origen</div>
+                        @if($producto->tiempo_recuperacion_meses)
+                        <div class="info-row">
+                            <span class="info-label">T. recuperación</span>
+                            <span class="info-value">
+                                <span style="background:#e8f5e9; color:#2e7d32; border-radius:20px; padding:2px 12px; font-size:.8rem; font-weight:700;">
+                                    {{ $producto->tiempo_recuperacion_meses }} {{ $producto->tiempo_recuperacion_meses == 1 ? 'mes' : 'meses' }}
+                                </span>
+                            </span>
+                        </div>
+                        @endif
+                        @if($producto->origen)
+                        <div class="info-row">
+                            <span class="info-label">Origen</span>
+                            <span class="info-value">{{ $producto->origen }}</span>
+                        </div>
+                        @endif
+                        @endif
+
+                        {{-- Registro --}}
+                        <div class="info-section-title"><i class="fa fa-calendar"></i> Registro</div>
                         <div class="info-row">
                             <span class="info-label">Fecha de registro</span>
                             <span class="info-value">{{ $producto->fecha_registro }}</span>
@@ -477,6 +529,7 @@
                             <span class="info-label">Registrado por</span>
                             <span class="info-value">{{ $producto->registrado_por }}</span>
                         </div>
+
                     </div>
                 </div>
             </div>
@@ -557,149 +610,179 @@
                     <h5 class="modal-title"><i class="fa fa-pencil mr-2"></i> Editar Producto</h5>
                     <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
                 </div>
-                <div class="modal-body">
-                    <form id="editarProductoForm" name="editarProductoForm" data-parsley-validate>
+                <div class="modal-body" style="padding:20px 24px 8px; background:#f8fafc;">
+                    <form id="editarProductoForm" name="editarProductoForm" novalidate>
                         <input type="hidden" id="id_producto_edit" name="id_producto_edit" value="{{ $producto->id }}">
 
-                        {{-- Info general --}}
-                        <div class="ms-section">
-                            <div class="ms-section-title"><i class="fa fa-info-circle"></i> Información General</div>
-                            <div class="row">
-                                <div class="col-md-12 mb-3">
-                                    <label>Nombre del producto <span class="text-danger">*</span></label>
-                                    <input class="form-control" required type="text" id="nombre_producto_edit"
-                                        name="nombre_producto_edit" data-parsley-required placeholder="Nombre del producto">
-                                </div>
-                                <div class="col-md-12 mb-3">
-                                    <label>Descripción <span class="text-danger">*</span></label>
-                                    <textarea placeholder="Descripción detallada…" required id="descripcion_producto_edit"
-                                        name="descripcion_producto_edit" rows="3" class="form-control" data-parsley-required></textarea>
-                                </div>
-                                <div class="col-md-4 mb-3">
-                                    <label>ISV <span class="text-danger">*</span></label>
-                                    <select class="form-control" name="isv_producto_edit" id="isv_producto_edit" data-parsley-required>
-                                        <option value="0">Exento de impuestos</option>
-                                        <option value="15" selected>15% de ISV</option>
-                                        <option value="18">18% de ISV</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-4 mb-3">
-                                    <label>Código de barra</label>
-                                    <input class="form-control" type="number" name="cod_barra_producto_edit"
-                                        id="cod_barra_producto_edit" min="0" placeholder="Opcional">
-                                </div>
-                                <div class="col-md-4 mb-3">
-                                    <label>Código estatal</label>
-                                    <input class="form-control" type="number" name="cod_estatal_producto_edit"
-                                        id="cod_estatal_producto_edit" min="0" placeholder="Opcional">
-                                </div>
-                            </div>
-                        </div>
+                        {{-- PESTAÑAS --}}
+                        <ul class="nav prod-modal-tabs" id="tabsEditar" role="tablist">
+                            <li class="nav-item">
+                                <a class="nav-link active" data-toggle="tab" href="#tab-det-edit-general">
+                                    <i class="fa fa-info-circle"></i> General
+                                </a>
+                            </li>
+                            @if($esAdmin)
+                            <li class="nav-item">
+                                <a class="nav-link" data-toggle="tab" href="#tab-det-edit-precios">
+                                    <i class="fa fa-dollar"></i> Precios
+                                </a>
+                            </li>
+                            @endif
+                            <li class="nav-item">
+                                <a class="nav-link" data-toggle="tab" href="#tab-det-edit-clasif">
+                                    <i class="fa fa-tag"></i> Clasificación
+                                </a>
+                            </li>
+                        </ul>
 
-                        {{-- Precios --}}
-                        <div class="ms-section">
-                            <div class="ms-section-title"><i class="fa fa-dollar" style="color:#27ae60;"></i> Precios y Costos</div>
-                            <div class="row">
-                                <div class="col-md-4 mb-3">
-                                    <label>Precio base <span class="text-danger">*</span></label>
-                                    <div class="ms-price-group">
-                                        <span class="ms-price-prefix">L.</span>
-                                        <input class="form-control" step="any" min="0.000001" type="number"
-                                            name="precioBase_edit" id="precioBase_edit" data-parsley-required
-                                            onchange="validacionPrecio()" placeholder="0.00">
-                                    </div>
-                                </div>
-                                <div class="col-md-4 mb-3">
-                                    <label>Costo promedio <span class="text-danger">*</span></label>
-                                    <div class="ms-price-group">
-                                        <span class="ms-price-prefix">L.</span>
-                                        <input class="form-control" step="any" min="0.000001" type="number"
-                                            name="costo_promedio_editar" id="costo_promedio_editar"
-                                            data-parsley-required placeholder="0.00">
-                                    </div>
-                                </div>
-                                <div class="col-md-4 mb-3">
-                                    <label>Último costo de compra <span class="text-danger">*</span></label>
-                                    <div class="ms-price-group">
-                                        <span class="ms-price-prefix">L.</span>
-                                        <input class="form-control" step="any" min="0.000001" type="number"
-                                            name="ultimo_costo_compra_editar" id="ultimo_costo_compra_editar"
-                                            data-parsley-required placeholder="0.00">
-                                    </div>
-                                </div>
-                                <div class="col-md-3 mb-3">
-                                    <label><span class="ms-price-badge">A</span> Precio A</label>
-                                    <div class="ms-price-group">
-                                        <span class="ms-price-prefix">L.</span>
-                                        <input class="form-control" step="any" type="number" name="precio1" id="precio1" disabled placeholder="Auto">
-                                    </div>
-                                </div>
-                                <div class="col-md-3 mb-3">
-                                    <label><span class="ms-price-badge">B</span> Precio B</label>
-                                    <div class="ms-price-group">
-                                        <span class="ms-price-prefix">L.</span>
-                                        <input class="form-control" step="any" type="number" name="precio2" id="precio2" disabled placeholder="Auto">
-                                    </div>
-                                </div>
-                                <div class="col-md-3 mb-3">
-                                    <label><span class="ms-price-badge">C</span> Precio C</label>
-                                    <div class="ms-price-group">
-                                        <span class="ms-price-prefix">L.</span>
-                                        <input class="form-control" step="any" type="number" name="precio3" id="precio3" disabled placeholder="Auto">
-                                    </div>
-                                </div>
-                                <div class="col-md-3 mb-3">
-                                    <label><span class="ms-price-badge">D</span> Precio D</label>
-                                    <div class="ms-price-group">
-                                        <span class="ms-price-prefix">L.</span>
-                                        <input class="form-control" step="any" type="number" name="precio4" id="precio4" disabled placeholder="Auto">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                        <div class="tab-content">
 
-                        {{-- Categorización --}}
-                        <div class="ms-section">
-                            <div class="ms-section-title"><i class="fa fa-tag" style="color:#8e44ad;"></i> Categorización</div>
-                            <div class="row">
-                                <div class="col-md-4 mb-3">
-                                    <label>Marca <span class="text-danger">*</span></label>
-                                    <select class="form-control" name="marca_producto_editar" id="marca_producto_editar" data-parsley-required>
-                                        <option selected disabled>— Seleccione una marca —</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-4 mb-3">
-                                    <label>Categoría <span class="text-danger">*</span></label>
-                                    <select class="form-control" name="categoria_producto_edit" id="categoria_producto_edit"
-                                        data-parsley-required onchange="listarSubCategorias()">
-                                    </select>
-                                </div>
-                                <div class="col-md-4 mb-3">
-                                    <label>Subcategoría <span class="text-danger">*</span></label>
-                                    <select class="form-control" name="sub_categoria_producto_edit"
-                                        id="sub_categoria_producto_edit" data-parsley-required>
-                                    </select>
+                            {{-- Tab 1: General --}}
+                            <div class="tab-pane fade show active" id="tab-det-edit-general">
+                                <div class="row">
+                                    <div class="col-md-12 mb-3">
+                                        <label>Nombre del producto <span class="text-danger">*</span></label>
+                                        <input class="form-control" required type="text" id="nombre_producto_edit"
+                                            name="nombre_producto_edit" placeholder="Nombre del producto">
+                                    </div>
+                                    <div class="col-md-12 mb-3">
+                                        <label>Descripción <span class="text-danger">*</span></label>
+                                        <textarea placeholder="Descripción detallada…" required id="descripcion_producto_edit"
+                                            name="descripcion_producto_edit" rows="3" class="form-control"></textarea>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label>Código de barra</label>
+                                        <input class="form-control" type="number" name="cod_barra_producto_edit"
+                                            id="cod_barra_producto_edit" min="0" placeholder="Opcional">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label>Código estatal</label>
+                                        <input class="form-control" type="number" name="cod_estatal_producto_edit"
+                                            id="cod_estatal_producto_edit" min="0" placeholder="Opcional">
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        {{-- Unidades --}}
-                        <div class="ms-section">
-                            <div class="ms-section-title"><i class="fa fa-balance-scale" style="color:#2980b9;"></i> Unidades de Medida para Compra</div>
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label>Unidad para compra <span class="text-danger">*</span></label>
-                                    <select class="form-control" name="unidad_producto_editar" id="unidad_producto_editar" data-parsley-required>
-                                        <option selected disabled>— Seleccione —</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label>Cantidad de unidades para compra <span class="text-danger">*</span></label>
-                                    <input class="form-control" min="1" type="number" name="unidades_editar"
-                                        id="unidades_editar" step="any" required placeholder="Ej: 1">
+                            {{-- Tab 2: Precios (solo admin) --}}
+                            @if($esAdmin)
+                            <div class="tab-pane fade" id="tab-det-edit-precios">
+                                <div class="row">
+                                    <div class="col-md-4 mb-3">
+                                        <label>ISV <span class="text-danger">*</span></label>
+                                        <select class="form-control" name="isv_producto_edit" id="isv_producto_edit">
+                                            <option value="0">Exento de impuestos</option>
+                                            <option value="15" selected>15% de ISV</option>
+                                            <option value="18">18% de ISV</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label>Precio base <span class="text-danger">*</span></label>
+                                        <div class="ms-price-group">
+                                            <span class="ms-price-prefix">L.</span>
+                                            <input class="form-control" step="any" min="0.000001" type="number"
+                                                name="precioBase_edit" id="precioBase_edit"
+                                                onchange="validacionPrecio()" placeholder="0.00">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label>Costo promedio <span class="text-danger">*</span></label>
+                                        <div class="ms-price-group">
+                                            <span class="ms-price-prefix">L.</span>
+                                            <input class="form-control" step="any" min="0.000001" type="number"
+                                                name="costo_promedio_editar" id="costo_promedio_editar"
+                                                placeholder="0.00">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label>Último costo de compra <span class="text-danger">*</span></label>
+                                        <div class="ms-price-group">
+                                            <span class="ms-price-prefix">L.</span>
+                                            <input class="form-control" step="any" min="0.000001" type="number"
+                                                name="ultimo_costo_compra_editar" id="ultimo_costo_compra_editar"
+                                                placeholder="0.00">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label><span class="ms-price-badge">A</span> Precio A</label>
+                                        <div class="ms-price-group">
+                                            <span class="ms-price-prefix">L.</span>
+                                            <input class="form-control" step="any" type="number" name="precio1" id="precio1" disabled placeholder="Auto">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label><span class="ms-price-badge">B</span> Precio B</label>
+                                        <div class="ms-price-group">
+                                            <span class="ms-price-prefix">L.</span>
+                                            <input class="form-control" step="any" type="number" name="precio2" id="precio2" disabled placeholder="Auto">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label><span class="ms-price-badge">C</span> Precio C</label>
+                                        <div class="ms-price-group">
+                                            <span class="ms-price-prefix">L.</span>
+                                            <input class="form-control" step="any" type="number" name="precio3" id="precio3" disabled placeholder="Auto">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label><span class="ms-price-badge">D</span> Precio D</label>
+                                        <div class="ms-price-group">
+                                            <span class="ms-price-prefix">L.</span>
+                                            <input class="form-control" step="any" type="number" name="precio4" id="precio4" disabled placeholder="Auto">
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
+                            @endif
+
+                            {{-- Tab 3: Clasificación --}}
+                            <div class="tab-pane fade" id="tab-det-edit-clasif">
+                                <div class="row">
+                                    <div class="col-md-4 mb-3">
+                                        <label>Marca <span class="text-danger">*</span></label>
+                                        <select class="form-control" name="marca_producto_editar" id="marca_producto_editar">
+                                            <option selected disabled>— Seleccione una marca —</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label>Categoría <span class="text-danger">*</span></label>
+                                        <select class="form-control" name="categoria_producto_edit" id="categoria_producto_edit"
+                                            onchange="listarSubCategorias()">
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label>Subcategoría <span class="text-danger">*</span></label>
+                                        <select class="form-control" name="sub_categoria_producto_edit"
+                                            id="sub_categoria_producto_edit">
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label>Unidad para compra <span class="text-danger">*</span></label>
+                                        <select class="form-control" name="unidad_producto_editar" id="unidad_producto_editar">
+                                            <option selected disabled>— Seleccione —</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label>Cantidad de unidades para compra <span class="text-danger">*</span></label>
+                                        <input class="form-control" min="1" type="number" name="unidades_editar"
+                                            id="unidades_editar" step="any" required placeholder="Ej: 1">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label>Tiempo de recuperación en meses</label>
+                                        <input class="form-control" type="number" min="1" max="999"
+                                            name="tiempo_recuperacion_meses_edit" id="tiempo_recuperacion_meses_edit"
+                                            placeholder="Ej: 3">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label>Origen</label>
+                                        <input class="form-control" type="text" maxlength="200"
+                                            name="origen_edit" id="origen_edit"
+                                            placeholder="Ej: China, Honduras...">
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>{{-- /tab-content --}}
+
                     </form>
                 </div>
                 <div class="modal-footer" style="justify-content:space-between;">
@@ -743,7 +826,7 @@
                     <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
                 </div>
                 <div class="modal-body">
-                    <form id="foto_productoForm" name="foto_productoForm" data-parsley-validate>
+                    <form id="foto_productoForm" name="foto_productoForm" >
                         <input type="hidden" id="id_producto_edit_foto" name="id_producto_edit_foto" value="{{ $producto->id }}">
                         <label for="foto_producto_edit" class="foto-drop-area w-100" style="cursor:pointer; margin:0;">
                             <i class="fa fa-cloud-upload"></i>
@@ -779,13 +862,13 @@
                     <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
                 </div>
                 <div class="modal-body">
-                    <form id="form_editar_unidades" name="form_editar_unidades" data-parsley-validate>
+                    <form id="form_editar_unidades" name="form_editar_unidades" >
                         <input id="idUniadVenta" name="idUniadVenta" type="hidden">
                         <div class="ms-section" style="margin-bottom:0;">
                             <div class="row">
                                 <div class="col-md-6 mb-3">
                                     <label>Unidad de medida para venta</label>
-                                    <select class="form-control" name="unidad_venta_editar" id="unidad_venta_editar" data-parsley-required>
+                                    <select class="form-control" name="unidad_venta_editar" id="unidad_venta_editar">
                                         <option selected disabled>— Seleccione —</option>
                                     </select>
                                 </div>

@@ -37,8 +37,9 @@ class GeneradorFacturasComision
      */
     public function generar(int $facturaId, int $aplicacionPagoId, ?string $fechaPago = null): array
     {
-        // Prevenir doble registro
-        if (DB::table('facturas_comision')->where('factura_id', $facturaId)->exists()) {
+        // Prevenir doble registro solo si hay comisiones activas.
+        // Si solo existen comisiones inactivas (revertidas), se permite recalcular.
+        if (DB::table('facturas_comision')->where('factura_id', $facturaId)->where('estado_id', 1)->exists()) {
             return [];
         }
 

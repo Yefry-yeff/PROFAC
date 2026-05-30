@@ -18,6 +18,7 @@ use Luecano\NumeroALetras\NumeroALetras;
 use App\Models\ModelFactura;
 use App\Models\ModelCAI;
 use App\Models\ModelRecibirBodega;
+use App\Events\FlujoAvanzadoEvent;
 use App\Models\ModelVentaProducto;
 use App\Models\ModelLogTranslados;
 use App\Models\ModelParametro;
@@ -650,6 +651,28 @@ class FacturacionCorporativa extends Component
             }
 
             DB::commit();
+
+            // Notificar a los responsables de Entrega y Cobro (tipo 7 = Flujo conjunto)
+            try {
+                $facturaCtx = DB::table('factura')
+                    ->where('id', $facturaId)
+                    ->first(['nombre_cliente', 'total', 'cai']);
+                event(new FlujoAvanzadoEvent(
+                    $flujoId,
+                    7,
+                    [
+                        'cliente'    => $facturaCtx?->nombre_cliente ?? 'N/A',
+                        'monto'      => $facturaCtx?->total ?? null,
+                        'referencia' => 'Factura #' . ($facturaCtx?->cai ?? $facturaId),
+                    ]
+                ));
+            } catch (\Throwable $notifEx) {
+                \Log::error('NotificacionFlujo dispatch failed (FacturacionCorporativa tipo=7)', [
+                    'flujo_id' => $flujoId,
+                    'error'    => $notifEx->getMessage(),
+                ]);
+            }
+
             return response()->json(['ok' => true, 'flujoId' => $flujoId]);
         } catch (\Exception $e) {
             DB::rollBack();

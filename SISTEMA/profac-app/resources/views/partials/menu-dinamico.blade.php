@@ -5,15 +5,25 @@
 @endphp
 
 @foreach($menusUsuario as $menu)
-    <li>
+    @php
+        $menuActivo = $menu->submenus->contains(function($s) {
+            $url = ltrim($s->url, '/');
+            return request()->is($url) || request()->is($url . '/*');
+        });
+    @endphp
+    <li class="{{ $menuActivo ? 'active' : '' }}">
         <a href="#">
             <i class="{{ $menu->icon }}" style="color:#ffffff;"></i>
             <span class="nav-label" style="color:#ffffff;">{{ $menu->nombre_menu }}</span>
             <span class="fa arrow"></span>
         </a>
-        <ul class="nav nav-second-level">
+        <ul class="nav nav-second-level {{ $menuActivo ? 'in' : '' }}">
             @foreach($menu->submenus as $submenu)
-                <li>
+                @php
+                    $url = ltrim($submenu->url, '/');
+                    $submenuActivo = request()->is($url) || request()->is($url . '/*');
+                @endphp
+                <li class="{{ $submenuActivo ? 'active' : '' }}">
                     <a href="/{{ $submenu->url }}" style="color:#ffffff;">
                         @if($submenu->icono)
                             <i class="{{ $submenu->icono }}"></i>
@@ -25,3 +35,24 @@
         </ul>
     </li>
 @endforeach
+
+{{-- ── Sección Configuración: solo para Administrador ── --}}
+@if(optional(Auth::user()->rol)->nombre === 'Administrador' || Auth::user()->rol_id == 1)
+@php
+    $configActivo = request()->is('configuracion/*');
+@endphp
+<li class="{{ $configActivo ? 'active' : '' }}">
+    <a href="#">
+        <i class="fa fa-cog" style="color:#ffffff;"></i>
+        <span class="nav-label" style="color:#ffffff;">Configuración</span>
+        <span class="fa arrow"></span>
+    </a>
+    <ul class="nav nav-second-level {{ $configActivo ? 'in' : '' }}">
+        <li class="{{ request()->routeIs('configuracion.notificaciones.flujo') ? 'active' : '' }}">
+            <a href="{{ route('configuracion.notificaciones.flujo') }}" style="color:#ffffff;">
+                <i class="fa fa-bell"></i> Notificaciones
+            </a>
+        </li>
+    </ul>
+</li>
+@endif

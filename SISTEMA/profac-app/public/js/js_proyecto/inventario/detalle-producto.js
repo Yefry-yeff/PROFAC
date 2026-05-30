@@ -152,9 +152,9 @@ axios.get("/producto/datos/" + idProducto)
 
         document.getElementById("nombre_producto_edit").value = datos.datosProducto.nombre;
         document.getElementById("descripcion_producto_edit").value = datos.datosProducto.descripcion;
-        document.getElementById("isv_producto_edit").value = datos.datosProducto.isv;
-        document.getElementById("isv_producto_edit").innerHTML += '<option selected value="' + datos
-            .datosProducto.isv + '">' + datos.datosProducto.isv + ' % de ISV</option>';
+        // isv_producto_edit: existe solo para admin (select) — se asigna con .value
+        var isvEl = document.getElementById("isv_producto_edit");
+        if (isvEl) isvEl.value = datos.datosProducto.isv;
         document.getElementById("cod_barra_producto_edit").value = datos.datosProducto.codigo_barra;
         document.getElementById("cod_estatal_producto_edit").value = datos.datosProducto.codigo_estatal;
         document.getElementById("precioBase_edit").value = datos.datosProducto.precio_base;
@@ -247,6 +247,9 @@ axios.get("/producto/datos/" + idProducto)
         document.getElementById('unidad_producto_editar').innerHTML = htmlUnidades;
         document.getElementById('sub_categoria_producto_edit').innerHTML = htmlSubCategorias;
 
+        document.getElementById('tiempo_recuperacion_meses_edit').value = datos.datosProducto.tiempo_recuperacion_meses || '';
+        document.getElementById('origen_edit').value = datos.datosProducto.origen || '';
+
 
 
 
@@ -319,8 +322,6 @@ axios.post("/producto/editar", data)
     .then(response => {
         $('#modalSpinnerLoading').modal('hide');
 
-
-        $('#editarProductoForm').parsley().reset();
         document.getElementById("editarProductoForm").reset();
         $('#modal_producto_editar').modal('hide');
 
