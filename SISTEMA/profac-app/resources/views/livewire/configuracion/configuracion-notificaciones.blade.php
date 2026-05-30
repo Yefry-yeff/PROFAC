@@ -189,6 +189,25 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
 .cfg-field:focus { border-color:#3b82f6; outline:none; box-shadow:0 0 0 3px rgba(59,130,246,.1); }
 .cfg-field.is-invalid { border-color:#ef4444; }
 .cfg-active-box { display:flex; align-items:center; justify-content:space-between; background:#f8faff; border-radius:10px; border:1.5px solid #e8edf5; padding:12px 16px; }
+
+/* Force sane select rendering inside modal (prevents repeated arrow artifacts from global styles) */
+.cfg-modal-content .cfg-field { min-height: 42px; line-height: 1.25; }
+.cfg-modal-content select.cfg-field {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-color: #fff !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' fill='none' stroke='%2364748b' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 12px center !important;
+    background-size: 12px 12px !important;
+    padding-right: 36px;
+}
+.cfg-modal-content select.cfg-field::-ms-expand { display: none; }
+.cfg-modal-content select.cfg-field option {
+    background: #fff;
+    color: #0f172a;
+}
     </style>
 
 
@@ -444,8 +463,8 @@ input:checked + .toggle-slider::before { transform: translateX(16px); }
                 </div>
 
                 {{-- Body --}}
-                <div class="modal-body cfg-modal-body"
-                     style="padding:24px;background:#fff;overflow-y:visible;">
+                 <div class="modal-body cfg-modal-body"
+                     style="padding:24px;background:#fff;overflow-y:auto;max-height:calc(100vh - 240px);">
                     <div class="row">
 
                         {{-- Estado del flujo --}}
