@@ -19,9 +19,9 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
     protected $rows;
     protected $usuario;
 
-    /* 27 columnas: A..AA */
-    const LAST_COL  = 'AA';
-    const COL_COUNT = 27;
+    /* 29 columnas: A..AC */
+    const LAST_COL  = 'AC';
+    const COL_COUNT = 29;
 
     public function __construct($rows, $usuario = 'Sistema')
     {
@@ -70,6 +70,8 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
             'TOTAL',
             'SALDO PENDIENTE',
             'MONTO PAGADO',
+            'MONTO RETENCION',
+            'NUMERO RETENCION',
             'FECHA VENTA',
             'FECHA VCTO.',
             'DÍAS VCTOS.',
@@ -102,6 +104,8 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
                 (float) $r->total,
                 (float) $r->saldo_pendiente,
                 $r->monto_pagado > 0 ? (float) $r->monto_pagado : '',
+                (float) ($r->monto_retencion ?? 0),
+                $r->numero_retencion ?? 'No aplica',
                 $r->fecha_venta       ? date('d/m/Y', strtotime($r->fecha_venta))       : '',
                 $r->fecha_vencimiento ? date('d/m/Y', strtotime($r->fecha_vencimiento)) : '',
                 (int) $r->dias_vencidos,
@@ -172,6 +176,8 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
         // Auto-size columnas
         foreach (range('A', 'Z') as $c) { $sheet->getColumnDimension($c)->setAutoSize(true); }
         $sheet->getColumnDimension('AA')->setAutoSize(true);
+        $sheet->getColumnDimension('AB')->setAutoSize(true);
+        $sheet->getColumnDimension('AC')->setAutoSize(true);
 
         return [];
     }
@@ -200,21 +206,21 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
                     ->setVertical(Alignment::VERTICAL_CENTER);
 
                 // Alinear izquierda las columnas de texto
-                foreach (['C','D','F','G','H','I','V','X','Y','AA'] as $c) {
+                foreach (['C','D','F','G','H','I','T','Z','AA','AC'] as $c) {
                     $sheet->getStyle("{$c}5:{$c}{$lastRow}")->getAlignment()
                         ->setHorizontal(Alignment::HORIZONTAL_LEFT);
                 }
 
-                // Alinear derecha y formato moneda para columnas J..R
-                foreach (['J','K','L','M','N','O','P','Q','R'] as $c) {
+                // Alinear derecha y formato moneda para columnas J..S
+                foreach (['J','K','L','M','N','O','P','Q','R','S'] as $c) {
                     $sheet->getStyle("{$c}5:{$c}{$lastRow}")
                         ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
                     $sheet->getStyle("{$c}5:{$c}{$lastRow}")
                         ->getNumberFormat()->setFormatCode('"L" #,##0.00');
                 }
 
-                // Formato días vencidos (columna U)
-                $sheet->getStyle("U5:U{$lastRow}")
+                // Formato días vencidos (columna W)
+                $sheet->getStyle("W5:W{$lastRow}")
                     ->getNumberFormat()->setFormatCode('0" días"');
 
                 // ── Loop por fila solo para colores (mínimo necesario) ──
@@ -236,15 +242,15 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
                             ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB($bg);
                     }
 
-                    // Colorear estado crédito (columna V)
-                    $estado = $sheet->getCell("V{$row}")->getValue();
+                    // Colorear estado crédito (columna X)
+                    $estado = $sheet->getCell("X{$row}")->getValue();
                     $bgEstado = match($estado) {
                         'Vencida'   => 'FADBD8',
                         'Cancelada' => 'D5F5E3',
                         'Contado'   => 'D6EAF8',
                         default     => 'FDFEFE',
                     };
-                    $sheet->getStyle("V{$row}")->getFill()
+                    $sheet->getStyle("X{$row}")->getFill()
                         ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB($bgEstado);
 
                     $sheet->getRowDimension($row)->setRowHeight(15);

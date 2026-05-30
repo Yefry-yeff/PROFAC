@@ -9,6 +9,7 @@ function getVendedor() { return $('#fil_vendedor').val() || 'null'; }
 function getCliente()  { return $('#fil_cliente').val()  || 'null'; }
 function getMes()      { return $('#fil_mes').val()      || 'null'; }
 function getAnio()     { return $('#fil_anio').val()     || 'null'; }
+function getFactura()  { return ($('#fil_factura').val() || '').trim(); }
 
 /* ─── formato moneda lempiras ─── */
 function fmtLps(v) {
@@ -52,7 +53,7 @@ function cargarTabla() {
         lengthMenu  : [[5, 10, 25, 50, -1], [5, 10, 25, 50, 'Todos']],
         dom         : 'lTfgitp',
         ajax: {
-            url  : '/reporte/ventas-cobros/consulta/' + getVendedor() + '/' + getCliente() + '/' + getMes() + '/' + getAnio(),
+            url  : '/reporte/ventas-cobros/consulta/' + getVendedor() + '/' + getCliente() + '/' + getMes() + '/' + getAnio() + '?factura=' + encodeURIComponent(getFactura()),
             type : 'GET',
             error: function (xhr) {
                 $('#tbl_loading_overlay').hide();
@@ -107,7 +108,7 @@ function exportarPdf() {
     var token = document.querySelector('meta[name="csrf-token"]').content;
     var form = document.createElement('form');
     form.method = 'POST';
-    form.action = '/reporte/ventas-cobros/exportar-pdf/' + getVendedor() + '/' + getCliente() + '/' + getMes() + '/' + getAnio();
+    form.action = '/reporte/ventas-cobros/exportar-pdf/' + getVendedor() + '/' + getCliente() + '/' + getMes() + '/' + getAnio() + '?factura=' + encodeURIComponent(getFactura());
     var t = document.createElement('input'); t.type = 'hidden'; t.name = '_token'; t.value = token;
     form.appendChild(t);
     document.body.appendChild(form);
@@ -120,7 +121,7 @@ function exportarExcel() {
     var token = document.querySelector('meta[name="csrf-token"]').content;
     var form = document.createElement('form');
     form.method = 'POST';
-    form.action = '/reporte/ventas-cobros/exportar-excel/' + getVendedor() + '/' + getCliente() + '/' + getMes() + '/' + getAnio();
+    form.action = '/reporte/ventas-cobros/exportar-excel/' + getVendedor() + '/' + getCliente() + '/' + getMes() + '/' + getAnio() + '?factura=' + encodeURIComponent(getFactura());
     var t = document.createElement('input'); t.type = 'hidden'; t.name = '_token'; t.value = token;
     form.appendChild(t);
     document.body.appendChild(form);
@@ -130,5 +131,11 @@ function exportarExcel() {
 
 /* ─── Inicializar ─── */
 $(document).ready(function () {
+    $('#fil_factura').on('keypress', function (e) {
+        if (e.which === 13) {
+            e.preventDefault();
+            cargarTabla();
+        }
+    });
     cargarTabla();
 });

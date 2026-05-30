@@ -277,7 +277,7 @@
                             <div class="rvc-stat-pill">
                                 <i class="fa fa-filter" style="font-size:.78rem;color:var(--rvc-orange)"></i>
                                 <span>Filtros</span>
-                                <span class="stat-num">4</span>
+                                <span class="stat-num">5</span>
                             </div>
                             <div class="rvc-stat-pill green">
                                 <i class="fa fa-file-text-o" style="font-size:.78rem;color:#1a7a4e"></i>
@@ -335,6 +335,11 @@
                             </div>
 
                             <div class="col-md-2">
+                                <label>Factura</label>
+                                <input type="text" id="fil_factura" class="form-control" placeholder="CAI / correlativo / ID">
+                            </div>
+
+                            <div class="col-md-1">
                                 <label>Año</label>
                                 <select id="fil_anio" class="form-control">
                                     <option value="">-- Todos --</option>
@@ -344,7 +349,7 @@
                                 </select>
                             </div>
 
-                            <div class="col-md-2">
+                            <div class="col-md-1">
                                 <button class="btn rvc-btn-primary w-100" onclick="cargarTabla()">
                                     <i class="fa fa-search"></i> Consultar
                                 </button>

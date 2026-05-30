@@ -23,7 +23,7 @@ class ReporteVentasCobros extends Component
     /* ─────────────────────────────────────────────────────────────────
      *  SQL central del reporte
      * ───────────────────────────────────────────────────────────────── */
-    private function sqlReporte($vendedorId = null, $clienteId = null, $mes = null, $anio = null)
+    private function sqlReporte($vendedorId = null, $clienteId = null, $mes = null, $anio = null, $factura = null)
     {
         $where  = "1=1";            // mostrar todos los estados
         $params = [];
@@ -43,6 +43,11 @@ class ReporteVentasCobros extends Component
         if ($anio) {
             $where .= " AND YEAR(f.fecha_emision) = ?";
             $params[] = $anio;
+        }
+        if ($factura) {
+            $where .= " AND (f.numero_secuencia_cai LIKE ? OR CAST(f.id AS CHAR) LIKE ?)";
+            $params[] = '%' . $factura . '%';
+            $params[] = '%' . $factura . '%';
         }
 
         $sql = "
@@ -91,13 +96,24 @@ class ReporteVentasCobros extends Component
                    AND ac.estado_abono = 1),
             0)                                                          AS abonos,
 
-            /* ── Monto pagado (pago_venta activos) ── */
-            COALESCE(
-                (SELECT SUM(pv.monto)
-                 FROM pago_venta pv
-                 WHERE pv.factura_id = f.id
-                   AND pv.estado_venta_id = 1),
-            0)                                                          AS monto_pagado,
+                        /* ── Monto pagado (si la retención = subtotal, cuenta como pago total) ── */
+                        CASE
+                                WHEN COALESCE(
+                                        (SELECT ap_ret.retencion_isv_factura
+                                         FROM aplicacion_pagos ap_ret
+                                         WHERE ap_ret.factura_id = f.id
+                                             AND ap_ret.estado_retencion_isv = 2
+                                         ORDER BY ap_ret.id DESC LIMIT 1),
+                                0) = COALESCE(f.sub_total, 0)
+                                AND COALESCE(f.sub_total, 0) > 0
+                                THEN COALESCE(f.total, 0)
+                                ELSE COALESCE(
+                                        (SELECT SUM(pv.monto)
+                                         FROM pago_venta pv
+                                         WHERE pv.factura_id = f.id
+                                             AND pv.estado_venta_id = 1),
+                                0)
+                        END                                                        AS monto_pagado,
 
                         /* ── Retención ISV (solo cuando estado_retencion_isv = 2) ── */
                         COALESCE(
@@ -117,20 +133,31 @@ class ReporteVentasCobros extends Component
                         'No aplica')                                               AS numero_retencion,
 
             /* ── Saldo pendiente (calculado) ── */
-            COALESCE(f.total, 0)
-                - COALESCE(
-                    (SELECT SUM(ac.monto_abonado)
-                     FROM abonos_creditos ac
-                     INNER JOIN aplicacion_pagos ap ON ap.id = ac.aplicacion_pagos_id
-                     WHERE ap.factura_id = f.id
-                       AND ac.estado_abono = 1),
-                  0)
-                - COALESCE(
-                    (SELECT SUM(pv.monto)
-                     FROM pago_venta pv
-                     WHERE pv.factura_id = f.id
-                       AND pv.estado_venta_id = 1),
-                  0)                                                    AS saldo_pendiente,
+                        COALESCE(f.total, 0)
+                                - COALESCE(
+                                        (SELECT SUM(ac.monto_abonado)
+                                         FROM abonos_creditos ac
+                                         INNER JOIN aplicacion_pagos ap ON ap.id = ac.aplicacion_pagos_id
+                                         WHERE ap.factura_id = f.id
+                                             AND ac.estado_abono = 1),
+                                    0)
+                                - CASE
+                                        WHEN COALESCE(
+                                                (SELECT ap_ret.retencion_isv_factura
+                                                 FROM aplicacion_pagos ap_ret
+                                                 WHERE ap_ret.factura_id = f.id
+                                                     AND ap_ret.estado_retencion_isv = 2
+                                                 ORDER BY ap_ret.id DESC LIMIT 1),
+                                        0) = COALESCE(f.sub_total, 0)
+                                        AND COALESCE(f.sub_total, 0) > 0
+                                        THEN COALESCE(f.total, 0)
+                                        ELSE COALESCE(
+                                                (SELECT SUM(pv.monto)
+                                                 FROM pago_venta pv
+                                                 WHERE pv.factura_id = f.id
+                                                     AND pv.estado_venta_id = 1),
+                                        0)
+                                    END                                                    AS saldo_pendiente,
 
             /* ── Fechas ── */
             f.fecha_emision                                             AS fecha_venta,
@@ -147,8 +174,19 @@ class ReporteVentasCobros extends Component
                                  FROM abonos_creditos ac2
                                  INNER JOIN aplicacion_pagos ap2 ON ap2.id = ac2.aplicacion_pagos_id
                                  WHERE ap2.factura_id = f.id AND ac2.estado_abono = 1), 0)
-                     - COALESCE((SELECT SUM(pv2.monto) FROM pago_venta pv2
-                                 WHERE pv2.factura_id = f.id AND pv2.estado_venta_id = 1), 0) <= 0 THEN 'Cancelada'
+                                         - CASE
+                                                 WHEN COALESCE(
+                                                         (SELECT ap_ret.retencion_isv_factura
+                                                            FROM aplicacion_pagos ap_ret
+                                                            WHERE ap_ret.factura_id = f.id
+                                                                AND ap_ret.estado_retencion_isv = 2
+                                                            ORDER BY ap_ret.id DESC LIMIT 1),
+                                                 0) = COALESCE(f.sub_total, 0)
+                                                 AND COALESCE(f.sub_total, 0) > 0
+                                                 THEN COALESCE(f.total, 0)
+                                                 ELSE COALESCE((SELECT SUM(pv2.monto) FROM pago_venta pv2
+                                                                                WHERE pv2.factura_id = f.id AND pv2.estado_venta_id = 1), 0)
+                                             END <= 0 THEN 'Cancelada'
                 WHEN f.fecha_vencimiento < CURDATE() THEN 'Vencida'
                 ELSE 'Vigente'
             END                                                         AS creditos_vencidos,
@@ -216,14 +254,15 @@ class ReporteVentasCobros extends Component
     /* ─────────────────────────────────────────────────────────────────
      *  DataTable AJAX
      * ───────────────────────────────────────────────────────────────── */
-    public function consulta($vendedorId = null, $clienteId = null, $mes = null, $anio = null)
+    public function consulta(Request $request, $vendedorId = null, $clienteId = null, $mes = null, $anio = null)
     {
         try {
             $rows = $this->sqlReporte(
                 $this->norm($vendedorId),
                 $this->norm($clienteId),
                 $this->norm($mes),
-                $this->norm($anio)
+                $this->norm($anio),
+                $this->norm($request->query('factura'))
             );
             $item = 0;
             foreach ($rows as &$r) { $r->item = ++$item; }
@@ -244,7 +283,8 @@ class ReporteVentasCobros extends Component
                 $this->norm($vendedorId),
                 $this->norm($clienteId),
                 $this->norm($mes),
-                $this->norm($anio)
+                $this->norm($anio),
+                $this->norm($request->query('factura'))
             );
             $item = 0;
             foreach ($rows as &$r) { $r->item = ++$item; }
@@ -268,7 +308,8 @@ class ReporteVentasCobros extends Component
                 $this->norm($vendedorId),
                 $this->norm($clienteId),
                 $this->norm($mes),
-                $this->norm($anio)
+                $this->norm($anio),
+                $this->norm($request->query('factura'))
             );
             $item = 0;
             foreach ($rows as &$r) { $r->item = ++$item; }
