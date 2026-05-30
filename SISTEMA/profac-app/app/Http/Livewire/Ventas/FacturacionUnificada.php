@@ -198,10 +198,11 @@ class FacturacionUnificada extends Component
                 }
 
                 $precioA = (float) ($ppcActivo->precio_a ?? 0);
+                $precioUnidadOriginal = isset($prod['precio_unidad']) ? (float) $prod['precio_unidad'] : 0;
                 $prod['precios_producto_carga_id'] = (int) $ppcActivo->id;
                 $prod['idPrecioSeleccionado'] = 'p1';
                 $prod['precioSeleccionado'] = $precioA;
-                $prod['precio_unidad'] = $precioA;
+                $prod['precio_unidad'] = $precioUnidadOriginal;
                 $prod['categoria_precios_id'] = (int) $ppcActivo->categoria_precios_id;
                 $prod['categoria_precios_nombre'] = $ppcActivo->categoria_nombre ?? 'Categoria sin nombre';
 
