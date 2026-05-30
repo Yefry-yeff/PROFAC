@@ -418,7 +418,7 @@
         <div class="tab-pane fade" id="pane-adv" role="tabpanel">
 
             {{-- Filtros P3 --}}
-            <div class="mb-3 border card card-body bg-light">
+            <div class="mb-3 border card card-body bg-light" id="adv-global-filtros">
                 <div class="row g-2 mb-2">
                     <div class="col-md-2">
                         <label class="small font-weight-bold">Fecha inicio</label>
@@ -443,18 +443,6 @@
                         <label class="small font-weight-bold">Tipo cliente</label>
                         <select class="form-control form-control-sm" id="a-tipo-cliente">
                             <option value="">Todos</option>
-                        </select>
-                    </div>
-                    <div class="col-md-2">
-                        <label class="small font-weight-bold">Categoría</label>
-                        <select class="form-control form-control-sm" id="a-categoria">
-                            <option value="">Todas</option>
-                        </select>
-                    </div>
-                    <div class="col-md-2">
-                        <label class="small font-weight-bold">Marca</label>
-                        <select class="form-control form-control-sm" id="a-marca">
-                            <option value="">Todas</option>
                         </select>
                     </div>
                 </div>
@@ -602,77 +590,186 @@
 
                 {{-- PRODUCTOS --}}
                 <div class="tab-pane fade" id="pill-pane-prod">
-                    <div class="mb-3 row">
-                        <div class="col-md-6">
-                            <div class="shadow-sm card">
-                                <div class="py-2 card-header"><span class="font-weight-bold">Top 20 Productos por Ingresos</span></div>
-                                <div class="p-2 card-body"><div id="chart-top-prod" style="min-height:320px"></div></div>
+                    <div class="mb-3 border card card-body bg-light">
+                        <div class="row g-2 align-items-end">
+                            <div class="col-md-3">
+                                <label class="small font-weight-bold">Fecha desde</label>
+                                <input type="date" class="form-control form-control-sm" id="prod-fi">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="small font-weight-bold">Fecha hasta</label>
+                                <input type="date" class="form-control form-control-sm" id="prod-ff">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="small font-weight-bold"><i class="fas fa-box mr-1 text-primary"></i>Producto</label>
+                                <select class="form-control form-control-sm" id="prod-filtro-producto">
+                                    <option value="">Todos</option>
+                                </select>
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <div class="shadow-sm card">
-                                <div class="py-2 card-header"><span class="font-weight-bold">Pareto 80/20</span></div>
-                                <div class="p-2 card-body"><div id="chart-pareto" style="min-height:320px"></div></div>
+                        <div class="mt-2 row g-2 align-items-end">
+                            <div class="col-md-12 d-flex justify-content-end" style="gap:6px">
+                                <button class="btn btn-outline-secondary btn-sm" onclick="dashboardVentas.limpiarDashboardProductos()">
+                                    <i class="fas fa-times"></i> Limpiar filtros
+                                </button>
+                                <button class="btn btn-primary btn-sm px-4" onclick="dashboardVentas.cargarDashboardProductos()">
+                                    <i class="fas fa-search"></i> Consultar
+                                </button>
+                                <button class="btn btn-success btn-sm" onclick="dashboardVentas.exportarVistaProductosExcel()">
+                                    <i class="fas fa-file-excel"></i> Descargar vista completa
+                                </button>
                             </div>
+                        </div>
+                        <div class="mt-2 text-muted" style="font-size:.8rem;">
+                            <strong>Escala seleccionada:</strong> <span id="prod-escala">Sin aplicar</span>
                         </div>
                     </div>
 
-                    {{-- Marcas --}}
-                    <div class="mb-3 row">
-                        <div class="col-md-6">
-                            <div class="shadow-sm card">
-                                <div class="py-2 card-header"><span class="font-weight-bold"><i class="fas fa-tag mr-1 text-warning"></i>Top Marcas por Ingresos</span></div>
-                                <div class="p-2 card-body"><div id="chart-top-marcas" style="min-height:300px"></div></div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="shadow-sm card">
-                                <div class="py-2 card-header"><span class="font-weight-bold"><i class="fas fa-chart-pie mr-1 text-warning"></i>Participación por Marca (%)</span></div>
-                                <div class="p-2 card-body"><div id="chart-part-marcas" style="min-height:300px"></div></div>
-                            </div>
-                        </div>
+                    <div class="mb-2 row">
+                        <div class="col-12"><h6 class="font-weight-bold text-primary mb-2">Resumen General</h6></div>
+                        <div class="col-md-2"><div class="kpi-card p-3 border-left-info"><div class="text-xs text-uppercase text-muted">Cantidad vendida</div><div class="h6 mb-0" id="prod-kpi-cantidad">0</div></div></div>
+                        <div class="col-md-2"><div class="kpi-card p-3 border-left-success"><div class="text-xs text-uppercase text-muted">Nro facturas</div><div class="h6 mb-0" id="prod-kpi-facturas">0</div></div></div>
+                        <div class="col-md-2"><div class="kpi-card p-3 border-left-warning"><div class="text-xs text-uppercase text-muted">Cantidad de clientes</div><div class="h6 mb-0" id="prod-kpi-clientes">0</div></div></div>
+                        <div class="col-md-2"><div class="kpi-card p-3 border-left-secondary"><div class="text-xs text-uppercase text-muted">Costo total</div><div class="h6 mb-0" id="prod-kpi-costo-total">L. 0.00</div></div></div>
+                        <div class="col-md-2"><div class="kpi-card p-3 border-left-primary"><div class="text-xs text-uppercase text-muted">Venta total</div><div class="h6 mb-0" id="prod-kpi-venta-total">L. 0.00</div></div></div>
+                        <div class="col-md-2"><div class="kpi-card p-3 border-left-danger"><div class="text-xs text-uppercase text-muted">Utilidad Bruta</div><div class="h6 mb-0" id="prod-kpi-utilidad-bruta">L. 0.00</div></div></div>
                     </div>
 
-                    {{-- Resumen de compradores --}}
                     <div class="mb-3 row">
-                        <div class="col-md-6">
+                        <div class="col-12">
                             <div class="shadow-sm card">
-                                <div class="py-2 card-header d-flex align-items-center justify-content-between">
-                                    <span class="font-weight-bold"><i class="fas fa-users mr-1 text-info"></i>Top Compradores del Período</span>
-                                    <span id="cli-prod-filtro" class="badge badge-info d-none" style="font-size:.7rem;max-width:160px;white-space:normal;text-align:right"></span>
+                                <div class="py-2 card-header"><span class="font-weight-bold"><i class="fas fa-box mr-1"></i>Resumen del Producto Seleccionado</span></div>
+                                <div class="p-2 card-body">
+                                    <div class="row">
+                                        <div class="col-md-2"><small class="text-muted d-block">Producto</small><strong id="prod-res-nombre">-</strong></div>
+                                        <div class="col-md-2"><small class="text-muted d-block">Código</small><strong id="prod-res-codigo">-</strong></div>
+                                        <div class="col-md-2"><small class="text-muted d-block">Marca</small><strong id="prod-res-marca">-</strong></div>
+                                        <div class="col-md-2"><small class="text-muted d-block">Categoría</small><strong id="prod-res-categoria">-</strong></div>
+                                        <div class="col-md-2"><small class="text-muted d-block">Precio costo</small><strong id="prod-res-precio-costo">L. 0.00</strong></div>
+                                        <div class="col-md-2"><small class="text-muted d-block">Existencia</small><strong id="prod-res-existencia">0</strong></div>
+                                    </div>
+                                    <div class="row mt-2">
+                                        <div class="col-md-2"><small class="text-muted d-block">Total vendido</small><strong id="prod-res-total">L. 0.00</strong></div>
+                                        <div class="col-md-2"><small class="text-muted d-block">Unidades</small><strong id="prod-res-unidades">0</strong></div>
+                                        <div class="col-md-3"><small class="text-muted d-block">Clientes que compraron</small><strong id="prod-res-clientes">0</strong></div>
+                                        <div class="col-md-3"><small class="text-muted d-block">Última venta</small><strong id="prod-res-ultima">-</strong></div>
+                                        <div class="col-md-3"><small class="text-muted d-block">Promedio mensual</small><strong id="prod-res-promedio">L. 0.00</strong></div>
+                                    </div>
                                 </div>
-                                <div class="p-2 card-body"><div id="chart-cli-prod" style="min-height:280px"></div></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 row">
+                        <div class="col-12">
+                            <div class="shadow-sm card">
+                                <div class="py-2 card-header"><span class="font-weight-bold">Evolución de Ventas (Día/Semana/Mes)</span></div>
+                                <div class="p-2 card-body"><div id="chart-prod-evolucion" style="min-height:340px"></div></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 row">
+                        <div class="col-md-6">
+                            <div class="shadow-sm card">
+                                <div class="py-2 card-header"><span class="font-weight-bold"><i class="fas fa-star mr-1 text-warning"></i>Top Clientes de este Producto</span></div>
+                                <div class="p-2 card-body"><div id="chart-prod-top-clientes" style="min-height:320px"></div></div>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="shadow-sm card">
-                                <div class="py-2 card-header">
-                                    <span class="font-weight-bold"><i class="fas fa-list-ol mr-1 text-info"></i>Ranking de Compradores</span>
+                                <div class="py-2 card-header"><span class="font-weight-bold"><i class="fas fa-user-tie mr-1 text-primary"></i>Top Vendedores que mueven este producto</span></div>
+                                <div class="p-2 card-body"><div id="chart-prod-top-vendedores" style="min-height:320px"></div></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 shadow-sm card">
+                        <div class="py-2 card-header d-flex justify-content-between align-items-center">
+                            <span class="font-weight-bold">Últimas Facturas de este Producto</span>
+                            <div>
+                                <button class="btn btn-sm btn-success" onclick="dashboardVentas.exportarTablaProductosExcel('tabla-prod-fact-det','ultimas-facturas-producto.xlsx','Facturas Producto')">
+                                    <i class="fas fa-file-excel"></i> Excel
+                                </button>
+                                <button class="btn btn-sm btn-danger" onclick="dashboardVentas.exportarFacturasProductoPDF()">
+                                    <i class="fas fa-file-pdf"></i> PDF
+                                </button>
+                            </div>
+                        </div>
+                        <div class="p-2 card-body table-responsive">
+                            <table class="table table-striped table-sm" id="tabla-prod-fact-det" style="width:100%">
+                                <thead class="thead-dark">
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Número factura</th>
+                                        <th>Fecha</th>
+                                        <th>Cliente</th>
+                                        <th>Escala</th>
+                                        <th>Vendedor</th>
+                                        <th>Producto</th>
+                                        <th class="text-right">Cantidad</th>
+                                        <th class="text-right">Precio base venta</th>
+                                        <th class="text-right">Precio unitario</th>
+                                        <th class="text-right">Descuento</th>
+                                        <th class="text-right">Subtotal</th>
+                                        <th class="text-right">Costo total</th>
+                                        <th class="text-right">Utilidad bruta</th>
+                                        <th class="text-right">Total factura</th>
+                                        <th>Estado</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-prod-fact-det"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 row">
+                        <div class="col-12">
+                            <div class="shadow-sm card">
+                                <div class="py-2 card-header d-flex justify-content-between align-items-center">
+                                    <span class="font-weight-bold"><i class="fas fa-history mr-1"></i>Histórico de clientes que compraron este producto</span>
+                                    <button class="btn btn-sm btn-success" onclick="dashboardVentas.exportarTablaProductosExcel('tabla-prod-ranking-cli','historico-clientes-producto.xlsx','Historico Clientes')">
+                                        <i class="fas fa-file-excel"></i> Excel
+                                    </button>
                                 </div>
                                 <div class="p-2 card-body table-responsive">
-                                    <table class="table table-striped table-sm" id="tabla-cli-prod" style="width:100%">
+                                    <table class="table table-striped table-sm" id="tabla-prod-ranking-cli" style="width:100%">
                                         <thead class="thead-dark">
                                             <tr>
                                                 <th>#</th>
                                                 <th>Cliente</th>
-                                                <th>Tipo</th>
-                                                <th class="text-center">ABC</th>
-                                                <th class="text-right">Facturas</th>
-                                                <th class="text-right">Total</th>
+                                                <th class="text-right">Compras</th>
+                                                <th class="text-right">Monto</th>
+                                                <th class="text-right">Unidades</th>
+                                                <th>Última compra</th>
                                             </tr>
                                         </thead>
-                                        <tbody id="tbody-cli-prod"></tbody>
+                                        <tbody id="tbody-prod-ranking-cli"></tbody>
                                     </table>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="shadow-sm card">
+                    {{-- Indicadores de Clientes --}}
+                    <div class="mb-3 row">
+                        <div class="col-md-4">
+                            <div class="shadow-sm card">
+                                <div class="py-2 card-header"><span class="font-weight-bold">Indicadores de Clientes</span></div>
+                                <div class="p-3 card-body">
+                                    <p class="mb-2"><small class="text-muted d-block">Cliente que más compra</small><strong id="prod-ind-mas-compra">-</strong></p>
+                                    <p class="mb-2"><small class="text-muted d-block">Cliente con mayor frecuencia</small><strong id="prod-ind-frecuencia">-</strong></p>
+                                    <p class="mb-0"><small class="text-muted d-block">Cliente con mayor volumen</small><strong id="prod-ind-volumen">-</strong></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-3 mb-3 shadow-sm card">
                         <div class="py-2 card-header d-flex justify-content-between align-items-center">
-                            <span class="font-weight-bold">Tabla Productos</span>
-                            <button class="btn btn-sm btn-success" onclick="dashboardVentas.exportarExcel()">
-                                <i class="fas fa-file-excel"></i> Excel + Gráficas
+                            <span class="font-weight-bold">Tabla de Producto Completa</span>
+                            <button class="btn btn-sm btn-success" onclick="dashboardVentas.exportarTablaProductosExcel('tabla-productos','tabla-producto-completa.xlsx','Tabla Producto Completa')">
+                                <i class="fas fa-file-excel"></i> Excel
                             </button>
                         </div>
                         <div class="p-2 card-body table-responsive">
@@ -680,41 +777,23 @@
                                 <thead class="thead-dark">
                                     <tr>
                                         <th>#</th>
+                                        <th>Número factura</th>
+                                        <th>Fecha</th>
+                                        <th>Cliente</th>
+                                        <th>Escala</th>
+                                        <th>Vendedor</th>
+                                        <th>Código</th>
                                         <th>Producto</th>
-                                        <th>Categoría</th>
-                                        <th>Subcategoría</th>
-                                        <th>Unidades</th>
-                                        <th>Ingresos</th>
-                                        <th>Precio Prom.</th>
-                                        <th>Facturas</th>
-                                        <th>Pareto %</th>
+                                        <th class="text-right">Cantidad</th>
+                                        <th class="text-right">Precio base venta</th>
+                                        <th class="text-right">Precio unitario factura</th>
+                                        <th class="text-right">Venta factura</th>
+                                        <th class="text-right">Costo total</th>
+                                        <th class="text-right">Utilidad bruta</th>
+                                        <th>Estado</th>
                                     </tr>
                                 </thead>
                                 <tbody id="tbody-productos"></tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    {{-- Tabla Marcas --}}
-                    <div class="mt-3 shadow-sm card">
-                        <div class="py-2 card-header">
-                            <span class="font-weight-bold"><i class="fas fa-tag mr-1 text-warning"></i>Tabla por Marca</span>
-                        </div>
-                        <div class="p-2 card-body table-responsive">
-                            <table class="table table-striped table-sm" id="tabla-marcas" style="width:100%">
-                                <thead class="thead-dark">
-                                    <tr>
-                                        <th>#</th>
-                                        <th>Marca</th>
-                                        <th>Productos</th>
-                                        <th>Unidades</th>
-                                        <th>Ingresos</th>
-                                        <th>Precio Prom.</th>
-                                        <th>Facturas</th>
-                                        <th>Participación %</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="tbody-marcas"></tbody>
                             </table>
                         </div>
                     </div>
@@ -853,8 +932,12 @@
 .cmp-vend-check:checked + .cmp-vend-label { border-color:#EC401B; background:rgba(236,64,27,.12); font-weight:600; color:#EC401B; }
 .cmp-vend-check { display:none; }
 #tabla-vendedores thead th, #tabla-clientes thead th, #tabla-productos thead th,
-#tabla-marcas thead th, #tabla-comparacion thead th,
-#tabla-semanal thead th {
+#tabla-marcas thead th, #tabla-categorias thead th,
+#tabla-prod-alta-rotacion thead th, #tabla-prod-baja-rotacion thead th,
+#tabla-comparacion thead th,
+#tabla-semanal thead th,
+#tabla-prod-fact-det thead th,
+#tabla-prod-ranking-cli thead th {
     background-color: #343a40 !important;
     color: #fff !important;
     border-color: #454d55 !important;
@@ -888,9 +971,26 @@
 </script>
 <script src="{{ asset('js/js_proyecto/reportes/dashboard-ventas.js') }}"></script>
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        dashboardVentas.init();
-    });
+    (function () {
+        function initDashboardVentasSafe() {
+            var root = document.getElementById('dashboardVentas');
+            if (!root) return;
+            if (root.dataset.biInit === '1') return;
+            if (!window.dashboardVentas || typeof window.dashboardVentas.init !== 'function') return;
+
+            root.dataset.biInit = '1';
+            window.dashboardVentas.init();
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initDashboardVentasSafe);
+        } else {
+            initDashboardVentasSafe();
+        }
+
+        document.addEventListener('livewire:load', initDashboardVentasSafe);
+        document.addEventListener('livewire:navigated', initDashboardVentasSafe);
+    })();
 </script>
 
 </div>

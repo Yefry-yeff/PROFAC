@@ -18,7 +18,29 @@ var dashboardVentas = (function () {
     var _dts          = {};   /* DataTables instances */
 
     /* ─── DataTables helpers ──────────────────────────────────────────────── */
-    var DT_LANG = { url: '//cdn.datatables.net/plug-ins/1.10.25/i18n/Spanish.json' };
+    var DT_LANG = {
+        decimal: ',',
+        thousands: '.',
+        processing: 'Procesando...',
+        search: 'Buscar:',
+        lengthMenu: 'Mostrar _MENU_ registros',
+        info: 'Mostrando _START_ a _END_ de _TOTAL_ registros',
+        infoEmpty: 'Mostrando 0 a 0 de 0 registros',
+        infoFiltered: '(filtrado de _MAX_ registros totales)',
+        loadingRecords: 'Cargando...',
+        zeroRecords: 'No se encontraron resultados',
+        emptyTable: 'No hay datos disponibles en la tabla',
+        paginate: {
+            first: 'Primero',
+            previous: 'Anterior',
+            next: 'Siguiente',
+            last: 'Último'
+        },
+        aria: {
+            sortAscending: ': activar para ordenar la columna de manera ascendente',
+            sortDescending: ': activar para ordenar la columna de manera descendente'
+        }
+    };
     var DT_DOM  = '<"row mb-1"<"col-sm-6"l><"col-sm-6"f>><"row"<"col-12"t>><"row mt-1"<"col-sm-5"i><"col-sm-7"p>>';
 
     function _dtDestroy(id) {
@@ -63,6 +85,39 @@ var dashboardVentas = (function () {
         return h.getFullYear() + '-' + String(h.getMonth() + 1).padStart(2, '0') + '-01';
     }
 
+    function _activarBuscadorSelect($el, placeholder) {
+        if (!$el || !$el.length) return;
+        if (!$.fn || !$.fn.select2) return;
+
+        if ($el.hasClass('select2-hidden-accessible')) {
+            try { $el.select2('destroy'); } catch (e) {}
+        }
+
+        $el.select2({
+            width: '100%',
+            placeholder: placeholder || ($el.find('option:first').text() || 'Buscar...'),
+            allowClear: true,
+            minimumResultsForSearch: 0
+        });
+    }
+
+    function initFiltrosProductosBuscables() {
+        _activarBuscadorSelect($('#prod-filtro-producto'), 'Buscar por codigo o nombre...');
+    }
+
+    function syncFiltrosAnaliticaPorPestana() {
+        var activePill = $('#adv-pills .nav-link.active').attr('href') || '#pill-pane-vend';
+        var enProductos = activePill === '#pill-pane-prod';
+
+        $('#adv-global-filtros').toggleClass('d-none', enProductos);
+
+        if (enProductos) {
+            $('#adv-active-filters').addClass('d-none');
+        } else if ($('#adv-filter-badge-vend').is(':visible')) {
+            $('#adv-active-filters').removeClass('d-none');
+        }
+    }
+
     /* ─── Parámetros de cada pestaña ──────────────────────────────────────── */
     function getP1() {
         return {
@@ -85,9 +140,7 @@ var dashboardVentas = (function () {
             fecha_inicio: $('#a-fi').val() || (new Date().getFullYear() + '-01-01'),
             fecha_final:  $('#a-ff').val() || todayStr(),
             vendedor:     _filtroAdvVend ? _filtroAdvVend : ($('#a-vendedor').val() || ''),
-            tipo_cliente: $('#a-tipo-cliente').val() || '',
-            categoria:    $('#a-categoria').val() || '',
-            marca:        $('#a-marca').val() || ''
+            tipo_cliente: $('#a-tipo-cliente').val() || ''
         };
     }
 
@@ -108,6 +161,8 @@ var dashboardVentas = (function () {
             $('#s-ff').val(todayStr());
             $('#a-fi').val(new Date().getFullYear() + '-01-01');
             $('#a-ff').val(todayStr());
+            $('#prod-fi').val(new Date().getFullYear() + '-01-01');
+            $('#prod-ff').val(todayStr());
 
             /* Auto-carga pestaña 1 */
             cargarHistorico();
@@ -118,11 +173,21 @@ var dashboardVentas = (function () {
 
         /* Redimensionar charts cuando se cambia de sub-pill (Analítica) */
         $('#adv-pills a[data-toggle="pill"]').on('shown.bs.tab', function () {
+            syncFiltrosAnaliticaPorPestana();
             setTimeout(function () {
                 Object.keys(charts).forEach(function (id) {
                     if (charts[id]) { try { charts[id].updateOptions({}, false, false); } catch (e) {} }
                 });
             }, 100);
+        });
+
+        syncFiltrosAnaliticaPorPestana();
+
+        $('#prod-filtro-producto').on('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                cargarDashboardProductos();
+            }
         });
     }
 
@@ -131,36 +196,33 @@ var dashboardVentas = (function () {
     ══════════════════════════════════════════════════════════════════════ */
     function cargarCatalogos() {
         return $.get('/reporte/dashboard/catalogo-filtros').then(function (data) {
+            data = data || {};
+            var aniosData = Array.isArray(data.anios) ? data.anios : [];
+            var tiposData = Array.isArray(data.tiposCliente) ? data.tiposCliente : [];
+            var vendsData = Array.isArray(data.vendedores) ? data.vendedores : [];
+            var productosData = Array.isArray(data.productos) ? data.productos : [];
             /* Años */
-            _todosAnios = data.anios.map(function (a) { return parseInt(a.anio); });
+            _todosAnios = aniosData.map(function (a) { return parseInt(a.anio); }).filter(function (n) { return !isNaN(n); });
 
             /* Tipos de cliente */
             var tcOpts = '<option value="">Todos</option>';
-            data.tiposCliente.forEach(function (tc) {
+            tiposData.forEach(function (tc) {
                 tcOpts += '<option value="' + tc.id + '">' + tc.descripcion + '</option>';
             });
             $('#h-tipo-cliente, #s-tipo-cliente, #a-tipo-cliente').html(tcOpts);
 
-            /* Categorías (P3) */
-            var catOpts = '<option value="">Todas</option>';
-            data.categorias.forEach(function (c) {
-                catOpts += '<option value="' + c.id + '">' + c.descripcion + '</option>';
-            });
-            $('#a-categoria').html(catOpts);
-
             /* Checkboxes de vendedores para comparación */
-            _renderVendChecks(data.vendedores);
+            _renderVendChecks(vendsData);
 
             /* Fechas por defecto comparación */
             $('#cmp-fi').val(new Date().getFullYear() + '-01-01');
             $('#cmp-ff').val(todayStr());
 
-            /* Marcas (P3) */
-            var marcaOpts = '<option value="">Todas</option>';
-            (data.marcas || []).forEach(function (m) {
-                marcaOpts += '<option value="' + m.id + '">' + m.nombre + '</option>';
-            });
-            $('#a-marca').html(marcaOpts);
+            var prodOpts = '<option value="">— Seleccione un producto —</option>';
+            productosData.forEach(function (p) { prodOpts += '<option value="' + p.id + '">' + p.nombre + '</option>'; });
+            $('#prod-filtro-producto').html(prodOpts);
+
+            initFiltrosProductosBuscables();
         }).fail(function () {
             console.error('[DashboardVentas] Error al cargar catálogos');
         });
@@ -503,7 +565,7 @@ var dashboardVentas = (function () {
             ],
             order: [[0, 'desc']],
             pageLength: 15,
-            language: { url: '//cdn.datatables.net/plug-ins/1.10.25/i18n/Spanish.json' }
+            language: DT_LANG
         });
     }
 
@@ -578,35 +640,34 @@ var dashboardVentas = (function () {
     ══════════════════════════════════════════════════════════════════════ */
     function cargarAnalitica() {
         var p = getP3();
+        var activePill = $('#adv-pills .nav-link.active').attr('href') || '#pill-pane-vend';
+
+        if (activePill === '#pill-pane-prod') {
+            cargarDashboardProductos(false);
+            return;
+        }
+
+        if (activePill === '#pill-pane-comp') {
+            return;
+        }
 
         /* Vendedores */
-        $.get('/reporte/dashboard/top-vendedores', p).then(function (rows) {
-            _renderRankVend(rows);
-            _renderTablaVendedores(rows);
-        });
+        if (activePill === '#pill-pane-vend') {
+            $.get('/reporte/dashboard/top-vendedores', p).then(function (rows) {
+                _renderRankVend(rows);
+                _renderTablaVendedores(rows);
+            });
+            return;
+        }
 
         /* Clientes */
-        $.get('/reporte/dashboard/top-clientes', $.extend({}, p, { limite: 20 })).then(function (rows) {
-            _renderTopCli(rows);
-            _renderAbcCli(rows);
-            _renderTablaClientes(rows);
-            /* También muestra el resumen de compradores en la pestaña Productos */
-            _renderCliProd(rows);
-            _renderTablaCliProd(rows);
-        });
-
-        /* Productos */
-        $.get('/reporte/dashboard/top-productos', $.extend({}, p, { limite: 20 })).then(function (rows) {
-            _renderTopProd(rows);
-            _renderPareto(rows);
-            _renderTablaProductos(rows);
-        });
-
-        /* Marcas */
-        $.get('/reporte/dashboard/top-marcas', p).then(function (rows) {
-            _renderTopMarcas(rows);
-            _renderTablaMarcas(rows);
-        });
+        if (activePill === '#pill-pane-cli') {
+            $.get('/reporte/dashboard/top-clientes', $.extend({}, p, { limite: 20 })).then(function (rows) {
+                _renderTopCli(rows);
+                _renderAbcCli(rows);
+                _renderTablaClientes(rows);
+            });
+        }
     }
 
     function _renderRankVend(rows) {
@@ -805,21 +866,28 @@ var dashboardVentas = (function () {
         _dtDestroy('tabla-productos');
         var $tbody = $('#tbody-productos').empty();
         rows.forEach(function (r, i) {
+            var facturaHtml = '<a href="#" onclick="dashboardVentas.imprimirFactura(' + r.factura_id + '); return false;" style="font-weight:700;color:#1a7efb;">' + (r.numero_factura || ('FAC-' + r.factura_id)) + '</a>';
             $tbody.append(
                 '<tr>' +
                 '<td>' + (i + 1) + '</td>' +
+                '<td>' + facturaHtml + '</td>' +
+                '<td>' + (r.fecha || '-') + '</td>' +
+                '<td>' + (r.cliente || '-') + '</td>' +
+                '<td>' + (r.escala || '-') + '</td>' +
+                '<td>' + (r.vendedor || '-') + '</td>' +
+                '<td>' + (r.codigo || '-') + '</td>' +
                 '<td>' + r.producto + '</td>' +
-                '<td>' + r.categoria + '</td>' +
-                '<td>' + r.subcategoria + '</td>' +
-                '<td class="text-right">' + fmtN(r.unidades_vendidas) + '</td>' +
-                '<td class="text-right">' + fmt(r.ingresos) + '</td>' +
-                '<td class="text-right">' + fmt(r.precio_promedio) + '</td>' +
-                '<td class="text-right">' + r.apariciones + '</td>' +
-                '<td class="text-right">' + r.pareto + '%</td>' +
+                '<td class="text-right">' + fmtN(r.cantidad) + '</td>' +
+                '<td class="text-right">' + fmt(r.precio_base_venta) + '</td>' +
+                '<td class="text-right">' + fmt(r.precio_unitario) + '</td>' +
+                '<td class="text-right">' + fmt(r.venta_factura) + '</td>' +
+                '<td class="text-right">' + fmt(r.costo_total) + '</td>' +
+                '<td class="text-right">' + fmt(r.utilidad_bruta) + '</td>' +
+                '<td>' + (r.estado || '-') + '</td>' +
                 '</tr>'
             );
         });
-        _dtInit('tabla-productos', 5);
+        _dtInit('tabla-productos', 1);
     }
 
     /* ─── MARCAS ─────────────────────────────────────────────────────────── */
@@ -870,10 +938,8 @@ var dashboardVentas = (function () {
     }
 
     function _filtrarMarca(marcaId, marcaNombre) {
-        $('#a-marca').val(marcaId);
-        /* Switch to products pill */
-        $('#pill-prod').tab('show');
-        cargarAnalitica();
+        $('#prod-filtro-marca').val(marcaId).trigger('change');
+        cargarDashboardProductos(false);
     }
 
     function _renderTablaMarcas(rows) {
@@ -885,16 +951,122 @@ var dashboardVentas = (function () {
                 '<td>' + (i + 1) + '</td>' +
                 '<td class="font-weight-bold" style="cursor:pointer" onclick="dashboardVentas._filtrarMarca(' + r.marca_id + ',\'' + r.marca.replace(/'/g,'') + '\')">' +
                 '<i class="fas fa-filter text-warning mr-1" style="font-size:.7rem"></i>' + r.marca + '</td>' +
-                '<td class="text-right">' + fmtN(r.productos) + '</td>' +
-                '<td class="text-right">' + fmtN(r.unidades_vendidas) + '</td>' +
                 '<td class="text-right">' + fmt(r.ingresos) + '</td>' +
-                '<td class="text-right">' + fmt(r.precio_promedio) + '</td>' +
-                '<td class="text-right">' + r.facturas + '</td>' +
+                '<td class="text-right">' + fmt(r.utilidad) + '</td>' +
                 '<td class="text-right">' + r.participacion + '%</td>' +
                 '</tr>'
             );
         });
-        _dtInit('tabla-marcas', 4);
+        _dtInit('tabla-marcas', 2);
+    }
+
+    function _filtrarCategoria(catId) {
+        $('#prod-filtro-categoria').val(catId).trigger('change');
+        cargarDashboardProductos(false);
+    }
+
+    function _renderTopCategorias(rows) {
+        destroyChart('chart-top-categorias');
+        destroyChart('chart-part-categorias');
+        if (!rows || !rows.length) return;
+
+        var top15 = rows.slice(0, 15);
+        charts['chart-top-categorias'] = new ApexCharts(get('chart-top-categorias'), {
+            chart: {
+                type: 'bar', height: 300, toolbar: { show: false },
+                events: {
+                    dataPointSelection: function (e, ctx, cfg) {
+                        var r = top15[cfg.dataPointIndex];
+                        _filtrarCategoria(r.categoria_id);
+                    }
+                }
+            },
+            series: [{ name: 'Ingresos', data: top15.map(function (r) { return parseFloat(r.ingresos || 0); }) }],
+            xaxis: { categories: top15.map(function (r) { return r.categoria; }), labels: { formatter: function (v) { return 'L.' + fmtN(v); } } },
+            yaxis: {},
+            tooltip: { y: { formatter: function (v) { return fmt(v); } } },
+            colors: ['#4e73df'],
+            plotOptions: { bar: { borderRadius: 4, horizontal: true } }
+        });
+        charts['chart-top-categorias'].render();
+
+        var top10 = rows.slice(0, 10);
+        charts['chart-part-categorias'] = new ApexCharts(get('chart-part-categorias'), {
+            chart: {
+                type: 'donut', height: 300,
+                events: {
+                    dataPointSelection: function (e, ctx, cfg) {
+                        var r = top10[cfg.dataPointIndex];
+                        _filtrarCategoria(r.categoria_id);
+                    }
+                }
+            },
+            series: top10.map(function (r) { return parseFloat(r.ingresos || 0); }),
+            labels: top10.map(function (r) { return r.categoria; }),
+            tooltip: { y: { formatter: function (v) { return fmt(v); } } },
+            colors: COLORES,
+            legend: { position: 'right' }
+        });
+        charts['chart-part-categorias'].render();
+    }
+
+    function _renderTablaCategorias(rows) {
+        _dtDestroy('tabla-categorias');
+        var $tbody = $('#tbody-categorias').empty();
+        rows.forEach(function (r, i) {
+            $tbody.append(
+                '<tr>' +
+                '<td>' + (i + 1) + '</td>' +
+                '<td class="font-weight-bold" style="cursor:pointer" onclick="dashboardVentas._filtrarCategoria(' + r.categoria_id + ')">' +
+                '<i class="fas fa-filter text-primary mr-1" style="font-size:.7rem"></i>' + (r.categoria || '-') + '</td>' +
+                '<td class="text-right">' + fmt(r.ingresos) + '</td>' +
+                '<td class="text-right">' + fmt(r.utilidad) + '</td>' +
+                '<td class="text-right">' + fmtN(r.participacion) + '%</td>' +
+                '</tr>'
+            );
+        });
+        _dtInit('tabla-categorias', 2);
+    }
+
+    function _renderRotacion(rows) {
+        _dtDestroy('tabla-prod-alta-rotacion');
+        _dtDestroy('tabla-prod-baja-rotacion');
+
+        var alta = (rows || []).slice().sort(function (a, b) {
+            return parseFloat(b.unidades_vendidas || 0) - parseFloat(a.unidades_vendidas || 0);
+        }).slice(0, 20);
+        var baja = (rows || []).slice().sort(function (a, b) {
+            return parseFloat(a.unidades_vendidas || 0) - parseFloat(b.unidades_vendidas || 0);
+        }).slice(0, 20);
+
+        var $alta = $('#tbody-prod-alta-rotacion').empty();
+        alta.forEach(function (r, i) {
+            $alta.append(
+                '<tr>' +
+                '<td>' + (i + 1) + '</td>' +
+                '<td>' + (r.producto || '-') + '</td>' +
+                '<td class="text-right">' + fmt(r.ingresos) + '</td>' +
+                '<td class="text-right">' + fmtN(r.unidades_vendidas) + '</td>' +
+                '<td class="text-right">' + fmtN(r.apariciones) + '</td>' +
+                '</tr>'
+            );
+        });
+
+        var $baja = $('#tbody-prod-baja-rotacion').empty();
+        baja.forEach(function (r, i) {
+            $baja.append(
+                '<tr>' +
+                '<td>' + (i + 1) + '</td>' +
+                '<td>' + (r.producto || '-') + '</td>' +
+                '<td class="text-right">' + fmt(r.ingresos) + '</td>' +
+                '<td class="text-right">' + fmtN(r.unidades_vendidas) + '</td>' +
+                '<td class="text-right">' + (r.ultima_venta || '-') + '</td>' +
+                '</tr>'
+            );
+        });
+
+        _dtInit('tabla-prod-alta-rotacion', 2);
+        _dtInit('tabla-prod-baja-rotacion', 2);
     }
 
     /* ─── CLIENTES EN PESTAÑA PRODUCTOS ──────────────────────────────────── */
@@ -943,6 +1115,543 @@ var dashboardVentas = (function () {
             );
         });
         _dtInit('tabla-cli-prod', 5);
+    }
+
+    function getProdFilters() {
+        return {
+            fecha_inicio:   $('#prod-fi').val() || (new Date().getFullYear() + '-01-01'),
+            fecha_final:    $('#prod-ff').val() || todayStr(),
+            producto_id:    $('#prod-filtro-producto').val() || ''
+        };
+    }
+
+    function cargarDashboardProductos(mostrarValidacion) {
+        if (typeof mostrarValidacion === 'undefined') mostrarValidacion = true;
+
+        var p = getProdFilters();
+
+        if (!p.producto_id) {
+            _renderProdKpis({});
+            _renderProdResumenSeleccionado(null);
+            _renderProdEvolucion({});
+            _renderProdTopClientes([]);
+            _renderProdFacturas([]);
+            _renderProdProductosCliente([]);
+            _renderProdRankingClientes([]);
+            _renderProdIndicadoresClientes({});
+            _renderProdTopVendedores([]);
+            _renderTablaProductos([]);
+            setText('prod-escala', 'Seleccione un producto');
+            if (mostrarValidacion) alert('Seleccione un producto para cargar la informacion.');
+            return;
+        }
+
+        $.when(
+            $.get('/reporte/dashboard/productos-analitica', p),
+            $.get('/reporte/dashboard/top-productos', $.extend({}, p, { limite: 0 }))
+        ).then(function (analiticaRes, productosRes) {
+            var resp = analiticaRes[0] || {};
+            var rowsProd = productosRes[0] || [];
+
+            _renderProdKpis(resp.resumen_general || {});
+            _renderProdResumenSeleccionado(resp.resumen_producto || null);
+            _renderProdEvolucion(resp.evolucion || {});
+            _renderProdTopClientes(resp.top_clientes || []);
+            _renderProdFacturas(resp.facturas || []);
+            _renderProdProductosCliente(resp.productos_cliente || []);
+            _renderProdRankingClientes(resp.ranking_clientes || []);
+            _renderProdIndicadoresClientes(resp.indicadores_clientes || {});
+            _renderProdTopVendedores(resp.top_vendedores || []);
+            _renderTablaProductos(rowsProd || []);
+            setText('prod-escala', resp.escala_seleccionada || 'Sin aplicar');
+        }).fail(function () {
+            _renderProdKpis({});
+            _renderProdResumenSeleccionado(null);
+            _renderProdEvolucion({});
+            _renderProdTopClientes([]);
+            _renderProdFacturas([]);
+            _renderProdProductosCliente([]);
+            _renderProdRankingClientes([]);
+            _renderProdIndicadoresClientes({});
+            _renderProdTopVendedores([]);
+            _renderTablaProductos([]);
+            setText('prod-escala', 'Sin datos');
+        });
+    }
+
+    function _renderProdKpis(r) {
+        setText('prod-kpi-cantidad', fmtN(r.unidades_vendidas || 0));
+        setText('prod-kpi-facturas', fmtN(r.total_facturas || 0));
+        setText('prod-kpi-clientes', fmtN(r.total_clientes || 0));
+        setText('prod-kpi-costo-total', fmt(r.costo_total || 0));
+        setText('prod-kpi-venta-total', fmt(r.total_vendido || 0));
+        setText('prod-kpi-utilidad-bruta', fmt(r.utilidad_bruta || 0));
+    }
+
+    function _renderProdResumenSeleccionado(r) {
+        setText('prod-res-nombre', r && r.producto ? r.producto : '-');
+        setText('prod-res-codigo', r && r.codigo ? r.codigo : '-');
+        setText('prod-res-marca', r && r.marca ? r.marca : '-');
+        setText('prod-res-categoria', r && r.categoria ? r.categoria : '-');
+        setText('prod-res-precio-costo', fmt(r && r.precio_costo ? r.precio_costo : 0));
+        setText('prod-res-existencia', fmtN(r && r.existencia ? r.existencia : 0));
+        setText('prod-res-total', fmt(r && r.total_vendido ? r.total_vendido : 0));
+        setText('prod-res-unidades', fmtN(r && r.unidades_vendidas ? r.unidades_vendidas : 0));
+        setText('prod-res-clientes', fmtN(r && r.clientes_compraron ? r.clientes_compraron : 0));
+        setText('prod-res-ultima', r && r.ultima_venta ? r.ultima_venta : '-');
+        setText('prod-res-promedio', fmt(r && r.promedio_mensual ? r.promedio_mensual : 0));
+    }
+
+    function _renderProdEvolucion(obj) {
+        destroyChart('chart-prod-evolucion');
+        var dia = obj.dia || [];
+        var semana = obj.semana || [];
+        var mes = obj.mes || [];
+
+        charts['chart-prod-evolucion'] = new ApexCharts(get('chart-prod-evolucion'), {
+            chart: { type: 'line', height: 340, toolbar: { show: true } },
+            series: [
+                { name: 'Ventas por día', data: dia.map(function (r) { return parseFloat(r.total || 0); }) },
+                { name: 'Ventas por semana', data: semana.map(function (r) { return parseFloat(r.total || 0); }) },
+                { name: 'Ventas por mes', data: mes.map(function (r) { return parseFloat(r.total || 0); }) }
+            ],
+            xaxis: { categories: dia.map(function (r) { return r.periodo; }) },
+            yaxis: { labels: { formatter: function (v) { return 'L.' + fmtN(v); } } },
+            stroke: { curve: 'smooth', width: 2 },
+            colors: ['#EC401B', '#1cc88a', '#4e73df']
+        });
+        charts['chart-prod-evolucion'].render();
+    }
+
+    function _renderProdTopClientes(rows) {
+        destroyChart('chart-prod-top-clientes');
+        if (!rows.length) return;
+        charts['chart-prod-top-clientes'] = new ApexCharts(get('chart-prod-top-clientes'), {
+            chart: {
+                type: 'bar', height: 320, toolbar: { show: false },
+                events: {
+                    dataPointSelection: function (e, ctx, cfg) {
+                        /* Sin accion: el filtro cliente ya no existe en la vista simplificada. */
+                    }
+                }
+            },
+            series: [{ name: 'Monto', data: rows.map(function (r) { return parseFloat(r.monto || 0); }) }],
+            xaxis: {
+                categories: rows.map(function (r) { return r.cliente; }),
+                labels: { formatter: function (v) { return 'L.' + fmtN(v); } }
+            },
+            plotOptions: { bar: { horizontal: true, borderRadius: 4 } },
+            colors: ['#36b9cc']
+        });
+        charts['chart-prod-top-clientes'].render();
+    }
+
+    function _renderProdParticipacion(p) {
+        destroyChart('chart-prod-participacion');
+        charts['chart-prod-participacion'] = new ApexCharts(get('chart-prod-participacion'), {
+            chart: { type: 'donut', height: 340 },
+            series: [parseFloat(p.producto || 0), parseFloat(p.resto || 0)],
+            labels: ['Producto seleccionado', 'Resto de ventas'],
+            colors: ['#EC401B', '#858796'],
+            tooltip: { y: { formatter: function (v) { return fmt(v); } } }
+        });
+        charts['chart-prod-participacion'].render();
+    }
+
+    function _renderProdComparativo(rows) {
+        destroyChart('chart-prod-comparativo');
+        if (!rows.length) return;
+        var top3 = rows.slice(0, 3);
+        charts['chart-prod-comparativo'] = new ApexCharts(get('chart-prod-comparativo'), {
+            chart: {
+                type: 'bar', height: 320, toolbar: { show: false },
+                events: {
+                    dataPointSelection: function (e, ctx, cfg) {
+                        var r = top3[cfg.dataPointIndex];
+                        if (r && r.producto_id) {
+                            $('#prod-filtro-producto').val(r.producto_id).trigger('change');
+                            cargarDashboardProductos(false);
+                        }
+                    }
+                }
+            },
+            series: [{ name: 'Total', data: top3.map(function (r) { return parseFloat(r.total || 0); }) }],
+            xaxis: {
+                categories: top3.map(function (r) { return r.producto; }),
+                labels: { formatter: function (v) { return 'L.' + fmtN(v); } }
+            },
+            tooltip: { y: { formatter: function (v) { return fmt(v); } } },
+            plotOptions: { bar: { distributed: true, borderRadius: 4, horizontal: true } },
+            colors: ['#EC401B', '#1cc88a', '#36b9cc'],
+            legend: { show: false },
+            dataLabels: { enabled: true, formatter: function (v) { return fmt(v); }, style: { fontSize: '11px' } }
+        });
+        charts['chart-prod-comparativo'].render();
+    }
+
+    function _renderProdTopVendedores(rows) {
+        destroyChart('chart-prod-top-vendedores');
+        if (!rows || !rows.length) {
+            var el = get('chart-prod-top-vendedores');
+            if (el) el.innerHTML = '<p class="text-muted text-center py-4">Sin datos para los filtros seleccionados.</p>';
+            return;
+        }
+        charts['chart-prod-top-vendedores'] = new ApexCharts(get('chart-prod-top-vendedores'), {
+            chart: { type: 'bar', height: 320, toolbar: { show: false } },
+            series: [
+                { name: 'Monto (L.)', data: rows.map(function (r) { return parseFloat(r.monto || 0); }) },
+                { name: 'Unidades',   data: rows.map(function (r) { return parseFloat(r.unidades || 0); }) }
+            ],
+            xaxis: { categories: rows.map(function (r) { return r.vendedor; }) },
+            yaxis: [
+                { labels: { formatter: function (v) { return 'L.' + fmtN(v); } } },
+                { opposite: true, labels: { formatter: function (v) { return fmtN(v) + ' u.'; } } }
+            ],
+            tooltip: {
+                y: [
+                    { formatter: function (v) { return fmt(v); } },
+                    { formatter: function (v) { return fmtN(v) + ' unidades'; } }
+                ]
+            },
+            colors: ['#EC401B', '#36b9cc'],
+            plotOptions: { bar: { columnWidth: '55%', borderRadius: 3 } },
+            legend: { position: 'top' },
+            dataLabels: { enabled: false }
+        });
+        charts['chart-prod-top-vendedores'].render();
+    }
+
+    function _renderProdTendencia(rows) {
+        destroyChart('chart-prod-tendencia');
+        if (!rows.length) return;
+        charts['chart-prod-tendencia'] = new ApexCharts(get('chart-prod-tendencia'), {
+            chart: { type: 'area', height: 280, toolbar: { show: false } },
+            series: [{ name: 'Unidades', data: rows.map(function (r) { return parseFloat(r.unidades || 0); }) }],
+            xaxis: { categories: rows.map(function (r) { return r.periodo; }) },
+            colors: ['#1cc88a'],
+            stroke: { curve: 'smooth' }
+        });
+        charts['chart-prod-tendencia'].render();
+    }
+
+    function _renderProdFacturas(rows) {
+        _dtDestroy('tabla-prod-fact-det');
+        var $tbody = $('#tbody-prod-fact-det').empty();
+        rows.forEach(function (r, i) {
+            var facturaHtml = '<a href="#" onclick="dashboardVentas.imprimirFactura(' + r.factura_id + '); return false;" style="font-weight:700;color:#1a7efb;">' + (r.numero_factura || ('FAC-' + r.factura_id)) + '</a>';
+            $tbody.append(
+                '<tr>' +
+                '<td>' + (i + 1) + '</td>' +
+                '<td>' + facturaHtml + '</td>' +
+                '<td>' + (r.fecha || '-') + '</td>' +
+                '<td>' + (r.cliente || '-') + '</td>' +
+                '<td>' + (r.escala || '-') + '</td>' +
+                '<td>' + (r.vendedor || '-') + '</td>' +
+                '<td>' + (r.producto || '-') + '</td>' +
+                '<td class="text-right">' + fmtN(r.cantidad) + '</td>' +
+                '<td class="text-right">' + fmt(r.precio_base_venta) + '</td>' +
+                '<td class="text-right">' + fmt(r.precio_unitario) + '</td>' +
+                '<td class="text-right">' + fmt(r.descuento) + '</td>' +
+                '<td class="text-right">' + fmt(r.subtotal) + '</td>' +
+                '<td class="text-right">' + fmt(r.costo_total) + '</td>' +
+                '<td class="text-right">' + fmt(r.utilidad_bruta) + '</td>' +
+                '<td class="text-right">' + fmt(r.total_factura) + '</td>' +
+                '<td>' + (r.estado || '-') + '</td>' +
+                '</tr>'
+            );
+        });
+        _dtInit('tabla-prod-fact-det', 1);
+    }
+
+    function _renderProdProductosCliente(rows) {
+        /* Tabla removida — el filtro de cliente fue eliminado */
+    }
+
+    function _renderProdRankingClientes(rows) {
+        _dtDestroy('tabla-prod-ranking-cli');
+        var $tbody = $('#tbody-prod-ranking-cli').empty();
+        if (!rows || !rows.length) {
+            $tbody.append('<tr><td colspan="6" class="text-center text-muted">Sin datos para los filtros seleccionados.</td></tr>');
+            return;
+        }
+        rows.forEach(function (r, i) {
+            $tbody.append(
+                '<tr>' +
+                '<td>' + (i + 1) + '</td>' +
+                '<td>' + (r.cliente || '-') + '</td>' +
+                '<td class="text-right">' + fmtN(r.compras) + '</td>' +
+                '<td class="text-right font-weight-bold">' + fmt(r.monto) + '</td>' +
+                '<td class="text-right">' + fmtN(r.unidades) + '</td>' +
+                '<td>' + (r.ultima_compra || '-') + '</td>' +
+                '</tr>'
+            );
+        });
+        _dts['tabla-prod-ranking-cli'] = $('#tabla-prod-ranking-cli').DataTable({
+            pageLength: 10,
+            lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, 'Todos']],
+            language:   DT_LANG,
+            dom:        DT_DOM,
+            responsive: true,
+            order:      [[3, 'desc']]
+        });
+    }
+
+    function _renderProdIndicadoresClientes(ind) {
+        var a = ind.cliente_mas_compra ? (ind.cliente_mas_compra.cliente + ' (' + fmt(ind.cliente_mas_compra.monto) + ')') : '-';
+        var b = ind.cliente_mayor_frecuencia ? (ind.cliente_mayor_frecuencia.cliente + ' (' + fmtN(ind.cliente_mayor_frecuencia.compras) + ' compras)') : '-';
+        var c = ind.cliente_mayor_volumen ? (ind.cliente_mayor_volumen.cliente + ' (' + fmtN(ind.cliente_mayor_volumen.unidades) + ' unidades)') : '-';
+        setText('prod-ind-mas-compra', a);
+        setText('prod-ind-frecuencia', b);
+        setText('prod-ind-volumen', c);
+    }
+
+    function _renderProdRelacionados(rows) {
+        _dtDestroy('tabla-prod-rel');
+        var $tbody = $('#tbody-prod-rel').empty();
+        rows.forEach(function (r, i) {
+            $tbody.append(
+                '<tr>' +
+                '<td>' + (i + 1) + '</td>' +
+                '<td>' + (r.producto || '-') + '</td>' +
+                '<td class="text-right">' + fmtN(r.veces_juntos) + '</td>' +
+                '<td class="text-right">' + fmt(r.total_generado) + '</td>' +
+                '<td class="text-right">' + fmtN(r.porcentaje_coincidencia) + '%</td>' +
+                '</tr>'
+            );
+        });
+        _dtInit('tabla-prod-rel', 2);
+    }
+
+    function limpiarDashboardProductos() {
+        $('#prod-filtro-producto').val('').trigger('change');
+        $('#prod-fi').val(new Date().getFullYear() + '-01-01');
+        $('#prod-ff').val(todayStr());
+        _renderProdKpis({});
+        _renderProdResumenSeleccionado(null);
+        _renderProdEvolucion({});
+        _renderProdTopClientes([]);
+        _renderProdFacturas([]);
+        _renderProdProductosCliente([]);
+        _renderProdRankingClientes([]);
+        _renderProdIndicadoresClientes({});
+        _renderProdTopVendedores([]);
+        _renderTablaProductos([]);
+        setText('prod-escala', 'Sin aplicar');
+    }
+
+    function exportarTablaProductosExcel(tableId, fileName, sheetName) {
+        if (typeof ExcelJS === 'undefined') { alert('ExcelJS no esta disponible.'); return; }
+
+        var HNL_FMT = '"L." #,##0.00';
+        var INT_FMT = '#,##0';
+
+        function _parseNumCell(txt) {
+            var m = String(txt || '').match(/-?\d[\d,]*\.?\d*/);
+            if (!m) return null;
+            var n = parseFloat(m[0].replace(/,/g, ''));
+            return isNaN(n) ? null : n;
+        }
+        function _isMoneyHeader(h) {
+            var t = String(h || '').toLowerCase();
+            return t.indexOf('precio') >= 0 ||
+                t.indexOf('subtotal') >= 0 ||
+                t.indexOf('total') >= 0 ||
+                t.indexOf('monto') >= 0 ||
+                t.indexOf('costo') >= 0 ||
+                t.indexOf('utilidad') >= 0 ||
+                t.indexOf('ticket') >= 0 ||
+                t.indexOf('ingresos') >= 0 ||
+                t.indexOf('comprado') >= 0;
+        }
+        function _isIntegerHeader(h) {
+            var t = String(h || '').toLowerCase();
+            return t.indexOf('cantidad') >= 0 ||
+                t.indexOf('unidades') >= 0 ||
+                t.indexOf('compras') >= 0 ||
+                t.indexOf('facturas') >= 0 ||
+                t.indexOf('existencia') >= 0 ||
+                t.indexOf('dias') >= 0;
+        }
+        function _getRowsForExport(id) {
+            var dt = _dts[id] || null;
+            if (!dt && $.fn.dataTable && $.fn.dataTable.isDataTable('#' + id)) {
+                dt = $('#' + id).DataTable();
+            }
+            if (dt) {
+                return dt.rows({ search: 'applied' }).nodes().toArray();
+            }
+            return $('#' + id + ' tbody tr').toArray();
+        }
+
+        var table = document.getElementById(tableId);
+        if (!table) { alert('No se encontro la tabla a exportar.'); return; }
+
+        var wb = new ExcelJS.Workbook();
+        var ws = wb.addWorksheet(sheetName || 'Datos');
+
+        var headers = [];
+        $(table).find('thead th').each(function () {
+            headers.push($(this).text().trim());
+        });
+        if (headers.length) ws.addRow(headers);
+
+        var moneyCols = [];
+        var intCols = [];
+        headers.forEach(function (h, i) {
+            if (_isMoneyHeader(h)) moneyCols.push(i + 1);
+            else if (_isIntegerHeader(h)) intCols.push(i + 1);
+        });
+
+        $(_getRowsForExport(tableId)).each(function () {
+            var row = [];
+            $(this).find('td').each(function (idx) {
+                var txt = $(this).text().trim();
+                if (moneyCols.indexOf(idx + 1) >= 0 || intCols.indexOf(idx + 1) >= 0) {
+                    var n = _parseNumCell(txt);
+                    row.push(n === null ? txt : n);
+                } else {
+                    row.push(txt);
+                }
+            });
+            var excelRow = ws.addRow(row);
+            moneyCols.forEach(function (colNum) {
+                var cell = excelRow.getCell(colNum);
+                if (typeof cell.value === 'number') {
+                    cell.numFmt = HNL_FMT;
+                }
+            });
+            intCols.forEach(function (colNum) {
+                var cell = excelRow.getCell(colNum);
+                if (typeof cell.value === 'number') {
+                    cell.numFmt = INT_FMT;
+                }
+            });
+        });
+
+        ws.columns.forEach(function (col) { col.width = 22; });
+        _descargar(wb, fileName || 'tabla-productos.xlsx');
+    }
+
+    function exportarVistaProductosExcel() {
+        if (typeof ExcelJS === 'undefined') { alert('ExcelJS no esta disponible.'); return; }
+
+        var HNL_FMT = '"L." #,##0.00';
+        var INT_FMT = '#,##0';
+
+        function _parseNumCell(txt) {
+            var m = String(txt || '').match(/-?\d[\d,]*\.?\d*/);
+            if (!m) return null;
+            var n = parseFloat(m[0].replace(/,/g, ''));
+            return isNaN(n) ? null : n;
+        }
+        function _isMoneyHeader(h) {
+            var t = String(h || '').toLowerCase();
+            return t.indexOf('precio') >= 0 ||
+                t.indexOf('subtotal') >= 0 ||
+                t.indexOf('total') >= 0 ||
+                t.indexOf('monto') >= 0 ||
+                t.indexOf('costo') >= 0 ||
+                t.indexOf('utilidad') >= 0 ||
+                t.indexOf('ticket') >= 0 ||
+                t.indexOf('ingresos') >= 0 ||
+                t.indexOf('comprado') >= 0;
+        }
+        function _isIntegerHeader(h) {
+            var t = String(h || '').toLowerCase();
+            return t.indexOf('cantidad') >= 0 ||
+                t.indexOf('unidades') >= 0 ||
+                t.indexOf('compras') >= 0 ||
+                t.indexOf('facturas') >= 0 ||
+                t.indexOf('existencia') >= 0 ||
+                t.indexOf('dias') >= 0;
+        }
+        function _getRowsForExport(id) {
+            var dt = _dts[id] || null;
+            if (!dt && $.fn.dataTable && $.fn.dataTable.isDataTable('#' + id)) {
+                dt = $('#' + id).DataTable();
+            }
+            if (dt) {
+                return dt.rows({ search: 'applied' }).nodes().toArray();
+            }
+            return $('#' + id + ' tbody tr').toArray();
+        }
+
+        var wb = new ExcelJS.Workbook();
+        var tablas = [
+            { id: 'tabla-prod-fact-det', sheet: 'Ultimas Facturas' },
+            { id: 'tabla-prod-ranking-cli', sheet: 'Historico Clientes' },
+            { id: 'tabla-productos', sheet: 'Tabla Producto Completa' }
+        ];
+
+        tablas.forEach(function (cfg) {
+            var table = document.getElementById(cfg.id);
+            if (!table) return;
+
+            var ws = wb.addWorksheet(cfg.sheet);
+            var headers = [];
+            $(table).find('thead th').each(function () {
+                headers.push($(this).text().trim());
+            });
+            if (headers.length) ws.addRow(headers);
+
+            var moneyCols = [];
+            var intCols = [];
+            headers.forEach(function (h, i) {
+                if (_isMoneyHeader(h)) moneyCols.push(i + 1);
+                else if (_isIntegerHeader(h)) intCols.push(i + 1);
+            });
+
+            $(_getRowsForExport(cfg.id)).each(function () {
+                var row = [];
+                $(this).find('td').each(function (idx) {
+                    var txt = $(this).text().trim();
+                    if (moneyCols.indexOf(idx + 1) >= 0 || intCols.indexOf(idx + 1) >= 0) {
+                        var n = _parseNumCell(txt);
+                        row.push(n === null ? txt : n);
+                    } else {
+                        row.push(txt);
+                    }
+                });
+                var excelRow = ws.addRow(row);
+                moneyCols.forEach(function (colNum) {
+                    var cell = excelRow.getCell(colNum);
+                    if (typeof cell.value === 'number') {
+                        cell.numFmt = HNL_FMT;
+                    }
+                });
+                    intCols.forEach(function (colNum) {
+                        var cell = excelRow.getCell(colNum);
+                        if (typeof cell.value === 'number') {
+                            cell.numFmt = INT_FMT;
+                        }
+                    });
+            });
+
+            ws.columns.forEach(function (col) { col.width = 22; });
+        });
+
+        _descargar(wb, 'vista-completa-productos.xlsx');
+    }
+
+    function exportarFacturasProductoExcel() {
+        exportarTablaProductosExcel('tabla-prod-fact-det', 'dashboard-productos-facturas.xlsx', 'Facturas Producto');
+    }
+
+    function exportarFacturasProductoPDF() {
+        var html = '<html><head><title>Facturas Producto</title><style>table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #ddd;padding:4px}th{background:#f3f3f3}</style></head><body>' +
+                   '<h3>Detalle de Facturas de Producto</h3>' +
+                   document.getElementById('tabla-prod-fact-det').outerHTML +
+                   '</body></html>';
+        var w = window.open('', '_blank');
+        w.document.write(html);
+        w.document.close();
+        w.focus();
+        w.print();
+    }
+
+    function imprimirFactura(idFactura) {
+        if (!idFactura) return;
+        window.open('/factura/cooporativo/' + idFactura, '_blank');
     }
 
     /* ═══════════════════════════════════════════════════════════════════════
@@ -1101,12 +1810,22 @@ var dashboardVentas = (function () {
     function limpiarFiltrosAdv() {
         _filtroAdvVend = null;
         $('#a-vendedor').val('').trigger('change');
-        $('#a-marca').val('');
-        $('#a-categoria').val('');
         $('#a-tipo-cliente').val('');
+        $('#prod-filtro-producto').val('');
+        $('#prod-filtro-cliente').val('');
+        $('#prod-filtro-marca').val('');
+        $('#prod-filtro-categoria').val('');
+        $('#prod-filtro-vendedor').val('');
+        $('#prod-filtro-sucursal').val('');
+        $('#prod-filtro-canal').val('');
+        $('#prod-filtro-anio').val('');
+        $('#prod-filtro-mes').val('');
+        $('#prod-fi').val(new Date().getFullYear() + '-01-01');
+        $('#prod-ff').val(todayStr());
         $('#adv-filter-badge-vend').hide();
         $('#adv-active-filters').addClass('d-none');
         $('#cli-prod-filtro').addClass('d-none').text('');
+        setText('prod-escala', 'Sin aplicar');
         cargarAnalitica();
     }
 
@@ -1268,8 +1987,8 @@ var dashboardVentas = (function () {
             } else if (activePill === '#pill-pane-prod') {
                 /* Productos + Marcas in two sheets */
                 $.when(
-                    $.get('/reporte/dashboard/top-productos', getP3()),
-                    $.get('/reporte/dashboard/top-marcas',   getP3())
+                    $.get('/reporte/dashboard/top-productos', getProdFilters()),
+                    $.get('/reporte/dashboard/top-marcas',   getProdFilters())
                 ).then(function (prodRes, marcaRes) {
                     var prodRows  = prodRes[0];
                     var marcaRows = marcaRes[0];
@@ -1348,12 +2067,21 @@ var dashboardVentas = (function () {
         cargarHistorico:       cargarHistorico,
         cargarSemanal:         cargarSemanal,
         cargarAnalitica:       cargarAnalitica,
+        cargarDashboardProductos: cargarDashboardProductos,
         cargarComparacion:     cargarComparacion,
         recalcularCrecimiento: recalcularCrecimiento,
         limpiarFiltrosSem:     limpiarFiltrosSem,
         limpiarFiltrosAdv:     limpiarFiltrosAdv,
+        limpiarDashboardProductos: limpiarDashboardProductos,
         exportarExcel:         exportarExcel,
+        exportarTablaProductosExcel: exportarTablaProductosExcel,
+        exportarVistaProductosExcel: exportarVistaProductosExcel,
+        exportarFacturasProductoExcel: exportarFacturasProductoExcel,
+        exportarFacturasProductoPDF: exportarFacturasProductoPDF,
         recargarTodo:          recargarTodo,
-        _filtrarMarca:         _filtrarMarca
+        _filtrarMarca:         _filtrarMarca,
+        _filtrarCategoria:     _filtrarCategoria,
+        imprimirFactura:       imprimirFactura,
+        _renderProdTopVendedores: _renderProdTopVendedores
     };
 })();
