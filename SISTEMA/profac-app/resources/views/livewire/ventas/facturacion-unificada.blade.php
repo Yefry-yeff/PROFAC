@@ -3784,6 +3784,20 @@
     @endpush
     @endif
 
+    @if(!empty($errorEscalaDuplicado))
+    @push('scripts')
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            Swal.fire({
+                icon: 'error',
+                title: 'Escala no disponible',
+                text: @json($errorEscalaDuplicado)
+            });
+        });
+    </script>
+    @endpush
+    @endif
+
     @if(count($productosParaCarrito) > 0)
     @push('scripts')
     {{-- Auto-agregar productos al carrito: oferta duplicada o prefactura vinculada --}}
@@ -3921,7 +3935,7 @@
                 // que es el caso habitual al auto-cargar una oferta duplicada.
                 var categoriaId = $('#categoria_cliente_venta_id').data('categoria-precio-id')
                     || $('#categoria_cliente_venta_id').val()
-                    || prod.precios_producto_carga_id
+                    || prod.categoria_precios_id
                     || '';
 
                 axios.post(urls.datos_producto, {
@@ -3931,6 +3945,7 @@
                 }).then(function (response) {
                     var producto = response.data.producto;
                     var arrayUnidades = response.data.unidades;
+                    var categoriaNombre = (prod.categoria_precios_nombre || '').toString().trim();
                     numeroInputs += 1;
                     var idx = numeroInputs;
 
@@ -3943,13 +3958,15 @@
 
                     // Precio de escala actual según el idPrecioSeleccionado de la oferta original
                     var idEscala = ((prod.idPrecioSeleccionado || '') + '').toLowerCase().trim();
-                    var precioEscalaActual;
-                    switch (idEscala) {
-                        case 'a': case 'p1': precioEscalaActual = parseFloat(producto.precio1 || 0); break;
-                        case 'b': case 'p2': precioEscalaActual = parseFloat(producto.precio2 || 0); break;
-                        case 'c': case 'p3': precioEscalaActual = parseFloat(producto.precio3 || 0); break;
-                        case 'd': case 'p4': precioEscalaActual = parseFloat(producto.precio4 || 0); break;
-                        default:             precioEscalaActual = parseFloat(producto.precio1 || 0); break;
+                    var precioEscalaActual = parseFloat(prod.precioSeleccionado || 0);
+                    if (!(precioEscalaActual > 0)) {
+                        switch (idEscala) {
+                            case 'a': case 'p1': precioEscalaActual = parseFloat(producto.precio1 || 0); break;
+                            case 'b': case 'p2': precioEscalaActual = parseFloat(producto.precio2 || 0); break;
+                            case 'c': case 'p3': precioEscalaActual = parseFloat(producto.precio3 || 0); break;
+                            case 'd': case 'p4': precioEscalaActual = parseFloat(producto.precio4 || 0); break;
+                            default:             precioEscalaActual = parseFloat(producto.precio1 || 0); break;
+                        }
                     }
                     // PRECIO OPC = precio de escala actual; P. UNITARIO = precio que cobró el vendedor
                     var precioOpcFmt    = precioEscalaActual.toFixed(2);
@@ -3957,7 +3974,9 @@
 
                     // Precios
                     var htmlprecios = '';
-                    if (tipoFacturaConfig && tipoFacturaConfig.multiples_precios) {
+                    if (categoriaNombre !== '') {
+                        htmlprecios = '<option value="' + precioOpcFmt + '" data-id="p1" selected>' + precioOpcFmt + ' - ' + categoriaNombre + '</option>';
+                    } else if (tipoFacturaConfig && tipoFacturaConfig.multiples_precios) {
                         var escalaMap = { 'p1': 'A', 'a': 'A', 'p2': 'B', 'b': 'B', 'p3': 'C', 'c': 'C', 'p4': 'D', 'd': 'D' };
                         var letraEscala = escalaMap[idEscala] || 'A';
                         htmlprecios = '<option value="' + producto.precio1 + '" data-id="p1"' + (letraEscala === 'A' ? ' selected' : '') + '>' + producto.precio1 + ' - A</option>';

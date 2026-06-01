@@ -105,11 +105,14 @@
                 <th>GRAVADO</th>
                 <th>EXENTO</th>
                 <th>ABONOS</th>
+                <th>DETALLE ABONOS</th>
                 <th>SUBTOTAL</th>
                 <th>ISV</th>
                 <th>TOTAL</th>
                 <th class="readonly">SALDO PEND.</th>
                 <th>MONTO PAG.</th>
+                <th>MONTO RET.</th>
+                <th>NRO RET.</th>
                 <th>F. VENTA</th>
                 <th>F. VCTO.</th>
                 <th class="readonly">DÍAS VCTOS.</th>
@@ -136,11 +139,14 @@
                 <td class="text-right">{{ $r->gravado   > 0 ? lps($r->gravado)   : '-' }}</td>
                 <td class="text-right">{{ $r->exento    > 0 ? lps($r->exento)    : '-' }}</td>
                 <td class="text-right">{{ $r->abonos    > 0 ? lps($r->abonos)    : '-' }}</td>
+                <td class="text-left">{{ $r->detalle_abonos ?? 'No aplica' }}</td>
                 <td class="text-right">{{ lps($r->sub_total) }}</td>
                 <td class="text-right">{{ lps($r->isv) }}</td>
                 <td class="text-right">{{ lps($r->total) }}</td>
                 <td class="text-right readonly">{{ lps($r->saldo_pendiente) }}</td>
                 <td class="text-right">{{ $r->monto_pagado > 0 ? lps($r->monto_pagado) : '-' }}</td>
+                <td class="text-right">{{ lps($r->monto_retencion ?? 0) }}</td>
+                <td class="text-left">{{ $r->numero_retencion ?? 'No aplica' }}</td>
                 <td>{{ fdate($r->fecha_venta) }}</td>
                 <td>{{ fdate($r->fecha_vencimiento) }}</td>
                 <td class="readonly">{{ $r->dias_vencidos }} días</td>

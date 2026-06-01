@@ -33,6 +33,7 @@ class FacturacionUnificada extends Component
     public $productosSugeridos    = [];     // [['nombre_pedido','cantidad','similares':[...]]]
     public $productosParaCarrito  = [];     // Productos del duplicado para auto-agregar al carrito
     public $datosOfertaDuplicada  = null;   // ['tipo_pago_id','fecha_vencimiento','porc_descuento','nota']
+    public $errorEscalaDuplicado  = null;   // Mensaje cuando un producto no tiene escala activa
 
     // ── Vendedor actual ──────────────────────────────────────────────────
     public $vendedorDefault    = [];
@@ -127,6 +128,9 @@ class FacturacionUnificada extends Component
             $this->seleccionarPrefactura((int) $prefId);
         }
 
+        // Cliente destino cuando se duplica para "Otro cliente"
+        $clienteIdParam = request()->get('clienteId');
+
         // Cargar productos del duplicado para auto-agregar al carrito (cotizacionId)
         $cotizId = request()->get('cotizacionId');
         if ($cotizId) {
@@ -134,7 +138,7 @@ class FacturacionUnificada extends Component
                 ->where('cotizacion_id', (int) $cotizId)
                 ->orderBy('indice')
                 ->get([
-                    'producto_id',
+                    'cotizacion_has_producto.producto_id',
                     'nombre_producto',
                     'nombre_bodega',
                     'precio_unidad',
@@ -148,13 +152,76 @@ class FacturacionUnificada extends Component
                     'precios_producto_carga_id',
                 ])
                 ->toArray();
+
+            $productosResueltos = [];
+            $productosSugeridos = [];
+            $productosSinEscala = [];
+
             foreach ($prods as $p) {
-                $this->productosParaCarrito[] = (array) $p;
-                $this->productosSugeridos[] = [
+                $prod = (array) $p;
+
+                $ppcActivo = null;
+                $precioCargaId = isset($prod['precios_producto_carga_id']) ? (int) $prod['precios_producto_carga_id'] : 0;
+
+                if ($precioCargaId > 0) {
+                    // 1) Intentar con el mismo precios_producto_carga_id en estado activo.
+                    $ppcActivo = DB::table('precios_producto_carga as ppc')
+                        ->leftJoin('categoria_precios as cp', 'cp.id', '=', 'ppc.categoria_precios_id')
+                        ->where('ppc.id', $precioCargaId)
+                        ->where('ppc.estado_id', 1)
+                        ->select('ppc.id', 'ppc.precio_a', 'ppc.producto_id', 'ppc.categoria_precios_id', 'cp.nombre as categoria_nombre')
+                        ->first();
+
+                    // 2) Si no esta activo, buscar activo por misma categoria y producto.
+                    if (!$ppcActivo) {
+                        $ppcReferencia = DB::table('precios_producto_carga')
+                            ->where('id', $precioCargaId)
+                            ->select('producto_id', 'categoria_precios_id')
+                            ->first();
+
+                        if ($ppcReferencia) {
+                            $ppcActivo = DB::table('precios_producto_carga as ppc')
+                                ->leftJoin('categoria_precios as cp', 'cp.id', '=', 'ppc.categoria_precios_id')
+                                ->where('ppc.producto_id', (int) $ppcReferencia->producto_id)
+                                ->where('ppc.categoria_precios_id', (int) $ppcReferencia->categoria_precios_id)
+                                ->where('ppc.estado_id', 1)
+                                ->orderByDesc('ppc.id')
+                                ->select('ppc.id', 'ppc.precio_a', 'ppc.producto_id', 'ppc.categoria_precios_id', 'cp.nombre as categoria_nombre')
+                                ->first();
+                        }
+                    }
+                }
+
+                if (!$ppcActivo) {
+                    $productosSinEscala[] = $prod['nombre_producto'] ?? ('Producto ID ' . ($prod['producto_id'] ?? 'N/A'));
+                    continue;
+                }
+
+                $precioA = (float) ($ppcActivo->precio_a ?? 0);
+                $precioUnidadOriginal = isset($prod['precio_unidad']) ? (float) $prod['precio_unidad'] : 0;
+                $prod['precios_producto_carga_id'] = (int) $ppcActivo->id;
+                $prod['idPrecioSeleccionado'] = 'p1';
+                $prod['precioSeleccionado'] = $precioA;
+                $prod['precio_unidad'] = $precioUnidadOriginal;
+                $prod['categoria_precios_id'] = (int) $ppcActivo->categoria_precios_id;
+                $prod['categoria_precios_nombre'] = $ppcActivo->categoria_nombre ?? 'Categoria sin nombre';
+
+                $productosResueltos[] = $prod;
+                $productosSugeridos[] = [
                     'nombre_pedido' => $p->nombre_producto,
                     'cantidad'      => $p->cantidad,
                     'similares'     => $this->buscarSimilares($p->nombre_producto),
                 ];
+            }
+
+            if (!empty($productosSinEscala)) {
+                $this->errorEscalaDuplicado = 'Uno de los productos ya no cuenta con una escala de precios asignada.';
+                $this->productosParaCarrito = [];
+                $this->productosSugeridos = [];
+            } else {
+                $this->errorEscalaDuplicado = null;
+                $this->productosParaCarrito = $productosResueltos;
+                $this->productosSugeridos = $productosSugeridos;
             }
 
             // Cargar datos de cabecera de la oferta original para pre-llenar el formulario
@@ -175,7 +242,6 @@ class FacturacionUnificada extends Component
         }
 
         // Pre-seleccionar cliente cuando se duplica para "Otro cliente" (clienteId sin pedidoId/flujoId)
-        $clienteIdParam = request()->get('clienteId');
         if ($clienteIdParam && !$pid && !$fid) {
             $cliente = DB::table('cliente')
                 ->where('id', (int) $clienteIdParam)

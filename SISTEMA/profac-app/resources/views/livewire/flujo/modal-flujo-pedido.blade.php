@@ -1218,6 +1218,36 @@
                             </div>
                             @endif
 
+                            @if (count($productosPrecioEscalaCambiado) > 0)
+                            <div style="margin-top:8px; border:1px solid #ef9a9a; border-radius:8px; overflow:hidden;">
+                                <div style="background:#fff5f5; color:#8a1f1f; padding:6px 8px; font-size:11px; font-weight:700;">
+                                    Productos con cambio de precio de escala
+                                </div>
+                                <div style="max-height:130px; overflow-y:auto; background:#fff;">
+                                    <table style="width:100%; border-collapse:collapse; font-size:11px;">
+                                        <thead>
+                                            <tr style="background:#fff9f9; color:#8a1f1f;">
+                                                <th style="padding:5px 7px; text-align:left;">Producto</th>
+                                                <th style="padding:5px 7px; text-align:center;">Escala</th>
+                                                <th style="padding:5px 7px; text-align:right;">Oferta</th>
+                                                <th style="padding:5px 7px; text-align:right;">Actual</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach ($productosPrecioEscalaCambiado as $prdCambio)
+                                            <tr style="border-top:1px solid #f3e0e0;">
+                                                <td style="padding:5px 7px; color:#333;">{{ $prdCambio['nombre_producto'] }}</td>
+                                                <td style="padding:5px 7px; text-align:center; color:#8a1f1f; font-weight:700;">{{ $prdCambio['escala'] }}</td>
+                                                <td style="padding:5px 7px; text-align:right; color:#666;">L {{ number_format((float) $prdCambio['precio_oferta'], 2) }}</td>
+                                                <td style="padding:5px 7px; text-align:right; color:#b71c1c; font-weight:700;">L {{ number_format((float) $prdCambio['precio_escala_actual'], 2) }}</td>
+                                            </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            @endif
+
                             <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:10px;">
                                 <button type="button" wire:click="confirmarDuplicarOtroCliente()"
                                         style="background:linear-gradient(135deg,#1ab394,#0fa37a); color:#fff;
