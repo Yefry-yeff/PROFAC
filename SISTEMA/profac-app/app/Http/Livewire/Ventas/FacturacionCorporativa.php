@@ -649,6 +649,16 @@ class FacturacionCorporativa extends Component
                 ]);
             }
 
+            // 5. Cerrar prefactura activa vinculada al flujo (si existe).
+            // Cuando la factura se genera manualmente (guardarVenta + confirmarFacturaFlujo),
+            // la prefactura queda en 'activo' y sigue descontando stock disponible.
+            if ($flujoId) {
+                DB::table('prefactura')
+                    ->where('flujo_id', $flujoId)
+                    ->where('estado', 'activo')
+                    ->update(['estado' => 'convertida', 'updated_at' => now()]);
+            }
+
             DB::commit();
             return response()->json(['ok' => true, 'flujoId' => $flujoId]);
         } catch (\Exception $e) {
