@@ -560,7 +560,9 @@
                             </div>
                             <div class="col-md-4">
                                 <label class="small font-weight-bold"><i class="fas fa-box mr-1 text-warning"></i>Producto</label>
-                                <input type="text" class="form-control form-control-sm" id="cli-producto" placeholder="Buscar producto...">
+                                <select class="form-control form-control-sm" id="cli-producto">
+                                    <option value="">Todos los productos</option>
+                                </select>
                             </div>
                         </div>
                         <div class="mt-2 row g-2 align-items-end">

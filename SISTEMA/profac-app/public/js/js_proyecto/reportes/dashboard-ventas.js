@@ -54,7 +54,8 @@ var dashboardVentas = (function () {
             dom:        DT_DOM,
             responsive: true,
             autoWidth:  false,
-            order:      orderCol !== undefined ? [[orderCol, 'desc']] : []
+            order:      orderCol !== undefined ? [[orderCol, 'desc']] : [],
+            initComplete: function () { this.api().columns.adjust(); }
         });
     }
 
@@ -113,6 +114,7 @@ var dashboardVentas = (function () {
     function initFiltrosProductosBuscables() {
         _activarBuscadorSelect($('#prod-filtro-producto'), 'Buscar por codigo o nombre...');
         _activarBuscadorSelect($('#cli-cliente'), 'Buscar por nombre de cliente...');
+        _activarBuscadorSelect($('#cli-producto'), 'Buscar producto...');
     }
 
     function syncFiltrosAnaliticaPorPestana() {
@@ -252,6 +254,11 @@ var dashboardVentas = (function () {
             var prodOpts = '<option value="">— Seleccione un producto —</option>';
             productosData.forEach(function (p) { prodOpts += '<option value="' + p.id + '">' + p.nombre + '</option>'; });
             $('#prod-filtro-producto').html(prodOpts);
+
+            /* Productos para el filtro de la pestaña Clientes */
+            var cliProdOpts = '<option value="">Todos los productos</option>';
+            productosData.forEach(function (p) { cliProdOpts += '<option value="' + p.id + '">' + p.nombre + '</option>'; });
+            $('#cli-producto').html(cliProdOpts);
 
             /* Marcas para el filtro de la pestaña Analítica */
             var marcasData = Array.isArray(data.marcas) ? data.marcas : [];
@@ -740,8 +747,10 @@ var dashboardVentas = (function () {
         $('#cli-filtros-activos').toggleClass('d-none', !hayFiltro);
         if (f.cliente) { $('#cli-badge-cliente').text('Cliente: ' + f.cliente).show(); }
         else            { $('#cli-badge-cliente').hide(); }
-        if (f.producto) $('#cli-badge-producto').text('Producto: ' + f.producto).show();
-        else            $('#cli-badge-producto').hide();
+        if (f.producto) {
+            var prodTxt = $('#cli-producto option:selected').text() || f.producto;
+            $('#cli-badge-producto').text('Producto: ' + prodTxt).show();
+        } else { $('#cli-badge-producto').hide(); }
         if (f.marca)    $('#cli-badge-marca').text('Marca: ' + $('#cli-marca option:selected').text()).show();
         else            $('#cli-badge-marca').hide();
     }
@@ -749,12 +758,12 @@ var dashboardVentas = (function () {
     function limpiarFiltroCli(campo) {
         if (!campo) {
             $('#cli-cliente').val('').trigger('change');
-            $('#cli-producto').val('');
+            $('#cli-producto').val('').trigger('change');
             $('#cli-marca').val('');
             $('#cli-fi').val(primerDiaMesAnterior());
             $('#cli-ff').val(ultimoDiaMesAnterior());
         } else if (campo === 'cliente')  { $('#cli-cliente').val('').trigger('change'); }
-        else if (campo === 'producto') { $('#cli-producto').val(''); }
+        else if (campo === 'producto') { $('#cli-producto').val('').trigger('change'); }
         else if (campo === 'marca')    { $('#cli-marca').val(''); }
         cargarCli();
     }
@@ -962,7 +971,7 @@ var dashboardVentas = (function () {
                     dataPointSelection: function (e, ctx, cfg) {
                         var r = rows[cfg.dataPointIndex];
                         if (!r) return;
-                        $('#cli-producto').val(r.producto);
+                        $('#cli-producto').val(r.producto_id).trigger('change');
                         cargarCli();
                     }
                 }
@@ -980,11 +989,27 @@ var dashboardVentas = (function () {
                 x: { formatter: function (v, opts) {
                     var idx = opts && opts.dataPointIndex !== undefined ? opts.dataPointIndex : 0;
                     return rows[idx] ? rows[idx].producto : v;
-                }}
+                }},
+                custom: function (opts) {
+                    var r = rows[opts.dataPointIndex];
+                    if (!r) return '';
+                    return '<div class="apexcharts-tooltip-box" style="padding:8px 12px">' +
+                        '<strong>' + r.producto + '</strong><br>' +
+                        'Total: ' + fmt(r.total_vendido) + '<br>' +
+                        'Unidades: <b>' + fmtN(r.unidades) + '</b>' +
+                        '</div>';
+                }
             },
             colors: ['#4e73df'],
             plotOptions: { bar: { borderRadius: 4, horizontal: true } },
-            dataLabels: { enabled: false }
+            dataLabels: {
+                enabled: true,
+                formatter: function (v, opts) {
+                    var r = rows[opts.dataPointIndex];
+                    return r ? fmtN(r.unidades) + ' u.' : '';
+                },
+                style: { fontSize: '11px', colors: ['#fff'] }
+            }
         });
         charts['chart-top-prod-cli'].render();
     }
@@ -1016,8 +1041,12 @@ var dashboardVentas = (function () {
             dom:        DT_DOM,
             responsive: false,
             autoWidth:  false,
-            order:      [[9, 'desc']]
+            order:      [[9, 'desc']],
+            initComplete: function () { this.api().columns.adjust(); }
         });
+        setTimeout(function () {
+            if (_dts['tabla-prod-cli']) { try { _dts['tabla-prod-cli'].columns.adjust().draw(false); } catch (e) {} }
+        }, 150);
     }
 
     function exportarTablaExcel(tableId, filename) {

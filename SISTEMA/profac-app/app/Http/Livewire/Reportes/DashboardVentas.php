@@ -469,7 +469,10 @@ class DashboardVentas extends Component
         if ($cat || $marca || $prod) {
             if ($cat)   { $where .= " AND sc.categoria_producto_id = ?"; $params[] = $cat; }
             if ($marca) { $where .= " AND p.marca_id = ?";              $params[] = $marca; }
-            if ($prod)  { $where .= " AND p.nombre LIKE ?";             $params[] = "%$prod%"; }
+            if ($prod) {
+                if (is_numeric($prod)) { $where .= " AND p.id = ?"; $params[] = intval($prod); }
+                else                   { $where .= " AND p.nombre LIKE ?"; $params[] = "%$prod%"; }
+            }
 
             $rows = DB::select("
                 SELECT
@@ -553,7 +556,10 @@ class DashboardVentas extends Component
         if ($tc)      { $where .= " AND cli.tipo_cliente_id = ?";  $params[] = $tc; }
         if ($cliente) { $where .= " AND cli.nombre LIKE ?";        $params[] = "%$cliente%"; }
         if ($marca)   { $where .= " AND p.marca_id = ?";           $params[] = $marca; }
-        if ($prod)    { $where .= " AND p.nombre LIKE ?";          $params[] = "%$prod%"; }
+        if ($prod) {
+            if (is_numeric($prod)) { $where .= " AND p.id = ?"; $params[] = intval($prod); }
+            else                   { $where .= " AND p.nombre LIKE ?"; $params[] = "%$prod%"; }
+        }
 
         $rows = DB::select("
             SELECT
@@ -603,7 +609,10 @@ class DashboardVentas extends Component
         if ($tc)      { $where .= " AND cli.tipo_cliente_id = ?";  $params[] = $tc; }
         if ($cliente) { $where .= " AND cli.nombre LIKE ?";        $params[] = "%$cliente%"; }
         if ($marca)   { $where .= " AND p.marca_id = ?";           $params[] = $marca; }
-        if ($prod)    { $where .= " AND p.nombre LIKE ?";          $params[] = "%$prod%"; }
+        if ($prod) {
+            if (is_numeric($prod)) { $where .= " AND p.id = ?"; $params[] = intval($prod); }
+            else                   { $where .= " AND p.nombre LIKE ?"; $params[] = "%$prod%"; }
+        }
 
         $rows = DB::select("
             SELECT
@@ -973,7 +982,10 @@ class DashboardVentas extends Component
                 $where .= " AND m.nombre LIKE ?"; $params[] = "%$marca%";
             }
         }
-        if ($prod)   { $where .= " AND p.nombre LIKE ?";          $params[] = "%$prod%"; }
+        if ($prod) {
+            if (is_numeric($prod)) { $where .= " AND p.id = ?"; $params[] = intval($prod); }
+            else                   { $where .= " AND p.nombre LIKE ?"; $params[] = "%$prod%"; }
+        }
 
         // Top 5 clientes en el rango
         $topSql = "
@@ -1012,7 +1024,10 @@ class DashboardVentas extends Component
                 if (is_numeric($marca)) { $evWhere .= " AND p.marca_id = ?"; $evParams[] = intval($marca); }
                 else                    { $evWhere .= " AND m.nombre LIKE ?"; $evParams[] = "%$marca%"; }
             }
-            if ($prod) { $evWhere .= " AND p.nombre LIKE ?"; $evParams[] = "%$prod%"; }
+            if ($prod) {
+                if (is_numeric($prod)) { $evWhere .= " AND p.id = ?"; $evParams[] = intval($prod); }
+                else                   { $evWhere .= " AND p.nombre LIKE ?"; $evParams[] = "%$prod%"; }
+            }
             $evSql = "
                 SELECT DATE_FORMAT(f.fecha_emision, '%Y-%m') AS mes,
                        COALESCE(SUM(vhp.sub_total_s),0) AS total
@@ -1057,7 +1072,10 @@ class DashboardVentas extends Component
                 $where .= " AND m.nombre LIKE ?"; $params[] = "%$marca%";
             }
         }
-        if ($prod)   { $where .= " AND p.nombre LIKE ?";          $params[] = "%$prod%"; }
+        if ($prod) {
+            if (is_numeric($prod)) { $where .= " AND p.id = ?"; $params[] = intval($prod); }
+            else                   { $where .= " AND p.nombre LIKE ?"; $params[] = "%$prod%"; }
+        }
 
         $topSql = "
             SELECT cli.id, cli.nombre
@@ -1094,7 +1112,10 @@ class DashboardVentas extends Component
                 if (is_numeric($marca)) { $evWhere .= " AND p.marca_id = ?"; $evParams[] = intval($marca); }
                 else                    { $evWhere .= " AND m.nombre LIKE ?"; $evParams[] = "%$marca%"; }
             }
-            if ($prod) { $evWhere .= " AND p.nombre LIKE ?"; $evParams[] = "%$prod%"; }
+            if ($prod) {
+                if (is_numeric($prod)) { $evWhere .= " AND p.id = ?"; $evParams[] = intval($prod); }
+                else                   { $evWhere .= " AND p.nombre LIKE ?"; $evParams[] = "%$prod%"; }
+            }
             $evSql = "
                 SELECT DATE_FORMAT(f.fecha_emision, '%Y-%m') AS mes,
                        COALESCE(SUM(vhp.cantidad), 0) AS total
