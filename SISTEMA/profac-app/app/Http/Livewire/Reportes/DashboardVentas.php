@@ -449,32 +449,40 @@ class DashboardVentas extends Component
     // ─── PESTAÑA 3: Top clientes ────────────────────────────────────────────
     public function topClientes(Request $request)
     {
-        $fi    = $request->fecha_inicio  ?? date('Y-01-01');
-        $ff    = $request->fecha_final   ?? date('Y-m-d');
-        $vend  = $request->vendedor      ? (int)$request->vendedor      : null;
-        $tc    = $request->tipo_cliente  ? (int)$request->tipo_cliente  : null;
-        $cat   = $request->categoria     ? (int)$request->categoria     : null;
-        $marca = $request->marca         ? (int)$request->marca         : null;
-        $limit = $request->limite        ? (int)$request->limite        : 20;
+        $fi      = $request->fecha_inicio  ?? date('Y-01-01');
+        $ff      = $request->fecha_final   ?? date('Y-m-d');
+        $vend    = $request->vendedor      ? (int)$request->vendedor      : null;
+        $tc      = $request->tipo_cliente  ? (int)$request->tipo_cliente  : null;
+        $cat     = $request->categoria     ? (int)$request->categoria     : null;
+        $marca   = $request->marca         ? (int)$request->marca         : null;
+        $cliente = trim((string)($request->cliente ?? ''));
+        $prod    = trim((string)($request->producto ?? ''));
+        $limit   = $request->limite        ? (int)$request->limite        : 20;
 
-        $where = "f.estado_venta_id = 1 AND f.fecha_emision BETWEEN '$fi' AND '$ff'";
-        if ($vend)  $where .= " AND f.vendedor = $vend";
-        if ($tc)    $where .= " AND cli.tipo_cliente_id = $tc";
+        $where  = "f.estado_venta_id = 1 AND f.fecha_emision BETWEEN ? AND ?";
+        $params = [$fi, $ff];
+        if ($vend)    { $where .= " AND f.vendedor = ?";           $params[] = $vend; }
+        if ($tc)      { $where .= " AND cli.tipo_cliente_id = ?";  $params[] = $tc; }
+        if ($cliente) { $where .= " AND cli.nombre LIKE ?";        $params[] = "%$cliente%"; }
 
-        /* Si hay filtro de categoría o marca necesitamos el JOIN de productos */
-        if ($cat || $marca) {
-            if ($cat)   $where .= " AND sc.categoria_producto_id = $cat";
-            if ($marca) $where .= " AND p.marca_id = $marca";
+        /* Si hay filtro de categoría, marca o producto necesitamos el JOIN de productos */
+        if ($cat || $marca || $prod) {
+            if ($cat)   { $where .= " AND sc.categoria_producto_id = ?"; $params[] = $cat; }
+            if ($marca) { $where .= " AND p.marca_id = ?";              $params[] = $marca; }
+            if ($prod)  { $where .= " AND p.nombre LIKE ?";             $params[] = "%$prod%"; }
 
-            $rows = DB::SELECT("
+            $rows = DB::select("
                 SELECT
-                    cli.nombre                                      AS cliente,
-                    tc.descripcion                                  AS tipo_cliente,
-                    COUNT(DISTINCT f.id)                            AS facturas,
-                    SUM(vhp.sub_total_s)                            AS total_comprado,
-                    AVG(vhp.sub_total_s)                            AS ticket_promedio,
-                    MAX(f.fecha_emision)                            AS ultima_compra,
-                    DATEDIFF(CURDATE(), MAX(f.fecha_emision))       AS dias_sin_comprar
+                    cli.id                                              AS cliente_id,
+                    cli.nombre                                          AS cliente,
+                    tc.descripcion                                      AS tipo_cliente,
+                    DATE_FORMAT(f.fecha_emision, '%Y-%m')               AS mes,
+                    COUNT(DISTINCT f.id)                                AS facturas,
+                    COALESCE(SUM(vhp.sub_total_s), 0)                   AS total_comprado,
+                    COALESCE(AVG(vhp.sub_total_s), 0)                   AS ticket_promedio,
+                    COALESCE(SUM(vhp.cantidad), 0)                      AS total_unidades,
+                    MAX(f.fecha_emision)                                AS ultima_compra,
+                    DATEDIFF(CURDATE(), MAX(f.fecha_emision))           AS dias_sin_comprar
                 FROM factura f
                 INNER JOIN cliente cli                  ON cli.id = f.cliente_id
                 INNER JOIN tipo_cliente tc              ON tc.id  = cli.tipo_cliente_id
@@ -482,28 +490,32 @@ class DashboardVentas extends Component
                 INNER JOIN producto p                   ON p.id   = vhp.producto_id
                 INNER JOIN sub_categoria sc             ON sc.id  = p.sub_categoria_id
                 WHERE $where
-                GROUP BY f.cliente_id, cli.nombre, tc.descripcion
-                ORDER BY total_comprado DESC
+                GROUP BY cli.id, cli.nombre, tc.descripcion, DATE_FORMAT(f.fecha_emision, '%Y-%m')
+                ORDER BY cli.nombre ASC, mes ASC
                 LIMIT $limit
-            ");
+            ", $params);
         } else {
-            $rows = DB::SELECT("
+            $rows = DB::select("
                 SELECT
-                    cli.nombre                                  AS cliente,
-                    tc.descripcion                              AS tipo_cliente,
-                    COUNT(DISTINCT f.id)                        AS facturas,
-                    SUM(f.total)                                AS total_comprado,
-                    AVG(f.total)                                AS ticket_promedio,
-                    MAX(f.fecha_emision)                        AS ultima_compra,
-                    DATEDIFF(CURDATE(), MAX(f.fecha_emision))   AS dias_sin_comprar
+                    cli.id                                          AS cliente_id,
+                    cli.nombre                                      AS cliente,
+                    tc.descripcion                                  AS tipo_cliente,
+                    DATE_FORMAT(f.fecha_emision, '%Y-%m')           AS mes,
+                    COUNT(DISTINCT f.id)                            AS facturas,
+                    COALESCE(SUM(vhp.sub_total_s), 0)               AS total_comprado,
+                    COALESCE(AVG(vhp.sub_total_s), 0)               AS ticket_promedio,
+                    COALESCE(SUM(vhp.cantidad), 0)                  AS total_unidades,
+                    MAX(f.fecha_emision)                            AS ultima_compra,
+                    DATEDIFF(CURDATE(), MAX(f.fecha_emision))       AS dias_sin_comprar
                 FROM factura f
                 INNER JOIN cliente cli     ON cli.id = f.cliente_id
                 INNER JOIN tipo_cliente tc ON tc.id  = cli.tipo_cliente_id
+                INNER JOIN venta_has_producto vhp ON vhp.factura_id = f.id
                 WHERE $where
-                GROUP BY f.cliente_id, cli.nombre, tc.descripcion
-                ORDER BY total_comprado DESC
+                GROUP BY cli.id, cli.nombre, tc.descripcion, DATE_FORMAT(f.fecha_emision, '%Y-%m')
+                ORDER BY cli.nombre ASC, mes ASC
                 LIMIT $limit
-            ");
+            ", $params);
         }
 
         // Clasificación ABC: A=70%, B=20%, C=10%
@@ -515,8 +527,114 @@ class DashboardVentas extends Component
             $r->clasificacion_abc = $pct <= 70 ? 'A' : ($pct <= 90 ? 'B' : 'C');
             $r->total_comprado    = round((float)$r->total_comprado, 2);
             $r->ticket_promedio   = round((float)$r->ticket_promedio, 2);
+            $r->total_unidades    = intval($r->total_unidades ?? 0);
             $r->recurrente        = $r->facturas >= 3;
             $r->inactivo          = $r->dias_sin_comprar > 60;
+        }
+
+        return response()->json($rows);
+    }
+
+    // ─── PESTAÑA Clientes: Top N productos comprados ──────────────────────
+    public function topProductosCli(Request $request)
+    {
+        $fi      = $request->fecha_inicio ?? date('Y-01-01');
+        $ff      = $request->fecha_final  ?? date('Y-m-d');
+        $vend    = $request->vendedor     ? (int)$request->vendedor     : null;
+        $tc      = $request->tipo_cliente ? (int)$request->tipo_cliente : null;
+        $cliente = trim((string)($request->cliente  ?? ''));
+        $marca   = $request->marca        ? (int)$request->marca        : null;
+        $prod    = trim((string)($request->producto ?? ''));
+        $limit   = $request->limite       ? (int)$request->limite       : 5;
+
+        $where  = "f.estado_venta_id = 1 AND f.fecha_emision BETWEEN ? AND ?";
+        $params = [$fi, $ff];
+        if ($vend)    { $where .= " AND f.vendedor = ?";           $params[] = $vend; }
+        if ($tc)      { $where .= " AND cli.tipo_cliente_id = ?";  $params[] = $tc; }
+        if ($cliente) { $where .= " AND cli.nombre LIKE ?";        $params[] = "%$cliente%"; }
+        if ($marca)   { $where .= " AND p.marca_id = ?";           $params[] = $marca; }
+        if ($prod)    { $where .= " AND p.nombre LIKE ?";          $params[] = "%$prod%"; }
+
+        $rows = DB::select("
+            SELECT
+                p.id                               AS producto_id,
+                p.nombre                           AS producto,
+                COALESCE(m.nombre, 'N/A')          AS marca,
+                cp.descripcion                     AS categoria,
+                COUNT(DISTINCT f.id)               AS facturas,
+                COALESCE(SUM(vhp.cantidad), 0)     AS unidades,
+                COALESCE(SUM(vhp.sub_total_s), 0)  AS total_vendido
+            FROM factura f
+            INNER JOIN venta_has_producto vhp     ON vhp.factura_id = f.id
+            INNER JOIN producto p                 ON p.id = vhp.producto_id
+            LEFT  JOIN marca m                    ON m.id = p.marca_id
+            INNER JOIN sub_categoria sc           ON sc.id = p.sub_categoria_id
+            INNER JOIN categoria_producto cp      ON cp.id = sc.categoria_producto_id
+            INNER JOIN cliente cli                ON cli.id = f.cliente_id
+            WHERE $where
+            GROUP BY p.id, p.nombre, m.nombre, cp.descripcion
+            ORDER BY total_vendido DESC
+            LIMIT $limit
+        ", $params);
+
+        foreach ($rows as &$r) {
+            $r->total_vendido = round((float)$r->total_vendido, 2);
+            $r->unidades      = round((float)$r->unidades, 2);
+        }
+
+        return response()->json($rows);
+    }
+
+    // ─── PESTAÑA Clientes: Detalle productos × cliente ────────────────────
+    public function productosXCliente(Request $request)
+    {
+        $fi      = $request->fecha_inicio ?? date('Y-01-01');
+        $ff      = $request->fecha_final  ?? date('Y-m-d');
+        $vend    = $request->vendedor     ? (int)$request->vendedor     : null;
+        $tc      = $request->tipo_cliente ? (int)$request->tipo_cliente : null;
+        $cliente = trim((string)($request->cliente  ?? ''));
+        $marca   = $request->marca        ? (int)$request->marca        : null;
+        $prod    = trim((string)($request->producto ?? ''));
+        $limit   = $request->limite       ? (int)$request->limite       : 1000;
+
+        $where  = "f.estado_venta_id = 1 AND f.fecha_emision BETWEEN ? AND ?";
+        $params = [$fi, $ff];
+        if ($vend)    { $where .= " AND f.vendedor = ?";           $params[] = $vend; }
+        if ($tc)      { $where .= " AND cli.tipo_cliente_id = ?";  $params[] = $tc; }
+        if ($cliente) { $where .= " AND cli.nombre LIKE ?";        $params[] = "%$cliente%"; }
+        if ($marca)   { $where .= " AND p.marca_id = ?";           $params[] = $marca; }
+        if ($prod)    { $where .= " AND p.nombre LIKE ?";          $params[] = "%$prod%"; }
+
+        $rows = DB::select("
+            SELECT
+                cli.nombre                                          AS cliente,
+                tc.descripcion                                      AS tipo_cliente,
+                DATE_FORMAT(f.fecha_emision, '%Y-%m')               AS mes,
+                p.nombre                                            AS producto,
+                COALESCE(m.nombre, 'N/A')                           AS marca,
+                cp.descripcion                                      AS categoria,
+                COUNT(DISTINCT f.id)                                AS facturas,
+                COALESCE(SUM(vhp.cantidad), 0)                      AS unidades,
+                COALESCE(SUM(vhp.sub_total_s), 0)                   AS total_comprado,
+                DATE_FORMAT(MAX(f.fecha_emision), '%Y-%m-%d')       AS ultima_compra
+            FROM factura f
+            INNER JOIN cliente cli                ON cli.id = f.cliente_id
+            INNER JOIN tipo_cliente tc            ON tc.id  = cli.tipo_cliente_id
+            INNER JOIN venta_has_producto vhp     ON vhp.factura_id = f.id
+            INNER JOIN producto p                 ON p.id = vhp.producto_id
+            LEFT  JOIN marca m                    ON m.id = p.marca_id
+            INNER JOIN sub_categoria sc           ON sc.id = p.sub_categoria_id
+            INNER JOIN categoria_producto cp      ON cp.id = sc.categoria_producto_id
+            WHERE $where
+            GROUP BY cli.id, cli.nombre, tc.descripcion, DATE_FORMAT(f.fecha_emision, '%Y-%m'),
+                     p.id, p.nombre, m.nombre, cp.descripcion
+            ORDER BY cli.nombre ASC, mes ASC, total_comprado DESC
+            LIMIT $limit
+        ", $params);
+
+        foreach ($rows as &$r) {
+            $r->total_comprado = round((float)$r->total_comprado, 2);
+            $r->unidades       = round((float)$r->unidades, 2);
         }
 
         return response()->json($rows);
@@ -828,6 +946,174 @@ class DashboardVentas extends Component
             'estadosFactura',
             'canalesVenta'
         ));
+    }
+
+    // ─── Evolución mensual de top clientes ─────────────────────────────────
+    public function evolucionClientes(Request $request)
+    {
+        $fi      = $request->fecha_inicio ?? date('Y-01-01');
+        $ff      = $request->fecha_final  ?? date('Y-m-d');
+        $vend    = $request->vendedor      ? intval($request->vendedor)     : null;
+        $tc      = $request->tipo_cliente  ? intval($request->tipo_cliente) : null;
+        $cliente = trim($request->cliente  ?? '');
+        $marca   = trim($request->marca    ?? '');
+        $prod    = trim($request->producto ?? '');
+
+        $where   = "f.estado_venta_id = 1 AND f.fecha_emision BETWEEN ? AND ?";
+        $params  = [$fi, $ff];
+
+        if ($vend)   { $where .= " AND f.vendedor = ?";           $params[] = $vend; }
+        if ($tc)     { $where .= " AND f.tipo_cliente_id = ?";    $params[] = $tc;   }
+        if ($cliente){ $where .= " AND cli.nombre LIKE ?";        $params[] = "%$cliente%"; }
+        if ($marca)  {
+            // si es numérico → id de marca; si no → like nombre
+            if (is_numeric($marca)) {
+                $where .= " AND p.marca_id = ?"; $params[] = intval($marca);
+            } else {
+                $where .= " AND m.nombre LIKE ?"; $params[] = "%$marca%";
+            }
+        }
+        if ($prod)   { $where .= " AND p.nombre LIKE ?";          $params[] = "%$prod%"; }
+
+        // Top 5 clientes en el rango
+        $topSql = "
+            SELECT cli.id, cli.nombre
+            FROM factura f
+            INNER JOIN cliente cli ON cli.id = f.cliente_id
+            LEFT JOIN venta_has_producto vhp ON vhp.factura_id = f.id
+            LEFT JOIN producto p ON p.id = vhp.producto_id
+            LEFT JOIN marca m ON m.id = p.marca_id
+            WHERE $where
+            GROUP BY cli.id, cli.nombre
+            ORDER BY SUM(vhp.sub_total_s) DESC
+            LIMIT 5
+        ";
+        $top5 = DB::select($topSql, $params);
+
+        if (empty($top5)) {
+            return response()->json(['series' => [], 'meses' => []]);
+        }
+
+        // Meses en el rango
+        $mesesSql = "
+            SELECT DISTINCT DATE_FORMAT(f.fecha_emision, '%Y-%m') AS mes
+            FROM factura f
+            WHERE f.estado_venta_id = 1 AND f.fecha_emision BETWEEN ? AND ?
+            ORDER BY mes
+        ";
+        $mesesRows = DB::select($mesesSql, [$fi, $ff]);
+        $meses = array_column($mesesRows, 'mes');
+
+        $series = [];
+        foreach ($top5 as $cli) {
+            $evWhere  = "f.estado_venta_id = 1 AND f.fecha_emision BETWEEN ? AND ? AND cli.id = ?";
+            $evParams = [$fi, $ff, $cli->id];
+            if ($marca) {
+                if (is_numeric($marca)) { $evWhere .= " AND p.marca_id = ?"; $evParams[] = intval($marca); }
+                else                    { $evWhere .= " AND m.nombre LIKE ?"; $evParams[] = "%$marca%"; }
+            }
+            if ($prod) { $evWhere .= " AND p.nombre LIKE ?"; $evParams[] = "%$prod%"; }
+            $evSql = "
+                SELECT DATE_FORMAT(f.fecha_emision, '%Y-%m') AS mes,
+                       COALESCE(SUM(vhp.sub_total_s),0) AS total
+                FROM factura f
+                INNER JOIN venta_has_producto vhp ON vhp.factura_id = f.id
+                INNER JOIN cliente cli ON cli.id = f.cliente_id
+                LEFT JOIN producto p ON p.id = vhp.producto_id
+                LEFT JOIN marca m ON m.id = p.marca_id
+                WHERE $evWhere
+                GROUP BY mes
+            ";
+            $evRows = DB::select($evSql, $evParams);
+            $evMap  = [];
+            foreach ($evRows as $r) { $evMap[$r->mes] = floatval($r->total); }
+            $data = array_map(fn($m) => $evMap[$m] ?? 0, $meses);
+            $series[] = ['name' => $cli->nombre, 'data' => $data];
+        }
+
+        return response()->json(['series' => $series, 'meses' => $meses]);
+    }
+
+    public function evolucionCantidadCli(Request $request)
+    {
+        $fi      = $request->fecha_inicio ?? date('Y-01-01');
+        $ff      = $request->fecha_final  ?? date('Y-m-d');
+        $vend    = $request->vendedor      ? intval($request->vendedor)     : null;
+        $tc      = $request->tipo_cliente  ? intval($request->tipo_cliente) : null;
+        $cliente = trim($request->cliente  ?? '');
+        $marca   = trim($request->marca    ?? '');
+        $prod    = trim($request->producto ?? '');
+
+        $where  = "f.estado_venta_id = 1 AND f.fecha_emision BETWEEN ? AND ?";
+        $params = [$fi, $ff];
+
+        if ($vend)   { $where .= " AND f.vendedor = ?";           $params[] = $vend; }
+        if ($tc)     { $where .= " AND f.tipo_cliente_id = ?";    $params[] = $tc;   }
+        if ($cliente){ $where .= " AND cli.nombre LIKE ?";        $params[] = "%$cliente%"; }
+        if ($marca)  {
+            if (is_numeric($marca)) {
+                $where .= " AND p.marca_id = ?"; $params[] = intval($marca);
+            } else {
+                $where .= " AND m.nombre LIKE ?"; $params[] = "%$marca%";
+            }
+        }
+        if ($prod)   { $where .= " AND p.nombre LIKE ?";          $params[] = "%$prod%"; }
+
+        $topSql = "
+            SELECT cli.id, cli.nombre
+            FROM factura f
+            INNER JOIN cliente cli ON cli.id = f.cliente_id
+            INNER JOIN venta_has_producto vhp ON vhp.factura_id = f.id
+            INNER JOIN producto p ON p.id = vhp.producto_id
+            LEFT JOIN marca m ON m.id = p.marca_id
+            WHERE $where
+            GROUP BY cli.id, cli.nombre
+            ORDER BY SUM(vhp.cantidad) DESC
+            LIMIT 5
+        ";
+        $top5 = DB::select($topSql, $params);
+
+        if (empty($top5)) {
+            return response()->json(['series' => [], 'meses' => []]);
+        }
+
+        $mesesSql = "
+            SELECT DISTINCT DATE_FORMAT(f.fecha_emision, '%Y-%m') AS mes
+            FROM factura f
+            WHERE f.estado_venta_id = 1 AND f.fecha_emision BETWEEN ? AND ?
+            ORDER BY mes
+        ";
+        $mesesRows = DB::select($mesesSql, [$fi, $ff]);
+        $meses = array_column($mesesRows, 'mes');
+
+        $series = [];
+        foreach ($top5 as $cli) {
+            $evWhere  = "f.estado_venta_id = 1 AND f.fecha_emision BETWEEN ? AND ? AND cli.id = ?";
+            $evParams = [$fi, $ff, $cli->id];
+            if ($marca) {
+                if (is_numeric($marca)) { $evWhere .= " AND p.marca_id = ?"; $evParams[] = intval($marca); }
+                else                    { $evWhere .= " AND m.nombre LIKE ?"; $evParams[] = "%$marca%"; }
+            }
+            if ($prod) { $evWhere .= " AND p.nombre LIKE ?"; $evParams[] = "%$prod%"; }
+            $evSql = "
+                SELECT DATE_FORMAT(f.fecha_emision, '%Y-%m') AS mes,
+                       COALESCE(SUM(vhp.cantidad), 0) AS total
+                FROM factura f
+                INNER JOIN venta_has_producto vhp ON vhp.factura_id = f.id
+                INNER JOIN cliente cli ON cli.id = f.cliente_id
+                LEFT JOIN producto p ON p.id = vhp.producto_id
+                LEFT JOIN marca m ON m.id = p.marca_id
+                WHERE $evWhere
+                GROUP BY mes
+            ";
+            $evRows = DB::select($evSql, $evParams);
+            $evMap  = [];
+            foreach ($evRows as $r) { $evMap[$r->mes] = floatval($r->total); }
+            $data = array_map(fn($m) => $evMap[$m] ?? 0, $meses);
+            $series[] = ['name' => $cli->nombre, 'data' => $data];
+        }
+
+        return response()->json(['series' => $series, 'meses' => $meses]);
     }
 
     // ─── PESTAÑA 3: Dashboard completo de productos ───────────────────────

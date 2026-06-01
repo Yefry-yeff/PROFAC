@@ -1261,6 +1261,10 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/reporte/dashboard/detalle-producto-facturas', [DashboardVentas::class,'detalleProductoFacturas']);
     Route::get('/reporte/dashboard/productos-analitica',     [DashboardVentas::class,'productosAnalitica']);
     Route::get('/reporte/dashboard/ventas-mes-vendedores',   [DashboardVentas::class,'ventasMesVendedores']);
+    Route::get('/reporte/dashboard/evolucion-clientes',      [DashboardVentas::class,'evolucionClientes']);
+    Route::get('/reporte/dashboard/evolucion-cantidad-cli',   [DashboardVentas::class,'evolucionCantidadCli']);
+    Route::get('/reporte/dashboard/top-productos-cli',        [DashboardVentas::class,'topProductosCli']);
+    Route::get('/reporte/dashboard/productos-x-cliente',      [DashboardVentas::class,'productosXCliente']);
 
     Route::get('/reporte/reporteria/consulta/{fecha_inicio}/{fecha_final}', [Reporteria::class,'consulta']);
     Route::get('/reporte/reporteria/productos', [Reporteria::class,'catalogoProductos']);

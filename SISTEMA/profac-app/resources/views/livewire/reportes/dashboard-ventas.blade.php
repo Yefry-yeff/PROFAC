@@ -540,49 +540,165 @@
 
                 {{-- CLIENTES --}}
                 <div class="tab-pane fade" id="pill-pane-cli">
-                    <div class="mb-3 row">
-                        <div class="col-md-6">
-                            <div class="shadow-sm card">
-                                <div class="py-2 card-header"><span class="font-weight-bold">Top 15 Clientes por Facturación</span></div>
-                                <div class="p-2 card-body"><div id="chart-top-cli" style="min-height:300px"></div></div>
+
+                    {{-- Filtros locales de Clientes --}}
+                    <div class="mb-3 border card card-body bg-light py-2" id="cli-filtros">
+                        <div class="row g-2 align-items-end">
+                            <div class="col-md-2">
+                                <label class="small font-weight-bold">Fecha inicio</label>
+                                <input type="date" class="form-control form-control-sm" id="cli-fi">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="small font-weight-bold">Fecha fin</label>
+                                <input type="date" class="form-control form-control-sm" id="cli-ff">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="small font-weight-bold"><i class="fas fa-user mr-1 text-info"></i>Cliente</label>
+                                <select class="form-control form-control-sm" id="cli-cliente">
+                                    <option value="">Todos los clientes</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="small font-weight-bold"><i class="fas fa-box mr-1 text-warning"></i>Producto</label>
+                                <input type="text" class="form-control form-control-sm" id="cli-producto" placeholder="Buscar producto...">
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <div class="shadow-sm card">
-                                <div class="py-2 card-header"><span class="font-weight-bold">Clasificación ABC</span></div>
-                                <div class="p-2 card-body"><div id="chart-abc-cli" style="min-height:300px"></div></div>
+                        <div class="mt-2 row g-2 align-items-end">
+                            <div class="col-md-4">
+                                <label class="small font-weight-bold"><i class="fas fa-tag mr-1 text-secondary"></i>Marca</label>
+                                <select class="form-control form-control-sm" id="cli-marca">
+                                    <option value="">Todas las marcas</option>
+                                </select>
+                            </div>
+                            <div class="col-md-8 d-flex justify-content-end" style="gap:6px">
+                                <button class="btn btn-primary btn-sm px-4" onclick="dashboardVentas.cargarCli()">
+                                    <i class="fas fa-search"></i> Consultar
+                                </button>
+                                <button class="btn btn-outline-secondary btn-sm" title="Limpiar filtros" onclick="dashboardVentas.limpiarFiltroCli()">
+                                    <i class="fas fa-times"></i> Limpiar
+                                </button>
+                            </div>
+                        </div>
+                        <div id="cli-filtros-activos" class="mt-2 d-none">
+                            <small class="text-muted"><i class="fas fa-filter mr-1"></i>Filtrando por:</small>
+                            <span id="cli-badge-cliente" class="badge badge-info mr-1" style="display:none"></span>
+                            <span id="cli-badge-producto" class="badge badge-warning mr-1" style="display:none"></span>
+                            <span id="cli-badge-marca" class="badge badge-secondary mr-1" style="display:none"></span>
+                        </div>
+                    </div>
+
+                    {{-- Fila 1: Top 15 clientes + Top 5 productos --}}
+                    <div class="mb-3 row">
+                        <div class="col-md-7">
+                            <div class="shadow-sm card h-100">
+                                <div class="py-2 card-header d-flex justify-content-between align-items-center">
+                                    <span class="font-weight-bold"><i class="fas fa-trophy mr-1 text-warning"></i>Top 15 Clientes por Facturación</span>
+                                    <small class="text-muted"><i class="fas fa-mouse-pointer mr-1"></i>Clic para filtrar</small>
+                                </div>
+                                <div class="p-2 card-body"><div id="chart-top-cli" style="min-height:320px"></div></div>
+                            </div>
+                        </div>
+                        <div class="col-md-5">
+                            <div class="shadow-sm card h-100">
+                                <div class="py-2 card-header">
+                                    <span class="font-weight-bold"><i class="fas fa-box-open mr-1 text-primary"></i><span id="cli-prod-titulo">Top 5 Productos más Vendidos</span></span>
+                                    <small class="text-muted d-block"><i class="fas fa-mouse-pointer mr-1"></i>Clic para filtrar por producto</small>
+                                </div>
+                                <div class="p-2 card-body"><div id="chart-top-prod-cli" style="min-height:320px"></div></div>
                             </div>
                         </div>
                     </div>
-                    <div class="shadow-sm card">
-                        <div class="py-2 card-header d-flex justify-content-between align-items-center">
-                            <span class="font-weight-bold">Tabla Clientes</span>
-                            <div>
-                                <span class="mr-1 badge badge-success">A — Top 70%</span>
-                                <span class="mr-1 badge badge-warning">B — 70–90%</span>
-                                <span class="mr-1 badge badge-danger">C — 90–100%</span>
-                                <button class="ml-2 btn btn-sm btn-success" onclick="dashboardVentas.exportarExcel()">
-                                    <i class="fas fa-file-excel"></i> Excel + Gráficas
-                                </button>
+
+                    {{-- Fila 2: Frecuencia de compra + Evolución mensual --}}
+                    <div class="mb-3 row">
+                        <div class="col-md-5">
+                            <div class="shadow-sm card h-100">
+                                <div class="py-2 card-header d-flex justify-content-between align-items-center">
+                                    <span class="font-weight-bold"><i class="fas fa-repeat mr-1 text-success"></i>Frecuencia de Compra por Cliente</span>
+                                    <small class="text-muted"><i class="fas fa-mouse-pointer mr-1"></i>Clic para filtrar</small>
+                                </div>
+                                <div class="p-2 card-body"><div id="chart-freq-cli" style="min-height:300px"></div></div>
                             </div>
+                        </div>
+                        <div class="col-md-7">
+                            <div class="shadow-sm card h-100">
+                                <div class="py-2 card-header"><span class="font-weight-bold"><i class="fas fa-chart-area mr-1 text-primary"></i>Evolución Mensual — Top Clientes</span></div>
+                                <div class="p-2 card-body"><div id="chart-evol-cli" style="min-height:300px"></div></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Fila 3: Estado clientes + Evolución Cantidad --}}
+                    <div class="mb-3 row">
+                        <div class="col-md-4">
+                            <div class="shadow-sm card h-100">
+                                <div class="py-2 card-header"><span class="font-weight-bold"><i class="fas fa-heartbeat mr-1 text-danger"></i>Estado de Clientes</span></div>
+                                <div class="p-2 card-body"><div id="chart-estado-cli" style="min-height:260px"></div></div>
+                            </div>
+                        </div>
+                        <div class="col-md-8">
+                            <div class="shadow-sm card h-100">
+                                <div class="py-2 card-header"><span class="font-weight-bold"><i class="fas fa-boxes mr-1 text-warning"></i>Evolución de Compra (Cantidad de Productos)</span></div>
+                                <div class="p-2 card-body"><div id="chart-evol-cant-cli" style="min-height:260px"></div></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Tabla Clientes --}}
+                    <div class="shadow-sm card mb-3">
+                        <div class="py-2 card-header d-flex justify-content-between align-items-center">
+                            <span class="font-weight-bold"><i class="fas fa-users mr-1"></i>Resumen de Clientes</span>
+                            <button class="btn btn-sm btn-success" onclick="dashboardVentas.exportarTablaExcel('tabla-clientes','Clientes')">
+                                <i class="fas fa-file-excel"></i> Exportar Excel
+                            </button>
                         </div>
                         <div class="p-2 card-body table-responsive">
                             <table class="table table-striped table-sm" id="tabla-clientes" style="width:100%">
                                 <thead class="thead-dark">
                                     <tr>
                                         <th>#</th>
+                                        <th>Mes</th>
                                         <th>Cliente</th>
                                         <th>Tipo</th>
-                                        <th>ABC</th>
                                         <th>Facturas</th>
                                         <th>Total Comprado</th>
-                                        <th>Venta Prom.</th>
+                                        <th>Unidades</th>
                                         <th>Última Compra</th>
                                         <th>Días sin comprar</th>
                                         <th>Estado</th>
                                     </tr>
                                 </thead>
                                 <tbody id="tbody-clientes"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    {{-- Tabla Productos x Cliente --}}
+                    <div class="shadow-sm card">
+                        <div class="py-2 card-header d-flex justify-content-between align-items-center">
+                            <span class="font-weight-bold"><i class="fas fa-table mr-1 text-info"></i>Detalle Productos por Cliente</span>
+                            <button class="btn btn-sm btn-success" onclick="dashboardVentas.exportarTablaExcel('tabla-prod-cli','Productos_x_Cliente')">
+                                <i class="fas fa-file-excel"></i> Exportar Excel
+                            </button>
+                        </div>
+                        <div class="p-2 card-body table-responsive">
+                            <table class="table table-striped table-sm table-bordered" id="tabla-prod-cli" style="width:100%">
+                                <thead class="thead-dark">
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Mes</th>
+                                        <th>Cliente</th>
+                                        <th>Tipo</th>
+                                        <th>Producto</th>
+                                        <th>Marca</th>
+                                        <th>Categoría</th>
+                                        <th>Facturas</th>
+                                        <th>Unidades</th>
+                                        <th>Total Comprado</th>
+                                        <th>Últ. Compra</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-prod-cli"></tbody>
                             </table>
                         </div>
                     </div>

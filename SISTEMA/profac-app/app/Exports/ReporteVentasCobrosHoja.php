@@ -7,6 +7,7 @@ use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\WithDrawings;
 use Maatwebsite\Excel\Concerns\WithEvents;
+use Maatwebsite\Excel\Concerns\WithStrictNullComparison;
 use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
@@ -40,15 +41,15 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
  *  - DIAS VCTOS. (factura): celda verde si <= 0, roja si > 0
  *  - Sub-filas: sin fondo; celda DEBITOS en rojo claro, celda CREDITOS en verde claro
  */
-class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithDrawings, WithEvents
+class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithDrawings, WithEvents, WithStrictNullComparison
 {
     protected $rows;
     protected $usuario;
     protected $movimientos;
     protected $rowMeta = [];
 
-    const LAST_COL  = 'AE';
-    const COL_COUNT = 31;
+    const LAST_COL  = 'AF';
+    const COL_COUNT = 32;
 
     const T_FACTURA   = 'FACTURA';
     const T_ENTREGA   = 'ENTREGA';
@@ -123,7 +124,7 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
 
         /* Fila 1 */
         $r1 = array_fill(0, self::COL_COUNT, '');
-        $r1[0] = 'DISTRIBUCIONES VALENCIA S.A. DE C.V.   |   RTN: 08011986138652';
+        $r1[0] = 'DISTRIBUCIONES VALENCIA   |   RTN: 08011986138652';
         $out[] = $r1;
 
         /* Fila 2 */
@@ -142,43 +143,45 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
             'DOCUMENTO','TIPO DOCUMENTO','NRO DOCUMENTO','OBSERVACION','ORDEN COMPRA',
             'MODO PAGO','ESTADO F01','EXONERADO','GRAVADO','EXENTO',
             'SUBTOTAL','ISV','TOTAL','DEBITOS','CREDITOS',
-            'SALDO PENDIENTE','MONTO PAGADO','ESTADO COBRO','FECHA VENTA','FECHA VCTO.',
-            'DIAS VCTOS.','FECHA PAGO','FORMA DE PAGO','CUENTA/BANCO','FECHA ENTREGA',
-            'RECIBO',
+            'SALDO DE FACTURA','MONTO PAGADO','SALDO PENDIENTE','ESTADO COBRO','FECHA VENTA',
+            'FECHA VCTO.','DIAS VCTOS.','FECHA PAGO','FORMA DE PAGO','CUENTA/BANCO',
+            'FECHA ENTREGA','RECIBO',
         ];
 
         foreach ($this->rows as $r) {
             $factId      = (int)($r->factura_id ?? 0);
             $facturaNum  = $r->numero_secuencia_cai ?? '';
-            $movs        = $this->movimientos[$factId] ?? [];
-            $saldo       = (float)($r->total ?? 0);
-            $dias        = (int)($r->dias_vencidos ?? 0);
+            $movs         = $this->movimientos[$factId] ?? [];
+            $saldoFactura = (float)($r->total ?? 0); // progresivo: cambia con DEBITO/CREDITO
+            $pagosAcum    = 0.0;                     // acumula PAGO/ABONO
+            $dias         = (int)($r->dias_vencidos ?? 0);
             $estadoCobro = $r->estado_cobro_v2 ?? ($r->creditos_vencidos ?? '');
 
             /* ── PRE-CALCULAR TOTALES DEBITOS / CREDITOS ───── */
             $totalDebitos  = 0.0;
             $totalCreditos = 0.0;
             $totalPagos    = 0.0;
-            $finalSaldo    = (float)($r->total ?? 0);
+            $_sfCalc       = (float)($r->total ?? 0);
             foreach ($movs as $_mov) {
                 if ($_mov->tipo === 'VENTA') continue;
                 $_monto = (float)($_mov->monto ?? 0);
                 if (in_array($_mov->tipo, self::$TIPOS_DEBITO)) {
                     $totalDebitos += $_monto;
-                    $finalSaldo    = max($finalSaldo - $_monto, 0);
+                    $_sfCalc       = max($_sfCalc - $_monto, 0); // saldo factura baja
                 }
                 if (in_array($_mov->tipo, self::$TIPOS_CREDITO)) {
                     $totalCreditos += $_monto;
-                    $finalSaldo    += $_monto;
+                    $_sfCalc       += $_monto;                   // saldo factura sube
                 }
                 if (in_array($_mov->tipo, self::$TIPOS_PAGO)) {
-                    $totalPagos += $_monto;
-                    $finalSaldo  = max($finalSaldo - $_monto, 0);
+                    $totalPagos += $_monto;  // pagos NO afectan saldo de factura
                 }
             }
             // Sumar retencion ISV al total de debitos
             $_montoRet = (float)($r->monto_retencion ?? 0);
-            if ($_montoRet > 0) { $totalDebitos += $_montoRet; $finalSaldo = max($finalSaldo - $_montoRet, 0); }
+            if ($_montoRet > 0) { $totalDebitos += $_montoRet; $_sfCalc = max($_sfCalc - $_montoRet, 0); }
+            $finalSaldoFactura   = $_sfCalc;
+            $finalSaldoPendiente = max($finalSaldoFactura - $totalPagos, 0);
 
             /* ── FILA FACTURA ──────────────────────────────── */
             $item++;
@@ -211,21 +214,22 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
             $row[17] = (float)($r->total     ?? 0);
             $row[18] = $totalDebitos  > 0 ? $totalDebitos  : '';  // DEBITOS: Nota Credito + Vale + Retencion
             $row[19] = $totalCreditos > 0 ? $totalCreditos : '';  // CREDITOS: Nota Debito
-            $row[20] = $finalSaldo;          // SALDO PENDIENTE = ultimo saldo tras movimientos
+            $row[20] = $finalSaldoFactura;   // SALDO DE FACTURA = (total + creditos) - debitos
             // MONTO PAGADO: suma de Abono + Pago (calculada del detalle; fallback a campo abonos)
             $row[21] = $totalPagos > 0 ? $totalPagos : (
                        (float)($r->abonos ?? 0) > 0 ? (float)$r->abonos : (
                        (float)($r->monto_pagado ?? 0) > 0 ? (float)$r->monto_pagado : ''
                        ));
-            $row[22] = $estadoCobro;         // ESTADO COBRO
-            $row[23] = $this->fmt($r->fecha_venta);
-            $row[24] = $this->fmt($r->fecha_vencimiento);
-            $row[25] = $dias;                // DIAS VCTOS. - numerico para colorear celda
-            $row[26] = '';
+            $row[22] = $finalSaldoPendiente; // SALDO PENDIENTE = Saldo de Factura - Monto Pagado
+            $row[23] = $estadoCobro;         // ESTADO COBRO
+            $row[24] = $this->fmt($r->fecha_venta);
+            $row[25] = $this->fmt($r->fecha_vencimiento);
+            $row[26] = $dias;                // DIAS VCTOS. - numerico para colorear celda
             $row[27] = '';
             $row[28] = '';
-            $row[29] = $this->fmt($r->fecha_entrega);
-            $row[30] = '';
+            $row[29] = '';
+            $row[30] = $this->fmt($r->fecha_entrega);
+            $row[31] = '';
             $out[] = $row;
 
             /* ── MOVIMIENTOS ───────────────────────────────── */
@@ -239,16 +243,19 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
                 $esCredito = in_array($tipo, self::$TIPOS_CREDITO);
                 $esPago    = in_array($tipo, self::$TIPOS_PAGO);
 
-                // Actualizar saldo progresivo (debitos y pagos reducen; creditos aumentan)
-                if ($esDebito || $esPago) $saldo = max($saldo - $monto, 0);
-                elseif ($esCredito)       $saldo = $saldo + $monto;
+                // Actualizar saldo progresivo
+                if ($esDebito)       $saldoFactura  = max($saldoFactura - $monto, 0);
+                elseif ($esCredito)  $saldoFactura += $monto;
+                elseif ($esPago)     $pagosAcum    += $monto;
                 // ENTREGA no cambia saldo
+                $saldoPendiente = max($saldoFactura - $pagosAcum, 0);
 
                 $item++;
                 $excelRow = count($out) + 1;
                 $this->rowMeta[$excelRow] = [
-                    'type'    => $tipo,
-                    'dir'     => $esDebito ? 'debito' : ($esCredito ? 'credito' : ($esPago ? 'pago' : 'neutral')),
+                    'type'      => $tipo,
+                    'dir'       => $esDebito ? 'debito' : ($esCredito ? 'credito' : ($esPago ? 'pago' : 'neutral')),
+                    'saldo_dir' => $esDebito ? 'down' : ($esCredito ? 'up' : 'neutral'),
                     'has_monto' => ($tipo !== 'ENTREGA' && $monto > 0),
                 ];
 
@@ -269,29 +276,32 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
                 $movRow[7]  = trim((string)($mov->documento ?? ''));
                 $movRow[8]  = $mov->descripcion ?? '';
                 // cols 9-17: datos de factura en blanco (TOTAL solo en factura, no en sub-filas)
-                $movRow[18] = $esDebito  ? $monto : ''; // DEBITOS (Nota Credito, Vale, Retencion)
-                $movRow[19] = $esCredito ? $monto : ''; // CREDITOS (Nota Debito)
-                $movRow[20] = $saldo;                   // SALDO PENDIENTE progresivo
-                $movRow[21] = $esPago    ? $monto : ''; // MONTO PAGADO (Abono, Pago Contado)
-                $movRow[22] = '';                       // ESTADO COBRO: en blanco en sub-filas
-                // cols 23-25: fechas/estado: en blanco para movimientos
-                $movRow[26] = ($tipo !== 'ENTREGA') ? $this->fmt($mov->fecha) : ''; // FECHA PAGO
-                $movRow[27] = $mov->forma_pago ?? '';
-                $movRow[28] = $banco;
-                $movRow[29] = ($tipo === 'ENTREGA') ? $this->fmt($mov->fecha) : ''; // FECHA ENTREGA
-                $movRow[30] = $mov->recibo ?? '';
+                $movRow[18] = $esDebito  ? $monto : ''; // DEBITOS
+                $movRow[19] = $esCredito ? $monto : ''; // CREDITOS
+                $movRow[20] = ($esDebito || $esCredito) ? $saldoFactura : ''; // SALDO DE FACTURA (solo cuando cambia)
+                $movRow[21] = $esPago    ? $monto : ''; // MONTO PAGADO
+                $movRow[22] = $saldoPendiente; // SALDO PENDIENTE siempre (0.00 cuando saldado)
+                $movRow[23] = '';                       // ESTADO COBRO: en blanco en sub-filas
+                // cols 24-26: fechas venta/vcto/dias en blanco
+                $movRow[27] = ($tipo !== 'ENTREGA') ? $this->fmt($mov->fecha) : ''; // FECHA PAGO
+                $movRow[28] = $mov->forma_pago ?? '';
+                $movRow[29] = $banco;
+                $movRow[30] = ($tipo === 'ENTREGA') ? $this->fmt($mov->fecha) : ''; // FECHA ENTREGA
+                $movRow[31] = $mov->recibo ?? '';
                 $out[] = $movRow;
             }
 
             /* ── RETENCIÓN ISV ─────────────────────────────── */
             $montoRet = (float)($r->monto_retencion ?? 0);
             if ($montoRet > 0) {
-                $saldo = max($saldo - $montoRet, 0);
+                $saldoFactura   = max($saldoFactura - $montoRet, 0);
+                $saldoPendiente = max($saldoFactura - $pagosAcum, 0);
                 $item++;
                 $excelRow = count($out) + 1;
                 $this->rowMeta[$excelRow] = [
                     'type'      => self::T_RETENCION,
                     'dir'       => 'debito',
+                    'saldo_dir' => 'down',
                     'has_monto' => true,
                 ];
 
@@ -302,9 +312,10 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
                 $retRow[6]  = 'Retencion ISV';
                 $retRow[7]  = trim((string)($r->numero_retencion ?? ''));
                 $retRow[8]  = 'Retencion ISV aplicada';
-                $retRow[18] = $montoRet;    // DEBITOS
-                $retRow[19] = '';           // CREDITOS
-                $retRow[20] = $saldo;       // SALDO PENDIENTE
+                $retRow[18] = $montoRet;       // DEBITOS
+                $retRow[19] = '';              // CREDITOS
+                $retRow[20] = $saldoFactura;   // SALDO DE FACTURA
+                $retRow[22] = $saldoPendiente; // SALDO PENDIENTE
                 $out[] = $retRow;
             }
         }
@@ -361,7 +372,7 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
         $sheet->getRowDimension(4)->setRowHeight(30);
 
         foreach (range('A', 'Z') as $c) { $sheet->getColumnDimension($c)->setAutoSize(true); }
-        foreach (['AA','AB','AC','AD','AE'] as $c) { $sheet->getColumnDimension($c)->setAutoSize(true); }
+        foreach (['AA','AB','AC','AD','AE','AF'] as $c) { $sheet->getColumnDimension($c)->setAutoSize(true); }
 
         return [];
     }
@@ -385,22 +396,22 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
                     ->setVertical(Alignment::VERTICAL_CENTER);
 
                 // Texto alineado a la izquierda
-                foreach (['D','E','F','G','H','I','J','K','AB','AC','AE'] as $c) {
+                foreach (['D','E','F','G','H','I','J','K','AC','AD','AF'] as $c) {
                     $sheet->getStyle("{$c}5:{$c}{$lastRow}")
                         ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
                 }
 
-                // Moneda: M..V (EXONERADO..MONTO PAGADO) = cols M,N,O,P,Q,R,S,T,U,V
+                // Moneda: M..W (EXONERADO..SALDO PENDIENTE) = cols M..W
                 $currency = '"L" #,##0.00';
-                foreach (['M','N','O','P','Q','R','S','T','U','V'] as $c) {
+                foreach (['M','N','O','P','Q','R','S','T','U','V','W'] as $c) {
                     $sheet->getStyle("{$c}5:{$c}{$lastRow}")
                         ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
                     $sheet->getStyle("{$c}5:{$c}{$lastRow}")
                         ->getNumberFormat()->setFormatCode($currency);
                 }
 
-                // Dias vencidos (col Z, index 25): formato numerico simple
-                $sheet->getStyle("Z5:Z{$lastRow}")
+                // Dias vencidos (col AA, index 26): formato numerico simple
+                $sheet->getStyle("AA5:AA{$lastRow}")
                     ->getNumberFormat()->setFormatCode('0');
 
                 // ── Loop por fila ──────────────────────────────
@@ -423,21 +434,21 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
                                 ->setStrikethrough(true)->getColor()->setRGB('999999');
                         }
 
-                        // Dias vencidos (col Z, index 25): verde si <= 0, rojo si > 0
+                        // Dias vencidos (col AA, index 26): verde si <= 0, rojo si > 0
                         $dias = (int)($meta['dias_vencidos'] ?? 0);
                         if ($dias > 0) {
-                            $sheet->getStyle("Z{$row}")->getFill()
+                            $sheet->getStyle("AA{$row}")->getFill()
                                 ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FADBD8');
-                            $sheet->getStyle("Z{$row}")->getFont()
+                            $sheet->getStyle("AA{$row}")->getFont()
                                 ->setBold(true)->getColor()->setRGB('922B21');
                         } else {
-                            $sheet->getStyle("Z{$row}")->getFill()
+                            $sheet->getStyle("AA{$row}")->getFill()
                                 ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('D5F5E3');
-                            $sheet->getStyle("Z{$row}")->getFont()
+                            $sheet->getStyle("AA{$row}")->getFont()
                                 ->getColor()->setRGB('1E8449');
                         }
 
-                        // Estado cobro (col W, index 22)
+                        // Estado cobro (col X, index 23)
                         $ec   = (string)($meta['estado_cobro'] ?? '');
                         $bgEc = match(true) {
                             $ec === 'Pagada'                                               => 'D5F5E3',
@@ -448,7 +459,7 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
                             $ec === 'Pendiente'                                            => 'FDEBD0',
                             default                                                        => 'FDFEFE',
                         };
-                        $sheet->getStyle("W{$row}")->getFill()
+                        $sheet->getStyle("X{$row}")->getFill()
                             ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB($bgEc);
                         $h = 16;
 
@@ -461,28 +472,44 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
 
                         $dir = $meta['dir'] ?? 'neutral';
 
-                        // Celda DEBITOS (col T): rojo claro cuando tiene valor
+                        // Celda DEBITOS (col S, idx 18): rojo
                         if ($dir === 'debito') {
-                            $sheet->getStyle("T{$row}")->getFill()
+                            $sheet->getStyle("S{$row}")->getFill()
                                 ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FADBD8');
-                            $sheet->getStyle("T{$row}")->getFont()
+                            $sheet->getStyle("S{$row}")->getFont()
                                 ->setBold(true)->getColor()->setRGB('922B21');
                         }
 
-                        // Celda CREDITOS (col U): verde claro cuando tiene valor
+                        // Celda CREDITOS (col T, idx 19): verde
                         if ($dir === 'credito') {
-                            $sheet->getStyle("U{$row}")->getFill()
+                            $sheet->getStyle("T{$row}")->getFill()
                                 ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('D5F5E3');
-                            $sheet->getStyle("U{$row}")->getFont()
+                            $sheet->getStyle("T{$row}")->getFont()
                                 ->setBold(true)->getColor()->setRGB('1E8449');
                         }
 
-                        // Celda MONTO PAGADO (col V): azul claro para pagos/abonos
+                        // Celda SALDO DE FACTURA (col U, idx 20): rojo si baja, verde si sube
+                        $saldoDir = $meta['saldo_dir'] ?? 'neutral';
+                        if ($saldoDir === 'down') {
+                            $sheet->getStyle("U{$row}")->getFill()
+                                ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FADBD8');
+                            $sheet->getStyle("U{$row}")->getFont()->getColor()->setRGB('922B21');
+                        } elseif ($saldoDir === 'up') {
+                            $sheet->getStyle("U{$row}")->getFill()
+                                ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('D5F5E3');
+                            $sheet->getStyle("U{$row}")->getFont()->getColor()->setRGB('1E8449');
+                        }
+
+                        // Celda MONTO PAGADO (col V, idx 21): azul claro para pagos
                         if ($dir === 'pago') {
                             $sheet->getStyle("V{$row}")->getFill()
                                 ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('D6EAF8');
                             $sheet->getStyle("V{$row}")->getFont()
                                 ->setBold(true)->getColor()->setRGB('1A5276');
+                            // Saldo pendiente (col W) tambien en azul tras cada pago
+                            $sheet->getStyle("W{$row}")->getFill()
+                                ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('EBF5FB');
+                            $sheet->getStyle("W{$row}")->getFont()->getColor()->setRGB('1A5276');
                         }
                     }
 

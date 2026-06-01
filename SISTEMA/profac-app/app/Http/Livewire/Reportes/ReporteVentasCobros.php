@@ -627,7 +627,12 @@ class ReporteVentasCobros extends Component
                     COALESCE(f.isv, 0)                                      AS isv,
                     COALESCE(f.total, 0)                                    AS total_factura,
                     f.fecha_vencimiento,
-                    GREATEST(DATEDIFF(CURDATE(), f.fecha_vencimiento), 0)   AS dias_vencidos,
+                    DATEDIFF(COALESCE(
+                        (SELECT MAX(ac_exp.fecha_pago)
+                         FROM abonos_creditos ac_exp
+                         INNER JOIN aplicacion_pagos ap_exp ON ap_exp.id = ac_exp.aplicacion_pagos_id
+                         WHERE ap_exp.factura_id = f.id AND ac_exp.estado_abono = 1),
+                        CURDATE()), f.fecha_vencimiento)             AS dias_vencidos,
                     CASE WHEN f.credito = 0
                         THEN 0
                         ELSE DATEDIFF(f.fecha_vencimiento, f.fecha_emision)

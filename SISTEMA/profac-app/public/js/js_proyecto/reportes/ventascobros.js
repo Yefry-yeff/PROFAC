@@ -259,9 +259,9 @@ function renderExpediente(resp) {
     html += finRow('Total Abonado / Pagado', fmtLps(parseFloat(c.total_factura) - parseFloat(resp.saldo_final)));
     html += '<div class="rfd-fin-row ' + saldoClass + '"><span class="lbl">Saldo Pendiente</span><span class="val">' + fmtLps(resp.saldo_final) + '</span></div>';
     html += finRow('D\u00edas Vencidos',
-        (c.dias_vencidos > 0)
+        (parseInt(c.dias_vencidos) > 0)
             ? '<span style="color:#e02424;font-weight:700;">' + c.dias_vencidos + ' d\u00edas</span>'
-            : '<span style="color:#0e9f6e;">Al d\u00eda</span>');
+            : '<span style="color:#0e9f6e;font-weight:600;">Al d\u00eda</span>');
     html += '</div>';
     html += '</div>';
 
