@@ -483,6 +483,11 @@
                     </a>
                 </li>
                 <li class="nav-item">
+                    <a class="nav-link" id="pill-marc" data-toggle="pill" href="#pill-pane-marc">
+                        <i class="mr-1 fas fa-tag"></i>Marcas
+                    </a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link" id="pill-prod" data-toggle="pill" href="#pill-pane-prod">
                         <i class="mr-1 fas fa-box"></i>Productos
                     </a>
@@ -684,7 +689,7 @@
                             </button>
                         </div>
                         <div class="p-2 card-body table-responsive">
-                            <table class="table table-striped table-sm table-bordered" id="tabla-prod-cli" style="width:100%">
+                            <table class="table table-striped table-sm" id="tabla-prod-cli" style="width:100%">
                                 <thead class="thead-dark">
                                     <tr>
                                         <th>#</th>
@@ -701,6 +706,94 @@
                                     </tr>
                                 </thead>
                                 <tbody id="tbody-prod-cli"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- MARCAS --}}
+                <div class="tab-pane fade" id="pill-pane-marc">
+
+                    {{-- Filtros Marcas --}}
+                    <div class="mb-3 border card card-body bg-light py-2" id="marc-filtros">
+                        <div class="row g-2 align-items-end">
+                            <div class="col-md-2">
+                                <label class="small font-weight-bold">Fecha inicio</label>
+                                <input type="date" class="form-control form-control-sm" id="marc-fi">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="small font-weight-bold">Fecha fin</label>
+                                <input type="date" class="form-control form-control-sm" id="marc-ff">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="small font-weight-bold"><i class="fas fa-user mr-1 text-info"></i>Cliente</label>
+                                <select class="form-control form-control-sm" id="marc-cliente">
+                                    <option value="">Todos los clientes</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="small font-weight-bold"><i class="fas fa-box mr-1 text-warning"></i>Producto</label>
+                                <select class="form-control form-control-sm" id="marc-producto">
+                                    <option value="">Todos los productos</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mt-2 row g-2 align-items-end">
+                            <div class="col-md-12 d-flex justify-content-end" style="gap:6px">
+                                <button class="btn btn-primary btn-sm px-4" onclick="dashboardVentas.cargarMarcas()">
+                                    <i class="fas fa-search"></i> Consultar
+                                </button>
+                                <button class="btn btn-outline-secondary btn-sm" onclick="dashboardVentas.limpiarFiltroMarc()">
+                                    <i class="fas fa-times"></i> Limpiar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Fila 1: Top marcas bar + donut participación --}}
+                    <div class="mb-3 row">
+                        <div class="col-md-7">
+                            <div class="shadow-sm card h-100">
+                                <div class="py-2 card-header d-flex justify-content-between align-items-center">
+                                    <span class="font-weight-bold"><i class="fas fa-trophy mr-1 text-warning"></i>Marcas por Facturación (L.)</span>
+                                    <small class="text-muted"><i class="fas fa-mouse-pointer mr-1"></i>Clic en barra para ver detalle</small>
+                                </div>
+                                <div class="p-2 card-body"><div id="chart-marc-bar" style="min-height:340px"></div></div>
+                            </div>
+                        </div>
+                        <div class="col-md-5">
+                            <div class="shadow-sm card h-100">
+                                <div class="py-2 card-header">
+                                    <span class="font-weight-bold"><i class="fas fa-chart-pie mr-1 text-info"></i>Participación por Marca (%)</span>
+                                </div>
+                                <div class="p-2 card-body"><div id="chart-marc-donut" style="min-height:340px"></div></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Tabla Marcas --}}
+                    <div class="shadow-sm card">
+                        <div class="py-2 card-header d-flex justify-content-between align-items-center">
+                            <span class="font-weight-bold"><i class="fas fa-table mr-1 text-warning"></i>Detalle por Marca</span>
+                            <button class="btn btn-sm btn-success" onclick="dashboardVentas.exportarTablaExcel('tabla-marcas-cli','Marcas')">
+                                <i class="fas fa-file-excel"></i> Exportar Excel
+                            </button>
+                        </div>
+                        <div class="p-2 card-body table-responsive">
+                            <table class="table table-striped table-sm" id="tabla-marcas-cli" style="width:100%">
+                                <thead class="thead-dark">
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Marca</th>
+                                        <th>Clientes</th>
+                                        <th>Facturas</th>
+                                        <th>Productos</th>
+                                        <th>Unidades</th>
+                                        <th>Total Vendido</th>
+                                        <th>Participación %</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-marcas-cli"></tbody>
                             </table>
                         </div>
                     </div>
@@ -1055,7 +1148,9 @@
 #tabla-comparacion thead th,
 #tabla-semanal thead th,
 #tabla-prod-fact-det thead th,
-#tabla-prod-ranking-cli thead th {
+#tabla-prod-ranking-cli thead th,
+#tabla-prod-cli thead th,
+#tabla-marcas-cli thead th {
     background-color: #343a40 !important;
     color: #fff !important;
     border-color: #454d55 !important;

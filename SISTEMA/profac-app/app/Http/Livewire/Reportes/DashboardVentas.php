@@ -457,7 +457,7 @@ class DashboardVentas extends Component
         $marca   = $request->marca         ? (int)$request->marca         : null;
         $cliente = trim((string)($request->cliente ?? ''));
         $prod    = trim((string)($request->producto ?? ''));
-        $limit   = $request->limite        ? (int)$request->limite        : 20;
+        $limit   = $request->limite        ? (int)$request->limite        : 9999;
 
         $where  = "f.estado_venta_id = 1 AND f.fecha_emision BETWEEN ? AND ?";
         $params = [$fi, $ff];
@@ -494,7 +494,7 @@ class DashboardVentas extends Component
                 INNER JOIN sub_categoria sc             ON sc.id  = p.sub_categoria_id
                 WHERE $where
                 GROUP BY cli.id, cli.nombre, tc.descripcion, DATE_FORMAT(f.fecha_emision, '%Y-%m')
-                ORDER BY cli.nombre ASC, mes ASC
+                ORDER BY total_comprado DESC, cli.nombre ASC, mes ASC
                 LIMIT $limit
             ", $params);
         } else {
@@ -516,7 +516,7 @@ class DashboardVentas extends Component
                 INNER JOIN venta_has_producto vhp ON vhp.factura_id = f.id
                 WHERE $where
                 GROUP BY cli.id, cli.nombre, tc.descripcion, DATE_FORMAT(f.fecha_emision, '%Y-%m')
-                ORDER BY cli.nombre ASC, mes ASC
+                ORDER BY total_comprado DESC, cli.nombre ASC, mes ASC
                 LIMIT $limit
             ", $params);
         }
@@ -1549,6 +1549,52 @@ class DashboardVentas extends Component
             GROUP BY tc.id, tc.descripcion
             ORDER BY total DESC
         ");
+
+        return response()->json($rows);
+    }
+
+    // ─── Marcas que más mueven los clientes (filtro cliente/producto/fecha) ──
+    public function topMarcasCli(Request $request)
+    {
+        $fi      = $request->fecha_inicio ?? date('Y-01-01');
+        $ff      = $request->fecha_final  ?? date('Y-m-d');
+        $cliente = trim((string)($request->cliente  ?? ''));
+        $prod    = trim((string)($request->producto ?? ''));
+
+        $where  = "f.estado_venta_id = 1 AND f.fecha_emision BETWEEN ? AND ?";
+        $params = [$fi, $ff];
+
+        if ($cliente) { $where .= " AND cli.nombre LIKE ?"; $params[] = "%$cliente%"; }
+        if ($prod) {
+            if (is_numeric($prod)) { $where .= " AND p.id = ?"; $params[] = intval($prod); }
+            else                   { $where .= " AND p.nombre LIKE ?"; $params[] = "%$prod%"; }
+        }
+
+        $rows = DB::select("
+            SELECT
+                m.id                                        AS marca_id,
+                m.nombre                                    AS marca,
+                COUNT(DISTINCT f.id)                        AS facturas,
+                COUNT(DISTINCT f.cliente_id)                AS clientes,
+                COUNT(DISTINCT p.id)                        AS productos,
+                COALESCE(SUM(vhp.cantidad), 0)              AS unidades,
+                COALESCE(SUM(vhp.sub_total_s), 0)           AS total_vendido
+            FROM factura f
+            INNER JOIN cliente cli             ON cli.id = f.cliente_id
+            INNER JOIN venta_has_producto vhp  ON vhp.factura_id = f.id
+            INNER JOIN producto p              ON p.id = vhp.producto_id
+            INNER JOIN marca m                 ON m.id = p.marca_id
+            WHERE $where
+            GROUP BY m.id, m.nombre
+            ORDER BY total_vendido DESC
+        ", $params);
+
+        $total = array_sum(array_column($rows, 'total_vendido'));
+        foreach ($rows as &$r) {
+            $r->total_vendido = round((float)$r->total_vendido, 2);
+            $r->unidades      = intval($r->unidades);
+            $r->participacion = $total > 0 ? round(($r->total_vendido / $total) * 100, 2) : 0;
+        }
 
         return response()->json($rows);
     }
