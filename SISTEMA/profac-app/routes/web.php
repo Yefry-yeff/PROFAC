@@ -1340,6 +1340,9 @@ Route::get('/reporte/ventas-cobros',                                            
 Route::get('/reporte/ventas-cobros/consulta/{vendedorId}/{clienteId}/{mes}/{anio}',                 [ReporteVentasCobros::class, 'consulta']);
 Route::post('/reporte/ventas-cobros/exportar-pdf/{vendedorId}/{clienteId}/{mes}/{anio}',            [ReporteVentasCobros::class, 'exportarPdf'])->name('reporte.ventas_cobros.pdf');
 Route::post('/reporte/ventas-cobros/exportar-excel/{vendedorId}/{clienteId}/{mes}/{anio}',          [ReporteVentasCobros::class, 'exportarExcel'])->name('reporte.ventas_cobros.excel');
+Route::get('/reporte/ventas-cobros/datos',                                                          [ReporteVentasCobros::class, 'consultaDatos']);
+Route::get('/reporte/ventas-cobros/kpis',                                                           [ReporteVentasCobros::class, 'kpis']);
+Route::get('/reporte/ventas-cobros/expediente/{facturaId}',                                         [ReporteVentasCobros::class, 'expediente']);
 
   //------------------------------- Logistica de Entregas ----------------------------//
 
