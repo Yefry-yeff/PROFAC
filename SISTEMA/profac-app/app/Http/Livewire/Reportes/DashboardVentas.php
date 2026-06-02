@@ -465,7 +465,8 @@ class DashboardVentas extends Component
                 COUNT(DISTINCT f.id)                       AS facturas,
                 COUNT(DISTINCT f.cliente_id)               AS clientes_atendidos,
                 SUM(f.total)                               AS total_ventas,
-                AVG(f.total)                               AS ticket_promedio
+                AVG(f.total)                               AS ticket_promedio,
+                COALESCE(SUM(f.sub_total), 0)              AS total_sin_isv
             FROM factura f
             INNER JOIN users u         ON u.id  = f.vendedor
             INNER JOIN cliente cli     ON cli.id = f.cliente_id
@@ -475,14 +476,19 @@ class DashboardVentas extends Component
             ORDER BY total_ventas DESC
         ");
 
-        $totalGlobal = array_sum(array_column($rows, 'total_ventas'));
+        $totalGlobal    = array_sum(array_column($rows, 'total_ventas'));
+        $totalSinIsvGlobal = array_sum(array_column($rows, 'total_sin_isv'));
 
         foreach ($rows as &$r) {
             $r->participacion = $totalGlobal > 0
                 ? round(($r->total_ventas / $totalGlobal) * 100, 2)
                 : 0;
+            $r->participacion_sin_isv = $totalSinIsvGlobal > 0
+                ? round(($r->total_sin_isv / $totalSinIsvGlobal) * 100, 2)
+                : 0;
             $r->total_ventas    = round((float)$r->total_ventas, 2);
             $r->ticket_promedio = round((float)$r->ticket_promedio, 2);
+            $r->total_sin_isv   = round((float)$r->total_sin_isv, 2);
         }
 
         return response()->json($rows);
@@ -1789,7 +1795,7 @@ class DashboardVentas extends Component
                 u.id                                        AS vendedor_id,
                 u.name                                      AS vendedor,
                 MONTH(f.fecha_emision)                      AS mes,
-                SUM(f.total)                                AS total,
+                COALESCE(SUM(f.sub_total), 0)               AS total,
                 COUNT(DISTINCT f.id)                        AS facturas
             FROM factura f
             INNER JOIN users u ON u.id = f.vendedor

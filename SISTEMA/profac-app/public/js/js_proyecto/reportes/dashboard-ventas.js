@@ -65,6 +65,18 @@ var dashboardVentas = (function () {
     var DIAS_ES = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
     var COLORES = ['#EC401B','#1cc88a','#36b9cc','#f6c23e','#e74a3b','#858796','#4e73df','#fd7e14','#20c997','#6f42c1'];
 
+    /* Genera una paleta de exactamente n colores distintos.
+       Para n <= 10 usa COLORES; para n > 10 genera colores HSL uniformemente distribuidos. */
+    function _palette(n) {
+        if (n <= COLORES.length) return COLORES.slice(0, n);
+        var cols = [];
+        for (var i = 0; i < n; i++) {
+            var h = Math.round((i * 360) / n);
+            cols.push('hsl(' + h + ',65%,48%)');
+        }
+        return cols;
+    }
+
     function fmt(n) {
         return 'L. ' + parseFloat(n || 0).toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
@@ -2266,8 +2278,9 @@ var dashboardVentas = (function () {
         }
         $empty.hide();
 
+        var palette = _palette(vendors.length);
         vendors.forEach(function (vd, i) {
-            var color   = COLORES[i % COLORES.length];
+            var color   = palette[i];
             var tabId   = 'cmp-esc-tab-' + i;
             var paneId  = 'cmp-esc-pane-' + i;
             var active  = i === 0 ? ' active show' : '';
@@ -2327,15 +2340,16 @@ var dashboardVentas = (function () {
 
     function _renderCmpKpis(rows) {
         var $cont = $('#cmp-kpi-cards').empty();
-        var colors = COLORES;
+        var colors = _palette(rows.length);
         rows.forEach(function (r, i) {
-            var color = colors[i % colors.length];
+            var color = colors[i];
             $cont.append(
                 '<div class="mb-2 col-sm-6 col-md-4 col-lg-3">' +
                 '<div class="card h-100" style="border-left:4px solid ' + color + '">' +
                 '<div class="px-3 py-2 card-body">' +
                 '<div class="mb-1 text-xs font-weight-bold text-uppercase text-truncate" style="color:' + color + '">' + r.vendedor + '</div>' +
-                '<div class="mb-0 h5 font-weight-bold">' + fmt(r.total_ventas) + '</div>' +
+                '<div class="mb-0 h5 font-weight-bold">' + fmt(r.total_sin_isv) + '</div>' +
+                '<small class="text-muted">Facturación sin ISV</small><br>' +
                 '<small class="text-muted">' + r.facturas + ' facturas · ' + r.clientes_atendidos + ' clientes</small>' +
                 '</div></div></div>'
             );
@@ -2346,14 +2360,15 @@ var dashboardVentas = (function () {
         destroyChart('chart-cmp-evolucion');
         if (!rows || !rows.length) return;
 
-        /* Agrupar por vendedor */
+        /* Agrupar por vendedor manteniendo orden de ids seleccionados */
         var byVend = {};
+        var vendOrder = [];
         rows.forEach(function (r) {
-            if (!byVend[r.vendedor]) byVend[r.vendedor] = Array(12).fill(0);
+            if (!byVend[r.vendedor]) { byVend[r.vendedor] = Array(12).fill(0); vendOrder.push(r.vendedor); }
             byVend[r.vendedor][r.mes - 1] = parseFloat(r.total);
         });
 
-        var series = Object.keys(byVend).map(function (name) {
+        var series = vendOrder.map(function (name) {
             return { name: name, data: byVend[name] };
         });
 
@@ -2364,7 +2379,7 @@ var dashboardVentas = (function () {
             yaxis: { labels: { formatter: function (v) { return 'L.' + fmtN(v); } } },
             tooltip: { y: { formatter: function (v) { return fmt(v); } } },
             stroke: { curve: 'smooth', width: 2 },
-            colors: COLORES,
+            colors: _palette(series.length),
             markers: { size: 4 },
             legend: { position: 'top' }
         });
@@ -2376,12 +2391,12 @@ var dashboardVentas = (function () {
         if (!rows || !rows.length) return;
 
         charts['chart-cmp-total'] = new ApexCharts(get('chart-cmp-total'), {
-            chart: { type: 'bar', height: 300, toolbar: { show: false } },
-            series: [{ name: 'Total Ventas', data: rows.map(function (r) { return parseFloat(r.total_ventas); }) }],
+            chart: { type: 'bar', height: Math.max(300, rows.length * 40), toolbar: { show: false } },
+            series: [{ name: 'Facturación sin ISV', data: rows.map(function (r) { return parseFloat(r.total_sin_isv); }) }],
             xaxis: { categories: rows.map(function (r) { return r.vendedor; }) },
             yaxis: { labels: { formatter: function (v) { return 'L.' + fmtN(v); } } },
             tooltip: { y: { formatter: function (v) { return fmt(v); } } },
-            colors: COLORES.slice(0, rows.length),
+            colors: _palette(rows.length),
             plotOptions: { bar: { borderRadius: 4, distributed: true, columnWidth: '55%' } },
             legend: { show: false }
         });
@@ -2394,10 +2409,10 @@ var dashboardVentas = (function () {
 
         charts['chart-cmp-part'] = new ApexCharts(get('chart-cmp-part'), {
             chart: { type: 'donut', height: 300 },
-            series: rows.map(function (r) { return parseFloat(r.total_ventas); }),
+            series: rows.map(function (r) { return parseFloat(r.total_sin_isv); }),
             labels:  rows.map(function (r) { return r.vendedor; }),
             tooltip: { y: { formatter: function (v) { return fmt(v); } } },
-            colors: COLORES,
+            colors: _palette(rows.length),
             legend: { position: 'right' }
         });
         charts['chart-cmp-part'].render();
