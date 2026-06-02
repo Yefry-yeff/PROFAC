@@ -2427,7 +2427,12 @@
             ajax: {
                 url: url,
                 data: function(params) {
-                    return { search: params.term, type: 'public', page: params.page || 1, idProducto: id };
+                    var _urlParams = new URLSearchParams(window.location.search);
+                    var _modo    = _urlParams.get('modo') || '';
+                    // Priorizar flujoId de la URL (en editar_factura el campo oculto puede estar vacío
+                    // porque la prefactura ya está convertida y seleccionarPrefactura no se ejecuta)
+                    var _flujoId = _urlParams.get('flujoId') || document.getElementById('flujo_vinculado_id')?.value || '';
+                    return { search: params.term, type: 'public', page: params.page || 1, idProducto: id, flujo_id: _flujoId, modo: _modo };
                 }
             }
         });
@@ -3638,9 +3643,12 @@
         var modoEdicion = urlParams.get('modo');
         var autorizacionId = urlParams.get('autorizacion_id');
         var autorizadorId = urlParams.get('autorizador_id');
+        var flujoIdUrl = urlParams.get('flujoId');
         if (modoEdicion) data.set('modo', modoEdicion);
         if (autorizacionId) data.set('autorizacion_id', autorizacionId);
         if (autorizadorId) data.set('autorizador_id', autorizadorId);
+        // En editar_factura el campo flujo_vinculado_id puede estar vacío; usar URL como fallback
+        if (flujoIdUrl && !data.get('flujo_id')) data.set('flujo_id', flujoIdUrl);
 
         const formDataObj = {};
         data.forEach((value, key) => (formDataObj[key] = value));
