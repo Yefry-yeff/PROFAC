@@ -57,7 +57,10 @@ class ModalFlujoPedido extends Component
     public ?int   $clienteDuplicarId               = null;
     public string $clienteDuplicarNombre           = '';
     public string $clienteDuplicarError            = '';
+    public array  $clienteDuplicarEscalaConflicto  = [];  // [['nombre'=>..,'categoria'=>..], ...]
     public array  $productosPrecioEscalaCambiado   = [];
+    public bool   $preciosCambioMostrado          = false;  // warning visible → user can confirm
+    public bool   $duplicarMismoClienteAlmacenado = false;  // stored choice for confirm
 
     // ── Acciones sobre el pedido ──────────────────────────────────────────
     public $confirmAccion    = null;  // null|'anular'|'duplicar'
@@ -103,10 +106,12 @@ class ModalFlujoPedido extends Component
         $pedido = DB::table('pedido as p')
             ->join('cliente as c', 'c.id', '=', 'p.cliente_id')
             ->leftJoin('users as u', 'u.id', '=', 'p.users_id')
+            ->leftJoin('categoria_precios as cp', 'cp.id', '=', 'c.categoria_precios_id')
             ->select(
                 'p.id', 'p.estado', 'p.observaciones', 'p.created_at',
                 'c.nombre as cliente', 'c.rtn', 'c.id as cliente_id',
                 'u.name as registrado_por',
+                'cp.nombre as nombre_escala',
                 DB::raw("(SELECT COUNT(*) FROM historico_flujo hf
                            INNER JOIN flujo f ON f.id = hf.flujo_id
                            WHERE f.identificacion = CAST(p.id AS CHAR)
@@ -534,16 +539,24 @@ class ModalFlujoPedido extends Component
 
     public function confirmarAccion(string $accion): void
     {
-        $this->confirmAccion    = $accion;
-        $this->motivoAnulacion  = '';
-        $this->mensajeError     = '';
+        $this->confirmAccion                 = $accion;
+        $this->motivoAnulacion               = '';
+        $this->mensajeError                  = '';
+        $this->productosPrecioEscalaCambiado = [];
+        $this->preciosCambioMostrado         = false;
+
+        if ($accion === 'duplicar') {
+            $this->cargarPreciosDuplicarPedido();
+        }
     }
 
     public function cancelarConfirmacion(): void
     {
-        $this->confirmAccion    = null;
-        $this->motivoAnulacion  = '';
-        $this->mensajeError     = '';
+        $this->confirmAccion                 = null;
+        $this->motivoAnulacion               = '';
+        $this->mensajeError                  = '';
+        $this->productosPrecioEscalaCambiado = [];
+        $this->preciosCambioMostrado         = false;
     }
 
     public function anularPedido(): void
@@ -607,6 +620,8 @@ class ModalFlujoPedido extends Component
         if (!$this->pedidoData) return;
         $pedidoId = (int) $this->pedidoData['id'];
 
+        $facturaCompletada = in_array(3, $this->flujoTipos) || in_array(5, $this->flujoTipos);
+
         $productos = DB::table('pedido_detalle')
             ->where('pedido_id', $pedidoId)
             ->get(['nombre_producto', 'cantidad'])
@@ -617,9 +632,96 @@ class ModalFlujoPedido extends Component
             ->toArray();
 
         $param = base64_encode(json_encode($productos));
-        $url   = route('flujo.pedido') . '?productos=' . urlencode($param);
+
+        if ($facturaCompletada) {
+            // Nuevo flujo: abrir formulario de pedido (crea nuevo pedido → nuevo flujo)
+            $url = route('flujo.pedido') . '?productos=' . urlencode($param)
+                 . '&cliente_id=' . $this->pedidoData['cliente_id'];
+        } else {
+            // Mismo flujo: abrir formulario de oferta vinculado al pedido actual
+            $url = route('flujo.oferta') . '?pedido_id=' . $pedidoId
+                 . '&productos=' . urlencode($param);
+        }
+
         $this->dispatchBrowserEvent('abrir-nueva-pestana', ['url' => $url]);
         $this->cerrar();
+    }
+
+    /**
+     * Compara los precios del último/ganador cotizacion del pedido
+     * contra los precios de la escala actual del cliente.
+     * Llena $productosPrecioEscalaCambiado con las diferencias encontradas.
+     */
+    private function cargarPreciosDuplicarPedido(): void
+    {
+        if (!$this->flujoId || !$this->pedidoData) return;
+
+        $clienteId        = (int) $this->pedidoData['cliente_id'];
+        $nuevaCategoriaId = DB::table('cliente')
+            ->where('id', $clienteId)
+            ->value('categoria_precios_id');
+
+        if (!$nuevaCategoriaId) return;
+
+        // Obtener la cotizacion ganadora o la más reciente del flujo
+        $cotizacion = DB::table('historico_flujo as hf')
+            ->join('cotizacion as c', 'c.id', '=', 'hf.tramite_id')
+            ->where('hf.flujo_id', $this->flujoId)
+            ->where('hf.tipo_tramite_id', 2)
+            ->orderByRaw("CASE WHEN hf.observaciones = 'ganadora' THEN 0 ELSE 1 END")
+            ->orderByDesc('hf.id')
+            ->select('c.id as cotizacion_id')
+            ->first();
+
+        if (!$cotizacion) return;
+
+        // Productos de esa cotizacion con su precio original
+        $productos = DB::table('cotizacion_has_producto as chp')
+            ->leftJoin('precios_producto_carga as ppc', 'ppc.id', '=', 'chp.precios_producto_carga_id')
+            ->where('chp.cotizacion_id', $cotizacion->cotizacion_id)
+            ->select(
+                'chp.nombre_producto',
+                'chp.precio_unidad as precio_original',
+                'chp.idPrecioSeleccionado',
+                'ppc.producto_id',
+                'ppc.categoria_precios_id as categoria_orig_id'
+            )
+            ->get();
+
+        $diferencias = [];
+        foreach ($productos as $prod) {
+            if (!$prod->producto_id) continue;
+
+            // Buscar el precio para este producto en la escala actual del cliente
+            $ppcNuevo = DB::table('precios_producto_carga')
+                ->where('categoria_precios_id', $nuevaCategoriaId)
+                ->where('producto_id', $prod->producto_id)
+                ->first(['precio_a', 'precio_b', 'precio_c', 'precio_d', 'precio_base_venta']);
+
+            if (!$ppcNuevo) continue;
+
+            $col = strtolower(trim($prod->idPrecioSeleccionado ?? ''));
+            $precioNuevo = match($col) {
+                'p1', 'a' => $ppcNuevo->precio_a,
+                'p2', 'b' => $ppcNuevo->precio_b,
+                'p3', 'c' => $ppcNuevo->precio_c,
+                'p4', 'd' => $ppcNuevo->precio_d,
+                default   => $ppcNuevo->precio_base_venta,
+            };
+
+            $precioOrig  = round((float) $prod->precio_original, 4);
+            $precioNuevo = round((float) ($precioNuevo ?? 0), 4);
+
+            if (abs($precioOrig - $precioNuevo) > 0.001) {
+                $diferencias[] = [
+                    'nombre'          => $prod->nombre_producto,
+                    'precio_original' => $precioOrig,
+                    'precio_nuevo'    => $precioNuevo,
+                ];
+            }
+        }
+
+        $this->productosPrecioEscalaCambiado = $diferencias;
     }
 
     // ─────────────────────────────────────────────────────────────────────
@@ -645,7 +747,14 @@ class ModalFlujoPedido extends Component
                 'c.nombre_cliente',
                 'c.total',
                 'c.cliente_id',
-                'c.estado_id as cotizacion_estado_id'   // 1=activo, 2=inactivo por precios
+                'c.estado_id as cotizacion_estado_id',   // 1=activo, 2=inactivo por precios
+                DB::raw("(SELECT cce.nombre_categoria
+                          FROM cotizacion_has_producto chp
+                          INNER JOIN precios_producto_carga ppc ON ppc.id = chp.precios_producto_carga_id
+                          INNER JOIN categoria_precios cp ON cp.id = ppc.categoria_precios_id
+                          INNER JOIN cliente_categoria_escala cce ON cce.id = cp.cliente_categoria_escala_id
+                          WHERE chp.cotizacion_id = c.id
+                          LIMIT 1) as categoria_producto_nombre")
             )
             ->orderByDesc('hf.id')
             ->get()
@@ -720,24 +829,21 @@ class ModalFlujoPedido extends Component
 
             $productos = DB::table('cotizacion_has_producto as chp')
                 ->leftJoin('precios_producto_carga as ppc', 'ppc.id', '=', 'chp.precios_producto_carga_id')
+                ->leftJoin('categoria_precios as cp', 'cp.id', '=', 'ppc.categoria_precios_id')
                 ->where('chp.cotizacion_id', $cotizacionId)
                 ->select(
                     'chp.nombre_producto', 'chp.cantidad', 'chp.precio_unidad', 'chp.total',
                     'chp.idPrecioSeleccionado', 'chp.precios_producto_carga_id',
-                    // precio_actual = precio de escala al momento de la venta (guardado en la oferta)
-                    'chp.precioSeleccionado as precio_actual',
-                    // precio_escala_actual = precio de escala vigente hoy (solo para referencia interna)
-                    DB::raw("CASE LOWER(TRIM(chp.idPrecioSeleccionado))
-                        WHEN 'p1' THEN ppc.precio_a
-                        WHEN 'p2' THEN ppc.precio_b
-                        WHEN 'p3' THEN ppc.precio_c
-                        WHEN 'p4' THEN ppc.precio_d
-                        WHEN 'a'  THEN ppc.precio_a
-                        WHEN 'b'  THEN ppc.precio_b
-                        WHEN 'c'  THEN ppc.precio_c
-                        WHEN 'd'  THEN ppc.precio_d
-                        ELSE ppc.precio_base_venta
-                    END as precio_escala_actual")
+                    'cp.nombre as nombre_categoria_precio',
+                    // Escala Selec.: precio_a del ppc vinculado al momento de la oferta
+                    'ppc.precio_a as precio_escala_seleccionada',
+                    // Escala Act.: precio_a vigente (estado_id=1) para la misma categoria+producto
+                    DB::raw("(SELECT ppc2.precio_a
+                              FROM precios_producto_carga ppc2
+                              WHERE ppc2.categoria_precios_id = ppc.categoria_precios_id
+                                AND ppc2.producto_id          = ppc.producto_id
+                                AND ppc2.estado_id            = 1
+                              LIMIT 1) as precio_escala_actual")
                 )
                 ->get()
                 ->map(fn($r) => (array) $r)
@@ -768,11 +874,13 @@ class ModalFlujoPedido extends Component
 
     public function confirmarAccionOferta(string $accion): void
     {
-        $this->confirmAccionOferta = $accion;
-        $this->motivoAnulOferta    = '';
-        $this->mensajeError        = '';
-        $this->clienteDuplicarError = '';
-        $this->productosPrecioEscalaCambiado = [];
+        $this->confirmAccionOferta             = $accion;
+        $this->motivoAnulOferta                = '';
+        $this->mensajeError                    = '';
+        $this->clienteDuplicarError            = '';
+        $this->productosPrecioEscalaCambiado   = [];
+        $this->preciosCambioMostrado           = false;
+        $this->duplicarMismoClienteAlmacenado  = false;
         if (in_array($accion, ['anular_oferta', 'quitar_ganadora'])) {
             $this->dispatchBrowserEvent('focus-motivo-oferta');
         }
@@ -789,7 +897,10 @@ class ModalFlujoPedido extends Component
         $this->clienteDuplicarId               = null;
         $this->clienteDuplicarNombre           = '';
         $this->clienteDuplicarError            = '';
+        $this->clienteDuplicarEscalaConflicto  = [];
         $this->productosPrecioEscalaCambiado   = [];
+        $this->preciosCambioMostrado           = false;
+        $this->duplicarMismoClienteAlmacenado  = false;
     }
 
     // ─────────────────────────────────────────────────────────────────────
@@ -804,6 +915,7 @@ class ModalFlujoPedido extends Component
         $this->clienteDuplicarId               = null;
         $this->clienteDuplicarNombre           = '';
         $this->clienteDuplicarError            = '';
+        $this->clienteDuplicarEscalaConflicto  = [];
         $this->mensajeError                    = '';
         $this->productosPrecioEscalaCambiado   = [];
     }
@@ -843,12 +955,13 @@ class ModalFlujoPedido extends Component
 
     public function seleccionarClienteDuplicar(int $clienteId, string $clienteNombre): void
     {
-        $this->clienteDuplicarId             = $clienteId;
-        $this->clienteDuplicarNombre         = $clienteNombre;
-        $this->busquedaClienteDuplicar       = $clienteNombre;
-        $this->resultadosClienteDuplicar     = [];
-        $this->clienteDuplicarError          = '';
-        $this->productosPrecioEscalaCambiado = [];
+        $this->clienteDuplicarId               = $clienteId;
+        $this->clienteDuplicarNombre           = $clienteNombre;
+        $this->busquedaClienteDuplicar         = $clienteNombre;
+        $this->resultadosClienteDuplicar       = [];
+        $this->clienteDuplicarError            = '';
+        $this->clienteDuplicarEscalaConflicto  = [];
+        $this->productosPrecioEscalaCambiado   = [];
     }
 
     public function confirmarDuplicarOtroCliente(): void
@@ -859,15 +972,6 @@ class ModalFlujoPedido extends Component
         }
 
         $cotizacionId = (int) $this->ofertaSeleccionada['id'];
-
-        // Verificar si los precios del catálogo han cambiado
-        $productosConCambio = $this->obtenerProductosConPrecioEscalaCambiado($cotizacionId);
-        if (!empty($productosConCambio)) {
-            $this->productosPrecioEscalaCambiado = $productosConCambio;
-            $this->clienteDuplicarError = 'No se puede duplicar: los precios del catálogo han cambiado.';
-            return;
-        }
-        $this->productosPrecioEscalaCambiado = [];
 
         // Validar que el nuevo cliente tenga la misma categoría de precios que el cliente original
         $originalCategoriaId = DB::table('cotizacion as co')
@@ -900,10 +1004,31 @@ class ModalFlujoPedido extends Component
             $nombreClienteDestino  = $clienteDestino->nombre_cliente     ?? 'desconocido';
             $nombreCatDestino      = $clienteDestino->nombre_categoria   ?? 'sin categoría';
 
-            $this->clienteDuplicarError =
-                "No se puede duplicar: categorías de precios distintas. " .
-                "Cliente oferta: {$nombreClienteOrigen} (categoría: {$nombreCatOrigen}). " .
-                "Cliente destino: {$nombreClienteDestino} (categoría: {$nombreCatDestino}).";
+            // Obtener la escala (cliente_categoria_escala) de cada cliente
+            $escalaOrigen = DB::table('cliente as cl')
+                ->leftJoin('cliente_categoria_escala as cce', 'cce.id', '=', 'cl.cliente_categoria_escala_id')
+                ->join('cotizacion as co', 'co.cliente_id', '=', 'cl.id')
+                ->where('co.id', $cotizacionId)
+                ->select('cl.nombre as nombre_cliente', 'cce.nombre_categoria')
+                ->first();
+
+            $escalaDestino = DB::table('cliente as cl')
+                ->leftJoin('cliente_categoria_escala as cce', 'cce.id', '=', 'cl.cliente_categoria_escala_id')
+                ->where('cl.id', $this->clienteDuplicarId)
+                ->select('cl.nombre as nombre_cliente', 'cce.nombre_categoria')
+                ->first();
+
+            $this->clienteDuplicarEscalaConflicto = [
+                [
+                    'nombre'    => $escalaOrigen->nombre_cliente  ?? $nombreClienteOrigen,
+                    'categoria' => $escalaOrigen->nombre_categoria ?? 'Sin categoría',
+                ],
+                [
+                    'nombre'    => $escalaDestino->nombre_cliente  ?? $nombreClienteDestino,
+                    'categoria' => $escalaDestino->nombre_categoria ?? 'Sin categoría',
+                ],
+            ];
+            $this->clienteDuplicarError = 'escala_diferente';
             return;
         }
 
@@ -1379,31 +1504,53 @@ class ModalFlujoPedido extends Component
         if (!$this->ofertaSeleccionada) return;
 
         $cotizacionId = (int) $this->ofertaSeleccionada['id'];
+        $clienteId    = (int) ($this->ofertaSeleccionada['cliente_id'] ?? $this->pedidoData['cliente_id'] ?? 0);
 
-        $productosConCambio = $this->obtenerProductosConPrecioEscalaCambiado($cotizacionId);
-        if (!empty($productosConCambio)) {
-            $this->productosPrecioEscalaCambiado = $productosConCambio;
-            $this->mensajeError = 'No se puede duplicar: los precios del catálogo han cambiado.';
-            return;
+        // Primera llamada: verificar cambio de escala y mostrar aviso informativo (no bloquear)
+        if (!$this->preciosCambioMostrado && $mismoCliente) {
+            $cambios = $this->obtenerProductosCambioEscalaCliente($cotizacionId, $clienteId);
+            if (!empty($cambios)) {
+                $this->productosPrecioEscalaCambiado   = $cambios;
+                $this->preciosCambioMostrado           = true;
+                $this->duplicarMismoClienteAlmacenado  = $mismoCliente;
+                return;
+            }
         }
 
-        $this->mensajeError = '';
-        $this->clienteDuplicarError = '';
+        $this->mensajeError                  = '';
+        $this->clienteDuplicarError          = '';
         $this->productosPrecioEscalaCambiado = [];
+        $this->preciosCambioMostrado         = false;
+
+        $facturaCompletada = in_array(3, $this->flujoTipos) || in_array(5, $this->flujoTipos);
 
         // Construir URL base
         $url = '/proforma/cotizacion/2?from=flujo&cotizacionId=' . $cotizacionId;
 
         if ($mismoCliente) {
-            if (!empty($this->pedidoData) && empty($this->pedidoData['sin_pedido'])) {
-                $url .= '&pedidoId=' . (int) $this->pedidoData['id'];
-            } elseif ($this->flujoId) {
-                $url .= '&flujoId=' . $this->flujoId;
+            if ($facturaCompletada) {
+                // Flujo con factura: nuevo flujo para el mismo cliente con escala actual
+                $url .= '&clienteId=' . $clienteId;
+            } else {
+                // Sin factura: agregar oferta al mismo flujo
+                if (!empty($this->pedidoData) && empty($this->pedidoData['sin_pedido'])) {
+                    $url .= '&pedidoId=' . (int) $this->pedidoData['id'];
+                } elseif ($this->flujoId) {
+                    $url .= '&flujoId=' . $this->flujoId;
+                }
             }
         }
 
         $this->dispatchBrowserEvent('abrir-nueva-pestana', ['url' => $url]);
         $this->confirmAccionOferta = null;
+    }
+
+    public function confirmarDuplicarConNuevosPrecios(): void
+    {
+        $mismoCliente = $this->duplicarMismoClienteAlmacenado;
+        $this->preciosCambioMostrado         = false;
+        $this->productosPrecioEscalaCambiado = [];
+        $this->duplicarOferta($mismoCliente);
     }
 
     public function nuevaOferta(): void
@@ -1525,6 +1672,61 @@ class ModalFlujoPedido extends Component
             DB::rollBack();
             $this->mensajeError = 'Error al procesar vencimiento: ' . $e->getMessage();
         }
+    }
+
+    /**
+     * Compara los precios de cada producto de la cotización con la escala ACTUAL del cliente.
+     * Devuelve un array de productos donde el precio difiere entre la escala original y la actual.
+     */
+    private function obtenerProductosCambioEscalaCliente(int $cotizacionId, int $clienteId): array
+    {
+        // Comparar precio_a del ppc original vs precio_a vigente (estado_id=1)
+        // dentro de la misma categoria_precios y producto.
+        // Alerta si el precio subió (Escala Selec. < Escala Act.).
+        $lineas = DB::table('cotizacion_has_producto as chp')
+            ->leftJoin('precios_producto_carga as ppc', 'ppc.id', '=', 'chp.precios_producto_carga_id')
+            ->where('chp.cotizacion_id', $cotizacionId)
+            ->whereNotNull('chp.precios_producto_carga_id')
+            ->whereNotNull('ppc.producto_id')
+            ->whereNotNull('ppc.categoria_precios_id')
+            ->select(
+                'chp.nombre_producto',
+                'ppc.precio_a as precio_escala_seleccionada',
+                'ppc.producto_id',
+                'ppc.categoria_precios_id'
+            )
+            ->get();
+
+        if ($lineas->isEmpty()) return [];
+
+        $cambios = [];
+
+        foreach ($lineas as $l) {
+            $precioSel = round((float) ($l->precio_escala_seleccionada ?? 0), 4);
+            if ($precioSel <= 0) continue;
+
+            // Precio vigente para la misma escala y producto
+            $precioAct = DB::table('precios_producto_carga')
+                ->where('categoria_precios_id', (int) $l->categoria_precios_id)
+                ->where('producto_id', (int) $l->producto_id)
+                ->where('estado_id', 1)
+                ->value('precio_a');
+
+            if ($precioAct === null) continue;
+
+            $precioAct = round((float) $precioAct, 4);
+
+            // Solo alertar si el precio subió (Escala Selec. < Escala Act.)
+            if ($precioSel < $precioAct - 0.0001) {
+                $cambios[] = [
+                    'nombre_producto' => (string) ($l->nombre_producto ?? 'Sin nombre'),
+                    'precio_original' => $precioSel,
+                    'precio_nuevo'    => $precioAct,
+                ];
+            }
+        }
+
+        return $cambios;
     }
 
     /**

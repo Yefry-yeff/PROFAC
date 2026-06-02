@@ -131,6 +131,14 @@ class FacturacionUnificada extends Component
         // Cliente destino cuando se duplica para "Otro cliente"
         $clienteIdParam = request()->get('clienteId');
 
+        // Si se pasa clienteId, obtener su categoria_precios_id actual para re-resolver precios
+        $clienteCategoriaActualId = null;
+        if ($clienteIdParam) {
+            $clienteCategoriaActualId = DB::table('cliente')
+                ->where('id', (int) $clienteIdParam)
+                ->value('categoria_precios_id');
+        }
+
         // Cargar productos del duplicado para auto-agregar al carrito (cotizacionId)
         $cotizId = request()->get('cotizacionId');
         if ($cotizId) {
@@ -196,6 +204,10 @@ class FacturacionUnificada extends Component
                     $productosSinEscala[] = $prod['nombre_producto'] ?? ('Producto ID ' . ($prod['producto_id'] ?? 'N/A'));
                     continue;
                 }
+
+                // Se usa siempre la categoría seleccionada en la oferta original.
+                // El precio OPC refleja el precio_a vigente (estado_id=1) para esa misma categoría,
+                // sin sobreescribirse con la categoría actual del cliente.
 
                 $precioA = (float) ($ppcActivo->precio_a ?? 0);
                 $precioUnidadOriginal = isset($prod['precio_unidad']) ? (float) $prod['precio_unidad'] : 0;
