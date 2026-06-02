@@ -422,59 +422,6 @@
         {{-- ══════════ PESTAÑA 3 ══════════ --}}
         <div class="tab-pane fade" id="pane-adv" role="tabpanel">
 
-            {{-- Filtros P3 --}}
-            <div class="mb-3 border card card-body bg-light" id="adv-global-filtros">
-                <div class="row g-2 mb-2">
-                    <div class="col-md-2">
-                        <label class="small font-weight-bold">Fecha inicio</label>
-                        <input type="date" class="form-control form-control-sm" id="a-fi">
-                    </div>
-                    <div class="col-md-2">
-                        <label class="small font-weight-bold">Fecha fin</label>
-                        <input type="date" class="form-control form-control-sm" id="a-ff">
-                    </div>
-                    <div class="col-md-2">
-                        <label class="small font-weight-bold">Vendedor</label>
-                        <div wire:ignore>
-                        <select class="form-control form-control-sm" id="a-vendedor">
-                            <option value="">Todos</option>
-                            @foreach($vendedores as $v)
-                                <option value="{{ $v->id }}">{{ $v->name }}</option>
-                            @endforeach
-                        </select>
-                        </div>
-                    </div>
-                    <div class="col-md-2">
-                        <label class="small font-weight-bold">Tipo cliente</label>
-                        <select class="form-control form-control-sm" id="a-tipo-cliente">
-                            <option value="">Todos</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="row g-2">
-                    <div class="col-md-12 d-flex justify-content-end" style="gap:6px">
-                        <button class="btn btn-outline-secondary btn-sm" onclick="dashboardVentas.limpiarFiltrosAdv()">
-                            <i class="fas fa-times"></i> Limpiar
-                        </button>
-                        <button class="btn btn-primary btn-sm px-4" onclick="dashboardVentas.cargarAnalitica()">
-                            <i class="fas fa-search"></i> Consultar
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            {{-- Barra filtros activos P3 --}}
-            <div id="adv-active-filters" class="mb-2 bi-filter-bar d-none">
-                <div class="d-flex flex-wrap align-items-center" style="gap:6px">
-                    <i class="fas fa-filter text-primary mr-1"></i>
-                    <small class="font-weight-bold text-muted mr-1">Filtro activo:</small>
-                    <span id="adv-filter-badge-vend" class="badge badge-pill bi-badge" style="display:none"></span>
-                    <button class="btn btn-xs btn-outline-danger ml-1" onclick="dashboardVentas.limpiarFiltrosAdv()">
-                        <i class="fas fa-times mr-1"></i>Limpiar filtros
-                    </button>
-                </div>
-            </div>
-
             {{-- Sub-tabs analítica --}}
             <ul class="mb-3 nav nav-pills" id="adv-pills">
                 <li class="nav-item">
@@ -1019,7 +966,7 @@
                 <div class="tab-pane fade" id="pill-pane-comp">
                     {{-- Filtros comparación --}}
                     <div class="mb-3 border card card-body bg-light">
-                        <div class="row g-2 align-items-end">
+                        <div class="row g-2 mb-2">
                             <div class="col-md-2">
                                 <label class="small font-weight-bold">Fecha inicio</label>
                                 <input type="date" class="form-control form-control-sm" id="cmp-fi">
@@ -1028,14 +975,16 @@
                                 <label class="small font-weight-bold">Fecha fin</label>
                                 <input type="date" class="form-control form-control-sm" id="cmp-ff">
                             </div>
-                            <div class="col-md-6">
-                                <label class="small font-weight-bold">Seleccionar vendedores a comparar</label>
-                                <div id="cmp-vend-checks" class="d-flex flex-wrap py-1 border rounded bg-white px-2" style="gap:8px; min-height:38px; max-height:100px; overflow-y:auto;"></div>
-                            </div>
                             <div class="col-md-2 d-flex align-items-end">
                                 <button class="btn btn-primary btn-sm btn-block" onclick="dashboardVentas.cargarComparacion()">
                                     <i class="fas fa-exchange-alt"></i> Comparar
                                 </button>
+                            </div>
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-md-12">
+                                <label class="small font-weight-bold">Seleccionar vendedores a comparar</label>
+                                <div id="cmp-vend-checks" class="d-flex flex-wrap py-1 border rounded bg-white px-2" style="gap:8px; min-height:50px; max-height:130px; overflow-y:auto;"></div>
                             </div>
                         </div>
                     </div>
@@ -1067,24 +1016,15 @@
                         </div>
                     </div>
 
-                    {{-- Tabla comparación --}}
+                    {{-- Resumen escalas por vendedor (tabs) --}}
                     <div class="shadow-sm card">
-                        <div class="py-2 card-header"><span class="font-weight-bold">Resumen por Vendedor</span></div>
-                        <div class="p-2 card-body table-responsive">
-                            <table class="table table-bordered table-sm" id="tabla-comparacion" style="width:100%">
-                                <thead class="thead-dark">
-                                    <tr>
-                                        <th>Vendedor</th>
-                                        <th>Facturas</th>
-                                        <th>Clientes</th>
-                                        <th>Total Ventas</th>
-                                        <th>Ticket Prom.</th>
-                                        <th>Participación %</th>
-                                        <th>Mejor Mes</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="tbody-comparacion"></tbody>
-                            </table>
+                        <div class="py-2 card-header"><span class="font-weight-bold">Resumen por Vendedor — Escalas de Precio</span></div>
+                        <div class="card-body p-0">
+                            <div id="cmp-esc-empty" class="p-3 text-muted text-center small" style="display:none">
+                                Sin datos. Seleccione vendedores y presione Comparar.
+                            </div>
+                            <ul class="nav nav-tabs border-bottom px-3 pt-2" id="cmp-esc-tabs"></ul>
+                            <div class="tab-content px-3 pb-3" id="cmp-esc-content"></div>
                         </div>
                     </div>
                 </div>

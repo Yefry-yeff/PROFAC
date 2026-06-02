@@ -915,6 +915,7 @@ class DashboardVentas extends Component
             FROM users u
             INNER JOIN factura f ON f.vendedor = u.id
             WHERE f.estado_venta_id = 1
+              AND u.estado_id = 1
             ORDER BY u.name
         ");
 
@@ -1804,5 +1805,77 @@ class DashboardVentas extends Component
         }
 
         return response()->json($rows);
+    }
+
+    // ─── COMPARAR: escalas por vendedor ────────────────────────────────────
+    public function escalasComparacion(Request $request)
+    {
+        $fi           = $request->fecha_inicio ?? date('Y-01-01');
+        $ff           = $request->fecha_final  ?? date('Y-m-d');
+        $vendedoresRaw = $request->vendedores  ?? '';
+
+        if (!$vendedoresRaw) return response()->json([]);
+
+        if (is_array($vendedoresRaw)) {
+            $ids = array_filter(array_map('intval', $vendedoresRaw));
+        } else {
+            $ids = array_filter(array_map('intval', explode(',', $vendedoresRaw)));
+        }
+        if (empty($ids)) return response()->json([]);
+
+        $inIds = implode(',', $ids);
+        $escalaNombreExpr = $this->categoriaPreciosLabelExpr('cpesc');
+
+        $rows = DB::SELECT("
+            SELECT
+                u.id                                             AS vendedor_id,
+                u.name                                           AS vendedor,
+                COALESCE(cpesc.id, 0)                            AS escala_id,
+                COALESCE($escalaNombreExpr, 'Sin categoría')     AS escala,
+                COUNT(DISTINCT f.id)                             AS facturas,
+                COALESCE(SUM(vhp.sub_total_s), 0)               AS total_sin_isv
+            FROM factura f
+            INNER JOIN users u                   ON u.id  = f.vendedor
+            INNER JOIN venta_has_producto vhp    ON vhp.factura_id = f.id
+            LEFT  JOIN precios_producto_carga ppc ON ppc.id = vhp.precios_producto_carga_id
+            LEFT  JOIN categoria_precios cpesc   ON cpesc.id = ppc.categoria_precios_id
+            WHERE f.estado_venta_id = 1
+              AND f.fecha_emision BETWEEN '$fi' AND '$ff'
+              AND f.vendedor IN ($inIds)
+            GROUP BY u.id, u.name, cpesc.id, $escalaNombreExpr
+            ORDER BY u.name, total_sin_isv DESC
+        ");
+
+        /* Agrupar por vendedor y calcular porcentaje */
+        $byVend = [];
+        foreach ($rows as $r) {
+            $vid = $r->vendedor_id;
+            if (!isset($byVend[$vid])) {
+                $byVend[$vid] = [
+                    'vendedor_id' => $vid,
+                    'vendedor'    => $r->vendedor,
+                    'total'       => 0,
+                    'escalas'     => [],
+                ];
+            }
+            $byVend[$vid]['total'] += (float)$r->total_sin_isv;
+            $byVend[$vid]['escalas'][] = [
+                'escala_id'    => (int)$r->escala_id,
+                'escala'       => $r->escala,
+                'facturas'     => (int)$r->facturas,
+                'total_sin_isv' => round((float)$r->total_sin_isv, 2),
+            ];
+        }
+
+        foreach ($byVend as &$vd) {
+            $vd['total'] = round($vd['total'], 2);
+            foreach ($vd['escalas'] as &$esc) {
+                $esc['pct'] = $vd['total'] > 0
+                    ? round($esc['total_sin_isv'] / $vd['total'] * 100, 1)
+                    : 0;
+            }
+        }
+
+        return response()->json(array_values($byVend));
     }
 }

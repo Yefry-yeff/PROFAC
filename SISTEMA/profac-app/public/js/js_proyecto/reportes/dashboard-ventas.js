@@ -2234,7 +2234,6 @@ var dashboardVentas = (function () {
             _renderCmpKpis(rows);
             _renderCmpTotal(rows);
             _renderCmpPart(rows);
-            _renderTablaComparacion(rows, fi, ff);
         });
 
         /* Evolución mensual */
@@ -2244,6 +2243,85 @@ var dashboardVentas = (function () {
             vendedores:   ids
         }).then(function (rows) {
             _renderCmpEvolucion(rows, ids);
+        });
+
+        /* Escalas por vendedor */
+        $.get('/reporte/dashboard/escalas-comparacion', {
+            fecha_inicio: fi,
+            fecha_final:  ff,
+            vendedores:   ids.join(',')
+        }).then(function (vendors) {
+            _renderResumenEscalas(vendors);
+        });
+    }
+
+    function _renderResumenEscalas(vendors) {
+        var $tabs    = $('#cmp-esc-tabs').empty();
+        var $content = $('#cmp-esc-content').empty();
+        var $empty   = $('#cmp-esc-empty');
+
+        if (!vendors || !vendors.length) {
+            $empty.show();
+            return;
+        }
+        $empty.hide();
+
+        vendors.forEach(function (vd, i) {
+            var color   = COLORES[i % COLORES.length];
+            var tabId   = 'cmp-esc-tab-' + i;
+            var paneId  = 'cmp-esc-pane-' + i;
+            var active  = i === 0 ? ' active show' : '';
+            var ariaSelected = i === 0 ? 'true' : 'false';
+
+            /* Tab */
+            $tabs.append(
+                '<li class="nav-item">' +
+                '<a class="nav-link' + (i === 0 ? ' active' : '') + '" id="' + tabId + '"' +
+                ' data-toggle="tab" href="#' + paneId + '" role="tab" aria-selected="' + ariaSelected + '"' +
+                ' style="font-weight:700; color:' + color + '">' +
+                vd.vendedor +
+                '</a></li>'
+            );
+
+            /* Tabla de escalas */
+            var rows = '';
+            vd.escalas.forEach(function (esc) {
+                var barWidth = Math.max(esc.pct, 2);
+                rows +=
+                    '<tr>' +
+                    '<td class="font-weight-bold">' + esc.escala + '</td>' +
+                    '<td class="text-right">' + esc.facturas + '</td>' +
+                    '<td class="text-right font-weight-bold">' + fmt(esc.total_sin_isv) + '</td>' +
+                    '<td style="min-width:120px">' +
+                    '<div style="background:#e9ecef;border-radius:4px;overflow:hidden;height:16px">' +
+                    '<div style="width:' + barWidth + '%;background:' + color + ';height:100%;border-radius:4px;transition:width .4s"></div>' +
+                    '</div>' +
+                    '<small class="text-muted ml-1">' + esc.pct + '%</small>' +
+                    '</td>' +
+                    '</tr>';
+            });
+
+            /* Total row */
+            rows +=
+                '<tr class="font-weight-bold" style="border-top:2px solid ' + color + '">' +
+                '<td>TOTAL</td><td class="text-right">' + vd.escalas.reduce(function(s,e){return s+e.facturas;},0) + '</td>' +
+                '<td class="text-right">' + fmt(vd.total) + '</td>' +
+                '<td><small class="text-muted">100%</small></td>' +
+                '</tr>';
+
+            $content.append(
+                '<div class="tab-pane fade' + active + '" id="' + paneId + '" role="tabpanel">' +
+                '<div class="table-responsive mt-3">' +
+                '<table class="table table-sm table-bordered">' +
+                '<thead class="thead-dark"><tr>' +
+                '<th>Escala de Precio</th>' +
+                '<th class="text-right">Facturas</th>' +
+                '<th class="text-right">Facturación sin ISV</th>' +
+                '<th>Participación</th>' +
+                '</tr></thead>' +
+                '<tbody>' + rows + '</tbody>' +
+                '</table></div></div>'
+            );
         });
     }
 
