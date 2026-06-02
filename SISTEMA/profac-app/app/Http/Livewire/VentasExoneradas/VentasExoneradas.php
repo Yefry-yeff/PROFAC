@@ -105,22 +105,31 @@ class VentasExoneradas extends Component
 
         $validator = Validator::make($request->all(), [
 
-            'fecha_vencimiento' => 'required',
-            'numero_venta' => 'required',
-            'subTotalGeneral' => 'required',
-            'isvGeneral' => 'required',
-            'totalGeneral' => 'required',
-            'arregloIdInputs' => 'required',
-            'numeroInputs' => 'required',
-            'seleccionarCliente' => 'required',
-            'nombre_cliente_ventas' => 'required',
-            'tipoPagoVenta' => 'required',
-            'restriccion' => 'required',
-            'tipo_venta_id'=>'required|integer|between:3,3',
-            'codigo'=>'required'
+            'fecha_vencimiento'    => 'required',
+            'numero_venta'         => 'required',
+            'subTotalGeneral'      => 'required',
+            'isvGeneral'           => 'required',
+            'totalGeneral'         => 'required',
+            'arregloIdInputs'      => 'required',
+            'numeroInputs'         => 'required',
+            'seleccionarCliente'   => 'required',
+            'nombre_cliente_ventas'=> 'required',
+            'tipoPagoVenta'        => 'required',
+            'restriccion'          => 'required',
+            'tipo_venta_id'        => 'required|integer|between:3,3',
+            'codigo'               => 'required',
 
-
-
+        ], [
+            'codigo.required'               => 'Debe seleccionar el Código de Exoneración.',
+            'seleccionarCliente.required'   => 'Debe seleccionar un Cliente.',
+            'nombre_cliente_ventas.required'=> 'El nombre del cliente es obligatorio.',
+            'tipoPagoVenta.required'        => 'Debe seleccionar el Tipo de Pago.',
+            'fecha_vencimiento.required'    => 'La fecha de vencimiento es obligatoria.',
+            'subTotalGeneral.required'      => 'El sub-total es obligatorio. Agregue al menos un producto.',
+            'totalGeneral.required'         => 'El total es obligatorio. Agregue al menos un producto.',
+            'restriccion.required'          => 'El campo restricción es obligatorio.',
+            'tipo_venta_id.required'        => 'El tipo de venta no es válido.',
+            'tipo_venta_id.between'         => 'El tipo de venta debe ser Exonerada.',
         ]);
 
 

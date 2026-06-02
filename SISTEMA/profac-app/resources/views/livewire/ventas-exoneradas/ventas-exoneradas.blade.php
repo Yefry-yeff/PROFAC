@@ -1321,6 +1321,28 @@
                 }
             function guardarVenta() {
 
+                // ── Validaciones previas al envío ──
+                var codigoEl = document.getElementById('codigo');
+                if (!codigoEl || !codigoEl.value) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: '\u00a1Campo obligatorio!',
+                        text: 'Debe seleccionar el C\u00f3digo de Exoneración antes de guardar la venta.'
+                    });
+                    return;
+                }
+
+                var clienteEl = document.getElementById('seleccionarCliente');
+                if (!clienteEl || !clienteEl.value) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: '\u00a1Campo obligatorio!',
+                        text: 'Debe seleccionar un Cliente antes de guardar la venta.'
+                    });
+                    return;
+                }
+                // ── Fin validaciones previas ──
+
                 document.getElementById("btn_venta_coorporativa").disabled = true;
 
                 var data = new FormData($('#crear_venta').get(0));
@@ -1437,12 +1459,23 @@
                     })
                     .catch(err => {
                         document.getElementById("btn_venta_coorporativa").disabled = false;
-                        let data = err.response.data;
+                        let data = err.response && err.response.data ? err.response.data : {};
                         console.log(err);
+
+                        // Si el servidor devolvió errores de validación detallados, mostrarlos
+                        var msgText = data.text || 'Ha ocurrido un error al guardar la venta.';
+                        if (data.errors) {
+                            var errMsgs = [];
+                            $.each(data.errors, function(field, msgs) {
+                                errMsgs.push(Array.isArray(msgs) ? msgs[0] : msgs);
+                            });
+                            if (errMsgs.length) msgText = errMsgs.join('<br>');
+                        }
+
                         Swal.fire({
-                            icon: data.icon,
-                            title: data.title,
-                            text: data.text
+                            icon: data.icon || 'error',
+                            title: data.title || '\u00a1Error!',
+                            html: msgText
                         })
                     })
             }
