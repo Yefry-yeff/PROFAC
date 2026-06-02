@@ -205,20 +205,9 @@ class FacturacionUnificada extends Component
                     continue;
                 }
 
-                // Si el cliente tiene una categoría distinta a la original, re-resolver con su escala actual
-                if ($clienteCategoriaActualId && (int) $ppcActivo->categoria_precios_id !== (int) $clienteCategoriaActualId) {
-                    $ppcClienteActual = DB::table('precios_producto_carga as ppc')
-                        ->leftJoin('categoria_precios as cp', 'cp.id', '=', 'ppc.categoria_precios_id')
-                        ->where('ppc.producto_id', (int) $ppcActivo->producto_id)
-                        ->where('ppc.categoria_precios_id', (int) $clienteCategoriaActualId)
-                        ->where('ppc.estado_id', 1)
-                        ->orderByDesc('ppc.id')
-                        ->select('ppc.id', 'ppc.precio_a', 'ppc.producto_id', 'ppc.categoria_precios_id', 'cp.nombre as categoria_nombre')
-                        ->first();
-                    if ($ppcClienteActual) {
-                        $ppcActivo = $ppcClienteActual;
-                    }
-                }
+                // Se usa siempre la categoría seleccionada en la oferta original.
+                // El precio OPC refleja el precio_a vigente (estado_id=1) para esa misma categoría,
+                // sin sobreescribirse con la categoría actual del cliente.
 
                 $precioA = (float) ($ppcActivo->precio_a ?? 0);
                 $precioUnidadOriginal = isset($prod['precio_unidad']) ? (float) $prod['precio_unidad'] : 0;
