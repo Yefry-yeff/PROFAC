@@ -1262,6 +1262,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/reporte/dashboard/ventas-por-mes',          [DashboardVentas::class,'ventasPorMes']);
     Route::get('/reporte/dashboard/heatmap',                 [DashboardVentas::class,'heatmap']);
     Route::get('/reporte/dashboard/ventas-semanales',        [DashboardVentas::class,'ventasSemanales']);
+    Route::get('/reporte/dashboard/ventas-semanales/export', [DashboardVentas::class,'exportarDetalleSemanal']);
     Route::get('/reporte/dashboard/resumen-semanal',         [DashboardVentas::class,'resumenSemanal']);
     Route::get('/reporte/dashboard/top-vendedores',          [DashboardVentas::class,'topVendedores']);
     Route::get('/reporte/dashboard/top-clientes',            [DashboardVentas::class,'topClientes']);
@@ -1275,6 +1276,13 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/reporte/dashboard/detalle-producto-facturas', [DashboardVentas::class,'detalleProductoFacturas']);
     Route::get('/reporte/dashboard/productos-analitica',     [DashboardVentas::class,'productosAnalitica']);
     Route::get('/reporte/dashboard/ventas-mes-vendedores',   [DashboardVentas::class,'ventasMesVendedores']);
+    Route::get('/reporte/dashboard/escalas-comparacion',         [DashboardVentas::class,'escalasComparacion']);
+    Route::get('/reporte/dashboard/facturas-comparacion',         [DashboardVentas::class,'facturasComparacion']);
+    Route::get('/reporte/dashboard/productos-factura-comparacion',[DashboardVentas::class,'productosFacturaComparacion']);
+    Route::get('/reporte/dashboard/top-tele-asesores',              [DashboardVentas::class,'topTeleAsesores']);
+    Route::get('/reporte/dashboard/ventas-mes-tele-asesores',       [DashboardVentas::class,'ventasMesTeleAsesores']);
+    Route::get('/reporte/dashboard/escalas-comparacion-tla',        [DashboardVentas::class,'escalasComparacionTla']);
+    Route::get('/reporte/dashboard/facturas-comparacion-tla',       [DashboardVentas::class,'facturasComparacionTla']);
     Route::get('/reporte/dashboard/evolucion-clientes',      [DashboardVentas::class,'evolucionClientes']);
     Route::get('/reporte/dashboard/evolucion-cantidad-cli',   [DashboardVentas::class,'evolucionCantidadCli']);
     Route::get('/reporte/dashboard/top-productos-cli',        [DashboardVentas::class,'topProductosCli']);

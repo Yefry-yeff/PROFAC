@@ -54,7 +54,7 @@
                         <div id="h-anios-pills" class="d-flex flex-wrap py-1" style="gap:4px; min-height:34px; align-items:flex-start;"></div>
                     </div>
                     <div class="col-md-3">
-                        <label class="small font-weight-bold">Vendedor</label>
+                        <label class="small font-weight-bold">Asesor Comercial</label>
                         <div wire:ignore>
                         <select class="form-control form-control-sm" id="h-vendedor">
                             <option value="">Todos</option>
@@ -86,9 +86,17 @@
             {{-- KPI Cards P1 --}}
             <div class="mb-3 row" id="kpi-cards">
                 <div class="mb-2 col-6 col-md-3">
+                    <div class="card kpi-card border-left-info h-100">
+                        <div class="px-3 py-2 card-body">
+                            <div class="mb-1 text-xs font-weight-bold text-info text-uppercase">Facturación sin ISV</div>
+                            <div class="mb-0 h5 font-weight-bold" id="kpi-sin-isv">—</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-2 col-6 col-md-3">
                     <div class="card kpi-card border-left-primary h-100">
                         <div class="px-3 py-2 card-body">
-                            <div class="mb-1 text-xs font-weight-bold text-primary text-uppercase">Total Vendido</div>
+                            <div class="mb-1 text-xs font-weight-bold text-primary text-uppercase">Facturación con ISV</div>
                             <div class="mb-0 h5 font-weight-bold" id="kpi-total">—</div>
                         </div>
                     </div>
@@ -98,14 +106,6 @@
                         <div class="px-3 py-2 card-body">
                             <div class="mb-1 text-xs font-weight-bold text-success text-uppercase">Facturas</div>
                             <div class="mb-0 h5 font-weight-bold" id="kpi-facturas">—</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="mb-2 col-6 col-md-3">
-                    <div class="card kpi-card border-left-info h-100">
-                        <div class="px-3 py-2 card-body">
-                            <div class="mb-1 text-xs font-weight-bold text-info text-uppercase">Venta Promedio</div>
-                            <div class="mb-0 h5 font-weight-bold" id="kpi-ticket">—</div>
                         </div>
                     </div>
                 </div>
@@ -136,7 +136,7 @@
                 <div class="mb-2 col-6 col-md-3">
                     <div class="card kpi-card border-left-primary h-100">
                         <div class="px-3 py-2 card-body">
-                            <div class="mb-1 text-xs font-weight-bold text-primary text-uppercase">Mejor Vendedor</div>
+                            <div class="mb-1 text-xs font-weight-bold text-primary text-uppercase">Mejor Asesor Comercial</div>
                             <div class="mb-0 h5 font-weight-bold" id="kpi-mejor-vend">—</div>
                         </div>
                     </div>
@@ -222,7 +222,7 @@
                         <input type="date" class="form-control form-control-sm" id="s-ff">
                     </div>
                     <div class="col-md-2">
-                        <label class="small font-weight-bold">Vendedor</label>
+                        <label class="small font-weight-bold">Asesor Comercial</label>
                         <div wire:ignore>
                         <select class="form-control form-control-sm" id="s-vendedor">
                             <option value="">Todos</option>
@@ -254,9 +254,17 @@
             {{-- KPI Cards P2 --}}
             <div class="mb-3 row" id="kpi-sem">
                 <div class="mb-2 col-6 col-md-3">
+                    <div class="card kpi-card border-left-info h-100">
+                        <div class="px-3 py-2 card-body">
+                            <div class="mb-1 text-xs font-weight-bold text-info text-uppercase">Facturación sin ISV</div>
+                            <div class="mb-0 h5 font-weight-bold" id="s-kpi-sin-isv">—</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-2 col-6 col-md-3">
                     <div class="card kpi-card border-left-primary h-100">
                         <div class="px-3 py-2 card-body">
-                            <div class="mb-1 text-xs font-weight-bold text-primary text-uppercase">Total Período</div>
+                            <div class="mb-1 text-xs font-weight-bold text-primary text-uppercase">Facturación con ISV</div>
                             <div class="mb-0 h5 font-weight-bold" id="s-kpi-total">—</div>
                         </div>
                     </div>
@@ -266,14 +274,6 @@
                         <div class="px-3 py-2 card-body">
                             <div class="mb-1 text-xs font-weight-bold text-success text-uppercase">Facturas</div>
                             <div class="mb-0 h5 font-weight-bold" id="s-kpi-facturas">—</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="mb-2 col-6 col-md-3">
-                    <div class="card kpi-card border-left-info h-100">
-                        <div class="px-3 py-2 card-body">
-                            <div class="mb-1 text-xs font-weight-bold text-info text-uppercase">Venta Promedio</div>
-                            <div class="mb-0 h5 font-weight-bold" id="s-kpi-ticket">—</div>
                         </div>
                     </div>
                 </div>
@@ -288,7 +288,7 @@
                 <div class="mb-2 col-6 col-md-3">
                     <div class="card kpi-card border-left-danger h-100">
                         <div class="px-3 py-2 card-body">
-                            <div class="mb-1 text-xs font-weight-bold text-danger text-uppercase">Mejor Vendedor</div>
+                            <div class="mb-1 text-xs font-weight-bold text-danger text-uppercase">Mejor Asesor Comercial</div>
                             <div class="mb-0 h5 font-weight-bold" id="s-kpi-vend">—</div>
                         </div>
                     </div>
@@ -344,8 +344,8 @@
                 <div class="col-12">
                     <div class="shadow-sm card bi-clickable-chart">
                         <div class="py-2 card-header d-flex justify-content-between align-items-center">
-                            <span class="font-weight-bold"><i class="fas fa-medal mr-1"></i> Top Vendedores del Período</span>
-                            <small class="text-muted">Clic para filtrar por vendedor</small>
+                            <span class="font-weight-bold"><i class="fas fa-medal mr-1"></i> Top Asesores Comerciales del Período</span>
+                            <small class="text-muted">Clic para filtrar por asesor comercial</small>
                         </div>
                         <div class="p-2 card-body"><div id="chart-ranking-vend-sem" style="min-height:300px"></div></div>
                     </div>
@@ -357,7 +357,7 @@
                 <div class="col-12">
                     <div class="shadow-sm card bi-clickable-chart">
                         <div class="py-2 px-3 card-header d-flex flex-wrap justify-content-between align-items-center" style="gap:8px">
-                            <span class="font-weight-bold"><i class="fas fa-chart-bar mr-1"></i> Crecimiento por Vendedor</span>
+                            <span class="font-weight-bold"><i class="fas fa-chart-bar mr-1"></i> Crecimiento por Asesor Comercial</span>
                             <div class="d-flex align-items-center flex-wrap" style="gap:6px">
                                 <small class="text-muted mr-1">Comparar con:</small>
                                 <input type="date" class="form-control form-control-sm" id="crec-fi" style="width:140px">
@@ -380,7 +380,7 @@
                     <div class="shadow-sm card">
                         <div class="py-2 card-header d-flex justify-content-between align-items-center">
                             <span class="font-weight-bold"><i class="fas fa-star mr-1 text-warning"></i> Top 5 Clientes del Período</span>
-                            <small class="text-muted" id="top-cli-sem-label">Todos los vendedores</small>
+                            <small class="text-muted" id="top-cli-sem-label">Todos los asesores comerciales</small>
                         </div>
                         <div class="p-2 card-body"><div id="chart-top-cli-sem" style="min-height:280px"></div></div>
                     </div>
@@ -389,7 +389,12 @@
 
             {{-- Tabla semanal --}}
             <div class="shadow-sm card">
-                <div class="py-2 card-header"><span class="font-weight-bold">Detalle de Facturas</span></div>
+                <div class="py-2 card-header d-flex align-items-center justify-content-between">
+                    <span class="font-weight-bold">Detalle de Facturas</span>
+                    <button class="btn btn-sm btn-success" onclick="dashboardVentas.exportarDetalleSemanal()">
+                        <i class="fas fa-file-excel mr-1"></i>Excel
+                    </button>
+                </div>
                 <div class="p-2 card-body table-responsive">
                     <table class="table table-striped table-bordered table-sm" id="tabla-semanal" style="width:100%">
                         <thead class="thead-dark">
@@ -399,7 +404,7 @@
                                 <th>Semana</th>
                                 <th>Documento</th>
                                 <th>Cliente</th>
-                                <th>Vendedor</th>
+                                <th>Asesor Comercial</th>
                                 <th>Tipo</th>
                                 <th>Subtotal</th>
                                 <th>ISV</th>
@@ -417,64 +422,11 @@
         {{-- ══════════ PESTAÑA 3 ══════════ --}}
         <div class="tab-pane fade" id="pane-adv" role="tabpanel">
 
-            {{-- Filtros P3 --}}
-            <div class="mb-3 border card card-body bg-light" id="adv-global-filtros">
-                <div class="row g-2 mb-2">
-                    <div class="col-md-2">
-                        <label class="small font-weight-bold">Fecha inicio</label>
-                        <input type="date" class="form-control form-control-sm" id="a-fi">
-                    </div>
-                    <div class="col-md-2">
-                        <label class="small font-weight-bold">Fecha fin</label>
-                        <input type="date" class="form-control form-control-sm" id="a-ff">
-                    </div>
-                    <div class="col-md-2">
-                        <label class="small font-weight-bold">Vendedor</label>
-                        <div wire:ignore>
-                        <select class="form-control form-control-sm" id="a-vendedor">
-                            <option value="">Todos</option>
-                            @foreach($vendedores as $v)
-                                <option value="{{ $v->id }}">{{ $v->name }}</option>
-                            @endforeach
-                        </select>
-                        </div>
-                    </div>
-                    <div class="col-md-2">
-                        <label class="small font-weight-bold">Tipo cliente</label>
-                        <select class="form-control form-control-sm" id="a-tipo-cliente">
-                            <option value="">Todos</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="row g-2">
-                    <div class="col-md-12 d-flex justify-content-end" style="gap:6px">
-                        <button class="btn btn-outline-secondary btn-sm" onclick="dashboardVentas.limpiarFiltrosAdv()">
-                            <i class="fas fa-times"></i> Limpiar
-                        </button>
-                        <button class="btn btn-primary btn-sm px-4" onclick="dashboardVentas.cargarAnalitica()">
-                            <i class="fas fa-search"></i> Consultar
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            {{-- Barra filtros activos P3 --}}
-            <div id="adv-active-filters" class="mb-2 bi-filter-bar d-none">
-                <div class="d-flex flex-wrap align-items-center" style="gap:6px">
-                    <i class="fas fa-filter text-primary mr-1"></i>
-                    <small class="font-weight-bold text-muted mr-1">Filtro activo:</small>
-                    <span id="adv-filter-badge-vend" class="badge badge-pill bi-badge" style="display:none"></span>
-                    <button class="btn btn-xs btn-outline-danger ml-1" onclick="dashboardVentas.limpiarFiltrosAdv()">
-                        <i class="fas fa-times mr-1"></i>Limpiar filtros
-                    </button>
-                </div>
-            </div>
-
             {{-- Sub-tabs analítica --}}
             <ul class="mb-3 nav nav-pills" id="adv-pills">
                 <li class="nav-item">
                     <a class="nav-link active" id="pill-vend" data-toggle="pill" href="#pill-pane-vend">
-                        <i class="mr-1 fas fa-user-tie"></i>Vendedores
+                        <i class="mr-1 fas fa-user-tie"></i>Asesores Comerciales
                     </a>
                 </li>
                 <li class="nav-item">
@@ -494,7 +446,12 @@
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" id="pill-comp" data-toggle="pill" href="#pill-pane-comp">
-                        <i class="mr-1 fas fa-balance-scale"></i>Comparar Vendedores
+                        <i class="mr-1 fas fa-balance-scale"></i>Comparar Asesores Comerciales
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" id="pill-tla" data-toggle="pill" href="#pill-pane-tla">
+                        <i class="mr-1 fas fa-headset"></i>Tele-Asesor
                     </a>
                 </li>
             </ul>
@@ -506,7 +463,7 @@
                     <div class="mb-3 row">
                         <div class="col-md-5">
                             <div class="shadow-sm card">
-                                <div class="py-2 card-header"><span class="font-weight-bold">Ranking Vendedores (Total)</span></div>
+                                <div class="py-2 card-header"><span class="font-weight-bold">Ranking Asesores Comerciales (Total)</span></div>
                                 <div class="p-2 card-body"><div id="chart-rank-vend" style="min-height:300px"></div></div>
                             </div>
                         </div>
@@ -519,7 +476,7 @@
                     </div>
                     <div class="shadow-sm card">
                         <div class="py-2 card-header d-flex justify-content-between align-items-center">
-                            <span class="font-weight-bold">Tabla Vendedores</span>
+                            <span class="font-weight-bold">Tabla Asesores Comerciales</span>
                             <button class="btn btn-sm btn-success" onclick="dashboardVentas.exportarExcel()">
                                 <i class="fas fa-file-excel"></i> Excel + Gráficas
                             </button>
@@ -529,7 +486,7 @@
                                 <thead class="thead-dark">
                                     <tr>
                                         <th>#</th>
-                                        <th>Vendedor</th>
+                                        <th>Asesor Comercial</th>
                                         <th>Facturas</th>
                                         <th>Clientes</th>
                                         <th>Total Ventas</th>
@@ -889,7 +846,7 @@
                         </div>
                         <div class="col-md-6">
                             <div class="shadow-sm card">
-                                <div class="py-2 card-header"><span class="font-weight-bold"><i class="fas fa-user-tie mr-1 text-primary"></i>Top Vendedores que mueven este producto</span></div>
+                                <div class="py-2 card-header"><span class="font-weight-bold"><i class="fas fa-user-tie mr-1 text-primary"></i>Top Asesores Comerciales que mueven este producto</span></div>
                                 <div class="p-2 card-body"><div id="chart-prod-top-vendedores" style="min-height:320px"></div></div>
                             </div>
                         </div>
@@ -916,7 +873,7 @@
                                         <th>Fecha</th>
                                         <th>Cliente</th>
                                         <th>Escala</th>
-                                        <th>Vendedor</th>
+                                        <th>Asesor Comercial</th>
                                         <th>Producto</th>
                                         <th class="text-right">Cantidad</th>
                                         <th class="text-right">Precio base venta</th>
@@ -992,7 +949,7 @@
                                         <th>Fecha</th>
                                         <th>Cliente</th>
                                         <th>Escala</th>
-                                        <th>Vendedor</th>
+                                        <th>Asesor Comercial</th>
                                         <th>Código</th>
                                         <th>Producto</th>
                                         <th class="text-right">Cantidad</th>
@@ -1014,7 +971,7 @@
                 <div class="tab-pane fade" id="pill-pane-comp">
                     {{-- Filtros comparación --}}
                     <div class="mb-3 border card card-body bg-light">
-                        <div class="row g-2 align-items-end">
+                        <div class="row g-2 mb-2">
                             <div class="col-md-2">
                                 <label class="small font-weight-bold">Fecha inicio</label>
                                 <input type="date" class="form-control form-control-sm" id="cmp-fi">
@@ -1023,14 +980,16 @@
                                 <label class="small font-weight-bold">Fecha fin</label>
                                 <input type="date" class="form-control form-control-sm" id="cmp-ff">
                             </div>
-                            <div class="col-md-6">
-                                <label class="small font-weight-bold">Seleccionar vendedores a comparar</label>
-                                <div id="cmp-vend-checks" class="d-flex flex-wrap py-1 border rounded bg-white px-2" style="gap:8px; min-height:38px; max-height:100px; overflow-y:auto;"></div>
-                            </div>
                             <div class="col-md-2 d-flex align-items-end">
                                 <button class="btn btn-primary btn-sm btn-block" onclick="dashboardVentas.cargarComparacion()">
                                     <i class="fas fa-exchange-alt"></i> Comparar
                                 </button>
+                            </div>
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-md-12">
+                                <label class="small font-weight-bold">Seleccionar asesores comerciales a comparar</label>
+                                <div id="cmp-vend-checks" class="d-flex flex-wrap py-1 border rounded bg-white px-2" style="gap:8px; min-height:50px; max-height:130px; overflow-y:auto;"></div>
                             </div>
                         </div>
                     </div>
@@ -1042,7 +1001,7 @@
                     <div class="mb-3 row">
                         <div class="col-12">
                             <div class="shadow-sm card">
-                                <div class="py-2 card-header"><span class="font-weight-bold"><i class="fas fa-chart-line mr-1"></i> Evolución Mensual por Vendedor</span></div>
+                                <div class="py-2 card-header"><span class="font-weight-bold"><i class="fas fa-chart-line mr-1"></i> Evolución Mensual por Asesor Comercial</span></div>
                                 <div class="p-2 card-body"><div id="chart-cmp-evolucion" style="min-height:380px"></div></div>
                             </div>
                         </div>
@@ -1062,24 +1021,82 @@
                         </div>
                     </div>
 
-                    {{-- Tabla comparación --}}
+                    {{-- Resumen escalas por vendedor (tabs) --}}
                     <div class="shadow-sm card">
-                        <div class="py-2 card-header"><span class="font-weight-bold">Resumen por Vendedor</span></div>
-                        <div class="p-2 card-body table-responsive">
-                            <table class="table table-bordered table-sm" id="tabla-comparacion" style="width:100%">
-                                <thead class="thead-dark">
-                                    <tr>
-                                        <th>Vendedor</th>
-                                        <th>Facturas</th>
-                                        <th>Clientes</th>
-                                        <th>Total Ventas</th>
-                                        <th>Ticket Prom.</th>
-                                        <th>Participación %</th>
-                                        <th>Mejor Mes</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="tbody-comparacion"></tbody>
-                            </table>
+                        <div class="py-2 card-header"><span class="font-weight-bold">Resumen por Asesor Comercial — Escalas de Precio</span></div>
+                        <div class="card-body p-0">
+                            <div id="cmp-esc-empty" class="p-3 text-muted text-center small" style="display:none">
+                                Sin datos. Seleccione asesores comerciales y presione Comparar.
+                            </div>
+                            <ul class="nav nav-tabs border-bottom px-3 pt-2" id="cmp-esc-tabs"></ul>
+                            <div class="tab-content px-3 pb-3" id="cmp-esc-content"></div>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- TELE-ASESOR --}}
+                <div class="tab-pane fade" id="pill-pane-tla">
+                    {{-- Filtros --}}
+                    <div class="mb-3 border card card-body bg-light">
+                        <div class="row g-2 mb-2">
+                            <div class="col-md-2">
+                                <label class="small font-weight-bold">Fecha inicio</label>
+                                <input type="date" class="form-control form-control-sm" id="tla-fi">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="small font-weight-bold">Fecha fin</label>
+                                <input type="date" class="form-control form-control-sm" id="tla-ff">
+                            </div>
+                            <div class="col-md-2 d-flex align-items-end">
+                                <button class="btn btn-primary btn-sm btn-block" onclick="dashboardVentas.cargarComparacionTla()">
+                                    <i class="fas fa-headset"></i> Comparar
+                                </button>
+                            </div>
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-md-12">
+                                <label class="small font-weight-bold">Seleccionar tele-asesores a comparar</label>
+                                <div id="tla-vend-checks" class="d-flex flex-wrap py-1 border rounded bg-white px-2" style="gap:8px; min-height:50px; max-height:130px; overflow-y:auto;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- KPI cards --}}
+                    <div class="mb-3 row" id="tla-kpi-cards"></div>
+
+                    {{-- Gráficas --}}
+                    <div class="mb-3 row">
+                        <div class="col-12">
+                            <div class="shadow-sm card">
+                                <div class="py-2 card-header"><span class="font-weight-bold"><i class="fas fa-chart-line mr-1"></i> Evolución Mensual por Tele-Asesor</span></div>
+                                <div class="p-2 card-body"><div id="chart-tla-evolucion" style="min-height:380px"></div></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3 row">
+                        <div class="col-md-6">
+                            <div class="shadow-sm card">
+                                <div class="py-2 card-header"><span class="font-weight-bold"><i class="fas fa-chart-bar mr-1"></i> Total del Período</span></div>
+                                <div class="p-2 card-body"><div id="chart-tla-total" style="min-height:300px"></div></div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="shadow-sm card">
+                                <div class="py-2 card-header"><span class="font-weight-bold"><i class="fas fa-chart-pie mr-1"></i> Participación de Mercado</span></div>
+                                <div class="p-2 card-body"><div id="chart-tla-part" style="min-height:300px"></div></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Resumen escalas por tele-asesor (tabs) --}}
+                    <div class="shadow-sm card">
+                        <div class="py-2 card-header"><span class="font-weight-bold">Resumen por Tele-Asesor — Escalas de Precio</span></div>
+                        <div class="card-body p-0">
+                            <div id="tla-esc-empty" class="p-3 text-muted text-center small" style="display:none">
+                                Sin datos. Seleccione tele-asesores y presione Comparar.
+                            </div>
+                            <ul class="nav nav-tabs border-bottom px-3 pt-2" id="tla-esc-tabs"></ul>
+                            <div class="tab-content px-3 pb-3" id="tla-esc-content"></div>
                         </div>
                     </div>
                 </div>
@@ -1091,9 +1108,220 @@
     </div>{{-- /tab-content --}}
 </div>{{-- /container-fluid --}}
 
+{{-- ══════════════════════════════════════════════════════════════════════
+     MODAL 1: Facturas por vendedor/escala (Comparar Vendedores)
+═══════════════════════════════════════════════════════════════════════ --}}
+<div class="modal fade" id="modal-cmp-facturas" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-cmp-positioned" role="document">
+        <div class="modal-content">
+            <div class="modal-header" style="background:#343a40; color:#fff;">
+                <h5 class="mb-0 modal-title" id="modal-cmp-facturas-title"><i class="fas fa-file-invoice mr-2"></i>Detalle de Facturas</h5>
+                <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body p-0">
+                {{-- Resumen rápido --}}
+                <div class="px-3 py-2 d-flex flex-wrap" id="modal-cmp-fact-kpis" style="gap:12px; background:#f8f9fc; border-bottom:1px solid #e3e6f0;"></div>
+                {{-- Tabla --}}
+                <div class="table-responsive px-3 pt-2" style="max-height:52vh; overflow-y:auto;">
+                    <table class="table table-sm table-bordered table-hover mb-0" id="tabla-cmp-facturas" style="width:100%">
+                        <thead class="thead-dark" style="position:sticky;top:0;z-index:1;">
+                            <tr>
+                                <th>Documento</th>
+                                <th>Fecha</th>
+                                <th>Cliente</th>
+                                <th>Cat. Cliente</th>
+                                <th>Tipo Cliente</th>
+                                <th class="text-right">Líneas</th>
+                                <th class="text-right">Sin ISV</th>
+                                <th class="text-right">ISV</th>
+                                <th class="text-right">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-cmp-facturas"></tbody>
+                    </table>
+                </div>
+                {{-- Paginación --}}
+                <div class="px-3 py-2 d-flex align-items-center justify-content-between border-top" id="cmp-fact-pagination" style="background:#f8f9fc; display:none!important;">
+                    <small class="text-muted" id="cmp-fact-pag-info"></small>
+                    <ul class="pagination pagination-sm mb-0" id="cmp-fact-pag-links"></ul>
+                </div>
+            </div>
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-success btn-sm" id="btn-cmp-fact-excel">
+                    <i class="fas fa-file-excel mr-1"></i>Exportar Excel
+                </button>
+                <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- ══════════════════════════════════════════════════════════════════════
+     MODAL 2: Productos de una factura (Comparar Vendedores)
+═══════════════════════════════════════════════════════════════════════ --}}
+<div class="modal fade" id="modal-cmp-productos" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-cmp-positioned" role="document">
+        <div class="modal-content">
+            <div class="modal-header" style="background:#EC401B; color:#fff;">
+                <h5 class="mb-0 modal-title" id="modal-cmp-prod-title"><i class="fas fa-boxes mr-2"></i>Productos de la Factura</h5>
+                <button type="button" class="close text-white" id="btn-cmp-prod-x"><span>&times;</span></button>
+            </div>
+            <div class="modal-body p-0">
+                {{-- Info de cabecera --}}
+                <div class="px-3 py-2 d-flex flex-wrap" id="modal-cmp-prod-header" style="gap:16px; background:#fff8f6; border-bottom:1px solid #fde0d8; font-size:.83rem;"></div>
+                {{-- Tabla --}}
+                <div class="table-responsive px-3 pt-2" style="max-height:52vh; overflow-y:auto;">
+                    <table class="table table-sm table-bordered mb-0" id="tabla-cmp-productos" style="width:100%">
+                        <thead class="thead-dark" style="position:sticky;top:0;z-index:1;">
+                            <tr>
+                                <th>Código</th>
+                                <th>Producto</th>
+                                <th>Escala de Precio</th>
+                                <th>Cat. Cliente</th>
+                                <th>Tipo Cliente</th>
+                                <th class="text-right">Precio Unit.</th>
+                                <th class="text-right">Cantidad</th>
+                                <th class="text-right">Subtotal sin ISV</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-cmp-productos"></tbody>
+                        <tfoot>
+                            <tr class="font-weight-bold" style="background:#fff3f0">
+                                <td colspan="7" class="text-right">TOTAL sin ISV:</td>
+                                <td class="text-right" id="tfoot-cmp-total"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-cmp-prod-back">
+                    <i class="fas fa-arrow-left mr-1"></i>Volver a Facturas
+                </button>
+                <button type="button" class="btn btn-success btn-sm" id="btn-cmp-prod-excel">
+                    <i class="fas fa-file-excel mr-1"></i>Exportar Excel
+                </button>
+                <a id="btn-cmp-ver-factura" href="#" target="_blank" class="btn btn-sm btn-primary">
+                    <i class="fas fa-print mr-1"></i>Ver Factura
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- ══════════════════════════════════════════════════════════════════════
+     MODAL 1 TLA: Facturas por tele-asesor/escala
+═══════════════════════════════════════════════════════════════════════ --}}
+<div class="modal fade" id="modal-tla-facturas" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-cmp-positioned" role="document">
+        <div class="modal-content">
+            <div class="modal-header" style="background:#343a40; color:#fff;">
+                <h5 class="mb-0 modal-title" id="modal-tla-facturas-title"><i class="fas fa-file-invoice mr-2"></i>Detalle de Facturas</h5>
+                <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body p-0">
+                <div class="px-3 py-2 d-flex flex-wrap" id="modal-tla-fact-kpis" style="gap:12px; background:#f8f9fc; border-bottom:1px solid #e3e6f0;"></div>
+                <div class="table-responsive px-3 pt-2" style="max-height:52vh; overflow-y:auto;">
+                    <table class="table table-sm table-bordered table-hover mb-0" id="tabla-tla-facturas" style="width:100%">
+                        <thead class="thead-dark" style="position:sticky;top:0;z-index:1;">
+                            <tr>
+                                <th>Documento</th>
+                                <th>Fecha</th>
+                                <th>Cliente</th>
+                                <th>Cat. Cliente</th>
+                                <th>Tipo Cliente</th>
+                                <th class="text-right">Líneas</th>
+                                <th class="text-right">Sin ISV</th>
+                                <th class="text-right">ISV</th>
+                                <th class="text-right">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-tla-facturas"></tbody>
+                    </table>
+                </div>
+                <div class="px-3 py-2 d-flex align-items-center justify-content-between border-top" id="tla-fact-pagination" style="background:#f8f9fc; display:none!important;">
+                    <small class="text-muted" id="tla-fact-pag-info"></small>
+                    <ul class="pagination pagination-sm mb-0" id="tla-fact-pag-links"></ul>
+                </div>
+            </div>
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-success btn-sm" id="btn-tla-fact-excel">
+                    <i class="fas fa-file-excel mr-1"></i>Exportar Excel
+                </button>
+                <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- ══════════════════════════════════════════════════════════════════════
+     MODAL 2 TLA: Productos de una factura (Tele-Asesor)
+═══════════════════════════════════════════════════════════════════════ --}}
+<div class="modal fade" id="modal-tla-productos" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-cmp-positioned" role="document">
+        <div class="modal-content">
+            <div class="modal-header" style="background:#EC401B; color:#fff;">
+                <h5 class="mb-0 modal-title" id="modal-tla-prod-title"><i class="fas fa-boxes mr-2"></i>Productos de la Factura</h5>
+                <button type="button" class="close text-white" id="btn-tla-prod-x"><span>&times;</span></button>
+            </div>
+            <div class="modal-body p-0">
+                <div class="px-3 py-2 d-flex flex-wrap" id="modal-tla-prod-header" style="gap:16px; background:#fff8f6; border-bottom:1px solid #fde0d8; font-size:.83rem;"></div>
+                <div class="table-responsive px-3 pt-2" style="max-height:52vh; overflow-y:auto;">
+                    <table class="table table-sm table-bordered mb-0" id="tabla-tla-productos" style="width:100%">
+                        <thead class="thead-dark" style="position:sticky;top:0;z-index:1;">
+                            <tr>
+                                <th>Código</th>
+                                <th>Producto</th>
+                                <th>Escala de Precio</th>
+                                <th>Cat. Cliente</th>
+                                <th>Tipo Cliente</th>
+                                <th class="text-right">Precio Unit.</th>
+                                <th class="text-right">Cantidad</th>
+                                <th class="text-right">Subtotal sin ISV</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-tla-productos"></tbody>
+                        <tfoot>
+                            <tr class="font-weight-bold" style="background:#fff3f0">
+                                <td colspan="7" class="text-right">TOTAL sin ISV:</td>
+                                <td class="text-right" id="tfoot-tla-total"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-tla-prod-back">
+                    <i class="fas fa-arrow-left mr-1"></i>Volver a Facturas
+                </button>
+                <button type="button" class="btn btn-success btn-sm" id="btn-tla-prod-excel">
+                    <i class="fas fa-file-excel mr-1"></i>Exportar Excel
+                </button>
+                <a id="btn-tla-ver-factura" href="#" target="_blank" class="btn btn-sm btn-primary">
+                    <i class="fas fa-print mr-1"></i>Ver Factura
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
 {{-- ======================= ESTILOS ======================= --}}
 <style>
-.nav-tabs-custom { border-bottom: 2px solid #EC401B; }
+/* Modal comparar vendedores: posicionado debajo del navbar y con espacio del sidebar */
+.modal-cmp-positioned {
+    margin-top: 75px;          /* debajo del navbar (65px) + 10px espacio */
+    margin-left: calc(220px + 20px); /* sidebar (220px) + margen */
+    margin-right: 20px;
+    max-width: calc(100vw - 220px - 50px);
+    width: 100%;
+}
+@media (max-width: 768px) {
+    .modal-cmp-positioned {
+        margin-left: 10px;
+        margin-right: 10px;
+        max-width: calc(100vw - 20px);
+    }
+}
 .nav-tabs-custom .nav-link { border: 1px solid transparent; border-radius: 4px 4px 0 0; color: #5a5c69; }
 .nav-tabs-custom .nav-link.active { background: #fff; border-color: #EC401B #EC401B #fff; color: #EC401B; }
 

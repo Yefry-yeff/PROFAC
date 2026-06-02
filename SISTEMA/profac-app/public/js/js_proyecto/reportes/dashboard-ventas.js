@@ -65,6 +65,18 @@ var dashboardVentas = (function () {
     var DIAS_ES = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
     var COLORES = ['#EC401B','#1cc88a','#36b9cc','#f6c23e','#e74a3b','#858796','#4e73df','#fd7e14','#20c997','#6f42c1'];
 
+    /* Genera una paleta de exactamente n colores distintos.
+       Para n <= 10 usa COLORES; para n > 10 genera colores HSL uniformemente distribuidos. */
+    function _palette(n) {
+        if (n <= COLORES.length) return COLORES.slice(0, n);
+        var cols = [];
+        for (var i = 0; i < n; i++) {
+            var h = Math.round((i * 360) / n);
+            cols.push('hsl(' + h + ',65%,48%)');
+        }
+        return cols;
+    }
+
     function fmt(n) {
         return 'L. ' + parseFloat(n || 0).toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
@@ -262,9 +274,16 @@ var dashboardVentas = (function () {
             /* Checkboxes de vendedores para comparación */
             _renderVendChecks(vendsData);
 
-            /* Fechas por defecto comparación */
-            $('#cmp-fi').val(new Date().getFullYear() + '-01-01');
+            /* Fechas por defecto comparación: primer día del mes actual → hoy */
+            var _now = new Date();
+            var _firstOfMonth = _now.getFullYear() + '-' + String(_now.getMonth() + 1).padStart(2, '0') + '-01';
+            $('#cmp-fi').val(_firstOfMonth);
             $('#cmp-ff').val(todayStr());
+
+            /* Checkboxes tele-asesores (misma lista de usuarios que vendedores) */
+            _renderTlaChecks(vendsData);
+            $('#tla-fi').val(_firstOfMonth);
+            $('#tla-ff').val(todayStr());
 
             var prodOpts = '<option value="">— Seleccione un producto —</option>';
             productosData.forEach(function (p) { prodOpts += '<option value="' + p.id + '">' + p.nombre + '</option>'; });
@@ -331,7 +350,7 @@ var dashboardVentas = (function () {
         var p = getP1();
 
         /* Skeleton KPIs */
-        ['kpi-total','kpi-facturas','kpi-ticket','kpi-clientes',
+        ['kpi-total','kpi-facturas','kpi-sin-isv','kpi-clientes',
          'kpi-crecimiento','kpi-mejor-mes','kpi-mejor-vend','kpi-descuentos']
             .forEach(skeleton);
 
@@ -339,7 +358,7 @@ var dashboardVentas = (function () {
         $.get('/reporte/dashboard/kpis', p).then(function (d) {
             setText('kpi-total',      fmt(d.total_ventas));
             setText('kpi-facturas',   fmtN(d.total_facturas));
-            setText('kpi-ticket',     fmt(d.ticket_promedio));
+            setText('kpi-sin-isv',    fmt(d.total_sin_isv));
             setText('kpi-clientes',   fmtN(d.clientes_unicos));
             setText('kpi-descuentos', fmt(d.total_descuentos));
             setText('kpi-mejor-mes',  d.mejor_mes || '-');
@@ -473,14 +492,14 @@ var dashboardVentas = (function () {
     function cargarSemanal() {
         var p = getP2();
 
-        ['s-kpi-total','s-kpi-facturas','s-kpi-ticket','s-kpi-mejor-dia','s-kpi-vend','s-kpi-cliente']
+        ['s-kpi-total','s-kpi-facturas','s-kpi-sin-isv','s-kpi-mejor-dia','s-kpi-vend','s-kpi-cliente']
             .forEach(skeleton);
 
         /* Resumen KPIs + gráfica por día */
         $.get('/reporte/dashboard/resumen-semanal', p).then(function (d) {
             setText('s-kpi-total',    fmt(d.total));
             setText('s-kpi-facturas', fmtN(d.facturas));
-            setText('s-kpi-ticket',   fmt(d.ticket_promedio));
+            setText('s-kpi-sin-isv',  fmt(d.total_sin_isv));
             setText('s-kpi-mejor-dia', d.mejor_dia || '-');
             setText('s-kpi-vend',     d.mejor_vendedor || '-');
             setText('s-kpi-cliente',  d.mejor_cliente || '-');
@@ -575,7 +594,7 @@ var dashboardVentas = (function () {
                     dataPointSelection: function (e, ctx, cfg) {
                         var vend = sorted[cfg.dataPointIndex];
                         $('#s-vendedor').val(vend.vendedor_id).trigger('change');
-                        $('#filter-badge-vend').text('Vendedor: ' + vend.vendedor).show();
+                        $('#filter-badge-vend').text('Asesor Comercial: ' + vend.vendedor).show();
                         $('#sem-active-filters').removeClass('d-none');
                         cargarSemanal();
                     }
@@ -593,7 +612,7 @@ var dashboardVentas = (function () {
 
     function renderTopCliSem(rows, vendedor) {
         destroyChart('chart-top-cli-sem');
-        setText('top-cli-sem-label', vendedor ? 'Vendedor seleccionado' : 'Todos los vendedores');
+        setText('top-cli-sem-label', vendedor ? 'Asesor comercial seleccionado' : 'Todos los asesores comerciales');
         if (!rows || !rows.length) return;
 
         charts['chart-top-cli-sem'] = new ApexCharts(get('chart-top-cli-sem'), {
@@ -627,7 +646,14 @@ var dashboardVentas = (function () {
                 { data: 'fecha' },
                 { data: 'dia_semana' },
                 { data: 'semana_iso' },
-                { data: 'documento' },
+                {
+                    data: 'documento',
+                    render: function (data, type, row) {
+                        if (type !== 'display') return data || '';
+                        return '<a href="/factura/cooporativo/' + row.id + '" target="_blank" style="font-weight:700; color:#EC401B;">'
+                             + (data || '—') + '</a>';
+                    }
+                },
                 { data: 'cliente' },
                 { data: 'vendedor' },
                 { data: 'tipo_cliente' },
@@ -906,7 +932,7 @@ var dashboardVentas = (function () {
                     dataPointSelection: function (e, ctx, cfg) {
                         var vend = sorted[cfg.dataPointIndex];
                         _filtroAdvVend = vend.vendedor_id;
-                        $('#adv-filter-badge-vend').text('Vendedor: ' + vend.vendedor).show();
+                        $('#adv-filter-badge-vend').text('Asesor Comercial: ' + vend.vendedor).show();
                         $('#adv-active-filters').removeClass('d-none');
                         cargarAnalitica();
                     }
@@ -2214,11 +2240,12 @@ var dashboardVentas = (function () {
     function cargarComparacion() {
         var ids = _getVendsSeleccionados();
         if (!ids.length) {
-            alert('Seleccione al menos un vendedor para comparar.');
+            alert('Seleccione al menos un asesor comercial para comparar.');
             return;
         }
 
-        var fi = $('#cmp-fi').val() || (new Date().getFullYear() + '-01-01');
+        var _n = new Date();
+        var fi = $('#cmp-fi').val() || (_n.getFullYear() + '-' + String(_n.getMonth() + 1).padStart(2, '0') + '-01');
         var ff = $('#cmp-ff').val() || todayStr();
 
         /* KPI por cada vendedor */
@@ -2227,7 +2254,6 @@ var dashboardVentas = (function () {
             _renderCmpKpis(rows);
             _renderCmpTotal(rows);
             _renderCmpPart(rows);
-            _renderTablaComparacion(rows, fi, ff);
         });
 
         /* Evolución mensual */
@@ -2238,19 +2264,116 @@ var dashboardVentas = (function () {
         }).then(function (rows) {
             _renderCmpEvolucion(rows, ids);
         });
+
+        /* Escalas por vendedor */
+        $.get('/reporte/dashboard/escalas-comparacion', {
+            fecha_inicio: fi,
+            fecha_final:  ff,
+            vendedores:   ids.join(',')
+        }).then(function (vendors) {
+            _renderResumenEscalas(vendors, fi, ff);
+        });
+    }
+
+    function _renderResumenEscalas(vendors, fi, ff) {
+        var $tabs    = $('#cmp-esc-tabs').empty();
+        var $content = $('#cmp-esc-content').empty();
+        var $empty   = $('#cmp-esc-empty');
+
+        if (!vendors || !vendors.length) {
+            $empty.show();
+            return;
+        }
+        $empty.hide();
+
+        var palette = _palette(vendors.length);
+        vendors.forEach(function (vd, i) {
+            var color   = palette[i];
+            var tabId   = 'cmp-esc-tab-' + i;
+            var paneId  = 'cmp-esc-pane-' + i;
+            var active  = i === 0 ? ' active show' : '';
+            var ariaSelected = i === 0 ? 'true' : 'false';
+
+            /* Tab */
+            $tabs.append(
+                '<li class="nav-item">' +
+                '<a class="nav-link' + (i === 0 ? ' active' : '') + '" id="' + tabId + '"' +
+                ' data-toggle="tab" href="#' + paneId + '" role="tab" aria-selected="' + ariaSelected + '"' +
+                ' style="font-weight:700; color:' + color + '">' +
+                vd.vendedor +
+                '</a></li>'
+            );
+
+            /* Tabla de escalas */
+            var rows = '';
+            vd.escalas.forEach(function (esc) {
+                var barWidth = Math.max(esc.pct, 2);
+                rows +=
+                    '<tr>' +
+                    '<td class="font-weight-bold">' + esc.escala + '</td>' +
+                    '<td class="text-right">' +
+                    '<a href="#" class="cmp-esc-fact-link font-weight-bold" style="color:#EC401B"' +
+                    ' data-fi="' + fi + '" data-ff="' + ff + '"' +
+                    ' data-vend-id="' + vd.vendedor_id + '" data-esc-id="' + esc.escala_id + '"' +
+                    ' data-vend-nombre="' + vd.vendedor + '" data-esc-nombre="' + esc.escala + '">' +
+                    esc.facturas + '</a></td>' +
+                    '<td class="text-right font-weight-bold">' + fmt(esc.total_sin_isv) + '</td>' +
+                    '<td style="min-width:120px">' +
+                    '<div style="background:#e9ecef;border-radius:4px;overflow:hidden;height:16px">' +
+                    '<div style="width:' + barWidth + '%;background:' + color + ';height:100%;border-radius:4px;transition:width .4s"></div>' +
+                    '</div>' +
+                    '<small class="text-muted ml-1">' + esc.pct + '%</small>' +
+                    '</td>' +
+                    '</tr>';
+            });
+
+            /* Total row */
+            rows +=
+                '<tr class="font-weight-bold" style="border-top:2px solid ' + color + '">' +
+                '<td>TOTAL</td><td class="text-right">' + vd.escalas.reduce(function(s,e){return s+e.facturas;},0) + '</td>' +
+                '<td class="text-right">' + fmt(vd.total) + '</td>' +
+                '<td><small class="text-muted">100%</small></td>' +
+                '</tr>';
+
+            $content.append(
+                '<div class="tab-pane fade' + active + '" id="' + paneId + '" role="tabpanel">' +
+                '<div class="table-responsive mt-3">' +
+                '<table class="table table-sm table-bordered">' +
+                '<thead class="thead-dark"><tr>' +
+                '<th>Escala de Precio</th>' +
+                '<th class="text-right">Facturas</th>' +
+                '<th class="text-right">Facturación sin ISV</th>' +
+                '<th>Participación</th>' +
+                '</tr></thead>' +
+                '<tbody>' + rows + '</tbody>' +
+                '</table></div></div>'
+            );
+        });
+
+        /* Delegación: click en nº de facturas → modal facturas */
+        $content.off('click', '.cmp-esc-fact-link').on('click', '.cmp-esc-fact-link', function (e) {
+            e.preventDefault();
+            var $a = $(this);
+            _abrirFacturasComparacion(
+                $a.data('fi'), $a.data('ff'),
+                $a.data('vend-id'), $a.data('esc-id'),
+                $a.data('vend-nombre'), $a.data('esc-nombre')
+            );
+        });
     }
 
     function _renderCmpKpis(rows) {
         var $cont = $('#cmp-kpi-cards').empty();
-        var colors = COLORES;
+        var colors = _palette(rows.length);
         rows.forEach(function (r, i) {
-            var color = colors[i % colors.length];
+            var color = colors[i];
             $cont.append(
                 '<div class="mb-2 col-sm-6 col-md-4 col-lg-3">' +
                 '<div class="card h-100" style="border-left:4px solid ' + color + '">' +
                 '<div class="px-3 py-2 card-body">' +
                 '<div class="mb-1 text-xs font-weight-bold text-uppercase text-truncate" style="color:' + color + '">' + r.vendedor + '</div>' +
-                '<div class="mb-0 h5 font-weight-bold">' + fmt(r.total_ventas) + '</div>' +
+                '<div class="mb-0 h5 font-weight-bold">' + fmt(r.total_sin_isv) + '</div>' +
+                '<small class="text-muted">Facturación sin ISV</small><br>' +
                 '<small class="text-muted">' + r.facturas + ' facturas · ' + r.clientes_atendidos + ' clientes</small>' +
                 '</div></div></div>'
             );
@@ -2261,14 +2384,15 @@ var dashboardVentas = (function () {
         destroyChart('chart-cmp-evolucion');
         if (!rows || !rows.length) return;
 
-        /* Agrupar por vendedor */
+        /* Agrupar por vendedor manteniendo orden de ids seleccionados */
         var byVend = {};
+        var vendOrder = [];
         rows.forEach(function (r) {
-            if (!byVend[r.vendedor]) byVend[r.vendedor] = Array(12).fill(0);
+            if (!byVend[r.vendedor]) { byVend[r.vendedor] = Array(12).fill(0); vendOrder.push(r.vendedor); }
             byVend[r.vendedor][r.mes - 1] = parseFloat(r.total);
         });
 
-        var series = Object.keys(byVend).map(function (name) {
+        var series = vendOrder.map(function (name) {
             return { name: name, data: byVend[name] };
         });
 
@@ -2279,7 +2403,7 @@ var dashboardVentas = (function () {
             yaxis: { labels: { formatter: function (v) { return 'L.' + fmtN(v); } } },
             tooltip: { y: { formatter: function (v) { return fmt(v); } } },
             stroke: { curve: 'smooth', width: 2 },
-            colors: COLORES,
+            colors: _palette(series.length),
             markers: { size: 4 },
             legend: { position: 'top' }
         });
@@ -2291,12 +2415,12 @@ var dashboardVentas = (function () {
         if (!rows || !rows.length) return;
 
         charts['chart-cmp-total'] = new ApexCharts(get('chart-cmp-total'), {
-            chart: { type: 'bar', height: 300, toolbar: { show: false } },
-            series: [{ name: 'Total Ventas', data: rows.map(function (r) { return parseFloat(r.total_ventas); }) }],
+            chart: { type: 'bar', height: Math.max(300, rows.length * 40), toolbar: { show: false } },
+            series: [{ name: 'Facturación sin ISV', data: rows.map(function (r) { return parseFloat(r.total_sin_isv); }) }],
             xaxis: { categories: rows.map(function (r) { return r.vendedor; }) },
             yaxis: { labels: { formatter: function (v) { return 'L.' + fmtN(v); } } },
             tooltip: { y: { formatter: function (v) { return fmt(v); } } },
-            colors: COLORES.slice(0, rows.length),
+            colors: _palette(rows.length),
             plotOptions: { bar: { borderRadius: 4, distributed: true, columnWidth: '55%' } },
             legend: { show: false }
         });
@@ -2309,10 +2433,10 @@ var dashboardVentas = (function () {
 
         charts['chart-cmp-part'] = new ApexCharts(get('chart-cmp-part'), {
             chart: { type: 'donut', height: 300 },
-            series: rows.map(function (r) { return parseFloat(r.total_ventas); }),
+            series: rows.map(function (r) { return parseFloat(r.total_sin_isv); }),
             labels:  rows.map(function (r) { return r.vendedor; }),
             tooltip: { y: { formatter: function (v) { return fmt(v); } } },
-            colors: COLORES,
+            colors: _palette(rows.length),
             legend: { position: 'right' }
         });
         charts['chart-cmp-part'].render();
@@ -2338,6 +2462,783 @@ var dashboardVentas = (function () {
         _dtInit('tabla-comparacion');
     }
 
+    /* ─── Comparar Vendedores: Modal Facturas ──────────────────────────── */
+    var _cmpFactParams = {};   // fi, ff, vendedor_id, escala_id guardados para el back
+    var _cmpFactAllRows = [];  // todas las filas para paginación
+    var _cmpFactPage = 1;
+    var _cmpFactPerPage = 6;
+
+    function _renderFactPage(page) {
+        _cmpFactPage = page;
+        var rows = _cmpFactAllRows;
+        var total = rows.length;
+        var pages = Math.ceil(total / _cmpFactPerPage);
+        var start = (page - 1) * _cmpFactPerPage;
+        var slice = rows.slice(start, start + _cmpFactPerPage);
+
+        var $tbody = $('#tbody-cmp-facturas').empty();
+        slice.forEach(function (r) {
+            $tbody.append(
+                '<tr>' +
+                '<td><a href="#" class="font-weight-bold cmp-ver-productos" style="color:#EC401B"' +
+                ' data-factura-id="' + r.factura_id + '"' +
+                ' data-documento="' + (r.documento || r.factura_id) + '">' +
+                (r.documento || 'FAC-' + r.factura_id) + '</a></td>' +
+                '<td>' + r.fecha + '</td>' +
+                '<td>' + r.cliente + '</td>' +
+                '<td><span class="badge badge-secondary">' + r.cat_cliente + '</span></td>' +
+                '<td>' + r.tipo_cliente + '</td>' +
+                '<td class="text-right">' + r.lineas + '</td>' +
+                '<td class="text-right font-weight-bold">' + fmt(r.total_sin_isv) + '</td>' +
+                '<td class="text-right text-muted">' + fmt(r.isv) + '</td>' +
+                '<td class="text-right font-weight-bold">' + fmt(r.total_con_isv) + '</td>' +
+                '</tr>'
+            );
+        });
+
+        /* Info */
+        $('#cmp-fact-pag-info').text('Mostrando ' + (start + 1) + '-' + Math.min(start + _cmpFactPerPage, total) + ' de ' + total + ' facturas');
+
+        /* Paginación */
+        var $links = $('#cmp-fact-pag-links').empty();
+        $links.append(
+            '<li class="page-item' + (page === 1 ? ' disabled' : '') + '">' +
+            '<a class="page-link" href="#" data-p="' + (page - 1) + '">&laquo;</a></li>'
+        );
+        var from = Math.max(1, page - 2);
+        var to   = Math.min(pages, page + 2);
+        for (var p = from; p <= to; p++) {
+            $links.append(
+                '<li class="page-item' + (p === page ? ' active' : '') + '">' +
+                '<a class="page-link" href="#" data-p="' + p + '">' + p + '</a></li>'
+            );
+        }
+        $links.append(
+            '<li class="page-item' + (page === pages ? ' disabled' : '') + '">' +
+            '<a class="page-link" href="#" data-p="' + (page + 1) + '">&raquo;</a></li>'
+        );
+
+        $('#cmp-fact-pagination').css('display', 'flex');
+    }
+
+    function _abrirFacturasComparacion(fi, ff, vendedorId, escalaId, vendedorNombre, escalaNombre) {
+        _cmpFactParams = { fi: fi, ff: ff, vendedor_id: vendedorId, escala_id: escalaId };
+        _cmpFactAllRows = [];
+        _cmpFactPage = 1;
+
+        $('#modal-cmp-facturas-title').html(
+            '<i class="fas fa-file-invoice mr-2"></i>' + vendedorNombre +
+            ' &mdash; <small>' + escalaNombre + '</small>'
+        );
+        $('#modal-cmp-fact-kpis').html('<span class="text-muted small">Cargando...</span>');
+        $('#tbody-cmp-facturas').html('<tr><td colspan="9" class="text-center py-3"><i class="fas fa-spinner fa-spin"></i> Cargando...</td></tr>');
+        $('#cmp-fact-pagination').css('display', 'none');
+        $('#modal-cmp-facturas').modal('show');
+
+        $.get('/reporte/dashboard/facturas-comparacion', {
+            fecha_inicio: fi,
+            fecha_final:  ff,
+            vendedor_id:  vendedorId,
+            escala_id:    escalaId
+        }).then(function (rows) {
+            _cmpFactAllRows = rows;
+            var totalSinIsv = rows.reduce(function (s, r) { return s + r.total_sin_isv; }, 0);
+            var totalCon    = rows.reduce(function (s, r) { return s + r.total_con_isv; }, 0);
+
+            $('#modal-cmp-fact-kpis').html(
+                '<span class="font-weight-bold mr-3"><i class="fas fa-file-invoice text-muted mr-1"></i>' + rows.length + ' facturas</span>' +
+                '<span class="font-weight-bold mr-3 text-info"><i class="fas fa-dollar-sign mr-1"></i>Sin ISV: ' + fmt(totalSinIsv) + '</span>' +
+                '<span class="font-weight-bold text-secondary"><i class="fas fa-dollar-sign mr-1"></i>Con ISV: ' + fmt(totalCon) + '</span>'
+            );
+
+            _renderFactPage(1);
+
+            /* Click paginación */
+            $('#cmp-fact-pag-links').off('click').on('click', 'a.page-link', function (e) {
+                e.preventDefault();
+                var p = parseInt($(this).data('p'));
+                var pages = Math.ceil(_cmpFactAllRows.length / _cmpFactPerPage);
+                if (p >= 1 && p <= pages) _renderFactPage(p);
+            });
+
+            /* Click en documento → modal productos */
+            $('#tbody-cmp-facturas').off('click', '.cmp-ver-productos').on('click', '.cmp-ver-productos', function (e) {
+                e.preventDefault();
+                _abrirProductosFactura($(this).data('factura-id'), $(this).data('documento'));
+            });
+
+            /* Botón Excel facturas — exporta TODAS las filas, no sólo la página visible */
+            $('#btn-cmp-fact-excel').off('click').on('click', function () {
+                _exportarFacturasComparacionExcel();
+            });
+        }).catch(function () {
+            $('#tbody-cmp-facturas').html('<tr><td colspan="9" class="text-center text-danger">Error al cargar facturas.</td></tr>');
+        });
+    }
+
+    function _exportarFacturasComparacionExcel() {
+        if (typeof ExcelJS === 'undefined') { alert('ExcelJS no está disponible.'); return; }
+        var rows = _cmpFactAllRows;
+        if (!rows || !rows.length) { alert('No hay datos para exportar.'); return; }
+
+        var HNL_FMT = '"L." #,##0.00';
+        var titulo = $('#modal-cmp-facturas-title').text().replace(/\s+/g, ' ').trim();
+        var wb = new ExcelJS.Workbook();
+        var ws = wb.addWorksheet('Facturas');
+
+        var headers = ['Documento','Fecha','Cliente','Cat. Cliente','Tipo Cliente','Líneas','Sin ISV','ISV','Total'];
+        var headerRow = ws.addRow(headers);
+        headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF343A40' } };
+
+        rows.forEach(function (r) {
+            var row = ws.addRow([
+                r.documento || ('FAC-' + r.factura_id),
+                r.fecha,
+                r.cliente,
+                r.cat_cliente,
+                r.tipo_cliente,
+                r.lineas,
+                r.total_sin_isv,
+                r.isv,
+                r.total_con_isv
+            ]);
+            [7, 8, 9].forEach(function (c) {
+                var cell = row.getCell(c);
+                if (typeof cell.value === 'number') cell.numFmt = HNL_FMT;
+            });
+        });
+
+        ws.columns.forEach(function (col, i) {
+            col.width = [18, 12, 30, 16, 16, 8, 14, 12, 14][i] || 16;
+        });
+
+        var sinISVTot = rows.reduce(function (s, r) { return s + r.total_sin_isv; }, 0);
+        var isvTot    = rows.reduce(function (s, r) { return s + r.isv; }, 0);
+        var conTot    = rows.reduce(function (s, r) { return s + r.total_con_isv; }, 0);
+        var totRow = ws.addRow(['', '', '', '', 'TOTAL', rows.length, sinISVTot, isvTot, conTot]);
+        totRow.font = { bold: true };
+        [7, 8, 9].forEach(function (c) {
+            var cell = totRow.getCell(c);
+            if (typeof cell.value === 'number') cell.numFmt = HNL_FMT;
+        });
+
+        var fecha = new Date().toISOString().slice(0, 10);
+        _descargar(wb, 'facturas-comparacion-' + fecha + '.xlsx');
+    }
+
+    function _abrirProductosFactura(facturaId, docNombre) {
+        $('#modal-cmp-prod-title').html('<i class="fas fa-boxes mr-2"></i>Productos — ' + docNombre);
+        $('#modal-cmp-prod-header').html('<span class="text-muted small"><i class="fas fa-spinner fa-spin mr-1"></i>Cargando...</span>');
+        $('#tbody-cmp-productos').html('<tr><td colspan="8" class="text-center py-3"><i class="fas fa-spinner fa-spin"></i> Cargando...</td></tr>');
+        $('#tfoot-cmp-total').text('');
+        $('#btn-cmp-ver-factura').attr('href', '/factura/cooporativo/' + facturaId);
+
+        /* Esperar que Modal 1 cierre completamente antes de abrir Modal 2
+           para evitar el backdrop negro doble */
+        $('#modal-cmp-facturas').one('hidden.bs.modal', function () {
+            $('#modal-cmp-productos').modal('show');
+        });
+        $('#modal-cmp-facturas').modal('hide');
+
+        $.get('/reporte/dashboard/productos-factura-comparacion', { factura_id: facturaId }).then(function (data) {
+            var h = data.header || {};
+            $('#modal-cmp-prod-header').html(
+                '<span><i class="fas fa-calendar-alt text-muted mr-1"></i><strong>' + (h.fecha || '') + '</strong></span>' +
+                '<span><i class="fas fa-user mr-1 text-muted"></i>' + (h.cliente || '') + '</span>' +
+                '<span><span class="badge badge-secondary mr-1">' + (h.cat_cliente || '') + '</span>' + (h.tipo_cliente || '') + '</span>' +
+                '<span><i class="fas fa-user-tie text-muted mr-1"></i>' + (h.vendedor || '') + '</span>'
+            );
+
+            var $tbody = $('#tbody-cmp-productos').empty();
+            var total = 0;
+            (data.productos || []).forEach(function (p) {
+                total += p.subtotal_sin_isv;
+                $tbody.append(
+                    '<tr>' +
+                    '<td><code>' + (p.codigo || '—') + '</code></td>' +
+                    '<td>' + p.producto + '</td>' +
+                    '<td><span class="badge badge-info">' + p.escala_precio + '</span></td>' +
+                    '<td><span class="badge badge-secondary">' + p.cat_cliente + '</span></td>' +
+                    '<td>' + p.tipo_cliente + '</td>' +
+                    '<td class="text-right">' + fmt(p.precio_unitario) + '</td>' +
+                    '<td class="text-right">' + p.cantidad + '</td>' +
+                    '<td class="text-right font-weight-bold">' + fmt(p.subtotal_sin_isv) + '</td>' +
+                    '</tr>'
+                );
+            });
+            $('#tfoot-cmp-total').text(fmt(total));
+        }).catch(function () {
+            $('#tbody-cmp-productos').html('<tr><td colspan="8" class="text-center text-danger">Error al cargar productos.</td></tr>');
+        });
+
+        /* Botón volver y X — ambos regresan a Modal 1 */
+        var _volverAFacturas = function () {
+            $('#modal-cmp-productos').one('hidden.bs.modal', function () {
+                $('#modal-cmp-facturas').modal('show');
+            });
+            $('#modal-cmp-productos').modal('hide');
+        };
+        $('#btn-cmp-prod-back').off('click').on('click', _volverAFacturas);
+        $('#btn-cmp-prod-x').off('click').on('click', _volverAFacturas);
+
+        /* Botón Excel productos */
+        $('#btn-cmp-prod-excel').off('click').on('click', function () {
+            _exportarProductosFacturaExcel(docNombre);
+        });
+    }
+
+    function _exportarProductosFacturaExcel(docNombre) {
+        if (typeof ExcelJS === 'undefined') { alert('ExcelJS no está disponible.'); return; }
+        var HNL_FMT = '"L." #,##0.00';
+        var wb = new ExcelJS.Workbook();
+        var ws = wb.addWorksheet('Productos');
+
+        var headers = ['Código','Producto','Escala de Precio','Cat. Cliente','Tipo Cliente','Precio Unit.','Cantidad','Subtotal sin ISV'];
+        var headerRow = ws.addRow(headers);
+        headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEC401B' } };
+
+        function _parseMoney(txt) {
+            /* fmt() produces "L. 1,234.56" — extract the numeric part directly */
+            var m = String(txt).match(/-?[\d,]+\.?\d*/);
+            if (!m) return 0;
+            var n = parseFloat(m[0].replace(/,/g, ''));
+            return isNaN(n) ? 0 : n;
+        }
+
+        var total = 0;
+        $('#tbody-cmp-productos tr').each(function () {
+            var cells = $(this).find('td');
+            if (!cells.length) return;
+            var subtotal = _parseMoney(cells.eq(7).text());
+            total += subtotal;
+            var row = ws.addRow([
+                cells.eq(0).text().trim(),
+                cells.eq(1).text().trim(),
+                cells.eq(2).text().trim(),
+                cells.eq(3).text().trim(),
+                cells.eq(4).text().trim(),
+                _parseMoney(cells.eq(5).text()),
+                _parseMoney(cells.eq(6).text()),
+                subtotal
+            ]);
+            [6, 8].forEach(function (c) {
+                var cell = row.getCell(c);
+                if (typeof cell.value === 'number') cell.numFmt = HNL_FMT;
+            });
+        });
+
+        var totRow = ws.addRow(['', '', '', '', '', '', 'TOTAL', total]);
+        totRow.font = { bold: true };
+        totRow.getCell(8).numFmt = HNL_FMT;
+
+        ws.columns.forEach(function (col, i) {
+            col.width = [10, 34, 18, 16, 14, 14, 10, 16][i] || 14;
+        });
+
+        var safeName = (docNombre || 'factura').replace(/[\\\/\*\?\[\]]/g, '-');
+        _descargar(wb, 'productos-' + safeName + '.xlsx');
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       TELE-ASESOR (clon de Comparar, filtro por users_id)
+    ═══════════════════════════════════════════════════════════════════════ */
+    var _tlasCatalogo = [];
+
+    function _renderTlaChecks(usuarios) {
+        _tlasCatalogo = usuarios;
+        var $cont = $('#tla-vend-checks').empty();
+        usuarios.forEach(function (v) {
+            $cont.append(
+                '<span>' +
+                '<input type="checkbox" class="cmp-vend-check tla-vend-check" id="tla-v-' + v.id + '" value="' + v.id + '">' +
+                '<label class="cmp-vend-label mb-0" for="tla-v-' + v.id + '">' + v.name + '</label>' +
+                '</span>'
+            );
+        });
+    }
+
+    function _getTlasSeleccionados() {
+        var ids = [];
+        $('#tla-vend-checks input:checked').each(function () {
+            ids.push($(this).val());
+        });
+        return ids;
+    }
+
+    function cargarComparacionTla() {
+        var ids = _getTlasSeleccionados();
+        if (!ids.length) {
+            alert('Seleccione al menos un tele-asesor para comparar.');
+            return;
+        }
+
+        var _n = new Date();
+        var fi = $('#tla-fi').val() || (_n.getFullYear() + '-' + String(_n.getMonth() + 1).padStart(2, '0') + '-01');
+        var ff = $('#tla-ff').val() || todayStr();
+
+        /* KPI por cada tele-asesor (users_id) */
+        $.get('/reporte/dashboard/top-tele-asesores', {
+            fecha_inicio: fi,
+            fecha_final:  ff,
+            vendedores:   ids.join(',')
+        }).then(function (rows) {
+            _renderTlaKpis(rows);
+            _renderTlaTotal(rows);
+            _renderTlaPart(rows);
+        });
+
+        /* Evolución mensual (users_id) */
+        $.get('/reporte/dashboard/ventas-mes-tele-asesores', {
+            fecha_inicio: fi,
+            fecha_final:  ff,
+            vendedores:   ids
+        }).then(function (rows) {
+            _renderTlaEvolucion(rows, ids);
+        });
+
+        /* Escalas por tele-asesor */
+        $.get('/reporte/dashboard/escalas-comparacion-tla', {
+            fecha_inicio: fi,
+            fecha_final:  ff,
+            vendedores:   ids.join(',')
+        }).then(function (vendors) {
+            _renderResumenEscalasTla(vendors, fi, ff);
+        });
+    }
+
+    function _renderResumenEscalasTla(vendors, fi, ff) {
+        var $tabs    = $('#tla-esc-tabs').empty();
+        var $content = $('#tla-esc-content').empty();
+        var $empty   = $('#tla-esc-empty');
+
+        if (!vendors || !vendors.length) {
+            $empty.show();
+            return;
+        }
+        $empty.hide();
+
+        var palette = _palette(vendors.length);
+        vendors.forEach(function (vd, i) {
+            var color   = palette[i];
+            var tabId   = 'tla-esc-tab-' + i;
+            var paneId  = 'tla-esc-pane-' + i;
+            var active  = i === 0 ? ' active show' : '';
+            var ariaSelected = i === 0 ? 'true' : 'false';
+
+            $tabs.append(
+                '<li class="nav-item">' +
+                '<a class="nav-link' + (i === 0 ? ' active' : '') + '" id="' + tabId + '"' +
+                ' data-toggle="tab" href="#' + paneId + '" role="tab" aria-selected="' + ariaSelected + '"' +
+                ' style="font-weight:700; color:' + color + '">' +
+                vd.vendedor +
+                '</a></li>'
+            );
+
+            var rows = '';
+            vd.escalas.forEach(function (esc) {
+                var barWidth = Math.max(esc.pct, 2);
+                rows +=
+                    '<tr>' +
+                    '<td class="font-weight-bold">' + esc.escala + '</td>' +
+                    '<td class="text-right">' +
+                    '<a href="#" class="tla-esc-fact-link font-weight-bold" style="color:#EC401B"' +
+                    ' data-fi="' + fi + '" data-ff="' + ff + '"' +
+                    ' data-vend-id="' + vd.vendedor_id + '" data-esc-id="' + esc.escala_id + '"' +
+                    ' data-vend-nombre="' + vd.vendedor + '" data-esc-nombre="' + esc.escala + '">' +
+                    esc.facturas + '</a></td>' +
+                    '<td class="text-right font-weight-bold">' + fmt(esc.total_sin_isv) + '</td>' +
+                    '<td style="min-width:120px">' +
+                    '<div style="background:#e9ecef;border-radius:4px;overflow:hidden;height:16px">' +
+                    '<div style="width:' + barWidth + '%;background:' + color + ';height:100%;border-radius:4px;transition:width .4s"></div>' +
+                    '</div>' +
+                    '<small class="text-muted ml-1">' + esc.pct + '%</small>' +
+                    '</td>' +
+                    '</tr>';
+            });
+
+            rows +=
+                '<tr class="font-weight-bold" style="border-top:2px solid ' + color + '">' +
+                '<td>TOTAL</td><td class="text-right">' + vd.escalas.reduce(function(s,e){return s+e.facturas;},0) + '</td>' +
+                '<td class="text-right">' + fmt(vd.total) + '</td>' +
+                '<td><small class="text-muted">100%</small></td>' +
+                '</tr>';
+
+            $content.append(
+                '<div class="tab-pane fade' + active + '" id="' + paneId + '" role="tabpanel">' +
+                '<div class="table-responsive mt-3">' +
+                '<table class="table table-sm table-bordered">' +
+                '<thead class="thead-dark"><tr>' +
+                '<th>Escala de Precio</th>' +
+                '<th class="text-right">Facturas</th>' +
+                '<th class="text-right">Facturación sin ISV</th>' +
+                '<th>Participación</th>' +
+                '</tr></thead>' +
+                '<tbody>' + rows + '</tbody>' +
+                '</table></div></div>'
+            );
+        });
+
+        $content.off('click', '.tla-esc-fact-link').on('click', '.tla-esc-fact-link', function (e) {
+            e.preventDefault();
+            var $a = $(this);
+            _abrirFacturasComparacionTla(
+                $a.data('fi'), $a.data('ff'),
+                $a.data('vend-id'), $a.data('esc-id'),
+                $a.data('vend-nombre'), $a.data('esc-nombre')
+            );
+        });
+    }
+
+    function _renderTlaKpis(rows) {
+        var $cont = $('#tla-kpi-cards').empty();
+        var colors = _palette(rows.length);
+        rows.forEach(function (r, i) {
+            var color = colors[i];
+            $cont.append(
+                '<div class="mb-2 col-sm-6 col-md-4 col-lg-3">' +
+                '<div class="card h-100" style="border-left:4px solid ' + color + '">' +
+                '<div class="px-3 py-2 card-body">' +
+                '<div class="mb-1 text-xs font-weight-bold text-uppercase text-truncate" style="color:' + color + '">' + r.vendedor + '</div>' +
+                '<div class="mb-0 h5 font-weight-bold">' + fmt(r.total_sin_isv) + '</div>' +
+                '<small class="text-muted">Facturación sin ISV</small><br>' +
+                '<small class="text-muted">' + r.facturas + ' facturas · ' + r.clientes_atendidos + ' clientes</small>' +
+                '</div></div></div>'
+            );
+        });
+    }
+
+    function _renderTlaEvolucion(rows, ids) {
+        destroyChart('chart-tla-evolucion');
+        if (!rows || !rows.length) return;
+
+        var byVend = {};
+        var vendOrder = [];
+        rows.forEach(function (r) {
+            if (!byVend[r.vendedor]) { byVend[r.vendedor] = Array(12).fill(0); vendOrder.push(r.vendedor); }
+            byVend[r.vendedor][r.mes - 1] = parseFloat(r.total);
+        });
+
+        var series = vendOrder.map(function (name) {
+            return { name: name, data: byVend[name] };
+        });
+
+        charts['chart-tla-evolucion'] = new ApexCharts(get('chart-tla-evolucion'), {
+            chart: { type: 'line', height: 380, toolbar: { show: true }, zoom: { enabled: true } },
+            series: series,
+            xaxis: { categories: MESES },
+            yaxis: { labels: { formatter: function (v) { return 'L.' + fmtN(v); } } },
+            tooltip: { y: { formatter: function (v) { return fmt(v); } } },
+            stroke: { curve: 'smooth', width: 2 },
+            colors: _palette(series.length),
+            markers: { size: 4 },
+            legend: { position: 'top' }
+        });
+        charts['chart-tla-evolucion'].render();
+    }
+
+    function _renderTlaTotal(rows) {
+        destroyChart('chart-tla-total');
+        if (!rows || !rows.length) return;
+
+        charts['chart-tla-total'] = new ApexCharts(get('chart-tla-total'), {
+            chart: { type: 'bar', height: Math.max(300, rows.length * 40), toolbar: { show: false } },
+            series: [{ name: 'Facturación sin ISV', data: rows.map(function (r) { return parseFloat(r.total_sin_isv); }) }],
+            xaxis: { categories: rows.map(function (r) { return r.vendedor; }) },
+            yaxis: { labels: { formatter: function (v) { return 'L.' + fmtN(v); } } },
+            tooltip: { y: { formatter: function (v) { return fmt(v); } } },
+            colors: _palette(rows.length),
+            plotOptions: { bar: { borderRadius: 4, distributed: true, columnWidth: '55%' } },
+            legend: { show: false }
+        });
+        charts['chart-tla-total'].render();
+    }
+
+    function _renderTlaPart(rows) {
+        destroyChart('chart-tla-part');
+        if (!rows || !rows.length) return;
+
+        charts['chart-tla-part'] = new ApexCharts(get('chart-tla-part'), {
+            chart: { type: 'donut', height: 300 },
+            series: rows.map(function (r) { return parseFloat(r.total_sin_isv); }),
+            labels:  rows.map(function (r) { return r.vendedor; }),
+            tooltip: { y: { formatter: function (v) { return fmt(v); } } },
+            colors: _palette(rows.length),
+            legend: { position: 'right' }
+        });
+        charts['chart-tla-part'].render();
+    }
+
+    /* ─── Tele-Asesor: Modal Facturas ──────────────────────────────────── */
+    var _tlaFactParams = {};
+    var _tlaFactAllRows = [];
+    var _tlaFactPage = 1;
+    var _tlaFactPerPage = 6;
+
+    function _renderTlaFactPage(page) {
+        _tlaFactPage = page;
+        var rows = _tlaFactAllRows;
+        var total = rows.length;
+        var pages = Math.ceil(total / _tlaFactPerPage);
+        var start = (page - 1) * _tlaFactPerPage;
+        var slice = rows.slice(start, start + _tlaFactPerPage);
+
+        var $tbody = $('#tbody-tla-facturas').empty();
+        slice.forEach(function (r) {
+            $tbody.append(
+                '<tr>' +
+                '<td><a href="#" class="font-weight-bold tla-ver-productos" style="color:#EC401B"' +
+                ' data-factura-id="' + r.factura_id + '"' +
+                ' data-documento="' + (r.documento || r.factura_id) + '">' +
+                (r.documento || 'FAC-' + r.factura_id) + '</a></td>' +
+                '<td>' + r.fecha + '</td>' +
+                '<td>' + r.cliente + '</td>' +
+                '<td><span class="badge badge-secondary">' + r.cat_cliente + '</span></td>' +
+                '<td>' + r.tipo_cliente + '</td>' +
+                '<td class="text-right">' + r.lineas + '</td>' +
+                '<td class="text-right font-weight-bold">' + fmt(r.total_sin_isv) + '</td>' +
+                '<td class="text-right text-muted">' + fmt(r.isv) + '</td>' +
+                '<td class="text-right font-weight-bold">' + fmt(r.total_con_isv) + '</td>' +
+                '</tr>'
+            );
+        });
+
+        $('#tla-fact-pag-info').text('Mostrando ' + (start + 1) + '-' + Math.min(start + _tlaFactPerPage, total) + ' de ' + total + ' facturas');
+
+        var $links = $('#tla-fact-pag-links').empty();
+        $links.append(
+            '<li class="page-item' + (page === 1 ? ' disabled' : '') + '">' +
+            '<a class="page-link" href="#" data-p="' + (page - 1) + '">&laquo;</a></li>'
+        );
+        var from = Math.max(1, page - 2);
+        var to   = Math.min(pages, page + 2);
+        for (var p = from; p <= to; p++) {
+            $links.append(
+                '<li class="page-item' + (p === page ? ' active' : '') + '">' +
+                '<a class="page-link" href="#" data-p="' + p + '">' + p + '</a></li>'
+            );
+        }
+        $links.append(
+            '<li class="page-item' + (page === pages ? ' disabled' : '') + '">' +
+            '<a class="page-link" href="#" data-p="' + (page + 1) + '">&raquo;</a></li>'
+        );
+
+        $('#tla-fact-pagination').css('display', 'flex');
+    }
+
+    function _abrirFacturasComparacionTla(fi, ff, userId, escalaId, userNombre, escalaNombre) {
+        _tlaFactParams = { fi: fi, ff: ff, vendedor_id: userId, escala_id: escalaId };
+        _tlaFactAllRows = [];
+        _tlaFactPage = 1;
+
+        $('#modal-tla-facturas-title').html(
+            '<i class="fas fa-file-invoice mr-2"></i>' + userNombre +
+            ' &mdash; <small>' + escalaNombre + '</small>'
+        );
+        $('#modal-tla-fact-kpis').html('<span class="text-muted small">Cargando...</span>');
+        $('#tbody-tla-facturas').html('<tr><td colspan="9" class="text-center py-3"><i class="fas fa-spinner fa-spin"></i> Cargando...</td></tr>');
+        $('#tla-fact-pagination').css('display', 'none');
+        $('#modal-tla-facturas').modal('show');
+
+        $.get('/reporte/dashboard/facturas-comparacion-tla', {
+            fecha_inicio: fi,
+            fecha_final:  ff,
+            vendedor_id:  userId,
+            escala_id:    escalaId
+        }).then(function (rows) {
+            _tlaFactAllRows = rows;
+            var totalSinIsv = rows.reduce(function (s, r) { return s + r.total_sin_isv; }, 0);
+            var totalCon    = rows.reduce(function (s, r) { return s + r.total_con_isv; }, 0);
+
+            $('#modal-tla-fact-kpis').html(
+                '<span class="font-weight-bold mr-3"><i class="fas fa-file-invoice text-muted mr-1"></i>' + rows.length + ' facturas</span>' +
+                '<span class="font-weight-bold mr-3 text-info"><i class="fas fa-dollar-sign mr-1"></i>Sin ISV: ' + fmt(totalSinIsv) + '</span>' +
+                '<span class="font-weight-bold text-secondary"><i class="fas fa-dollar-sign mr-1"></i>Con ISV: ' + fmt(totalCon) + '</span>'
+            );
+
+            _renderTlaFactPage(1);
+
+            $('#tla-fact-pag-links').off('click').on('click', 'a.page-link', function (e) {
+                e.preventDefault();
+                var p = parseInt($(this).data('p'));
+                var pages = Math.ceil(_tlaFactAllRows.length / _tlaFactPerPage);
+                if (p >= 1 && p <= pages) _renderTlaFactPage(p);
+            });
+
+            $('#tbody-tla-facturas').off('click', '.tla-ver-productos').on('click', '.tla-ver-productos', function (e) {
+                e.preventDefault();
+                _abrirProductosFacturaTla($(this).data('factura-id'), $(this).data('documento'));
+            });
+
+            $('#btn-tla-fact-excel').off('click').on('click', function () {
+                _exportarFacturasTlaExcel();
+            });
+        }).catch(function () {
+            $('#tbody-tla-facturas').html('<tr><td colspan="9" class="text-center text-danger">Error al cargar facturas.</td></tr>');
+        });
+    }
+
+    function _exportarFacturasTlaExcel() {
+        if (typeof ExcelJS === 'undefined') { alert('ExcelJS no está disponible.'); return; }
+        var rows = _tlaFactAllRows;
+        if (!rows || !rows.length) { alert('No hay datos para exportar.'); return; }
+
+        var HNL_FMT = '"L." #,##0.00';
+        var titulo = $('#modal-tla-facturas-title').text().replace(/\s+/g, ' ').trim();
+        var wb = new ExcelJS.Workbook();
+        var ws = wb.addWorksheet('Facturas');
+
+        var headers = ['Documento','Fecha','Cliente','Cat. Cliente','Tipo Cliente','Líneas','Sin ISV','ISV','Total'];
+        var headerRow = ws.addRow(headers);
+        headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF343A40' } };
+
+        rows.forEach(function (r) {
+            var row = ws.addRow([
+                r.documento || ('FAC-' + r.factura_id),
+                r.fecha,
+                r.cliente,
+                r.cat_cliente,
+                r.tipo_cliente,
+                r.lineas,
+                r.total_sin_isv,
+                r.isv,
+                r.total_con_isv
+            ]);
+            [7, 8, 9].forEach(function (c) {
+                var cell = row.getCell(c);
+                if (typeof cell.value === 'number') cell.numFmt = HNL_FMT;
+            });
+        });
+
+        ws.columns.forEach(function (col, i) {
+            col.width = [18, 12, 30, 16, 16, 8, 14, 12, 14][i] || 16;
+        });
+
+        var sinISVTot = rows.reduce(function (s, r) { return s + r.total_sin_isv; }, 0);
+        var isvTot    = rows.reduce(function (s, r) { return s + r.isv; }, 0);
+        var conTot    = rows.reduce(function (s, r) { return s + r.total_con_isv; }, 0);
+        var totRow = ws.addRow(['', '', '', '', 'TOTAL', rows.length, sinISVTot, isvTot, conTot]);
+        totRow.font = { bold: true };
+        [7, 8, 9].forEach(function (c) {
+            var cell = totRow.getCell(c);
+            if (typeof cell.value === 'number') cell.numFmt = HNL_FMT;
+        });
+
+        var fecha = new Date().toISOString().slice(0, 10);
+        _descargar(wb, 'facturas-tele-asesor-' + fecha + '.xlsx');
+    }
+
+    function _abrirProductosFacturaTla(facturaId, docNombre) {
+        $('#modal-tla-prod-title').html('<i class="fas fa-boxes mr-2"></i>Productos — ' + docNombre);
+        $('#modal-tla-prod-header').html('<span class="text-muted small"><i class="fas fa-spinner fa-spin mr-1"></i>Cargando...</span>');
+        $('#tbody-tla-productos').html('<tr><td colspan="8" class="text-center py-3"><i class="fas fa-spinner fa-spin"></i> Cargando...</td></tr>');
+        $('#tfoot-tla-total').text('');
+        $('#btn-tla-ver-factura').attr('href', '/factura/cooporativo/' + facturaId);
+
+        $('#modal-tla-facturas').one('hidden.bs.modal', function () {
+            $('#modal-tla-productos').modal('show');
+        });
+        $('#modal-tla-facturas').modal('hide');
+
+        $.get('/reporte/dashboard/productos-factura-comparacion', { factura_id: facturaId }).then(function (data) {
+            var h = data.header || {};
+            $('#modal-tla-prod-header').html(
+                '<span><i class="fas fa-calendar-alt text-muted mr-1"></i><strong>' + (h.fecha || '') + '</strong></span>' +
+                '<span><i class="fas fa-user mr-1 text-muted"></i>' + (h.cliente || '') + '</span>' +
+                '<span><span class="badge badge-secondary mr-1">' + (h.cat_cliente || '') + '</span>' + (h.tipo_cliente || '') + '</span>' +
+                '<span><i class="fas fa-user-tie text-muted mr-1"></i>' + (h.vendedor || '') + '</span>'
+            );
+
+            var $tbody = $('#tbody-tla-productos').empty();
+            var total = 0;
+            (data.productos || []).forEach(function (p) {
+                total += p.subtotal_sin_isv;
+                $tbody.append(
+                    '<tr>' +
+                    '<td><code>' + (p.codigo || '—') + '</code></td>' +
+                    '<td>' + p.producto + '</td>' +
+                    '<td><span class="badge badge-info">' + p.escala_precio + '</span></td>' +
+                    '<td><span class="badge badge-secondary">' + p.cat_cliente + '</span></td>' +
+                    '<td>' + p.tipo_cliente + '</td>' +
+                    '<td class="text-right">' + fmt(p.precio_unitario) + '</td>' +
+                    '<td class="text-right">' + p.cantidad + '</td>' +
+                    '<td class="text-right font-weight-bold">' + fmt(p.subtotal_sin_isv) + '</td>' +
+                    '</tr>'
+                );
+            });
+            $('#tfoot-tla-total').text(fmt(total));
+        }).catch(function () {
+            $('#tbody-tla-productos').html('<tr><td colspan="8" class="text-center text-danger">Error al cargar productos.</td></tr>');
+        });
+
+        var _volverATlaFacturas = function () {
+            $('#modal-tla-productos').one('hidden.bs.modal', function () {
+                $('#modal-tla-facturas').modal('show');
+            });
+            $('#modal-tla-productos').modal('hide');
+        };
+        $('#btn-tla-prod-back').off('click').on('click', _volverATlaFacturas);
+        $('#btn-tla-prod-x').off('click').on('click', _volverATlaFacturas);
+
+        $('#btn-tla-prod-excel').off('click').on('click', function () {
+            _exportarProductosTlaExcel(docNombre);
+        });
+    }
+
+    function _exportarProductosTlaExcel(docNombre) {
+        if (typeof ExcelJS === 'undefined') { alert('ExcelJS no está disponible.'); return; }
+        var HNL_FMT = '"L." #,##0.00';
+        var wb = new ExcelJS.Workbook();
+        var ws = wb.addWorksheet('Productos');
+
+        var headers = ['Código','Producto','Escala de Precio','Cat. Cliente','Tipo Cliente','Precio Unit.','Cantidad','Subtotal sin ISV'];
+        var headerRow = ws.addRow(headers);
+        headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEC401B' } };
+
+        function _parseMoney(txt) {
+            var m = String(txt).match(/-?[\d,]+\.?\d*/);
+            if (!m) return 0;
+            var n = parseFloat(m[0].replace(/,/g, ''));
+            return isNaN(n) ? 0 : n;
+        }
+
+        var total = 0;
+        $('#tbody-tla-productos tr').each(function () {
+            var cells = $(this).find('td');
+            if (!cells.length) return;
+            var subtotal = _parseMoney(cells.eq(7).text());
+            total += subtotal;
+            var row = ws.addRow([
+                cells.eq(0).text().trim(),
+                cells.eq(1).text().trim(),
+                cells.eq(2).text().trim(),
+                cells.eq(3).text().trim(),
+                cells.eq(4).text().trim(),
+                _parseMoney(cells.eq(5).text()),
+                _parseMoney(cells.eq(6).text()),
+                subtotal
+            ]);
+            [6, 8].forEach(function (c) {
+                var cell = row.getCell(c);
+                if (typeof cell.value === 'number') cell.numFmt = HNL_FMT;
+            });
+        });
+
+        var totRow = ws.addRow(['', '', '', '', '', '', 'TOTAL', total]);
+        totRow.font = { bold: true };
+        totRow.getCell(8).numFmt = HNL_FMT;
+
+        ws.columns.forEach(function (col, i) {
+            col.width = [10, 34, 18, 16, 14, 14, 10, 16][i] || 14;
+        });
+
+        var safeName = (docNombre || 'factura').replace(/[\\\/\*\?\[\]]/g, '-');
+        _descargar(wb, 'productos-tla-' + safeName + '.xlsx');
+    }
+
     function limpiarFiltrosAdv() {
         _filtroAdvVend = null;
         $('#a-vendedor').val('').trigger('change');
@@ -2360,9 +3261,6 @@ var dashboardVentas = (function () {
         cargarAnalitica();
     }
 
-    /* ══════════════════════════════════════════════════════════════════════
-       EXPORTAR EXCEL
-    ══════════════════════════════════════════════════════════════════════ */
     /* ══════════════════════════════════════════════════════════════════════
        EXPORTAR EXCEL
     ══════════════════════════════════════════════════════════════════════ */
@@ -2454,7 +3352,7 @@ var dashboardVentas = (function () {
                     ['Clientes Únicos', d.clientes_unicos || 0],
                     ['Total Descuentos', parseFloat(d.total_descuentos) || 0],
                     ['Mejor Mes',      d.mejor_mes || '-'],
-                    ['Mejor Vendedor', d.mejor_vendedor || '-']
+                    ['Mejor Asesor Comercial', d.mejor_vendedor || '-']
                 ];
                 kpis.forEach(function (row) { ws.addRow(row); });
                 _styleData(ws, from, kpis.length, [2]);
@@ -2470,7 +3368,7 @@ var dashboardVentas = (function () {
                     ['Total Período',   parseFloat(d.total) || 0],
                     ['Facturas',        d.facturas || 0],
                     ['Ticket Promedio', parseFloat(d.ticket_promedio) || 0],
-                    ['Mejor Vendedor',  d.mejor_vendedor || '-'],
+                    ['Mejor Asesor Comercial',  d.mejor_vendedor || '-'],
                     ['Mejor Cliente',   d.mejor_cliente || '-'],
                     ['Mejor Día',       d.mejor_dia || '-']
                 ];
@@ -2564,8 +3462,116 @@ var dashboardVentas = (function () {
                     _styleData(ws, from, rows.length, [4, 5]);
                     _descargar(wb, 'analitica-comparacion.xlsx');
                 });
+            } else if (activePill === '#pill-pane-tla') {
+                var tlaIds = _getTlasSeleccionados();
+                if (!tlaIds.length) { alert('Seleccione al menos un tele-asesor para exportar.'); return; }
+                $.get('/reporte/dashboard/top-tele-asesores', {
+                    fecha_inicio: (getP3().fecha_inicio || ''),
+                    fecha_final:  (getP3().fecha_final  || ''),
+                    vendedores:   tlaIds.join(',')
+                }).then(function (rows) {
+                    var ws = wb.addWorksheet('Tele-Asesor');
+                    var headers = ['Tele-Asesor', 'Facturas', 'Clientes', 'Total Ventas', 'Ticket Prom.', 'Participación %'];
+                    var widths  = [28, 10, 10, 18, 16, 14];
+                    var from    = _setupSheet(ws, 'Analítica — Tele-Asesor', headers, widths);
+                    rows.forEach(function (r) {
+                        ws.addRow([r.vendedor, r.facturas, r.clientes_atendidos,
+                                   parseFloat(r.total_ventas), parseFloat(r.ticket_promedio),
+                                   parseFloat(r.participacion)]);
+                    });
+                    _styleData(ws, from, rows.length, [4, 5]);
+                    _descargar(wb, 'analitica-tele-asesor.xlsx');
+                });
             }
         }
+    }
+
+    function exportarDetalleSemanal() {
+        if (typeof ExcelJS === 'undefined') { alert('ExcelJS no está disponible.'); return; }
+
+        var p = getP2();
+
+        $.get('/reporte/dashboard/ventas-semanales/export', p).then(function (rows) {
+            var wb = new ExcelJS.Workbook();
+            wb.creator = window._profacAuthUser || 'PROFAC';
+            wb.created = new Date();
+
+            var ws      = wb.addWorksheet('Detalle Facturas');
+            var headers = ['Fecha', 'Día', 'Semana', 'Documento', 'Cliente', 'Vendedor', 'Tipo', 'Subtotal', 'ISV', 'Descuento', 'Total'];
+            var widths  = [14, 14, 10, 22, 35, 22, 18, 14, 14, 14, 14];
+
+            /* Título y encabezados */
+            ws.addRow(['Detalle de Facturas — Reporte Semanal']);
+            ws.getCell('A1').font = { bold: true, size: 13, color: { argb: 'FFFD7E14' } };
+            ws.mergeCells(1, 1, 1, headers.length);
+
+            ws.addRow(['Período: ' + (p.fecha_inicio || '') + ' al ' + (p.fecha_final || '')]);
+            ws.mergeCells(2, 1, 2, headers.length);
+
+            ws.addRow(['Generado: ' + new Date().toLocaleDateString('es-HN')]);
+            ws.mergeCells(3, 1, 3, headers.length);
+
+            ws.addRow([]);
+
+            var hdrRow = ws.addRow(headers);
+            hdrRow.eachCell(function (cell) {
+                cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF343A40' } };
+                cell.font      = { bold: true, color: { argb: 'FFFFFFFF' } };
+                cell.alignment = { horizontal: 'center', vertical: 'middle' };
+            });
+            widths.forEach(function (w, i) { ws.getColumn(i + 1).width = w; });
+            ws.getRow(5).height = 22;
+
+            /* Columnas monetarias (índice 1-based): Subtotal=8, ISV=9, Descuento=10, Total=11 */
+            var CUR_FMT = '"L."#,##0.00';
+
+            rows.forEach(function (r, idx) {
+                var dataRow = ws.addRow([
+                    r.fecha, r.dia_semana, r.semana_iso, r.documento,
+                    r.cliente, r.vendedor, r.tipo_cliente,
+                    parseFloat(r.subtotal)   || 0,
+                    parseFloat(r.impuesto)   || 0,
+                    parseFloat(r.descuento)  || 0,
+                    parseFloat(r.total)      || 0
+                ]);
+
+                var even = idx % 2 === 0;
+                dataRow.eachCell({ includeEmpty: true }, function (cell, colNum) {
+                    if (even) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8F9FA' } };
+                    cell.border = {
+                        top:    { style: 'hair', color: { argb: 'FFCCCCCC' } },
+                        bottom: { style: 'hair', color: { argb: 'FFCCCCCC' } },
+                        left:   { style: 'hair', color: { argb: 'FFCCCCCC' } },
+                        right:  { style: 'hair', color: { argb: 'FFCCCCCC' } }
+                    };
+                    if ([8, 9, 10, 11].indexOf(colNum) !== -1) {
+                        cell.numFmt    = CUR_FMT;
+                        cell.alignment = { horizontal: 'right' };
+                    }
+                });
+            });
+
+            /* Fila de totales */
+            var totRow = ws.addRow([
+                'TOTAL', '', '', '', '', '', '',
+                rows.reduce(function (s, r) { return s + (parseFloat(r.subtotal)  || 0); }, 0),
+                rows.reduce(function (s, r) { return s + (parseFloat(r.impuesto)  || 0); }, 0),
+                rows.reduce(function (s, r) { return s + (parseFloat(r.descuento) || 0); }, 0),
+                rows.reduce(function (s, r) { return s + (parseFloat(r.total)     || 0); }, 0)
+            ]);
+            totRow.eachCell({ includeEmpty: true }, function (cell, colNum) {
+                cell.font = { bold: true };
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFE0B2' } };
+                if ([8, 9, 10, 11].indexOf(colNum) !== -1) {
+                    cell.numFmt    = CUR_FMT;
+                    cell.alignment = { horizontal: 'right' };
+                }
+            });
+
+            _descargar(wb, 'detalle-facturas-semanal.xlsx');
+        }).fail(function () {
+            alert('Error al obtener los datos para exportar.');
+        });
     }
 
     function _descargar(wb, filename) {
@@ -2600,6 +3606,7 @@ var dashboardVentas = (function () {
         cargarAnalitica:       cargarAnalitica,
         cargarDashboardProductos: cargarDashboardProductos,
         cargarComparacion:     cargarComparacion,
+        cargarComparacionTla:  cargarComparacionTla,
         recalcularCrecimiento: recalcularCrecimiento,
         limpiarFiltrosSem:     limpiarFiltrosSem,
         limpiarFiltrosAdv:     limpiarFiltrosAdv,
@@ -2610,6 +3617,7 @@ var dashboardVentas = (function () {
         limpiarDashboardProductos: limpiarDashboardProductos,
         exportarExcel:         exportarExcel,
         exportarTablaExcel:    exportarTablaExcel,
+        exportarDetalleSemanal: exportarDetalleSemanal,
         exportarTablaProductosExcel: exportarTablaProductosExcel,
         exportarVistaProductosExcel: exportarVistaProductosExcel,
         exportarFacturasProductoExcel: exportarFacturasProductoExcel,

@@ -192,7 +192,8 @@ class DashboardVentas extends Component
                 COALESCE(AVG(f.total), 0)                     AS ticket_promedio,
                 COUNT(DISTINCT f.cliente_id)                  AS clientes_unicos,
                 COALESCE(SUM(f.monto_descuento), 0)           AS total_descuentos,
-                COALESCE(SUM(f.isv), 0)                       AS total_isv
+                COALESCE(SUM(f.isv), 0)                       AS total_isv,
+                COALESCE(SUM(f.sub_total), 0)                 AS total_sin_isv
             FROM factura f
             $join
             WHERE $where
@@ -229,6 +230,7 @@ class DashboardVentas extends Component
             'total_facturas'   => (int)$row->total_facturas,
             'total_ventas'     => round((float)$row->total_ventas, 2),
             'ticket_promedio'  => round((float)$row->ticket_promedio, 2),
+            'total_sin_isv'    => round((float)$row->total_sin_isv, 2),
             'clientes_unicos'  => (int)$row->clientes_unicos,
             'total_descuentos' => round((float)$row->total_descuentos, 2),
             'total_isv'        => round((float)$row->total_isv, 2),
@@ -336,6 +338,44 @@ class DashboardVentas extends Component
         return Datatables::of($rows)->rawColumns([])->make(true);
     }
 
+    // ─── PESTAÑA 2: Exportar detalle semanal (sin paginación) ───────────────
+    public function exportarDetalleSemanal(Request $request)
+    {
+        $fi        = $request->fecha_inicio ?? date('Y-m-01');
+        $ff        = $request->fecha_final  ?? date('Y-m-d');
+        $vend      = $request->vendedor     ? (int)$request->vendedor     : null;
+        $tc        = $request->tipo_cliente ? (int)$request->tipo_cliente : null;
+        $diaSemana = $request->dia_semana   ?? null;
+
+        $where = "f.estado_venta_id = 1 AND f.fecha_emision BETWEEN '$fi' AND '$ff'";
+        if ($vend)      $where .= " AND f.vendedor = $vend";
+        if ($tc)        $where .= " AND tc.id = $tc";
+        if ($diaSemana) $where .= " AND DAYNAME(f.fecha_emision) = '" . addslashes($diaSemana) . "'";
+
+        $rows = DB::SELECT("
+            SELECT
+                DATE_FORMAT(f.fecha_emision, '%Y-%m-%d') AS fecha,
+                DAYNAME(f.fecha_emision)                  AS dia_semana,
+                WEEK(f.fecha_emision, 1)                  AS semana_iso,
+                f.cai                                     AS documento,
+                f.nombre_cliente                          AS cliente,
+                u.name                                    AS vendedor,
+                tc.descripcion                            AS tipo_cliente,
+                f.sub_total                               AS subtotal,
+                f.isv                                     AS impuesto,
+                f.monto_descuento                         AS descuento,
+                f.total                                   AS total
+            FROM factura f
+            INNER JOIN users u         ON u.id  = f.vendedor
+            INNER JOIN cliente cli     ON cli.id = f.cliente_id
+            INNER JOIN tipo_cliente tc ON tc.id  = cli.tipo_cliente_id
+            WHERE $where
+            ORDER BY f.fecha_emision DESC
+        ");
+
+        return response()->json($rows);
+    }
+
     // ─── PESTAÑA 2: Resumen semanal KPIs ────────────────────────────────────
     public function resumenSemanal(Request $request)
     {
@@ -352,7 +392,8 @@ class DashboardVentas extends Component
 
         $totales = DB::SELECTONE("
             SELECT COUNT(f.id) AS facturas, COALESCE(SUM(f.total),0) AS total,
-                   COALESCE(AVG(f.total),0) AS ticket_promedio
+                   COALESCE(AVG(f.total),0) AS ticket_promedio,
+                   COALESCE(SUM(f.sub_total),0) AS total_sin_isv
             FROM factura f
             INNER JOIN cliente cli ON cli.id = f.cliente_id
             INNER JOIN tipo_cliente tc ON tc.id = cli.tipo_cliente_id
@@ -394,6 +435,7 @@ class DashboardVentas extends Component
             'facturas'       => (int)$totales->facturas,
             'total'          => round((float)$totales->total, 2),
             'ticket_promedio'=> round((float)$totales->ticket_promedio, 2),
+            'total_sin_isv'  => round((float)$totales->total_sin_isv, 2),
             'mejor_vendedor' => $mejorVend   ? $mejorVend->name          : '-',
             'mejor_cliente'  => $mejorCliente ? $mejorCliente->nombre    : '-',
             'mejor_dia'      => $mejorDia    ? $mejorDia->fecha          : '-',
@@ -423,7 +465,8 @@ class DashboardVentas extends Component
                 COUNT(DISTINCT f.id)                       AS facturas,
                 COUNT(DISTINCT f.cliente_id)               AS clientes_atendidos,
                 SUM(f.total)                               AS total_ventas,
-                AVG(f.total)                               AS ticket_promedio
+                AVG(f.total)                               AS ticket_promedio,
+                COALESCE(SUM(f.sub_total), 0)              AS total_sin_isv
             FROM factura f
             INNER JOIN users u         ON u.id  = f.vendedor
             INNER JOIN cliente cli     ON cli.id = f.cliente_id
@@ -433,14 +476,19 @@ class DashboardVentas extends Component
             ORDER BY total_ventas DESC
         ");
 
-        $totalGlobal = array_sum(array_column($rows, 'total_ventas'));
+        $totalGlobal    = array_sum(array_column($rows, 'total_ventas'));
+        $totalSinIsvGlobal = array_sum(array_column($rows, 'total_sin_isv'));
 
         foreach ($rows as &$r) {
             $r->participacion = $totalGlobal > 0
                 ? round(($r->total_ventas / $totalGlobal) * 100, 2)
                 : 0;
+            $r->participacion_sin_isv = $totalSinIsvGlobal > 0
+                ? round(($r->total_sin_isv / $totalSinIsvGlobal) * 100, 2)
+                : 0;
             $r->total_ventas    = round((float)$r->total_ventas, 2);
             $r->ticket_promedio = round((float)$r->ticket_promedio, 2);
+            $r->total_sin_isv   = round((float)$r->total_sin_isv, 2);
         }
 
         return response()->json($rows);
@@ -873,6 +921,7 @@ class DashboardVentas extends Component
             FROM users u
             INNER JOIN factura f ON f.vendedor = u.id
             WHERE f.estado_venta_id = 1
+              AND u.estado_id = 1
             ORDER BY u.name
         ");
 
@@ -1746,7 +1795,7 @@ class DashboardVentas extends Component
                 u.id                                        AS vendedor_id,
                 u.name                                      AS vendedor,
                 MONTH(f.fecha_emision)                      AS mes,
-                SUM(f.total)                                AS total,
+                COALESCE(SUM(f.sub_total), 0)               AS total,
                 COUNT(DISTINCT f.id)                        AS facturas
             FROM factura f
             INNER JOIN users u ON u.id = f.vendedor
@@ -1759,6 +1808,417 @@ class DashboardVentas extends Component
 
         foreach ($rows as &$r) {
             $r->total = round((float)$r->total, 2);
+        }
+
+        return response()->json($rows);
+    }
+
+    // ─── COMPARAR: escalas por vendedor ────────────────────────────────────
+    public function escalasComparacion(Request $request)    {
+        $fi           = $request->fecha_inicio ?? date('Y-01-01');
+        $ff           = $request->fecha_final  ?? date('Y-m-d');
+        $vendedoresRaw = $request->vendedores  ?? '';
+
+        if (!$vendedoresRaw) return response()->json([]);
+
+        if (is_array($vendedoresRaw)) {
+            $ids = array_filter(array_map('intval', $vendedoresRaw));
+        } else {
+            $ids = array_filter(array_map('intval', explode(',', $vendedoresRaw)));
+        }
+        if (empty($ids)) return response()->json([]);
+
+        $inIds = implode(',', $ids);
+        $escalaNombreExpr = $this->categoriaPreciosLabelExpr('cpesc');
+
+        $rows = DB::SELECT("
+            SELECT
+                u.id                                             AS vendedor_id,
+                u.name                                           AS vendedor,
+                COALESCE(cpesc.id, 0)                            AS escala_id,
+                COALESCE($escalaNombreExpr, 'Sin categoría')     AS escala,
+                COUNT(DISTINCT f.id)                             AS facturas,
+                COALESCE(SUM(vhp.sub_total_s), 0)               AS total_sin_isv
+            FROM factura f
+            INNER JOIN users u                   ON u.id  = f.vendedor
+            INNER JOIN venta_has_producto vhp    ON vhp.factura_id = f.id
+            LEFT  JOIN precios_producto_carga ppc ON ppc.id = vhp.precios_producto_carga_id
+            LEFT  JOIN categoria_precios cpesc   ON cpesc.id = ppc.categoria_precios_id
+            WHERE f.estado_venta_id = 1
+              AND f.fecha_emision BETWEEN '$fi' AND '$ff'
+              AND f.vendedor IN ($inIds)
+            GROUP BY u.id, u.name, cpesc.id, $escalaNombreExpr
+            ORDER BY u.name, total_sin_isv DESC
+        ");
+
+        /* Agrupar por vendedor y calcular porcentaje */
+        $byVend = [];
+        foreach ($rows as $r) {
+            $vid = $r->vendedor_id;
+            if (!isset($byVend[$vid])) {
+                $byVend[$vid] = [
+                    'vendedor_id' => $vid,
+                    'vendedor'    => $r->vendedor,
+                    'total'       => 0,
+                    'escalas'     => [],
+                ];
+            }
+            $byVend[$vid]['total'] += (float)$r->total_sin_isv;
+            $byVend[$vid]['escalas'][] = [
+                'escala_id'    => (int)$r->escala_id,
+                'escala'       => $r->escala,
+                'facturas'     => (int)$r->facturas,
+                'total_sin_isv' => round((float)$r->total_sin_isv, 2),
+            ];
+        }
+
+        foreach ($byVend as &$vd) {
+            $vd['total'] = round($vd['total'], 2);
+            foreach ($vd['escalas'] as &$esc) {
+                $esc['pct'] = $vd['total'] > 0
+                    ? round($esc['total_sin_isv'] / $vd['total'] * 100, 1)
+                    : 0;
+            }
+        }
+
+        return response()->json(array_values($byVend));
+    }
+
+    // ─── COMPARAR: listado de facturas por vendedor + escala ───────────────
+    public function facturasComparacion(Request $request)
+    {
+        $fi       = $request->fecha_inicio ?? date('Y-01-01');
+        $ff       = $request->fecha_final  ?? date('Y-m-d');
+        $vendId   = $request->vendedor_id  ? (int)$request->vendedor_id  : null;
+        $escalaId = $request->escala_id    !== null ? (int)$request->escala_id : null;
+
+        if (!$vendId) return response()->json([]);
+
+        $escalaFilter = '';
+        if ($escalaId === 0) {
+            // Sin categoria precio (ppc NULL o cpesc NULL)
+            $escalaFilter = " AND (ppc.id IS NULL OR cpesc.id IS NULL)";
+        } elseif ($escalaId !== null) {
+            $escalaFilter = " AND cpesc.id = $escalaId";
+        }
+
+        $cceExpr = $this->clienteCategoriaEscalaLabelExpr('cce');
+
+        $rows = DB::SELECT("
+            SELECT
+                f.id                                                                        AS factura_id,
+                COALESCE(NULLIF(f.cai,''), NULLIF(f.numero_factura,''), CONCAT('FAC-',f.id)) AS documento,
+                DATE_FORMAT(f.fecha_emision,'%d/%m/%Y')                                     AS fecha,
+                COALESCE(NULLIF(cli.nombre,''), f.nombre_cliente, 'N/A')                    AS cliente,
+                COALESCE($cceExpr, 'Sin categoría')                                         AS cat_cliente,
+                tc.descripcion                                                              AS tipo_cliente,
+                COUNT(DISTINCT vhp.producto_id)                                             AS lineas,
+                COALESCE(SUM(vhp.sub_total_s), 0)                                           AS total_sin_isv,
+                f.isv                                                                       AS isv,
+                f.total                                                                     AS total_con_isv
+            FROM factura f
+            INNER JOIN venta_has_producto vhp    ON vhp.factura_id = f.id
+            LEFT  JOIN precios_producto_carga ppc ON ppc.id = vhp.precios_producto_carga_id
+            LEFT  JOIN categoria_precios cpesc   ON cpesc.id = ppc.categoria_precios_id
+            INNER JOIN cliente cli               ON cli.id = f.cliente_id
+            LEFT  JOIN cliente_categoria_escala cce ON cce.id = cli.cliente_categoria_escala_id
+            INNER JOIN tipo_cliente tc           ON tc.id = cli.tipo_cliente_id
+            WHERE f.estado_venta_id = 1
+              AND f.fecha_emision BETWEEN '$fi' AND '$ff'
+              AND f.vendedor = $vendId
+              $escalaFilter
+            GROUP BY f.id, f.cai, f.numero_factura, f.fecha_emision,
+                     cli.nombre, f.nombre_cliente, cce.id, tc.descripcion,
+                     f.isv, f.total
+            ORDER BY f.fecha_emision DESC, f.id DESC
+        ");
+
+        foreach ($rows as &$r) {
+            $r->total_sin_isv = round((float)$r->total_sin_isv, 2);
+            $r->isv           = round((float)$r->isv, 2);
+            $r->total_con_isv = round((float)$r->total_con_isv, 2);
+            $r->lineas        = (int)$r->lineas;
+        }
+
+        return response()->json($rows);
+    }
+
+    // ─── COMPARAR: productos de una factura ────────────────────────────────
+    public function productosFacturaComparacion(Request $request)
+    {
+        $facturaId = $request->factura_id ? (int)$request->factura_id : null;
+        if (!$facturaId) return response()->json([]);
+
+        $escalaPrecioExpr  = $this->categoriaPreciosLabelExpr('cpesc');
+        $escalaClienteExpr = $this->clienteCategoriaEscalaLabelExpr('cce');
+
+        $rows = DB::SELECT("
+            SELECT
+                p.id                                                        AS producto_id,
+                {$this->productoCodigoExpr('p')}                            AS codigo,
+                p.nombre                                                    AS producto,
+                COALESCE($escalaPrecioExpr, 'Sin escala precio')            AS escala_precio,
+                COALESCE($escalaClienteExpr, 'Sin categoría cliente')       AS cat_cliente,
+                tc.descripcion                                              AS tipo_cliente,
+                vhp.precio_unidad                                           AS precio_unitario,
+                COALESCE(vhp.cantidad_s, vhp.cantidad)                      AS cantidad,
+                COALESCE(vhp.sub_total_s, 0)                                AS subtotal_sin_isv,
+                0                                                           AS descuento
+            FROM venta_has_producto vhp
+            INNER JOIN producto p             ON p.id = vhp.producto_id
+            INNER JOIN factura f              ON f.id = vhp.factura_id
+            INNER JOIN cliente cli            ON cli.id = f.cliente_id
+            LEFT  JOIN cliente_categoria_escala cce ON cce.id = cli.cliente_categoria_escala_id
+            INNER JOIN tipo_cliente tc        ON tc.id = cli.tipo_cliente_id
+            LEFT  JOIN precios_producto_carga ppc ON ppc.id = vhp.precios_producto_carga_id
+            LEFT  JOIN categoria_precios cpesc    ON cpesc.id = ppc.categoria_precios_id
+            WHERE vhp.factura_id = $facturaId
+            ORDER BY p.nombre ASC
+        ");
+
+        foreach ($rows as &$r) {
+            $r->precio_unitario  = round((float)$r->precio_unitario, 2);
+            $r->cantidad         = round((float)$r->cantidad, 2);
+            $r->subtotal_sin_isv = round((float)$r->subtotal_sin_isv, 2);
+            $r->descuento        = round((float)$r->descuento, 2);
+        }
+
+        /* Header de la factura */
+        $header = DB::SELECTONE("
+            SELECT
+                COALESCE(NULLIF(f.cai,''), NULLIF(f.numero_factura,''), CONCAT('FAC-',f.id)) AS documento,
+                DATE_FORMAT(f.fecha_emision,'%d/%m/%Y') AS fecha,
+                COALESCE(NULLIF(cli.nombre,''), f.nombre_cliente, 'N/A') AS cliente,
+                COALESCE($escalaClienteExpr, 'Sin categoría') AS cat_cliente,
+                tc.descripcion AS tipo_cliente,
+                u.name AS vendedor
+            FROM factura f
+            INNER JOIN cliente cli  ON cli.id = f.cliente_id
+            LEFT  JOIN cliente_categoria_escala cce ON cce.id = cli.cliente_categoria_escala_id
+            INNER JOIN tipo_cliente tc ON tc.id = cli.tipo_cliente_id
+            LEFT  JOIN users u      ON u.id = f.vendedor
+            WHERE f.id = $facturaId
+        ");
+
+        return response()->json([
+            'header'   => $header,
+            'productos' => $rows,
+        ]);
+    }
+
+    // ─── TELE-ASESOR: resumen KPI por facturador (users_id) ───────────────────
+    public function topTeleAsesores(Request $request)
+    {
+        $fi   = $request->fecha_inicio ?? date('Y-01-01');
+        $ff   = $request->fecha_final  ?? date('Y-m-d');
+        $inIds = '';
+
+        $vendedoresRaw = $request->vendedores ?? '';
+        if (!$vendedoresRaw) return response()->json([]);
+        if (is_array($vendedoresRaw)) {
+            $ids = array_filter(array_map('intval', $vendedoresRaw));
+        } else {
+            $ids = array_filter(array_map('intval', explode(',', $vendedoresRaw)));
+        }
+        if (empty($ids)) return response()->json([]);
+        $inIds = implode(',', $ids);
+
+        $rows = DB::SELECT("
+            SELECT
+                u.id                                       AS vendedor_id,
+                u.name                                     AS vendedor,
+                COUNT(DISTINCT f.id)                       AS facturas,
+                COUNT(DISTINCT f.cliente_id)               AS clientes_atendidos,
+                COALESCE(SUM(f.total), 0)                  AS total_ventas,
+                COALESCE(AVG(f.total), 0)                  AS ticket_promedio,
+                COALESCE(SUM(f.sub_total), 0)              AS total_sin_isv
+            FROM factura f
+            INNER JOIN users u ON u.id = f.users_id
+            WHERE f.estado_venta_id = 1
+              AND f.fecha_emision BETWEEN '$fi' AND '$ff'
+              AND f.users_id IN ($inIds)
+            GROUP BY u.id, u.name
+            ORDER BY total_ventas DESC
+        ");
+
+        $totalGlobal       = array_sum(array_column($rows, 'total_ventas'));
+        $totalSinIsvGlobal = array_sum(array_column($rows, 'total_sin_isv'));
+
+        foreach ($rows as &$r) {
+            $r->participacion = $totalGlobal > 0
+                ? round(($r->total_ventas / $totalGlobal) * 100, 2)
+                : 0;
+            $r->participacion_sin_isv = $totalSinIsvGlobal > 0
+                ? round(($r->total_sin_isv / $totalSinIsvGlobal) * 100, 2)
+                : 0;
+            $r->total_ventas    = round((float)$r->total_ventas, 2);
+            $r->ticket_promedio = round((float)$r->ticket_promedio, 2);
+            $r->total_sin_isv   = round((float)$r->total_sin_isv, 2);
+        }
+
+        return response()->json($rows);
+    }
+
+    // ─── TELE-ASESOR: evolución mensual por facturador (users_id) ──────────
+    public function ventasMesTeleAsesores(Request $request)
+    {
+        $fi    = $request->fecha_inicio ?? date('Y-01-01');
+        $ff    = $request->fecha_final  ?? date('Y-m-d');
+        $vends = $request->vendedores   ?? [];
+
+        if (!is_array($vends)) $vends = explode(',', $vends);
+        $vends = array_filter(array_map('intval', $vends));
+        if (empty($vends)) return response()->json([]);
+
+        $inVends = implode(',', $vends);
+
+        $rows = DB::SELECT("
+            SELECT
+                u.id                                AS vendedor_id,
+                u.name                              AS vendedor,
+                MONTH(f.fecha_emision)              AS mes,
+                COALESCE(SUM(f.sub_total), 0)       AS total,
+                COUNT(DISTINCT f.id)                AS facturas
+            FROM factura f
+            INNER JOIN users u ON u.id = f.users_id
+            WHERE f.estado_venta_id = 1
+              AND f.fecha_emision BETWEEN '$fi' AND '$ff'
+              AND f.users_id IN ($inVends)
+            GROUP BY u.id, u.name, mes
+            ORDER BY u.name, mes
+        ");
+
+        foreach ($rows as &$r) {
+            $r->total = round((float)$r->total, 2);
+        }
+
+        return response()->json($rows);
+    }
+
+    // ─── TELE-ASESOR: escalas por facturador (users_id) ────────────────────
+    public function escalasComparacionTla(Request $request)
+    {
+        $fi           = $request->fecha_inicio ?? date('Y-01-01');
+        $ff           = $request->fecha_final  ?? date('Y-m-d');
+        $vendedoresRaw = $request->vendedores  ?? '';
+
+        if (!$vendedoresRaw) return response()->json([]);
+
+        if (is_array($vendedoresRaw)) {
+            $ids = array_filter(array_map('intval', $vendedoresRaw));
+        } else {
+            $ids = array_filter(array_map('intval', explode(',', $vendedoresRaw)));
+        }
+        if (empty($ids)) return response()->json([]);
+
+        $inIds = implode(',', $ids);
+        $escalaNombreExpr = $this->categoriaPreciosLabelExpr('cpesc');
+
+        $rows = DB::SELECT("
+            SELECT
+                u.id                                             AS vendedor_id,
+                u.name                                           AS vendedor,
+                COALESCE(cpesc.id, 0)                            AS escala_id,
+                COALESCE($escalaNombreExpr, 'Sin categoría')     AS escala,
+                COUNT(DISTINCT f.id)                             AS facturas,
+                COALESCE(SUM(vhp.sub_total_s), 0)               AS total_sin_isv
+            FROM factura f
+            INNER JOIN users u                   ON u.id  = f.users_id
+            INNER JOIN venta_has_producto vhp    ON vhp.factura_id = f.id
+            LEFT  JOIN precios_producto_carga ppc ON ppc.id = vhp.precios_producto_carga_id
+            LEFT  JOIN categoria_precios cpesc   ON cpesc.id = ppc.categoria_precios_id
+            WHERE f.estado_venta_id = 1
+              AND f.fecha_emision BETWEEN '$fi' AND '$ff'
+              AND f.users_id IN ($inIds)
+            GROUP BY u.id, u.name, cpesc.id, $escalaNombreExpr
+            ORDER BY u.name, total_sin_isv DESC
+        ");
+
+        $byVend = [];
+        foreach ($rows as $r) {
+            $vid = $r->vendedor_id;
+            if (!isset($byVend[$vid])) {
+                $byVend[$vid] = [
+                    'vendedor_id' => $vid,
+                    'vendedor'    => $r->vendedor,
+                    'total'       => 0,
+                    'escalas'     => [],
+                ];
+            }
+            $byVend[$vid]['total'] += (float)$r->total_sin_isv;
+            $byVend[$vid]['escalas'][] = [
+                'escala_id'     => (int)$r->escala_id,
+                'escala'        => $r->escala,
+                'facturas'      => (int)$r->facturas,
+                'total_sin_isv' => round((float)$r->total_sin_isv, 2),
+            ];
+        }
+
+        foreach ($byVend as &$vd) {
+            $vd['total'] = round($vd['total'], 2);
+            foreach ($vd['escalas'] as &$esc) {
+                $esc['pct'] = $vd['total'] > 0
+                    ? round($esc['total_sin_isv'] / $vd['total'] * 100, 1)
+                    : 0;
+            }
+        }
+
+        return response()->json(array_values($byVend));
+    }
+
+    // ─── TELE-ASESOR: listado de facturas por facturador + escala ──────────
+    public function facturasComparacionTla(Request $request)
+    {
+        $fi       = $request->fecha_inicio ?? date('Y-01-01');
+        $ff       = $request->fecha_final  ?? date('Y-m-d');
+        $userId   = $request->vendedor_id  ? (int)$request->vendedor_id  : null;
+        $escalaId = $request->escala_id    !== null ? (int)$request->escala_id : null;
+
+        if (!$userId) return response()->json([]);
+
+        $escalaFilter = '';
+        if ($escalaId === 0) {
+            $escalaFilter = " AND (ppc.id IS NULL OR cpesc.id IS NULL)";
+        } elseif ($escalaId !== null) {
+            $escalaFilter = " AND cpesc.id = $escalaId";
+        }
+
+        $cceExpr = $this->clienteCategoriaEscalaLabelExpr('cce');
+
+        $rows = DB::SELECT("
+            SELECT
+                f.id                                                                        AS factura_id,
+                COALESCE(NULLIF(f.cai,''), NULLIF(f.numero_factura,''), CONCAT('FAC-',f.id)) AS documento,
+                DATE_FORMAT(f.fecha_emision,'%d/%m/%Y')                                     AS fecha,
+                COALESCE(NULLIF(cli.nombre,''), f.nombre_cliente, 'N/A')                    AS cliente,
+                COALESCE($cceExpr, 'Sin categoría')                                         AS cat_cliente,
+                tc.descripcion                                                              AS tipo_cliente,
+                COUNT(DISTINCT vhp.producto_id)                                             AS lineas,
+                COALESCE(SUM(vhp.sub_total_s), 0)                                           AS total_sin_isv,
+                f.isv                                                                       AS isv,
+                f.total                                                                     AS total_con_isv
+            FROM factura f
+            INNER JOIN venta_has_producto vhp    ON vhp.factura_id = f.id
+            LEFT  JOIN precios_producto_carga ppc ON ppc.id = vhp.precios_producto_carga_id
+            LEFT  JOIN categoria_precios cpesc   ON cpesc.id = ppc.categoria_precios_id
+            INNER JOIN cliente cli               ON cli.id = f.cliente_id
+            LEFT  JOIN cliente_categoria_escala cce ON cce.id = cli.cliente_categoria_escala_id
+            INNER JOIN tipo_cliente tc           ON tc.id = cli.tipo_cliente_id
+            WHERE f.estado_venta_id = 1
+              AND f.fecha_emision BETWEEN '$fi' AND '$ff'
+              AND f.users_id = $userId
+              $escalaFilter
+            GROUP BY f.id, f.cai, f.numero_factura, f.fecha_emision,
+                     cli.nombre, f.nombre_cliente, cce.id, tc.descripcion,
+                     f.isv, f.total
+            ORDER BY f.fecha_emision DESC, f.id DESC
+        ");
+
+        foreach ($rows as &$r) {
+            $r->total_sin_isv = round((float)$r->total_sin_isv, 2);
+            $r->isv           = round((float)$r->isv, 2);
+            $r->total_con_isv = round((float)$r->total_con_isv, 2);
+            $r->lineas        = (int)$r->lineas;
         }
 
         return response()->json($rows);
