@@ -2263,11 +2263,11 @@ var dashboardVentas = (function () {
             fecha_final:  ff,
             vendedores:   ids.join(',')
         }).then(function (vendors) {
-            _renderResumenEscalas(vendors);
+            _renderResumenEscalas(vendors, fi, ff);
         });
     }
 
-    function _renderResumenEscalas(vendors) {
+    function _renderResumenEscalas(vendors, fi, ff) {
         var $tabs    = $('#cmp-esc-tabs').empty();
         var $content = $('#cmp-esc-content').empty();
         var $empty   = $('#cmp-esc-empty');
@@ -2303,7 +2303,12 @@ var dashboardVentas = (function () {
                 rows +=
                     '<tr>' +
                     '<td class="font-weight-bold">' + esc.escala + '</td>' +
-                    '<td class="text-right">' + esc.facturas + '</td>' +
+                    '<td class="text-right">' +
+                    '<a href="#" class="cmp-esc-fact-link font-weight-bold" style="color:#EC401B"' +
+                    ' data-fi="' + fi + '" data-ff="' + ff + '"' +
+                    ' data-vend-id="' + vd.vendedor_id + '" data-esc-id="' + esc.escala_id + '"' +
+                    ' data-vend-nombre="' + vd.vendedor + '" data-esc-nombre="' + esc.escala + '">' +
+                    esc.facturas + '</a></td>' +
                     '<td class="text-right font-weight-bold">' + fmt(esc.total_sin_isv) + '</td>' +
                     '<td style="min-width:120px">' +
                     '<div style="background:#e9ecef;border-radius:4px;overflow:hidden;height:16px">' +
@@ -2334,6 +2339,17 @@ var dashboardVentas = (function () {
                 '</tr></thead>' +
                 '<tbody>' + rows + '</tbody>' +
                 '</table></div></div>'
+            );
+        });
+
+        /* Delegación: click en nº de facturas → modal facturas */
+        $content.off('click', '.cmp-esc-fact-link').on('click', '.cmp-esc-fact-link', function (e) {
+            e.preventDefault();
+            var $a = $(this);
+            _abrirFacturasComparacion(
+                $a.data('fi'), $a.data('ff'),
+                $a.data('vend-id'), $a.data('esc-id'),
+                $a.data('vend-nombre'), $a.data('esc-nombre')
             );
         });
     }
@@ -2436,6 +2452,171 @@ var dashboardVentas = (function () {
             );
         });
         _dtInit('tabla-comparacion');
+    }
+
+    /* ─── Comparar Vendedores: Modal Facturas ──────────────────────────── */
+    var _cmpFactParams = {};   // fi, ff, vendedor_id, escala_id guardados para el back
+    var _cmpFactAllRows = [];  // todas las filas para paginación
+    var _cmpFactPage = 1;
+    var _cmpFactPerPage = 6;
+
+    function _renderFactPage(page) {
+        _cmpFactPage = page;
+        var rows = _cmpFactAllRows;
+        var total = rows.length;
+        var pages = Math.ceil(total / _cmpFactPerPage);
+        var start = (page - 1) * _cmpFactPerPage;
+        var slice = rows.slice(start, start + _cmpFactPerPage);
+
+        var $tbody = $('#tbody-cmp-facturas').empty();
+        slice.forEach(function (r) {
+            $tbody.append(
+                '<tr>' +
+                '<td><a href="#" class="font-weight-bold cmp-ver-productos" style="color:#EC401B"' +
+                ' data-factura-id="' + r.factura_id + '"' +
+                ' data-documento="' + (r.documento || r.factura_id) + '">' +
+                (r.documento || 'FAC-' + r.factura_id) + '</a></td>' +
+                '<td>' + r.fecha + '</td>' +
+                '<td>' + r.cliente + '</td>' +
+                '<td><span class="badge badge-secondary">' + r.cat_cliente + '</span></td>' +
+                '<td>' + r.tipo_cliente + '</td>' +
+                '<td class="text-right">' + r.lineas + '</td>' +
+                '<td class="text-right font-weight-bold">' + fmt(r.total_sin_isv) + '</td>' +
+                '<td class="text-right text-muted">' + fmt(r.isv) + '</td>' +
+                '<td class="text-right font-weight-bold">' + fmt(r.total_con_isv) + '</td>' +
+                '</tr>'
+            );
+        });
+
+        /* Info */
+        $('#cmp-fact-pag-info').text('Mostrando ' + (start + 1) + '-' + Math.min(start + _cmpFactPerPage, total) + ' de ' + total + ' facturas');
+
+        /* Paginación */
+        var $links = $('#cmp-fact-pag-links').empty();
+        $links.append(
+            '<li class="page-item' + (page === 1 ? ' disabled' : '') + '">' +
+            '<a class="page-link" href="#" data-p="' + (page - 1) + '">&laquo;</a></li>'
+        );
+        var from = Math.max(1, page - 2);
+        var to   = Math.min(pages, page + 2);
+        for (var p = from; p <= to; p++) {
+            $links.append(
+                '<li class="page-item' + (p === page ? ' active' : '') + '">' +
+                '<a class="page-link" href="#" data-p="' + p + '">' + p + '</a></li>'
+            );
+        }
+        $links.append(
+            '<li class="page-item' + (page === pages ? ' disabled' : '') + '">' +
+            '<a class="page-link" href="#" data-p="' + (page + 1) + '">&raquo;</a></li>'
+        );
+
+        $('#cmp-fact-pagination').css('display', 'flex');
+    }
+
+    function _abrirFacturasComparacion(fi, ff, vendedorId, escalaId, vendedorNombre, escalaNombre) {
+        _cmpFactParams = { fi: fi, ff: ff, vendedor_id: vendedorId, escala_id: escalaId };
+        _cmpFactAllRows = [];
+        _cmpFactPage = 1;
+
+        $('#modal-cmp-facturas-title').html(
+            '<i class="fas fa-file-invoice mr-2"></i>' + vendedorNombre +
+            ' &mdash; <small>' + escalaNombre + '</small>'
+        );
+        $('#modal-cmp-fact-kpis').html('<span class="text-muted small">Cargando...</span>');
+        $('#tbody-cmp-facturas').html('<tr><td colspan="9" class="text-center py-3"><i class="fas fa-spinner fa-spin"></i> Cargando...</td></tr>');
+        $('#cmp-fact-pagination').css('display', 'none');
+        $('#modal-cmp-facturas').modal('show');
+
+        $.get('/reporte/dashboard/facturas-comparacion', {
+            fecha_inicio: fi,
+            fecha_final:  ff,
+            vendedor_id:  vendedorId,
+            escala_id:    escalaId
+        }).then(function (rows) {
+            _cmpFactAllRows = rows;
+            var totalSinIsv = rows.reduce(function (s, r) { return s + r.total_sin_isv; }, 0);
+            var totalCon    = rows.reduce(function (s, r) { return s + r.total_con_isv; }, 0);
+
+            $('#modal-cmp-fact-kpis').html(
+                '<span class="font-weight-bold mr-3"><i class="fas fa-file-invoice text-muted mr-1"></i>' + rows.length + ' facturas</span>' +
+                '<span class="font-weight-bold mr-3 text-info"><i class="fas fa-dollar-sign mr-1"></i>Sin ISV: ' + fmt(totalSinIsv) + '</span>' +
+                '<span class="font-weight-bold text-secondary"><i class="fas fa-dollar-sign mr-1"></i>Con ISV: ' + fmt(totalCon) + '</span>'
+            );
+
+            _renderFactPage(1);
+
+            /* Click paginación */
+            $('#cmp-fact-pag-links').off('click').on('click', 'a.page-link', function (e) {
+                e.preventDefault();
+                var p = parseInt($(this).data('p'));
+                var pages = Math.ceil(_cmpFactAllRows.length / _cmpFactPerPage);
+                if (p >= 1 && p <= pages) _renderFactPage(p);
+            });
+
+            /* Click en documento → modal productos */
+            $('#tbody-cmp-facturas').off('click', '.cmp-ver-productos').on('click', '.cmp-ver-productos', function (e) {
+                e.preventDefault();
+                _abrirProductosFactura($(this).data('factura-id'), $(this).data('documento'));
+            });
+        }).catch(function () {
+            $('#tbody-cmp-facturas').html('<tr><td colspan="9" class="text-center text-danger">Error al cargar facturas.</td></tr>');
+        });
+    }
+
+    function _abrirProductosFactura(facturaId, docNombre) {
+        $('#modal-cmp-prod-title').html('<i class="fas fa-boxes mr-2"></i>Productos — ' + docNombre);
+        $('#modal-cmp-prod-header').html('<span class="text-muted small"><i class="fas fa-spinner fa-spin mr-1"></i>Cargando...</span>');
+        $('#tbody-cmp-productos').html('<tr><td colspan="8" class="text-center py-3"><i class="fas fa-spinner fa-spin"></i> Cargando...</td></tr>');
+        $('#tfoot-cmp-total').text('');
+        $('#btn-cmp-ver-factura').attr('href', '/factura/cooporativo/' + facturaId);
+
+        /* Esperar que Modal 1 cierre completamente antes de abrir Modal 2
+           para evitar el backdrop negro doble */
+        $('#modal-cmp-facturas').one('hidden.bs.modal', function () {
+            $('#modal-cmp-productos').modal('show');
+        });
+        $('#modal-cmp-facturas').modal('hide');
+
+        $.get('/reporte/dashboard/productos-factura-comparacion', { factura_id: facturaId }).then(function (data) {
+            var h = data.header || {};
+            $('#modal-cmp-prod-header').html(
+                '<span><i class="fas fa-calendar-alt text-muted mr-1"></i><strong>' + (h.fecha || '') + '</strong></span>' +
+                '<span><i class="fas fa-user mr-1 text-muted"></i>' + (h.cliente || '') + '</span>' +
+                '<span><span class="badge badge-secondary mr-1">' + (h.cat_cliente || '') + '</span>' + (h.tipo_cliente || '') + '</span>' +
+                '<span><i class="fas fa-user-tie text-muted mr-1"></i>' + (h.vendedor || '') + '</span>'
+            );
+
+            var $tbody = $('#tbody-cmp-productos').empty();
+            var total = 0;
+            (data.productos || []).forEach(function (p) {
+                total += p.subtotal_sin_isv;
+                $tbody.append(
+                    '<tr>' +
+                    '<td><code>' + (p.codigo || '—') + '</code></td>' +
+                    '<td>' + p.producto + '</td>' +
+                    '<td><span class="badge badge-info">' + p.escala_precio + '</span></td>' +
+                    '<td><span class="badge badge-secondary">' + p.cat_cliente + '</span></td>' +
+                    '<td>' + p.tipo_cliente + '</td>' +
+                    '<td class="text-right">' + fmt(p.precio_unitario) + '</td>' +
+                    '<td class="text-right">' + p.cantidad + '</td>' +
+                    '<td class="text-right font-weight-bold">' + fmt(p.subtotal_sin_isv) + '</td>' +
+                    '</tr>'
+                );
+            });
+            $('#tfoot-cmp-total').text(fmt(total));
+        }).catch(function () {
+            $('#tbody-cmp-productos').html('<tr><td colspan="8" class="text-center text-danger">Error al cargar productos.</td></tr>');
+        });
+
+        /* Botón volver y X — ambos regresan a Modal 1 */
+        function _volverAFacturas() {
+            $('#modal-cmp-productos').one('hidden.bs.modal', function () {
+                $('#modal-cmp-facturas').modal('show');
+            });
+            $('#modal-cmp-productos').modal('hide');
+        }
+        $('#btn-cmp-prod-back').off('click').on('click', _volverAFacturas);
+        $('#btn-cmp-prod-x').off('click').on('click', _volverAFacturas);
     }
 
     function limpiarFiltrosAdv() {

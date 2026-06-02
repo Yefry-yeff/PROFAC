@@ -1814,8 +1814,7 @@ class DashboardVentas extends Component
     }
 
     // ─── COMPARAR: escalas por vendedor ────────────────────────────────────
-    public function escalasComparacion(Request $request)
-    {
+    public function escalasComparacion(Request $request)    {
         $fi           = $request->fecha_inicio ?? date('Y-01-01');
         $ff           = $request->fecha_final  ?? date('Y-m-d');
         $vendedoresRaw = $request->vendedores  ?? '';
@@ -1883,5 +1882,127 @@ class DashboardVentas extends Component
         }
 
         return response()->json(array_values($byVend));
+    }
+
+    // ─── COMPARAR: listado de facturas por vendedor + escala ───────────────
+    public function facturasComparacion(Request $request)
+    {
+        $fi       = $request->fecha_inicio ?? date('Y-01-01');
+        $ff       = $request->fecha_final  ?? date('Y-m-d');
+        $vendId   = $request->vendedor_id  ? (int)$request->vendedor_id  : null;
+        $escalaId = $request->escala_id    !== null ? (int)$request->escala_id : null;
+
+        if (!$vendId) return response()->json([]);
+
+        $escalaFilter = '';
+        if ($escalaId === 0) {
+            // Sin categoria precio (ppc NULL o cpesc NULL)
+            $escalaFilter = " AND (ppc.id IS NULL OR cpesc.id IS NULL)";
+        } elseif ($escalaId !== null) {
+            $escalaFilter = " AND cpesc.id = $escalaId";
+        }
+
+        $cceExpr = $this->clienteCategoriaEscalaLabelExpr('cce');
+
+        $rows = DB::SELECT("
+            SELECT
+                f.id                                                                        AS factura_id,
+                COALESCE(NULLIF(f.cai,''), NULLIF(f.numero_factura,''), CONCAT('FAC-',f.id)) AS documento,
+                DATE_FORMAT(f.fecha_emision,'%d/%m/%Y')                                     AS fecha,
+                COALESCE(NULLIF(cli.nombre,''), f.nombre_cliente, 'N/A')                    AS cliente,
+                COALESCE($cceExpr, 'Sin categoría')                                         AS cat_cliente,
+                tc.descripcion                                                              AS tipo_cliente,
+                COUNT(DISTINCT vhp.producto_id)                                             AS lineas,
+                COALESCE(SUM(vhp.sub_total_s), 0)                                           AS total_sin_isv,
+                f.isv                                                                       AS isv,
+                f.total                                                                     AS total_con_isv
+            FROM factura f
+            INNER JOIN venta_has_producto vhp    ON vhp.factura_id = f.id
+            LEFT  JOIN precios_producto_carga ppc ON ppc.id = vhp.precios_producto_carga_id
+            LEFT  JOIN categoria_precios cpesc   ON cpesc.id = ppc.categoria_precios_id
+            INNER JOIN cliente cli               ON cli.id = f.cliente_id
+            LEFT  JOIN cliente_categoria_escala cce ON cce.id = cli.cliente_categoria_escala_id
+            INNER JOIN tipo_cliente tc           ON tc.id = cli.tipo_cliente_id
+            WHERE f.estado_venta_id = 1
+              AND f.fecha_emision BETWEEN '$fi' AND '$ff'
+              AND f.vendedor = $vendId
+              $escalaFilter
+            GROUP BY f.id, f.cai, f.numero_factura, f.fecha_emision,
+                     cli.nombre, f.nombre_cliente, cce.id, tc.descripcion,
+                     f.isv, f.total
+            ORDER BY f.fecha_emision DESC, f.id DESC
+        ");
+
+        foreach ($rows as &$r) {
+            $r->total_sin_isv = round((float)$r->total_sin_isv, 2);
+            $r->isv           = round((float)$r->isv, 2);
+            $r->total_con_isv = round((float)$r->total_con_isv, 2);
+            $r->lineas        = (int)$r->lineas;
+        }
+
+        return response()->json($rows);
+    }
+
+    // ─── COMPARAR: productos de una factura ────────────────────────────────
+    public function productosFacturaComparacion(Request $request)
+    {
+        $facturaId = $request->factura_id ? (int)$request->factura_id : null;
+        if (!$facturaId) return response()->json([]);
+
+        $escalaPrecioExpr  = $this->categoriaPreciosLabelExpr('cpesc');
+        $escalaClienteExpr = $this->clienteCategoriaEscalaLabelExpr('cce');
+
+        $rows = DB::SELECT("
+            SELECT
+                p.id                                                        AS producto_id,
+                {$this->productoCodigoExpr('p')}                            AS codigo,
+                p.nombre                                                    AS producto,
+                COALESCE($escalaPrecioExpr, 'Sin escala precio')            AS escala_precio,
+                COALESCE($escalaClienteExpr, 'Sin categoría cliente')       AS cat_cliente,
+                tc.descripcion                                              AS tipo_cliente,
+                vhp.precio_unidad                                           AS precio_unitario,
+                COALESCE(vhp.cantidad_s, vhp.cantidad)                      AS cantidad,
+                COALESCE(vhp.sub_total_s, 0)                                AS subtotal_sin_isv,
+                0                                                           AS descuento
+            FROM venta_has_producto vhp
+            INNER JOIN producto p             ON p.id = vhp.producto_id
+            INNER JOIN factura f              ON f.id = vhp.factura_id
+            INNER JOIN cliente cli            ON cli.id = f.cliente_id
+            LEFT  JOIN cliente_categoria_escala cce ON cce.id = cli.cliente_categoria_escala_id
+            INNER JOIN tipo_cliente tc        ON tc.id = cli.tipo_cliente_id
+            LEFT  JOIN precios_producto_carga ppc ON ppc.id = vhp.precios_producto_carga_id
+            LEFT  JOIN categoria_precios cpesc    ON cpesc.id = ppc.categoria_precios_id
+            WHERE vhp.factura_id = $facturaId
+            ORDER BY p.nombre ASC
+        ");
+
+        foreach ($rows as &$r) {
+            $r->precio_unitario  = round((float)$r->precio_unitario, 2);
+            $r->cantidad         = round((float)$r->cantidad, 2);
+            $r->subtotal_sin_isv = round((float)$r->subtotal_sin_isv, 2);
+            $r->descuento        = round((float)$r->descuento, 2);
+        }
+
+        /* Header de la factura */
+        $header = DB::SELECTONE("
+            SELECT
+                COALESCE(NULLIF(f.cai,''), NULLIF(f.numero_factura,''), CONCAT('FAC-',f.id)) AS documento,
+                DATE_FORMAT(f.fecha_emision,'%d/%m/%Y') AS fecha,
+                COALESCE(NULLIF(cli.nombre,''), f.nombre_cliente, 'N/A') AS cliente,
+                COALESCE($escalaClienteExpr, 'Sin categoría') AS cat_cliente,
+                tc.descripcion AS tipo_cliente,
+                u.name AS vendedor
+            FROM factura f
+            INNER JOIN cliente cli  ON cli.id = f.cliente_id
+            LEFT  JOIN cliente_categoria_escala cce ON cce.id = cli.cliente_categoria_escala_id
+            INNER JOIN tipo_cliente tc ON tc.id = cli.tipo_cliente_id
+            LEFT  JOIN users u      ON u.id = f.vendedor
+            WHERE f.id = $facturaId
+        ");
+
+        return response()->json([
+            'header'   => $header,
+            'productos' => $rows,
+        ]);
     }
 }

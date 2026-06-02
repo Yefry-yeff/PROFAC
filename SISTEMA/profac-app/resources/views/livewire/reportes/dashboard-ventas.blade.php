@@ -1036,9 +1036,118 @@
     </div>{{-- /tab-content --}}
 </div>{{-- /container-fluid --}}
 
+{{-- ══════════════════════════════════════════════════════════════════════
+     MODAL 1: Facturas por vendedor/escala (Comparar Vendedores)
+═══════════════════════════════════════════════════════════════════════ --}}
+<div class="modal fade" id="modal-cmp-facturas" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-cmp-positioned" role="document">
+        <div class="modal-content">
+            <div class="modal-header" style="background:#343a40; color:#fff;">
+                <h5 class="mb-0 modal-title" id="modal-cmp-facturas-title"><i class="fas fa-file-invoice mr-2"></i>Detalle de Facturas</h5>
+                <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body p-0">
+                {{-- Resumen rápido --}}
+                <div class="px-3 py-2 d-flex flex-wrap" id="modal-cmp-fact-kpis" style="gap:12px; background:#f8f9fc; border-bottom:1px solid #e3e6f0;"></div>
+                {{-- Tabla --}}
+                <div class="table-responsive px-3 pt-2" style="max-height:52vh; overflow-y:auto;">
+                    <table class="table table-sm table-bordered table-hover mb-0" id="tabla-cmp-facturas" style="width:100%">
+                        <thead class="thead-dark" style="position:sticky;top:0;z-index:1;">
+                            <tr>
+                                <th>Documento</th>
+                                <th>Fecha</th>
+                                <th>Cliente</th>
+                                <th>Cat. Cliente</th>
+                                <th>Tipo Cliente</th>
+                                <th class="text-right">Líneas</th>
+                                <th class="text-right">Sin ISV</th>
+                                <th class="text-right">ISV</th>
+                                <th class="text-right">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-cmp-facturas"></tbody>
+                    </table>
+                </div>
+                {{-- Paginación --}}
+                <div class="px-3 py-2 d-flex align-items-center justify-content-between border-top" id="cmp-fact-pagination" style="background:#f8f9fc; display:none!important;">
+                    <small class="text-muted" id="cmp-fact-pag-info"></small>
+                    <ul class="pagination pagination-sm mb-0" id="cmp-fact-pag-links"></ul>
+                </div>
+            </div>
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- ══════════════════════════════════════════════════════════════════════
+     MODAL 2: Productos de una factura (Comparar Vendedores)
+═══════════════════════════════════════════════════════════════════════ --}}
+<div class="modal fade" id="modal-cmp-productos" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-cmp-positioned" role="document">
+        <div class="modal-content">
+            <div class="modal-header" style="background:#EC401B; color:#fff;">
+                <h5 class="mb-0 modal-title" id="modal-cmp-prod-title"><i class="fas fa-boxes mr-2"></i>Productos de la Factura</h5>
+                <button type="button" class="close text-white" id="btn-cmp-prod-x"><span>&times;</span></button>
+            </div>
+            <div class="modal-body p-0">
+                {{-- Info de cabecera --}}
+                <div class="px-3 py-2 d-flex flex-wrap" id="modal-cmp-prod-header" style="gap:16px; background:#fff8f6; border-bottom:1px solid #fde0d8; font-size:.83rem;"></div>
+                {{-- Tabla --}}
+                <div class="table-responsive px-3 pt-2" style="max-height:52vh; overflow-y:auto;">
+                    <table class="table table-sm table-bordered mb-0" id="tabla-cmp-productos" style="width:100%">
+                        <thead class="thead-dark" style="position:sticky;top:0;z-index:1;">
+                            <tr>
+                                <th>Código</th>
+                                <th>Producto</th>
+                                <th>Escala de Precio</th>
+                                <th>Cat. Cliente</th>
+                                <th>Tipo Cliente</th>
+                                <th class="text-right">Precio Unit.</th>
+                                <th class="text-right">Cantidad</th>
+                                <th class="text-right">Subtotal sin ISV</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-cmp-productos"></tbody>
+                        <tfoot>
+                            <tr class="font-weight-bold" style="background:#fff3f0">
+                                <td colspan="7" class="text-right">TOTAL sin ISV:</td>
+                                <td class="text-right" id="tfoot-cmp-total"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-cmp-prod-back">
+                    <i class="fas fa-arrow-left mr-1"></i>Volver a Facturas
+                </button>
+                <a id="btn-cmp-ver-factura" href="#" target="_blank" class="btn btn-sm btn-primary">
+                    <i class="fas fa-print mr-1"></i>Ver Factura
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
 {{-- ======================= ESTILOS ======================= --}}
 <style>
-.nav-tabs-custom { border-bottom: 2px solid #EC401B; }
+/* Modal comparar vendedores: posicionado debajo del navbar y con espacio del sidebar */
+.modal-cmp-positioned {
+    margin-top: 75px;          /* debajo del navbar (65px) + 10px espacio */
+    margin-left: calc(220px + 20px); /* sidebar (220px) + margen */
+    margin-right: 20px;
+    max-width: calc(100vw - 220px - 50px);
+    width: 100%;
+}
+@media (max-width: 768px) {
+    .modal-cmp-positioned {
+        margin-left: 10px;
+        margin-right: 10px;
+        max-width: calc(100vw - 20px);
+    }
+}
 .nav-tabs-custom .nav-link { border: 1px solid transparent; border-radius: 4px 4px 0 0; color: #5a5c69; }
 .nav-tabs-custom .nav-link.active { background: #fff; border-color: #EC401B #EC401B #fff; color: #EC401B; }
 
