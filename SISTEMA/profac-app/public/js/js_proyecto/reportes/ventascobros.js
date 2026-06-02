@@ -304,7 +304,7 @@ function renderMovimiento(mov) {
     var tipo  = (mov.tipo || '').toUpperCase();
     var monto = parseFloat(mov.monto) || 0;
     var esCargo  = tipo === 'VENTA';
-    var esAbono  = !esCargo && tipo !== 'ENTREGA';
+    var esAbono  = !esCargo && tipo !== 'ENTREGA' && tipo !== 'VALE';
 
     var dotClass   = 'rfd-dot-' + tipo.toLowerCase();
     var tipoColor  = tipoColorMap(tipo);
@@ -312,7 +312,7 @@ function renderMovimiento(mov) {
     var label      = tipoLabel(tipo);
     var montoHtml  = '';
 
-    if (tipo !== 'ENTREGA') {
+    if (tipo !== 'ENTREGA' && tipo !== 'VALE') {
         var sign = esCargo ? '+' : '-';
         var montoColor = esCargo ? '#e02424' : '#0e9f6e';
         montoHtml = '<span class="rfd-tl-monto" style="color:' + montoColor + ';">' + sign + ' ' + fmtLpsAbs(monto) + '</span>';
@@ -367,15 +367,15 @@ function carteraItem(lbl, val) {
     return '<div class="rfd-cartera-item"><div class="ci-lbl">' + lbl + '</div><div class="ci-val">' + (val || '—') + '</div></div>';
 }
 function tipoIcon(t) {
-    var m = { VENTA:'fa-file-text-o', ENTREGA:'fa-truck', ABONO:'fa-money', PAGO:'fa-credit-card', NOTA_CREDITO:'fa-minus-circle' };
+    var m = { VENTA:'fa-file-text-o', ENTREGA:'fa-truck', ABONO:'fa-money', PAGO:'fa-credit-card', NOTA_CREDITO:'fa-minus-circle', VALE:'fa-ticket' };
     return m[t] || 'fa-circle-o';
 }
 function tipoLabel(t) {
-    var m = { VENTA:'Venta', ENTREGA:'Entrega', ABONO:'Abono Cr\u00e9dito', PAGO:'Pago Contado', NOTA_CREDITO:'Nota de Cr\u00e9dito' };
+    var m = { VENTA:'Venta', ENTREGA:'Entrega', ABONO:'Abono Cr\u00e9dito', PAGO:'Pago Contado', NOTA_CREDITO:'Nota de Cr\u00e9dito', VALE:'Vale de Entrega' };
     return m[t] || t;
 }
 function tipoColorMap(t) {
-    var m = { VENTA:'#1a56db', ENTREGA:'#0e9f6e', ABONO:'#d97706', PAGO:'#7c3aed', NOTA_CREDITO:'#e02424' };
+    var m = { VENTA:'#1a56db', ENTREGA:'#0e9f6e', ABONO:'#d97706', PAGO:'#7c3aed', NOTA_CREDITO:'#e02424', VALE:'#e67e22' };
     return m[t] || '#6b7280';
 }
 

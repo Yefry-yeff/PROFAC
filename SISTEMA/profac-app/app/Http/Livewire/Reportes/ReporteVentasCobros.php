@@ -475,15 +475,33 @@ class ReporteVentasCobros extends Component
 
             $inner = $this->lightSql($where);
 
+            // ── Ordenamiento dinámico desde DataTables (whitelist para evitar SQL injection)
+            $dtColMap = [
+                1  => 'numero_secuencia_cai',
+                2  => 'cliente',
+                3  => 'vendedor',
+                4  => 'fecha_venta',
+                5  => 'modo_pago',
+                6  => 'total',
+                7  => 'monto_pagado',
+                8  => 'saldo_pendiente',
+                9  => 'estado_cobro_v2',
+                10 => 'dias_vencidos',
+            ];
+            $dtOrder     = $request->query('order', []);
+            $dtColIdx    = isset($dtOrder[0]['column']) ? (int) $dtOrder[0]['column'] : 1;
+            $dtDir       = (isset($dtOrder[0]['dir']) && strtolower($dtOrder[0]['dir']) === 'desc') ? 'DESC' : 'ASC';
+            $dtOrderCol  = $dtColMap[$dtColIdx] ?? 'numero_secuencia_cai';
+
             if ($estadoCobro) {
                 $cntSql  = "SELECT COUNT(*) AS cnt FROM ({$inner}) AS _c WHERE estado_cobro_v2 = ?";
                 $cntP    = array_merge($params, [$estadoCobro]);
-                $datSql  = "SELECT * FROM ({$inner}) AS _d WHERE estado_cobro_v2 = ? ORDER BY numero_secuencia_cai ASC LIMIT ? OFFSET ?";
+                $datSql  = "SELECT * FROM ({$inner}) AS _d WHERE estado_cobro_v2 = ? ORDER BY {$dtOrderCol} {$dtDir} LIMIT ? OFFSET ?";
                 $datP    = array_merge($params, [$estadoCobro, $length, $start]);
             } else {
                 $cntSql  = "SELECT COUNT(*) AS cnt FROM ({$inner}) AS _c";
                 $cntP    = $params;
-                $datSql  = "SELECT * FROM ({$inner}) AS _d ORDER BY numero_secuencia_cai ASC LIMIT ? OFFSET ?";
+                $datSql  = "SELECT * FROM ({$inner}) AS _d ORDER BY {$dtOrderCol} {$dtDir} LIMIT ? OFFSET ?";
                 $datP    = array_merge($params, [$length, $start]);
             }
 
@@ -712,9 +730,19 @@ class ReporteVentasCobros extends Component
                     FROM nota_credito nc
                     LEFT JOIN users u_nc ON u_nc.id = nc.users_id
                     WHERE nc.factura_id = ? AND nc.estado_nota_id = 1
+
+                    UNION ALL
+
+                    /* Vale de entrega */
+                    SELECT 'VALE', v.created_at, COALESCE(v.numero_vale, CONCAT('Vale #', v.id)),
+                           NULL, NULL, NULL, NULL,
+                           COALESCE(v.notas,'Vale de entrega'), COALESCE(u_v.name,''), NULL, 6
+                    FROM vale v
+                    LEFT JOIN users u_v ON u_v.id = v.users_id
+                    WHERE v.factura_id = ? AND v.estado_id != 7
                 ) AS _movs
                 ORDER BY fecha ASC, orden_tipo ASC
-            ", [$facturaId, $facturaId, $facturaId, $facturaId, $facturaId]);
+            ", [$facturaId, $facturaId, $facturaId, $facturaId, $facturaId, $facturaId]);
 
             /* ── Calcular saldo progresivo ── */
             $saldo = (float) $cab->total_factura;
