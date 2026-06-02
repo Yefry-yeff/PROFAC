@@ -191,7 +191,7 @@
         <div class="rpt-card-body">
           <div class="table-responsive">
             <table id="tbl_precios_prod" class="table table-sm table-bordered rpt-table" style="width:100%">
-              <thead><tr><th>ID</th><th>Cat. Cliente</th><th>Código</th><th>Producto</th><th>Marca</th><th>Categoría</th><th>Escala</th><th class="text-right">Precio A</th><th class="text-right">Precio B</th><th class="text-right">Precio C</th><th class="text-right">Precio D</th></tr></thead>
+              <thead><tr><th>ID</th><th>Cat. Cliente</th><th>Código</th><th>Producto</th><th>Marca</th><th>Categoría</th><th>Escala</th><th class="text-right">Precio Base</th><th class="text-right">Precio A</th><th class="text-right">Precio B</th><th class="text-right">Precio C</th><th class="text-right">Precio D</th></tr></thead>
               <tbody></tbody>
             </table>
           </div>

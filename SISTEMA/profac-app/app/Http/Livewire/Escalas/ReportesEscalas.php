@@ -68,6 +68,7 @@ class ReportesEscalas extends Component
                 'm.nombre as marca',
                 'c.descripcion as categoria',
                 'cp.nombre as escala_precio',
+                'ppc.precio_base_venta',
                 'ppc.precio_a',
                 'ppc.precio_b',
                 'ppc.precio_c',
@@ -87,11 +88,24 @@ class ReportesEscalas extends Component
         }
 
         return DataTables::of($query)
+            ->addColumn('precio_base_formatted', fn ($r) => 'L. ' . number_format($r->precio_base_venta ?? 0, 2))
             ->addColumn('precio_A_formatted', fn ($r) => 'L. ' . number_format($r->precio_a, 2))
             ->addColumn('precio_B_formatted', fn ($r) => 'L. ' . number_format($r->precio_b, 2))
             ->addColumn('precio_C_formatted', fn ($r) => 'L. ' . number_format($r->precio_c, 2))
             ->addColumn('precio_D_formatted', fn ($r) => 'L. ' . number_format($r->precio_d, 2))
-            ->rawColumns(['precio_A_formatted', 'precio_B_formatted', 'precio_C_formatted', 'precio_D_formatted'])
+            ->filterColumn('id',               fn ($q, $k) => $q->where('p.id', 'like', "%{$k}%"))
+            ->filterColumn('categoria_cliente', fn ($q, $k) => $q->where('cce.nombre_categoria', 'like', "%{$k}%"))
+            ->filterColumn('codigo',            fn ($q, $k) => $q->where('p.codigo_barra', 'like', "%{$k}%"))
+            ->filterColumn('producto',          fn ($q, $k) => $q->where('p.nombre', 'like', "%{$k}%"))
+            ->filterColumn('marca',             fn ($q, $k) => $q->where('m.nombre', 'like', "%{$k}%"))
+            ->filterColumn('categoria',         fn ($q, $k) => $q->where('c.descripcion', 'like', "%{$k}%"))
+            ->filterColumn('escala_precio',     fn ($q, $k) => $q->where('cp.nombre', 'like', "%{$k}%"))
+            ->filterColumn('precio_base_formatted', fn ($q, $k) => $q->where('ppc.precio_base_venta', 'like', "%{$k}%"))
+            ->filterColumn('precio_A_formatted', fn ($q, $k) => $q->where('ppc.precio_a', 'like', "%{$k}%"))
+            ->filterColumn('precio_B_formatted', fn ($q, $k) => $q->where('ppc.precio_b', 'like', "%{$k}%"))
+            ->filterColumn('precio_C_formatted', fn ($q, $k) => $q->where('ppc.precio_c', 'like', "%{$k}%"))
+            ->filterColumn('precio_D_formatted', fn ($q, $k) => $q->where('ppc.precio_d', 'like', "%{$k}%"))
+            ->rawColumns(['precio_base_formatted', 'precio_A_formatted', 'precio_B_formatted', 'precio_C_formatted', 'precio_D_formatted'])
             ->make(true);
     }
 

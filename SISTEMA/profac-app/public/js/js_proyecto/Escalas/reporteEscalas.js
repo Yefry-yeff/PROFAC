@@ -182,6 +182,7 @@ function inicializarTablaPrecios() {
             { data: 'marca' },
             { data: 'categoria' },
             { data: 'escala_precio' },
+            { data: 'precio_base_formatted', className: 'text-right' },
             { data: 'precio_A_formatted',  className: 'text-right' },
             { data: 'precio_B_formatted',  className: 'text-right' },
             { data: 'precio_C_formatted',  className: 'text-right' },
