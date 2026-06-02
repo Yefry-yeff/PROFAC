@@ -192,7 +192,8 @@ class DashboardVentas extends Component
                 COALESCE(AVG(f.total), 0)                     AS ticket_promedio,
                 COUNT(DISTINCT f.cliente_id)                  AS clientes_unicos,
                 COALESCE(SUM(f.monto_descuento), 0)           AS total_descuentos,
-                COALESCE(SUM(f.isv), 0)                       AS total_isv
+                COALESCE(SUM(f.isv), 0)                       AS total_isv,
+                COALESCE(SUM(f.sub_total), 0)                 AS total_sin_isv
             FROM factura f
             $join
             WHERE $where
@@ -229,6 +230,7 @@ class DashboardVentas extends Component
             'total_facturas'   => (int)$row->total_facturas,
             'total_ventas'     => round((float)$row->total_ventas, 2),
             'ticket_promedio'  => round((float)$row->ticket_promedio, 2),
+            'total_sin_isv'    => round((float)$row->total_sin_isv, 2),
             'clientes_unicos'  => (int)$row->clientes_unicos,
             'total_descuentos' => round((float)$row->total_descuentos, 2),
             'total_isv'        => round((float)$row->total_isv, 2),
@@ -336,6 +338,44 @@ class DashboardVentas extends Component
         return Datatables::of($rows)->rawColumns([])->make(true);
     }
 
+    // ─── PESTAÑA 2: Exportar detalle semanal (sin paginación) ───────────────
+    public function exportarDetalleSemanal(Request $request)
+    {
+        $fi        = $request->fecha_inicio ?? date('Y-m-01');
+        $ff        = $request->fecha_final  ?? date('Y-m-d');
+        $vend      = $request->vendedor     ? (int)$request->vendedor     : null;
+        $tc        = $request->tipo_cliente ? (int)$request->tipo_cliente : null;
+        $diaSemana = $request->dia_semana   ?? null;
+
+        $where = "f.estado_venta_id = 1 AND f.fecha_emision BETWEEN '$fi' AND '$ff'";
+        if ($vend)      $where .= " AND f.vendedor = $vend";
+        if ($tc)        $where .= " AND tc.id = $tc";
+        if ($diaSemana) $where .= " AND DAYNAME(f.fecha_emision) = '" . addslashes($diaSemana) . "'";
+
+        $rows = DB::SELECT("
+            SELECT
+                DATE_FORMAT(f.fecha_emision, '%Y-%m-%d') AS fecha,
+                DAYNAME(f.fecha_emision)                  AS dia_semana,
+                WEEK(f.fecha_emision, 1)                  AS semana_iso,
+                f.cai                                     AS documento,
+                f.nombre_cliente                          AS cliente,
+                u.name                                    AS vendedor,
+                tc.descripcion                            AS tipo_cliente,
+                f.sub_total                               AS subtotal,
+                f.isv                                     AS impuesto,
+                f.monto_descuento                         AS descuento,
+                f.total                                   AS total
+            FROM factura f
+            INNER JOIN users u         ON u.id  = f.vendedor
+            INNER JOIN cliente cli     ON cli.id = f.cliente_id
+            INNER JOIN tipo_cliente tc ON tc.id  = cli.tipo_cliente_id
+            WHERE $where
+            ORDER BY f.fecha_emision DESC
+        ");
+
+        return response()->json($rows);
+    }
+
     // ─── PESTAÑA 2: Resumen semanal KPIs ────────────────────────────────────
     public function resumenSemanal(Request $request)
     {
@@ -352,7 +392,8 @@ class DashboardVentas extends Component
 
         $totales = DB::SELECTONE("
             SELECT COUNT(f.id) AS facturas, COALESCE(SUM(f.total),0) AS total,
-                   COALESCE(AVG(f.total),0) AS ticket_promedio
+                   COALESCE(AVG(f.total),0) AS ticket_promedio,
+                   COALESCE(SUM(f.sub_total),0) AS total_sin_isv
             FROM factura f
             INNER JOIN cliente cli ON cli.id = f.cliente_id
             INNER JOIN tipo_cliente tc ON tc.id = cli.tipo_cliente_id
@@ -394,6 +435,7 @@ class DashboardVentas extends Component
             'facturas'       => (int)$totales->facturas,
             'total'          => round((float)$totales->total, 2),
             'ticket_promedio'=> round((float)$totales->ticket_promedio, 2),
+            'total_sin_isv'  => round((float)$totales->total_sin_isv, 2),
             'mejor_vendedor' => $mejorVend   ? $mejorVend->name          : '-',
             'mejor_cliente'  => $mejorCliente ? $mejorCliente->nombre    : '-',
             'mejor_dia'      => $mejorDia    ? $mejorDia->fecha          : '-',

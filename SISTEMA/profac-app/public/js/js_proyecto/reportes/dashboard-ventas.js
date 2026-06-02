@@ -331,7 +331,7 @@ var dashboardVentas = (function () {
         var p = getP1();
 
         /* Skeleton KPIs */
-        ['kpi-total','kpi-facturas','kpi-ticket','kpi-clientes',
+        ['kpi-total','kpi-facturas','kpi-sin-isv','kpi-clientes',
          'kpi-crecimiento','kpi-mejor-mes','kpi-mejor-vend','kpi-descuentos']
             .forEach(skeleton);
 
@@ -339,7 +339,7 @@ var dashboardVentas = (function () {
         $.get('/reporte/dashboard/kpis', p).then(function (d) {
             setText('kpi-total',      fmt(d.total_ventas));
             setText('kpi-facturas',   fmtN(d.total_facturas));
-            setText('kpi-ticket',     fmt(d.ticket_promedio));
+            setText('kpi-sin-isv',    fmt(d.total_sin_isv));
             setText('kpi-clientes',   fmtN(d.clientes_unicos));
             setText('kpi-descuentos', fmt(d.total_descuentos));
             setText('kpi-mejor-mes',  d.mejor_mes || '-');
@@ -473,14 +473,14 @@ var dashboardVentas = (function () {
     function cargarSemanal() {
         var p = getP2();
 
-        ['s-kpi-total','s-kpi-facturas','s-kpi-ticket','s-kpi-mejor-dia','s-kpi-vend','s-kpi-cliente']
+        ['s-kpi-total','s-kpi-facturas','s-kpi-sin-isv','s-kpi-mejor-dia','s-kpi-vend','s-kpi-cliente']
             .forEach(skeleton);
 
         /* Resumen KPIs + gráfica por día */
         $.get('/reporte/dashboard/resumen-semanal', p).then(function (d) {
             setText('s-kpi-total',    fmt(d.total));
             setText('s-kpi-facturas', fmtN(d.facturas));
-            setText('s-kpi-ticket',   fmt(d.ticket_promedio));
+            setText('s-kpi-sin-isv',  fmt(d.total_sin_isv));
             setText('s-kpi-mejor-dia', d.mejor_dia || '-');
             setText('s-kpi-vend',     d.mejor_vendedor || '-');
             setText('s-kpi-cliente',  d.mejor_cliente || '-');
@@ -627,7 +627,14 @@ var dashboardVentas = (function () {
                 { data: 'fecha' },
                 { data: 'dia_semana' },
                 { data: 'semana_iso' },
-                { data: 'documento' },
+                {
+                    data: 'documento',
+                    render: function (data, type, row) {
+                        if (type !== 'display') return data || '';
+                        return '<a href="/factura/cooporativo/' + row.id + '" target="_blank" style="font-weight:700; color:#EC401B;">'
+                             + (data || '—') + '</a>';
+                    }
+                },
                 { data: 'cliente' },
                 { data: 'vendedor' },
                 { data: 'tipo_cliente' },
@@ -2568,6 +2575,94 @@ var dashboardVentas = (function () {
         }
     }
 
+    function exportarDetalleSemanal() {
+        if (typeof ExcelJS === 'undefined') { alert('ExcelJS no está disponible.'); return; }
+
+        var p = getP2();
+
+        $.get('/reporte/dashboard/ventas-semanales/export', p).then(function (rows) {
+            var wb = new ExcelJS.Workbook();
+            wb.creator = window._profacAuthUser || 'PROFAC';
+            wb.created = new Date();
+
+            var ws      = wb.addWorksheet('Detalle Facturas');
+            var headers = ['Fecha', 'Día', 'Semana', 'Documento', 'Cliente', 'Vendedor', 'Tipo', 'Subtotal', 'ISV', 'Descuento', 'Total'];
+            var widths  = [14, 14, 10, 22, 35, 22, 18, 14, 14, 14, 14];
+
+            /* Título y encabezados */
+            ws.addRow(['Detalle de Facturas — Reporte Semanal']);
+            ws.getCell('A1').font = { bold: true, size: 13, color: { argb: 'FFFD7E14' } };
+            ws.mergeCells(1, 1, 1, headers.length);
+
+            ws.addRow(['Período: ' + (p.fecha_inicio || '') + ' al ' + (p.fecha_final || '')]);
+            ws.mergeCells(2, 1, 2, headers.length);
+
+            ws.addRow(['Generado: ' + new Date().toLocaleDateString('es-HN')]);
+            ws.mergeCells(3, 1, 3, headers.length);
+
+            ws.addRow([]);
+
+            var hdrRow = ws.addRow(headers);
+            hdrRow.eachCell(function (cell) {
+                cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF343A40' } };
+                cell.font      = { bold: true, color: { argb: 'FFFFFFFF' } };
+                cell.alignment = { horizontal: 'center', vertical: 'middle' };
+            });
+            widths.forEach(function (w, i) { ws.getColumn(i + 1).width = w; });
+            ws.getRow(5).height = 22;
+
+            /* Columnas monetarias (índice 1-based): Subtotal=8, ISV=9, Descuento=10, Total=11 */
+            var CUR_FMT = '"L."#,##0.00';
+
+            rows.forEach(function (r, idx) {
+                var dataRow = ws.addRow([
+                    r.fecha, r.dia_semana, r.semana_iso, r.documento,
+                    r.cliente, r.vendedor, r.tipo_cliente,
+                    parseFloat(r.subtotal)   || 0,
+                    parseFloat(r.impuesto)   || 0,
+                    parseFloat(r.descuento)  || 0,
+                    parseFloat(r.total)      || 0
+                ]);
+
+                var even = idx % 2 === 0;
+                dataRow.eachCell({ includeEmpty: true }, function (cell, colNum) {
+                    if (even) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8F9FA' } };
+                    cell.border = {
+                        top:    { style: 'hair', color: { argb: 'FFCCCCCC' } },
+                        bottom: { style: 'hair', color: { argb: 'FFCCCCCC' } },
+                        left:   { style: 'hair', color: { argb: 'FFCCCCCC' } },
+                        right:  { style: 'hair', color: { argb: 'FFCCCCCC' } }
+                    };
+                    if ([8, 9, 10, 11].indexOf(colNum) !== -1) {
+                        cell.numFmt    = CUR_FMT;
+                        cell.alignment = { horizontal: 'right' };
+                    }
+                });
+            });
+
+            /* Fila de totales */
+            var totRow = ws.addRow([
+                'TOTAL', '', '', '', '', '', '',
+                rows.reduce(function (s, r) { return s + (parseFloat(r.subtotal)  || 0); }, 0),
+                rows.reduce(function (s, r) { return s + (parseFloat(r.impuesto)  || 0); }, 0),
+                rows.reduce(function (s, r) { return s + (parseFloat(r.descuento) || 0); }, 0),
+                rows.reduce(function (s, r) { return s + (parseFloat(r.total)     || 0); }, 0)
+            ]);
+            totRow.eachCell({ includeEmpty: true }, function (cell, colNum) {
+                cell.font = { bold: true };
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFE0B2' } };
+                if ([8, 9, 10, 11].indexOf(colNum) !== -1) {
+                    cell.numFmt    = CUR_FMT;
+                    cell.alignment = { horizontal: 'right' };
+                }
+            });
+
+            _descargar(wb, 'detalle-facturas-semanal.xlsx');
+        }).fail(function () {
+            alert('Error al obtener los datos para exportar.');
+        });
+    }
+
     function _descargar(wb, filename) {
         wb.xlsx.writeBuffer().then(function (buffer) {
             var blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
@@ -2610,6 +2705,7 @@ var dashboardVentas = (function () {
         limpiarDashboardProductos: limpiarDashboardProductos,
         exportarExcel:         exportarExcel,
         exportarTablaExcel:    exportarTablaExcel,
+        exportarDetalleSemanal: exportarDetalleSemanal,
         exportarTablaProductosExcel: exportarTablaProductosExcel,
         exportarVistaProductosExcel: exportarVistaProductosExcel,
         exportarFacturasProductoExcel: exportarFacturasProductoExcel,

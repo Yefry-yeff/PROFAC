@@ -86,9 +86,17 @@
             {{-- KPI Cards P1 --}}
             <div class="mb-3 row" id="kpi-cards">
                 <div class="mb-2 col-6 col-md-3">
+                    <div class="card kpi-card border-left-info h-100">
+                        <div class="px-3 py-2 card-body">
+                            <div class="mb-1 text-xs font-weight-bold text-info text-uppercase">Facturación sin ISV</div>
+                            <div class="mb-0 h5 font-weight-bold" id="kpi-sin-isv">—</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-2 col-6 col-md-3">
                     <div class="card kpi-card border-left-primary h-100">
                         <div class="px-3 py-2 card-body">
-                            <div class="mb-1 text-xs font-weight-bold text-primary text-uppercase">Total Vendido</div>
+                            <div class="mb-1 text-xs font-weight-bold text-primary text-uppercase">Facturación con ISV</div>
                             <div class="mb-0 h5 font-weight-bold" id="kpi-total">—</div>
                         </div>
                     </div>
@@ -98,14 +106,6 @@
                         <div class="px-3 py-2 card-body">
                             <div class="mb-1 text-xs font-weight-bold text-success text-uppercase">Facturas</div>
                             <div class="mb-0 h5 font-weight-bold" id="kpi-facturas">—</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="mb-2 col-6 col-md-3">
-                    <div class="card kpi-card border-left-info h-100">
-                        <div class="px-3 py-2 card-body">
-                            <div class="mb-1 text-xs font-weight-bold text-info text-uppercase">Venta Promedio</div>
-                            <div class="mb-0 h5 font-weight-bold" id="kpi-ticket">—</div>
                         </div>
                     </div>
                 </div>
@@ -254,9 +254,17 @@
             {{-- KPI Cards P2 --}}
             <div class="mb-3 row" id="kpi-sem">
                 <div class="mb-2 col-6 col-md-3">
+                    <div class="card kpi-card border-left-info h-100">
+                        <div class="px-3 py-2 card-body">
+                            <div class="mb-1 text-xs font-weight-bold text-info text-uppercase">Facturación sin ISV</div>
+                            <div class="mb-0 h5 font-weight-bold" id="s-kpi-sin-isv">—</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-2 col-6 col-md-3">
                     <div class="card kpi-card border-left-primary h-100">
                         <div class="px-3 py-2 card-body">
-                            <div class="mb-1 text-xs font-weight-bold text-primary text-uppercase">Total Período</div>
+                            <div class="mb-1 text-xs font-weight-bold text-primary text-uppercase">Facturación con ISV</div>
                             <div class="mb-0 h5 font-weight-bold" id="s-kpi-total">—</div>
                         </div>
                     </div>
@@ -266,14 +274,6 @@
                         <div class="px-3 py-2 card-body">
                             <div class="mb-1 text-xs font-weight-bold text-success text-uppercase">Facturas</div>
                             <div class="mb-0 h5 font-weight-bold" id="s-kpi-facturas">—</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="mb-2 col-6 col-md-3">
-                    <div class="card kpi-card border-left-info h-100">
-                        <div class="px-3 py-2 card-body">
-                            <div class="mb-1 text-xs font-weight-bold text-info text-uppercase">Venta Promedio</div>
-                            <div class="mb-0 h5 font-weight-bold" id="s-kpi-ticket">—</div>
                         </div>
                     </div>
                 </div>
@@ -389,7 +389,12 @@
 
             {{-- Tabla semanal --}}
             <div class="shadow-sm card">
-                <div class="py-2 card-header"><span class="font-weight-bold">Detalle de Facturas</span></div>
+                <div class="py-2 card-header d-flex align-items-center justify-content-between">
+                    <span class="font-weight-bold">Detalle de Facturas</span>
+                    <button class="btn btn-sm btn-success" onclick="dashboardVentas.exportarDetalleSemanal()">
+                        <i class="fas fa-file-excel mr-1"></i>Excel
+                    </button>
+                </div>
                 <div class="p-2 card-body table-responsive">
                     <table class="table table-striped table-bordered table-sm" id="tabla-semanal" style="width:100%">
                         <thead class="thead-dark">

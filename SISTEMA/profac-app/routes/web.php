@@ -1262,6 +1262,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/reporte/dashboard/ventas-por-mes',          [DashboardVentas::class,'ventasPorMes']);
     Route::get('/reporte/dashboard/heatmap',                 [DashboardVentas::class,'heatmap']);
     Route::get('/reporte/dashboard/ventas-semanales',        [DashboardVentas::class,'ventasSemanales']);
+    Route::get('/reporte/dashboard/ventas-semanales/export', [DashboardVentas::class,'exportarDetalleSemanal']);
     Route::get('/reporte/dashboard/resumen-semanal',         [DashboardVentas::class,'resumenSemanal']);
     Route::get('/reporte/dashboard/top-vendedores',          [DashboardVentas::class,'topVendedores']);
     Route::get('/reporte/dashboard/top-clientes',            [DashboardVentas::class,'topClientes']);
