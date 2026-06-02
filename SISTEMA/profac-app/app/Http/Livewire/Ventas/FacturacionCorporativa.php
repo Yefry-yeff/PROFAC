@@ -471,8 +471,22 @@ class FacturacionCorporativa extends Component
                         AND ppc.estado_id = 1
                     WHERE cp.cliente_categoria_escala_id = ?
                         {$filtroCpEstado}
-                    ORDER BY ppc.precio_a DESC
-                ", [$productoId, $categoriaEscalaId]);
+
+                    UNION
+
+                    SELECT
+                        cp2.id,
+                        cp2.nombre AS nombre_categoria,
+                        ppc2.precio_a
+                    FROM categoria_precios cp2
+                    INNER JOIN precios_producto_carga ppc2
+                        ON ppc2.categoria_precios_id = cp2.id
+                        AND ppc2.producto_id = ?
+                        AND ppc2.estado_id = 1
+                    WHERE cp2.id = 32
+
+                    ORDER BY precio_a DESC
+                ", [$productoId, $categoriaEscalaId, $productoId]);
             } else {
                 // Fallback sin cliente: todas las categoria_precios activas para el producto
                 // Devuelve cp.id (no cce.id) para que sea coherente con /estatal/datos/producto
