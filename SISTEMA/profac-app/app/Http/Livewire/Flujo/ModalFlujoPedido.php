@@ -1506,17 +1506,6 @@ class ModalFlujoPedido extends Component
         $cotizacionId = (int) $this->ofertaSeleccionada['id'];
         $clienteId    = (int) ($this->ofertaSeleccionada['cliente_id'] ?? $this->pedidoData['cliente_id'] ?? 0);
 
-        // Primera llamada: verificar cambio de escala y mostrar aviso informativo (no bloquear)
-        if (!$this->preciosCambioMostrado && $mismoCliente) {
-            $cambios = $this->obtenerProductosCambioEscalaCliente($cotizacionId, $clienteId);
-            if (!empty($cambios)) {
-                $this->productosPrecioEscalaCambiado   = $cambios;
-                $this->preciosCambioMostrado           = true;
-                $this->duplicarMismoClienteAlmacenado  = $mismoCliente;
-                return;
-            }
-        }
-
         $this->mensajeError                  = '';
         $this->clienteDuplicarError          = '';
         $this->productosPrecioEscalaCambiado = [];
