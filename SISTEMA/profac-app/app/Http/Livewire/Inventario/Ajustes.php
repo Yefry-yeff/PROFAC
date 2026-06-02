@@ -322,15 +322,15 @@ class Ajustes extends Component
                     DB::beginTransaction();
 
 
-                    $numeroOrden = DB::SELECTONE("select concat(YEAR(NOW()),'-',count(id)+1) as numero_orden from ajuste");
-
                     $ajuste = new ModelAjuste;
-                    $ajuste->numero_ajuste = $numeroOrden->numero_orden;
+                    $ajuste->numero_ajuste = 'TEMP-' . uniqid('', true);
                     $ajuste->comentario = trim($request->comentario);
                     $ajuste->tipo_ajuste_id = $request->tipo_ajuste_id;
                     $ajuste->solicitado_por = $request->solicitado_por;
                     $ajuste->fecha = $request->fecha;
                     $ajuste->users_id = Auth::user()->id;
+                    $ajuste->save();
+                    $ajuste->numero_ajuste = date('Y') . '-' . $ajuste->id;
                     $ajuste->save();
 
 
