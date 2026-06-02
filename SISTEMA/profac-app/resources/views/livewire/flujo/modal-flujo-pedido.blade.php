@@ -738,6 +738,7 @@
                                 <tr style="background:#f8f9fc; color:#888;">
                                     <th style="padding:4px 8px; text-align:left;">Producto</th>
                                     <th style="padding:4px 8px; text-align:center;">Cant.</th>
+                                    <th style="padding:4px 8px; text-align:center;">Escala</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -748,6 +749,9 @@
                                     </td>
                                     <td style="padding:5px 8px; text-align:center; font-weight:700; color:#1a7efb;">
                                         {{ isset($det['cantidad']) ? (int)$det['cantidad'] : '—' }}
+                                    </td>
+                                    <td style="padding:5px 8px; text-align:center; color:#888; font-size:11px;">
+                                        {{ $d['nombre_escala'] ?? '—' }}
                                     </td>
                                 </tr>
                                 @endforeach
@@ -891,6 +895,7 @@
                                 <tr style="background:#f8f9fc; color:#888; position:sticky; top:0;">
                                     <th style="padding:4px 8px; text-align:left;">Producto</th>
                                     <th style="padding:4px 8px; text-align:center;">Cant.</th>
+                                    <th style="padding:4px 8px; text-align:center;">Categ.</th>
                                     <th style="padding:4px 8px; text-align:right;">P.Unit.</th>
                                     <th style="padding:4px 8px; text-align:right;">Escala Act.</th>
                                     <th style="padding:4px 8px; text-align:right;">Total</th>
@@ -908,6 +913,7 @@
                                 <tr style="border-bottom:1px solid #f0f0f0;">
                                     <td style="padding:4px 8px; color:#2c3e50;">{{ $pr['nombre_producto'] }}</td>
                                     <td style="padding:4px 8px; text-align:center; color:#1a7efb; font-weight:700;">{{ (int)$pr['cantidad'] }}</td>
+                                    <td style="padding:4px 8px; text-align:center; color:#7f8c8d; font-size:10px;">{{ $pr['nombre_categoria_precio'] ?? '—' }}</td>
                                     <td style="padding:4px 8px; text-align:right; color:{{ $bloqueado ? '#c0392b' : '#555' }}; font-weight:{{ $bloqueado ? '700' : '400' }};">
                                         @if ($precioVendedor !== null) L {{ number_format($precioVendedor, 2) }} @else — @endif
                                     </td>
@@ -1311,6 +1317,13 @@
                                     <span style="font-weight:800; color:#2c3e50; font-size:13px;">
                                         Oferta #{{ $of['cotizacion_id'] }}
                                     </span>
+                                    @if (!empty($of['categoria_producto_nombre']))
+                                    <span style="background:#f0f4ff; color:#3d5a9e;
+                                                 border-radius:10px; padding:1px 7px; font-size:10px;
+                                                 font-weight:600; margin-left:5px;">
+                                        {{ $of['categoria_producto_nombre'] }}
+                                    </span>
+                                    @endif
                                     <span style="background:{{ $listBadgeBg }}; color:{{ $listBadgeColor }};
                                                  border-radius:12px; padding:1px 8px; font-size:10px;
                                                  font-weight:700; margin-left:6px;">

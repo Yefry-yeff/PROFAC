@@ -103,10 +103,12 @@ class ModalFlujoPedido extends Component
         $pedido = DB::table('pedido as p')
             ->join('cliente as c', 'c.id', '=', 'p.cliente_id')
             ->leftJoin('users as u', 'u.id', '=', 'p.users_id')
+            ->leftJoin('categoria_precios as cp', 'cp.id', '=', 'c.categoria_precios_id')
             ->select(
                 'p.id', 'p.estado', 'p.observaciones', 'p.created_at',
                 'c.nombre as cliente', 'c.rtn', 'c.id as cliente_id',
                 'u.name as registrado_por',
+                'cp.nombre as nombre_escala',
                 DB::raw("(SELECT COUNT(*) FROM historico_flujo hf
                            INNER JOIN flujo f ON f.id = hf.flujo_id
                            WHERE f.identificacion = CAST(p.id AS CHAR)
@@ -645,7 +647,13 @@ class ModalFlujoPedido extends Component
                 'c.nombre_cliente',
                 'c.total',
                 'c.cliente_id',
-                'c.estado_id as cotizacion_estado_id'   // 1=activo, 2=inactivo por precios
+                'c.estado_id as cotizacion_estado_id',   // 1=activo, 2=inactivo por precios
+                DB::raw("(SELECT cat.descripcion
+                          FROM cotizacion_has_producto chp
+                          INNER JOIN precios_producto_carga ppc ON ppc.id = chp.precios_producto_carga_id
+                          INNER JOIN categoria_producto cat ON cat.id = ppc.categoria_producto_id
+                          WHERE chp.cotizacion_id = c.id
+                          LIMIT 1) as categoria_producto_nombre")
             )
             ->orderByDesc('hf.id')
             ->get()
@@ -720,10 +728,12 @@ class ModalFlujoPedido extends Component
 
             $productos = DB::table('cotizacion_has_producto as chp')
                 ->leftJoin('precios_producto_carga as ppc', 'ppc.id', '=', 'chp.precios_producto_carga_id')
+                ->leftJoin('categoria_precios as cp', 'cp.id', '=', 'ppc.categoria_precios_id')
                 ->where('chp.cotizacion_id', $cotizacionId)
                 ->select(
                     'chp.nombre_producto', 'chp.cantidad', 'chp.precio_unidad', 'chp.total',
                     'chp.idPrecioSeleccionado', 'chp.precios_producto_carga_id',
+                    'cp.nombre as nombre_categoria_precio',
                     // precio_actual = precio de escala al momento de la venta (guardado en la oferta)
                     'chp.precioSeleccionado as precio_actual',
                     // precio_escala_actual = precio de escala vigente hoy (solo para referencia interna)
