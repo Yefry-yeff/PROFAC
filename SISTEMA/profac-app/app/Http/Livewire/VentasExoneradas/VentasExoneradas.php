@@ -170,6 +170,36 @@ class VentasExoneradas extends Component
         $mensaje = "";
         $flag = false;
 
+        // Si la venta proviene de una prefactura, excluirla del stock reservado
+        $prefacturaExcluirId = (int) ($request->prefactura_id ?? 0);
+
+        // En modo editar_factura: sumar de vuelta el stock de la factura original
+        $facturaEditAddBackId = 0;
+        if (($request->modo ?? '') === 'editar_factura') {
+            $flujoIdEdit = (int) ($request->flujo_id ?? 0);
+            if ($flujoIdEdit > 0) {
+                $histF = DB::table('historico_flujo')
+                    ->where('flujo_id', $flujoIdEdit)
+                    ->where('tipo_tramite_id', 3)
+                    ->whereNotNull('tramite_id')
+                    ->where('estado_id', '!=', 7)
+                    ->orderByDesc('id')
+                    ->value('tramite_id');
+                if (!$histF) {
+                    // Fallback legacy: factura guardada en tipo_tramite_id=5
+                    $histF = DB::table('historico_flujo as hf')
+                        ->join('factura as f', 'f.id', '=', 'hf.tramite_id')
+                        ->where('hf.flujo_id', $flujoIdEdit)
+                        ->where('hf.tipo_tramite_id', 5)
+                        ->whereNotNull('hf.tramite_id')
+                        ->where('hf.estado_id', '!=', 7)
+                        ->orderByDesc('hf.id')
+                        ->value('hf.tramite_id');
+                }
+                $facturaEditAddBackId = $histF ? (int) $histF : 0;
+            }
+        }
+
         //comprobar existencia de producto en bodega
         for ($j = 0; $j < count($arrayInputs); $j++) {
 
@@ -179,12 +209,37 @@ class VentasExoneradas extends Component
             $keyNombre = "nombre" . $arrayInputs[$j];
             $keyBodega = "bodega" . $arrayInputs[$j];
 
-            $resultado = DB::selectONE("select
-            if(sum(cantidad_disponible) is null,0,sum(cantidad_disponible)) as cantidad_disponoble
-            from recibido_bodega
-            where cantidad_disponible <> 0
-            and producto_id = " . $request->$keyIdProducto . "
-            and seccion_id = " . $request->$keyIdSeccion);
+            $excludePfClause = $prefacturaExcluirId > 0
+                ? "AND pf2.id != {$prefacturaExcluirId}"
+                : '';
+
+            $addBackFacturaClause = $facturaEditAddBackId > 0
+                ? "+ IFNULL((SELECT SUM(vhp_e.cantidad)
+                              FROM venta_has_producto vhp_e
+                              WHERE vhp_e.factura_id = {$facturaEditAddBackId}
+                                AND vhp_e.producto_id = " . (int)$request->$keyIdProducto . "
+                                AND vhp_e.seccion_id  = " . (int)$request->$keyIdSeccion . "
+                                AND vhp_e.resta_inventario = 1), 0)"
+                : '';
+
+            $resultado = DB::selectONE("
+                SELECT GREATEST(0,
+                    IFNULL((SELECT SUM(rb2.cantidad_disponible) FROM recibido_bodega rb2
+                             WHERE rb2.cantidad_disponible > 0
+                               AND rb2.producto_id = " . (int)$request->$keyIdProducto . "
+                               AND rb2.seccion_id  = " . (int)$request->$keyIdSeccion . "), 0)
+                    {$addBackFacturaClause}
+                    -
+                    IFNULL((SELECT SUM(php2.cantidad)
+                             FROM prefactura_has_producto php2
+                             INNER JOIN prefactura pf2 ON pf2.id = php2.prefactura_id
+                             WHERE pf2.estado = 'activo'
+                               {$excludePfClause}
+                               AND php2.producto_id = " . (int)$request->$keyIdProducto . "
+                               AND php2.seccion_id  = " . (int)$request->$keyIdSeccion . "
+                               AND php2.resta_inventario = 1), 0)
+                ) AS cantidad_disponoble
+            ");
 
             if ($request->$keyRestaInventario > $resultado->cantidad_disponoble) {
                 $mensaje = $mensaje . "Unidades insuficientes para el producto: <b>" . $request->$keyNombre . "</b> en la bodega con secci��n :<b>" . $request->$keyBodega . "</b><br><br>";
