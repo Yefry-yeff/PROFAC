@@ -48,17 +48,14 @@ class RestarVale extends Component
         A.factura_id,
         A.created_at,
         D.name,
-        A.estado_id
+        A.estado_id,
+        C.estado_venta_id as factura_estado
         from vale A
 
         inner join factura C
         on A.factura_id = C.id
         inner join users D
         on A.users_id = D.id
-        INNER join espera_has_producto E
-        on A.id = E.vale_id
-
-        where C.estado_venta_id <> 2
 
         order by A.created_at desc
 
@@ -66,7 +63,9 @@ class RestarVale extends Component
         return Datatables::of($listaVales)
                 ->addColumn('opciones', function ($vale) {
 
-                    if($vale->estado_id == 1){
+                    $facturaAnulada = $vale->factura_estado == 2;
+
+                    if($vale->estado_id == 1 && !$facturaAnulada){
                         return
                         '<div class="btn-group">
                 <button data-toggle="dropdown" class="btn btn-warning dropdown-toggle" aria-expanded="false">Ver
@@ -91,13 +90,12 @@ class RestarVale extends Component
 
                 </ul>
             </div>';
-                    }else if($vale->estado_id == 2 || $vale->estado_id == 5){
+                    }else{
                         return
                         '<div class="btn-group">
                 <button data-toggle="dropdown" class="btn btn-warning dropdown-toggle" aria-expanded="false">Ver
                     más</button>
                 <ul class="dropdown-menu" x-placement="bottom-start" style="position: absolute; top: 33px; left: 0px; will-change: top, left;">
-
 
                 <li>
                 <a class="dropdown-item" target="_blank"  href="/vale/imprimir/'.$vale->id.'"> <i class="fa-solid fa-file-invoice text-success"></i> Imprimir Vale </a>
@@ -107,8 +105,6 @@ class RestarVale extends Component
                     <a class="dropdown-item" target="_blank"  onclick="comentarios('.$vale->id.')"> <i class="fa-solid fa-file-invoice text-info"></i> Ver notas y comentarios </a>
                     </li>
 
-
-
                 </ul>
             </div>';
                     }
@@ -117,13 +113,13 @@ class RestarVale extends Component
                 })
                 ->addColumn('estado', function ($vale) {
 
-                    if($vale->estado_id==1){
+                    if($vale->estado_id == 1 && $vale->factura_estado == 2){
+                        return '<p class="text-center"><span class="badge badge-secondary p-2" style="font-size:0.75rem">Factura Anulada</span></p>';
+                    }else if($vale->estado_id == 1){
                         return '<p class="text-center"><span class="badge badge-warning p-2" style="font-size:0.75rem">Pendiente</span></p>';
-                    }else if($vale->estado_id==2){
-
+                    }else if($vale->estado_id == 2){
                        return  '<p class="text-center"><span class="badge badge-primary p-2" style="font-size:0.75rem">Anulado</span></p>';
                     }else{
-
                         return  '<p class="text-center"><span class="badge badge-danger p-2" style="font-size:0.75rem">Eliminado</span></p>';
                     }
 

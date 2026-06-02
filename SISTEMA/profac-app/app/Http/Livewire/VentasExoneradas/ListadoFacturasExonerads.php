@@ -230,10 +230,16 @@ class ListadoFacturasExonerads extends Component
             ],200);
          }
 
-         $estadoVenta = DB::SELECTONE("select estado_venta_id from factura where id =".$request->idFactura );
+         $valeActivo = DB::SELECTONE("select count(id) as total from vale where factura_id = ".$request->idFactura." and estado_id = 1");
+         if($valeActivo->total > 0){
+            return response()->json([
+                "text" => "<p class='text-left'>Esta factura tiene un <b>vale activo</b>. Debe eliminar el vale antes de poder anular la factura. <br><br><a href='/vale/restar/inventario' class='btn btn-warning btn-sm' target='_blank'><i class='fa-solid fa-arrow-right'></i> Ir a eliminar el vale</a></p>",
+                "icon" => "warning",
+                "title" => "Advertencia!",
+            ],200);
+         }
 
-         $compra = ModelFactura::find($request->idFactura);
-         $compra->estado_venta_id = 2;
+         $estadoVenta = DB::SELECTONE("select estado_venta_id from factura where id =".$request->idFactura );
          $compra->save();
 
          $cliente = ModelCliente::find($compra->cliente_id);

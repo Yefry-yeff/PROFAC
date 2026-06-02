@@ -313,8 +313,8 @@ function agregarProductoLista() {
 }
 
 function realizarAjuste() {
-    document.getElementById('btn_realizar_ajuste').disabled = false;
-    //document.getElementById('btn_realizar_ajuste').disabled = true;
+    const btnGuardar = document.getElementById('btn_realizar_ajuste');
+    btnGuardar.disabled = true;
 
     let dataForm = new FormData($('#ajustar_producto_form').get(0));
 
@@ -363,7 +363,7 @@ function realizarAjuste() {
                 text: data.text,
 
             })
-            document.getElementById('btn_realizar_ajuste').disabled = false;
+            btnGuardar.disabled = false;
 
         })
 }
