@@ -748,10 +748,11 @@ class ModalFlujoPedido extends Component
                 'c.total',
                 'c.cliente_id',
                 'c.estado_id as cotizacion_estado_id',   // 1=activo, 2=inactivo por precios
-                DB::raw("(SELECT cat.descripcion
+                DB::raw("(SELECT cce.nombre_categoria
                           FROM cotizacion_has_producto chp
                           INNER JOIN precios_producto_carga ppc ON ppc.id = chp.precios_producto_carga_id
-                          INNER JOIN categoria_producto cat ON cat.id = ppc.categoria_producto_id
+                          INNER JOIN categoria_precios cp ON cp.id = ppc.categoria_precios_id
+                          INNER JOIN cliente_categoria_escala cce ON cce.id = cp.cliente_categoria_escala_id
                           WHERE chp.cotizacion_id = c.id
                           LIMIT 1) as categoria_producto_nombre")
             )
