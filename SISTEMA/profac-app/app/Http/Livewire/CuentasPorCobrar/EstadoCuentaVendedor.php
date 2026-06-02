@@ -135,6 +135,124 @@ class EstadoCuentaVendedor extends Component
             ->make(true);
     }
 
+    // ─── Movimientos (solo lectura) ──────────────────────────────────────────
+    public function listarMovimientos(Request $request, $id)
+    {
+        $id = (int) $id;
+        $consulta = DB::select("
+            SELECT
+                ot.id                AS codigoMovimiento,
+                ot.aplicacion_pagos_id AS codigoPago,
+                (SELECT cai FROM factura WHERE id = ot.factura_id) AS correlativo,
+                FORMAT(ot.monto, 2)  AS monto,
+                ot.tipo_movimiento,
+                ot.comentario,
+                ot.estado            AS estadoMov,
+                (SELECT name FROM users WHERE id = ot.usr_registro) AS userRegistro,
+                ot.created_at        AS fechaRegistro,
+                ot.factura_id
+            FROM otros_movimientos ot
+            INNER JOIN aplicacion_pagos ap ON ap.id = ot.aplicacion_pagos_id
+            WHERE ap.cliente_id = ? AND ap.estado = 1 AND ot.estado = 1
+        ", [$id]);
+
+        return DataTables::of($consulta)
+            ->rawColumns([])
+            ->make(true);
+    }
+
+    public function exportarMovimientosExcel($id)
+    {
+        $id = (int) $id;
+        $rows = DB::select("
+            SELECT
+                ot.id                AS 'ID',
+                ot.aplicacion_pagos_id AS 'Cod. Pago',
+                (SELECT cai FROM factura WHERE id = ot.factura_id) AS 'Correlativo',
+                FORMAT(ot.monto, 2)  AS 'Monto',
+                ot.tipo_movimiento   AS 'Tipo Movimiento',
+                ot.comentario        AS 'Comentario',
+                ot.estado            AS 'Estado',
+                (SELECT name FROM users WHERE id = ot.usr_registro) AS 'Usuario',
+                ot.created_at        AS 'Fecha Registro'
+            FROM otros_movimientos ot
+            INNER JOIN aplicacion_pagos ap ON ap.id = ot.aplicacion_pagos_id
+            WHERE ap.cliente_id = ? AND ap.estado = 1 AND ot.estado = 1
+            ORDER BY ot.id DESC
+        ", [$id]);
+
+        $cliente = DB::table('cliente')->where('id', $id)->value('nombre') ?? "cliente_{$id}";
+        $slug    = preg_replace('/[^a-zA-Z0-9_]/', '_', substr($cliente, 0, 30));
+        $fecha   = now()->format('Y-m-d_His');
+
+        $headers = ['ID', 'Cod. Pago', 'Correlativo', 'Monto', 'Tipo Movimiento', 'Comentario', 'Estado', 'Usuario', 'Fecha Registro'];
+        $data    = array_map(fn($r) => (array) $r, $rows);
+
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new \App\Exports\ArrayExport($headers, $data),
+            "movimientos_{$slug}_{$fecha}.xlsx"
+        );
+    }
+
+    // ─── Créditos y Abonos (solo lectura) ────────────────────────────────────
+    public function listarAbonos(Request $request, $id)
+    {
+        $id = (int) $id;
+        $consulta = DB::select("
+            SELECT
+                ac.id                AS codigoAbono,
+                ac.aplicacion_pagos_id AS codigoPago,
+                (SELECT cai FROM factura WHERE id = ac.factura_id) AS correlativo,
+                FORMAT(ac.monto_abonado, 2) AS monto,
+                ac.comentario        AS comentarioabono,
+                ac.estado_abono      AS estadoAbono,
+                (SELECT name FROM users WHERE id = ac.usr_registro) AS userRegistro,
+                ac.fecha_pago        AS fechaDeposito,
+                ac.created_at        AS fechaRegistro,
+                ac.factura_id
+            FROM abonos_creditos ac
+            INNER JOIN aplicacion_pagos ap ON ap.id = ac.aplicacion_pagos_id
+            WHERE ap.cliente_id = ? AND ap.estado = 1 AND ac.estado_abono = 1
+        ", [$id]);
+
+        return DataTables::of($consulta)
+            ->rawColumns([])
+            ->make(true);
+    }
+
+    public function exportarAbonosExcel($id)
+    {
+        $id = (int) $id;
+        $rows = DB::select("
+            SELECT
+                ac.id                AS 'ID',
+                ac.aplicacion_pagos_id AS 'Cod. Pago',
+                (SELECT cai FROM factura WHERE id = ac.factura_id) AS 'Correlativo',
+                FORMAT(ac.monto_abonado, 2) AS 'Monto Abonado',
+                ac.comentario        AS 'Comentario',
+                ac.estado_abono      AS 'Estado',
+                (SELECT name FROM users WHERE id = ac.usr_registro) AS 'Usuario',
+                ac.fecha_pago        AS 'Fecha Depósito',
+                ac.created_at        AS 'Fecha Registro'
+            FROM abonos_creditos ac
+            INNER JOIN aplicacion_pagos ap ON ap.id = ac.aplicacion_pagos_id
+            WHERE ap.cliente_id = ? AND ap.estado = 1 AND ac.estado_abono = 1
+            ORDER BY ac.id DESC
+        ", [$id]);
+
+        $cliente = DB::table('cliente')->where('id', $id)->value('nombre') ?? "cliente_{$id}";
+        $slug    = preg_replace('/[^a-zA-Z0-9_]/', '_', substr($cliente, 0, 30));
+        $fecha   = now()->format('Y-m-d_His');
+
+        $headers = ['ID', 'Cod. Pago', 'Correlativo', 'Monto Abonado', 'Comentario', 'Estado', 'Usuario', 'Fecha Depósito', 'Fecha Registro'];
+        $data    = array_map(fn($r) => (array) $r, $rows);
+
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new \App\Exports\ArrayExport($headers, $data),
+            "abonos_{$slug}_{$fecha}.xlsx"
+        );
+    }
+
     // ─── Imprimir estado de cuenta PDF ───────────────────────────────────────
     public function imprimirEstadoCuenta($idClientepdf)
     {

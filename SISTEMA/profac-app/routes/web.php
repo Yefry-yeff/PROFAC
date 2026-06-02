@@ -1093,6 +1093,10 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/estado_cuenta/vendedor/clientes', [EstadoCuentaVendedor::class, 'listarClientes']);
     Route::get('/estado_cuenta/vendedor/listar/{id}', [EstadoCuentaVendedor::class, 'listarEstadoCuenta']);
     Route::get('/estado_cuenta/vendedor/pdf/{idClientepdf}', [EstadoCuentaVendedor::class, 'imprimirEstadoCuenta']);
+    Route::get('/estado_cuenta/vendedor/movimientos/{id}', [EstadoCuentaVendedor::class, 'listarMovimientos']);
+    Route::get('/estado_cuenta/vendedor/abonos/{id}', [EstadoCuentaVendedor::class, 'listarAbonos']);
+    Route::get('/estado_cuenta/vendedor/exportar/movimientos/{id}', [EstadoCuentaVendedor::class, 'exportarMovimientosExcel']);
+    Route::get('/estado_cuenta/vendedor/exportar/abonos/{id}', [EstadoCuentaVendedor::class, 'exportarAbonosExcel']);
     ///////////////////////////////////////////////////////////////////////////////////
 
 

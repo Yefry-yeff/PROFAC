@@ -359,37 +359,111 @@
         </div>
     </div>
 
-    {{-- Table panel --}}
-    <div class="ec-panel" id="ecTablePanel" style="display:none;">
-        <div class="ec-panel-header">
-            <h6>
-                <i class="fa-solid fa-table-list"></i>
-                Detalle de Cuentas por Cobrar
-                <span class="ec-panel-badge" id="ecClienteNombre"></span>
-            </h6>
-            <small style="color:rgba(255,255,255,.55); font-size:11px;">
-                <i class="fa-solid fa-circle-info mr-1"></i> Vista de solo lectura
-            </small>
-        </div>
+    {{-- Tabs panel (oculto hasta seleccionar cliente) --}}
+    <div id="ecTabsContainer" style="display:none; margin-top:18px;">
 
-        <table id="ecTable" class="table table-hover" style="width:100%">
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>Factura</th>
-                    <th>Fecha Emisión</th>
-                    <th>Cargo</th>
-                    <th>Abonos</th>
-                    <th>Notas Cred.</th>
-                    <th>Notas Déb.</th>
-                    <th>Retención ISV</th>
-                    <th>Saldo</th>
-                    <th>Estado</th>
-                    <th>Acciones</th>
-                </tr>
-            </thead>
-            <tbody></tbody>
-        </table>
+        {{-- Nav tabs --}}
+        <ul class="nav nav-tabs" id="ecTabs" role="tablist" style="border-bottom:2px solid #e2e8f0;">
+            <li class="nav-item">
+                <a class="nav-link active" id="tab-saldos-link" data-toggle="tab" href="#tab-saldos" role="tab">
+                    <i class="fa fa-file-invoice-dollar mr-1"></i> Saldos por Factura
+                    <span class="badge badge-warning ml-1" id="ecBadgeSaldos">0</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="tab-movimientos-link" data-toggle="tab" href="#tab-movimientos" role="tab">
+                    <i class="fa fa-exchange mr-1"></i> Movimientos
+                    <span class="badge badge-secondary ml-1" id="ecBadgeMovimientos">0</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="tab-abonos-link" data-toggle="tab" href="#tab-abonos" role="tab">
+                    <i class="fa fa-credit-card mr-1"></i> Créditos y Abonos
+                    <span class="badge badge-success ml-1" id="ecBadgeAbonos">0</span>
+                </a>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="ecTabContent">
+
+            {{-- TAB 1: Saldos por Factura --}}
+            <div class="tab-pane fade show active" id="tab-saldos" role="tabpanel">
+                <div class="ec-panel" style="border-radius:0 0 14px 14px; margin-top:0;">
+                    <div class="ec-panel-header" style="border-radius:0;">
+                        <h6>
+                            <i class="fa-solid fa-table-list"></i>
+                            Registros de Saldos por Factura
+                            <span class="ec-panel-badge" id="ecClienteNombre"></span>
+                        </h6>
+                        <small style="color:rgba(255,255,255,.55); font-size:11px;">
+                            <i class="fa-solid fa-eye mr-1"></i> Solo lectura
+                        </small>
+                    </div>
+                    <table id="ecTable" class="table table-hover" style="width:100%">
+                        <thead>
+                            <tr>
+                                <th>#</th><th>Factura</th><th>Fecha Emisión</th>
+                                <th>Cargo</th><th>Abonos</th><th>Notas Cred.</th>
+                                <th>Notas Déb.</th><th>Retención ISV</th>
+                                <th>Saldo</th><th>Estado</th><th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            {{-- TAB 2: Movimientos --}}
+            <div class="tab-pane fade" id="tab-movimientos" role="tabpanel">
+                <div class="ec-panel" style="border-radius:0 0 14px 14px; margin-top:0;">
+                    <div class="ec-panel-header" style="border-radius:0;">
+                        <h6>
+                            <i class="fa fa-exchange"></i> Movimientos
+                            <span class="ec-panel-badge" id="ecMovClienteNombre"></span>
+                        </h6>
+                        <button class="btn btn-sm btn-success" onclick="ecExportarMovimientos()">
+                            <i class="fa fa-file-excel-o mr-1"></i> Exportar Excel
+                        </button>
+                    </div>
+                    <table id="ecTableMovimientos" class="table table-hover" style="width:100%">
+                        <thead>
+                            <tr>
+                                <th>#</th><th>Cod. Pago</th><th>Correlativo</th>
+                                <th>Monto</th><th>Tipo Movimiento</th><th>Comentario</th>
+                                <th>Usuario</th><th>Fecha Registro</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            {{-- TAB 3: Créditos y Abonos --}}
+            <div class="tab-pane fade" id="tab-abonos" role="tabpanel">
+                <div class="ec-panel" style="border-radius:0 0 14px 14px; margin-top:0;">
+                    <div class="ec-panel-header" style="border-radius:0;">
+                        <h6>
+                            <i class="fa fa-credit-card"></i> Créditos y Abonos
+                            <span class="ec-panel-badge" id="ecAbonosClienteNombre"></span>
+                        </h6>
+                        <button class="btn btn-sm btn-success" onclick="ecExportarAbonos()">
+                            <i class="fa fa-file-excel-o mr-1"></i> Exportar Excel
+                        </button>
+                    </div>
+                    <table id="ecTableAbonos" class="table table-hover" style="width:100%">
+                        <thead>
+                            <tr>
+                                <th>#</th><th>Cod. Pago</th><th>Correlativo</th>
+                                <th>Monto</th><th>Comentario</th>
+                                <th>Usuario</th><th>Fecha Depósito</th><th>Fecha Registro</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
     </div>
 
     {{-- Empty state (initial) --}}
@@ -426,39 +500,64 @@ $(function () {
         }
     });
 
-    // ── DataTable (inicializar vacío) ──────────────────────────────────────
+    var dtLang = {
+        processing:  '<div class="spinner-border spinner-border-sm text-warning" role="status"></div>',
+        emptyTable:  'No hay registros.',
+        zeroRecords: 'No se encontraron registros.',
+        search:      'Buscar:', lengthMenu: 'Mostrar _MENU_ registros',
+        info: 'Mostrando _START_ a _END_ de _TOTAL_ registros',
+        paginate: { first:'«', last:'»', next:'›', previous:'‹' }
+    };
+
+    // ── DataTable Saldos ───────────────────────────────────────────────────
     window.ecDt = $('#ecTable').DataTable({
-        processing: true,
-        serverSide: false,
-        autoWidth: false,
-        language: {
-            processing:  '<div class="spinner-border text-warning" role="status"></div>',
-            emptyTable:  'No hay facturas pendientes para este cliente.',
-            zeroRecords: 'No se encontraron registros.',
-            search:      'Buscar:',
-            lengthMenu:  'Mostrar _MENU_ registros',
-            info:        'Mostrando _START_ a _END_ de _TOTAL_ registros',
-            paginate: { first:'«', last:'»', next:'›', previous:'‹' }
-        },
+        serverSide: false, autoWidth: false, language: dtLang,
         columns: [
-            { data: 'codigoPago',     title: '#',            width: '50px' },
-            { data: 'codigoFactura',  title: 'Factura' },
-            { data: 'fechaFactura',   title: 'Fecha Emisión' },
-            { data: 'cargo',          title: 'Cargo',         render: fmtMoneda },
-            { data: 'abonosCargo',    title: 'Abonos',        render: fmtMoneda },
-            { data: 'notasCredito',   title: 'Notas Cred.',   render: fmtMoneda },
-            { data: 'notasDebito',    title: 'Notas Déb.',    render: fmtMoneda },
-            { data: 'isv',            title: 'Retención ISV', render: fmtMoneda },
-            { data: 'saldoBadge',     title: 'Saldo',         orderable: false },
-            { data: 'estadoBadge',    title: 'Estado',        orderable: false },
-            { data: 'acciones',       title: 'Acciones',      orderable: false, searchable: false }
+            { data: 'codigoPago',    title: '#',            width: '50px' },
+            { data: 'codigoFactura', title: 'Factura' },
+            { data: 'fechaFactura',  title: 'Fecha Emisión' },
+            { data: 'cargo',         title: 'Cargo',         render: fmtMoneda },
+            { data: 'abonosCargo',   title: 'Abonos',        render: fmtMoneda },
+            { data: 'notasCredito',  title: 'Notas Cred.',   render: fmtMoneda },
+            { data: 'notasDebito',   title: 'Notas Déb.',    render: fmtMoneda },
+            { data: 'isv',           title: 'Retención ISV', render: fmtMoneda },
+            { data: 'saldoBadge',    title: 'Saldo',         orderable: false },
+            { data: 'estadoBadge',   title: 'Estado',        orderable: false },
+            { data: 'acciones',      title: 'Acciones',      orderable: false, searchable: false }
         ],
-        order: [[0, 'desc']],
-        pageLength: 15,
-        drawCallback: function () {
-            // Re-animar badges
-            $('.badge').css('animation', 'none').addClass('ec-badge-pop');
-        }
+        order: [[0, 'desc']], pageLength: 15
+    });
+
+    // ── DataTable Movimientos ──────────────────────────────────────────────
+    window.ecDtMov = $('#ecTableMovimientos').DataTable({
+        serverSide: false, autoWidth: false, language: dtLang,
+        columns: [
+            { data: 'codigoMovimiento', title: '#',               width: '50px' },
+            { data: 'codigoPago',       title: 'Cod. Pago',       width: '80px' },
+            { data: 'correlativo',      title: 'Correlativo' },
+            { data: 'monto',            title: 'Monto',           className: 'text-right' },
+            { data: 'tipo_movimiento',  title: 'Tipo Movimiento' },
+            { data: 'comentario',       title: 'Comentario' },
+            { data: 'userRegistro',     title: 'Usuario' },
+            { data: 'fechaRegistro',    title: 'Fecha Registro' }
+        ],
+        order: [[0, 'desc']], pageLength: 15
+    });
+
+    // ── DataTable Abonos ───────────────────────────────────────────────────
+    window.ecDtAbonos = $('#ecTableAbonos').DataTable({
+        serverSide: false, autoWidth: false, language: dtLang,
+        columns: [
+            { data: 'codigoAbono',     title: '#',           width: '50px' },
+            { data: 'codigoPago',      title: 'Cod. Pago',   width: '80px' },
+            { data: 'correlativo',     title: 'Correlativo' },
+            { data: 'monto',           title: 'Monto',           className: 'text-right' },
+            { data: 'comentarioabono', title: 'Comentario' },
+            { data: 'userRegistro',    title: 'Usuario' },
+            { data: 'fechaDeposito',   title: 'Fecha Depósito' },
+            { data: 'fechaRegistro',   title: 'Fecha Registro' }
+        ],
+        order: [[0, 'desc']], pageLength: 15
     });
 });
 
@@ -468,7 +567,7 @@ function fmtMoneda(data) {
     return 'L. ' + parseFloat(data).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
 
-// ── Cargar datos del cliente ───────────────────────────────────────────────
+// ── Cargar datos del cliente (los 3 tabs) ─────────────────────────────────
 function ecCargarDatos() {
     var clienteId  = $('#ecCliente').val();
     var clienteTxt = $('#ecCliente option:selected').text();
@@ -479,37 +578,67 @@ function ecCargarDatos() {
     }
 
     $('#ecEmptyState').hide();
-    $('#ecTablePanel').show();
+    $('#ecTabsContainer').show();
     $('#ecStats').removeClass('d-none');
     $('#ecBtnPdf').removeClass('d-none');
-    $('#ecClienteNombre').text(clienteTxt);
+    $('#ecClienteNombre, #ecMovClienteNombre, #ecAbonosClienteNombre').text(clienteTxt);
+    window._ecClienteId = clienteId;
 
+    // --- Saldos ---
     axios.get('/estado_cuenta/vendedor/listar/' + clienteId)
         .then(function (response) {
             var data = (response.data && response.data.data) ? response.data.data : [];
             window.ecDt.clear().rows.add(data).draw();
+            $('#ecBadgeSaldos').text(data.length);
 
-            // Calcular totales para stats
-            var rows       = window.ecDt.rows().data().toArray();
-            var totalSaldo = rows.reduce(function (s, r) { return s + parseFloat(r.saldo      || 0); }, 0);
-            var totalCargo = rows.reduce(function (s, r) { return s + parseFloat(r.cargo      || 0); }, 0);
-            var totalAbono = rows.reduce(function (s, r) { return s + parseFloat(r.abonosCargo|| 0); }, 0);
-
-            $('#ecStatFacturas').text(rows.length);
+            var totalSaldo = data.reduce(function (s, r) { return s + parseFloat(r.saldo       || 0); }, 0);
+            var totalCargo = data.reduce(function (s, r) { return s + parseFloat(r.cargo       || 0); }, 0);
+            var totalAbono = data.reduce(function (s, r) { return s + parseFloat(r.abonosCargo || 0); }, 0);
+            $('#ecStatFacturas').text(data.length);
             $('#ecStatCargo').text('L. ' + totalCargo.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','));
             $('#ecStatSaldo').text('L. ' + totalSaldo.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','));
             $('#ecStatAbonado').text('L. ' + totalAbono.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','));
         })
         .catch(function () {
-            Swal.fire({ icon: 'error', title: 'Error al cargar los datos', timer: 2000, showConfirmButton: false });
+            Swal.fire({ icon: 'error', title: 'Error al cargar saldos', timer: 2000, showConfirmButton: false });
         });
+
+    // --- Movimientos ---
+    axios.get('/estado_cuenta/vendedor/movimientos/' + clienteId)
+        .then(function (response) {
+            var data = (response.data && response.data.data) ? response.data.data : [];
+            window.ecDtMov.clear().rows.add(data).draw();
+            $('#ecBadgeMovimientos').text(data.length);
+        })
+        .catch(function () { /* silencioso */ });
+
+    // --- Abonos ---
+    axios.get('/estado_cuenta/vendedor/abonos/' + clienteId)
+        .then(function (response) {
+            var data = (response.data && response.data.data) ? response.data.data : [];
+            window.ecDtAbonos.clear().rows.add(data).draw();
+            $('#ecBadgeAbonos').text(data.length);
+        })
+        .catch(function () { /* silencioso */ });
 }
 
-// ── Abrir PDF del estado de cuenta ────────────────────────────────────────
+// ── PDF ───────────────────────────────────────────────────────────────────
 function ecVerPdf() {
     var clienteId = $('#ecCliente').val();
     if (!clienteId) return;
     window.open('/estado_cuenta/vendedor/pdf/' + clienteId, '_blank');
+}
+
+// ── Exportar Excel Movimientos ────────────────────────────────────────────
+function ecExportarMovimientos() {
+    if (!window._ecClienteId) { Swal.fire({ icon: 'warning', title: 'Seleccione un cliente primero', timer: 1800, showConfirmButton: false }); return; }
+    window.location.href = '/estado_cuenta/vendedor/exportar/movimientos/' + window._ecClienteId;
+}
+
+// ── Exportar Excel Abonos ─────────────────────────────────────────────────
+function ecExportarAbonos() {
+    if (!window._ecClienteId) { Swal.fire({ icon: 'warning', title: 'Seleccione un cliente primero', timer: 1800, showConfirmButton: false }); return; }
+    window.location.href = '/estado_cuenta/vendedor/exportar/abonos/' + window._ecClienteId;
 }
 </script>
 @endpush
