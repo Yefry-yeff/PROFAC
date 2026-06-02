@@ -131,6 +131,14 @@ class FacturacionUnificada extends Component
         // Cliente destino cuando se duplica para "Otro cliente"
         $clienteIdParam = request()->get('clienteId');
 
+        // Si se pasa clienteId, obtener su categoria_precios_id actual para re-resolver precios
+        $clienteCategoriaActualId = null;
+        if ($clienteIdParam) {
+            $clienteCategoriaActualId = DB::table('cliente')
+                ->where('id', (int) $clienteIdParam)
+                ->value('categoria_precios_id');
+        }
+
         // Cargar productos del duplicado para auto-agregar al carrito (cotizacionId)
         $cotizId = request()->get('cotizacionId');
         if ($cotizId) {
@@ -195,6 +203,21 @@ class FacturacionUnificada extends Component
                 if (!$ppcActivo) {
                     $productosSinEscala[] = $prod['nombre_producto'] ?? ('Producto ID ' . ($prod['producto_id'] ?? 'N/A'));
                     continue;
+                }
+
+                // Si el cliente tiene una categoría distinta a la original, re-resolver con su escala actual
+                if ($clienteCategoriaActualId && (int) $ppcActivo->categoria_precios_id !== (int) $clienteCategoriaActualId) {
+                    $ppcClienteActual = DB::table('precios_producto_carga as ppc')
+                        ->leftJoin('categoria_precios as cp', 'cp.id', '=', 'ppc.categoria_precios_id')
+                        ->where('ppc.producto_id', (int) $ppcActivo->producto_id)
+                        ->where('ppc.categoria_precios_id', (int) $clienteCategoriaActualId)
+                        ->where('ppc.estado_id', 1)
+                        ->orderByDesc('ppc.id')
+                        ->select('ppc.id', 'ppc.precio_a', 'ppc.producto_id', 'ppc.categoria_precios_id', 'cp.nombre as categoria_nombre')
+                        ->first();
+                    if ($ppcClienteActual) {
+                        $ppcActivo = $ppcClienteActual;
+                    }
                 }
 
                 $precioA = (float) ($ppcActivo->precio_a ?? 0);

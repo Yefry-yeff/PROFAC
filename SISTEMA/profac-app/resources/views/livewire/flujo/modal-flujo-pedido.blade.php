@@ -795,20 +795,75 @@
                 </div>
                 @endif
 
-                    @if (!$facturaCompletada && $confirmAccion === 'duplicar')
+                    @if ($confirmAccion === 'duplicar')
                 <div style="margin-top:14px; background:#e3f2fd; border:1px solid #90caf9;
-                            border-radius:12px; padding:14px; text-align:center;">
-                    <p style="font-size:13px; color:#555; margin:0 0 10px;">
+                            border-radius:12px; padding:14px;">
+                    <p style="font-size:13px; color:#555; margin:0 0 10px; text-align:center;">
                         <i class="mr-1 fa fa-copy text-primary"></i>
-                        ¿Duplicar el <strong>Pedido #{{ $d['id'] }}</strong>?<br>
-                        Se abrirá el formulario con los mismos productos.
+                        ¿Duplicar el <strong>Pedido #{{ $d['id'] }}</strong>?
                     </p>
+                    @if ($facturaCompletada)
+                    <div style="background:#fff3e0; border:1px solid #ffcc80; border-radius:8px;
+                                padding:8px 12px; margin-bottom:10px; font-size:12px; color:#e65100; text-align:left;">
+                        <i class="mr-1 fa fa-external-link"></i>
+                        Este flujo ya tiene <strong>factura registrada</strong>. Se creará un <strong>nuevo flujo</strong> con los mismos productos para el mismo cliente.
+                    </div>
+                    @else
+                    <div style="background:#e8f5e9; border:1px solid #a5d6a7; border-radius:8px;
+                                padding:8px 12px; margin-bottom:10px; font-size:12px; color:#2e7d32; text-align:left;">
+                        <i class="mr-1 fa fa-sitemap"></i>
+                        Se creará una nueva oferta dentro del <strong>mismo flujo</strong> con los mismos productos.
+                    </div>
+                    @endif
+
+                    @if (count($productosPrecioEscalaCambiado) > 0)
+                    <div style="background:#fff8e1; border:1px solid #ffe082; border-radius:8px;
+                                padding:10px 12px; margin-bottom:10px; font-size:12px; color:#7b4f00; text-align:left;">
+                        <p style="margin:0 0 8px; font-weight:700; color:#e65100;">
+                            <i class="mr-1 fa fa-exclamation-triangle"></i>
+                            {{ count($productosPrecioEscalaCambiado) }} producto(s) tienen precio diferente con la escala actual del cliente:
+                        </p>
+                        <table style="width:100%; border-collapse:collapse; font-size:11px;">
+                            <thead>
+                                <tr style="background:#fff3cd; color:#856404;">
+                                    <th style="padding:4px 8px; text-align:left;">Producto</th>
+                                    <th style="padding:4px 8px; text-align:right;">Precio anterior</th>
+                                    <th style="padding:4px 8px; text-align:right;">Precio nuevo (escala actual)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($productosPrecioEscalaCambiado as $pc)
+                                <tr style="border-bottom:1px solid #ffeeba;">
+                                    <td style="padding:4px 8px; color:#2c3e50;">{{ $pc['nombre'] }}</td>
+                                    <td style="padding:4px 8px; text-align:right; color:#c0392b; text-decoration:line-through;">
+                                        L {{ number_format($pc['precio_original'], 2) }}
+                                    </td>
+                                    <td style="padding:4px 8px; text-align:right; font-weight:700;
+                                               color:{{ $pc['precio_nuevo'] > $pc['precio_original'] ? '#e74c3c' : '#27ae60' }};">
+                                        L {{ number_format($pc['precio_nuevo'], 2) }}
+                                    </td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                        <p style="margin:8px 0 0; font-size:11px; color:#555; font-style:italic;">
+                            <i class="mr-1 fa fa-info-circle"></i>
+                            Al duplicar, la oferta se generará con los <strong>nuevos precios de la escala actual</strong>.
+                        </p>
+                    </div>
+                    @endif
+
                     <div style="display:flex; gap:8px; justify-content:center;">
                         <button type="button" wire:click="duplicarPedido"
                                 style="background:linear-gradient(135deg,#1a7efb,#0d6efd); color:#fff;
                                        border:none; border-radius:8px; padding:7px 18px; font-size:12px;
                                        font-weight:700; cursor:pointer;">
-                            <i class="mr-1 fa fa-copy"></i> Duplicar
+                            <i class="mr-1 fa fa-copy"></i>
+                            @if (count($productosPrecioEscalaCambiado) > 0)
+                                Sí, duplicar con nuevos precios
+                            @else
+                                Duplicar
+                            @endif
                         </button>
                         <button type="button" wire:click="cancelarConfirmacion"
                                 style="background:#f0f0f0; color:#555; border:none;
@@ -1153,7 +1208,79 @@
                         </div>
                         @endif
 
-                        @if (!$mostrarSelectorClienteDuplicar)
+                        @if ($preciosCambioMostrado && count($productosPrecioEscalaCambiado) > 0)
+                        {{-- Aviso de cambio de escala: informativo, permite continuar --}}
+                        <div style="background:#fff8e1; border:1px solid #ffe082; border-radius:10px;
+                                    padding:12px; text-align:left; margin-bottom:8px;">
+                            <p style="font-size:12px; color:#795548; font-weight:700; margin:0 0 6px;">
+                                <i class="mr-1 fa fa-exchange text-warning"></i>
+                                La escala del cliente cambió. Los siguientes productos tendrán <strong>nuevos precios</strong> al duplicar:
+                            </p>
+                            <div style="border-radius:8px; overflow:hidden; border:1px solid #ffe0b2; margin-bottom:8px;">
+                                <table style="width:100%; border-collapse:collapse; font-size:11px;">
+                                    <thead>
+                                        <tr style="background:#fff3e0; color:#bf360c;">
+                                            <th style="padding:5px 8px; text-align:left;">Producto</th>
+                                            <th style="padding:5px 8px; text-align:center;">Esc.</th>
+                                            <th style="padding:5px 8px; text-align:right;">Precio anterior</th>
+                                            <th style="padding:5px 8px; text-align:left;">Nueva escala</th>
+                                            <th style="padding:5px 8px; text-align:right;">Nuevo precio</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach ($productosPrecioEscalaCambiado as $pc)
+                                        <tr style="border-top:1px solid #ffe0b2;">
+                                            <td style="padding:5px 8px; color:#333;">{{ $pc['nombre_producto'] }}</td>
+                                            <td style="padding:5px 8px; text-align:center; font-weight:700;">{{ $pc['escala'] }}</td>
+                                            <td style="padding:5px 8px; text-align:right; color:#777;">
+                                                <small>{{ $pc['nombre_escala_original'] }}</small><br>
+                                                L {{ number_format((float)$pc['precio_original'], 2) }}
+                                            </td>
+                                            <td style="padding:5px 8px; font-size:10px; color:#e65100;">{{ $pc['nombre_escala_actual'] }}</td>
+                                            <td style="padding:5px 8px; text-align:right; font-weight:700;
+                                                       color:{{ $pc['precio_nuevo'] > $pc['precio_original'] ? '#c0392b' : '#1ab394' }};">
+                                                L {{ number_format((float)$pc['precio_nuevo'], 2) }}
+                                            </td>
+                                        </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                            <p style="font-size:11px; color:#795548; margin:0 0 8px;">
+                                <i class="mr-1 fa fa-info-circle"></i>
+                                Al continuar, la oferta duplicada usará los precios de la nueva escala.
+                            </p>
+                            <div style="display:flex; gap:8px; justify-content:flex-end;">
+                                <button type="button" wire:click="confirmarDuplicarConNuevosPrecios"
+                                        style="background:linear-gradient(135deg,#e67e22,#d35400); color:#fff;
+                                               border:none; border-radius:8px; padding:6px 14px;
+                                               font-size:11px; font-weight:700; cursor:pointer;">
+                                    <i class="mr-1 fa fa-check"></i> Continuar con nuevos precios
+                                </button>
+                                <button type="button" wire:click="cancelarConfirmOferta"
+                                        style="background:#f0f0f0; color:#555; border:none;
+                                               border-radius:8px; padding:6px 12px; font-size:11px; cursor:pointer;">
+                                    Cancelar
+                                </button>
+                            </div>
+                        </div>
+                        @elseif (!$mostrarSelectorClienteDuplicar)
+                        {{-- Info: mismo flujo o nuevo flujo --}}
+                        @if (!$flujoCancelado)
+                        @if (in_array(3, $flujoTipos) || in_array(5, $flujoTipos))
+                        <div style="background:#fff3e0; border:1px solid #ffcc80; border-radius:8px;
+                                    padding:8px 12px; margin-bottom:8px; font-size:12px; color:#e65100; text-align:left;">
+                            <i class="mr-1 fa fa-info-circle"></i>
+                            Este flujo ya tiene <strong>factura</strong>. Al duplicar con "<em>Mismo cliente</em>" se creará un <strong>nuevo flujo</strong> con la escala actual del cliente.
+                        </div>
+                        @else
+                        <div style="background:#e8f5e9; border:1px solid #a5d6a7; border-radius:8px;
+                                    padding:8px 12px; margin-bottom:8px; font-size:12px; color:#2e7d32; text-align:left;">
+                            <i class="mr-1 fa fa-info-circle"></i>
+                            La oferta duplicada se agregará al <strong>mismo flujo</strong> activo.
+                        </div>
+                        @endif
+                        @endif
                         {{-- Botones iniciales --}}
                         <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
                             <button type="button" wire:click="duplicarOferta(true)"
@@ -1174,7 +1301,6 @@
                                 Cancelar
                             </button>
                         </div>
-                        @else
                         {{-- Panel selector de cliente para "Otro cliente" --}}
                         <div style="background:#fff; border:1px solid #c8e6c9; border-radius:10px;
                                     padding:12px; text-align:left; margin-top:6px;">
@@ -2091,6 +2217,12 @@
                       <i class="mr-1 fa fa-print"></i> Imprimir
                   </a>
 
+                  <button type="button" wire:click="confirmarAccion('duplicar')"
+                       style="border-radius:20px; padding:6px 20px; background:linear-gradient(135deg,#1a7efb,#0d6efd);
+                           color:#fff; border:none; font-size:13px; font-weight:700; cursor:pointer;">
+                      <i class="mr-1 fa fa-copy"></i> Duplicar
+                  </button>
+
                   @if (!$facturaCompletada)
                   <a href="/flujo/pedido/editar/{{ $d['id'] }}"
                      target="_blank"
@@ -2099,12 +2231,6 @@
                          display:inline-block;">
                       <i class="mr-1 fa fa-pencil"></i> Editar pedido
                   </a>
-
-                  <button type="button" wire:click="confirmarAccion('duplicar')"
-                       style="border-radius:20px; padding:6px 20px; background:linear-gradient(135deg,#1a7efb,#0d6efd);
-                           color:#fff; border:none; font-size:13px; font-weight:700; cursor:pointer;">
-                      <i class="mr-1 fa fa-copy"></i> Duplicar
-                  </button>
 
                   @if (!$tieneGanadora)
                   <button type="button" wire:click="nuevaOferta"
