@@ -449,6 +449,11 @@
                         <i class="mr-1 fas fa-balance-scale"></i>Comparar Asesores Comerciales
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link" id="pill-tla" data-toggle="pill" href="#pill-pane-tla">
+                        <i class="mr-1 fas fa-headset"></i>Tele-Asesor
+                    </a>
+                </li>
             </ul>
 
             <div class="tab-content">
@@ -1029,6 +1034,73 @@
                     </div>
                 </div>
 
+                {{-- TELE-ASESOR --}}
+                <div class="tab-pane fade" id="pill-pane-tla">
+                    {{-- Filtros --}}
+                    <div class="mb-3 border card card-body bg-light">
+                        <div class="row g-2 mb-2">
+                            <div class="col-md-2">
+                                <label class="small font-weight-bold">Fecha inicio</label>
+                                <input type="date" class="form-control form-control-sm" id="tla-fi">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="small font-weight-bold">Fecha fin</label>
+                                <input type="date" class="form-control form-control-sm" id="tla-ff">
+                            </div>
+                            <div class="col-md-2 d-flex align-items-end">
+                                <button class="btn btn-primary btn-sm btn-block" onclick="dashboardVentas.cargarComparacionTla()">
+                                    <i class="fas fa-headset"></i> Comparar
+                                </button>
+                            </div>
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-md-12">
+                                <label class="small font-weight-bold">Seleccionar tele-asesores a comparar</label>
+                                <div id="tla-vend-checks" class="d-flex flex-wrap py-1 border rounded bg-white px-2" style="gap:8px; min-height:50px; max-height:130px; overflow-y:auto;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- KPI cards --}}
+                    <div class="mb-3 row" id="tla-kpi-cards"></div>
+
+                    {{-- Gráficas --}}
+                    <div class="mb-3 row">
+                        <div class="col-12">
+                            <div class="shadow-sm card">
+                                <div class="py-2 card-header"><span class="font-weight-bold"><i class="fas fa-chart-line mr-1"></i> Evolución Mensual por Tele-Asesor</span></div>
+                                <div class="p-2 card-body"><div id="chart-tla-evolucion" style="min-height:380px"></div></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3 row">
+                        <div class="col-md-6">
+                            <div class="shadow-sm card">
+                                <div class="py-2 card-header"><span class="font-weight-bold"><i class="fas fa-chart-bar mr-1"></i> Total del Período</span></div>
+                                <div class="p-2 card-body"><div id="chart-tla-total" style="min-height:300px"></div></div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="shadow-sm card">
+                                <div class="py-2 card-header"><span class="font-weight-bold"><i class="fas fa-chart-pie mr-1"></i> Participación de Mercado</span></div>
+                                <div class="p-2 card-body"><div id="chart-tla-part" style="min-height:300px"></div></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Resumen escalas por tele-asesor (tabs) --}}
+                    <div class="shadow-sm card">
+                        <div class="py-2 card-header"><span class="font-weight-bold">Resumen por Tele-Asesor — Escalas de Precio</span></div>
+                        <div class="card-body p-0">
+                            <div id="tla-esc-empty" class="p-3 text-muted text-center small" style="display:none">
+                                Sin datos. Seleccione tele-asesores y presione Comparar.
+                            </div>
+                            <ul class="nav nav-tabs border-bottom px-3 pt-2" id="tla-esc-tabs"></ul>
+                            <div class="tab-content px-3 pb-3" id="tla-esc-content"></div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </div>
         {{-- /PESTAÑA 3 --}}
@@ -1130,6 +1202,102 @@
                     <i class="fas fa-file-excel mr-1"></i>Exportar Excel
                 </button>
                 <a id="btn-cmp-ver-factura" href="#" target="_blank" class="btn btn-sm btn-primary">
+                    <i class="fas fa-print mr-1"></i>Ver Factura
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- ══════════════════════════════════════════════════════════════════════
+     MODAL 1 TLA: Facturas por tele-asesor/escala
+═══════════════════════════════════════════════════════════════════════ --}}
+<div class="modal fade" id="modal-tla-facturas" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-cmp-positioned" role="document">
+        <div class="modal-content">
+            <div class="modal-header" style="background:#343a40; color:#fff;">
+                <h5 class="mb-0 modal-title" id="modal-tla-facturas-title"><i class="fas fa-file-invoice mr-2"></i>Detalle de Facturas</h5>
+                <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body p-0">
+                <div class="px-3 py-2 d-flex flex-wrap" id="modal-tla-fact-kpis" style="gap:12px; background:#f8f9fc; border-bottom:1px solid #e3e6f0;"></div>
+                <div class="table-responsive px-3 pt-2" style="max-height:52vh; overflow-y:auto;">
+                    <table class="table table-sm table-bordered table-hover mb-0" id="tabla-tla-facturas" style="width:100%">
+                        <thead class="thead-dark" style="position:sticky;top:0;z-index:1;">
+                            <tr>
+                                <th>Documento</th>
+                                <th>Fecha</th>
+                                <th>Cliente</th>
+                                <th>Cat. Cliente</th>
+                                <th>Tipo Cliente</th>
+                                <th class="text-right">Líneas</th>
+                                <th class="text-right">Sin ISV</th>
+                                <th class="text-right">ISV</th>
+                                <th class="text-right">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-tla-facturas"></tbody>
+                    </table>
+                </div>
+                <div class="px-3 py-2 d-flex align-items-center justify-content-between border-top" id="tla-fact-pagination" style="background:#f8f9fc; display:none!important;">
+                    <small class="text-muted" id="tla-fact-pag-info"></small>
+                    <ul class="pagination pagination-sm mb-0" id="tla-fact-pag-links"></ul>
+                </div>
+            </div>
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-success btn-sm" id="btn-tla-fact-excel">
+                    <i class="fas fa-file-excel mr-1"></i>Exportar Excel
+                </button>
+                <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- ══════════════════════════════════════════════════════════════════════
+     MODAL 2 TLA: Productos de una factura (Tele-Asesor)
+═══════════════════════════════════════════════════════════════════════ --}}
+<div class="modal fade" id="modal-tla-productos" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-cmp-positioned" role="document">
+        <div class="modal-content">
+            <div class="modal-header" style="background:#EC401B; color:#fff;">
+                <h5 class="mb-0 modal-title" id="modal-tla-prod-title"><i class="fas fa-boxes mr-2"></i>Productos de la Factura</h5>
+                <button type="button" class="close text-white" id="btn-tla-prod-x"><span>&times;</span></button>
+            </div>
+            <div class="modal-body p-0">
+                <div class="px-3 py-2 d-flex flex-wrap" id="modal-tla-prod-header" style="gap:16px; background:#fff8f6; border-bottom:1px solid #fde0d8; font-size:.83rem;"></div>
+                <div class="table-responsive px-3 pt-2" style="max-height:52vh; overflow-y:auto;">
+                    <table class="table table-sm table-bordered mb-0" id="tabla-tla-productos" style="width:100%">
+                        <thead class="thead-dark" style="position:sticky;top:0;z-index:1;">
+                            <tr>
+                                <th>Código</th>
+                                <th>Producto</th>
+                                <th>Escala de Precio</th>
+                                <th>Cat. Cliente</th>
+                                <th>Tipo Cliente</th>
+                                <th class="text-right">Precio Unit.</th>
+                                <th class="text-right">Cantidad</th>
+                                <th class="text-right">Subtotal sin ISV</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-tla-productos"></tbody>
+                        <tfoot>
+                            <tr class="font-weight-bold" style="background:#fff3f0">
+                                <td colspan="7" class="text-right">TOTAL sin ISV:</td>
+                                <td class="text-right" id="tfoot-tla-total"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-tla-prod-back">
+                    <i class="fas fa-arrow-left mr-1"></i>Volver a Facturas
+                </button>
+                <button type="button" class="btn btn-success btn-sm" id="btn-tla-prod-excel">
+                    <i class="fas fa-file-excel mr-1"></i>Exportar Excel
+                </button>
+                <a id="btn-tla-ver-factura" href="#" target="_blank" class="btn btn-sm btn-primary">
                     <i class="fas fa-print mr-1"></i>Ver Factura
                 </a>
             </div>
