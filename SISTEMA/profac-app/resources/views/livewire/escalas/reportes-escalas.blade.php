@@ -395,5 +395,5 @@
 </div>
 
 @push('scripts')
-<script src="{{ asset('js/js_proyecto/Escalas/reporteEscalas.js') }}"></script>
+<script src="{{ asset('js/js_proyecto/Escalas/reporteEscalas.js') }}?v=20260602"></script>
 @endpush
