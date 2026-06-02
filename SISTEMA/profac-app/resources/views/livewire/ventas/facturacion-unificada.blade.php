@@ -2428,11 +2428,12 @@
                 url: url,
                 data: function(params) {
                     var _urlParams = new URLSearchParams(window.location.search);
-                    var _modo    = _urlParams.get('modo') || '';
-                    // Priorizar flujoId de la URL (en editar_factura el campo oculto puede estar vacío
-                    // porque la prefactura ya está convertida y seleccionarPrefactura no se ejecuta)
-                    var _flujoId = _urlParams.get('flujoId') || document.getElementById('flujo_vinculado_id')?.value || '';
-                    return { search: params.term, type: 'public', page: params.page || 1, idProducto: id, flujo_id: _flujoId, modo: _modo };
+                    var _modo         = _urlParams.get('modo') || '';
+                    // Priorizar flujoId de la URL (en editar_factura el campo oculto puede estar vacío)
+                    var _flujoId      = _urlParams.get('flujoId') || document.getElementById('flujo_vinculado_id')?.value || '';
+                    // prefactura_id: necesario para excluir su reserva del cálculo de stock
+                    var _prefacturaId = _urlParams.get('prefactura_id') || document.getElementById('prefactura_vinculada_id')?.value || '';
+                    return { search: params.term, type: 'public', page: params.page || 1, idProducto: id, flujo_id: _flujoId, modo: _modo, prefactura_id: _prefacturaId };
                 }
             }
         });

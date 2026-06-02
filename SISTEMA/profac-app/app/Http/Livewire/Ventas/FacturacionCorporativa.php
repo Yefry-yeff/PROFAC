@@ -168,6 +168,17 @@ class FacturacionCorporativa extends Component
                         ->where('estado_id', '!=', 7)
                         ->orderByDesc('id')
                         ->value('tramite_id');
+                    if (!$histFactura) {
+                        // Fallback legacy: factura guardada en tipo_tramite_id=5
+                        $histFactura = DB::table('historico_flujo as hf')
+                            ->join('factura as f', 'f.id', '=', 'hf.tramite_id')
+                            ->where('hf.flujo_id', $flujoIdEdit)
+                            ->where('hf.tipo_tramite_id', 5)
+                            ->whereNotNull('hf.tramite_id')
+                            ->where('hf.estado_id', '!=', 7)
+                            ->orderByDesc('hf.id')
+                            ->value('hf.tramite_id');
+                    }
                     if ($histFactura) {
                         $facturaEditId = (int) $histFactura;
                         $addBackClause = "COALESCE((
@@ -826,16 +837,23 @@ class FacturacionCorporativa extends Component
                         ->where('estado_id', '!=', 7)
                         ->orderByDesc('id')
                         ->value('tramite_id');
+                    if (!$histF) {
+                        // Fallback legacy: factura guardada en tipo_tramite_id=5
+                        $histF = DB::table('historico_flujo as hf')
+                            ->join('factura as f', 'f.id', '=', 'hf.tramite_id')
+                            ->where('hf.flujo_id', $flujoIdEdit)
+                            ->where('hf.tipo_tramite_id', 5)
+                            ->whereNotNull('hf.tramite_id')
+                            ->where('hf.estado_id', '!=', 7)
+                            ->orderByDesc('hf.id')
+                            ->value('hf.tramite_id');
+                    }
                     $facturaEditAddBackId = $histF ? (int) $histF : 0;
                 }
             }
 
-            $numeroSecuencia = null;
             $mensaje = "";
             $flag = false;
-            // $turno = null;
-            $factura = null;
-
 
             //comprobar existencia de producto en bodega
             for ($j = 0; $j < count($arrayInputs); $j++) {
