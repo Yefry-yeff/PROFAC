@@ -1880,11 +1880,20 @@ class ModalFlujoPedido extends Component
             ->map(fn($r) => (array) $r)
             ->toArray();
 
+        // ── Vale vinculado a esta factura ───────────────────────────────
+        $valeData = DB::table('vale')
+            ->where('factura_id', $factura->id)
+            ->whereNotIn('estado_id', [7]) // excluir anulados
+            ->orderByDesc('id')
+            ->first(['id', 'numero_vale']);
+
         $this->facturaData = array_merge((array) $factura, [
             'productos'      => $productos,
             'historico_id'   => null,
             'tramite_tipo_id'=> 3,
             'print_url'      => '/factura/cooporativo/' . $factura->id,
+            'vale_id'        => $valeData ? $valeData->id : null,
+            'vale_numero'    => $valeData ? $valeData->numero_vale : null,
         ]);
 
         $this->saldoPendienteFactura = isset($factura->pendiente_cobro)

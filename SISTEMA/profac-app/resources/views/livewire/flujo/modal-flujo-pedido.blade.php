@@ -1847,6 +1847,18 @@
                             <i class="fa fa-print"></i> Imprimir factura
                         </a>
 
+                        @if(!empty($fac['vale_id']))
+                        <a href="/vale/imprimir/{{ $fac['vale_id'] }}" target="_blank"
+                           style="background:#fff8e1; color:#e67e22; border:1px solid #fce4b3;
+                                  border-radius:8px; padding:6px 14px; font-size:12px; font-weight:700;
+                                  text-decoration:none; display:inline-flex; align-items:center; gap:5px;">
+                            <i class="fa fa-ticket"></i> Imprimir Vale
+                            @if(!empty($fac['vale_numero']))
+                                <span style="background:#e67e22; color:#fff; border-radius:10px; padding:1px 7px; font-size:10px;">#{{ $fac['vale_numero'] }}</span>
+                            @endif
+                        </a>
+                        @endif
+
                     </div>
                     @endif
                 </div>

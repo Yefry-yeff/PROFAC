@@ -361,6 +361,36 @@ class ValeListaEspera extends Component
 
         ModelVentaProducto::insert($arrayProductosFactura);
 
+        // ── Cuando se crea un vale, eliminar el registro "Cobro pendiente" del
+        //    historico_flujo de la factura, ya que el vale es el mecanismo de
+        //    entrega y NO debe generarse un cobro independiente.
+        $flujoVinculado = DB::table('historico_flujo')
+            ->where('tipo_tramite_id', 3)  // Tipo Factura
+            ->where('tramite_id', $request->idFactura)
+            ->where('estado_id', '!=', 7)
+            ->value('flujo_id');
+
+        if ($flujoVinculado) {
+            // Eliminar cobro pendiente del flujo de esta factura
+            DB::table('historico_flujo')
+                ->where('flujo_id', $flujoVinculado)
+                ->where('tipo_tramite_id', 6)   // Tipo Cobro
+                ->where('estado_id', 5)         // Estado Pendiente
+                ->delete();
+
+            // Vincular la entrega pendiente al vale recién creado
+            DB::table('historico_flujo')
+                ->where('flujo_id', $flujoVinculado)
+                ->where('tipo_tramite_id', 5)   // Tipo Entrega
+                ->where('estado_id', 5)         // Estado Pendiente
+                ->whereNull('tramite_id')
+                ->update([
+                    'tramite_id'    => $vale->id,
+                    'observaciones' => 'Entrega via Vale #' . $vale->numero_vale . ' — Factura #' . $request->idFactura,
+                    'updated_by'    => Auth::id(),
+                    'updated_at'    => now(),
+                ]);
+        }
 
 
        return  $vale->id;
