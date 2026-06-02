@@ -54,7 +54,7 @@
                         <div id="h-anios-pills" class="d-flex flex-wrap py-1" style="gap:4px; min-height:34px; align-items:flex-start;"></div>
                     </div>
                     <div class="col-md-3">
-                        <label class="small font-weight-bold">Vendedor</label>
+                        <label class="small font-weight-bold">Asesor Comercial</label>
                         <div wire:ignore>
                         <select class="form-control form-control-sm" id="h-vendedor">
                             <option value="">Todos</option>
@@ -136,7 +136,7 @@
                 <div class="mb-2 col-6 col-md-3">
                     <div class="card kpi-card border-left-primary h-100">
                         <div class="px-3 py-2 card-body">
-                            <div class="mb-1 text-xs font-weight-bold text-primary text-uppercase">Mejor Vendedor</div>
+                            <div class="mb-1 text-xs font-weight-bold text-primary text-uppercase">Mejor Asesor Comercial</div>
                             <div class="mb-0 h5 font-weight-bold" id="kpi-mejor-vend">—</div>
                         </div>
                     </div>
@@ -222,7 +222,7 @@
                         <input type="date" class="form-control form-control-sm" id="s-ff">
                     </div>
                     <div class="col-md-2">
-                        <label class="small font-weight-bold">Vendedor</label>
+                        <label class="small font-weight-bold">Asesor Comercial</label>
                         <div wire:ignore>
                         <select class="form-control form-control-sm" id="s-vendedor">
                             <option value="">Todos</option>
@@ -288,7 +288,7 @@
                 <div class="mb-2 col-6 col-md-3">
                     <div class="card kpi-card border-left-danger h-100">
                         <div class="px-3 py-2 card-body">
-                            <div class="mb-1 text-xs font-weight-bold text-danger text-uppercase">Mejor Vendedor</div>
+                            <div class="mb-1 text-xs font-weight-bold text-danger text-uppercase">Mejor Asesor Comercial</div>
                             <div class="mb-0 h5 font-weight-bold" id="s-kpi-vend">—</div>
                         </div>
                     </div>
@@ -344,8 +344,8 @@
                 <div class="col-12">
                     <div class="shadow-sm card bi-clickable-chart">
                         <div class="py-2 card-header d-flex justify-content-between align-items-center">
-                            <span class="font-weight-bold"><i class="fas fa-medal mr-1"></i> Top Vendedores del Período</span>
-                            <small class="text-muted">Clic para filtrar por vendedor</small>
+                            <span class="font-weight-bold"><i class="fas fa-medal mr-1"></i> Top Asesores Comerciales del Período</span>
+                            <small class="text-muted">Clic para filtrar por asesor comercial</small>
                         </div>
                         <div class="p-2 card-body"><div id="chart-ranking-vend-sem" style="min-height:300px"></div></div>
                     </div>
@@ -357,7 +357,7 @@
                 <div class="col-12">
                     <div class="shadow-sm card bi-clickable-chart">
                         <div class="py-2 px-3 card-header d-flex flex-wrap justify-content-between align-items-center" style="gap:8px">
-                            <span class="font-weight-bold"><i class="fas fa-chart-bar mr-1"></i> Crecimiento por Vendedor</span>
+                            <span class="font-weight-bold"><i class="fas fa-chart-bar mr-1"></i> Crecimiento por Asesor Comercial</span>
                             <div class="d-flex align-items-center flex-wrap" style="gap:6px">
                                 <small class="text-muted mr-1">Comparar con:</small>
                                 <input type="date" class="form-control form-control-sm" id="crec-fi" style="width:140px">
@@ -380,7 +380,7 @@
                     <div class="shadow-sm card">
                         <div class="py-2 card-header d-flex justify-content-between align-items-center">
                             <span class="font-weight-bold"><i class="fas fa-star mr-1 text-warning"></i> Top 5 Clientes del Período</span>
-                            <small class="text-muted" id="top-cli-sem-label">Todos los vendedores</small>
+                            <small class="text-muted" id="top-cli-sem-label">Todos los asesores comerciales</small>
                         </div>
                         <div class="p-2 card-body"><div id="chart-top-cli-sem" style="min-height:280px"></div></div>
                     </div>
@@ -404,7 +404,7 @@
                                 <th>Semana</th>
                                 <th>Documento</th>
                                 <th>Cliente</th>
-                                <th>Vendedor</th>
+                                <th>Asesor Comercial</th>
                                 <th>Tipo</th>
                                 <th>Subtotal</th>
                                 <th>ISV</th>
@@ -426,7 +426,7 @@
             <ul class="mb-3 nav nav-pills" id="adv-pills">
                 <li class="nav-item">
                     <a class="nav-link active" id="pill-vend" data-toggle="pill" href="#pill-pane-vend">
-                        <i class="mr-1 fas fa-user-tie"></i>Vendedores
+                        <i class="mr-1 fas fa-user-tie"></i>Asesores Comerciales
                     </a>
                 </li>
                 <li class="nav-item">
@@ -446,7 +446,7 @@
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" id="pill-comp" data-toggle="pill" href="#pill-pane-comp">
-                        <i class="mr-1 fas fa-balance-scale"></i>Comparar Vendedores
+                        <i class="mr-1 fas fa-balance-scale"></i>Comparar Asesores Comerciales
                     </a>
                 </li>
             </ul>
@@ -458,7 +458,7 @@
                     <div class="mb-3 row">
                         <div class="col-md-5">
                             <div class="shadow-sm card">
-                                <div class="py-2 card-header"><span class="font-weight-bold">Ranking Vendedores (Total)</span></div>
+                                <div class="py-2 card-header"><span class="font-weight-bold">Ranking Asesores Comerciales (Total)</span></div>
                                 <div class="p-2 card-body"><div id="chart-rank-vend" style="min-height:300px"></div></div>
                             </div>
                         </div>
@@ -471,7 +471,7 @@
                     </div>
                     <div class="shadow-sm card">
                         <div class="py-2 card-header d-flex justify-content-between align-items-center">
-                            <span class="font-weight-bold">Tabla Vendedores</span>
+                            <span class="font-weight-bold">Tabla Asesores Comerciales</span>
                             <button class="btn btn-sm btn-success" onclick="dashboardVentas.exportarExcel()">
                                 <i class="fas fa-file-excel"></i> Excel + Gráficas
                             </button>
@@ -481,7 +481,7 @@
                                 <thead class="thead-dark">
                                     <tr>
                                         <th>#</th>
-                                        <th>Vendedor</th>
+                                        <th>Asesor Comercial</th>
                                         <th>Facturas</th>
                                         <th>Clientes</th>
                                         <th>Total Ventas</th>
@@ -841,7 +841,7 @@
                         </div>
                         <div class="col-md-6">
                             <div class="shadow-sm card">
-                                <div class="py-2 card-header"><span class="font-weight-bold"><i class="fas fa-user-tie mr-1 text-primary"></i>Top Vendedores que mueven este producto</span></div>
+                                <div class="py-2 card-header"><span class="font-weight-bold"><i class="fas fa-user-tie mr-1 text-primary"></i>Top Asesores Comerciales que mueven este producto</span></div>
                                 <div class="p-2 card-body"><div id="chart-prod-top-vendedores" style="min-height:320px"></div></div>
                             </div>
                         </div>
@@ -868,7 +868,7 @@
                                         <th>Fecha</th>
                                         <th>Cliente</th>
                                         <th>Escala</th>
-                                        <th>Vendedor</th>
+                                        <th>Asesor Comercial</th>
                                         <th>Producto</th>
                                         <th class="text-right">Cantidad</th>
                                         <th class="text-right">Precio base venta</th>
@@ -944,7 +944,7 @@
                                         <th>Fecha</th>
                                         <th>Cliente</th>
                                         <th>Escala</th>
-                                        <th>Vendedor</th>
+                                        <th>Asesor Comercial</th>
                                         <th>Código</th>
                                         <th>Producto</th>
                                         <th class="text-right">Cantidad</th>
@@ -983,7 +983,7 @@
                         </div>
                         <div class="row g-2">
                             <div class="col-md-12">
-                                <label class="small font-weight-bold">Seleccionar vendedores a comparar</label>
+                                <label class="small font-weight-bold">Seleccionar asesores comerciales a comparar</label>
                                 <div id="cmp-vend-checks" class="d-flex flex-wrap py-1 border rounded bg-white px-2" style="gap:8px; min-height:50px; max-height:130px; overflow-y:auto;"></div>
                             </div>
                         </div>
@@ -996,7 +996,7 @@
                     <div class="mb-3 row">
                         <div class="col-12">
                             <div class="shadow-sm card">
-                                <div class="py-2 card-header"><span class="font-weight-bold"><i class="fas fa-chart-line mr-1"></i> Evolución Mensual por Vendedor</span></div>
+                                <div class="py-2 card-header"><span class="font-weight-bold"><i class="fas fa-chart-line mr-1"></i> Evolución Mensual por Asesor Comercial</span></div>
                                 <div class="p-2 card-body"><div id="chart-cmp-evolucion" style="min-height:380px"></div></div>
                             </div>
                         </div>
@@ -1018,10 +1018,10 @@
 
                     {{-- Resumen escalas por vendedor (tabs) --}}
                     <div class="shadow-sm card">
-                        <div class="py-2 card-header"><span class="font-weight-bold">Resumen por Vendedor — Escalas de Precio</span></div>
+                        <div class="py-2 card-header"><span class="font-weight-bold">Resumen por Asesor Comercial — Escalas de Precio</span></div>
                         <div class="card-body p-0">
                             <div id="cmp-esc-empty" class="p-3 text-muted text-center small" style="display:none">
-                                Sin datos. Seleccione vendedores y presione Comparar.
+                                Sin datos. Seleccione asesores comerciales y presione Comparar.
                             </div>
                             <ul class="nav nav-tabs border-bottom px-3 pt-2" id="cmp-esc-tabs"></ul>
                             <div class="tab-content px-3 pb-3" id="cmp-esc-content"></div>
@@ -1075,6 +1075,9 @@
                 </div>
             </div>
             <div class="modal-footer py-2">
+                <button type="button" class="btn btn-success btn-sm" id="btn-cmp-fact-excel">
+                    <i class="fas fa-file-excel mr-1"></i>Exportar Excel
+                </button>
                 <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cerrar</button>
             </div>
         </div>
@@ -1122,6 +1125,9 @@
             <div class="modal-footer py-2">
                 <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-cmp-prod-back">
                     <i class="fas fa-arrow-left mr-1"></i>Volver a Facturas
+                </button>
+                <button type="button" class="btn btn-success btn-sm" id="btn-cmp-prod-excel">
+                    <i class="fas fa-file-excel mr-1"></i>Exportar Excel
                 </button>
                 <a id="btn-cmp-ver-factura" href="#" target="_blank" class="btn btn-sm btn-primary">
                     <i class="fas fa-print mr-1"></i>Ver Factura

@@ -274,8 +274,10 @@ var dashboardVentas = (function () {
             /* Checkboxes de vendedores para comparación */
             _renderVendChecks(vendsData);
 
-            /* Fechas por defecto comparación */
-            $('#cmp-fi').val(new Date().getFullYear() + '-01-01');
+            /* Fechas por defecto comparación: primer día del mes actual → hoy */
+            var _now = new Date();
+            var _firstOfMonth = _now.getFullYear() + '-' + String(_now.getMonth() + 1).padStart(2, '0') + '-01';
+            $('#cmp-fi').val(_firstOfMonth);
             $('#cmp-ff').val(todayStr());
 
             var prodOpts = '<option value="">— Seleccione un producto —</option>';
@@ -587,7 +589,7 @@ var dashboardVentas = (function () {
                     dataPointSelection: function (e, ctx, cfg) {
                         var vend = sorted[cfg.dataPointIndex];
                         $('#s-vendedor').val(vend.vendedor_id).trigger('change');
-                        $('#filter-badge-vend').text('Vendedor: ' + vend.vendedor).show();
+                        $('#filter-badge-vend').text('Asesor Comercial: ' + vend.vendedor).show();
                         $('#sem-active-filters').removeClass('d-none');
                         cargarSemanal();
                     }
@@ -605,7 +607,7 @@ var dashboardVentas = (function () {
 
     function renderTopCliSem(rows, vendedor) {
         destroyChart('chart-top-cli-sem');
-        setText('top-cli-sem-label', vendedor ? 'Vendedor seleccionado' : 'Todos los vendedores');
+        setText('top-cli-sem-label', vendedor ? 'Asesor comercial seleccionado' : 'Todos los asesores comerciales');
         if (!rows || !rows.length) return;
 
         charts['chart-top-cli-sem'] = new ApexCharts(get('chart-top-cli-sem'), {
@@ -925,7 +927,7 @@ var dashboardVentas = (function () {
                     dataPointSelection: function (e, ctx, cfg) {
                         var vend = sorted[cfg.dataPointIndex];
                         _filtroAdvVend = vend.vendedor_id;
-                        $('#adv-filter-badge-vend').text('Vendedor: ' + vend.vendedor).show();
+                        $('#adv-filter-badge-vend').text('Asesor Comercial: ' + vend.vendedor).show();
                         $('#adv-active-filters').removeClass('d-none');
                         cargarAnalitica();
                     }
@@ -2233,11 +2235,12 @@ var dashboardVentas = (function () {
     function cargarComparacion() {
         var ids = _getVendsSeleccionados();
         if (!ids.length) {
-            alert('Seleccione al menos un vendedor para comparar.');
+            alert('Seleccione al menos un asesor comercial para comparar.');
             return;
         }
 
-        var fi = $('#cmp-fi').val() || (new Date().getFullYear() + '-01-01');
+        var _n = new Date();
+        var fi = $('#cmp-fi').val() || (_n.getFullYear() + '-' + String(_n.getMonth() + 1).padStart(2, '0') + '-01');
         var ff = $('#cmp-ff').val() || todayStr();
 
         /* KPI por cada vendedor */
@@ -2558,9 +2561,65 @@ var dashboardVentas = (function () {
                 e.preventDefault();
                 _abrirProductosFactura($(this).data('factura-id'), $(this).data('documento'));
             });
+
+            /* Botón Excel facturas — exporta TODAS las filas, no sólo la página visible */
+            $('#btn-cmp-fact-excel').off('click').on('click', function () {
+                _exportarFacturasComparacionExcel();
+            });
         }).catch(function () {
             $('#tbody-cmp-facturas').html('<tr><td colspan="9" class="text-center text-danger">Error al cargar facturas.</td></tr>');
         });
+    }
+
+    function _exportarFacturasComparacionExcel() {
+        if (typeof ExcelJS === 'undefined') { alert('ExcelJS no está disponible.'); return; }
+        var rows = _cmpFactAllRows;
+        if (!rows || !rows.length) { alert('No hay datos para exportar.'); return; }
+
+        var HNL_FMT = '"L." #,##0.00';
+        var titulo = $('#modal-cmp-facturas-title').text().replace(/\s+/g, ' ').trim();
+        var wb = new ExcelJS.Workbook();
+        var ws = wb.addWorksheet('Facturas');
+
+        var headers = ['Documento','Fecha','Cliente','Cat. Cliente','Tipo Cliente','Líneas','Sin ISV','ISV','Total'];
+        var headerRow = ws.addRow(headers);
+        headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF343A40' } };
+
+        rows.forEach(function (r) {
+            var row = ws.addRow([
+                r.documento || ('FAC-' + r.factura_id),
+                r.fecha,
+                r.cliente,
+                r.cat_cliente,
+                r.tipo_cliente,
+                r.lineas,
+                r.total_sin_isv,
+                r.isv,
+                r.total_con_isv
+            ]);
+            [7, 8, 9].forEach(function (c) {
+                var cell = row.getCell(c);
+                if (typeof cell.value === 'number') cell.numFmt = HNL_FMT;
+            });
+        });
+
+        ws.columns.forEach(function (col, i) {
+            col.width = [18, 12, 30, 16, 16, 8, 14, 12, 14][i] || 16;
+        });
+
+        var sinISVTot = rows.reduce(function (s, r) { return s + r.total_sin_isv; }, 0);
+        var isvTot    = rows.reduce(function (s, r) { return s + r.isv; }, 0);
+        var conTot    = rows.reduce(function (s, r) { return s + r.total_con_isv; }, 0);
+        var totRow = ws.addRow(['', '', '', '', 'TOTAL', rows.length, sinISVTot, isvTot, conTot]);
+        totRow.font = { bold: true };
+        [7, 8, 9].forEach(function (c) {
+            var cell = totRow.getCell(c);
+            if (typeof cell.value === 'number') cell.numFmt = HNL_FMT;
+        });
+
+        var fecha = new Date().toISOString().slice(0, 10);
+        _descargar(wb, 'facturas-comparacion-' + fecha + '.xlsx');
     }
 
     function _abrirProductosFactura(facturaId, docNombre) {
@@ -2609,14 +2668,72 @@ var dashboardVentas = (function () {
         });
 
         /* Botón volver y X — ambos regresan a Modal 1 */
-        function _volverAFacturas() {
+        var _volverAFacturas = function () {
             $('#modal-cmp-productos').one('hidden.bs.modal', function () {
                 $('#modal-cmp-facturas').modal('show');
             });
             $('#modal-cmp-productos').modal('hide');
-        }
+        };
         $('#btn-cmp-prod-back').off('click').on('click', _volverAFacturas);
         $('#btn-cmp-prod-x').off('click').on('click', _volverAFacturas);
+
+        /* Botón Excel productos */
+        $('#btn-cmp-prod-excel').off('click').on('click', function () {
+            _exportarProductosFacturaExcel(docNombre);
+        });
+    }
+
+    function _exportarProductosFacturaExcel(docNombre) {
+        if (typeof ExcelJS === 'undefined') { alert('ExcelJS no está disponible.'); return; }
+        var HNL_FMT = '"L." #,##0.00';
+        var wb = new ExcelJS.Workbook();
+        var ws = wb.addWorksheet('Productos');
+
+        var headers = ['Código','Producto','Escala de Precio','Cat. Cliente','Tipo Cliente','Precio Unit.','Cantidad','Subtotal sin ISV'];
+        var headerRow = ws.addRow(headers);
+        headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEC401B' } };
+
+        function _parseMoney(txt) {
+            /* fmt() produces "L. 1,234.56" — extract the numeric part directly */
+            var m = String(txt).match(/-?[\d,]+\.?\d*/);
+            if (!m) return 0;
+            var n = parseFloat(m[0].replace(/,/g, ''));
+            return isNaN(n) ? 0 : n;
+        }
+
+        var total = 0;
+        $('#tbody-cmp-productos tr').each(function () {
+            var cells = $(this).find('td');
+            if (!cells.length) return;
+            var subtotal = _parseMoney(cells.eq(7).text());
+            total += subtotal;
+            var row = ws.addRow([
+                cells.eq(0).text().trim(),
+                cells.eq(1).text().trim(),
+                cells.eq(2).text().trim(),
+                cells.eq(3).text().trim(),
+                cells.eq(4).text().trim(),
+                _parseMoney(cells.eq(5).text()),
+                _parseMoney(cells.eq(6).text()),
+                subtotal
+            ]);
+            [6, 8].forEach(function (c) {
+                var cell = row.getCell(c);
+                if (typeof cell.value === 'number') cell.numFmt = HNL_FMT;
+            });
+        });
+
+        var totRow = ws.addRow(['', '', '', '', '', '', 'TOTAL', total]);
+        totRow.font = { bold: true };
+        totRow.getCell(8).numFmt = HNL_FMT;
+
+        ws.columns.forEach(function (col, i) {
+            col.width = [10, 34, 18, 16, 14, 14, 10, 16][i] || 14;
+        });
+
+        var safeName = (docNombre || 'factura').replace(/[\\\/\*\?\[\]]/g, '-');
+        _descargar(wb, 'productos-' + safeName + '.xlsx');
     }
 
     function limpiarFiltrosAdv() {
@@ -2641,9 +2758,6 @@ var dashboardVentas = (function () {
         cargarAnalitica();
     }
 
-    /* ══════════════════════════════════════════════════════════════════════
-       EXPORTAR EXCEL
-    ══════════════════════════════════════════════════════════════════════ */
     /* ══════════════════════════════════════════════════════════════════════
        EXPORTAR EXCEL
     ══════════════════════════════════════════════════════════════════════ */
@@ -2735,7 +2849,7 @@ var dashboardVentas = (function () {
                     ['Clientes Únicos', d.clientes_unicos || 0],
                     ['Total Descuentos', parseFloat(d.total_descuentos) || 0],
                     ['Mejor Mes',      d.mejor_mes || '-'],
-                    ['Mejor Vendedor', d.mejor_vendedor || '-']
+                    ['Mejor Asesor Comercial', d.mejor_vendedor || '-']
                 ];
                 kpis.forEach(function (row) { ws.addRow(row); });
                 _styleData(ws, from, kpis.length, [2]);
@@ -2751,7 +2865,7 @@ var dashboardVentas = (function () {
                     ['Total Período',   parseFloat(d.total) || 0],
                     ['Facturas',        d.facturas || 0],
                     ['Ticket Promedio', parseFloat(d.ticket_promedio) || 0],
-                    ['Mejor Vendedor',  d.mejor_vendedor || '-'],
+                    ['Mejor Asesor Comercial',  d.mejor_vendedor || '-'],
                     ['Mejor Cliente',   d.mejor_cliente || '-'],
                     ['Mejor Día',       d.mejor_dia || '-']
                 ];
