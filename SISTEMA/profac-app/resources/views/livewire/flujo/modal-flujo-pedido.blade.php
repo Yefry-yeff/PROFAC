@@ -141,11 +141,7 @@
                         @endif
                         <span style="background:rgba(255,255,255,.22); border-radius:20px;
                                      padding:2px 12px; font-size:14px; margin-left:6px;">
-                            @if(!empty($d['sin_pedido']))
-                                <i class="mr-1 fa fa-hashtag"></i> Flujo #{{ $d['flujo_id'] ?? $flujoId ?? $d['id'] }}
-                            @else
-                                #{{ $d['id'] }}
-                            @endif
+                            #{{ $flujoId ?? $d['flujo_id'] ?? $d['id'] }}
                         </span>
                     </h5>
                     <small style="color:rgba(255,255,255,.85); font-size:12px;">
