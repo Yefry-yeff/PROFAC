@@ -950,8 +950,9 @@
                                 <tr style="background:#f8f9fc; color:#888; position:sticky; top:0;">
                                     <th style="padding:4px 8px; text-align:left;">Producto</th>
                                     <th style="padding:4px 8px; text-align:center;">Cant.</th>
-                                    <th style="padding:4px 8px; text-align:center;">Categ.</th>
                                     <th style="padding:4px 8px; text-align:right;">P.Unit.</th>
+                                    <th style="padding:4px 8px; text-align:center;">Categ.</th>
+                                    <th style="padding:4px 8px; text-align:right;">Escala Selec.</th>
                                     <th style="padding:4px 8px; text-align:right;">Escala Act.</th>
                                     <th style="padding:4px 8px; text-align:right;">Total</th>
                                 </tr>
@@ -959,20 +960,24 @@
                             <tbody>
                                 @foreach ($ofertaSeleccionada['productos'] as $pr)
                                 @php
-                                    $precioVendedor    = isset($pr['precio_unidad'])       ? (float)$pr['precio_unidad']       : null;
-                                    $precioEscalaActual = isset($pr['precio_escala_actual']) ? (float)$pr['precio_escala_actual'] : null;
-                                    // Bloqueado si la escala actual subió respecto al precio cobrado
-                                    $bloqueado = ($precioVendedor !== null && $precioEscalaActual !== null)
-                                                    && $precioEscalaActual > $precioVendedor + 0.0001;
+                                    $precioVendedor         = isset($pr['precio_unidad'])              ? (float)$pr['precio_unidad']              : null;
+                                    $precioEscalaSel        = isset($pr['precio_escala_seleccionada']) ? (float)$pr['precio_escala_seleccionada'] : null;
+                                    $precioEscalaActual     = isset($pr['precio_escala_actual'])       ? (float)$pr['precio_escala_actual']       : null;
+                                    // Alerta si el precio de escala subió
+                                    $precioSubio = ($precioEscalaSel !== null && $precioEscalaActual !== null)
+                                                    && $precioEscalaActual > $precioEscalaSel + 0.0001;
                                 @endphp
                                 <tr style="border-bottom:1px solid #f0f0f0;">
                                     <td style="padding:4px 8px; color:#2c3e50;">{{ $pr['nombre_producto'] }}</td>
                                     <td style="padding:4px 8px; text-align:center; color:#1a7efb; font-weight:700;">{{ (int)$pr['cantidad'] }}</td>
-                                    <td style="padding:4px 8px; text-align:center; color:#7f8c8d; font-size:10px;">{{ $pr['nombre_categoria_precio'] ?? '—' }}</td>
-                                    <td style="padding:4px 8px; text-align:right; color:{{ $bloqueado ? '#c0392b' : '#555' }}; font-weight:{{ $bloqueado ? '700' : '400' }};">
+                                    <td style="padding:4px 8px; text-align:right; color:#555;">
                                         @if ($precioVendedor !== null) L {{ number_format($precioVendedor, 2) }} @else — @endif
                                     </td>
-                                    <td style="padding:4px 8px; text-align:right; color:{{ $bloqueado ? '#e67e22' : '#aaa' }}; font-weight:{{ $bloqueado ? '700' : '400' }};">
+                                    <td style="padding:4px 8px; text-align:center; color:#7f8c8d; font-size:10px;">{{ $pr['nombre_categoria_precio'] ?? '—' }}</td>
+                                    <td style="padding:4px 8px; text-align:right; color:{{ $precioSubio ? '#c0392b' : '#555' }}; font-weight:{{ $precioSubio ? '700' : '400' }};">
+                                        @if ($precioEscalaSel !== null) L {{ number_format($precioEscalaSel, 2) }} @else — @endif
+                                    </td>
+                                    <td style="padding:4px 8px; text-align:right; color:{{ $precioSubio ? '#e67e22' : '#aaa' }}; font-weight:{{ $precioSubio ? '700' : '400' }};">
                                         @if ($precioEscalaActual !== null) L {{ number_format($precioEscalaActual, 2) }} @else — @endif
                                     </td>
                                     <td style="padding:4px 8px; text-align:right; font-weight:700; color:#1ab394;">
@@ -1213,32 +1218,26 @@
                         <div style="background:#fff8e1; border:1px solid #ffe082; border-radius:10px;
                                     padding:12px; text-align:left; margin-bottom:8px;">
                             <p style="font-size:12px; color:#795548; font-weight:700; margin:0 0 6px;">
-                                <i class="mr-1 fa fa-exchange text-warning"></i>
-                                La escala del cliente cambió. Los siguientes productos tendrán <strong>nuevos precios</strong> al duplicar:
+                                <i class="mr-1 fa fa-arrow-up text-warning"></i>
+                                El precio de escala subió en los siguientes productos. Al duplicar se usarán los <strong>precios actuales</strong>:
                             </p>
                             <div style="border-radius:8px; overflow:hidden; border:1px solid #ffe0b2; margin-bottom:8px;">
                                 <table style="width:100%; border-collapse:collapse; font-size:11px;">
                                     <thead>
                                         <tr style="background:#fff3e0; color:#bf360c;">
                                             <th style="padding:5px 8px; text-align:left;">Producto</th>
-                                            <th style="padding:5px 8px; text-align:center;">Esc.</th>
-                                            <th style="padding:5px 8px; text-align:right;">Precio anterior</th>
-                                            <th style="padding:5px 8px; text-align:left;">Nueva escala</th>
-                                            <th style="padding:5px 8px; text-align:right;">Nuevo precio</th>
+                                            <th style="padding:5px 8px; text-align:right;">Escala Selec.</th>
+                                            <th style="padding:5px 8px; text-align:right;">Escala Act.</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         @foreach ($productosPrecioEscalaCambiado as $pc)
                                         <tr style="border-top:1px solid #ffe0b2;">
                                             <td style="padding:5px 8px; color:#333;">{{ $pc['nombre_producto'] }}</td>
-                                            <td style="padding:5px 8px; text-align:center; font-weight:700;">{{ $pc['escala'] }}</td>
-                                            <td style="padding:5px 8px; text-align:right; color:#777;">
-                                                <small>{{ $pc['nombre_escala_original'] }}</small><br>
+                                            <td style="padding:5px 8px; text-align:right; color:#777; text-decoration:line-through;">
                                                 L {{ number_format((float)$pc['precio_original'], 2) }}
                                             </td>
-                                            <td style="padding:5px 8px; font-size:10px; color:#e65100;">{{ $pc['nombre_escala_actual'] }}</td>
-                                            <td style="padding:5px 8px; text-align:right; font-weight:700;
-                                                       color:{{ $pc['precio_nuevo'] > $pc['precio_original'] ? '#c0392b' : '#1ab394' }};">
+                                            <td style="padding:5px 8px; text-align:right; font-weight:700; color:#c0392b;">
                                                 L {{ number_format((float)$pc['precio_nuevo'], 2) }}
                                             </td>
                                         </tr>
@@ -1248,7 +1247,7 @@
                             </div>
                             <p style="font-size:11px; color:#795548; margin:0 0 8px;">
                                 <i class="mr-1 fa fa-info-circle"></i>
-                                Al continuar, la oferta duplicada usará los precios de la nueva escala.
+                                Al continuar, la oferta duplicada usará los precios de escala actuales.
                             </p>
                             <div style="display:flex; gap:8px; justify-content:flex-end;">
                                 <button type="button" wire:click="confirmarDuplicarConNuevosPrecios"
@@ -1301,6 +1300,7 @@
                                 Cancelar
                             </button>
                         </div>
+                        @else
                         {{-- Panel selector de cliente para "Otro cliente" --}}
                         <div style="background:#fff; border:1px solid #c8e6c9; border-radius:10px;
                                     padding:12px; text-align:left; margin-top:6px;">
@@ -1343,7 +1343,34 @@
                             </div>
                             @endif
 
-                            @if ($clienteDuplicarError)
+                            @if ($clienteDuplicarError === 'escala_diferente' && count($clienteDuplicarEscalaConflicto) > 0)
+                            <div style="margin-top:8px; background:#fdecea; border:1px solid #ef9a9a; border-radius:8px; overflow:hidden;">
+                                <div style="background:#f8d7da; padding:8px 12px; font-size:12px; font-weight:700; color:#7b1c28;">
+                                    <i class="mr-1 fa fa-ban"></i>
+                                    No se puede duplicar la oferta: los clientes cuentan con distinta escala de precios.
+                                </div>
+                                <table style="width:100%; border-collapse:collapse; font-size:12px;">
+                                    <thead>
+                                        <tr style="background:#fff5f5; color:#7b1c28;">
+                                            <th style="padding:6px 10px; text-align:left; border-bottom:1px solid #ef9a9a;">Cliente</th>
+                                            <th style="padding:6px 10px; text-align:center; border-bottom:1px solid #ef9a9a;">Categoría</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach ($clienteDuplicarEscalaConflicto as $i => $row)
+                                        <tr style="background:{{ $i === 0 ? '#fffaf9' : '#fff' }}; border-bottom:1px solid #f5c6cb;">
+                                            <td style="padding:6px 10px; color:#333;">{{ $row['nombre'] }}</td>
+                                            <td style="padding:6px 10px; text-align:center;">
+                                                <span style="background:#f8d7da; color:#7b1c28; border-radius:10px; padding:2px 10px; font-size:11px; font-weight:700;">
+                                                    {{ $row['categoria'] }}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                            @elseif ($clienteDuplicarError)
                             <div style="margin-top:6px; background:#fdecea; border:1px solid #ef9a9a;
                                         border-radius:6px; padding:7px 10px; font-size:12px; color:#c62828;">
                                 <i class="mr-1 fa fa-exclamation-circle"></i> {{ $clienteDuplicarError }}
