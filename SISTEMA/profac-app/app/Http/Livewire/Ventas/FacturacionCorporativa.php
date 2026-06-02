@@ -150,7 +150,39 @@ class FacturacionCorporativa extends Component
         try {
             $prodId = (int) $request->idProducto;
             $search = addslashes($request->search ?? '');
-            // Stock neto = cantidad_disponible - reservado en prefacturas activas
+            // Si la búsqueda viene de un formulario de prefactura, excluir su reserva del stock
+            $pfExcludeId = (int) ($request->prefactura_id ?? 0);
+            $pfExcludeClause2 = $pfExcludeId > 0 ? "AND pf2.id != {$pfExcludeId}" : '';
+            $pfExcludeClause3 = $pfExcludeId > 0 ? "AND pf3.id != {$pfExcludeId}" : '';
+
+            // En modo editar_factura: sumar de vuelta el stock de la factura original
+            // (ya estaba descontado de recibido_bodega) para no mostrar 0 disponible.
+            $addBackClause = '0';
+            if (($request->modo ?? '') === 'editar_factura') {
+                $flujoIdEdit = (int) ($request->flujo_id ?? 0);
+                if ($flujoIdEdit > 0) {
+                    $histFactura = DB::table('historico_flujo')
+                        ->where('flujo_id', $flujoIdEdit)
+                        ->where('tipo_tramite_id', 3)
+                        ->whereNotNull('tramite_id')
+                        ->where('estado_id', '!=', 7)
+                        ->orderByDesc('id')
+                        ->value('tramite_id');
+                    if ($histFactura) {
+                        $facturaEditId = (int) $histFactura;
+                        $addBackClause = "COALESCE((
+                            SELECT SUM(vhp_e.cantidad)
+                            FROM venta_has_producto vhp_e
+                            WHERE vhp_e.factura_id = {$facturaEditId}
+                              AND vhp_e.producto_id = {$prodId}
+                              AND vhp_e.seccion_id  = A.seccion_id
+                              AND vhp_e.resta_inventario = 1
+                        ), 0)";
+                    }
+                }
+            }
+
+            // Stock neto = cantidad_disponible + stock_factura_editada - reservado en prefacturas activas
             $results = DB::SELECT("
         SELECT
             A.seccion_id as id,
@@ -158,11 +190,12 @@ class FacturacionCorporativa extends Component
             CONCAT(D.nombre,'',REPLACE(B.descripcion,'Seccion','')) as 'bodegaSeccion',
             CONCAT(D.nombre,' - ', REPLACE(B.descripcion,'Seccion',''),' - cantidad ',
                 FLOOR(GREATEST(0,
-                    SUM(A.cantidad_disponible) - COALESCE((
+                    SUM(A.cantidad_disponible) + {$addBackClause} - COALESCE((
                         SELECT SUM(php2.cantidad)
                         FROM prefactura_has_producto php2
                         INNER JOIN prefactura pf2 ON pf2.id = php2.prefactura_id
                         WHERE pf2.estado = 'activo'
+                          {$pfExcludeClause2}
                           AND php2.producto_id = {$prodId}
                           AND php2.seccion_id  = A.seccion_id
                           AND php2.resta_inventario = 1
@@ -173,16 +206,16 @@ class FacturacionCorporativa extends Component
             INNER JOIN seccion B ON A.seccion_id = B.id
             INNER JOIN segmento C ON B.segmento_id = C.id
             INNER JOIN bodega D ON C.bodega_id = D.id
-        WHERE A.cantidad_disponible <> 0
-          AND A.producto_id = {$prodId}
+        WHERE A.producto_id = {$prodId}
           AND (D.nombre LIKE '%{$search}%' OR B.descripcion LIKE '%{$search}%')
         GROUP BY A.seccion_id
         HAVING GREATEST(0,
-            SUM(A.cantidad_disponible) - COALESCE((
+            SUM(A.cantidad_disponible) + {$addBackClause} - COALESCE((
                 SELECT SUM(php3.cantidad)
                 FROM prefactura_has_producto php3
                 INNER JOIN prefactura pf3 ON pf3.id = php3.prefactura_id
                 WHERE pf3.estado = 'activo'
+                  {$pfExcludeClause3}
                   AND php3.producto_id = {$prodId}
                   AND php3.seccion_id  = A.seccion_id
                   AND php3.resta_inventario = 1
@@ -776,6 +809,26 @@ class FacturacionCorporativa extends Component
             $arrayTemporal = $request->arregloIdInputs;
             $arrayInputs = explode(',', $arrayTemporal);
 
+            // Si la venta proviene de una prefactura, excluirla del stock reservado
+            // para no contar como indisponible el stock que ella misma reservó.
+            $prefacturaExcluirId = (int) ($request->prefactura_id ?? 0);
+
+            // En modo editar_factura: sumar de vuelta el stock de la factura original
+            // para no bloquear la edición por el stock que ya estaba descontado.
+            $facturaEditAddBackId = 0;
+            if (($request->modo ?? '') === 'editar_factura') {
+                $flujoIdEdit = (int) ($request->flujo_id ?? 0);
+                if ($flujoIdEdit > 0) {
+                    $histF = DB::table('historico_flujo')
+                        ->where('flujo_id', $flujoIdEdit)
+                        ->where('tipo_tramite_id', 3)
+                        ->whereNotNull('tramite_id')
+                        ->where('estado_id', '!=', 7)
+                        ->orderByDesc('id')
+                        ->value('tramite_id');
+                    $facturaEditAddBackId = $histF ? (int) $histF : 0;
+                }
+            }
 
             $numeroSecuencia = null;
             $mensaje = "";
@@ -793,18 +846,33 @@ class FacturacionCorporativa extends Component
                 $keyNombre = "nombre" . $arrayInputs[$j];
                 $keyBodega = "bodega" . $arrayInputs[$j];
 
-                // Stock neto = stock_real - reservado en prefacturas activas
+                $excludePfClause = $prefacturaExcluirId > 0
+                    ? "AND pf2.id != {$prefacturaExcluirId}"
+                    : '';
+
+                $addBackFacturaClause = $facturaEditAddBackId > 0
+                    ? "+ IFNULL((SELECT SUM(vhp_e.cantidad)
+                                  FROM venta_has_producto vhp_e
+                                  WHERE vhp_e.factura_id = {$facturaEditAddBackId}
+                                    AND vhp_e.producto_id = " . (int)$request->$keyIdProducto . "
+                                    AND vhp_e.seccion_id  = " . (int)$request->$keyIdSeccion . "
+                                    AND vhp_e.resta_inventario = 1), 0)"
+                    : '';
+
+                // Stock neto = stock_real + stock_factura_editada - reservado en prefacturas activas
                 $resultado = DB::selectONE("
                     SELECT GREATEST(0,
                         IFNULL((SELECT SUM(rb2.cantidad_disponible) FROM recibido_bodega rb2
                                  WHERE rb2.cantidad_disponible > 0
                                    AND rb2.producto_id = " . (int)$request->$keyIdProducto . "
                                    AND rb2.seccion_id  = " . (int)$request->$keyIdSeccion . "), 0)
+                        {$addBackFacturaClause}
                         -
                         IFNULL((SELECT SUM(php2.cantidad)
                                  FROM prefactura_has_producto php2
                                  INNER JOIN prefactura pf2 ON pf2.id = php2.prefactura_id
                                  WHERE pf2.estado = 'activo'
+                                   {$excludePfClause}
                                    AND php2.producto_id = " . (int)$request->$keyIdProducto . "
                                    AND php2.seccion_id  = " . (int)$request->$keyIdSeccion . "
                                    AND php2.resta_inventario = 1), 0)

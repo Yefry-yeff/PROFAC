@@ -366,6 +366,7 @@ class CardexGeneral extends Component
             }
 
             $listaCardex = $query
+                ->groupBy('c.id')
                 ->orderByRaw("$fechaOrdenExpr DESC")
                 ->get();
 

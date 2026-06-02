@@ -1275,6 +1275,11 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/reporte/dashboard/detalle-producto-facturas', [DashboardVentas::class,'detalleProductoFacturas']);
     Route::get('/reporte/dashboard/productos-analitica',     [DashboardVentas::class,'productosAnalitica']);
     Route::get('/reporte/dashboard/ventas-mes-vendedores',   [DashboardVentas::class,'ventasMesVendedores']);
+    Route::get('/reporte/dashboard/evolucion-clientes',      [DashboardVentas::class,'evolucionClientes']);
+    Route::get('/reporte/dashboard/evolucion-cantidad-cli',   [DashboardVentas::class,'evolucionCantidadCli']);
+    Route::get('/reporte/dashboard/top-productos-cli',        [DashboardVentas::class,'topProductosCli']);
+    Route::get('/reporte/dashboard/productos-x-cliente',      [DashboardVentas::class,'productosXCliente']);
+    Route::get('/reporte/dashboard/top-marcas-cli',           [DashboardVentas::class,'topMarcasCli']);
 
     Route::get('/reporte/reporteria/consulta/{fecha_inicio}/{fecha_final}', [Reporteria::class,'consulta']);
     Route::get('/reporte/reporteria/productos', [Reporteria::class,'catalogoProductos']);
@@ -1354,6 +1359,9 @@ Route::get('/reporte/ventas-cobros',                                            
 Route::get('/reporte/ventas-cobros/consulta/{vendedorId}/{clienteId}/{mes}/{anio}',                 [ReporteVentasCobros::class, 'consulta']);
 Route::post('/reporte/ventas-cobros/exportar-pdf/{vendedorId}/{clienteId}/{mes}/{anio}',            [ReporteVentasCobros::class, 'exportarPdf'])->name('reporte.ventas_cobros.pdf');
 Route::post('/reporte/ventas-cobros/exportar-excel/{vendedorId}/{clienteId}/{mes}/{anio}',          [ReporteVentasCobros::class, 'exportarExcel'])->name('reporte.ventas_cobros.excel');
+Route::get('/reporte/ventas-cobros/datos',                                                          [ReporteVentasCobros::class, 'consultaDatos']);
+Route::get('/reporte/ventas-cobros/kpis',                                                           [ReporteVentasCobros::class, 'kpis']);
+Route::get('/reporte/ventas-cobros/expediente/{facturaId}',                                         [ReporteVentasCobros::class, 'expediente']);
 
   //------------------------------- Logistica de Entregas ----------------------------//
 
