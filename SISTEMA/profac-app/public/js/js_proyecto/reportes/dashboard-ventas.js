@@ -789,6 +789,9 @@ var dashboardVentas = (function () {
         $.get('/reporte/dashboard/productos-x-cliente', cliParams).then(function (rows) {
             _renderTablaProductosCli(rows);
         });
+        $.get('/reporte/dashboard/facturas-x-cliente', cliParams).then(function (rows) {
+            _renderTablaFacturasCli(rows);
+        });
     }
 
     function _actualizarBadgesCli(f) {
@@ -1193,6 +1196,30 @@ var dashboardVentas = (function () {
         _dtInit('tabla-prod-cli', 9);
         setTimeout(function () {
             if (_dts['tabla-prod-cli']) { try { _dts['tabla-prod-cli'].columns.adjust().draw(false); } catch (e) {} }
+        }, 50);
+    }
+
+    function _renderTablaFacturasCli(rows) {
+        _dtDestroy('tabla-facturas-cli');
+        var $tbody = $('#tbody-facturas-cli').empty();
+        rows.forEach(function (r, i) {
+            $tbody.append(
+                '<tr>' +
+                '<td>' + (i + 1) + '</td>' +
+                '<td>' + (r.fecha || '-') + '</td>' +
+                '<td>' + (r.numero_factura || '-') + '</td>' +
+                '<td>' + (r.cliente || '-') + '</td>' +
+                '<td>' + (r.asesor_comercial || '-') + '</td>' +
+                '<td>' + (r.tele_asesor || '-') + '</td>' +
+                '<td class="text-right">' + fmt(r.subtotal) + '</td>' +
+                '<td class="text-right">' + fmt(r.isv) + '</td>' +
+                '<td class="text-right font-weight-bold">' + fmt(r.total) + '</td>' +
+                '</tr>'
+            );
+        });
+        _dtInit('tabla-facturas-cli', 8);
+        setTimeout(function () {
+            if (_dts['tabla-facturas-cli']) { try { _dts['tabla-facturas-cli'].columns.adjust().draw(false); } catch (e) {} }
         }, 50);
     }
 

@@ -666,6 +666,34 @@
                             </table>
                         </div>
                     </div>
+
+                    {{-- Tabla Detalle por Factura --}}
+                    <div class="shadow-sm card mt-3">
+                        <div class="py-2 card-header d-flex justify-content-between align-items-center">
+                            <span class="font-weight-bold"><i class="fas fa-file-invoice-dollar mr-1 text-success"></i>Detalle por Factura</span>
+                            <button class="btn btn-sm btn-success" onclick="dashboardVentas.exportarTablaExcel('tabla-facturas-cli','Facturas_x_Cliente')">
+                                <i class="fas fa-file-excel"></i> Exportar Excel
+                            </button>
+                        </div>
+                        <div class="p-2 card-body table-responsive">
+                            <table class="table table-striped table-sm" id="tabla-facturas-cli" style="width:100%">
+                                <thead class="thead-dark">
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Fecha</th>
+                                        <th>N° Factura</th>
+                                        <th>Cliente</th>
+                                        <th>Asesor Comercial</th>
+                                        <th>Tele Asesor</th>
+                                        <th class="text-right">Subtotal (Sin ISV)</th>
+                                        <th class="text-right">ISV</th>
+                                        <th class="text-right">Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-facturas-cli"></tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
 
                 {{-- MARCAS --}}
@@ -1378,7 +1406,8 @@
 #tabla-prod-fact-det thead th,
 #tabla-prod-ranking-cli thead th,
 #tabla-prod-cli thead th,
-#tabla-marcas-cli thead th {
+#tabla-marcas-cli thead th,
+#tabla-facturas-cli thead th {
     background-color: #343a40 !important;
     color: #fff !important;
     border-color: #454d55 !important;

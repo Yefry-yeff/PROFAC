@@ -697,6 +697,70 @@ class DashboardVentas extends Component
         return response()->json($rows);
     }
 
+    // ─── CLIENTES: Detalle por factura ─────────────────────────────────────
+    public function facturasXCliente(Request $request)
+    {
+        $fi      = $request->fecha_inicio ?? date('Y-01-01');
+        $ff      = $request->fecha_final  ?? date('Y-m-d');
+        $vend    = $request->vendedor     ? (int)$request->vendedor     : null;
+        $tc      = $request->tipo_cliente ? (int)$request->tipo_cliente : null;
+        $cliente = trim((string)($request->cliente  ?? ''));
+        $marca   = $request->marca        ? (int)$request->marca        : null;
+        $prod    = trim((string)($request->producto ?? ''));
+        $limit   = $request->limite       ? (int)$request->limite       : 5000;
+
+        $where  = "f.estado_venta_id = 1 AND f.fecha_emision BETWEEN ? AND ?";
+        $params = [$fi, $ff];
+        if ($vend)    { $where .= " AND f.vendedor = ?";           $params[] = $vend; }
+        if ($tc)      { $where .= " AND cli.tipo_cliente_id = ?";  $params[] = $tc; }
+        if ($cliente) { $where .= " AND cli.nombre LIKE ?";        $params[] = "%$cliente%"; }
+
+        /* Si hay filtro de marca/producto necesitamos el JOIN de venta_has_producto */
+        $joinProd = '';
+        if ($marca || $prod) {
+            $joinProd = "INNER JOIN venta_has_producto vhp ON vhp.factura_id = f.id
+                         INNER JOIN producto p              ON p.id = vhp.producto_id";
+            if ($marca) { $where .= " AND p.marca_id = ?";  $params[] = $marca; }
+            if ($prod) {
+                if (is_numeric($prod)) { $where .= " AND p.id = ?"; $params[] = intval($prod); }
+                else                   { $where .= " AND p.nombre LIKE ?"; $params[] = "%$prod%"; }
+            }
+        }
+
+        $rows = DB::select("
+            SELECT
+                f.id                                                            AS factura_id,
+                DATE_FORMAT(f.fecha_emision, '%d/%m/%Y')                        AS fecha,
+                COALESCE(NULLIF(f.cai,''), NULLIF(f.numero_factura,''),
+                         CONCAT('#', f.id))                                     AS numero_factura,
+                cli.nombre                                                      AS cliente,
+                COALESCE(uv.name, '-')                                          AS asesor_comercial,
+                COALESCE(ut.name, '-')                                          AS tele_asesor,
+                COALESCE(f.sub_total, 0)                                        AS subtotal,
+                COALESCE(f.isv, 0)                                              AS isv,
+                COALESCE(f.sub_total, 0) + COALESCE(f.isv, 0)                  AS total
+            FROM factura f
+            INNER JOIN cliente cli          ON cli.id    = f.cliente_id
+            INNER JOIN tipo_cliente tc      ON tc.id     = cli.tipo_cliente_id
+            LEFT  JOIN users uv             ON uv.id     = f.vendedor
+            LEFT  JOIN users ut             ON ut.id     = f.users_id
+            $joinProd
+            WHERE $where
+            GROUP BY f.id, f.fecha_emision, f.cai, f.numero_factura,
+                     cli.nombre, uv.name, ut.name, f.sub_total, f.isv
+            ORDER BY f.fecha_emision DESC, cli.nombre ASC
+            LIMIT $limit
+        ", $params);
+
+        foreach ($rows as &$r) {
+            $r->subtotal = round((float)$r->subtotal, 2);
+            $r->isv      = round((float)$r->isv,      2);
+            $r->total    = round((float)$r->total,     2);
+        }
+
+        return response()->json($rows);
+    }
+
     // ─── PESTAÑA 3: Top productos ───────────────────────────────────────────
     public function topProductos(Request $request)
     {
