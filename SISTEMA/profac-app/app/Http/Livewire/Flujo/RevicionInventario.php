@@ -384,6 +384,24 @@ class RevicionInventario extends Component
         $this->productos   = [];
         $this->stockErrors = [];
 
+        // Batch: detalles de prefacturas reservadas para todos los productos de esta cotización
+        $batchProdIds    = $prods->pluck('producto_id')->filter()->unique()->values()->toArray();
+        $batchSecIds     = $prods->pluck('seccion_id')->filter()->unique()->values()->toArray();
+        $reservasDetalle = collect();
+        if (!$this->devuelto && !empty($batchProdIds) && !empty($batchSecIds)) {
+            $reservasDetalle = DB::table('prefactura_has_producto as php')
+                ->join('prefactura as pf', 'pf.id', '=', 'php.prefactura_id')
+                ->where('pf.estado', 'activo')
+                ->whereIn('php.producto_id', $batchProdIds)
+                ->whereIn('php.seccion_id', $batchSecIds)
+                ->where('php.resta_inventario', 1)
+                ->select('php.producto_id', 'php.seccion_id', 'pf.id as prefactura_id',
+                         'pf.flujo_id', 'pf.nombre_cliente', 'php.cantidad',
+                         'pf.fecha_emision', 'pf.fecha_vencimiento')
+                ->get()
+                ->groupBy(fn($r) => $r->producto_id . '_' . $r->seccion_id);
+        }
+
         foreach ($prods as $i => $prod) {
             $rawStock         = null;
             $reservado        = null;
@@ -456,6 +474,10 @@ class RevicionInventario extends Component
                 'disponible'      => $disponible,
                 'disponible_global' => $disponibleGlobal,
                 'falta_stock'     => $faltaStock,
+                'reservas_detalle' => (!$this->devuelto && $prod->resta_inventario && $prod->producto_id && $prod->seccion_id)
+                    ? ($reservasDetalle->get($prod->producto_id . '_' . $prod->seccion_id, collect())
+                        ->map(fn($r) => (array) $r)->values()->toArray())
+                    : [],
             ];
 
             $this->productosRevisados[$i] = false;
