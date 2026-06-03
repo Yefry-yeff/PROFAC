@@ -56,6 +56,24 @@ class PrefacturaController
 
         DB::beginTransaction();
         try {
+            // ── Guard: evitar doble prefactura por doble clic / concurrencia ──
+            $flujoIdGuard = $request->flujo_id ?: null;
+            if ($flujoIdGuard) {
+                $yaExiste = DB::table('prefactura')
+                    ->where('flujo_id', $flujoIdGuard)
+                    ->whereIn('estado', ['activo', 'convertida'])
+                    ->lockForUpdate()
+                    ->exists();
+                if ($yaExiste) {
+                    DB::rollBack();
+                    return response()->json([
+                        'icon'  => 'warning',
+                        'title' => 'Ya existe una prefactura',
+                        'text'  => 'Este flujo ya tiene una prefactura activa. Recargue la página.',
+                    ], 409);
+                }
+            }
+
             // ── Cabecera ────────────────────────────────────────────────────
             $prefacturaId = DB::table('prefactura')->insertGetId([
                 'cotizacion_id'       => $request->cotizacion_id ?: null,
@@ -494,6 +512,23 @@ class PrefacturaController
 
         DB::beginTransaction();
         try {
+            // ── Guard: evitar doble prefactura por doble clic / concurrencia ──
+            if ($flujoId) {
+                $yaExiste = DB::table('prefactura')
+                    ->where('flujo_id', $flujoId)
+                    ->whereIn('estado', ['activo', 'convertida'])
+                    ->lockForUpdate()
+                    ->exists();
+                if ($yaExiste) {
+                    DB::rollBack();
+                    return response()->json([
+                        'icon'  => 'warning',
+                        'title' => 'Ya existe una prefactura',
+                        'text'  => 'Este flujo ya tiene una prefactura activa. Recargue la página.',
+                    ], 409);
+                }
+            }
+
             // ── 4. Crear prefactura ────────────────────────────────────────
             $prefacturaId = DB::table('prefactura')->insertGetId([
                 'cotizacion_id'       => $cotizacionId,
