@@ -62,6 +62,11 @@ class RevicionInventario extends Component
     public int $totalDevueltos   = 0;
     public int $totalPrefactura  = 0;
 
+    // ── Modal de reservas por producto ─────────────────────────────────────
+    public bool   $modalReservasVisible = false;
+    public array  $modalReservasData    = [];
+    public string $modalReservaNombre   = '';
+
     // ── Mensajes ──────────────────────────────────────────────────────────
     public string $mensajeExito = '';
     public string $mensajeError = '';
@@ -380,14 +385,15 @@ class RevicionInventario extends Component
         $this->stockErrors = [];
 
         foreach ($prods as $i => $prod) {
-            $disponible = null;
-            $faltaStock = false;
-
+            $rawStock         = null;
+            $reservado        = null;
+            $disponible       = null;
+            $faltaStock       = false;
             $disponibleGlobal = null;
 
             // Para registros ya devueltos no recalcular stock (solo mostrar datos)
             if (!$this->devuelto && $prod->resta_inventario && $prod->producto_id && $prod->seccion_id) {
-                $rawStock = (float) DB::table('recibido_bodega')
+                $rawStock  = (float) DB::table('recibido_bodega')
                     ->where('producto_id', $prod->producto_id)
                     ->where('seccion_id',  $prod->seccion_id)
                     ->where('cantidad_disponible', '>', 0)
@@ -445,6 +451,8 @@ class RevicionInventario extends Component
                 'producto_id'     => $prod->producto_id,
                 'seccion_id'      => $prod->seccion_id,
                 'resta_inventario'=> $prod->resta_inventario,
+                'rawStock'        => $rawStock,
+                'reservado'       => $reservado,
                 'disponible'      => $disponible,
                 'disponible_global' => $disponibleGlobal,
                 'falta_stock'     => $faltaStock,
@@ -495,12 +503,15 @@ class RevicionInventario extends Component
         $this->motivoDevolucion = '';
         $this->obsProducto      = [];
         $this->productosRevisados = [];
-        $this->filtroProducto   = '';
-        $this->filtroBodega     = '';
-        $this->filtroEstado     = '';
-        $this->filtroRevisado   = '';
-        $this->mensajeExito     = '';
-        $this->mensajeError     = '';
+        $this->filtroProducto      = '';
+        $this->filtroBodega        = '';
+        $this->filtroEstado        = '';
+        $this->filtroRevisado      = '';
+        $this->mensajeExito        = '';
+        $this->mensajeError        = '';
+        $this->modalReservasVisible = false;
+        $this->modalReservasData    = [];
+        $this->modalReservaNombre   = '';
     }
 
     /**
@@ -881,6 +892,47 @@ class RevicionInventario extends Component
             DB::rollBack();
             $this->mensajeError = 'Error al devolver a Oferta: ' . $e->getMessage();
         }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // MODAL RESERVAS
+    // ─────────────────────────────────────────────────────────────────────
+
+    /**
+     * Abre el modal mostrando qué prefacturas/flujos tienen reservado
+     * el producto indicado en la sección especificada.
+     */
+    public function verReservas(int $productoId, int $seccionId, string $nombreProducto): void
+    {
+        $this->modalReservaNombre = $nombreProducto;
+
+        $this->modalReservasData = DB::table('prefactura_has_producto as php')
+            ->join('prefactura as pf', 'pf.id', '=', 'php.prefactura_id')
+            ->leftJoin('flujo as f', 'f.id', '=', 'pf.flujo_id')
+            ->where('pf.estado', 'activo')
+            ->where('php.producto_id', $productoId)
+            ->where('php.seccion_id', $seccionId)
+            ->where('php.resta_inventario', 1)
+            ->select(
+                'pf.id as prefactura_id',
+                'pf.flujo_id',
+                'pf.nombre_cliente',
+                'php.cantidad',
+                'pf.fecha_emision',
+                'pf.fecha_vencimiento'
+            )
+            ->get()
+            ->map(fn($r) => (array) $r)
+            ->toArray();
+
+        $this->modalReservasVisible = true;
+    }
+
+    public function cerrarModalReservas(): void
+    {
+        $this->modalReservasVisible = false;
+        $this->modalReservasData    = [];
+        $this->modalReservaNombre   = '';
     }
 
     // ─────────────────────────────────────────────────────────────────────

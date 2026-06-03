@@ -555,6 +555,8 @@
                                 <th>Dirección</th>
                                 <th>Sección</th>
                                 <th>Número</th>
+                                <th style="color:#e65100;">Reserva</th>
+                                <th>Cant. en Bodega</th>
                                 <th>Cant. Disponible</th>
                             </tr>
                         </thead>
@@ -570,7 +572,36 @@
                                 <td>{{ $lote->direccion }}</td>
                                 <td>{{ $lote->seccion }}</td>
                                 <td>{{ $lote->numeracion }}</td>
-                                <td><strong>{{ $lote->cantidad_disponible }}</strong></td>
+                                {{-- Reserva (FIFO por fila) --}}
+                                <td style="text-align:center;">
+                                    @if ($lote->reservado_fila > 0)
+                                        <button type="button"
+                                                onclick="abrirModalReservas(this)"
+                                                data-seccion-label="{{ $lote->bodega }} • {{ $lote->seccion }}"
+                                                data-reservas='@json($lote->reservas_detalle)'
+                                                style="background:#fff3e0; color:#e65100; border:1px solid #ffcc80;
+                                                       border-radius:12px; padding:2px 12px; font-weight:700;
+                                                       font-size:13px; cursor:pointer;">
+                                            <i class="fa fa-lock" style="font-size:11px; margin-right:4px;"></i>{{ (int)$lote->reservado_fila }}
+                                        </button>
+                                    @else
+                                        <span style="background:#f1f5f9; color:#90a4ae; border-radius:12px;
+                                                     padding:2px 10px; font-size:13px;">0</span>
+                                    @endif
+                                </td>
+                                {{-- Cant. en Bodega --}}
+                                <td style="text-align:center;">
+                                    <span style="background:#f3e5f5; color:#6a1b9a; border-radius:12px;
+                                                 padding:2px 10px; font-weight:700; font-size:13px;">
+                                        {{ (int)$lote->rawStock }}
+                                    </span>
+                                </td>
+                                {{-- Cant. Disponible --}}
+                                <td style="text-align:center;">
+                                    <strong style="color:{{ $lote->disponible_fila > 0 ? '#2e7d32' : '#b71c1c' }};">
+                                        {{ (int)$lote->disponible_fila }}
+                                    </strong>
+                                </td>
                             </tr>
                             @endforeach
                         </tbody>
@@ -891,7 +922,112 @@
         </div>
     </div>
 
+    {{-- ══ MODAL: RESERVAS DE PRODUCTO POR SECCIÓN ════════════════════ --}}
+    <div class="modal fade modal-modern" id="modal_reservas_producto" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header" style="background:linear-gradient(135deg,#e65100,#bf360c); padding:14px 20px;">
+                    <div>
+                        <h5 class="modal-title" style="color:#fff; font-weight:700; font-size:14px; margin:0;">
+                            <i class="fa fa-lock mr-2"></i>Reservas activas del producto
+                        </h5>
+                        <small id="modal_reservas_seccion" style="color:rgba(255,255,255,.85); font-size:11px;"></small>
+                    </div>
+                    <button type="button" class="close" data-dismiss="modal"
+                            style="color:#fff; opacity:1; text-shadow:none; font-size:20px;">&times;</button>
+                </div>
+                <div class="modal-body" style="padding:18px 20px;">
+                    <p id="modal_reservas_info" style="font-size:12px; color:#607d8b; margin-bottom:12px;"></p>
+                    <div id="modal_reservas_empty" style="display:none; text-align:center; color:#aaa; padding:20px 0;">
+                        <i class="fa fa-inbox d-block" style="font-size:32px; margin-bottom:8px; opacity:.35;"></i>
+                        No hay prefacturas activas reservando este producto en esta sección.
+                    </div>
+                    <div class="table-responsive" id="modal_reservas_table_wrap">
+                        <table class="table table-sm table-hover mb-0" style="font-size:13px;">
+                            <thead style="background:#f8f9fc;">
+                                <tr>
+                                    <th style="padding:8px 12px; color:#555; font-weight:700;">Prefactura</th>
+                                    <th style="padding:8px 12px; color:#555; font-weight:700;">Flujo</th>
+                                    <th style="padding:8px 12px; color:#555; font-weight:700;">Cliente</th>
+                                    <th style="padding:8px 12px; text-align:center; color:#e65100; font-weight:700;">Cant. Reservada</th>
+                                    <th style="padding:8px 12px; color:#555; font-weight:700;">Emisión</th>
+                                    <th style="padding:8px 12px; color:#555; font-weight:700;">Vence</th>
+                                </tr>
+                            </thead>
+                            <tbody id="modal_reservas_tbody"></tbody>
+                            <tfoot>
+                                <tr style="background:#fff8f0;">
+                                    <td colspan="3" style="padding:8px 12px; font-weight:700; color:#e65100; text-align:right;">Total reservado:</td>
+                                    <td style="padding:8px 12px; text-align:center;">
+                                        <span id="modal_reservas_total"
+                                              style="background:#e65100; color:#fff; border-radius:10px;
+                                                     padding:3px 12px; font-weight:700; font-size:13px;"></span>
+                                    </td>
+                                    <td colspan="2"></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal" style="border-radius:8px;">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     @push('scripts')
     <script src="{{ asset('js/js_proyecto/inventario/detalle-producto.js') }}"></script>
+    <script>
+    function abrirModalReservas(btn) {
+        var label    = btn.getAttribute('data-seccion-label') || '';
+        var reservas = JSON.parse(btn.getAttribute('data-reservas') || '[]');
+
+        document.getElementById('modal_reservas_seccion').textContent = label;
+
+        var tbody = document.getElementById('modal_reservas_tbody');
+        tbody.innerHTML = '';
+
+        var totalReservado = 0;
+
+        if (reservas.length === 0) {
+            document.getElementById('modal_reservas_empty').style.display = 'block';
+            document.getElementById('modal_reservas_table_wrap').style.display = 'none';
+            document.getElementById('modal_reservas_info').textContent = '';
+        } else {
+            document.getElementById('modal_reservas_empty').style.display = 'none';
+            document.getElementById('modal_reservas_table_wrap').style.display = 'block';
+            document.getElementById('modal_reservas_info').textContent =
+                reservas.length + ' prefactura(s) activa(s) con reserva en esta bodega/sección.';
+
+            reservas.forEach(function(r) {
+                var cant = parseFloat(r.cantidad) || 0;
+                totalReservado += cant;
+
+                var tr = document.createElement('tr');
+                tr.style.borderBottom = '1px solid #f0f0f0';
+                tr.innerHTML =
+                    '<td style="padding:8px 12px;">' +
+                        '<span style="background:#e3f2fd;color:#1565c0;border-radius:8px;padding:2px 9px;font-weight:700;font-size:12px;">#' + r.prefactura_id + '</span>' +
+                    '</td>' +
+                    '<td style="padding:8px 12px;">' +
+                        (r.flujo_id
+                            ? '<span style="background:#f3e5f5;color:#6a1b9a;border-radius:8px;padding:2px 9px;font-weight:700;font-size:12px;">#' + r.flujo_id + '</span>'
+                            : '<span style="color:#aaa;">—</span>') +
+                    '</td>' +
+                    '<td style="padding:8px 12px;color:#2c3e50;font-size:12px;">' + (r.nombre_cliente || '—') + '</td>' +
+                    '<td style="padding:8px 12px;text-align:center;">' +
+                        '<span style="background:#fff3e0;color:#e65100;border-radius:10px;padding:2px 10px;font-weight:700;font-size:13px;">' + Math.round(cant) + '</span>' +
+                    '</td>' +
+                    '<td style="padding:8px 12px;font-size:12px;color:#555;">' + (r.fecha_emision ? r.fecha_emision.substring(0,10).split('-').reverse().join('/') : '—') + '</td>' +
+                    '<td style="padding:8px 12px;font-size:12px;color:#555;">' + (r.fecha_vencimiento ? r.fecha_vencimiento.substring(0,10).split('-').reverse().join('/') : '—') + '</td>';
+                tbody.appendChild(tr);
+            });
+        }
+
+        document.getElementById('modal_reservas_total').textContent = Math.round(totalReservado);
+        $('#modal_reservas_producto').modal('show');
+    }
+    </script>
     @endpush
 </div>

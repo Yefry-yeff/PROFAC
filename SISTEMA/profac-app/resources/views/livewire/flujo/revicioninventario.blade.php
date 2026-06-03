@@ -213,8 +213,9 @@
                                             <th style="padding:10px 14px; color:#555; font-weight:700;">Bodega</th>
                                             <th style="padding:10px 10px; color:#555; font-weight:700; white-space:nowrap;">Unidad</th>
                                             <th style="padding:10px 14px; text-align:center; color:#555; font-weight:700;">Cantidad</th>
-                                            <th style="padding:10px 14px; text-align:center; color:#555; font-weight:700;">Disponible</th>
-                                            <th style="padding:10px 14px; text-align:center; color:#1565c0; font-weight:700;">Global</th>
+                                            <th style="padding:10px 14px; text-align:center; color:#e65100; font-weight:700;">Reserva</th>
+                                            <th style="padding:10px 14px; text-align:center; color:#555; font-weight:700;">Cant. en Bodega</th>
+                                            <th style="padding:10px 14px; text-align:center; color:#1565c0; font-weight:700;">Cant. Disponible</th>
                                             <th style="padding:10px 14px; text-align:center; color:#2e7d32; font-weight:700;">Revisado</th>
                                             <th style="padding:10px 14px; text-align:center; color:#555; font-weight:700;">Estado</th>
                                             <th style="padding:10px 14px; color:#555; font-weight:700;">Nota / Reemplazo</th>
@@ -223,7 +224,7 @@
                                     <tbody>
                                         @if(count($this->productosFiltrados) === 0)
                                         <tr>
-                                            <td colspan="10" style="padding:20px; text-align:center; color:#78909c; background:#fff;">
+                                            <td colspan="11" style="padding:20px; text-align:center; color:#78909c; background:#fff;">
                                                 <i class="fa fa-filter d-block" style="font-size:24px; margin-bottom:6px; opacity:.55;"></i>
                                                 No hay productos que coincidan con los filtros.
                                             </td>
@@ -251,22 +252,43 @@
                                                         {{ (int)$prod['cantidad'] }}
                                                     </span>
                                                 </td>
+                                                {{-- Reserva (clicable si hay reservas) --}}
                                                 <td style="padding:8px 14px; text-align:center;">
-                                                    @if ($prod['disponible'] !== null)
-                                                        <span style="background:{{ $prod['falta_stock'] ? '#fce4ec' : '#e8f5e9' }};
-                                                                     color:{{ $prod['falta_stock'] ? '#b71c1c' : '#2e7d32' }};
+                                                    @if ($prod['reservado'] !== null)
+                                                        @if ((float)$prod['reservado'] > 0)
+                                                            <button type="button"
+                                                                    wire:click="verReservas({{ $prod['producto_id'] }}, {{ $prod['seccion_id'] }}, '{{ addslashes($prod['nombre_producto']) }}')"
+                                                                    style="background:#fff3e0; color:#e65100; border:1px solid #ffcc80;
+                                                                           border-radius:12px; padding:2px 12px; font-weight:700;
+                                                                           font-size:13px; cursor:pointer;"
+                                                                    title="Ver flujos con reserva">
+                                                                <i class="fa fa-lock mr-1" style="font-size:11px;"></i>{{ (int)$prod['reservado'] }}
+                                                            </button>
+                                                        @else
+                                                            <span style="background:#f1f5f9; color:#90a4ae; border-radius:12px; padding:2px 10px; font-size:13px;">0</span>
+                                                        @endif
+                                                    @else
+                                                        <span style="color:#aaa; font-size:12px;">—</span>
+                                                    @endif
+                                                </td>
+                                                {{-- Cant. en Bodega (rawStock) --}}
+                                                <td style="padding:8px 14px; text-align:center;">
+                                                    @if ($prod['rawStock'] !== null)
+                                                        <span style="background:#f3e5f5; color:#6a1b9a;
                                                                      border-radius:12px; padding:2px 10px; font-weight:700; font-size:13px;">
-                                                            {{ (int) $prod['disponible'] }}
+                                                            {{ (int)$prod['rawStock'] }}
                                                         </span>
                                                     @else
                                                         <span style="color:#aaa; font-size:12px;">—</span>
                                                     @endif
                                                 </td>
+                                                {{-- Cant. Disponible = rawStock - reservado --}}
                                                 <td style="padding:8px 14px; text-align:center;">
-                                                    @if (isset($prod['disponible_global']) && $prod['disponible_global'] !== null)
-                                                        <span style="background:#e3f2fd; color:#1565c0;
+                                                    @if ($prod['disponible'] !== null)
+                                                        <span style="background:{{ $prod['falta_stock'] ? '#fce4ec' : '#e8f5e9' }};
+                                                                     color:{{ $prod['falta_stock'] ? '#b71c1c' : '#2e7d32' }};
                                                                      border-radius:12px; padding:2px 10px; font-weight:700; font-size:13px;">
-                                                            {{ $prod['disponible_global'] }}
+                                                            {{ (int)$prod['disponible'] }}
                                                         </span>
                                                     @else
                                                         <span style="color:#aaa; font-size:12px;">—</span>
@@ -902,5 +924,117 @@
         @endif {{-- /flujoId --}}
 
     </div>
+
+    {{-- ══════════════════════════════════════════════════════════════════ --}}
+    {{-- MODAL: Flujos con reserva del producto                           --}}
+    {{-- ══════════════════════════════════════════════════════════════════ --}}
+    @if ($modalReservasVisible)
+    <div style="position:fixed; inset:0; z-index:9999; display:flex; align-items:center; justify-content:center;
+                background:rgba(0,0,0,.45);"
+         wire:click.self="cerrarModalReservas">
+        <div style="background:#fff; border-radius:16px; box-shadow:0 8px 40px rgba(0,0,0,.22);
+                    width:100%; max-width:680px; max-height:85vh; display:flex; flex-direction:column; overflow:hidden;">
+
+            {{-- Header modal --}}
+            <div style="background:linear-gradient(135deg,#e65100,#bf360c); padding:14px 20px;
+                        display:flex; align-items:center; justify-content:space-between;">
+                <div>
+                    <h6 style="color:#fff; margin:0; font-weight:700; font-size:14px;">
+                        <i class="fa fa-lock mr-2"></i>Reservas activas del producto
+                    </h6>
+                    <small style="color:rgba(255,255,255,.85); font-size:11px;">
+                        {{ $modalReservaNombre }}
+                    </small>
+                </div>
+                <button type="button" wire:click="cerrarModalReservas"
+                        style="background:rgba(255,255,255,.2); color:#fff; border:none; border-radius:8px;
+                               padding:4px 12px; font-size:12px; font-weight:700; cursor:pointer;">
+                    <i class="fa fa-times mr-1"></i>Cerrar
+                </button>
+            </div>
+
+            {{-- Body modal --}}
+            <div style="padding:18px 20px; overflow-y:auto; flex:1;">
+                @if (count($modalReservasData) === 0)
+                    <div style="text-align:center; color:#aaa; padding:30px 0;">
+                        <i class="fa fa-inbox d-block" style="font-size:32px; margin-bottom:8px; opacity:.35;"></i>
+                        No hay prefacturas activas reservando este producto.
+                    </div>
+                @else
+                    <p style="font-size:12px; color:#607d8b; margin-bottom:12px;">
+                        <i class="fa fa-info-circle mr-1"></i>
+                        {{ count($modalReservasData) }} prefactura(s) activa(s) con reserva en esta bodega/sección.
+                    </p>
+                    <div style="overflow-x:auto;">
+                        <table class="table table-sm table-hover mb-0" style="font-size:13px;">
+                            <thead style="background:#f8f9fc;">
+                                <tr>
+                                    <th style="padding:8px 12px; color:#555; font-weight:700;">Prefactura</th>
+                                    <th style="padding:8px 12px; color:#555; font-weight:700;">Flujo</th>
+                                    <th style="padding:8px 12px; color:#555; font-weight:700;">Cliente</th>
+                                    <th style="padding:8px 12px; text-align:center; color:#e65100; font-weight:700;">Cant. Reservada</th>
+                                    <th style="padding:8px 12px; color:#555; font-weight:700;">Emisión</th>
+                                    <th style="padding:8px 12px; color:#555; font-weight:700;">Vence</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($modalReservasData as $r)
+                                <tr style="border-bottom:1px solid #f0f0f0;">
+                                    <td style="padding:8px 12px;">
+                                        <span style="background:#e3f2fd; color:#1565c0; border-radius:8px;
+                                                     padding:2px 9px; font-weight:700; font-size:12px;">
+                                            #{{ $r['prefactura_id'] }}
+                                        </span>
+                                    </td>
+                                    <td style="padding:8px 12px;">
+                                        @if ($r['flujo_id'])
+                                        <span style="background:#f3e5f5; color:#6a1b9a; border-radius:8px;
+                                                     padding:2px 9px; font-weight:700; font-size:12px;">
+                                            #{{ $r['flujo_id'] }}
+                                        </span>
+                                        @else
+                                        <span style="color:#aaa;">—</span>
+                                        @endif
+                                    </td>
+                                    <td style="padding:8px 12px; color:#2c3e50; font-size:12px;">
+                                        {{ $r['nombre_cliente'] ?? '—' }}
+                                    </td>
+                                    <td style="padding:8px 12px; text-align:center;">
+                                        <span style="background:#fff3e0; color:#e65100; border-radius:10px;
+                                                     padding:2px 10px; font-weight:700; font-size:13px;">
+                                            {{ (int)$r['cantidad'] }}
+                                        </span>
+                                    </td>
+                                    <td style="padding:8px 12px; font-size:12px; color:#555;">
+                                        {{ $r['fecha_emision'] ? \Carbon\Carbon::parse($r['fecha_emision'])->format('d/m/Y') : '—' }}
+                                    </td>
+                                    <td style="padding:8px 12px; font-size:12px; color:#555;">
+                                        {{ $r['fecha_vencimiento'] ? \Carbon\Carbon::parse($r['fecha_vencimiento'])->format('d/m/Y') : '—' }}
+                                    </td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                            <tfoot>
+                                <tr style="background:#fff8f0;">
+                                    <td colspan="3" style="padding:8px 12px; font-weight:700; color:#e65100; font-size:13px; text-align:right;">
+                                        Total reservado:
+                                    </td>
+                                    <td style="padding:8px 12px; text-align:center;">
+                                        <span style="background:#e65100; color:#fff; border-radius:10px;
+                                                     padding:3px 12px; font-weight:700; font-size:13px;">
+                                            {{ (int) collect($modalReservasData)->sum('cantidad') }}
+                                        </span>
+                                    </td>
+                                    <td colspan="2"></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                @endif
+            </div>
+        </div>
+    </div>
+    @endif
+
 </div>
 

@@ -102,7 +102,7 @@ $('#tbl_lotes_listar').DataTable({
 
     ],
     drawCallback: function() {
-        var sum = $('#tbl_lotes_listar').DataTable().column(9).data().sum();
+        var sum = $('#tbl_lotes_listar').DataTable().column(11).data().sum();
         let html = 'Cantidad Total en Bodega: ' + sum
         $('#total_lotes').html(html);
     }
