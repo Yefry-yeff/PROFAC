@@ -408,6 +408,8 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::get('/listar/categorias/precios/por-cliente/{id}', [CategoriaPrecios::class, 'listarCategoriasPorCliente']);
     Route::post('/actualizar/categoria/precios', [CategoriaPrecios::class, 'actualizarCategoria']);
     Route::post('/actualizar/comision/cat-precio', [CategoriaPrecios::class, 'actualizarComisionCatPrecio'])->name('cat.precio.actualizar.comision');
+    Route::get('/precios/productos/listar', [CategoriaPrecios::class, 'listarProductosPrecios']);
+    Route::post('/precios/producto/actualizar-base', [CategoriaPrecios::class, 'actualizarPrecioBase']);
     /*SUBIDA DE EXCEL */
     // web.php
     Route::post('/importar-excel', [App\Http\Controllers\ExcelController::class, 'importarExcel']);// routes/web.php
