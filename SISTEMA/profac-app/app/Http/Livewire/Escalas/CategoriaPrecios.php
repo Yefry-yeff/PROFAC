@@ -18,8 +18,10 @@ class CategoriaPrecios extends Component
 {
     public function render()
     {
-        $categoriasClientes = modelCategoriaCliente::where('estado_id', 1)->get();
-        return view('livewire.escalas.categoria-precios', compact('categoriasClientes'));
+        $categoriasClientes  = modelCategoriaCliente::where('estado_id', 1)->get();
+        $categoriasPrecios   = modelCategoriaPrecios::where('estado_id', 1)
+                                    ->orderBy('nombre')->get();
+        return view('livewire.escalas.categoria-precios', compact('categoriasClientes', 'categoriasPrecios'));
     }
 
         public function guardarCtaegoria(Request $request){
@@ -407,6 +409,128 @@ class CategoriaPrecios extends Component
                     "title" => "Error!",
                     "text"  => "No se pudo actualizar la categoría."
                 ], 402);
+            }
+        }
+
+        public function listarProductosPrecios(Request $request)
+        {
+            try {
+                $categoriaId = (int) $request->categoria_id;
+                $buscar      = trim($request->buscar ?? '');
+                $start       = max(0, (int) ($request->start ?? 0));
+                $length      = min(100, max(10, (int) ($request->length ?? 25)));
+
+                if (!$categoriaId) {
+                    return response()->json(['error' => 'Categoría requerida'], 422);
+                }
+
+                $params = [$categoriaId];
+                $where  = "p.categoria_precios_id = ? AND p.estado_id = 1";
+
+                if ($buscar !== '') {
+                    $where   .= " AND (prod.nombre LIKE ? OR CAST(prod.id AS CHAR) LIKE ?)";
+                    $params[] = '%' . $buscar . '%';
+                    $params[] = '%' . $buscar . '%';
+                }
+
+                $total = DB::selectOne("
+                    SELECT COUNT(*) AS total
+                    FROM precios_producto_carga p
+                    JOIN producto prod ON prod.id = p.producto_id
+                    WHERE {$where}
+                ", $params)->total;
+
+                $datos = DB::select("
+                    SELECT
+                        p.id,
+                        prod.id          AS codigo,
+                        prod.nombre,
+                        p.precio_base_venta,
+                        p.precio_a,
+                        p.precio_b,
+                        p.precio_c,
+                        p.precio_d,
+                        cp.porc_precio_a,
+                        cp.porc_precio_b,
+                        cp.porc_precio_c,
+                        cp.porc_precio_d
+                    FROM precios_producto_carga p
+                    JOIN producto prod ON prod.id = p.producto_id
+                    JOIN categoria_precios cp ON cp.id = p.categoria_precios_id
+                    WHERE {$where}
+                    ORDER BY prod.nombre ASC
+                    LIMIT ? OFFSET ?
+                ", array_merge($params, [$length, $start]));
+
+                $porc = null;
+                if (count($datos)) {
+                    $porc = [
+                        'a' => $datos[0]->porc_precio_a,
+                        'b' => $datos[0]->porc_precio_b,
+                        'c' => $datos[0]->porc_precio_c,
+                        'd' => $datos[0]->porc_precio_d,
+                    ];
+                }
+
+                return response()->json([
+                    'recordsTotal'    => (int) $total,
+                    'recordsFiltered' => (int) $total,
+                    'data'            => $datos,
+                    'porc'            => $porc,
+                ]);
+            } catch (\Exception $e) {
+                return response()->json(['error' => $e->getMessage()], 500);
+            }
+        }
+
+        public function actualizarPrecioBase(Request $request)
+        {
+            try {
+                $precioId   = (int) $request->precio_id;
+                $precioBase = (float) $request->precio_base;
+
+                if (!$precioId || $precioBase <= 0) {
+                    return response()->json(['icon' => 'error', 'title' => 'Error', 'text' => 'Datos inválidos.'], 422);
+                }
+
+                $reg = DB::selectOne("
+                    SELECT p.id, cp.porc_precio_a, cp.porc_precio_b, cp.porc_precio_c, cp.porc_precio_d
+                    FROM precios_producto_carga p
+                    JOIN categoria_precios cp ON cp.id = p.categoria_precios_id
+                    WHERE p.id = ? AND p.estado_id = 1
+                ", [$precioId]);
+
+                if (!$reg) {
+                    return response()->json(['icon' => 'error', 'title' => 'Error', 'text' => 'Registro no encontrado.'], 404);
+                }
+
+                $precioA = round($precioBase * (1 + $reg->porc_precio_a / 100), 2);
+                $precioB = round($precioBase * (1 + $reg->porc_precio_b / 100), 2);
+                $precioC = round($precioBase * (1 + $reg->porc_precio_c / 100), 2);
+                $precioD = round($precioBase * (1 + $reg->porc_precio_d / 100), 2);
+
+                DB::table('precios_producto_carga')->where('id', $precioId)->update([
+                    'precio_base_venta'           => $precioBase,
+                    'precio_a'                    => $precioA,
+                    'precio_b'                    => $precioB,
+                    'precio_c'                    => $precioC,
+                    'precio_d'                    => $precioD,
+                    'users_id_actualizador'       => Auth::id(),
+                    'fecha_ultima_actualizacion'  => now(),
+                    'updated_at'                  => now(),
+                ]);
+
+                return response()->json([
+                    'icon'     => 'success',
+                    'title'    => '¡Guardado!',
+                    'text'     => 'Precio actualizado.',
+                    'precio_a' => $precioA,
+                    'precio_b' => $precioB,
+                    'precio_c' => $precioC,
+                    'precio_d' => $precioD,
+                ]);
+            } catch (\Exception $e) {
+                return response()->json(['icon' => 'error', 'title' => 'Error', 'text' => $e->getMessage()], 500);
             }
         }
 }

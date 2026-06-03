@@ -905,6 +905,9 @@ a.btn.btn-pf-primary:hover {
                 <div class="filtro-item" id="containerCatCliente" style="display:none;">
                     <select id="catClienteSelect" name="catClienteId" class="form-control select2bs4 filtro-select">
                         <option value="">Categoría de cliente</option>
+                        @foreach($categoriasClientes as $cc)
+                            <option value="{{ $cc->id }}">{{ $cc->nombre_categoria }}</option>
+                        @endforeach
                     </select>
                 </div>
 
@@ -1041,7 +1044,177 @@ a.btn.btn-pf-primary:hover {
     </div>{{-- /pf-wizard-body --}}
 </div>{{-- /pf-wizard-card --}}
 
-<!-- Modal: Seleccionar categorías a excluir (solo modo General) -->
+{{-- ═══════════════════════════════════════════════════════
+     EDITOR MANUAL DE PRECIOS BASE
+═══════════════════════════════════════════════════════ --}}
+<div class="pf-wizard-card mt-3" id="cardEditorPrecios">
+    <div class="pf-wizard-header">
+        <h6><i class="fa fa-pencil-square-o mr-2"></i>Editar Precios Base Manualmente</h6>
+    </div>
+    <div class="pf-wizard-body">
+
+        {{-- PASO 1: Categoría de cliente --}}
+        <div class="pf-step-label"><i class="fa fa-users"></i> Paso 1 — Categoría de cliente</div>
+        <div class="mb-3">
+            <select id="editorCatClienteSel" class="form-control select2bs4" style="font-size:.82rem;max-width:340px;">
+                <option value="">— Seleccione categoría de cliente —</option>
+                @foreach($categoriasClientes as $cc)
+                    <option value="{{ $cc->id }}">{{ $cc->nombre_categoria }}</option>
+                @endforeach
+            </select>
+        </div>
+
+        {{-- PASO 2: Categoría de precio (se carga vía AJAX) --}}
+        <div id="editorStep2" style="display:none;">
+            <div class="pf-step-label"><i class="fa fa-tags"></i> Paso 2 — Categoría de precio</div>
+            <div class="mb-3 d-flex flex-wrap align-items-center" style="gap:.5rem;">
+                <div style="min-width:220px;flex:0 0 220px;">
+                    <select id="editorCatPrecioSel" class="form-control select2bs4" style="font-size:.82rem;">
+                        <option value="">— Seleccione —</option>
+                    </select>
+                </div>
+                <div id="editorStep2Spinner" style="display:none;">
+                    <div class="spinner-border spinner-border-sm text-warning" role="status"></div>
+                    <span class="text-muted small ml-1">Cargando...</span>
+                </div>
+            </div>
+        </div>
+
+        {{-- PASO 3: Filtro + tabla --}}
+        <div id="editorStep3" style="display:none;">
+            <div class="pf-step-label"><i class="fa fa-list"></i> Paso 3 — Productos</div>
+
+            {{-- Badge de porcentajes --}}
+            <div id="editorPorcBadges" class="mb-2" style="font-size:.78rem;">
+                <span class="badge badge-light border mr-1 py-1 px-2">% A: <strong id="editorPorcA" class="text-primary">0</strong></span>
+                <span class="badge badge-light border mr-1 py-1 px-2">% B: <strong id="editorPorcB" class="text-success">0</strong></span>
+                <span class="badge badge-light border mr-1 py-1 px-2">% C: <strong id="editorPorcC" style="color:#c0392b;">0</strong></span>
+                <span class="badge badge-light border py-1 px-2">% D: <strong id="editorPorcD" style="color:#7d3c98;">0</strong></span>
+                <span class="text-muted ml-2" style="font-size:.72rem;">Los precios A/B/C/D se recalculan al editar el Base.</span>
+            </div>
+
+            {{-- Buscador --}}
+            <div class="d-flex flex-wrap align-items-center mb-3" style="gap:.5rem;">
+                <div style="flex:1 1 220px;position:relative;">
+                    <input type="text" id="editorBuscarProd" class="form-control"
+                        placeholder="Buscar por nombre o código..."
+                        style="font-size:.82rem;padding-left:30px;">
+                    <i class="fa fa-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#bbb;font-size:.75rem;pointer-events:none;"></i>
+                </div>
+                <button type="button" class="btn btn-pf-primary btn-sm"
+                        style="background:linear-gradient(135deg,#f39c12 0%,#e67e22 100%) !important;color:#fff !important;border:none;height:35px;padding:0 16px;font-size:.8rem;"
+                        onclick="cargarEditorPrecios(1)">
+                    <i class="fa fa-search mr-1"></i> Buscar
+                </button>
+            </div>
+        </div>
+
+        {{-- Spinner tabla --}}
+        <div id="editorSpinner" class="text-center py-4" style="display:none;">
+            <div class="spinner-border text-warning" style="width:2rem;height:2rem;" role="status"><span class="sr-only">Cargando...</span></div>
+            <p class="mt-2 text-muted small">Cargando productos...</p>
+        </div>
+
+        {{-- Tabla --}}
+        <div id="wrapEditorTabla" style="display:none;">
+            <div class="table-responsive" style="max-height:480px;overflow-y:auto;border:1px solid #f0e8dd;border-radius:8px;">
+                <table class="table table-sm table-hover mb-0" id="tbl_editor_precios">
+                    <thead style="position:sticky;top:0;z-index:5;background:#f8f0e6;">
+                        <tr>
+                            <th style="font-size:.72rem;color:#7d4600;padding:7px 8px;white-space:nowrap;">Cód.</th>
+                            <th style="font-size:.72rem;color:#7d4600;padding:7px 8px;">Descripción</th>
+                            <th style="font-size:.72rem;color:#7d4600;padding:7px 8px;white-space:nowrap;">Precio Base</th>
+                            <th style="font-size:.72rem;color:#2471a3;padding:7px 8px;text-align:right;white-space:nowrap;">A (<span class="hdr-porc-a">0</span>%)</th>
+                            <th style="font-size:.72rem;color:#1e8449;padding:7px 8px;text-align:right;white-space:nowrap;">B (<span class="hdr-porc-b">0</span>%)</th>
+                            <th style="font-size:.72rem;color:#c0392b;padding:7px 8px;text-align:right;white-space:nowrap;">C (<span class="hdr-porc-c">0</span>%)</th>
+                            <th style="font-size:.72rem;color:#7d3c98;padding:7px 8px;text-align:right;white-space:nowrap;">D (<span class="hdr-porc-d">0</span>%)</th>
+                            <th style="font-size:.72rem;color:#7d4600;padding:7px 8px;text-align:center;">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody_editor_precios"></tbody>
+                </table>
+            </div>
+
+            {{-- Paginación --}}
+            <div class="d-flex justify-content-between align-items-center mt-2 flex-wrap" style="gap:.4rem;">
+                <span id="editorPaginInfo" class="text-muted" style="font-size:.75rem;"></span>
+                <div class="d-flex align-items-center" style="gap:.3rem;">
+                    <button type="button" id="btnEditorPrev" class="btn btn-sm btn-outline-secondary"
+                            style="font-size:.75rem;padding:3px 10px;" onclick="cambiarPaginaEditor(-1)" disabled>
+                        <i class="fa fa-chevron-left"></i> Anterior
+                    </button>
+                    <span id="editorPaginPages" class="text-muted" style="font-size:.75rem;"></span>
+                    <button type="button" id="btnEditorNext" class="btn btn-sm btn-outline-secondary"
+                            style="font-size:.75rem;padding:3px 10px;" onclick="cambiarPaginaEditor(1)" disabled>
+                        Siguiente <i class="fa fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        {{-- Estado vacío --}}
+        <div id="editorEmpty" class="text-center text-muted py-4 small" style="display:none;">
+            <i class="fa fa-inbox fa-2x mb-2 d-block"></i>
+            No hay productos para esta categoría o búsqueda.
+        </div>
+        <div id="editorPlaceholder" class="text-center text-muted py-4 small">
+            <i class="fa fa-arrow-up fa-lg mb-2 d-block" style="color:#e0cfc0;"></i>
+            Seleccione una categoría de cliente para comenzar.
+        </div>
+
+    </div>
+</div>
+
+<style>
+/* ── Editor de precios ── */
+.editor-base-input {
+    width: 100px !important;
+    text-align: right !important;
+    font-size: .82rem !important;
+    padding: 3px 6px !important;
+    height: 28px !important;
+    border-radius: 5px !important;
+    border: 1px solid #d8cfc7 !important;
+    background: #fdfaf7 !important;
+    transition: border-color .15s, box-shadow .15s !important;
+}
+.editor-base-input:focus {
+    border-color: #e67e22 !important;
+    box-shadow: 0 0 0 2px rgba(243,156,18,.18) !important;
+    outline: none !important;
+    background: #fff !important;
+}
+.editor-base-input.is-modified {
+    border-color: #e67e22 !important;
+    background: #fffaf0 !important;
+}
+.btn-editor-save {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: linear-gradient(135deg, #27ae60 0%, #1e8449 100%);
+    color: #fff;
+    border: none;
+    font-size: .72rem;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(39,174,96,.3);
+    transition: background .15s, box-shadow .15s, transform .1s;
+    white-space: nowrap;
+}
+.btn-editor-save:hover {
+    background: linear-gradient(135deg, #1e8449 0%, #186a3b 100%);
+    box-shadow: 0 2px 6px rgba(39,174,96,.4);
+}
+.btn-editor-save:active { transform: scale(.96); }
+.btn-editor-save:disabled { opacity: .6; cursor: not-allowed; }
+#tbl_editor_precios tbody tr.row-saved { background: #eafaf1 !important; transition: background .5s; }
+#tbl_editor_precios td { vertical-align: middle; padding: 5px 8px; font-size: .82rem; }
+</style>
+
+
 <div class="modal fade" id="modalSeleccionarCategoriasGeneral" tabindex="-1" role="dialog"
      aria-labelledby="modalSelCatTitle" aria-hidden="true"
      data-backdrop="static" data-keyboard="false">
@@ -2033,6 +2206,227 @@ a.btn.btn-pf-primary:hover {
             }
         });
     }
+    </script>
+
+    <script>
+(function() {
+    var _editorPage   = 1;
+    var _editorPer    = 25;
+    var _editorTotal  = 0;
+    var _editorCatId  = null;
+    var _editorBuscar = '';
+
+    $(document).ready(function() {
+
+        $('#editorCatClienteSel').select2({
+            theme: 'bootstrap4',
+            placeholder: '— Seleccione categoría de cliente —',
+            allowClear: true,
+            language: { noResults: function() { return 'Sin resultados'; } }
+        });
+        $('#editorCatPrecioSel').select2({
+            theme: 'bootstrap4',
+            placeholder: '— Seleccione categoría de precio —',
+            allowClear: true,
+            language: { noResults: function() { return 'Sin resultados'; } }
+        });
+
+        $('#editorCatClienteSel').on('change', function() {
+            var clienteId = $(this).val();
+
+            // Resetear paso 2 y 3
+            $('#editorCatPrecioSel').empty().append(new Option('— Seleccione —', '', false, false)).trigger('change');
+            $('#editorStep2').hide();
+            $('#editorStep3').hide();
+            $('#wrapEditorTabla').hide();
+            $('#editorEmpty').hide();
+            $('#editorPlaceholder').show();
+
+            if (!clienteId) return;
+
+            $('#editorStep2').show();
+            $('#editorStep2Spinner').show();
+
+            $.getJSON('/listar/categorias/precios/por-cliente/' + clienteId)
+                .done(function(res) {
+                    $('#editorStep2Spinner').hide();
+                    var cats = (res.categorias || []).filter(function(c) { return c.estado_id == 1; });
+                    if (!cats.length) {
+                        Swal.fire({ icon: 'info', title: 'Sin categorías', text: 'Esta categoría de cliente no tiene categorías de precio activas.', confirmButtonColor: '#e67e22' });
+                        return;
+                    }
+                    cats.forEach(function(c) {
+                        $('#editorCatPrecioSel').append(new Option(c.nombre, c.id, false, false));
+                    });
+                    $('#editorCatPrecioSel').trigger('change');
+                })
+                .fail(function() {
+                    $('#editorStep2Spinner').hide();
+                    Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudieron cargar las categorías de precio.', confirmButtonColor: '#e67e22' });
+                });
+        });
+
+        /* ─── Paso 2: al cambiar categoría de precio → mostrar paso 3 y cargar ─── */
+        $('#editorCatPrecioSel').on('change', function() {
+            _editorCatId = $(this).val();
+            $('#editorStep3').hide();
+            $('#wrapEditorTabla').hide();
+            $('#editorEmpty').hide();
+            $('#editorBuscarProd').val('');
+
+            if (!_editorCatId) {
+                $('#editorPlaceholder').show();
+                return;
+            }
+            $('#editorPlaceholder').hide();
+            $('#editorStep3').show();
+            cargarEditorPrecios(1);
+        });
+
+        $('#editorBuscarProd').on('keydown', function(e) {
+            if (e.key === 'Enter') cargarEditorPrecios(1);
+        });
+    });
+
+    /* ─── Cargar tabla de productos ─── */
+    window.cargarEditorPrecios = function(page) {
+        if (!_editorCatId) return;
+        _editorBuscar = $('#editorBuscarProd').val().trim();
+        _editorPage   = page || 1;
+        var start     = (_editorPage - 1) * _editorPer;
+
+        $('#editorEmpty').hide();
+        $('#wrapEditorTabla').hide();
+        $('#editorSpinner').show();
+
+        $.ajax({
+            url: '/precios/productos/listar',
+            method: 'GET',
+            data: { categoria_id: _editorCatId, buscar: _editorBuscar, start: start, length: _editorPer },
+            success: function(res) {
+                $('#editorSpinner').hide();
+
+                if (res.porc) {
+                    $('#editorPorcA').text(res.porc.a);
+                    $('#editorPorcB').text(res.porc.b);
+                    $('#editorPorcC').text(res.porc.c);
+                    $('#editorPorcD').text(res.porc.d);
+                    $('.hdr-porc-a').text(res.porc.a);
+                    $('.hdr-porc-b').text(res.porc.b);
+                    $('.hdr-porc-c').text(res.porc.c);
+                    $('.hdr-porc-d').text(res.porc.d);
+                }
+
+                _editorTotal = res.recordsTotal || 0;
+
+                if (!res.data || !res.data.length) {
+                    $('#editorEmpty').show();
+                    return;
+                }
+
+                _renderEditorTabla(res.data);
+                _renderEditorPagin();
+                $('#wrapEditorTabla').show();
+            },
+            error: function() {
+                $('#editorSpinner').hide();
+                Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudieron cargar los productos.', confirmButtonColor: '#e67e22' });
+            }
+        });
+    };
+
+    function _renderEditorTabla(data) {
+        var tbody = $('#tbody_editor_precios');
+        tbody.empty();
+        $.each(data, function(i, row) {
+            var tr = $('<tr>').attr({
+                'data-id':     row.id,
+                'data-porc-a': row.porc_precio_a,
+                'data-porc-b': row.porc_precio_b,
+                'data-porc-c': row.porc_precio_c,
+                'data-porc-d': row.porc_precio_d
+            });
+            tr.append($('<td>').text(row.codigo).css({ color: '#999', fontSize: '.72rem', whiteSpace:'nowrap' }));
+            tr.append($('<td>').text(row.nombre));
+
+            var inputBase = $('<input>').attr({
+                type: 'number', step: '0.01', min: '0.01',
+                class: 'editor-base-input',
+                value: parseFloat(row.precio_base_venta).toFixed(2)
+            }).on('input', function() {
+                var base = parseFloat($(this).val()) || 0;
+                var $tr  = $(this).closest('tr');
+                $tr.find('.td-pa').text(_calc(base, $tr.data('porc-a')));
+                $tr.find('.td-pb').text(_calc(base, $tr.data('porc-b')));
+                $tr.find('.td-pc').text(_calc(base, $tr.data('porc-c')));
+                $tr.find('.td-pd').text(_calc(base, $tr.data('porc-d')));
+                $(this).addClass('is-modified');
+            });
+
+            tr.append($('<td>').append(inputBase));
+            tr.append($('<td class="td-pa text-right">').css('color','#2471a3').text(_calc(row.precio_base_venta, row.porc_precio_a)));
+            tr.append($('<td class="td-pb text-right">').css('color','#1e8449').text(_calc(row.precio_base_venta, row.porc_precio_b)));
+            tr.append($('<td class="td-pc text-right">').css('color','#c0392b').text(_calc(row.precio_base_venta, row.porc_precio_c)));
+            tr.append($('<td class="td-pd text-right">').css('color','#7d3c98').text(_calc(row.precio_base_venta, row.porc_precio_d)));
+
+            var btnSave = $('<button class="btn-editor-save">').html('<i class="fa fa-save"></i> Guardar')
+                .on('click', function() { _guardarBase(row.id, tr); });
+            tr.append($('<td class="text-center">').append(btnSave));
+            tbody.append(tr);
+        });
+    }
+
+    function _calc(base, porc) {
+        return (parseFloat(base) * (1 + parseFloat(porc) / 100)).toFixed(2);
+    }
+
+    function _guardarBase(precioId, $tr) {
+        var base = parseFloat($tr.find('.editor-base-input').val());
+        if (!base || base <= 0) {
+            Swal.fire({ icon: 'warning', title: 'Precio inválido', text: 'El precio base debe ser mayor a 0.', confirmButtonColor: '#e67e22' });
+            return;
+        }
+        var $btn = $tr.find('.btn-editor-save');
+        $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i>');
+
+        $.ajax({
+            url: '/precios/producto/actualizar-base',
+            method: 'POST',
+            data: {
+                _token:      $('meta[name="csrf-token"]').attr('content'),
+                precio_id:   precioId,
+                precio_base: base
+            },
+            success: function(res) {
+                $btn.prop('disabled', false).html('<i class="fa fa-save"></i> Guardar');
+                $tr.find('.editor-base-input').removeClass('is-modified');
+                $tr.addClass('row-saved');
+                setTimeout(function() { $tr.removeClass('row-saved'); }, 1800);
+                Swal.fire({ icon: 'success', title: '¡Guardado!', text: res.text, confirmButtonColor: '#27ae60', timer: 1800, timerProgressBar: true });
+            },
+            error: function() {
+                $btn.prop('disabled', false).html('<i class="fa fa-save"></i> Guardar');
+                Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo guardar el precio.', confirmButtonColor: '#e67e22' });
+            }
+        });
+    }
+
+    function _renderEditorPagin() {
+        var totalPages = Math.ceil(_editorTotal / _editorPer);
+        var from = Math.min((_editorPage - 1) * _editorPer + 1, _editorTotal);
+        var to   = Math.min(_editorPage * _editorPer, _editorTotal);
+        $('#editorPaginInfo').text('Mostrando ' + from + '–' + to + ' de ' + _editorTotal + ' productos');
+        $('#editorPaginPages').text('Página ' + _editorPage + ' / ' + totalPages);
+        $('#btnEditorPrev').prop('disabled', _editorPage <= 1);
+        $('#btnEditorNext').prop('disabled', _editorPage >= totalPages);
+    }
+
+    window.cambiarPaginaEditor = function(dir) {
+        _editorPage += dir;
+        cargarEditorPrecios(_editorPage);
+        document.getElementById('cardEditorPrecios').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
+})();
     </script>
 @endpush
 
