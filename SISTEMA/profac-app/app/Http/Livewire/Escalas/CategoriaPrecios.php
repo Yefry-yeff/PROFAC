@@ -6,6 +6,7 @@ use Livewire\Component;
 
 use App\Models\Escalas\modelCategoriaCliente;
 use App\Models\Escalas\modelCategoriaPrecios;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use DataTables;
@@ -150,6 +151,13 @@ class CategoriaPrecios extends Component
 
                 DB::commit();
 
+                // Limpiar cachés para que cotizaciones/facturas reflejen el cambio inmediatamente
+                Cache::forget('filtros_categoria_precios');
+                $catCliente = DB::table('categoria_precios')->where('id', $idCategoria)->value('cliente_categoria_escala_id');
+                if ($catCliente) {
+                    Cache::forget('filtros_cat_precio_' . $catCliente);
+                }
+
                 return response()->json([
                     "text" => "Categoría desactivada con éxito. Se inactivaron {$preciosInactivados} precios de productos.",
                     "icon" => "success",
@@ -163,6 +171,50 @@ class CategoriaPrecios extends Component
                     'message' => 'Ha ocurrido un error',
                     'error' => $e,
                     "text" => "Ha ocurrido un error al desactivar la categoría.",
+                    "icon" => "error",
+                    "title" => "Error!"
+                ], 402);
+            }
+        }
+
+        public function reactivarCategoria($idCategoria){
+            try {
+                DB::beginTransaction();
+
+                $Categoria = modelCategoriaPrecios::find($idCategoria);
+                if (!$Categoria) {
+                    return response()->json([
+                        "text" => "No se encontró la categoría.",
+                        "icon" => "error",
+                        "title" => "Error!"
+                    ], 404);
+                }
+
+                $Categoria->estado_id = 1;
+                $Categoria->save();
+
+                DB::commit();
+
+                // Limpiar cachés
+                Cache::forget('filtros_categoria_precios');
+                $catCliente = DB::table('categoria_precios')->where('id', $idCategoria)->value('cliente_categoria_escala_id');
+                if ($catCliente) {
+                    Cache::forget('filtros_cat_precio_' . $catCliente);
+                }
+
+                return response()->json([
+                    "text" => "Categoría reactivada con éxito. Recuerda re-cargar sus precios de producto si es necesario.",
+                    "icon" => "success",
+                    "title" => "Éxito!"
+                ], 200);
+
+            } catch (QueryException $e) {
+                DB::rollback();
+
+                return response()->json([
+                    'message' => 'Ha ocurrido un error',
+                    'error' => $e,
+                    "text" => "Ha ocurrido un error al reactivar la categoría.",
                     "icon" => "error",
                     "title" => "Error!"
                 ], 402);

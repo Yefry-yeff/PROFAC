@@ -529,16 +529,18 @@ function verCategoriasPrecio(id, nombre) {
           + (numCom > 0 ? numCom + ' rol' + (numCom > 1 ? 'es' : '') : 'Sin comisiones')
           + '</button>';
 
-        var deactivarBtn = cat.estado_id == 1
+var estadoBtn = cat.estado_id == 1
           ? '<li class="dropdown-divider"></li>'
-            + '<li><a class="dropdown-item item-deact" onclick="desactivarCatPrecioEnModal(' + cat.id + ')">'
+            + '<li><a class="dropdown-item item-deact" onclick="desactivarCatPrecioEnModal(' + cat.id + ')">'  
             + '<i class="fa fa-ban mr-1"></i>Desactivar</a></li>'
-          : '';
+          : '<li class="dropdown-divider"></li>'
+            + '<li><a class="dropdown-item" style="color:#27ae60;" onclick="reactivarCatPrecioEnModal(' + cat.id + ')">'  
+            + '<i class="fa fa-check-circle mr-1"></i>Reactivar</a></li>';
 
         var comentEsc = (cat.comentario || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 
         var acciones = '<div class="cat-action-dropdown dropdown">'
-          + '<button class="dropdown-toggle" data-toggle="dropdown">'
+          + '<button class="dropdown-toggle" data-toggle="dropdown" data-boundary="viewport">'
           + '<i class="fa fa-ellipsis-v mr-1"></i>Acc.</button>'
           + '<ul class="dropdown-menu dropdown-menu-right">'
           + '<li><a class="dropdown-item item-edit" onclick="editarCatPrecioInline('
@@ -548,7 +550,7 @@ function verCategoriasPrecio(id, nombre) {
           + '<i class="fa fa-pencil mr-1"></i>Editar</a></li>'
           + '<li><a class="dropdown-item item-excel" onclick="descargarPreciosPorCategoria(' + id + ',' + cat.id + ')">'
           + '<i class="fa fa-file-excel-o mr-1"></i>Excel precios</a></li>'
-          + deactivarBtn
+          + estadoBtn
           + '</ul></div>';
 
         $tbody.append(
@@ -591,7 +593,7 @@ function desactivarCatPrecioEnModal(catPrecioId) {
   Swal.fire({
     icon: 'warning',
     title: '¿Desactivar categoría?',
-    text: 'Se inactivarán también todos sus precios de producto.',
+    text: 'Se inactivarán también todos sus precios de producto. Esta categoría ya no aparecerá en cotizaciones ni facturaciones.',
     showCancelButton: true,
     confirmButtonText: 'Sí, desactivar',
     cancelButtonText: 'Cancelar',
@@ -612,6 +614,36 @@ function desactivarCatPrecioEnModal(catPrecioId) {
       .catch(function (err) {
         var d = err.response && err.response.data ? err.response.data : {};
         Swal.fire({ icon: 'error', title: 'Error', text: d.text || 'No se pudo desactivar.',
+          customClass: { container: 'swal-sobre-modal' } });
+      });
+  });
+}
+
+function reactivarCatPrecioEnModal(catPrecioId) {
+  Swal.fire({
+    icon: 'question',
+    title: '¿Reactivar categoría?',
+    text: 'La categoría volverá a estar activa. Recuerda que sus precios de producto quedaron inactivos; deberás re-importarlos para que aparezca en cotizaciones.',
+    showCancelButton: true,
+    confirmButtonText: 'Sí, reactivar',
+    cancelButtonText: 'Cancelar',
+    confirmButtonColor: '#27ae60',
+    customClass: { container: 'swal-sobre-modal' }
+  }).then(function (result) {
+    if (!result.isConfirmed) return;
+    axios.get('/reactivar/categoria/precios/' + catPrecioId)
+      .then(function (res) {
+        Swal.fire({
+          icon: res.data.icon, title: res.data.title, text: res.data.text,
+          customClass: { container: 'swal-sobre-modal' }
+        }).then(function () {
+          verCategoriasPrecio(_catClienteIdActivo, _catClienteNomActivo);
+          $('#tbl_listaCategoria').DataTable().ajax.reload(null, false);
+        });
+      })
+      .catch(function (err) {
+        var d = err.response && err.response.data ? err.response.data : {};
+        Swal.fire({ icon: 'error', title: 'Error', text: d.text || 'No se pudo reactivar.',
           customClass: { container: 'swal-sobre-modal' } });
       });
   });

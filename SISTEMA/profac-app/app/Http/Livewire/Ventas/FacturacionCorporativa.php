@@ -484,6 +484,7 @@ class FacturacionCorporativa extends Component
                         AND ppc2.producto_id = ?
                         AND ppc2.estado_id = 1
                     WHERE cp2.id = 32
+                        AND cp2.estado_id = 1
 
                     ORDER BY precio_a DESC
                 ", [$productoId, $categoriaEscalaId, $productoId]);

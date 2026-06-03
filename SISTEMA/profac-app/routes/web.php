@@ -404,6 +404,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::post('/guardar/categoria/precios', [CategoriaPrecios::class, 'guardarCtaegoria']);
     Route::get('/listar/categoria/precios', [CategoriaPrecios::class, 'listarCategorias']);
     Route::get('/desactivar/categoria/precios/{idCategoria}', [CategoriaPrecios::class, 'desactivarCategoria']);
+    Route::get('/reactivar/categoria/precios/{idCategoria}', [CategoriaPrecios::class, 'reactivarCategoria']);
     Route::get('/listar/categorias/precios/por-cliente/{id}', [CategoriaPrecios::class, 'listarCategoriasPorCliente']);
     Route::post('/actualizar/categoria/precios', [CategoriaPrecios::class, 'actualizarCategoria']);
     Route::post('/actualizar/comision/cat-precio', [CategoriaPrecios::class, 'actualizarComisionCatPrecio'])->name('cat.precio.actualizar.comision');

@@ -552,6 +552,7 @@ a.btn.btn-pf-primary:hover {
     min-width: 160px;
     font-size: .8rem;
     transform-origin: top right;
+    z-index: 99999 !important;
 }
 .cat-action-dropdown .dropdown-menu.show {
     animation: pf-dropdown-in .18s cubic-bezier(.22,.68,0,1.15) both;
