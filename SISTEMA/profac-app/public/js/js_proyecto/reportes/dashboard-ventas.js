@@ -13,8 +13,9 @@ var dashboardVentas = (function () {
     var tablas        = {};
     var _todosAnios   = [];
     var _aniosSel     = [];
-    var _filtroSemDia = null;
-    var _filtroAdvVend = null;
+    var _filtroSemDia    = null;
+    var _filtroAdvVend   = null;
+    var _facturasCliData = [];   /* cache para exportación con totales */
     var _dts          = {};   /* DataTables instances */
 
     /* ─── DataTables helpers ──────────────────────────────────────────────── */
@@ -1200,6 +1201,7 @@ var dashboardVentas = (function () {
     }
 
     function _renderTablaFacturasCli(rows) {
+        _facturasCliData = rows || [];   /* guardar para exportación */
         _dtDestroy('tabla-facturas-cli');
         var $tbody = $('#tbody-facturas-cli').empty();
         rows.forEach(function (r, i) {
@@ -1221,6 +1223,175 @@ var dashboardVentas = (function () {
         setTimeout(function () {
             if (_dts['tabla-facturas-cli']) { try { _dts['tabla-facturas-cli'].columns.adjust().draw(false); } catch (e) {} }
         }, 50);
+    }
+
+    /* ─── Exportación dedicada: Detalle por Factura (con totales, info header, hoja protegida) ── */
+    function exportarFacturasCliExcel() {
+        var rows = _facturasCliData;
+        if (!rows || !rows.length) { alert('No hay datos para exportar.'); return; }
+
+        /* Ordenar de mayor a menor fecha (dd/mm/yyyy → yyyy-mm-dd para comparar) */
+        var sorted = rows.slice().sort(function (a, b) {
+            function toISO(s) {
+                if (!s) return '';
+                var p = s.split('/');
+                return p.length === 3 ? p[2] + '-' + p[1] + '-' + p[0] : s;
+            }
+            return toISO(b.fecha) > toISO(a.fecha) ? 1 : -1;
+        });
+
+        /* Totales */
+        var totSub = 0, totIsv = 0, totTotal = 0;
+        sorted.forEach(function (r) {
+            totSub   += parseFloat(r.subtotal || 0);
+            totIsv   += parseFloat(r.isv      || 0);
+            totTotal += parseFloat(r.total    || 0);
+        });
+
+        /* Fecha/hora de descarga */
+        var now    = new Date();
+        var pad    = function (n) { return n < 10 ? '0' + n : n; };
+        var fechaDl = pad(now.getDate()) + '/' + pad(now.getMonth() + 1) + '/' + now.getFullYear() +
+                      ' ' + pad(now.getHours()) + ':' + pad(now.getMinutes());
+        var usuario = window._profacAuthUser || 'Usuario';
+
+        function escXml(s) {
+            return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        }
+        function numCell(n, style) {
+            return '<Cell ss:StyleID="' + style + '"><Data ss:Type="Number">' + parseFloat(n||0).toFixed(2) + '</Data></Cell>';
+        }
+        function strCell(s, style) {
+            return '<Cell ss:StyleID="' + (style||'sStr') + '"><Data ss:Type="String">' + escXml(s) + '</Data></Cell>';
+        }
+
+        var COLS = [7, 22, 24, 16, 22, 18, 16, 12, 14]; /* anchos columnas */
+        var colW = COLS.map(function(w){ return '<Column ss:Width="' + (w*7) + '"/>'; }).join('');
+
+        var xml = '<?xml version="1.0" encoding="UTF-8"?><?mso-application progid="Excel.Sheet"?>' +
+            '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" ' +
+            'xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet" ' +
+            'xmlns:x="urn:schemas-microsoft-com:office:excel">' +
+            '<Styles>' +
+              /* Empresa — grande, negrita, naranja */
+              '<Style ss:ID="sEmp">' +
+                '<Font ss:Bold="1" ss:Color="#FFFFFF" ss:Size="14"/>' +
+                '<Interior ss:Color="#EC401B" ss:Pattern="Solid"/>' +
+                '<Alignment ss:Horizontal="Left" ss:Vertical="Center"/>' +
+                '<Protection ss:Protected="1"/>' +
+              '</Style>' +
+              /* Info (fecha/usuario) — fondo gris claro */
+              '<Style ss:ID="sInfo">' +
+                '<Font ss:Color="#333333" ss:Size="10"/>' +
+                '<Interior ss:Color="#F5F5F5" ss:Pattern="Solid"/>' +
+                '<Alignment ss:Horizontal="Left" ss:Vertical="Center"/>' +
+                '<Protection ss:Protected="1"/>' +
+              '</Style>' +
+              /* Encabezado columnas */
+              '<Style ss:ID="sHdr">' +
+                '<Font ss:Bold="1" ss:Color="#FFFFFF" ss:Size="11"/>' +
+                '<Interior ss:Color="#2F4050" ss:Pattern="Solid"/>' +
+                '<Alignment ss:Horizontal="Center" ss:Vertical="Center"/>' +
+                '<Protection ss:Protected="1"/>' +
+              '</Style>' +
+              /* Celda de texto normal */
+              '<Style ss:ID="sStr">' +
+                '<Alignment ss:Horizontal="Left" ss:Vertical="Center"/>' +
+                '<Protection ss:Protected="0"/>' +
+              '</Style>' +
+              /* Número entero */
+              '<Style ss:ID="sInt">' +
+                '<NumberFormat ss:Format="#,##0"/>' +
+                '<Alignment ss:Horizontal="Right"/>' +
+                '<Protection ss:Protected="0"/>' +
+              '</Style>' +
+              /* Moneda L. */
+              '<Style ss:ID="sCur">' +
+                '<NumberFormat ss:Format="&quot;L. &quot;#,##0.00"/>' +
+                '<Alignment ss:Horizontal="Right"/>' +
+                '<Protection ss:Protected="0"/>' +
+              '</Style>' +
+              /* Fila de totales */
+              '<Style ss:ID="sTot">' +
+                '<Font ss:Bold="1" ss:Size="11"/>' +
+                '<Interior ss:Color="#FFF3E0" ss:Pattern="Solid"/>' +
+                '<NumberFormat ss:Format="&quot;L. &quot;#,##0.00"/>' +
+                '<Alignment ss:Horizontal="Right"/>' +
+                '<Protection ss:Protected="1"/>' +
+              '</Style>' +
+              '<Style ss:ID="sTotLbl">' +
+                '<Font ss:Bold="1" ss:Size="11"/>' +
+                '<Interior ss:Color="#FFF3E0" ss:Pattern="Solid"/>' +
+                '<Alignment ss:Horizontal="Right"/>' +
+                '<Protection ss:Protected="1"/>' +
+              '</Style>' +
+            '</Styles>' +
+            '<Worksheet ss:Name="Detalle por Factura"><Table>' + colW;
+
+        /* Fila 1: Empresa (merge visual usando celda amplia) */
+        xml += '<Row ss:Height="28">' +
+            '<Cell ss:StyleID="sEmp" ss:MergeAcross="8"><Data ss:Type="String">Distribuciones Valencia — Detalle por Factura</Data></Cell>' +
+        '</Row>';
+
+        /* Fila 2: Fecha de descarga */
+        xml += '<Row ss:Height="18">' +
+            '<Cell ss:StyleID="sInfo" ss:MergeAcross="8"><Data ss:Type="String">Fecha de descarga: ' + escXml(fechaDl) + '</Data></Cell>' +
+        '</Row>';
+
+        /* Fila 3: Descargado por */
+        xml += '<Row ss:Height="18">' +
+            '<Cell ss:StyleID="sInfo" ss:MergeAcross="8"><Data ss:Type="String">Descargado por: ' + escXml(usuario) + '</Data></Cell>' +
+        '</Row>';
+
+        /* Fila 4: vacía de separación */
+        xml += '<Row ss:Height="8"><Cell><Data ss:Type="String"> </Data></Cell></Row>';
+
+        /* Fila 5: Encabezados */
+        var headers = ['#','Fecha','N° Factura','Cliente','Asesor Comercial','Tele Asesor','Subtotal (Sin ISV)','ISV','Total'];
+        xml += '<Row ss:Height="22">';
+        headers.forEach(function(h){ xml += '<Cell ss:StyleID="sHdr"><Data ss:Type="String">' + escXml(h) + '</Data></Cell>'; });
+        xml += '</Row>';
+
+        /* Filas de datos */
+        sorted.forEach(function (r, i) {
+            xml += '<Row ss:Height="18">' +
+                strCell(i + 1, 'sInt') +
+                strCell(r.fecha    || '-') +
+                strCell(r.numero_factura || '-') +
+                strCell(r.cliente  || '-') +
+                strCell(r.asesor_comercial || '-') +
+                strCell(r.tele_asesor || '-') +
+                numCell(r.subtotal, 'sCur') +
+                numCell(r.isv,      'sCur') +
+                numCell(r.total,    'sCur') +
+            '</Row>';
+        });
+
+        /* Fila de totales */
+        xml += '<Row ss:Height="22">' +
+            '<Cell ss:StyleID="sTotLbl" ss:MergeAcross="5"><Data ss:Type="String">TOTAL</Data></Cell>' +
+            '<Cell ss:StyleID="sTot"><Data ss:Type="Number">' + totSub.toFixed(2)   + '</Data></Cell>' +
+            '<Cell ss:StyleID="sTot"><Data ss:Type="Number">' + totIsv.toFixed(2)   + '</Data></Cell>' +
+            '<Cell ss:StyleID="sTot"><Data ss:Type="Number">' + totTotal.toFixed(2) + '</Data></Cell>' +
+        '</Row>';
+
+        xml += '</Table>' +
+            '<WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel">' +
+              '<ProtectContents/>' +
+              '<ProtectObjects/>' +
+              '<ProtectScenarios/>' +
+            '</WorksheetOptions>' +
+        '</Worksheet></Workbook>';
+
+        var blob = new Blob([xml], { type: 'application/vnd.ms-excel' });
+        var url  = URL.createObjectURL(blob);
+        var a    = document.createElement('a');
+        a.href   = url;
+        a.download = 'Facturas_x_Cliente.xls';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
     }
 
     function exportarTablaExcel(tableId, filename) {
@@ -3644,6 +3815,7 @@ var dashboardVentas = (function () {
         limpiarDashboardProductos: limpiarDashboardProductos,
         exportarExcel:         exportarExcel,
         exportarTablaExcel:    exportarTablaExcel,
+        exportarFacturasCliExcel: exportarFacturasCliExcel,
         exportarDetalleSemanal: exportarDetalleSemanal,
         exportarTablaProductosExcel: exportarTablaProductosExcel,
         exportarVistaProductosExcel: exportarVistaProductosExcel,

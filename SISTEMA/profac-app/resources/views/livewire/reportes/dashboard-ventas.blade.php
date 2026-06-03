@@ -671,7 +671,7 @@
                     <div class="shadow-sm card mt-3">
                         <div class="py-2 card-header d-flex justify-content-between align-items-center">
                             <span class="font-weight-bold"><i class="fas fa-file-invoice-dollar mr-1 text-success"></i>Detalle por Factura</span>
-                            <button class="btn btn-sm btn-success" onclick="dashboardVentas.exportarTablaExcel('tabla-facturas-cli','Facturas_x_Cliente')">
+                            <button class="btn btn-sm btn-success" onclick="dashboardVentas.exportarFacturasCliExcel()">
                                 <i class="fas fa-file-excel"></i> Exportar Excel
                             </button>
                         </div>
