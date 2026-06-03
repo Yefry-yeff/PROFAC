@@ -493,12 +493,13 @@ class CategoriaPrecios extends Component
                     return response()->json(['icon' => 'error', 'title' => 'Error', 'text' => 'Datos inválidos.'], 422);
                 }
 
-                $reg = DB::selectOne("
-                    SELECT p.id, cp.porc_precio_a, cp.porc_precio_b, cp.porc_precio_c, cp.porc_precio_d
-                    FROM precios_producto_carga p
-                    JOIN categoria_precios cp ON cp.id = p.categoria_precios_id
-                    WHERE p.id = ? AND p.estado_id = 1
-                ", [$precioId]);
+                // Cargar el registro activo completo
+                $reg = DB::table('precios_producto_carga as p')
+                    ->join('categoria_precios as cp', 'cp.id', '=', 'p.categoria_precios_id')
+                    ->where('p.id', $precioId)
+                    ->where('p.estado_id', 1)
+                    ->select('p.*', 'cp.porc_precio_a', 'cp.porc_precio_b', 'cp.porc_precio_c', 'cp.porc_precio_d')
+                    ->first();
 
                 if (!$reg) {
                     return response()->json(['icon' => 'error', 'title' => 'Error', 'text' => 'Registro no encontrado.'], 404);
@@ -509,27 +510,59 @@ class CategoriaPrecios extends Component
                 $precioC = round($precioBase * (1 + $reg->porc_precio_c / 100), 2);
                 $precioD = round($precioBase * (1 + $reg->porc_precio_d / 100), 2);
 
+                DB::beginTransaction();
+
+                // 1) Inactivar el registro anterior
                 DB::table('precios_producto_carga')->where('id', $precioId)->update([
+                    'estado_id'  => 2,
+                    'updated_at' => now(),
+                ]);
+
+                // 2) Crear nuevo registro activo con el precio actualizado
+                $nuevoId = DB::table('precios_producto_carga')->insertGetId([
+                    'categoria_precios_id'        => $reg->categoria_precios_id,
+                    'comentario'                  => $reg->comentario,
+                    'producto_id'                 => $reg->producto_id,
+                    'estado_id'                   => 1,
                     'precio_base_venta'           => $precioBase,
                     'precio_a'                    => $precioA,
                     'precio_b'                    => $precioB,
                     'precio_c'                    => $precioC,
                     'precio_d'                    => $precioD,
+                    'tipo_categoria_precio_id'    => $reg->tipo_categoria_precio_id,
+                    'users_id_creador'            => $reg->users_id_creador,
                     'users_id_actualizador'       => Auth::id(),
                     'fecha_ultima_actualizacion'  => now(),
+                    'precio_compra_usd'           => $reg->precio_compra_usd,
+                    'tipo_cambio_usd'             => $reg->tipo_cambio_usd,
+                    'precio_hnl'                  => $reg->precio_hnl,
+                    'flete'                       => $reg->flete,
+                    'arancel'                     => $reg->arancel,
+                    'porc_flete'                  => $reg->porc_flete,
+                    'porc_arancel'                => $reg->porc_arancel,
+                    'categoria_producto_id'       => $reg->categoria_producto_id,
+                    'sub_categoria_id'            => $reg->sub_categoria_id,
+                    'marca_id'                    => $reg->marca_id,
+                    'costoproducto'               => $reg->costoproducto,
+                    'unidad_medida_compra_id'     => $reg->unidad_medida_compra_id,
+                    'created_at'                  => now(),
                     'updated_at'                  => now(),
                 ]);
 
+                DB::commit();
+
                 return response()->json([
-                    'icon'     => 'success',
-                    'title'    => '¡Guardado!',
-                    'text'     => 'Precio actualizado.',
-                    'precio_a' => $precioA,
-                    'precio_b' => $precioB,
-                    'precio_c' => $precioC,
-                    'precio_d' => $precioD,
+                    'icon'      => 'success',
+                    'title'     => '¡Guardado!',
+                    'text'      => 'Precio actualizado correctamente.',
+                    'nuevo_id'  => $nuevoId,
+                    'precio_a'  => $precioA,
+                    'precio_b'  => $precioB,
+                    'precio_c'  => $precioC,
+                    'precio_d'  => $precioD,
                 ]);
             } catch (\Exception $e) {
+                DB::rollBack();
                 return response()->json(['icon' => 'error', 'title' => 'Error', 'text' => $e->getMessage()], 500);
             }
         }

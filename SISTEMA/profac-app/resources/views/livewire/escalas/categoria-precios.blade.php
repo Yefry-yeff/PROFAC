@@ -2401,6 +2401,11 @@ a.btn.btn-pf-primary:hover {
                 $btn.prop('disabled', false).html('<i class="fa fa-save"></i> Guardar');
                 $tr.find('.editor-base-input').removeClass('is-modified');
                 $tr.addClass('row-saved');
+                // Actualizar data-id de la fila con el nuevo registro creado
+                if (res.nuevo_id) {
+                    $tr.attr('data-id', res.nuevo_id);
+                    $btn.off('click').on('click', function() { _guardarBase(res.nuevo_id, $tr); });
+                }
                 setTimeout(function() { $tr.removeClass('row-saved'); }, 1800);
                 Swal.fire({ icon: 'success', title: '¡Guardado!', text: res.text, confirmButtonColor: '#27ae60', timer: 1800, timerProgressBar: true });
             },
