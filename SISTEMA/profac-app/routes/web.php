@@ -748,6 +748,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::post('/venta/datos/compra', [Cobros::class, 'DatosCompra']);
     Route::post('/venta/cobro/eliminar', [Cobros::class, 'eliminarPago']);
     Route::get('/factura/cooporativo/{idFactura}', [FacturacionCorporativa::class, 'imprimirFacturaCoorporativa']);
+    Route::get('/estatal/factura/{idFactura}', [FacturacionCorporativa::class, 'imprimirFacturaCoorporativa']);
     Route::get('/factura/cooporativoCopia/{idFactura}', [FacturacionCorporativa::class, 'imprimirFacturaCoorporativaCopia']);
     Route::get('/facturaCoor/actaRec/{idFactura}', [FacturacionCorporativa::class, 'imprimirActaCoorporativa']);
 
