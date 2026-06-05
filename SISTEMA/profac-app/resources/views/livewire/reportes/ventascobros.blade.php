@@ -326,17 +326,6 @@
                                     </select>
                                 </div>
                             </div>
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label>Estado F-01</label>
-                                    <select id="fil_estado_f01" class="form-control form-control-sm">
-                                        <option value="">&#8212; Todos &#8212;</option>
-                                        @foreach($estadosF01 as $ef)
-                                            <option value="{{ strtoupper($ef->descripcion) }}">{{ $ef->descripcion }}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                            </div>
                         </div>
                     </div>
 
