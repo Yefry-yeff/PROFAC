@@ -48,8 +48,8 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
     protected $movimientos;
     protected $rowMeta = [];
 
-    const LAST_COL  = 'AF';
-    const COL_COUNT = 32;
+    const LAST_COL  = 'AE';
+    const COL_COUNT = 31;
 
     const T_FACTURA   = 'FACTURA';
     const T_ENTREGA   = 'ENTREGA';
@@ -144,8 +144,8 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
             'MODO PAGO','ESTADO F01','EXONERADO','GRAVADO','EXENTO',
             'SUBTOTAL','ISV','TOTAL','DEBITOS','CREDITOS',
             'SALDO DE FACTURA','MONTO PAGADO','SALDO PENDIENTE','ESTADO COBRO','FECHA VENTA',
-            'FECHA VCTO.','DIAS VCTOS.','FECHA PAGO','FORMA DE PAGO','CUENTA/BANCO',
-            'FECHA ENTREGA','RECIBO',
+            'FECHA VCTO.','DIAS VCTOS.','FECHA PAGO','FORMA DE PAGO','BANCO',
+            'CUENTA',
         ];
 
         foreach ($this->rows as $r) {
@@ -230,8 +230,7 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
             $row[27] = '';
             $row[28] = '';
             $row[29] = '';
-            $row[30] = $this->fmt($r->fecha_entrega);
-            $row[31] = '';
+            $row[30] = '';
             $out[] = $row;
 
             /* ── MOVIMIENTOS ───────────────────────────────── */
@@ -261,12 +260,6 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
                     'has_monto' => ($tipo !== 'ENTREGA' && $monto > 0),
                 ];
 
-                $banco = '';
-                if (!empty($mov->banco_nombre)) {
-                    $banco = $mov->banco_nombre;
-                    if (!empty($mov->banco_cuenta)) $banco .= ' - ' . $mov->banco_cuenta;
-                }
-
                 $movRow = array_fill(0, self::COL_COUNT, '');
                 $movRow[0]  = $item;
                 $movRow[1]  = $this->mesNombre($mov->fecha);
@@ -285,11 +278,10 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
                 $movRow[22] = $saldoPendiente; // SALDO PENDIENTE siempre (0.00 cuando saldado)
                 $movRow[23] = '';                       // ESTADO COBRO: en blanco en sub-filas
                 // cols 24-26: fechas venta/vcto/dias en blanco
-                $movRow[27] = ($tipo !== 'ENTREGA') ? $this->fmt($mov->fecha) : ''; // FECHA PAGO
+                $movRow[27] = $this->fmt($mov->fecha); // FECHA PAGO
                 $movRow[28] = $mov->forma_pago ?? '';
-                $movRow[29] = $banco;
-                $movRow[30] = ($tipo === 'ENTREGA') ? $this->fmt($mov->fecha) : ''; // FECHA ENTREGA
-                $movRow[31] = $mov->recibo ?? '';
+                $movRow[29] = $mov->banco_nombre ?? ''; // BANCO
+                $movRow[30] = $mov->banco_cuenta ?? ''; // CUENTA
                 $out[] = $movRow;
             }
 
@@ -374,7 +366,7 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
         $sheet->getRowDimension(4)->setRowHeight(30);
 
         foreach (range('A', 'Z') as $c) { $sheet->getColumnDimension($c)->setAutoSize(true); }
-        foreach (['AA','AB','AC','AD','AE','AF'] as $c) { $sheet->getColumnDimension($c)->setAutoSize(true); }
+        foreach (['AA','AB','AC','AD','AE'] as $c) { $sheet->getColumnDimension($c)->setAutoSize(true); }
 
         return [];
     }
@@ -398,7 +390,7 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
                     ->setVertical(Alignment::VERTICAL_CENTER);
 
                 // Texto alineado a la izquierda
-                foreach (['D','E','F','G','H','I','J','K','AC','AD','AF'] as $c) {
+                foreach (['D','E','F','G','H','I','J','K','AC','AD','AE'] as $c) {
                     $sheet->getStyle("{$c}5:{$c}{$lastRow}")
                         ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
                 }
