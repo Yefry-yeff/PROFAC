@@ -549,5 +549,65 @@ class Conciliacion extends Component
             'text'  => "Días de gracia para {$rolNombre} ({$tipoLabel}): {$request->dias} días",
         ]);
     }
+
+    /* ══════════════════════════════════════════════════════════════════
+     *  HISTORIAL DE AUDITORÍA — snapshots de conciliación y reaperturas
+     * ════════════════════════════════════════════════════════════════ */
+
+    public function listarAuditoriaLogs(Request $request)
+    {
+        $anio = (int) $request->input('anio', 0);
+
+        $query = DB::table('comision_periodo_log')
+            ->orderByDesc('created_at');
+
+        if ($anio > 0) {
+            $query->whereYear('periodo', $anio);
+        }
+
+        $logs = $query->get();
+
+        $meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
+                  'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+        $result = $logs->map(function ($row) use ($meses) {
+            $c = Carbon::parse($row->periodo);
+            return [
+                'id'                          => $row->id,
+                'periodo'                     => $row->periodo,
+                'periodo_label'               => $meses[$c->month - 1] . ' ' . $c->year,
+                'accion'                      => $row->accion,
+                'estado_anterior'             => (int) $row->estado_anterior,
+                'estado_nuevo'                => (int) $row->estado_nuevo,
+                'snapshot_total_comision'     => (float) $row->snapshot_total_comision,
+                'snapshot_total_fmt'          => 'L ' . number_format((float) $row->snapshot_total_comision, 2),
+                'snapshot_cantidad_empleados' => (int) $row->snapshot_cantidad_empleados,
+                'snapshot_cantidad_facturas'  => (int) $row->snapshot_cantidad_facturas,
+                'snapshot_detalle_empleados'  => $row->snapshot_detalle_empleados
+                                                    ? json_decode($row->snapshot_detalle_empleados, true)
+                                                    : [],
+                'snapshot_detalle_facturas'   => $row->snapshot_detalle_facturas
+                                                    ? json_decode($row->snapshot_detalle_facturas, true)
+                                                    : [],
+                'observacion'                 => $row->observacion,
+                'usuario_nombre'              => $row->usuario_nombre,
+                'fecha'                       => Carbon::parse($row->created_at)->format('d/m/Y H:i'),
+                'fecha_iso'                   => $row->created_at,
+            ];
+        });
+
+        // Años disponibles para filtro
+        $aniosDisponibles = DB::table('comision_periodo_log')
+            ->selectRaw('YEAR(periodo) as anio')
+            ->distinct()
+            ->orderByDesc('anio')
+            ->pluck('anio');
+
+        return response()->json([
+            'logs'  => $result,
+            'anios' => $aniosDisponibles,
+            'total' => $result->count(),
+        ]);
+    }
 }
 

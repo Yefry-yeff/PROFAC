@@ -296,20 +296,22 @@ function llamarTablas(){
     $('#tbl_movimientos_div').removeClass('d-none');
     $('#tbl_creditos_abonos_div').removeClass('d-none');
 
-    $("#tbl_cuentas_facturas_cliente").dataTable().fnDestroy();
-    $("#tbl_tipo_movimientos_cliente").dataTable().fnDestroy();
-    $("#tbl_abonos_cliente").dataTable().fnDestroy();
+    if ($.fn.DataTable.isDataTable('#tbl_cuentas_facturas_cliente')) {
+        $('#tbl_cuentas_facturas_cliente').DataTable().destroy();
+    }
+    if ($.fn.DataTable.isDataTable('#tbl_tipo_movimientos_cliente')) {
+        $('#tbl_tipo_movimientos_cliente').DataTable().destroy();
+    }
+    if ($.fn.DataTable.isDataTable('#tbl_abonos_cliente')) {
+        $('#tbl_abonos_cliente').DataTable().destroy();
+    }
 
-
-    this.listarCuentasPorCobrar();
-
-    this.listarMovimientos();
-    this.listarAbonos()
+    listarCuentasPorCobrar();
+    listarMovimientos();
+    listarAbonos();
 
     $('#btnEC').removeClass('d-none');
     $('#apStats').removeClass('d-none');
-
-
 }
 
 function listarCuentasPorCobrar() {
@@ -318,7 +320,20 @@ function listarCuentasPorCobrar() {
     $('#tbl_cuentas_facturas_cliente').DataTable({
         "paging": true,
         "language": {
-            "url": "//cdn.datatables.net/1.13.5/css/jquery.dataTables.min.css"
+            "sProcessing":   "Procesando...",
+            "sLengthMenu":   "Mostrar _MENU_ registros",
+            "sZeroRecords":  "No se encontraron resultados",
+            "sEmptyTable":   "Ningún dato disponible en esta tabla",
+            "sInfo":         "Mostrando registros del _START_ al _END_ de un total de _TOTAL_ registros",
+            "sInfoEmpty":    "Mostrando registros del 0 al 0 de un total de 0 registros",
+            "sInfoFiltered": "(filtrado de un total de _MAX_ registros)",
+            "sSearch":       "Buscar:",
+            "oPaginate": {
+                "sFirst":    "Primero",
+                "sLast":     "Último",
+                "sNext":     "Siguiente",
+                "sPrevious": "Anterior"
+            }
         },
         pageLength: 10,
         responsive: true,

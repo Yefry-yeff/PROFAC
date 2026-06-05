@@ -81,13 +81,12 @@ class GeneradorFacturasComision
         // 2. Facturador en su rol real (Administrador, Gerente, etc.)
         //    Se omite si:
         //    a) Su rol real coincide con ROL_FACTURADOR_ID (ya cubierto por entrada 1).
-        //    b) Su rol real coincide con ROL_VENDEDOR_ID y ademas es la misma persona
-        //       que el vendedor: la entrada 3 ya cubre esa comision, evitando doble pago.
-        $facturadorRol     = (int) $fila->facturador_rol;
-        $mismaPersona      = ((int) $fila->facturador_id === (int) $fila->vendedor_id);
-        $rolRealEsVendedor = ($facturadorRol === self::ROL_VENDEDOR_ID);
+        //    b) Su rol real coincide con ROL_VENDEDOR_ID: la entrada 3 (VENDEDOR) ya
+        //       cubre ese rol, evitando doble comisión para el mismo rol aunque sean
+        //       personas distintas.
+        $facturadorRol = (int) $fila->facturador_rol;
 
-        if ($facturadorRol !== self::ROL_FACTURADOR_ID && !($rolRealEsVendedor && $mismaPersona)) {
+        if ($facturadorRol !== self::ROL_FACTURADOR_ID && $facturadorRol !== self::ROL_VENDEDOR_ID) {
             $targetsList[] = [
                 'user_id' => (int) $fila->facturador_id,
                 'rol_id'  => $facturadorRol,
@@ -104,6 +103,18 @@ class GeneradorFacturasComision
             'rol_id'  => self::ROL_VENDEDOR_ID,
             'tipo'    => self::TIPO_VENDEDOR,
         ];
+
+        // ── Deduplicar por rol_id ────────────────────────────────────────────
+        // Solo puede existir UNA comisión por rol, sin importar cuántas personas
+        // compartan ese rol en la factura. Prioridad: TIPO_VENDEDOR > TIPO_FACTURADOR_ROL > TIPO_FACTURADOR_FIJO
+        $uniqueTargets = [];
+        foreach ($targetsList as $t) {
+            $key = $t['rol_id'];
+            if (!isset($uniqueTargets[$key]) || $t['tipo'] > $uniqueTargets[$key]['tipo']) {
+                $uniqueTargets[$key] = $t;
+            }
+        }
+        $targetsList = array_values($uniqueTargets);
 
         $rolIds = array_unique(array_column($targetsList, 'rol_id'));
 

@@ -70,7 +70,7 @@ class Pagos extends Component
                 SELECT COUNT(*) AS existe FROM aplicacion_pagos ap
                 inner join factura fa on fa.id = ap.factura_id
                 inner join cliente cli on cli.id = fa.cliente_id
-                where ap.estado = 1 and cli.id = ".$id."
+                where cli.id = ".$id."
 
 
             ");
@@ -765,12 +765,14 @@ class Pagos extends Component
         }
 
         // Capacidad 2 — Facturador en su rol real (si difiere del fijo)
-        // Se omite si su rol real es ROL_VENDEDOR_ID y es la misma persona que el vendedor.
-        $facturadorRol     = (int) $fila->facturador_rol;
-        $mismaPersona      = ((int) $fila->facturador_id === (int) $fila->vendedor_id);
-        $rolRealEsVendedor = ($facturadorRol === GeneradorFacturasComision::ROL_VENDEDOR_ID);
+        // Se omite si:
+        //   a) Su rol real coincide con ROL_FACTURADOR_ID (ya cubierto por entrada 1).
+        //   b) Su rol real coincide con ROL_VENDEDOR_ID: la entrada 3 (VENDEDOR) ya
+        //      cubre ese rol. No importa si son personas distintas — un rol solo
+        //      recibe comisión una vez por factura.
+        $facturadorRol = (int) $fila->facturador_rol;
 
-        if ($facturadorRol !== $rolFijo && !($rolRealEsVendedor && $mismaPersona)) {
+        if ($facturadorRol !== $rolFijo && $facturadorRol !== GeneradorFacturasComision::ROL_VENDEDOR_ID) {
             if (!isset($rolesDesactivados[$facturadorRol])) {
                 $targets[] = [
                     'capacidad'    => 'Rol Real',

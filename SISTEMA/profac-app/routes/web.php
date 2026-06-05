@@ -294,6 +294,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::post('/comisiones/conciliacion/conciliar',            [ConciliacionComisiones::class, 'conciliarPeriodo'])->name('comisiones.conciliacion.conciliar');
     Route::post('/comisiones/conciliacion/reabrir',              [ConciliacionComisiones::class, 'reabrirPeriodo'])->name('comisiones.conciliacion.reabrir');
     Route::get('/comisiones/conciliacion/detalle',               [ConciliacionComisiones::class, 'detallePeriodo'])->name('comisiones.conciliacion.detalle');
+    Route::get('/comisiones/conciliacion/auditoria-logs',        [ConciliacionComisiones::class, 'listarAuditoriaLogs'])->name('comisiones.conciliacion.auditoria');
     // Días de gracia
     Route::get('/comisiones/dias-gracia',                        [ConciliacionComisiones::class, 'listarDiasGracia'])->name('comisiones.dias_gracia.index');
     Route::post('/comisiones/dias-gracia/guardar',               [ConciliacionComisiones::class, 'guardarDiasGracia'])->name('comisiones.dias_gracia.guardar');

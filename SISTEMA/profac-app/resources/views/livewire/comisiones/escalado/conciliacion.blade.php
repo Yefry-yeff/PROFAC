@@ -253,129 +253,234 @@
 .conc-tab-pane{ display:none; }
 .conc-tab-pane.active{ display:block; }
 
-/* ── DÍAS DE GRACIA (DENTRO DEL PANEL) ── */
-.dg-desc{
-    background:#f8fafc; border-bottom:1px solid #e2e8f0;
-    padding:9px 20px; font-size:11.5px; color:#64748b;
+/* ── DÍAS DE GRACIA (REDISEÑO) ── */
+.dg-infobar{
+    background:#f0f9ff; border-bottom:1px solid #bae6fd;
+    padding:9px 20px; font-size:11.5px; color:#0369a1;
     display:flex; align-items:center; gap:8px;
 }
-.dg-desc i{ color:#0ea5e9; flex-shrink:0; }
-.dg-filter-bar{
-    padding:10px 18px; border-bottom:1px solid #e2e8f0;
-    background:#fff; display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+.dg-infobar i{ flex-shrink:0; }
+.dg-body{ padding:20px; display:flex; flex-direction:column; gap:16px; }
+/* Selector de rol */
+.dg-selector-card{
+    background:#fff; border:1.5px solid #e2e8f0; border-radius:10px;
+    padding:14px 20px; display:flex; align-items:center; gap:16px;
+    box-shadow:0 1px 4px rgba(0,0,0,.04);
 }
-.dg-search{
-    border:1.5px solid #e2e8f0; border-radius:8px;
-    padding:6px 12px 6px 32px; font-size:12.5px; color:#1e293b;
-    outline:none; transition:border-color .15s,box-shadow .15s; height:34px;
-    background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E")
-        no-repeat 10px center; width:220px;
+.dg-selector-label{
+    font-size:12px; font-weight:700; color:#475569;
+    white-space:nowrap; flex-shrink:0;
 }
-.dg-search:focus{ border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,.1); }
-
-/* Tabla días de gracia */
-.dg-tbl{ width:100%; border-collapse:collapse; table-layout:fixed; }
-.dg-tbl col.dg-col-rol { width:175px; }
-.dg-tbl thead tr{ background:#f8fafc; }
-.dg-tbl thead th{
-    padding:12px 16px; font-size:11px; font-weight:700;
-    letter-spacing:.2px; color:#64748b;
-    border-bottom:2px solid #e2e8f0; white-space:nowrap; text-align:left;
-    overflow:hidden;
+/* Custom dropdown (reemplaza <select> nativo para evitar glyphs del SO) */
+.dg-custom-dd{ position:relative; flex:1; max-width:340px; }
+.dg-dd-trigger{
+    width:100%; height:38px; border:1.5px solid #e2e8f0; border-radius:8px;
+    padding:0 12px; background:#fff; cursor:pointer;
+    display:flex; align-items:center; justify-content:space-between;
+    font-size:13px; color:#94a3b8; font-weight:500;
+    transition:border-color .15s, box-shadow .15s; outline:none;
+    text-align:left;
 }
-.dg-th-rol { width:175px; }
-.dg-th-contado{ border-top:3px solid #16a34a; }
-.dg-th-credito { border-top:3px solid #ea580c; }
-.dg-th-label{ display:flex; align-items:center; gap:6px; font-size:12.5px; font-weight:800; color:#1e293b; margin-bottom:2px; }
-.dg-th-sub  { font-size:10px; color:#94a3b8; font-weight:500; }
-
-.dg-tbl tbody tr{ border-bottom:1px solid #f1f5f9; transition:background .12s; }
-.dg-tbl tbody tr:hover{ background:#fafbff !important; }
-.dg-tbl tbody td{ padding:14px 16px; vertical-align:middle; overflow:hidden; }
-
-/* Role cell */
-.dg-rol-name{ font-size:13px; font-weight:700; color:#0f172a; margin-bottom:4px; }
-.dg-rol-chip{ display:inline-block; background:#f1f5f9; color:#64748b; border-radius:20px; padding:2px 9px; font-size:10.5px; font-weight:600; }
-
-/* Config block */
-.dg-block{ display:flex; align-items:center; gap:10px; min-width:0; overflow:hidden; }
-
-/* Current value display */
-.dg-val{
-    min-width:58px; text-align:center; flex-shrink:0;
-    padding:6px 8px; border-radius:8px; border:1.5px solid #e2e8f0;
-    background:#f8fafc;
+.dg-dd-trigger.has-value{ color:#1e293b; font-weight:600; }
+.dg-dd-trigger.open{ border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,.1); }
+.dg-dd-arrow{
+    font-size:10px; color:#94a3b8; flex-shrink:0; margin-left:8px;
+    transition:transform .18s;
 }
-.dg-val-num{ font-size:22px; font-weight:800; line-height:1; color:#1e293b; }
-.dg-val-unit{ font-size:9px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:.5px; margin-top:1px; }
-.dg-val.is-set-contado{ border-color:#86efac; background:#f0fdf4; }
-.dg-val.is-set-contado .dg-val-num{ color:#15803d; }
-.dg-val.is-set-credito { border-color:#fdba74; background:#fff7ed; }
-.dg-val.is-set-credito  .dg-val-num{ color:#c2410c; }
-.dg-val-dash{ font-size:20px; font-weight:300; color:#cbd5e1; }
-
-/* Divider */
-.dg-divider{ width:1px; height:44px; background:#e2e8f0; flex-shrink:0; }
-
-/* Edit area */
-.dg-edit{ flex:1; display:flex; flex-direction:column; gap:5px; }
-
-/* Stepper */
-.dg-stepper{ display:flex; align-items:stretch; width:fit-content; }
-.dg-step{
-    width:26px; background:#f1f5f9; border:1.5px solid #e2e8f0;
-    color:#64748b; font-size:13px; font-weight:700; cursor:pointer;
+.dg-dd-trigger.open .dg-dd-arrow{ transform:rotate(180deg); }
+.dg-dd-panel{
+    position:absolute; top:calc(100% + 4px); left:0; right:0;
+    background:#fff; border:1.5px solid #e2e8f0; border-radius:10px;
+    box-shadow:0 8px 28px rgba(0,0,0,.13); z-index:300; overflow:hidden;
+    display:none;
+}
+.dg-dd-panel.open{ display:block; }
+.dg-dd-search-wrap{ padding:8px; border-bottom:1px solid #f1f5f9; }
+.dg-dd-search{
+    width:100%; height:32px; border:1.5px solid #e2e8f0; border-radius:7px;
+    padding:0 10px; font-size:12.5px; color:#1e293b; outline:none;
+    box-sizing:border-box; transition:border-color .15s; background:#fff;
+}
+.dg-dd-search:focus{ border-color:#2563eb; }
+.dg-dd-list{ max-height:200px; overflow-y:auto; }
+.dg-dd-item{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:8px 14px; cursor:pointer; font-size:13px; color:#334155;
+    font-weight:600; border:none; background:none; width:100%;
+    text-align:left; transition:background .1s;
+}
+.dg-dd-item:hover{ background:#f0f9ff; color:#1e3a8a; }
+.dg-dd-item.selected{ background:#eff6ff; color:#1e3a8a; }
+.dg-dd-item-dot{
+    width:7px; height:7px; border-radius:50%; flex-shrink:0;
+    background:#e2e8f0;
+}
+.dg-dd-item.configured .dg-dd-item-dot{ background:#16a34a; }
+.dg-dd-empty{ padding:16px; text-align:center; font-size:12px; color:#94a3b8; font-weight:600; }
+/* Form card */
+.dg-form-card{
+    background:#fff; border:1.5px solid #e2e8f0; border-radius:10px;
+    overflow:hidden; box-shadow:0 1px 6px rgba(0,0,0,.05);
+}
+.dg-form-grid{ display:grid; grid-template-columns:1fr 1fr; }
+.dg-tipo-card{
+    padding:20px; border-right:1px solid #f1f5f9;
+}
+.dg-tipo-card:last-child{ border-right:none; }
+.dg-tipo-contado{ border-top:3px solid #16a34a; }
+.dg-tipo-credito { border-top:3px solid #ea580c; }
+.dg-tipo-head{
+    display:flex; align-items:center; gap:10px; margin-bottom:16px;
+}
+.dg-tipo-icon{
+    width:36px; height:36px; border-radius:9px;
     display:flex; align-items:center; justify-content:center;
-    transition:background .12s,color .12s; line-height:1; padding:0;
-    user-select:none;
+    font-size:16px; flex-shrink:0;
 }
-.dg-step:first-child{ border-radius:7px 0 0 7px; border-right:none; }
-.dg-step:last-child { border-radius:0 7px 7px 0; border-left:none; }
-.dg-step:hover{ background:#e2e8f0; color:#1e293b; }
-.dg-dias-input{
-    width:50px; height:32px; border:1.5px solid #e2e8f0;
-    border-radius:0; padding:0 4px; font-size:13px; font-weight:700;
+.dg-tipo-icon-contado{ background:#f0fdf4; color:#16a34a; }
+.dg-tipo-icon-credito { background:#fff7ed; color:#ea580c; }
+.dg-tipo-title{ font-size:14px; font-weight:800; color:#0f172a; line-height:1.2; }
+.dg-tipo-sub  { font-size:10.5px; color:#94a3b8; font-weight:500; margin-top:1px; }
+.dg-tipo-badge{
+    margin-left:auto; font-size:11px; font-weight:700;
+    padding:3px 10px; border-radius:20px;
+}
+.dg-tipo-body{ display:flex; flex-direction:column; gap:10px; }
+/* Stepper */
+.dg-stepper{ display:flex; align-items:center; width:fit-content; }
+.dg-step{
+    width:32px; height:36px; border:1.5px solid #e2e8f0;
+    background:#f8fafc; color:#475569; font-size:16px; font-weight:700;
+    cursor:pointer; display:flex; align-items:center; justify-content:center;
+    transition:all .12s; user-select:none; line-height:1;
+}
+.dg-step:first-child{ border-radius:8px 0 0 8px; border-right:none; }
+.dg-step:last-child { border-radius:0 8px 8px 0; border-left:none; }
+.dg-step-contado:hover{ background:#f0fdf4; color:#16a34a; border-color:#86efac; }
+.dg-step-credito:hover { background:#fff7ed; color:#ea580c; border-color:#fdba74; }
+.dg-dias-inp{
+    width:60px; height:36px; border:1.5px solid #e2e8f0;
+    border-radius:0; padding:0 6px; font-size:16px; font-weight:800;
     color:#1e293b; text-align:center; outline:none; transition:border-color .15s;
     -moz-appearance:textfield;
 }
-.dg-dias-input::-webkit-inner-spin-button,
-.dg-dias-input::-webkit-outer-spin-button{ -webkit-appearance:none; margin:0; }
-.dg-dias-input:focus{ border-color:#2563eb; position:relative; z-index:1; }
-
-/* Edit area */
-.dg-edit{ flex:1; display:flex; flex-direction:column; gap:5px; min-width:0; overflow:hidden; }
-.dg-edit-row1{ display:flex; align-items:center; gap:6px; flex-wrap:nowrap; min-width:0; }
-.dg-dias-lbl{ font-size:11px; color:#94a3b8; font-weight:600; white-space:nowrap; }
-
-/* bottom row: description only */
-.dg-desc-input{
-    display:block; width:100%; height:28px; border:1.5px solid #e2e8f0; border-radius:7px;
-    padding:0 10px; font-size:11.5px; color:#64748b; outline:none;
-    transition:border-color .15s; background:#fff; box-sizing:border-box; min-width:0;
+.dg-dias-inp::-webkit-inner-spin-button,
+.dg-dias-inp::-webkit-outer-spin-button{ -webkit-appearance:none; margin:0; }
+.dg-dias-inp:focus{ border-color:#2563eb; z-index:1; position:relative; }
+.dg-dias-lbl{ font-size:11.5px; font-weight:600; color:#94a3b8; margin-left:8px; }
+.dg-nota-inp{
+    width:100%; height:32px; border:1.5px solid #e2e8f0; border-radius:8px;
+    padding:0 10px; font-size:12px; color:#64748b; outline:none;
+    transition:border-color .15s; background:#fff; box-sizing:border-box;
 }
-.dg-desc-input:focus{ border-color:#2563eb; }
-
-.dg-save-contado{
-    flex-shrink:0; height:28px; padding:0 11px;
-    background:#15803d; color:#fff; border:none; border-radius:7px;
-    font-size:11px; font-weight:700; cursor:pointer;
+.dg-nota-inp:focus{ border-color:#2563eb; }
+/* Acciones del form */
+.dg-btn-guardar,
+.dg-btn-guardar:link,
+.dg-btn-guardar:visited{
+    height:38px; padding:0 18px; flex-shrink:0;
+    background:#1e3a8a !important; color:#fff !important;
+    border:none !important; border-radius:8px !important;
+    font-size:12.5px !important; font-weight:700 !important; cursor:pointer !important;
+    display:inline-flex !important; align-items:center !important; gap:7px !important;
+    transition:background .15s, box-shadow .15s; white-space:nowrap;
+    outline:none; user-select:none; -webkit-user-select:none;
+    box-shadow:0 2px 8px rgba(30,58,138,.30) !important;
+    line-height:1; text-decoration:none !important;
+    opacity:1 !important;
+}
+.dg-btn-guardar:hover{ background:#2563eb !important; box-shadow:0 4px 14px rgba(37,99,235,.35) !important; }
+.dg-btn-guardar:active{ background:#1d4ed8 !important; transform:translateY(1px); }
+.dg-btn-guardar:disabled{ opacity:.5 !important; cursor:not-allowed !important; box-shadow:none !important; }
+/* Hint vacío */
+.dg-empty-hint{
+    text-align:center; padding:24px;
+    display:flex; flex-direction:column; align-items:center; gap:8px;
+}
+.dg-empty-hint i{ font-size:26px; color:#cbd5e1; }
+.dg-empty-hint p{ font-size:12.5px; font-weight:600; color:#94a3b8; margin:0; }
+/* Resumen compacto + paginación */
+.dg-resumen-wrap{ border-top:1px solid #e2e8f0; background:#fafbfc; }
+.dg-resumen-header{
+    padding:8px 16px; font-size:11px; font-weight:700; color:#64748b;
+    display:flex; align-items:center; gap:8px;
+    border-bottom:1px solid #e2e8f0; background:#fff;
+}
+.dg-summary-badge{
+    background:#e2e8f0; color:#64748b; border-radius:10px;
+    padding:1px 7px; font-size:9.5px; font-weight:800;
+}
+.dg-sum-tbl{ width:100%; border-collapse:collapse; font-size:11.5px; }
+.dg-sum-tbl th{
+    padding:6px 14px; font-size:10px; font-weight:700; color:#94a3b8;
+    text-align:left; border-bottom:1px solid #f1f5f9; background:#fafbfc;
+    text-transform:uppercase; letter-spacing:.3px;
+}
+.dg-sum-tbl td{ padding:6px 14px; border-bottom:1px solid #f8fafc; color:#334155; }
+.dg-sum-tbl tr:last-child td{ border-bottom:none; }
+.dg-sum-tbl tr:hover td{ background:#f0f9ff; }
+.dg-sum-chip{
     display:inline-flex; align-items:center; gap:4px;
-    transition:background .15s,box-shadow .15s; white-space:nowrap;
+    padding:2px 8px; border-radius:20px; font-size:10.5px; font-weight:700;
 }
-.dg-save-contado:hover{ background:#166534; box-shadow:0 3px 10px rgba(21,128,61,.28); }
-.dg-save-contado:disabled{ opacity:.5; cursor:not-allowed; }
-.dg-save-credito{
-    flex-shrink:0; height:28px; padding:0 11px;
-    background:#ea580c; color:#fff; border:none; border-radius:7px;
-    font-size:11px; font-weight:700; cursor:pointer;
-    display:inline-flex; align-items:center; gap:4px;
-    transition:background .15s,box-shadow .15s; white-space:nowrap;
+.dg-sum-chip-contado{ background:#f0fdf4; color:#15803d; border:1px solid #86efac; }
+.dg-sum-chip-credito { background:#fff7ed; color:#c2410c; border:1px solid #fdba74; }
+.dg-sum-chip-none    { background:#f1f5f9; color:#94a3b8; border:1px solid #e2e8f0; }
+.dg-sum-edit-btn{
+    background:none; border:1px solid #e2e8f0; color:#94a3b8;
+    border-radius:6px; padding:2px 8px; font-size:10.5px; font-weight:600;
+    cursor:pointer; transition:all .12s;
 }
-.dg-save-credito:hover{ background:#c2410c; box-shadow:0 3px 10px rgba(234,88,12,.28); }
-.dg-save-credito:disabled{ opacity:.5; cursor:not-allowed; }
-/* kept for compat */
-.dg-save-btn{ display:none; }
-.dg-badge-set,.dg-badge-unset,.dg-rol-badge{ display:none; }
+.dg-sum-edit-btn:hover{ border-color:#2563eb; color:#2563eb; background:#eff6ff; }
+/* Paginación */
+.dg-pager{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:7px 14px; border-top:1px solid #f1f5f9; background:#fafbfc;
+    font-size:11px; color:#94a3b8;
+}
+.dg-pager-btns{ display:flex; gap:4px; }
+.dg-pager-btn{
+    width:26px; height:26px; border:1px solid #e2e8f0; background:#fff;
+    border-radius:6px; cursor:pointer; font-size:11px; font-weight:700;
+    color:#475569; display:flex; align-items:center; justify-content:center;
+    transition:all .12s;
+}
+.dg-pager-btn:hover:not(:disabled){ background:#eff6ff; border-color:#2563eb; color:#2563eb; }
+.dg-pager-btn:disabled{ opacity:.35; cursor:not-allowed; }
+.dg-pager-btn.active{ background:#1e3a8a; border-color:#1e3a8a; color:#fff; }
+
+/* ── AUDITORÍA TAB ── */
+.aud-tipo-btn{
+    padding:4px 12px; font-size:11.5px; font-weight:600; border-radius:6px;
+    border:1.5px solid #cbd5e1; background:#fff; color:#475569; cursor:pointer;
+    transition:all .15s;
+}
+.aud-tipo-btn.active{ background:#1e3a8a; border-color:#1e3a8a; color:#fff; }
+.aud-tipo-btn:hover:not(.active){ background:#f1f5f9; }
+.aud-card{
+    background:#fff; border:1px solid #e2e8f0; border-radius:10px;
+    padding:16px 20px; margin-bottom:10px;
+    display:grid; grid-template-columns:1fr auto;
+    gap:12px; align-items:center; cursor:default;
+    transition:box-shadow .15s;
+}
+.aud-card:hover{ box-shadow:0 2px 12px rgba(30,58,138,.10); border-color:#bfdbfe; }
+.aud-card-left{ display:flex; flex-direction:column; gap:5px; }
+.aud-card-periodo{ font-size:15px; font-weight:800; color:#1e3a8a; }
+.aud-card-fecha{ font-size:11.5px; color:#94a3b8; }
+.aud-card-usuario{ font-size:12px; color:#475569; }
+.aud-card-obs{ font-size:11.5px; color:#78350f; background:#fffbeb; border-radius:5px; padding:3px 8px; margin-top:2px; max-width:420px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.aud-badge-conciliacion{ background:#16a34a; color:#fff; padding:2px 10px; border-radius:10px; font-size:10.5px; font-weight:700; }
+.aud-badge-reapertura{ background:#dc2626; color:#fff; padding:2px 10px; border-radius:10px; font-size:10.5px; font-weight:700; }
+.aud-card-kpis{ display:flex; gap:16px; flex-wrap:wrap; align-items:center; }
+.aud-kpi{ text-align:center; min-width:64px; }
+.aud-kpi-val{ font-size:16px; font-weight:800; color:#1e3a8a; }
+.aud-kpi-lbl{ font-size:10px; color:#94a3b8; font-weight:600; text-transform:uppercase; letter-spacing:.4px; }
+.aud-card-right{ display:flex; flex-direction:column; align-items:flex-end; gap:8px; }
+.aud-btn-detalle{ background:#1e3a8a; color:#fff; border:none; border-radius:7px; padding:6px 14px; font-size:12px; font-weight:700; cursor:pointer; white-space:nowrap; }
+.aud-btn-detalle:hover{ background:#1e40af; }
+.aud-empty{ text-align:center; padding:40px 20px; color:#94a3b8; font-size:13px; }
+
     .conc-header{ padding:16px 16px; flex-direction:column; align-items:flex-start; }
     .conc-kpi-strip{ grid-template-columns:1fr 1fr; }
     .conc-panel-body{ padding:14px 14px; }
@@ -507,6 +612,11 @@
             Días de Gracia por Rol
             <span class="conc-tab-badge" id="dg-badge-total">—</span>
         </button>
+        <button class="conc-tab-btn" id="tab-btn-auditoria" onclick="concTab('auditoria')">
+            <i class="fa fa-history"></i>
+            Auditoría de Cambios
+            <span class="conc-tab-badge" id="aud-badge-total">—</span>
+        </button>
     </div>
 
     {{-- Tab 1: Períodos --}}
@@ -534,24 +644,223 @@
 
     {{-- Tab 2: Días de Gracia --}}
     <div id="conc-tab-diasgracia" class="conc-tab-pane">
-        <div class="dg-desc">
+
+        {{-- Info bar compacto --}}
+        <div class="dg-infobar">
             <i class="fa fa-info-circle"></i>
-            <div>
-                <strong>¿Qué son los días de gracia?</strong>
-                Define cuántos días deben transcurrir después de una venta para que la comisión sea elegible para acreditarse.
-                Para <strong>facturas de contado</strong>: días desde la fecha de pago.
-                Para <strong>facturas de crédito</strong>: días desde la fecha de vencimiento de la factura.
+            <span>Define cuántos días deben pasar tras la venta para acreditar la comisión.
+                <strong>Contado:</strong> desde fecha de pago.
+                <strong>Crédito:</strong> desde vencimiento de factura.</span>
+        </div>
+
+        {{-- Cuerpo principal --}}
+        <div class="dg-body">
+
+            {{-- Selector de rol (custom dropdown) --}}
+            <div class="dg-selector-card">
+                <span class="dg-selector-label">
+                    <i class="fa fa-users mr-1"></i> Rol a configurar
+                </span>
+                <div class="dg-custom-dd" id="dg-custom-dd">
+                    <button type="button" class="dg-dd-trigger" id="dg-dd-trigger" onclick="dgToggleDd()">
+                        <span id="dg-dd-text">Seleccione un rol...</span>
+                        <i class="fa fa-chevron-down dg-dd-arrow"></i>
+                    </button>
+                    <div class="dg-dd-panel" id="dg-dd-panel">
+                        <div class="dg-dd-search-wrap">
+                            <input type="text" id="dg-dd-search" class="dg-dd-search"
+                                placeholder="Buscar rol..." oninput="dgFiltrarDd()" />
+                        </div>
+                        <div class="dg-dd-list" id="dg-dd-list"></div>
+                    </div>
+                </div>
+                <button type="button" id="dg-btn-guardar" class="dg-btn-guardar" onclick="dgGuardarAmbos()" style="display:none;background:#1e3a8a!important;color:#fff!important;height:38px;padding:0 18px;border:none;border-radius:8px;font-weight:700;font-size:12.5px;cursor:pointer;" tabindex="0">
+                    <i class="fa fa-check" style="color:#fff;font-size:12px;"></i>&nbsp;Guardar cambios
+                </button>
+            </div>
+
+            {{-- Formulario (oculto hasta seleccionar rol) --}}
+            <div id="dg-form-card" class="dg-form-card" style="display:none;">
+                <div class="dg-form-grid">
+
+                    {{-- Contado --}}
+                    <div class="dg-tipo-card dg-tipo-contado">
+                        <div class="dg-tipo-head">
+                            <span class="dg-tipo-icon dg-tipo-icon-contado">
+                                <i class="fa fa-check-circle"></i>
+                            </span>
+                            <div>
+                                <div class="dg-tipo-title">Contado</div>
+                                <div class="dg-tipo-sub">Días desde la fecha de pago</div>
+                            </div>
+                            <span id="dg-badge-cont" class="dg-tipo-badge"></span>
+                        </div>
+                        <div class="dg-tipo-body">
+                            <div class="dg-stepper">
+                                <button type="button" class="dg-step dg-step-contado" onclick="dgStep('dg-cont-dias',-1)">−</button>
+                                <input type="number" id="dg-cont-dias" class="dg-dias-inp" value="0" min="0" max="9999" />
+                                <button type="button" class="dg-step dg-step-contado" onclick="dgStep('dg-cont-dias',1)">+</button>
+                                <span class="dg-dias-lbl">días</span>
+                            </div>
+                            <input type="text" id="dg-cont-desc" class="dg-nota-inp" placeholder="Nota opcional..." />
+                        </div>
+                    </div>
+
+                    {{-- Crédito --}}
+                    <div class="dg-tipo-card dg-tipo-credito">
+                        <div class="dg-tipo-head">
+                            <span class="dg-tipo-icon dg-tipo-icon-credito">
+                                <i class="fa fa-credit-card"></i>
+                            </span>
+                            <div>
+                                <div class="dg-tipo-title">Crédito</div>
+                                <div class="dg-tipo-sub">Días desde vencimiento de factura</div>
+                            </div>
+                            <span id="dg-badge-cred" class="dg-tipo-badge"></span>
+                        </div>
+                        <div class="dg-tipo-body">
+                            <div class="dg-stepper">
+                                <button type="button" class="dg-step dg-step-credito" onclick="dgStep('dg-cred-dias',-1)">−</button>
+                                <input type="number" id="dg-cred-dias" class="dg-dias-inp" value="0" min="0" max="9999" />
+                                <button type="button" class="dg-step dg-step-credito" onclick="dgStep('dg-cred-dias',1)">+</button>
+                                <span class="dg-dias-lbl">días</span>
+                            </div>
+                            <input type="text" id="dg-cred-desc" class="dg-nota-inp" placeholder="Nota opcional..." />
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            {{-- Hint vacío --}}
+            <div id="dg-empty-hint" class="dg-empty-hint">
+                <i class="fa fa-hand-pointer-o"></i>
+                <p>Seleccione un rol para configurar sus días de gracia</p>
+            </div>
+
+        </div>
+
+        {{-- Resumen de todos los roles --}}
+        <div class="dg-resumen-wrap">
+            <div class="dg-resumen-header">
+                <i class="fa fa-list-ul mr-1"></i> Configuración actual por rol
+                <span id="dg-summary-badge" class="dg-summary-badge"></span>
+            </div>
+            <div id="dg-summary-body">
+                <div class="conc-loader"><div class="conc-spinner"></div> Cargando...</div>
             </div>
         </div>
-        <div class="dg-filter-bar">
-            <i class="fa fa-filter" style="color:#94a3b8;font-size:12px;"></i>
-            <input type="text" id="dg-search" class="dg-search"
-                placeholder="Buscar rol..." oninput="dgFiltrar()" />
-            <span style="font-size:11.5px;color:#94a3b8;font-weight:600;" id="dg-filter-info"></span>
+
+    </div>
+</div>
+
+{{-- ══════════════════════════════════════════════════════════════════
+     TAB 3: AUDITORÍA DE CAMBIOS (snapshots de conciliación/reapertura)
+══════════════════════════════════════════════════════════════════ --}}
+<div id="conc-tab-auditoria" class="conc-tab-pane" style="display:none;padding:0;">
+
+    {{-- Barra de filtros --}}
+    <div class="conc-filter-bar" style="padding:12px 20px;gap:10px;flex-wrap:wrap;">
+        <i class="fa fa-filter" style="color:#94a3b8;font-size:12px;"></i>
+        <select id="aud-filtro-anio" class="conc-year-select" onchange="audCargar()" style="width:110px;">
+            <option value="0">Todos los años</option>
+        </select>
+        <div style="display:flex;gap:6px;">
+            <button class="aud-tipo-btn active" data-tipo="todos" onclick="audFiltrarTipo(this)">Todos</button>
+            <button class="aud-tipo-btn" data-tipo="conciliacion" onclick="audFiltrarTipo(this)">
+                <i class="fa fa-lock"></i> Conciliaciones
+            </button>
+            <button class="aud-tipo-btn" data-tipo="reapertura" onclick="audFiltrarTipo(this)">
+                <i class="fa fa-unlock"></i> Reaperturas
+            </button>
         </div>
-        <div style="padding:0 20px 20px; overflow-x:hidden;">
-            <div id="dg-table-wrapper" style="margin-top:14px; width:100%; overflow-x:hidden;">
-                <div class="conc-loader"><div class="conc-spinner"></div> Cargando configuración...</div>
+        <button class="conc-btn-refresh" onclick="audCargar()" style="margin-left:auto;">
+            <i class="fa fa-refresh"></i> Actualizar
+        </button>
+    </div>
+
+    {{-- Cuerpo --}}
+    <div id="aud-body" style="padding:16px 20px;">
+        <div class="conc-loader"><div class="conc-spinner"></div> Cargando historial...</div>
+    </div>
+
+</div>
+
+{{-- ══════════════════════════════════════════════════════════════════
+     MODAL — DETALLE SNAPSHOT DE AUDITORÍA
+══════════════════════════════════════════════════════════════════ --}}
+<div class="modal fade conc-modal" id="modalAuditoriaDetalle" tabindex="-1" data-backdrop="static" data-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+        <div class="modal-content">
+            <div class="modal-header" id="aud-modal-header" style="background:#1e3a8a;color:#fff;border-radius:12px 12px 0 0;">
+                <h5 class="modal-title" id="aud-modal-title">
+                    <i class="fa fa-history mr-2"></i> Snapshot de Auditoría
+                </h5>
+                <button type="button" class="close" data-dismiss="modal" style="color:#fff;opacity:1;">&times;</button>
+            </div>
+            <div class="modal-body" style="padding:24px;">
+
+                {{-- KPIs del snapshot --}}
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;" id="aud-modal-kpis">
+                </div>
+
+                {{-- Info de quién hizo el cambio --}}
+                <div id="aud-modal-meta" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:12.5px;color:#475569;">
+                </div>
+
+                {{-- Observación --}}
+                <div id="aud-modal-obs-wrap" style="display:none;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:12px 16px;margin-bottom:20px;">
+                    <div style="font-size:11px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">
+                        <i class="fa fa-comment mr-1"></i> Observación
+                    </div>
+                    <div id="aud-modal-obs" style="font-size:13px;color:#78350f;"></div>
+                </div>
+
+                {{-- Tabs internas: Empleados / Facturas --}}
+                <div style="display:flex;gap:0;border-bottom:2px solid #e2e8f0;margin-bottom:16px;">
+                    <button class="aud-inner-tab active" id="aud-inner-tab-emp" onclick="audInnerTab('emp')" style="padding:8px 18px;font-size:12.5px;font-weight:700;border:none;background:none;color:#1e3a8a;border-bottom:2px solid #1e3a8a;margin-bottom:-2px;cursor:pointer;">
+                        <i class="fa fa-users mr-1"></i> Empleados <span id="aud-inner-cnt-emp" style="background:#1e3a8a;color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;margin-left:4px;">0</span>
+                    </button>
+                    <button class="aud-inner-tab" id="aud-inner-tab-fac" onclick="audInnerTab('fac')" style="padding:8px 18px;font-size:12.5px;font-weight:700;border:none;background:none;color:#64748b;border-bottom:2px solid transparent;margin-bottom:-2px;cursor:pointer;">
+                        <i class="fa fa-file-text-o mr-1"></i> Facturas <span id="aud-inner-cnt-fac" style="background:#64748b;color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;margin-left:4px;">0</span>
+                    </button>
+                </div>
+
+                {{-- Tabla empleados --}}
+                <div id="aud-inner-emp" style="overflow-x:auto;">
+                    <table style="width:100%;border-collapse:collapse;font-size:12.5px;" id="aud-tbl-emp">
+                        <thead style="background:#1e40af;color:#fff;">
+                            <tr>
+                                <th style="padding:8px 12px;text-align:left;font-weight:600;">Empleado</th>
+                                <th style="padding:8px 12px;text-align:left;font-weight:600;">Rol</th>
+                                <th style="padding:8px 12px;text-align:right;font-weight:600;">Comisión Acumulada</th>
+                                <th style="padding:8px 12px;text-align:center;font-weight:600;">Facturas</th>
+                                <th style="padding:8px 12px;text-align:left;font-weight:600;">Mes</th>
+                            </tr>
+                        </thead>
+                        <tbody id="aud-tbl-emp-body"></tbody>
+                    </table>
+                </div>
+
+                {{-- Tabla facturas --}}
+                <div id="aud-inner-fac" style="overflow-x:auto;display:none;">
+                    <table style="width:100%;border-collapse:collapse;font-size:12.5px;" id="aud-tbl-fac">
+                        <thead style="background:#1e40af;color:#fff;">
+                            <tr>
+                                <th style="padding:8px 12px;text-align:center;font-weight:600;"># Factura</th>
+                                <th style="padding:8px 12px;text-align:left;font-weight:600;">Fecha Cierre</th>
+                                <th style="padding:8px 12px;text-align:right;font-weight:600;">Monto Rol</th>
+                                <th style="padding:8px 12px;text-align:left;font-weight:600;">Rol</th>
+                                <th style="padding:8px 12px;text-align:center;font-weight:600;">Tipo</th>
+                            </tr>
+                        </thead>
+                        <tbody id="aud-tbl-fac-body"></tbody>
+                    </table>
+                </div>
+
+            </div>
+            <div class="modal-footer" style="border-top:1px solid #e2e8f0;">
+                <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cerrar</button>
             </div>
         </div>
     </div>
@@ -1279,115 +1588,147 @@ document.addEventListener('DOMContentLoaded', function() {
 /* ── Tabs del panel ──────────────────────────────────────────── */
 let dgLoaded = false;
 function concTab(tab) {
-    // Activar botón
+    // Activar botones
     document.getElementById('tab-btn-periodos').classList.toggle('active', tab === 'periodos');
     document.getElementById('tab-btn-diasgracia').classList.toggle('active', tab === 'diasgracia');
-    // Mostrar pane
+    document.getElementById('tab-btn-auditoria').classList.toggle('active', tab === 'auditoria');
+    // Mostrar panes
     document.getElementById('conc-tab-periodos').classList.toggle('active', tab === 'periodos');
     document.getElementById('conc-tab-diasgracia').classList.toggle('active', tab === 'diasgracia');
+    // El tab de auditoría usa display:none/block (no tiene clase active en CSS heredada)
+    document.getElementById('conc-tab-auditoria').style.display = (tab === 'auditoria') ? 'block' : 'none';
     // Cargar días de gracia la primera vez que se abre ese tab
     if (tab === 'diasgracia' && !dgLoaded) {
         dgLoaded = true;
         dgCargar();
     }
+    // Cargar auditoría la primera vez
+    if (tab === 'auditoria' && !audLoaded) {
+        audLoaded = true;
+        audCargar();
+    }
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   DÍAS DE GRACIA — JS
+   DÍAS DE GRACIA — JS (rediseño select-form)
 ═══════════════════════════════════════════════════════════════ */
 
-let dgData = [];   // cache de roles con config
+let dgData   = [];   // cache completa de roles
+let dgRolSel = null; // rol actualmente seleccionado en el form
 
 function dgCargar() {
     axios.get('/comisiones/dias-gracia')
-        .then(r => { dgData = r.data.roles || []; dgRender(dgData); })
+        .then(r => {
+            dgData = r.data.roles || [];
+            document.getElementById('dg-badge-total').textContent = dgData.length + ' roles';
+            dgPoblarSelect();
+            dgRenderResumen();
+        })
         .catch(() => {
-            document.getElementById('dg-table-wrapper').innerHTML =
-                '<div class="alert alert-danger"><i class="fa fa-times-circle mr-1"></i> Error al cargar configuración.</div>';
+            document.getElementById('dg-summary-body').innerHTML =
+                '<div class="alert alert-danger m-3"><i class="fa fa-times-circle mr-1"></i> Error al cargar configuración.</div>';
         });
 }
 
-function dgFiltrar() {
-    const q = document.getElementById('dg-search').value.toLowerCase().trim();
-    const filtrado = q ? dgData.filter(r => r.rol_nombre.toLowerCase().includes(q)) : dgData;
-    dgRender(filtrado);
+/* ── Custom dropdown ── */
+let dgDdOpen = false;
+
+function dgToggleDd() {
+    dgDdOpen ? dgCloseDd() : dgOpenDd();
+}
+function dgOpenDd() {
+    dgDdOpen = true;
+    document.getElementById('dg-dd-trigger').classList.add('open');
+    document.getElementById('dg-dd-panel').classList.add('open');
+    const inp = document.getElementById('dg-dd-search');
+    inp.value = '';
+    dgFiltrarDd();
+    setTimeout(() => inp.focus(), 50);
+}
+function dgCloseDd() {
+    dgDdOpen = false;
+    document.getElementById('dg-dd-trigger').classList.remove('open');
+    document.getElementById('dg-dd-panel').classList.remove('open');
+}
+document.addEventListener('click', e => {
+    if (dgDdOpen && !document.getElementById('dg-custom-dd').contains(e.target)) dgCloseDd();
+});
+
+function dgPoblarSelect() {
+    dgFiltrarDd();
+    // Restaurar selección previa si existe
+    if (dgRolSel) {
+        const r = dgData.find(x => x.rol_id === dgRolSel.rol_id);
+        if (r) dgSeleccionarRol(r.rol_id);
+    }
 }
 
-function dgRender(datos) {
-    document.getElementById('dg-badge-total').textContent = datos.length + ' roles';
-    document.getElementById('dg-filter-info').textContent = datos.length !== dgData.length
-        ? `${datos.length} de ${dgData.length} roles` : '';
+function dgFiltrarDd() {
+    const q     = (document.getElementById('dg-dd-search').value || '').toLowerCase().trim();
+    const list  = document.getElementById('dg-dd-list');
+    const items = q ? dgData.filter(r => r.rol_nombre.toLowerCase().includes(q)) : dgData;
 
-    if (!datos.length) {
-        document.getElementById('dg-table-wrapper').innerHTML =
-            '<div class="conc-empty" style="padding:30px;"><i class="fa fa-search"></i><p>Sin resultados</p></div>';
+    if (!items.length) {
+        list.innerHTML = '<div class="dg-dd-empty">Sin resultados</div>';
+        return;
+    }
+    list.innerHTML = items.map(r => {
+        const cfg = r.contado_dias !== null || r.credito_dias !== null;
+        const sel = dgRolSel && dgRolSel.rol_id === r.rol_id;
+        return `<button type="button" class="dg-dd-item${cfg?' configured':''}${sel?' selected':''}" onclick="dgSeleccionarRol(${r.rol_id})">
+            <span>${r.rol_nombre}</span>
+            <span class="dg-dd-item-dot" title="${cfg?'Configurado':'Sin configurar'}"></span>
+        </button>`;
+    }).join('');
+}
+
+function dgSeleccionarRol(rolId) {
+    const card = document.getElementById('dg-form-card');
+    const hint = document.getElementById('dg-empty-hint');
+    const btn  = document.getElementById('dg-btn-guardar');
+
+    dgRolSel = dgData.find(r => r.rol_id === rolId) || null;
+    if (!dgRolSel) {
+        card.style.display = 'none';
+        hint.style.display = '';
+        if (btn) btn.style.display = 'none';
+        document.getElementById('dg-dd-trigger').classList.remove('has-value');
+        document.getElementById('dg-dd-text').textContent = 'Seleccione un rol...';
+        dgCloseDd();
         return;
     }
 
-    let html = `<table class="dg-tbl" style="width:100%;table-layout:fixed;">
-        <colgroup><col style="width:175px"><col><col></colgroup>
-        <thead><tr>
-            <th class="dg-th-rol">Rol</th>
-            <th class="dg-th-contado">
-                <div class="dg-th-label"><i class="fa fa-check-circle" style="color:#16a34a;"></i> Contado</div>
-                <div class="dg-th-sub">Días desde la fecha de pago</div>
-            </th>
-            <th class="dg-th-credito">
-                <div class="dg-th-label"><i class="fa fa-credit-card" style="color:#ea580c;"></i> Crédito</div>
-                <div class="dg-th-sub">Días desde vencimiento de factura</div>
-            </th>
-        </tr></thead>
-        <tbody>`;
+    if (btn) btn.style.display = '';
+    // Actualizar trigger
+    const trigger = document.getElementById('dg-dd-trigger');
+    trigger.classList.add('has-value');
+    document.getElementById('dg-dd-text').textContent = dgRolSel.rol_nombre;
+    dgCloseDd();
 
-    datos.forEach(r => {
-        html += `<tr>
-            <td>
-                <div class="dg-rol-name">${r.rol_nombre}</div>
-                <span class="dg-rol-chip">ID ${r.rol_id}</span>
-            </td>
-            <td>${dgCeldaHtml(r, 'contado')}</td>
-            <td>${dgCeldaHtml(r, 'credito')}</td>
-        </tr>`;
-    });
+    document.getElementById('dg-cont-dias').value = dgRolSel.contado_dias !== null ? dgRolSel.contado_dias : 0;
+    document.getElementById('dg-cont-desc').value = dgRolSel.contado_descripcion || '';
+    document.getElementById('dg-cred-dias').value = dgRolSel.credito_dias  !== null ? dgRolSel.credito_dias  : 0;
+    document.getElementById('dg-cred-desc').value = dgRolSel.credito_descripcion  || '';
 
-    html += '</tbody></table>';
-    document.getElementById('dg-table-wrapper').innerHTML = html;
-}
+    const bCont = document.getElementById('dg-badge-cont');
+    const bCred = document.getElementById('dg-badge-cred');
+    if (dgRolSel.contado_dias !== null) {
+        bCont.textContent = dgRolSel.contado_dias + ' dias';
+        bCont.className = 'dg-tipo-badge dg-sum-chip dg-sum-chip-contado';
+    } else {
+        bCont.textContent = 'Sin config.';
+        bCont.className = 'dg-tipo-badge dg-sum-chip dg-sum-chip-none';
+    }
+    if (dgRolSel.credito_dias !== null) {
+        bCred.textContent = dgRolSel.credito_dias + ' dias';
+        bCred.className = 'dg-tipo-badge dg-sum-chip dg-sum-chip-credito';
+    } else {
+        bCred.textContent = 'Sin config.';
+        bCred.className = 'dg-tipo-badge dg-sum-chip dg-sum-chip-none';
+    }
 
-function dgCeldaHtml(r, tipo) {
-    const prefix  = tipo === 'contado' ? 'cont' : 'cred';
-    const dias     = tipo === 'contado' ? r.contado_dias : r.credito_dias;
-    const desc     = tipo === 'contado' ? (r.contado_descripcion || '') : (r.credito_descripcion || '');
-    const isSet    = dias !== null;
-    const setClass = isSet ? `is-set-${tipo}` : '';
-    const valHtml  = isSet
-        ? `<div class="dg-val-num">${dias}</div><div class="dg-val-unit">días</div>`
-        : `<div class="dg-val-dash">—</div><div class="dg-val-unit">sin config.</div>`;
-    const btnClass = `dg-save-${tipo}`;
-
-    return `
-    <div class="dg-block">
-        <div class="dg-val ${setClass}">${valHtml}</div>
-        <div class="dg-divider"></div>
-        <div class="dg-edit">
-            <div class="dg-edit-row1">
-                <div class="dg-stepper">
-                    <button class="dg-step" type="button" onclick="dgStep('${prefix}-dias-${r.rol_id}',-1)">−</button>
-                    <input type="number" class="dg-dias-input" min="0" max="9999"
-                        id="${prefix}-dias-${r.rol_id}" value="${isSet ? dias : 0}" />
-                    <button class="dg-step" type="button" onclick="dgStep('${prefix}-dias-${r.rol_id}',1)">+</button>
-                </div>
-                <span class="dg-dias-lbl">días</span>
-                <button class="${btnClass}" type="button"
-                    onclick="dgGuardar(${r.rol_id},'${tipo}',this)">
-                    <i class="fa fa-floppy-o"></i> Guardar
-                </button>
-            </div>
-            <input type="text" class="dg-desc-input"
-                id="${prefix}-desc-${r.rol_id}" value="${desc}"
-                placeholder="Nota opcional..." />
-        </div>
-    </div>`;
+    hint.style.display = 'none';
+    card.style.display = '';
 }
 
 function dgStep(id, delta) {
@@ -1396,38 +1737,312 @@ function dgStep(id, delta) {
     el.value  = Math.max(0, Math.min(9999, val + delta));
 }
 
-function dgGuardar(rolId, tipo, btnEl) {
-    const prefix = tipo === 'contado' ? 'cont' : 'cred';
-    const diasEl = document.getElementById(`${prefix}-dias-${rolId}`);
-    const descEl = document.getElementById(`${prefix}-desc-${rolId}`);
-    const dias   = parseInt(diasEl.value);
+function dgGuardarAmbos() {
+    if (!dgRolSel) return;
+    const btn      = document.getElementById('dg-btn-guardar');
+    const contDias = parseInt(document.getElementById('dg-cont-dias').value);
+    const credDias = parseInt(document.getElementById('dg-cred-dias').value);
+    const contDesc = document.getElementById('dg-cont-desc').value.trim();
+    const credDesc = document.getElementById('dg-cred-desc').value.trim();
 
-    if (isNaN(dias) || dias < 0) {
-        diasEl.style.borderColor = '#dc2626';
-        diasEl.focus();
+    if (isNaN(contDias) || contDias < 0 || isNaN(credDias) || credDias < 0) {
+        Swal.fire({ icon: 'warning', title: 'Valores inválidos', text: 'Ingrese valores numéricos válidos (≥ 0).', timer: 2500, showConfirmButton: false });
         return;
     }
-    diasEl.style.borderColor = '';
 
-    const origHtml = btnEl.innerHTML;
-    btnEl.disabled = true;
-    btnEl.innerHTML = '<span class="conc-spinner conc-spinner-sm"></span>';
+    const orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="conc-spinner conc-spinner-sm"></span> Guardando...';
 
-    axios.post('/comisiones/dias-gracia/guardar', {
-        rol_id: rolId, tipo, dias, descripcion: descEl.value.trim()
-    })
-    .then(r => {
-        Swal.fire({ icon: r.data.icon, title: r.data.title, text: r.data.text, timer: 2200, showConfirmButton: false });
-        dgCargar();   // refresca la tabla con los nuevos badges
+    Promise.all([
+        axios.post('/comisiones/dias-gracia/guardar', { rol_id: dgRolSel.rol_id, tipo: 'contado', dias: contDias, descripcion: contDesc }),
+        axios.post('/comisiones/dias-gracia/guardar', { rol_id: dgRolSel.rol_id, tipo: 'credito', dias: credDias,  descripcion: credDesc  })
+    ])
+    .then(() => {
+        Swal.fire({ icon: 'success', title: '¡Guardado!', text: `Días de gracia actualizados para "${dgRolSel.rol_nombre}".`, timer: 2200, showConfirmButton: false });
+        dgCargar();
     })
     .catch(err => {
         const d = err.response?.data || {};
         Swal.fire({ icon: 'error', title: 'Error', text: d.message || 'Error al guardar.' });
     })
     .finally(() => {
-        btnEl.disabled = false;
-        btnEl.innerHTML = origHtml;
+        btn.disabled = false;
+        btn.innerHTML = orig;
     });
+}
+
+function dgEditarRol(rolId) {
+    dgSeleccionarRol(rolId);
+    document.querySelector('.dg-selector-card').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+const DG_PAGE_SIZE = 8;
+let dgPage = 0;
+
+function dgRenderResumen() {
+    const body  = document.getElementById('dg-summary-body');
+    const badge = document.getElementById('dg-summary-badge');
+    const cfg   = dgData.filter(r => r.contado_dias !== null || r.credito_dias !== null);
+    badge.textContent = cfg.length + ' configurados';
+
+    if (!dgData.length) {
+        body.innerHTML = '<div class="conc-empty" style="padding:16px;"><i class="fa fa-inbox"></i><p>Sin datos</p></div>';
+        return;
+    }
+
+    dgPage = Math.min(dgPage, Math.max(0, Math.ceil(dgData.length / DG_PAGE_SIZE) - 1));
+    const start  = dgPage * DG_PAGE_SIZE;
+    const slice  = dgData.slice(start, start + DG_PAGE_SIZE);
+    const total  = dgData.length;
+    const pages  = Math.ceil(total / DG_PAGE_SIZE);
+
+    let rows = '';
+    slice.forEach(r => {
+        const contHtml = r.contado_dias !== null
+            ? `<span class="dg-sum-chip dg-sum-chip-contado">${r.contado_dias}d</span>`
+            : `<span class="dg-sum-chip dg-sum-chip-none">—</span>`;
+        const credHtml = r.credito_dias !== null
+            ? `<span class="dg-sum-chip dg-sum-chip-credito">${r.credito_dias}d</span>`
+            : `<span class="dg-sum-chip dg-sum-chip-none">—</span>`;
+        rows += `<tr>
+            <td style="font-weight:600;color:#0f172a;">${r.rol_nombre}</td>
+            <td>${contHtml}</td>
+            <td>${credHtml}</td>
+            <td style="text-align:center;">
+                <button class="dg-sum-edit-btn" onclick="dgEditarRol(${r.rol_id})">
+                    <i class="fa fa-pencil"></i>
+                </button>
+            </td>
+        </tr>`;
+    });
+
+    // Botones de página
+    let pageBtns = `<button class="dg-pager-btn" onclick="dgPageGo(${dgPage-1})" ${dgPage===0?'disabled':''}>
+        <i class="fa fa-chevron-left"></i></button>`;
+    const maxBtns = 5;
+    let pFrom = Math.max(0, dgPage - 2);
+    let pTo   = Math.min(pages - 1, pFrom + maxBtns - 1);
+    if (pTo - pFrom < maxBtns - 1) pFrom = Math.max(0, pTo - maxBtns + 1);
+    for (let p = pFrom; p <= pTo; p++) {
+        pageBtns += `<button class="dg-pager-btn${p===dgPage?' active':''}" onclick="dgPageGo(${p})">${p+1}</button>`;
+    }
+    pageBtns += `<button class="dg-pager-btn" onclick="dgPageGo(${dgPage+1})" ${dgPage>=pages-1?'disabled':''}>
+        <i class="fa fa-chevron-right"></i></button>`;
+
+    body.innerHTML = `
+    <table class="dg-sum-tbl">
+        <thead><tr>
+            <th>Rol</th>
+            <th style="width:90px;"><i class="fa fa-check-circle" style="color:#16a34a;"></i> Contado</th>
+            <th style="width:90px;"><i class="fa fa-credit-card" style="color:#ea580c;"></i> Crédito</th>
+            <th style="width:46px;"></th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+    </table>
+    <div class="dg-pager">
+        <span>${start+1}–${Math.min(start+DG_PAGE_SIZE,total)} de ${total}</span>
+        <div class="dg-pager-btns">${pageBtns}</div>
+    </div>`;
+}
+
+function dgPageGo(p) {
+    dgPage = p;
+    dgRenderResumen();
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   AUDITORÍA — JS
+═══════════════════════════════════════════════════════════════ */
+let audData      = [];   // cache de todos los logs
+let audTipoActivo = 'todos';
+let audLoaded    = false;
+let audSnapshotActual = null; // el log abierto en el modal
+
+function audCargar() {
+    const anio = document.getElementById('aud-filtro-anio').value;
+    document.getElementById('aud-body').innerHTML = '<div class="conc-loader"><div class="conc-spinner"></div> Cargando historial...</div>';
+    axios.get('/comisiones/conciliacion/auditoria-logs', { params: { anio } })
+        .then(function(r) {
+            const data = r.data;
+            // Poblar select de años
+            const sel = document.getElementById('aud-filtro-anio');
+            const curVal = sel.value;
+            sel.innerHTML = '<option value="0">Todos los años</option>';
+            (data.anios || []).forEach(function(a) {
+                const opt = document.createElement('option');
+                opt.value = a; opt.textContent = a;
+                if (String(a) === String(curVal)) opt.selected = true;
+                sel.appendChild(opt);
+            });
+            audData = data.logs || [];
+            document.getElementById('aud-badge-total').textContent = audData.length + ' registros';
+            audRenderLista();
+        })
+        .catch(function() {
+            document.getElementById('aud-body').innerHTML = '<div class="aud-empty"><i class="fa fa-exclamation-triangle" style="font-size:28px;color:#fca5a5;"></i><br>Error al cargar el historial.</div>';
+        });
+}
+
+function audFiltrarTipo(btn) {
+    document.querySelectorAll('.aud-tipo-btn').forEach(function(b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+    audTipoActivo = btn.dataset.tipo;
+    audRenderLista();
+}
+
+function audRenderLista() {
+    const filtered = audTipoActivo === 'todos'
+        ? audData
+        : audData.filter(function(l) { return l.accion === audTipoActivo; });
+
+    if (filtered.length === 0) {
+        document.getElementById('aud-body').innerHTML = '<div class="aud-empty"><i class="fa fa-inbox" style="font-size:32px;display:block;margin-bottom:10px;"></i>No hay registros de auditoría para este filtro.</div>';
+        return;
+    }
+
+    let html = '';
+    filtered.forEach(function(log) {
+        const badge = log.accion === 'conciliacion'
+            ? '<span class="aud-badge-conciliacion"><i class="fa fa-lock"></i> Conciliación</span>'
+            : '<span class="aud-badge-reapertura"><i class="fa fa-unlock"></i> Reapertura</span>';
+
+        const obsHtml = log.observacion
+            ? '<div class="aud-card-obs"><i class="fa fa-comment mr-1"></i>' + escHtml(log.observacion) + '</div>'
+            : '';
+
+        html += '<div class="aud-card">'
+            + '<div class="aud-card-left">'
+            +   '<div style="display:flex;align-items:center;gap:10px;">'
+            +     '<span class="aud-card-periodo"><i class="fa fa-calendar mr-1"></i>' + escHtml(log.periodo_label) + '</span>'
+            +     badge
+            +   '</div>'
+            +   '<div class="aud-card-usuario"><i class="fa fa-user mr-1"></i>' + escHtml(log.usuario_nombre) + '</div>'
+            +   '<div class="aud-card-fecha"><i class="fa fa-clock-o mr-1"></i>' + escHtml(log.fecha) + '</div>'
+            +   obsHtml
+            + '</div>'
+            + '<div class="aud-card-right">'
+            +   '<div class="aud-card-kpis">'
+            +     '<div class="aud-kpi"><div class="aud-kpi-val">' + log.snapshot_cantidad_empleados + '</div><div class="aud-kpi-lbl">Empleados</div></div>'
+            +     '<div class="aud-kpi"><div class="aud-kpi-val">' + log.snapshot_cantidad_facturas + '</div><div class="aud-kpi-lbl">Facturas</div></div>'
+            +     '<div class="aud-kpi"><div class="aud-kpi-val" style="font-size:13px;color:#16a34a;">' + escHtml(log.snapshot_total_fmt) + '</div><div class="aud-kpi-lbl">Total Comisión</div></div>'
+            +   '</div>'
+            +   '<button class="aud-btn-detalle" onclick="audAbrirDetalle(' + log.id + ')"><i class="fa fa-eye mr-1"></i> Ver Detalle</button>'
+            + '</div>'
+            + '</div>';
+    });
+
+    document.getElementById('aud-body').innerHTML = html;
+}
+
+function audAbrirDetalle(logId) {
+    const log = audData.find(function(l) { return l.id === logId; });
+    if (!log) return;
+    audSnapshotActual = log;
+
+    // Header color según acción
+    const hdr = document.getElementById('aud-modal-header');
+    hdr.style.background = log.accion === 'conciliacion' ? '#16a34a' : '#dc2626';
+
+    // Título
+    const badge = log.accion === 'conciliacion' ? 'Conciliación' : 'Reapertura';
+    document.getElementById('aud-modal-title').innerHTML =
+        '<i class="fa fa-history mr-2"></i> ' + badge + ' — ' + escHtml(log.periodo_label);
+
+    // KPIs
+    document.getElementById('aud-modal-kpis').innerHTML =
+        '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:14px;text-align:center;">'
+        + '<div style="font-size:22px;font-weight:900;color:#1e3a8a;">' + log.snapshot_cantidad_empleados + '</div>'
+        + '<div style="font-size:11px;color:#94a3b8;font-weight:700;text-transform:uppercase;">Empleados</div>'
+        + '</div>'
+        + '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:14px;text-align:center;">'
+        + '<div style="font-size:22px;font-weight:900;color:#16a34a;">' + log.snapshot_cantidad_facturas + '</div>'
+        + '<div style="font-size:11px;color:#94a3b8;font-weight:700;text-transform:uppercase;">Facturas</div>'
+        + '</div>'
+        + '<div style="background:#fef9c3;border:1px solid #fde68a;border-radius:8px;padding:14px;text-align:center;">'
+        + '<div style="font-size:20px;font-weight:900;color:#92400e;">' + escHtml(log.snapshot_total_fmt) + '</div>'
+        + '<div style="font-size:11px;color:#94a3b8;font-weight:700;text-transform:uppercase;">Total Comisión</div>'
+        + '</div>';
+
+    // Meta
+    document.getElementById('aud-modal-meta').innerHTML =
+        '<span style="margin-right:20px;"><i class="fa fa-user mr-1"></i><strong>Usuario:</strong> ' + escHtml(log.usuario_nombre) + '</span>'
+        + '<span style="margin-right:20px;"><i class="fa fa-clock-o mr-1"></i><strong>Fecha:</strong> ' + escHtml(log.fecha) + '</span>'
+        + '<span><i class="fa fa-exchange mr-1"></i><strong>Cambio:</strong> '
+        + (log.estado_anterior === 1 ? 'Conciliado' : 'Abierto') + ' → '
+        + (log.estado_nuevo === 1 ? 'Conciliado' : 'Abierto') + '</span>';
+
+    // Observación
+    const obsWrap = document.getElementById('aud-modal-obs-wrap');
+    if (log.observacion) {
+        obsWrap.style.display = 'block';
+        document.getElementById('aud-modal-obs').textContent = log.observacion;
+    } else {
+        obsWrap.style.display = 'none';
+    }
+
+    // Tabla empleados
+    const emps = log.snapshot_detalle_empleados || [];
+    document.getElementById('aud-inner-cnt-emp').textContent = emps.length;
+    let rowsEmp = '';
+    emps.forEach(function(e, i) {
+        const cls = i % 2 === 0 ? '#f8fafc' : '#fff';
+        const comFmt = 'L ' + parseFloat(e.comision_acumulada || 0).toLocaleString('es-HN', {minimumFractionDigits:2, maximumFractionDigits:2});
+        rowsEmp += '<tr style="background:' + cls + ';border-bottom:1px solid #f1f5f9;">'
+            + '<td style="padding:7px 12px;font-weight:600;color:#1e3a8a;">' + escHtml(e.nombre || '') + '</td>'
+            + '<td style="padding:7px 12px;color:#475569;">' + escHtml(e.rol || '') + '</td>'
+            + '<td style="padding:7px 12px;text-align:right;font-weight:700;color:#16a34a;">' + comFmt + '</td>'
+            + '<td style="padding:7px 12px;text-align:center;">' + (e.cantidad_facturas || 0) + '</td>'
+            + '<td style="padding:7px 12px;color:#64748b;">' + escHtml(e.mes_comision || '') + '</td>'
+            + '</tr>';
+    });
+    document.getElementById('aud-tbl-emp-body').innerHTML = rowsEmp || '<tr><td colspan="5" style="text-align:center;padding:20px;color:#94a3b8;">Sin datos de empleados</td></tr>';
+
+    // Tabla facturas
+    const facs = log.snapshot_detalle_facturas || [];
+    document.getElementById('aud-inner-cnt-fac').textContent = facs.length;
+    const tipoLabels = { 1: 'Facturador', 2: 'Rol Real', 3: 'Vendedor' };
+    const tipoColors = { 1: '#f59e0b', 2: '#3b82f6', 3: '#10b981' };
+    let rowsFac = '';
+    facs.forEach(function(f, i) {
+        const cls = i % 2 === 0 ? '#f8fafc' : '#fff';
+        const montoFmt = 'L ' + parseFloat(f.monto_rol || 0).toLocaleString('es-HN', {minimumFractionDigits:2, maximumFractionDigits:2});
+        const tipoCfg  = tipoLabels[f.tipo_comision] || 'N/D';
+        const tipoColor = tipoColors[f.tipo_comision] || '#6b7280';
+        const badge = '<span style="background:' + tipoColor + ';color:#fff;padding:1px 8px;border-radius:8px;font-size:10px;font-weight:700;">' + tipoCfg + '</span>';
+        rowsFac += '<tr style="background:' + cls + ';border-bottom:1px solid #f1f5f9;">'
+            + '<td style="padding:7px 12px;text-align:center;font-weight:700;color:#1e3a8a;">#' + (f.factura_id || '') + '</td>'
+            + '<td style="padding:7px 12px;color:#475569;">' + escHtml(f.fecha_cierre || '') + '</td>'
+            + '<td style="padding:7px 12px;text-align:right;font-weight:700;color:#16a34a;">' + montoFmt + '</td>'
+            + '<td style="padding:7px 12px;color:#475569;">' + escHtml(f.rol || '') + '</td>'
+            + '<td style="padding:7px 12px;text-align:center;">' + badge + '</td>'
+            + '</tr>';
+    });
+    document.getElementById('aud-tbl-fac-body').innerHTML = rowsFac || '<tr><td colspan="5" style="text-align:center;padding:20px;color:#94a3b8;">Sin datos de facturas</td></tr>';
+
+    // Resetear inner tab a empleados
+    audInnerTab('emp');
+
+    $('#modalAuditoriaDetalle').modal('show');
+}
+
+function audInnerTab(tab) {
+    const isEmp = tab === 'emp';
+    document.getElementById('aud-inner-emp').style.display = isEmp ? 'block' : 'none';
+    document.getElementById('aud-inner-fac').style.display = isEmp ? 'none'  : 'block';
+    document.getElementById('aud-inner-tab-emp').style.color         = isEmp ? '#1e3a8a' : '#64748b';
+    document.getElementById('aud-inner-tab-emp').style.borderBottomColor = isEmp ? '#1e3a8a' : 'transparent';
+    document.getElementById('aud-inner-tab-fac').style.color         = isEmp ? '#64748b' : '#1e3a8a';
+    document.getElementById('aud-inner-tab-fac').style.borderBottomColor = isEmp ? 'transparent' : '#1e3a8a';
+    const cntEmp = document.getElementById('aud-inner-cnt-emp');
+    const cntFac = document.getElementById('aud-inner-cnt-fac');
+    cntEmp.style.background = isEmp ? '#1e3a8a' : '#64748b';
+    cntFac.style.background = isEmp ? '#64748b' : '#1e3a8a';
+}
+
+function escHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 </script>
 @endpush

@@ -80,7 +80,7 @@ function cargarFiltrosApoyo() {
         .then(function (r) {
             var opts = '<option value="">Todas</option>';
             r.data.forEach(function (c) {
-                opts += '<option value="' + c.id + '">' + c.descripcion + '</option>';
+                opts += '<option value="' + c.id + '">' + (c.descripcion || c.text) + '</option>';
             });
             $('#fap_categoria').html(opts);
         }).catch(function () {});
@@ -89,7 +89,7 @@ function cargarFiltrosApoyo() {
         .then(function (r) {
             var opts = '<option value="">Todas</option>';
             r.data.forEach(function (m) {
-                opts += '<option value="' + m.id + '">' + m.nombre + '</option>';
+                opts += '<option value="' + m.id + '">' + (m.nombre || m.text) + '</option>';
             });
             $('#fap_marca').html(opts);
         }).catch(function () {});
