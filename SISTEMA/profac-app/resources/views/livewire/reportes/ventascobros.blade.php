@@ -145,9 +145,6 @@
                     <div class="rvc-card-header">
                         <h5><i class="fa fa-file-text-o"></i> Reporte Financiero Detallado por Factura</h5>
                         <div class="d-flex" style="gap:8px">
-                            <button type="button" class="btn-rvc-action" onclick="exportarPdf()">
-                                <i class="fa fa-file-pdf-o mr-1"></i>PDF
-                            </button>
                             <button type="button" class="btn-rvc-action" onclick="exportarExcel()">
                                 <i class="fa fa-file-excel-o mr-1"></i>Excel
                             </button>
