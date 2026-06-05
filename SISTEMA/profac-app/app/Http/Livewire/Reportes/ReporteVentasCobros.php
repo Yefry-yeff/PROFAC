@@ -137,10 +137,12 @@ class ReporteVentasCobros extends Component
             f.numero_secuencia_cai,
             COALESCE(f.comentario, '')                                  AS observacion,
             COALESCE(noc.numero_orden, '')                              AS orden_compra,
+            COALESCE(flujo_doc.numero_orden_compra, '')                  AS flujo_orden_compra,
 
             /* ── Clasificación fiscal ── */
             COALESCE(tpv.descripcion, '')                               AS modo_pago,
             UPPER(ev.descripcion)                                       AS estado_f01,
+            COALESCE(flujo_doc.numero_forma_f01, '')                    AS flujo_forma_f01,
 
             /* ── Montos factura ── */
             GREATEST(
@@ -250,13 +252,19 @@ class ReporteVentasCobros extends Component
         LEFT  JOIN estado_venta ev        ON ev.id = f.estado_venta_id
         LEFT  JOIN tipo_pago_venta tpv    ON tpv.id = f.tipo_pago_id
         LEFT  JOIN numero_orden_compra noc ON noc.id = f.numero_orden_compra_id
+        LEFT  JOIN (
+            SELECT hf.tramite_id, fl.numero_forma_f01, fl.numero_orden_compra
+            FROM historico_flujo hf
+            INNER JOIN flujo fl ON fl.id = hf.flujo_id
+            WHERE hf.tipo_tramite_id = 3
+        ) AS flujo_doc ON flujo_doc.tramite_id = f.id
         LEFT  JOIN aplicacion_pagos apc   ON apc.id = (
             SELECT apx.id FROM aplicacion_pagos apx
             WHERE apx.factura_id = f.id AND apx.estado = 1
             ORDER BY apx.id DESC LIMIT 1
         )
         WHERE {$where}
-        ORDER BY f.numero_secuencia_cai ASC
+        ORDER BY f.numero_secuencia_cai DESC
         ";
 
         $rows = DB::select($innerSql, $params);
@@ -435,6 +443,14 @@ class ReporteVentasCobros extends Component
                 $where .= ' AND (f.numero_secuencia_cai LIKE ? OR CAST(f.id AS CHAR) LIKE ?)';
                 $params[] = '%' . $p . '%';
                 $params[] = '%' . $p . '%';
+            }
+
+            // Buscador nativo de DataTables (search[value])
+            $dtSearch = $this->norm(($request->query('search') ?? [])['value'] ?? null);
+            if ($dtSearch) {
+                $where .= ' AND (f.numero_secuencia_cai LIKE ? OR c.nombre LIKE ?)';
+                $params[] = '%' . $dtSearch . '%';
+                $params[] = '%' . $dtSearch . '%';
             }
 
             $p = $this->norm($request->query('fecha_desde'));
@@ -635,6 +651,7 @@ class ReporteVentasCobros extends Component
                     COALESCE(f.comentario, '')                              AS observacion,
                     COALESCE(tpv.descripcion, '')                           AS modo_pago,
                     UPPER(COALESCE(ev.descripcion, ''))                     AS estado_f01,
+                    COALESCE(flujo_doc.numero_forma_f01, '')                AS flujo_forma_f01,
                     COALESCE((SELECT def2.fecha_entrega_real
                         FROM distribuciones_entrega_facturas def2
                         WHERE def2.factura_id = f.id ORDER BY def2.id DESC LIMIT 1), NULL) AS fecha_entrega,
@@ -661,6 +678,12 @@ class ReporteVentasCobros extends Component
                 LEFT  JOIN estado_venta ev        ON ev.id = f.estado_venta_id
                 LEFT  JOIN tipo_pago_venta tpv    ON tpv.id = f.tipo_pago_id
                 LEFT  JOIN numero_orden_compra noc ON noc.id = f.numero_orden_compra_id
+                LEFT  JOIN (
+                    SELECT hf.tramite_id, fl.numero_forma_f01
+                    FROM historico_flujo hf
+                    INNER JOIN flujo fl ON fl.id = hf.flujo_id
+                    WHERE hf.tipo_tramite_id = 3
+                ) AS flujo_doc ON flujo_doc.tramite_id = f.id
                 WHERE f.id = ?
             ", [$facturaId]);
 
@@ -684,18 +707,6 @@ class ReporteVentasCobros extends Component
                     LEFT JOIN users u ON u.id = f.vendedor
                     LEFT JOIN tipo_pago_venta tpv ON tpv.id = f.tipo_pago_id
                     WHERE f.id = ?
-
-                    UNION ALL
-
-                    /* Entrega */
-                    SELECT 'ENTREGA', def.fecha_entrega_real, def.estado_entrega,
-                           NULL, NULL, NULL, NULL,
-                           COALESCE(def.observaciones,''),
-                           COALESCE(u_crea.name,''), NULL, 2
-                    FROM distribuciones_entrega_facturas def
-                    INNER JOIN distribuciones_entrega de ON de.id = def.distribucion_entrega_id
-                    LEFT JOIN users u_crea ON u_crea.id = de.users_id_creador
-                    WHERE def.factura_id = ? AND def.fecha_entrega_real IS NOT NULL
 
                     UNION ALL
 
@@ -733,16 +744,19 @@ class ReporteVentasCobros extends Component
 
                     UNION ALL
 
-                    /* Vale de entrega */
-                    SELECT 'VALE', v.created_at, COALESCE(v.numero_vale, CONCAT('Vale #', v.id)),
-                           NULL, NULL, NULL, NULL,
-                           COALESCE(v.notas,'Vale de entrega'), COALESCE(u_v.name,''), NULL, 6
-                    FROM vale v
-                    LEFT JOIN users u_v ON u_v.id = v.users_id
-                    WHERE v.factura_id = ? AND v.estado_id != 7
+                    /* Retención ISV */
+                    SELECT 'RETENCION', apc_ret.updated_at,
+                           COALESCE(NULLIF(TRIM(apc_ret.comentario_retencion),''), 'Retención ISV'),
+                           apc_ret.retencion_isv_factura, NULL, NULL,
+                           COALESCE(NULLIF(TRIM(apc_ret.comentario_retencion),''), ''),
+                           'Retención ISV aplicada',
+                           COALESCE(u_ret.name,''), NULL, 7
+                    FROM aplicacion_pagos apc_ret
+                    LEFT JOIN users u_ret ON u_ret.id = apc_ret.usr_cerro
+                    WHERE apc_ret.factura_id = ? AND apc_ret.estado_retencion_isv = 2
                 ) AS _movs
                 ORDER BY fecha ASC, orden_tipo ASC
-            ", [$facturaId, $facturaId, $facturaId, $facturaId, $facturaId, $facturaId]);
+            ", [$facturaId, $facturaId, $facturaId, $facturaId, $facturaId]);
 
             /* ── Calcular saldo progresivo ── */
             $saldo = (float) $cab->total_factura;
@@ -750,7 +764,7 @@ class ReporteVentasCobros extends Component
                 $monto = (float) ($mov->monto ?? 0);
                 if ($mov->tipo === 'VENTA') {
                     $mov->saldo_resultante = $saldo;
-                } elseif (in_array($mov->tipo, ['ABONO', 'PAGO', 'NOTA_CREDITO'])) {
+                } elseif (in_array($mov->tipo, ['ABONO', 'PAGO', 'NOTA_CREDITO', 'RETENCION'])) {
                     $saldo -= $monto;
                     $mov->saldo_resultante = max($saldo, 0);
                 } else {
@@ -853,7 +867,7 @@ class ReporteVentasCobros extends Component
         // 7 UNION blocks → 7 copies of facturaIds
         $params = array_merge(
             $facturaIds, $facturaIds, $facturaIds,
-            $facturaIds, $facturaIds, $facturaIds, $facturaIds
+            $facturaIds, $facturaIds
         );
 
         $movs = DB::select("
@@ -871,17 +885,6 @@ class ReporteVentasCobros extends Component
                 LEFT JOIN users u ON u.id = f.vendedor
                 LEFT JOIN tipo_pago_venta tpv ON tpv.id = f.tipo_pago_id
                 WHERE f.id IN ({$ph})
-
-                UNION ALL
-
-                SELECT 'ENTREGA', def.factura_id, def.fecha_entrega_real,
-                       def.estado_entrega, NULL, NULL, NULL, NULL,
-                       COALESCE(def.observaciones,''),
-                       COALESCE(u_crea.name,''), NULL, 2
-                FROM distribuciones_entrega_facturas def
-                INNER JOIN distribuciones_entrega de ON de.id = def.distribucion_entrega_id
-                LEFT JOIN users u_crea ON u_crea.id = de.users_id_creador
-                WHERE def.factura_id IN ({$ph}) AND def.fecha_entrega_real IS NOT NULL
 
                 UNION ALL
 
@@ -926,16 +929,6 @@ class ReporteVentasCobros extends Component
                 FROM notadebito nd
                 LEFT JOIN users u_nd ON u_nd.id = nd.users_registra_id
                 WHERE nd.factura_id IN ({$ph})
-
-                UNION ALL
-
-                SELECT 'VALE', v.factura_id, DATE(v.created_at),
-                       v.numero_vale, v.total,
-                       NULL, NULL, NULL,
-                       COALESCE(v.notas,''), COALESCE(u_v.name,''), NULL, 7
-                FROM vale v
-                LEFT JOIN users u_v ON u_v.id = v.users_id
-                WHERE v.factura_id IN ({$ph})
             ) AS _movs
             ORDER BY factura_id ASC, fecha ASC, orden_tipo ASC
         ", $params);

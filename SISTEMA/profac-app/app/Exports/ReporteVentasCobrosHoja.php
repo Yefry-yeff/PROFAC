@@ -203,9 +203,11 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
             $row[6]  = 'Factura';
             $row[7]  = '';
             $row[8]  = $r->observacion ?? '';
-            $row[9]  = $r->orden_compra ?? '';
+            $row[9]  = (strtotime($r->fecha_venta ?? '') >= strtotime('2026-05-15'))
+                        ? (trim($r->flujo_orden_compra ?? '') ?: ($r->orden_compra ?? ''))
+                        : ($r->orden_compra ?? '');
             $row[10] = $r->modo_pago ?? '';
-            $row[11] = $r->estado_f01 ?? '';
+            $row[11] = trim($r->flujo_forma_f01 ?? '') ?: 'N/A';
             $row[12] = (float)($r->exonerado ?? 0) > 0 ? (float)$r->exonerado : '';
             $row[13] = (float)($r->gravado   ?? 0) > 0 ? (float)$r->gravado   : '';
             $row[14] = (float)($r->exento    ?? 0) > 0 ? (float)$r->exento    : '';

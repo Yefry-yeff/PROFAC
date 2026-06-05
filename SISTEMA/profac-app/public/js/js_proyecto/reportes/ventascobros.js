@@ -136,7 +136,7 @@ function cargarTabla() {
                 }
             }
         ],
-        order: [[1, 'asc']],
+        order: [[1, 'desc']],
         pageLength: 25,
         dom: '<"row"<"col-sm-6"l><"col-sm-6"f>>rt<"row"<"col-sm-5"i><"col-sm-7"p>>',
         initComplete: function() {
@@ -235,7 +235,7 @@ function renderExpediente(resp) {
     html += metaItem('Vencimiento',    fmtFecha(c.fecha_vencimiento));
     html += metaItem('Días Crédito',   c.credito == 0 ? 'Contado' : (c.dias_credito + ' días'));
     html += metaItem('Modo Pago',      c.modo_pago);
-    html += metaItem('Estado F-01',    c.estado_f01);
+    html += metaItem('Estado F-01',    c.flujo_forma_f01 || 'N/A');
     html += metaItem('Orden Compra',   c.orden_compra || '—');
     html += metaItem('Fecha Entrega',  c.fecha_entrega ? fmtFecha(c.fecha_entrega) : 'Sin entrega');
     html += '</div></div>';
@@ -254,9 +254,20 @@ function renderExpediente(resp) {
     html += '</div>';
 
     /* Estado financiero */
+    var totalAbonos    = 0;
+    var totalRetencion = 0;
+    $.each(ms, function(i, mov) {
+        var monto = parseFloat(mov.monto) || 0;
+        if (mov.tipo === 'ABONO' || mov.tipo === 'PAGO') totalAbonos    += monto;
+        if (mov.tipo === 'RETENCION')                    totalRetencion += monto;
+    });
+
     html += '<div class="rfd-fin-box"><h5><i class="fa fa-line-chart" style="margin-right:5px;"></i>Estado Financiero Actual</h5>';
-    html += finRow('Total Facturado', fmtLps(c.total_factura));
-    html += finRow('Total Abonado / Pagado', fmtLps(parseFloat(c.total_factura) - parseFloat(resp.saldo_final)));
+    html += '<div class="rfd-fin-row"><span class="lbl">Total Facturado</span><span class="val" style="color:#111827;font-weight:600;">' + fmtLps(c.total_factura) + '</span></div>';
+    html += '<div class="rfd-fin-row"><span class="lbl">Total Abonado / Pagado</span><span class="val" style="color:#0e9f6e;font-weight:600;">' + fmtLps(totalAbonos) + '</span></div>';
+    if (totalRetencion > 0) {
+        html += '<div class="rfd-fin-row"><span class="lbl" style="padding-left:12px;color:#6b7280;">↳ Retención ISV</span><span class="val" style="color:#0369a1;font-weight:600;">' + fmtLps(totalRetencion) + '</span></div>';
+    }
     html += '<div class="rfd-fin-row ' + saldoClass + '"><span class="lbl">Saldo Pendiente</span><span class="val">' + fmtLps(resp.saldo_final) + '</span></div>';
     html += finRow('D\u00edas Vencidos',
         (parseInt(c.dias_vencidos) > 0)
@@ -279,7 +290,10 @@ function renderExpediente(resp) {
     /* ── Timeline ── */
     html += '<div class="rfd-timeline-hdr"><i class="fa fa-history" style="margin-right:6px;"></i>Línea de Tiempo del Ciclo de Vida</div>';
     html += '<ul class="rfd-timeline">';
-    $.each(ms, function(i, mov) { html += renderMovimiento(mov); });
+    $.each(ms, function(i, mov) {
+        if (mov.tipo === 'ENTREGA' || mov.tipo === 'VALE') return;
+        html += renderMovimiento(mov);
+    });
     html += '</ul>';
 
     html += '</div>'; /* /rfd-exp-wrapper */
@@ -314,7 +328,7 @@ function renderMovimiento(mov) {
 
     if (tipo !== 'ENTREGA' && tipo !== 'VALE') {
         var sign = esCargo ? '+' : '-';
-        var montoColor = esCargo ? '#e02424' : '#0e9f6e';
+        var montoColor = esCargo ? '#111827' : '#0e9f6e';
         montoHtml = '<span class="rfd-tl-monto" style="color:' + montoColor + ';">' + sign + ' ' + fmtLpsAbs(monto) + '</span>';
     }
 
@@ -367,15 +381,15 @@ function carteraItem(lbl, val) {
     return '<div class="rfd-cartera-item"><div class="ci-lbl">' + lbl + '</div><div class="ci-val">' + (val || '—') + '</div></div>';
 }
 function tipoIcon(t) {
-    var m = { VENTA:'fa-file-text-o', ENTREGA:'fa-truck', ABONO:'fa-money', PAGO:'fa-credit-card', NOTA_CREDITO:'fa-minus-circle', VALE:'fa-ticket' };
+    var m = { VENTA:'fa-file-text-o', ENTREGA:'fa-truck', ABONO:'fa-money', PAGO:'fa-credit-card', NOTA_CREDITO:'fa-minus-circle', VALE:'fa-ticket', RETENCION:'fa-percent' };
     return m[t] || 'fa-circle-o';
 }
 function tipoLabel(t) {
-    var m = { VENTA:'Venta', ENTREGA:'Entrega', ABONO:'Abono Cr\u00e9dito', PAGO:'Pago Contado', NOTA_CREDITO:'Nota de Cr\u00e9dito', VALE:'Vale de Entrega' };
+    var m = { VENTA:'Venta', ENTREGA:'Entrega', ABONO:'Abono Crédito', PAGO:'Pago Contado', NOTA_CREDITO:'Nota de Crédito', VALE:'Vale de Entrega', RETENCION:'Retención ISV' };
     return m[t] || t;
 }
 function tipoColorMap(t) {
-    var m = { VENTA:'#1a56db', ENTREGA:'#0e9f6e', ABONO:'#d97706', PAGO:'#7c3aed', NOTA_CREDITO:'#e02424', VALE:'#e67e22' };
+    var m = { VENTA:'#1a56db', ENTREGA:'#0e9f6e', ABONO:'#d97706', PAGO:'#7c3aed', NOTA_CREDITO:'#e02424', VALE:'#e67e22', RETENCION:'#0369a1' };
     return m[t] || '#6b7280';
 }
 
