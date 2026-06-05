@@ -150,6 +150,7 @@ use App\Http\Livewire\Logistica\ReporteLogistica;
 use App\Http\Livewire\Comisiones\Escalado\Configuracion as confcomisiones;
 use App\Http\Livewire\Comisiones\Escalado\MisComisiones;
 use App\Http\Livewire\Comisiones\Escalado\ReportesComisionesGenerales;
+use App\Http\Livewire\Comisiones\Escalado\Conciliacion as ConciliacionComisiones;
 
 /*
 
@@ -285,6 +286,17 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
 
     // Ruta para descarga de Excel
     Route::get('/comision/reporte/excel', [ReportesComisionesGenerales::class, 'descargarExcel']);
+
+    // Conciliación de Comisiones
+    Route::get('/comisiones/conciliacion',                       ConciliacionComisiones::class)->name('comisiones.conciliacion');
+    Route::get('/comisiones/conciliacion/validar-reglas',        [ConciliacionComisiones::class, 'validarReglas'])->name('comisiones.conciliacion.validar');
+    Route::get('/comisiones/conciliacion/periodos',              [ConciliacionComisiones::class, 'listarPeriodos'])->name('comisiones.conciliacion.periodos');
+    Route::post('/comisiones/conciliacion/conciliar',            [ConciliacionComisiones::class, 'conciliarPeriodo'])->name('comisiones.conciliacion.conciliar');
+    Route::post('/comisiones/conciliacion/reabrir',              [ConciliacionComisiones::class, 'reabrirPeriodo'])->name('comisiones.conciliacion.reabrir');
+    Route::get('/comisiones/conciliacion/detalle',               [ConciliacionComisiones::class, 'detallePeriodo'])->name('comisiones.conciliacion.detalle');
+    // Días de gracia
+    Route::get('/comisiones/dias-gracia',                        [ConciliacionComisiones::class, 'listarDiasGracia'])->name('comisiones.dias_gracia.index');
+    Route::post('/comisiones/dias-gracia/guardar',               [ConciliacionComisiones::class, 'guardarDiasGracia'])->name('comisiones.dias_gracia.guardar');
 
 
     Route::get('/precios', CategoriaPrecios::class);
