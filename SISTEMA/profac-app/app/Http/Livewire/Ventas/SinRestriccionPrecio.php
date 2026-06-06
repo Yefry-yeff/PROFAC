@@ -30,9 +30,11 @@ use Mail;
 
 class SinRestriccionPrecio extends Component
 {
+    // Nota: Este componente solo se usa como controlador API.
+    // El render() no se invoca desde ninguna ruta de página.
     public function render()
     {
-        return view('livewire.ventas.sin-restriccion-precio');
+        return view('livewire.ventas.facturacion-unificada');
     }
 
     public function listarClientes(Request $request)
@@ -60,8 +62,7 @@ class SinRestriccionPrecio extends Component
         }
     }
 
-    public function enviarCodigo(){
-
+    public function enviarCodigo(Request $request){
 
         $codigo = rand(1000,9999);
 
@@ -71,12 +72,31 @@ class SinRestriccionPrecio extends Component
         $autorizacion->estado_id = 1;
         $autorizacion->save();
 
+        $productos    = $request->input('productos', []);
+        $usuario      = Auth::user()->name ?? 'N/A';
+        $flujoId      = $request->input('flujo_id', '');
+        $numeroVenta  = $request->input('numero_venta', '');
 
+        $viewData = [
+            'codigo'       => $codigo,
+            'productos'    => $productos,
+            'usuario'      => $usuario,
+            'flujoId'      => $flujoId,
+            'numeroVenta'  => $numeroVenta,
+        ];
 
-        $subject = "Solicitud de autorización";
+        // Preview del correo en el log (para debug)
+        try {
+            $emailHtml = view('email/solicitud', $viewData)->render();
+            \Illuminate\Support\Facades\Log::info("=== EMAIL PREVIEW solicitud SR ===\n" . strip_tags($emailHtml, '<table><tr><td><th><b><strong>'));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('No se pudo previsualizar email: ' . $e->getMessage());
+        }
+
+        $subject = "Solicitud de autorización SR";
         $for = ['autorizaciones@distribucionesvalencia.hn'];
 
-        Mail::send('email/solicitud',['codigo' => $codigo], function($msj) use($subject,$for){
+        Mail::send('email/solicitud', $viewData, function($msj) use($subject,$for){
             $msj->from(env('MAIL_FROM_ADRESS'),"Soporte Técnico Distribuciones Valencia ");
             $msj->subject($subject);
             $msj->to($for);

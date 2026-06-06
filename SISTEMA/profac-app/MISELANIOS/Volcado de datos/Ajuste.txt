@@ -1,0 +1,32 @@
+INSERT INTO cardex (
+    fecha_creacion,
+    producto,
+    id_producto,
+    id_ajuste,
+    descripcion,
+    id_Bodega_origen,
+    id_segmento_origen,
+    id_seccion_origen,
+    cantidad,
+    usuario
+)
+select DISTINCT
+lt.created_at creacion,
+p.nombre nombre,
+p.id idproducto,
+a.id idajuste,
+if(ap.tipo_aritmetica = 1 ,concat(lt.descripcion,' (+)'), concat(lt.descripcion,' (-)') ) descripcion,
+b.id idbodega,
+sg.id idsegmento,
+s.id idseccion,
+ap.cantidad_total cantidad,
+u.id usuario
+from log_translado lt
+inner join ajuste a on a.id = lt.ajuste_id
+inner join ajuste_has_producto ap on ap.ajuste_id=a.id
+inner join recibido_bodega rb on ap.recibido_bodega_id = rb.id 
+inner join producto p on p.id = ap.producto_id
+inner join seccion s on s.id = rb.seccion_id
+inner join segmento sg on sg.id = s.segmento_id
+inner join bodega b on b.id = sg.bodega_id
+inner join users u on u.id = lt.users_id;

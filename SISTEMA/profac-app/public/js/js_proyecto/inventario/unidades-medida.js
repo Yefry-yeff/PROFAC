@@ -1,4 +1,4 @@
-
+﻿
 
 $(document).on('submit', '#crearUnidadForm', function(event) {
     event.preventDefault();
@@ -49,7 +49,7 @@ $(document).on('submit', '#crearUnidadForm', function(event) {
         $('#tbl_unidades_listar').DataTable({
             "order": [0, 'desc'],
             "language": {
-                "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
+                "url": "/js/plugins/dataTables/i18n/Spanish.json"
             },
             pageLength: 10,
             responsive: true,

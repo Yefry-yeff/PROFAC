@@ -3,6 +3,70 @@ var contador = 1;
 var arrayInputs = [];
 var productoSeccion = [];
 
+// ========== FUNCIONES AUXILIARES PARA MODALES ==========
+function abrirModal(modalId) {
+    try {
+        if (typeof jQuery !== 'undefined' && jQuery.fn.modal) {
+            $('#' + modalId).modal('show');
+        } else {
+            const modalElement = document.getElementById(modalId);
+            if (modalElement) {
+                // Crear o actualizar el backdrop
+                let backdrop = document.querySelector('.modal-backdrop');
+                if (!backdrop) {
+                    backdrop = document.createElement('div');
+                    backdrop.className = 'modal-backdrop fade show';
+                    document.body.appendChild(backdrop);
+                }
+                
+                modalElement.classList.add('show');
+                modalElement.setAttribute('aria-hidden', 'false');
+                modalElement.style.display = 'block';
+                document.body.classList.add('modal-open');
+                document.body.style.overflow = 'hidden';
+            }
+        }
+    } catch (e) {
+        console.error('Error al abrir modal ' + modalId + ':', e);
+        const modalElement = document.getElementById(modalId);
+        if (modalElement) {
+            modalElement.classList.add('show');
+            modalElement.style.display = 'block';
+        }
+    }
+}
+
+function cerrarModal(modalId) {
+    try {
+        if (typeof jQuery !== 'undefined' && jQuery.fn.modal) {
+            $('#' + modalId).modal('hide');
+        } else {
+            const modalElement = document.getElementById(modalId);
+            if (modalElement) {
+                // Remover el backdrop
+                const backdrop = document.querySelector('.modal-backdrop');
+                if (backdrop) {
+                    backdrop.remove();
+                }
+                
+                modalElement.classList.remove('show');
+                modalElement.setAttribute('aria-hidden', 'true');
+                modalElement.style.display = 'none';
+                document.body.classList.remove('modal-open');
+                document.body.style.overflow = '';
+            }
+        }
+    } catch (e) {
+        console.error('Error al cerrar modal ' + modalId + ':', e);
+        const modalElement = document.getElementById(modalId);
+        if (modalElement) {
+            modalElement.classList.remove('show');
+            modalElement.style.display = 'none';
+        }
+    }
+}
+// ===================================================
+
 $('#cliente').select2({
     ajax: {
         url: '/nota/credito/clientes',
@@ -36,6 +100,107 @@ $('#motivo_nota').select2({
 
     }
 });
+
+// =====================================================================
+// Lógica de pestañas: Por Producto / Por Descuento
+// =====================================================================
+
+function cambiarTipoNota(tipo) {
+    var tipoAnterior = document.getElementById('tipo_nota_credito').value;
+
+    if (tipo === tipoAnterior) return;
+
+    // Si se intenta salir de "producto" con filas ya añadidas, bloquear
+    if (tipoAnterior === 'producto' && arrayInputs.length > 0) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Advertencia',
+            text: 'Ya tiene productos agregados en la nota. Elimínelos antes de cambiar el tipo.',
+        });
+        // Revertir la pestaña visualmente
+        $('#tab-producto-link').tab('show');
+        return;
+    }
+
+    // Si se sale de "descuento", limpiar campos de descuento y totales
+    if (tipoAnterior === 'descuento') {
+        document.getElementById('monto_descuento_mostrar').value = '';
+        document.getElementById('monto_descuento').value = '0';
+        resetearTotalesCredito();
+    }
+
+    // Si se entra a "descuento": ocultar lista de productos y resumen de factura; recalcular si ya hay monto
+    if (tipo === 'descuento') {
+        document.getElementById('seccion_lista_productos').style.display = 'none';
+        document.getElementById('seccion_resumen_factura').style.display = 'none';
+        var monto = document.getElementById('monto_descuento_mostrar').value;
+        if (monto && +monto > 0) {
+            calcularDescuento(monto);
+        } else {
+            resetearTotalesCredito();
+        }
+    }
+
+    // Si se entra a "producto": mostrar lista de productos y resumen de factura
+    if (tipo === 'producto') {
+        document.getElementById('seccion_lista_productos').style.display = '';
+        document.getElementById('seccion_resumen_factura').style.display = '';
+    }
+
+    document.getElementById('tipo_nota_credito').value = tipo;
+}
+
+function resetearTotalesCredito() {
+    document.getElementById('subTotalGeneralCredito').value        = '0';
+    document.getElementById('subTotalGeneralGrabadoCredito').value = '0';
+    document.getElementById('subTotalGeneralExcentoCredito').value = '0';
+    document.getElementById('isvGeneralCredito').value             = '0';
+    document.getElementById('totalGeneralCredito').value           = '0';
+    document.getElementById('subTotalGeneralCreditoMostrar').value        = '';
+    document.getElementById('subTotalGeneralGrabadoCreditoMostrar').value = '';
+    document.getElementById('subTotalGeneralExcentoCreditoMostrar').value = '';
+    document.getElementById('isvGeneralCreditoMostrar').value             = '';
+    document.getElementById('totalGeneralCreditoMostrar').value           = '';
+}
+
+function calcularDescuento(monto) {
+    monto = parseFloat(monto) || 0;
+
+    // Obtener el total de la factura original
+    let totalFactura = parseFloat(document.getElementById('totalGeneralMostrar').value.replace(/[^\d.-]/g, '')) || 0;
+
+    // Validar que el monto no exceda el total de la factura
+    if (monto > totalFactura) {
+        document.getElementById('monto_descuento_mostrar').value = '';
+        document.getElementById('monto_descuento').value = 0;
+        resetearTotalesCredito();
+        
+        Swal.fire({
+            icon: 'warning',
+            title: 'Advertencia',
+            text: `El monto del descuento no puede ser mayor al total de la factura (L. ${monedaLempiras(totalFactura)})`,
+        });
+        return;
+    }
+
+    // Actualizar hidden
+    document.getElementById('monto_descuento').value = monto;
+
+    // Para nota por descuento: sub_total = monto, grabado = 0, excento = monto, ISV = 0, total = monto
+    document.getElementById('subTotalGeneralCredito').value        = monto;
+    document.getElementById('subTotalGeneralGrabadoCredito').value = 0;
+    document.getElementById('subTotalGeneralExcentoCredito').value = monto;
+    document.getElementById('isvGeneralCredito').value             = 0;
+    document.getElementById('totalGeneralCredito').value           = monto;
+
+    document.getElementById('subTotalGeneralCreditoMostrar').value        = monedaLempiras(monto);
+    document.getElementById('subTotalGeneralGrabadoCreditoMostrar').value = monedaLempiras(0);
+    document.getElementById('subTotalGeneralExcentoCreditoMostrar').value = monedaLempiras(monto);
+    document.getElementById('isvGeneralCreditoMostrar').value             = monedaLempiras(0);
+    document.getElementById('totalGeneralCreditoMostrar').value           = monedaLempiras(monto);
+}
+
+// =====================================================================
 
 function obtenerFacturasDeCliente() {
     document.getElementById('factura').innerHTML =
@@ -117,6 +282,35 @@ function datosFactura() {
                 currency: 'HNL',
                 minimumFractionDigits: 2,
             }).format(data.total);
+
+            // También llenar los campos de la pestaña de descuento
+            document.getElementById('subTotalGeneralMostrar_desc').value = new Intl.NumberFormat('es-HN', {
+                style: 'currency',
+                currency: 'HNL',
+                minimumFractionDigits: 2,
+            }).format(data.sub_total);
+            document.getElementById('subTotalGeneralGrabadoMostrar_desc').value = new Intl.NumberFormat('es-HN', {
+                style: 'currency',
+                currency: 'HNL',
+                minimumFractionDigits: 2,
+            }).format(data.sub_total_grabado);
+            document.getElementById('subTotalGeneralExcentoMostrar_desc').value = new Intl.NumberFormat('es-HN', {
+                style: 'currency',
+                currency: 'HNL',
+                minimumFractionDigits: 2,
+            }).format(data.sub_total_excento);
+
+            document.getElementById('isvGeneralMostrar_desc').value = new Intl.NumberFormat('es-HN', {
+                style: 'currency',
+                currency: 'HNL',
+                minimumFractionDigits: 2,
+            }).format(data.isv);
+            document.getElementById('totalGeneralMostrar_desc').value = new Intl.NumberFormat('es-HN', {
+                style: 'currency',
+                currency: 'HNL',
+                minimumFractionDigits: 2,
+            }).format(data.total);
+
         })
 
     $('#tbl_productos').DataTable().clear().destroy();
@@ -173,7 +367,7 @@ function infoProducto(facturaId, productoId, seccionId) {
             document.getElementById('segmento').innerHTML = htmlSegmento;
             document.getElementById('seccion').innerHTML = htmlSeccion;
 
-            $('#modal_devolver_producto').modal('show');
+            abrirModal('modal_devolver_producto');
 
         })
         .catch(err => {
@@ -213,9 +407,9 @@ function agregarProductoLista() {
         Swal.fire({
             icon: "warning",
             title: "Advertencia!",
-            text: "El producto con la secci��n correspondiente ya se encuentra en la lista.",
+            text: "El producto con la sección correspondiente ya se encuentra en la lista.",
         })
-        $('#modal_devolver_producto').modal('hide')
+        cerrarModal('modal_devolver_producto');
         return;
     }
     //****************Comprueba si el producto con la seccion se repite************************/
@@ -223,7 +417,7 @@ function agregarProductoLista() {
 
 
     if (+cantidad == 0 || !cantidad) {
-        $('#modal_devolver_producto').modal('hide')
+        cerrarModal('modal_devolver_producto');
         Swal.fire({
             icon: "warning",
             title: "Advertencia",
@@ -234,7 +428,7 @@ function agregarProductoLista() {
 
 
     if (+cantidad > +cantidadMaxima) {
-        $('#modal_devolver_producto').modal('hide')
+        cerrarModal('modal_devolver_producto');
         Swal.fire({
             icon: "warning",
             title: "Advertencia",
@@ -327,7 +521,7 @@ function agregarProductoLista() {
 
     let idCuerpoLista = document.getElementById("cuerpoLista");
 
-    $('#modal_devolver_producto').modal('hide')
+    cerrarModal('modal_devolver_producto');
     idCuerpoLista.insertAdjacentHTML('beforeend', html);
     document.getElementById("form_producto_devolver").reset();
     $('#form_producto_devolver').parsley().reset();
@@ -529,21 +723,85 @@ $(document).on('submit', '#guardar_devolucion', function(event) {
 });
 
 function guardarNotaCredito() {
-    let idFactura = document.getElementById("idFactura").value;
+    var tipoNota = document.getElementById('tipo_nota_credito').value;
+
+    // Validaciones según tipo
+    if (tipoNota === 'producto') {
+        if (arrayInputs.length === 0) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Advertencia',
+                text: 'Debe agregar al menos un producto a la nota de crédito.',
+            });
+            return;
+        }
+    } else if (tipoNota === 'descuento') {
+        var monto = parseFloat(document.getElementById('monto_descuento').value) || 0;
+        var comentarioDesc = document.getElementById('comentario_descuento').value.trim();
+        if (monto <= 0) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Advertencia',
+                text: 'Debe ingresar un monto de descuento mayor a cero.',
+            });
+            return;
+        }
+        if (!comentarioDesc) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Advertencia',
+                text: 'Debe ingresar un comentario para la nota de crédito por descuento.',
+            });
+            return;
+        }
+    }
+
+    let idFactura;
+    
+    // Obtener idFactura según el tipo de nota
+    if (tipoNota === 'descuento') {
+        // En modo descuento, obtenemos directamente del select de factura
+        idFactura = document.getElementById('factura').value;
+        if (!idFactura) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Advertencia',
+                text: 'Debe seleccionar una factura.',
+            });
+            return;
+        }
+    } else {
+        // En modo producto, obtenemos del campo oculto
+        idFactura = document.getElementById("idFactura").value;
+        if (!idFactura) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Advertencia',
+                text: 'Debe seleccionar los productos de la factura.',
+            });
+            return;
+        }
+    }
+    
     document.getElementById("btn_guardar_nota_credito").disabled = true;
 
     var dataForm = new FormData($('#guardar_devolucion').get(0));
 
     let longitudArreglo = arrayInputs.length;
     for (var i = 0; i < longitudArreglo; i++) {
-
-
-
         dataForm.append("arregloIdInputs[]", arrayInputs[i]);
-
     }
 
     dataForm.append("idFactura", idFactura);
+    
+    // Debug temporal
+    console.log('Tipo de nota:', tipoNota);
+    console.log('ID Factura:', idFactura);
+    console.log('Array Inputs:', arrayInputs);
+    console.log('Valores del form:');
+    for (var pair of dataForm.entries()) {
+        console.log(pair[0] + ': ' + pair[1]);
+    }
 
     // let table = $('#tbl_translados_destino').DataTable();
     // table.destroy();
@@ -553,31 +811,60 @@ function guardarNotaCredito() {
 
             let data = response.data;
             let contador = data.contadorTranslados;
+            let idNotaCredito = data.idNota || 0;
 
             // document.getElementById("btn_guardar_nota_credito").disabled = false;
 
             //Eliminar DIVS y que muestre alert para imprimir
             //Agregar funcion para anular
-            Swal.fire({
-                icon: data.icon,
-                title: data.title,
-                html: data.text,
-
-            })
-
-            if(data.icon = 'warning'){
-                setTimeout(function(){
-                    location.reload();
-                }, 3000)
-            }else{
-                location.reload();
+            console.log('Respuesta del servidor:', data);
+            console.log('ID Nota Crédito:', idNotaCredito);
+            
+            // Guardar el ID en el modal para usarlo en la impresión
+            document.getElementById('modal_imprimir_nota_credito').setAttribute('data-id-nota', idNotaCredito);
+            
+            try {
+                if (typeof Swal !== 'undefined' && Swal !== null) {
+                    Swal.fire({
+                        icon: data.icon || 'info',
+                        title: data.title || 'Resultado',
+                        html: data.text || 'Operación completada',
+                        allowOutsideClick: false,
+                        allowEscapeKey: false,
+                        confirmButtonText: 'Aceptar',
+                        confirmButtonColor: '#3085d6',
+                        didOpen: () => {
+                            console.log('Alerta mostrada exitosamente');
+                        }
+                    }).then((result) => {
+                        // Si fue exitoso, mostrar modal de impresión
+                        if(data.icon === 'success' || data.icon === undefined) {
+                            console.log('Mostrando modal de impresión...');
+                            setTimeout(() => {
+                                abrirModal('modal_imprimir_nota_credito');
+                            }, 500);
+                        } else {
+                            // Si fue warning, recargar normalmente
+                            setTimeout(function(){
+                                location.reload();
+                            }, 1500);
+                        }
+                    });
+                } else {
+                    // Fallback si Swal no está disponible
+                    console.warn('Swal no disponible, usando alert nativo');
+                    alert((data.title || '') + '\n' + (data.text || ''));
+                    setTimeout(() => {
+                        abrirModal('modal_imprimir_nota_credito');
+                    }, 500);
+                }
+            } catch (e) {
+                console.error('Error al mostrar alerta:', e);
+                alert('Operación completada. Abriendo opciones de impresión...');
+                setTimeout(() => {
+                    abrirModal('modal_imprimir_nota_credito');
+                }, 1500);
             }
-
-
-
-
-           // location.reload()
-
 
             return;
 
@@ -586,16 +873,88 @@ function guardarNotaCredito() {
         .catch(err => {
             //console.log(err)
             document.getElementById("btn_guardar_nota_credito").disabled = false;
-            console.log(err);
-            $('#modal_transladar_producto').modal('hide')
+            console.error('Error al guardar nota de crédito:', err);
+            cerrarModal('modal_transladar_producto');
 
+            // Intentar obtener el mensaje del servidor
+            let errorMessage = "Ha ocurrido un error, reporte con soporte.";
+            let errorTitle = "Error";
+            
+            if (err.response && err.response.data) {
+                if (err.response.data.text) {
+                    errorMessage = err.response.data.text;
+                }
+                if (err.response.data.title) {
+                    errorTitle = err.response.data.title;
+                }
+                // Si hay información del error de la base de datos
+                if (err.response.data.error && err.response.data.error.errorInfo) {
+                    errorMessage += "<br><small>" + err.response.data.error.errorInfo[2] + "</small>";
+                }
+            } else if (err.message) {
+                errorMessage = err.message;
+            }
 
+            console.log('Mostrando error:', errorTitle, errorMessage);
 
-            Swal.fire({
-                icon: "error",
-                title: "Error",
-                text: "Ha ocurrido un error, reporte con soporte.",
-            })
+            try {
+                if (typeof Swal !== 'undefined' && Swal !== null) {
+                    Swal.fire({
+                        icon: "error",
+                        title: errorTitle,
+                        html: errorMessage,
+                        allowOutsideClick: false,
+                        allowEscapeKey: false,
+                        didOpen: () => {
+                            console.log('Error mostrado');
+                        }
+                    });
+                } else {
+                    console.warn('Swal no disponible para mostrar error');
+                    alert(errorTitle + '\n' + errorMessage.replace(/<[^>]*>/g, ''));
+                }
+            } catch (e) {
+                console.error('Error al mostrar alerta de error:', e);
+                alert(errorTitle + '\n' + errorMessage.replace(/<[^>]*>/g, ''));
+            }
 
         })
 }
+// ====== FUNCIONES PARA IMPRESIÓN ======
+
+function imprimirNotaCredito(tipo) {
+    // Obtener el ID de la nota crédito del atributo data del modal
+    let idNotaCredito = document.getElementById('modal_imprimir_nota_credito').getAttribute('data-id-nota');
+    
+    if (!idNotaCredito || idNotaCredito === '0') {
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'No se encontró el ID de la nota de crédito. Intente nuevamente.'
+        });
+        return;
+    }
+    
+    let url = '';
+    
+    if (tipo === 'original') {
+        url = `/nota/credito/imprimir/${idNotaCredito}`;
+    } else if (tipo === 'copia') {
+        url = `/nota/credito/imprimir/copia/${idNotaCredito}`;
+    }
+    
+    if (url) {
+        // Abrir en nueva ventana para que el usuario pueda imprimir
+        window.open(url, '_blank');
+    }
+}
+
+function finalizarYContinuar() {
+    cerrarModal('modal_imprimir_nota_credito');
+    // Recargar la página
+    setTimeout(() => {
+        location.reload();
+    }, 500);
+}
+
+// ======================================

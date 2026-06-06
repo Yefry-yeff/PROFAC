@@ -104,6 +104,8 @@ class Producto extends Component
             $producto->precio_base = trim($request['precioBase']);
             $producto->ultimo_costo_compra = trim($request->ultimo_costo_compra);
             $producto->marca_id = $request->marca_producto;
+            $producto->tiempo_recuperacion_meses = $request->tiempo_recuperacion_meses ?: null;
+            $producto->origen = trim($request->origen ?? '')  ?: null;
             $producto->users_id = Auth::user()->id;
             $producto->estado_producto_id = 1;
             $producto->unidad_medida_compra_id = $request->unidad_producto;
@@ -205,35 +207,11 @@ class Producto extends Component
     }
 
 
-    public function listarProductos()
+    public function listarProductos(Request $request)
     {
         try {
-            $listaProductos = DB::SELECT("
-
-            select
-            A.id as 'codigo',
-            A.nombre,
-            A.descripcion,
-            A.isv as 'ISV',
-            C.descripcion as 'categoria',
-            @existenciaCompra := IFNULL ((select
-            sum(cantidad_disponible)
-            from recibido_bodega
-            inner join compra
-            on recibido_bodega.compra_id = compra.id
-            where compra.estado_compra_id=1 and  producto_id = A.id), 0)  as 'existenciaCompra',
-           @existenciaAjuste := IFNULL (
-           (
-            select
-            sum(cantidad_disponible)
-            from recibido_bodega  G
-            where G.compra_id is null and G.cantidad_disponible <> 0 and G.producto_id = A.id),0 ) as 'existenciaAjuste',
-            FORMAT(@existenciaCompra + @existenciaAjuste,0) as existencia,
-            A.codigo_barra
-            from producto A
-            inner join sub_categoria B on A.sub_categoria_id = B.id
-            inner join categoria_producto C on C.id = B.categoria_producto_id
-            WHERE A.id not in (
+            // IDs excluidos
+            $excluidos = [
 
                 1157,
                 1321,
@@ -296,31 +274,129 @@ class Producto extends Component
                 2417,
                 3887,
                 3888
-                        )
-            order by A.created_at DESC
-                        ");
+                        ];
 
-            return Datatables::of($listaProductos)
-                ->addColumn('disponibilidad', function ($listaProductos) {
+            // Query rápida sin existencia inicial - sin orderBy para que DataTables lo maneje
+            $query = DB::table('producto as A')
+                ->select(
+                    'A.id as codigo',
+                    'A.nombre',
+                    'A.descripcion',
+                    'A.isv as ISV',
+                    'C.descripcion as categoria',
+                    'A.codigo_barra',
+                    'A.created_at',
+                    'A.estado_producto_id'
+                )
+                ->join('sub_categoria as B', 'A.sub_categoria_id', '=', 'B.id')
+                ->join('categoria_producto as C', 'C.id', '=', 'B.categoria_producto_id')
+                ->leftJoin('marca as M', 'M.id', '=', 'A.marca_id')
+                ->whereNotIn('A.id', $excluidos);
 
-                    return
+            return Datatables::of($query)
+                ->addColumn('existencia', function ($producto) {
+                    // Calcular existencia solo para los productos de la página actual
+                    $existenciaCompra = DB::table('recibido_bodega')
+                        ->join('compra', 'recibido_bodega.compra_id', '=', 'compra.id')
+                        ->where('compra.estado_compra_id', 1)
+                        ->where('recibido_bodega.producto_id', $producto->codigo)
+                        ->sum('recibido_bodega.cantidad_disponible');
 
-                        '
-                <div class="btn-group">
-                <button data-toggle="dropdown" class="btn btn-warning dropdown-toggle" aria-expanded="false">Ver
-                    más</button>
-                <ul class="dropdown-menu" x-placement="bottom-start"
-                    style="position: absolute; top: 33px; left: 0px; will-change: top, left;">
+                    $existenciaAjuste = DB::table('recibido_bodega')
+                        ->whereNull('compra_id')
+                        ->where('cantidad_disponible', '<>', 0)
+                        ->where('producto_id', $producto->codigo)
+                        ->sum('cantidad_disponible');
 
-                    <li><a class="dropdown-item" href="/producto/detalle/' . $listaProductos->codigo . '" target="_blank"  > <i class="fa-solid fa-arrows-to-eye text-info"></i>
-                            Ver detalles </a></li>
-
-                </ul>
-            </div>
-                ';
+                    return number_format($existenciaCompra + $existenciaAjuste, 0);
                 })
+                ->addColumn('estado', function ($producto) {
+                    if ($producto->estado_producto_id == 1) {
+                        return '<span class="badge-activo">Activo</span>';
+                    }
+                    return '<span class="badge-inactivo">Inactivo</span>';
+                })
+                ->addColumn('disponibilidad', function ($producto) {
+                    $editBtn = '<a class="dropdown-item" href="/producto/detalle/'.$producto->codigo.'"><i class="fa fa-edit mr-1"></i> Editar</a>';
+                    if ($producto->estado_producto_id == 1) {
+                        $toggleBtn = '<a class="dropdown-item text-danger" href="#" onclick="cambiarEstadoProducto('.$producto->codigo.', 2)"><i class="fa fa-ban mr-1"></i> Inactivar</a>';
+                    } else {
+                        $toggleBtn = '<a class="dropdown-item text-success" href="#" onclick="cambiarEstadoProducto('.$producto->codigo.', 1)"><i class="fa fa-check-circle mr-1"></i> Activar</a>';
+                    }
+                    return '
+                    <div class="prod-dropdown dropdown">
+                        <button class="btn-prod-menu" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            <i class="fa fa-ellipsis-v"></i>
+                        </button>
+                        <div class="dropdown-menu dropdown-menu-right">'.
+                            $editBtn.
+                            $toggleBtn.
+                        '</div>
+                    </div>';
+                })
+                ->filter(function ($query) use ($request) {
+                    $q            = trim($request->get('filtro_q', ''));
+                    $desc         = trim($request->get('filtro_descripcion', ''));
+                    $isv          = $request->get('filtro_isv', '');
+                    $categoriaId  = (int) $request->get('filtro_categoria_id', 0);
+                    $marcaId      = (int) $request->get('filtro_marca_id', 0);
 
-                ->rawColumns(['disponibilidad'])
+                    if ($q !== '') {
+                        $words = array_values(array_filter(array_map('trim', explode(' ', $q))));
+                        foreach ($words as $word) {
+                            $query->where(function ($wq) use ($word) {
+                                $wq->where('A.nombre', 'LIKE', "%{$word}%")
+                                   ->orWhere('A.codigo_barra', 'LIKE', "%{$word}%")
+                                   ->orWhere('A.codigo_estatal', 'LIKE', "%{$word}%");
+                                if (is_numeric($word) && ctype_digit($word)) {
+                                    $wq->orWhere('A.id', (int) $word);
+                                }
+                            });
+                        }
+                    }
+
+                    if ($desc !== '') {
+                        $query->where('A.descripcion', 'LIKE', "%{$desc}%");
+                    }
+
+                    if ($isv === '0') {
+                        $query->where('A.isv', 0);
+                    } elseif ($isv === 'con') {
+                        $query->where('A.isv', '>', 0);
+                    }
+
+                    if ($categoriaId) {
+                        $query->where('C.id', $categoriaId);
+                    }
+
+                    if ($marcaId) {
+                        $query->where('A.marca_id', $marcaId);
+                    }
+
+                    $estadoId = (int) $request->get('filtro_estado', 0);
+                    if ($estadoId) {
+                        $query->where('A.estado_producto_id', $estadoId);
+                    }
+                })
+                ->orderColumn('codigo', function ($query, $order) {
+                    $query->orderBy('A.id', $order);
+                })
+                ->orderColumn('nombre', function ($query, $order) {
+                    $query->orderBy('A.nombre', $order);
+                })
+                ->orderColumn('descripcion', function ($query, $order) {
+                    $query->orderBy('A.descripcion', $order);
+                })
+                ->orderColumn('codigo_barra', function ($query, $order) {
+                    $query->orderBy('A.codigo_barra', $order);
+                })
+                ->orderColumn('ISV', function ($query, $order) {
+                    $query->orderBy('A.isv', $order);
+                })
+                ->orderColumn('categoria', function ($query, $order) {
+                    $query->orderBy('C.descripcion', $order);
+                })
+                ->rawColumns(['disponibilidad', 'estado'])
                 ->make(true);
         } catch (QueryException $e) {
 
@@ -329,6 +405,22 @@ class Producto extends Component
                 'message' => 'Ha ocurrido un error al listar los productos.',
                 'errorTh' => $e,
             ], 402);
+        }
+    }
+
+    public function inactivarProducto(Request $request)
+    {
+        try {
+            $id     = (int) $request->id;
+            $estado = (int) $request->estado; // 1 = Activo, 2 = Inactivo
+            if (!$id || !in_array($estado, [1, 2])) {
+                return response()->json(['message' => 'Parámetros inválidos.'], 422);
+            }
+            DB::table('producto')->where('id', $id)->update(['estado_producto_id' => $estado]);
+            $msg = $estado === 1 ? 'Producto activado correctamente.' : 'Producto inactivado correctamente.';
+            return response()->json(['message' => $msg], 200);
+        } catch (QueryException $e) {
+            return response()->json(['message' => 'Error al cambiar el estado del producto.', 'error' => $e->getMessage()], 500);
         }
     }
 
@@ -396,8 +488,9 @@ class Producto extends Component
                 marca_id,
                 unidad_medida_compra_id,
                 unidadad_compra,
-                ultimo_costo_compra
-
+                ultimo_costo_compra,
+                tiempo_recuperacion_meses,
+                origen
 
             from producto where id =".$id);
 
@@ -475,20 +568,27 @@ class Producto extends Component
             $producto = ModelProducto::find($request['id_producto_edit']);
             $producto->nombre = trim($request['nombre_producto_edit']);
             $producto->descripcion = trim($request['descripcion_producto_edit']);
-            $producto->isv = trim($request['isv_producto_edit']);
             $producto->codigo_barra = $codBarra;
             $producto->codigo_estatal = trim($request['cod_estatal_producto_edit']);
             $producto->sub_categoria_id = $request['sub_categoria_producto_edit'];
-            $producto->precio_base = trim($request['precioBase_edit']);
-            $producto->costo_promedio = $request['costo_promedio_editar'];
             $producto->unidadad_compra = trim($request['unidades_editar']);
-            $producto->ultimo_costo_compra = trim($request->ultimo_costo_compra_editar);
             $producto->unidad_medida_compra_id = $request['unidad_producto_editar'];
-            $producto->precio1 = $request['precio1'];
-            $producto->precio2 = $request['precio2'];
-            $producto->precio3 = $request['precio3'];
-            $producto->precio4 = $request['precio4'];
             $producto->marca_id= $request->marca_producto_editar;
+            $producto->tiempo_recuperacion_meses = $request->tiempo_recuperacion_meses_edit ?: null;
+            $producto->origen = trim($request->origen_edit ?? '') ?: null;
+
+            // Solo el administrador puede modificar ISV y precios/costos
+            if (Auth::user()->rol_id == 1) {
+                $producto->isv = trim($request['isv_producto_edit']);
+                $producto->precio_base = trim($request['precioBase_edit']);
+                $producto->costo_promedio = $request['costo_promedio_editar'];
+                $producto->ultimo_costo_compra = trim($request->ultimo_costo_compra_editar);
+                $producto->precio1 = $request['precio1'];
+                $producto->precio2 = $request['precio2'];
+                $producto->precio3 = $request['precio3'];
+                $producto->precio4 = $request['precio4'];
+            }
+
             $producto->users_id = Auth::user()->id;
             $producto->save();
 
@@ -527,6 +627,54 @@ class Producto extends Component
                         'errorTh' => $e,
                     ], 402);
                 }
+    }
+
+    /**
+     * Editar producto desde la pantalla de Diseño.
+     * Solo actualiza campos de información general (sin precios ni costos).
+     */
+    public function editarProductoDiseno(Request $request)
+    {
+        try {
+            $codBarra = trim($request['cod_barra_producto_edit'] ?? '');
+
+            if ($codBarra !== '') {
+                $contadorCodBarra = DB::SELECTONE(
+                    "select count(id) as contador from producto where codigo_barra = " .
+                    (int) $codBarra . " and id <> " . (int) $request['id_producto_edit']
+                );
+                if ($contadorCodBarra->contador > 0) {
+                    return response()->json([
+                        'icon'  => 'error',
+                        'title' => 'Error!',
+                        'text'  => 'El código de barra ya está registrado para otro producto.',
+                    ], 401);
+                }
+            }
+
+            $producto = ModelProducto::find($request['id_producto_edit']);
+            if (!$producto) {
+                return response()->json(['message' => 'Producto no encontrado.'], 404);
+            }
+
+            $producto->nombre                  = trim($request['nombre_producto_edit']);
+            $producto->descripcion             = trim($request['descripcion_producto_edit']);
+            $producto->codigo_barra            = $codBarra;
+            $producto->codigo_estatal          = trim($request['cod_estatal_producto_edit'] ?? '');
+            $producto->sub_categoria_id        = $request['sub_categoria_producto_edit'];
+            $producto->unidadad_compra         = trim($request['unidades_editar']);
+            $producto->unidad_medida_compra_id = $request['unidad_producto_editar'];
+            $producto->marca_id                = $request['marca_producto_editar'];
+            $producto->users_id                = Auth::user()->id;
+            $producto->save();
+
+            return response()->json(['message' => 'Producto editado con éxito.'], 200);
+        } catch (QueryException $e) {
+            return response()->json([
+                'message'  => 'Ha ocurrido un error al editar el producto.',
+                'errorTh'  => $e,
+            ], 402);
+        }
     }
 
     public function calcularCostos(Request $request){
@@ -589,21 +737,24 @@ class Producto extends Component
 
     }
 
-    public function export(){
+    public function export(Request $request){
         try {
-
-            return Excel::download(new ProductosExport, 'DatosProductos.xlsx');
-
+            $filtros = [
+                'q'            => trim($request->get('filtro_q', '')),
+                'descripcion'  => trim($request->get('filtro_descripcion', '')),
+                'isv'          => $request->get('filtro_isv', ''),
+                'categoria_id' => (int) $request->get('filtro_categoria_id', 0),
+                'marca_id'     => (int) $request->get('filtro_marca_id', 0),
+            ];
+            return Excel::download(new ProductosExport($filtros), 'DatosProductos.xlsx');
         } catch (QueryException $e) {
             return response()->json([
-
                 'error' => $e,
                 "text" => "Ha ocurrido un error.",
                 "icon" => "error",
                 "title"=>"Error!"
             ],402);
         }
-
     }
 
 

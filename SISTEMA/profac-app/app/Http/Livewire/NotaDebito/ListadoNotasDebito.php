@@ -72,13 +72,13 @@ class ListadoNotasDebito extends Component
 
                     return
                     '
-                    <p class="text-center" ><span class="badge badge-primary p-2" style="font-size:0.75rem">Activo</span></p>
+                    <p class="text-center" ><span class="p-2 badge badge-primary" style="font-size:0.75rem">Activo</span></p>
                     ';
 
                 }else if($listanotaDebito->estado_id == 2) {
                     return
                     '
-                    <p class="text-center"><span class="badge badge-danger p-2" style="font-size:0.75rem">Inactivo</span></p>
+                    <p class="text-center"><span class="p-2 badge badge-danger" style="font-size:0.75rem">Inactivo</span></p>
                     ';
                 }
 
@@ -125,7 +125,7 @@ class ListadoNotasDebito extends Component
                 }else if($listanotaDebito->estado_id == 2 ||  $listanotaDebito->estado_sumado == 1) {
                     return
                     '
-                    <p class="text-center"><span class="badge badge-danger p-2" style="font-size:0.75rem">Sin Acciones</span></p>
+                    <p class="text-center"><span class="p-2 badge badge-danger" style="font-size:0.75rem">Sin Acciones</span></p>
                     ';
                 }
 

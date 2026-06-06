@@ -1,4 +1,4 @@
-
+﻿
 listarNotasDebito();
 function listarNotasDebito(){
 
@@ -11,7 +11,7 @@ function listarNotasDebito(){
     $('#tbl_listar_notas_debito').DataTable({
     "order": [3, 'desc'],
     "language": {
-        "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
+        "url": "/js/plugins/dataTables/i18n/Spanish.json"
     },
     "order": [0, 'desc'],
     pageLength: 10,

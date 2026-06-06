@@ -54,16 +54,6 @@
                 transform: translateX(26px);
             }
 
-
-
-
-            /* #divProductos  input {
-            font-size: 0.8rem;
-
-
-          } */
-
-
             .img-size {
                 /*width: 10rem*/
                 width: 100%;
@@ -91,14 +81,12 @@
 
             }
 
-            /* Chrome, Safari, Edge, Opera */
             input::-webkit-outer-spin-button,
             input::-webkit-inner-spin-button {
                 -webkit-appearance: none;
                 margin: 0;
             }
 
-            /* Estilos para el scanner de códigos de barras */
             #cameraContainer {
                 position: relative;
                 width: 100%;
@@ -401,7 +389,7 @@
 
                                         <label for="porDescuento" class="col-form-label focus-label">Descuento aplicado %
                                             :<span class="text-danger">*</span></label>
-                                        <input class="form-control" oninput="validarDescuento()" onchange="calcularTotalesInicioPagina()" type="number" value="0" max="100" min="0"  mminlength="1" maxlength="2" id="porDescuento" name="porDescuento"  >
+                                        <input class="form-control" oninput="validarDescuento()" onchange="calcularTotalesInicioPagina()" type="number" value="0" max="50" min="0"  mminlength="1" maxlength="2" id="porDescuento" name="porDescuento"  >
                                         <p id="mensajeError" style="color: red;"></p>
 
 
@@ -673,7 +661,6 @@
                             <div class="row">
 
 
-
                                 <div class="form-group col-12 col-sm-12 col-md-2 col-lg-1 col-xl-1">
                                     <label class="col-form-label" for="subTotalGeneralGrabadoMostrar">Sub Total
                                         Grabado L.<span class="text-danger">*</span></label>
@@ -808,6 +795,7 @@
         <!-- Librería QuaggaJS para scanner de códigos de barras -->
         <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
 
+        <script>var public_path = "{{ asset('catalogo/') }}";</script>
         <script src="{{ asset('js/js_proyecto/cotizaciones/expo.js') }}"></script>
 
     @endpush

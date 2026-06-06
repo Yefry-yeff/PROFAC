@@ -179,7 +179,7 @@ class ListarCotizacionesExpo extends Component
                             <a class="dropdown-item" target="_blank"  href="/cotizacion/edicion/'.$cotizacion->id.'" > <i class="fa-solid fa-file-invoice text-info"></i> Editar </a>
                         </li>
                         <li>
-                            <a class="dropdown-item" target="_blank"  href="/cotizacion/facturar/gobierno/'.$cotizacion->id.'" > <i class="fa-solid fa-file-invoice text-info"></i> Facturar </a>
+                            <a class="dropdown-item" target="_blank"  href="/ventas/estatal/'.$cotizacion->id.'" > <i class="fa-solid fa-file-invoice text-info"></i> Facturar </a>
                         </li>
 
 

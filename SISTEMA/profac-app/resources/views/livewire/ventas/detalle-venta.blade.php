@@ -1,4 +1,4 @@
-<div>
+﻿<div>
     @push('styles')
     <style>
         .text-success-custom{
@@ -333,7 +333,7 @@
 
                 $('#tbl_lista_venta').DataTable({
                     "language": {
-                        "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
+                        "url": "/js/plugins/dataTables/i18n/Spanish.json"
                     },
                     pageLength: 10,
                     responsive: true,
@@ -378,7 +378,7 @@
 
                 $('#tbl_ubicacion_producto').DataTable({
                     "language": {
-                        "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
+                        "url": "/js/plugins/dataTables/i18n/Spanish.json"
                     },
                     pageLength: 10,
                     responsive: true,
@@ -455,7 +455,7 @@
 
                 $('#tbl_pagos_venta_lista').DataTable({
                     "language": {
-                        "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
+                        "url": "/js/plugins/dataTables/i18n/Spanish.json"
                     },
                     pageLength: 10,
                     responsive: true,

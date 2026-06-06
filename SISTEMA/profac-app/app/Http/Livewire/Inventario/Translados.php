@@ -45,6 +45,208 @@ class Translados extends Component
        }
     }
 
+    /* =========================================================
+     *  Métodos optimizados para el buscador en vista traslados
+     * ========================================================= */
+
+    /**
+     * Búsqueda de productos filtrada por bodega.
+     * Usa joinSub (tabla derivada) en lugar de WHERE EXISTS correlacionado
+     * para que el motor de BD pueda materializar el subconjunto una sola vez.
+     */
+    public function buscarProductos(Request $request)
+    {
+        session()->save();
+        $q        = trim($request->get('q', ''));
+        $catId    = $request->get('categoria_id', '');
+        $marcaId  = $request->get('marca_id', '');
+        $bodegaId = (int) $request->get('bodega_id', 0);
+        $page     = max(1, (int) $request->get('page', 1));
+        $perPage  = 12;
+
+        if (!$bodegaId) {
+            return response()->json(['data'=>[],'total'=>0,'current_page'=>1,'per_page'=>$perPage,'last_page'=>1]);
+        }
+
+        // Subquery: IDs y stock de productos disponibles en esta bodega
+        $stockSub = DB::table('recibido_bodega as rb')
+            ->join('seccion as sc', 'sc.id', '=', 'rb.seccion_id')
+            ->join('segmento as sg', 'sg.id', '=', 'sc.segmento_id')
+            ->select('rb.producto_id', DB::raw('SUM(rb.cantidad_disponible) as stock'))
+            ->where('sg.bodega_id', $bodegaId)
+            ->whereRaw('rb.cantidad_disponible > 0')
+            ->groupBy('rb.producto_id');
+
+        $query = DB::table('producto as p')
+            ->joinSub($stockSub, 'bq', 'bq.producto_id', '=', 'p.id')
+            ->leftJoin('marca as m', 'm.id', '=', 'p.marca_id')
+            ->select(['p.id', 'p.nombre', 'p.codigo_barra', 'p.codigo_estatal',
+                      'p.isv', 'm.nombre as marca_nombre', 'bq.stock']);
+
+        $words = $q !== '' ? array_values(array_filter(array_map('trim', explode(' ', $q)))) : [];
+        foreach ($words as $word) {
+            $query->where(function ($wq) use ($word) {
+                $wq->whereRaw('p.nombre LIKE ?', ["%{$word}%"])
+                   ->orWhereRaw('p.codigo_barra LIKE ?', ["%{$word}%"])
+                   ->orWhereRaw('p.codigo_estatal LIKE ?', ["%{$word}%"]);
+                if (is_numeric($word) && ctype_digit($word)) {
+                    $wq->orWhere('p.id', (int) $word);
+                }
+            });
+        }
+
+        if ($catId !== '' && $catId !== null && $catId !== '0') {
+            $query->join('sub_categoria as sc2', 'sc2.id', '=', 'p.sub_categoria_id')
+                  ->where('sc2.categoria_producto_id', (int) $catId);
+        }
+        if ($marcaId !== '' && $marcaId !== null && $marcaId !== '0') {
+            $query->where('p.marca_id', (int) $marcaId);
+        }
+
+        $total = (clone $query)->count('p.id');
+
+        if ($q !== '') {
+            if (is_numeric($q) && ctype_digit($q)) {
+                $query->orderByRaw('(p.id = ?) DESC', [(int) $q]);
+            }
+            $query->orderByRaw('(LOWER(p.nombre) = LOWER(?)) DESC', [$q])
+                  ->orderByRaw('(LOWER(p.nombre) LIKE ?) DESC', [mb_strtolower($q) . '%']);
+        }
+        $query->orderBy('p.nombre');
+
+        $items = $query->offset(($page - 1) * $perPage)->limit($perPage)->get();
+
+        if ($items->isNotEmpty()) {
+            $ids    = $items->pluck('id')->all();
+            $imgMap = DB::table('img_producto')
+                ->select('producto_id', 'url_img')
+                ->whereIn('producto_id', $ids)
+                ->orderBy('producto_id')->orderBy('id')
+                ->get()->unique('producto_id')->keyBy('producto_id');
+
+            $items->each(function ($item) use ($imgMap) {
+                $item->imagen = isset($imgMap[$item->id]) ? $imgMap[$item->id]->url_img : null;
+            });
+        }
+
+        return response()->json([
+            'data'         => $items,
+            'total'        => $total,
+            'current_page' => $page,
+            'per_page'     => $perPage,
+            'last_page'    => max(1, (int) ceil($total / $perPage)),
+        ]);
+    }
+
+    /**
+     * Top 12 productos más trasladados desde esta bodega.
+     */
+    public function topTrasladados(Request $request)
+    {
+        session()->save();
+        $bodegaId = (int) $request->get('bodega_id', 0);
+
+        if (!$bodegaId) return response()->json([]);
+
+        $items = DB::table('log_translado as lt')
+            ->join('recibido_bodega as rb', 'rb.id', '=', 'lt.origen')
+            ->join('seccion as sc', 'sc.id', '=', 'rb.seccion_id')
+            ->join('segmento as sg', 'sg.id', '=', 'sc.segmento_id')
+            ->join('producto as p', 'p.id', '=', 'rb.producto_id')
+            ->leftJoin('marca as m', 'm.id', '=', 'p.marca_id')
+            ->select([
+                'p.id', 'p.nombre', 'p.codigo_barra', 'p.codigo_estatal', 'p.isv',
+                'm.nombre as marca_nombre',
+                DB::raw('SUM(lt.cantidad) as total_vendido'),
+            ])
+            ->where('sg.bodega_id', $bodegaId)
+            ->where('lt.descripcion', 'Translado de bodega')
+            ->groupBy('p.id', 'p.nombre', 'p.codigo_barra', 'p.codigo_estatal', 'p.isv', 'm.nombre')
+            ->orderByDesc('total_vendido')
+            ->limit(12)
+            ->get();
+
+        if ($items->isNotEmpty()) {
+            $ids = $items->pluck('id')->all();
+
+            $stockSub2 = DB::table('recibido_bodega as rb2')
+                ->join('seccion as sc2', 'sc2.id', '=', 'rb2.seccion_id')
+                ->join('segmento as sg2', 'sg2.id', '=', 'sc2.segmento_id')
+                ->select('rb2.producto_id', DB::raw('SUM(rb2.cantidad_disponible) as stock'))
+                ->whereIn('rb2.producto_id', $ids)
+                ->where('sg2.bodega_id', $bodegaId)
+                ->whereRaw('rb2.cantidad_disponible > 0')
+                ->groupBy('rb2.producto_id')
+                ->get()->keyBy('producto_id');
+
+            $imgMap = DB::table('img_producto')
+                ->select('producto_id', 'url_img')
+                ->whereIn('producto_id', $ids)
+                ->orderBy('producto_id')->orderBy('id')
+                ->get()->unique('producto_id')->keyBy('producto_id');
+
+            $items->each(function ($item) use ($stockSub2, $imgMap) {
+                $item->stock  = isset($stockSub2[$item->id]) ? (float) $stockSub2[$item->id]->stock : 0;
+                $item->imagen = isset($imgMap[$item->id])   ? $imgMap[$item->id]->url_img : null;
+            });
+        }
+
+        return response()->json($items);
+    }
+
+    /**
+     * Categorías que tienen productos DISPONIBLES en la bodega indicada.
+     */
+    public function categoriasBodega(Request $request)
+    {
+        session()->save();
+        $bodegaId = (int) $request->get('bodega_id', 0);
+
+        $cats = DB::table('categoria_producto as cp')
+            ->select('cp.id', DB::raw('cp.descripcion as text'))
+            ->whereExists(function ($sub) use ($bodegaId) {
+                $sub->select(DB::raw(1))
+                    ->from('recibido_bodega as rb')
+                    ->join('producto as pr', 'pr.id', '=', 'rb.producto_id')
+                    ->join('sub_categoria as sca', 'sca.id', '=', 'pr.sub_categoria_id')
+                    ->join('seccion as sc', 'sc.id', '=', 'rb.seccion_id')
+                    ->join('segmento as sg', 'sg.id', '=', 'sc.segmento_id')
+                    ->whereColumn('sca.categoria_producto_id', 'cp.id')
+                    ->whereRaw('rb.cantidad_disponible > 0')
+                    ->where('sg.bodega_id', $bodegaId);
+            })
+            ->orderBy('cp.descripcion')
+            ->get();
+
+        return response()->json($cats);
+    }
+
+    /**
+     * Marcas que tienen productos DISPONIBLES en la bodega indicada.
+     */
+    public function marcasBodega(Request $request)
+    {
+        session()->save();
+        $bodegaId = (int) $request->get('bodega_id', 0);
+
+        $marcas = DB::table('marca as m')
+            ->select('m.id', DB::raw('m.nombre as text'))
+            ->whereExists(function ($sub) use ($bodegaId) {
+                $sub->select(DB::raw(1))
+                    ->from('recibido_bodega as rb')
+                    ->join('producto as pr', 'pr.id', '=', 'rb.producto_id')
+                    ->join('seccion as sc', 'sc.id', '=', 'rb.seccion_id')
+                    ->join('segmento as sg', 'sg.id', '=', 'sc.segmento_id')
+                    ->whereColumn('pr.marca_id', 'm.id')
+                    ->whereRaw('rb.cantidad_disponible > 0')
+                    ->where('sg.bodega_id', $bodegaId);
+            })
+            ->orderBy('m.nombre')
+            ->get();
+
+        return response()->json($marcas);
+    }
+
     public function listarSecciones(Request $request){
        try {
 
@@ -74,12 +276,13 @@ class Translados extends Component
     public function listarProductos(Request $request){
        try {
 
+        $search = '%' . $request->search . '%';
         $listaProductos = DB::select("
         select
-            B.id ,
+            B.id,
             B.nombre,
-            concat(B.id,' - ',B.nombre) as text
-
+            SUM(A.cantidad_disponible) as cantidad_total,
+            CONCAT(B.id, ' - ', B.nombre, '  (Disp: ', FLOOR(SUM(A.cantidad_disponible)), ')') as text
         from recibido_bodega A
             inner join producto B
             on A.producto_id = B.id
@@ -89,8 +292,11 @@ class Translados extends Component
             on seccion.segmento_id = segmento.id
             inner join bodega
             on segmento.bodega_id = bodega.id
-            where bodega.id=".$request->idBodega." and (B.nombre like '%".$request->search."%' or B.id like '%".$request->search."%') limit 15
-        ");
+        where bodega.id = ? and A.cantidad_disponible > 0
+            and (B.nombre like ? or CAST(B.id AS CHAR) like ?)
+        group by B.id, B.nombre
+        limit 15
+        ", [$request->idBodega, $search, $search]);
 
        return response()->json([
            "results" => $listaProductos
@@ -208,6 +414,7 @@ class Translados extends Component
         DB::beginTransaction();
 
         $trasladoID = new ModelTranslado();
+        $trasladoID->comentario = $request->motivo ?? '';
         $trasladoID->save();
         $IDtraslado = $trasladoID->id;
 
@@ -217,11 +424,13 @@ class Translados extends Component
         $keyUnidadMedidaId = "unidadMedidaId".$arregloIdInputs[$i];
         $keyCantidad = "cantidad".$arregloIdInputs[$i];
         $keyIdSeccion = "idSeccion".$arregloIdInputs[$i];
+        $keyComentarioItem = "comentarioItem".$arregloIdInputs[$i];
 
         $idRecibido = $request->$keyIdRecibido;
         $unidadMedidaId = $request->$keyUnidadMedidaId;
         $cantidad = $request->$keyCantidad;
         $idSeccion = $request->$keyIdSeccion;
+        $comentarioItem = $request->$keyComentarioItem ?? '';
 
 
         $productoEnBodega = ModelRecibirBodega::find($idRecibido);
@@ -255,7 +464,10 @@ class Translados extends Component
                 $logTranslados->unidad_medida_venta_id =  $unidadMedidaId;
                 $logTranslados->users_id= Auth::user()->id;
                 $logTranslados->descripcion="Translado de bodega";
+                $logTranslados->comentario = $comentarioItem;
                 $logTranslados->translado_id= $IDtraslado;
+                $logTranslados->created_at = now();
+                $logTranslados->updated_at = now();
                 $logTranslados->save();
 
 
@@ -284,7 +496,8 @@ class Translados extends Component
                 "text" =>  $text2,
                 "icon" => "warning",
                 "title"=>"Advertencia!",
-                "contadorTranslados" => $contadorTranslados
+                "contadorTranslados" => $contadorTranslados,
+                "trasladoId" => $IDtraslado
             ], 200);
 
 
@@ -293,7 +506,8 @@ class Translados extends Component
                  "text" => "El producto ha sido transladado de bodega con éxito.",
                  "icon" => "success",
                  "title"=>"Exito!",
-                 "contadorTranslados" => $contadorTranslados
+                 "contadorTranslados" => $contadorTranslados,
+                 "trasladoId" => $IDtraslado
              ], 200);
         }
 
@@ -421,7 +635,8 @@ class Translados extends Component
         CONCAT(A.origen,A.destino,'-' ,A.id) as codigo,
         DATE_FORMAT(tr.created_at,'%d/%m/%Y') as fecha,
         B.name,
-        A.descripcion
+        A.descripcion,
+        tr.comentario
 
         from log_translado A
         inner join translado tr on A.translado_id = tr.id

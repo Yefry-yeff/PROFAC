@@ -1,6 +1,73 @@
 
-$('#btnEC').css('display','none');
-$('#btnEC').hide();
+$('#btnEC').addClass('d-none');
+
+$('#tbl_principal_div').addClass('d-none');
+$('#tbl_movimientos_div').addClass('d-none');
+$('#tbl_creditos_abonos_div').addClass('d-none');
+
+// Almacena el FormData del formulario de abonos antes de que el modal
+// lo limpie (hidden.bs.modal destruye selectBanco), para enviarlo al confirmar.
+var _pendingAbonoData = null;
+
+// Fix: prevent aria-hidden focus warning when Bootstrap modals close
+$(document).on('hide.bs.modal', '.modal', function () {
+    if (document.activeElement && $.contains(this, document.activeElement)) {
+        document.activeElement.blur();
+    }
+});
+
+/* ── MENÚ CONTEXTUAL ACCIONES ────────────────────────────────────
+   Reemplaza el dropdown de Bootstrap para evitar el clipping de
+   table-responsive y la interferencia de estilos de Inspinia.
+   El menú usa position:fixed y detecta si abrir arriba o abajo.
+──────────────────────────────────────────────────────────────── */
+function apCtxToggle(btn) {
+    var $btn  = $(btn);
+    var $menu = $btn.siblings('.ap-ctx-menu');
+    var isOpen = $menu.is(':visible');
+
+    // Cerrar todos los menús abiertos
+    $('.ap-ctx-menu:visible').hide();
+
+    if (isOpen) return;
+
+    // Mover el menú al body para escapar del overflow del table-responsive
+    if (!$menu.data('ap-moved')) {
+        $menu.data('ap-origin', $menu.parent());
+        $menu.appendTo('body');
+        $menu.data('ap-moved', true);
+        $menu.data('ap-btn', $btn);
+    }
+
+    var rect    = btn.getBoundingClientRect();
+    var menuW   = 240;
+    var winW    = window.innerWidth;
+    var winH    = window.innerHeight;
+    var spaceB  = winH - rect.bottom - 6;
+    var spaceA  = rect.top - 6;
+
+    // Posición horizontal: alinear a la derecha del botón, ajustar si se sale
+    var left = rect.right - menuW;
+    if (left < 8) left = rect.left;
+    if (left + menuW > winW - 8) left = winW - menuW - 8;
+
+    // Posición vertical: abajo si hay espacio, arriba si no
+    $menu.css({ position: 'fixed', left: left, zIndex: 99999, display: 'block', top: -9999 });
+    var menuH = $menu.outerHeight(true);
+    var top   = (spaceB >= menuH || spaceB >= spaceA) ? rect.bottom + 4 : rect.top - menuH - 4;
+    $menu.css('top', top);
+}
+
+// Cerrar al hacer clic fuera
+$(document).on('click', function (e) {
+    if (!$(e.target).closest('.ap-ctx-wrap, .ap-ctx-menu').length) {
+        $('.ap-ctx-menu:visible').hide();
+    }
+});
+// Cerrar al hacer scroll
+$(window).on('scroll resize', function () { $('.ap-ctx-menu:visible').hide(); });
+
+
     $('#cliente').select2({
         ajax: {
             url: '/aplicacion/pagos/clientes',
@@ -16,6 +83,9 @@ $('#btnEC').hide();
             }
         }
     });
+
+
+
 
 
 function modalRetencion(codigoPago, retencion, estadoRetencion, caiFactura, idFactura){
@@ -196,25 +266,35 @@ function datosNotaDebito(){
     });
 }
 
-function modalOtrosMovimientos(codigoPagoA, caiFactura, idFactura ){
+function modalOtrosMovimientos(codigoPagoA, caiFactura, idFactura, saldo){
     $('#codAplicPagoom').val(codigoPagoA);
     $('#facturaCaiom').val(caiFactura);
     $('#idFacturaom').val(idFactura);
 
-    $('#modalOtrosMovimientos').modal('show');
+    var s = parseFloat(saldo) || 0;
+    $('#montoTM').val(s > 0 ? s.toFixed(2) : '');
+    $('#om-saldo-label').text(s > 0 ? '(Total: L. ' + s.toLocaleString('es-HN', {minimumFractionDigits:2, maximumFractionDigits:2}) + ')' : '');
 
+    $('#modalOtrosMovimientos').modal('show');
 }
 
-function modalAbonos(codigoPagoA, caiFactura, idFactura){
+function modalAbonos(codigoPagoA, caiFactura, idFactura, saldo){
     $('#codAplicPagoAbono').val(codigoPagoA);
     $('#facturaCaiAbono').val(caiFactura);
     $('#idFacturaAbono').val(idFactura);
+
+    var s = parseFloat(saldo) || 0;
+    $('#montoAbono').val(s > 0 ? s.toFixed(2) : '');
+    $('#abono-saldo-label').text(s > 0 ? '(Total: L. ' + s.toLocaleString('es-HN', {minimumFractionDigits:2, maximumFractionDigits:2}) + ')' : '');
 
     datosBanco();
     $('#modalAbonos').modal('show');
 }
 
 function llamarTablas(){
+    $('#tbl_principal_div').removeClass('d-none');
+    $('#tbl_movimientos_div').removeClass('d-none');
+    $('#tbl_creditos_abonos_div').removeClass('d-none');
 
     $("#tbl_cuentas_facturas_cliente").dataTable().fnDestroy();
     $("#tbl_tipo_movimientos_cliente").dataTable().fnDestroy();
@@ -225,6 +305,10 @@ function llamarTablas(){
 
     this.listarMovimientos();
     this.listarAbonos()
+
+    $('#btnEC').removeClass('d-none');
+    $('#apStats').removeClass('d-none');
+
 
 }
 
@@ -303,34 +387,42 @@ function listarCuentasPorCobrar() {
 
 
                 ],initComplete: function () {
-                    var r = $('#tbl_cuentas_facturas_cliente tfoot tr');
-                    r.find('th').each(function(){
-                      $(this).css('padding', 8);
-                    });
-                    $('#tbl_cuentas_facturas_cliente thead').append(r);
-                    $('#search_0').css('text-align', 'center');
                     this.api()
                         .columns()
                         .every(function () {
                             let column = this;
-                            let title = column.footer().textContent;
+                            let footer = column.footer();
+                            if (!footer) return;
+                            let title = footer.textContent;
 
                             // Create input element
                             let input = document.createElement('input');
                             input.placeholder = title;
-                            column.footer().replaceChildren(input);
+                            input.style.width = '100%';
+                            footer.replaceChildren(input);
 
                             // Event listener for user input
                             input.addEventListener('keyup', () => {
-                                if (column.search() !== this.value) {
+                                if (column.search() !== input.value) {
                                     column.search(input.value).draw();
                                 }
                             });
                         });
 
-
-
-
+                    // ── Stats cards ──
+                    var api = this.api();
+                    var rows = api.data().toArray();
+                    var fmt = function(n){ return 'L. '+parseFloat(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','); };
+                    $('#apStatFacturas').text(rows.length);
+                    $('#apStatCargo').text(fmt(rows.reduce(function(s,r){ return s+parseFloat(r.cargo||0); },0)));
+                    $('#apStatSaldo').text(fmt(rows.reduce(function(s,r){ return s+parseFloat(r.saldo||0); },0)));
+                    $('#apStatAbonado').text(fmt(rows.reduce(function(s,r){ return s+parseFloat(r.abonosCargo||0); },0)));
+                    // ── Badge pestaña Facturas ──
+                    $('#badge-facturas').text(rows.length);
+                },
+                drawCallback: function() {
+                    var count = this.api().data().count();
+                    $('#badge-facturas').text(count);
                 }
 
             });
@@ -409,34 +501,32 @@ function listarMovimientos() {
                     }
 
                 ],initComplete: function () {
-                    var r = $('#tbl_tipo_movimientos_cliente tfoot tr');
-                    r.find('th').each(function(){
-                      $(this).css('padding', 8);
-                    });
-                    $('#tbl_tipo_movimientos_cliente thead').append(r);
-                    $('#search_0').css('text-align', 'center');
                     this.api()
                         .columns()
                         .every(function () {
                             let column = this;
-                            let title = column.footer().textContent;
+                            let footer = column.footer();
+                            if (!footer) return;
+                            let title = footer.textContent;
 
                             // Create input element
                             let input = document.createElement('input');
                             input.placeholder = title;
-                            column.footer().replaceChildren(input);
+                            input.style.width = '100%';
+                            footer.replaceChildren(input);
 
                             // Event listener for user input
                             input.addEventListener('keyup', () => {
-                                if (column.search() !== this.value) {
+                                if (column.search() !== input.value) {
                                     column.search(input.value).draw();
                                 }
                             });
                         });
-
-
-
-
+                    // ── Badge pestaña Movimientos ──
+                    $('#badge-movimientos').text(this.api().data().count());
+                },
+                drawCallback: function() {
+                    $('#badge-movimientos').text(this.api().data().count());
                 }
 
             });
@@ -499,34 +589,32 @@ function listarAbonos() {
 
 
                 ],initComplete: function () {
-                    var r = $('#tbl_abonos_cliente tfoot tr');
-                    r.find('th').each(function(){
-                      $(this).css('padding', 8);
-                    });
-                    $('#tbl_abonos_cliente thead').append(r);
-                    $('#search_0').css('text-align', 'center');
                     this.api()
                         .columns()
                         .every(function () {
                             let column = this;
-                            let title = column.footer().textContent;
+                            let footer = column.footer();
+                            if (!footer) return;
+                            let title = footer.textContent;
 
                             // Create input element
                             let input = document.createElement('input');
                             input.placeholder = title;
-                            column.footer().replaceChildren(input);
+                            input.style.width = '100%';
+                            footer.replaceChildren(input);
 
                             // Event listener for user input
                             input.addEventListener('keyup', () => {
-                                if (column.search() !== this.value) {
+                                if (column.search() !== input.value) {
                                     column.search(input.value).draw();
                                 }
                             });
                         });
-
-
-
-
+                    // ── Badge pestaña Créditos y Abonos ──
+                    $('#badge-abonos').text(this.api().data().count());
+                },
+                drawCallback: function() {
+                    $('#badge-abonos').text(this.api().data().count());
                 }
 
             });
@@ -732,15 +820,130 @@ $(document).on('submit', '#formabonos', function(event) {
     $('#btn_notaabono').css('display','none');
     $('#btn_notaabono').hide();
 
-
-    $('#modalAbonos').modal('hide');
-
     event.preventDefault();
+
+    var facturaId        = $('#idFacturaAbono').val();
+    var montoAbono       = $('#montoAbono').val();
+    var aplicacionPagoId = $('#codAplicPagoAbono').val();
+
+    // Consultar si este pago cerrará la factura y qué roles recibirán comisión
+    axios.get('/pagos/preview-comisiones', {
+        params: {
+            factura_id:          facturaId,
+            monto_abono:         montoAbono,
+            aplicacion_pagos_id: aplicacionPagoId
+        }
+    }).then(function(response) {
+        var preview = response.data;
+
+        if (preview.cerrara) {
+            // Capturar FormData ANTES de ocultar el modal
+            _pendingAbonoData = new FormData($('#formabonos').get(0));
+
+            if (preview.targets && preview.targets.length > 0) {
+                renderPreviewComisiones(preview.targets);
+            } else {
+                // Cerrará la factura pero ningún rol tiene configuración activa
+                renderPreviewSinComisiones();
+            }
+
+            $('#modalAbonos').one('hidden.bs.modal', function() {
+                $('.modal-backdrop').remove();
+                $('body').removeClass('modal-open').css('padding-right', '');
+                $('#modalPreviewComisiones').modal('show');
+            });
+            $('#modalAbonos').modal('hide');
+        } else {
+            // No cerrará o ya fue comisionada — proceder directamente
+            $('#modalAbonos').modal('hide');
+            guardarCreditos();
+        }
+    }).catch(function() {
+        // En caso de error en el preview, proceder igual
+        $('#modalAbonos').modal('hide');
+        guardarCreditos();
+    });
+});
+
+/* Renderiza aviso cuando la factura cierra pero ningún rol tiene configuración activa */
+function renderPreviewSinComisiones() {
+    var html =
+        '<div style="background:#f8fafc;border:1.5px solid #cbd5e1;border-radius:12px;overflow:hidden;">' +
+            '<div style="background:#475569;padding:12px 16px;display:flex;align-items:center;gap:10px;">' +
+                '<i class="fa fa-info-circle" style="color:#94a3b8;font-size:16px;"></i>' +
+                '<span style="color:#e2e8f0;font-size:12.5px;font-weight:700;letter-spacing:.2px;">Sin escala de comisiones aplicable</span>' +
+            '</div>' +
+            '<div style="padding:16px 18px;display:flex;align-items:flex-start;gap:14px;">' +
+                '<i class="fa fa-clock-o" style="color:#94a3b8;font-size:22px;margin-top:1px;flex-shrink:0;"></i>' +
+                '<div>' +
+                    '<p style="margin:0;font-size:13px;font-weight:700;color:#334155;">Esta factura no generará comisiones</p>' +
+                    '<p style="margin:6px 0 0;font-size:12px;color:#64748b;line-height:1.6;">' +
+                        'Es probable que esta factura sea anterior a la configuración actual de escalas de comisiones, ' +
+                        'o que los roles involucrados no tengan una escala activa asignada.<br>' +
+                        '<strong style="color:#475569;">El pago se registrará normalmente</strong>, pero no se procesará ninguna comisión automática.' +
+                    '</p>' +
+                '</div>' +
+            '</div>' +
+        '</div>';
+    $('#preview-comisiones-lista').html(html);
+}
+
+/* Renderiza la tabla de roles a comisionar en el modal de preview */
+function renderPreviewComisiones(targets) {
+    var tipoConfig = {
+        1: { label: 'FACTURADOR', color: '#f59e0b' },
+        2: { label: 'ROL REAL',   color: '#3b82f6' },
+        3: { label: 'VENDEDOR',   color: '#10b981' }
+    };
+
+    var html = '<div class="table-responsive">'
+        + '<table class="table table-bordered table-sm mb-0" style="font-size:.9rem;">'
+        + '<thead style="background:#1e40af;color:#fff;">'
+        + '<tr><th style="width:120px;">Capacidad</th><th>Empleado</th><th>Rol de Comisión</th><th class="text-center" style="width:110px;">Escala Activa</th></tr>'
+        + '</thead><tbody>';
+
+    targets.forEach(function(t) {
+        var cfg   = tipoConfig[t.tipo] || { label: 'N/D', color: '#6b7280' };
+        var badge = '<span style="background:' + cfg.color + ';color:#fff;padding:2px 8px;border-radius:8px;font-size:10px;font-weight:700;">'
+            + cfg.label + '</span>';
+        var escala = t.tiene_escala
+            ? '<span class="badge badge-success" style="font-size:10px;">&#10003; Configurada</span>'
+            : '<span class="badge badge-secondary" style="font-size:10px;">&#8212; Sin escala</span>';
+
+        html += '<tr>'
+            + '<td class="text-center">' + badge + '</td>'
+            + '<td><i class="fa fa-user mr-1 text-muted"></i><strong>' + t.empleado + '</strong></td>'
+            + '<td>' + t.rol_nombre + '</td>'
+            + '<td class="text-center">' + escala + '</td>'
+            + '</tr>';
+    });
+
+    html += '</tbody></table></div>';
+    $('#preview-comisiones-lista').html(html);
+}
+
+/* Confirmar: cerrar preview y ejecutar el guardado */
+$(document).on('click', '#btn-confirmar-y-guardar-pago', function() {
+    $('#modalPreviewComisiones').modal('hide');
     guardarCreditos();
 });
 
+/* Cancelar: cerrar preview y reabrir el modal de abonos */
+$(document).on('click', '#btn-cancel-preview-comision', function() {
+    $('#modalPreviewComisiones').one('hidden.bs.modal', function() {
+        $('.modal-backdrop').remove();
+        $('body').removeClass('modal-open').css('padding-right', '');
+        $('#btn_notaabono').css('display','block').show();
+        $('#modalAbonos').modal('show');
+    });
+    $('#modalPreviewComisiones').modal('hide');
+});
+
 function guardarCreditos(){
-    var data = new FormData($('#formabonos').get(0));
+    // Usar los datos capturados antes del cierre del modal (para no perder
+    // selectBanco que es limpiado por el evento hidden.bs.modal)
+    var data = _pendingAbonoData ? _pendingAbonoData : new FormData($('#formabonos').get(0));
+    _pendingAbonoData = null;
 
     axios.post("/pagos/creditos/guardar", data)
         .then(response => {
@@ -803,6 +1006,112 @@ function AnularOtroMov(idOtroMov){
 
     })
 
+}
+
+function modalAnularAbono(idAbono, correlativo) {
+    axios.get('/pagos/abono/impacto/' + idAbono)
+        .then(function (response) {
+            var d = response.data;
+
+            var html = ''
+                + '<div style="text-align:left; font-size:13px;">'
+                + '<p><b>Factura:</b> ' + (d.correlativo_factura || correlativo || '-') + '</p>'
+                + '<p><b>Monto a anular:</b> L. ' + Number(d.monto_abono || 0).toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</p>'
+                + '<p><b>Saldo resultante:</b> L. ' + Number(d.saldo_resultante || 0).toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</p>';
+
+            if (d.factura_estaba_cerrada) {
+                html += '<div class="alert alert-warning" style="padding:8px; margin-top:8px;">'
+                     + '<b>Atención:</b> La factura está cerrada y se reabrirá al anular este pago. '
+                     + 'Esto habilita nuevamente operaciones como notas de crédito/débito y otros ajustes.'
+                     + '</div>';
+            }
+
+            if (d.tiene_comisiones && Array.isArray(d.comisiones) && d.comisiones.length > 0) {
+                html += '<div class="alert alert-danger" style="padding:8px; margin-top:8px;">'
+                     + '<b>Comisiones a reversar:</b><ul style="margin:6px 0 0 18px;">';
+
+                d.comisiones.forEach(function (c) {
+                    html += '<li>'
+                         + (c.usuario_nombre || 'Empleado') + ' (' + (c.rol_nombre || 'Rol') + ') - '
+                         + 'L. ' + Number(c.monto_revertido || 0).toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                         + '</li>';
+                });
+
+                html += '</ul></div>';
+            }
+
+            html += '</div>';
+
+            Swal.fire({
+                icon: 'warning',
+                title: 'Confirmar anulación de pago',
+                html: html,
+                input: 'textarea',
+                inputLabel: 'Motivo de anulación (obligatorio)',
+                inputPlaceholder: 'Escriba el motivo de la anulación...',
+                inputAttributes: {
+                    'aria-label': 'Motivo de anulación'
+                },
+                showCancelButton: true,
+                confirmButtonText: 'Sí, anular pago',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#d33',
+                preConfirm: function (motivo) {
+                    if (!motivo || !motivo.trim()) {
+                        Swal.showValidationMessage('Debe ingresar un motivo para continuar.');
+                        return false;
+                    }
+                    return motivo.trim();
+                }
+            }).then(function (result) {
+                if (!result.isConfirmed) return;
+
+                var formData = new FormData();
+                formData.append('abono_id', idAbono);
+                formData.append('motivo', result.value);
+
+                axios.post('/pagos/abono/anular', formData)
+                    .then(function (resp) {
+                        $('#tbl_cuentas_facturas_cliente').DataTable().ajax.reload();
+                        $('#tbl_abonos_cliente').DataTable().ajax.reload();
+
+                        Swal.fire({
+                            icon: (resp.data && resp.data.icon) ? resp.data.icon : 'success',
+                            title: (resp.data && resp.data.title) ? resp.data.title : 'Éxito',
+                            text: (resp.data && resp.data.text) ? resp.data.text : 'Pago anulado correctamente.'
+                        });
+                    })
+                    .catch(function (err) {
+                        var data = (err.response && err.response.data) ? err.response.data : {};
+                        Swal.fire({
+                            icon: data.icon || 'error',
+                            title: data.title || 'Error',
+                            text: data.text || 'No fue posible anular el pago.'
+                        });
+                        console.error(err);
+                    });
+            });
+        })
+        .catch(function (err) {
+            var data = (err.response && err.response.data) ? err.response.data : {};
+            Swal.fire({
+                icon: data.icon || 'error',
+                title: data.title || 'Error',
+                text: data.error || data.text || 'No se pudo cargar el impacto de la anulación.'
+            });
+            console.error(err);
+        });
+}
+
+function metodoPago() {
+    var metodo = document.getElementById('selectMetodoPago').value;
+    var selectBanco = document.getElementById('selectBanco');
+    // EFECTIVO (1) does not require a bank; all other methods do
+    if (metodo == '1') {
+        selectBanco.removeAttribute('required');
+    } else {
+        selectBanco.setAttribute('required', 'required');
+    }
 }
 
 function datosBanco(){

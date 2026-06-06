@@ -35,7 +35,7 @@
                                         <label for="selectBodega" class="col-form-label focus-label">Seleccionar
                                             Bodega:</label>
                                         <select id="selectBodega" class="form-group form-control" style=""
-                                            data-parsley-required onchange="obteneProducto()">
+                                            data-parsley-required>
                                             <option value="" selected disabled>--Seleccionar una Bodega--</option>
                                         </select>
 
@@ -47,13 +47,21 @@
 
                                 <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6">
 
-                                    <label for="selectProducto" class="col-form-label focus-label">Seleccionar
+                                    <label class="col-form-label focus-label">Seleccionar
                                         Producto:</label>
-                                    <select id="selectProducto" class="form-group form-control" style=""
-                                        data-parsley-required disabled >
-                                        <option value="" selected disabled>--Seleccionar un producto por codigo ó
-                                            nombre--</option>
-                                    </select>
+                                    <div class="input-group">
+                                        <input type="text" id="productoTraslado_nombre"
+                                               class="form-control" readonly
+                                               placeholder="-- Seleccionar un producto --"
+                                               data-parsley-required>
+                                        <input type="hidden" id="selectProducto" value="">
+                                            <button type="button" id="btn_abrir_buscador_traslado"
+                                                    class="btn btn-info" disabled
+                                                    onclick="window['abrirBuscador_buscadorProductoTraslados']('')">
+                                                <i class="fa fa-search"></i> Buscar
+                                            </button>
+                                        </div>
+                                    </div>
 
                                 </div>
 
@@ -105,9 +113,9 @@
 
 
     <!-- Modal para transferir producto a otra bodega-->
-    <div class="modal fade" id="modal_transladar_producto" tabindex="-22" role="dialog"
+    <div class="modal fade" id="modal_transladar_producto" tabindex="-1" role="dialog"
         aria-labelledby="modal_transladar_productoLabel" aria-hidden="true">
-        <div class="modal-dialog" role="document">
+        <div class="modal-dialog modal-dialog-centered" role="document">
             <div class="modal-content">
                 <div class="modal-header">
                     <h3 class="modal-title" id="modal_transladar_productoLabel"> Transladar a otra bodega </h3>
@@ -172,6 +180,12 @@
                                     </select>
                                 </div>
 
+                                <div class="form-group">
+                                    <label for="comentario_item">Comentario (opcional)</label>
+                                    <textarea id="comentario_item" name="comentario_item" class="form-control"
+                                        rows="2" placeholder="Ingrese un comentario (opcional)"></textarea>
+                                </div>
+
                                 <input id="idProducto" type="hidden" value="">
 
                             </form>
@@ -213,6 +227,7 @@
                                                 <th>Seccion</th>
                                                 <th>Cantidad</th>
                                                 <th>Uniad de medida</th>
+                                                <th>Comentario</th>
                                             </tr>
                                         </thead>
 
@@ -224,7 +239,7 @@
 
                                     </table>
 
-                                    <button id="btn_guardar_translado" type="submit" form="guardar_translados"   class="btn btn-primary btn-lg mb-4 mt-3" >Guardar Translado</button>
+                                    <button id="btn_guardar_translado" type="button" onclick="abrirModalMotivo()"   class="btn btn-primary btn-lg mb-4 mt-3" >Guardar Translado</button>
                                 </div>
                             </div>
                     </div>
@@ -274,6 +289,110 @@
         </div>
     </div>
 
+
+    {{-- Buscador de productos filtrado por bodega (solo traslados) --}}
+    <x-buscador-producto id-modal="buscadorProductoTraslados"
+                         callback="alSeleccionarProductoTraslado"
+                         bodega-id-var="__traslados_bodega_id"
+                         url-buscar="/translado/buscar/productos"
+                         url-top="/translado/buscar/top-trasladados"
+                         url-filtros="/translado/buscar"
+                         top-label="Más trasladados" />
+
+    <!-- Modal para motivo del traslado (obligatorio al guardar) -->
+    <div class="modal fade" id="modal_motivo_traslado" tabindex="-1" role="dialog"
+        aria-labelledby="modal_motivo_trasladoLabel" aria-hidden="true" data-backdrop="static" data-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 class="modal-title" id="modal_motivo_trasladoLabel">Motivo del Traslado</h3>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="motivo_traslado">
+                            Motivo del traslado <span class="text-danger">*</span>
+                        </label>
+                        <textarea id="motivo_traslado" class="form-control" rows="3"
+                            placeholder="Ingrese el motivo del traslado..."></textarea>
+                        <small id="motivo_error" class="text-danger d-none">El motivo del traslado es obligatorio.</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Cancelar</button>
+                    <button id="btn_confirmar_traslado" type="button" class="btn btn-primary">Confirmar Traslado</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Impresión de Traslado -->
+    <div class="modal fade" id="modal_imprimir_traslado" tabindex="-1" role="dialog"
+        aria-labelledby="modal_imprimir_traslado" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white border-bottom-0">
+                    <div>
+                        <h4 class="modal-title mb-0">
+                            <i class="fa fa-check-circle"></i> Traslado Registrado
+                        </h4>
+                        <p class="modal-text-small text-light mb-0 mt-1" style="font-size: 0.9rem;">
+                            El traslado ha sido guardado exitosamente en el sistema
+                        </p>
+                    </div>
+                    <button type="button" class="close text-white" aria-label="Close" onclick="cerrarModalImpresionTraslado()">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body" style="background-color: #f8f9fa;">
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h5 class="text-dark mb-3">
+                                <i class="fa fa-print text-primary"></i>
+                                <strong>Opciones de impresión</strong>
+                            </h5>
+                            <p class="text-muted small">
+                                Se abrirá una nueva ventana con el documento listo para imprimir.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="row justify-content-center">
+                        <div class="col-12 col-sm-6 mb-3">
+                            <button type="button" class="btn btn-primary btn-block py-3" onclick="imprimirTrasladoPDF()">
+                                <div>
+                                    <i class="fa fa-print fa-lg"></i>
+                                </div>
+                                <div style="margin-top: 8px;">
+                                    <strong>Imprimir Traslado</strong>
+                                    <br>
+                                    <small class="text-muted">Abrir PDF en nueva pestaña</small>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <div class="alert alert-info border-left-4" style="border-left: 4px solid #17a2b8;">
+                                <i class="fa fa-info-circle"></i>
+                                <strong>Información:</strong>
+                                Se abrirá el PDF en una nueva ventana del navegador.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top">
+                    <button type="button" class="btn btn-secondary" onclick="cerrarModalImpresionTraslado()">
+                        <i class="fa fa-times"></i> Cerrar
+                    </button>
+                    <button type="button" class="btn btn-success" onclick="cerrarModalImpresionTraslado()">
+                        <i class="fa fa-check"></i> Finalizar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
 @push('scripts')
 <script src="{{ asset('js/js_proyecto/inventario/traslados.js') }}"></script>

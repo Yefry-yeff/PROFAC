@@ -1,4 +1,4 @@
-function carga_libro_venta() {
+﻿function carga_libro_venta() {
     $("#tbl_libro_venta").dataTable().fnDestroy();
 
     var fechaInicioInput = document.getElementById('fecha_inicio').value;
@@ -23,7 +23,7 @@ function carga_libro_venta() {
         order: ['0', 'desc'],
         paging: true,
         language: {
-            url: "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
+            url: "/js/plugins/dataTables/i18n/Spanish.json"
         },
         pageLength: 8,
         responsive: true,

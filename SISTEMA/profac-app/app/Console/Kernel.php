@@ -2,6 +2,8 @@
 
 namespace App\Console;
 
+use App\Jobs\AlertasRotacionInventarioJob;
+use App\Jobs\EscalarNotificacionesJob;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 
@@ -15,7 +17,11 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
-        // $schedule->command('inspire')->hourly();
+        // Verificar notificaciones sin leer y escalar según configuración
+        $schedule->job(new EscalarNotificacionesJob)->hourly();
+
+        // Evaluar alertas inteligentes de rotación e inventario (diario a las 6:00 AM)
+        $schedule->job(new AlertasRotacionInventarioJob)->dailyAt('06:00');
     }
 
     /**

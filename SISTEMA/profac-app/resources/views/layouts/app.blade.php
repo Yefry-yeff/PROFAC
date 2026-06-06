@@ -7,7 +7,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <title>{{ config('app.name', 'D. VALENCIA') }}</title>
-    <link rel="icon" type="image/x-icon" href="/img/valencia-fondo-transparente.png">
+    <link rel="icon" type="image/jpeg" href="/img/LOGO_VALENCIA.jpg">
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     @livewireStyles
     @stack('styles')<!--Por esta ranura se cargan los estilos de las paginas individuales-->
@@ -47,9 +47,6 @@
     <!--select2-->
     <link href="{{ asset('css/plugins/select2/select2.min.css') }}" rel="stylesheet">
 
-    <!-- Scripts -->
-    <script src="{{ mix('js/app.js') }}" defer></script>
-
 
 
 </head>
@@ -73,7 +70,7 @@
         <div id="wrapper" class="" >
 
             <!-- Page Content -->
-            <div id="page-wrapper" class="gray-bg" style="margin-top:65px">
+            <div id="page-wrapper" class="gray-bg" style="margin-top:65px; padding-top:0;">
 
                 <div class="wrapper wrapper-content animated fadeInRight">
 
@@ -153,6 +150,12 @@
     <!--ApexChart-->
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 
+    <!-- Menu Search -->
+    <script src="{{ asset('js/js_proyecto/menu/menu-search.js') }}"></script>
+    
+    <!-- Menu Responsive -->
+    <script src="{{ asset('js/js_proyecto/menu/menu-responsive.js') }}"></script>
+
     <script>
 
     </script>
@@ -163,6 +166,7 @@
     @stack('scripts')
     @stack('modals')
     @livewireScripts
+    <script src="{{ mix('js/app.js') }}"></script>
 
 
 

@@ -22,12 +22,28 @@ class ListadoFacturas extends Component
 {
     public function render()
     {
-        return view('livewire.ventas.listado-facturas');
+        return view('livewire.ventas.listado-facturas-unificado', ['tipoVenta' => 'corporativo', 'nombreTipo' => 'Clientes B', 'esVendedor' => false]); // Vista unificada
     }
 
     public function listarFacturas(){
 
         try {
+            $filtroCai        = trim(request()->input('filtroCai', ''));
+            $filtroCliente    = trim(request()->input('filtroCliente', ''));
+            $filtroVendedor   = trim(request()->input('filtroVendedor', ''));
+            $filtroFacturador = trim(request()->input('filtroFacturador', ''));
+            $filtroDesde      = trim(request()->input('filtroDesde', ''));
+            $filtroHasta      = trim(request()->input('filtroHasta', ''));
+            $whereFilters = '';
+            $bindings     = [];
+            if ($filtroCai)        { $whereFilters .= " AND A.cai LIKE ? ";                                              $bindings[] = "%{$filtroCai}%"; }
+            if ($filtroCliente)    { $whereFilters .= " AND factura.nombre_cliente LIKE ? ";                             $bindings[] = "%{$filtroCliente}%"; }
+            if ($filtroVendedor)   { $whereFilters .= " AND users.name LIKE ? ";                                         $bindings[] = "%{$filtroVendedor}%"; }
+            if ($filtroFacturador) { $whereFilters .= " AND (SELECT name FROM users WHERE id = factura.users_id) LIKE ? "; $bindings[] = "%{$filtroFacturador}%"; }
+            if ($filtroDesde && $filtroHasta) { $whereFilters .= " AND DATE(factura.created_at) BETWEEN ? AND ? "; $bindings[] = $filtroDesde; $bindings[] = $filtroHasta; }
+            elseif ($filtroDesde)  { $whereFilters .= " AND DATE(factura.created_at) >= ? "; $bindings[] = $filtroDesde; }
+            elseif ($filtroHasta)  { $whereFilters .= " AND DATE(factura.created_at) <= ? "; $bindings[] = $filtroHasta; }
+
             if(Auth::user()->rol_id  == '1' || Auth::user()->rol_id  == '5' || Auth::user()->rol_id == '3' ){
 
             $listaFacturas = DB::SELECT("
@@ -61,9 +77,9 @@ class ListadoFacturas extends Component
             inner join cai A
             on factura.cai_id= A.id
             cross join (select @i := 0) r
-        where ( YEAR(factura.created_at) >= (YEAR(NOW())-2) )and factura.estado_factura_id=1 and factura.estado_venta_id<>2 and (factura.tipo_venta_id = 1)
+        where ( YEAR(factura.created_at) >= (YEAR(NOW())-2) )and factura.estado_factura_id=1 and factura.estado_venta_id<>2 and (factura.tipo_venta_id = 1) {$whereFilters}
         order by factura.created_at desc
-            ");
+            ", $bindings);
 
             }else{
 
@@ -97,7 +113,7 @@ class ListadoFacturas extends Component
                 inner join cai A
                 on factura.cai_id= A.id
                 cross join (select @i := 0) r
-            where ( YEAR(factura.created_at) >= (YEAR(NOW())-2) )and factura.estado_factura_id=1 and factura.estado_venta_id<>2 and (factura.tipo_venta_id = 1) and   factura.vendedor = ".Auth::user()->id." order by factura.created_at desc");
+            where ( YEAR(factura.created_at) >= (YEAR(NOW())-2) )and factura.estado_factura_id=1 and factura.estado_venta_id<>2 and (factura.tipo_venta_id = 1) and   factura.vendedor = ".Auth::user()->id."{$whereFilters} order by factura.created_at desc", $bindings);
             }
 
 
@@ -131,9 +147,6 @@ class ListadoFacturas extends Component
                             <a class="dropdown-item" target="_blank"  href="/facturaCoor/actaRec/'.$listaFacturas->id.'"> <i class="fa-solid fa-print text-info"></i> Imprimir Acta de Recepción </a>
                             </li>
 
-                            <li>
-                            <a class="dropdown-item"  onclick="anularVentaConfirmar('.$listaFacturas->id.')" > <i class="fa-solid fa-ban text-danger"></i> Anular Factura </a>
-                            </li>
 
                             <li>
                                 <a class="dropdown-item" href="/crear/vale/'.$listaFacturas->id.'" > <i class="fa-solid fa-calendar-days text-success"></i> Agendar Entrega </a>

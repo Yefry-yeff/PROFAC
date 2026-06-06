@@ -7,8 +7,6 @@ var retencionEstado = false; // true  aplica retencion, false no aplica retencio
 
 window.onload = obtenerTipoPago;
 
-var public_path = "{{ asset('catalogo/') }}";
-
 // for (let i = 0; i < arregloIdInputsTemporal.length; i++) {
 
 //     if(!isNaN(arregloIdInputsTemporal[i]) ){
@@ -35,7 +33,7 @@ function validarDescuento() {
     const mensajeError = document.getElementById('mensajeError');
     const numero = parseFloat(numeroInput.value);
 
-    if (isNaN(numero) || numero < 0 || numero > 25) {
+    if (isNaN(numero) || numero < 0 || numero > 50) {
         mensajeError.textContent = 'Este campo solo admite un valor entre 0 a 25';
         numeroInput.value = '';
     } else {
@@ -99,6 +97,47 @@ $('#seleccionarProducto').select2({
         }
     }
 });
+
+function cargarCategoriasProducto() {
+    let idProducto = document.getElementById('seleccionarProducto').value;
+
+    document.getElementById('categoriaCliente').innerHTML = "<option value='' selected disabled>--Cargando categorías--</option>";
+    document.getElementById('categoriaCliente').disabled = true;
+    document.getElementById('bodega').innerHTML = "<option value='' selected disabled>--Seleccione una categoría--</option>";
+    document.getElementById('bodega').disabled = true;
+
+    axios.post('/producto/categorias-disponibles', {
+        producto_id: idProducto
+    })
+    .then(response => {
+        let categorias = response.data.categorias;
+        let htmlCategorias = '<option value="" selected disabled>--Seleccione una categoría--</option>';
+
+        categorias.forEach(categoria => {
+            htmlCategorias += `<option value="${categoria.id}">${categoria.nombre_categoria}</option>`;
+        });
+
+        document.getElementById('categoriaCliente').innerHTML = htmlCategorias;
+        document.getElementById('categoriaCliente').disabled = false;
+
+        obtenerImagenes();
+    })
+    .catch(err => {
+        console.error(err);
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'No se pudieron cargar las categorías disponibles para este producto'
+        });
+        document.getElementById('categoriaCliente').innerHTML = "<option value='' selected disabled>--Error al cargar--</option>";
+    });
+}
+
+function habilitarBodega() {
+    let idProducto = document.getElementById('seleccionarProducto').value;
+    document.getElementById('bodega').disabled = false;
+    obtenerBodegas(idProducto);
+}
 
 function prueba() {
 
@@ -238,6 +277,7 @@ function obtenerImagenes() {
 
 function agregarProductoCarrito() {
     let idProducto = document.getElementById('seleccionarProducto').value;
+                let idCliente = document.getElementById('seleccionarCliente').value;
 
     let data = $("#bodega").select2('data')[0];
     let bodega = data.bodegaSeccion;
@@ -247,6 +287,7 @@ function agregarProductoCarrito() {
 
     axios.post('/ventas/datos/producto', {
             idProducto: idProducto,
+                        idCliente: idCliente,
 
         })
         .then(response => {
@@ -344,7 +385,7 @@ function agregarProductoCarrito() {
                                 <div class="form-group col-12 col-sm-12 col-md-1 col-lg-1 col-xl-1">
                                     <label for="precio${numeroInputs}" class="sr-only">Precio</label>
                                     <input type="number" placeholder="Precio Unidad" id="precio${numeroInputs}"
-                                        name="precio${numeroInputs}" value="${producto.precio_base}" class="form-control"  data-parsley-required step="any"
+                                        name="precio${numeroInputs}" value="${producto.precio1}" class="form-control"  data-parsley-required step="any"
                                         autocomplete="off"  onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
                                 </div>
 
@@ -775,34 +816,40 @@ function obtenerDatosCliente() {
                     let selectBox = document.getElementById("tipoPagoVenta");
                     selectBox.remove(2);
 
+                    $('#categoriaCliente').data('categoria-cliente-id', data.idcategoriacliente);
+                    if (document.getElementById('seleccionarProducto').value) {
+                        cargarCategoriasProducto();
+                    }
+
                 } else {
                     document.getElementById("nombre_cliente_ventas").readOnly = true;
                     document.getElementById("rtn_ventas").readOnly = true;
                     document.getElementById("nombre_cliente_ventas").value = data.nombre;
                     document.getElementById("rtn_ventas").value = data.rtn;
 
+                    $('#categoriaCliente').data('categoria-cliente-id', data.idcategoriacliente);
+                    if (document.getElementById('seleccionarProducto').value) {
+                        cargarCategoriasProducto();
+                    }
+
                     diasCredito = data.dias_credito;
                     obtenerTipoPago();
                     obtenerOrdenesCompra();
+                    cargarHistorialPreciosFacturaCotiGob();
                 }
 
                 // document.getElementById('fecha_vencimiento').value = "";
                 // document.getElementById('fecha_emision').value="";
 
-
-
             }
         )
         .catch(err => {
-
             console.log(err);
             Swal.fire({
                 icon: 'error',
                 title: 'Error...',
                 text: "Ha ocurrido un error al obtener los datos del cliente"
             })
-
-
         })
 
 }
@@ -896,7 +943,10 @@ function guardarVenta() {
                 '<option value="" selected disabled>--Seleccionar un cliente--</option>';
 
             document.getElementById('seleccionarProducto').innerHTML =
-                '<option value="" selected disabled>--Seleccione un producto--</option>';
+                '<option value="" selected disabled></option>';
+            document.getElementById('codigoProductoFacturaCotiGob').value = '';
+            var lbl_p = document.getElementById('productoSeleccionadoFacturaCotiGob');
+            if (lbl_p) { lbl_p.classList.add('d-none'); lbl_p.textContent = ''; }
             document.getElementById('bodega').innerHTML =
                 '<option value="" selected disabled>--Seleccione un producto--</option>';
             document.getElementById("bodega").disabled = true;

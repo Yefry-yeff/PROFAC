@@ -1,0 +1,34 @@
+INSERT INTO cardex (
+    fecha_creacion,
+    producto,
+    id_producto,
+    id_factura,
+    descripcion,
+    id_Bodega_origen,
+    id_segmento_origen,
+    id_seccion_origen,
+    cantidad,
+    usuario
+)
+select
+lt.created_at creacion,
+p.nombre nombre,
+p.id idproducto,
+f.id idfactura,
+concat(lt.descripcion,' (-)') descripcion,
+b.id idbodega,
+sg.id idsegmento,
+s.id idseccion,
+sum(vp.cantidad_s) cantidad,
+u.id usuario
+from log_translado lt
+inner join factura f on f.id = lt.factura_id 
+inner join recibido_bodega rb on lt.origen = rb.id 
+inner join producto p on p.id = rb.producto_id #and p.id=1433
+inner join seccion s on s.id = rb.seccion_id
+inner join segmento sg on sg.id = s.segmento_id
+inner join bodega b on b.id = sg.bodega_id #and b.id = 1
+inner join users u on u.id = lt.users_id
+INNER JOIN venta_has_producto vp on vp.factura_id=f.id and vp.producto_id = p.id
+where lt.destino is null  and lt.descripcion not in ('Vale de producto','Venta de producto - vale')
+group by lt.created_at,p.nombre,p.id,f.id,concat(lt.descripcion,' (-)'),b.id,sg.id,s.id,u.id;

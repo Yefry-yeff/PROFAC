@@ -10,5 +10,5 @@ class ModelTranslado extends Model
     use HasFactory;
     protected $table = 'translado';
     protected $primaryKey = 'id';
-    protected $fillable = ['id'];
+    protected $fillable = ['id', 'codigo', 'comentario'];
 }

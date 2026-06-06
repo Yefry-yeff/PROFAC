@@ -75,7 +75,7 @@
                             <table id="tbl_recibir_compra" class="table table-striped table-bordered table-hover">
                                 <thead class="">
                                     <tr>
-                                        <th>N°</th>
+                                        <th>No.</th>
                                         <th>Codigo de Producto</th>
                                         <th>Nombre</th>
                                         <th>Unidad de Medida</th>
@@ -198,7 +198,7 @@
                                     <label for="seccion">Seccion</label>
                                     <select class="form-control m-b" name="seccion" id="seccion" required
                                         data-parsley-required="">
-                                        <option value="" selected disabled>---Seleccione una sección---</option>
+                                        <option value="" selected disabled>---Seleccione una secci贸n---</option>
 
                                     </select>
                                 </div>
@@ -323,7 +323,7 @@
                                     <label for="seccionExcedente">Seccion</label>
                                     <select class="form-control m-b" name="seccionExcedente" id="seccionExcedente"
                                         required data-parsley-required="">
-                                        <option value="" selected disabled>---Seleccione una sección---</option>
+                                        <option value="" selected disabled>---Seleccione una secci贸n---</option>
 
                                     </select>
                                 </div>

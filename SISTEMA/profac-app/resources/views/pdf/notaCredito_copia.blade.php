@@ -1,11 +1,10 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html>
 
 <head>
 
 
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/css/bootstrap.min.css"
-        integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+        <link rel="stylesheet" href="{{ public_path('css/bootstrap.min.css') }}">
     <style>
         .color-red {
             color: red;
@@ -64,7 +63,7 @@
 
 
     <div class="pruebaFondo">
-        <img src="img/membrete/Logo3.png" width="800rem"
+        <img src="{{ public_path('img/membrete/Logo3.png') }}" width="800rem"
         style="margin-left:3%; margin-top:25px; position:absolute;"
          alt="">
 
@@ -93,7 +92,7 @@
 
                 <p class="card-text" style="position:absolute;left:20px;  top:47px;"><b>Correo:</b> {{$cliente->correo}}
                 </p>
-                <p class="card-text" style="position:absolute;left:20px;  top:70px;"><b>Notas:</b> </p>
+                <p class="card-text" style="position:absolute;left:20px;  top:70px;"><b>Notas:</b> {{ $notas }}</p>
 
 
                 <p class="card-text "  style="position:absolute;left:20px;  top:120px;"><b>Correlativo de Ord. exenta</b>

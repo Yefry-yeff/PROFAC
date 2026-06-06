@@ -1,0 +1,1811 @@
+<div>
+    @push('styles')
+        <style>
+            /* Chrome, Safari, Edge, Opera */
+            input::-webkit-outer-spin-button,
+            input::-webkit-inner-spin-button {
+                -webkit-appearance: none;
+                margin: 0;
+            }
+
+            /* Firefox */
+            input[type=number] {
+                -moz-appearance: textfield;
+            }
+
+
+
+            @media (max-width: 767.5px) {
+                .hide-container {
+                    display: none;
+                }
+
+            }
+
+            .center-div {
+                text-align: center
+            }
+        </style>
+    @endpush
+
+    <div class="wrapper wrapper-content animated fadeInRight">
+        <div class="row">
+            <div class="col-lg-12">
+                <div class="ibox ">
+                    <div class="ibox-content">
+                        <form onkeydown="return event.key != 'Enter';" autocomplete="off" id="crear_venta"
+                            name="crear_venta" data-parsley-validate>
+                            <input type="hidden" id="restriccion" name="restriccion" value="1">
+                            <input name="idComprobante" id="idComprobante" type="hidden" value="">
+                            <input type="hidden" id="tipo_venta_id" name="tipo_venta_id" value="2">
+
+                            <div class="row align-items-center">
+                                <div class="col-12 col-md-6 col-lg-6 col-xl-6">
+                                    <div class="gap-2 d-flex align-items-center flex-nowrap">
+                                        <h3 class="mb-0">
+                                            Venta Cliente A:
+                                        </h3>
+                                        <input
+                                            type="text"
+                                            id="numero_venta"
+                                            name="numero_venta"
+                                            class="form-control form-control-sm"
+                                            style="max-width: 140px;"
+                                            readonly
+                                        >
+                                    </div>
+                                </div>
+
+                                <div class="gap-2 col-12 col-md-6 col-lg-6 col-xl-6 d-flex align-items-center">
+                                    <span class="text-muted small">Categoría del Cliente:</span>
+                                    <span
+                                        id="categoria_cliente_nombre"
+                                        class="px-3 py-2 badge badge-info"
+                                    ></span>
+                                </div>
+                            </div>
+
+                            <div class="row">
+
+                                <div class="col-12 col-md-6 col-lg-6 col-xl-6">
+                                    <label for="seleccionarCliente" class="col-form-label focus-label">Seleccionar
+                                        Cliente:<span class="text-danger">*</span> </label>
+                                    <select id="seleccionarCliente" name="seleccionarCliente"
+                                        class="form-group form-control" style="" data-parsley-required
+                                        onchange="obtenerDatosCliente()">
+                                        <option value="" selected disabled>--Seleccionar un cliente--</option>
+                                    </select>
+                                </div>
+
+                                <div class="col-12 col-md-6 col-lg-6 col-xl-6">
+                                    <label class="col-form-label focus-label">Nombre del cliente: <span class="text-danger">*</span></label>
+                                    <input class="form-control" required type="text" id="nombre_cliente_ventas"
+                                        name="nombre_cliente_ventas" data-parsley-required readonly>
+                                </div>
+
+                                <div class="col-12 col-md-6 col-lg-6 col-xl-6">
+                                    <label for="vendedor" class="col-form-label focus-label">Seleccionar Vendedor:<span
+                                            class="text-danger">*</span> </label>
+                                    <select name="vendedor" id="vendedor" class="form-group form-control" required>
+                                        <option value="" selected disabled>--Seleccionar un vendedor--</option>
+                                    </select>
+                                </div>
+
+
+                                <div class="col-12 col-md-6 col-lg-6 col-xl-6">
+                                    <label for="ordenCompra" class="col-form-label focus-label">Seleccionar un número de
+                                        orden de compra:<span class="text-danger">*</span> </label>
+                                    <select class="form-group form-control " name="ordenCompra" id="ordenCompra">
+                                        <option value="" selected disabled>--Seleccionar un número de compra--
+                                        </option>
+
+                                    </select>
+                                </div>
+
+                                <div class="col-12 col-md-6 col-lg-6 col-xl-6">
+                                    <label class="col-form-label focus-label">RTN: <span class="text-danger">*</span></label>
+                                    <input class="form-control" type="text" id="rtn_ventas" name="rtn_ventas"
+                                        readonly>
+
+                                </div>
+
+                                <div class="col-12 col-md-6 col-lg-6 col-xl-6">
+                                    <label for="tipoPagoVenta" class="col-form-label focus-label">Seleccionar tipo de
+                                        pago:<span class="text-danger">*</span></label>
+                                    <select class="form-group form-control " name="tipoPagoVenta" id="tipoPagoVenta"
+                                        data-parsley-required onchange="validarFechaPago()">
+                                    </select>
+                                </div>
+
+                                <div class="col-12 col-md-6 col-lg-6 col-xl-6">
+                                    <div class="form-group">
+
+                                        <label for="fecha_emision" class="col-form-label focus-label">Fecha de emisión
+                                            :<span class="text-danger">*</span></label>
+                                        <input class="form-control" type="date" id="fecha_emision"
+                                            onchange="sumarDiasCredito()" name="fecha_emision"
+                                            value="{{ date('Y-m-d') }}" data-parsley-required>
+
+                                    </div>
+                                </div>
+
+
+                                <div class="col-12 col-md-6 col-lg-6 col-xl-6">
+                                    <div class="form-group">
+                                        <label for="fecha_vencimiento"
+                                            class="col-form-label focus-label text-warning">Fecha de vencimiento:
+                                        </label>
+                                        <input class="form-control" type="date" id="fecha_vencimiento"
+                                            name="fecha_vencimiento" value="" data-parsley-required
+                                            min="{{ date('Y-m-d') }}" readonly>
+                                    </div>
+
+                                </div>
+
+                                <div class="col-12 col-md-6 col-lg-6 col-xl-6">
+                                    <div class="form-group">
+
+                                        <label for="porDescuento" class="col-form-label focus-label">Descuento
+                                            aplicado %
+                                            :<span class="text-danger">*</span></label>
+                                        <input class="form-control" type="number" min="0" max="50"
+                                            value="0" id="porDescuento" name="porDescuento"
+                                            onchange="calcularTotalesInicioPagina()" data-parsley-required>
+                                    </div>
+                                </div>
+
+                                <div class="col-12 col-md-6 col-lg-6 col-xl-6">
+                                    <div class="form-group">
+                                        <label for="nota" class="col-form-label focus-label">Nota:
+                                        </label>
+                                        <textarea class="form-control" id="nota_comen" name="nota_comen" cols="30" rows="3" maxlength="250"></textarea>
+                                    </div>
+
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-12 col-md-6 col-lg-6 col-xl-6">
+                                    <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
+                                        <label class="col-form-label focus-label">Seleccionar Producto:<span class="text-danger">*</span></label>
+                                        <div class="input-group">
+                                            <input type="text" id="codigoProductoEstatal" class="form-control"
+                                                   placeholder="ID o nombre del producto…" autocomplete="off"
+                                                   onkeydown="if(event.key==='Enter'){buscarPorCodigoEstatal(this.value);return false;}">
+                                            <div class="input-group-append">
+                                                <button type="button" class="btn btn-primary" title="Buscar producto"
+                                                        onclick="limpiarProductoEstatal(); window['abrirBuscador_buscadorProductoEstatal'](document.getElementById('codigoProductoEstatal').value||'')">
+                                                    <i class="fa fa-search"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <small id="productoSeleccionadoEstatal" class="text-success font-weight-bold mt-1 d-block d-none"></small>
+                                        {{-- Hidden select conserva la compatibilidad con el JS existente --}}
+                                        <select id="seleccionarProducto" name="seleccionarProducto" class="d-none">
+                                            <option value="" selected disabled></option>
+                                        </select>
+                                    </div>
+
+                                </div>
+
+                                <div class="col-12 col-md-6 col-lg-6 col-xl-6">
+                                    <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
+                                        <label for="bodega" class="col-form-label focus-label">Categoría Precio Producto:<span class="text-danger">*</span></label>
+                                        <select id="categoria_cliente_venta_id" name="categoria_cliente_venta_id" class="form-group form-control" style="" onchange="habilitarBodega()">
+                                            <option value="" selected disabled>--Seleccione primero un producto--</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="col-12 col-md-6 col-lg-6 col-xl-6">
+                                    <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
+                                        <label for="bodega" class="col-form-label focus-label">Seleccionar
+                                            bodega:<span class="text-danger">*</span></label>
+                                        <select id="bodega" name="bodega" class="form-group form-control"
+                                            style="" onchange="prueba()">
+                                            <option value="" selected disabled>--Seleccione una categoría primero--
+                                            </option>
+                                        </select>
+                                    </div>
+                                </div>
+
+
+                            </div>
+
+                            <div class="row">
+
+
+                                <div class="mt-4 col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6">
+                                    <div class="text-center">
+                                        <a id="detalleProducto" href=""
+                                            class="font-bold h3 d-none text-success" style="" target="_blank">
+                                            <i class="fa-solid fa-circle-info"></i> Ver Detalles De Producto </a>
+                                    </div>
+
+
+                                    <div id="carouselProducto" class="mt-2 carousel slide" data-ride="carousel">
+                                        <div id="bloqueImagenes" class="carousel-inner ">
+
+
+
+
+
+
+                                        </div>
+                                        <a class="carousel-control-prev" href="#carouselProducto" role="button"
+                                            data-slide="prev">
+                                            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                                            <span class="sr-only">Previous</span>
+                                        </a>
+                                        <a class="carousel-control-next" href="#carouselProducto" role="button"
+                                            data-slide="next">
+                                            <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                                            <span class="sr-only">Next</span>
+                                        </a>
+                                    </div>
+
+
+                                </div>
+
+                                <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6 ">
+                                    <div id="botonAdd"
+                                        class="my-4 text-center col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12 d-none">
+                                        <button type="button" class="p-3 btn-rounded btn btn-success"
+                                            style="font-weight: 900; " onclick="agregarProductoCarrito()">Añadir
+                                            Producto a venta <i class="fa-solid fa-cart-plus"></i> </button>
+
+                                    </div>
+
+                                    {{-- Historial de precios del producto para este cliente --}}
+                                    <div id="historialPreciosPanel" class="d-none mt-3">
+                                        <h5 class="mb-2 text-dark">
+                                            <i class="fa fa-history text-info"></i>
+                                            Últimas 5 ventas a este cliente
+                                        </h5>
+                                        <div id="historialPreciosCuerpo">
+                                            <p class="text-muted small">Cargando...</p>
+                                        </div>
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                            <hr>
+
+                            <div class="hide-container">
+                                <p>Nota:El campo "Unidad" describe la unidad de medida para la venta del producto -
+                                    seguido del numero de unidades a restar del inventario</p>
+                                <div class="row no-gutters ">
+
+                                    <div class="form-group col-3">
+                                        <div class="d-flex">
+
+
+
+                                            <div style="width:100%">
+                                                <label class="sr-only">Producto</label>
+                                                <input type="text" placeholder="Producto"
+                                                    class="form-control" pattern="[A-Z]{1}" disabled>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group col-1">
+                                        <label class="sr-only">Bodega</label>
+                                        <input type="number" placeholder="Bodega" class="form-control"
+                                            autocomplete="off" disabled>
+                                    </div>
+
+
+                                    <div class="form-group col-2">
+                                        <label class="sr-only">Precios</label>
+                                        <input type="number" placeholder="Opciones" class="form-control"
+                                            min="1" autocomplete="off" disabled>
+                                    </div>
+                                    <div class="form-group col-1">
+                                        <label class="sr-only">Precio</label>
+                                        <input type="number" placeholder="Precio Unidad" class="form-control"
+                                            min="1" autocomplete="off" disabled>
+                                    </div>
+
+                                    <div class="form-group col-1">
+                                        <label class="sr-only">cantidad</label>
+                                        <input type="text" placeholder="Cantidad" class="form-control"
+                                            min="1" autocomplete="off" disabled>
+                                    </div>
+
+                                    <div class="form-group col-1">
+
+                                        <label class="sr-only">Unidad</label>
+                                        <input type="text" placeholder="Unidad " class="form-control"
+                                            min="1" autocomplete="off" disabled>
+
+
+
+
+                                    </div>
+
+                                    <div class="form-group col-1">
+                                        <label class="sr-only">Sub Total</label>
+                                        <input type="number" placeholder="Sub total del producto"
+                                            class="form-control" min="1" autocomplete="off" disabled>
+                                    </div>
+
+                                    <div class="form-group col-1">
+                                        <label class="sr-only">ISV</label>
+                                        <input type="number" placeholder="ISV" class="form-control" min="1"
+                                            autocomplete="off" disabled>
+                                    </div>
+
+                                    <div class="form-group col-1">
+                                        <label class="sr-only">Total</label>
+                                        <input type="number" placeholder="Total del producto" class="form-control"
+                                            min="1" disabled autocomplete="off">
+                                    </div>
+
+                                </div>
+
+
+
+                            </div>
+
+                            <div id="divProductos">
+                                @if(isset($htmlProductosCotizacion) && $htmlProductosCotizacion)
+                                    {!! $htmlProductosCotizacion !!}
+                                @endif
+                            </div>
+                            <hr>
+                            <div class="row">
+
+                                <div class="form-group col-12 col-sm-12 col-md-2 col-lg-1 col-xl-1">
+                                    <label class="col-form-label" for="descuentoMostrar">Descuento L.<span
+                                            class="text-danger">*</span></label>
+                                </div>
+                                <div class="form-group col-12 col-sm-12 col-md-3 col-lg-2 col-xl-2">
+                                    <input type="text" placeholder="Descuento aplicado" id="descuentoMostrar"
+                                        name="descuentoMostrar" class="form-control" value="Descuento Aplicado"
+                                        data-parsley-required autocomplete="off" readonly>
+
+                                    <input type="hidden" value="0" id="porDescuentoCalculado"
+                                        name="porDescuentoCalculado">
+                                </div>
+                            </div>
+
+                            <div class="row">
+
+                                <div class="form-group col-12 col-sm-12 col-md-2 col-lg-1 col-xl-1">
+                                    <label class="col-form-label" for="subTotalGeneralMostrar">Sub Total L.<span
+                                            class="text-danger">*</span></label>
+                                </div>
+
+                                <div class="form-group col-12 col-sm-12 col-md-3 col-lg-2 col-xl-2">
+                                    <input type="text" placeholder="Sub total " id="subTotalGeneralMostrar"
+                                        name="subTotalGeneralMostrar" class="form-control" data-parsley-required
+                                        autocomplete="off" readonly>
+
+                                    <input id="subTotalGeneral" name="subTotalGeneral" type="hidden" value=""
+                                        required>
+                                </div>
+                            </div>
+
+                            <div class="row">
+
+                                <div class="form-group col-12 col-sm-12 col-md-2 col-lg-1 col-xl-1">
+                                    <label class="col-form-label" for="subTotalGeneralGrabadoMostrar">Sub Total
+                                        Grabado L.<span class="text-danger">*</span></label>
+                                </div>
+
+                                <div class="form-group col-12 col-sm-12 col-md-3 col-lg-2 col-xl-2">
+                                    <input type="text" placeholder="Sub total " id="subTotalGeneralGrabadoMostrar"
+                                        name="subTotalGeneralGrabadoMostrar" class="form-control"
+                                        data-parsley-required autocomplete="off" readonly>
+
+                                    <input id="subTotalGeneralGrabado" name="subTotalGeneralGrabado" type="hidden"
+                                        value="" required>
+                                </div>
+                            </div>
+
+                            <div class="row">
+
+                                <div class="form-group col-12 col-sm-12 col-md-2 col-lg-1 col-xl-1">
+                                    <label class="col-form-label" for="subTotalGeneralExcentoMostrar">Sub Total
+                                        Excento L.<span class="text-danger">*</span></label>
+                                </div>
+
+                                <div class="form-group col-12 col-sm-12 col-md-3 col-lg-2 col-xl-2">
+                                    <input type="text" placeholder="Sub total " id="subTotalGeneralExcentoMostrar"
+                                        name="subTotalGeneralExcentoMostrar" class="form-control"
+                                        data-parsley-required autocomplete="off" readonly>
+
+                                    <input id="subTotalGeneralExcento" name="subTotalGeneralExcento" type="hidden"
+                                        value="" required>
+                                </div>
+                            </div>
+
+                            <div class="row">
+
+                                <div class="form-group col-12 col-sm-12 col-md-2 col-lg-1 col-xl-1">
+                                    <label class="col-form-label" for="isvGeneralMostrar">ISV L.<span
+                                            class="text-danger">*</span></label>
+                                </div>
+
+                                <div class="form-group col-12 col-sm-12 col-md-3 col-lg-2 col-xl-2">
+                                    <input type="text" placeholder="ISV " id="isvGeneralMostrar"
+                                        name="isvGeneralMostrar" class="form-control" data-parsley-required
+                                        autocomplete="off" readonly>
+                                    <input id="isvGeneral" name="isvGeneral" type="hidden" value="" required>
+                                </div>
+                            </div>
+
+                            <div class="row">
+
+                                <div class="form-group col-12 col-sm-12 col-md-2 col-lg-1 col-xl-1">
+                                    <label class="col-form-label" for="totalGeneralMostrar">Total L.<span
+                                            class="text-danger">*</span></label>
+                                </div>
+
+                                <div class="form-group col-12 col-sm-12 col-md-3 col-lg-2 col-xl-2">
+                                    <input type="text" placeholder="Total  " id="totalGeneralMostrar"
+                                        name="totalGeneralMostrar" class="form-control" data-parsley-required
+                                        autocomplete="off" readonly>
+
+                                    <input id="totalGeneral" name="totalGeneral" type="hidden" value=""
+                                        required>
+                                </div>
+                            </div>
+
+
+                            <div class="row">
+                                <div class="col-12 col-sm-12 col-md-12 col-lg-12 col-xl-12">
+                                    <button id="btn_venta_coorporativa"
+                                        class="float-left btn btn-sm btn-primary m-t-n-xs"><strong>
+                                            Realizar Venta</strong></button>
+                                </div>
+                            </div>
+
+
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Buscador de producto reutilizable --}}
+    <x-buscador-producto id-modal="buscadorProductoEstatal" callback="alSeleccionarProductoEstatal" />
+
+    @push('scripts')
+        <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+        <script>
+
+            var numeroInputs = 0;
+            var arregloIdInputs = [];
+            var retencionEstado = false; // true  aplica retencion, false no aplica retencion;
+            var diasCredito = 0;
+
+            // Datos de cotización precargada
+            @if(isset($cotizacion) && $cotizacion)
+                var cotizacionData = {
+                    id: {{ $cotizacion->id }},
+                    cliente_id: {{ $cotizacion->cliente_id }},
+                    nombre_cliente: "{{ $cotizacion->nombre_cliente }}",
+                    RTN: "{{ $cotizacion->RTN }}",
+                    vendedor: {{ $cotizacion->vendedor }},
+                    dias_credito: {{ $cotizacion->dias_credito }},
+                    fecha_emision: "{{ $cotizacion->fecha_emision }}",
+                    fecha_vencimiento: "{{ $cotizacion->fecha_vencimiento }}",
+                    porDescuento: {{ $cotizacion->porc_descuento }},
+                    descuentoGeneral: {{ $cotizacion->monto_descuento }},
+                    subTotal: {{ $cotizacion->sub_total }},
+                    subTotalGrabado: {{ $cotizacion->sub_total_grabado }},
+                    subTotalExcento: {{ $cotizacion->sub_total_excento }},
+                    isv: {{ $cotizacion->isv }},
+                    total: {{ $cotizacion->total }},
+                    numeroInputs: {{ $cotizacion->numeroInputs }},
+                    arregloIdInputs: {!! json_encode($cotizacion->arregloIdInputs) !!}
+                };
+            @else
+                var cotizacionData = null;
+            @endif
+
+            window.onload = function() {
+                obtenerTipoPago();
+                if (cotizacionData) {
+                    cargarDatosCotizacion();
+                }
+            };
+
+            var public_path = "{{ asset('catalogo/') }}";
+
+
+            $('#vendedor').select2({
+                ajax: {
+                    url: '/ventas/corporativo/vendedores',
+                    data: function(params) {
+                        var query = {
+                            search: params.term,
+                            type: 'public',
+                            page: params.page || 1
+                        }
+
+                        // Query parameters will be ?search=[term]&type=public
+                        return query;
+                    }
+
+                }
+            });
+
+
+            $('#seleccionarCliente').select2({
+                ajax: {
+                    url: '/estatal/lista/clientes',
+                    data: function(params) {
+                        var query = {
+                            search: params.term,
+                            type: 'public',
+                            page: params.page || 1
+                        }
+
+                        // Query parameters will be ?search=[term]&type=public
+                        return query;
+                    }
+                }
+            });
+
+
+
+
+
+
+            /* ---------- Buscador de producto (callback del componente) ---------- */
+            function limpiarProductoEstatal() {
+                document.getElementById('seleccionarProducto').innerHTML =
+                    '<option value="" selected disabled></option>';
+                document.getElementById('codigoProductoEstatal').value = '';
+                var lbl = document.getElementById('productoSeleccionadoEstatal');
+                lbl.classList.add('d-none');
+                lbl.textContent = '';
+                document.getElementById('historialPreciosPanel').classList.add('d-none');
+            }
+
+            function alSeleccionarProductoEstatal(producto) {
+                var select = document.getElementById('seleccionarProducto');
+                select.innerHTML = '<option value="' + producto.id + '" selected>' + producto.nombre + '</option>';
+                document.getElementById('codigoProductoEstatal').value = producto.nombre;
+                var label = document.getElementById('productoSeleccionadoEstatal');
+                label.textContent = '✓ ' + producto.nombre + ' (ID: ' + producto.id + ')';
+                label.classList.remove('d-none');
+                cargarCategoriasProducto();
+            }
+
+            function buscarPorCodigoEstatal(cod) {
+                cod = String(cod).trim();
+                if (!cod) { window['abrirBuscador_buscadorProductoEstatal'](''); return; }
+                axios.get('/productos/buscar', { params: { q: cod, page: 1 } })
+                    .then(function(r) {
+                        var items = r.data.data;
+                        var exact = items.find(function(p) { return String(p.id) === cod; });
+                        if (exact) { alSeleccionarProductoEstatal(exact); }
+                        else if (items.length === 1) { alSeleccionarProductoEstatal(items[0]); }
+                        else { window['abrirBuscador_buscadorProductoEstatal'](cod); }
+                    });
+            }
+            /* -------------------------------------------------------------------- */
+
+            function prueba() {
+
+                var element = document.getElementById('botonAdd');
+                element.classList.remove("d-none");
+
+            }
+
+            function calcularTotalesInicioPagina() {
+
+                let arrayInputs = this.arregloIdInputs;
+
+
+                let valorInputPrecio = 0;
+                let valorInputCantidad = 0;
+                let valorSelectUnidad = 0;
+                let isvProducto = 0;
+
+                let subTotal = 0;
+                let isv = 0;
+                let total = 0;
+                let descuento = 0;
+                let descuentoCalculado = 0
+
+                arrayInputs.forEach(id => {
+                    // calcularTotales(idPrecio, idCantidad, isvProducto, idUnidad, id)
+                    valorInputPrecio = document.getElementById('precio' + id).value;
+                    valorInputCantidad = document.getElementById('cantidad' + id).value;
+                    valorSelectUnidad = document.getElementById('unidad' + id).value;
+                    isvProducto = document.getElementById("isv" + id).value;
+
+                    if (valorInputPrecio && valorInputCantidad) {
+
+                        descuento = document.getElementById("porDescuento").value;
+
+                        /*if (descuento > 0) {
+                            subTotal = valorInputPrecio * (valorInputCantidad * valorSelectUnidad);
+                            descuentoCalculado = subTotal * (descuento / 100);
+                            subTotal = subTotal - descuentoCalculado;
+                            isv = subTotal * (isvProducto / 100);
+                            total = subTotal + (subTotal * (isvProducto / 100));
+                        } else {
+                            descuentoCalculado = 0;
+                            subTotal = valorInputPrecio * (valorInputCantidad * valorSelectUnidad);
+                            isv = subTotal * (isvProducto / 100);
+                            total = subTotal + subTotal * (isvProducto / 100);
+                        }*/
+                        if (descuento > 0) {
+                            subTotal = valorInputPrecio * (valorInputCantidad * valorSelectUnidad);
+                            descuentoCalculado = subTotal * (descuento / 100);
+                            subTotal = subTotal - descuentoCalculado;
+
+                            let isv1 = subTotal * (isvProducto / 100);
+                            let isvSinRedondeo1 = parseFloat(isv1.toFixed(2));
+                            isv = isvSinRedondeo1 ;
+                            total = subTotal + (subTotal * (isvProducto / 100));
+                        } else {
+                            descuentoCalculado = 0
+                            subTotal = valorInputPrecio * (valorInputCantidad * valorSelectUnidad);
+
+
+                            let isv2 = subTotal * (isvProducto / 100);
+                            let isvSinRedondeo2 = parseFloat(isv2.toFixed(2));
+                            isv = isvSinRedondeo2;
+                            total = subTotal + subTotal * (isvProducto / 100);
+                        }
+
+                        document.getElementById("acumuladoDescuento" + id).value = descuentoCalculado.toFixed(2);
+
+                        document.getElementById('total' + id).value = total.toFixed(2);
+                        document.getElementById('totalMostrar' + id).value = new Intl.NumberFormat('es-HN', {
+                            style: 'currency',
+                            currency: 'HNL',
+                            minimumFractionDigits: 2,
+                        }).format(total)
+
+                        document.getElementById('subTotal' + id).value = subTotal.toFixed(2);
+                        document.getElementById('subTotalMostrar' + id).value = new Intl.NumberFormat('es-HN', {
+                            style: 'currency',
+                            currency: 'HNL',
+                            minimumFractionDigits: 2,
+                        }).format(subTotal)
+
+
+                        document.getElementById('isvProducto' + id).value = isv.toFixed(2);
+                        document.getElementById('isvProductoMostrar' + id).value = new Intl.NumberFormat(
+                            'es-HN', {
+                                style: 'currency',
+                                currency: 'HNL',
+                                minimumFractionDigits: 2,
+                            }).format(isv)
+
+
+                    }
+
+                });
+
+                this.totalesGenerales();
+                return 0;
+            }
+
+            function obtenerCategoriasClientes() {
+
+                $('#categoria_cliente_venta_id').select2({
+                    placeholder: 'Seleccione una categoría',
+                    allowClear: true,
+                    ajax: {
+                        url: '/clientes/categorias-escala',
+                        dataType: 'json',
+                        delay: 250,
+                        data: function (params) {
+                            return {
+                                q: params.term || '',
+                                page: params.page || 1
+                            };
+                        },
+                        processResults: function (data) {
+                            return {
+                                results: data.categorias.map(function (item) {
+                                    return {
+                                        id: item.id,
+                                        text: item.nombre_categoria
+                                    };
+                                })
+                            };
+                        }
+                    }
+                });
+            }
+
+            function cargarCategoriasProducto() {
+                let productoId = $('#seleccionarProducto').val();
+                let clienteId = $('#seleccionarCliente').val();
+
+                if (productoId) {
+                    // Limpiar mientras se carga (pero NO deshabilitar)
+                    $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>Cargando categorías...</option>');
+
+                    // Cargar categorías del producto
+                    axios.post('/producto/categorias-disponibles', {
+                        producto_id: productoId
+                    })
+                    .then(response => {
+                        let categorias = response.data.categorias;
+
+                        if (categorias.length > 0) {
+                            // Ordenar categorías por precio_a de mayor a menor
+                            categorias.sort((a, b) => {
+                                let precioA = parseFloat(a.precio_a) || 0;
+                                let precioB = parseFloat(b.precio_a) || 0;
+                                return precioB - precioA;
+                            });
+
+                            // SIEMPRE mostrar TODAS las categorías disponibles del producto
+                            // El usuario puede elegir libremente cualquiera
+                            $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>--Seleccione una categoría--</option>');
+
+                            let categoriaClienteId = $('#categoria_cliente_venta_id').data('categoria-cliente-id');
+
+                            categorias.forEach(categoria => {
+                                // Formatear el precio
+                                let precio = parseFloat(categoria.precio_a) || 0;
+                                let precioFormateado = new Intl.NumberFormat('es-HN', {
+                                    style: 'currency',
+                                    currency: 'HNL',
+                                    minimumFractionDigits: 2,
+                                }).format(precio);
+
+                                // Crear el texto de la opción: "Categoría A - L. 33.33"
+                                let textoOpcion = `${categoria.nombre_categoria} - ${precioFormateado}`;
+
+                                // Si es la categoría del cliente, pre-seleccionarla
+                                let isSelected = (clienteId && categoria.id == categoriaClienteId);
+                                let option = new Option(textoOpcion, categoria.id, isSelected, isSelected);
+                                $('#categoria_cliente_venta_id').append(option);
+                            });
+
+                            // NUNCA deshabilitar - el usuario siempre puede elegir
+                            $('#categoria_cliente_venta_id').prop('disabled', false);
+                        } else {
+                            // No hay categorías disponibles para este producto
+                            $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>No hay categorías disponibles para este producto</option>');
+                            $('#categoria_cliente_venta_id').prop('disabled', false);
+                            Swal.fire({
+                                icon: 'warning',
+                                title: 'Advertencia',
+                                text: 'Este producto no tiene escalas de precio asignadas en ninguna categoría.'
+                            });
+                        }
+                    })
+                    .catch(err => {
+                        console.log(err);
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'Ha ocurrido un error al cargar las categorías del producto.'
+                        });
+                        $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>Error al cargar categorías</option>');
+                    });
+
+                    // Continuar con las imágenes del producto
+                    obtenerImagenes();
+                    cargarHistorialPreciosEstatal();
+                } else {
+                    $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>--Seleccione primero un producto--</option>');
+                }
+            }
+
+            function cargarHistorialPreciosEstatal() {
+                var productoId = $('#seleccionarProducto').val();
+                var clienteId  = $('#seleccionarCliente').val();
+
+                var panel  = document.getElementById('historialPreciosPanel');
+                var cuerpo = document.getElementById('historialPreciosCuerpo');
+
+                if (!productoId || !clienteId) {
+                    panel.classList.add('d-none');
+                    return;
+                }
+
+                cuerpo.innerHTML = '<p class="text-muted small"><i class="fa fa-spinner fa-spin"></i> Cargando historial...</p>';
+                panel.classList.remove('d-none');
+
+                axios.post('/estatal/historial/precios', {
+                    cliente_id:  clienteId,
+                    producto_id: productoId
+                })
+                .then(function(response) {
+                    var rows = response.data.historial;
+                    if (!rows || rows.length === 0) {
+                        cuerpo.innerHTML = '<p class="text-muted small">No hay ventas previas de este producto a este cliente.</p>';
+                        return;
+                    }
+
+                    var fmt = new Intl.NumberFormat('es-HN', { style: 'currency', currency: 'HNL', minimumFractionDigits: 2 });
+
+                    var html = '<div class="table-responsive">'
+                             + '<table class="table table-sm table-bordered table-hover mb-0" style="font-size:0.82rem;">'
+                             + '<thead class="thead-light">'
+                             + '<tr>'
+                             + '<th>Fecha</th>'
+                             + '<th>Factura</th>'
+                             + '<th>Precio Unit.</th>'
+                             + '<th>Cant.</th>'
+                             + '<th>Total</th>'
+                             + '<th>Categoría</th>'
+                             + '</tr>'
+                             + '</thead><tbody>';
+
+                    rows.forEach(function(r) {
+                        html += '<tr>'
+                              + '<td>' + r.fecha_emision + '</td>'
+                              + '<td>' + r.numero_factura + '</td>'
+                              + '<td class="text-right font-weight-bold text-success">' + fmt.format(r.precio_unidad) + '</td>'
+                              + '<td class="text-center">' + r.cantidad + '</td>'
+                              + '<td class="text-right">' + fmt.format(r.total) + '</td>'
+                              + '<td><span class="badge badge-secondary">' + r.categoria + '</span></td>'
+                              + '</tr>';
+                    });
+
+                    html += '</tbody></table></div>';
+                    cuerpo.innerHTML = html;
+                })
+                .catch(function() {
+                    cuerpo.innerHTML = '<p class="text-danger small">Error al cargar el historial.</p>';
+                });
+            }
+
+            function habilitarBodega() {
+                let categoriaId = $('#categoria_cliente_venta_id').val();
+                let productoId = $('#seleccionarProducto').val();
+
+                if (categoriaId && productoId) {
+                    // Habilitar bodega
+                    $('#bodega').prop('disabled', false);
+                    // Cargar bodegas del producto
+                    obtenerBodegas(productoId);
+                }
+            }
+
+            function obtenerBodegas(id) {
+
+                document.getElementById('bodega').innerHTML = "<option  selected disabled>--Seleccione una bodega--</option>";
+                let idProducto = id;
+                $('#bodega').select2({
+                    ajax: {
+                        url: '/estatal/listar/bodegas/' + idProducto,
+                        data: function(params) {
+                            var query = {
+                                search: params.term,
+                                type: 'public',
+                                page: params.page || 1,
+                                idProducto: idProducto
+                            }
+
+                            // Query parameters will be ?search=[term]&type=public
+                            return query;
+                        }
+                    }
+                });
+
+            }
+
+            function obtenerDatosCliente() {
+                let idCliente = document.getElementById("seleccionarCliente").value;
+                axios.post("/estatal/datos/cliente", {
+                        id: idCliente
+                    })
+                    .then(
+                        response => {
+
+                            let data = response.data.datos;
+
+                            if (data.id == 1) {
+                                document.getElementById("nombre_cliente_ventas").readOnly = false;
+                                document.getElementById("rtn_ventas").readOnly = false;
+
+                                let selectBox = document.getElementById("tipoPagoVenta");
+                                selectBox.remove(2);
+                                // Establecer la categoría del cliente pero NO bloquear
+                                $('#categoria_cliente_nombre').text(data.nombre_categoria);
+                                $('#categoria_cliente_venta_id').data('categoria-cliente-id', data.idcategoriacliente);
+
+                                // Si ya hay un producto seleccionado, recargar todas sus categorías
+                                // con la nueva categoría del cliente pre-seleccionada
+                                if ($('#seleccionarProducto').val()) {
+                                    cargarCategoriasProducto();
+                                } else {
+                                    $('#categoria_cliente_venta_id').empty();
+                                    $('#categoria_cliente_venta_id').append(new Option(data.nombre_categoria, data.idcategoriacliente, true, true));
+                                }
+                                cargarHistorialPreciosEstatal();
+
+                            } else {
+                                document.getElementById("nombre_cliente_ventas").readOnly = true;
+                                document.getElementById("rtn_ventas").readOnly = true;
+                                document.getElementById("nombre_cliente_ventas").value = data.nombre;
+                                document.getElementById("rtn_ventas").value = data.rtn;
+                                $('#categoria_cliente_nombre').text(data.nombre_categoria);
+                                $('#categoria_cliente_venta_id').data('categoria-cliente-id', data.idcategoriacliente);
+
+                                // Si ya hay un producto seleccionado, recargar todas sus categorías
+                                // con la nueva categoría del cliente pre-seleccionada
+                                if ($('#seleccionarProducto').val()) {
+                                    cargarCategoriasProducto();
+                                } else {
+                                    $('#categoria_cliente_venta_id').empty();
+                                    $('#categoria_cliente_venta_id').append(new Option(data.nombre_categoria, data.idcategoriacliente, true, true));
+                                }
+
+                                diasCredito = data.dias_credito;
+                                obtenerTipoPago();
+                                obtenerOrdenesCompra();
+                                cargarHistorialPreciosEstatal();
+                            }
+
+                        }
+                    )
+                    .catch(err => {
+
+                        console.log(err);
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error...',
+                            text: "Ha ocurrido un error al obtener los datos del cliente"
+                        })
+
+
+                    })
+
+            }
+
+            function obtenerTipoPago() {
+
+                axios.get('/estatal/tipo/pago')
+                    .then(response => {
+
+                        let tipoDePago = response.data.tipos;
+                        let numeroVenta = response.data.numeroVenta.numero;
+
+                        let htmlPagos = '  <option value="" selected disabled >--Seleccione una opcion--</option>';
+
+                        tipoDePago.forEach(element => {
+
+                            htmlPagos += `
+                            <option value="${element.id}" >${element.descripcion}</option>
+                            `
+                        });
+
+                        document.getElementById('tipoPagoVenta').innerHTML = htmlPagos;
+                        document.getElementById("numero_venta").value = numeroVenta;
+
+
+                    })
+                    .catch(err => {
+                        console.log(err);
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error...',
+                            text: "Ha ocurrido un error al obtener los tipos de pago"
+                        })
+                    })
+
+            }
+
+            function cargarDatosCotizacion() {
+                if (!cotizacionData) return;
+
+                // Cargar datos del cliente
+                let newOption = new Option(cotizacionData.nombre_cliente, cotizacionData.cliente_id, true, true);
+                $('#seleccionarCliente').append(newOption).trigger('change');
+
+                document.getElementById('nombre_cliente_ventas').value = cotizacionData.nombre_cliente;
+                document.getElementById('rtn_ventas').value = cotizacionData.RTN;
+
+                // Cargar vendedor
+                let vendedorOption = new Option('Vendedor', cotizacionData.vendedor, true, true);
+                $('#vendedor').append(vendedorOption).trigger('change');
+
+                // Cargar fechas
+                document.getElementById('fecha_emision').value = cotizacionData.fecha_emision;
+                document.getElementById('fecha_vencimiento').value = cotizacionData.fecha_vencimiento;
+
+                // Cargar descuento
+                document.getElementById('porDescuento').value = cotizacionData.porDescuento;
+                document.getElementById('porDescuentoCalculado').value = cotizacionData.porDescuento;
+
+                // Cargar arrays de inputs - limpiar entidades HTML y comillas
+                let arregloString = cotizacionData.arregloIdInputs;
+                if (typeof arregloString === 'string') {
+                    // Remover comillas y entidades HTML
+                    arregloString = arregloString.replace(/&quot;/g, '').replace(/"/g, '');
+                    arregloIdInputs = arregloString.split(',').map(id => id.trim());
+                } else {
+                    arregloIdInputs = arregloString;
+                }
+                numeroInputs = parseInt(cotizacionData.numeroInputs);
+
+                console.log('arregloIdInputs procesado:', arregloIdInputs);
+
+                // Cargar totales
+                setTimeout(() => {
+                    let elem = document.getElementById('subTotalGeneralGrabado');
+                    if (elem) elem.value = cotizacionData.subTotalGrabado.toFixed(2);
+
+                    elem = document.getElementById('subTotalGeneralGrabadoMostrar');
+                    if (elem) elem.value = new Intl.NumberFormat('es-HN', {
+                        style: 'currency',
+                        currency: 'HNL',
+                        minimumFractionDigits: 2,
+                    }).format(cotizacionData.subTotalGrabado);
+
+                    elem = document.getElementById('subTotalGeneralExcento');
+                    if (elem) elem.value = cotizacionData.subTotalExcento.toFixed(2);
+
+                    elem = document.getElementById('subTotalGeneralExcentoMostrar');
+                    if (elem) elem.value = new Intl.NumberFormat('es-HN', {
+                        style: 'currency',
+                        currency: 'HNL',
+                        minimumFractionDigits: 2,
+                    }).format(cotizacionData.subTotalExcento);
+
+                    elem = document.getElementById('subTotalGeneral');
+                    if (elem) elem.value = cotizacionData.subTotal.toFixed(2);
+
+                    elem = document.getElementById('subTotalGeneralMostrar');
+                    if (elem) elem.value = new Intl.NumberFormat('es-HN', {
+                        style: 'currency',
+                        currency: 'HNL',
+                        minimumFractionDigits: 2,
+                    }).format(cotizacionData.subTotal);
+
+                    elem = document.getElementById('descuentoGeneral');
+                    if (elem) elem.value = cotizacionData.descuentoGeneral.toFixed(2);
+
+                    elem = document.getElementById('descuentoMostrar');
+                    if (elem) elem.value = new Intl.NumberFormat('es-HN', {
+                        style: 'currency',
+                        currency: 'HNL',
+                        minimumFractionDigits: 2,
+                    }).format(cotizacionData.descuentoGeneral);
+
+                    elem = document.getElementById('isvGeneral');
+                    if (elem) elem.value = cotizacionData.isv.toFixed(2);
+
+                    elem = document.getElementById('isvGeneralMostrar');
+                    if (elem) elem.value = new Intl.NumberFormat('es-HN', {
+                        style: 'currency',
+                        currency: 'HNL',
+                        minimumFractionDigits: 2,
+                    }).format(cotizacionData.isv);
+
+                    elem = document.getElementById('totalGeneral');
+                    if (elem) elem.value = cotizacionData.total.toFixed(2);
+
+                    elem = document.getElementById('totalGeneralMostrar');
+                    if (elem) elem.value = new Intl.NumberFormat('es-HN', {
+                        style: 'currency',
+                        currency: 'HNL',
+                        minimumFractionDigits: 2,
+                    }).format(cotizacionData.total);
+
+                    diasCredito = cotizacionData.dias_credito;
+                    obtenerDatosCliente();
+                }, 500);
+            }
+
+            function obtenerImagenes() {
+                let id = document.getElementById('seleccionarProducto').value;
+
+                // No habilitar bodega automáticamente
+                // document.getElementById("bodega").disabled = false;
+                let htmlImagenes = '';
+                axios.post('/producto/listar/imagenes', {
+                        id: id,
+
+                    })
+                    .then(response => {
+
+                        let imagenes = response.data.imagenes;
+
+                        if (imagenes.length == 0) {
+
+                            console.log("entro")
+                            htmlImagenes += `
+                            <div class="carousel-item active " >
+                                <img class="d-block " src="${public_path+'/'+'noimage.png'}" alt="noimage.png" style="width: 100%; height:20rem" >
+                            </div>`
+
+                            document.getElementById('bloqueImagenes').innerHTML = htmlImagenes;
+
+                            var element = document.getElementById('botonAdd');
+                            element.classList.remove("d-none");
+
+                        } else {
+                            imagenes.forEach(element => {
+
+                                if (element.contador == 1) {
+                                    htmlImagenes += `
+                            <div class="carousel-item active " >
+                                <img class="d-block " src="${public_path+'/'+element.url_img}" alt="imagen ${element.contador}" style="width: 100%; height:30rem" >
+                            </div>`
+                                } else {
+
+                                    htmlImagenes += `
+                            <div class="carousel-item " >
+                                <img class="d-block " src="${public_path+'/'+element.url_img}" alt="imagen ${element.contador}" style="width: 100%; height:30rem" >
+                            </div>`
+
+                                }
+
+                            });
+
+                            document.getElementById('bloqueImagenes').innerHTML = htmlImagenes;
+
+
+                        }
+
+                        var element = document.getElementById('botonAdd');
+                        element.classList.add("d-none");
+
+                        let a = document.getElementById("detalleProducto");
+                        let url = "/producto/detalle/" + id;
+                        a.href = url;
+                        a.classList.remove("d-none");
+
+                        return;
+
+
+
+                    })
+                    .catch(err => {
+
+                        console.log(err);
+
+                    })
+
+                obtenerBodegas(id);
+            }
+
+            function agregarProductoCarrito() {
+                let idProducto = document.getElementById('seleccionarProducto').value;
+                let categoria_cliente_venta_id = document.getElementById('categoria_cliente_venta_id').value;
+                //console.log(idCliente);
+                let data = $("#bodega").select2('data')[0];
+                let bodega = data.bodegaSeccion;
+                let idBodega = data.idBodega;
+                let idSeccion = data.id
+
+
+                axios.post('/estatal/datos/producto', {
+                        idProducto: idProducto,
+                        categoria_cliente_venta_id: categoria_cliente_venta_id
+
+                    })
+                    .then(response => {
+
+                        let flag = false;
+                        arregloIdInputs.forEach(idInpunt => {
+                            let idProductoFila = document.getElementById("idProducto" + idInpunt).value;
+                            let idSeccionFila = document.getElementById("idSeccion" + idInpunt).value;
+
+                            if (idProducto == idProductoFila && idSeccion == idSeccionFila && !flag) {
+                                flag = true;
+                            }
+
+                        })
+
+                        if (flag) {
+                            Swal.fire({
+
+                                icon: 'warning',
+                                title: 'Advertencia!',
+                                html: `
+                            <p class="text-left">
+                                La sección de bodega y producto ha sido agregada anteriormente.<br><br>
+                                Por favor verificar la sección de bodega y producto sea distinto a los ya existentes en la lista de venta.<br><br>
+                                De ser necesario aumentar la cantidad de producto en la lista de productos seleccionados para la venta.
+                            </p>`
+                            })
+
+                            return;
+                        }
+
+                        let producto = response.data.producto;
+
+                        let arrayUnidades = response.data.unidades;
+
+
+                        numeroInputs += 1;
+
+                        htmlSelectUnidades = "";
+
+                        /*htmlprecios = `
+                        <option  value="${producto.precio1}" data-id="p1" selected>${producto.precio1} - A</option>
+                        <option  value="${producto.precio2}" data-id="p2">${producto.precio2} - B</option>
+                        <option  value="${producto.precio3}" data-id="p3">${producto.precio3} - C</option>
+                        <option  value="${producto.precio4}" data-id="p4">${producto.precio4} - D</option>
+                        `;*/
+                        htmlprecios = `
+                        <option  value="${producto.precio1}" data-id="p1" selected>${producto.precio1} - A</option>`;
+                        arrayUnidades.forEach(unidad => {
+                            if (unidad.valor_defecto == 1) {
+                                htmlSelectUnidades +=
+                                    `<option selected value="${unidad.id}" data-id="${unidad.idUnidadVenta}">${unidad.nombre}</option>`;
+                            } else {
+                                htmlSelectUnidades +=
+                                    `<option  value="${unidad.id}" data-id="${unidad.idUnidadVenta}">${unidad.nombre}</option>`;
+                            }
+
+                        });
+
+
+                        html = `
+                        <div id='${numeroInputs}' class="row no-gutters">
+                                            <div class="form-group col-12 col-md-3">
+                                                <div class="d-flex">
+
+                                                    <button class="btn btn-danger" type="button" style="display: inline" onclick="eliminarInput(${numeroInputs})"><i
+                                                            class="fa-regular fa-rectangle-xmark"></i>
+                                                    </button>
+
+                                                    <input id="idProducto${numeroInputs}" name="idProducto${numeroInputs}" type="hidden" value="${producto.id}">
+                                                    <input id="precios_producto_carga_id${numeroInputs}" name="precios_producto_carga_id${numeroInputs}" type="hidden" value="${producto.precios_producto_carga_id}">
+
+                                                    <div style="width:100%">
+                                                        <label for="nombre${numeroInputs}" class="sr-only">Nombre del producto</label>
+                                                        <input type="text" placeholder="Nombre del producto" id="nombre${numeroInputs}"
+                                                            name="nombre${numeroInputs}" class="form-control"
+                                                            data-parsley-required "
+                                                            autocomplete="off"
+                                                            readonly
+                                                            value='${producto.nombre}'
+                                                            >
+
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="form-group col-6 col-md-1">
+                                                <label for="" class="sr-only">cantidad</label>
+                                                <input type="text" value="${bodega}" placeholder="bodega-seccion" id="bodega${numeroInputs}"
+                                                    name="bodega${numeroInputs}" class="form-control"
+                                                    autocomplete="off"  readonly  >
+                                            </div>
+
+
+                                            <div class="form-group col-6 col-md-2">
+                                                <label for="" class="sr-only">precios</label>
+                                                <select class="form-control" name="precios${numeroInputs}" id="precios${numeroInputs}"
+                                                    data-parsley-required style="height:35.7px;"
+                                                    onchange="validacionPrecio(precios${numeroInputs}, precio${numeroInputs})"
+                                                    >
+                                                            ${htmlprecios}
+                                                </select>
+
+
+                                            </div>
+
+                                            <div class="form-group col-4 col-md-1">
+                                                <label for="precio${numeroInputs}" class="sr-only">Precio</label>
+                                                <input type="number" value="${producto.precio1}" placeholder="Precio Unidad" id="precio${numeroInputs}"
+                                                    name="precio${numeroInputs}" class="form-control" min="${producto.precio1}" data-parsley-required step="any"
+                                                    autocomplete="off" onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
+                                            </div>
+
+                                            <div class="form-group col-4 col-md-1">
+                                                <label for="cantidad${numeroInputs}" class="sr-only">cantidad</label>
+                                                <input type="number" placeholder="Cantidad" id="cantidad${numeroInputs}"
+                                                    name="cantidad${numeroInputs}" class="form-control" min="1" data-parsley-required
+                                                    autocomplete="off" onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
+                                            </div>
+
+                                            <div class="form-group col-4 col-md-1">
+                                                <label for="" class="sr-only">unidad</label>
+                                                <select class="form-control" name="unidad${numeroInputs}" id="unidad${numeroInputs}"
+                                                    data-parsley-required style="height:35.7px;"
+                                                    onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
+                                                            ${htmlSelectUnidades}
+                                                </select>
+
+
+                                            </div>
+
+
+
+
+                                            <div class="form-group col-4 col-md-1">
+                                                <label for="subTotalMostrar${numeroInputs}" class="sr-only">Sub Total</label>
+                                                <input type="text" placeholder="Sub total producto" id="subTotalMostrar${numeroInputs}"
+                                                    name="subTotalMostrar${numeroInputs}" class="form-control"
+                                                    autocomplete="off"
+                                                    readonly >
+
+                                                <input id="subTotal${numeroInputs}" name="subTotal${numeroInputs}" type="hidden" value="" required>
+                                            </div>
+
+                                            <div class="form-group col-4 col-md-1">
+                                                <label for="isvProductoMostrar${numeroInputs}" class="sr-only">ISV</label>
+                                                <input type="text" placeholder="ISV" id="isvProductoMostrar${numeroInputs}"
+                                                    name="isvProductoMostrar${numeroInputs}" class="form-control"
+                                                    autocomplete="off"
+                                                    readonly >
+
+                                                    <input id="isvProducto${numeroInputs}" name="isvProducto${numeroInputs}" type="hidden" value="" required>
+                                                    <input type="hidden" id="acumuladoDescuento${numeroInputs}" name="acumuladoDescuento${numeroInputs}" >
+                                            </div>
+
+                                            <div class="form-group col-4 col-md-1">
+                                                <label for="totalMostrar${numeroInputs}" class="sr-only">Total</label>
+                                                <input type="text" placeholder="Total del producto" id="totalMostrar${numeroInputs}"
+                                                    name="totalMostrar${numeroInputs}" class="form-control"
+                                                    autocomplete="off"
+                                                    readonly >
+
+                                                    <input id="total${numeroInputs}" name="total${numeroInputs}" type="hidden" value="" required>
+
+
+                                            </div>
+
+                                            <input id="idBodega${numeroInputs}" name="idBodega${numeroInputs}" type="hidden" value="${idBodega}">
+                                            <input id="idSeccion${numeroInputs}" name="idSeccion${numeroInputs}" type="hidden" value="${idSeccion}">
+                                            <input id="restaInventario${numeroInputs}" name="restaInventario${numeroInputs}" type="hidden" value="">
+                                            <input id="isv${numeroInputs}" name="isv${numeroInputs}" type="hidden" value="${producto.isv}">
+
+
+
+                        </div>
+                        `;
+
+                        arregloIdInputs.splice(numeroInputs, 0, numeroInputs);
+                        document.getElementById('divProductos').insertAdjacentHTML('beforeend', html);
+
+                        return;
+
+                    })
+                    .catch(err => {
+
+                            const mensaje = err.response?.data?.message
+                                || 'Ha ocurrido un error inesperado';
+
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                html: mensaje
+                            });
+
+                    })
+            }
+
+            function eliminarInput(id) {
+                const element = document.getElementById(id);
+                element.remove();
+
+
+                var myIndex = arregloIdInputs.indexOf(id);
+                if (myIndex !== -1) {
+                    arregloIdInputs.splice(myIndex, 1);
+                    this.totalesGenerales();
+                }
+
+            }
+
+            function calcularTotales(idPrecio, idCantidad, isvProducto, idUnidad, id, idRestaInventario) {
+
+
+                let valorInputPrecio = Number(idPrecio.value).toFixed(2);
+                let valorInputCantidad = idCantidad.value;
+                let valorSelectUnidad = idUnidad.value;
+
+                if (valorInputPrecio && valorInputCantidad) {
+
+                    let descuento = document.getElementById('porDescuento').value;
+                    let subTotal = 0;
+                    let isv = 0;
+                    let total = 0;
+
+
+                    if (descuento > 0) {
+                        subTotal = valorInputPrecio * (valorInputCantidad * valorSelectUnidad);
+                        descuentoCalculado = subTotal * (descuento / 100);
+                        subTotal = subTotal - descuentoCalculado;
+                        isv = subTotal * (isvProducto / 100);
+                        total = subTotal + (subTotal * (isvProducto / 100));
+                    } else {
+                        descuentoCalculado = 0
+                        subTotal = valorInputPrecio * (valorInputCantidad * valorSelectUnidad);
+                        isv = subTotal * (isvProducto / 100);
+                        total = subTotal + subTotal * (isvProducto / 100);
+                    }
+
+                    document.getElementById('acumuladoDescuento' + id).value = descuentoCalculado.toFixed(2);
+
+                    document.getElementById('total' + id).value = total.toFixed(2);
+                    document.getElementById('totalMostrar' + id).value = new Intl.NumberFormat('es-HN', {
+                        style: 'currency',
+                        currency: 'HNL',
+                        minimumFractionDigits: 2,
+                    }).format(total)
+
+                    document.getElementById('subTotal' + id).value = subTotal.toFixed(2);
+                    document.getElementById('subTotalMostrar' + id).value = new Intl.NumberFormat('es-HN', {
+                        style: 'currency',
+                        currency: 'HNL',
+                        minimumFractionDigits: 2,
+                    }).format(subTotal)
+
+
+                    document.getElementById('isvProducto' + id).value = isv.toFixed(2);
+                    document.getElementById('isvProductoMostrar' + id).value = new Intl.NumberFormat('es-HN', {
+                        style: 'currency',
+                        currency: 'HNL',
+                        minimumFractionDigits: 2,
+                    }).format(isv)
+
+
+                    idRestaInventario.value = valorInputCantidad * valorSelectUnidad;
+                    this.totalesGenerales();
+
+                }
+
+                idPrecio.value = valorInputPrecio;
+                return 0;
+
+
+            }
+
+            function totalesGenerales() {
+
+                //console.log(arregloIdInputs);
+
+                if (numeroInputs == 0) {
+                    return;
+                }
+
+
+
+                let totalGeneralValor = new Number(0);
+                let totalISV = new Number(0);
+                let subTotalGeneralGrabadoValor = new Number(0);
+                let subTotalGeneralExcentoValor = new Number(0);
+                let subTotalGeneral = new Number(0);
+                let subTotalFila = 0;
+                let isvFila = 0;
+                let acumularDescuento = new Number(0);
+
+                for (let i = 0; i < arregloIdInputs.length; i++) {
+
+                    subTotalFila = new Number(document.getElementById('subTotal' + arregloIdInputs[i]).value);
+                    isvFila = new Number(document.getElementById('isvProducto' + arregloIdInputs[i]).value);
+
+
+
+                    if (isvFila == 0) {
+                        subTotalGeneralExcentoValor += new Number(document.getElementById('subTotal' + arregloIdInputs[i])
+                            .value);
+                    } else if (subTotalFila > 0) {
+                        subTotalGeneralGrabadoValor += new Number(document.getElementById('subTotal' + arregloIdInputs[i])
+                            .value);
+                    }
+
+                    subTotalGeneral += new Number(document.getElementById('subTotal' + arregloIdInputs[i]).value);
+
+
+                    totalISV += new Number(document.getElementById('isvProducto' + arregloIdInputs[i]).value);
+                    totalGeneralValor += new Number(document.getElementById('total' + arregloIdInputs[i]).value);
+
+                    acumularDescuento += new Number(document.getElementById('acumuladoDescuento' + arregloIdInputs[i]).value);
+                }
+
+                document.getElementById('porDescuentoCalculado').value = acumularDescuento.toFixed(2);
+
+                document.getElementById('descuentoMostrar').value = new Intl.NumberFormat('es-HN', {
+                    style: 'currency',
+                    currency: 'HNL',
+                    minimumFractionDigits: 2,
+                }).format(acumularDescuento)
+
+
+                document.getElementById('subTotalGeneral').value = subTotalGeneral.toFixed(2);
+                document.getElementById('subTotalGeneralMostrar').value = new Intl.NumberFormat('es-HN', {
+                    style: 'currency',
+                    currency: 'HNL',
+                    minimumFractionDigits: 2,
+                }).format(subTotalGeneral)
+
+                document.getElementById('subTotalGeneralGrabado').value = subTotalGeneralGrabadoValor.toFixed(2);
+                document.getElementById('subTotalGeneralGrabadoMostrar').value = new Intl.NumberFormat('es-HN', {
+                    style: 'currency',
+                    currency: 'HNL',
+                    minimumFractionDigits: 2,
+                }).format(subTotalGeneralGrabadoValor)
+
+                document.getElementById('subTotalGeneralExcento').value = subTotalGeneralExcentoValor.toFixed(2);
+                document.getElementById('subTotalGeneralExcentoMostrar').value = new Intl.NumberFormat('es-HN', {
+                    style: 'currency',
+                    currency: 'HNL',
+                    minimumFractionDigits: 2,
+                }).format(subTotalGeneralExcentoValor)
+
+                document.getElementById('isvGeneral').value = totalISV.toFixed(2);
+                document.getElementById('isvGeneralMostrar').value = new Intl.NumberFormat('es-HN', {
+                    style: 'currency',
+                    currency: 'HNL',
+                    minimumFractionDigits: 2,
+                }).format(totalISV)
+
+                document.getElementById('totalGeneral').value = totalGeneralValor.toFixed(2);
+                document.getElementById('totalGeneralMostrar').value = new Intl.NumberFormat('es-HN', {
+                    style: 'currency',
+                    currency: 'HNL',
+                    minimumFractionDigits: 2,
+                }).format(totalGeneralValor)
+
+                return 0;
+            }
+
+            function validarFechaPago() {
+
+                let tipoPago;
+
+                tipoPago = document.getElementById('tipoPagoVenta').value;
+
+                if (tipoPago == 2) {
+
+                    document.getElementById('fecha_vencimiento').readOnly = false;
+                    this.sumarDiasCredito();
+
+
+
+                } else {
+                    document.getElementById('fecha_vencimiento').value = "{{ date('Y-m-d') }}";
+
+                    document.getElementById('fecha_vencimiento').readOnly = true;
+
+
+                }
+
+                return 0;
+
+
+            }
+
+
+
+
+            $(document).on('submit', '#crear_venta',
+            function(event) {
+                    event.preventDefault();
+                    guardarVenta();
+                });
+
+
+            function validacionPrecio(idPrecios, idprecio){
+
+                var idPrecioSeleccionado = idPrecios.options[idPrecios.selectedIndex].getAttribute("data-id");
+                var precioSeleccionado = idPrecios.value;
+                var idprecioIngresado = idprecio.id;
+                var precioIngresado = idprecio.value;
+
+                document.getElementById(idprecioIngresado).value = precioSeleccionado;
+                document.getElementById(idprecioIngresado).setAttribute("min",precioSeleccionado);
+
+            }
+
+            function guardarVenta() {
+
+
+                document.getElementById("btn_venta_coorporativa").disabled = true;
+
+                var data = new FormData($('#crear_venta').get(0));
+
+                let longitudArreglo = arregloIdInputs.length;
+                for (var i = 0; i < longitudArreglo; i++) {
+
+
+                    let name = "unidad" + arregloIdInputs[i];
+                    let nameForm = "idUnidadVenta" + arregloIdInputs[i];
+
+                    let e = document.getElementById(name);
+                    let idUnidadVenta = e.options[e.selectedIndex].getAttribute("data-id");
+
+
+                    data.append(nameForm, idUnidadVenta);
+
+
+
+                    /**************************************************************/
+
+                    let name2 = "precios" + arregloIdInputs[i];
+                    let nameForm2 = "idPrecioSeleccionado" + arregloIdInputs[i];
+
+                    let a = document.getElementById(name2);
+
+                    let idPrecioSeleccionado = a.options[a.selectedIndex].getAttribute("data-id");
+
+
+                    data.append(nameForm2, idPrecioSeleccionado);
+
+
+
+                    /**************************************************************/
+                }
+
+                data.append("numeroInputs", numeroInputs);
+
+                let text = arregloIdInputs.toString();
+                data.append("arregloIdInputs", text);
+
+
+                const formDataObj = {};
+
+                data.forEach((value, key) => (formDataObj[key] = value));
+
+
+                const options = {
+                    headers: {
+                        "content-type": "application/json"
+                    }
+                }
+
+
+                axios.post('/ventas/estatal/guardar', formDataObj, options)
+                    .then(response => {
+                        let data = response.data;
+
+
+
+                        if (data.idFactura == 0) {
+                            console.log("entro")
+
+                            Swal.fire({
+                                icon: data.icon,
+                                title: data.title,
+                                html: data.text,
+                            })
+
+                            document.getElementById("btn_venta_coorporativa").disabled = false;
+                            return;
+
+                        }
+
+                        Swal.fire({
+                            icon: data.icon,
+                            title: data.title,
+                            html: data.text
+                        })
+
+
+                        document.getElementById('bloqueImagenes').innerHTML = '';
+                        document.getElementById('divProductos').innerHTML = '';
+
+                        document.getElementById("crear_venta").reset();
+                        $('#crear_venta').parsley().reset();
+
+                        var element = document.getElementById('detalleProducto');
+                        element.classList.add("d-none");
+                        element.href = "";
+
+                        document.getElementById("seleccionarCliente").innerHTML =
+                            '<option value="" selected disabled>--Seleccionar un cliente--</option>';
+
+                        document.getElementById('seleccionarProducto').innerHTML =
+                            '<option value="" selected disabled>--Seleccione un producto--</option>';
+                        document.getElementById('codigoProductoEstatal').value = '';
+                        var lblProd = document.getElementById('productoSeleccionadoEstatal');
+                        lblProd.classList.add('d-none');
+                        lblProd.textContent = '';
+                        document.getElementById('bodega').innerHTML =
+                            '<option value="" selected disabled>--Seleccione un producto--</option>';
+                        document.getElementById("bodega").disabled = true;
+
+
+
+                        let element2 = document.getElementById('detalleProducto');
+                        element2.classList.add("d-none");
+
+
+                        arregloIdInputs = [];
+                        numeroInputs = 0;
+                        retencionEstado = false;
+
+                        document.getElementById('numero_venta').value = data.numeroVenta;
+                        document.getElementById("btn_venta_coorporativa").disabled = false;
+
+                    })
+                    .catch(err => {
+                        document.getElementById("btn_venta_coorporativa").disabled = false;
+                        let data = err.response.data;
+                        console.log(err);
+                        Swal.fire({
+                            icon: data.icon,
+                            title: data.title,
+                            text: data.text
+                        })
+                    })
+            }
+
+
+            function sumarDiasCredito() {
+                tipoPago = document.getElementById('tipoPagoVenta').value;
+
+                if (tipoPago == 2) {
+
+                    let fechaEmision = document.getElementById("fecha_emision").value;
+                    let date = new Date(fechaEmision);
+                    date.setDate(date.getDate() + diasCredito);
+                    let suma = date.toISOString().split('T')[0];
+                    //console.log( diasCredito);
+
+                    document.getElementById("fecha_vencimiento").value = suma;
+
+                }
+            }
+
+            function obtenerOrdenesCompra() {
+
+                let idCliente = document.getElementById('seleccionarCliente').value;
+
+                $('#ordenCompra').select2({
+                    ajax: {
+                        url: '/ventas/numero/orden',
+                        data: function(params) {
+                            var query = {
+                                idCliente: idCliente,
+                                search: params.term,
+                                type: 'public',
+                                page: params.page || 1
+                            }
+
+                            // Query parameters will be ?search=[term]&type=public
+
+                            return query;
+                        }
+                    }
+                });
+            }
+        </script>
+
+        <script>
+            <?php
+            date_default_timezone_set('America/Tegucigalpa');
+            $act_fecha = date('Y-m-d');
+            $act_hora = date('H:i:s');
+            $mes = date('m');
+            $year = date('Y');
+            $datetim = $act_fecha . ' ' . $act_hora;
+            ?>
+
+            function mostrarHora() {
+                var fecha = new Date();
+                var hora = fecha.getHours();
+                var minutos = fecha.getMinutes();
+                var segundos = fecha.getSeconds();
+
+                minutos = minutos < 10 ? "0" + minutos : minutos;
+                segundos = segundos < 10 ? "0" + segundos : segundos;
+
+                var elementoReloj = document.getElementById("reloj");
+                if (elementoReloj) {
+                    elementoReloj.innerHTML = hora + ":" + minutos + ":" + segundos;
+                }
+            }
+            setInterval(mostrarHora, 1000);
+        </script>
+    @endpush
+
+    <div class="mt-3">
+        <div class="float-right">
+            <?php echo "$act_fecha"; ?> <strong id="reloj"></strong>
+        </div>
+        <div>
+            <strong>Copyright</strong> Distribuciones Valencia &copy; <?php echo "$year"; ?>
+        </div>
+        <div style="clear: both;"></div>
+    </div>
+</div>

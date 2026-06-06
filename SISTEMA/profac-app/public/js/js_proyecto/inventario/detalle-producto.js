@@ -1,22 +1,39 @@
+﻿
+const $foto_producto = document.querySelector("#foto_producto_edit");
 
-const $foto_producto = document.querySelector("#foto_producto_edit"),
-$imagenPrevisualizacion = document.querySelector("#imagenPrevisualizacion");
-
-// Escuchar cuando cambie
 $foto_producto.addEventListener("change", () => {
-// Los archivos seleccionados, pueden ser muchos o uno
-const archivos = $foto_producto.files;
-// Si no hay archivos salimos de la función y quitamos la imagen
-if (!archivos || !archivos.length) {
-    $imagenPrevisualizacion.src = "";
-    return;
-}
-// Ahora tomamos el primer archivo, el cual vamos a previsualizar
-const primerArchivo = archivos[0];
-// Lo convertimos a un objeto de tipo objectURL
-const objectURL = URL.createObjectURL(primerArchivo);
-// Y a la fuente de la imagen le ponemos el objectURL
-$imagenPrevisualizacion.src = objectURL;
+    const files = $foto_producto.files;
+    const grid = document.getElementById('previewGrid');
+    const container = document.getElementById('previewContainer');
+    const countEl = document.getElementById('previewCount');
+
+    grid.innerHTML = '';
+
+    if (!files || !files.length) {
+        container.style.display = 'none';
+        return;
+    }
+
+    if (files.length > 10) {
+        Swal.fire({ icon: 'warning', title: 'Máximo 10 imágenes', text: 'Solo se subirán las primeras 10 imágenes seleccionadas.' });
+    }
+
+    const max = Math.min(files.length, 10);
+    countEl.textContent = max;
+    container.style.display = 'block';
+
+    for (let i = 0; i < max; i++) {
+        const file = files[i];
+        const reader = new FileReader();
+        const div = document.createElement('div');
+        div.style.cssText = 'border-radius:8px;overflow:hidden;border:2px solid #e0e6ed;background:#f8fafc;min-height:90px;display:flex;align-items:center;justify-content:center;';
+        const img = document.createElement('img');
+        img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+        reader.onload = (e) => { img.src = e.target.result; };
+        reader.readAsDataURL(file);
+        div.appendChild(img);
+        grid.appendChild(div);
+    }
 });
 
 $(document).on('submit', '#foto_productoForm', function(event) {
@@ -32,12 +49,11 @@ $('#modalSpinnerLoading').modal('show');
 
 let data = new FormData($('#foto_productoForm').get(0));
 
-let totalfiles = document.getElementById('foto_producto_edit').files.length;
+let totalfiles = Math.min(document.getElementById('foto_producto_edit').files.length, 10);
 for (var i = 0; i < totalfiles; i++) {
     data.append("files[]", document.getElementById('foto_producto_edit').files[i]);
 };
 
-console.log(data);
 axios.post('/ruta/imagen/edit', data)
     .then(response => {
 
@@ -46,9 +62,11 @@ axios.post('/ruta/imagen/edit', data)
 
 
         $('#foto_productoForm').parsley().reset();
-        img = document.getElementById('imagenPrevisualizacion');
-        img.src = "";
         document.getElementById("foto_productoForm").reset();
+        const pc = document.getElementById('previewContainer');
+        const pg = document.getElementById('previewGrid');
+        if (pc) pc.style.display = 'none';
+        if (pg) pg.innerHTML = '';
         $('#modal_foto_producto').modal('hide');
 
 
@@ -74,7 +92,7 @@ obtenerDatosProductoEditar(idProducto_edit);
 
 $('#tbl_lotes_listar').DataTable({
     "language": {
-        "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
+        "url": "/js/plugins/dataTables/i18n/Spanish.json"
     },
     pageLength: 10,
     responsive: true,
@@ -84,8 +102,13 @@ $('#tbl_lotes_listar').DataTable({
 
     ],
     drawCallback: function() {
-        var sum = $('#tbl_lotes_listar').DataTable().column(9).data().sum();
-        let html = 'Cantidad Total en Bodega: ' + sum
+        var api = $('#tbl_lotes_listar').DataTable();
+        var sum = 0;
+        api.column(10).data().each(function(val) {
+            var text = String(val).replace(/<[^>]*>/g, '').trim();
+            sum += parseInt(text) || 0;
+        });
+        let html = 'Cantidad Total en Bodegas: ' + sum.toLocaleString('es-HN');
         $('#total_lotes').html(html);
     }
 
@@ -96,7 +119,7 @@ $('#tbl_lotes_listar').DataTable({
 $('#tbl_unidades_listar').DataTable({
 
     "language": {
-        "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
+        "url": "/js/plugins/dataTables/i18n/Spanish.json"
     },
 
     pageLength: 10,
@@ -134,9 +157,9 @@ axios.get("/producto/datos/" + idProducto)
 
         document.getElementById("nombre_producto_edit").value = datos.datosProducto.nombre;
         document.getElementById("descripcion_producto_edit").value = datos.datosProducto.descripcion;
-        document.getElementById("isv_producto_edit").value = datos.datosProducto.isv;
-        document.getElementById("isv_producto_edit").innerHTML += '<option selected value="' + datos
-            .datosProducto.isv + '">' + datos.datosProducto.isv + ' % de ISV</option>';
+        // isv_producto_edit: existe solo para admin (select) — se asigna con .value
+        var isvEl = document.getElementById("isv_producto_edit");
+        if (isvEl) isvEl.value = datos.datosProducto.isv;
         document.getElementById("cod_barra_producto_edit").value = datos.datosProducto.codigo_barra;
         document.getElementById("cod_estatal_producto_edit").value = datos.datosProducto.codigo_estatal;
         document.getElementById("precioBase_edit").value = datos.datosProducto.precio_base;
@@ -229,6 +252,9 @@ axios.get("/producto/datos/" + idProducto)
         document.getElementById('unidad_producto_editar').innerHTML = htmlUnidades;
         document.getElementById('sub_categoria_producto_edit').innerHTML = htmlSubCategorias;
 
+        document.getElementById('tiempo_recuperacion_meses_edit').value = datos.datosProducto.tiempo_recuperacion_meses || '';
+        document.getElementById('origen_edit').value = datos.datosProducto.origen || '';
+
 
 
 
@@ -301,8 +327,6 @@ axios.post("/producto/editar", data)
     .then(response => {
         $('#modalSpinnerLoading').modal('hide');
 
-
-        $('#editarProductoForm').parsley().reset();
         document.getElementById("editarProductoForm").reset();
         $('#modal_producto_editar').modal('hide');
 

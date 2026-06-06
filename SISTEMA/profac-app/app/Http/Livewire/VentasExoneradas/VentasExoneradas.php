@@ -79,7 +79,18 @@ class VentasExoneradas extends Component
     }
 
     public function obtenerCodigoExoneracion(Request $request){
-        $codigos = DB::SELECT("select id, codigo as text from codigo_exoneracion where estado_id = 1 and cliente_id = ".$request->idCliente);
+        $idCliente = (int) $request->input('idCliente', 0);
+
+        if ($idCliente <= 0) {
+            return response()->json([
+                'results' => []
+            ], 200);
+        }
+
+        $codigos = DB::SELECT(
+            'select id, codigo as text from codigo_exoneracion where estado_id = 1 and cliente_id = ?',
+            [$idCliente]
+        );
 
         return response()->json([
             'results'=>$codigos
@@ -89,26 +100,36 @@ class VentasExoneradas extends Component
     public function guardarVenta(Request $request)
     {
 
+        $factura = null;
+
 
         $validator = Validator::make($request->all(), [
 
-            'fecha_vencimiento' => 'required',
-            'numero_venta' => 'required',
-            'subTotalGeneral' => 'required',
-            'isvGeneral' => 'required',
-            'totalGeneral' => 'required',
-            'arregloIdInputs' => 'required',
-            'numeroInputs' => 'required',
-            'seleccionarCliente' => 'required',
-            'nombre_cliente_ventas' => 'required',
-            'tipoPagoVenta' => 'required',
-            'bodega' => 'required',
-            'restriccion' => 'required',
-            'tipo_venta_id'=>'required|integer|between:3,3',
-            'codigo'=>'required'
+            'fecha_vencimiento'    => 'required',
+            'numero_venta'         => 'required',
+            'subTotalGeneral'      => 'required',
+            'isvGeneral'           => 'required',
+            'totalGeneral'         => 'required',
+            'arregloIdInputs'      => 'required',
+            'numeroInputs'         => 'required',
+            'seleccionarCliente'   => 'required',
+            'nombre_cliente_ventas'=> 'required',
+            'tipoPagoVenta'        => 'required',
+            'restriccion'          => 'required',
+            'tipo_venta_id'        => 'required|integer|between:3,3',
+            'codigo'               => 'required',
 
-
-
+        ], [
+            'codigo.required'               => 'Debe seleccionar el Código de Exoneración.',
+            'seleccionarCliente.required'   => 'Debe seleccionar un Cliente.',
+            'nombre_cliente_ventas.required'=> 'El nombre del cliente es obligatorio.',
+            'tipoPagoVenta.required'        => 'Debe seleccionar el Tipo de Pago.',
+            'fecha_vencimiento.required'    => 'La fecha de vencimiento es obligatoria.',
+            'subTotalGeneral.required'      => 'El sub-total es obligatorio. Agregue al menos un producto.',
+            'totalGeneral.required'         => 'El total es obligatorio. Agregue al menos un producto.',
+            'restriccion.required'          => 'El campo restricción es obligatorio.',
+            'tipo_venta_id.required'        => 'El tipo de venta no es válido.',
+            'tipo_venta_id.between'         => 'El tipo de venta debe ser Exonerada.',
         ]);
 
 
@@ -158,6 +179,36 @@ class VentasExoneradas extends Component
         $mensaje = "";
         $flag = false;
 
+        // Si la venta proviene de una prefactura, excluirla del stock reservado
+        $prefacturaExcluirId = (int) ($request->prefactura_id ?? 0);
+
+        // En modo editar_factura: sumar de vuelta el stock de la factura original
+        $facturaEditAddBackId = 0;
+        if (($request->modo ?? '') === 'editar_factura') {
+            $flujoIdEdit = (int) ($request->flujo_id ?? 0);
+            if ($flujoIdEdit > 0) {
+                $histF = DB::table('historico_flujo')
+                    ->where('flujo_id', $flujoIdEdit)
+                    ->where('tipo_tramite_id', 3)
+                    ->whereNotNull('tramite_id')
+                    ->where('estado_id', '!=', 7)
+                    ->orderByDesc('id')
+                    ->value('tramite_id');
+                if (!$histF) {
+                    // Fallback legacy: factura guardada en tipo_tramite_id=5
+                    $histF = DB::table('historico_flujo as hf')
+                        ->join('factura as f', 'f.id', '=', 'hf.tramite_id')
+                        ->where('hf.flujo_id', $flujoIdEdit)
+                        ->where('hf.tipo_tramite_id', 5)
+                        ->whereNotNull('hf.tramite_id')
+                        ->where('hf.estado_id', '!=', 7)
+                        ->orderByDesc('hf.id')
+                        ->value('hf.tramite_id');
+                }
+                $facturaEditAddBackId = $histF ? (int) $histF : 0;
+            }
+        }
+
         //comprobar existencia de producto en bodega
         for ($j = 0; $j < count($arrayInputs); $j++) {
 
@@ -167,12 +218,37 @@ class VentasExoneradas extends Component
             $keyNombre = "nombre" . $arrayInputs[$j];
             $keyBodega = "bodega" . $arrayInputs[$j];
 
-            $resultado = DB::selectONE("select
-            if(sum(cantidad_disponible) is null,0,sum(cantidad_disponible)) as cantidad_disponoble
-            from recibido_bodega
-            where cantidad_disponible <> 0
-            and producto_id = " . $request->$keyIdProducto . "
-            and seccion_id = " . $request->$keyIdSeccion);
+            $excludePfClause = $prefacturaExcluirId > 0
+                ? "AND pf2.id != {$prefacturaExcluirId}"
+                : '';
+
+            $addBackFacturaClause = $facturaEditAddBackId > 0
+                ? "+ IFNULL((SELECT SUM(vhp_e.cantidad)
+                              FROM venta_has_producto vhp_e
+                              WHERE vhp_e.factura_id = {$facturaEditAddBackId}
+                                AND vhp_e.producto_id = " . (int)$request->$keyIdProducto . "
+                                AND vhp_e.seccion_id  = " . (int)$request->$keyIdSeccion . "
+                                AND vhp_e.resta_inventario = 1), 0)"
+                : '';
+
+            $resultado = DB::selectONE("
+                SELECT GREATEST(0,
+                    IFNULL((SELECT SUM(rb2.cantidad_disponible) FROM recibido_bodega rb2
+                             WHERE rb2.cantidad_disponible > 0
+                               AND rb2.producto_id = " . (int)$request->$keyIdProducto . "
+                               AND rb2.seccion_id  = " . (int)$request->$keyIdSeccion . "), 0)
+                    {$addBackFacturaClause}
+                    -
+                    IFNULL((SELECT SUM(php2.cantidad)
+                             FROM prefactura_has_producto php2
+                             INNER JOIN prefactura pf2 ON pf2.id = php2.prefactura_id
+                             WHERE pf2.estado = 'activo'
+                               {$excludePfClause}
+                               AND php2.producto_id = " . (int)$request->$keyIdProducto . "
+                               AND php2.seccion_id  = " . (int)$request->$keyIdSeccion . "
+                               AND php2.resta_inventario = 1), 0)
+                ) AS cantidad_disponoble
+            ");
 
             if ($request->$keyRestaInventario > $resultado->cantidad_disponoble) {
                 $mensaje = $mensaje . "Unidades insuficientes para el producto: <b>" . $request->$keyNombre . "</b> en la bodega con secci��n :<b>" . $request->$keyBodega . "</b><br><br>";
@@ -206,6 +282,14 @@ class VentasExoneradas extends Component
                     from cai
                     where tipo_documento_fiscal_id = 1 and estado_id = 1");
 
+            if (!$cai) {
+                return response()->json([
+                    'icon' => 'warning',
+                    'title' => 'Advertencia!',
+                    'text' => 'No hay un CAI activo configurado para facturacion.',
+                ], 401);
+            }
+
             $arrayNumeroFinal = explode('-', $cai->numero_final);
             $numero_final= (string)((int)($arrayNumeroFinal[3]));
 
@@ -232,6 +316,7 @@ class VentasExoneradas extends Component
 
 
             $montoComision = $request->totalGeneral * 0.5;
+            $subTotalFactura = (float) ($request->subTotalGeneral ?? 0);
 
             if ($request->tipoPagoVenta == 1) {
                 $diasCredito = 0;
@@ -242,6 +327,12 @@ class VentasExoneradas extends Component
 
             $numeroVenta = DB::selectOne("select concat(YEAR(NOW()),'-',count(id)+1)  as 'numero' from factura");
 
+            // Obtener datos reales del cliente desde la base de datos basado en cliente_id seleccionado
+            $clienteData = DB::table('cliente')
+                ->where('id', (int) $request->seleccionarCliente)
+                ->select('nombre', 'rtn')
+                ->first();
+
             $validarCAI = new Notificaciones();
             $validarCAI->validarAlertaCAI(ltrim($arrayCai[3],"0"),$numeroSecuencia, 3);
 
@@ -249,12 +340,12 @@ class VentasExoneradas extends Component
             $factura->numero_factura = $numeroVenta->numero;
             $factura->cai = $numeroCAI;
             $factura->numero_secuencia_cai = $numeroSecuencia;
-            $factura->nombre_cliente = $request->nombre_cliente_ventas;
-            $factura->rtn = $request->rtn_ventas;
-            $factura->sub_total = $request->subTotalGeneral;
-            $factura->isv = $request->isvGeneral;
-            $factura->total = $request->totalGeneral;
-            $factura->credito = $request->totalGeneral;
+            $factura->nombre_cliente = $clienteData->nombre ?? $request->nombre_cliente_ventas;
+            $factura->rtn = $clienteData->rtn ?? $request->rtn_ventas;
+            $factura->sub_total = $subTotalFactura;
+            $factura->isv = 0;
+            $factura->total = $subTotalFactura;
+            $factura->credito = $subTotalFactura;
             $factura->fecha_emision = $request->fecha_emision;
             $factura->fecha_vencimiento = $request->fecha_vencimiento;
             $factura->tipo_pago_id = $request->tipoPagoVenta;
@@ -268,7 +359,7 @@ class VentasExoneradas extends Component
             $factura->estado_factura_id = 1; // se presenta
             $factura->users_id = Auth::user()->id;
             $factura->comision_estado_pagado = 0;
-            $factura->pendiente_cobro = $request->totalGeneral;
+            $factura->pendiente_cobro = $subTotalFactura;
             $factura->codigo_exoneracion_id = $request->codigo;
             $factura->estado_editar = 1;
             $factura->sub_total_grabado = 0;
@@ -283,35 +374,21 @@ class VentasExoneradas extends Component
             $caiUpdated->cantidad_no_utilizada = $cai->cantidad_otorgada - $numeroSecuencia;
             $caiUpdated->save();
 
-            //Tabla de listado
-
-            // DB::INSERT("INSERT INTO listado(
-            //          numero, secuencia, numero_inicial, numero_final, cantidad_otorgada, cai_id, created_at, updated_at, eliminado) VALUES
-            //         ('" . $numeroCAI . "','" . $numeroSecuencia . "','" . $cai->numero_inicial . "','" . $cai->numero_final . "','" . $cai->cantidad_otorgada . "','" . $cai->id . "','" . NOW() . "','" . NOW() . "',0)");
-
-
-
 
             $codigoExoneracion = ModelCodigoExoneracion::find($request->codigo);
+            if (!$codigoExoneracion) {
+                DB::rollBack();
+                return response()->json([
+                    'icon' => 'warning',
+                    'title' => 'Advertencia!',
+                    'text' => 'El codigo de exoneracion seleccionado no existe o ya no esta disponible.',
+                ], 401);
+            }
+            $codigoExoneracionTexto = $codigoExoneracion->codigo ?? null;
+            $correlativoExoneracion = $codigoExoneracion->corrOrd ?? null;
             $codigoExoneracion->estado_id = 2;
             $codigoExoneracion->save();
 
-            // //dd( $guardarCompra);
-
-
-
-            /* $aplicacionPagos = DB::select("
-
-            CALL sp_aplicacion_pagos('2','".$factura->cliente_id."', '".Auth::user()->id."', '".$factura->id."','na','0','0','0', @estado, @msjResultado);");
-
-
-            if ($aplicacionPagos[0]->estado == -1) {
-                return response()->json([
-                    "text" => "Ha ocurrido un error al insertar factura ".$factura->id."en aplicacion de pagos.",
-                    "icon" => "error",
-                    "title"=>"Error!"
-                ],400);
-            } */
             for ($i = 0; $i < count($arrayInputs); $i++) {
 
                 $keyRestaInventario = "restaInventario" . $arrayInputs[$i];
@@ -328,6 +405,7 @@ class VentasExoneradas extends Component
                 $keyunidad = 'unidad' . $arrayInputs[$i];
                 $keyidPrecioSeleccionado = 'idPrecioSeleccionado'.$arrayInputs[$i];
                 $keyprecioSeleccionado = 'precios'.$arrayInputs[$i];
+                $keyprecios_producto_carga_id = 'precios_producto_carga_id'.$arrayInputs[$i];
 
                 $restaInventario = $request->$keyRestaInventario;
                 $idSeccion = $request->$keyIdSeccion;
@@ -338,19 +416,22 @@ class VentasExoneradas extends Component
 
                 $idPrecioSeleccionado = $request->$keyidPrecioSeleccionado;
                 $precioSeleccionado = $request->$keyprecioSeleccionado;
+                $precios_producto_carga_id = $request->$keyprecios_producto_carga_id;
+
                 $precio = $request->$keyPrecio;
                 $cantidad = $request->$keyCantidad;
                 $subTotal = $request->$keySubTotal;
-                $isv = $request->$keyIsv;
-                $total = $request->$keyTotal;
+                $isv = 0;
+                $total = $subTotal;
+                $ivsProducto = 0;
 
                 //dd($factura);
 
-                $this->restarUnidadesInventario($idPrecioSeleccionado,$precioSeleccionado,$restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad,$arrayInputs[$i]);
+                $this->restarUnidadesInventario($precios_producto_carga_id, $idPrecioSeleccionado,$precioSeleccionado,$restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad,$arrayInputs[$i]);
             };
 
             if ($request->tipoPagoVenta == 2) { //si el tipo de pago es credito
-                $this->restarCreditoCliente($request->seleccionarCliente, $request->totalGeneral, $factura->id);
+                $this->restarCreditoCliente($request->seleccionarCliente, $subTotalFactura, $factura->id);
             }
 
             // dd($this->arrayProductos);
@@ -359,6 +440,23 @@ class VentasExoneradas extends Component
 
 
             $numeroVenta = DB::selectOne("select concat(YEAR(NOW()),'-',count(id)+1)  as 'numero' from factura");
+
+            // Persistir documentos comerciales en flujo si viene de un flujo vinculado
+            if (!empty($request->flujo_id)) {
+                $docUpdate = array_filter([
+                    'numero_orden_compra'  => $request->numero_orden_compra  ?: null,
+                    'archivo_orden_compra' => $request->archivo_orden_compra ?: null,
+                    'numero_forma_f01'     => $request->numero_forma_f01     ?: null,
+                    'archivo_forma_f01'    => $request->archivo_forma_f01    ?: null,
+                    // Exoneradas: guardar snapshot en flujo (correlativo y codigo)
+                    'numero_exoneracion'   => $request->numero_exoneracion   ?: $correlativoExoneracion,
+                    'archivo_exoneracion'  => $request->archivo_exoneracion  ?: $codigoExoneracionTexto,
+                ], fn($v) => $v !== null);
+                if (!empty($docUpdate)) {
+                    $docUpdate['updated_at'] = now();
+                    DB::table('flujo')->where('id', (int) $request->flujo_id)->update($docUpdate);
+                }
+            }
 
             DB::commit();
 
@@ -384,13 +482,13 @@ class VentasExoneradas extends Component
                 'icon' => "error",
                 'text' => 'Ha ocurrido un error.',
                 'title' => 'Error!',
-                'idFactura' => $factura->id,
+                'idFactura' => $factura ? $factura->id : 0,
                 'mensajeError'=>$e
             ], 402);
         }
     }
 
-    public function restarUnidadesInventario($idPrecioSeleccionado,$precioSeleccionado,$unidadesRestarInv, $idProducto, $idSeccion, $idFactura, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $indice)
+    public function restarUnidadesInventario($precios_producto_carga_id,$idPrecioSeleccionado,$precioSeleccionado,$unidadesRestarInv, $idProducto, $idSeccion, $idFactura, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $indice)
     {
         try {
 
@@ -487,6 +585,7 @@ class VentasExoneradas extends Component
                     "total_s" => $totalSecccionado,
                     "idPrecioSeleccionado"=>$idPrecioSeleccionado,
                     "precioSeleccionado"=>$precioSeleccionado,
+                    "precios_producto_carga_id" => $precios_producto_carga_id,
                     "created_at" => now(),
                     "updated_at" => now(),
                 ]);
@@ -616,11 +715,12 @@ class VentasExoneradas extends Component
         DATE_FORMAT(A.fecha_vencimiento,'%d/%m/%Y' ) as fecha_vencimiento,
         name,
         D.id as factura,
-        E.codigo as codigo_exoneracion,
-        E.corrOrd as correlativoexo,
+        COALESCE(F.archivo_exoneracion, E.codigo) as codigo_exoneracion,
+        COALESCE(F.numero_exoneracion, E.corrOrd) as correlativoexo,
         A.estado_venta_id,
         users.name as vendedor,
-        (select name from users where id = A.users_id ) as facturador
+        (select name from users where id = A.users_id ) as facturador,
+        (select u.name from comprovante_entrega ce inner join users u on ce.users_id = u.id where ce.id = A.comprovante_entrega_id) as asesor_entrega
        from factura A
        inner join cai B
        on A.cai_id = B.id
@@ -632,10 +732,15 @@ class VentasExoneradas extends Component
        on A.estado_factura_id = D.id
        inner join codigo_exoneracion E
        on A.codigo_exoneracion_id = E.id
+    left join historico_flujo HF
+    on HF.tipo_tramite_id = 3 and HF.tramite_id = A.id
+    left join flujo F
+    on F.id = HF.flujo_id
        where A.id = ".$idFactura);
 
        $cliente = DB::SELECTONE("
        select
+        cliente.id as clienteId,
         cliente.nombre,
         cliente.direccion,
         cliente.correo,
@@ -652,10 +757,12 @@ class VentasExoneradas extends Component
         $importes = DB::SELECTONE("
         select
          total,
-         isv,
+         COALESCE((select sum(round(vhp.sub_total_s * (p.isv / 100), 2)) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv != 0 and vhp.factura_id = ".$idFactura."),0) as isv,
          sub_total,
+         FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv != 0 and vhp.factura_id = ".$idFactura."),2) as sub_total_grabado,
+         COALESCE(sub_total_excento, 0) as sub_total_excento,
          porc_descuento,
-        FORMAT((select sum(sub_total_s) from venta_has_producto where isv = 0 and factura_id = ".$idFactura."),2) as subtotal_excentovale,
+        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv = 0 and vhp.factura_id = ".$idFactura."),2) as subtotal_excentovale,
          monto_descuento
          from factura
          where id = ".$idFactura);
@@ -663,21 +770,36 @@ class VentasExoneradas extends Component
          $importesConCentavos= DB::SELECTONE("
          select
          FORMAT(total,2) as total,
-         FORMAT(isv,2) as isv,
+         FORMAT(COALESCE((select sum(round(vhp.sub_total_s * (p.isv / 100), 2)) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv != 0 and vhp.factura_id = ".$idFactura."),0),2) as isv,
          FORMAT(sub_total,2) as sub_total,
-        FORMAT((select sum(sub_total_s) from venta_has_producto where isv = 0 and factura_id = ".$idFactura."),2) as subtotal_excentovale,
+        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv != 0 and vhp.factura_id = ".$idFactura."),2) as sub_total_grabado,
+        FORMAT(COALESCE(sub_total_excento, 0),2) as sub_total_excento,
+        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv = 0 and vhp.factura_id = ".$idFactura."),2) as subtotal_excentovale,
          FORMAT(porc_descuento,2) as porc_descuento,
          FORMAT(monto_descuento,2) as monto_descuento
          from factura where factura.id = ".$idFactura);
+
+                // En facturas exoneradas el impuesto sobre venta debe ser siempre 0.
+                $importes->isv = 0;
+                $importes->total = round((float) $importes->sub_total, 2);
+
+                $importesConCentavos->isv = '0.00';
+                $importesConCentavos->total = number_format(
+                    (float) str_replace(',', '', $importesConCentavos->sub_total),
+                    2,
+                    '.',
+                    ','
+                );
 
        $productos = DB::SELECT("
             select
                     B.producto_id as codigo,
                     concat(C.nombre) as descripcion,
                     UPPER(J.nombre) as medida,
+                if(C.isv = 0, 'SI' , 'NO' ) as excento,
                 if(B.seccion_id = 0, 'N/A',H.nombre) as bodega,
                 if(B.seccion_id = 0, 'N/A',REPLACE(REPLACE(F.descripcion,'Seccion',''),' ', '')) as seccion,
-                    (B.sub_total/B.cantidad) as precio,
+                    FORMAT(B.precio_unidad,2) as precio,
                     sum(B.cantidad_s) as cantidad,
                     sum(B.sub_total_s) as importe
 
@@ -699,39 +821,45 @@ class VentasExoneradas extends Component
                 inner join bodega H
                 on G.bodega_id = H.id
                 where A.id=".$idFactura."
-                group by codigo, descripcion, medida, bodega, seccion, precio"
+                group by codigo, descripcion, medida, bodega, seccion, precio, B.indice
+                order by B.indice asc"
 
 
 
 
         );
 
-        $ordenCompraExiste = DB::SELECTONE("
+        $ordenCompra = DB::SELECTONE("
         select
-        count(*) as 'existe'
+        B.numero_orden
         from factura A
         inner join numero_orden_compra B
         on A.numero_orden_compra_id = B.id
         where A.id =" . $idFactura);
 
-        if ($ordenCompraExiste->existe > 0) {
-            $ordenCompra = DB::SELECTONE("
-            select
-            B.numero_orden
-            from factura A
-            inner join numero_orden_compra B
-            on A.numero_orden_compra_id = B.id
-            where A.id =" . $idFactura);
+        $flujoFacturaId = DB::table('historico_flujo')
+            ->where('tipo_tramite_id', 3)
+            ->where('tramite_id', $idFactura)
+            ->value('flujo_id');
 
+        $flujoDocData = $flujoFacturaId
+            ? DB::table('flujo')->where('id', $flujoFacturaId)->first([
+                'numero_orden_compra',
+                'numero_forma_f01',
+                'numero_exoneracion',
+                'archivo_exoneracion',
+            ])
+            : null;
 
-
-        }else{
-            $ordenCompra = DB::SELECTONE("
-            select
-            'N/A' as numero_orden
-            from factura
-            where id =" . $idFactura);
+        if (empty($ordenCompra->numero_orden)) {
+            $ordenCompra = ['numero_orden' => ($flujoDocData->numero_orden_compra ?? null) ?: 'N/A'];
+        } else {
+            $ordenCompra = ['numero_orden' => $ordenCompra->numero_orden];
         }
+
+        $formaF01 = ($flujoDocData->numero_forma_f01 ?? null) ?: null;
+        $correlativoExonerado = ($flujoDocData->numero_exoneracion ?? null) ?: ($cai->correlativoexo ?? null);
+        $constanciaExonerado = ($flujoDocData->archivo_exoneracion ?? null) ?: ($cai->codigo_exoneracion ?? null);
 
         if( fmod($importes->total, 1) == 0.0 ){
             $flagCentavos = false;
@@ -746,7 +874,22 @@ class VentasExoneradas extends Component
         $formatter = new NumeroALetras();
         $numeroLetras = $formatter->toMoney($importes->total, 2, 'LEMPIRAS', 'CENTAVOS');
 
-        $pdf = PDF::loadView('/pdf/factura-exoneracion', compact('cai', 'cliente','importes','productos','numeroLetras','importesConCentavos','flagCentavos', 'ordenCompra'))->setPaper('letter');
+        $esExonerada = true;
+
+        $pdf = PDF::loadView('/pdf/factura', compact(
+            'cai',
+            'cliente',
+            'importes',
+            'productos',
+            'numeroLetras',
+            'importesConCentavos',
+            'flagCentavos',
+            'ordenCompra',
+            'formaF01',
+            'correlativoExonerado',
+            'constanciaExonerado',
+            'esExonerada'
+        ))->setPaper('letter');
 
         return $pdf->stream("factura_numero" . $cai->numero_factura.".pdf");
 
@@ -772,11 +915,12 @@ class VentasExoneradas extends Component
         DATE_FORMAT(A.fecha_vencimiento,'%d/%m/%Y' ) as fecha_vencimiento,
         name,
         D.id as factura,
-        E.codigo as codigo_exoneracion,
-        E.corrOrd as correlativoexo,
+        COALESCE(F.archivo_exoneracion, E.codigo) as codigo_exoneracion,
+        COALESCE(F.numero_exoneracion, E.corrOrd) as correlativoexo,
         A.estado_venta_id,
         users.name as vendedor,
-        (select name from users where id = A.users_id ) as facturador
+        (select name from users where id = A.users_id ) as facturador,
+        (select u.name from comprovante_entrega ce inner join users u on ce.users_id = u.id where ce.id = A.comprovante_entrega_id) as asesor_entrega
        from factura A
        inner join cai B
        on A.cai_id = B.id
@@ -788,10 +932,15 @@ class VentasExoneradas extends Component
        on A.estado_factura_id = D.id
        inner join codigo_exoneracion E
        on A.codigo_exoneracion_id = E.id
+    left join historico_flujo HF
+    on HF.tipo_tramite_id = 3 and HF.tramite_id = A.id
+    left join flujo F
+    on F.id = HF.flujo_id
        where A.id = ".$idFactura);
 
        $cliente = DB::SELECTONE("
        select
+        cliente.id as clienteId,
         cliente.nombre,
         cliente.direccion,
         cliente.correo,
@@ -808,10 +957,12 @@ class VentasExoneradas extends Component
        $importes = DB::SELECTONE("
        select
         total,
-        isv,
+        COALESCE((select sum(round(vhp.sub_total_s * (p.isv / 100), 2)) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv != 0 and vhp.factura_id = ".$idFactura."),0) as isv,
         sub_total,
+        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv != 0 and vhp.factura_id = ".$idFactura."),2) as sub_total_grabado,
+        COALESCE(sub_total_excento, 0) as sub_total_excento,
         porc_descuento,
-        FORMAT((select sum(sub_total_s) from venta_has_producto where isv = 0 and factura_id = ".$idFactura."),2) as subtotal_excentovale,
+        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv = 0 and vhp.factura_id = ".$idFactura."),2) as subtotal_excentovale,
         monto_descuento
         from factura
         where id = ".$idFactura);
@@ -819,18 +970,33 @@ class VentasExoneradas extends Component
         $importesConCentavos= DB::SELECTONE("
         select
         FORMAT(total,2) as total,
-        FORMAT(isv,2) as isv,
+        FORMAT(COALESCE((select sum(round(vhp.sub_total_s * (p.isv / 100), 2)) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv != 0 and vhp.factura_id = ".$idFactura."),0),2) as isv,
         FORMAT(sub_total,2) as sub_total,
+        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv != 0 and vhp.factura_id = ".$idFactura."),2) as sub_total_grabado,
+        FORMAT(COALESCE(sub_total_excento, 0),2) as sub_total_excento,
         FORMAT(porc_descuento,2) as porc_descuento,
-        FORMAT((select sum(sub_total_s) from venta_has_producto where isv = 0 and factura_id = ".$idFactura."),2) as subtotal_excentovale,
+        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv = 0 and vhp.factura_id = ".$idFactura."),2) as subtotal_excentovale,
         FORMAT(monto_descuento,2) as monto_descuento
         from factura where factura.id = ".$idFactura);
+
+        // En facturas exoneradas el impuesto sobre venta debe ser siempre 0.
+        $importes->isv = 0;
+        $importes->total = round((float) $importes->sub_total, 2);
+
+        $importesConCentavos->isv = '0.00';
+        $importesConCentavos->total = number_format(
+            (float) str_replace(',', '', $importesConCentavos->sub_total),
+            2,
+            '.',
+            ','
+        );
 
         $productos = DB::SELECT("
             select
                     B.producto_id as codigo,
                     concat(C.nombre) as descripcion,
                     UPPER(J.nombre) as medida,
+                if(C.isv = 0, 'SI' , 'NO' ) as excento,
                 if(B.seccion_id = 0, 'N/A',H.nombre) as bodega,
                 if(B.seccion_id = 0, 'N/A',REPLACE(REPLACE(F.descripcion,'Seccion',''),' ', '')) as seccion,
                     FORMAT(B.precio_unidad,2) as precio,
@@ -855,7 +1021,8 @@ class VentasExoneradas extends Component
                 inner join bodega H
                 on G.bodega_id = H.id
                 where A.id=".$idFactura."
-                group by codigo, descripcion, medida, bodega, seccion, precio
+                group by codigo, descripcion, medida, bodega, seccion, precio, B.indice
+                order by B.indice asc
 
                 "
 
@@ -864,32 +1031,37 @@ class VentasExoneradas extends Component
 
         );
 
-        $ordenCompraExiste = DB::SELECTONE("
+        $ordenCompra = DB::SELECTONE("
         select
-        count(*) as 'existe'
+        B.numero_orden
         from factura A
         inner join numero_orden_compra B
         on A.numero_orden_compra_id = B.id
         where A.id =" . $idFactura);
 
-        if ($ordenCompraExiste->existe > 0) {
-            $ordenCompra = DB::SELECTONE("
-            select
-            B.numero_orden
-            from factura A
-            inner join numero_orden_compra B
-            on A.numero_orden_compra_id = B.id
-            where A.id =" . $idFactura);
+        $flujoFacturaId = DB::table('historico_flujo')
+            ->where('tipo_tramite_id', 3)
+            ->where('tramite_id', $idFactura)
+            ->value('flujo_id');
 
+        $flujoDocData = $flujoFacturaId
+            ? DB::table('flujo')->where('id', $flujoFacturaId)->first([
+                'numero_orden_compra',
+                'numero_forma_f01',
+                'numero_exoneracion',
+                'archivo_exoneracion',
+            ])
+            : null;
 
-
-        }else{
-            $ordenCompra = DB::SELECTONE("
-            select
-            'N/A' as numero_orden
-            from factura
-            where id =" . $idFactura);
+        if (empty($ordenCompra->numero_orden)) {
+            $ordenCompra = ['numero_orden' => ($flujoDocData->numero_orden_compra ?? null) ?: 'N/A'];
+        } else {
+            $ordenCompra = ['numero_orden' => $ordenCompra->numero_orden];
         }
+
+        $formaF01 = ($flujoDocData->numero_forma_f01 ?? null) ?: null;
+        $correlativoExonerado = ($flujoDocData->numero_exoneracion ?? null) ?: ($cai->correlativoexo ?? null);
+        $constanciaExonerado = ($flujoDocData->archivo_exoneracion ?? null) ?: ($cai->codigo_exoneracion ?? null);
 
         if( fmod($importes->total, 1) == 0.0 ){
             $flagCentavos = false;
@@ -907,7 +1079,22 @@ class VentasExoneradas extends Component
 
 
 
-        $pdf = PDF::loadView('/pdf/facturacopia-exoneracion', compact('cai', 'cliente','importes','productos','numeroLetras','importesConCentavos','flagCentavos', 'ordenCompra'))->setPaper('letter');
+        $esExonerada = true;
+
+        $pdf = PDF::loadView('/pdf/facturaCopia', compact(
+            'cai',
+            'cliente',
+            'importes',
+            'productos',
+            'numeroLetras',
+            'importesConCentavos',
+            'flagCentavos',
+            'ordenCompra',
+            'formaF01',
+            'correlativoExonerado',
+            'constanciaExonerado',
+            'esExonerada'
+        ))->setPaper('letter');
 
         return $pdf->stream("factura_numero" . $cai->numero_factura.".pdf");
 
@@ -934,8 +1121,8 @@ class VentasExoneradas extends Component
         DATE_FORMAT(A.fecha_vencimiento,'%d/%m/%Y' ) as fecha_vencimiento,
         name,
         D.id as factura,
-        E.codigo as codigo_exoneracion,
-        E.corrOrd as correlativoexo,
+        COALESCE(F.archivo_exoneracion, E.codigo) as codigo_exoneracion,
+        COALESCE(F.numero_exoneracion, E.corrOrd) as correlativoexo,
         A.estado_venta_id,
         users.name as vendedor,
         (select name from users where id = A.users_id ) as facturador
@@ -950,10 +1137,15 @@ class VentasExoneradas extends Component
        on A.estado_factura_id = D.id
        inner join codigo_exoneracion E
        on A.codigo_exoneracion_id = E.id
+    left join historico_flujo HF
+    on HF.tipo_tramite_id = 3 and HF.tramite_id = A.id
+    left join flujo F
+    on F.id = HF.flujo_id
        where A.id = ".$idFactura);
 
        $cliente = DB::SELECTONE("
        select
+        cliente.id as clienteId,
         cliente.nombre,
         cliente.direccion,
         cliente.correo,
@@ -972,8 +1164,10 @@ class VentasExoneradas extends Component
          total,
          isv,
          sub_total,
+         FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv != 0 and vhp.factura_id = ".$idFactura."),2) as sub_total_grabado,
+         COALESCE(sub_total_excento, 0) as sub_total_excento,
          porc_descuento,
-        FORMAT((select sum(sub_total_s) from venta_has_producto where isv = 0 and factura_id = ".$idFactura."),2) as subtotal_excentovale,
+        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv = 0 and vhp.factura_id = ".$idFactura."),2) as subtotal_excentovale,
          monto_descuento
          from factura
          where id = ".$idFactura);
@@ -983,7 +1177,9 @@ class VentasExoneradas extends Component
          FORMAT(total,2) as total,
          FORMAT(isv,2) as isv,
          FORMAT(sub_total,2) as sub_total,
-        FORMAT((select sum(sub_total_s) from venta_has_producto where isv = 0 and factura_id = ".$idFactura."),2) as subtotal_excentovale,
+        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv != 0 and vhp.factura_id = ".$idFactura."),2) as sub_total_grabado,
+        FORMAT(COALESCE(sub_total_excento, 0),2) as sub_total_excento,
+        FORMAT((select sum(vhp.sub_total_s) from venta_has_producto vhp inner join producto p on vhp.producto_id = p.id where p.isv = 0 and vhp.factura_id = ".$idFactura."),2) as subtotal_excentovale,
          FORMAT(porc_descuento,2) as porc_descuento,
          FORMAT(monto_descuento,2) as monto_descuento
          from factura where factura.id = ".$idFactura);
@@ -993,6 +1189,7 @@ class VentasExoneradas extends Component
                     B.producto_id as codigo,
                     concat(C.nombre) as descripcion,
                     UPPER(J.nombre) as medida,
+                if(C.isv = 0, 'SI' , 'NO' ) as excento,
                 if(B.seccion_id = 0, 'N/A',H.nombre) as bodega,
                 if(B.seccion_id = 0, 'N/A',REPLACE(REPLACE(F.descripcion,'Seccion',''),' ', '')) as seccion,
                     FORMAT(B.precio_unidad,2) as precio,
@@ -1017,7 +1214,8 @@ class VentasExoneradas extends Component
                 inner join bodega H
                 on G.bodega_id = H.id
                 where A.id=".$idFactura."
-                group by codigo, descripcion, medida, bodega, seccion, precio
+                group by codigo, descripcion, medida, bodega, seccion, precio, B.indice
+                order by B.indice asc
 
                  "
 
@@ -1048,4 +1246,5 @@ class VentasExoneradas extends Component
 
     }
 }
+
 

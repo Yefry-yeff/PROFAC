@@ -1,0 +1,599 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+use App\Exports\Escalas\ProductosPlantillaExport;
+use App\Exports\Escalas\ProductosPlantillaExportManual;
+use App\Exports\Escalas\ProductosPreciosPorClienteExport;
+use Maatwebsite\Excel\Facades\Excel;
+use Illuminate\Support\Facades\Validator;
+use App\Imports\Escalas\PreciosProductoCargaImport;
+// Arriba de tu controlador:
+use Maatwebsite\Excel\Excel as ExcelFormat;
+
+class ExcelController extends Controller
+{
+    /**
+     * Descarga la plantilla de Excel para carga de precios de productos.
+     * - Lee parámetros de filtro desde la request (tipo de categoría, tipo de filtro, valor de filtro y categoría de precio).
+     * - Si la categoría es "manual", genera un archivo con columnas para precios manuales.
+     * - Si es "escalable", genera un archivo con columnas para precios base escalables.
+     * - Devuelve un archivo .xlsx para ser descargado por el cliente.
+     */
+    public function descargarPlantilla(Request $request)
+    {
+        // Parámetros de la UI: tipo de plantilla (categoria/general), tipo de categoría (escalable/manual), filtros y categoría de precios seleccionada.
+        $tipoPlantilla = $request->input('tipoPlantilla'); // categoria o general
+        $tipoCategoria = $request->input('tipoCategoria'); // escalable o manual
+        $tipoFiltro = $request->input('tipoFiltro');
+        $valorFiltro = $request->input('listaTipoFiltro');
+        $valorCategoria = $request->input('listaTipoFiltroCatPrecios'); // null si es general
+
+        // Generar fecha para el nombre del archivo
+        $fecha = date('Y-m-d_H-i-s');
+
+        // Determinar nombre del archivo según el tipo de plantilla
+        $sufijo = $tipoPlantilla === 'general' ? 'general' : 'categoria';
+
+        // En caso de "manual", se usa el export específico con encabezados/estructura manual.
+        if ($tipoCategoria === 'manual') {
+            return Excel::download(
+                new ProductosPlantillaExportManual($tipoFiltro, $valorFiltro, $valorCategoria),
+                'plantilla_productos_manual_' . $sufijo . '_' . $fecha . '.xlsx'
+            );
+        }
+
+        // Por defecto (o si es "escalable"), se usa el export escalable.
+        return Excel::download(
+            new ProductosPlantillaExport($tipoFiltro, $valorFiltro, $valorCategoria),
+            'plantilla_productos_escalable_' . $sufijo . '_' . $fecha . '.xlsx'
+        );
+    }
+
+
+    /**
+     * Punto de entrada simple para subir un Excel (demo/placeholder).
+     * - Valida que se envíe un archivo de tipo Excel.
+     * - No procesa el archivo; únicamente confirma la recepción exitosa.
+     * - Responde en JSON para consumo por la UI (Swal/axios).
+     */
+    public function importarExcel(Request $request)
+    {
+        // Validación básica del archivo (tipo y tamaño).
+        $request->validate([
+            'archivo_excel' => 'required|file|mimes:xlsx,xls|max:10240',
+        ]);
+
+        // Aquí podría realizarse un import real con Excel::import(...).
+        // Se deja comentado para ilustrar que es un endpoint de prueba/ejemplo.
+        // Excel::import(new TuImportClass, $request->file('archivo_excel'));
+
+        // Respuesta estándar de éxito para la UI.
+        return response()->json([
+            'icon' => 'success',
+            'title' => 'Archivo recibido',
+            'text' => 'El archivo Excel se subió correctamente.',
+        ]);
+    }
+
+    /**
+     * Procesa el Excel de precios:
+     * - Valida inputs (archivo, tipo de categoría, filtros, existencia de categoría de precios).
+     * - Instancia el importador PreciosProductoCargaImport con parámetros de contexto (usuario, filtros, fallback de unidad).
+     * - Ejecuta la importación con Maatwebsite\Excel.
+     * - Devuelve estadísticas de filas leídas/insertadas/inactivadas/omitidas.
+     * - Maneja errores de validación y errores generales, registrándolos en logs y respondiendo en JSON.
+     */
+    public function procesarExcelPrecios(Request $request)
+    {
+        // Validación de parámetros recibidos desde el frontend.
+        // Incluye validaciones de pertenencia (in) y existencia en BD (exists).
+$v = Validator::make($request->all(), [
+    'archivo_excel'      => 'required|file|max:20480',
+    'tipoCategoria'      => 'required|in:escalable,manual',
+    'tipoFiltro'         => 'required|in:1,2',
+    'valorFiltro'        => 'required|integer',
+    'categoriaPrecioId'  => 'required',
+    'defaultUnidadMedidaId' => 'nullable|integer|exists:unidad_medida_venta,id',
+], [
+    'archivo_excel.required' => 'Subí un archivo.',
+    'archivo_excel.file'     => 'Archivo inválido.',
+    'archivo_excel.max'      => 'El archivo no puede superar 20 MB.',
+]);
+if ($v->fails()) {
+    return response()->json([
+        'icon'  => 'error',
+        'title' => 'Validación',
+        'text'  => $v->errors()->first(),
+    ], 422);
+}
+
+// Verificar que categoriaPrecioId sea 'all' o un ID válido en BD
+$categoriaPrecioRaw = $request->input('categoriaPrecioId');
+$modoTodas = ($categoriaPrecioRaw === 'all');
+if (!$modoTodas && !\DB::table('categoria_precios')->where('id', (int)$categoriaPrecioRaw)->exists()) {
+    return response()->json([
+        'icon'  => 'error',
+        'title' => 'Validación',
+        'text'  => 'La categoría de precios seleccionada no existe.',
+    ], 422);
+}
+$catClienteId = $request->input('catClienteId');
+if ($modoTodas && !$catClienteId) {
+    return response()->json([
+        'icon'  => 'error',
+        'title' => 'Validación',
+        'text'  => 'Se requiere la categoría de cliente para procesar todas las categorías.',
+    ], 422);
+}
+
+
+        try {
+            // Determinar el usuario autenticado (fallback a 1 si no hay auth disponible).
+            $userId = auth()->id() ?? 1;
+
+            // Construcción del importador con todos los parámetros necesarios para procesar el archivo.
+            // - tipoCategoria: 'escalable' o 'manual'
+            // - tipoFiltro/valorFiltro: reglas para acotar productos (marca o categoría)
+            // - categoriaPrecioId: categoría de precios a aplicar
+            // - userId: auditoría del creador de los registros
+            // - defaultUnidadMedidaId: fallback opcional para unidad de medida en caso de ausencia
+            // Construcción del import SIN argumentos nombrados (compat PHP 7.x)
+$import = new PreciosProductoCargaImport(
+    $request->input('tipoCategoria'),
+    (int)$request->input('tipoFiltro'),
+    (int)$request->input('valorFiltro'),
+    $modoTodas ? null : (int)$categoriaPrecioRaw,
+    (int)$userId,
+    $request->input('defaultUnidadMedidaId') ? (int)$request->input('defaultUnidadMedidaId') : null,
+    false,                                          // previewMode
+    $modoTodas ? 'cliente_todas' : 'categoria',     // tipoPlantilla
+    [],                                             // categoriasExcluidas
+    $modoTodas ? (int)$catClienteId : null          // clienteCategoriaId
+);
+
+
+// 0) Forzar carpeta temp en runtime (por si config está cacheado)
+config(['excel.temporary_files.local_path' => storage_path('app/excel-temp')]);
+
+// 1) Tomar archivo y extensión
+$file = $request->file('archivo_excel');
+$ext  = strtolower($file->getClientOriginalExtension()); // ext real (xlsx/xls/csv)
+
+// 2) Validar extensión permitida
+$allowed = ['xlsx','xls','csv'];
+if (!in_array($ext, $allowed)) {
+    return response()->json([
+        'icon'  => 'error',
+        'title' => 'Validación',
+        'text'  => 'El archivo debe ser XLSX, XLS o CSV.',
+    ], 422);
+}
+
+// 3) Elegir lector
+$readerType = ($ext === 'csv') ? ExcelFormat::CSV : ExcelFormat::XLSX;
+
+// 4) Guardar SOLO UNA VEZ y preparar ruta completa
+$storedPath = $file->storeAs('imports', 'probe.'.$ext, 'local'); // storage/app/imports/probe.ext
+$full = storage_path('app/'.$storedPath);
+
+// (opcional) ajustes CSV
+if ($readerType === ExcelFormat::CSV) {
+    config([
+        'excel.csv.input_encoding' => 'UTF-8', // o 'ISO-8859-1'
+        'excel.csv.delimiter'      => ',',     // o ';'
+    ]);
+}
+
+// 5) Logs útiles
+\Log::info('UPLOAD_META', [
+  'ext'  => $ext,
+  'name' => $file->getClientOriginalName(),
+  'mime' => $file->getMimeType(),
+  'size' => $file->getSize(),
+]);
+
+// 6) Diagnóstico ZIP/XML (opcional, deja si te sirve)
+$zipArchiveExists = class_exists(\ZipArchive::class);
+$rc = null; $contentTypesLen = null; $workbookLen = null;
+if ($zipArchiveExists) {
+    $zip = new \ZipArchive();
+    $rc = $zip->open($full);
+    if ($rc === true || $rc === 0) {
+        $ct = $zip->getFromName('[Content_Types].xml');
+        $wb = $zip->getFromName('xl/workbook.xml');
+        $contentTypesLen = is_string($ct) ? strlen($ct) : null;
+        $workbookLen     = is_string($wb) ? strlen($wb) : null;
+        $zip->close();
+    }
+}
+\Log::info('IMPORT_DIAG', [
+    'exists_ziparchive' => $zipArchiveExists,
+    'file_size' => @filesize($full),
+    'open_rc' => $rc,
+    'content_types_xml_len' => $contentTypesLen,
+    'workbook_xml_len' => $workbookLen,
+    'sys_temp_dir' => ini_get('sys_temp_dir'),
+    'excel_temp_path' => config('excel.temporary_files.local_path'),
+]);
+
+// (opcional) chequeos extra de XML
+$sheet1Len = $sharedLen = $stylesLen = null;
+$zip = new \ZipArchive();
+if ($zip->open($full) === true) {
+    $sheet1Len = strlen((string)$zip->getFromName('xl/worksheets/sheet1.xml'));
+    $sharedLen = strlen((string)$zip->getFromName('xl/sharedStrings.xml'));
+    $stylesLen = strlen((string)$zip->getFromName('xl/styles.xml'));
+    $zip->close();
+}
+\Log::info('IMPORT_XML_CHECK', compact('sheet1Len','sharedLen','stylesLen'));
+
+$emptyXml = [];
+$missingXml = [];
+$allXml = [];
+$zip = new \ZipArchive();
+if ($zip->open($full) === true) {
+    $index = [];
+    for ($i = 0; $i < $zip->numFiles; $i++) {
+        $st = $zip->statIndex($i);
+        $index[$st['name']] = true;
+        if (substr($st['name'], -4) === '.xml') {
+            $allXml[] = $st['name'];
+            $content = $zip->getFromIndex($i);
+            $len = is_string($content) ? strlen($content) : 0;
+            if ($len === 0) $emptyXml[] = $st['name'];
+        }
+    }
+    $critical = [
+        '_rels/.rels','docProps/core.xml','docProps/app.xml',
+        'xl/workbook.xml','xl/_rels/workbook.xml.rels',
+        'xl/sharedStrings.xml','xl/styles.xml','xl/theme/theme1.xml','xl/calcChain.xml',
+        'xl/worksheets/sheet1.xml','xl/worksheets/sheet2.xml','xl/worksheets/sheet3.xml',
+    ];
+    foreach ($critical as $name) {
+        if (!isset($index[$name])) $missingXml[] = $name;
+    }
+    $zip->close();
+}
+\Log::info('IMPORT_XML_SCAN', [
+    'emptyXml'   => $emptyXml,
+    'missingXml' => $missingXml,
+    'allXmlCnt'  => count($allXml)
+]);
+
+// 7) Importar desde disco usando toCollection
+$collections = Excel::toCollection($import, $full);
+
+            // Llamar manualmente al método collection() para procesar los datos
+            foreach ($collections as $sheet) {
+                $import->collection($sheet);
+            }
+
+            // Obtención de estadísticas generadas por el import (lecturas, inserciones, inactivaciones, omisiones, etc.).
+            $stats = $import->getStats();
+
+            // Si faltaron encabezados requeridos en el Excel, se responde con error 422 y detalle de columnas faltantes.
+            if (!empty($stats['missing_headers'])) {
+                return response()->json([
+                    'icon'  => 'error',
+                    'title' => 'Encabezados inválidos',
+                    'text'  => 'Faltan columnas: ' . implode(', ', $stats['missing_headers']),
+                    'debug' => $stats,
+                ], 422);
+            }
+
+            // Respuesta de éxito con resumen de resultados de procesamiento.
+            return response()->json([
+                'icon'  => 'success',
+                'title' => 'Procesado correctamente',
+                'text'  => "Leídas: {$stats['rows_read']} | Insertadas: {$stats['rows_inserted']} | Omitidas: {$stats['rows_skipped']}",
+                'debug' => $stats,
+            ]);
+        } catch (\Throwable $e) {
+            // Log detallado del error (mensaje, archivo y línea) para auditoría/diagnóstico.
+            \Log::error('[procesarExcelPrecios] Error general', [
+                'msg' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            // Respuesta genérica de error para la UI, con el mensaje técnico en "debug".
+            return response()->json([
+                'icon'  => 'error',
+                'title' => 'Error al procesar',
+                'text'  => 'Revisá el archivo/encabezados y volvé a intentar.',
+                'debug' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Preview del archivo Excel de precios - Solo validaciones y vista previa
+     */
+    public function previewExcelPrecios(Request $request)
+    {
+        $v = Validator::make($request->all(), [
+            'archivo_excel'       => 'required|file|max:20480',
+            'tipoPlantilla'       => 'required|in:categoria,general',
+            'tipoCategoria'       => 'required|in:escalable,manual',
+            'tipoFiltro'          => 'required|in:1,2',
+            'valorFiltro'         => 'required|integer',
+            'categoriaPrecioId'   => 'nullable',
+            'defaultUnidadMedidaId' => 'nullable|integer',
+            'categoriasExcluidas'   => 'nullable|array',
+            'categoriasExcluidas.*' => 'integer',
+        ], [
+            'archivo_excel.required' => 'Subí un archivo.',
+            'archivo_excel.file'     => 'Archivo inválido.',
+            'archivo_excel.max'      => 'El archivo no puede superar 20 MB.',
+        ]);
+
+        if ($v->fails()) {
+            return response()->json([
+                'icon'  => 'error',
+                'title' => 'Validación',
+                'text'  => $v->errors()->first(),
+            ], 422);
+        }
+
+        try {
+            $userId              = auth()->id() ?? 1;
+            $tipoPlantilla       = $request->input('tipoPlantilla'); // 'categoria' o 'general'
+            $categoriaPrecioRaw  = $request->input('categoriaPrecioId');
+            $modoTodas           = ($categoriaPrecioRaw === 'all');
+            $catClienteId        = $request->input('catClienteId');
+            $categoriasExcluidas = array_map('intval', (array) $request->input('categoriasExcluidas', []));
+
+            // Determinar el tipoPlantilla efectivo para el importer
+            $tipoPlantillaEfectivo = $modoTodas ? 'cliente_todas' : $tipoPlantilla;
+
+            // Validaciones manuales post-validator
+            if ($modoTodas) {
+                if (!$catClienteId) {
+                    return response()->json(['icon' => 'error', 'title' => 'Validación',
+                        'text' => 'Se requiere la categoría de cliente para el modo "Todas las categorías".'], 422);
+                }
+                $existeCliente = \DB::table('cliente_categoria_escala')->where('id', (int)$catClienteId)->exists();
+                if (!$existeCliente) {
+                    return response()->json(['icon' => 'error', 'title' => 'Validación',
+                        'text' => 'La categoría de cliente seleccionada no existe.'], 422);
+                }
+            } else {
+                if ($tipoPlantilla === 'categoria' && !$categoriaPrecioRaw) {
+                    return response()->json(['icon' => 'error', 'title' => 'Validación',
+                        'text' => 'La categoría de precios es requerida para el modo "Por Categoría".'], 422);
+                }
+                if ($categoriaPrecioRaw && !\DB::table('categoria_precios')->where('id', (int)$categoriaPrecioRaw)->exists()) {
+                    return response()->json(['icon' => 'error', 'title' => 'Validación',
+                        'text' => 'La categoría de precios seleccionada no existe.'], 422);
+                }
+            }
+
+            $categoriaPrecioId = ($modoTodas || !$categoriaPrecioRaw) ? null : (int)$categoriaPrecioRaw;
+
+            // Crear importador en MODO PREVIEW (solo validación, sin insertar)
+            $import = new PreciosProductoCargaImport(
+                $request->input('tipoCategoria'),
+                (int)$request->input('tipoFiltro'),
+                (int)$request->input('valorFiltro'),
+                $categoriaPrecioId,
+                (int)$userId,
+                $request->input('defaultUnidadMedidaId') ? (int)$request->input('defaultUnidadMedidaId') : null,
+                true, // MODO PREVIEW
+                $tipoPlantillaEfectivo,
+                $categoriasExcluidas,
+                $modoTodas ? (int)$catClienteId : null
+            );
+
+            config(['excel.temporary_files.local_path' => storage_path('app/excel-temp')]);
+
+            $file = $request->file('archivo_excel');
+            $ext  = strtolower($file->getClientOriginalExtension());
+            $allowed = ['xlsx','xls','csv'];
+
+            if (!in_array($ext, $allowed)) {
+                return response()->json([
+                    'icon'  => 'error',
+                    'title' => 'Validación',
+                    'text'  => 'El archivo debe ser XLSX, XLS o CSV.',
+                ], 422);
+            }
+
+            $readerType = ($ext === 'csv') ? ExcelFormat::CSV : ExcelFormat::XLSX;
+            $storedPath = $file->storeAs('imports', 'preview_precios_' . time() . '.' . $ext, 'local');
+            $fullPath = storage_path('app/' . $storedPath);
+
+            // toCollection obtiene los datos sin corrupción en cPanel
+            $collections = Excel::toCollection($import, $fullPath);
+
+            // Llamar manualmente al método collection() para procesar los datos
+            foreach ($collections as $sheet) {
+                $import->collection($sheet);
+            }
+
+            $stats = $import->getStats();
+
+            if (!empty($stats['missing_headers'])) {
+                return response()->json([
+                    'icon'  => 'error',
+                    'title' => 'Encabezados inválidos',
+                    'text'  => 'Faltan columnas: ' . implode(', ', $stats['missing_headers']),
+                    'debug' => $stats,
+                ], 422);
+            }
+
+            // Guardar datos del preview en sesión para usar en finalizar
+            session([
+                'preview_precios_data' => [
+                    'tipoPlantilla'        => $tipoPlantillaEfectivo,
+                    'tipoCategoria'        => $request->input('tipoCategoria'),
+                    'tipoFiltro'           => (int)$request->input('tipoFiltro'),
+                    'valorFiltro'          => (int)$request->input('valorFiltro'),
+                    'categoriaPrecioId'    => $categoriaPrecioId,
+                    'clienteCategoriaId'   => $modoTodas ? (int)$catClienteId : null,
+                    'userId'               => (int)$userId,
+                    'defaultUnidadMedidaId'=> $request->input('defaultUnidadMedidaId') ? (int)$request->input('defaultUnidadMedidaId') : null,
+                    'storedPath'           => $storedPath,
+                    'readerType'           => $readerType,
+                    'categoriasExcluidas'  => $categoriasExcluidas,
+                ]
+            ]);
+
+            return response()->json([
+                'icon'  => 'info',
+                'title' => 'Preview generado',
+                'text'  => "Productos a procesar: {$stats['rows_to_process']} | Productos omitidos: {$stats['rows_skipped']}",
+                'preview' => true,
+                'debug' => $stats,
+            ]);
+
+        } catch (\Throwable $e) {
+            \Log::error('[previewExcelPrecios] Error', [
+                'msg' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'icon'  => 'error',
+                'title' => 'Error al procesar',
+                'text'  => 'Revisá el archivo/encabezados y volvé a intentar.',
+                'debug' => [
+                    'message' => $e->getMessage(),
+                    'file' => basename($e->getFile()),
+                    'line' => $e->getLine(),
+                ],
+            ], 500);
+        }
+    }
+
+    /**
+     * Finalizar la actualización de precios después del preview
+     */
+    public function finalizarExcelPrecios(Request $request)
+    {
+        // Aumentar límites para procesos largos
+        @set_time_limit(600); // 10 minutos
+        @ini_set('memory_limit', '512M');
+
+        try {
+            // Recuperar datos del preview desde la sesión
+            $previewData = session('preview_precios_data');
+
+            if (!$previewData) {
+                return response()->json([
+                    'icon'  => 'error',
+                    'title' => 'Sesión expirada',
+                    'text'  => 'Debe procesar el archivo nuevamente.',
+                ], 422);
+            }
+
+            \Log::info('[finalizarExcelPrecios] Iniciando proceso final', [
+                'tipo_plantilla' => $previewData['tipoPlantilla'] ?? 'desconocido',
+                'tipo_categoria' => $previewData['tipoCategoria'],
+                'file' => $previewData['storedPath'],
+            ]);
+
+            // Crear importador en MODO FINAL (con inserción)
+            $import = new PreciosProductoCargaImport(
+                $previewData['tipoCategoria'],
+                $previewData['tipoFiltro'],
+                $previewData['valorFiltro'],
+                $previewData['categoriaPrecioId'],
+                $previewData['userId'],
+                $previewData['defaultUnidadMedidaId'],
+                false, // MODO FINAL - SÍ INSERTAR
+                $previewData['tipoPlantilla'] ?? 'categoria',
+                $previewData['categoriasExcluidas'] ?? [],
+                $previewData['clienteCategoriaId'] ?? null
+            );
+
+            config(['excel.temporary_files.local_path' => storage_path('app/excel-temp')]);
+
+            $fullPath = storage_path('app/' . $previewData['storedPath']);
+
+            \Log::info('[finalizarExcelPrecios] Iniciando importación', ['path' => $fullPath]);
+
+            // toCollection obtiene los datos sin corrupción en cPanel
+            $collections = Excel::toCollection($import, $fullPath);
+
+            \Log::info('[finalizarExcelPrecios] Colecciones obtenidas', ['count' => $collections->count()]);
+
+            // Llamar manualmente al método collection() para procesar los datos
+            foreach ($collections as $sheet) {
+                $import->collection($sheet);
+            }
+
+            $stats = $import->getStats();
+
+            \Log::info('[finalizarExcelPrecios] Proceso completado', $stats);
+
+            // Limpiar sesión
+            session()->forget('preview_precios_data');
+
+            // Limpiar archivo temporal
+            \Storage::disk('local')->delete($previewData['storedPath']);
+
+            return response()->json([
+                'icon'  => 'success',
+                'title' => 'Actualización completada',
+                'text'  => "Productos actualizados: {$stats['rows_inserted']} | Productos inactivados: {$stats['rows_inactivated']}",
+                'debug' => $stats,
+            ]);
+
+        } catch (\Throwable $e) {
+            \Log::error('[finalizarExcelPrecios] Error', [
+                'msg' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'icon'  => 'error',
+                'title' => 'Error al finalizar',
+                'text'  => 'Ocurrió un error al actualizar los precios.',
+                'debug' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Descarga un Excel con todos los productos y sus precios activos
+     * para una categoría de cliente determinada, agrupados por categoría de precio.
+     */
+    public function exportarPreciosPorCliente(Request $request, int $clienteCatId)
+    {
+        if ($clienteCatId <= 0) {
+            abort(400, 'ID de categoría inválido.');
+        }
+
+        $fecha = date('Y-m-d_H-i-s');
+
+        return Excel::download(
+            new ProductosPreciosPorClienteExport($clienteCatId),
+            'precios_por_categoria_cliente_' . $clienteCatId . '_' . $fecha . '.xlsx'
+        );
+    }
+
+    /**
+     * Descarga el reporte de precios filtrando por una categoría de precio específica.
+     */
+    public function exportarPreciosPorCategoriaPrecio(Request $request, int $clienteCatId, int $categoriaPrecioId)
+    {
+        if ($clienteCatId <= 0 || $categoriaPrecioId <= 0) {
+            abort(400, 'IDs inválidos.');
+        }
+
+        $fecha = date('Y-m-d_H-i-s');
+
+        return Excel::download(
+            new ProductosPreciosPorClienteExport($clienteCatId, $categoriaPrecioId),
+            'precios_cat_' . $categoriaPrecioId . '_' . $fecha . '.xlsx'
+        );
+    }
+
+
+}

@@ -1,0 +1,597 @@
+================================================================================
+  PROFAC - SISTEMA DE NOTIFICACIONES DE FLUJO: DOCUMENTACIÓN COMPLETA
+  Versión: Mayo 2026 | Sistema: profac-app | Framework: Laravel + Livewire
+================================================================================
+
+ÍNDICE
+------
+1. Concepto general
+2. Arquitectura del sistema (capas)
+3. Control global ON/OFF
+4. Tabla de configuración de reglas (notificacion_flujo_config)
+5. Vía por ROL (activa y en uso)
+6. Vía por ÁREA/DEPARTAMENTO (deshabilitada — versión futura)
+7. Escalación (columnas preparadas, no implementada aún)
+8. Flujo técnico completo: de evento a notificación en pantalla
+9. Reglas actualmente configuradas (datos reales de BD)
+10. Puntos del flujo donde se disparan notificaciones
+11. Tabla notifications (dónde se almacena)
+12. Cómo consultar notificaciones en BD
+
+
+================================================================================
+1. CONCEPTO GENERAL
+================================================================================
+
+El sistema de notificaciones de flujo permite que el personal reciba alertas
+en tiempo real dentro de la aplicación (campana de notificaciones) cuando un
+flujo de ventas avanza a un paso específico.
+
+Ejemplo de uso real:
+  "Cuando un flujo pasa a Revisión de Inventario, notificar a todos los
+   usuarios con rol Auditoria y Logistica para que sepan que deben revisar."
+
+Las notificaciones son:
+  - Internas (canal "database" de Laravel Notifications)
+  - Se guardan en la tabla "notifications" de la BD
+  - Aparecen en el ícono de campana del header de la aplicación
+  - No son emails ni SMS — son notificaciones in-app
+
+
+================================================================================
+2. ARQUITECTURA DEL SISTEMA (CAPAS)
+================================================================================
+
+El sistema tiene 5 capas que trabajan en secuencia:
+
+  ┌─────────────────────────────────────────────────────────────────────────┐
+  │ CAPA 1: EVENTO                                                          │
+  │   Clase: App\Events\FlujoAvanzadoEvent                                  │
+  │   Cuándo: el código del flujo llama a event(new FlujoAvanzadoEvent(...))│
+  │   Lleva: flujoId, tipoTramiteId, contexto (cliente, monto, referencia)  │
+  └────────────────────────────────┬────────────────────────────────────────┘
+                                   ↓
+  ┌─────────────────────────────────────────────────────────────────────────┐
+  │ CAPA 2: LISTENER                                                        │
+  │   Clase: App\Listeners\NotificarPersonalFlujoListener                   │
+  │   Registrado en: App\Providers\EventServiceProvider                     │
+  │   Función: recibe el evento y orquesta el envío                         │
+  │   Primero verifica:                                                     │
+  │     a) ¿Sistema de notificaciones activo? (Cache-Aside → BD)            │
+  │     b) ¿Hay reglas configuradas para este tipo de trámite?               │
+  │     c) ¿Hay usuarios destino?                                           │
+  └────────────────────────────────┬────────────────────────────────────────┘
+                                   ↓
+  ┌─────────────────────────────────────────────────────────────────────────┐
+  │ CAPA 3: REGLAS DE CONFIGURACIÓN                                         │
+  │   Tabla: notificacion_flujo_config                                      │
+  │   Modelo: App\Models\NotificacionFlujoConfig                            │
+  │   Define: para cada tipo de trámite, QUÉ ROL o ÁREA recibe              │
+  │   Método: resolverUsuariosDestino() → devuelve colección de usuarios    │
+  └────────────────────────────────┬────────────────────────────────────────┘
+                                   ↓
+  ┌─────────────────────────────────────────────────────────────────────────┐
+  │ CAPA 4: NOTIFICACIÓN                                                    │
+  │   Clase: App\Notifications\FlujoNotification                            │
+  │   Canal: database (Laravel Notifications)                               │
+  │   Arma el payload: título, icono, color, URL, mensaje con cliente/monto │
+  │   Lo pasa a: Notification::send($usuariosUnicos, new FlujoNotification) │
+  └────────────────────────────────┬────────────────────────────────────────┘
+                                   ↓
+  ┌─────────────────────────────────────────────────────────────────────────┐
+  │ CAPA 5: ALMACENAMIENTO                                                  │
+  │   Tabla: notifications (estándar de Laravel)                            │
+  │   Una fila por usuario por evento                                       │
+  │   Leída por el componente de campana del header                         │
+  └─────────────────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+3. CONTROL GLOBAL ON/OFF
+================================================================================
+
+El sistema tiene un interruptor maestro que activa o desactiva TODAS las
+notificaciones de flujo de una sola vez.
+
+IMPLEMENTACIÓN (patrón Cache-Aside):
+  ─ Fuente de verdad: tabla configuracion_sistema
+      clave='notificaciones_sistema_activo', valor='1' (activo) o '0' (inactivo)
+
+  ─ Acelerador: Laravel Cache
+      clave='notificaciones_sistema_activo'
+      Guardado con Cache::forever() al cambiar el valor
+
+  ─ Regla de lectura (Cache-Aside):
+      1. Se lee de caché (< 0.1 ms)
+      2. Si la caché no existe (tras cache:clear / restart):
+         → Se lee de BD
+         → Se repobla la caché automáticamente (TTL: 1 hora)
+         → Se retorna el valor de BD
+      Esto garantiza que un cache:clear NO desactiva las notificaciones.
+
+DÓNDE SE CAMBIA:
+  Pantalla: /configuracion/notificaciones
+  Componente: App\Http\Livewire\Configuracion\ConfiguracionNotificaciones
+  Método: toggleSistema()
+    → Escribe en BD primero
+    → Luego actualiza caché
+
+ESTADO ACTUAL: ACTIVO (valor='1' en BD)
+
+DÓNDE SE VERIFICA (Listener):
+  $sistemaActivo = (bool)(int) Cache::remember(
+      'notificaciones_sistema_activo',
+      3600,
+      fn () => DB::table('configuracion_sistema')
+          ->where('clave', 'notificaciones_sistema_activo')
+          ->value('valor') ?? '0'
+  );
+  if (!$sistemaActivo) return; // no notificar
+
+
+================================================================================
+4. TABLA DE CONFIGURACIÓN DE REGLAS (notificacion_flujo_config)
+================================================================================
+
+Esta tabla define las reglas: "para el paso X del flujo, notificar al rol Y".
+
+ESTRUCTURA:
+────────────────────────────────────────────────────────────────────────────────
+Columna           | Tipo     | Descripción
+------------------+----------+--------------------------------------------------
+id                | bigint   | PK
+tipo_tramite_id   | bigint   | Paso del flujo que dispara la notificación
+                  |          | (FK a tipos_tramites.id)
+rol_id            | bigint   | Rol que recibe la notificación
+                  |          | NULL si se usa vía área (deshabilitada)
+area_id           | bigint   | Área que recibe la notificación
+                  |          | NULL si se usa vía rol (activa)
+nivel_max_id      | bigint   | Nivel máximo del área a notificar (vía área)
+                  |          | NULL actualmente
+escalar_activo    | tinyint  | 0=sin escalación, 1=con escalación
+                  |          | (no implementado todavía)
+escalar_horas     | int      | Horas antes de escalar
+                  |          | NULL actualmente
+escalar_nivel_id  | bigint   | Nivel al que se escala
+                  |          | NULL actualmente
+activo            | tinyint  | 1=regla activa, 0=regla deshabilitada
+created_at        | timestamp|
+updated_at        | timestamp|
+
+REGLA DE RESOLUCIÓN:
+  Si rol_id está definido → se notifica a TODOS los usuarios activos con ese rol
+  Si area_id está definido (y rol_id = NULL) → modo área (deshabilitado por ahora)
+  Si ninguno está definido → no se notifica a nadie
+
+
+================================================================================
+5. VÍA POR ROL (ACTIVA Y EN USO)
+================================================================================
+
+Esta es la vía habilitada actualmente. Funciona así:
+
+  1. La regla tiene rol_id definido (no NULL)
+  2. El Listener llama a config->resolverUsuariosDestino()
+  3. El método ejecuta:
+       User::where('estado_id', 1)
+           ->where('rol_id', $this->rol_id)
+           ->get()
+  4. Obtiene todos los usuarios ACTIVOS con ese rol
+  5. Les envía la notificación usando Notification::send()
+
+CARACTERÍSTICA: si en el futuro se agregan usuarios a ese rol, automáticamente
+empezarán a recibir las notificaciones sin cambiar ninguna configuración.
+
+DEDUPLICACIÓN:
+  El Listener deduplica por usuario: si dos reglas apuntan al mismo usuario,
+  solo recibe UNA notificación (using ->unique('id') en la colección).
+
+
+================================================================================
+6. VÍA POR ÁREA/DEPARTAMENTO (ARQUITECTURA LISTA — UI DESACTIVADA)
+================================================================================
+
+Esta vía tiene toda la arquitectura implementada en el código y en la BD pero
+la opción NO aparece en el modal de nueva regla hasta que la jerarquía esté lista.
+
+ESTADO ACTUAL:
+  - UI: la opción "Área / Departamento" fue retirada del modal de configuración.
+    El campo targetTipo existe en el componente Livewire pero siempre vale 'rol'.
+  - BD: columnas area_id y nivel_max_id existen en notificacion_flujo_config.
+  - Código: el branch elseif ($this->area_id) en resolverUsuariosDestino() existe
+    y está codificado, pero como area_id = NULL en todas las reglas, nunca ejecuta.
+
+CÓMO FUNCIONARÍA UNA VEZ HABILITADA:
+  En lugar de un rol específico, se configura un area_id.
+  Opcionalmente se puede filtrar por nivel jerárquico con nivel_max_id:
+    - Los roles del área se filtran por nivel jerárquico
+    - "notificar solo hasta Supervisores" (nivel_max_id = id del nivel Supervisor)
+    - Los niveles tienen un campo "orden": mayor orden = nivel más bajo
+    - Ejemplo: Solo Supervisores o superiores (filtro: orden >= nivel_max.orden)
+
+TABLA INVOLUCRADA: nivel_rol
+  Esta tabla actualmente está vacía (no hay registros de niveles configurados).
+
+PARA HABILITAR EN EL FUTURO:
+  1. Poblar la tabla nivel_rol con los niveles jerárquicos
+  2. Asignar area_id y nivel_id a los roles en la tabla rol
+  3. Volver a agregar en la vista el <label> radio de "Área / Departamento"
+     y el bloque @if($targetTipo === 'area') con sus campos
+  4. Agregar columna "Nivel máximo" de vuelta en la tabla de reglas
+
+
+================================================================================
+7. ESCALACIÓN (ARQUITECTURA LISTA — UI DESACTIVADA)
+================================================================================
+
+Las columnas escalar_activo, escalar_horas y escalar_nivel_id existen en la tabla
+pero la UI del modal no muestra la sección de escalación.
+
+ESTADO ACTUAL:
+  - UI: la sección "Escalación automática" fue retirada del modal de configuración.
+    Los campos Livewire ($escalarActivo, $escalarHoras, $escalarNivelId) y la lógica
+    de guardar() permanecen intactos en el componente PHP.
+    La columna "Escalación" fue retirada de la tabla de reglas.
+  - BD: columnas escalar_activo, escalar_horas, escalar_nivel_id siguen existiendo.
+
+LA IDEA ORIGINAL: si una notificación no es atendida en X horas, escalar al nivel
+superior del área. Esto requeriría un sistema de Jobs programados (queue workers)
+o comandos de consola que verifiquen notificaciones sin leer periódicamente.
+
+PARA HABILITAR EN EL FUTURO:
+  1. La jerarquía (nivel_rol + área) debe estar configurada primero.
+  2. Volver a agregar en la vista el bloque «Escalación automática» con su toggle.
+  3. Implementar el Job que detecte notificaciones no leídas pasado escalar_horas.
+  4. Agregar columna "Escalación" de vuelta en la tabla de reglas.
+
+
+================================================================================
+8. FLUJO TÉCNICO COMPLETO: DE EVENTO A NOTIFICACIÓN EN PANTALLA
+================================================================================
+
+PASO 1 — El código del flujo dispara el evento:
+
+  event(new FlujoAvanzadoEvent(
+      $this->flujoId,       // ej: 50
+      9,                    // tipo_tramite_id = Revisión de Inventario
+      [
+          'cliente'    => 'DISTRIBUIDORA UNIVERSAL',
+          'monto'      => 15000.00,
+          'referencia' => 'Prefactura #123',
+      ]
+  ));
+
+PASO 2 — FlujoAvanzadoEvent almacena los datos:
+  public int   $flujoId
+  public int   $tipoTramiteId
+  public array $contexto
+
+PASO 3 — Laravel despacha al Listener registrado:
+  NotificarPersonalFlujoListener::handle(FlujoAvanzadoEvent $event)
+
+PASO 4 — El Listener verifica el interruptor global (Cache-Aside):
+  Si notificaciones_sistema_activo = false → DETIENE (sin notificar)
+
+PASO 5 — Busca reglas activas para tipo_tramite_id=9:
+  NotificacionFlujoConfig::activos()->paraTramite(9)->get()
+  Scopes:
+    activos()      → where('activo', true)
+    paraTramite(9) → where('tipo_tramite_id', 9)
+
+PASO 6 — Para cada regla, resuelve usuarios destino:
+  config->resolverUsuariosDestino()
+  En la regla id=2: rol_id=1 (Administrador)
+  → User::where('estado_id', 1)->where('rol_id', 1)->get()
+  → Devuelve todos los Administradores activos
+
+PASO 7 — Deduplica usuarios:
+  $usuariosUnicos = $usuariosNotificados->unique('id')
+
+PASO 8 — Envía la notificación:
+  Notification::send($usuariosUnicos, new FlujoNotification(50, 9, $contexto))
+
+PASO 9 — FlujoNotification arma el payload:
+
+  TRAMITE_CONFIG[9] = [
+      'titulo' => 'Revisión de Inventario',
+      'icono'  => 'fa-boxes',
+      'color'  => '#FF9800',
+      'url'    => '/flujo/revicion_inventario',
+  ]
+
+  toDatabase() retorna:
+  {
+    "tipo_tramite_id": 9,
+    "titulo": "Revisión de Inventario",
+    "mensaje": "Flujo #50 · DISTRIBUIDORA UNIVERSAL | L 15,000.00 · Prefactura #123",
+    "icono": "fa-boxes",
+    "color": "#FF9800",
+    "url": "/flujo/revicion_inventario?flujo_id=50",
+    "leida": false,
+    "flujo_id": 50
+  }
+
+PASO 10 — Laravel escribe en la tabla notifications:
+  Una fila por usuario con el payload serializado en data (JSON)
+
+PASO 11 — El header de la app lee las notificaciones no leídas:
+  Componente de campana → muestra el badge con el conteo
+  Al hacer clic → lista las notificaciones con título, mensaje y enlace
+
+PASO 12 — El usuario hace clic en una notificación de flujo de ventas:
+  La campana renderiza:
+    <a href="/flujo/ventas/historico?flujo_id=50"
+       wire:click="marcarLeida('...')">
+  Comportamiento:
+    a) marcarLeida() marca la notificación como leída (AJAX)
+    b) El navegador sigue el href hacia /flujo/ventas/historico?flujo_id=50
+
+PASO 13 — ListarVentas::mount() detecta el parámetro flujo_id:
+  Archivo: app/Http/Livewire/Flujo/ListarVentas.php
+  Código añadido en mount():
+    if ($flujoId = (int) request()->get('flujo_id')) {
+        $this->abrirFlujoDesdeRegistro($flujoId);
+    }
+  Cadena de resolución:
+    abrirFlujoDesdeRegistro(50)
+      → DB::table('flujo')->where('id',50)->value('identificacion') → pedido_id
+      → emit('abrirFlujoPedido', $pedidoId)
+      → ModalFlujoPedido escucha el evento y abre el modal del flujo correspondiente
+  Resultado: el modal del flujo se abre automáticamente al cargar la página.
+
+
+================================================================================
+9. REGLAS ACTUALMENTE CONFIGURADAS (DATOS REALES DE BD)
+================================================================================
+
+Tabla: notificacion_flujo_config
+
+ID | tipo_tramite_id | Paso del flujo          | rol_id | Rol destino    | activo
+---+-----------------+-------------------------+--------+----------------+-------
+ 1 |       10        | Revisión de Crédito     |   1    | Administrador  |   1
+ 2 |        9        | Revisión de Inventario  |   1    | Administrador  |   1
+ 3 |        4        | Prefactura              |   1    | Administrador  |   1
+ 4 |        7        | Entrega y Cobro         |   1    | Administrador  |   1
+ 5 |       11        | Prefactura Anulada      |   1    | Administrador  |   1
+
+Estado: todas activas, todas apuntan al rol Administrador (rol_id=1).
+
+NOTA IMPORTANTE: Actualmente solo el Administrador recibe notificaciones.
+Para que otros roles las reciban se deben agregar reglas nuevas en esta tabla
+desde la pantalla de configuración (/configuracion/notificaciones).
+
+Pasos del flujo que NO tienen regla configurada actualmente:
+  tipo=1 (Pedido), tipo=2 (Ofertas), tipo=3 (Factura), tipo=5 (Entrega),
+  tipo=6 (Cobro), tipo=8 (Finalizado)
+
+  Esto significa: cuando el flujo llega a esos pasos, aunque el código
+  dispara el evento, el Listener encuentra cero reglas y no notifica a nadie.
+  El log registra: "NotificacionFlujo: sin reglas para tipo_tramite_id=X"
+
+
+================================================================================
+10. PUNTOS DEL FLUJO DONDE SE DISPARAN NOTIFICACIONES
+================================================================================
+
+El código dispara event(new FlujoAvanzadoEvent(...)) en estos puntos:
+
+────────────────────────────────────────────────────────────────────────────────
+tipo=4 | PREFACTURA CREADA
+────────────────────────────────────────────────────────────────────────────────
+  Archivo: app/Http/Livewire/Flujo/ModalFlujoPedido.php — ganadoraOferta()
+  Cuándo: flujo sin Rev. Inventario, al marcar oferta ganadora y crear prefactura
+  Contexto enviado:
+    cliente    = cotizacion.nombre_cliente
+    monto      = cotizacion.total
+    referencia = 'Prefactura #' + prefacturaId
+
+  Archivo: app/Http/Livewire/Flujo/RevisionInventario (o similar)
+  Cuándo: Rev. Inventario aprueba → crea prefactura → dispara tipo=4
+
+────────────────────────────────────────────────────────────────────────────────
+tipo=6 | COBRO COMPLETADO
+────────────────────────────────────────────────────────────────────────────────
+  Archivo: app/Http/Livewire/Flujo/ModalFlujoPedido.php — cargarEstadoCobroFactura()
+  Cuándo: saldoPendienteFactura <= 0 y historico_flujo cobro cambia a estado_id=1
+  Contexto enviado:
+    cliente    = factura.nombre_cliente
+    monto      = factura.total
+    referencia = 'Factura #' + factura.cai
+
+  NOTA: este evento se dispara automáticamente cuando se carga el paso de cobro
+  y el sistema detecta que el saldo ya bajó a 0.
+
+────────────────────────────────────────────────────────────────────────────────
+tipo=8 | FLUJO FINALIZADO
+────────────────────────────────────────────────────────────────────────────────
+  Archivo: app/Http/Livewire/Flujo/ModalFlujoPedido.php — cargarEstadoCobroFactura()
+  Cuándo: cobro completado + entrega completada → flujo pasa a tipo_tramite_id=8
+  Contexto enviado:
+    cliente    = factura.nombre_cliente
+    monto      = factura.total
+    referencia = 'Factura #' + factura.cai
+
+  NOTA: el evento solo se dispara la primera vez (verifica !$flujoYaFinalizado).
+
+────────────────────────────────────────────────────────────────────────────────
+tipo=9 | REVISIÓN DE INVENTARIO
+────────────────────────────────────────────────────────────────────────────────
+  Archivo 1: app/Http/Livewire/Flujo/ModalFlujoPedido.php — ganadoraOferta()
+  Cuándo: crédito vigente → salta Rev. Crédito y va directo a Rev. Inventario
+  Contexto enviado:
+    cliente = flujo.nombre
+    monto   = cotizacion.total
+
+  Archivo 2: app/Http/Livewire/Flujo/RevisionCreditos.php — aprobarCredito()
+  Cuándo: crédito aprobado → flujo pasa a Rev. Inventario
+  Contexto enviado:
+    cliente = flujo.nombre
+    monto   = montoTotalOferta
+
+────────────────────────────────────────────────────────────────────────────────
+tipo=10 | REVISIÓN DE CRÉDITO
+────────────────────────────────────────────────────────────────────────────────
+  Archivo: app/Http/Livewire/Flujo/ModalFlujoPedido.php — ganadoraOferta()
+  Cuándo: oferta ganadora sin crédito vigente → flujo pasa a Rev. Crédito
+  Contexto enviado:
+    cliente = flujo.nombre
+    monto   = cotizacion.total
+
+────────────────────────────────────────────────────────────────────────────────
+tipo=11 | PREFACTURA ANULADA
+────────────────────────────────────────────────────────────────────────────────
+  Archivo: app/Http/Livewire/Flujo/ModalFlujoPedido.php — anularPrefactura()
+  Cuándo: se anula una prefactura con código de autorización
+  Contexto enviado:
+    cliente    = flujo.nombre
+    monto      = prefacturaData.total
+    referencia = 'Prefactura #X | Motivo: ...' (truncado a 60 caracteres)
+
+RESUMEN DE COBERTURA:
+  tipo  | Evento en código | Regla configurada | Se notifica actualmente
+  ------+------------------+-------------------+------------------------
+    4   |       SÍ         |        SÍ         |          SÍ
+    6   |       SÍ         |        NO         |          NO
+    8   |       SÍ         |        NO         |          NO
+    9   |       SÍ         |        SÍ         |          SÍ
+   10   |       SÍ         |        SÍ         |          SÍ
+   11   |       SÍ         |        SÍ         |          SÍ
+    1   |       NO         |        NO         |          NO
+    2   |       NO         |        NO         |          NO
+    3   |       NO         |        NO         |          NO
+    5   |       NO         |        NO         |          NO
+    7   |       SÍ         |        SÍ         |          SÍ
+
+
+================================================================================
+11. TABLA notifications (DÓNDE SE ALMACENA)
+================================================================================
+
+Esta es la tabla estándar de Laravel Notifications (canal database).
+
+ESTRUCTURA:
+  id           | uuid       | Identificador único de la notificación
+  type         | varchar    | Clase PHP de la notificación
+                             ('App\Notifications\FlujoNotification')
+  notifiable_type | varchar | Tipo de modelo notificado ('App\Models\User')
+  notifiable_id   | bigint  | users.id del destinatario
+  data         | json       | Payload completo (ver abajo)
+  read_at      | timestamp  | NULL = no leída, fecha = leída
+  created_at   | timestamp  | Cuándo se creó
+  updated_at   | timestamp  |
+
+EJEMPLO DE data (campo JSON):
+  {
+    "tipo_tramite_id": 9,
+    "titulo": "Revisión de Inventario",
+    "mensaje": "Flujo #50 · DISTRIBUIDORA UNIVERSAL | L 15,000.00",
+    "icono": "fa-boxes",
+    "color": "#FF9800",
+    "url": "/flujo/revicion_inventario?flujo_id=50",
+    "leida": false,
+    "flujo_id": 50
+  }
+
+CONFIGURACIÓN VISUAL POR TIPO (TRAMITE_CONFIG en FlujoNotification.php):
+  tipo  | título                  | icono                 | color   | url destino
+  ------+-------------------------+-----------------------+---------+--------------------
+    1   | Nuevo Pedido            | fa-shopping-cart      | #607D8B | /flujo/ventas/historico
+    2   | Oferta en revisión      | fa-file-alt           | #9C27B0 | /flujo/ventas/historico
+    3   | Nueva Factura emitida   | fa-file-invoice-dollar| #4CAF50 | /flujo/ventas/historico
+    4   | Prefactura pendiente    | fa-file-invoice       | #00BCD4 | /flujo/ventas/historico
+    5   | Entrega pendiente       | fa-truck              | #FF5722 | /flujo/ventas/historico
+    6   | Cobro pendiente         | fa-money-bill-wave    | #8BC34A | /flujo/ventas/historico
+    7   | Entrega y Cobro         | fa-handshake          | #009688 | /flujo/ventas/historico
+    8   | Flujo Finalizado        | fa-check-circle       | #4CAF50 | /flujo/ventas/historico
+    9   | Revisión de Inventario  | fa-boxes              | #FF9800 | /flujo/revicion_inventario
+   10   | Revisión de Crédito     | fa-credit-card        | #2196F3 | /flujo/revision_creditos
+   11   | Prefactura Anulada      | fa-times-circle       | #F44336 | /flujo/ventas/historico
+
+  Si llega un tipo no definido en TRAMITE_CONFIG, se usa un fallback genérico:
+    título = "Notificación de Flujo", icono = "fa-bell", color = "#9E9E9E"
+
+
+================================================================================
+12. CÓMO CONSULTAR NOTIFICACIONES EN BD
+================================================================================
+
+Ver todas las notificaciones no leídas de un usuario (id=73):
+
+  SELECT
+    n.id,
+    n.created_at,
+    JSON_EXTRACT(n.data, '$.titulo')   AS titulo,
+    JSON_EXTRACT(n.data, '$.mensaje')  AS mensaje,
+    JSON_EXTRACT(n.data, '$.url')      AS url,
+    JSON_EXTRACT(n.data, '$.flujo_id') AS flujo_id
+  FROM notifications n
+  WHERE n.notifiable_id   = 73
+    AND n.notifiable_type = 'App\\Models\\User'
+    AND n.read_at IS NULL
+  ORDER BY n.created_at DESC;
+
+Ver cuántas notificaciones no leídas tiene cada usuario:
+
+  SELECT
+    u.name,
+    COUNT(n.id) AS no_leidas
+  FROM notifications n
+  INNER JOIN users u ON u.id = n.notifiable_id
+  WHERE n.notifiable_type = 'App\\Models\\User'
+    AND n.read_at IS NULL
+  GROUP BY u.id, u.name
+  ORDER BY no_leidas DESC;
+
+Ver todas las notificaciones de un flujo específico (flujo_id=50):
+
+  SELECT
+    u.name              AS destinatario,
+    n.read_at           AS leida_en,
+    JSON_EXTRACT(n.data, '$.titulo')  AS titulo,
+    JSON_EXTRACT(n.data, '$.mensaje') AS mensaje,
+    n.created_at
+  FROM notifications n
+  INNER JOIN users u ON u.id = n.notifiable_id
+  WHERE n.notifiable_type = 'App\\Models\\User'
+    AND JSON_EXTRACT(n.data, '$.flujo_id') = 50
+  ORDER BY n.created_at ASC;
+
+Marcar todas como leídas para un usuario (vía código):
+  Auth::user()->unreadNotifications->markAsRead();
+
+Contar no leídas (vía código):
+  Auth::user()->unreadNotifications()->count();
+
+
+================================================================================
+CÓMO AGREGAR UNA NUEVA REGLA DE NOTIFICACIÓN
+================================================================================
+
+Ejemplo: notificar al rol "Créditos y Cobros" (rol_id=4) cuando llegue una
+Revisión de Crédito (tipo_tramite_id=10).
+
+OPCIÓN A — Desde la pantalla (recomendado):
+  1. Ir a /configuracion/notificaciones
+  2. Clic en "Nueva regla"
+  3. Seleccionar paso: "Rev. Crédito"
+  4. Seleccionar rol: "Créditos y Cobros"  ← único tipo de destino disponible por ahora
+  5. Guardar
+
+OPCIÓN B — Directamente en BD:
+  INSERT INTO notificacion_flujo_config
+    (tipo_tramite_id, rol_id, area_id, escalar_activo, activo, created_at, updated_at)
+  VALUES
+    (10, 4, NULL, 0, 1, NOW(), NOW());
+
+CÓMO AGREGAR UN NUEVO TIPO DE PASO AL CATÁLOGO (para que aparezca en el dropdown):
+  1. Insertar en tipos_tramites (nombre, estado='activo', estado_id=1)
+  2. Insertar en flujo_etapas (tipo_tramite_id, nombre_display, icono, orden, activo=1)
+  3. Agregar entrada en TRAMITE_CONFIG dentro de FlujoNotification.php
+  4. El caché flujo_etapas_activas se invalida automáticamente (modelo FlujoEtapa tiene
+     booted() con Cache::forget en save/delete, o hacerlo manual con Cache::forget)
+
+
+================================================================================
+FIN DEL DOCUMENTO
+Generado: Mayo 25, 2026 | Responsable técnico: profac-app
+================================================================================

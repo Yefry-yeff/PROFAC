@@ -12,9 +12,10 @@ return [
         |
         | When using FromQuery, the query is automatically chunked.
         | Here you can specify how big the chunk should be.
+        | Aumentado a 5000 para mejorar rendimiento en importaciones grandes
         |
         */
-        'chunk_size'             => 1000,
+        'chunk_size'             => 5000,
 
         /*
         |--------------------------------------------------------------------------
@@ -41,15 +42,13 @@ return [
         | Configure e.g. delimiter, enclosure and line ending for CSV exports.
         |
         */
-        'csv'                    => [
-            'delimiter'              => ',',
-            'enclosure'              => '"',
-            'line_ending'            => PHP_EOL,
-            'use_bom'                => false,
-            'include_separator_line' => false,
-            'excel_compatibility'    => false,
-            'output_encoding'        => '',
-        ],
+        'csv' => [
+    'delimiter' => ',',
+    'enclosure' => '"',
+    'escape_character' => '\\',
+    'contiguous' => false,
+    'input_encoding' => 'ISO-8859-1',
+],
 
         /*
         |--------------------------------------------------------------------------
@@ -293,7 +292,7 @@ return [
         | storing reading or downloading. Here you can customize that path.
         |
         */
-        'local_path'          => storage_path('framework/cache/laravel-excel'),
+        'local_path' => storage_path('app/excel-temp'),
 
         /*
         |--------------------------------------------------------------------------

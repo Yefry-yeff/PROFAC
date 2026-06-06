@@ -64,28 +64,14 @@
                                         <th>FACTURA</th>
                                         <th>CLIENTE</th>
                                         <th>VENDENDOR</th>
+                                        <th>FACTURADOR</th>
                                         <th>SUBTOTAL</th>
                                         <th>IMPUESTO DE VENTA</th>
                                         <th>TOTAL</th>
                                         <th>TIPO</th>
                                     </tr>
                                 </thead>
-                                <tbody>                                <tbody>
-                                    <tfoot>
-                                        <tr>
-                                            <th>FECHA</th>
-                                        <th>MES</th>
-                                        <th>FACTURA</th>
-                                        <th>CLIENTE</th>
-                                        <th>VENDENDOR</th>
-                                        <th>SUBTOTAL</th>
-                                        <th>IMPUESTO DE VENTA</th>
-                                        <th>TOTAL</th>
-                                        <th>TIPO</th>
-                                        </tr>
-                                    </tfoot>
-
-                                </tbody>
+                                <tbody>
 
                                 </tbody>
                             </table>

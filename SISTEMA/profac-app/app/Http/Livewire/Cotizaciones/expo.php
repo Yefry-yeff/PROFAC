@@ -38,41 +38,33 @@ class expo extends Component
 
 
     public function infoProducto($id){
-        $producto = DB::SELECTONE("
-            select
-                A.id,
-                A.nombre,
-                A.descripcion,
-                A.codigo_estatal,
-                A.codigo_barra,
-                B.descripcion as 'sub_categoria',
-                E.descripcion as 'categoria',
-                A.precio_base,
-                A.precio1,
-                A.precio2,
-                A.precio3,
-                A.precio4,
-                A.costo_promedio,
-                A.ultimo_costo_compra,
-                A.isv,
-                C.nombre as 'unidad_medida',
-                A.created_at as 'fecha_registro',
-                D.name as 'registrado_por',
-                A.marca_id,
-                A.sub_categoria_id,
-                unidad_medida_compra_id,
-                unidadad_compra,
-                M.nombre as 'marca'
-
-            from  producto A
-            inner join sub_categoria B on A.sub_categoria_id = B.id
-            inner join categoria_producto E on E.id = B.categoria_producto_id
-            inner join unidad_medida C  on A.unidad_medida_compra_id = C.id
-            inner join users D on A.users_id = D.id
-            inner join marca M on M.id = A.marca_id
-            where A.id = " . $id . "
-            and A.estado_producto_id =1
-        ");
+                   $producto = DB::selectOne("
+                SELECT
+                p.id,
+                CONCAT(p.id,' - ',p.nombre) AS nombre,
+                p.isv,
+                p.ultimo_costo_compra AS ultimo_costo_compra,
+                ppc.precio_base_venta AS precio_base,
+                ppc.precio_a AS precio1,
+                ppc.precio_b AS precio2,
+                ppc.precio_c AS precio3,
+                ppc.precio_d AS precio4
+                FROM producto p
+                JOIN cliente cli
+                ON cli.id = :idCliente
+                JOIN categoria_precios cp
+                ON cp.id = cli.categoria_precios_id
+                AND cp.estado_id = 1
+                JOIN precios_producto_carga ppc
+                ON ppc.producto_id = p.id
+                AND ppc.categoria_precios_id = cp.id
+                AND ppc.estado_id = 1
+                WHERE p.id = :idProducto
+                LIMIT 1
+            ", [
+                'idCliente'  => $request['idCliente'],
+                'idProducto' => $request['idProducto'],
+            ]);
         return $producto;
     }
 
@@ -187,7 +179,6 @@ class expo extends Component
 
     public function guardarCotizacion(Request $request){
        try {
-
         Log::info('=== INICIO GUARDADO COTIZACIÓN ===');
         Log::info('Datos recibidos:', $request->all());
         Log::info('Número de inputs: ' . $request->numeroInputs);
@@ -195,7 +186,6 @@ class expo extends Component
 
         $validator = Validator::make($request->all(), [
             'subTotalGeneralGrabado' => 'required',
-            'subTotalGeneralGrabadoMostrar' => 'required',
             'subTotalGeneral' => 'required',
             'isvGeneral' => 'required',
             'totalGeneral' => 'required',
@@ -232,7 +222,7 @@ class expo extends Component
             $cotizacion->nombre_cliente = $request->nombre_cliente_ventas;
             $cotizacion->RTN = $request->rtn_ventas;
             $cotizacion->fecha_emision = $request->fecha_emision;
-            $cotizacion->fecha_vencimiento = $request->fecha_emision;
+            $cotizacion->fecha_vencimiento = $request->fecha_vencimiento ?: $request->fecha_emision;
             $cotizacion->sub_total = $request->subTotalGeneral;
             $cotizacion->sub_total_grabado=$request->subTotalGeneralGrabado;
             $cotizacion->sub_total_excento=$request->subTotalGeneralExcento;
@@ -247,6 +237,7 @@ class expo extends Component
             $cotizacion->numeroInputs = $request->numeroInputs;
             $cotizacion->porc_descuento = $request->porDescuento;
             $cotizacion->monto_descuento = $request->descuentoGeneral;
+            $cotizacion->tipo_pago_id = $request->tipoPagoVenta ?: null;
             $cotizacion->save();
 
            /*  ALTER TABLE cotizacion ADD COLUMN nota VARCHAR(255) NULL DEFAULT NULL; */
@@ -380,7 +371,7 @@ class expo extends Component
              $cotizacion->nombre_cliente = $request->nombre_cliente_ventas;
              $cotizacion->RTN = $request->rtn_ventas;
              $cotizacion->fecha_emision = $request->fecha_emision;
-             $cotizacion->fecha_vencimiento = $request->fecha_emision;
+               $cotizacion->fecha_vencimiento = $request->fecha_vencimiento ?: $request->fecha_emision;
              $cotizacion->sub_total = $request->subTotalGeneral;
              $cotizacion->sub_total_grabado=$request->subTotalGeneralGrabado;
              $cotizacion->sub_total_excento=$request->subTotalGeneralExcento;
@@ -394,6 +385,7 @@ class expo extends Component
              $cotizacion->numeroInputs = $request->numeroInputs;
              $cotizacion->porc_descuento = $request->porDescuento;
              $cotizacion->monto_descuento =  $request->descuentoGeneral;
+             $cotizacion->tipo_pago_id = $request->tipoPagoVenta ?: null;
              $cotizacion->save();
 
 
@@ -523,6 +515,7 @@ class expo extends Component
 
         $datos = DB::SELECTONE("
             select
+            A.cliente_id AS clienteId,
             concat(YEAR(NOW()),'-',A.id) as codigo,
             B.nombre,
             B.direccion,
@@ -534,12 +527,14 @@ class expo extends Component
             B.rtn,
             users.name,
             (select name from users where id = A.vendedor) as vendedor,
-            A.nota
+            A.nota,
+            IFNULL(TP.descripcion, 'contado') as tipo_pago
             from cotizacion A
             inner join cliente B
             on A.cliente_id = B.id
             inner join users
             ON users.id = A.users_id
+            left join tipo_pago_venta TP on TP.id = A.tipo_pago_id
             where A.id =".$idFactura
         );
 
@@ -616,6 +611,7 @@ class expo extends Component
         $datos = DB::SELECT(
             "
                 select
+            A.cliente_id AS clienteId,
                       C.id as codigoProducto,
                     C.nombre as nombre1,
                     C.descripcion as nombre,
@@ -659,6 +655,7 @@ class expo extends Component
 
         $datos = DB::SELECTONE("
             select
+            A.cliente_id AS clienteId,
             concat(YEAR(NOW()),'-',A.id) as codigo,
             B.nombre,
             B.direccion,
@@ -758,7 +755,7 @@ class expo extends Component
             A.seccion_id as id,
             D.id as 'idBodega',
             CONCAT(D.nombre,'',REPLACE(B.descripcion,'Seccion','')) as 'bodegaSeccion',
-            concat(D.nombre,' - ', REPLACE(B.descripcion,'Seccion',''),' - cantidad ',sum(A.cantidad_disponible)) as 'text'
+            concat(D.nombre,' - ', REPLACE(B.descripcion,'Seccion',''),' - cantidad ',FLOOR(sum(A.cantidad_disponible))) as 'text'
         from recibido_bodega A
             inner join seccion B
             on A.seccion_id = B.id
@@ -789,7 +786,7 @@ class expo extends Component
             $listaProductos = DB::SELECT("
          select
             B.id,
-            concat('cod ',B.id,' - ',B.nombre,' - ',B.codigo_barra,' - ','cantidad ',sum(A.cantidad_disponible)) as text
+            concat('cod ',B.id,' - ',B.nombre,' - ',B.codigo_barra,' - ','cantidad ',FLOOR(sum(A.cantidad_disponible))) as text
          from
             recibido_bodega A
             inner join producto B

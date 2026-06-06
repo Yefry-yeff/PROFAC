@@ -15,6 +15,7 @@ use Luecano\NumeroALetras\NumeroALetras;
 
 use App\Models\ModelCotizacion;
 use App\Models\ModelCotizacionProducto;
+use App\Models\Escalas\modelCategoriaCliente;
 
 class Editarcotizacion extends Component
 {
@@ -45,6 +46,7 @@ class Editarcotizacion extends Component
         A.sub_total_excento,
         A.isv,
         A.total,
+        A.nota,
         A.cliente_id,
         A.tipo_venta_id,
         A.users_id,
@@ -61,6 +63,23 @@ class Editarcotizacion extends Component
         on A.cliente_id = B.id
         where A.id =' . $idCotizacion);
 
+            $datos = modelCategoriaCliente::select(
+                'cliente.id',
+                'cliente.nombre',
+                'cliente.rtn',
+                'cliente.dias_credito',
+                'cliente_categoria_escala.nombre_categoria',
+                'cliente_categoria_escala.id as idcategoriacliente',
+                'cliente.categoria_precios_id',
+            )
+            ->join(
+                'cliente',
+                'cliente.cliente_categoria_escala_id',
+                '=',
+                'cliente_categoria_escala.id'
+            )
+            ->where('cliente.id', $cotizacion->cliente_id)
+            ->first();
 
 
 
@@ -69,7 +88,7 @@ class Editarcotizacion extends Component
         $urlGuardarVenta = $this->obtenerURL($cotizacion->tipo_venta_id);
 
 
-        return view('livewire.cotizaciones.editarcotizacion', compact('cotizacion', 'htmlProductos', 'urlGuardarVenta'));
+        return view('livewire.cotizaciones.editarcotizacion', compact('cotizacion', 'htmlProductos', 'urlGuardarVenta','datos'));
 
     }
 
@@ -285,7 +304,7 @@ class Editarcotizacion extends Component
              $cotizacion->nombre_cliente = $request->nombre_cliente_ventas;
              $cotizacion->RTN = $request->rtn_ventas;
              $cotizacion->fecha_emision = $request->fecha_emision;
-             $cotizacion->fecha_vencimiento = $request->fecha_emision;
+             $cotizacion->fecha_vencimiento = $request->fecha_vencimiento ?: $request->fecha_emision;
              $cotizacion->sub_total = $request->subTotalGeneral;
              $cotizacion->sub_total_grabado=$request->subTotalGeneralGrabado;
              $cotizacion->sub_total_excento=$request->subTotalGeneralExcento;
@@ -299,6 +318,8 @@ class Editarcotizacion extends Component
              $cotizacion->numeroInputs = $request->numeroInputs;
              $cotizacion->porc_descuento = $request->porDescuento;
              $cotizacion->monto_descuento = $request->porDescuentoCalculado;
+             $cotizacion->nota = $request->nota;
+             $cotizacion->tipo_pago_id = $request->tipoPagoVenta ?: null;
              $cotizacion->save();
 
 

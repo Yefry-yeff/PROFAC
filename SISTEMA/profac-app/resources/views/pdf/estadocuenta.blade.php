@@ -1,11 +1,10 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html>
 
 <head>
 
 
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/css/bootstrap.min.css"
-        integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+        <link rel="stylesheet" href="{{ public_path('css/bootstrap.min.css') }}">
     <style>
         .color-red {
             color: red;
@@ -74,7 +73,7 @@
     @endphp
 
     <div class="pruebaFondo">
-        <img src="img/membrete/Logo3.png" width="900rem" style="margin-left:13%; margin-top:-25px; position:absolute;"alt="">
+        <img src="{{ public_path('img/membrete/Logo3.png') }}" width="900rem" style="margin-left:13%; margin-top:-25px; position:absolute;"alt="">
 
         <div class="card border border-dark" style="margin-left:72px;  margin-top:105px; width:60rem; height:4rem;">
             <div class="card-header">

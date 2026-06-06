@@ -9,6 +9,7 @@ use DataTables;
 use Auth;
 use Validator;
 use PDF;
+use Livewire\Component;
 use Luecano\NumeroALetras\NumeroALetras;
 
 use App\Models\ModelFactura;
@@ -29,7 +30,7 @@ class Reportcxc extends Component
         return view('livewire.reportes.reportcxc');
     }
 
-    
+
     public function consulta($fecha_inicio, $fecha_final){
         try {
 
@@ -391,7 +392,7 @@ class Reportcxc extends Component
     }
 
     //INVENTARIOS
-    
+
     public function productosExistencia(){
         try {
             $consulta = DB::SELECT("
@@ -422,7 +423,7 @@ class Reportcxc extends Component
             FORMAT(@existenciaCompra + @existenciaAjuste,0) as 'EXISTENCIA',
             A.codigo_barra
             from producto A
-            inner join sub_categoria B on A.sub_categoria_id = B.id 
+            inner join sub_categoria B on A.sub_categoria_id = B.id
 			INNER JOIN categoria_producto on categoria_producto.id = B.id
             INNER JOIN unidad_medida on unidad_medida.id = A.unidad_medida_compra_id
 			INNER JOIN marca on marca.id = A.marca_id
@@ -577,6 +578,6 @@ class Reportcxc extends Component
 
     }
 
-   
+
 
 }

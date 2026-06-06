@@ -23,7 +23,6 @@ class DetalleProducto extends Component
     public $idProducto;
     public function mount($id)
     {
-
         $this->idProducto = $id;
     }
 
@@ -55,7 +54,10 @@ class DetalleProducto extends Component
             A.marca_id,
             A.sub_categoria_id,
             unidad_medida_compra_id,
-            unidadad_compra
+            unidadad_compra,
+            F.nombre as 'marca',
+            A.tiempo_recuperacion_meses,
+            A.origen
 
         from  producto A
         inner join sub_categoria B
@@ -66,6 +68,8 @@ class DetalleProducto extends Component
         on A.unidad_medida_compra_id = C.id
         inner join users D
         on A.users_id = D.id
+        left join marca F
+        on A.marca_id = F.id
         where A.id = " . $id . "
         ");
 
@@ -117,7 +121,8 @@ class DetalleProducto extends Component
                     C.numeracion,
                     H.cantidad_disponible,
                     H.created_at,
-                    H.id as idRecibido
+                    H.id as idRecibido,
+                    H.seccion_id
                 from compra_has_producto A
                 inner join producto B
                 on A.producto_id = B.id
@@ -150,7 +155,8 @@ class DetalleProducto extends Component
                     C.numeracion,
                     H.cantidad_disponible,
                     H.created_at,
-                    H.id as idRecibido
+                    H.id as idRecibido,
+                    H.seccion_id
                 from  producto B
                 inner join recibido_bodega H
                 on  B.id = H.producto_id
@@ -175,11 +181,51 @@ class DetalleProducto extends Component
         $unidades = ModelUnidadMedida::all();
         $marcas = ModelMarca::all();
 
+        // ── Reservas por sección (FIFO) ──────────────────────────────────
+        // Total reservado por seccion_id para este producto
+        $reservasPorSeccion = DB::table('prefactura_has_producto as php')
+            ->join('prefactura as pf', 'pf.id', '=', 'php.prefactura_id')
+            ->where('pf.estado', 'activo')
+            ->where('php.producto_id', $id)
+            ->where('php.resta_inventario', 1)
+            ->selectRaw('php.seccion_id, SUM(php.cantidad) as total')
+            ->groupBy('php.seccion_id')
+            ->pluck('total', 'seccion_id')
+            ->map(fn($v) => (float) $v)
+            ->toArray();
 
+        // Detalle de prefacturas reservadas por seccion_id (para modal)
+        $detalleReservasRaw = DB::table('prefactura_has_producto as php')
+            ->join('prefactura as pf', 'pf.id', '=', 'php.prefactura_id')
+            ->where('pf.estado', 'activo')
+            ->where('php.producto_id', $id)
+            ->where('php.resta_inventario', 1)
+            ->select('php.seccion_id', 'pf.id as prefactura_id', 'pf.flujo_id',
+                     'pf.nombre_cliente', 'php.cantidad', 'pf.fecha_emision', 'pf.fecha_vencimiento')
+            ->get()
+            ->groupBy('seccion_id')
+            ->map(fn($rows) => $rows->map(fn($r) => (array) $r)->values()->toArray())
+            ->toArray();
 
+        // Aplicar FIFO: distribuir la reserva desde el lote más antiguo
+        $remainingBySeccion = $reservasPorSeccion;
+        foreach ($lotes as $lote) {
+            $sid      = $lote->seccion_id ?? null;
+            $rawStock = (float) $lote->cantidad_disponible;
+            $remaining   = $sid !== null ? ($remainingBySeccion[$sid] ?? 0.0) : 0.0;
+            $reservaFila = min($remaining, $rawStock);
+            if ($sid !== null) {
+                $remainingBySeccion[$sid] = max(0.0, $remaining - $reservaFila);
+            }
+            $lote->rawStock            = $rawStock;
+            $lote->reservado_fila      = $reservaFila;
+            $lote->disponible_fila     = max(0.0, $rawStock - $reservaFila);
+            $lote->reservas_detalle    = $sid !== null ? ($detalleReservasRaw[$sid] ?? []) : [];
+        }
 
+        $esAdmin = Auth::user()->rol_id == 1;
 
-        return view('livewire.inventario.detalle-producto',  compact('producto', "precios", "imagenes", "lotes", "categorias", "unidades","marcas"));
+        return view('livewire.inventario.detalle-producto',  compact('producto', 'precios', 'imagenes', 'lotes', 'categorias', 'unidades', 'marcas', 'esAdmin'));
     }
 
     public function unidadesVenta($id){

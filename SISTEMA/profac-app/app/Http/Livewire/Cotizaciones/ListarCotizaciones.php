@@ -48,6 +48,18 @@ class ListarCotizaciones extends Component
     }
 
     public function listarCotizaciones(Request $request){
+        $filtroCliente  = trim($request->input('filtroCliente', ''));
+        $filtroVendedor = trim($request->input('filtroVendedor', ''));
+        $whereExtra = '';
+        $bindings   = [];
+        if ($filtroCliente !== '') {
+            $whereExtra .= ' AND A.nombre_cliente LIKE ? ';
+            $bindings[] = "%{$filtroCliente}%";
+        }
+        if ($filtroVendedor !== '') {
+            $whereExtra .= ' AND (SELECT name FROM users WHERE id = A.vendedor) LIKE ? ';
+            $bindings[] = "%{$filtroVendedor}%";
+        }
         if (Auth::user()->rol_id == '2') {
                 $cotizaciones = DB::SELECT("
                 select
@@ -67,8 +79,9 @@ class ListarCotizaciones extends Component
                 on A.users_id = B.id
                 where A.tipo_venta_id = ".$request->id."
                 and A.vendedor =  ".Auth::user()->id."
+                {$whereExtra}
                 order by A.created_at desc
-            ");
+            ", $bindings);
         }else{
                 $cotizaciones = DB::SELECT("
                 select
@@ -177,8 +190,9 @@ class ListarCotizaciones extends Component
                     24801,
                     26049
                 )
+                {$whereExtra}
                 order by A.created_at desc
-            ");
+            ", $bindings);
 
         }
 
@@ -194,13 +208,6 @@ class ListarCotizaciones extends Component
                         <ul class="dropdown-menu" x-placement="bottom-start" style="position: absolute; top: 33px; left: 0px; will-change: top, left;">
 
                             <li>
-                                 <a class="dropdown-item" target="_blank"  href="/cotizacion/edicion/'.$cotizacion->id.'" > <i class="fa-solid fa-file-invoice text-info"></i> Editar </a>
-                            </li>
-                            <li>
-                                <a class="dropdown-item" target="_blank"  href="/cotizacion/facturar/'.$cotizacion->id.'" > <i class="fa-solid fa-file-invoice text-info"></i> Facturar </a>
-                            </li>
-
-                            <li>
                             <a class="dropdown-item" target="_blank"  href="/cotizacion/facturar/srp/corporativo/'.$cotizacion->id.'" > <i class="fa-solid fa-file-invoice text-info"></i> Facturar SR/P </a>
                             </li>
 
@@ -211,14 +218,8 @@ class ListarCotizaciones extends Component
                             </li>
 
                             <li>
-                            <a class="dropdown-item" target="_blank"  href="/proforma/imprimir/'.$cotizacion->id.'"> <i class="fa-solid fa-print text-success"></i> Imprimir Proforma </a>
+                            <a class="dropdown-item" href="#" onclick="imprimirProformaConValidacion(event,'.$cotizacion->id.')"> <i class="fa-solid fa-print text-success"></i> Imprimir Proforma </a>
                             </li>
-
-                            <li>
-                            <a class="dropdown-item" target="_blank"  href="/cotizacion/imprimir/catalogo/'.$cotizacion->id.'"> <i class="fa-solid fa-print text-success"></i> Catálogo </a>
-                            </li>
-
-
 
                         </ul>
                     </div>';
@@ -230,25 +231,11 @@ class ListarCotizaciones extends Component
                     <ul class="dropdown-menu" x-placement="bottom-start" style="position: absolute; top: 33px; left: 0px; will-change: top, left;">
 
                         <li>
-                            <a class="dropdown-item" target="_blank"  href="/cotizacion/edicion/'.$cotizacion->id.'" > <i class="fa-solid fa-file-invoice text-info"></i> Editar </a>
-                        </li>
-                        <li>
-                            <a class="dropdown-item" target="_blank"  href="/cotizacion/facturar/gobierno/'.$cotizacion->id.'" > <i class="fa-solid fa-file-invoice text-info"></i> Facturar </a>
-                        </li>
-
-
-
-                        <li>
                             <a class="dropdown-item"  target="_blank" href="/cotizacion/imprimir/'.$cotizacion->id.'">  <i class="fa-solid fa-print text-success"></i> Imprimir Cotización </a>
                         </li>
 
                         <li>
-                        <a class="dropdown-item" target="_blank"  href="/proforma/imprimir/'.$cotizacion->id.'"> <i class="fa-solid fa-print text-success"></i> Imprimir Proforma </a>
-                        </li>
-
-
-                        <li>
-                        <a class="dropdown-item" target="_blank"  href="/cotizacion/imprimir/catalogo/'.$cotizacion->id.'"> <i class="fa-solid fa-print text-success"></i> Catálogo </a>
+                        <a class="dropdown-item" href="#" onclick="imprimirProformaConValidacion(event,'.$cotizacion->id.')"> <i class="fa-solid fa-print text-success"></i> Imprimir Proforma </a>
                         </li>
 
 

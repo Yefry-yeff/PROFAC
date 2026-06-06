@@ -1,8 +1,7 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/css/bootstrap.min.css"
-        integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+        <link rel="stylesheet" href="{{ public_path('css/bootstrap.min.css') }}">
     <style>
         body {
             font-size: 12px;
@@ -78,7 +77,7 @@
 </head>
 <body>
     <div class="header">
-        <img src="img/membrete/Logo3.png" style="margin-left:10%; margin-top:-25px; position:absolute;"alt="">
+        <img src="{{ public_path('img/membrete/Logo3.png') }}" style="margin-left:10%; margin-top:-25px; position:absolute;"alt="">
         <div class="header-text"style="margin-left:10%;  margin-top:60px; width:45rem; height:5.5rem;">
             <p>RTN: 08011986138652</p>
             <p>LIBRO GENERAL DE VENTAS DE GOBIERNO</p>

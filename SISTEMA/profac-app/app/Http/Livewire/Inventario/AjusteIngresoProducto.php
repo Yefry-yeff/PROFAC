@@ -29,7 +29,7 @@ class AjusteIngresoProducto extends Component
         try {
 
 
-            $productos = DB::SELECT("select id, concat(id,' - ',nombre) as text   from producto where estado_producto_id = 1 and (nombre like '%".$request->search."%' or id like '%".$request->search."%' or codigo_barra like '%".$request->search."%') limit 15");
+            $productos = DB::SELECT("select id, concat(id,' - ',nombre) as text   from producto where nombre like '%".$request->search."%' or id like '%".$request->search."%' or codigo_barra like '%".$request->search."%' limit 15");
 
  
         return response()->json([
@@ -46,7 +46,7 @@ class AjusteIngresoProducto extends Component
     public function datosProducto(Request $request){
         try {
 
-         $producto = DB::SELECTONE("select id, nombre, precio_base from producto where id=".$request->id." and estado_producto_id = 1");
+         $producto = DB::SELECTONE("select id, nombre, precio_base from producto where id=".$request->id);
  
          $datosBodega = DB::SELECTONE("
          select
@@ -97,15 +97,15 @@ class AjusteIngresoProducto extends Component
             DB::beginTransaction();
 
                 
-            $numeroOrden = DB::SELECTONE("select concat(YEAR(NOW()),'-',count(id)+1) as numero_orden from ajuste");
-
             $ajuste = new ModelAjuste;
-            $ajuste->numero_ajuste = $numeroOrden->numero_orden;
+            $ajuste->numero_ajuste = 'TEMP-' . uniqid('', true);
             $ajuste->comentario = trim($request->comentario);
             $ajuste->tipo_ajuste_id = $request->tipo_ajuste_id;
             $ajuste->solicitado_por = $request->solicitado_por;
             $ajuste->fecha = $request->fecha;   
             $ajuste->users_id = Auth::user()->id;          
+            $ajuste->save();
+            $ajuste->numero_ajuste = date('Y') . '-' . $ajuste->id;
             $ajuste->save();
 
             for ($i = 0; $i < count($arregloIdInputs); $i++) {

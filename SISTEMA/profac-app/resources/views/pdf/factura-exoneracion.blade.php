@@ -1,11 +1,10 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html>
 
 <head>
 
 
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/css/bootstrap.min.css"
-        integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+        <link rel="stylesheet" href="{{ public_path('css/bootstrap.min.css') }}">
     <style>
         .color-red {
             color: red;
@@ -75,7 +74,7 @@
 
 
     <div class="pruebaFondo">
-        <img src="img/membrete/Logo3.png" width="800rem" style="margin-left:3%; margin-top:-25px; position:absolute;"alt="">
+        <img src="{{ public_path('img/membrete/Logo3.png') }}" width="800rem" style="margin-left:3%; margin-top:-25px; position:absolute;"alt="">
         <div class="card border border-dark" style="margin-left:44px;  margin-top:150px; width:45rem; height:5.5rem;">
             <div class="card-header">
                 <b>Factura No. {{$cai->numero_factura}} </b>
@@ -97,7 +96,7 @@
 
         <div class="card border border-dark"   style="margin-left:44px; margin-top:10px; width:45rem; height:10.5rem;">
             <div class="card-body">
-                <p class="card-text" style="position:absolute;left:20px;  top:10px;"><b>Cliente: </b>{{$cliente->nombre}}</p>
+                <p class="card-text" style="position:absolute;left:20px;  top:10px;"><b>Cliente: </b>{{$cliente->nombre}} - ({{ $cliente->clienteId }})</p>
                 <p class="card-text" style="position:absolute;left:20px;  top:29px; font-size: 11 px; max-width:500px"><b>Dirección:</b> {{$cliente->direccion}}</p>
 
                 <p class="card-text" style="position:absolute;left:20px;  top:54px;"><b>Correo:</b> {{$cliente->correo}}
@@ -112,9 +111,9 @@
                 <p class="card-text" style="position:absolute;left:500px;  top:127px;"><b>Identificativo del registro de
                         la SAG</b></p>
 
-                <p class="card-text" style="position:absolute;left:250px;  top:147px;">R-{{strtoupper($cai->codigo_exoneracion)}}</p>
+                <p class="card-text" style="position:absolute;left:250px;  top:141px;">{{strtoupper($cai->codigo_exoneracion)}}</p>
 
-                <p class="card-text" style="position:absolute;left:20px;  top:147px;">{{strtoupper($cai->correlativoexo)}}</p>
+                <p class="card-text" style="position:absolute;left:20px;  top:141px;">{{strtoupper($cai->correlativoexo)}}</p>
 
 
                 <p class="card-text" style="position:absolute;left:520px;  top:10px;"><b>Fecha:</b> {{$cai->fecha_emision}}</p>
@@ -191,15 +190,13 @@
                         <div class="card-body">
 
 
-                            <p class="card-text" style="position:absolute;left:10px;  top:2px; font-size:14px;"><b>Vendedor:
+                            <p class="card-text" style="position:absolute;left:10px;  top:2px; font-size:14px;"><b>Asesor comercial:
                             </b>
                             {{ $cai->vendedor }} </p>
-                            <p class="card-text" style="position:absolute;left:200px;  top:2px; font-size:14px;"><b>Facturador:
+                            <p class="card-text" style="position:absolute;left:200px;  top:2px; font-size:14px;"><b>Tele asesor:
                                 </b>
                                 {{ $cai->facturador }} </p>
-
-                            {{-- <p class="card-text" style="position:absolute;left:10px;  top:18px; font-size:14px"><b>Repartidor: </b>
-                                NULL</p> --}}
+                            <p class="card-text" style="position:absolute;left:10px;  top:18px; font-size:11px;"><b>Asesor de entrega:</b> {{ $cai->asesor_entrega ?? '' }}</p>
 
                                 <!--
 
@@ -303,8 +300,10 @@
                             _______________________________________</p>
                         <p class="card-text" style="position:absolute;left:450px;  top:10px;">
                             _______________________________________</p>
-                        <p class="card-text" style="position:absolute;left:80px;  top:25px; max-width:250px;  ">
-                            {{ strtoupper($cliente->nombre) }}</p>
+                        <p class="card-text" style="position:absolute;left:20px;  top:25px; max-width:500px;  ">Cliente: {{ strtoupper($cliente->nombre) }}</p>
+                        <p class="card-text" style="position:absolute;left:20px;  top:40px; max-width:250px;  ">Recibido por: </p>
+                        <p class="card-text" style="position:absolute;left:20px;  top:55px; max-width:250px;  ">Telefono: </p>
+                        <p class="card-text" style="position:absolute;left:20px;  top:70px; max-width:250px;  "><b>*Se requiere firma y sello de recibido.*</b></p>
                         <p class="card-text" style="position:absolute;left:495px;  top:25px;">DISTRIBUCIONES VALENCIA</p>
                         <p class="card-text" style="position:absolute;left:460px;  top:-60px;">Original: Cliente, Copia obligado tributario emisor. </p>
                     </div>

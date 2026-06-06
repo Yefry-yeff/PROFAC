@@ -162,7 +162,7 @@
                                             <label for="porDescuento" class="col-form-label focus-label">Descuento aplicado
                                                 %
                                                 :<span class="text-danger">*</span></label>
-                                            <input class="form-control" type="number" min="0" max="35"
+                                            <input class="form-control" type="number" min="0" max="50"
                                                 value="{{ $cotizacion->porc_descuento }}" minlength="1" maxlength="2"
                                                 id="porDescuento" name="porDescuento" data-parsley-required
                                                 onchange="calcularTotalesInicioPagina()">
@@ -233,28 +233,101 @@
                             </div>
 
                             <div class="row mt-4">
-                                <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6 ">
+                                <div class="col-12 col-md-4 col-lg-4 col-xl-4">
 
 
-                                    <label for="seleccionarProducto" class="col-form-label focus-label">Seleccionar
+                                    <label class="col-form-label focus-label">Seleccionar
                                         Producto:<span class="text-danger">*</span></label>
-                                    <select id="seleccionarProducto" name="seleccionarProducto"
-                                        class="form-group form-control" style="" onchange="obtenerImagenes()">
-                                        <option value="" selected disabled>--Seleccione un producto--</option>
+                                    <div class="input-group">
+                                        <input type="text" id="codigoProductoFacturaCotiCorpSrp" class="form-control"
+                                               placeholder="ID o nombre del producto…" autocomplete="off"
+                                               onkeydown="if(event.key==='Enter'){buscarPorCodigoFacturaCotiCorpSrp(this.value);return false;}">
+                                        <div class="input-group-append">
+                                            <button type="button" class="btn btn-primary" title="Buscar producto"
+                                                    onclick="limpiarProductoFacturaCotiCorpSrp(); window['abrirBuscador_buscadorProductoFacturaCotiCorpSrp'](document.getElementById('codigoProductoFacturaCotiCorpSrp').value||'')">
+                                                <i class="fa fa-search"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <small id="productoSeleccionadoFacturaCotiCorpSrp" class="text-success font-weight-bold mt-1 d-block d-none"></small>
+                                    {{-- Hidden select conserva la compatibilidad con el JS existente --}}
+                                    <select id="seleccionarProducto" name="seleccionarProducto" class="d-none">
+                                        <option value="" selected disabled></option>
                                     </select>
+                                    <x-buscador-producto id-modal="buscadorProductoFacturaCotiCorpSrp" callback="alSeleccionarProductoFacturaCotiCorpSrp" />
+                                    @push('scripts')
+                                    <script>
+                                    function limpiarProductoFacturaCotiCorpSrp() {
+                                        document.getElementById('seleccionarProducto').innerHTML = '<option value="" selected disabled></option>';
+                                        document.getElementById('codigoProductoFacturaCotiCorpSrp').value = '';
+                                        var lbl = document.getElementById('productoSeleccionadoFacturaCotiCorpSrp');
+                                        lbl.classList.add('d-none'); lbl.textContent = '';
+                                        document.getElementById('historialPreciosPanel').classList.add('d-none');
+                                    }
+                                    function alSeleccionarProductoFacturaCotiCorpSrp(producto) {
+                                        var select = document.getElementById('seleccionarProducto');
+                                        select.innerHTML = '<option value="' + producto.id + '" selected>' + producto.nombre + '</option>';
+                                        document.getElementById('codigoProductoFacturaCotiCorpSrp').value = producto.nombre;
+                                        var label = document.getElementById('productoSeleccionadoFacturaCotiCorpSrp');
+                                        label.textContent = '✓ ' + producto.nombre + ' (ID: ' + producto.id + ')';
+                                        label.classList.remove('d-none');
+                                        cargarCategoriasProducto();
+                                        cargarHistorialPreciosFacturaCotiCorpSrp();
+                                    }
+                                    function buscarPorCodigoFacturaCotiCorpSrp(cod) {
+                                        cod = String(cod).trim();
+                                        if (!cod) { window['abrirBuscador_buscadorProductoFacturaCotiCorpSrp'](''); return; }
+                                        axios.get('/productos/buscar', { params: { q: cod, page: 1 } })
+                                            .then(function(r) {
+                                                var items = r.data.data;
+                                                var exact = items.find(function(p) { return String(p.id) === cod; });
+                                                if (exact) { alSeleccionarProductoFacturaCotiCorpSrp(exact); }
+                                                else if (items.length === 1) { alSeleccionarProductoFacturaCotiCorpSrp(items[0]); }
+                                                else { window['abrirBuscador_buscadorProductoFacturaCotiCorpSrp'](cod); }
+                                            });
+                                    }
+                                    function cargarHistorialPreciosFacturaCotiCorpSrp() {
+                                        var productoId = $('#seleccionarProducto').val();
+                                        var clienteId  = $('#seleccionarCliente').val();
+                                        var panel  = document.getElementById('historialPreciosPanel');
+                                        var cuerpo = document.getElementById('historialPreciosCuerpo');
+                                        if (!productoId || !clienteId) { panel.classList.add('d-none'); return; }
+                                        cuerpo.innerHTML = '<p class="text-muted small"><i class="fa fa-spinner fa-spin"></i> Cargando historial...</p>';
+                                        panel.classList.remove('d-none');
+                                        axios.post('/estatal/historial/precios', { cliente_id: clienteId, producto_id: productoId })
+                                        .then(function(response) {
+                                            var rows = response.data.historial;
+                                            if (!rows || rows.length === 0) { cuerpo.innerHTML = '<p class="text-muted small">No hay ventas previas de este producto a este cliente.</p>'; return; }
+                                            var fmt = new Intl.NumberFormat('es-HN', { style: 'currency', currency: 'HNL', minimumFractionDigits: 2 });
+                                            var html = '<div class="table-responsive"><table class="table table-sm table-bordered table-hover mb-0" style="font-size:0.82rem;"><thead class="thead-light"><tr><th>Fecha</th><th>Factura</th><th>Precio Unit.</th><th>Cant.</th><th>Total</th><th>Categoría</th></tr></thead><tbody>';
+                                            rows.forEach(function(r) { html += '<tr><td>' + r.fecha_emision + '</td><td>' + r.numero_factura + '</td><td class="text-right font-weight-bold text-success">' + fmt.format(r.precio_unidad) + '</td><td class="text-center">' + r.cantidad + '</td><td class="text-right">' + fmt.format(r.total) + '</td><td><span class="badge badge-secondary">' + r.categoria + '</span></td></tr>'; });
+                                            html += '</tbody></table></div>';
+                                            cuerpo.innerHTML = html;
+                                        }).catch(function() { cuerpo.innerHTML = '<p class="text-danger small">Error al cargar el historial.</p>'; });
+                                    }
+                                    </script>
+                                    @endpush
 
 
 
 
                                 </div>
 
-                                <div class="col-12 col-sm-12 col-md-6 col-lg-6 col-xl-6 ">
+                                <div class="col-12 col-md-4 col-lg-4 col-xl-4">
+                                    <label for="categoriaCliente" class="col-form-label focus-label">Categoría / Cliente:<span class="text-danger">*</span></label>
+                                    <select id="categoriaCliente" name="categoriaCliente" class="form-group form-control"
+                                        onchange="habilitarBodega()" disabled>
+                                        <option value="" selected disabled>--Seleccione un producto--</option>
+                                    </select>
+                                </div>
+
+                                <div class="col-12 col-md-4 col-lg-4 col-xl-4">
 
                                     <label for="bodega" class="col-form-label focus-label">Seleccionar
                                         bodega:</label>
                                     <select id="bodega" name="bodega" class="form-group form-control"
                                         style="" onchange="prueba()" disabled>
-                                        <option value="" selected disabled>--Seleccione un producto--</option>
+                                        <option value="" selected disabled>--Seleccione una categoría--</option>
                                     </select>
 
 
@@ -308,6 +381,12 @@
 
                                     </div>
 
+                                    {{-- Historial de precios del producto para este cliente --}}
+                                    <div id="historialPreciosPanel" class="d-none mt-3">
+                                        <h5 class="mb-2 text-dark"><i class="fa fa-history text-info"></i> Últimas 5 ventas a este cliente</h5>
+                                        <div id="historialPreciosCuerpo"><p class="text-muted small">Cargando...</p></div>
+                                    </div>
+
                                 </div>
 
                             </div>
@@ -319,7 +398,7 @@
                                     seguido del numero de unidades a restar del inventario</p>
                                 <div class="row no-gutters ">
 
-                                    <div class="form-group col-12 col-sm-12 col-md-2 col-lg-2 col-xl-2">
+                                    <div class="form-group col-12 col-md-2">
                                         <div class="d-flex">
 
 
@@ -333,25 +412,25 @@
                                         </div>
                                     </div>
 
-                                    <div class="form-group col-12 col-sm-12 col-md-1 col-lg- col-xl-1">
+                                    <div class="form-group col-6 col-md-1">
                                         <label class="sr-only">Bodega</label>
                                         <input type="number" placeholder="Bodega" class="form-control"
                                             autocomplete="off" disabled>
                                     </div>
 
-                                    <div class="form-group col-12 col-sm-12 col-md-1 col-lg- col-xl-1">
+                                    <div class="form-group col-6 col-md-2">
                                         <label class="sr-only">Precio</label>
                                         <input type="number" placeholder="Precio Unidad" class="form-control"
                                             min="1" autocomplete="off" disabled>
                                     </div>
 
-                                    <div class="form-group col-12 col-sm-12 col-md-1 col-lg-1 col-xl-1">
+                                    <div class="form-group col-4 col-md-1">
                                         <label class="sr-only">cantidad</label>
                                         <input type="text" placeholder="Cantidad" class="form-control"
                                             min="1" autocomplete="off" disabled>
                                     </div>
 
-                                    <div class="form-group col-12 col-sm-12 col-md-1 col-lg-1 col-xl-1 ">
+                                    <div class="form-group col-4 col-md-1 ">
 
                                         <label class="sr-only">Unidad</label>
                                         <input type="text" placeholder="Unidad " class="form-control"
@@ -364,19 +443,19 @@
 
 
 
-                                    <div class="form-group col-12 col-sm-12 col-md-2 col-lg-2 col-xl-2">
+                                    <div class="form-group col-4 col-md-1 col-lg-2 col-xl-2">
                                         <label class="sr-only">Sub Total</label>
                                         <input type="number" placeholder="Sub total del producto"
                                             class="form-control" min="1" autocomplete="off" disabled>
                                     </div>
 
-                                    <div class="form-group col-12 col-sm-12 col-md-2 col-lg-2 col-xl-2">
+                                    <div class="form-group col-4 col-md-1 col-lg-2 col-xl-2">
                                         <label class="sr-only">ISV</label>
                                         <input type="number" placeholder="ISV" class="form-control" min="1"
                                             autocomplete="off" disabled>
                                     </div>
 
-                                    <div class="form-group col-12 col-sm-12 col-md-2 col-lg-2 col-xl-2">
+                                    <div class="form-group col-4 col-md-1 col-lg-2 col-xl-2">
                                         <label class="sr-only">Total</label>
                                         <input type="number" placeholder="Total del producto" class="form-control"
                                             min="1" disabled autocomplete="off">

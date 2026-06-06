@@ -1,4 +1,4 @@
-<div>
+﻿<div>
     @push('styles')
     @endpush
 
@@ -188,7 +188,7 @@
 
             $('#tbl_productos_compra').DataTable( {
                 "language": {
-                            "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
+                            "url": "/js/plugins/dataTables/i18n/Spanish.json"
                         },
                         pageLength: 10,
                         responsive: true,
@@ -211,7 +211,7 @@
             $('#tbl_pagos_lista').DataTable( {
                 "language": {
 
-                            "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json",
+                            "url": "/js/plugins/dataTables/i18n/Spanish.json",
                             "zeroRecords": "Ningun pago registrado para esta compra!",
 
                         },

@@ -1,23 +1,12 @@
 
 var array = [];
 var arregloIdInputs = [];
+obtenerCategoriasClientes();
 
 
-
-var retencionEstado = false; // true  aplica retencion, false no aplica retencion;
-
-
+var retencionEstado = false;
 window.onload = obtenerTipoPago;
 
-var public_path = "{{ asset('catalogo/') }}";
-
-// for (let i = 0; i < arregloIdInputsTemporal.length; i++) {
-
-//     if(!isNaN(arregloIdInputsTemporal[i]) ){
-//         arregloIdInputs.push(arregloIdInputsTemporal[i])
-//     }
-
-// }
 
 const searchRegExp = /\"/g;
 
@@ -37,7 +26,7 @@ function validarDescuento() {
     const mensajeError = document.getElementById('mensajeError');
     const numero = parseFloat(numeroInput.value);
 
-    if (isNaN(numero) || numero < 0 || numero > 25) {
+    if (isNaN(numero) || numero < 0 || numero > 50) {
         mensajeError.textContent = 'Este campo solo admite un valor entre 0 a 100';
         numeroInput.value = '';
     } else {
@@ -82,10 +71,7 @@ $('#seleccionarCliente').select2({
     }
 });
 
-
-
-
-$('#seleccionarProducto').select2({
+/*$('#seleccionarProducto').select2({
     ajax: {
         url: '/ventas/listar',
         data: function(params) {
@@ -100,7 +86,7 @@ $('#seleccionarProducto').select2({
             return query;
         }
     }
-});
+});*/
 
 function prueba() {
 
@@ -240,6 +226,7 @@ function obtenerImagenes() {
 
 function agregarProductoCarrito() {
     let idProducto = document.getElementById('seleccionarProducto').value;
+    let categoria_cliente_venta_id = document.getElementById('categoria_cliente_venta_id').value;
 
     let data = $("#bodega").select2('data')[0];
     let bodega = data.bodegaSeccion;
@@ -249,6 +236,7 @@ function agregarProductoCarrito() {
 
     axios.post('/ventas/datos/producto', {
             idProducto: idProducto,
+            categoria_cliente_venta_id: categoria_cliente_venta_id
 
         })
         .then(response => {
@@ -271,8 +259,8 @@ function agregarProductoCarrito() {
                     title: 'Advertencia!',
                     html: `
                 <p class="text-left">
-                    La secci®Æn de bodega y producto ha sido agregada anteriormente.<br><br>
-                    Por favor verificar la secci®Æn de bodega y producto sea distinto a los ya existentes en la lista de venta.<br><br>
+                    La secci√≥n de bodega y producto ha sido agregada anteriormente.<br><br>
+                    Por favor verificar la secci√≥n de bodega y producto sea distinto a los ya existentes en la lista de venta.<br><br>
                     De ser necesario aumentar la cantidad de producto en la lista de productos seleccionados para la venta.
                 </p>`
                 })
@@ -290,14 +278,6 @@ function agregarProductoCarrito() {
 
             numeroInputs = parseInt(ultimoElemento) + 1;
 
-
-            //     let arraySecciones  = response.data.secciones;
-            // htmlSelectSeccion ="<option selected disabled>--seccion--</option>";
-
-            // arraySecciones.forEach(seccion => {
-            //     htmlSelectSeccion += `<option values="${seccion.id}" >${seccion.descripcion}</option>`
-            // });
-
             htmlSelectUnidades = ""
             arrayUnidades.forEach(unidad => {
                 if (unidad.valor_defecto == 1) {
@@ -309,8 +289,6 @@ function agregarProductoCarrito() {
                 }
 
             });
-
-            /*SE QUITO min="${producto.precio_base}" DE LA LINEA 868*/
 
             html = `
             <div id='${numeroInputs}' class="row no-gutters">
@@ -346,7 +324,7 @@ function agregarProductoCarrito() {
                                 <div class="form-group col-12 col-sm-12 col-md-1 col-lg-1 col-xl-1">
                                     <label for="precio${numeroInputs}" class="sr-only">Precio</label>
                                     <input type="number" placeholder="Precio Unidad" id="precio${numeroInputs}"
-                                        name="precio${numeroInputs}" value="${producto.precio_base}" class="form-control"  data-parsley-required step="any"
+                                                    name="cantidad${numeroInputs}" class="form-control" min="${producto.precio1}" data-parsley-required
                                         autocomplete="off"  onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
                                 </div>
 
@@ -757,6 +735,35 @@ function validarFechaPago() {
 
 }
 
+            function obtenerCategoriasClientes() {
+
+                $('#categoria_cliente_venta_id').select2({
+                    placeholder: 'Seleccione una categor√≠a',
+                    allowClear: true,
+                    ajax: {
+                        url: '/clientes/categorias-escala',
+                        dataType: 'json',
+                        delay: 250,
+                        data: function (params) {
+                            return {
+                                q: params.term || '',
+                                page: params.page || 1
+                            };
+                        },
+                        processResults: function (data) {
+                            return {
+                                results: data.categorias.map(function (item) {
+                                    return {
+                                        id: item.id,
+                                        text: item.nombre_categoria
+                                    };
+                                })
+                            };
+                        }
+                    }
+                });
+            }
+
 function obtenerDatosCliente() {
     let idCliente = document.getElementById("seleccionarCliente").value;
     axios.post("/estatal/datos/cliente", {
@@ -773,39 +780,43 @@ function obtenerDatosCliente() {
 
                     let selectBox = document.getElementById("tipoPagoVenta");
                     selectBox.remove(2);
+                    obtenerCategoriasClientes();
+                    $('#categoria_cliente_nombre').text(data.nombre_categoria);
+                    document.getElementById("categoria_cliente_venta_id").appendChild(new Option(data.nombre_categoria, data.idcategoriacliente, true, true));
+
 
                 } else {
                     document.getElementById("nombre_cliente_ventas").readOnly = true;
                     document.getElementById("rtn_ventas").readOnly = true;
                     document.getElementById("nombre_cliente_ventas").value = data.nombre;
                     document.getElementById("rtn_ventas").value = data.rtn;
+                    $('#categoria_cliente_nombre').text(data.nombre_categoria);
+                    document.getElementById("categoria_cliente_venta_id").appendChild(new Option(data.nombre_categoria, data.idcategoriacliente, true, true));
+
+                    obtenerCategoriasClientes();
 
                     diasCredito = data.dias_credito;
                     obtenerTipoPago();
                     obtenerOrdenesCompra();
+                    cargarHistorialPreciosEditarCoti();
                 }
-
-                // document.getElementById('fecha_vencimiento').value = "";
-                // document.getElementById('fecha_emision').value="";
-
-
 
             }
         )
         .catch(err => {
 
-            console.log(err);
-            Swal.fire({
-                icon: 'error',
-                title: 'Error...',
-                text: "Ha ocurrido un error al obtener los datos del cliente"
-            })
+            const mensaje = err.response?.data?.message
+                                || 'Ha ocurrido un error inesperado';
 
-
+                        //console.log(err);
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error...',
+                            text: "Ha ocurrido un error al obtener los datos del cliente"
+                        })
         })
 
 }
-
 
 $(document).on('submit', '#crear_venta',
     function(event) {
@@ -896,7 +907,10 @@ function guardarVenta() {
                 '<option value="" selected disabled>--Seleccionar un cliente--</option>';
 
             document.getElementById('seleccionarProducto').innerHTML =
-                '<option value="" selected disabled>--Seleccione un producto--</option>';
+                '<option value="" selected disabled></option>';
+            document.getElementById('codigoProductoEditarCoti').value = '';
+            var lbl_p = document.getElementById('productoSeleccionadoEditarCoti');
+            if (lbl_p) { lbl_p.classList.add('d-none'); lbl_p.textContent = ''; }
             document.getElementById('bodega').innerHTML =
                 '<option value="" selected disabled>--Seleccione un producto--</option>';
             document.getElementById("bodega").disabled = true;

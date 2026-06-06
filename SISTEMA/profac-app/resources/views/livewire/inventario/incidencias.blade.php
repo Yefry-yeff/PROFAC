@@ -1,4 +1,4 @@
-<div>
+﻿<div>
     @push('styles')
     <style>
         .a-none {
@@ -107,7 +107,7 @@
 
             $('#tbl_incidencia_bodega').DataTable({
                 "language": {
-                    "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
+                    "url": "/js/plugins/dataTables/i18n/Spanish.json"
                 },
                 pageLength: 10,
                 responsive: true,
@@ -149,7 +149,7 @@
 
             $('#tbl_incidencia_compra').DataTable({
                 "language": {
-                    "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
+                    "url": "/js/plugins/dataTables/i18n/Spanish.json"
                 },
                 pageLength: 10,
                 responsive: true,

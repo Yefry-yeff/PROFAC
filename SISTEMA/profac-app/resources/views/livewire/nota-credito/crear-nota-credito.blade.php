@@ -174,112 +174,227 @@
                             </div>
                         </form>
 
-                        <div class="table-responsive">
-                            <table id="tbl_productos" class="table table-striped table-bordered table-hover">
-                                <thead class="">
-                                    <tr>
-                                        <th>Producto</th>
-                                        <th>Bodega</th>
-                                        <th>Precio Unidad en Lps</th>
-                                        <th>Cantidad</th>
-                                        <th>Unidad de medida</th>
-                                        <th>Sub total</th>
-                                        <th>ISV</th>
-                                        <th>Total</th>
-                                        <th>Opciones</th>
+                        {{-- Campo oculto: tipo de nota de crédito --}}
+                        <input type="hidden" id="tipo_nota_credito" name="tipo_nota_credito" value="producto"
+                            form="guardar_devolucion">
 
+                        {{-- Pestañas: Por Producto / Por Descuento --}}
+                        <ul class="nav nav-tabs mt-3" id="tabs_tipo_nota" role="tablist">
+                            <li class="nav-item">
+                                <a class="nav-link active" id="tab-producto-link" data-toggle="tab"
+                                    href="#tab_productos_factura" role="tab"
+                                    onclick="cambiarTipoNota('producto')">
+                                    <i class="fa fa-boxes"></i> Por Producto
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" id="tab-descuento-link" data-toggle="tab"
+                                    href="#tab_descuento_factura" role="tab"
+                                    onclick="cambiarTipoNota('descuento')">
+                                    <i class="fa fa-tag"></i> Por Descuento
+                                </a>
+                            </li>
+                        </ul>
 
+                        <div class="tab-content">
+                            {{-- ===== TAB: POR PRODUCTO ===== --}}
+                            <div class="tab-pane fade show active" id="tab_productos_factura" role="tabpanel">
+                                <div class="table-responsive mt-3">
+                                    <table id="tbl_productos" class="table table-striped table-bordered table-hover">
+                                        <thead class="">
+                                            <tr>
+                                                <th>Producto</th>
+                                                <th>Bodega</th>
+                                                <th>Precio Unidad en Lps</th>
+                                                <th>Cantidad</th>
+                                                <th>Unidad de medida</th>
+                                                <th>Sub total</th>
+                                                <th>ISV</th>
+                                                <th>Total</th>
+                                                <th>Opciones</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                            </div>
 
-                                    </tr>
-                                </thead>
-                                <tbody>
+                            {{-- ===== TAB: POR DESCUENTO ===== --}}
+                            <div class="tab-pane fade" id="tab_descuento_factura" role="tabpanel">
+                                <div class="row mt-3">
+                                    <div class="col-12 col-sm-12 col-md-8">
+                                        <div class="form-group">
+                                            <label for="comentario_descuento" class="col-form-label focus-label">
+                                                Comentario del descuento:<span class="text-danger">*</span></label>
+                                            <textarea class="form-control" name="comentario_descuento"
+                                                id="comentario_descuento" rows="5"
+                                                placeholder="Describa el motivo del descuento..."
+                                                form="guardar_devolucion"></textarea>
+                                        </div>
+                                    </div>
+                                    <div class="col-12 col-sm-12 col-md-4">
+                                        <div class="form-group">
+                                            <label for="monto_descuento_mostrar" class="col-form-label focus-label">
+                                                Monto del descuento (L.):<span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" min="0" class="form-control"
+                                                id="monto_descuento_mostrar" name="monto_descuento_mostrar"
+                                                placeholder="0.00"
+                                                oninput="calcularDescuento(this.value)">
+                                            <input type="hidden" id="monto_descuento" name="monto_descuento"
+                                                value="0" form="guardar_devolucion">
+                                        </div>
+                                    </div>
+                                </div>
 
-                                </tbody>
-                            </table>
-                        </div>
+                                {{-- RESUMEN DE LA FACTURA EN TAB DESCUENTO --}}
+                                <div class="row mt-4">
+                                    <div class="col-12">
+                                        <h5 class="text-muted mb-3"><i class="fa fa-receipt"></i> Resumen de Factura Original</h5>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="form-group col-12 col-sm-12 col-md-2 col-lg-1 col-xl-1">
+                                        <label class="col-form-label" for="subTotalGeneralMostrar_desc">Sub Total L.<span class="text-danger">*</span></label>
+                                    </div>
+                                    <div class="form-group col-12 col-sm-12 col-md-3 col-lg-2 col-xl-2">
+                                        <input type="text" placeholder="Sub total " id="subTotalGeneralMostrar_desc"
+                                            name="subTotalGeneralMostrar_desc" class="form-control" data-parsley-required
+                                            autocomplete="off" readonly>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="form-group col-12 col-sm-12 col-md-2 col-lg-1 col-xl-1">
+                                        <label class="col-form-label" for="subTotalGeneralGrabadoMostrar_desc">Sub Total Grabado L.<span class="text-danger">*</span></label>
+                                    </div>
+                                    <div class="form-group col-12 col-sm-12 col-md-3 col-lg-2 col-xl-2">
+                                        <input type="text" placeholder="Sub total " id="subTotalGeneralGrabadoMostrar_desc"
+                                            name="subTotalGeneralGrabadoMostrar_desc" class="form-control" data-parsley-required
+                                            autocomplete="off" readonly>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="form-group col-12 col-sm-12 col-md-2 col-lg-1 col-xl-1">
+                                        <label class="col-form-label" for="subTotalGeneralExcentoMostrar_desc">Sub Total Excento L.<span class="text-danger">*</span></label>
+                                    </div>
+                                    <div class="form-group col-12 col-sm-12 col-md-3 col-lg-2 col-xl-2">
+                                        <input type="text" placeholder="Sub total " id="subTotalGeneralExcentoMostrar_desc"
+                                            name="subTotalGeneralExcentoMostrar_desc" class="form-control" data-parsley-required
+                                            autocomplete="off" readonly>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="form-group col-12 col-sm-12 col-md-2 col-lg-1 col-xl-1">
+                                        <label class="col-form-label" for="isvGeneralMostrar_desc">ISV L.<span class="text-danger">*</span></label>
+                                    </div>
+                                    <div class="form-group col-12 col-sm-12 col-md-3 col-lg-2 col-xl-2">
+                                        <input type="text" placeholder="ISV " id="isvGeneralMostrar_desc"
+                                            name="isvGeneralMostrar_desc" class="form-control" data-parsley-required
+                                            autocomplete="off" readonly>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="form-group col-12 col-sm-12 col-md-2 col-lg-1 col-xl-1">
+                                        <label class="col-form-label" for="totalGeneralMostrar_desc">Total L.<span class="text-danger">*</span></label>
+                                    </div>
+                                    <div class="form-group col-12 col-sm-12 col-md-3 col-lg-2 col-xl-2">
+                                        <input type="text" placeholder="Total  " id="totalGeneralMostrar_desc"
+                                            name="totalGeneralMostrar_desc" class="form-control" data-parsley-required
+                                            autocomplete="off" readonly>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>{{-- fin tab-content --}}
 
 
 
                         <br>
-                        <div class="row">
+                        {{-- Resumen de la factura seleccionada (solo visible en modo Por Producto) --}}
+                        <div id="seccion_resumen_factura">
+                            <div class="row">
 
-                            <div class="form-group col-12 col-sm-12 col-md-2 col-lg-1 col-xl-1">
-                                <label class="col-form-label" for="subTotalGeneralMostrar">Sub Total L.<span
-                                        class="text-danger">*</span></label>
+                                <div class="form-group col-12 col-sm-12 col-md-2 col-lg-1 col-xl-1">
+                                    <label class="col-form-label" for="subTotalGeneralMostrar">Sub Total L.<span
+                                            class="text-danger">*</span></label>
+                                </div>
+
+                                <div class="form-group col-12 col-sm-12 col-md-3 col-lg-2 col-xl-2">
+                                    <input type="text" placeholder="Sub total " id="subTotalGeneralMostrar"
+                                        name="subTotalGeneralMostrar" class="form-control" data-parsley-required
+                                        autocomplete="off" readonly>
+
+                                    <input id="subTotalGeneral" name="subTotalGeneral" type="hidden" value=""
+                                        required>
+                                </div>
                             </div>
 
-                            <div class="form-group col-12 col-sm-12 col-md-3 col-lg-2 col-xl-2">
-                                <input type="text" placeholder="Sub total " id="subTotalGeneralMostrar"
-                                    name="subTotalGeneralMostrar" class="form-control" data-parsley-required
-                                    autocomplete="off" readonly>
+                            <div class="row">
 
-                                <input id="subTotalGeneral" name="subTotalGeneral" type="hidden" value=""
-                                    required>
-                            </div>
-                        </div>
+                                <div class="form-group col-12 col-sm-12 col-md-2 col-lg-1 col-xl-1">
+                                    <label class="col-form-label" for="subTotalGeneralGrabadoMostrar">Sub Total
+                                        Grabado L.<span class="text-danger">*</span></label>
+                                </div>
 
-                        <div class="row">
+                                <div class="form-group col-12 col-sm-12 col-md-3 col-lg-2 col-xl-2">
+                                    <input type="text" placeholder="Sub total " id="subTotalGeneralGrabadoMostrar"
+                                        name="subTotalGeneralGrabadoMostrar" class="form-control" data-parsley-required
+                                        autocomplete="off" readonly>
 
-                            <div class="form-group col-12 col-sm-12 col-md-2 col-lg-1 col-xl-1">
-                                <label class="col-form-label" for="subTotalGeneralGrabadoMostrar">Sub Total
-                                    Grabado L.<span class="text-danger">*</span></label>
-                            </div>
-
-                            <div class="form-group col-12 col-sm-12 col-md-3 col-lg-2 col-xl-2">
-                                <input type="text" placeholder="Sub total " id="subTotalGeneralGrabadoMostrar"
-                                    name="subTotalGeneralGrabadoMostrar" class="form-control" data-parsley-required
-                                    autocomplete="off" readonly>
-
-                                <input id="subTotalGeneralGrabado" name="subTotalGeneralGrabado" type="hidden"
-                                    value="" required>
-                            </div>
-                        </div>
-
-                        <div class="row">
-
-                            <div class="form-group col-12 col-sm-12 col-md-2 col-lg-1 col-xl-1">
-                                <label class="col-form-label" for="subTotalGeneralExcentoMostrar">Sub Total
-                                    Excento L.<span class="text-danger">*</span></label>
+                                    <input id="subTotalGeneralGrabado" name="subTotalGeneralGrabado" type="hidden"
+                                        value="" required>
+                                </div>
                             </div>
 
-                            <div class="form-group col-12 col-sm-12 col-md-3 col-lg-2 col-xl-2">
-                                <input type="text" placeholder="Sub total " id="subTotalGeneralExcentoMostrar"
-                                    name="subTotalGeneralExcentoMostrar" class="form-control" data-parsley-required
-                                    autocomplete="off" readonly>
+                            <div class="row">
 
-                                <input id="subTotalGeneralExcento" name="subTotalGeneralExcento" type="hidden"
-                                    value="" required>
-                            </div>
-                        </div>
+                                <div class="form-group col-12 col-sm-12 col-md-2 col-lg-1 col-xl-1">
+                                    <label class="col-form-label" for="subTotalGeneralExcentoMostrar">Sub Total
+                                        Excento L.<span class="text-danger">*</span></label>
+                                </div>
 
-                        <div class="row">
+                                <div class="form-group col-12 col-sm-12 col-md-3 col-lg-2 col-xl-2">
+                                    <input type="text" placeholder="Sub total " id="subTotalGeneralExcentoMostrar"
+                                        name="subTotalGeneralExcentoMostrar" class="form-control" data-parsley-required
+                                        autocomplete="off" readonly>
 
-                            <div class="form-group col-12 col-sm-12 col-md-2 col-lg-1 col-xl-1">
-                                <label class="col-form-label" for="isvGeneralMostrar">ISV L.<span
-                                        class="text-danger">*</span></label>
-                            </div>
-
-                            <div class="form-group col-12 col-sm-12 col-md-3 col-lg-2 col-xl-2">
-                                <input type="text" placeholder="ISV " id="isvGeneralMostrar"
-                                    name="isvGeneralMostrar" class="form-control" data-parsley-required
-                                    autocomplete="off" readonly>
-                                <input id="isvGeneral" name="isvGeneral" type="hidden" value="" required>
-                            </div>
-                        </div>
-
-                        <div class="row">
-
-                            <div class="form-group col-12 col-sm-12 col-md-2 col-lg-1 col-xl-1">
-                                <label class="col-form-label" for="totalGeneralMostrar">Total L.<span
-                                        class="text-danger">*</span></label>
+                                    <input id="subTotalGeneralExcento" name="subTotalGeneralExcento" type="hidden"
+                                        value="" required>
+                                </div>
                             </div>
 
-                            <div class="form-group col-12 col-sm-12 col-md-3 col-lg-2 col-xl-2">
-                                <input type="text" placeholder="Total  " id="totalGeneralMostrar"
-                                    name="totalGeneralMostrar" class="form-control" data-parsley-required
-                                    autocomplete="off" readonly>
+                            <div class="row">
 
-                                <input id="totalGeneral" name="totalGeneral" type="hidden" value="" required>
+                                <div class="form-group col-12 col-sm-12 col-md-2 col-lg-1 col-xl-1">
+                                    <label class="col-form-label" for="isvGeneralMostrar">ISV L.<span
+                                            class="text-danger">*</span></label>
+                                </div>
+
+                                <div class="form-group col-12 col-sm-12 col-md-3 col-lg-2 col-xl-2">
+                                    <input type="text" placeholder="ISV " id="isvGeneralMostrar"
+                                        name="isvGeneralMostrar" class="form-control" data-parsley-required
+                                        autocomplete="off" readonly>
+                                    <input id="isvGeneral" name="isvGeneral" type="hidden" value="" required>
+                                </div>
+                            </div>
+
+                            <div class="row">
+
+                                <div class="form-group col-12 col-sm-12 col-md-2 col-lg-1 col-xl-1">
+                                    <label class="col-form-label" for="totalGeneralMostrar">Total L.<span
+                                            class="text-danger">*</span></label>
+                                </div>
+
+                                <div class="form-group col-12 col-sm-12 col-md-3 col-lg-2 col-xl-2">
+                                    <input type="text" placeholder="Total  " id="totalGeneralMostrar"
+                                        name="totalGeneralMostrar" class="form-control" data-parsley-required
+                                        autocomplete="off" readonly>
+
+                                    <input id="totalGeneral" name="totalGeneral" type="hidden" value="" required>
+                                </div>
                             </div>
                         </div>
 
@@ -299,41 +414,38 @@
             <div class="col-lg-12">
                 <div class="ibox ">
                     <div class="ibox-title">
-                        <h3>Listado de Productos en Nota de Crédito</h3>
+                        <h3>Nota de Crédito</h3>
                     </div>
 
                     <div class="ibox-content">
-                        <form onkeydown="return event.key != 'Enter';" autocomplete="off" id="guardar_devolucion"
-                            name="guardar_devolucion" data-parsley-validate>
+
+                        <form onkeydown="return event.key != 'Enter';" autocomplete="off"
+                            id="guardar_devolucion" name="guardar_devolucion" data-parsley-validate>
 
                             <div class="row">
                                 <div class="col-12 col-sm-12 col-md-6">
                                     <label for="motivo_nota" class="col-form-label focus-label">
                                         Seleccionar motivo de nota de credito:</label>
-                                    <select id="motivo_nota" name="motivo_nota" class="form-group form-control"
-                                        style="" data-parsley-required form="guardar_devolucion">
+                                    <select id="motivo_nota" name="motivo_nota"
+                                        class="form-group form-control" style=""
+                                        data-parsley-required form="guardar_devolucion">
                                         <option value="" selected disabled>--Seleccionar Motivo--</option>
                                     </select>
                                 </div>
-
                                 <div class="col-12 col-sm-12 col-md-6">
-                                    <label for="comentario_nota" class="col-form-label focus-label">
+                                    <label for="comentario" class="col-form-label focus-label">
                                         Comentario de nota de crédito:</label>
-                                    <textarea class="form-group form-control" name="comentario" id="comentario" cols="30" rows="10"></textarea>
+                                    <textarea class="form-group form-control" name="comentario"
+                                        id="comentario" cols="30" rows="4"></textarea>
                                 </div>
                             </div>
 
                         </form>
 
-
-
-                        <div class="table-responsive mt-4">
-
-
-
-
-
-                            <table id="tbl_productos_lista" class="table table-striped table-bordered table-hover">
+                        {{-- Lista de productos seleccionados (visible solo en modo Por Producto) --}}
+                        <div id="seccion_lista_productos" class="table-responsive mt-4">
+                            <table id="tbl_productos_lista"
+                                class="table table-striped table-bordered table-hover">
                                 <thead class="">
                                     <tr>
                                         <th>Producto</th>
@@ -346,111 +458,96 @@
                                         <th>ISV</th>
                                         <th>Total</th>
                                         <th>Opciones</th>
-
                                     </tr>
                                 </thead>
                                 <tbody id="cuerpoLista">
-
                                 </tbody>
                             </table>
                         </div>
-                        <br>
-                        <div class="row">
 
-                            <div class="form-group col-12 col-sm-12 col-md-2 col-lg-1 col-xl-1">
-                                <label class="col-form-label" for="subTotalGeneralCreditoMostrar">Sub Total L.<span
-                                        class="text-danger">*</span></label>
-                            </div>
-
-                            <div class="form-group col-12 col-sm-12 col-md-3 col-lg-2 col-xl-2">
-
-                                <input id="subTotalGeneralCreditoMostrar" class="form-control" type="text"
-                                    placeholder="Sub total " disabled>
-
-                                <input type="hidden" step="any" placeholder="Sub total "
-                                    id="subTotalGeneralCredito" name="subTotalGeneralCredito" class="form-control"
-                                    value="0" min="0" data-parsley-required autocomplete="off"
-                                    form="guardar_devolucion">
-                            </div>
-                        </div>
+                        {{-- ===== TOTALES DE LA NOTA DE CREDITO (siempre visible) ===== --}}
+                        <hr>
+                        <h5 class="text-muted mb-3">Resumen de Totales</h5>
 
                         <div class="row">
-
-                            <div class="form-group col-12 col-sm-12 col-md-2 col-lg-1 col-xl-1">
-                                <label class="col-form-label" for="subTotalGeneralCreditoMostrar">Sub Total Grabado
-                                    L.<span class="text-danger">*</span></label>
+                                <div class="form-group col-12 col-sm-12 col-md-2 col-lg-1 col-xl-1">
+                                    <label class="col-form-label" for="subTotalGeneralCreditoMostrar">Sub Total
+                                        L.<span class="text-danger">*</span></label>
+                                </div>
+                                <div class="form-group col-12 col-sm-12 col-md-3 col-lg-2 col-xl-2">
+                                    <input id="subTotalGeneralCreditoMostrar" class="form-control" type="text"
+                                        placeholder="Sub total " disabled>
+                                    <input type="hidden" step="any" placeholder="Sub total "
+                                        id="subTotalGeneralCredito" name="subTotalGeneralCredito"
+                                        class="form-control" value="0" min="0" data-parsley-required
+                                        autocomplete="off" form="guardar_devolucion">
+                                </div>
                             </div>
 
-                            <div class="form-group col-12 col-sm-12 col-md-3 col-lg-2 col-xl-2">
-
-                                <input id="subTotalGeneralGrabadoCreditoMostrar" class="form-control" type="text"
-                                    placeholder="Sub total " disabled>
-
-                                <input type="hidden" step="any" placeholder="Sub total "
-                                    id="subTotalGeneralGrabadoCredito" name="subTotalGeneralGrabadoCredito"
-                                    class="form-control" value="0" min="0" data-parsley-required
-                                    autocomplete="off" form="guardar_devolucion">
-                            </div>
-                        </div>
-
-                        <div class="row">
-
-                            <div class="form-group col-12 col-sm-12 col-md-2 col-lg-1 col-xl-1">
-                                <label class="col-form-label" for="subTotalGeneralCreditoMostrar">Sub Total Excento
-                                    L.<span class="text-danger">*</span></label>
+                            <div class="row">
+                                <div class="form-group col-12 col-sm-12 col-md-2 col-lg-1 col-xl-1">
+                                    <label class="col-form-label"
+                                        for="subTotalGeneralGrabadoCreditoMostrar">Sub Total Grabado L.<span
+                                            class="text-danger">*</span></label>
+                                </div>
+                                <div class="form-group col-12 col-sm-12 col-md-3 col-lg-2 col-xl-2">
+                                    <input id="subTotalGeneralGrabadoCreditoMostrar" class="form-control"
+                                        type="text" placeholder="Sub total " disabled>
+                                    <input type="hidden" step="any" placeholder="Sub total "
+                                        id="subTotalGeneralGrabadoCredito" name="subTotalGeneralGrabadoCredito"
+                                        class="form-control" value="0" min="0" data-parsley-required
+                                        autocomplete="off" form="guardar_devolucion">
+                                </div>
                             </div>
 
-                            <div class="form-group col-12 col-sm-12 col-md-3 col-lg-2 col-xl-2">
-
-                                <input id="subTotalGeneralExcentoCreditoMostrar" class="form-control" type="text"
-                                    placeholder="Sub total " disabled>
-
-                                <input type="hidden" step="any" placeholder="Sub total "
-                                    id="subTotalGeneralExcentoCredito" name="subTotalGeneralExcentoCredito"
-                                    class="form-control" value="0" min="0" data-parsley-required
-                                    autocomplete="off" form="guardar_devolucion">
-                            </div>
-                        </div>
-
-                        <div class="row">
-
-                            <div class="form-group col-12 col-sm-12 col-md-2 col-lg-1 col-xl-1">
-                                <label class="col-form-label" for="isvGeneralCreditoMostrar">ISV L.<span
-                                        class="text-danger">*</span></label>
+                            <div class="row">
+                                <div class="form-group col-12 col-sm-12 col-md-2 col-lg-1 col-xl-1">
+                                    <label class="col-form-label"
+                                        for="subTotalGeneralExcentoCreditoMostrar">Sub Total Excento L.<span
+                                            class="text-danger">*</span></label>
+                                </div>
+                                <div class="form-group col-12 col-sm-12 col-md-3 col-lg-2 col-xl-2">
+                                    <input id="subTotalGeneralExcentoCreditoMostrar" class="form-control"
+                                        type="text" placeholder="Sub total " disabled>
+                                    <input type="hidden" step="any" placeholder="Sub total "
+                                        id="subTotalGeneralExcentoCredito" name="subTotalGeneralExcentoCredito"
+                                        class="form-control" value="0" min="0" data-parsley-required
+                                        autocomplete="off" form="guardar_devolucion">
+                                </div>
                             </div>
 
-                            <div class="form-group col-12 col-sm-12 col-md-3 col-lg-2 col-xl-2">
-                                <input id="isvGeneralCreditoMostrar" type="text" class="form-control"
-                                    placeholder="ISV " disabled>
-
-                                <input type="hidden" step="any" id="isvGeneralCredito" name="isvGeneralCredito"
-                                    class="form-control" min="0" value="0" data-parsley-required
-                                    autocomplete="off" form="guardar_devolucion">
-                            </div>
-                        </div>
-
-                        <div class="row">
-
-                            <div class="form-group col-12 col-sm-12 col-md-2 col-lg-1 col-xl-1">
-                                <label class="col-form-label" for="totalGeneralCreditoMostrar">Total L.<span
-                                        class="text-danger">*</span></label>
+                            <div class="row">
+                                <div class="form-group col-12 col-sm-12 col-md-2 col-lg-1 col-xl-1">
+                                    <label class="col-form-label" for="isvGeneralCreditoMostrar">ISV L.<span
+                                            class="text-danger">*</span></label>
+                                </div>
+                                <div class="form-group col-12 col-sm-12 col-md-3 col-lg-2 col-xl-2">
+                                    <input id="isvGeneralCreditoMostrar" type="text" class="form-control"
+                                        placeholder="ISV " disabled>
+                                    <input type="hidden" step="any" id="isvGeneralCredito"
+                                        name="isvGeneralCredito" class="form-control" min="0" value="0"
+                                        data-parsley-required autocomplete="off" form="guardar_devolucion">
+                                </div>
                             </div>
 
-                            <div class="form-group col-12 col-sm-12 col-md-3 col-lg-2 col-xl-2">
-                                <input id="totalGeneralCreditoMostrar" class="form-control" type="text"
-                                    placeholder="Total " disabled>
-
-                                <input type="hidden" step="any" id="totalGeneralCredito"
-                                    name="totalGeneralCredito" min="0" value="0" data-parsley-required
-                                    autocomplete="off" form="guardar_devolucion">
+                            <div class="row">
+                                <div class="form-group col-12 col-sm-12 col-md-2 col-lg-1 col-xl-1">
+                                    <label class="col-form-label" for="totalGeneralCreditoMostrar">Total L.<span
+                                            class="text-danger">*</span></label>
+                                </div>
+                                <div class="form-group col-12 col-sm-12 col-md-3 col-lg-2 col-xl-2">
+                                    <input id="totalGeneralCreditoMostrar" class="form-control" type="text"
+                                        placeholder="Total " disabled>
+                                    <input type="hidden" step="any" id="totalGeneralCredito"
+                                        name="totalGeneralCredito" min="0" value="0" data-parsley-required
+                                        autocomplete="off" form="guardar_devolucion">
+                                </div>
                             </div>
-                        </div>
 
                         <br>
 
                         <button type="submit" id="btn_guardar_nota_credito" form="guardar_devolucion"
                             class="btn btn-success">Cerrar Nota de Credito</button>
-
 
                     </div>
                 </div>
@@ -465,7 +562,7 @@
                 <div class="modal-content">
                     <div class="modal-header">
                         <h4 class="" id="">Datos de Producto</h4>
-                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close" onclick="cerrarModal('modal_devolver_producto')">
                             <span aria-hidden="true">&times;</span>
                         </button>
                     </div>
@@ -565,7 +662,7 @@
                         </form>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal" onclick="cerrarModal('modal_devolver_producto')">Cerrar</button>
                         <button type="button" class="btn btn-primary" onclick="agregarProductoLista()">Agregar a
                             Nota de Credito</button>
                     </div>
@@ -576,9 +673,204 @@
 
     </div>
 
+    <!-- Modal de Impresión de Nota de Crédito -->
+    <div class="modal fade" id="modal_imprimir_nota_credito" tabindex="-1" role="dialog"
+        aria-labelledby="modal_imprimir_nota_credito" aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white border-bottom-0">
+                    <div>
+                        <h4 class="modal-title mb-0">
+                            <i class="fa fa-check-circle"></i> Nota de Crédito Registrada
+                        </h4>
+                        <p class="modal-text-small text-light mb-0 mt-1" style="font-size: 0.9rem;">
+                            La nota de crédito ha sido creada exitosamente en el sistema
+                        </p>
+                    </div>
+                    <button type="button" class="close text-white" aria-label="Close" onclick="finalizarYContinuar()">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body" style="background-color: #f8f9fa;">
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h5 class="text-dark mb-3">
+                                <i class="fa fa-print text-primary"></i> 
+                                <strong>Seleccione las opciones de impresión</strong>
+                            </h5>
+                            <p class="text-muted small">
+                                Puede imprimir el original y copia de la nota de crédito. 
+                                Se abrirá una nueva ventana con el documento listo para imprimir.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div id="contenido_impresion" class="print-area" style="display:none;">
+                        <!-- Contenido para impresión será cargado aquí -->
+                    </div>
+
+                    <div class="row">
+                        <div class="col-12 col-sm-6 mb-3">
+                            <button type="button" class="btn btn-primary btn-block py-3" onclick="imprimirNotaCredito('original')">
+                                <div>
+                                    <i class="fa fa-print fa-lg"></i>
+                                </div>
+                                <div style="margin-top: 8px;">
+                                    <strong>Imprimir Original</strong>
+                                    <br>
+                                    <small class="text-muted">Copia oficial</small>
+                                </div>
+                            </button>
+                        </div>
+                        <div class="col-12 col-sm-6 mb-3">
+                            <button type="button" class="btn btn-info btn-block py-3" onclick="imprimirNotaCredito('copia')">
+                                <div>
+                                    <i class="fa fa-copy fa-lg"></i>
+                                </div>
+                                <div style="margin-top: 8px;">
+                                    <strong>Imprimir Copia</strong>
+                                    <br>
+                                    <small class="text-muted">Copia de archivo</small>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <div class="alert alert-info border-left-4" style="border-left: 4px solid #17a2b8;">
+                                <i class="fa fa-info-circle"></i> 
+                                <strong>Información:</strong> 
+                                Seleccione qué copia desea imprimir. Se abrirá en una nueva ventana del navegador.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top">
+                    <button type="button" class="btn btn-secondary" onclick="finalizarYContinuar()">
+                        <i class="fa fa-times"></i> Cerrar
+                    </button>
+                    <button type="button" class="btn btn-success" onclick="finalizarYContinuar()">
+                        <i class="fa fa-check"></i> Finalizar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
 
     @push('scripts')
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="{{ asset('js/js_proyecto/nota-credito/crear-nota-credito.js') }}"></script>
+    <style>
+        /* Asegurar que los modales se muestren correctamente */
+        .modal.show {
+            display: block !important;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+        .modal-dialog {
+            position: relative;
+        }
+
+        /* Estilos para modal de impresión */
+        #modal_imprimir_nota_credito .modal-header {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            border-radius: 0.5rem 0.5rem 0 0;
+            padding: 1.5rem;
+        }
+
+        #modal_imprimir_nota_credito .modal-body {
+            background-color: #f8f9fa;
+            padding: 2rem;
+        }
+
+        #modal_imprimir_nota_credito .btn {
+            border-radius: 0.5rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        #modal_imprimir_nota_credito .btn:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            transform: translateY(-2px);
+        }
+
+        #modal_imprimir_nota_credito .btn-primary {
+            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+            border: none;
+        }
+
+        #modal_imprimir_nota_credito .btn-primary:hover {
+            background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
+        }
+
+        #modal_imprimir_nota_credito .btn-info {
+            background: linear-gradient(135deg, #17a2b8 0%, #117a8b 100%);
+            border: none;
+        }
+
+        #modal_imprimir_nota_credito .btn-info:hover {
+            background: linear-gradient(135deg, #117a8b 0%, #0c5460 100%);
+        }
+
+        #modal_imprimir_nota_credito .btn i {
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        /* Estilos para SweetAlert2 */
+        .swal2-container {
+            z-index: 2000 !important;
+        }
+        
+        .swal2-actions {
+            justify-content: center !important;
+            gap: 10px !important;
+        }
+
+        .swal2-confirm, .swal2-cancel {
+            min-width: 120px !important;
+            padding: 10px 20px !important;
+            border-radius: 4px !important;
+            font-weight: 500 !important;
+        }
+
+        .swal2-confirm:focus {
+            outline: none !important;
+            box-shadow: 0 0 0 3px rgba(48, 133, 214, 0.5) !important;
+        }
+
+        /* Asegurar visibilidad en impresión */
+        @media print {
+            .modal, .navbar, .sidebar, button, form {
+                display: none !important;
+            }
+            .print-area {
+                display: block !important;
+                width: 100% !important;
+            }
+        }
+
+        /* Mejoras visuales para el alert */
+        .alert-info.border-left-4 {
+            border-radius: 0.25rem;
+            padding: 0.75rem 1rem;
+            margin-bottom: 0;
+        }
+
+        .alert-info.border-left-4 i {
+            margin-right: 0.5rem;
+        }
+
+        /* Estilos para textos en el header */
+        .modal-text-small {
+            opacity: 0.9;
+        }
+    </style>
     <script>
 
     function obtenerProductos(idFactura) {
@@ -591,7 +883,7 @@
         $('#tbl_productos').DataTable({
 
             "language": {
-                "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
+                "url": "/js/plugins/dataTables/i18n/Spanish.json"
             },
             pageLength: 10,
             responsive: true,

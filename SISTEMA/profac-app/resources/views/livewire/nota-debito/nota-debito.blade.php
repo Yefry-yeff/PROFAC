@@ -166,7 +166,7 @@
                     </div>
                 </div>
 
-            <label for=""><b>Nota:<b> Lista de facturas. Se enlistan todas las facturas activas para realizarse una nota de débito.
+            <label for="">Nota: Lista de facturas. Se enlistan todas las facturas activas para realizarse una nota de débito.
                 Para revisar una lista separada de notas coorporativas y de gobierno, ingrese al menú y encontrará un enlace específico para cada una.
             </label>
 
@@ -180,7 +180,7 @@
                                         <thead class="">
                                             <tr>
 
-                                                <th>CAI</th>
+                                                <th>N° Factura</th>
                                                 <th>Fecha de Emision</th>
                                                 <th>Cliente</th>
                                                 <th>Tipo de Pago</th>
@@ -213,7 +213,7 @@
 
 
             <hr>
-            <label for=""><b>Nota:<b> Se enlistan todas las notas de débito generadas y listas para descargar sus pdf</label>
+            <label for="">Nota: Se enlistan todas las notas de débito generadas y listas para descargar sus pdf</label>
 
             <div class="wrapper wrapper-content animated fadeInRight">
                 <div class="row">

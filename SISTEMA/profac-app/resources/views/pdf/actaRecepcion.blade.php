@@ -1,11 +1,10 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html>
 
 <head>
 
 
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/css/bootstrap.min.css"
-        integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+        <link rel="stylesheet" href="{{ public_path('css/bootstrap.min.css') }}">
     <style>
         .color-red {
             color: red;
@@ -75,7 +74,7 @@
 
 
     <div class="pruebaFondo">
-        <img src="img/membrete/Logo3.png" width="800rem" style="margin-left:3%; margin-top:-25px; position:absolute;"alt="">
+        <img src="{{ public_path('img/membrete/Logo3.png') }}" width="800rem" style="margin-left:3%; margin-top:-25px; position:absolute;"alt="">
 
         <div class="card border border-dark" style="margin-left:44px;  margin-top:105px; width:45rem; height:5.5rem;">
             <div class="card-header">
@@ -99,7 +98,7 @@
         <div class="card border border-dark" style="margin-left:44px; margin-top:10px; width:45rem; height:10.5rem;">
             <div class="card-body">
                 <p class="card-text" style="position:absolute;left:20px;  top:10px;"><b>Cliente:
-                    </b>{{ $cliente->nombre }}</p>
+                    </b>{{ $cliente->nombre }} - ({{ $cliente->clienteId }})</p>
                     <p class="card-text" style="position:absolute;left:20px;  top:29px;font-size: 11px; max-width:500px">
                         <b>Dirección:</b> {{ $cliente->direccion }}
                     </p>
@@ -328,9 +327,14 @@
                             _______________________________________</p>
                         <p class="card-text" style="position:absolute;left:50px;  top:-130px;">
                             _______________________________________</p>
-                        <p class="card-text" style="position:absolute;left:50px;  top:-220px; max-width:350px;  ">
-                            {{ strtoupper($cliente->nombre) }}</p>
+
+                        <p class="card-text" style="position:absolute;left:50px;  top:-215px;">{{ strtoupper($cliente->nombre) }}</p>
+
                         <p class="card-text" style="position:absolute;left:50px;  top:-115px;">DISTRIBUCIONES VALENCIA</p>
+                        <p class="card-text" style="position:absolute;left:20px;  top:25px; max-width:500px;  ">Cliente: {{ strtoupper($cliente->nombre) }}</p>
+                        <p class="card-text" style="position:absolute;left:20px;  top:40px; max-width:250px;  ">Recibido por: </p>
+                        <p class="card-text" style="position:absolute;left:20px;  top:55px; max-width:250px;  ">Telefono: </p>
+                        <p class="card-text" style="position:absolute;left:20px;  top:70px; max-width:250px;  "><b>*Se requiere firma y sello de recibido.*</b></p>
                     </div>
 
                     @if ($cai->estado_venta_id == 2)

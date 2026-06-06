@@ -92,7 +92,6 @@
             var retencionEstado = false; // true  aplica retencion, false no aplica retencion;
 
             window.onload = obtenerTipoPago;
-            var public_path = "{{ asset('catalogo/') }}";
             var diasCredito = 0;
 
             //validando que no escriban un numero que no este entre 0 y 25
@@ -101,7 +100,7 @@
                 const mensajeError = document.getElementById('mensajeError');
                 const numero = parseFloat(numeroInput.value);
 
-                if (isNaN(numero) || numero < 0 || numero > 100) {
+                if (isNaN(numero) || numero < 0 || numero > 50) {
                     mensajeError.textContent = 'Este campo solo admite un valor entre 0 a 100';
                     numeroInput.value = '';
                 } else {
@@ -300,6 +299,8 @@
             function agregarProductoCarrito() {
                 let idProducto = document.getElementById('seleccionarProducto').value;
 
+                let idCliente = document.getElementById('seleccionarCliente').value;
+                console.log("ENTRO AL CARRITO DE PRECIOS");
                // let data = $("#bodega").select2('data')[0];
                 let bodega = 'SALA DE VENTAS';
                 let idBodega = 16;
@@ -308,6 +309,8 @@
 
                 axios.post('/ventas/datos/producto', {
                         idProducto: idProducto,
+
+                        idCliente: idCliente
 
                     })
                     .then(response => {
@@ -355,17 +358,12 @@
 
                         htmlSelectUnidades = "";
 
+                        /*<option  value="${producto.precio_base}" data-id="pb">${producto.precio_base} - Base</option>*/
                         htmlprecios = `
-                        <option data-id="0" selected>--Seleccione precio--</option>
-                        <option  value="${producto.precio_base}" data-id="pb">${producto.precio_base} - Base</option>
-                        <option  value="${producto.precio1}" data-id="p1">${producto.precio1} - A</option>
+                        <option  value="${producto.precio1}" data-id="p1" selected>${producto.precio1} - A</option>
                         <option  value="${producto.precio2}" data-id="p2">${producto.precio2} - B</option>
                         <option  value="${producto.precio3}" data-id="p3">${producto.precio3} - C</option>
                         <option  value="${producto.precio4}" data-id="p4">${producto.precio4} - D</option>
-
-
-
-
                         `;
 
 
@@ -427,7 +425,7 @@
                                             <div class="form-group col-1">
                                                 <label for="precio${numeroInputs}" class="sr-only">Precio</label>
                                                 <input type="number" placeholder="Precio Unidad" id="precio${numeroInputs}"
-                                                    name="precio${numeroInputs}" class="form-control"  data-parsley-required step="any"
+                                                    name="cantidad${numeroInputs}" class="form-control" min="${producto.precio1}" data-parsley-required
                                                     autocomplete="off" onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
                                             </div>
 
@@ -670,7 +668,6 @@
                              subTotal = valorInputPrecio * (valorInputCantidad * valorSelectUnidad);
                             descuentoCalculado = subTotal * (descuento/100);
 
-                            //$('#descuentoGeneral').val(descuentoCalculado);
                             $('#acumuladoDescuento'+id).val(descuentoCalculado);
 
 
@@ -888,7 +885,7 @@
                         response => {
 
                             let data = response.data.datos;
-                            console.log(data);
+                           // console.log(data);
                             let html = '<option value="'+data.idVendedor+'" selected disable>'+data.vendedor+'</option>';
                             document.getElementById('vendedor').innerHTML = html;
 
@@ -907,7 +904,7 @@
 
                                 document.getElementById("nombre_cliente_ventas").value = data.nombre;
                                 document.getElementById("rtn_ventas").value = data.rtn;
-                                obtenerTipoPago();
+                                //obtenerTipoPago();
                                 diasCredito = data.dias_credito;
                             }
 
@@ -957,8 +954,13 @@
             }
 
             function capturarYEnviarDatos() {
+                //console.log('DESCUENTO DE MIERDA ABAJO MOSTRAR');
 
-                console.log('Recopilando datos del formulario manualmente...');
+                //console.log(document.getElementById('descuentoMostrar').value);
+
+                //console.log('DESCUENTO CULERO ARRIBA GENERAL');
+                //console.log(document.getElementById('descuentoGeneral').value);
+                //console.log('Recopilando datos del formulario manualmente...');
 
                 // Recopilar datos básicos del formulario
                 const formData = {};
@@ -968,7 +970,7 @@
                 for (let element of formElements) {
                     if (element.name && element.type !== 'button') {
                         formData[element.name] = element.value;
-                        console.log(`Campo base: ${element.name} = ${element.value}`);
+                       console.log(`Campo base: ${element.name} = ${element.value}`);
                     }
                 }
 
@@ -1179,7 +1181,7 @@
                         }, 3000);
 
 
-                document.getElementById("guardar_cotizacion_btn").style.display = "inline-block";
+                        document.getElementById("guardar_cotizacion_btn").style.display = "inline-block";
 
                     })
                     .catch(err => {

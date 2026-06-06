@@ -1,11 +1,10 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html>
 
 <head>
 
 
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/css/bootstrap.min.css"
-        integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+        <link rel="stylesheet" href="{{ public_path('css/bootstrap.min.css') }}">
     <style>
         .color-red {
             color: red;
@@ -64,7 +63,7 @@
 
 
     <div class="pruebaFondo">
-        <img src="img/membrete/Logo3.png" width="800rem"
+        <img src="{{ public_path('img/membrete/Logo3.png') }}" width="800rem"
         style="margin-left:3%; margin-top:25px; position:absolute;"
          alt="">
 
@@ -92,7 +91,7 @@
 
                 <p class="card-text" style="position:absolute;left:20px;  top:47px;"><b>Correo:</b> {{$cliente->correo}}
                 </p>
-                <p class="card-text" style="position:absolute;left:20px;  top:70px;"><b>Notas:</b> </p>
+                <p class="card-text" style="position:absolute;left:20px;  top:70px;"><b>Notas:</b> {{ $notas }}</p>
 
 
                 <p class="card-text "  style="position:absolute;left:20px;  top:120px;"><b>Correlativo de Ord. exenta</b>
@@ -184,34 +183,6 @@
                     <p class="card-text" style="position:absolute;left:10px;  top:2px; font-size:14px;"><b>Vendedor: </b>
                         {{$cai->name}} </p>
 
-
-         {{--                 @if($cai->factura == 1)
-                        <p class="letra" style="position:absolute; right:10px;  top:2px; font-size:10px;">1</p>
-                        @else
-                        <p class="letra" style="position:absolute; right:10px;  top:2px; font-size:10px;">2</p>
-                        @endif  --}}
-
-                  {{--    <p class="card-text" style="position:absolute;left:0px;  top:28px; font-size:11px;">
-                        ____________________________________________________________________</p>
-                    <p class="card-text" style="position:absolute;left:10px;  top:40px; font-size:11px;">1. por cada cheque
-                        devuelto se cobra 750 lempiras.</p>
-                    <p class="card-text" style="position:absolute;left:10px;  top:51px; font-size:11px">2. toda cuenta
-                        vencida pagara el 3.25% de interés mensual.</p>
-                    <p class="card-text" style="position:absolute;left:10px;  top:63px; font-size:11px">3. el único
-                        comprobante de pago de ésta factura es el emitido por distribuciones valencia.</p>
-                    <p class="card-text" style="position:absolute;left:10px;  top:95px; font-size:11px">4 no se aceptan
-                        reclamos ni devoluciones después de 10 días.</p>
-                    <p class="card-text" style="position:absolute;left:10px;  top:110px; font-size:11px">5. la firma del
-                        cliente o representante en la factura, da por hecho que acepta y obliga a este a cumplir con todas
-                        las condiciones estipuladas.</p>
-                    <p class="card-text" style="position:absolute;left:10px;  top:143px; font-size:11px">6. el cliente
-                        debera realizar el pago de la factura a su fecha de vencimiento, en caso de incumplimiento de pago,
-                        este se compromete a aceptar otros procesos de cobros a la vez renuncia a su domicilio para efectos
-                        legales y somete a la jurisdicción de tegucigalpa municipio del distrito central.</p>
-                    <p class="card-text" style="position:absolute;left:10px;  top:205px; font-size:11px">7. las entregas y
-                        creditos para cuentas con facturas vencidas serán congeladas hasta el pago de las mismas haya sido
-                        efectuado en su totalidad.
-  --}}
                         @if($cai->estado_factura==1)
                         <span style = "font-size: 10px">N{{ $cai->numero_factura }}-CF11</span></p>
                         @else
@@ -249,11 +220,6 @@
                         <p class="card-text" style="position:absolute; left:10px;  top:64px; font-size:14px;">Importe Exento:  </p>
                         <p class="card-text" style="position:absolute; right:10px;  top:64px; font-size:14px;">L. {{$importesConCentavos->sub_total_excento}}</p>
                     </div>
-
-
-                    {{-- <p class="card-text" style="position:absolute; left:10px;  top:65px; font-size:16px;">Total Importe:
-                    </p>
-                    <p class="card-text" style="position:absolute; left:200px;  top:65px; font-size:16px;">1200.00</p> --}}
 
                     <p class="card-text" style="position:absolute; left:10px;  top:85px; font-size:14px;">Desc. y Rebajas:
                     </p>

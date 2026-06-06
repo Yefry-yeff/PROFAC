@@ -3,24 +3,14 @@
 namespace App\Http\Livewire\Usuarios;
 
 use Livewire\Component;
-
-
 use Illuminate\Http\Request;
-use Auth;
 use Illuminate\Database\QueryException;
-use Throwable;
 use App\Models\usuario;
-
-use App\Models\Team;
-use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
-use Laravel\Fortify\Contracts\CreatesNewUsers;
-use Laravel\Jetstream\Jetstream;
-use DataTables;
-
-
+use Illuminate\Support\Facades\Auth;
+use Yajra\DataTables\Facades\DataTables;
 
 class ListarUsuarios extends Component
 {
@@ -44,33 +34,51 @@ class ListarUsuarios extends Component
             identidad,
             fecha_nacimiento,
             rol.nombre as tipo_usuario,
+            estado.id as estado_id,
+            estado.descripcion as estado,
             users.created_at as fecha_registro
 
-            FROM users inner join rol
-            on users.rol_id = rol.id
-            cross join (select @i := 0) r
+            FROM users 
+            INNER JOIN rol ON users.rol_id = rol.id
+            INNER JOIN estado ON users.estado_id = estado.id
+            CROSS JOIN (SELECT @i := 0) r
 
 
             ");
 
-            return Datatables::of($listaUsuarios)
+            return DataTables::of($listaUsuarios)
             ->addColumn('opciones', function ($nota) {
-
-                return
-
-                '
+                $opciones = '
                     <div class="btn-group">
-                        <button data-toggle="dropdown" class="btn btn-warning dropdown-toggle" aria-expanded="false">Ver
-                            más</button>
+                        <button data-toggle="dropdown" class="btn btn-warning dropdown-toggle" aria-expanded="false">Ver más</button>
                         <ul class="dropdown-menu" x-placement="bottom-start"
                             style="position: absolute; top: 33px; left: 0px; will-change: top, left;">
-                            <li><a class="dropdown-item" onclick="infoUsuario('.$nota->id.')"> <i class="fa fa-pencil m-r-5 text-warning"></i>Editar Rol</a></li>
-                            <li><a class="dropdown-item" onclick="baja('.$nota->id.')"> <i class="fa fa-times text-danger" aria-hidden="true"></i>
-                                    Dar de baja </a></li>
-
+                            <li><a class="dropdown-item" onclick="infoUsuario('.$nota->id.')"> 
+                                <i class="fa fa-pencil m-r-5 text-warning"></i>Editar Usuario</a></li>
+                            <li><a class="dropdown-item" onclick="abrirModalContrasena('.$nota->id.')"> 
+                                <i class="fa fa-key m-r-5 text-primary"></i>Contraseña</a></li>';
+                
+                // Mostrar opción según el estado
+                if ($nota->estado_id == 1) {
+                    // Usuario activo - mostrar opción de dar de baja
+                    $opciones .= '
+                            <li><a class="dropdown-item" onclick="baja('.$nota->id.')"> 
+                                <i class="fa fa-times text-danger" aria-hidden="true"></i>
+                                Dar de baja</a></li>';
+                } else {
+                    // Usuario inactivo - mostrar opción de activar
+                    $opciones .= '
+                            <li><a class="dropdown-item" onclick="activar('.$nota->id.')"> 
+                                <i class="fa fa-check text-success" aria-hidden="true"></i>
+                                Activar</a></li>';
+                }
+                
+                $opciones .= '
                         </ul>
                     </div>
                 ';
+                
+                return $opciones;
             })->rawColumns(['opciones'])
 
             ->make(true);
@@ -88,48 +96,47 @@ class ListarUsuarios extends Component
     public function guardarUsuarios(Request $request){
         try {
             $validator = Validator::make($request->all(), [
-                'identidad_user' => 'required',
                 'nombre_usuario' => 'required',
-                'email_user' => 'required',
-                'pass_user' => 'required',
-                'rol_user' => 'required',
+                'email_user'     => 'required|email',
+                'pass_user'      => 'required|min:8',
+                'confirmar_pass' => 'required|same:pass_user',
+                'rol_user'       => 'required',
             ], [
-                'identidad_user' => 'La identidad es requerida',
-                'nombre_usuario' => 'El nombre es requerido',
-                'email_user' => 'Correo requerido',
-                'pass_user' => 'contraseña requerida',
-                'rol_user' => 'Rol de acceso requerido',
-
+                'nombre_usuario.required' => 'El nombre es requerido',
+                'email_user.required'     => 'El correo es requerido',
+                'email_user.email'        => 'Ingrese un correo válido',
+                'pass_user.required'      => 'La contraseña es requerida',
+                'pass_user.min'           => 'La contraseña debe tener al menos 8 caracteres',
+                'confirmar_pass.required' => 'Debe confirmar la contraseña',
+                'confirmar_pass.same'     => 'Las contraseñas no coinciden',
+                'rol_user.required'       => 'El rol de acceso es requerido',
             ]);
-
 
             if ($validator->fails()) {
                 return response()->json([
-                    'icon'=>'error',
-                    'title'=>'Error',
-                    'text'=>'Ha ocurrido un error, todos los campos son obligatorios.',
+                    'icon'   => 'error',
+                    'title'  => 'Error',
+                    'text'   => $validator->errors()->first(),
                     'errors' => $validator->errors()
-                ], 402);
+                ], 422);
             }
 
-
-
             $usuario = new usuario;
-            $usuario->identidad = $request->identidad_user;
-            $usuario->name = $request->nombre_usuario;
-            $usuario->email = $request->email_user;
-            $usuario->password = $request->pass_user;
-            $usuario->rol_id = $request->rol_user;
+            $usuario->identidad         = $request->identidad_user ?? null;
+            $usuario->name              = $request->nombre_usuario;
+            $usuario->email             = $request->email_user;
+            $usuario->password          = Hash::make($request->pass_user);
+            $usuario->telefono          = $request->telefono_user ?? null;
+            $usuario->rol_id            = $request->rol_user;
+            $usuario->estado_id         = 1;
+            $usuario->must_change_password = 1; // Obligar cambio en primer ingreso
             $usuario->save();
 
-
-
-
             return response()->json([
-                 'icon'=>'success',
-                 'title'=>'Exito!',
-                 'text'=>'Usuario creado con exito.'
-            ],200);
+                'icon'  => 'success',
+                'title' => 'Exito!',
+                'text'  => 'Usuario creado con éxito. El usuario deberá cambiar su contraseña al iniciar sesión.'
+            ], 200);
 
         } catch (QueryException $e) {
 
@@ -143,24 +150,73 @@ class ListarUsuarios extends Component
         }
     }
 
-    public function actualizarUsuarios(Request $request){
+    public function cambiarContrasenaUsuario(Request $request){
         try {
-            //dd($request);
+            if (empty($request->nueva_contrasena) || strlen($request->nueva_contrasena) < 8) {
+                return response()->json(['icon'=>'error','title'=>'Error!','text'=>'La contraseña debe tener al menos 8 caracteres.'], 422);
+            }
+            if ($request->nueva_contrasena !== $request->confirmar_contrasena) {
+                return response()->json(['icon'=>'error','title'=>'Error!','text'=>'Las contraseñas no coinciden.'], 422);
+            }
 
-
-            $usuario = usuario::find($request->id_usuario);
-            $usuario->identidad = $request->identidad_usuario;
-            $usuario->name = $request->nombre_usuario;
-            $usuario->rol_id = $request->seleccionarRol;
-            $usuario->email = $request->correo_usuario;
-            $usuario->fecha_nacimiento = $request->fenacimiento_usuario;
+            $usuario = usuario::findOrFail($request->id_usuario);
+            $usuario->password             = Hash::make($request->nueva_contrasena);
+            $usuario->must_change_password = 1;
             $usuario->save();
 
+            return response()->json(['icon'=>'success','title'=>'Éxito!','text'=>'Contraseña actualizada. El usuario deberá cambiarla al iniciar sesión.'], 200);
+        } catch (\Exception $e) {
+            return response()->json(['icon'=>'error','title'=>'Error!','text'=>$e->getMessage()], 500);
+        }
+    }
+
+    public function actualizarUsuarios(Request $request){
+        try {
+            // Validar que las contraseñas coincidan si se proporciona una nueva
+            if (!empty($request->nueva_contrasena)) {
+                if ($request->nueva_contrasena !== $request->confirmar_contrasena) {
+                    return response()->json([
+                        'icon'=>'error',
+                        'title'=>'Error!',
+                        'text'=>'Las contraseñas no coinciden.'
+                    ], 422);
+                }
+                
+                if (strlen($request->nueva_contrasena) < 8) {
+                    return response()->json([
+                        'icon'=>'error',
+                        'title'=>'Error!',
+                        'text'=>'La contraseña debe tener al menos 8 caracteres.'
+                    ], 422);
+                }
+            }
+
+            $usuario = usuario::find($request->id_usuario);
+            $usuario->identidad        = $request->identidad_usuario ?? null;
+            $usuario->name             = $request->nombre_usuario;
+            $usuario->rol_id           = $request->seleccionarRol;
+            $usuario->email            = $request->correo_usuario;
+            $usuario->fecha_nacimiento = $request->fenacimiento_usuario;
+            $usuario->telefono         = $request->telefono_usuario ?? null;
+            
+            // Actualizar contraseña solo si se proporciona una nueva
+            if (!empty($request->nueva_contrasena)) {
+                $usuario->password             = Hash::make($request->nueva_contrasena);
+                $usuario->must_change_password = 1; // Forzar cambio en próximo ingreso
+            }
+            
+            $usuario->save();
+
+            $mensaje = 'Usuario actualizado con éxito.';
+            if (!empty($request->nueva_contrasena)) {
+                $mensaje = 'Usuario y contraseña actualizados. El usuario deberá cambiar su contraseña al iniciar sesión.';
+            }
+
             return response()->json([
-                 'icon'=>'success',
-                 'title'=>'Exito!',
-                 'text'=>'Usuario Actualizaron con exito.'
-            ],200);
+                 'icon'  => 'success',
+                 'title' => 'Exito!',
+                 'text'  => $mensaje
+            ], 200);
 
         } catch (QueryException $e) {
 
@@ -208,13 +264,55 @@ class ListarUsuarios extends Component
 
     public function baja($idUsuario){
         $usuario = usuario::find($idUsuario);
-        $usuario->rol_id = NULL;
+        // Cambiar el estado a 2 (Inactivo)
+        $usuario->estado_id = 2;
         $usuario->save();
 
         return response()->json([
              'icon'=>'success',
              'title'=>'Exito!',
-             'text'=>'Usuario Dado de baja con exito.'
+             'text'=>'Usuario dado de baja con éxito.'
         ],200);
+    }
+    
+    /**
+     * Método para activar un usuario
+     */
+    public function activar($idUsuario){
+        $usuario = usuario::find($idUsuario);
+        // Cambiar el estado a 1 (Activo)
+        $usuario->estado_id = 1;
+        $usuario->save();
+
+        return response()->json([
+             'icon'=>'success',
+             'title'=>'Exito!',
+             'text'=>'Usuario activado con éxito.'
+        ],200);
+    }
+
+    public function getAllRoles(){
+        $roles = DB::SELECT("SELECT id, nombre FROM rol");
+        return $roles;
+    }
+
+    public function forzarCambioContrasena(Request $request)
+    {
+        $request->validate([
+            'nueva_contrasena'    => 'required|min:8',
+            'confirmar_contrasena' => 'required|same:nueva_contrasena',
+        ], [
+            'nueva_contrasena.required'     => 'La contraseña es requerida',
+            'nueva_contrasena.min'          => 'La contraseña debe tener al menos 8 caracteres',
+            'confirmar_contrasena.required' => 'Debe confirmar la contraseña',
+            'confirmar_contrasena.same'     => 'Las contraseñas no coinciden',
+        ]);
+
+        $usuario = usuario::find(Auth::id());
+        $usuario->password             = Hash::make($request->nueva_contrasena);
+        $usuario->must_change_password = 0;
+        $usuario->save();
+
+        return redirect('/dashboard')->with('success', 'Contraseña actualizada exitosamente.');
     }
 }

@@ -97,7 +97,7 @@ class CrearNotaCredito extends Component
             C.nombre,
             concat(F.nombre,' - ',D.descripcion ) as bodega,
             format(B.precio_unidad,2) as precio_unidad,
-            sum(B.cantidad_s) as cantidad,
+            sum(B.cantidad) as cantidad,
             concat(H.nombre,' - ', G.unidad_venta ) as unidad_medida,
             format(B.sub_total,2) as sub_total,
             format(B.isv,2) as isv,
@@ -245,36 +245,40 @@ class CrearNotaCredito extends Component
 
         $arregloIdInputs = $request->arregloIdInputs;
 
+        // Validar si hay productos o es nota de crédito por descuento
+        $esNotaPorDescuento = empty($arregloIdInputs) || !is_array($arregloIdInputs);
 
         /***VERIFICA LA EXISTENCIA DEL PRODUCTO EN LA FACTURA PARA REALIZAR LA DEVOLUCION - SI NO ENCUENTRA CANTIDAD DISPONIBLE, NO REALIZAR LA NOTA DE CREDITO */
-        for ($i=0; $i < count($arregloIdInputs) ; $i++) {
+        if (!$esNotaPorDescuento) {
+            for ($i=0; $i < count($arregloIdInputs) ; $i++) {
 
-            $keyIdProducto = "IdProducto".$arregloIdInputs[$i];
-            $keyNombreProducto = "nombreProducto".$arregloIdInputs[$i];
-            $keyIdSeccion = "IdSeccion".$arregloIdInputs[$i];
-            $keyCantidad = "cantidad".$arregloIdInputs[$i];
+                $keyIdProducto = "IdProducto".$arregloIdInputs[$i];
+                $keyNombreProducto = "nombreProducto".$arregloIdInputs[$i];
+                $keyIdSeccion = "IdSeccion".$arregloIdInputs[$i];
+                $keyCantidad = "cantidad".$arregloIdInputs[$i];
 
-            $idProducto = $request->$keyIdProducto;
-            $idSeccion = $request->$keyIdSeccion;
-            $cantidad = $request->$keyCantidad;
-            $nombreProducto = $request->$keyNombreProducto;
+                $idProducto = $request->$keyIdProducto;
+                $idSeccion = $request->$keyIdSeccion;
+                $cantidad = $request->$keyCantidad;
+                $nombreProducto = $request->$keyNombreProducto;
 
 
-            $cantidadDisponible = DB::SELECTONE("select sum(unidades_nota_credito_resta_inventario) as cantidad from venta_has_producto where factura_id=".$request->idFactura." and producto_id= ".$idProducto." and seccion_id = ".$idSeccion);
+                $cantidadDisponible = DB::SELECTONE("select sum(unidades_nota_credito_resta_inventario) as cantidad from venta_has_producto where factura_id=".$request->idFactura." and producto_id= ".$idProducto." and seccion_id = ".$idSeccion);
 
-            if($cantidad  > $cantidadDisponible){
-                $flagError = true;
-                $text1 =  $text1."<li>".$idProducto."-".$nombreProducto."</li>";
+                if($cantidad  > $cantidadDisponible){
+                    $flagError = true;
+                    $text1 =  $text1."<li>".$idProducto."-".$nombreProducto."</li>";
+                }
             }
-        }
 
-        if($flagError){
-            $text1 =  $text1."</ul>";
-            return response()->json([
-                "text" =>  $text1,
-                "icon" => "warning",
-                "title"=>"Advertencia!"
-            ], 200);
+            if($flagError){
+                $text1 =  $text1."</ul>";
+                return response()->json([
+                    "text" =>  $text1,
+                    "icon" => "warning",
+                    "title"=>"Advertencia!"
+                ], 200);
+            }
         }
 
 
@@ -282,6 +286,15 @@ class CrearNotaCredito extends Component
         $numeroNota = DB::SELECTONE("select concat(YEAR(NOW()),'-',count(id)+1)  as 'numero' from nota_credito");
 
         $facturaClienteId = DB::SELECTONE("select cliente_id from factura where id = ". $request->idFactura);
+        
+        if(empty($facturaClienteId)){
+            return response()->json([
+                "title" => "Advertencia",
+                "icon" => "warning",
+                "text" => "No se encontró la factura especificada.",
+            ], 200);
+        }
+        
             //tipo_cliente 1 = B y 2 = A
         $tipoCliente = DB::SELECTONE("select tipo_cliente_id from cliente where id = ". $facturaClienteId->cliente_id);
 
@@ -387,7 +400,17 @@ class CrearNotaCredito extends Component
         $notaCredito->users_id = Auth::user()->id;
         $notaCredito->estado_nota_id = 1;
         $notaCredito->estado_nota_dec = $estado;
-        $notaCredito->comentario = $request->comentario;
+        
+        // Para descuento: guardar descripcion y notas como JSON { descripcion, notas }
+        // Para producto: guardar solo el comentario general
+        if ($esNotaPorDescuento) {
+            $notaCredito->comentario = json_encode([
+                'descripcion' => $request->comentario_descuento ?? '',
+                'notas'       => $request->comentario ?? ''
+            ]);
+        } else {
+            $notaCredito->comentario = $request->comentario ?? '';
+        }
 
         /*Se agregan los nuevos campos en la nota de credito*/
         $notaCredito->estado_rebajado = 2;
@@ -401,72 +424,74 @@ class CrearNotaCredito extends Component
 
 
         //GUARDA LOS PRODUCTOS DE LA NOTA DE CREDITO
+        if (!$esNotaPorDescuento) {
+            for ($i=0; $i < count($arregloIdInputs) ; $i++) {
 
-        for ($i=0; $i < count($arregloIdInputs) ; $i++) {
+                $keyIdProducto = "IdProducto".$arregloIdInputs[$i];
+                $keyIdSeccion = "IdSeccion".$arregloIdInputs[$i];
+                $keyCantidad = "cantidad".$arregloIdInputs[$i];
 
-            $keyIdProducto = "IdProducto".$arregloIdInputs[$i];
-            $keyIdSeccion = "IdSeccion".$arregloIdInputs[$i];
-            $keyCantidad = "cantidad".$arregloIdInputs[$i];
+                $keyIdUnidadMedida = "idUnidadMedida".$arregloIdInputs[$i];
+                $keySubTotal = "subTotal".$arregloIdInputs[$i];
+                $keyISV = "isv".$arregloIdInputs[$i];
+                $keyTotal = "total".$arregloIdInputs[$i];
 
-            $keyIdUnidadMedida = "idUnidadMedida".$arregloIdInputs[$i];
-            $keySubTotal = "subTotal".$arregloIdInputs[$i];
-            $keyISV = "isv".$arregloIdInputs[$i];
-            $keyTotal = "total".$arregloIdInputs[$i];
+                $keyPrecio = "precio".$arregloIdInputs[$i];
 
-            $keyPrecio = "precio".$arregloIdInputs[$i];
-
-            $idProducto = $request->$keyIdProducto;
-            $idSeccion = $request->$keyIdSeccion;
-            $cantidad = $request->$keyCantidad;
-            $idUnidadMedida = $request->$keyIdUnidadMedida;
-            $subTotal = $request->$keySubTotal;
-            $isv = $request->$keyISV;
-            $total = $request->$keyTotal;
-            $precio = $request->$keyPrecio;
+                $idProducto = $request->$keyIdProducto;
+                $idSeccion = $request->$keyIdSeccion;
+                $cantidad = $request->$keyCantidad;
+                $idUnidadMedida = $request->$keyIdUnidadMedida;
+                $subTotal = $request->$keySubTotal;
+                $isv = $request->$keyISV;
+                $total = $request->$keyTotal;
+                $precio = $request->$keyPrecio;
 
 
-            $productoNota = new ModelNotaCreditoProducto();
-            $productoNota->nota_credito_id = $notaCredito->id;
-            $productoNota->producto_id = $idProducto;
-            $productoNota->seccion_id = $idSeccion;
-            $productoNota->indice = $arregloIdInputs[$i];
-            $productoNota->cantidad = $cantidad;
-            $productoNota->precio_unidad = $precio;
-            $productoNota->sub_total = $subTotal;
-            $productoNota->isv =  $isv;
-            $productoNota->total = $total;
-            $productoNota->unidad_medida_venta_id = $idUnidadMedida;
-            $productoNota->save();
+                $productoNota = new ModelNotaCreditoProducto();
+                $productoNota->nota_credito_id = $notaCredito->id;
+                $productoNota->producto_id = $idProducto;
+                $productoNota->seccion_id = $idSeccion;
+                $productoNota->indice = $arregloIdInputs[$i];
+                $productoNota->cantidad = $cantidad;
+                $productoNota->precio_unidad = $precio;
+                $productoNota->sub_total = $subTotal;
+                $productoNota->isv =  $isv;
+                $productoNota->total = $total;
+                $productoNota->unidad_medida_venta_id = $idUnidadMedida;
+                $productoNota->save();
 
+            }
         }
 
 
 
 
         //RESTA LOS PRODUCTOS DE LA FACTURA
+        if (!$esNotaPorDescuento) {
+            for ($i=0; $i < count($arregloIdInputs) ; $i++) {
 
-        for ($i=0; $i < count($arregloIdInputs) ; $i++) {
+                $keyIdProducto = "IdProducto".$arregloIdInputs[$i];
+                $keyIdSeccion = "IdSeccion".$arregloIdInputs[$i];
+                $keyCantidad = "cantidad".$arregloIdInputs[$i];
 
-            $keyIdProducto = "IdProducto".$arregloIdInputs[$i];
-            $keyIdSeccion = "IdSeccion".$arregloIdInputs[$i];
-            $keyCantidad = "cantidad".$arregloIdInputs[$i];
+                $keyIdUnidadMedida = "idUnidadMedida".$arregloIdInputs[$i];
 
-            $keyIdUnidadMedida = "idUnidadMedida".$arregloIdInputs[$i];
+                $keySubTotal = "subTotal".$arregloIdInputs[$i];
+                $keyISV = "isv".$arregloIdInputs[$i];
+                $keyTotal = "total".$arregloIdInputs[$i];
 
-            $keySubTotal = "subTotal".$arregloIdInputs[$i];
-            $keyISV = "isv".$arregloIdInputs[$i];
-            $keyTotal = "total".$arregloIdInputs[$i];
+                $idProducto = $request->$keyIdProducto;
+                $idSeccion = $request->$keyIdSeccion;
+                $cantidad = $request->$keyCantidad;
+                $idUnidadMedida = $request->$keyIdUnidadMedida;
 
-            $idProducto = $request->$keyIdProducto;
-            $idSeccion = $request->$keyIdSeccion;
-            $cantidad = $request->$keyCantidad;
-            $idUnidadMedida = $request->$keyIdUnidadMedida;
+                $unidadVenta = DB::SELECTONE("select unidad_venta from unidad_medida_venta where id =".$idUnidadMedida);
+                $cantidadBaseSeccion = $unidadVenta->unidad_venta*$cantidad;
 
-            $unidadVenta = DB::SELECTONE("select unidad_venta from unidad_medida_venta where id =".$idUnidadMedida);
-            $cantidadBaseSeccion = $unidadVenta->unidad_venta*$cantidad;
+                $this->restarUnidadesDevolver($request->idFactura,$idProducto,$idSeccion,$cantidadBaseSeccion,$unidadVenta->unidad_venta, $notaCredito->id);
 
-            $this->restarUnidadesDevolver($request->idFactura,$idProducto,$idSeccion,$cantidadBaseSeccion,$unidadVenta->unidad_venta, $notaCredito->id);
-
+            }
         }
 
 

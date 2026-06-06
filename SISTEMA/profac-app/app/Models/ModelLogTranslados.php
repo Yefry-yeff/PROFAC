@@ -10,6 +10,7 @@ class ModelLogTranslados extends Model
     use HasFactory;
     protected $table = 'log_translado';
     protected $primaryKey = 'id';
+    public $timestamps = false;
     protected $fillable = [
         'id',
         'origen',
@@ -20,6 +21,7 @@ class ModelLogTranslados extends Model
         'unidad_medida_venta_id',
         'nota_credito_id',
         'descripcion',
+        'comentario',
         'translado_id'
 
     ];

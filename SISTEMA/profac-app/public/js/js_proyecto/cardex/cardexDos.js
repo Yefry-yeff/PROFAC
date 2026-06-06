@@ -1,4 +1,4 @@
-
+﻿
 cargarBodegas();
 
 function cargarBodegas(){
@@ -73,9 +73,9 @@ function cargaCardex(){
     $('#tbl_cardex').DataTable({
         "paging": true,
         "language": {
-            "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
+            "url": "/js/plugins/dataTables/i18n/Spanish.json"
         },
-        pageLength: 10,
+        pageLength: 5,
         responsive: true,
         dom: '<"html5buttons"B>lTfgitp',
         buttons: [

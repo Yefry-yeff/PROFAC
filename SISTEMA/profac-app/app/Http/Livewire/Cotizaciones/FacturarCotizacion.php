@@ -65,10 +65,12 @@ class FacturarCotizacion extends Component
 
         $urlGuardarVenta = $this->obtenerURL($cotizacion->tipo_venta_id);
 
+        // Seleccionar vista según tipo de venta: gobierno (estatal=2) o corporativo/exonerado
+        $vista = $cotizacion->tipo_venta_id == 2
+            ? 'livewire.cotizaciones.facturar-cotizacion-gobierno'
+            : 'livewire.cotizaciones.facturar-cotizacion';
 
-
-
-        return view('livewire.cotizaciones.facturar-cotizacion', compact('cotizacion', 'htmlProductos', 'urlGuardarVenta'));
+        return view($vista, compact('cotizacion', 'htmlProductos', 'urlGuardarVenta'));
     }
 
     public function generarHTML($idCotizacion)

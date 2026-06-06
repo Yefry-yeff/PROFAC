@@ -1,32 +1,40 @@
-
+﻿
 var contador = 1;
 var arrayInputs = [];
 var idProductoArray = [];
 var idRecibidoArray = [];
-
 var idRecibido = null;
-$(document).ready(function() {
+var _trasladoIdActual = null;  // ID del traslado guardado (para impresión)
+window.__traslados_bodega_id = '';   // usado por el buscador-producto para filtrar por bodega
 
+$(document).ready(function() {
     listarBodegas();
 
+    inicializarSelect2Bodega();
 
+    // Delegación de evento — funciona aunque Livewire re-morfee el DOM
+    $(document).on('select2:select', '#selectBodega', function () {
+        obteneProducto();
+    });
 });
 
-
-
-
-$('#selectBodega').select2({
-    ajax: {
-        url: '/translado/lista/bodegas',
-
+function inicializarSelect2Bodega() {
+    var $sel = $('#selectBodega');
+    if (!$sel.length) return;
+    // Destruir instancia previa si ya existe (evita doble init)
+    if ($sel.hasClass('select2-hidden-accessible')) {
+        $sel.select2('destroy');
     }
-});
+    $sel.select2({
+        ajax: {
+            url: '/translado/lista/bodegas',
+        }
+    });
+}
 
 $(document).on('submit', '#selec_data_form', function(event) {
-
     event.preventDefault();
     obtenerListaBodega();
-
 });
 
 function limpiar(){
@@ -35,32 +43,28 @@ function limpiar(){
 
 
 
+// Al cambiar bodega: actualiza la variable global que usa el buscador y habilita el botón de buscar
 function obteneProducto() {
-    let idBodega = document.getElementById('selectBodega').value;
-    document.getElementById('selectProducto').disabled = false;
-    $('#selectProducto').select2({
-        ajax: {
-            url: '/translado/lista/productos',
-            data: function(params) {
-                var query = {
-                    search: params.term,
-                    idBodega: idBodega,
-                    type: 'public',
-                    page: params.page || 1
-                }
+    var selectedData = $('#selectBodega').select2('data');
+    var idBodega = (selectedData && selectedData.length > 0) ? selectedData[0].id : document.getElementById('selectBodega').value;
+    if (!idBodega) return;
+    window.__traslados_bodega_id = idBodega;
+    // Limpiar producto seleccionado anterior
+    document.getElementById('selectProducto').value = '';
+    document.getElementById('productoTraslado_nombre').value = '';
+    document.getElementById('btn_abrir_buscador_traslado').disabled = false;
+}
 
-                // Query parameters will be ?search=[term]&type=public
-                return query;
-            }
-        }
-    });
+// Callback invocado por el buscador-producto cuando el usuario selecciona un producto
+function alSeleccionarProductoTraslado(producto) {
+    document.getElementById('selectProducto').value = producto.id;
+    document.getElementById('productoTraslado_nombre').value = producto.id + ' - ' + producto.nombre;
 }
 
 function obtenerListaBodega() {
 
-
-
-    let idBodega = document.getElementById('selectBodega').value;
+    var selectedData = $('#selectBodega').select2('data');
+    let idBodega = (selectedData && selectedData.length > 0) ? selectedData[0].id : document.getElementById('selectBodega').value;
     let idProducto = document.getElementById('selectProducto').value;
     //let data = {'idBodega':idBodega, 'idProducto',idProducto};
 
@@ -73,7 +77,7 @@ function obtenerListaBodega() {
 
     $('#tbl_translados').DataTable({
         "language": {
-            "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
+            "url": "/js/plugins/dataTables/i18n/Spanish.json"
         },
         pageLength: 10,
         responsive: true,
@@ -344,6 +348,8 @@ function transladoProducto() {
     let medidaNombre = medidaSelect.options[medidaSelect.selectedIndex].text
     let medidaId = medidaSelect.value;
 
+    let comentario_item = document.getElementById("comentario_item").value;
+
     let comprobarIdRecibido = idRecibidoArray.find(element => element == ('' + idProducto + seccionId));
 
     if (comprobarIdRecibido) {
@@ -395,7 +401,11 @@ function transladoProducto() {
                                         <input id="unidadMedida${contador}" name="unidadMedida${contador}" type="text" value="${medidaNombre}" disabled class="form-control" form="guardar_translados">
                                         <input id="unidadMedidaId${contador}" name="unidadMedidaId${contador}" type="hidden" value="${medidaId}" readonly form="guardar_translados">
                                         <input id="idRecibido${contador}" name="idRecibido${contador}" type="hidden" value="${idRecibido}" readonly form="guardar_translados">
+                                        <input id="comentarioItem${contador}" name="comentarioItem${contador}" type="hidden" value="${comentario_item}" form="guardar_translados">
+                                    </td>
 
+                                    <td>
+                                        <span>${comentario_item}</span>
                                     </td>
 
                                 </tr>
@@ -424,7 +434,7 @@ function listadoBodegaDestino(contadorTranslados) {
     $('#tbl_translados_destino').DataTable({
         "order": [6, 'desc'],
         "language": {
-            "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
+            "url": "/js/plugins/dataTables/i18n/Spanish.json"
         },
         pageLength: 10,
         responsive: true,
@@ -485,14 +495,37 @@ function eliminarInput(id, productoSeccion) {
 
 
 $(document).on('submit', '#guardar_translados', function(event) {
-
     event.preventDefault();
-    guardarTranslado();
+});
 
+function abrirModalMotivo() {
+    if (arrayInputs.length === 0) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Advertencia!',
+            text: 'No hay productos en la lista para transladar.',
+            confirmButtonColor: '#1AA689',
+        });
+        return;
+    }
+    document.getElementById('motivo_traslado').value = '';
+    document.getElementById('motivo_error').classList.add('d-none');
+    $('#modal_motivo_traslado').modal('show');
+}
+
+$(document).on('click', '#btn_confirmar_traslado', function() {
+    let motivo = document.getElementById('motivo_traslado').value.trim();
+    if (!motivo) {
+        document.getElementById('motivo_error').classList.remove('d-none');
+        return;
+    }
+    document.getElementById('motivo_error').classList.add('d-none');
+    $('#modal_motivo_traslado').modal('hide');
+    guardarTranslado(motivo);
 });
 
 
-function guardarTranslado() {
+function guardarTranslado(motivo) {
     document.getElementById("btn_guardar_translado").disabled = true;
 
     var dataForm = new FormData($('#guardar_translados').get(0));
@@ -509,6 +542,7 @@ function guardarTranslado() {
 
         let text = arrayInputs.toString();
         dataForm.append("arregloIdInputs", text);
+        dataForm.append("motivo", motivo);
 
         const formDataObj = {};
 
@@ -525,15 +559,11 @@ function guardarTranslado() {
             let data = response.data;
             let contador = data.contadorTranslados;
 
+            _trasladoIdActual = data.trasladoId || null;
 
-
-
-            Swal.fire({
-                icon: data.icon,
-                title: data.title,
-                html: data.text,
-
-            })
+            if (_trasladoIdActual) {
+                $('#modal_imprimir_traslado').modal('show');
+            }
 
 
 
@@ -573,4 +603,15 @@ function guardarTranslado() {
         })
 
 
+}
+
+function imprimirTrasladoPDF() {
+    if (_trasladoIdActual) {
+        window.open('/translado/imprimir/' + _trasladoIdActual, '_blank');
+    }
+}
+
+function cerrarModalImpresionTraslado() {
+    $('#modal_imprimir_traslado').modal('hide');
+    window.location.reload();
 }

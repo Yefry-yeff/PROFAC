@@ -72,7 +72,6 @@
             var retencionEstado = false; // true  aplica retencion, false no aplica retencion;
 
             window.onload = obtenerTipoPago;
-            var public_path = "{{ asset('catalogo/') }}";
             var diasCredito = 0;
 
             //validando que no escriban un numero que no este entre 0 y 25
@@ -81,9 +80,8 @@
                 const mensajeError = document.getElementById('mensajeError');
                 const numero = parseFloat(numeroInput.value);
 
-
-                if (isNaN(numero) || numero < 0 || numero > 35) {
-                    mensajeError.textContent = 'Este campo solo admite un valor entre 0 a 35';
+                if (isNaN(numero) || numero < 0 || numero > 50) {
+                    mensajeError.textContent = 'Este campo solo admite un valor entre 0 a 25';
                     numeroInput.value = '';
                 } else {
                     mensajeError.textContent = '';
@@ -107,12 +105,7 @@
                 }
             });
 
-
-
-
-
-
-            $('#seleccionarProducto').select2({
+            /*$('#seleccionarProducto').select2({
                 ajax: {
                     url: '/ventas/listar',
                     data: function(params) {
@@ -127,7 +120,24 @@
                         return query;
                     }
                 }
+            });**/
+
+            // Evento para cargar categorías cuando se selecciona un producto
+            $('#seleccionarProducto').on('select2:select', function(e) {
+                cargarCategoriasProducto();
             });
+
+            function listaCategoríaClientes() {
+                let categoriaId = $('#categoria_cliente_venta_id').val();
+                let productoId = $('#seleccionarProducto').val();
+
+                if (categoriaId && productoId) {
+                    // Habilitar bodega
+                    $('#bodega').prop('disabled', false);
+                    // Cargar bodegas del producto
+                    obtenerBodegas(productoId);
+                }
+            }
 
             function prueba() {
 
@@ -158,7 +168,6 @@
                 });
 
             }
-
 
             function obtenerTipoPago() {
 
@@ -191,6 +200,77 @@
                         })
                     })
 
+            }
+
+            function cargarCategoriasProducto() {
+                let productoId = $('#seleccionarProducto').val();
+                let clienteId = $('#seleccionarCliente').val();
+
+                if (productoId) {
+                    // Limpiar categoría mientras se carga
+                    $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>Cargando categorías...</option>');
+
+                    // Cargar categorías del producto
+                    axios.post('/producto/categorias-disponibles', {
+                        producto_id: productoId
+                    })
+                    .then(response => {
+                        let categorias = response.data.categorias;
+
+                        if (categorias.length > 0) {
+                            $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>--Seleccione una categoría--</option>');
+
+                            // Si hay un cliente seleccionado, obtener su categoría
+                            let categoriaClienteId = null;
+                            if (clienteId) {
+                                categoriaClienteId = $('#categoria_cliente_venta_id').data('categoria-cliente-id');
+                            }
+
+                            // Ordenar categorías por precio_a de mayor a menor
+                            categorias.sort((a, b) => (parseFloat(b.precio_a) || 0) - (parseFloat(a.precio_a) || 0));
+
+                            // Mostrar todas las categorías disponibles con precio
+                            categorias.forEach(categoria => {
+                                let precio = parseFloat(categoria.precio_a) || 0;
+                                let precioFormateado = new Intl.NumberFormat('es-HN', {
+                                    style: 'currency',
+                                    currency: 'HNL',
+                                    minimumFractionDigits: 2,
+                                }).format(precio);
+                                let textoOpcion = `${categoria.nombre_categoria} - ${precioFormateado}`;
+                                let isSelected = (categoriaClienteId && categoria.id == categoriaClienteId);
+                                let option = new Option(textoOpcion, categoria.id, isSelected, isSelected);
+                                $('#categoria_cliente_venta_id').append(option);
+                            });
+
+                            // SIEMPRE mantener habilitado el select
+                            $('#categoria_cliente_venta_id').prop('disabled', false);
+                        } else {
+                            // No hay categorías disponibles para este producto
+                            $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>No hay categorías disponibles para este producto</option>');
+                            Swal.fire({
+                                icon: 'warning',
+                                title: 'Advertencia',
+                                text: 'Este producto no tiene escalas de precio asignadas en ninguna categoría.'
+                            });
+                        }
+                    })
+                    .catch(err => {
+                        console.log(err);
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'Ha ocurrido un error al cargar las categorías del producto.'
+                        });
+                        $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>Error al cargar categorías</option>');
+                    });
+
+                    // Continuar con las imágenes del producto
+                    obtenerImagenes();
+                } else {
+                    $('#categoria_cliente_venta_id').prop('disabled', true);
+                    $('#categoria_cliente_venta_id').empty().append('<option value="" selected disabled>--Seleccione primero un producto--</option>');
+                }
             }
 
             function obtenerImagenes() {
@@ -266,10 +346,38 @@
             }
 
 
+            function obtenerCategoriasClientes() {
 
+                $('#categoria_cliente_venta_id').select2({
+                    placeholder: 'Seleccione una categoría',
+                    allowClear: true,
+                    ajax: {
+                        url: '/clientes/categorias-escala',
+                        dataType: 'json',
+                        delay: 250,
+                        data: function (params) {
+                            return {
+                                q: params.term || '',
+                                page: params.page || 1
+                            };
+                        },
+                        processResults: function (data) {
+                            return {
+                                results: data.categorias.map(function (item) {
+                                    return {
+                                        id: item.id,
+                                        text: item.nombre_categoria
+                                    };
+                                })
+                            };
+                        }
+                    }
+                });
+            }
 
             function agregarProductoCarrito() {
                 let idProducto = document.getElementById('seleccionarProducto').value;
+                let categoria_cliente_venta_id = document.getElementById('categoria_cliente_venta_id').value;
 
                 let data = $("#bodega").select2('data')[0];
                 let bodega = data.bodegaSeccion;
@@ -279,6 +387,7 @@
 
                 axios.post('/ventas/datos/producto', {
                         idProducto: idProducto,
+                        categoria_cliente_venta_id: categoria_cliente_venta_id
 
                     })
                     .then(response => {
@@ -316,29 +425,20 @@
 
 
                         numeroInputs += 1;
-
-                        //     let arraySecciones  = response.data.secciones;
-                        // htmlSelectSeccion ="<option selected disabled>--seccion--</option>";
-
-                        // arraySecciones.forEach(seccion => {
-                        //     htmlSelectSeccion += `<option values="${seccion.id}" >${seccion.descripcion}</option>`
-                        // });
-
-                        htmlSelectUnidades = ""
-
-
-
-                        htmlprecios = `
-                        <option data-id="0" selected>--Seleccione precio--</option>
-                        <option  value="${producto.precio_base}" data-id="pb">${producto.precio_base} - Base</option>
-                        <option  value="${producto.precio1}" data-id="p1">${producto.precio1} - A</option>
+                        htmlSelectUnidades = "";
+                        /*htmlprecios = `
+                        <option  value="${producto.precio1}" data-id="p1" selected>${producto.precio1} - A</option>
                         <option  value="${producto.precio2}" data-id="p2">${producto.precio2} - B</option>
                         <option  value="${producto.precio3}" data-id="p3">${producto.precio3} - C</option>
                         <option  value="${producto.precio4}" data-id="p4">${producto.precio4} - D</option>
 
 
-                        `;
 
+
+                        `;*/
+
+
+                        htmlprecios = `<option  value="${producto.precio1}" data-id="p1" selected>${producto.precio1} - A</option>`;
 
                         arrayUnidades.forEach(unidad => {
                             if (unidad.valor_defecto == 1) {
@@ -354,7 +454,7 @@
 
                         html = `
                         <div id='${numeroInputs}' class="row no-gutters">
-                                            <div class="form-group col-3">
+                                            <div class="form-group col-12 col-md-2">
                                                 <div class="d-flex">
 
                                                     <button class="btn btn-danger" type="button" style="display: inline" onclick="eliminarInput(${numeroInputs})"><i
@@ -362,6 +462,7 @@
                                                     </button>
 
                                                     <input id="idProducto${numeroInputs}" name="idProducto${numeroInputs}" type="hidden" value="${producto.id}">
+                                                    <input id="precios_producto_carga_id${numeroInputs}" name="precios_producto_carga_id${numeroInputs}" type="hidden" value="${producto.precios_producto_carga_id}">
 
                                                     <div style="width:100%">
                                                         <label for="nombre${numeroInputs}" class="sr-only">Nombre del producto</label>
@@ -376,7 +477,7 @@
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div class="form-group col-1">
+                                            <div class="form-group col-6 col-md-1">
                                                 <label for="" class="sr-only">cantidad</label>
                                                 <input type="text" value="${bodega}" placeholder="bodega-seccion" id="bodega${numeroInputs}"
                                                     name="bodega${numeroInputs}" class="form-control"
@@ -384,7 +485,7 @@
                                             </div>
 
 
-                                            <div class="form-group col-2">
+                                            <div class="form-group col-6 col-md-2">
                                                 <label for="" class="sr-only">precios</label>
                                                 <select class="form-control" name="precios${numeroInputs}" id="precios${numeroInputs}"
                                                     data-parsley-required style="height:35.7px;"
@@ -396,21 +497,21 @@
 
                                             </div>
 
-                                            <div class="form-group col-1">
+                                            <div class="form-group col-6 col-md-2">
                                                 <label for="precio${numeroInputs}" class="sr-only">Precio</label>
                                                 <input type="number" placeholder="Precio Unidad" id="precio${numeroInputs}"
-                                                    name="precio${numeroInputs}" value="${producto.precio_base}" class="form-control"  data-parsley-required step="any"
+                                                    name="precio${numeroInputs}" value="${producto.precio1}" class="form-control"  data-parsley-required step="any"
                                                     autocomplete="off" onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
                                             </div>
 
-                                            <div class="form-group col-1">
+                                            <div class="form-group col-4 col-md-1">
                                                 <label for="cantidad${numeroInputs}" class="sr-only">cantidad</label>
                                                 <input type="number" placeholder="Cantidad" id="cantidad${numeroInputs}"
                                                     name="cantidad${numeroInputs}" class="form-control" min="1" data-parsley-required
                                                     autocomplete="off" onchange="calcularTotales(precio${numeroInputs},cantidad${numeroInputs},${producto.isv},unidad${numeroInputs},${numeroInputs},restaInventario${numeroInputs})">
                                             </div>
 
-                                            <div class="form-group col-1">
+                                            <div class="form-group col-4 col-md-1">
                                                 <label for="" class="sr-only">unidad</label>
                                                 <select class="form-control" name="unidad${numeroInputs}" id="unidad${numeroInputs}"
                                                     data-parsley-required style="height:35.7px;"
@@ -424,7 +525,7 @@
 
 
 
-                                            <div class="form-group col-1">
+                                            <div class="form-group col-4 col-md-1">
                                                 <label for="subTotalMostrar${numeroInputs}" class="sr-only">Sub Total</label>
                                                 <input type="text" placeholder="Sub total producto" id="subTotalMostrar${numeroInputs}"
                                                     name="subTotalMostrar${numeroInputs}" class="form-control"
@@ -435,7 +536,7 @@
                                                 <input type="hidden" id="acumuladoDescuento${numeroInputs}" name="acumuladoDescuento${numeroInputs}" >
                                             </div>
 
-                                            <div class="form-group col-1">
+                                            <div class="form-group col-4 col-md-1">
                                                 <label for="isvProductoMostrar${numeroInputs}" class="sr-only">ISV</label>
                                                 <input type="text" placeholder="ISV" id="isvProductoMostrar${numeroInputs}"
                                                     name="isvProductoMostrar${numeroInputs}" class="form-control"
@@ -445,7 +546,7 @@
                                                     <input id="isvProducto${numeroInputs}" name="isvProducto${numeroInputs}" type="hidden" value="" required>
                                             </div>
 
-                                            <div class="form-group col-1">
+                                            <div class="form-group col-4 col-md-1">
                                                 <label for="totalMostrar${numeroInputs}" class="sr-only">Total</label>
                                                 <input type="text" placeholder="Total del producto" id="totalMostrar${numeroInputs}"
                                                     name="totalMostrar${numeroInputs}" class="form-control"
@@ -503,7 +604,6 @@
 
              }
 
-
             function eliminarInput(id) {
                 const element = document.getElementById(id);
                 element.remove();
@@ -516,6 +616,7 @@
                 }
 
             }
+
             function myRound(num, dec) {
                 var exp = Math.pow(10, dec || 2); // 2 decimales por defecto
                 return parseInt(num * exp, 10) / exp;
@@ -613,7 +714,7 @@
                     return 0;
 
 
-                }
+            }
 
             function calcularTotales(idPrecio, idCantidad, isvProducto, idUnidad, id, idRestaInventario) {
 
@@ -836,6 +937,7 @@
             }
 
             function obtenerDatosCliente() {
+
                 let idCliente = document.getElementById("seleccionarCliente").value;
                 axios.post("/ventas/datos/cliente", {
                         id: idCliente
@@ -853,6 +955,17 @@
                                 document.getElementById("rtn_ventas").value = '';
                                 let selectBox = document.getElementById("tipoPagoVenta");
                                 selectBox.remove(2);
+                                $('#categoria_cliente_nombre').text(data.nombre_categoria);
+                                $('#categoria_cliente_venta_id').data('categoria-cliente-id', data.idcategoriacliente);
+
+                                // Si ya hay un producto seleccionado, recargar todas sus categorías
+                                // con la nueva categoría del cliente pre-seleccionada
+                                if ($('#seleccionarProducto').val()) {
+                                    cargarCategoriasProducto();
+                                } else {
+                                    $('#categoria_cliente_venta_id').empty();
+                                    $('#categoria_cliente_venta_id').append(new Option(data.nombre_categoria, data.idcategoriacliente, true, true));
+                                }
 
                             } else {
                                 document.getElementById("nombre_cliente_ventas").readOnly = true;
@@ -860,23 +973,40 @@
 
                                 document.getElementById("nombre_cliente_ventas").value = data.nombre;
                                 document.getElementById("rtn_ventas").value = data.rtn;
+                                $('#categoria_cliente_nombre').text(data.nombre_categoria);
+                                $('#categoria_cliente_venta_id').data('categoria-cliente-id', data.idcategoriacliente);
+
+                                // Si ya hay un producto seleccionado, recargar todas sus categorías
+                                // con la nueva categoría del cliente pre-seleccionada
+                                if ($('#seleccionarProducto').val()) {
+                                    cargarCategoriasProducto();
+                                } else {
+                                    $('#categoria_cliente_venta_id').empty();
+                                    $('#categoria_cliente_venta_id').append(new Option(data.nombre_categoria, data.idcategoriacliente, true, true));
+                                }
+
                                 obtenerTipoPago();
                                 diasCredito = data.dias_credito;
                             }
 
-
+                            cargarHistorialPrecosCotizacion();
+                            //console.log("Antes de solicitar productos");
+                            //obtenerProductosCategoria();
+                            //console.log("Despues de solicitar productos");
 
                         }
                     )
                     .catch(err => {
 
-                        console.log(err);
+                        const mensaje = err.response?.data?.message
+                                || 'Ha ocurrido un error inesperado';
+
+                        //console.log(err);
                         Swal.fire({
                             icon: 'error',
                             title: 'Error...',
                             text: "Ha ocurrido un error al obtener los datos del cliente"
                         })
-
 
                     })
 
@@ -888,9 +1018,6 @@
                     event.preventDefault();
                     guardarVenta();
             });
-
-
-
 
             function guardarVenta() {
 
@@ -986,7 +1113,10 @@
                             '<option value="" selected disabled>--Seleccionar un cliente--</option>';
 
                         document.getElementById('seleccionarProducto').innerHTML =
-                            '<option value="" selected disabled>--Seleccione un producto--</option>';
+                            '<option value="" selected disabled></option>';
+                        document.getElementById('codigoProductoCotizacion').value = '';
+                        var lbl_p = document.getElementById('productoSeleccionadoCotizacion');
+                        if (lbl_p) { lbl_p.classList.add('d-none'); lbl_p.textContent = ''; }
                         document.getElementById('bodega').innerHTML =
                             '<option value="" selected disabled>--Seleccione un producto--</option>';
                         document.getElementById("bodega").disabled = true;

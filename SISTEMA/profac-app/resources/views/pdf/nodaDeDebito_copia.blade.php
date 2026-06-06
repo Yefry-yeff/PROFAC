@@ -1,11 +1,10 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html>
 
 <head>
 
 
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/css/bootstrap.min.css"
-        integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+        <link rel="stylesheet" href="{{ public_path('css/bootstrap.min.css') }}">
     <style>
         .color-red {
             color: red;
@@ -73,7 +72,7 @@
         <span style = "font-size: 10px; position:absolute;left:500px;  top:105px;">Documento: N{{$cliente->numero_factura}}-CF12</span></p>
         @endif  --}}
     <div class="pruebaFondo">
-        <img src="img/membrete/Logo3.png" width="800rem"
+        <img src="{{ public_path('img/membrete/Logo3.png') }}" width="800rem"
         style="margin-left:3%; margin-top:25px; position:absolute;"
          alt="">
 

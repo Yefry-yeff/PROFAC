@@ -26,25 +26,52 @@ class Cai extends Component
 
         try{
 
-            $cais = DB::SELECT("select
-            cai.id,
-            cai.cai,
-            cai.fecha_limite_emision,
-            tipo_documento_fiscal.descripcion,
-            cai.cantidad_otorgada,
-            cai.numero_inicial,
-            cai.numero_final
-            from cai
-            inner join tipo_documento_fiscal
-            on cai.tipo_documento_fiscal_id = tipo_documento_fiscal.id
-            where cai.estado_id = 1
+            $cais = DB::SELECT("
+            SELECT
+                cai.id,
+                cai.cai,
+                DATE_FORMAT(cai.fecha_limite_emision, '%Y-%m-%d') AS fecha_limite_emision,
+                tipo_documento_fiscal.descripcion,
+                cai.cantidad_otorgada,
+                cai.numero_inicial,
+                cai.numero_final,
+                'normal' AS tipo
+            FROM cai
+            INNER JOIN tipo_documento_fiscal
+                ON cai.tipo_documento_fiscal_id = tipo_documento_fiscal.id
+            WHERE cai.estado_id = 1
+
+            UNION ALL
+
+            SELECT
+                cb.id,
+                cb.cai,
+                DATE_FORMAT(cb.fecha_limite_emision, '%Y-%m-%d') AS fecha_limite_emision,
+                'BOLETA DE COMPRAS' AS descripcion,
+                cb.cantidad_otorgada,
+                cb.numero_inicial,
+                cb.numero_final,
+                'boleta' AS tipo
+            FROM cai_boleta_compra cb
+            WHERE cb.estado = 1
             ");
 
             return Datatables::of($cais)
                     ->addColumn('opciones', function ($cai) {
 
-                        return
+                        if ($cai->tipo === 'boleta') {
+                            return '
+                            <div class="btn-group">
+                                <button data-toggle="dropdown" class="btn btn-warning dropdown-toggle" aria-expanded="false">Ver más</button>
+                                <ul class="dropdown-menu">
+                                    <li>
+                                        <a class="dropdown-item text-muted"><i class="fa-solid fa-xmark text-danger"></i> Desactivar</a>
+                                    </li>
+                                </ul>
+                            </div>';
+                        }
 
+                        return
                         '
                         <div class="btn-group ">
                             <button data-toggle="dropdown" class="btn btn-warning dropdown-toggle" aria-expanded="false">Ver más</button>
@@ -213,6 +240,78 @@ class Cai extends Component
         ],402);
         }
 
+    }
+
+    public function guardarCAIBoleta(Request $request){
+        try {
+            $validator = Validator::make($request->all(), [
+                'cai'                 => 'required',
+                'fecha_limite'        => 'required',
+                'numero_inicial'      => 'required',
+                'numero_final'        => 'required',
+                'punto_emision'       => 'required',
+                'cantidad_otorgada'   => 'required|integer|min:1',
+                'cantidad_solicitada' => 'required|integer|min:1',
+            ], [
+                'cai'                 => 'CAI es requerido',
+                'fecha_limite'        => 'Fecha Límite es requerida',
+                'numero_inicial'      => 'Número Inicial es obligatorio',
+                'numero_final'        => 'Número Final es obligatorio',
+                'punto_emision'       => 'Punto de Emisión es obligatorio',
+                'cantidad_otorgada'   => 'Cantidad Otorgada es obligatoria',
+                'cantidad_solicitada' => 'Cantidad Solicitada es obligatoria',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'icon'   => 'error',
+                    'title'  => 'Error',
+                    'text'   => 'Todos los campos son obligatorios.',
+                    'errors' => $validator->errors()
+                ], 402);
+            }
+
+            // Inactivar el CAI de boleta activo
+            DB::table('cai_boleta_compra')->where('estado', 1)->update(['estado' => 2, 'updated_at' => now()]);
+
+            // Calcular el prefijo: todo antes del último guion del numero_inicial
+            // Ej: 000-001-11-00003201 => prefijo = 000-001-11-
+            $partes   = explode('-', $request->numero_inicial);
+            $initNum  = (int) end($partes);
+            $contador = max(0, $initNum - 1);
+            array_pop($partes);
+            $prefijo  = implode('-', $partes) . '-';
+
+            DB::table('cai_boleta_compra')->insert([
+                'cai'                  => $request->cai,
+                'cantidad_otorgada'    => $request->cantidad_otorgada,
+                'cantidad_solicitada'  => $request->cantidad_solicitada,
+                'punto_de_emision'     => $request->punto_emision,
+                'numero_inicial'       => $request->numero_inicial,
+                'numero_final'         => $request->numero_final,
+                'prefijo'              => $prefijo,
+                'contador'             => $contador,
+                'fecha_limite_emision' => $request->fecha_limite,
+                'estado'               => 1,
+                'created_at'           => now(),
+                'updated_at'           => now(),
+            ]);
+
+            return response()->json([
+                'icon'  => 'success',
+                'title' => 'Éxito!',
+                'text'  => 'CAI Boleta de Compras creado con éxito.',
+            ], 200);
+
+        } catch (QueryException $e) {
+            return response()->json([
+                'icon'    => 'error',
+                'title'   => 'Error!',
+                'text'    => 'Ha ocurrido un error al guardar el CAI de Boleta.',
+                'message' => 'Ha ocurrido un error',
+                'error'   => $e
+            ], 402);
+        }
     }
 
     public function datosCAI( Request $request){

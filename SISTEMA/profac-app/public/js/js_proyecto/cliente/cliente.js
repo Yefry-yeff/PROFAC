@@ -1,4 +1,4 @@
-
+﻿
 
 var idCliente = null;
 
@@ -38,14 +38,17 @@ $(document).ready(function() {
             $('#tbl_ClientesLista').DataTable({
                 "order": [0, 'desc'],
                 "language": {
-                    "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
+                    "url": "/js/plugins/dataTables/i18n/Spanish.json"
                 },
                 pageLength: 10,
                 responsive: true,
                 "ajax": "/clientes/listar",
                 "columns": [{
                         data: 'idCliente'
+                    },{
+                        data: 'categoria_escala_cliente'
                     },
+
                     {
                         data: 'nombre'
                     },
@@ -74,7 +77,22 @@ $(document).ready(function() {
                         data: 'opciones'
                     },
 
-                ]
+                ],
+                drawCallback: function () {
+                    var api  = this.api();
+                    var data = api.data();
+                    var total     = data.length;
+                    var activos   = 0;
+                    var inactivos = 0;
+                    data.each(function (row) {
+                        var estado = (row.estado || '').toString();
+                        if (estado.indexOf('INACTIVO') !== -1) { inactivos++; }
+                        else if (estado.indexOf('ACTIVO') !== -1) { activos++; }
+                    });
+                    $('#cli-stat-total').text(total);
+                    $('#cli-stat-activos').text(activos);
+                    $('#cli-stat-inactivos').text(inactivos);
+                }
 
 
             });
@@ -222,8 +240,6 @@ $(document).ready(function() {
 
 
         function tipoCliente(){
-
-
            axios.get('/cliente/tipo/cliente')
            .then(function(response) {
            let array = response.data.tipoCliente;
@@ -287,106 +303,232 @@ $(document).ready(function() {
 
        }
 
+        // Máscara automática ####-#### para teléfono empresa (crear)
+        $(document).on('input', '#telefono_cliente', function () {
+            var digits = this.value.replace(/\D/g, '').substring(0, 8);
+            this.value = digits.length > 4 ? digits.substring(0, 4) + '-' + digits.substring(4) : digits;
+        });
+
+        // Máscara automática ####-#### para teléfono contacto 1 (primer input name="telefono[]")
+        $(document).on('input', '[name="telefono[]"]', function () {
+            // Solo aplicar al primer elemento (contacto 1)
+            var allTels = document.getElementsByName('telefono[]');
+            if (this !== allTels[0]) return;
+            var digits = this.value.replace(/\D/g, '').substring(0, 8);
+            this.value = digits.length > 4 ? digits.substring(0, 4) + '-' + digits.substring(4) : digits;
+        });
+
+        // Resetear pestañas y errores al abrir el modal crear
+        $('#modal_clientes_crear').on('show.bs.modal', function () {
+            $('#tab-crear-datos-tab').tab('show');
+            $('#clientesCreacionForm .is-invalid').removeClass('is-invalid');
+            $('#badge-tab-crear-datos, #badge-tab-crear-contacto, #badge-tab-crear-ubicacion').addClass('d-none');
+        });
+
         $(document).on('submit', '#clientesCreacionForm', function(event) {
             event.preventDefault();
             registrarCliente();
         });
 
-      function registrarCliente(){
-        document.getElementById('btn_crear_cliente').disabled=true;
-        let contacto2 = document.getElementsByName('contacto[]');
-        let telefono2 = document.getElementsByName('telefono[]');
+      /* ============================================================
+         Validación por pestañas del formulario crear cliente
+         ============================================================ */
+      function validarCrearClienteForm() {
+          var errores = { datos: [], contacto: [], ubicacion: [] };
 
-        if( contacto2[1].value  && telefono2[1].value  ){
+          // Limpiar estados previos
+          $('#clientesCreacionForm .is-invalid').removeClass('is-invalid');
+          $('#badge-tab-crear-datos, #badge-tab-crear-contacto, #badge-tab-crear-ubicacion').addClass('d-none');
 
-                var data = new FormData($('#clientesCreacionForm').get(0));
+          // ── Tab Datos ──────────────────────────────────────────────
+          if (!$('#cliente_categoria_escala_id_crear').val()) {
+              $('#cliente_categoria_escala_id_crear').addClass('is-invalid');
+              errores.datos.push('Categoría / Escala de precios');
+          }
+          if (!$('#nombre_cliente').val().trim()) {
+              $('#nombre_cliente').addClass('is-invalid');
+              errores.datos.push('Nombre del cliente');
+          }
+          var rtn = $('#rtn_cliente').val().trim();
+          if (!rtn) {
+              $('#rtn_cliente').addClass('is-invalid');
+              errores.datos.push('RTN');
+          }
+          if (!$('#tipo_personalidad').val()) {
+              $('#tipo_personalidad').addClass('is-invalid');
+              errores.datos.push('Tipo de Personalidad');
+          }
+          if (!$('#categoria_cliente').val()) {
+              $('#categoria_cliente').addClass('is-invalid');
+              errores.datos.push('Tipo de Cliente');
+          }
+          if (!$('#vendedor_cliente').val()) {
+              $('#vendedor_cliente').addClass('is-invalid');
+              errores.datos.push('Vendedor');
+          }
 
+          // ── Tab Contacto ───────────────────────────────────────────
+          var correoCliente = $('#correo_cliente').val().trim();
+          if (!correoCliente) {
+              $('#correo_cliente').addClass('is-invalid');
+              errores.contacto.push('Correo electronico');
+          } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correoCliente)) {
+              $('#correo_cliente').addClass('is-invalid');
+              errores.contacto.push('Correo electronico (formato invalido)');
+          }
 
+          var telCliente = $('#telefono_cliente').val().trim();
+          if (!telCliente || !/^[0-9]{4}-[0-9]{4}$/.test(telCliente)) {
+              $('#telefono_cliente').addClass('is-invalid');
+              errores.contacto.push('Teléfono del cliente (formato ####-####)');
+          }
+          var contactos = document.getElementsByName('contacto[]');
+          var telefonos = document.getElementsByName('telefono[]');
+          if (!contactos[0] || !contactos[0].value.trim()) {
+              if (contactos[0]) $(contactos[0]).addClass('is-invalid');
+              errores.contacto.push('Nombre Contacto 1');
+          }
+          if (!telefonos[0] || !telefonos[0].value.trim() || !/^[0-9]{4}-[0-9]{4}$/.test(telefonos[0].value.trim())) {
+              if (telefonos[0]) $(telefonos[0]).addClass('is-invalid');
+              errores.contacto.push('Teléfono Contacto 1 (formato ####-####)');
+          }
+          // Contacto 2: ambos o ninguno
+          var c2nombre = contactos[1] ? contactos[1].value.trim() : '';
+          var c2tel    = telefonos[1] ? telefonos[1].value.trim() : '';
+          if ((c2nombre && !c2tel) || (!c2nombre && c2tel)) {
+              if (c2nombre && !c2tel && telefonos[1]) $(telefonos[1]).addClass('is-invalid');
+              if (!c2nombre && c2tel && contactos[1]) $(contactos[1]).addClass('is-invalid');
+              errores.contacto.push('Contacto 2: complete nombre y teléfono, o deje ambos en blanco');
+          }
 
-                axios.post('/cliente/registrar',data)
-                .then( response => {
-                    let data = response.data;
+          // ── Tab Ubicación ──────────────────────────────────────────
+          if (!$('#pais_cliente').val()) {
+              $('#pais_cliente').addClass('is-invalid');
+              errores.ubicacion.push('País');
+          }
+          if (!$('#departamento_cliente').val()) {
+              $('#departamento_cliente').addClass('is-invalid');
+              errores.ubicacion.push('Departamento');
+          }
+          if (!$('#municipio_cliente').val()) {
+              $('#municipio_cliente').addClass('is-invalid');
+              errores.ubicacion.push('Municipio');
+          }
+          if (!$('#direccion_cliente').val().trim()) {
+              $('#direccion_cliente').addClass('is-invalid');
+              errores.ubicacion.push('Dirección');
+          }
 
+          return errores;
+      }
 
-                    $('#modal_clientes_crear').modal('hide');
-                    document.getElementById("clientesCreacionForm").reset();
-                    $('#clientesCreacionForm').parsley().reset();
-                    $('#tbl_ClientesLista').DataTable().ajax.reload();
-                    $imagenPrevisualizacion.src = '';
-                    document.getElementById('btn_crear_cliente').disabled=false;
+      function registrarCliente() {
+          var errores = validarCrearClienteForm();
+          var totalErrores = errores.datos.length + errores.contacto.length + errores.ubicacion.length;
 
+          if (totalErrores > 0) {
+              // Mostrar badges en pestañas con error
+              if (errores.datos.length)     $('#badge-tab-crear-datos').removeClass('d-none');
+              if (errores.contacto.length)  $('#badge-tab-crear-contacto').removeClass('d-none');
+              if (errores.ubicacion.length) $('#badge-tab-crear-ubicacion').removeClass('d-none');
 
-                    Swal.fire({
-                        icon: data.icon,
-                        title: data.title,
-                        text: data.text,
-                    })
+              // Navegar a la primera pestaña con error
+              if (errores.datos.length) {
+                  $('#tab-crear-datos-tab').tab('show');
+              } else if (errores.contacto.length) {
+                  $('#tab-crear-contacto-tab').tab('show');
+              } else {
+                  $('#tab-crear-ubicacion-tab').tab('show');
+              }
 
+              var allErrors = errores.datos.concat(errores.contacto).concat(errores.ubicacion);
+              Swal.fire({
+                  icon: 'warning',
+                  title: 'Campos obligatorios incompletos',
+                  html: 'Complete los siguientes campos:<br><ul style="text-align:left;margin:8px 0 0">' +
+                      allErrors.map(function(e) { return '<li>' + e + '</li>'; }).join('') + '</ul>',
+              });
+              return;
+          }
 
-                })
-                .catch( err => {
-                    let data = err.response.data;
-                    console.log(err);
-                    $('#modal_clientes_crear').modal('hide');
-                    document.getElementById('btn_crear_cliente').disabled=false;
-                    Swal.fire({
-                        icon: data.icon,
-                        title: data.title,
-                        text: data.text,
-                    })
-                })
+          document.getElementById('btn_crear_cliente').disabled = true;
+          var data = new FormData($('#clientesCreacionForm').get(0));
 
-        }else if( (contacto2[1].value == null || contacto2[1].value == '' ) && (telefono2[1].value == null || telefono2[1].value == '' ) ){
-
-            var data = new FormData($('#clientesCreacionForm').get(0));
-
-            axios.post('/cliente/registrar',data)
-            .then( response => {
-                let data = response.data;
-                $('#modal_clientes_crear').modal('hide');
-
-                document.getElementById("clientesCreacionForm").reset();
-                $('#clientesCreacionForm').parsley().reset();
-                $('#tbl_ClientesLista').DataTable().ajax.reload();
-                $imagenPrevisualizacion.src='';
-                Swal.fire({
-                    icon: data.icon,
-                    title: data.title,
-                    text: data.text,
-                })
-                document.getElementById('btn_crear_cliente').disabled=false;
-
-
-            })
-            .catch( err => {
-                let data = err.response.data;
-                $('#modal_clientes_crear').modal('hide');
-                    document.getElementById('btn_crear_cliente').disabled=false;
-                    Swal.fire({
-                        icon: data.icon,
-                        title: data.title,
-                        text: data.text,
-                    })
-            })
-
-        }else{
-            $('#modal_clientes_crear').modal('hide');
-
-            Swal.fire({
-                        icon: 'warning',
-                        title: 'Advertencia!',
-                        text: "Por favor completar los datos faltantes del contacto 2 del cliente. De faltar el nombre o numero de teléfono dejar en las casillas en blanco"
-                    })
-
-        }
-
-        document.getElementById('btn_crear_cliente').disabled=false;
-
+          axios.post('/cliente/registrar', data)
+              .then(function(response) {
+                  var res = response.data;
+                  $('#modal_clientes_crear').modal('hide');
+                  document.getElementById('clientesCreacionForm').reset();
+                  $('#tbl_ClientesLista').DataTable().ajax.reload();
+                  $imagenPrevisualizacion.src = '';
+                  document.getElementById('btn_crear_cliente').disabled = false;
+                  Swal.fire({ icon: res.icon, title: res.title, text: res.text });
+              })
+              .catch(function(err) {
+                  var res = err.response ? err.response.data : {};
+                  document.getElementById('btn_crear_cliente').disabled = false;
+                  if (res.type === 'rtn_duplicado') {
+                      // Mantener modal abierto, resaltar campo RTN
+                      $('#rtn_cliente').addClass('is-invalid');
+                      $('#badge-tab-crear-datos').removeClass('d-none');
+                      $('#tab-crear-datos-tab').tab('show');
+                      Swal.fire({ icon: 'warning', title: res.title, text: res.text });
+                      return;
+                  }
+                  $('#modal_clientes_crear').modal('hide');
+                  Swal.fire({
+                      icon: res.icon || 'error',
+                      title: res.title || 'Error',
+                      text: res.text || 'Error al registrar el cliente.',
+                  });
+              });
       }
 
 /*---------------------------------------------------------------Editar Cliente----------------------------------------------------------------------------------------------------------------*/
 /*---------------------------------------------------------------Editar Cliente----------------------------------------------------------------------------------------------------------------*/
+    // cache para no pedir las categorías cada vez
 
+
+    function fillCategoriaEscalaSelect(currentId = null, currentText = null) {
+        const $sel = $('#categoria_cliente_escala_editar');
+        $sel.empty();
+
+        // Trae todas las categorías
+        $.getJSON("/clientes/categorias-escala", function(res){
+        const list = res.categorias || [];
+
+        // Si NO hay categoría actual, ponemos placeholder
+        if (currentId === null || currentId === '' || typeof currentId === 'undefined') {
+            $sel.append(new Option('Seleccione…', '', true, true));
+            list.forEach(c => $sel.append(new Option(c.nombre_categoria, c.id, false, false)));
+            return;
+        }
+
+        // 1) Opción seleccionada con la categoría actual (visible arriba)
+        $sel.append(new Option(currentText ?? ('ID ' + currentId), currentId, true, true));
+
+        // 2) Agregar el resto EXCLUYENDO la actual
+        list.forEach(c => {
+            if (String(c.id) !== String(currentId)) {
+            $sel.append(new Option(c.nombre_categoria, c.id, false, false));
+            }
+        });
+        });
+    }
+    loadCategoriasEscalaCreate();
+    function loadCategoriasEscalaCreate() {
+    const $sel = $('#cliente_categoria_escala_id_crear');
+    const url  = $sel.data('url');
+
+    // placeholder limpio
+    $sel.empty().append(new Option('--- Seleccione una categoría ---', '', true, true));
+
+    $.getJSON(url, function(res){
+        (res.categorias || []).forEach(c => {
+        $sel.append(new Option(c.nombre_categoria, c.id, false, false));
+        });
+    });
+    }
 
     function modalEditarCliente(id){
 
@@ -563,9 +705,10 @@ $(document).ready(function() {
             document.getElementById("categoria_cliente_editar").innerHTML=htmlSelectTipoCliente;
             document.getElementById("vendedor_cliente_editar").innerHTML=htmlSelectVendedor;
 
+            const actualId   = datosCliente.cliente_categoria_escala_id;
+            const actualText = datosCliente.nombre_cat_escala;
 
-
-
+             fillCategoriaEscalaSelect(actualId, actualText);
             $('#modal_clientes_editar').modal('show');
 
 
@@ -655,7 +798,7 @@ $(document).ready(function() {
 
        }
 
-       $(document).on('submit', '#clientesCreacionForm_editar', function(event) {
+    $(document).on('submit', '#clientesCreacionForm_editar', function(event) {
         event.preventDefault();
         editarClienteGuardar();
     });

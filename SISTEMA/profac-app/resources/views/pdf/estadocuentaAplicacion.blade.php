@@ -1,166 +1,189 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html>
-
 <head>
-
-
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/css/bootstrap.min.css"
-        integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <meta charset="UTF-8">
     <style>
-        .color-red {
-            color: red;
-        }
-
-        p {
-            font-size: 12px;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
-
-           /*  background-size: 100% 100%; */
-            margin-left: -95px;
-            padding: 50px;
-            /* ##background-image: url('img/membrete/Logo1.png'); */
-
-
-            width: 45rem;
-            height: 3rem;
-
-
+            font-family: DejaVu Sans, sans-serif;
+            font-size: 11px;
+            color: #1a1a1a;
+            padding: 28px 32px 20px 32px;
         }
 
-
-        table {
-            border-collapse: collapse;
-            border-spacing: 0;
+        /* ── Encabezado ── */
+        .header-wrap {
             width: 100%;
-            border: 1px solid #ddd;
+            margin-bottom: 18px;
+        }
+        .header-logo img {
+            max-height: 70px;
         }
 
-        th,
-        td {
-            text-align: left;
-            padding: 2px;
-
+        /* ── Cuadro título ── */
+        .title-box {
+            border: 1px solid #333;
+            border-radius: 3px;
+            padding: 8px 16px;
+            margin-bottom: 10px;
+        }
+        .title-box .title-center {
+            text-align: center;
+            font-size: 15px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+        }
+        .title-box .title-meta {
+            display: table;
+            width: 100%;
+        }
+        .title-box .title-meta .meta-left {
+            display: table-cell;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        .title-box .title-meta .meta-right {
+            display: table-cell;
+            text-align: right;
+            font-size: 11px;
+            font-weight: bold;
+            white-space: nowrap;
         }
 
-        thead {
-            background-color: #f2f2f2
-        }
-
-        /* tr:nth-child(even) {
-            background-color: #f2f2f2
-
-        } */
-
-        .letra {
-            font-weight: 800;
-
-
-        }
+        /* ── Tabla de datos ── */
         table {
-            border: #b2b2b2 1px solid;
-          }
-          td, th {
-            border: black 1px solid;
-          }
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 28px;
+        }
+        thead tr {
+            background-color: #f0f0f0;
+        }
+        th {
+            text-align: center;
+            font-size: 10px;
+            font-weight: bold;
+            padding: 6px 5px;
+            border: 1px solid #333;
+            white-space: nowrap;
+        }
+        td {
+            font-size: 10px;
+            padding: 5px 6px;
+            border: 1px solid #888;
+            vertical-align: middle;
+        }
+        td.center { text-align: center; }
+        td.num    { text-align: right;  white-space: nowrap; }
+        tr:nth-child(even) td { background-color: #fafafa; }
+
+        /* ── Firmas ── */
+        .signatures {
+            width: 100%;
+            margin-top: 40px;
+        }
+        .sig-table {
+            width: 100%;
+            border: none;
+            border-collapse: collapse;
+        }
+        .sig-table td {
+            border: none;
+            padding: 0;
+            width: 50%;
+            text-align: center;
+            font-size: 10px;
+        }
+        .sig-line {
+            display: block;
+            border-top: 1px solid #333;
+            width: 70%;
+            margin: 0 auto 4px auto;
+        }
+        .sig-name {
+            display: block;
+            font-weight: bold;
+            font-size: 10px;
+            max-width: 240px;
+            margin: 0 auto;
+        }
     </style>
     <title>ESTADO DE CUENTA</title>
 </head>
-
 <body>
-    @php
-        $fecha_actual = date("Y-m-d");
-    @endphp
+@php
+    $fecha_actual = date('d/m/Y');
+@endphp
 
-    <div class="pruebaFondo">
-        <img src="img/membrete/Logo3.png" width="900rem" style="margin-left:13%; margin-top:-25px; position:absolute;"alt="">
+{{-- Logo --}}
+<div class="header-wrap">
+    <img src="{{ public_path('img/membrete/Logo3.png') }}" style="max-width:100%; max-height:75px;" alt="Logo">
+</div>
 
-        <div class="card border border-dark" style="margin-left:72px;  margin-top:105px; width:60rem; height:4rem;">
-            <div class="card-header">
-                <p class="card-text" style="position:absolute;left:400px;  top:-3px; font-size:18px;"><b>ESTADO DE CUENTA</b></p>
-
-            </div>
-            <p class="card-text" style="position:absolute;left:20px;  top:40px;"><b>Cliente:{{ $estadoCuenta[0]->cliente}}</b></p>
-            <p class="card-text" style="position:absolute;left:825px;  top:40px;"><b>Fecha: {{ $fecha_actual  }}</b></p>
-        </div>
-
-
-                    <div class="" style="position: relative; margin-left:72px; margin-top:10px; width:60rem;">
-
-                        <div>
-
-                            <table class="border border-block" style="font-size: 12px; ">
-                                <thead>
-                                    <tr>
-                                        <th style="text-align: center">Factura</th>
-                                                    <th style="text-align: center">No. Compra</th>
-                                                    <th style="text-align: center">Fecha Emisión</th>
-                                                    <th style="text-align: center">Fecha Vencimiento</th>
-                                                    <th style="text-align: center">Cargo</th>
-                                                    <th style="text-align: center">Crédito</th>
-                                                    <th style="text-align: center">Extras</th>
-                                                    <th style="text-align: center">Débitos</th>
-                                                    <th style="text-align: center">Notas Crédito</th>
-                                                    <th style="text-align: center">Notas Débito</th>
-                                                    <th style="text-align: center">Saldo</th>
-                                                    <th style="text-align: center">Acumulado</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-
-                                    @foreach ($estadoCuenta as $valor)
-                                        <tr>
-                                            <td style="text-align: center">{{ $valor->correlativo }}</td>
-                                            <td style="text-align: center">{{ $valor->numOrden }}</td>
-                                            <td style="text-align: center">{{ $valor->fecha_emision }}</td>
-                                            <td style="text-align: center">{{ $valor->fecha_vencimiento }}</td>
-                                             <td style="text-align: center"> L. {{ number_format($valor->cargo, 2, ',') }}</td>
-                                            <td style="text-align: center"> L. {{ number_format($valor->credito, 2, ',') }}</td>
-                                            <td style="text-align: center"> L. {{ number_format($valor->extra, 2, ',') }}</td>
-                                            <td style="text-align: center"> L. {{ number_format($valor->debita, 2, ',') }}</td>
-                                            <td style="text-align: center"> L. {{ number_format($valor->notaCredito, 2, ',') }}</td>
-                                            <td style="text-align: center"> L. {{ number_format($valor->notaDebito, 2, ',') }}</td>
-                                            <td style="text-align: center"> L. {{ number_format($valor->saldo, 2, ',') }}</td>
-                                            <td style="text-align: center"> L. {{ number_format($valor->Acumulado, 2, ',') }}</td>
-                                        </tr>
-                                    @endforeach
-
-                                </tbody>
-
-
-                            </table>
-
-                            <div style="position:absolute; left:120px;   width:45rem; margin-top:30px">
-                                <p class="card-text" style="position:absolute;left:20px;  top:10px;">
-                                    _______________________________________</p>
-                                <p class="card-text" style="position:absolute;left:450px;  top:10px;">
-                                    _______________________________________</p>
-                                <p class="card-text" style="position:absolute;left:50px;  top:25px; max-width:250px;  ">
-                                    {{  $estadoCuenta[0]->cliente }}
-                                    </p>
-                                <p class="card-text" style="position:absolute;left:495px;  top:25px;">DISTRIBUCIONES VALENCIA</p>
-                                {{--  <p class="card-text" style="position:absolute;left:460px;  top:-60px;">Original: Cliente, Copia obligado tributario emisor. </p>  --}}
-                            </div>
-                        </div>
-
-                    </div>
-
-
+{{-- Cuadro título + cliente + fecha --}}
+<div class="title-box">
+    <div class="title-center">ESTADO DE CUENTA</div>
+    <div class="title-meta">
+        <span class="meta-left">Cliente: {{ $estadoCuenta[0]->cliente }}</span>
+        <span class="meta-right">Fecha: {{ $fecha_actual }}</span>
     </div>
+</div>
 
+{{-- Tabla --}}
+<table>
+    <thead>
+        <tr>
+            <th>Factura</th>
+            <th>No. Compra</th>
+            <th>Fecha<br>Emisión</th>
+            <th>Fecha<br>Vencimiento</th>
+            <th>Cargo</th>
+            <th>Crédito</th>
+            <th>Extras</th>
+            <th>Débitos</th>
+            <th>Notas<br>Crédito</th>
+            <th>Notas<br>Débito</th>
+            <th>Saldo</th>
+            <th>Acumulado</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach ($estadoCuenta as $valor)
+        <tr>
+            <td class="center">{{ $valor->correlativo }}</td>
+            <td class="center">{{ $valor->numOrden }}</td>
+            <td class="center">{{ $valor->fecha_emision }}</td>
+            <td class="center">{{ $valor->fecha_vencimiento }}</td>
+            <td class="num">L. {{ number_format($valor->cargo,      2, '.', ',') }}</td>
+            <td class="num">L. {{ number_format($valor->credito,    2, '.', ',') }}</td>
+            <td class="num">L. {{ number_format($valor->extra,      2, '.', ',') }}</td>
+            <td class="num">L. {{ number_format($valor->debita,     2, '.', ',') }}</td>
+            <td class="num">L. {{ number_format($valor->notaCredito,2, '.', ',') }}</td>
+            <td class="num">L. {{ number_format($valor->notaDebito, 2, '.', ',') }}</td>
+            <td class="num">L. {{ number_format($valor->saldo,      2, '.', ',') }}</td>
+            <td class="num">L. {{ number_format($valor->Acumulado,  2, '.', ',') }}</td>
+        </tr>
+        @endforeach
+    </tbody>
+</table>
 
+{{-- Firmas --}}
+<div class="signatures">
+    <table class="sig-table">
+        <tr>
+            <td>
+                <span class="sig-line"></span>
+                <span class="sig-name">{{ $estadoCuenta[0]->cliente }}</span>
+            </td>
+            <td>
+                <span class="sig-line"></span>
+                <span class="sig-name">DISTRIBUCIONES VALENCIA</span>
+            </td>
+        </tr>
+    </table>
+</div>
 
-
-    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"
-        integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous">
-    </script>
-    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.14.7/dist/umd/popper.min.js"
-        integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous">
-    </script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/js/bootstrap.min.js"
-        integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous">
-    </script>
 </body>
-
 </html>
