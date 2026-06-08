@@ -209,7 +209,7 @@
 
         <p style="margin:6px 44px 0; font-size:9px; text-align:right;">Original: Cliente, Copia obligado tributario emisor.</p>
 
-        <div style="margin-left:44px; margin-top:14px; width:45rem;">
+        <div style="margin-left:44px; margin-top:80px; width:45rem;">
             <table style="width:100%; border:none; border-collapse:collapse; font-size:10px;">
                 <tr>
                     <td style="width:50%; border:none; vertical-align:top; padding:0 20px 0 0;">

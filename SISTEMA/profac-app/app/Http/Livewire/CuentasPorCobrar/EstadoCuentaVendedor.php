@@ -259,10 +259,14 @@ class EstadoCuentaVendedor extends Component
         $estadoCuenta = DB::select("CALL estadoCuenta_sp(?)", [$idClientepdf]);
 
         if (empty($estadoCuenta)) {
-            abort(404, 'No se encontró información de estado de cuenta para este cliente.');
+            $nombreCliente = DB::table('cliente')->where('id', (int) $idClientepdf)->value('nombre') ?? 'Cliente #'.$idClientepdf;
+            $sinMovimientos = true;
+        } else {
+            $nombreCliente  = $estadoCuenta[0]->cliente;
+            $sinMovimientos = false;
         }
 
-        $pdf = PDF::loadView('/pdf/estadocuentaAplicacion', compact('estadoCuenta'))
+        $pdf = PDF::loadView('/pdf/estadocuentaAplicacion', compact('estadoCuenta', 'nombreCliente', 'sinMovimientos'))
                   ->setPaper('A4', 'landscape');
 
         return $pdf->stream('ESTADO_CUENTA.pdf');
