@@ -174,6 +174,11 @@
             border-radius: 0 0 8px 8px; padding: 8px 12px;
             background: #fffbf7; font-size: 12px; min-height: 38px;
         }
+        /* Select2 dentro de modales Bootstrap: permitir overflow del dropdown */
+        .select2-container--open { z-index: 9999 !important; }
+        #modal_gestor_entrega .modal-dialog { overflow: visible !important; }
+        #modal_gestor_entrega .modal-content { overflow: visible !important; }
+        #modal_gestor_entrega .modal-body { overflow: visible !important; }
     </style>
     @endpush
 
@@ -543,11 +548,13 @@
                                 </div>
                                 {{-- Vendedor --}}
                                 <div class="col-12 col-md-4">
-                                    <label class="ofr-label">Vendedor <span class="req">*</span></label>
+                                    <label class="ofr-label">Asesor Comercial <span class="req">*</span></label>
                                     <select name="vendedor" id="vendedor" class="form-control form-control-sm" required>
                                         <option value="" selected disabled>--Seleccionar--</option>
                                     </select>
                                 </div>
+                                {{-- Gestor de Entrega (se selecciona en modal al facturar) --}}
+                                <input type="hidden" name="gestor_entrega" id="gestor_entrega_hidden" value="">
                                 {{-- Tipo de pago --}}
                                 <div class="col-12 col-md-4">
                                     <label class="ofr-label">Tipo de Pago <span class="req">*</span></label>
@@ -957,6 +964,38 @@
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- ============================================================== --}}
+        {{-- MODAL: Seleccionar Gestor de Entrega (al facturar)             --}}
+        {{-- ============================================================== --}}
+        <div class="modal fade" id="modal_gestor_entrega" data-backdrop="static" tabindex="-1" role="dialog" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered" role="document">
+                <div class="modal-content">
+                    <div class="modal-header" style="background:linear-gradient(135deg,#1565c0,#42a5f5); border:none; padding:14px 20px;">
+                        <h3 class="modal-title" style="color:#fff; font-size:16px; font-weight:700; margin:0;">
+                            <i class="fa-solid fa-truck mr-2"></i>Gestor de Entrega
+                        </h3>
+                    </div>
+                    <div class="modal-body" style="padding: 20px;">
+                        <p class="text-muted mb-3" style="font-size:12px;">
+                            Seleccione el responsable de entrega para esta factura (opcional).
+                        </p>
+                        <div class="form-group">
+                            <label class="ofr-label">Gestor de Entrega</label>
+                            <select id="gestor_entrega_modal" class="form-control form-control-sm" style="width:100%;">
+                                <option value="">-- Sin gestor --</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cancelar</button>
+                        <button type="button" class="btn btn-primary btn-sm" id="btn_confirmar_gestor">
+                            <i class="fa-solid fa-check mr-1"></i> Confirmar y Facturar
+                        </button>
                     </div>
                 </div>
             </div>
@@ -1758,6 +1797,7 @@
         if ($('#vendedor').hasClass('select2-hidden-accessible')) {
             $('#vendedor').select2('destroy');
         }
+        // gestor_entrega ya no tiene select2 en el form principal
         if ($('#seleccionarCliente').hasClass('select2-hidden-accessible')) {
             $('#seleccionarCliente').select2('destroy');
         }
@@ -1771,6 +1811,7 @@
             }
         });
 
+
         $('#seleccionarCliente').select2({
             ajax: {
                 url: urlClientes,
@@ -1780,7 +1821,7 @@
             }
         });
 
-        // ── Pre-seleccionar vendedor = usuario actual ──────────────────────
+        // ── Pre-seleccionar vendedor = usuario actual (o Asesor Comercial original si es duplicado) ──
         @if(!empty($vendedorDefault))
         (function() {
             var opt = new Option(
@@ -1791,6 +1832,7 @@
             $('#vendedor').append(opt).trigger('change');
         })();
         @endif
+
 
         // ── Pre-seleccionar cliente si viene de un pedido ─────────────────
         @if($clientePedido)
@@ -3142,6 +3184,10 @@
         if (data && data.numeroVenta) document.getElementById('numero_venta').value = data.numeroVenta;
         document.getElementById("btn_venta_coorporativa").disabled = false;
 
+        // Resetear estado del modal de gestor para próxima factura
+        var gestorHidden = document.getElementById('gestor_entrega_hidden');
+        if (gestorHidden) { gestorHidden.value = ''; gestorHidden.removeAttribute('data-confirmed'); }
+
         document.getElementById('restriccion').value = tipoFacturaConfig ? tipoFacturaConfig.restriccion : 1;
         document.getElementById('tipo_venta_id').value = tipoFacturaConfig ? tipoFacturaConfig.tipo_venta_id : 2;
         document.getElementById('tipo_factura_id').value = tipoFacturaConfig ? tipoFacturaConfig.id : '';
@@ -3560,7 +3606,15 @@
 
     $(document).on('submit', '#crear_venta', function(event) {
         event.preventDefault();
-        // Para tipos SR: interceptar si aún no tiene código de autorización
+        // 1. Para facturas (no cotizaciones): mostrar modal de gestor de entrega primero
+        if (codigoActual !== 'cotizacion_clientes_a') {
+            var gestorHidden = document.getElementById('gestor_entrega_hidden');
+            if (!gestorHidden || !gestorHidden.getAttribute('data-confirmed')) {
+                mostrarModalGestorEntrega();
+                return;
+            }
+        }
+        // 2. Para tipos SR: interceptar si aún no tiene código de autorización
         if (tipoFacturaConfig && tipoFacturaConfig.requiere_codigo_autorizacion) {
             var codigoId = document.getElementById('codigo_autorizacion').value;
             if (!codigoId) {
@@ -3598,6 +3652,41 @@
         window._srProductos = productosSR;
         $('#modal_sr_autorizacion').modal('show');
     }
+
+    function mostrarModalGestorEntrega() {
+        var urlVendedores = urls.vendedores;
+        // Inicializar select2 en el modal si aún no lo está
+        if (!$('#gestor_entrega_modal').hasClass('select2-hidden-accessible')) {
+            $('#gestor_entrega_modal').select2({
+                dropdownParent: $('#modal_gestor_entrega'),
+                ajax: {
+                    url: urlVendedores,
+                    data: function(params) {
+                        return { search: params.term, type: 'public', page: params.page || 1 };
+                    }
+                },
+                allowClear: true,
+                placeholder: '-- Sin gestor --'
+            });
+        } else {
+            $('#gestor_entrega_modal').val(null).trigger('change');
+        }
+        $('#modal_gestor_entrega').modal('show');
+    }
+
+    $(document).on('click', '#btn_confirmar_gestor', function() {
+        var gestorId = $('#gestor_entrega_modal').val() || '';
+        var gestorHidden = document.getElementById('gestor_entrega_hidden');
+        gestorHidden.value = gestorId;
+        gestorHidden.setAttribute('data-confirmed', '1');
+        // Esperar a que el modal termine de cerrarse antes de re-submit
+        // para evitar conflicto de aria-hidden/foco con el modal SR
+        $('#modal_gestor_entrega').one('hidden.bs.modal', function() {
+            document.body.focus();
+            $('#crear_venta').submit();
+        });
+        $('#modal_gestor_entrega').modal('hide');
+    });
 
     function guardarVenta() {
         document.getElementById("btn_venta_coorporativa").disabled = true;
@@ -3672,6 +3761,8 @@
                 if (data.idFactura == 0) {
                     Swal.fire({ icon: data.icon, title: data.title, html: data.text });
                     document.getElementById("btn_venta_coorporativa").disabled = false;
+                    var gestorHErr = document.getElementById('gestor_entrega_hidden');
+                    if (gestorHErr) { gestorHErr.removeAttribute('data-confirmed'); }
                     return;
                 }
 
@@ -3723,6 +3814,8 @@
             })
             .catch(err => {
                 document.getElementById("btn_venta_coorporativa").disabled = false;
+                var gestorH = document.getElementById('gestor_entrega_hidden');
+                if (gestorH) { gestorH.removeAttribute('data-confirmed'); }
                 let data = err.response ? err.response.data : {};
                 console.error('Error al guardar – status:', err.response ? err.response.status : 'sin respuesta', '| body:', data);
                 let msg = data.text || data.mensaje || data.message || 'Error al guardar';

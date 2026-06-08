@@ -354,6 +354,7 @@ class VentasExoneradas extends Component
             $factura->estado_venta_id = 1;
             $factura->cliente_id = $request->seleccionarCliente;
             $factura->vendedor = $request->vendedor;
+            $factura->gestor_entrega = $request->gestor_entrega ?: null;
             $factura->monto_comision = $montoComision;
             $factura->tipo_venta_id = 3; // exonerado
             $factura->estado_factura_id = 1; // se presenta
@@ -722,7 +723,7 @@ class VentasExoneradas extends Component
         A.estado_venta_id,
         users.name as vendedor,
         (select name from users where id = A.users_id ) as facturador,
-        (select u.name from comprovante_entrega ce inner join users u on ce.users_id = u.id where ce.id = A.comprovante_entrega_id) as asesor_entrega
+        (select name from users where id = A.gestor_entrega) as asesor_entrega
        from factura A
        inner join cai B
        on A.cai_id = B.id
@@ -922,7 +923,7 @@ class VentasExoneradas extends Component
         A.estado_venta_id,
         users.name as vendedor,
         (select name from users where id = A.users_id ) as facturador,
-        (select u.name from comprovante_entrega ce inner join users u on ce.users_id = u.id where ce.id = A.comprovante_entrega_id) as asesor_entrega
+        (select name from users where id = A.gestor_entrega) as asesor_entrega
        from factura A
        inner join cai B
        on A.cai_id = B.id

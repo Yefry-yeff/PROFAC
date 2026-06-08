@@ -355,11 +355,12 @@
                                     </div>
 
                                     <div class="col-md-6">
-                                        <label for="vendedor">Vendedor:<span class="text-danger"></span> </label>
+                                        <label for="vendedor">Asesor Comercial:<span class="text-danger"></span> </label>
                                         <select name="vendedor" id="vendedor" class="form-group form-control">
 
                                         </select>
                                     </div>
+
 
                                 </div>
 

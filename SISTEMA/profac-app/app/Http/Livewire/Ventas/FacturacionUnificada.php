@@ -237,19 +237,34 @@ class FacturacionUnificada extends Component
             }
 
             // Cargar datos de cabecera de la oferta original para pre-llenar el formulario
-            $cotizOrig = DB::table('cotizacion')
-                ->where('id', (int) $cotizId)
-                ->select('tipo_pago_id', 'fecha_vencimiento', 'porc_descuento', 'nota')
+            $cotizOrig = DB::table('cotizacion as c')
+                ->leftJoin('users as uv', 'uv.id', '=', 'c.vendedor')
+                ->leftJoin('users as ug', 'ug.id', '=', 'c.gestor_entrega')
+                ->where('c.id', (int) $cotizId)
+                ->select('c.tipo_pago_id', 'c.fecha_vencimiento', 'c.porc_descuento', 'c.nota',
+                         'c.vendedor', 'uv.name as vendedor_nombre',
+                         'c.gestor_entrega', 'ug.name as gestor_entrega_nombre')
                 ->first();
             if ($cotizOrig) {
                 $this->datosOfertaDuplicada = [
-                    'tipo_pago_id'      => $cotizOrig->tipo_pago_id,
-                    'fecha_vencimiento' => $cotizOrig->fecha_vencimiento
+                    'tipo_pago_id'             => $cotizOrig->tipo_pago_id,
+                    'fecha_vencimiento'        => $cotizOrig->fecha_vencimiento
                         ? \Carbon\Carbon::parse($cotizOrig->fecha_vencimiento)->format('Y-m-d')
                         : null,
-                    'porc_descuento'    => (float) ($cotizOrig->porc_descuento ?? 0),
-                    'nota'              => $cotizOrig->nota ?? '',
+                    'porc_descuento'           => (float) ($cotizOrig->porc_descuento ?? 0),
+                    'nota'                     => $cotizOrig->nota ?? '',
+                    'vendedor_id'              => $cotizOrig->vendedor,
+                    'vendedor_nombre'          => $cotizOrig->vendedor_nombre ?? '',
+                    'gestor_entrega_id'        => $cotizOrig->gestor_entrega,
+                    'gestor_entrega_nombre'    => $cotizOrig->gestor_entrega_nombre ?? '',
                 ];
+                // Override vendedorDefault so the blade pre-selection uses the original Asesor Comercial
+                if ($cotizOrig->vendedor) {
+                    $this->vendedorDefault = [
+                        'id'   => $cotizOrig->vendedor,
+                        'name' => $cotizOrig->vendedor_nombre ?? '',
+                    ];
+                }
             }
         }
 
@@ -554,6 +569,18 @@ class FacturacionUnificada extends Component
                 $vendedorId     = $userPref->id;
                 $vendedorNombre = $userPref->name;
                 $this->vendedorDefault = ['id' => $userPref->id, 'name' => $userPref->name];
+            }
+        } elseif (!empty($pref->cotizacion_id)) {
+            // Fallback: leer vendedor desde la cotización vinculada
+            $cotVend = DB::table('cotizacion as c')
+                ->join('users as u', 'u.id', '=', 'c.vendedor')
+                ->where('c.id', (int) $pref->cotizacion_id)
+                ->select('u.id', 'u.name')
+                ->first();
+            if ($cotVend) {
+                $vendedorId     = $cotVend->id;
+                $vendedorNombre = $cotVend->name;
+                $this->vendedorDefault = ['id' => $cotVend->id, 'name' => $cotVend->name];
             }
         }
 

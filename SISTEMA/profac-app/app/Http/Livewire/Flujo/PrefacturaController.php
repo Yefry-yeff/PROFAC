@@ -235,7 +235,7 @@ class PrefacturaController
                 pr.id as codigo,
                 pr.nombre,
                 pr.descripcion,
-                IF(pr.isv = 0, 'SI', 'NO') as excento,
+                IF(php.isv_producto = 0, 'SI', 'NO') as excento,
                 FORMAT(php.precio_unidad, 2) as precio,
                 FORMAT(php.cantidad, 2) as cantidad,
                 FORMAT(php.sub_total, 2) as importe,
@@ -1019,6 +1019,7 @@ class PrefacturaController
             'tipoPagoVenta'            => $tipoPago,
             'restriccion'              => 0,  // sin restricción de facturas vencidas en flujo directo
             'vendedor'                 => $pf->vendedor,
+            'gestor_entrega'           => $request->gestor_entrega ?: null,
             'porDescuento'             => $pf->porc_descuento ?? 0,
             'porDescuentoCalculado'    => $pf->monto_descuento ?? 0,
             'nota_comen'               => $pf->nota,

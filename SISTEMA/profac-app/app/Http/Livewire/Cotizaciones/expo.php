@@ -231,6 +231,7 @@ class expo extends Component
             $cotizacion->cliente_id = $request->seleccionarCliente;
             $cotizacion->tipo_venta_id = 4;
             $cotizacion->vendedor = $request->vendedor;
+            $cotizacion->gestor_entrega = $request->gestor_entrega ?: null;
             $cotizacion->nota = $request->nota;
             $cotizacion->users_id = Auth::user()->id;
             $cotizacion->arregloIdInputs = json_encode($request->arregloIdInputs);
@@ -380,6 +381,7 @@ class expo extends Component
              $cotizacion->cliente_id = $request->seleccionarCliente;
              $cotizacion->tipo_venta_id = $request->tipo_venta_id;
              $cotizacion->vendedor = $request->vendedor;
+             $cotizacion->gestor_entrega = $request->gestor_entrega ?: null;
              $cotizacion->users_id = Auth::user()->id;
              $cotizacion->arregloIdInputs = json_encode($request->arregloIdInputs);
              $cotizacion->numeroInputs = $request->numeroInputs;
@@ -527,6 +529,7 @@ class expo extends Component
             B.rtn,
             users.name,
             (select name from users where id = A.vendedor) as vendedor,
+            (select name from users where id = A.gestor_entrega) as gestor_entrega,
             A.nota,
             IFNULL(TP.descripcion, 'contado') as tipo_pago
             from cotizacion A
@@ -543,7 +546,7 @@ class expo extends Component
             C.id as codigo,
             C.nombre,
             C.descripcion,
-            if(C.isv = 0, 'SI' , 'NO' ) as excento,
+            IF(COALESCE(NULLIF(B.tipo_precio,''), IF(B.isv_producto > 0,'2','1')) = '1', 'SI', 'NO') as excento,
             FORMAT(B.precio_unidad,2) as precio,
             FORMAT(B.cantidad,2) as cantidad,
             FORMAT(B.sub_total,2) as importe,
