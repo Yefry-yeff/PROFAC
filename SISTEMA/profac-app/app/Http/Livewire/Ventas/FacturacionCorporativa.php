@@ -1140,10 +1140,11 @@ class FacturacionCorporativa extends Component
                 $subTotal = $request->$keySubTotal;
                 $isv = $request->$keyIsv;
                 $total = $request->$keyTotal;
+                $tipoPrecio = ($ivsProducto > 0) ? '2' : '1';
 
                 // dd($factura);
 
-                $this->restarUnidadesInventario($precios_producto_carga_id, $idPrecioSeleccionado, $precioSeleccionado, $restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $arrayInputs[$i]);
+                $this->restarUnidadesInventario($precios_producto_carga_id, $idPrecioSeleccionado, $precioSeleccionado, $restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $arrayInputs[$i], $tipoPrecio);
             };
 
             if ($request->tipoPagoVenta == 2) { //si el tipo de pago es credito
@@ -1677,7 +1678,7 @@ class FacturacionCorporativa extends Component
         }
     }
 
-    public function restarUnidadesInventario($precios_producto_carga_id,$idPrecioSeleccionado,$precioSeleccionado , $unidadesRestarInv, $idProducto, $idSeccion, $idFactura, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $indice)
+    public function restarUnidadesInventario($precios_producto_carga_id,$idPrecioSeleccionado,$precioSeleccionado , $unidadesRestarInv, $idProducto, $idSeccion, $idFactura, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $indice, $tipoPrecio = '2')
     {
         try {
 
@@ -1776,6 +1777,7 @@ class FacturacionCorporativa extends Component
                     "sub_total_s" => $subTotalSecccionado,
                     "isv_s" => $isvSecccionado,
                     "total_s" => $totalSecccionado,
+                    "tipo_precio" => $tipoPrecio,
                     "precioSeleccionado" => $precioSeleccionado,
                     "idPrecioSeleccionado" => $idPrecioSeleccionado,
                     "precios_producto_carga_id" => $precios_producto_carga_id,
@@ -1904,7 +1906,7 @@ class FacturacionCorporativa extends Component
                 B.producto_id as codigo,
                 concat(C.nombre) as descripcion,
                 UPPER(J.nombre) as medida,
-                if(C.isv = 0, 'SI' , 'NO' ) as excento,
+                if(COALESCE(NULLIF(MIN(B.tipo_precio), ''), if(C.isv = 0, '1', '2')) = '1', 'SI' , 'NO' ) as excento,
                 if(B.seccion_id = 0, 'N/A',H.nombre) as bodega,
                 if(B.seccion_id = 0, 'N/A',REPLACE(REPLACE(F.descripcion,'Seccion',''),' ', '')) as seccion,
                 FORMAT(B.precio_unidad,2) as precio,
@@ -2073,7 +2075,7 @@ class FacturacionCorporativa extends Component
                 B.producto_id as codigo,
                 concat(C.nombre) as descripcion,
                 UPPER(J.nombre) as medida,
-                if(C.isv = 0, 'SI' , 'NO' ) as excento,
+                if(COALESCE(NULLIF(MIN(B.tipo_precio), ''), if(C.isv = 0, '1', '2')) = '1', 'SI' , 'NO' ) as excento,
                 if(B.seccion_id = 0, 'N/A',H.nombre) as bodega,
                 if(B.seccion_id = 0, 'N/A',REPLACE(REPLACE(F.descripcion,'Seccion',''),' ', '')) as seccion,
                 B.precio_unidad as precio,
@@ -2646,7 +2648,7 @@ class FacturacionCorporativa extends Component
                 B.producto_id as codigo,
                 concat(C.nombre) as descripcion,
                 UPPER(J.nombre) as medida,
-                if(C.isv = 0, 'SI' , 'NO' ) as excento,
+                if(COALESCE(NULLIF(MIN(B.tipo_precio), ''), if(C.isv = 0, '1', '2')) = '1', 'SI' , 'NO' ) as excento,
                 if(B.seccion_id = 0, 'N/A',H.nombre) as bodega,
                 if(B.seccion_id = 0, 'N/A',REPLACE(REPLACE(F.descripcion,'Seccion',''),' ', '')) as seccion,
                 FORMAT(B.precio_unidad,2) as precio,

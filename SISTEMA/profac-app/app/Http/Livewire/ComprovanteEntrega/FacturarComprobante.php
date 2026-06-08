@@ -522,10 +522,11 @@ class FacturarComprobante extends FacturacionCorporativa
             $isv = $request->$keyIsv;
             $total = $request->$keyTotal;
             $comprobanteId = $request->idComprobante;
+            $tipoPrecio = ($ivsProducto > 0) ? '2' : '1';
 
             //dd($factura);
 
-            $this->restarUnidadesComprovanteEntrega($comprobanteId, $restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad);
+            $this->restarUnidadesComprovanteEntrega($comprobanteId, $restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $tipoPrecio);
 
                      
         };
@@ -572,7 +573,7 @@ class FacturarComprobante extends FacturacionCorporativa
 
 
 
-    public function restarUnidadesComprovanteEntrega($idComprobante, $cantidadRestarInv, $idProducto, $idSeccion, $idFactura, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad)
+    public function restarUnidadesComprovanteEntrega($idComprobante, $cantidadRestarInv, $idProducto, $idSeccion, $idFactura, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $tipoPrecio = '2')
     {
      
 
@@ -690,6 +691,7 @@ class FacturarComprobante extends FacturacionCorporativa
                     "sub_total_s" => $subTotalSecccionado,
                     "isv_s" => $isvSecccionado,
                     "total_s" => $totalSecccionado,
+                    "tipo_precio" => $tipoPrecio,
                     "created_at" => now(),
                     "updated_at" => now(),
                 ]);
@@ -922,10 +924,11 @@ class FacturarComprobante extends FacturacionCorporativa
                     $isv = $request->$keyIsv;
                     $total = $request->$keyTotal;
                     $comprobanteId = $request->idComprobante;
+                    $tipoPrecio = ($ivsProducto > 0) ? '2' : '1';
         
                     //dd($factura);
         
-                    $this->restarUnidadesComprovanteEntrega($comprobanteId, $restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad);
+                    $this->restarUnidadesComprovanteEntrega($comprobanteId, $restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $tipoPrecio);
         
                              
                 }; 

@@ -586,6 +586,7 @@ class Cotizacion extends Component
                 'seccion_id'=>$idSeccion,
                 'resta_inventario'=>$restaInventario,
                 'isv_producto'=>$ivsProductoAsignado,
+                'tipo_precio'=>($ivsProductoAsignado > 0) ? '2' : '1',
                 'unidad_medida_venta_id'=>$idUnidadVenta,
                 'monto_descProducto'=>$monto_descProducto,
                 'idPrecioSeleccionado'=>$idPrecioSeleccionado,

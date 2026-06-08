@@ -348,6 +348,7 @@ class ValeListaEspera extends Component
                 "sub_total_s" => $request->$keySubTotal,
                 "isv_s" => $request->$keyIsv,
                 "total_s" => $request->$keyTotal,
+                "tipo_precio" => ($request->$keyIsv > 0) ? '2' : '1',
                 "precioSeleccionado" => $request->$keyprecioSeleccionado,
                 "idPrecioSeleccionado" => $request->$keyidPrecioSeleccionado,
                 "created_at" => now(),

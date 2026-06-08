@@ -142,7 +142,7 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
             '#','MES','FECHA','USUARIO','CLIENTE',
             'DOCUMENTO','TIPO DOCUMENTO','NRO DOCUMENTO','OBSERVACION','ORDEN COMPRA',
             'MODO PAGO','ESTADO F01','EXONERADO','GRAVADO','EXENTO',
-            'SUBTOTAL','ISV','TOTAL','DEBITOS','CREDITOS',
+            'SUBTOTAL','ISV','TOTAL','DISMINUCION EN FACT.','AUMENTO EN FACT.',
             'SALDO DE FACTURA','MONTO PAGADO','SALDO PENDIENTE','ESTADO COBRO','FECHA VENTA',
             'FECHA VCTO.','DIAS VCTOS.','FECHA PAGO','FORMA DE PAGO','BANCO',
             'CUENTA',

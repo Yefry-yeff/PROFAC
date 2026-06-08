@@ -863,12 +863,9 @@ class ReporteVentasCobros extends Component
     {
         if (empty($facturaIds)) return [];
 
-        $ph     = implode(',', array_fill(0, count($facturaIds), '?'));
-        // 7 UNION blocks → 7 copies of facturaIds
-        $params = array_merge(
-            $facturaIds, $facturaIds, $facturaIds,
-            $facturaIds, $facturaIds
-        );
+        // Embed IDs as integer literals to avoid MySQL's 65 535-placeholder limit.
+        // Safe: every value is cast to int before interpolation.
+        $ph = implode(',', array_map('intval', $facturaIds));
 
         $movs = DB::select("
             SELECT tipo, factura_id, fecha, documento, monto,
@@ -931,7 +928,7 @@ class ReporteVentasCobros extends Component
                 WHERE nd.factura_id IN ({$ph})
             ) AS _movs
             ORDER BY factura_id ASC, fecha ASC, orden_tipo ASC
-        ", $params);
+        ");
 
         $grouped = [];
         foreach ($movs as $m) {
