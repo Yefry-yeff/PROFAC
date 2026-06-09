@@ -239,11 +239,9 @@ class FacturacionUnificada extends Component
             // Cargar datos de cabecera de la oferta original para pre-llenar el formulario
             $cotizOrig = DB::table('cotizacion as c')
                 ->leftJoin('users as uv', 'uv.id', '=', 'c.vendedor')
-                ->leftJoin('users as ug', 'ug.id', '=', 'c.gestor_entrega')
                 ->where('c.id', (int) $cotizId)
                 ->select('c.tipo_pago_id', 'c.fecha_vencimiento', 'c.porc_descuento', 'c.nota',
-                         'c.vendedor', 'uv.name as vendedor_nombre',
-                         'c.gestor_entrega', 'ug.name as gestor_entrega_nombre')
+                         'c.vendedor', 'uv.name as vendedor_nombre')
                 ->first();
             if ($cotizOrig) {
                 $this->datosOfertaDuplicada = [
@@ -255,8 +253,8 @@ class FacturacionUnificada extends Component
                     'nota'                     => $cotizOrig->nota ?? '',
                     'vendedor_id'              => $cotizOrig->vendedor,
                     'vendedor_nombre'          => $cotizOrig->vendedor_nombre ?? '',
-                    'gestor_entrega_id'        => $cotizOrig->gestor_entrega,
-                    'gestor_entrega_nombre'    => $cotizOrig->gestor_entrega_nombre ?? '',
+                    'gestor_entrega_id'        => null,
+                    'gestor_entrega_nombre'    => '',
                 ];
                 // Override vendedorDefault so the blade pre-selection uses the original Asesor Comercial
                 if ($cotizOrig->vendedor) {
