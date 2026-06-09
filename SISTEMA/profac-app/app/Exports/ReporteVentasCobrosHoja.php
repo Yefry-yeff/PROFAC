@@ -140,7 +140,7 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
         $out[] = [
             '#','MES','FECHA','USUARIO','CLIENTE',
             'DOCUMENTO','TIPO DOCUMENTO','NRO DOCUMENTO','OBSERVACION','ORDEN COMPRA',
-            'MODO PAGO','ESTADO F01','EXONERADO','GRAVADO','EXENTO',
+            'CONDICION DE VENTA','ESTADO F01','EXONERADO','GRAVADO','EXENTO',
             'SUBTOTAL','ISV','TOTAL','DISMINUCION EN FACT.','AUMENTO EN FACT.',
             'MONTO PAGADO','SALDO PENDIENTE','ESTADO COBRO','FECHA VENTA',
             'FECHA VCTO.','DIAS VCTOS.','FECHA PAGO','FORMA DE PAGO','BANCO',
@@ -299,6 +299,9 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
 
                 $retRow = array_fill(0, self::COL_COUNT, '');
                 $retRow[0]  = $item;
+                $retRow[1]  = $r->fecha_retencion ? $this->mesNombre($r->fecha_retencion) : '';
+                $retRow[2]  = $this->fmt($r->fecha_retencion ?? '');
+                $retRow[3]  = $r->usuario_retencion ?? '';
                 $retRow[4]  = $r->cliente ?? '';
                 $retRow[5]  = $facturaNum;
                 $retRow[6]  = 'Retencion ISV';
