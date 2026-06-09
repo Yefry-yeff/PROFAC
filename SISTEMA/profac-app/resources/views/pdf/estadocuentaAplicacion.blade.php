@@ -167,7 +167,7 @@
             <td class="num">L. {{ number_format($valor->notaCredito,2, '.', ',') }}</td>
             <td class="num">L. {{ number_format($valor->notaDebito, 2, '.', ',') }}</td>
             <td class="num">L. {{ number_format($valor->saldo,      2, '.', ',') }}</td>
-            <td class="num">L. {{ number_format($valor->Acumulado,  2, '.', ',') }}</td>
+            <td class="num">L. {{ number_format($valor->acumulado,  2, '.', ',') }}</td>
         </tr>
         @endforeach
     </tbody>
