@@ -15,13 +15,12 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 /**
  * Libro de Cobros — Conciliación Bancaria
  *
- * Columnas (A–P, 16 cols):
+ * Columnas (A–O, 15 cols):
  *  A  Fecha Pago      B  Cliente         C  Vendedor
  *  D  N° Factura      E  Monto Cobrado   F  Estado
- *  G  Saldo Pendiente H  Banco           I  Cuenta
- *  J  Observaciones   K  Exonerado       L  Gravado
- *  M  Exento          N  Sub Total       O  ISV
- *  P  Total Factura
+ *  G  Banco           H  Cuenta          I  Observaciones
+ *  J  Exonerado       K  Gravado         L  Exento
+ *  M  Sub Total       N  ISV             O  Total Factura
  */
 class LibroCobrosExport implements FromArray, WithStyles, WithEvents, WithStrictNullComparison
 {
@@ -29,8 +28,8 @@ class LibroCobrosExport implements FromArray, WithStyles, WithEvents, WithStrict
     protected string $fechaInicio;
     protected string $fechaFinal;
 
-    const LAST_COL  = 'P';
-    const COL_COUNT = 16;
+    const LAST_COL  = 'O';
+    const COL_COUNT = 15;
 
     public function __construct($data, string $fechaInicio, string $fechaFinal)
     {
@@ -64,14 +63,13 @@ class LibroCobrosExport implements FromArray, WithStyles, WithEvents, WithStrict
         $out[] = [
             'FECHA PAGO', 'CLIENTE', 'VENDEDOR',
             'N° FACTURA', 'MONTO COBRADO', 'ESTADO',
-            'SALDO PENDIENTE', 'BANCO', 'CUENTA',
+            'BANCO', 'CUENTA',
             'OBSERVACIONES', 'EXONERADO', 'GRAVADO',
             'EXENTO', 'SUB TOTAL', 'ISV', 'TOTAL FACTURA',
         ];
 
         /* ── Filas de datos ── */
         $totCobrado  = 0.0;
-        $totSaldo    = 0.0;
         $totExon     = 0.0;
         $totGrav     = 0.0;
         $totExen     = 0.0;
@@ -83,18 +81,22 @@ class LibroCobrosExport implements FromArray, WithStyles, WithEvents, WithStrict
         foreach ($this->data as $r) {
             $r = (array) $r;
 
-            $cobrado  = (float)($r['monto_cobrado']    ?? 0);
-            $saldo    = (float)($r['saldo_pendiente']  ?? 0);
-            $exon     = (float)($r['exonerado']        ?? 0);
-            $grav     = (float)($r['gravado']          ?? 0);
-            $exen     = (float)($r['excento']          ?? 0);
-            $sub      = (float)($r['subtotal']         ?? 0);
-            $isv      = (float)($r['isv']              ?? 0);
-            $fact     = (float)($r['total_factura']    ?? 0);
-            $estado   = $r['estado_factura'] ?? '';
+            $cobrado        = (float)($r['monto_cobrado']         ?? 0);
+            $exon           = (float)($r['exonerado']              ?? 0);
+            $grav           = (float)($r['gravado']                ?? 0);
+            $exen           = (float)($r['excento']                ?? 0);
+            $sub            = (float)($r['subtotal']               ?? 0);
+            $isv            = (float)($r['isv']                    ?? 0);
+            $fact           = (float)($r['total_factura']          ?? 0);
+            $estado         = $r['estado_factura']                 ?? '';
+            $factura        = $r['factura']                        ?? '';
+            $tienePagada    = (int)($r['factura_tiene_pagada']     ?? 1);
+
+            // Si la factura solo tiene abonos (sin pago final anulado), sub/fact = monto cobrado
+            $soloAbonos     = ($tienePagada == 0);
 
             $totCobrado += $cobrado;
-            $totSaldo   += $saldo;
+
             if ($estado === 'PAGADA') {
                 $totPagadas++;
                 $totExon += $exon;
@@ -103,6 +105,10 @@ class LibroCobrosExport implements FromArray, WithStyles, WithEvents, WithStrict
                 $totSub  += $sub;
                 $totIsv  += $isv;
                 $totFact += $fact;
+            } elseif ($soloAbonos) {
+                // Factura sin pago final: acumular monto cobrado en sub y fact
+                $totSub  += $cobrado;
+                $totFact += $cobrado;
             }
 
             $row = [
@@ -112,16 +118,15 @@ class LibroCobrosExport implements FromArray, WithStyles, WithEvents, WithStrict
                 $r['factura']       ?? '',
                 $cobrado,
                 $estado,
-                $saldo > 0.01 ? $saldo : 0,
                 $r['banco']         ?? '',
                 $r['cuenta_banco']  ?? '',
                 $r['observaciones'] ?? '',
                 $estado === 'PAGADA' ? $exon  : '',
                 $estado === 'PAGADA' ? $grav  : '',
                 $estado === 'PAGADA' ? $exen  : '',
-                $estado === 'PAGADA' ? $sub   : '',
+                $estado === 'PAGADA' ? $sub   : ($soloAbonos ? $cobrado : ''),
                 $estado === 'PAGADA' ? $isv   : '',
-                $estado === 'PAGADA' ? $fact  : '',
+                $estado === 'PAGADA' ? $fact  : ($soloAbonos ? $cobrado : ''),
             ];
             $out[] = $row;
         }
@@ -130,13 +135,12 @@ class LibroCobrosExport implements FromArray, WithStyles, WithEvents, WithStrict
         $totRow = array_fill(0, self::COL_COUNT, '');
         $totRow[0]  = 'TOTALES';
         $totRow[4]  = $totCobrado;          // MONTO COBRADO
-        $totRow[6]  = $totSaldo;            // SALDO PENDIENTE
-        $totRow[10] = $totExon;             // EXONERADO
-        $totRow[11] = $totGrav;             // GRAVADO
-        $totRow[12] = $totExen;             // EXENTO
-        $totRow[13] = $totSub;              // SUB TOTAL
-        $totRow[14] = $totIsv;              // ISV
-        $totRow[15] = $totFact;             // TOTAL FACTURA
+        $totRow[9]  = $totExon;             // EXONERADO
+        $totRow[10] = $totGrav;             // GRAVADO
+        $totRow[11] = $totExen;             // EXENTO
+        $totRow[12] = $totSub;              // SUB TOTAL
+        $totRow[13] = $totIsv;              // ISV
+        $totRow[14] = $totFact;             // TOTAL FACTURA
         $out[] = $totRow;
 
         return $out;
@@ -196,21 +200,21 @@ class LibroCobrosExport implements FromArray, WithStyles, WithEvents, WithStrict
                     ->setHorizontal(Alignment::HORIZONTAL_CENTER)
                     ->setVertical(Alignment::VERTICAL_CENTER);
                 // Texto izquierda
-                foreach (['B','C','D','H','I','J'] as $c) {
+                foreach (['B','C','D','G','H','I'] as $c) {
                     $sheet->getStyle("{$c}5:{$c}{$lastRow}")
                         ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
                 }
 
-                // Formato moneda: E, G, K–P
-                foreach (['E','G','K','L','M','N','O','P'] as $c) {
+                // Formato moneda: E, J–O
+                foreach (['E','J','K','L','M','N','O'] as $c) {
                     $sheet->getStyle("{$c}5:{$c}{$lastRow}")
                         ->getNumberFormat()->setFormatCode($currency);
                     $sheet->getStyle("{$c}5:{$c}{$lastRow}")
                         ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
                 }
 
-                // Separador visual columna K (detalle factura)
-                $sheet->getStyle("K4:K{$lastRow}")->getBorders()->getLeft()
+                // Separador visual columna J (detalle factura)
+                $sheet->getStyle("J4:J{$lastRow}")->getBorders()->getLeft()
                     ->setBorderStyle(Border::BORDER_MEDIUM)->getColor()->setRGB('f2a630');
 
                 // Colorear filas
@@ -224,9 +228,9 @@ class LibroCobrosExport implements FromArray, WithStyles, WithEvents, WithStrict
                             ->setBold(true)->setSize(9)->getColor()->setRGB('7d3f00');
                         $sheet->getRowDimension($row)->setRowHeight(16);
                     } elseif (strtoupper($estado) === 'PAGADA') {
-                        $sheet->getStyle("A{$row}:J{$row}")->getFill()
+                        $sheet->getStyle("A{$row}:I{$row}")->getFill()
                             ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('F0FDF4');
-                        $sheet->getStyle("K{$row}:{$lc}{$row}")->getFill()
+                        $sheet->getStyle("J{$row}:{$lc}{$row}")->getFill()
                             ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('DCFCE7');
                         $sheet->getStyle("E{$row}")->getFont()->setBold(true)->getColor()->setRGB('1a7a4e');
                         $sheet->getStyle("F{$row}")->getFill()
@@ -241,8 +245,6 @@ class LibroCobrosExport implements FromArray, WithStyles, WithEvents, WithStrict
                         $sheet->getStyle("F{$row}")->getFill()
                             ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('fef3c7');
                         $sheet->getStyle("F{$row}")->getFont()->setBold(true)->getColor()->setRGB('92400e');
-                        // Saldo pendiente en rojo
-                        $sheet->getStyle("G{$row}")->getFont()->setBold(true)->getColor()->setRGB('dc2626');
                         $sheet->getRowDimension($row)->setRowHeight(14);
                     }
                 }

@@ -23,6 +23,50 @@ function _lcUltimoMes() {
     };
 }
 
+/** Establece el rango de fechas según el preset indicado */
+function lcSetFechas(preset) {
+    var pad = function(n){ return String(n).padStart(2,'0'); };
+    var fmt = function(d){ return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()); };
+    var hoy = new Date();
+    var ini, fin;
+    switch (preset) {
+        case 'hoy':
+            ini = fin = fmt(hoy);
+            break;
+        case 'semana': {
+            var dow = hoy.getDay() === 0 ? 6 : hoy.getDay() - 1; // lunes=0
+            var lun = new Date(hoy); lun.setDate(hoy.getDate() - dow);
+            var dom = new Date(lun); dom.setDate(lun.getDate() + 6);
+            ini = fmt(lun); fin = fmt(dom);
+            break;
+        }
+        case 'mes':
+            ini = fmt(new Date(hoy.getFullYear(), hoy.getMonth(), 1));
+            fin = fmt(new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0));
+            break;
+        case 'mes_ant': {
+            var ma = _lcUltimoMes();
+            ini = ma.inicio; fin = ma.fin;
+            break;
+        }
+        case 'trim': {
+            var tm = Math.floor(hoy.getMonth() / 3) * 3;
+            ini = fmt(new Date(hoy.getFullYear(), tm, 1));
+            fin = fmt(new Date(hoy.getFullYear(), tm + 3, 0));
+            break;
+        }
+        default:
+            return;
+    }
+    document.getElementById('lc_fecha_inicio').value = ini;
+    document.getElementById('lc_fecha_final').value  = fin !== undefined ? fin : ini;
+    // Resaltar botón activo
+    document.querySelectorAll('.lc-ds-btn').forEach(function(b){ b.classList.remove('active'); });
+    document.querySelectorAll('.lc-ds-btn').forEach(function(b){
+        if (b.getAttribute('onclick') === "lcSetFechas('" + preset + "')") b.classList.add('active');
+    });
+}
+
 function _lcBuildUrl() {
     var fi = document.getElementById('lc_fecha_inicio').value;
     var ff = document.getElementById('lc_fecha_final').value;
@@ -46,15 +90,23 @@ function _lcActualizarBadges() {
     var ff  = document.getElementById('lc_fecha_final').value;
     var bar = document.getElementById('lc_filtros_bar');
     var html = '';
+    var esc = function(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
+    var addBadge = function(key, icon, label, elId) {
+        var el = document.getElementById(elId);
+        if (!el || !el.value) return;
+        var display = el.tagName === 'SELECT'
+            ? el.options[el.selectedIndex].text
+            : el.value;
+        html += '<span class="lc-filtro-badge">' +
+                '<i class="fa ' + icon + '"></i>&nbsp;<strong>' + label + ':</strong>&nbsp;' + esc(display) +
+                '<span class="lc-filtro-badge-rm fr" data-el="' + elId + '">&times;</span>' +
+                '</span>';
+    };
     if (fi || ff) html += '<span class="lc-filtro-badge"><i class="fa fa-calendar-o"></i> ' + (fi||'…') + ' – ' + (ff||'…') + '</span>';
-    var clSel = document.getElementById('lc_cliente');
-    if (clSel.value) html += '<span class="lc-filtro-badge"><i class="fa fa-user"></i> ' + clSel.options[clSel.selectedIndex].text + '</span>';
-    var vdSel = document.getElementById('lc_vendedor');
-    if (vdSel.value) html += '<span class="lc-filtro-badge"><i class="fa fa-briefcase"></i> ' + vdSel.options[vdSel.selectedIndex].text + '</span>';
-    var bkSel = document.getElementById('lc_banco');
-    if (bkSel.value) html += '<span class="lc-filtro-badge"><i class="fa fa-university"></i> ' + bkSel.options[bkSel.selectedIndex].text + '</span>';
-    var fc = document.getElementById('lc_factura').value.trim();
-    if (fc) html += '<span class="lc-filtro-badge"><i class="fa fa-file-text-o"></i> Factura: ' + fc + '</span>';
+    addBadge('cliente',   'fa-user',       'Cliente',  'lc_cliente');
+    addBadge('vendedor',  'fa-briefcase',  'Vendedor', 'lc_vendedor');
+    addBadge('banco',     'fa-university', 'Banco',    'lc_banco');
+    addBadge('factura',   'fa-file-text-o','Factura',  'lc_factura');
     if (html) {
         bar.innerHTML = '<i class="fa fa-info-circle" style="color:#e67e22;margin-right:4px;"></i><strong style="color:#7d3f00;margin-right:6px;">Filtros activos:</strong>' + html;
         bar.style.display = 'flex';
@@ -83,13 +135,29 @@ function _lcRenderEstado(val) {
     return '<span style="display:inline-block;padding:2px 10px;border-radius:12px;background:#fef3c7;color:#92400e;font-size:.72rem;font-weight:700;">&#9679; PARCIAL</span>';
 }
 
-/** Para columnas de detalle de factura: solo mostrar si la factura está PAGADA */
+/** Para columnas de detalle de factura:
+ *  - PAGADA (último abono que cancela): muestra valor completo de la factura
+ *  - PARCIAL: todas las columnas de detalle vacías EXCEPTO subtotal = monto_cobrado
+ */
 function _lcRenderDetalle(val, type, row) {
     if (type !== 'display') return val;
-    if (row.estado_factura !== 'PAGADA') {
-        return '<span style="color:#d1d5db;font-size:.75rem;">—</span>';
+    if (row.estado_factura === 'PAGADA') {
+        return '<span style="color:#1e3a5f;font-weight:600;">' + _lcFmt(val) + '</span>';
     }
-    return '<span style="color:#1e3a5f;font-weight:600;">' + _lcFmt(val) + '</span>';
+    return '<span style="color:#d1d5db;font-size:.75rem;">—</span>';
+}
+
+/** Subtotal/TotalFactura: si la factura no tiene ninguna PAGADA, mostrar monto_cobrado en PARCIAL */
+function _lcRenderSubtotal(val, type, row) {
+    if (type !== 'display') return val;
+    if (row.estado_factura === 'PAGADA') {
+        return '<span style="color:#1e3a5f;font-weight:600;">' + _lcFmt(val) + '</span>';
+    }
+    // Solo abonos (sin pago final): mostrar monto cobrado en lugar de —
+    if (!row.factura_tiene_pagada || row.factura_tiene_pagada == 0) {
+        return '<span style="color:#92400e;font-weight:600;">' + _lcFmt(row.monto_cobrado) + '</span>';
+    }
+    return '<span style="color:#d1d5db;font-size:.75rem;">—</span>';
 }
 
 function _lcRenderMonto(val) {
@@ -140,8 +208,6 @@ function lcBuscar() {
               render: function(v){ return _lcRenderMonto(v); } },
             { data: 'estado_factura',   title: 'Estado',           width: '95px',
               render: function(v){ return _lcRenderEstado(v); } },
-            { data: 'saldo_pendiente',  title: 'Saldo Pendiente',  width: '110px',
-              render: _lcRenderSaldo },
             { data: 'banco',            title: 'Banco' },
             { data: 'cuenta_banco',     title: 'Cuenta',           width: '110px' },
             { data: 'observaciones',    title: 'Observaciones' },
@@ -153,15 +219,15 @@ function lcBuscar() {
             { data: 'excento',          title: 'Exento',           width: '95px',
               render: _lcRenderDetalle },
             { data: 'subtotal',         title: 'Sub Total',        width: '95px',
-              render: _lcRenderDetalle },
+              render: _lcRenderSubtotal },
             { data: 'isv',              title: 'ISV',              width: '80px',
               render: _lcRenderDetalle },
             { data: 'total_factura',    title: 'Total Factura',    width: '110px',
-              render: _lcRenderDetalle }
+              render: _lcRenderSubtotal }
         ],
         rowCallback: function(row, data) {
             if (data.estado_factura === 'PAGADA') {
-                $(row).find('td').slice(10)   // cols 11+ (detail)
+                $(row).find('td').slice(9)   // cols 10+ (detail)
                       .css('background-color', '#f0fdf4');
             }
         },
@@ -176,9 +242,7 @@ function lcBuscar() {
 }
 
 function lcLimpiarFiltros() {
-    var mes = _lcUltimoMes();
-    document.getElementById('lc_fecha_inicio').value = mes.inicio;
-    document.getElementById('lc_fecha_final').value  = mes.fin;
+    lcSetFechas('mes_ant');
     document.getElementById('lc_cliente').value  = '';
     document.getElementById('lc_vendedor').value = '';
     document.getElementById('lc_banco').value    = '';
@@ -240,12 +304,26 @@ $(function() {
     if (typeof $.fn.select2 !== 'undefined') {
         $('#lc_cliente, #lc_vendedor, #lc_banco').select2({ dropdownParent: $('#modalFiltrosLC'), width: '100%' });
     }
-    // Establecer último mes
-    var mes = _lcUltimoMes();
-    document.getElementById('lc_fecha_inicio').value = mes.inicio;
-    document.getElementById('lc_fecha_final').value  = mes.fin;
-    // Auto-buscar
+    // Establecer último mes (igual que ventascobros)
+    lcSetFechas('mes_ant');
+    // Auto-buscar con fechas por defecto
     lcBuscar();
+    // Enter en campo factura aplica búsqueda
+    $(document).on('keypress', '#lc_factura', function(e) {
+        if (e.which === 13) lcBuscar();
+    });
+    // Quitar filtro individual desde la barra de badges
+    $(document).on('click', '.lc-filtro-badge-rm', function() {
+        var elId = $(this).data('el');
+        var el   = document.getElementById(elId);
+        if (!el) return;
+        el.value = '';
+        if ($(el).hasClass('select2-hidden-accessible')) {
+            $(el).val('').trigger('change');
+        }
+        _lcActualizarBadges();
+        if (_lcTable) _lcTable.ajax.reload();
+    });
 });
 
 /* ---- legacy stub ---- */

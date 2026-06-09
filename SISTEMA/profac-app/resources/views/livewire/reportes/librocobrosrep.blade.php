@@ -50,12 +50,16 @@
     .date-icon-lc { position:relative; }
     .date-icon-lc i { position:absolute; left:9px; top:50%; transform:translateY(-50%); color:#aaa; font-size:.78rem; pointer-events:none; }
     .date-icon-lc input { padding-left:28px; }
-    /* Filas completas: fondo verde muy suave en columnas de detalle de factura */
-    #tbl_libro_cobros tbody tr.lc-row-pagada td:nth-child(n+11) { background:#f0fdf4!important; }
-    #tbl_libro_cobros tbody tr.lc-row-parcial td:nth-child(n+11) { background:#fafafa; }
+    /* Date shortcut buttons */
+    .lc-date-shortcuts { display:flex; gap:5px; flex-wrap:wrap; margin-bottom:10px; }
+    .lc-ds-btn { font-size:.72rem; padding:3px 10px; border-radius:12px; border:1px solid #e8d5bf;
+        background:#fff; color:#7d3f00; cursor:pointer; font-weight:600; transition:background .15s; }
+    .lc-ds-btn:hover, .lc-ds-btn.active { background:linear-gradient(135deg,#f39c12,#e05a00); color:#fff; border-color:transparent; }
+    #tbl_libro_cobros tbody tr.lc-row-pagada td:nth-child(n+10) { background:#f0fdf4!important; }
+    #tbl_libro_cobros tbody tr.lc-row-parcial td:nth-child(n+10) { background:#fafafa; }
     /* Separador visual entre datos del cobro y detalle de factura */
-    #tbl_libro_cobros thead th:nth-child(11),
-    #tbl_libro_cobros tbody td:nth-child(11) { border-left:3px solid #f2d49a!important; }
+    #tbl_libro_cobros thead th:nth-child(10),
+    #tbl_libro_cobros tbody td:nth-child(10) { border-left:3px solid #f2d49a!important; }
     </style>
     @endpush
 
@@ -127,7 +131,6 @@
                                         <th>N&deg; Factura</th>
                                         <th>Monto Cobrado</th>
                                         <th>Estado</th>
-                                        <th>Saldo Pendiente</th>
                                         <th>Banco</th>
                                         <th>Cuenta</th>
                                         <th>Observaciones</th>
@@ -164,8 +167,16 @@
                     </button>
                 </div>
                 <div class="modal-body pb-2">
-                    <p class="lc-section-label"><i class="fa fa-calendar"></i>Rango de fechas de pago <span style="color:#e02424;font-weight:600;">*</span></p>
+                    <p class="lc-section-label"><i class="fa fa-calendar"></i>Rango de fechas de pago</p>
                     <div class="lc-filter-grid">
+                        {{-- Accesos rápidos --}}
+                        <div class="lc-date-shortcuts">
+                            <button type="button" class="lc-ds-btn" onclick="lcSetFechas('hoy')">Hoy</button>
+                            <button type="button" class="lc-ds-btn" onclick="lcSetFechas('semana')">Esta semana</button>
+                            <button type="button" class="lc-ds-btn" onclick="lcSetFechas('mes')">Este mes</button>
+                            <button type="button" class="lc-ds-btn" onclick="lcSetFechas('mes_ant')">Mes anterior</button>
+                            <button type="button" class="lc-ds-btn" onclick="lcSetFechas('trim')">Trimestre</button>
+                        </div>
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="form-group">
