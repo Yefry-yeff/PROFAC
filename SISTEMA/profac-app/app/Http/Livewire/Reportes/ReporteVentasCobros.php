@@ -748,6 +748,16 @@ class ReporteVentasCobros extends Component
                 return response()->json(['success' => false, 'mensaje' => 'Factura no encontrada'], 404);
             }
 
+            // Verificar si tiene flujo para habilitar edición de F-01
+            $flujoRow = DB::selectOne("
+                SELECT fl.id AS flujo_id
+                FROM historico_flujo hf
+                INNER JOIN flujo fl ON fl.id = hf.flujo_id
+                WHERE hf.tramite_id = ? AND hf.tipo_tramite_id = 3
+                LIMIT 1
+            ", [$facturaId]);
+            $cab->flujo_id = $flujoRow ? $flujoRow->flujo_id : null;
+
             /* ── Movimientos ── */
             $movimientos = DB::select("
                 SELECT tipo, fecha, documento, monto, banco_nombre, banco_cuenta,
@@ -839,11 +849,16 @@ class ReporteVentasCobros extends Component
                 }
             }
 
+            $cabArray = (array) $cab;
+            $cabArray['factura_id']  = $facturaId;
+            $cabArray['tiene_flujo'] = !empty($cab->flujo_id);
+
             return response()->json([
                 'success'     => true,
-                'cabecera'    => $cab,
+                'cabecera'    => $cabArray,
                 'movimientos' => $movimientos,
                 'saldo_final' => max($saldo, 0),
+                'tiene_flujo' => !empty($cab->flujo_id),
             ]);
         } catch (\Throwable $e) {
             return response()->json(['success' => false, 'mensaje' => $e->getMessage()], 500);
@@ -921,6 +936,42 @@ class ReporteVentasCobros extends Component
         } catch (\Throwable $e) {
             return response()->json(['message' => $e->getMessage()], 500);
         }
+    }
+
+    /* ─────────────────────────────────────────────────────────────────
+     *  Actualizar Estado F-01 (numero_forma_f01) en flujo
+     * ───────────────────────────────────────────────────────────────── */
+    public function actualizarF01(Request $request, $facturaId)
+    {
+        $facturaId = (int) $facturaId;
+        $valor     = trim($request->input('valor', ''));
+
+        // Buscar el flujo ligado a esta factura
+        $flujo = DB::selectOne("
+            SELECT fl.id
+            FROM historico_flujo hf
+            INNER JOIN flujo fl ON fl.id = hf.flujo_id
+            WHERE hf.tramite_id = ? AND hf.tipo_tramite_id = 3
+            LIMIT 1
+        ", [$facturaId]);
+
+        if (!$flujo) {
+            return response()->json([
+                'success' => false,
+                'mensaje' => 'Esta factura no cuenta con flujo asociado. No se puede modificar el Estado F-01.',
+            ], 422);
+        }
+
+        DB::table('flujo')->where('id', $flujo->id)->update([
+            'numero_forma_f01' => $valor ?: null,
+            'updated_at'       => now(),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'mensaje' => 'Estado F-01 actualizado correctamente.',
+            'valor'   => $valor ?: 'N/A',
+        ]);
     }
 
     /* ─────────────────────────────────────────────────────────────────

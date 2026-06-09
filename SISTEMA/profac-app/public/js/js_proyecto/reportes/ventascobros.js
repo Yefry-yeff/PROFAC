@@ -235,7 +235,17 @@ function renderExpediente(resp) {
     html += metaItem('Vencimiento',    fmtFecha(c.fecha_vencimiento));
     html += metaItem('Días Crédito',   c.credito == 0 ? 'Contado' : (c.dias_credito + ' días'));
     html += metaItem('Modo Pago',      c.modo_pago);
-    html += metaItem('Estado F-01',    c.flujo_forma_f01 || 'N/A');
+    html += '<div class="rfd-meta-item">'
+          + '<div class="rfd-meta-lbl">ESTADO F-01</div>'
+          + '<div class="rfd-meta-val" style="display:flex;align-items:center;gap:6px;">'
+          + '<span id="rfd-f01-val-' + c.factura_id + '">' + escHtml(c.flujo_forma_f01 || 'N/A') + '</span>'
+          + (c.tiene_flujo
+              ? ' <button onclick="rfdEditarF01(' + c.factura_id + ', this)" '
+                + 'style="background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.5);color:#fff;'
+                + 'border-radius:4px;padding:1px 7px;font-size:11px;cursor:pointer;" title="Editar F-01">'
+                + '<i class="fa fa-pencil"></i></button>'
+              : ' <span style="font-size:10px;opacity:.65;cursor:help;" title="Esta factura no tiene flujo asociado — no se puede editar"><i class="fa fa-lock"></i></span>')
+          + '</div></div>';
     html += metaItem('Orden Compra',   c.orden_compra || '—');
     html += metaItem('Fecha Entrega',  c.fecha_entrega ? fmtFecha(c.fecha_entrega) : 'Sin entrega');
     html += '</div></div>';
@@ -404,6 +414,55 @@ function tipoLabel(t) {
 function tipoColorMap(t) {
     var m = { VENTA:'#1a56db', ENTREGA:'#0e9f6e', ABONO:'#d97706', PAGO:'#7c3aed', NOTA_CREDITO:'#e02424', NOTA_DEBITO:'#b45309', VALE:'#e67e22', RETENCION:'#0369a1' };
     return m[t] || '#6b7280';
+}
+
+/* ────────────────────────────────────────────────────────────────────
+ *  Edición inline del Estado F-01
+ * ──────────────────────────────────────────────────────────────────── */
+function rfdEditarF01(facturaId, btn) {
+    var spanId  = '#rfd-f01-val-' + facturaId;
+    var valAct  = $(spanId).text().trim();
+    if (valAct === 'N/A') valAct = '';
+
+    Swal.fire({
+        title: 'Editar Estado F-01',
+        input: 'text',
+        inputValue: valAct,
+        inputPlaceholder: 'Ej: F-01-2026-00123',
+        inputAttributes: { maxlength: 100 },
+        showCancelButton: true,
+        confirmButtonText: '<i class="fa fa-save"></i> Guardar',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#e67e22',
+        inputLabel: 'Número de forma F-01',
+        showLoaderOnConfirm: true,
+        preConfirm: function(valor) {
+            var tok = $('meta[name="csrf-token"]').attr('content');
+            return $.ajax({
+                url: '/reporte/ventas-cobros/actualizar-f01/' + facturaId,
+                method: 'POST',
+                data: { _token: tok, valor: valor },
+            }).fail(function(xhr) {
+                var msg = xhr.responseJSON && xhr.responseJSON.mensaje
+                    ? xhr.responseJSON.mensaje
+                    : 'Error al guardar.';
+                Swal.showValidationMessage(msg);
+            });
+        },
+        allowOutsideClick: function() { return !Swal.isLoading(); }
+    }).then(function(result) {
+        if (result.isConfirmed && result.value && result.value.success) {
+            var nuevo = result.value.valor || 'N/A';
+            $(spanId).text(nuevo);
+            Swal.fire({
+                icon: 'success',
+                title: 'Actualizado',
+                text: 'Estado F-01 guardado: ' + nuevo,
+                timer: 2000,
+                showConfirmButton: false,
+            });
+        }
+    });
 }
 
 /* ────────────────────────────────────────────────────────────────────
