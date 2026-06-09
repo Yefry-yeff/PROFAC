@@ -254,21 +254,34 @@ function renderExpediente(resp) {
     html += '</div>';
 
     /* Estado financiero */
-    var totalAbonos    = 0;
-    var totalRetencion = 0;
+    var totalAbonos      = 0;
+    var totalNotasDebito = 0;
+    var totalNotasCredito= 0;
+    var totalRetencion   = 0;
     $.each(ms, function(i, mov) {
         var monto = parseFloat(mov.monto) || 0;
-        if (mov.tipo === 'ABONO' || mov.tipo === 'PAGO') totalAbonos    += monto;
-        if (mov.tipo === 'RETENCION')                    totalRetencion += monto;
+        if (mov.tipo === 'ABONO' || mov.tipo === 'PAGO') totalAbonos      += monto;
+        if (mov.tipo === 'NOTA_DEBITO')                  totalNotasDebito += monto;
+        if (mov.tipo === 'NOTA_CREDITO')                 totalNotasCredito+= monto;
+        if (mov.tipo === 'RETENCION')                    totalRetencion   += monto;
     });
 
     html += '<div class="rfd-fin-box"><h5><i class="fa fa-line-chart" style="margin-right:5px;"></i>Estado Financiero Actual</h5>';
     html += '<div class="rfd-fin-row"><span class="lbl">Total Facturado</span><span class="val" style="color:#111827;font-weight:600;">' + fmtLps(c.total_factura) + '</span></div>';
-    html += '<div class="rfd-fin-row"><span class="lbl">Total Abonado / Pagado</span><span class="val" style="color:#0e9f6e;font-weight:600;">' + fmtLps(totalAbonos) + '</span></div>';
-    if (totalRetencion > 0) {
-        html += '<div class="rfd-fin-row"><span class="lbl" style="padding-left:12px;color:#6b7280;">↳ Retención ISV</span><span class="val" style="color:#0369a1;font-weight:600;">' + fmtLps(totalRetencion) + '</span></div>';
+    if (totalNotasDebito > 0) {
+        html += '<div class="rfd-fin-row"><span class="lbl" style="padding-left:12px;color:#6b7280;">↳ Notas de Débito</span><span class="val" style="color:#b45309;font-weight:600;">+ ' + fmtLps(totalNotasDebito) + '</span></div>';
     }
-    html += '<div class="rfd-fin-row ' + saldoClass + '"><span class="lbl">Saldo Pendiente</span><span class="val">' + fmtLps(resp.saldo_final) + '</span></div>';
+    if (totalNotasCredito > 0) {
+        html += '<div class="rfd-fin-row"><span class="lbl" style="padding-left:12px;color:#6b7280;">↳ Notas de Crédito</span><span class="val" style="color:#e02424;font-weight:600;">- ' + fmtLps(totalNotasCredito) + '</span></div>';
+    }
+    if (totalRetencion > 0) {
+        html += '<div class="rfd-fin-row"><span class="lbl" style="padding-left:12px;color:#6b7280;">↳ Retención ISV</span><span class="val" style="color:#0369a1;font-weight:600;">- ' + fmtLps(totalRetencion) + '</span></div>';
+    }
+    html += '<div class="rfd-fin-row"><span class="lbl">Total Abonado / Pagado</span><span class="val" style="color:#0e9f6e;font-weight:600;">' + fmtLps(totalAbonos) + '</span></div>';
+    var saldoCalculado = (parseFloat(c.total_factura) || 0) + totalNotasDebito - totalNotasCredito - totalRetencion - totalAbonos;
+    if (saldoCalculado < 0) saldoCalculado = 0;
+    var saldoClassCalc = saldoCalculado <= 0.01 ? 'saldo-0' : (parseInt(c.dias_vencidos) > 0 ? 'saldo-venc' : '');
+    html += '<div class="rfd-fin-row ' + saldoClassCalc + '"><span class="lbl">Saldo Pendiente</span><span class="val">' + fmtLps(saldoCalculado) + '</span></div>';
     html += finRow('D\u00edas Vencidos',
         (parseInt(c.dias_vencidos) > 0)
             ? '<span style="color:#e02424;font-weight:700;">' + c.dias_vencidos + ' d\u00edas</span>'
@@ -317,7 +330,7 @@ function estadoCobro(c, saldoFinal) {
 function renderMovimiento(mov) {
     var tipo  = (mov.tipo || '').toUpperCase();
     var monto = parseFloat(mov.monto) || 0;
-    var esCargo  = tipo === 'VENTA';
+    var esCargo  = tipo === 'VENTA' || tipo === 'NOTA_DEBITO';
     var esAbono  = !esCargo && tipo !== 'ENTREGA' && tipo !== 'VALE';
 
     var dotClass   = 'rfd-dot-' + tipo.toLowerCase();
@@ -328,7 +341,7 @@ function renderMovimiento(mov) {
 
     if (tipo !== 'ENTREGA' && tipo !== 'VALE') {
         var sign = esCargo ? '+' : '-';
-        var montoColor = esCargo ? '#111827' : '#0e9f6e';
+        var montoColor = (tipo === 'NOTA_DEBITO') ? '#b45309' : (esCargo ? '#111827' : '#0e9f6e');
         montoHtml = '<span class="rfd-tl-monto" style="color:' + montoColor + ';">' + sign + ' ' + fmtLpsAbs(monto) + '</span>';
     }
 
@@ -381,15 +394,15 @@ function carteraItem(lbl, val) {
     return '<div class="rfd-cartera-item"><div class="ci-lbl">' + lbl + '</div><div class="ci-val">' + (val || '—') + '</div></div>';
 }
 function tipoIcon(t) {
-    var m = { VENTA:'fa-file-text-o', ENTREGA:'fa-truck', ABONO:'fa-money', PAGO:'fa-credit-card', NOTA_CREDITO:'fa-minus-circle', VALE:'fa-ticket', RETENCION:'fa-percent' };
+    var m = { VENTA:'fa-file-text-o', ENTREGA:'fa-truck', ABONO:'fa-money', PAGO:'fa-credit-card', NOTA_CREDITO:'fa-minus-circle', NOTA_DEBITO:'fa-plus-circle', VALE:'fa-ticket', RETENCION:'fa-percent' };
     return m[t] || 'fa-circle-o';
 }
 function tipoLabel(t) {
-    var m = { VENTA:'Venta', ENTREGA:'Entrega', ABONO:'Abono Crédito', PAGO:'Pago Contado', NOTA_CREDITO:'Nota de Crédito', VALE:'Vale de Entrega', RETENCION:'Retención ISV' };
+    var m = { VENTA:'Venta', ENTREGA:'Entrega', ABONO:'Abono Crédito', PAGO:'Pago Contado', NOTA_CREDITO:'Nota de Crédito', NOTA_DEBITO:'Nota de Débito', VALE:'Vale de Entrega', RETENCION:'Retención ISV' };
     return m[t] || t;
 }
 function tipoColorMap(t) {
-    var m = { VENTA:'#1a56db', ENTREGA:'#0e9f6e', ABONO:'#d97706', PAGO:'#7c3aed', NOTA_CREDITO:'#e02424', VALE:'#e67e22', RETENCION:'#0369a1' };
+    var m = { VENTA:'#1a56db', ENTREGA:'#0e9f6e', ABONO:'#d97706', PAGO:'#7c3aed', NOTA_CREDITO:'#e02424', NOTA_DEBITO:'#b45309', VALE:'#e67e22', RETENCION:'#0369a1' };
     return m[t] || '#6b7280';
 }
 

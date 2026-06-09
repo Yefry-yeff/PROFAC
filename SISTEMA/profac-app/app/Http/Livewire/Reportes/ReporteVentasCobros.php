@@ -744,6 +744,16 @@ class ReporteVentasCobros extends Component
 
                     UNION ALL
 
+                    /* Nota de débito */
+                    SELECT 'NOTA_DEBITO', nd.fechaEmision, nd.correlativoND,
+                           nd.monto_asignado, NULL, NULL, NULL,
+                           COALESCE(nd.motivoDescripcion,''), COALESCE(u_nd.name,''), NULL, 6
+                    FROM notadebito nd
+                    LEFT JOIN users u_nd ON u_nd.id = nd.users_registra_id
+                    WHERE nd.factura_id = ?
+
+                    UNION ALL
+
                     /* Retención ISV */
                     SELECT 'RETENCION', apc_ret.updated_at,
                            COALESCE(NULLIF(TRIM(apc_ret.comentario_retencion),''), 'Retención ISV'),
@@ -756,7 +766,7 @@ class ReporteVentasCobros extends Component
                     WHERE apc_ret.factura_id = ? AND apc_ret.estado_retencion_isv = 2
                 ) AS _movs
                 ORDER BY fecha ASC, orden_tipo ASC
-            ", [$facturaId, $facturaId, $facturaId, $facturaId, $facturaId]);
+            ", [$facturaId, $facturaId, $facturaId, $facturaId, $facturaId, $facturaId]);
 
             /* ── Calcular saldo progresivo ── */
             $saldo = (float) $cab->total_factura;

@@ -109,6 +109,7 @@
     .rfd-dot-abono        { background:#d97706; }
     .rfd-dot-pago         { background:#7c3aed; }
     .rfd-dot-nota_credito { background:#e02424; }
+    .rfd-dot-nota_debito  { background:#b45309; }
     .rfd-dot-vale         { background:#e67e22; }
     /* layout overrides */
     #page-wrapper { padding-left:0!important; padding-right:0!important; }
