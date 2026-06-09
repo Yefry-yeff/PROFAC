@@ -70,8 +70,12 @@ function lcSetFechas(preset) {
 function _lcBuildUrl() {
     var fi = document.getElementById('lc_fecha_inicio').value;
     var ff = document.getElementById('lc_fecha_final').value;
-    if (!fi || !ff) return null;
-    var url    = '/reporte/Librocobrosrep/consulta/3/' + fi + '/' + ff;
+    var url;
+    if (fi && ff) {
+        url = '/reporte/Librocobrosrep/consulta/3/' + fi + '/' + ff;
+    } else {
+        url = '/reporte/Librocobrosrep/consulta/3';
+    }
     var params = [];
     var cl = document.getElementById('lc_cliente').value;
     var vd = document.getElementById('lc_vendedor').value;
@@ -102,7 +106,8 @@ function _lcActualizarBadges() {
                 '<span class="lc-filtro-badge-rm fr" data-el="' + elId + '">&times;</span>' +
                 '</span>';
     };
-    if (fi || ff) html += '<span class="lc-filtro-badge"><i class="fa fa-calendar-o"></i> ' + (fi||'…') + ' – ' + (ff||'…') + '</span>';
+    if (fi) html += '<span class="lc-filtro-badge"><i class="fa fa-calendar-o"></i>&nbsp;<strong>Desde:</strong>&nbsp;' + esc(fi) + '<span class="lc-filtro-badge-rm fr" data-el="lc_fecha_inicio">&times;</span></span>';
+    if (ff) html += '<span class="lc-filtro-badge"><i class="fa fa-calendar-o"></i>&nbsp;<strong>Hasta:</strong>&nbsp;' + esc(ff) + '<span class="lc-filtro-badge-rm fr" data-el="lc_fecha_final">&times;</span></span>';
     addBadge('cliente',   'fa-user',       'Cliente',  'lc_cliente');
     addBadge('vendedor',  'fa-briefcase',  'Vendedor', 'lc_vendedor');
     addBadge('banco',     'fa-university', 'Banco',    'lc_banco');
@@ -173,12 +178,6 @@ function _lcRenderSaldo(val, type, row) {
 
 // ── funciones públicas ────────────────────────────────────────
 function lcBuscar() {
-    var fi = document.getElementById('lc_fecha_inicio').value;
-    var ff = document.getElementById('lc_fecha_final').value;
-    if (!fi || !ff) {
-        Swal.fire({ icon: 'warning', title: 'Fechas requeridas', text: 'Por favor seleccione el rango de fechas de pago.', confirmButtonColor: '#e67e22' });
-        return;
-    }
     var url = _lcBuildUrl();
     if (_lcTable) { _lcTable.destroy(); _lcTable = null; $('#tbl_libro_cobros tbody').empty(); }
     _lcActualizarBadges();
@@ -242,7 +241,8 @@ function lcBuscar() {
 }
 
 function lcLimpiarFiltros() {
-    lcSetFechas('mes_ant');
+    document.getElementById('lc_fecha_inicio').value = '';
+    document.getElementById('lc_fecha_final').value  = '';
     document.getElementById('lc_cliente').value  = '';
     document.getElementById('lc_vendedor').value = '';
     document.getElementById('lc_banco').value    = '';
@@ -252,11 +252,10 @@ function lcLimpiarFiltros() {
         try { $('#lc_vendedor').trigger('change'); } catch(e) {}
         try { $('#lc_banco').trigger('change'); }    catch(e) {}
     }
+    // Quitar resaltado de botones de acceso rápido
+    document.querySelectorAll('.lc-ds-btn').forEach(function(b){ b.classList.remove('active'); });
     document.getElementById('lc_filtros_bar').style.display = 'none';
-    if (_lcTable) { _lcTable.destroy(); _lcTable = null; $('#tbl_libro_cobros tbody').empty(); }
-    document.getElementById('lc_kpi_registros').innerHTML    = '&mdash;';
-    document.getElementById('lc_kpi_total_pagado').innerHTML = '&mdash;';
-    document.getElementById('lc_kpi_completas').innerHTML    = '&mdash;';
+    lcBuscar();
 }
 
 function lcExportarExcel() {
@@ -321,8 +320,7 @@ $(function() {
         if ($(el).hasClass('select2-hidden-accessible')) {
             $(el).val('').trigger('change');
         }
-        _lcActualizarBadges();
-        if (_lcTable) _lcTable.ajax.reload();
+        lcBuscar();
     });
 });
 

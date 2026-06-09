@@ -180,7 +180,7 @@
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label>Desde <span class="text-danger">*</span></label>
+                                    <label>Desde</label>
                                     <div class="date-icon-lc"><i class="fa fa-calendar-o"></i>
                                         <input type="date" class="form-control form-control-sm" id="lc_fecha_inicio">
                                     </div>
@@ -188,7 +188,7 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label>Hasta <span class="text-danger">*</span></label>
+                                    <label>Hasta</label>
                                     <div class="date-icon-lc"><i class="fa fa-calendar-o"></i>
                                         <input type="date" class="form-control form-control-sm" id="lc_fecha_final">
                                     </div>

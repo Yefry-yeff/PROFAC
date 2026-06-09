@@ -24,14 +24,15 @@ class Librocobrosrep extends Component
 
 
 
-    public function consulta(Request $request, $tipo, $fechaInicio, $fechaFinal)
+    public function consulta(Request $request, $tipo, $fechaInicio = null, $fechaFinal = null)
     {
+        // Normalizar: si viene 'todos' o vacío, tratar como sin filtro de fecha
+        $hasFecha = !empty($fechaInicio) && $fechaInicio !== 'todos'
+                 && !empty($fechaFinal)   && $fechaFinal   !== 'todos';
+
         try {
             // Tipo 3 = Libro de Cobros (conciliación bancaria) — sólo abonos reales
             if ($tipo == 3) {
-                // Subquery base: todos los abonos de las facturas con cobros en el período,
-                // incluyendo abonos anteriores (para calcular saldo acumulado correcto).
-                // Luego filtramos por fecha_pago en la capa exterior.
                 $sql = "
                     SELECT *
                     FROM (
@@ -84,18 +85,34 @@ class Librocobrosrep extends Component
                             INNER JOIN users u    ON u.id  = f.vendedor
                             INNER JOIN banco b    ON b.id  = ac.banco_id
                             WHERE ac.estado_abono = 1
+                ";
+
+                $bindings = [];
+
+                if ($hasFecha) {
+                    $sql .= "
                               AND ac.factura_id IN (
                                 SELECT DISTINCT factura_id
                                 FROM abonos_creditos
                                 WHERE DATE(fecha_pago) BETWEEN ? AND ?
                                   AND estado_abono = 1
                             )
+                    ";
+                    $bindings[] = $fechaInicio;
+                    $bindings[] = $fechaFinal;
+                }
+
+                $sql .= "
                         ) inner_sub
                     ) sub
-                    WHERE DATE(sub.fecha_pago) BETWEEN ? AND ?
+                    WHERE 1=1
                 ";
 
-                $bindings = [$fechaInicio, $fechaFinal, $fechaInicio, $fechaFinal];
+                if ($hasFecha) {
+                    $sql .= ' AND DATE(sub.fecha_pago) BETWEEN ? AND ?';
+                    $bindings[] = $fechaInicio;
+                    $bindings[] = $fechaFinal;
+                }
 
                 if ($request->filled('cliente_id')) {
                     $sql .= ' AND sub._cliente_id = ?';
