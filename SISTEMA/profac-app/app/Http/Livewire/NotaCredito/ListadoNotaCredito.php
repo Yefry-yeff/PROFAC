@@ -24,6 +24,8 @@ use App\Models\ModelLista;
 use App\Models\ModelCliente;
 use App\Models\logCredito;
 use App\Models\User;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\NotasCreditoExport;
 
 class ListadoNotaCredito extends Component
 {
@@ -47,9 +49,11 @@ class ListadoNotaCredito extends Component
 
         $fechaInicio = $AnioActual.'-'.$mesActual.'-01';
 
+        $clientes = DB::select("SELECT id, nombre FROM cliente ORDER BY nombre ASC");
+        $motivos  = DB::select("SELECT id, descripcion FROM motivo_nota_credito ORDER BY descripcion ASC");
+        $usuarios = DB::select("SELECT id, name FROM users WHERE estado_id = 1 ORDER BY name ASC");
 
-
-        return view('livewire.nota-credito.listado-nota-credito',compact('fechaInicio'));
+        return view('livewire.nota-credito.listado-nota-credito', compact('fechaInicio', 'clientes', 'motivos', 'usuarios'));
     }
 
     public function listadoNotaCredito(Request $request){
@@ -79,7 +83,10 @@ class ListadoNotaCredito extends Component
 
             fa.tipo_venta_id = 2
             and estado_nota_id <>2
-            and fecha BETWEEN '".$request->fechaInicio."' and '".$request->fechaFinal."'"
+            and A.fecha BETWEEN '".$request->fechaInicio."' and '".$request->fechaFinal."'"
+            . ($request->cliente_id ? " and cli.id = " . intval($request->cliente_id) : "")
+            . ($request->motivo_id  ? " and A.motivo_nota_credito_id = " . intval($request->motivo_id) : "")
+            . ($request->user_id    ? " and A.users_id = " . intval($request->user_id) : "")
             );
             //dd($listado);
             /* A.estado_nota_dec = 1 */
@@ -122,6 +129,67 @@ class ListadoNotaCredito extends Component
            }
     }
 
+
+    public function kpis(Request $request)
+    {
+        try {
+            $tipoVenta = intval($request->tipo_venta ?? 2);
+            $sql = "
+                SELECT COUNT(*) as total,
+                    COALESCE(SUM(A.sub_total),0) as sub_total,
+                    COALESCE(SUM(A.isv),0) as isv,
+                    COALESCE(SUM(A.total),0) as total_monto
+                FROM nota_credito A
+                INNER JOIN factura fa ON fa.id = A.factura_id
+                INNER JOIN cliente cli ON cli.id = fa.cliente_id
+                WHERE fa.tipo_venta_id = {$tipoVenta}
+                AND estado_nota_id <> 2
+                AND A.fecha BETWEEN '".$request->fechaInicio."' AND '".$request->fechaFinal."'"
+                . ($request->cliente_id ? " AND cli.id = " . intval($request->cliente_id) : "")
+                . ($request->motivo_id  ? " AND A.motivo_nota_credito_id = " . intval($request->motivo_id) : "")
+                . ($request->user_id    ? " AND A.users_id = " . intval($request->user_id) : "");
+            $row = DB::selectOne($sql);
+            return response()->json([
+                'success'     => true,
+                'total'       => $row->total       ?? 0,
+                'sub_total'   => $row->sub_total   ?? 0,
+                'isv'         => $row->isv         ?? 0,
+                'total_monto' => $row->total_monto ?? 0,
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['success' => false], 500);
+        }
+    }
+
+    public function exportarExcel(Request $request)
+    {
+        try {
+            $listado = DB::SELECT("
+                SELECT A.id as codigo, A.cai, cli.nombre as cliente, fa.cai as factura,
+                    B.descripcion as motivo, A.comentario, A.sub_total, A.isv, A.total,
+                    A.created_at as fecha_registro, users.name as registrado_por
+                FROM nota_credito A
+                INNER JOIN motivo_nota_credito B ON A.motivo_nota_credito_id = B.id
+                INNER JOIN users ON A.users_id = users.id
+                INNER JOIN factura fa ON fa.id = A.factura_id
+                INNER JOIN cliente cli ON cli.id = fa.cliente_id
+                WHERE fa.tipo_venta_id = 2
+                AND estado_nota_id <> 2
+                AND A.fecha BETWEEN '".$request->fechaInicio."' AND '".$request->fechaFinal."'"
+                . ($request->cliente_id ? " AND cli.id = " . intval($request->cliente_id) : "")
+                . ($request->motivo_id  ? " AND A.motivo_nota_credito_id = " . intval($request->motivo_id) : "")
+                . ($request->user_id    ? " AND A.users_id = " . intval($request->user_id) : "")
+                . " ORDER BY A.fecha DESC"
+            );
+            $usuario = Auth::check() ? Auth::user()->name : 'Sistema';
+            return Excel::download(
+                new NotasCreditoExport($listado, $usuario, 'Notas de Crédito — Clientes A'),
+                'NotasCreditoA_' . now()->format('Y-m-d') . '.xlsx'
+            );
+        } catch (\Throwable $e) {
+            return response()->json(['message' => $e->getMessage()], 500);
+        }
+    }
 
     public function imprimirFacturaCoorporativa($idFactura)
     {

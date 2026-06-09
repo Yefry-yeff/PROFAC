@@ -2425,7 +2425,7 @@ class FacturacionCorporativa extends Component
     {
         $search = trim($request->get('search', ''));
 
-        $query = DB::table('users')->where('rol_id', 2);
+        $query = DB::table('users')->where('rol_id', 2)->where('estado_id', 1);
         if ($search !== '') {
             $query->where('name', 'like', '%' . $search . '%');
         }

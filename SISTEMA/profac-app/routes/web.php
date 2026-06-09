@@ -993,6 +993,9 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
 
     Route::get('/nota/credito/listado', ListadoNotaCredito::class);
     Route::post('/nota/credito/listar', [ListadoNotaCredito::class, 'listadoNotaCredito']);
+    Route::post('/nota/credito/kpis', [ListadoNotaCredito::class, 'kpis']);
+    Route::post('/nota/credito/exportar-excel', [ListadoNotaCredito::class, 'exportarExcel']);
+    Route::post('/nota/credito/gobierno/exportar-excel', [ListadoNotasND::class, 'exportarExcel']);
     Route::get('/nota/credito/imprimir/{idNota}', [ListadoNotaCredito::class, 'imprimirnotaCreditoOriginal']);
     Route::get('/nota/credito/imprimir/copia/{idNota}', [ListadoNotaCredito::class, 'imprimirnotaCreditoCopia']);
     Route::post('/nota/credito/anular', [CrearNotaCredito::class, 'anularNotaCredito']);
@@ -1257,6 +1260,10 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
 
     Route::get('/nota/debito/lista/gobierno', ListadoNotasDebitoND::class);
     Route::get('/listado/nota/debito/gobierno/{fechaInicio}/{fechaFinal}', [ListadoNotasDebitoND::class,'listarnotasDebito']);
+
+    Route::post('/nota/debito/kpis', [ListadoNotasDebito::class,'kpis']);
+    Route::post('/nota/debito/exportar-excel', [ListadoNotasDebito::class,'exportarExcel']);
+    Route::post('/nota/debito/gobierno/exportar-excel', [ListadoNotasDebitoND::class,'exportarExcel']);
 
     Route::get('/debito/anular/{idNota}', [ListadoNotasDebitoND::class,'anularNota']);
 

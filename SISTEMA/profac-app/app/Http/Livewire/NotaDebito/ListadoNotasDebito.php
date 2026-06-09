@@ -7,6 +7,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use DataTables;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\Auth;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\NotasDebitoExport;
 use App\Models\NotaDebito\notaDebito;
 
 class ListadoNotasDebito extends Component
@@ -31,7 +34,10 @@ class ListadoNotasDebito extends Component
 
         $fechaInicio = $AnioActual.'-'.$mesActual.'-01';
 
-        return view('livewire.nota-debito.listado-notas-debito',compact('fechaInicio'));
+        $clientes = DB::select("SELECT id, nombre FROM cliente ORDER BY nombre ASC");
+        $usuarios = DB::select("SELECT id, name FROM users WHERE estado_id = 1 ORDER BY name ASC");
+
+        return view('livewire.nota-debito.listado-notas-debito', compact('fechaInicio', 'clientes', 'usuarios'));
     }
 
     public function listarnotasDebito($fechaInicio,$fechaFinal){
@@ -169,6 +175,64 @@ class ListadoNotasDebito extends Component
                 "title"=>"Error!",
                 "error" => $e
             ],402);
+        }
+    }
+
+    public function kpis(Request $request)
+    {
+        try {
+            $tipoCliente = intval($request->tipo_cliente ?? 1);
+            $sql = "SELECT COUNT(*) as total,
+                    COALESCE(SUM(nd.monto_asignado),0) as monto_total,
+                    SUM(nd.estado_id = 1) as activas,
+                    SUM(nd.estado_id = 2) as anuladas
+                FROM notadebito nd
+                INNER JOIN factura f ON f.id = nd.factura_id
+                INNER JOIN cliente cli ON cli.id = f.cliente_id
+                WHERE cli.tipo_cliente_id = {$tipoCliente}
+                AND nd.created_at >= '".$request->fechaInicio."' AND nd.created_at <= '".$request->fechaFinal."'"
+                . ($request->cliente_id ? " AND cli.id = " . intval($request->cliente_id) : "")
+                . ($request->estado_id  ? " AND nd.estado_id = " . intval($request->estado_id) : "")
+                . ($request->user_id    ? " AND nd.users_registra_id = " . intval($request->user_id) : "");
+            $row = DB::selectOne($sql);
+            return response()->json([
+                'success'    => true,
+                'total'      => $row->total      ?? 0,
+                'monto_total'=> $row->monto_total ?? 0,
+                'activas'    => $row->activas     ?? 0,
+                'anuladas'   => $row->anuladas    ?? 0,
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['success' => false], 500);
+        }
+    }
+
+    public function exportarExcel(Request $request)
+    {
+        try {
+            $tipoCliente = intval($request->tipo_cliente ?? 1);
+            $listado = DB::SELECT("
+                SELECT nd.id, nd.created_at, nd.correlativoND, f.cai,
+                    cli.nombre as cliente, nd.fechaEmision, nd.monto_asignado,
+                    u.name as user, nd.estado_id
+                FROM notadebito nd
+                INNER JOIN factura f ON f.id = nd.factura_id
+                INNER JOIN cliente cli ON cli.id = f.cliente_id
+                LEFT JOIN users u ON u.id = nd.users_registra_id
+                WHERE cli.tipo_cliente_id = {$tipoCliente}
+                AND nd.created_at >= '".$request->fechaInicio."' AND nd.created_at <= '".$request->fechaFinal."'"
+                . ($request->cliente_id ? " AND cli.id = " . intval($request->cliente_id) : "")
+                . ($request->estado_id  ? " AND nd.estado_id = " . intval($request->estado_id) : "")
+                . ($request->user_id    ? " AND nd.users_registra_id = " . intval($request->user_id) : "")
+                . " ORDER BY nd.created_at DESC"
+            );
+            $usuario = Auth::check() ? Auth::user()->name : 'Sistema';
+            return Excel::download(
+                new NotasDebitoExport($listado, $usuario, 'Notas de Débito — Clientes B'),
+                'NotasDebitoB_' . now()->format('Y-m-d') . '.xlsx'
+            );
+        } catch (\Throwable $e) {
+            return response()->json(['message' => $e->getMessage()], 500);
         }
     }
 }
