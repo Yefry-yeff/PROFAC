@@ -15,7 +15,11 @@ class Librocobrosrep extends Component
 {
     public function render()
     {
-        return view('livewire.reportes.librocobrosrep');
+        $clientes  = DB::table('cliente')->orderBy('nombre')->get(['id','nombre']);
+        $vendedores = DB::table('users')->orderBy('name')->get(['id','name']);
+        $bancos    = DB::table('banco')->orderBy('nombre')->get(['id','nombre']);
+
+        return view('livewire.reportes.librocobrosrep', compact('clientes','vendedores','bancos'));
     }
 
 
