@@ -50,6 +50,12 @@
     .date-icon-lc { position:relative; }
     .date-icon-lc i { position:absolute; left:9px; top:50%; transform:translateY(-50%); color:#aaa; font-size:.78rem; pointer-events:none; }
     .date-icon-lc input { padding-left:28px; }
+    /* Filas completas: fondo verde muy suave en columnas de detalle de factura */
+    #tbl_libro_cobros tbody tr.lc-row-pagada td:nth-child(n+11) { background:#f0fdf4!important; }
+    #tbl_libro_cobros tbody tr.lc-row-parcial td:nth-child(n+11) { background:#fafafa; }
+    /* Separador visual entre datos del cobro y detalle de factura */
+    #tbl_libro_cobros thead th:nth-child(11),
+    #tbl_libro_cobros tbody td:nth-child(11) { border-left:3px solid #f2d49a!important; }
     </style>
     @endpush
 
@@ -91,7 +97,7 @@
                         <div class="lc-stat-pill">
                             <i class="fa fa-list" style="color:var(--lc-orange)"></i>
                             <span class="pill-val" id="lc_kpi_registros">&mdash;</span>
-                            <span>Registros</span>
+                            <span>Cobros</span>
                         </div>
                         <div class="lc-stat-pill green">
                             <i class="fa fa-money" style="color:#1a7a4e"></i>
@@ -99,9 +105,9 @@
                             <span>Total Cobrado</span>
                         </div>
                         <div class="lc-stat-pill">
-                            <i class="fa fa-percent" style="color:var(--lc-orange)"></i>
-                            <span class="pill-val" id="lc_kpi_retencion">&mdash;</span>
-                            <span>Retenciones</span>
+                            <i class="fa fa-check-circle" style="color:var(--lc-orange)"></i>
+                            <span class="pill-val" id="lc_kpi_completas">&mdash;</span>
+                            <span>Facturas Completas</span>
                         </div>
                     </div>
 
@@ -114,23 +120,24 @@
                             <table id="tbl_libro_cobros" class="table table-hover table-bordered" style="width:100%;">
                                 <thead>
                                     <tr>
-                                        <th>Vendedor</th>
+                                        {{-- Datos del cobro --}}
+                                        <th>Fecha Pago</th>
                                         <th>Cliente</th>
-                                        <th>Factura</th>
-                                        <th>Exonerado</th>
+                                        <th>Vendedor</th>
+                                        <th>N&deg; Factura</th>
+                                        <th>Monto Cobrado</th>
+                                        <th>Estado</th>
+                                        <th>Saldo Pendiente</th>
+                                        <th>Banco</th>
+                                        <th>Cuenta</th>
+                                        <th>Observaciones</th>
+                                        {{-- Detalle de factura (visible cuando PAGADA) --}}
+                                        <th title="Detalle de factura — visible cuando está pagada">Exonerado</th>
                                         <th>Gravado</th>
                                         <th>Exento</th>
-                                        <th>Abono</th>
                                         <th>Sub Total</th>
                                         <th>ISV</th>
-                                        <th>Total</th>
-                                        <th>Retenci&oacute;n</th>
-                                        <th>Total Pagado</th>
-                                        <th>Fecha Compra</th>
-                                        <th>Fecha Vencimiento</th>
-                                        <th>Fecha Pago</th>
-                                        <th>Banco</th>
-                                        <th>Observaciones</th>
+                                        <th>Total Factura</th>
                                     </tr>
                                 </thead>
                                 <tbody></tbody>

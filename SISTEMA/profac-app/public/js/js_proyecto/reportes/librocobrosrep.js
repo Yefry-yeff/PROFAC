@@ -1,20 +1,33 @@
 ﻿/* ============================================================
-   Libro de Cobros – JS (rediseño con filtros dinámicos)
+   Libro de Cobros – Conciliación Bancaria
    ============================================================ */
 
 var _lcTable = null;
-var _lcFiltros = {};
 
 // ── helpers ──────────────────────────────────────────────────
 function _lcFmt(n) {
     return 'L ' + parseFloat(n || 0).toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+/** Devuelve {inicio: 'YYYY-MM-DD', fin: 'YYYY-MM-DD'} del mes anterior */
+function _lcUltimoMes() {
+    var hoy  = new Date();
+    var y    = hoy.getMonth() === 0 ? hoy.getFullYear() - 1 : hoy.getFullYear();
+    var m    = hoy.getMonth() === 0 ? 11 : hoy.getMonth() - 1;   // 0-based
+    var ini  = new Date(y, m, 1);
+    var fin  = new Date(y, m + 1, 0);
+    var pad  = function(n){ return String(n).padStart(2,'0'); };
+    return {
+        inicio : y + '-' + pad(m + 1) + '-01',
+        fin    : y + '-' + pad(m + 1) + '-' + pad(fin.getDate())
+    };
+}
+
 function _lcBuildUrl() {
     var fi = document.getElementById('lc_fecha_inicio').value;
     var ff = document.getElementById('lc_fecha_final').value;
     if (!fi || !ff) return null;
-    var url = '/reporte/Librocobrosrep/consulta/3/' + fi + '/' + ff;
+    var url    = '/reporte/Librocobrosrep/consulta/3/' + fi + '/' + ff;
     var params = [];
     var cl = document.getElementById('lc_cliente').value;
     var vd = document.getElementById('lc_vendedor').value;
@@ -29,8 +42,8 @@ function _lcBuildUrl() {
 }
 
 function _lcActualizarBadges() {
-    var fi = document.getElementById('lc_fecha_inicio').value;
-    var ff = document.getElementById('lc_fecha_final').value;
+    var fi  = document.getElementById('lc_fecha_inicio').value;
+    var ff  = document.getElementById('lc_fecha_final').value;
     var bar = document.getElementById('lc_filtros_bar');
     var html = '';
     if (fi || ff) html += '<span class="lc-filtro-badge"><i class="fa fa-calendar-o"></i> ' + (fi||'…') + ' – ' + (ff||'…') + '</span>';
@@ -51,15 +64,43 @@ function _lcActualizarBadges() {
 }
 
 function _lcActualizarKpis(data) {
-    var rows = Array.isArray(data) ? data : [];
-    var totalPagado = 0, totalRet = 0;
+    var rows       = Array.isArray(data) ? data : [];
+    var totalCob   = 0, totalPagadas = 0;
     rows.forEach(function(r) {
-        totalPagado += parseFloat(r['TOTAL PAGADO'] || 0);
-        totalRet    += parseFloat(r['RETENCION']    || 0);
+        totalCob += parseFloat(r.monto_cobrado || 0);
+        if (r.estado_factura === 'PAGADA') totalPagadas++;
     });
-    document.getElementById('lc_kpi_registros').textContent   = rows.length.toLocaleString('es-HN');
-    document.getElementById('lc_kpi_total_pagado').textContent = _lcFmt(totalPagado);
-    document.getElementById('lc_kpi_retencion').textContent    = _lcFmt(totalRet);
+    document.getElementById('lc_kpi_registros').textContent    = rows.length.toLocaleString('es-HN');
+    document.getElementById('lc_kpi_total_pagado').textContent = _lcFmt(totalCob);
+    document.getElementById('lc_kpi_completas').textContent    = totalPagadas.toLocaleString('es-HN');
+}
+
+// ── Render helpers para celdas ────────────────────────────────
+function _lcRenderEstado(val) {
+    if (val === 'PAGADA') {
+        return '<span style="display:inline-block;padding:2px 10px;border-radius:12px;background:#d1fae5;color:#065f46;font-size:.72rem;font-weight:700;">&#10003; PAGADA</span>';
+    }
+    return '<span style="display:inline-block;padding:2px 10px;border-radius:12px;background:#fef3c7;color:#92400e;font-size:.72rem;font-weight:700;">&#9679; PARCIAL</span>';
+}
+
+/** Para columnas de detalle de factura: solo mostrar si la factura está PAGADA */
+function _lcRenderDetalle(val, type, row) {
+    if (type !== 'display') return val;
+    if (row.estado_factura !== 'PAGADA') {
+        return '<span style="color:#d1d5db;font-size:.75rem;">—</span>';
+    }
+    return '<span style="color:#1e3a5f;font-weight:600;">' + _lcFmt(val) + '</span>';
+}
+
+function _lcRenderMonto(val) {
+    return '<span style="font-weight:700;color:#1a7a4e;">' + _lcFmt(val) + '</span>';
+}
+
+function _lcRenderSaldo(val, type, row) {
+    if (type !== 'display') return val;
+    var v = parseFloat(val || 0);
+    if (v <= 0.01) return '<span style="color:#d1d5db;font-size:.75rem;">—</span>';
+    return '<span style="color:#dc2626;font-weight:600;">' + _lcFmt(v) + '</span>';
 }
 
 // ── funciones públicas ────────────────────────────────────────
@@ -85,49 +126,73 @@ function lcBuscar() {
         ajax: {
             url: url,
             dataSrc: function(json) {
-                _lcActualizarKpis(json.data || json);
-                return json.data || json;
+                var rows = json.data || json;
+                _lcActualizarKpis(rows);
+                return rows;
             }
         },
         columns: [
-            { data: 'VENDEDOR' },
-            { data: 'CLIENTE' },
-            { data: 'FACTURA' },
-            { data: 'EXONERADO' },
-            { data: 'GRAVADO' },
-            { data: 'EXCENTO' },
-            { data: 'ABONO' },
-            { data: 'SUBTOTAL' },
-            { data: 'ISV' },
-            { data: 'TOTAL' },
-            { data: 'RETENCION' },
-            { data: 'TOTAL PAGADO' },
-            { data: 'FECHA DE COMPRA' },
-            { data: 'FECHA DE VENCIMIENTO' },
-            { data: 'FECHA DE PAGO' },
-            { data: 'BANCO' },
-            { data: 'OBSERVACIONES' }
-        ]
+            { data: 'fecha_pago',       title: 'Fecha Pago',       width: '90px' },
+            { data: 'cliente',          title: 'Cliente' },
+            { data: 'vendedor',         title: 'Vendedor' },
+            { data: 'factura',          title: 'N° Factura',       width: '130px' },
+            { data: 'monto_cobrado',    title: 'Monto Cobrado',    width: '110px',
+              render: function(v){ return _lcRenderMonto(v); } },
+            { data: 'estado_factura',   title: 'Estado',           width: '95px',
+              render: function(v){ return _lcRenderEstado(v); } },
+            { data: 'saldo_pendiente',  title: 'Saldo Pendiente',  width: '110px',
+              render: _lcRenderSaldo },
+            { data: 'banco',            title: 'Banco' },
+            { data: 'cuenta_banco',     title: 'Cuenta',           width: '110px' },
+            { data: 'observaciones',    title: 'Observaciones' },
+            // ── Detalle de factura — solo visible cuando PAGADA ──
+            { data: 'exonerado',        title: 'Exonerado',        width: '95px',
+              render: _lcRenderDetalle },
+            { data: 'gravado',          title: 'Gravado',          width: '95px',
+              render: _lcRenderDetalle },
+            { data: 'excento',          title: 'Exento',           width: '95px',
+              render: _lcRenderDetalle },
+            { data: 'subtotal',         title: 'Sub Total',        width: '95px',
+              render: _lcRenderDetalle },
+            { data: 'isv',              title: 'ISV',              width: '80px',
+              render: _lcRenderDetalle },
+            { data: 'total_factura',    title: 'Total Factura',    width: '110px',
+              render: _lcRenderDetalle }
+        ],
+        rowCallback: function(row, data) {
+            if (data.estado_factura === 'PAGADA') {
+                $(row).find('td').slice(10)   // cols 11+ (detail)
+                      .css('background-color', '#f0fdf4');
+            }
+        },
+        createdRow: function(row, data) {
+            if (data.estado_factura === 'PAGADA') {
+                $(row).addClass('lc-row-pagada');
+            } else {
+                $(row).addClass('lc-row-parcial');
+            }
+        }
     });
 }
 
 function lcLimpiarFiltros() {
-    document.getElementById('lc_fecha_inicio').value = '';
-    document.getElementById('lc_fecha_final').value  = '';
+    var mes = _lcUltimoMes();
+    document.getElementById('lc_fecha_inicio').value = mes.inicio;
+    document.getElementById('lc_fecha_final').value  = mes.fin;
     document.getElementById('lc_cliente').value  = '';
     document.getElementById('lc_vendedor').value = '';
     document.getElementById('lc_banco').value    = '';
     document.getElementById('lc_factura').value  = '';
     if (typeof $ !== 'undefined') {
-        try { $('#lc_cliente').trigger('change'); } catch(e) {}
+        try { $('#lc_cliente').trigger('change'); }  catch(e) {}
         try { $('#lc_vendedor').trigger('change'); } catch(e) {}
-        try { $('#lc_banco').trigger('change'); } catch(e) {}
+        try { $('#lc_banco').trigger('change'); }    catch(e) {}
     }
     document.getElementById('lc_filtros_bar').style.display = 'none';
     if (_lcTable) { _lcTable.destroy(); _lcTable = null; $('#tbl_libro_cobros tbody').empty(); }
-    document.getElementById('lc_kpi_registros').innerHTML   = '&mdash;';
+    document.getElementById('lc_kpi_registros').innerHTML    = '&mdash;';
     document.getElementById('lc_kpi_total_pagado').innerHTML = '&mdash;';
-    document.getElementById('lc_kpi_retencion').innerHTML    = '&mdash;';
+    document.getElementById('lc_kpi_completas').innerHTML    = '&mdash;';
 }
 
 function lcExportarExcel() {
@@ -142,12 +207,13 @@ function lcExportarExcel() {
     form.method = 'POST';
     form.action = '/reporte/Librocobrosrep/exportar-excel/3/' + encodeURIComponent(fi) + '/' + encodeURIComponent(ff);
     var ci = document.createElement('input'); ci.type='hidden'; ci.name='_token'; ci.value=csrfToken; form.appendChild(ci);
-    // pass optional filters
     ['cliente_id','vendedor_id','banco_id','factura'].forEach(function(k){
-        var vals = {'cliente_id': document.getElementById('lc_cliente').value,
-                    'vendedor_id': document.getElementById('lc_vendedor').value,
-                    'banco_id': document.getElementById('lc_banco').value,
-                    'factura': document.getElementById('lc_factura').value.trim()};
+        var vals = {
+            'cliente_id' : document.getElementById('lc_cliente').value,
+            'vendedor_id': document.getElementById('lc_vendedor').value,
+            'banco_id'   : document.getElementById('lc_banco').value,
+            'factura'    : document.getElementById('lc_factura').value.trim()
+        };
         if (vals[k]) { var inp = document.createElement('input'); inp.type='hidden'; inp.name=k; inp.value=vals[k]; form.appendChild(inp); }
     });
     document.body.appendChild(form); form.submit(); document.body.removeChild(form);
@@ -168,15 +234,20 @@ function lcExportarPdf() {
     document.body.appendChild(form); form.submit(); document.body.removeChild(form);
 }
 
-// ── Init Select2 si está disponible ──────────────────────────
+// ── Init: último mes por defecto + auto-buscar ────────────────
 $(function() {
+    // Select2
     if (typeof $.fn.select2 !== 'undefined') {
         $('#lc_cliente, #lc_vendedor, #lc_banco').select2({ dropdownParent: $('#modalFiltrosLC'), width: '100%' });
     }
+    // Establecer último mes
+    var mes = _lcUltimoMes();
+    document.getElementById('lc_fecha_inicio').value = mes.inicio;
+    document.getElementById('lc_fecha_final').value  = mes.fin;
+    // Auto-buscar
+    lcBuscar();
 });
 
-/* ---- legacy stub: redirect to new lcBuscar ---- */
-function carga_libro_cobros() {
-    lcBuscar();
-}
+/* ---- legacy stub ---- */
+function carga_libro_cobros() { lcBuscar(); }
 

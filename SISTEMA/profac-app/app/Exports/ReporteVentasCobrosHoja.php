@@ -121,6 +121,18 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
         $out  = [];
         $item = 0;
 
+        // Acumuladores de totales (solo filas FACTURA)
+        $totExon   = 0.0;
+        $totGrav   = 0.0;
+        $totExen   = 0.0;
+        $totSub    = 0.0;
+        $totIsv    = 0.0;
+        $totTotal  = 0.0;
+        $totDeb    = 0.0;
+        $totCred   = 0.0;
+        $totPagado = 0.0;
+        $totSaldo  = 0.0;
+
         /* Fila 1 */
         $r1 = array_fill(0, self::COL_COUNT, '');
         $r1[0] = 'DISTRIBUCIONES VALENCIA   |   RTN: 08011986138652';
@@ -232,6 +244,18 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
             $row[29] = '';
             $out[] = $row;
 
+            // Acumular totales de fila factura
+            $totExon   += (float)($r->exonerado ?? 0);
+            $totGrav   += (float)($r->gravado   ?? 0);
+            $totExen   += (float)($r->exento    ?? 0);
+            $totSub    += (float)($r->sub_total ?? 0);
+            $totIsv    += (float)($r->isv       ?? 0);
+            $totTotal  += (float)($r->total     ?? 0);
+            $totDeb    += $totalDebitos;
+            $totCred   += $totalCreditos;
+            $totPagado += $_pagosVal;
+            $totSaldo  += $finalSaldoPendiente;
+
             /* ── MOVIMIENTOS ───────────────────────────────── */
             foreach ($movs as $mov) {
                 if ($mov->tipo === 'VENTA') continue;
@@ -314,6 +338,24 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
                 $out[] = $retRow;
             }
         }
+
+        /* ── FILA TOTALES ─────────────────────────────────── */
+        $totRow = array_fill(0, self::COL_COUNT, '');
+        $totRow[0]  = '';
+        $totRow[4]  = 'TOTALES';              // CLIENTE col (label)
+        $totRow[12] = $totExon   > 0 ? $totExon   : '';  // EXONERADO
+        $totRow[13] = $totGrav   > 0 ? $totGrav   : '';  // GRAVADO
+        $totRow[14] = $totExen   > 0 ? $totExen   : '';  // EXENTO
+        $totRow[15] = $totSub;                            // SUBTOTAL
+        $totRow[16] = $totIsv;                            // ISV
+        $totRow[17] = $totTotal;                          // TOTAL
+        $totRow[18] = $totDeb    > 0 ? -$totDeb   : '';  // DISMINUCION (negativo)
+        $totRow[19] = $totCred   > 0 ? $totCred   : '';  // AUMENTO
+        $totRow[20] = $totPagado > 0 ? -$totPagado : '';  // MONTO PAGADO (negativo)
+        $totRow[21] = $totSaldo;                          // SALDO PENDIENTE
+        $excelRow = count($out) + 1;
+        $this->rowMeta[$excelRow] = ['type' => 'TOTALES'];
+        $out[] = $totRow;
 
         return $out;
     }
@@ -418,8 +460,16 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
                     $type = $meta['type'] ?? '';
                     $h    = 13;
 
-                    if ($type === self::T_FACTURA) {
-                        // ── Fila factura: fondo naranja, negrita ──
+                    if ($type === 'TOTALES') {
+                        // ── Fila totales ──────────────────────────
+                        $sheet->getStyle("A{$row}:{$lc}{$row}")->getFill()
+                            ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FFF3E0');
+                        $sheet->getStyle("A{$row}:{$lc}{$row}")->getFont()
+                            ->setBold(true)->setSize(9)->getColor()->setRGB('7d3f00');
+                        $sheet->getStyle("A{$row}:{$lc}{$row}")->getBorders()->getTop()
+                            ->setBorderStyle(Border::BORDER_MEDIUM)->getColor()->setRGB('e07000');
+                        $h = 16;
+                    } elseif ($type === self::T_FACTURA) {                        // ── Fila factura: fondo naranja, negrita ──
                         $esAnu = strtoupper((string)($meta['estado_f01'] ?? '')) === 'ANULADO';
                         $bg    = $esAnu ? 'EBEBEB' : 'FFF3E0';
 
