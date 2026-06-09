@@ -338,7 +338,6 @@ class Cotizacion extends Component
             $cotizacion->cliente_id = $request->seleccionarCliente;
             $cotizacion->tipo_venta_id = $request->tipo_venta_id;
             $cotizacion->vendedor = $request->vendedor;
-            $cotizacion->gestor_entrega = $request->gestor_entrega ?: null;
             $cotizacion->users_id = Auth::user()->id;
             $cotizacion->arregloIdInputs = json_encode($request->arregloIdInputs);
             $cotizacion->numeroInputs = $request->numeroInputs;
@@ -713,7 +712,6 @@ class Cotizacion extends Component
             B.rtn,
             users.name as cotizador,
             (select name from users where id = A.vendedor) as vendedor,
-            (select name from users where id = A.gestor_entrega) as gestor_entrega,
             A.nota,
             (select hf.flujo_id from historico_flujo hf where hf.tramite_id = A.id and hf.tipo_tramite_id = 2 limit 1) as flujo_id,
             IFNULL(TP.descripcion, 'contado') as tipo_pago

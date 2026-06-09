@@ -231,7 +231,6 @@ class expo extends Component
             $cotizacion->cliente_id = $request->seleccionarCliente;
             $cotizacion->tipo_venta_id = 4;
             $cotizacion->vendedor = $request->vendedor;
-            $cotizacion->gestor_entrega = $request->gestor_entrega ?: null;
             $cotizacion->nota = $request->nota;
             $cotizacion->users_id = Auth::user()->id;
             $cotizacion->arregloIdInputs = json_encode($request->arregloIdInputs);
@@ -381,7 +380,6 @@ class expo extends Component
              $cotizacion->cliente_id = $request->seleccionarCliente;
              $cotizacion->tipo_venta_id = $request->tipo_venta_id;
              $cotizacion->vendedor = $request->vendedor;
-             $cotizacion->gestor_entrega = $request->gestor_entrega ?: null;
              $cotizacion->users_id = Auth::user()->id;
              $cotizacion->arregloIdInputs = json_encode($request->arregloIdInputs);
              $cotizacion->numeroInputs = $request->numeroInputs;
@@ -529,7 +527,6 @@ class expo extends Component
             B.rtn,
             users.name,
             (select name from users where id = A.vendedor) as vendedor,
-            (select name from users where id = A.gestor_entrega) as gestor_entrega,
             A.nota,
             IFNULL(TP.descripcion, 'contado') as tipo_pago
             from cotizacion A
