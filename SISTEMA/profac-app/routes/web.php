@@ -1383,6 +1383,9 @@ Route::get('/reporte/ventas-cobros',                                            
 Route::get('/reporte/ventas-cobros/consulta/{vendedorId}/{clienteId}/{mes}/{anio}',                 [ReporteVentasCobros::class, 'consulta']);
 Route::post('/reporte/ventas-cobros/exportar-pdf/{vendedorId}/{clienteId}/{mes}/{anio}',            [ReporteVentasCobros::class, 'exportarPdf'])->name('reporte.ventas_cobros.pdf');
 Route::post('/reporte/ventas-cobros/exportar-excel/{vendedorId}/{clienteId}/{mes}/{anio}',          [ReporteVentasCobros::class, 'exportarExcel'])->name('reporte.ventas_cobros.excel');
+Route::post('/reporte/ventas-cobros/exportar-excel-async/{vendedorId}/{clienteId}/{mes}/{anio}',    [ReporteVentasCobros::class, 'exportarExcelAsync'])->name('reporte.ventas_cobros.excel.async');
+Route::get('/reporte/ventas-cobros/exportar-excel-estado/{token}',                                   [ReporteVentasCobros::class, 'estadoExportExcel'])->name('reporte.ventas_cobros.excel.estado');
+Route::get('/reporte/ventas-cobros/exportar-excel-descargar/{token}',                                [ReporteVentasCobros::class, 'descargarExportExcel'])->name('reporte.ventas_cobros.excel.descargar');
 Route::get('/reporte/ventas-cobros/datos',                                                          [ReporteVentasCobros::class, 'consultaDatos']);
 Route::get('/reporte/ventas-cobros/kpis',                                                           [ReporteVentasCobros::class, 'kpis']);
 Route::get('/reporte/ventas-cobros/expediente/{facturaId}',                                         [ReporteVentasCobros::class, 'expediente']);

@@ -173,13 +173,13 @@
                             <i class="fa fa-level-up" style="color:var(--pf-orange)"></i>
                             <span class="pill-val" id="kpi_pendiente">&#8212;</span>
                             <span>Aumento Factura</span>
-                            <span class="pill-sub" id="kpi_fac_pendientes"></span>
+                            <span class="pill-sub" id="kpi_sub_aumento"></span>
                         </div>
                         <div class="rvc-stat-pill red">
                             <i class="fa fa-level-down" style="color:#b91c1c"></i>
                             <span class="pill-val" id="kpi_vencido">&#8212;</span>
                             <span>Disminuyo Factura</span>
-                            <span class="pill-sub" id="kpi_fac_vencidas"></span>
+                            <span class="pill-sub" id="kpi_sub_disminucion"></span>
                         </div>
                         <div class="rvc-stat-pill">
                             <i class="fa fa-clock-o" style="color:var(--pf-orange)"></i>

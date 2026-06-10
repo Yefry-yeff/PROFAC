@@ -169,7 +169,8 @@ function cargarKpis() {
             $('#kpi_total_facturas').text(k.total_facturas + ' facturas');
             $('#kpi_fac_pagadas').text(k.facturas_pagadas + ' pagadas');
             $('#kpi_fac_pendientes').text(k.facturas_pendientes + ' pendientes');
-            $('#kpi_fac_vencidas').text('');
+            $('#kpi_sub_aumento').text('');
+            $('#kpi_sub_disminucion').text('');
         }
     });
 }
@@ -496,7 +497,109 @@ function _exportarForm(url) {
     form.remove();
 }
 function exportarPdf()   { _exportarForm('/reporte/ventas-cobros/exportar-pdf/null/null/null/null'); }
-function exportarExcel() { _exportarForm('/reporte/ventas-cobros/exportar-excel/null/null/null/null'); }
+function exportarExcel() {
+    var f   = getFiltros();
+    var tok = $('meta[name="csrf-token"]').attr('content');
+
+    Swal.fire({
+        title: 'Generando Excel',
+        html: 'Preparando reporte...<br><small>Este proceso puede tardar varios minutos.</small>',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        showConfirmButton: false,
+        didOpen: function() { Swal.showLoading(); }
+    });
+
+    $.ajax({
+        url: '/reporte/ventas-cobros/exportar-excel-async/null/null/null/null',
+        type: 'POST',
+        dataType: 'json',
+        data: {
+            _token: tok,
+            vendedor:          f.vendedor          || '',
+            cliente:           f.cliente           || '',
+            factura:           f.factura           || '',
+            fecha_desde:       f.fecha_desde       || '',
+            fecha_hasta:       f.fecha_hasta       || '',
+            fecha_pago_desde:  f.fecha_pago_desde  || '',
+            fecha_pago_hasta:  f.fecha_pago_hasta  || '',
+            estado_cobro:      f.estado_cobro      || '',
+            estado_f01:        f.estado_f01        || '',
+            modo_pago:         f.modo_pago         || '',
+            banco:             f.banco             || '',
+            cuenta:            f.cuenta            || ''
+        },
+        success: function(resp) {
+            if (!resp || !resp.success || !resp.token) {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo iniciar la exportación.' });
+                return;
+            }
+            _pollExportExcel(resp.token);
+        },
+        error: function(xhr) {
+            var msg = (xhr.responseJSON && (xhr.responseJSON.message || xhr.responseJSON.mensaje))
+                ? (xhr.responseJSON.message || xhr.responseJSON.mensaje)
+                : 'No se pudo iniciar la exportación.';
+            Swal.fire({ icon: 'error', title: 'Error', text: msg });
+        }
+    });
+}
+
+function _pollExportExcel(token) {
+    var startedAt = Date.now();
+    var pollId = setInterval(function() {
+        $.ajax({
+            url: '/reporte/ventas-cobros/exportar-excel-estado/' + encodeURIComponent(token),
+            type: 'GET',
+            dataType: 'json',
+            success: function(resp) {
+                if (!resp || !resp.success) {
+                    return;
+                }
+
+                var st = resp.status || 'queued';
+                var pct = parseInt(resp.progress || 0, 10);
+                if (isNaN(pct)) pct = 0;
+
+                if (st === 'queued' || st === 'processing') {
+                    Swal.update({
+                        html: 'Generando archivo... ' + pct + '%<br><small>El reporte se procesa en segundo plano.</small>'
+                    });
+                    return;
+                }
+
+                if (st === 'ready') {
+                    clearInterval(pollId);
+                    Swal.close();
+                    window.location.href = '/reporte/ventas-cobros/exportar-excel-descargar/' + encodeURIComponent(token);
+                    return;
+                }
+
+                if (st === 'failed') {
+                    clearInterval(pollId);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Exportación fallida',
+                        text: resp.message || 'No se pudo generar el archivo.'
+                    });
+                }
+            },
+            error: function() {
+                // tolerar fallos transitorios de red durante el polling
+            }
+        });
+
+        // Timeout de polling en cliente (15 min)
+        if (Date.now() - startedAt > 15 * 60 * 1000) {
+            clearInterval(pollId);
+            Swal.fire({
+                icon: 'warning',
+                title: 'Demora en exportación',
+                text: 'La generación sigue en proceso. Intenta nuevamente en unos minutos.'
+            });
+        }
+    }, 2500);
+}
 
 /* ────────────────────────────────────────────────────────────────────
  *  Fechas por defecto — último mes calendario

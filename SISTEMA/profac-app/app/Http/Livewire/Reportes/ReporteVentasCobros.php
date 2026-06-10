@@ -10,6 +10,10 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\ReporteVentasCobrosExport;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use App\Jobs\GenerarVentasCobrosExcelJob;
 
 class ReporteVentasCobros extends Component
 {
@@ -987,6 +991,122 @@ class ReporteVentasCobros extends Component
         } catch (\Throwable $e) {
             return response()->json(['message' => $e->getMessage()], 500);
         }
+    }
+
+    public function exportarExcelAsync(Request $request, $vendedorId = null, $clienteId = null, $mes = null, $anio = null)
+    {
+        try {
+            $token = (string) Str::uuid();
+            $userId = Auth::id() ?: 0;
+            $usuario = Auth::user() ? Auth::user()->name : 'Sistema';
+            $statusKey = $this->exportStatusKey($token);
+
+            $payload = [
+                'vendedor'         => $this->norm($request->input('vendedor',    $vendedorId)),
+                'cliente'          => $this->norm($request->input('cliente',     $clienteId)),
+                'mes'              => $this->norm($mes),
+                'anio'             => $this->norm($anio),
+                'factura'          => $this->norm($request->input('factura')),
+                'fecha_desde'      => $this->norm($request->input('fecha_desde')),
+                'fecha_hasta'      => $this->norm($request->input('fecha_hasta')),
+                'estado_cobro'     => $this->norm($request->input('estado_cobro')),
+                'estado_f01'       => $this->norm($request->input('estado_f01')),
+                'modo_pago'        => $this->norm($request->input('modo_pago')),
+                'banco'            => $this->norm($request->input('banco')),
+                'cuenta'           => $this->norm($request->input('cuenta')),
+                'fecha_pago_desde' => $this->norm($request->input('fecha_pago_desde')),
+                'fecha_pago_hasta' => $this->norm($request->input('fecha_pago_hasta')),
+            ];
+
+            Cache::put($statusKey, [
+                'status' => 'queued',
+                'user_id' => $userId,
+                'created_at' => now()->toDateTimeString(),
+                'progress' => 5,
+            ], now()->addHours(6));
+
+            GenerarVentasCobrosExcelJob::dispatch($payload, $token, $userId, $usuario)
+                ->afterResponse();
+
+            return response()->json([
+                'success' => true,
+                'token' => $token,
+                'message' => 'Exportacion en proceso.',
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function estadoExportExcel(Request $request, $token)
+    {
+        $data = Cache::get($this->exportStatusKey($token));
+        if (!$data) {
+            return response()->json(['success' => false, 'status' => 'not-found'], 404);
+        }
+
+        $userId = Auth::id() ?: 0;
+        if ((int)($data['user_id'] ?? 0) !== (int)$userId) {
+            return response()->json(['success' => false, 'status' => 'forbidden'], 403);
+        }
+
+        return response()->json([
+            'success' => true,
+            'status' => $data['status'] ?? 'queued',
+            'progress' => (int)($data['progress'] ?? 0),
+            'message' => $data['message'] ?? null,
+        ]);
+    }
+
+    public function descargarExportExcel(Request $request, $token)
+    {
+        $data = Cache::get($this->exportStatusKey($token));
+        if (!$data || ($data['status'] ?? '') !== 'ready') {
+            return response()->json(['success' => false, 'message' => 'Archivo no disponible.'], 404);
+        }
+
+        $userId = Auth::id() ?: 0;
+        if ((int)($data['user_id'] ?? 0) !== (int)$userId) {
+            return response()->json(['success' => false, 'message' => 'No autorizado.'], 403);
+        }
+
+        $file = $data['file'] ?? null;
+        $name = $data['file_name'] ?? ('ReporteVentasCobros_' . now()->format('Y-m-d') . '.xlsx');
+        if (!$file || !Storage::disk('local')->exists($file)) {
+            return response()->json(['success' => false, 'message' => 'Archivo no encontrado.'], 404);
+        }
+
+        return Storage::disk('local')->download($file, $name);
+    }
+
+    private function exportStatusKey(string $token): string
+    {
+        return 'rvc_export_status_' . $token;
+    }
+
+    public function buildExcelRowsFromPayload(array $payload): array
+    {
+        return $this->sqlReporteExcel(
+            $payload['vendedor'] ?? null,
+            $payload['cliente'] ?? null,
+            $payload['mes'] ?? null,
+            $payload['anio'] ?? null,
+            $payload['factura'] ?? null,
+            $payload['fecha_desde'] ?? null,
+            $payload['fecha_hasta'] ?? null,
+            $payload['estado_cobro'] ?? null,
+            $payload['estado_f01'] ?? null,
+            $payload['modo_pago'] ?? null,
+            $payload['banco'] ?? null,
+            $payload['cuenta'] ?? null,
+            $payload['fecha_pago_desde'] ?? null,
+            $payload['fecha_pago_hasta'] ?? null
+        );
+    }
+
+    public function buildExcelMovimientosFromFacturaIds(array $facturaIds): array
+    {
+        return $this->getMovimientosBulk($facturaIds);
     }
 
     /* ─────────────────────────────────────────────────────────────────
