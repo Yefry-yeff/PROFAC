@@ -110,9 +110,10 @@ class EvaluacionDeClientesPorNivelDeFacturacion extends Component
                 uf.fecha_emision                                                                  AS fecha_ultima_factura,
                 COALESCE(uf.total, 0)                                                            AS monto_ultima_factura,
                 COALESCE(
-                    (SELECT SUM(f3.pendiente_cobro)
-                     FROM factura f3
-                     WHERE f3.cliente_id = c.id),
+                    (SELECT SUM(ap2.saldo)
+                     FROM aplicacion_pagos ap2
+                     WHERE ap2.cliente_id = c.id
+                       AND ap2.estado = 1),
                     0
                 )                                                                                AS saldo_pendiente,
                 CASE

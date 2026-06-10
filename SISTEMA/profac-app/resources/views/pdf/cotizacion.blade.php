@@ -135,7 +135,8 @@
         <td style="width:57%; vertical-align:top; border:none; padding:0 4px 0 0;">
             <div class="card border border-dark">
                 <div class="card-body" style="padding:4px 8px;">
-                    <p style="margin:0 0 1px; font-size:10px;"><b>Vendedor:</b> {{ $datos->vendedor }} &nbsp; <b>Cotizador:</b> {{ $datos->cotizador }}</p>
+                    <p style="margin:0 0 1px; font-size:10px;"><b>Asesor Comercial:</b> {{ $datos->vendedor }} &nbsp; <b>Tele Asesor:</b> {{ $datos->cotizador }}</p>
+                    
                     <p style="margin:0 0 2px; font-size:10px;"><b>Trámite #{{ $datos->flujo_id ?? '—' }}</b></p>
                     <hr style="margin:2px 0; border-top:1px solid #999;">
                     @if(!empty($datos->nota))

@@ -137,10 +137,12 @@ class ReporteVentasCobros extends Component
             f.numero_secuencia_cai,
             COALESCE(f.comentario, '')                                  AS observacion,
             COALESCE(noc.numero_orden, '')                              AS orden_compra,
+            COALESCE(flujo_doc.numero_orden_compra, '')                  AS flujo_orden_compra,
 
             /* ── Clasificación fiscal ── */
             COALESCE(tpv.descripcion, '')                               AS modo_pago,
             UPPER(ev.descripcion)                                       AS estado_f01,
+            COALESCE(flujo_doc.numero_forma_f01, '')                    AS flujo_forma_f01,
 
             /* ── Montos factura ── */
             GREATEST(
@@ -189,6 +191,12 @@ class ReporteVentasCobros extends Component
             CASE WHEN COALESCE(apc.estado_retencion_isv,0) = 2
                 THEN COALESCE(NULLIF(TRIM(apc.comentario_retencion),''),'No aplica') ELSE 'No aplica'
             END                                                        AS numero_retencion,
+            CASE WHEN COALESCE(apc.estado_retencion_isv,0) = 2
+                THEN DATE(apc.updated_at) ELSE NULL
+            END                                                        AS fecha_retencion,
+            CASE WHEN COALESCE(apc.estado_retencion_isv,0) = 2
+                THEN COALESCE((SELECT name FROM users WHERE id = apc.usr_cerro),'')  ELSE ''
+            END                                                        AS usuario_retencion,
 
             /* ── Saldo pendiente ── */
             CASE
@@ -204,11 +212,7 @@ class ReporteVentasCobros extends Component
             /* ── Fechas ── */
             f.fecha_emision                                            AS fecha_venta,
             f.fecha_vencimiento,
-            DATEDIFF(COALESCE(
-                (SELECT MAX(ac_dv.fecha_pago) FROM abonos_creditos ac_dv
-                 INNER JOIN aplicacion_pagos ap_dv ON ap_dv.id = ac_dv.aplicacion_pagos_id
-                 WHERE ap_dv.factura_id = f.id AND ac_dv.estado_abono = 1),
-                CURDATE()), f.fecha_vencimiento)                        AS dias_vencidos,
+            NULL                                                       AS dias_vencidos,
 
             /* ── Estado crédito (legacy) ── */
             CASE
@@ -224,8 +228,10 @@ class ReporteVentasCobros extends Component
                 WHERE ap3.factura_id=f.id AND ac3.estado_abono=1
                 ORDER BY ac3.id DESC LIMIT 1),'')                      AS fecha_pago,
 
-            COALESCE((SELECT ac3.comentario FROM abonos_creditos ac3
+            COALESCE((SELECT tpc.descripcion
+                FROM abonos_creditos ac3
                 INNER JOIN aplicacion_pagos ap3 ON ap3.id=ac3.aplicacion_pagos_id
+                LEFT JOIN tipo_pago_cobro tpc ON tpc.id = ac3.id_tipo_pago_cobro
                 WHERE ap3.factura_id=f.id AND ac3.estado_abono=1
                 ORDER BY ac3.id DESC LIMIT 1),'')                      AS forma_pago,
 
@@ -250,13 +256,19 @@ class ReporteVentasCobros extends Component
         LEFT  JOIN estado_venta ev        ON ev.id = f.estado_venta_id
         LEFT  JOIN tipo_pago_venta tpv    ON tpv.id = f.tipo_pago_id
         LEFT  JOIN numero_orden_compra noc ON noc.id = f.numero_orden_compra_id
+        LEFT  JOIN (
+            SELECT hf.tramite_id, fl.numero_forma_f01, fl.numero_orden_compra
+            FROM historico_flujo hf
+            INNER JOIN flujo fl ON fl.id = hf.flujo_id
+            WHERE hf.tipo_tramite_id = 3
+        ) AS flujo_doc ON flujo_doc.tramite_id = f.id
         LEFT  JOIN aplicacion_pagos apc   ON apc.id = (
             SELECT apx.id FROM aplicacion_pagos apx
             WHERE apx.factura_id = f.id AND apx.estado = 1
             ORDER BY apx.id DESC LIMIT 1
         )
         WHERE {$where}
-        ORDER BY f.numero_secuencia_cai ASC
+        ORDER BY f.numero_secuencia_cai DESC
         ";
 
         $rows = DB::select($innerSql, $params);
@@ -267,11 +279,14 @@ class ReporteVentasCobros extends Component
             $abonos  = (float) ($r->abonos          ?? 0);
             $credito = (int)   ($r->credito         ?? -1);
 
-            // Días = diferencia entre último pago (o hoy) y fecha de vencimiento
-            $fechaPago = !empty($r->fecha_pago)        ? $r->fecha_pago        : null;
+            // Días vencidos:
+            // - Factura abierta (saldo > 0): CURDATE - fecha_vencimiento
+            // - Factura pagada (saldo = 0):  fecha_ultimo_pago - fecha_vencimiento
             $fechaVcto = !empty($r->fecha_vencimiento) ? $r->fecha_vencimiento : null;
             if ($fechaVcto) {
-                $ref  = $fechaPago ?: date('Y-m-d');
+                $ref  = ($saldo <= 0.01 && !empty($r->fecha_pago))
+                        ? $r->fecha_pago
+                        : date('Y-m-d');
                 $dias = (int) round((strtotime($ref) - strtotime($fechaVcto)) / 86400);
             } else {
                 $dias = 0;
@@ -340,12 +355,22 @@ class ReporteVentasCobros extends Component
                  INNER JOIN aplicacion_pagos ap ON ap.id = ac.aplicacion_pagos_id
                  WHERE ap.factura_id = f.id AND ac.estado_abono = 1), 0) AS abonos,
             DATEDIFF(
-                COALESCE(
-                    (SELECT MAX(ac_dv.fecha_pago) FROM abonos_creditos ac_dv
-                     INNER JOIN aplicacion_pagos ap_dv ON ap_dv.id = ac_dv.aplicacion_pagos_id
-                     WHERE ap_dv.factura_id = f.id AND ac_dv.estado_abono = 1),
-                    CURDATE()
-                ), f.fecha_vencimiento
+                CASE
+                    WHEN (CASE WHEN apc.id IS NOT NULL THEN COALESCE(apc.saldo, 0)
+                               ELSE COALESCE(f.total, 0)
+                                    - COALESCE((SELECT SUM(ac_sp.monto_abonado) FROM abonos_creditos ac_sp
+                                        INNER JOIN aplicacion_pagos ap_sp ON ap_sp.id = ac_sp.aplicacion_pagos_id
+                                        WHERE ap_sp.factura_id = f.id AND ac_sp.estado_abono = 1), 0)
+                                    - COALESCE((SELECT SUM(pv_sp.monto) FROM pago_venta pv_sp
+                                        WHERE pv_sp.factura_id = f.id AND pv_sp.estado_venta_id = 1), 0)
+                          END) <= 0.01
+                    THEN COALESCE(
+                            (SELECT MAX(ac_dv.fecha_pago) FROM abonos_creditos ac_dv
+                             INNER JOIN aplicacion_pagos ap_dv ON ap_dv.id = ac_dv.aplicacion_pagos_id
+                             WHERE ap_dv.factura_id = f.id AND ac_dv.estado_abono = 1),
+                            CURDATE())
+                    ELSE CURDATE()
+                END, f.fecha_vencimiento
             )                                                            AS dias_vencidos,
             CASE
                 WHEN f.credito = 0 THEN 'Contado'
@@ -357,19 +382,48 @@ class ReporteVentasCobros extends Component
                                 - COALESCE((SELECT SUM(pv2.monto) FROM pago_venta pv2
                                     WHERE pv2.factura_id = f.id AND pv2.estado_venta_id = 1), 0)
                       END) <= 0.01 THEN 'Pagada'
-                WHEN DATEDIFF(COALESCE((SELECT MAX(ac_dv.fecha_pago) FROM abonos_creditos ac_dv
-                     INNER JOIN aplicacion_pagos ap_dv ON ap_dv.id = ac_dv.aplicacion_pagos_id
-                     WHERE ap_dv.factura_id = f.id AND ac_dv.estado_abono = 1), CURDATE()),
-                     f.fecha_vencimiento) > 60 THEN 'Vencida Crítica'
-                WHEN DATEDIFF(COALESCE((SELECT MAX(ac_dv.fecha_pago) FROM abonos_creditos ac_dv
-                     INNER JOIN aplicacion_pagos ap_dv ON ap_dv.id = ac_dv.aplicacion_pagos_id
-                     WHERE ap_dv.factura_id = f.id AND ac_dv.estado_abono = 1), CURDATE()),
-                     f.fecha_vencimiento) > 0  THEN 'Vencida'
+                WHEN DATEDIFF(CURDATE(), f.fecha_vencimiento) > 60 THEN 'Vencida Crítica'
+                WHEN DATEDIFF(CURDATE(), f.fecha_vencimiento) > 0  THEN 'Vencida'
                 WHEN COALESCE((SELECT SUM(ac3.monto_abonado) FROM abonos_creditos ac3
                      INNER JOIN aplicacion_pagos ap3 ON ap3.id = ac3.aplicacion_pagos_id
                      WHERE ap3.factura_id = f.id AND ac3.estado_abono = 1), 0) > 0 THEN 'Parcialmente Pagada'
                 ELSE 'Pendiente'
-            END                                                         AS estado_cobro_v2
+            END                                                         AS estado_cobro_v2,
+
+            /* ── Último pago (forma de pago desde tipo_cobro_cierre) ── */
+            COALESCE((SELECT tpc.descripcion
+                FROM abonos_creditos ac3
+                INNER JOIN aplicacion_pagos ap3 ON ap3.id = ac3.aplicacion_pagos_id
+                LEFT JOIN tipo_pago_cobro tpc ON tpc.id = ac3.id_tipo_pago_cobro
+                WHERE ap3.factura_id = f.id AND ac3.estado_abono = 1
+                ORDER BY ac3.id DESC LIMIT 1),'')                       AS forma_pago,
+
+            COALESCE((SELECT ac3.fecha_pago FROM abonos_creditos ac3
+                INNER JOIN aplicacion_pagos ap3 ON ap3.id = ac3.aplicacion_pagos_id
+                WHERE ap3.factura_id = f.id AND ac3.estado_abono = 1
+                ORDER BY ac3.id DESC LIMIT 1),'')                       AS fecha_pago,
+
+            COALESCE((SELECT CONCAT(b.nombre,' - ',b.cuenta)
+                FROM abonos_creditos ac3
+                INNER JOIN aplicacion_pagos ap3 ON ap3.id = ac3.aplicacion_pagos_id
+                LEFT JOIN banco b ON b.id = ac3.banco_id
+                WHERE ap3.factura_id = f.id AND ac3.estado_abono = 1
+                ORDER BY ac3.id DESC LIMIT 1),'')                       AS cuenta_banco,
+
+            /* ── Retención ISV ── */
+            CASE WHEN COALESCE(apc.estado_retencion_isv,0) = 2
+                THEN COALESCE(apc.retencion_isv_factura,0) ELSE 0
+            END                                                         AS monto_retencion,
+            CASE WHEN COALESCE(apc.estado_retencion_isv,0) = 2
+                THEN COALESCE(NULLIF(TRIM(apc.comentario_retencion),''),'No aplica') ELSE 'No aplica'
+            END                                                         AS numero_retencion,
+            CASE WHEN COALESCE(apc.estado_retencion_isv,0) = 2
+                THEN DATE(apc.updated_at) ELSE NULL
+            END                                                         AS fecha_retencion,
+            CASE WHEN COALESCE(apc.estado_retencion_isv,0) = 2
+                THEN COALESCE((SELECT name FROM users WHERE id = apc.usr_cerro),'')
+                ELSE ''
+            END                                                         AS usuario_retencion
         FROM factura f
         INNER JOIN cliente c              ON c.id  = f.cliente_id
         LEFT  JOIN users u                ON u.id  = f.vendedor
@@ -383,6 +437,7 @@ class ReporteVentasCobros extends Component
         WHERE {$where}
         ";
     }
+
     /* ─────────────────────────────────────────────────────────────────
      *  Normalizar parámetros
      * ───────────────────────────────────────────────────────────────── */
@@ -435,6 +490,14 @@ class ReporteVentasCobros extends Component
                 $where .= ' AND (f.numero_secuencia_cai LIKE ? OR CAST(f.id AS CHAR) LIKE ?)';
                 $params[] = '%' . $p . '%';
                 $params[] = '%' . $p . '%';
+            }
+
+            // Buscador nativo de DataTables (search[value])
+            $dtSearch = $this->norm(($request->query('search') ?? [])['value'] ?? null);
+            if ($dtSearch) {
+                $where .= ' AND (f.numero_secuencia_cai LIKE ? OR c.nombre LIKE ?)';
+                $params[] = '%' . $dtSearch . '%';
+                $params[] = '%' . $dtSearch . '%';
             }
 
             $p = $this->norm($request->query('fecha_desde'));
@@ -635,6 +698,7 @@ class ReporteVentasCobros extends Component
                     COALESCE(f.comentario, '')                              AS observacion,
                     COALESCE(tpv.descripcion, '')                           AS modo_pago,
                     UPPER(COALESCE(ev.descripcion, ''))                     AS estado_f01,
+                    COALESCE(flujo_doc.numero_forma_f01, '')                AS flujo_forma_f01,
                     COALESCE((SELECT def2.fecha_entrega_real
                         FROM distribuciones_entrega_facturas def2
                         WHERE def2.factura_id = f.id ORDER BY def2.id DESC LIMIT 1), NULL) AS fecha_entrega,
@@ -645,12 +709,17 @@ class ReporteVentasCobros extends Component
                     COALESCE(f.isv, 0)                                      AS isv,
                     COALESCE(f.total, 0)                                    AS total_factura,
                     f.fecha_vencimiento,
-                    DATEDIFF(COALESCE(
-                        (SELECT MAX(ac_exp.fecha_pago)
-                         FROM abonos_creditos ac_exp
-                         INNER JOIN aplicacion_pagos ap_exp ON ap_exp.id = ac_exp.aplicacion_pagos_id
-                         WHERE ap_exp.factura_id = f.id AND ac_exp.estado_abono = 1),
-                        CURDATE()), f.fecha_vencimiento)             AS dias_vencidos,
+                    DATEDIFF(
+                        CASE
+                            WHEN COALESCE(apc_exp.saldo, f.total) <= 0.01
+                            THEN COALESCE(
+                                    (SELECT MAX(ac_exp.fecha_pago)
+                                     FROM abonos_creditos ac_exp
+                                     INNER JOIN aplicacion_pagos ap_exp ON ap_exp.id = ac_exp.aplicacion_pagos_id
+                                     WHERE ap_exp.factura_id = f.id AND ac_exp.estado_abono = 1),
+                                    CURDATE())
+                            ELSE CURDATE()
+                        END, f.fecha_vencimiento)                    AS dias_vencidos,
                     CASE WHEN f.credito = 0
                         THEN 0
                         ELSE DATEDIFF(f.fecha_vencimiento, f.fecha_emision)
@@ -661,12 +730,33 @@ class ReporteVentasCobros extends Component
                 LEFT  JOIN estado_venta ev        ON ev.id = f.estado_venta_id
                 LEFT  JOIN tipo_pago_venta tpv    ON tpv.id = f.tipo_pago_id
                 LEFT  JOIN numero_orden_compra noc ON noc.id = f.numero_orden_compra_id
+                LEFT  JOIN (
+                    SELECT hf.tramite_id, fl.numero_forma_f01
+                    FROM historico_flujo hf
+                    INNER JOIN flujo fl ON fl.id = hf.flujo_id
+                    WHERE hf.tipo_tramite_id = 3
+                ) AS flujo_doc ON flujo_doc.tramite_id = f.id
+                LEFT JOIN aplicacion_pagos apc_exp ON apc_exp.id = (
+                    SELECT apx.id FROM aplicacion_pagos apx
+                    WHERE apx.factura_id = f.id AND apx.estado = 1
+                    ORDER BY apx.id DESC LIMIT 1
+                )
                 WHERE f.id = ?
             ", [$facturaId]);
 
             if (!$cab) {
                 return response()->json(['success' => false, 'mensaje' => 'Factura no encontrada'], 404);
             }
+
+            // Verificar si tiene flujo para habilitar edición de F-01
+            $flujoRow = DB::selectOne("
+                SELECT fl.id AS flujo_id
+                FROM historico_flujo hf
+                INNER JOIN flujo fl ON fl.id = hf.flujo_id
+                WHERE hf.tramite_id = ? AND hf.tipo_tramite_id = 3
+                LIMIT 1
+            ", [$facturaId]);
+            $cab->flujo_id = $flujoRow ? $flujoRow->flujo_id : null;
 
             /* ── Movimientos ── */
             $movimientos = DB::select("
@@ -687,27 +777,15 @@ class ReporteVentasCobros extends Component
 
                     UNION ALL
 
-                    /* Entrega */
-                    SELECT 'ENTREGA', def.fecha_entrega_real, def.estado_entrega,
-                           NULL, NULL, NULL, NULL,
-                           COALESCE(def.observaciones,''),
-                           COALESCE(u_crea.name,''), NULL, 2
-                    FROM distribuciones_entrega_facturas def
-                    INNER JOIN distribuciones_entrega de ON de.id = def.distribucion_entrega_id
-                    LEFT JOIN users u_crea ON u_crea.id = de.users_id_creador
-                    WHERE def.factura_id = ? AND def.fecha_entrega_real IS NOT NULL
-
-                    UNION ALL
-
                     /* Abono crédito */
                     SELECT 'ABONO', ac.fecha_pago, COALESCE(ac.numero_recibo,''),
                            ac.monto_abonado, COALESCE(b.nombre,''), COALESCE(b.cuenta,''),
                            COALESCE(ac.numero_recibo,''), COALESCE(ac.comentario,''),
-                           COALESCE(u_reg.name,''), COALESCE(tc.textoCobro,''), 3
+                           COALESCE(u_reg.name,''), COALESCE(tpc_ab.descripcion,''), 3
                     FROM abonos_creditos ac
                     INNER JOIN aplicacion_pagos ap ON ap.id = ac.aplicacion_pagos_id
                     LEFT JOIN banco b ON b.id = ac.banco_id
-                    LEFT JOIN tipo_cobro_cierre tc ON tc.id = ac.id_tipo_pago_cobro
+                    LEFT JOIN tipo_pago_cobro tpc_ab ON tpc_ab.id = ac.id_tipo_pago_cobro
                     LEFT JOIN users u_reg ON u_reg.id = ac.usr_registro
                     WHERE ap.factura_id = ? AND ac.estado_abono = 1
 
@@ -733,13 +811,26 @@ class ReporteVentasCobros extends Component
 
                     UNION ALL
 
-                    /* Vale de entrega */
-                    SELECT 'VALE', v.created_at, COALESCE(v.numero_vale, CONCAT('Vale #', v.id)),
-                           NULL, NULL, NULL, NULL,
-                           COALESCE(v.notas,'Vale de entrega'), COALESCE(u_v.name,''), NULL, 6
-                    FROM vale v
-                    LEFT JOIN users u_v ON u_v.id = v.users_id
-                    WHERE v.factura_id = ? AND v.estado_id != 7
+                    /* Nota de débito */
+                    SELECT 'NOTA_DEBITO', nd.fechaEmision, nd.correlativoND,
+                           nd.monto_asignado, NULL, NULL, NULL,
+                           COALESCE(nd.motivoDescripcion,''), COALESCE(u_nd.name,''), NULL, 6
+                    FROM notadebito nd
+                    LEFT JOIN users u_nd ON u_nd.id = nd.users_registra_id
+                    WHERE nd.factura_id = ?
+
+                    UNION ALL
+
+                    /* Retención ISV */
+                    SELECT 'RETENCION', apc_ret.updated_at,
+                           COALESCE(NULLIF(TRIM(apc_ret.comentario_retencion),''), 'Retención ISV'),
+                           apc_ret.retencion_isv_factura, NULL, NULL,
+                           COALESCE(NULLIF(TRIM(apc_ret.comentario_retencion),''), ''),
+                           'Retención ISV aplicada',
+                           COALESCE(u_ret.name,''), NULL, 7
+                    FROM aplicacion_pagos apc_ret
+                    LEFT JOIN users u_ret ON u_ret.id = apc_ret.usr_cerro
+                    WHERE apc_ret.factura_id = ? AND apc_ret.estado_retencion_isv = 2
                 ) AS _movs
                 ORDER BY fecha ASC, orden_tipo ASC
             ", [$facturaId, $facturaId, $facturaId, $facturaId, $facturaId, $facturaId]);
@@ -750,7 +841,7 @@ class ReporteVentasCobros extends Component
                 $monto = (float) ($mov->monto ?? 0);
                 if ($mov->tipo === 'VENTA') {
                     $mov->saldo_resultante = $saldo;
-                } elseif (in_array($mov->tipo, ['ABONO', 'PAGO', 'NOTA_CREDITO'])) {
+                } elseif (in_array($mov->tipo, ['ABONO', 'PAGO', 'NOTA_CREDITO', 'RETENCION'])) {
                     $saldo -= $monto;
                     $mov->saldo_resultante = max($saldo, 0);
                 } else {
@@ -758,11 +849,16 @@ class ReporteVentasCobros extends Component
                 }
             }
 
+            $cabArray = (array) $cab;
+            $cabArray['factura_id']  = $facturaId;
+            $cabArray['tiene_flujo'] = !empty($cab->flujo_id);
+
             return response()->json([
                 'success'     => true,
-                'cabecera'    => $cab,
+                'cabecera'    => $cabArray,
                 'movimientos' => $movimientos,
                 'saldo_final' => max($saldo, 0),
+                'tiene_flujo' => !empty($cab->flujo_id),
             ]);
         } catch (\Throwable $e) {
             return response()->json(['success' => false, 'mensaje' => $e->getMessage()], 500);
@@ -843,18 +939,51 @@ class ReporteVentasCobros extends Component
     }
 
     /* ─────────────────────────────────────────────────────────────────
+     *  Actualizar Estado F-01 (numero_forma_f01) en flujo
+     * ───────────────────────────────────────────────────────────────── */
+    public function actualizarF01(Request $request, $facturaId)
+    {
+        $facturaId = (int) $facturaId;
+        $valor     = trim($request->input('valor', ''));
+
+        // Buscar el flujo ligado a esta factura
+        $flujo = DB::selectOne("
+            SELECT fl.id
+            FROM historico_flujo hf
+            INNER JOIN flujo fl ON fl.id = hf.flujo_id
+            WHERE hf.tramite_id = ? AND hf.tipo_tramite_id = 3
+            LIMIT 1
+        ", [$facturaId]);
+
+        if (!$flujo) {
+            return response()->json([
+                'success' => false,
+                'mensaje' => 'Esta factura no cuenta con flujo asociado. No se puede modificar el Estado F-01.',
+            ], 422);
+        }
+
+        DB::table('flujo')->where('id', $flujo->id)->update([
+            'numero_forma_f01' => $valor ?: null,
+            'updated_at'       => now(),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'mensaje' => 'Estado F-01 actualizado correctamente.',
+            'valor'   => $valor ?: 'N/A',
+        ]);
+    }
+
+    /* ─────────────────────────────────────────────────────────────────
      *  Movimientos de varias facturas en un solo query (para Excel)
      * ───────────────────────────────────────────────────────────────── */
     private function getMovimientosBulk(array $facturaIds): array
     {
         if (empty($facturaIds)) return [];
 
-        $ph     = implode(',', array_fill(0, count($facturaIds), '?'));
-        // 7 UNION blocks → 7 copies of facturaIds
-        $params = array_merge(
-            $facturaIds, $facturaIds, $facturaIds,
-            $facturaIds, $facturaIds, $facturaIds, $facturaIds
-        );
+        // Embed IDs as integer literals to avoid MySQL's 65 535-placeholder limit.
+        // Safe: every value is cast to int before interpolation.
+        $ph = implode(',', array_map('intval', $facturaIds));
 
         $movs = DB::select("
             SELECT tipo, factura_id, fecha, documento, monto,
@@ -874,26 +1003,15 @@ class ReporteVentasCobros extends Component
 
                 UNION ALL
 
-                SELECT 'ENTREGA', def.factura_id, def.fecha_entrega_real,
-                       def.estado_entrega, NULL, NULL, NULL, NULL,
-                       COALESCE(def.observaciones,''),
-                       COALESCE(u_crea.name,''), NULL, 2
-                FROM distribuciones_entrega_facturas def
-                INNER JOIN distribuciones_entrega de ON de.id = def.distribucion_entrega_id
-                LEFT JOIN users u_crea ON u_crea.id = de.users_id_creador
-                WHERE def.factura_id IN ({$ph}) AND def.fecha_entrega_real IS NOT NULL
-
-                UNION ALL
-
                 SELECT 'ABONO', ap.factura_id, ac.fecha_pago,
                        COALESCE(ac.numero_recibo,''), ac.monto_abonado,
                        COALESCE(b.nombre,''), COALESCE(b.cuenta,''),
                        COALESCE(ac.numero_recibo,''), COALESCE(ac.comentario,''),
-                       COALESCE(u_reg.name,''), COALESCE(tc.textoCobro,''), 3
+                       COALESCE(u_reg.name,''), COALESCE(tpc_ab.descripcion,''), 3
                 FROM abonos_creditos ac
                 INNER JOIN aplicacion_pagos ap ON ap.id = ac.aplicacion_pagos_id
                 LEFT JOIN banco b ON b.id = ac.banco_id
-                LEFT JOIN tipo_cobro_cierre tc ON tc.id = ac.id_tipo_pago_cobro
+                LEFT JOIN tipo_pago_cobro tpc_ab ON tpc_ab.id = ac.id_tipo_pago_cobro
                 LEFT JOIN users u_reg ON u_reg.id = ac.usr_registro
                 WHERE ap.factura_id IN ({$ph}) AND ac.estado_abono = 1
 
@@ -926,19 +1044,9 @@ class ReporteVentasCobros extends Component
                 FROM notadebito nd
                 LEFT JOIN users u_nd ON u_nd.id = nd.users_registra_id
                 WHERE nd.factura_id IN ({$ph})
-
-                UNION ALL
-
-                SELECT 'VALE', v.factura_id, DATE(v.created_at),
-                       v.numero_vale, v.total,
-                       NULL, NULL, NULL,
-                       COALESCE(v.notas,''), COALESCE(u_v.name,''), NULL, 7
-                FROM vale v
-                LEFT JOIN users u_v ON u_v.id = v.users_id
-                WHERE v.factura_id IN ({$ph})
             ) AS _movs
             ORDER BY factura_id ASC, fecha ASC, orden_tipo ASC
-        ", $params);
+        ");
 
         $grouped = [];
         foreach ($movs as $m) {

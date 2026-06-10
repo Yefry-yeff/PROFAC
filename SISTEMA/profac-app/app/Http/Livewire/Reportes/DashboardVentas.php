@@ -1027,7 +1027,6 @@ class DashboardVentas extends Component
             INNER JOIN factura f ON f.cliente_id = cli.id
             WHERE f.estado_venta_id = 1
             ORDER BY cli.nombre
-            
         ");
 
         $sucursales = DB::SELECT(" 

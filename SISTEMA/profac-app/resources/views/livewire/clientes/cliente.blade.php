@@ -98,8 +98,9 @@
 #tbl_ClientesLista tbody tr:hover { background: #fffcf5; }
 
 /* ── Badge estado ─────────────────────────────────────────────────── */
-.badge-activo   { background:#dcfce7; color:#14532d; border:1px solid #86efac; font-weight:600; }
-.badge-inactivo { background:#fef2f2; color:#b91c1c; border:1px solid #fecaca; font-weight:600; }
+.estado-pill        { display:inline-block; padding:3px 10px; border-radius:20px; font-size:.72rem; font-weight:700; letter-spacing:.3px; }
+.estado-pill.activo   { background:#f0fdf4; color:#1a7a4e; border:1px solid #bbf7d0; }
+.estado-pill.inactivo { background:#fef2f2; color:#b91c1c; border:1px solid #fecaca; }
 
 /* ── Dropdown acciones ────────────────────────────────────────────── */
 .cli-dropdown { position: relative; }

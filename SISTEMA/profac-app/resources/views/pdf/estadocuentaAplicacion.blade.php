@@ -126,12 +126,16 @@
 <div class="title-box">
     <div class="title-center">ESTADO DE CUENTA</div>
     <div class="title-meta">
-        <span class="meta-left">Cliente: {{ $estadoCuenta[0]->cliente }}</span>
+        <span class="meta-left">Cliente: {{ $nombreCliente }}</span>
         <span class="meta-right">Fecha: {{ $fecha_actual }}</span>
     </div>
 </div>
 
-{{-- Tabla --}}
+@if($sinMovimientos)
+<div style="text-align:center; padding:40px; font-size:14px; color:#555;">
+    Este cliente no tiene facturas pendientes en el estado de cuenta.
+</div>
+@else
 <table>
     <thead>
         <tr>
@@ -163,7 +167,7 @@
             <td class="num">L. {{ number_format($valor->notaCredito,2, '.', ',') }}</td>
             <td class="num">L. {{ number_format($valor->notaDebito, 2, '.', ',') }}</td>
             <td class="num">L. {{ number_format($valor->saldo,      2, '.', ',') }}</td>
-            <td class="num">L. {{ number_format($valor->Acumulado,  2, '.', ',') }}</td>
+            <td class="num">L. {{ number_format($valor->acumulado,  2, '.', ',') }}</td>
         </tr>
         @endforeach
     </tbody>
@@ -175,7 +179,7 @@
         <tr>
             <td>
                 <span class="sig-line"></span>
-                <span class="sig-name">{{ $estadoCuenta[0]->cliente }}</span>
+                <span class="sig-name">{{ $nombreCliente }}</span>
             </td>
             <td>
                 <span class="sig-line"></span>
@@ -184,6 +188,7 @@
         </tr>
     </table>
 </div>
+@endif
 
 </body>
 </html>

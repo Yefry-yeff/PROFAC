@@ -940,6 +940,7 @@ class FacturacionEstatal extends Component
             $factura->estado_venta_id = 1;
             $factura->cliente_id = $request->seleccionarCliente;
             $factura->vendedor = $request->vendedor;
+            $factura->gestor_entrega = $request->gestor_entrega ?: null;
             $factura->monto_comision = $montoComision;
             $factura->tipo_venta_id = 2; // estatal
             $factura->estado_factura_id = 1; // se presenta
@@ -1024,8 +1025,9 @@ class FacturacionEstatal extends Component
                 $subTotal = $request->$keySubTotal;
                 $isv = $request->$keyIsv;
                 $total = $request->$keyTotal;
+                $tipoPrecio = ($ivsProducto > 0) ? '2' : '1';
 
-                $this->restarUnidadesInventario($precios_producto_carga_id, $idPrecioSeleccionado,$precioSeleccionado ,$restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $arrayInputs[$i]);
+                $this->restarUnidadesInventario($precios_producto_carga_id, $idPrecioSeleccionado,$precioSeleccionado ,$restaInventario, $idProducto, $idSeccion, $factura->id, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $arrayInputs[$i], $tipoPrecio);
             };
 
 
@@ -1098,7 +1100,7 @@ class FacturacionEstatal extends Component
         }
     }
 
-    public function restarUnidadesInventario($precios_producto_carga_id,$idPrecioSeleccionado,$precioSeleccionado ,$unidadesRestarInv, $idProducto, $idSeccion, $idFactura, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $indice)
+    public function restarUnidadesInventario($precios_producto_carga_id,$idPrecioSeleccionado,$precioSeleccionado ,$unidadesRestarInv, $idProducto, $idSeccion, $idFactura, $idUnidadVenta, $precio, $cantidad, $subTotal, $isv, $total, $ivsProducto, $unidad, $indice, $tipoPrecio = '2')
     {
         //dd("Categoria Cliente primer producto : ".$categoriaClientePrecio);
         try {
@@ -1198,6 +1200,7 @@ class FacturacionEstatal extends Component
                     "sub_total_s" => $subTotalSecccionado,
                     "isv_s" => $isvSecccionado,
                     "total_s" => $totalSecccionado,
+                    "tipo_precio" => $tipoPrecio,
                     "idPrecioSeleccionado"=>$idPrecioSeleccionado,
                     "precioSeleccionado"=>$precioSeleccionado,
 

@@ -56,6 +56,24 @@ class PrefacturaController
 
         DB::beginTransaction();
         try {
+            // ── Guard: evitar doble prefactura por doble clic / concurrencia ──
+            $flujoIdGuard = $request->flujo_id ?: null;
+            if ($flujoIdGuard) {
+                $yaExiste = DB::table('prefactura')
+                    ->where('flujo_id', $flujoIdGuard)
+                    ->whereIn('estado', ['activo', 'convertida'])
+                    ->lockForUpdate()
+                    ->exists();
+                if ($yaExiste) {
+                    DB::rollBack();
+                    return response()->json([
+                        'icon'  => 'warning',
+                        'title' => 'Ya existe una prefactura',
+                        'text'  => 'Este flujo ya tiene una prefactura activa. Recargue la página.',
+                    ], 409);
+                }
+            }
+
             // ── Cabecera ────────────────────────────────────────────────────
             $prefacturaId = DB::table('prefactura')->insertGetId([
                 'cotizacion_id'       => $request->cotizacion_id ?: null,
@@ -217,7 +235,7 @@ class PrefacturaController
                 pr.id as codigo,
                 pr.nombre,
                 pr.descripcion,
-                IF(pr.isv = 0, 'SI', 'NO') as excento,
+                IF(php.isv_producto = 0, 'SI', 'NO') as excento,
                 FORMAT(php.precio_unidad, 2) as precio,
                 FORMAT(php.cantidad, 2) as cantidad,
                 FORMAT(php.sub_total, 2) as importe,
@@ -494,6 +512,23 @@ class PrefacturaController
 
         DB::beginTransaction();
         try {
+            // ── Guard: evitar doble prefactura por doble clic / concurrencia ──
+            if ($flujoId) {
+                $yaExiste = DB::table('prefactura')
+                    ->where('flujo_id', $flujoId)
+                    ->whereIn('estado', ['activo', 'convertida'])
+                    ->lockForUpdate()
+                    ->exists();
+                if ($yaExiste) {
+                    DB::rollBack();
+                    return response()->json([
+                        'icon'  => 'warning',
+                        'title' => 'Ya existe una prefactura',
+                        'text'  => 'Este flujo ya tiene una prefactura activa. Recargue la página.',
+                    ], 409);
+                }
+            }
+
             // ── 4. Crear prefactura ────────────────────────────────────────
             $prefacturaId = DB::table('prefactura')->insertGetId([
                 'cotizacion_id'       => $cotizacionId,
@@ -984,6 +1019,7 @@ class PrefacturaController
             'tipoPagoVenta'            => $tipoPago,
             'restriccion'              => 0,  // sin restricción de facturas vencidas en flujo directo
             'vendedor'                 => $pf->vendedor,
+            'gestor_entrega'           => $request->gestor_entrega ?: null,
             'porDescuento'             => $pf->porc_descuento ?? 0,
             'porDescuentoCalculado'    => $pf->monto_descuento ?? 0,
             'nota_comen'               => $pf->nota,

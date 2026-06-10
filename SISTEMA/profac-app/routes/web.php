@@ -748,6 +748,7 @@ Route::middleware(['auth:sanctum', 'verified', 'check.password.change'])->group(
     Route::post('/venta/datos/compra', [Cobros::class, 'DatosCompra']);
     Route::post('/venta/cobro/eliminar', [Cobros::class, 'eliminarPago']);
     Route::get('/factura/cooporativo/{idFactura}', [FacturacionCorporativa::class, 'imprimirFacturaCoorporativa']);
+    Route::get('/estatal/factura/{idFactura}', [FacturacionCorporativa::class, 'imprimirFacturaCoorporativa']);
     Route::get('/factura/cooporativoCopia/{idFactura}', [FacturacionCorporativa::class, 'imprimirFacturaCoorporativaCopia']);
     Route::get('/facturaCoor/actaRec/{idFactura}', [FacturacionCorporativa::class, 'imprimirActaCoorporativa']);
 
@@ -1349,7 +1350,7 @@ Route::post('/reporte/Facturasanuladasrep/exportar-excel/{tipo}/{fechaInicio}/{f
     ->name('reporte.Facturasanuladasrep.excel');
 //------------------------------- Libro de Cobros ----------------------------//
 Route::get('/reporte/Librocobrosrep', action: Librocobrosrep::class);
-Route::get('/reporte/Librocobrosrep/consulta/{tipo}/{fechaInicio}/{fechaFinal}', [Librocobrosrep::class, 'consulta']);
+Route::get('/reporte/Librocobrosrep/consulta/{tipo}/{fechaInicio?}/{fechaFinal?}', [Librocobrosrep::class, 'consulta']);
 Route::post('/reporte/Librocobrosrep/exportar-pdf/{tipo}/{fechaInicio}/{fechaFinal}', [Librocobrosrep::class, 'exportarPdf'])
     ->name('reporte.Librocobrosrep.pdf');
 Route::post('/reporte/Librocobrosrep/exportar-excel/{tipo}/{fechaInicio}/{fechaFinal}', [Librocobrosrep::class, 'exportarExcel'])
@@ -1378,6 +1379,7 @@ Route::post('/reporte/ventas-cobros/exportar-excel/{vendedorId}/{clienteId}/{mes
 Route::get('/reporte/ventas-cobros/datos',                                                          [ReporteVentasCobros::class, 'consultaDatos']);
 Route::get('/reporte/ventas-cobros/kpis',                                                           [ReporteVentasCobros::class, 'kpis']);
 Route::get('/reporte/ventas-cobros/expediente/{facturaId}',                                         [ReporteVentasCobros::class, 'expediente']);
+Route::post('/reporte/ventas-cobros/actualizar-f01/{facturaId}',                                    [ReporteVentasCobros::class, 'actualizarF01'])->name('reporte.ventas_cobros.actualizar_f01');
 
   //------------------------------- Logistica de Entregas ----------------------------//
 

@@ -679,6 +679,10 @@ class Producto extends Component
 
     public function calcularCostos(Request $request){
 
+        if (Auth::user()->rol_id != 1) {
+            return response()->json(['icon' => 'error', 'title' => 'Acceso denegado', 'text' => 'Solo el administrador puede calcular costos.'], 403);
+        }
+
         $primeraCompra = DB::SELECTONE("
         select
         B.precio_unidad + (B.precio_unidad*C.isv/100) as costo

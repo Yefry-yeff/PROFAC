@@ -329,9 +329,9 @@ class Cliente extends Component
             })
             ->addColumn('estado', function ($cliente) {
                 if ($cliente->estado_cliente_id === 1) {
-                    return '<span class="badge badge-activo">ACTIVO</span>';
+                    return '<span class="estado-pill activo">● ACTIVO</span>';
                 } else {
-                    return '<span class="badge badge-inactivo">INACTIVO</span>';
+                    return '<span class="estado-pill inactivo">● INACTIVO</span>';
                 }
             })
             ->rawColumns(['opciones','estado'])

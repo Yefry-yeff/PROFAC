@@ -51,6 +51,13 @@
     .fmp-offers-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
     .fmp-offers-wrap table { min-width:480px; }
     .fmp-info-grid { display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:#666; }
+    /* Modal gestor de entrega: encima del flujo modal y su backdrop */
+    #modal-gestor-flujo { z-index: 1060 !important; }
+    /* Select2 dentro de modales Bootstrap: permitir overflow del dropdown */
+    .select2-container--open { z-index: 9999 !important; }
+    #modal-gestor-flujo .modal-dialog { overflow: visible !important; }
+    #modal-gestor-flujo .modal-content { overflow: visible !important; }
+    #modal-gestor-flujo .modal-body { overflow: visible !important; }
 </style>
 
 @php
@@ -2325,42 +2332,95 @@
         });
         window.addEventListener('fmp-facturar-directo', function(e) {
             if (!e.detail || !e.detail.url) return;
+            var detail = e.detail;
 
-            // Bloquear botón y mostrar spinner durante el POST
-            var btn = document.getElementById('btn-facturar-directo');
-            var iconSpan    = document.getElementById('btn-facturar-icon');
-            var loadingSpan = document.getElementById('btn-facturar-loading');
-            function setLoading(loading) {
-                if (!btn) return;
-                btn.disabled = loading;
-                btn.style.opacity = loading ? '0.7' : '1';
-                btn.style.cursor  = loading ? 'not-allowed' : 'pointer';
-                if (iconSpan)    iconSpan.style.display    = loading ? 'none'   : '';
-                if (loadingSpan) loadingSpan.style.display = loading ? 'inline' : 'none';
-            }
-            setLoading(true);
+            // Construir select HTML para SweetAlert2
+            var selectHtml = '<select id="swal-gestor-select" class="swal2-input" style="width:100%;margin:0;height:38px;font-size:13px;">'
+                           + '<option value="">-- Sin gestor --</option>'
+                           + '</select>'
+                           + '<div id="swal-gestor-loading" style="font-size:12px;color:#888;margin-top:6px;display:none;">Cargando gestores...</div>';
 
-            axios.post(e.detail.url, { tipo_pago: 1 })
-                .then(function(response) {
-                    var data = response.data || {};
-                    if (data.print_url) {
-                        window.open(data.print_url, '_blank');
-                    }
-                    // Recargar la página para que el flujo muestre el nuevo estado
-                    setTimeout(function() {
-                        window.location.reload();
-                    }, 800);
-                })
-                .catch(function(error) {
-                    setLoading(false);
-                    var data = error.response ? error.response.data : {};
-                    Swal.fire({
-                        icon: data.icon || 'error',
-                        title: data.title || 'Error',
-                        text: data.text || data.warning || (data.detail && data.detail.text) || data.error || 'No se pudo facturar la prefactura.',
-                        html: (data.warning && data.warning.includes('<')) ? data.warning : undefined
+            Swal.fire({
+                title: '<i class="fa fa-truck mr-2" style="color:#1565c0;"></i> Gestor de Entrega',
+                html: '<p style="font-size:13px;color:#666;margin-bottom:16px;">Seleccione el responsable de entrega (opcional).</p>'
+                    + '<select id="swal-gestor-select" style="width:100%;"></select>',
+                showCancelButton: true,
+                confirmButtonText: '<i class="fa fa-check mr-1"></i> Confirmar y Facturar',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#1b5e20',
+                cancelButtonColor: '#6c757d',
+                allowOutsideClick: false,
+                background: '#f9fbe7',
+                customClass: { popup: 'swal-gestor-popup' },
+                didOpen: function() {
+                    // Inicializar Select2 con búsqueda AJAX dentro del SweetAlert2
+                    $('#swal-gestor-select').select2({
+                        dropdownParent: $('.swal-gestor-popup'),
+                        placeholder: '-- Sin gestor --',
+                        allowClear: true,
+                        ajax: {
+                            url: '/ventas/corporativo/vendedores',
+                            data: function(params) {
+                                return { search: params.term || '', type: 'public', page: params.page || 1 };
+                            },
+                            processResults: function(data) {
+                                return { results: [{ id: '', text: '-- Sin gestor --' }].concat(data.results || []) };
+                            }
+                        }
                     });
-                });
+                    // Evitar que el clic en el dropdown de Select2 cierre el SweetAlert
+                    $(document).on('mousedown.swal2gestorfix', '.select2-container', function(e) {
+                        e.stopPropagation();
+                    });
+                },
+                willClose: function() {
+                    $(document).off('mousedown.swal2gestorfix');
+                    if ($('#swal-gestor-select').hasClass('select2-hidden-accessible')) {
+                        $('#swal-gestor-select').select2('destroy');
+                    }
+                },
+                preConfirm: function() {
+                    return $('#swal-gestor-select').val() || null;
+                }
+            }).then(function(result) {
+                if (!result.isConfirmed) return;
+                var gestorId = result.value || null;
+
+                // Bloquear botón y mostrar spinner durante el POST
+                var btn = document.getElementById('btn-facturar-directo');
+                var iconSpan    = document.getElementById('btn-facturar-icon');
+                var loadingSpan = document.getElementById('btn-facturar-loading');
+                function setLoading(loading) {
+                    if (!btn) return;
+                    btn.disabled = loading;
+                    btn.style.opacity = loading ? '0.7' : '1';
+                    btn.style.cursor  = loading ? 'not-allowed' : 'pointer';
+                    if (iconSpan)    iconSpan.style.display    = loading ? 'none'   : '';
+                    if (loadingSpan) loadingSpan.style.display = loading ? 'inline' : 'none';
+                }
+                setLoading(true);
+
+                axios.post(detail.url, { tipo_pago: detail.tipo_pago || 1, gestor_entrega: gestorId })
+                    .then(function(response) {
+                        var data = response.data || {};
+                        if (data.print_url) {
+                            window.open(data.print_url, '_blank');
+                        }
+                        setTimeout(function() {
+                            window.location.reload();
+                        }, 800);
+                    })
+                    .catch(function(error) {
+                        setLoading(false);
+                        var data = error.response ? error.response.data : {};
+                        Swal.fire({
+                            icon: data.icon || 'error',
+                            title: data.title || 'Error',
+                            text: data.text || data.warning || (data.detail && data.detail.text) || data.error || 'No se pudo facturar la prefactura.',
+                            html: (data.warning && data.warning.includes('<')) ? data.warning : undefined
+                        });
+                    });
+            });
         });
     }
 </script>
