@@ -163,12 +163,13 @@ function cargarKpis() {
             var k = resp.kpis;
             $('#kpi_facturado').text(fmtLps(k.total_facturado));
             $('#kpi_cobrado').text(fmtLps(k.total_cobrado));
-            $('#kpi_pendiente').text(fmtLps(k.total_pendiente));
-            $('#kpi_vencido').text(fmtLps(k.total_vencido));
+            $('#kpi_pendiente').text(fmtLps(k.total_aumento_factura));
+            $('#kpi_vencido').text(fmtLps(k.total_disminucion_factura));
+            $('#kpi_saldo_pendiente').text(fmtLps(k.total_pendiente));
             $('#kpi_total_facturas').text(k.total_facturas + ' facturas');
             $('#kpi_fac_pagadas').text(k.facturas_pagadas + ' pagadas');
             $('#kpi_fac_pendientes').text(k.facturas_pendientes + ' pendientes');
-            $('#kpi_fac_vencidas').text(k.facturas_vencidas + ' vencidas');
+            $('#kpi_fac_vencidas').text('');
         }
     });
 }

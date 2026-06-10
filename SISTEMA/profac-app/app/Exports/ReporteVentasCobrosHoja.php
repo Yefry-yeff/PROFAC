@@ -45,6 +45,7 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
     protected $rows;
     protected $usuario;
     protected $movimientos;
+    protected $fastMode;
     protected $rowMeta = [];
 
     const LAST_COL  = 'AD';
@@ -84,11 +85,12 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
         9 => 'Septiembre', 10 => 'Octubre', 11 => 'Noviembre', 12 => 'Diciembre',
     ];
 
-    public function __construct($rows, $usuario = 'Sistema', $movimientos = [])
+    public function __construct($rows, $usuario = 'Sistema', $movimientos = [], $fastMode = false)
     {
         $this->rows        = $rows;
         $this->usuario     = $usuario;
         $this->movimientos = $movimientos;
+        $this->fastMode    = (bool) $fastMode;
     }
 
     public function title(): string { return 'Ventas y Cobros'; }
@@ -163,26 +165,26 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
             $factId      = (int)($r->factura_id ?? 0);
             $facturaNum  = $r->numero_secuencia_cai ?? '';
             $movs         = $this->movimientos[$factId] ?? [];
-            $saldoFactura = (float)($r->total ?? 0); // progresivo: cambia con DEBITO/CREDITO
-            $pagosAcum    = 0.0;                     // acumula PAGO/ABONO
+            $saldoFactura = (float)($r->total ?? 0); // progresivo: se mantiene lineal para cuadrar totales
+            $pagosAcum    = (float)($r->pagos_directos ?? 0);
             $dias         = (int)($r->dias_vencidos ?? 0);
             $estadoCobro = $r->estado_cobro_v2 ?? ($r->creditos_vencidos ?? '');
 
             /* ── PRE-CALCULAR TOTALES DEBITOS / CREDITOS ───── */
             $totalDebitos  = 0.0;
             $totalCreditos = 0.0;
-            $totalPagos    = 0.0;
+            $totalPagos    = (float)($r->pagos_directos ?? 0);
             $_sfCalc       = (float)($r->total ?? 0);
             foreach ($movs as $_mov) {
                 if ($_mov->tipo === 'VENTA') continue;
                 $_monto = (float)($_mov->monto ?? 0);
                 if (in_array($_mov->tipo, self::$TIPOS_DEBITO)) {
                     $totalDebitos += $_monto;
-                    $_sfCalc       = max($_sfCalc - $_monto, 0); // saldo factura baja
+                    $_sfCalc      -= $_monto; // saldo factura baja
                 }
                 if (in_array($_mov->tipo, self::$TIPOS_CREDITO)) {
                     $totalCreditos += $_monto;
-                    $_sfCalc       += $_monto;                   // saldo factura sube
+                    $_sfCalc      += $_monto;                   // saldo factura sube
                 }
                 if (in_array($_mov->tipo, self::$TIPOS_PAGO)) {
                     $totalPagos += $_monto;  // pagos NO afectan saldo de factura
@@ -190,9 +192,9 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
             }
             // Sumar retencion ISV al total de debitos
             $_montoRet = (float)($r->monto_retencion ?? 0);
-            if ($_montoRet > 0) { $totalDebitos += $_montoRet; $_sfCalc = max($_sfCalc - $_montoRet, 0); }
+            if ($_montoRet > 0) { $totalDebitos += $_montoRet; $_sfCalc -= $_montoRet; }
             $finalSaldoFactura   = $_sfCalc;
-            $finalSaldoPendiente = max($finalSaldoFactura - $totalPagos, 0);
+            $finalSaldoPendiente = $finalSaldoFactura - $totalPagos;
 
             /* ── FILA FACTURA ──────────────────────────────── */
             $item++;
@@ -268,11 +270,17 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
                 $esPago    = in_array($tipo, self::$TIPOS_PAGO);
 
                 // Actualizar saldo progresivo
-                if ($esDebito)       $saldoFactura  = max($saldoFactura - $monto, 0);
+                if ($esDebito)       $saldoFactura -= $monto;
                 elseif ($esCredito)  $saldoFactura += $monto;
-                elseif ($esPago)     $pagosAcum    += $monto;
+                elseif ($esPago)     $pagosAcum   += $monto;
                 // ENTREGA no cambia saldo
-                $saldoPendiente = max($saldoFactura - $pagosAcum, 0);
+                $saldoPendiente = $saldoFactura - $pagosAcum;
+
+                // Ocultar subfilas de Pago Contado en el Excel,
+                // pero conservar su impacto en los calculos.
+                if ($tipo === self::T_PAGO) {
+                    continue;
+                }
 
                 $item++;
                 $excelRow = count($out) + 1;
@@ -310,8 +318,8 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
             /* ── RETENCIÓN ISV ─────────────────────────────── */
             $montoRet = (float)($r->monto_retencion ?? 0);
             if ($montoRet > 0) {
-                $saldoFactura   = max($saldoFactura - $montoRet, 0);
-                $saldoPendiente = max($saldoFactura - $pagosAcum, 0);
+                $saldoFactura   -= $montoRet;
+                $saldoPendiente = $saldoFactura - $pagosAcum;
                 $item++;
                 $excelRow = count($out) + 1;
                 $this->rowMeta[$excelRow] = [
@@ -352,7 +360,7 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
         $totRow[18] = $totDeb    > 0 ? -$totDeb   : '';  // DISMINUCION (negativo)
         $totRow[19] = $totCred   > 0 ? $totCred   : '';  // AUMENTO
         $totRow[20] = $totPagado > 0 ? -$totPagado : '';  // MONTO PAGADO (negativo)
-        $totRow[21] = $totSaldo;                          // SALDO PENDIENTE
+        $totRow[21] = $totTotal - $totDeb + $totCred - $totPagado; // SALDO PENDIENTE (cuadra con fórmula)
         $excelRow = count($out) + 1;
         $this->rowMeta[$excelRow] = ['type' => 'TOTALES'];
         $out[] = $totRow;
@@ -364,6 +372,10 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
 
     public function drawings()
     {
+        if ($this->fastMode) {
+            return [];
+        }
+
         $d = new Drawing();
         $d->setName('Logo Valencia');
         $d->setPath(public_path('img/membrete/Logo3.png'));
@@ -408,8 +420,26 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
             ->setWrapText(true);
         $sheet->getRowDimension(4)->setRowHeight(30);
 
-        foreach (range('A', 'Z') as $c) { $sheet->getColumnDimension($c)->setAutoSize(true); }
-        foreach (['AA','AB','AC','AD','AE'] as $c) { $sheet->getColumnDimension($c)->setAutoSize(true); }
+        if ($this->fastMode) {
+            // En exportes grandes, AutoSize es el cuello de botella principal.
+            $fixedWidths = [
+                'A' => 6,  'B' => 10, 'C' => 12, 'D' => 20, 'E' => 34,
+                'F' => 18, 'G' => 18, 'H' => 16, 'I' => 28, 'J' => 16,
+                'K' => 16, 'L' => 12, 'M' => 12, 'N' => 12, 'O' => 12,
+                'P' => 12, 'Q' => 12, 'R' => 12, 'S' => 14, 'T' => 14,
+                'U' => 14, 'V' => 14, 'W' => 18, 'X' => 12, 'Y' => 12,
+                'Z' => 10, 'AA' => 12, 'AB' => 18, 'AC' => 18, 'AD' => 20,
+            ];
+            foreach ($fixedWidths as $col => $w) {
+                $sheet->getColumnDimension($col)->setWidth($w);
+            }
+        } else {
+            foreach (range('A', 'Z') as $c) { $sheet->getColumnDimension($c)->setAutoSize(true); }
+            foreach (['AA','AB','AC','AD'] as $c) { $sheet->getColumnDimension($c)->setAutoSize(true); }
+        }
+
+        // TOTAL se mantiene visible en el archivo.
+        $sheet->getColumnDimension('R')->setVisible(true);
 
         return [];
     }
@@ -440,12 +470,13 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
 
                 // Moneda: M..W (EXONERADO..SALDO PENDIENTE) = cols M..W
                 $currency    = '"L" #,##0.00';
-                $currencyNeg = '"L" #,##0.00;[Red]"L" -#,##0.00';
+                // Mostrar negativos como positivos (solo visual): conserva el valor real para formulas.
+                $currencyAbs = '"L" #,##0.00;"L" #,##0.00';
                 foreach (['M','N','O','P','Q','R','S','T','U','V'] as $c) {
                     $sheet->getStyle("{$c}5:{$c}{$lastRow}")
                         ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
-                    // S = DISMINUCION, U = MONTO PAGADO → pueden ser negativos
-                    $fmt = in_array($c, ['S','U']) ? $currencyNeg : $currency;
+                    // S = DISMINUCION, U = MONTO PAGADO: mostrar en positivo sin alterar formulas.
+                    $fmt = in_array($c, ['S','U']) ? $currencyAbs : $currency;
                     $sheet->getStyle("{$c}5:{$c}{$lastRow}")
                         ->getNumberFormat()->setFormatCode($fmt);
                 }
@@ -453,6 +484,39 @@ class ReporteVentasCobrosHoja implements FromArray, WithTitle, WithStyles, WithD
                 // Dias vencidos (col Z, index 25): formato numerico simple
                 $sheet->getStyle("Z5:Z{$lastRow}")
                     ->getNumberFormat()->setFormatCode('0');
+
+                if ($this->fastMode) {
+                    // Mantener el color de las facturas como antes, sin reactivar todo el costo visual.
+                    for ($row = 5; $row <= $lastRow; $row++) {
+                        $meta = $this->rowMeta[$row] ?? ['type' => ''];
+                        if (($meta['type'] ?? '') !== self::T_FACTURA) {
+                            continue;
+                        }
+
+                        $esAnu = strtoupper((string)($meta['estado_f01'] ?? '')) === 'ANULADO';
+                        $bg    = $esAnu ? 'EBEBEB' : 'FFF3E0';
+
+                        $sheet->getStyle("A{$row}:{$lc}{$row}")->getFill()
+                            ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB($bg);
+                        $sheet->getStyle("A{$row}:{$lc}{$row}")->getFont()
+                            ->setBold(true)->setSize(8.5);
+
+                        if ($esAnu) {
+                            $sheet->getStyle("A{$row}:{$lc}{$row}")->getFont()
+                                ->setStrikethrough(true)->getColor()->setRGB('999999');
+                        }
+                    }
+
+                    // Evita miles de llamadas de estilo por sub-fila para reducir tiempo total.
+                    $sheet->getStyle("A5:{$lc}{$lastRow}")->getFont()->setSize(8);
+                    $sheet->getStyle("A4:{$lc}{$lastRow}")->getBorders()->getAllBorders()
+                        ->setBorderStyle(Border::BORDER_THIN)->getColor()->setRGB('E8D5BF');
+                    $sheet->getStyle("A4:{$lc}{$lastRow}")->getBorders()->getOutline()
+                        ->setBorderStyle(Border::BORDER_MEDIUM)->getColor()->setRGB('e07000');
+                    $sheet->getStyle("A4:{$lc}4")->getBorders()->getBottom()
+                        ->setBorderStyle(Border::BORDER_MEDIUM)->getColor()->setRGB('b05000');
+                    return;
+                }
 
                 // ── Loop por fila ──────────────────────────────
                 for ($row = 5; $row <= $lastRow; $row++) {

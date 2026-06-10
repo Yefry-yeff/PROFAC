@@ -170,16 +170,22 @@
                             <span class="pill-sub" id="kpi_fac_pagadas"></span>
                         </div>
                         <div class="rvc-stat-pill">
-                            <i class="fa fa-clock-o" style="color:var(--pf-orange)"></i>
+                            <i class="fa fa-level-up" style="color:var(--pf-orange)"></i>
                             <span class="pill-val" id="kpi_pendiente">&#8212;</span>
-                            <span>Pendiente</span>
+                            <span>Aumento Factura</span>
                             <span class="pill-sub" id="kpi_fac_pendientes"></span>
                         </div>
                         <div class="rvc-stat-pill red">
-                            <i class="fa fa-exclamation-triangle" style="color:#b91c1c"></i>
+                            <i class="fa fa-level-down" style="color:#b91c1c"></i>
                             <span class="pill-val" id="kpi_vencido">&#8212;</span>
-                            <span>Vencido</span>
+                            <span>Disminuyo Factura</span>
                             <span class="pill-sub" id="kpi_fac_vencidas"></span>
+                        </div>
+                        <div class="rvc-stat-pill">
+                            <i class="fa fa-clock-o" style="color:var(--pf-orange)"></i>
+                            <span class="pill-val" id="kpi_saldo_pendiente">&#8212;</span>
+                            <span>Saldo Pendiente</span>
+                            <span class="pill-sub" id="kpi_fac_pendientes"></span>
                         </div>
                     </div>
 
