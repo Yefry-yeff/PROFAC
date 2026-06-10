@@ -525,6 +525,56 @@ class FacturacionEstatal extends Component
         ) > 0
             ");
 
+            // Modo oferta: quitar restricción de stock > 0 y hacer fallback si el producto
+            // nunca ha sido recibido en ninguna bodega.
+            if (($request->modo ?? '') === 'oferta') {
+                $results = DB::SELECT("
+        SELECT
+            A.seccion_id as id,
+            D.id as 'idBodega',
+            CONCAT(D.nombre,'',REPLACE(B.descripcion,'Seccion','')) as 'bodegaSeccion',
+            CONCAT(D.nombre,' - ', REPLACE(B.descripcion,'Seccion',''),' - cantidad ',
+                FLOOR(GREATEST(0,
+                    SUM(A.cantidad_disponible) - COALESCE((
+                        SELECT SUM(php2.cantidad)
+                        FROM prefactura_has_producto php2
+                        INNER JOIN prefactura pf2 ON pf2.id = php2.prefactura_id
+                        WHERE pf2.estado = 'activo'
+                          {$pfExcludeClause2}
+                          AND php2.producto_id = {$prodId}
+                          AND php2.seccion_id  = A.seccion_id
+                          AND php2.resta_inventario = 1
+                    ), 0)
+                ))
+            ) as 'text'
+        FROM recibido_bodega A
+            INNER JOIN seccion B ON A.seccion_id = B.id
+            INNER JOIN segmento C ON B.segmento_id = C.id
+            INNER JOIN bodega D ON C.bodega_id = D.id
+        WHERE A.producto_id = {$prodId}
+          AND (D.nombre LIKE '%{$search}%' OR B.descripcion LIKE '%{$search}%')
+        GROUP BY A.seccion_id
+                ");
+
+                // Si el producto nunca fue recibido en ninguna bodega, mostrar todas las bodegas activas
+                if (empty($results)) {
+                    $results = DB::SELECT("
+        SELECT
+            B.id as id,
+            D.id as 'idBodega',
+            CONCAT(D.nombre,'',REPLACE(B.descripcion,'Seccion','')) as 'bodegaSeccion',
+            CONCAT(D.nombre,' - ', REPLACE(B.descripcion,'Seccion',''),' - cantidad 0') as 'text'
+        FROM seccion B
+            INNER JOIN segmento C ON B.segmento_id = C.id
+            INNER JOIN bodega D ON C.bodega_id = D.id
+        WHERE D.estado_id = 1
+          AND (D.nombre LIKE '%{$search}%' OR B.descripcion LIKE '%{$search}%')
+        ORDER BY D.nombre, B.descripcion
+        LIMIT 50
+                    ");
+                }
+            }
+
             return response()->json([
                 "results" => $results
             ], 200);

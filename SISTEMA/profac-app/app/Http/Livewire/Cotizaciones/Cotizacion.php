@@ -1103,6 +1103,25 @@ class Cotizacion extends Component
         GROUP BY A.seccion_id
             ");
 
+            // Si no hay resultados (producto nunca recibido) y modo=oferta: mostrar todas las bodegas activas
+            if (empty($results) && ($request->modo ?? '') === 'oferta') {
+                $search = addslashes($request->search ?? '');
+                $results = DB::SELECT("
+        SELECT
+            B.id as id,
+            D.id as 'idBodega',
+            CONCAT(D.nombre,'',REPLACE(B.descripcion,'Seccion','')) as 'bodegaSeccion',
+            CONCAT(D.nombre,' - ', REPLACE(B.descripcion,'Seccion',''),' - cantidad 0') as 'text'
+        FROM seccion B
+            INNER JOIN segmento C ON B.segmento_id = C.id
+            INNER JOIN bodega D ON C.bodega_id = D.id
+        WHERE D.estado_id = 1
+          AND (D.nombre LIKE '%{$search}%' OR B.descripcion LIKE '%{$search}%')
+        ORDER BY D.nombre, B.descripcion
+        LIMIT 50
+                ");
+            }
+
             return response()->json([
                 "results" => $results
             ], 200);
