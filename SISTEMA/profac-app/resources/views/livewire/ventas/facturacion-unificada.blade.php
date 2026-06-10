@@ -2471,9 +2471,6 @@
                 data: function(params) {
                     var _urlParams = new URLSearchParams(window.location.search);
                     var _modo         = _urlParams.get('modo') || '';
-                    // En modo oferta/cotizacion: permitir seleccionar bodegas aunque no haya stock
-                    var _tiposOferta = ['cotizacion_clientes_a', 'cotizacion_clientes_b'];
-                    if (_tiposOferta.indexOf(codigoActual) !== -1) { _modo = 'oferta'; }
                     // Priorizar flujoId de la URL (en editar_factura el campo oculto puede estar vacío)
                     var _flujoId      = _urlParams.get('flujoId') || document.getElementById('flujo_vinculado_id')?.value || '';
                     // prefactura_id: necesario para excluir su reserva del cálculo de stock
