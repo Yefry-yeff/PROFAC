@@ -17,9 +17,9 @@ class EvaluacionClientesHoja implements FromArray, WithTitle, WithStyles, WithEv
     protected $rows;
     protected $usuario;
 
-    // 9 columnas: A..I
-    const LAST_COL  = 'I';
-    const COL_COUNT = 9;
+    // 12 columnas: A..L
+    const LAST_COL  = 'L';
+    const COL_COUNT = 12;
 
     public function __construct($rows, $usuario = 'Sistema')
     {
@@ -55,6 +55,9 @@ class EvaluacionClientesHoja implements FromArray, WithTitle, WithStyles, WithEv
         $out[] = [
             'CÓDIGO',
             'NOMBRE CLIENTE',
+            'CORREO',
+            'TELÉFONO',
+            'DIRECCIÓN',
             'ESTADO',
             'VENDEDOR',
             'N° CAI ÚLTIMA FACTURA',
@@ -69,6 +72,9 @@ class EvaluacionClientesHoja implements FromArray, WithTitle, WithStyles, WithEv
             $out[] = [
                 $r->codigo_cliente,
                 $r->nombre_cliente,
+                $r->correo ?? '',
+                $r->telefono ?? '',
+                $r->direccion ?? '',
                 $r->estado,
                 $r->vendedor,
                 $r->numero_ultima_factura ?? 'Sin historial de facturación',
@@ -121,14 +127,17 @@ class EvaluacionClientesHoja implements FromArray, WithTitle, WithStyles, WithEv
 
                 // Column widths
                 $sheet->getColumnDimension('A')->setWidth(10);
-                $sheet->getColumnDimension('B')->setWidth(42);
-                $sheet->getColumnDimension('C')->setWidth(18);
-                $sheet->getColumnDimension('D')->setWidth(26);
-                $sheet->getColumnDimension('E')->setWidth(30);
-                $sheet->getColumnDimension('F')->setWidth(22);
-                $sheet->getColumnDimension('G')->setWidth(22);
-                $sheet->getColumnDimension('H')->setWidth(20);
-                $sheet->getColumnDimension('I')->setWidth(18);
+                $sheet->getColumnDimension('B')->setWidth(32);
+                $sheet->getColumnDimension('C')->setWidth(32);
+                $sheet->getColumnDimension('D')->setWidth(18);
+                $sheet->getColumnDimension('E')->setWidth(40);
+                $sheet->getColumnDimension('F')->setWidth(18);
+                $sheet->getColumnDimension('G')->setWidth(26);
+                $sheet->getColumnDimension('H')->setWidth(30);
+                $sheet->getColumnDimension('I')->setWidth(22);
+                $sheet->getColumnDimension('J')->setWidth(22);
+                $sheet->getColumnDimension('K')->setWidth(20);
+                $sheet->getColumnDimension('L')->setWidth(18);
 
                 // Row heights
                 $sheet->getRowDimension(1)->setRowHeight(32);
@@ -152,9 +161,9 @@ class EvaluacionClientesHoja implements FromArray, WithTitle, WithStyles, WithEv
                     ]);
                 }
 
-                // Number format for monto and saldo columns (G, H)
+                // Number format for monto and saldo columns (K, L)
                 if ($lastRow > 4) {
-                    $sheet->getStyle("G5:H{$lastRow}")
+                    $sheet->getStyle("K5:L{$lastRow}")
                           ->getNumberFormat()
                           ->setFormatCode('#,##0.00');
                 }
@@ -169,14 +178,14 @@ class EvaluacionClientesHoja implements FromArray, WithTitle, WithStyles, WithEv
                     }
                 }
 
-                // Highlight "Requiere Atención = Sí" rows (col I now)
+                // Highlight "Requiere Atención = Sí" rows (col L)
                 for ($row = 5; $row <= $lastRow; $row++) {
-                    if ($sheet->getCell("I{$row}")->getValue() === 'Sí') {
-                        $sheet->getStyle("I{$row}")
+                    if ($sheet->getCell("L{$row}")->getValue() === 'Sí') {
+                        $sheet->getStyle("L{$row}")
                               ->getFont()
                               ->setBold(true)
                               ->getColor()->setRGB('C0392B');
-                        $sheet->getStyle("A{$row}:I{$row}")
+                        $sheet->getStyle("A{$row}:L{$row}")
                               ->getFill()
                               ->setFillType(Fill::FILL_SOLID)
                               ->getStartColor()->setRGB('FDECEA');

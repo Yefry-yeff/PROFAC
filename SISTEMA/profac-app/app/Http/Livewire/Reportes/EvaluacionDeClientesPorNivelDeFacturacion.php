@@ -104,6 +104,9 @@ class EvaluacionDeClientesPorNivelDeFacturacion extends Component
             SELECT
                 c.id                                                                             AS codigo_cliente,
                 c.nombre                                                                         AS nombre_cliente,
+                COALESCE(c.correo, '')                                                           AS correo,
+                COALESCE(c.telefono_empresa, '')                                                  AS telefono,
+                COALESCE(c.direccion, '')                                                         AS direccion,
                 COALESCE(ec.descripcion, 'Sin Estado')                                           AS estado,
                 COALESCE((SELECT name FROM users WHERE id = c.vendedor LIMIT 1), 'Sin Vendedor') AS vendedor,
                 uf.cai                                                                           AS numero_ultima_factura,
