@@ -2078,11 +2078,19 @@ class ModalFlujoPedido extends Component
             ->orderByDesc('id')
             ->first(['id', 'numero_vale']);
 
+        $printUrl = '/factura/cooporativo/' . $factura->id;
+        $printCopiaUrl = '/factura/cooporativoCopia/' . $factura->id;
+        if ((int) ($factura->tipo_venta_id ?? 0) === 3) {
+            $printUrl = '/exonerado/factura/' . $factura->id;
+            $printCopiaUrl = '/exonerado/facturaCopia/' . $factura->id;
+        }
+
         $this->facturaData = array_merge((array) $factura, [
             'productos'      => $productos,
             'historico_id'   => null,
             'tramite_tipo_id'=> 3,
-            'print_url'      => '/factura/cooporativo/' . $factura->id,
+            'print_url'      => $printUrl,
+            'print_copia_url'=> $printCopiaUrl,
             'vale_id'        => $valeData ? $valeData->id : null,
             'vale_numero'    => $valeData ? $valeData->numero_vale : null,
         ]);

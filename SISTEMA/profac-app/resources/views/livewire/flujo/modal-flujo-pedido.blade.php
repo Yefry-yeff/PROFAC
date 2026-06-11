@@ -2016,6 +2016,13 @@
                             <i class="fa fa-print"></i> Imprimir factura
                         </a>
 
+                        <a href="{{ $fac['print_copia_url'] ?? ('/factura/cooporativoCopia/' . $fac['id']) }}" target="_blank"
+                           style="background:#f8f9fc; color:#455a64; border:1px solid #e8eaf0;
+                                  border-radius:8px; padding:6px 14px; font-size:12px; font-weight:700;
+                                  text-decoration:none; display:inline-flex; align-items:center; gap:5px;">
+                            <i class="fa fa-copy"></i> Imprimir copia
+                        </a>
+
                         @if(!empty($fac['vale_id']))
                         <a href="/vale/imprimir/{{ $fac['vale_id'] }}" target="_blank"
                            style="background:#fff8e1; color:#e67e22; border:1px solid #fce4b3;
