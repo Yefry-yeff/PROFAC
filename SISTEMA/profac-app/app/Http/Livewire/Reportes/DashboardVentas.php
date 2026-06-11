@@ -133,9 +133,8 @@ class DashboardVentas extends Component
 
     private function vendedorFacturaColumn()
     {
-        if (Schema::hasColumn('factura', 'vendedor_id')) return 'vendedor_id';
         if (Schema::hasColumn('factura', 'vendedor')) return 'vendedor';
-        return 'vendedor_id';
+        return 'vendedor';
     }
 
     private function vendedorFacturaExpr($alias = 'f')
