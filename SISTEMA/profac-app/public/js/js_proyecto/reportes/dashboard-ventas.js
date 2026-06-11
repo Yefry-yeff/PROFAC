@@ -17,6 +17,8 @@ var dashboardVentas = (function () {
     var _filtroAdvVend   = null;
     var _facturasCliData = [];   /* cache para exportación con totales */
     var _dts          = {};   /* DataTables instances */
+    var _reqCliDeps   = 0;
+    var _reqMarcDeps  = 0;
 
     /* ─── DataTables helpers ──────────────────────────────────────────────── */
     var DT_LANG = {
@@ -128,8 +130,91 @@ var dashboardVentas = (function () {
         _activarBuscadorSelect($('#prod-filtro-producto'), 'Buscar por codigo o nombre...');
         _activarBuscadorSelect($('#cli-cliente'), 'Buscar por nombre de cliente...');
         _activarBuscadorSelect($('#cli-producto'), 'Buscar producto...');
+        _activarBuscadorSelect($('#cli-marca'), 'Buscar marca...');
         _activarBuscadorSelect($('#marc-cliente'), 'Buscar cliente...');
         _activarBuscadorSelect($('#marc-producto'), 'Buscar producto...');
+    }
+
+    function _buildOptionsHtml(items, placeholder, valueKey, labelKey) {
+        var html = '<option value="">' + (placeholder || 'Todos') + '</option>';
+        (items || []).forEach(function (it) {
+            var val = it[valueKey] === null || it[valueKey] === undefined ? '' : it[valueKey];
+            var txt = it[labelKey] === null || it[labelKey] === undefined ? '' : it[labelKey];
+            html += '<option value="' + val + '">' + txt + '</option>';
+        });
+        return html;
+    }
+
+    function _refreshCliMarcasOptions() {
+        var f = getCliFilters();
+        var token = ++_reqCliDeps;
+        var selectedMarca = $('#cli-marca').val() || '';
+
+        return $.get('/reporte/dashboard/filtros-marcas-cliente', {
+            fecha_inicio: f.fecha_inicio,
+            fecha_final: f.fecha_final,
+            cliente: f.cliente,
+            producto: f.producto
+        }).then(function (rows) {
+            if (token !== _reqCliDeps) return;
+            rows = Array.isArray(rows) ? rows : [];
+
+            $('#cli-marca').html(_buildOptionsHtml(rows, 'Todas las marcas', 'id', 'nombre'));
+            if (selectedMarca && $('#cli-marca option[value="' + selectedMarca + '"]').length) {
+                $('#cli-marca').val(selectedMarca);
+            } else {
+                $('#cli-marca').val('');
+            }
+            _activarBuscadorSelect($('#cli-marca'), 'Buscar marca...');
+        });
+    }
+
+    function _refreshCliDependentCatalogs() {
+        var f = getCliFilters();
+        var token = ++_reqCliDeps;
+        var selectedProducto = $('#cli-producto').val() || '';
+
+        return $.get('/reporte/dashboard/filtros-productos-cliente', {
+            fecha_inicio: f.fecha_inicio,
+            fecha_final: f.fecha_final,
+            cliente: f.cliente
+        }).then(function (rows) {
+            if (token !== _reqCliDeps) return;
+            rows = Array.isArray(rows) ? rows : [];
+
+            $('#cli-producto').html(_buildOptionsHtml(rows, 'Todos los productos', 'id', 'nombre'));
+            if (selectedProducto && $('#cli-producto option[value="' + selectedProducto + '"]').length) {
+                $('#cli-producto').val(selectedProducto);
+            } else {
+                $('#cli-producto').val('');
+            }
+            _activarBuscadorSelect($('#cli-producto'), 'Buscar producto...');
+
+            _refreshCliMarcasOptions();
+        });
+    }
+
+    function _refreshMarcDependentCatalogs() {
+        var f = getMarkFilters();
+        var token = ++_reqMarcDeps;
+        var selectedProducto = $('#marc-producto').val() || '';
+
+        return $.get('/reporte/dashboard/filtros-productos-cliente', {
+            fecha_inicio: f.fecha_inicio,
+            fecha_final: f.fecha_final,
+            cliente: f.cliente
+        }).then(function (rows) {
+            if (token !== _reqMarcDeps) return;
+            rows = Array.isArray(rows) ? rows : [];
+
+            $('#marc-producto').html(_buildOptionsHtml(rows, 'Todos los productos', 'id', 'nombre'));
+            if (selectedProducto && $('#marc-producto option[value="' + selectedProducto + '"]').length) {
+                $('#marc-producto').val(selectedProducto);
+            } else {
+                $('#marc-producto').val('');
+            }
+            _activarBuscadorSelect($('#marc-producto'), 'Buscar producto...');
+        });
     }
 
     function syncFiltrosAnaliticaPorPestana() {
@@ -214,6 +299,9 @@ var dashboardVentas = (function () {
             $('#marc-fi').val(primerDiaMesAnterior());
             $('#marc-ff').val(ultimoDiaMesAnterior());
 
+            _refreshCliDependentCatalogs();
+            _refreshMarcDependentCatalogs();
+
             /* Auto-carga pestaña 1 */
             cargarHistorico();
         });
@@ -221,11 +309,23 @@ var dashboardVentas = (function () {
         /* Cuando se cambia a la pestaña Analítica, cargar datos automáticamente */
         $('#tab-adv').on('shown.bs.tab', function () { cargarAnalitica(); });
 
+        $('#cli-cliente, #cli-fi, #cli-ff').on('change', function () {
+            _refreshCliDependentCatalogs();
+        });
+        $('#cli-producto').on('change', function () {
+            _refreshCliMarcasOptions();
+        });
+
+        $('#marc-cliente, #marc-fi, #marc-ff').on('change', function () {
+            _refreshMarcDependentCatalogs();
+        });
+
         /* Redimensionar charts cuando se cambia de sub-pill (Analítica) */
         $('#adv-pills a[data-toggle="pill"]').on('shown.bs.tab', function () {
             syncFiltrosAnaliticaPorPestana();
             var href = $(this).attr('href');
             if (href === '#pill-pane-cli') {
+                _refreshCliDependentCatalogs();
                 /* Recalcular anchos de columnas DataTables al hacer visible el tab */
                 setTimeout(function () {
                     Object.keys(_dts).forEach(function (id) {
@@ -233,6 +333,7 @@ var dashboardVentas = (function () {
                     });
                 }, 50);
             } else if (href === '#pill-pane-marc') {
+                _refreshMarcDependentCatalogs();
                 cargarMarcas();
             }
             setTimeout(function () {

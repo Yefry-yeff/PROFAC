@@ -1069,6 +1069,83 @@ class DashboardVentas extends Component
         ));
     }
 
+    // ─── Catálogo dependiente: productos comprados por cliente en rango ───
+    public function productosPorClienteFecha(Request $request)
+    {
+        $fi      = $request->fecha_inicio ?? date('Y-01-01');
+        $ff      = $request->fecha_final  ?? date('Y-m-d');
+        $cliente = trim((string)($request->cliente ?? ''));
+
+        $where = "f.estado_venta_id = 1 AND f.fecha_emision BETWEEN ? AND ?";
+        $params = [$fi, $ff];
+
+        if ($cliente !== '') {
+            $where .= " AND cli.nombre = ?";
+            $params[] = $cliente;
+        }
+
+        $productoCodigoExpr = $this->productoCodigoExpr('p');
+
+        $rows = DB::select(" 
+            SELECT DISTINCT
+                p.id,
+                p.nombre AS nombre_producto,
+                $productoCodigoExpr AS codigo,
+                CASE
+                    WHEN COALESCE($productoCodigoExpr, '') <> '' THEN CONCAT($productoCodigoExpr, ' - ', p.nombre)
+                    ELSE p.nombre
+                END AS nombre
+            FROM factura f
+            INNER JOIN cliente cli            ON cli.id = f.cliente_id
+            INNER JOIN venta_has_producto vhp ON vhp.factura_id = f.id
+            INNER JOIN producto p             ON p.id = vhp.producto_id
+            WHERE $where
+            ORDER BY p.nombre ASC
+        ", $params);
+
+        return response()->json($rows);
+    }
+
+    // ─── Catálogo dependiente: marcas compradas por cliente en rango ──────
+    public function marcasPorClienteFecha(Request $request)
+    {
+        $fi       = $request->fecha_inicio ?? date('Y-01-01');
+        $ff       = $request->fecha_final  ?? date('Y-m-d');
+        $cliente  = trim((string)($request->cliente ?? ''));
+        $producto = trim((string)($request->producto ?? ''));
+
+        $where = "f.estado_venta_id = 1 AND f.fecha_emision BETWEEN ? AND ?";
+        $params = [$fi, $ff];
+
+        if ($cliente !== '') {
+            $where .= " AND cli.nombre = ?";
+            $params[] = $cliente;
+        }
+
+        if ($producto !== '') {
+            if (is_numeric($producto)) {
+                $where .= " AND p.id = ?";
+                $params[] = (int)$producto;
+            } else {
+                $where .= " AND p.nombre LIKE ?";
+                $params[] = "%$producto%";
+            }
+        }
+
+        $rows = DB::select(" 
+            SELECT DISTINCT m.id, m.nombre
+            FROM factura f
+            INNER JOIN cliente cli            ON cli.id = f.cliente_id
+            INNER JOIN venta_has_producto vhp ON vhp.factura_id = f.id
+            INNER JOIN producto p             ON p.id = vhp.producto_id
+            INNER JOIN marca m                ON m.id = p.marca_id
+            WHERE $where
+            ORDER BY m.nombre ASC
+        ", $params);
+
+        return response()->json($rows);
+    }
+
     // ─── Evolución mensual de top clientes ─────────────────────────────────
     public function evolucionClientes(Request $request)
     {
