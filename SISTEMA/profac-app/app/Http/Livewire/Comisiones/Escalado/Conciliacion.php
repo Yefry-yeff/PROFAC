@@ -19,6 +19,174 @@ class Conciliacion extends Component
     }
 
     /* ══════════════════════════════════════════════════════════════════
+     *  VALIDACIÓN DE REGLAS / HEALTH-CHECK
+     * ════════════════════════════════════════════════════════════════ */
+
+    /**
+     * Verifica que las tablas y configuraciones necesarias para el módulo
+     * de conciliación estén correctamente pobladas.
+     * Devuelve una lista de checks con estado ok|warning|error.
+     */
+    public function validarReglas()
+    {
+        $checks = [];
+
+        // 1 — Tabla comision_escala tiene configuración
+        $escalaCount = DB::table('comision_escala')->count();
+        $checks[] = [
+            'nombre'  => 'Escalas de comisión',
+            'estado'  => $escalaCount > 0 ? 'ok' : 'error',
+            'mensaje' => $escalaCount > 0
+                ? "{$escalaCount} escalas configuradas."
+                : 'No hay escalas de comisión registradas. El cálculo de comisiones no funcionará.',
+        ];
+
+        // 2 — Tabla comision_rol_config tiene registros
+        $rolConfigCount = DB::table('comision_rol_config')->count();
+        $checks[] = [
+            'nombre'  => 'Configuración de roles',
+            'estado'  => $rolConfigCount > 0 ? 'ok' : 'warning',
+            'mensaje' => $rolConfigCount > 0
+                ? "{$rolConfigCount} roles configurados para comisiones."
+                : 'No hay roles configurados en comision_rol_config.',
+        ];
+
+        // 3 — Días de gracia configurados para al menos un rol
+        $diasGraciaCount = DB::table('dias_gracia_comision')->count();
+        $checks[] = [
+            'nombre'  => 'Días de gracia',
+            'estado'  => $diasGraciaCount > 0 ? 'ok' : 'warning',
+            'mensaje' => $diasGraciaCount > 0
+                ? "{$diasGraciaCount} configuraciones de días de gracia activas."
+                : 'Sin días de gracia configurados. Las comisiones se acreditarán inmediatamente.',
+        ];
+
+        // 4 — Comisiones activas en el período actual
+        $periodoActual = Carbon::now()->startOfMonth()->toDateString();
+        $comisionesActuales = DB::table('comision_empleado')
+            ->where('mes_comision', $periodoActual)
+            ->where('estado_id', 1)
+            ->count();
+        $checks[] = [
+            'nombre'  => 'Comisiones período actual',
+            'estado'  => $comisionesActuales > 0 ? 'ok' : 'warning',
+            'mensaje' => $comisionesActuales > 0
+                ? "{$comisionesActuales} empleados con comisiones en el período actual."
+                : 'Sin comisiones registradas en el período actual (' . $this->_mesLabelFromStr($periodoActual) . ').',
+        ];
+
+        // 5 — Períodos abiertos con comisiones pero sin conciliar (deuda contable)
+        $periodosAbiertosConDeuda = DB::table('comision_empleado as ce')
+            ->leftJoin('comision_periodo as cp', function ($j) {
+                $j->whereRaw('cp.periodo = DATE_FORMAT(ce.mes_comision, \'%Y-%m-01\')')
+                  ->where('cp.estado', ModelComisionPeriodo::ESTADO_CONCILIADO);
+            })
+            ->whereNull('cp.id')
+            ->where('ce.estado_id', 1)
+            ->whereRaw('ce.mes_comision < DATE_FORMAT(NOW(), \'%Y-%m-01\')')
+            ->selectRaw('DATE_FORMAT(ce.mes_comision, \'%Y-%m-01\') as periodo')
+            ->distinct()
+            ->pluck('periodo');
+
+        $checks[] = [
+            'nombre'  => 'Períodos sin conciliar',
+            'estado'  => $periodosAbiertosConDeuda->isEmpty() ? 'ok' : 'warning',
+            'mensaje' => $periodosAbiertosConDeuda->isEmpty()
+                ? 'Todos los períodos anteriores con comisiones están conciliados.'
+                : count($periodosAbiertosConDeuda) . ' período(s) con comisiones sin conciliar: '
+                  . $periodosAbiertosConDeuda->map(fn($p) => $this->_mesLabelFromStr($p))->implode(', ') . '.',
+        ];
+
+        // 6 — Facturas comisionadas huérfanas (factura_id no existe en tabla factura)
+        $huerfanas = DB::table('facturas_comision as fc')
+            ->leftJoin('factura as f', 'f.id', '=', 'fc.factura_id')
+            ->whereNull('f.id')
+            ->where('fc.estado_id', 1)
+            ->count();
+        $checks[] = [
+            'nombre'  => 'Integridad facturas comisionadas',
+            'estado'  => $huerfanas === 0 ? 'ok' : 'error',
+            'mensaje' => $huerfanas === 0
+                ? 'Todas las facturas comisionadas tienen referencia válida.'
+                : "{$huerfanas} registro(s) en facturas_comision sin factura padre. Revisar integridad de datos.",
+        ];
+
+        $totalErrores   = count(array_filter($checks, fn($c) => $c['estado'] === 'error'));
+        $totalWarnings  = count(array_filter($checks, fn($c) => $c['estado'] === 'warning'));
+
+        return response()->json([
+            'checks'         => $checks,
+            'total_errores'  => $totalErrores,
+            'total_warnings' => $totalWarnings,
+            'estado_global'  => $totalErrores > 0 ? 'error' : ($totalWarnings > 0 ? 'warning' : 'ok'),
+        ]);
+    }
+
+    /* ══════════════════════════════════════════════════════════════════
+     *  VERIFICAR PERÍODO DE UN PAGO (usado desde modal Aplicar Abono)
+     * ════════════════════════════════════════════════════════════════ */
+
+    /**
+     * Recibe una fecha (YYYY-MM-DD) y determina:
+     *  - Si su mes/año está conciliado en comision_periodo.
+     *  - Cuál es el próximo período abierto (para informar al usuario).
+     *
+     * GET /comisiones/conciliacion/verificar-periodo?fecha=YYYY-MM-DD
+     */
+    public function verificarPeriodoPago(Request $request)
+    {
+        $fechaStr = trim($request->input('fecha', ''));
+
+        if (!$fechaStr) {
+            return response()->json(['error' => 'Fecha requerida.'], 422);
+        }
+
+        $periodo = Carbon::parse($fechaStr)->startOfMonth()->toDateString();
+
+        // ¿Está ese mes conciliado?
+        $registro = DB::table('comision_periodo')
+            ->where('periodo', $periodo)
+            ->first();
+
+        $conciliado = $registro && (int) $registro->estado === ModelComisionPeriodo::ESTADO_CONCILIADO;
+
+        if (!$conciliado) {
+            return response()->json([
+                'conciliado'    => false,
+                'periodo'       => $periodo,
+                'periodo_label' => $this->_mesLabelFromStr($periodo),
+            ]);
+        }
+
+        // Buscar el próximo mes abierto a partir del mes siguiente al solicitado
+        $cursor    = Carbon::parse($periodo)->addMonth()->startOfMonth();
+        $maxIter   = 24; // seguridad: no buscar más de 2 años hacia adelante
+        $proximo   = null;
+
+        for ($i = 0; $i < $maxIter; $i++) {
+            $cursorStr = $cursor->toDateString();
+            $reg = DB::table('comision_periodo')
+                ->where('periodo', $cursorStr)
+                ->first();
+
+            // Si no existe registro o el estado no es conciliado → es un período abierto
+            if (!$reg || (int) $reg->estado !== ModelComisionPeriodo::ESTADO_CONCILIADO) {
+                $proximo = $cursorStr;
+                break;
+            }
+            $cursor->addMonth();
+        }
+
+        return response()->json([
+            'conciliado'      => true,
+            'periodo'         => $periodo,
+            'periodo_label'   => $this->_mesLabelFromStr($periodo),
+            'proximo_abierto' => $proximo,
+            'proximo_label'   => $proximo ? $this->_mesLabelFromStr($proximo) : null,
+        ]);
+    }
+
+    /* ══════════════════════════════════════════════════════════════════
      *  LISTADO DE PERÍODOS
      * ════════════════════════════════════════════════════════════════ */
 
@@ -373,6 +541,7 @@ class Conciliacion extends Component
                     WHEN 1 THEN u.id = f.users_id
                     WHEN 2 THEN u.id = f.users_id
                     WHEN 3 THEN u.id = f.vendedor
+                    WHEN 4 THEN u.id = f.gestor_entrega
                     ELSE 1=0
                 END
             )
@@ -503,12 +672,14 @@ class Conciliacion extends Component
             return [
                 'rol_id'               => $rol->id,
                 'rol_nombre'           => $rol->nombre,
-                'contado_dias'         => $contado ? (int) $contado->dias_gracia   : null,
-                'contado_descripcion'  => $contado ? $contado->descripcion         : null,
-                'contado_id'           => $contado ? (int) $contado->id            : null,
-                'credito_dias'         => $credito  ? (int) $credito->dias_gracia  : null,
-                'credito_descripcion'  => $credito  ? $credito->descripcion        : null,
-                'credito_id'           => $credito  ? (int) $credito->id           : null,
+                'contado_dias'         => $contado ? (int) $contado->dias_gracia        : null,
+                'contado_retencion'    => $contado ? (float) $contado->porcentaje_retencion : null,
+                'contado_descripcion'  => $contado ? $contado->descripcion               : null,
+                'contado_id'           => $contado ? (int) $contado->id                  : null,
+                'credito_dias'         => $credito  ? (int) $credito->dias_gracia        : null,
+                'credito_retencion'    => $credito  ? (float) $credito->porcentaje_retencion : null,
+                'credito_descripcion'  => $credito  ? $credito->descripcion              : null,
+                'credito_id'           => $credito  ? (int) $credito->id                 : null,
             ];
         });
 
@@ -521,10 +692,11 @@ class Conciliacion extends Component
     public function guardarDiasGracia(Request $request)
     {
         $request->validate([
-            'rol_id'      => 'required|integer',
-            'tipo'        => 'required|in:contado,credito',
-            'dias'        => 'required|integer|min:0|max:9999',
-            'descripcion' => 'nullable|string|max:200',
+            'rol_id'               => 'required|integer',
+            'tipo'                 => 'required|in:contado,credito',
+            'dias'                 => 'required|integer|min:0|max:9999',
+            'porcentaje_retencion' => 'nullable|numeric|min:0|max:100',
+            'descripcion'          => 'nullable|string|max:200',
         ]);
 
         $userId = Auth::id();
@@ -532,15 +704,16 @@ class Conciliacion extends Component
         DB::table('dias_gracia_comision')->updateOrInsert(
             ['rol_id' => $request->rol_id, 'tipo_factura' => $request->tipo],
             [
-                'dias_gracia'  => $request->dias,
-                'descripcion'  => $request->descripcion ?? null,
-                'updated_by'   => $userId,
-                'updated_at'   => now(),
-                'created_at'   => now(),
+                'dias_gracia'           => $request->dias,
+                'porcentaje_retencion'  => $request->porcentaje_retencion ?? 0,
+                'descripcion'           => $request->descripcion ?? null,
+                'updated_by'            => $userId,
+                'updated_at'            => now(),
+                'created_at'            => now(),
             ]
         );
 
-        $rolNombre = DB::table('roles')->where('id', $request->rol_id)->value('name') ?? 'Rol';
+        $rolNombre = DB::table('rol')->where('id', $request->rol_id)->value('nombre') ?? 'Rol';
         $tipoLabel = $request->tipo === 'contado' ? 'Contado' : 'Crédito';
 
         return response()->json([

@@ -840,44 +840,139 @@ $(document).on('submit', '#formabonos', function(event) {
     var facturaId        = $('#idFacturaAbono').val();
     var montoAbono       = $('#montoAbono').val();
     var aplicacionPagoId = $('#codAplicPagoAbono').val();
+    var fechaPago        = $('#fecha_pago').val(); // YYYY-MM-DD
 
-    // Consultar si este pago cerrará la factura y qué roles recibirán comisión
-    axios.get('/pagos/preview-comisiones', {
-        params: {
-            factura_id:          facturaId,
-            monto_abono:         montoAbono,
-            aplicacion_pagos_id: aplicacionPagoId
-        }
-    }).then(function(response) {
-        var preview = response.data;
+    // ── PASO 1: Verificar si el mes del pago está conciliado ──────────
+    // Helper: muestra el modal de preview (o guarda directo si no cierra factura).
+    // Funciona tanto si #modalAbonos está abierto como si ya fue cerrado (flujo desvío).
+    function continuar_con_preview() {
+        // Consultar si este pago cerrará la factura y qué roles recibirán comisión
+        axios.get('/pagos/preview-comisiones', {
+            params: {
+                factura_id:          facturaId,
+                monto_abono:         montoAbono,
+                aplicacion_pagos_id: aplicacionPagoId
+            }
+        }).then(function(response) {
+            var preview = response.data;
+            var modalYaCerrado = !$('#modalAbonos').hasClass('show');
 
-        if (preview.cerrara) {
-            // Capturar FormData ANTES de ocultar el modal
-            _pendingAbonoData = new FormData($('#formabonos').get(0));
+            if (preview.cerrara) {
+                // Solo capturar si el modal sigue abierto.
+                // Si ya cerró (flujo desvío), _pendingAbonoData ya tiene banco_id y no debe pisarse.
+                if (!modalYaCerrado) {
+                    _pendingAbonoData = new FormData($('#formabonos').get(0));
+                }
 
-            if (preview.targets && preview.targets.length > 0) {
-                renderPreviewComisiones(preview.targets);
+                if (preview.targets && preview.targets.length > 0) {
+                    renderPreviewComisiones(preview.targets);
+                } else {
+                    renderPreviewSinComisiones();
+                }
+
+                if (modalYaCerrado) {
+                    // El modal ya está cerrado (flujo desvío) — mostrar preview directo
+                    $('.modal-backdrop').remove();
+                    $('body').removeClass('modal-open').css('padding-right', '');
+                    $('#modalPreviewComisiones').modal('show');
+                } else {
+                    $('#modalAbonos').one('hidden.bs.modal', function() {
+                        $('.modal-backdrop').remove();
+                        $('body').removeClass('modal-open').css('padding-right', '');
+                        $('#modalPreviewComisiones').modal('show');
+                    });
+                    $('#modalAbonos').modal('hide');
+                }
             } else {
-                // Cerrará la factura pero ningún rol tiene configuración activa
-                renderPreviewSinComisiones();
+                // No cerrará o ya fue comisionada — guardar directo
+                if (!modalYaCerrado) {
+                    $('#modalAbonos').modal('hide');
+                }
+                guardarCreditos();
+            }
+        }).catch(function() {
+            // En caso de error en el preview, proceder igual
+            if ($('#modalAbonos').hasClass('show')) {
+                $('#modalAbonos').modal('hide');
+            }
+            guardarCreditos();
+        });
+    }
+
+    // Si no hay fecha de pago, saltamos la verificación de período
+    if (!fechaPago) {
+        continuar_con_preview();
+        return;
+    }
+
+    axios.get('/comisiones/conciliacion/verificar-periodo', { params: { fecha: fechaPago } })
+        .then(function(res) {
+            var info = res.data;
+
+            if (!info.conciliado) {
+                // Período abierto — flujo normal
+                continuar_con_preview();
+                return;
             }
 
+            // Período conciliado → capturar FormData AHORA (banco_id aún vivo en Select2)
+            // y luego cerrar el modal para que el Swal quede al frente
+            _pendingAbonoData = new FormData($('#formabonos').get(0));
+
+            var msgHtml =
+                '<div style="text-align:left;font-size:13px;line-height:1.7;">' +
+                    '<div style="background:#fff7ed;border-left:4px solid #f59e0b;border-radius:6px;padding:10px 14px;margin-bottom:14px;">' +
+                        '<i class="fa fa-exclamation-triangle" style="color:#f59e0b;margin-right:6px;"></i>' +
+                        '<strong>El período <span style="color:#92400e;">' + info.periodo_label + '</span> ya está conciliado.</strong>' +
+                    '</div>' +
+                    '<p style="margin:0 0 10px;">La comisión generada por este pago <strong>no podrá acreditarse en ' + info.periodo_label + '</strong>.</p>' +
+                    (info.proximo_abierto
+                        ? '<p style="margin:0;">Se acreditará automáticamente en el próximo período abierto: <strong style="color:#15803d;">' + info.proximo_label + '</strong>.</p>'
+                        : '<p style="margin:0;color:#991b1b;">No se encontró un período abierto disponible. Contacte al administrador.</p>') +
+                    '<p style="margin:10px 0 0;font-size:11.5px;color:#64748b;">Esta acción quedará registrada en el historial del abono para auditoría.</p>' +
+                '</div>';
+
+            // Ocultar el modal para que el Swal quede al frente
             $('#modalAbonos').one('hidden.bs.modal', function() {
                 $('.modal-backdrop').remove();
                 $('body').removeClass('modal-open').css('padding-right', '');
-                $('#modalPreviewComisiones').modal('show');
+
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Período ya conciliado',
+                    html: msgHtml,
+                    showCancelButton: true,
+                    confirmButtonText: '<i class="fa fa-check mr-1"></i> Entendido, continuar',
+                    cancelButtonText: '<i class="fa fa-arrow-left mr-1"></i> Cambiar fecha',
+                    confirmButtonColor: '#1e3a8a',
+                    cancelButtonColor: '#6b7280',
+                    reverseButtons: true
+                }).then(function(result) {
+                    if (!result.isConfirmed) {
+                        // Volver a abrir el modal para que el usuario cambie la fecha
+                        $('#btn_notaabono').css('display','block').show();
+                        $('#modalAbonos').modal('show');
+                        return;
+                    }
+
+                    // Agregar los campos de desvío directamente al FormData ya capturado
+                    // (no al formulario DOM, que ya está cerrado y sin banco_id)
+                    _pendingAbonoData.delete('periodo_comision_original');
+                    _pendingAbonoData.delete('periodo_comision_asignado');
+                    _pendingAbonoData.append('periodo_comision_original', info.periodo);
+                    if (info.proximo_abierto) {
+                        _pendingAbonoData.append('periodo_comision_asignado', info.proximo_abierto);
+                    }
+
+                    continuar_con_preview();
+                });
             });
             $('#modalAbonos').modal('hide');
-        } else {
-            // No cerrará o ya fue comisionada — proceder directamente
-            $('#modalAbonos').modal('hide');
-            guardarCreditos();
-        }
-    }).catch(function() {
-        // En caso de error en el preview, proceder igual
-        $('#modalAbonos').modal('hide');
-        guardarCreditos();
-    });
+        })
+        .catch(function() {
+            // Si falla la verificación, flujo normal sin bloquear
+            continuar_con_preview();
+        });
 });
 
 /* Renderiza aviso cuando la factura cierra pero ningún rol tiene configuración activa */
@@ -962,33 +1057,39 @@ function guardarCreditos(){
 
     axios.post("/pagos/creditos/guardar", data)
         .then(response => {
+            var res = response.data || {};
 
-            //$('#formEstadoRetencion').parsley().reset();
             $('#tbl_cuentas_facturas_cliente').DataTable().ajax.reload();
             $('#tbl_abonos_cliente').DataTable().ajax.reload();
 
-            var formulario = document.getElementById("formabonos");
+            // Limpiar campos de desvío inyectados
+            $('#formabonos').find('[name="periodo_comision_original"]').remove();
+            $('#formabonos').find('[name="periodo_comision_asignado"]').remove();
 
-            // Resetear el formulario, lo que también reseteará el valor del TextArea
+            var formulario = document.getElementById("formabonos");
             formulario.reset();
 
             $('#btn_notaabono').css('display','block');
             $('#btn_notaabono').show();
 
             Swal.fire({
-                icon: 'success',
-                title: 'Exito!',
-                text: "Ha realizado la gestion."
+                icon:  res.icon  || 'success',
+                title: res.title || '¡Éxito!',
+                text:  res.text  || 'El pago fue registrado correctamente.'
             });
 
     })
     .catch(err => {
-        let data = err.response.data;
+        // Limpiar campos de desvío también en caso de error
+        $('#formabonos').find('[name="periodo_comision_original"]').remove();
+        $('#formabonos').find('[name="periodo_comision_asignado"]').remove();
+
+        let errData = (err.response && err.response.data) ? err.response.data : {};
         Swal.fire({
-            icon: data.icon,
-            title: data.title,
-            text: data.text
-        })
+            icon:  errData.icon  || 'error',
+            title: errData.title || 'Error',
+            text:  errData.text  || 'Ha ocurrido un error al registrar el pago.'
+        });
         console.error(err);
 
     })

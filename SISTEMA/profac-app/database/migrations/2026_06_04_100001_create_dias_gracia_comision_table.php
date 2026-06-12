@@ -10,7 +10,7 @@ class CreateDiasGraciaComisionTable extends Migration
     {
         Schema::create('dias_gracia_comision', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('rol_id');
+            $table->integer('rol_id');
             // tipo_factura: 'contado' | 'credito'
             $table->enum('tipo_factura', ['contado', 'credito']);
             // días desde la fecha de pago (contado) o desde vencimiento (crédito)
@@ -20,7 +20,7 @@ class CreateDiasGraciaComisionTable extends Migration
             $table->unsignedBigInteger('updated_by')->nullable();
             $table->timestamps();
 
-            $table->foreign('rol_id')->references('id')->on('roles')->onDelete('cascade');
+            $table->foreign('rol_id')->references('id')->on('rol')->onDelete('cascade');
             $table->foreign('updated_by')->references('id')->on('users')->onDelete('set null');
 
             // Un rol sólo puede tener UN registro por tipo de factura

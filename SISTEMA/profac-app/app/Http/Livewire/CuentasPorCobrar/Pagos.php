@@ -859,6 +859,13 @@ class Pagos extends Component
                         $abonos->fecha_pago = $request->fecha_pago;
                         $abonos->numero_recibo = $request->numero_recibo;
 
+                        // Registro de desvío de período por conciliación
+                        if ($request->filled('periodo_comision_original')) {
+                            $abonos->periodo_comision_original = $request->periodo_comision_original;
+                            $abonos->periodo_comision_asignado = $request->periodo_comision_asignado ?: null;
+                            $abonos->desvio_confirmado_por     = Auth::id();
+                        }
+
                        $abonos->save();
 
                        $cuentas2 = DB::select("
@@ -948,11 +955,19 @@ class Pagos extends Component
                                    ]);
                            }
 
-                                // Registrar comisiones usando la fecha_pago del modal
+                                // Registrar comisiones.
+                                // Si el mes del pago estaba conciliado, usar el período asignado
+                                // (próximo abierto); de lo contrario usar fecha_pago normal.
                                 $generador = app(GeneradorFacturasComision::class);
-                                $fechaPagoComision = $request->fecha_pago
-                                    ? \Carbon\Carbon::parse($request->fecha_pago)->toDateString()
-                                    : null;
+                                if ($request->filled('periodo_comision_asignado')) {
+                                    // Usar el primer día del mes asignado como fecha de comisión
+                                    $fechaPagoComision = \Carbon\Carbon::parse($request->periodo_comision_asignado)
+                                        ->startOfMonth()->toDateString();
+                                } else {
+                                    $fechaPagoComision = $request->fecha_pago
+                                        ? \Carbon\Carbon::parse($request->fecha_pago)->toDateString()
+                                        : null;
+                                }
                                 $arrayfacturas_comision = $generador->generar(
                                     (int) $request->idFacturaAbono,
                                     (int) $request->codAplicPagoAbono,
@@ -966,11 +981,13 @@ class Pagos extends Component
                                     }
                                 }
 
-
-
-
                        }
 
+                       return response()->json([
+                           'icon'  => 'success',
+                           'title' => '¡Éxito!',
+                           'text'  => 'El pago fue registrado correctamente.',
+                       ]);
 
            }catch (QueryException $e) {
 
@@ -1247,6 +1264,7 @@ class Pagos extends Component
                      WHEN 1 THEN u.id = (SELECT users_id FROM factura WHERE id = fc.factura_id)
                      WHEN 2 THEN u.id = (SELECT users_id FROM factura WHERE id = fc.factura_id)
                      WHEN 3 THEN u.id = (SELECT vendedor FROM factura WHERE id = fc.factura_id)
+                     WHEN 4 THEN u.id = (SELECT gestor_entrega FROM factura WHERE id = fc.factura_id)
                      ELSE 1=0
                  END
              )
@@ -1384,6 +1402,7 @@ class Pagos extends Component
                          WHEN 1 THEN u.id = (SELECT users_id FROM factura WHERE id = fc.factura_id)
                          WHEN 2 THEN u.id = (SELECT users_id FROM factura WHERE id = fc.factura_id)
                          WHEN 3 THEN u.id = (SELECT vendedor FROM factura WHERE id = fc.factura_id)
+                         WHEN 4 THEN u.id = (SELECT gestor_entrega FROM factura WHERE id = fc.factura_id)
                          ELSE 1=0
                      END
                  )

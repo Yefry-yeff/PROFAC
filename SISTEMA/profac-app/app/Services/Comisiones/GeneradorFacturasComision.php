@@ -21,14 +21,20 @@ class GeneradorFacturasComision
     const TIPO_FACTURADOR_ROL  = 2;
     /** Tipo de comisión: vendedor de la factura → siempre con ROL_VENDEDOR_ID */
     const TIPO_VENDEDOR        = 3;
+    /** Tipo de comisión: gestor de entrega → siempre con ROL_GESTOR_ENTREGA_ID */
+    const TIPO_GESTOR_ENTREGA  = 4;
+
+    /** Rol fijo que representa al gestor de entrega (Gestor de entregas). */
+    const ROL_GESTOR_ENTREGA_ID = 16;
 
     /**
      * Genera comisiones para la factura indicada.
-     * Por cada factura se construyen hasta 3 entradas de comisión:
+     * Por cada factura se construyen hasta 4 entradas de comisión:
      *   1. Facturador (factura.users_id) → siempre con ROL_FACTURADOR_ID (3).
      *   2. Facturador en su rol real     → si su rol_id real ≠ ROL_FACTURADOR_ID.
-     *   3. Vendedor   (factura.vendedor)  → su rol_id real, si la combinación
-     *      user_id+rol_id no está ya en la lista (evita duplicados).
+     *   3. Vendedor   (factura.vendedor)  → siempre con ROL_VENDEDOR_ID (2).
+     *   4. Gestor de entrega (factura.gestor_entrega) → siempre con ROL_GESTOR_ENTREGA_ID (16),
+     *      solo si el campo no es nulo y tiene comisión activa en comision_rol_config.
      * monto_comision = precio_unidad * cantidad * (porcentaje / 100)
      */
     /**
@@ -45,12 +51,13 @@ class GeneradorFacturasComision
 
         $fechaComision = $fechaPago ?? now()->toDateString();
 
-        // Resolver facturador y vendedor con sus roles reales
+        // Resolver facturador, vendedor y gestor de entrega con sus roles reales
         $fila = DB::selectOne(
-            "SELECT f.users_id AS facturador_id,
-                    uf.rol_id   AS facturador_rol,
-                    f.vendedor  AS vendedor_id,
-                    uv.rol_id   AS vendedor_rol
+            "SELECT f.users_id      AS facturador_id,
+                    uf.rol_id       AS facturador_rol,
+                    f.vendedor      AS vendedor_id,
+                    uv.rol_id       AS vendedor_rol,
+                    f.gestor_entrega AS gestor_id
              FROM factura f
              INNER JOIN users uf ON uf.id = f.users_id
              INNER JOIN users uv ON uv.id = f.vendedor
@@ -63,11 +70,11 @@ class GeneradorFacturasComision
         }
 
         // ── Construcción de targets ──────────────────────────────────────────
-        // Una entrada por persona involucrada usando su ROL REAL:
+        // Una entrada por persona involucrada:
         //   1. Facturador (quien emitió la factura) → tipo TIPO_FACTURADOR_FIJO
-        //   2. Vendedor   (responsable de la venta)  → tipo TIPO_VENDEDOR
-        //      Se omite si es la misma persona CON el mismo rol que el facturador
-        //      (solo habría un registro, evitando doble comisión).
+        //   2. Facturador en su rol real            → tipo TIPO_FACTURADOR_ROL
+        //   3. Vendedor   (responsable de la venta) → tipo TIPO_VENDEDOR
+        //   4. Gestor de entrega (si está asignado)  → tipo TIPO_GESTOR_ENTREGA
         // El panel de control (comision_rol_config) filtra quién calcula y quién no.
         $targetsList = [];
 
@@ -104,9 +111,21 @@ class GeneradorFacturasComision
             'tipo'    => self::TIPO_VENDEDOR,
         ];
 
+        // 4. Gestor de entrega: solo si la factura tiene uno asignado.
+        //    Siempre con ROL_GESTOR_ENTREGA_ID (16).
+        //    Si comision_rol_config.calcular = 0 para rol 16, el filtro posterior lo excluirá.
+        $gestorId = isset($fila->gestor_id) ? (int) $fila->gestor_id : 0;
+        if ($gestorId > 0) {
+            $targetsList[] = [
+                'user_id' => $gestorId,
+                'rol_id'  => self::ROL_GESTOR_ENTREGA_ID,
+                'tipo'    => self::TIPO_GESTOR_ENTREGA,
+            ];
+        }
+
         // ── Deduplicar por rol_id ────────────────────────────────────────────
         // Solo puede existir UNA comisión por rol, sin importar cuántas personas
-        // compartan ese rol en la factura. Prioridad: TIPO_VENDEDOR > TIPO_FACTURADOR_ROL > TIPO_FACTURADOR_FIJO
+        // compartan ese rol en la factura. Prioridad: TIPO_GESTOR > TIPO_VENDEDOR > TIPO_FACTURADOR_ROL > TIPO_FACTURADOR_FIJO
         $uniqueTargets = [];
         foreach ($targetsList as $t) {
             $key = $t['rol_id'];

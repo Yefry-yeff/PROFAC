@@ -253,201 +253,189 @@
 .conc-tab-pane{ display:none; }
 .conc-tab-pane.active{ display:block; }
 
-/* ── DÍAS DE GRACIA (REDISEÑO) ── */
+/* ── DÍAS DE GRACIA (REDISEÑO MODAL) ── */
 .dg-infobar{
     background:#f0f9ff; border-bottom:1px solid #bae6fd;
     padding:9px 20px; font-size:11.5px; color:#0369a1;
     display:flex; align-items:center; gap:8px;
 }
 .dg-infobar i{ flex-shrink:0; }
-.dg-body{ padding:20px; display:flex; flex-direction:column; gap:16px; }
-/* Selector de rol */
-.dg-selector-card{
-    background:#fff; border:1.5px solid #e2e8f0; border-radius:10px;
-    padding:14px 20px; display:flex; align-items:center; gap:16px;
-    box-shadow:0 1px 4px rgba(0,0,0,.04);
+/* Tabla de roles */
+.dg-tbl-wrap{ padding:0; }
+.dg-tbl{ width:100%; border-collapse:collapse; font-size:13px; }
+.dg-tbl thead tr{
+    background:linear-gradient(135deg,#f8fafc 0%,#f1f5f9 100%);
+    border-bottom:2px solid #e2e8f0;
 }
-.dg-selector-label{
-    font-size:12px; font-weight:700; color:#475569;
-    white-space:nowrap; flex-shrink:0;
+.dg-tbl th{
+    padding:12px 18px; font-size:10px; font-weight:800; color:#64748b;
+    text-align:left; text-transform:uppercase; letter-spacing:.6px;
 }
-/* Custom dropdown (reemplaza <select> nativo para evitar glyphs del SO) */
-.dg-custom-dd{ position:relative; flex:1; max-width:340px; }
-.dg-dd-trigger{
-    width:100%; height:38px; border:1.5px solid #e2e8f0; border-radius:8px;
-    padding:0 12px; background:#fff; cursor:pointer;
-    display:flex; align-items:center; justify-content:space-between;
-    font-size:13px; color:#94a3b8; font-weight:500;
-    transition:border-color .15s, box-shadow .15s; outline:none;
-    text-align:left;
+.dg-tbl th:first-child{ padding-left:24px; }
+.dg-tbl th:last-child{ padding-right:24px; text-align:right; }
+.dg-tbl td{
+    padding:13px 18px; border-bottom:1px solid #f1f5f9;
+    color:#334155; vertical-align:middle;
 }
-.dg-dd-trigger.has-value{ color:#1e293b; font-weight:600; }
-.dg-dd-trigger.open{ border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,.1); }
-.dg-dd-arrow{
-    font-size:10px; color:#94a3b8; flex-shrink:0; margin-left:8px;
-    transition:transform .18s;
-}
-.dg-dd-trigger.open .dg-dd-arrow{ transform:rotate(180deg); }
-.dg-dd-panel{
-    position:absolute; top:calc(100% + 4px); left:0; right:0;
-    background:#fff; border:1.5px solid #e2e8f0; border-radius:10px;
-    box-shadow:0 8px 28px rgba(0,0,0,.13); z-index:300; overflow:hidden;
-    display:none;
-}
-.dg-dd-panel.open{ display:block; }
-.dg-dd-search-wrap{ padding:8px; border-bottom:1px solid #f1f5f9; }
-.dg-dd-search{
-    width:100%; height:32px; border:1.5px solid #e2e8f0; border-radius:7px;
-    padding:0 10px; font-size:12.5px; color:#1e293b; outline:none;
-    box-sizing:border-box; transition:border-color .15s; background:#fff;
-}
-.dg-dd-search:focus{ border-color:#2563eb; }
-.dg-dd-list{ max-height:200px; overflow-y:auto; }
-.dg-dd-item{
-    display:flex; align-items:center; justify-content:space-between;
-    padding:8px 14px; cursor:pointer; font-size:13px; color:#334155;
-    font-weight:600; border:none; background:none; width:100%;
-    text-align:left; transition:background .1s;
-}
-.dg-dd-item:hover{ background:#f0f9ff; color:#1e3a8a; }
-.dg-dd-item.selected{ background:#eff6ff; color:#1e3a8a; }
-.dg-dd-item-dot{
-    width:7px; height:7px; border-radius:50%; flex-shrink:0;
-    background:#e2e8f0;
-}
-.dg-dd-item.configured .dg-dd-item-dot{ background:#16a34a; }
-.dg-dd-empty{ padding:16px; text-align:center; font-size:12px; color:#94a3b8; font-weight:600; }
-/* Form card */
-.dg-form-card{
-    background:#fff; border:1.5px solid #e2e8f0; border-radius:10px;
-    overflow:hidden; box-shadow:0 1px 6px rgba(0,0,0,.05);
-}
-.dg-form-grid{ display:grid; grid-template-columns:1fr 1fr; }
-.dg-tipo-card{
-    padding:20px; border-right:1px solid #f1f5f9;
-}
-.dg-tipo-card:last-child{ border-right:none; }
-.dg-tipo-contado{ border-top:3px solid #16a34a; }
-.dg-tipo-credito { border-top:3px solid #ea580c; }
-.dg-tipo-head{
-    display:flex; align-items:center; gap:10px; margin-bottom:16px;
-}
-.dg-tipo-icon{
-    width:36px; height:36px; border-radius:9px;
-    display:flex; align-items:center; justify-content:center;
-    font-size:16px; flex-shrink:0;
-}
-.dg-tipo-icon-contado{ background:#f0fdf4; color:#16a34a; }
-.dg-tipo-icon-credito { background:#fff7ed; color:#ea580c; }
-.dg-tipo-title{ font-size:14px; font-weight:800; color:#0f172a; line-height:1.2; }
-.dg-tipo-sub  { font-size:10.5px; color:#94a3b8; font-weight:500; margin-top:1px; }
-.dg-tipo-badge{
-    margin-left:auto; font-size:11px; font-weight:700;
-    padding:3px 10px; border-radius:20px;
-}
-.dg-tipo-body{ display:flex; flex-direction:column; gap:10px; }
-/* Stepper */
-.dg-stepper{ display:flex; align-items:center; width:fit-content; }
-.dg-step{
-    width:32px; height:36px; border:1.5px solid #e2e8f0;
-    background:#f8fafc; color:#475569; font-size:16px; font-weight:700;
-    cursor:pointer; display:flex; align-items:center; justify-content:center;
-    transition:all .12s; user-select:none; line-height:1;
-}
-.dg-step:first-child{ border-radius:8px 0 0 8px; border-right:none; }
-.dg-step:last-child { border-radius:0 8px 8px 0; border-left:none; }
-.dg-step-contado:hover{ background:#f0fdf4; color:#16a34a; border-color:#86efac; }
-.dg-step-credito:hover { background:#fff7ed; color:#ea580c; border-color:#fdba74; }
-.dg-dias-inp{
-    width:60px; height:36px; border:1.5px solid #e2e8f0;
-    border-radius:0; padding:0 6px; font-size:16px; font-weight:800;
-    color:#1e293b; text-align:center; outline:none; transition:border-color .15s;
-    -moz-appearance:textfield;
-}
-.dg-dias-inp::-webkit-inner-spin-button,
-.dg-dias-inp::-webkit-outer-spin-button{ -webkit-appearance:none; margin:0; }
-.dg-dias-inp:focus{ border-color:#2563eb; z-index:1; position:relative; }
-.dg-dias-lbl{ font-size:11.5px; font-weight:600; color:#94a3b8; margin-left:8px; }
-.dg-nota-inp{
-    width:100%; height:32px; border:1.5px solid #e2e8f0; border-radius:8px;
-    padding:0 10px; font-size:12px; color:#64748b; outline:none;
-    transition:border-color .15s; background:#fff; box-sizing:border-box;
-}
-.dg-nota-inp:focus{ border-color:#2563eb; }
-/* Acciones del form */
-.dg-btn-guardar,
-.dg-btn-guardar:link,
-.dg-btn-guardar:visited{
-    height:38px; padding:0 18px; flex-shrink:0;
-    background:#1e3a8a !important; color:#fff !important;
-    border:none !important; border-radius:8px !important;
-    font-size:12.5px !important; font-weight:700 !important; cursor:pointer !important;
-    display:inline-flex !important; align-items:center !important; gap:7px !important;
-    transition:background .15s, box-shadow .15s; white-space:nowrap;
-    outline:none; user-select:none; -webkit-user-select:none;
-    box-shadow:0 2px 8px rgba(30,58,138,.30) !important;
-    line-height:1; text-decoration:none !important;
-    opacity:1 !important;
-}
-.dg-btn-guardar:hover{ background:#2563eb !important; box-shadow:0 4px 14px rgba(37,99,235,.35) !important; }
-.dg-btn-guardar:active{ background:#1d4ed8 !important; transform:translateY(1px); }
-.dg-btn-guardar:disabled{ opacity:.5 !important; cursor:not-allowed !important; box-shadow:none !important; }
-/* Hint vacío */
-.dg-empty-hint{
-    text-align:center; padding:24px;
-    display:flex; flex-direction:column; align-items:center; gap:8px;
-}
-.dg-empty-hint i{ font-size:26px; color:#cbd5e1; }
-.dg-empty-hint p{ font-size:12.5px; font-weight:600; color:#94a3b8; margin:0; }
-/* Resumen compacto + paginación */
-.dg-resumen-wrap{ border-top:1px solid #e2e8f0; background:#fafbfc; }
-.dg-resumen-header{
-    padding:8px 16px; font-size:11px; font-weight:700; color:#64748b;
-    display:flex; align-items:center; gap:8px;
-    border-bottom:1px solid #e2e8f0; background:#fff;
-}
-.dg-summary-badge{
-    background:#e2e8f0; color:#64748b; border-radius:10px;
-    padding:1px 7px; font-size:9.5px; font-weight:800;
-}
-.dg-sum-tbl{ width:100%; border-collapse:collapse; font-size:11.5px; }
-.dg-sum-tbl th{
-    padding:6px 14px; font-size:10px; font-weight:700; color:#94a3b8;
-    text-align:left; border-bottom:1px solid #f1f5f9; background:#fafbfc;
-    text-transform:uppercase; letter-spacing:.3px;
-}
-.dg-sum-tbl td{ padding:6px 14px; border-bottom:1px solid #f8fafc; color:#334155; }
-.dg-sum-tbl tr:last-child td{ border-bottom:none; }
-.dg-sum-tbl tr:hover td{ background:#f0f9ff; }
-.dg-sum-chip{
+.dg-tbl td:first-child{ padding-left:24px; }
+.dg-tbl td:last-child{ padding-right:24px; }
+.dg-tbl tbody tr:last-child td{ border-bottom:none; }
+.dg-tbl tbody tr{ transition:background .1s; }
+.dg-tbl tbody tr:hover td{ background:#f8fafc; }
+.dg-tbl tbody tr:hover td:first-child{ border-left:3px solid #2563eb; padding-left:21px; }
+.dg-tbl-role{ font-weight:700; color:#0f172a; font-size:13.5px; }
+/* Cell de días+retención */
+.dg-cell{ display:flex; align-items:center; gap:8px; }
+.dg-dias-badge{
     display:inline-flex; align-items:center; gap:4px;
-    padding:2px 8px; border-radius:20px; font-size:10.5px; font-weight:700;
+    padding:4px 11px; border-radius:8px; font-size:12px; font-weight:700;
+    letter-spacing:.2px;
 }
-.dg-sum-chip-contado{ background:#f0fdf4; color:#15803d; border:1px solid #86efac; }
-.dg-sum-chip-credito { background:#fff7ed; color:#c2410c; border:1px solid #fdba74; }
-.dg-sum-chip-none    { background:#f1f5f9; color:#94a3b8; border:1px solid #e2e8f0; }
-.dg-sum-edit-btn{
-    background:none; border:1px solid #e2e8f0; color:#94a3b8;
-    border-radius:6px; padding:2px 8px; font-size:10.5px; font-weight:600;
-    cursor:pointer; transition:all .12s;
+.dg-dias-contado{ background:#f0fdf4; color:#15803d; border:1.5px solid #86efac; }
+.dg-dias-credito{ background:#fff7ed; color:#c2410c; border:1.5px solid #fdba74; }
+.dg-ret-badge{
+    display:inline-flex; align-items:center; gap:3px;
+    padding:3px 9px; border-radius:20px; font-size:11px; font-weight:700;
+    background:#f0f9ff; color:#0369a1; border:1px solid #bae6fd;
 }
-.dg-sum-edit-btn:hover{ border-color:#2563eb; color:#2563eb; background:#eff6ff; }
+.dg-none-badge{
+    display:inline-flex; align-items:center;
+    padding:4px 12px; border-radius:8px; font-size:11px; font-weight:600;
+    background:#f8fafc; color:#cbd5e1; border:1px dashed #e2e8f0;
+    letter-spacing:.2px;
+}
+.dg-edit-btn{
+    background:#fff; border:1.5px solid #e2e8f0; color:#475569;
+    border-radius:8px; padding:5px 14px; font-size:11.5px; font-weight:600;
+    cursor:pointer; transition:all .15s; white-space:nowrap;
+    display:inline-flex; align-items:center; gap:5px;
+}
+.dg-edit-btn:hover{ border-color:#2563eb; color:#2563eb; background:#eff6ff; box-shadow:0 2px 8px rgba(37,99,235,.1); }
 /* Paginación */
 .dg-pager{
     display:flex; align-items:center; justify-content:space-between;
-    padding:7px 14px; border-top:1px solid #f1f5f9; background:#fafbfc;
-    font-size:11px; color:#94a3b8;
+    padding:10px 24px; border-top:1px solid #f1f5f9;
+    font-size:11.5px; color:#94a3b8; background:#fafbfc;
+    border-radius:0 0 12px 12px;
 }
 .dg-pager-btns{ display:flex; gap:4px; }
 .dg-pager-btn{
-    width:26px; height:26px; border:1px solid #e2e8f0; background:#fff;
-    border-radius:6px; cursor:pointer; font-size:11px; font-weight:700;
+    width:30px; height:30px; border:1px solid #e2e8f0; background:#fff;
+    border-radius:7px; cursor:pointer; font-size:11.5px; font-weight:700;
     color:#475569; display:flex; align-items:center; justify-content:center;
     transition:all .12s;
 }
 .dg-pager-btn:hover:not(:disabled){ background:#eff6ff; border-color:#2563eb; color:#2563eb; }
-.dg-pager-btn:disabled{ opacity:.35; cursor:not-allowed; }
-.dg-pager-btn.active{ background:#1e3a8a; border-color:#1e3a8a; color:#fff; }
+.dg-pager-btn:disabled{ opacity:.3; cursor:not-allowed; }
+.dg-pager-btn.active{ background:#1e3a8a; border-color:#1e3a8a; color:#fff; box-shadow:0 2px 6px rgba(30,58,138,.3); }
+/* Modal días de gracia */
+#modalDiasGracia{ z-index:1055; }
+#modalDiasGracia .modal-backdrop{ z-index:1054; }
+#modalDiasGracia .modal-content{
+    border:none; border-radius:14px; overflow:hidden;
+    box-shadow:0 24px 64px rgba(0,0,0,.22);
+}
+#modalDiasGracia .dgm-header{
+    background:linear-gradient(135deg,#1e3a8a,#2563eb);
+    padding:16px 22px; display:flex; align-items:center; gap:12px;
+}
+#modalDiasGracia .dgm-header-title{
+    font-size:15px; font-weight:800; color:#fff;
+    display:flex; align-items:center; gap:10px; flex:1;
+}
+#modalDiasGracia .dgm-header-role{
+    font-size:11px; font-weight:700;
+    background:rgba(255,255,255,.18); color:#fff;
+    padding:3px 11px; border-radius:20px; border:1px solid rgba(255,255,255,.25);
+    white-space:nowrap;
+}
+#modalDiasGracia .dgm-close{
+    background:none; border:none; color:rgba(255,255,255,.7);
+    font-size:22px; line-height:1; cursor:pointer; padding:0 2px;
+    transition:color .12s;
+}
+#modalDiasGracia .dgm-close:hover{ color:#fff; }
+/* Grid 2 columnas */
+.dgm-grid{
+    display:grid; grid-template-columns:1fr 1fr; gap:0;
+    background:#fff;
+}
+.dgm-col{
+    padding:20px 22px; border-top:none;
+}
+.dgm-col-contado{ border-right:1px solid #f1f5f9; }
+.dgm-col-title{
+    display:flex; align-items:center; gap:8px;
+    font-size:13px; font-weight:800; margin-bottom:16px;
+    padding-bottom:10px;
+}
+.dgm-col-title-contado{ color:#15803d; border-bottom:2px solid #bbf7d0; }
+.dgm-col-title-credito { color:#c2410c; border-bottom:2px solid #fed7aa; }
+.dgm-col-title-ico{
+    width:28px; height:28px; border-radius:8px;
+    display:flex; align-items:center; justify-content:center; font-size:13px;
+    flex-shrink:0;
+}
+.dgm-col-title-ico-contado{ background:#f0fdf4; color:#16a34a; }
+.dgm-col-title-ico-credito { background:#fff7ed; color:#ea580c; }
+/* Campos */
+.dgm-field{ margin-bottom:12px; }
+.dgm-field:last-child{ margin-bottom:0; }
+.dgm-lbl{
+    font-size:10.5px; font-weight:700; color:#94a3b8;
+    text-transform:uppercase; letter-spacing:.4px;
+    margin-bottom:5px;
+}
+.dgm-stepper{ display:flex; align-items:center; }
+.dgm-step{
+    width:34px; height:38px; border:1.5px solid #e2e8f0; background:#f8fafc;
+    color:#475569; font-size:18px; font-weight:700; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    transition:all .12s; user-select:none; line-height:1;
+}
+.dgm-step:first-child{ border-radius:8px 0 0 8px; border-right:none; }
+.dgm-step:last-child { border-radius:0 8px 8px 0; border-left:none; }
+.dgm-step-contado:hover{ background:#f0fdf4; color:#16a34a; border-color:#86efac; }
+.dgm-step-credito:hover { background:#fff7ed; color:#ea580c; border-color:#fdba74; }
+.dgm-dias-inp{
+    flex:1; height:38px; border:1.5px solid #e2e8f0; border-radius:0;
+    padding:0 6px; font-size:18px; font-weight:800; color:#1e293b;
+    text-align:center; outline:none; transition:border-color .15s; background:#fff;
+    min-width:0; -moz-appearance:textfield;
+}
+.dgm-dias-inp::-webkit-inner-spin-button,
+.dgm-dias-inp::-webkit-outer-spin-button{ -webkit-appearance:none; margin:0; }
+.dgm-dias-inp:focus{ border-color:#2563eb; z-index:1; position:relative; }
+.dgm-dias-unit{
+    height:38px; padding:0 10px; border:1.5px solid #e2e8f0; border-left:none;
+    border-radius:0 8px 8px 0; background:#f8fafc;
+    font-size:11.5px; font-weight:700; color:#94a3b8;
+    display:flex; align-items:center;
+}
+.dgm-pct-row{ display:flex; align-items:center; gap:8px; }
+.dgm-pct-inp{
+    width:100%; height:38px; border:1.5px solid #e2e8f0; border-radius:8px;
+    padding:0 10px; font-size:16px; font-weight:800; color:#1e293b;
+    text-align:center; outline:none; transition:border-color .15s; background:#fff;
+    -moz-appearance:textfield; box-sizing:border-box;
+}
+.dgm-pct-inp::-webkit-inner-spin-button,
+.dgm-pct-inp::-webkit-outer-spin-button{ -webkit-appearance:none; margin:0; }
+.dgm-col-contado .dgm-pct-inp:focus{ border-color:#16a34a; }
+.dgm-col-credito  .dgm-pct-inp:focus{ border-color:#ea580c; }
+.dgm-pct-sym{
+    font-size:14px; font-weight:800; color:#94a3b8; flex-shrink:0;
+}
+.dgm-nota-inp{
+    width:100%; height:36px; border:1.5px solid #e2e8f0; border-radius:8px;
+    padding:0 10px; font-size:12.5px; color:#475569; outline:none;
+    transition:border-color .15s; background:#fff; box-sizing:border-box;
+}
+.dgm-nota-inp:focus{ border-color:#2563eb; }
+.dgm-footer{
+    padding:14px 22px; background:#f8fafc; border-top:1px solid #e2e8f0;
+    display:flex; justify-content:flex-end; align-items:center; gap:10px;
+}
 
 /* ── AUDITORÍA TAB ── */
 .aud-tipo-btn{
@@ -645,107 +633,16 @@
     {{-- Tab 2: Días de Gracia --}}
     <div id="conc-tab-diasgracia" class="conc-tab-pane">
 
-        {{-- Info bar compacto --}}
+        {{-- Info bar --}}
         <div class="dg-infobar">
             <i class="fa fa-info-circle"></i>
-            <span>Define cuántos días deben pasar tras la venta para acreditar la comisión.
+            <span>Define los días de gracia y el porcentaje de retención por tipo de factura.
                 <strong>Contado:</strong> desde fecha de pago.
                 <strong>Crédito:</strong> desde vencimiento de factura.</span>
         </div>
 
-        {{-- Cuerpo principal --}}
-        <div class="dg-body">
-
-            {{-- Selector de rol (custom dropdown) --}}
-            <div class="dg-selector-card">
-                <span class="dg-selector-label">
-                    <i class="fa fa-users mr-1"></i> Rol a configurar
-                </span>
-                <div class="dg-custom-dd" id="dg-custom-dd">
-                    <button type="button" class="dg-dd-trigger" id="dg-dd-trigger" onclick="dgToggleDd()">
-                        <span id="dg-dd-text">Seleccione un rol...</span>
-                        <i class="fa fa-chevron-down dg-dd-arrow"></i>
-                    </button>
-                    <div class="dg-dd-panel" id="dg-dd-panel">
-                        <div class="dg-dd-search-wrap">
-                            <input type="text" id="dg-dd-search" class="dg-dd-search"
-                                placeholder="Buscar rol..." oninput="dgFiltrarDd()" />
-                        </div>
-                        <div class="dg-dd-list" id="dg-dd-list"></div>
-                    </div>
-                </div>
-                <button type="button" id="dg-btn-guardar" class="dg-btn-guardar" onclick="dgGuardarAmbos()" style="display:none;background:#1e3a8a!important;color:#fff!important;height:38px;padding:0 18px;border:none;border-radius:8px;font-weight:700;font-size:12.5px;cursor:pointer;" tabindex="0">
-                    <i class="fa fa-check" style="color:#fff;font-size:12px;"></i>&nbsp;Guardar cambios
-                </button>
-            </div>
-
-            {{-- Formulario (oculto hasta seleccionar rol) --}}
-            <div id="dg-form-card" class="dg-form-card" style="display:none;">
-                <div class="dg-form-grid">
-
-                    {{-- Contado --}}
-                    <div class="dg-tipo-card dg-tipo-contado">
-                        <div class="dg-tipo-head">
-                            <span class="dg-tipo-icon dg-tipo-icon-contado">
-                                <i class="fa fa-check-circle"></i>
-                            </span>
-                            <div>
-                                <div class="dg-tipo-title">Contado</div>
-                                <div class="dg-tipo-sub">Días desde la fecha de pago</div>
-                            </div>
-                            <span id="dg-badge-cont" class="dg-tipo-badge"></span>
-                        </div>
-                        <div class="dg-tipo-body">
-                            <div class="dg-stepper">
-                                <button type="button" class="dg-step dg-step-contado" onclick="dgStep('dg-cont-dias',-1)">−</button>
-                                <input type="number" id="dg-cont-dias" class="dg-dias-inp" value="0" min="0" max="9999" />
-                                <button type="button" class="dg-step dg-step-contado" onclick="dgStep('dg-cont-dias',1)">+</button>
-                                <span class="dg-dias-lbl">días</span>
-                            </div>
-                            <input type="text" id="dg-cont-desc" class="dg-nota-inp" placeholder="Nota opcional..." />
-                        </div>
-                    </div>
-
-                    {{-- Crédito --}}
-                    <div class="dg-tipo-card dg-tipo-credito">
-                        <div class="dg-tipo-head">
-                            <span class="dg-tipo-icon dg-tipo-icon-credito">
-                                <i class="fa fa-credit-card"></i>
-                            </span>
-                            <div>
-                                <div class="dg-tipo-title">Crédito</div>
-                                <div class="dg-tipo-sub">Días desde vencimiento de factura</div>
-                            </div>
-                            <span id="dg-badge-cred" class="dg-tipo-badge"></span>
-                        </div>
-                        <div class="dg-tipo-body">
-                            <div class="dg-stepper">
-                                <button type="button" class="dg-step dg-step-credito" onclick="dgStep('dg-cred-dias',-1)">−</button>
-                                <input type="number" id="dg-cred-dias" class="dg-dias-inp" value="0" min="0" max="9999" />
-                                <button type="button" class="dg-step dg-step-credito" onclick="dgStep('dg-cred-dias',1)">+</button>
-                                <span class="dg-dias-lbl">días</span>
-                            </div>
-                            <input type="text" id="dg-cred-desc" class="dg-nota-inp" placeholder="Nota opcional..." />
-                        </div>
-                    </div>
-
-                </div>
-            </div>
-
-            {{-- Hint vacío --}}
-            <div id="dg-empty-hint" class="dg-empty-hint">
-                <i class="fa fa-hand-pointer-o"></i>
-                <p>Seleccione un rol para configurar sus días de gracia</p>
-            </div>
-
-        </div>
-
-        {{-- Resumen de todos los roles --}}
-        <div class="dg-resumen-wrap">
-            <div class="dg-resumen-header">
-                <i class="fa fa-list-ul mr-1"></i> Configuración actual por rol
-                <span id="dg-summary-badge" class="dg-summary-badge"></span>
-            </div>
+        {{-- Tabla de roles --}}
+        <div class="dg-tbl-wrap">
             <div id="dg-summary-body">
                 <div class="conc-loader"><div class="conc-spinner"></div> Cargando...</div>
             </div>
@@ -784,6 +681,116 @@
         <div class="conc-loader"><div class="conc-spinner"></div> Cargando historial...</div>
     </div>
 
+</div>
+
+{{-- ══════════════════════════════════════════════════════════════════
+     MODAL — DÍAS DE GRACIA & RETENCIÓN POR ROL
+══════════════════════════════════════════════════════════════════ --}}
+<div class="modal fade" id="modalDiasGracia" tabindex="-1" data-backdrop="static" data-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered" style="max-width:640px;">
+        <div class="modal-content" style="border:none;border-radius:14px;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.22);">
+
+            {{-- Header --}}
+            <div class="dgm-header">
+                <div class="dgm-header-title">
+                    <span style="width:32px;height:32px;background:rgba(255,255,255,.15);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;">
+                        <i class="fa fa-clock-o"></i>
+                    </span>
+                    Días de gracia &amp; retención
+                    <span id="dgm-rol-badge" class="dgm-header-role"></span>
+                </div>
+                <button type="button" class="dgm-close" data-dismiss="modal">&times;</button>
+            </div>
+
+            {{-- Grid 2 columnas --}}
+            <div class="dgm-grid">
+
+                {{-- Contado --}}
+                <div class="dgm-col dgm-col-contado">
+                    <div class="dgm-col-title dgm-col-title-contado">
+                        <span class="dgm-col-title-ico dgm-col-title-ico-contado">
+                            <i class="fa fa-check-circle"></i>
+                        </span>
+                        <div>
+                            <div style="font-size:13px;font-weight:800;line-height:1.2;">Contado</div>
+                            <div style="font-size:10.5px;font-weight:500;color:#94a3b8;margin-top:1px;">desde fecha de pago</div>
+                        </div>
+                    </div>
+
+                    <div class="dgm-field">
+                        <div class="dgm-lbl">Días de gracia</div>
+                        <div class="dgm-stepper">
+                            <button type="button" class="dgm-step dgm-step-contado" onclick="dgmStep('dgm-cont-dias',-1)">−</button>
+                            <input type="number" id="dgm-cont-dias" class="dgm-dias-inp" value="0" min="0" max="9999" />
+                            <span class="dgm-dias-unit">días</span>
+                        </div>
+                    </div>
+
+                    <div class="dgm-field">
+                        <div class="dgm-lbl">% de retención</div>
+                        <div class="dgm-pct-row">
+                            <input type="number" id="dgm-cont-ret" class="dgm-pct-inp" value="0" min="0" max="100" step="0.01" />
+                            <span class="dgm-pct-sym">%</span>
+                        </div>
+                    </div>
+
+                    <div class="dgm-field">
+                        <div class="dgm-lbl">Nota interna</div>
+                        <input type="text" id="dgm-cont-desc" class="dgm-nota-inp" placeholder="Opcional..." />
+                    </div>
+                </div>
+
+                {{-- Crédito --}}
+                <div class="dgm-col dgm-col-credito">
+                    <div class="dgm-col-title dgm-col-title-credito">
+                        <span class="dgm-col-title-ico dgm-col-title-ico-credito">
+                            <i class="fa fa-credit-card"></i>
+                        </span>
+                        <div>
+                            <div style="font-size:13px;font-weight:800;line-height:1.2;">Crédito</div>
+                            <div style="font-size:10.5px;font-weight:500;color:#94a3b8;margin-top:1px;">desde vencimiento de factura</div>
+                        </div>
+                    </div>
+
+                    <div class="dgm-field">
+                        <div class="dgm-lbl">Días de gracia</div>
+                        <div class="dgm-stepper">
+                            <button type="button" class="dgm-step dgm-step-credito" onclick="dgmStep('dgm-cred-dias',-1)">−</button>
+                            <input type="number" id="dgm-cred-dias" class="dgm-dias-inp" value="0" min="0" max="9999" />
+                            <span class="dgm-dias-unit">días</span>
+                        </div>
+                    </div>
+
+                    <div class="dgm-field">
+                        <div class="dgm-lbl">% de retención</div>
+                        <div class="dgm-pct-row">
+                            <input type="number" id="dgm-cred-ret" class="dgm-pct-inp" value="0" min="0" max="100" step="0.01" />
+                            <span class="dgm-pct-sym">%</span>
+                        </div>
+                    </div>
+
+                    <div class="dgm-field">
+                        <div class="dgm-lbl">Nota interna</div>
+                        <input type="text" id="dgm-cred-desc" class="dgm-nota-inp" placeholder="Opcional..." />
+                    </div>
+                </div>
+
+            </div>
+
+            {{-- Footer --}}
+            <div class="dgm-footer">
+                <button type="button" class="btn btn-light btn-sm px-4" data-dismiss="modal"
+                    style="font-weight:600;border:1.5px solid #e2e8f0;">
+                    Cancelar
+                </button>
+                <button type="button" id="dgm-btn-guardar" class="btn btn-sm px-4" onclick="dgmGuardar()"
+                    style="background:linear-gradient(135deg,#1e3a8a,#2563eb);color:#fff;font-weight:700;border:none;min-width:150px;box-shadow:0 2px 8px rgba(30,58,138,.30);">
+                    <i class="fa fa-check mr-1"></i> Guardar cambios
+                </button>
+            </div>
+
+        </div>
+    </div>
 </div>
 
 {{-- ══════════════════════════════════════════════════════════════════
@@ -1610,18 +1617,17 @@ function concTab(tab) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   DÍAS DE GRACIA — JS (rediseño select-form)
+   DÍAS DE GRACIA — JS (modal)
 ═══════════════════════════════════════════════════════════════ */
 
-let dgData   = [];   // cache completa de roles
-let dgRolSel = null; // rol actualmente seleccionado en el form
+let dgData   = [];
+let dgRolSel = null;
 
 function dgCargar() {
     axios.get('/comisiones/dias-gracia')
         .then(r => {
             dgData = r.data.roles || [];
             document.getElementById('dg-badge-total').textContent = dgData.length + ' roles';
-            dgPoblarSelect();
             dgRenderResumen();
         })
         .catch(() => {
@@ -1630,123 +1636,42 @@ function dgCargar() {
         });
 }
 
-/* ── Custom dropdown ── */
-let dgDdOpen = false;
-
-function dgToggleDd() {
-    dgDdOpen ? dgCloseDd() : dgOpenDd();
-}
-function dgOpenDd() {
-    dgDdOpen = true;
-    document.getElementById('dg-dd-trigger').classList.add('open');
-    document.getElementById('dg-dd-panel').classList.add('open');
-    const inp = document.getElementById('dg-dd-search');
-    inp.value = '';
-    dgFiltrarDd();
-    setTimeout(() => inp.focus(), 50);
-}
-function dgCloseDd() {
-    dgDdOpen = false;
-    document.getElementById('dg-dd-trigger').classList.remove('open');
-    document.getElementById('dg-dd-panel').classList.remove('open');
-}
-document.addEventListener('click', e => {
-    if (dgDdOpen && !document.getElementById('dg-custom-dd').contains(e.target)) dgCloseDd();
-});
-
-function dgPoblarSelect() {
-    dgFiltrarDd();
-    // Restaurar selección previa si existe
-    if (dgRolSel) {
-        const r = dgData.find(x => x.rol_id === dgRolSel.rol_id);
-        if (r) dgSeleccionarRol(r.rol_id);
-    }
-}
-
-function dgFiltrarDd() {
-    const q     = (document.getElementById('dg-dd-search').value || '').toLowerCase().trim();
-    const list  = document.getElementById('dg-dd-list');
-    const items = q ? dgData.filter(r => r.rol_nombre.toLowerCase().includes(q)) : dgData;
-
-    if (!items.length) {
-        list.innerHTML = '<div class="dg-dd-empty">Sin resultados</div>';
-        return;
-    }
-    list.innerHTML = items.map(r => {
-        const cfg = r.contado_dias !== null || r.credito_dias !== null;
-        const sel = dgRolSel && dgRolSel.rol_id === r.rol_id;
-        return `<button type="button" class="dg-dd-item${cfg?' configured':''}${sel?' selected':''}" onclick="dgSeleccionarRol(${r.rol_id})">
-            <span>${r.rol_nombre}</span>
-            <span class="dg-dd-item-dot" title="${cfg?'Configurado':'Sin configurar'}"></span>
-        </button>`;
-    }).join('');
-}
-
-function dgSeleccionarRol(rolId) {
-    const card = document.getElementById('dg-form-card');
-    const hint = document.getElementById('dg-empty-hint');
-    const btn  = document.getElementById('dg-btn-guardar');
-
+function dgAbrirModal(rolId) {
     dgRolSel = dgData.find(r => r.rol_id === rolId) || null;
-    if (!dgRolSel) {
-        card.style.display = 'none';
-        hint.style.display = '';
-        if (btn) btn.style.display = 'none';
-        document.getElementById('dg-dd-trigger').classList.remove('has-value');
-        document.getElementById('dg-dd-text').textContent = 'Seleccione un rol...';
-        dgCloseDd();
-        return;
-    }
-
-    if (btn) btn.style.display = '';
-    // Actualizar trigger
-    const trigger = document.getElementById('dg-dd-trigger');
-    trigger.classList.add('has-value');
-    document.getElementById('dg-dd-text').textContent = dgRolSel.rol_nombre;
-    dgCloseDd();
-
-    document.getElementById('dg-cont-dias').value = dgRolSel.contado_dias !== null ? dgRolSel.contado_dias : 0;
-    document.getElementById('dg-cont-desc').value = dgRolSel.contado_descripcion || '';
-    document.getElementById('dg-cred-dias').value = dgRolSel.credito_dias  !== null ? dgRolSel.credito_dias  : 0;
-    document.getElementById('dg-cred-desc').value = dgRolSel.credito_descripcion  || '';
-
-    const bCont = document.getElementById('dg-badge-cont');
-    const bCred = document.getElementById('dg-badge-cred');
-    if (dgRolSel.contado_dias !== null) {
-        bCont.textContent = dgRolSel.contado_dias + ' dias';
-        bCont.className = 'dg-tipo-badge dg-sum-chip dg-sum-chip-contado';
-    } else {
-        bCont.textContent = 'Sin config.';
-        bCont.className = 'dg-tipo-badge dg-sum-chip dg-sum-chip-none';
-    }
-    if (dgRolSel.credito_dias !== null) {
-        bCred.textContent = dgRolSel.credito_dias + ' dias';
-        bCred.className = 'dg-tipo-badge dg-sum-chip dg-sum-chip-credito';
-    } else {
-        bCred.textContent = 'Sin config.';
-        bCred.className = 'dg-tipo-badge dg-sum-chip dg-sum-chip-none';
-    }
-
-    hint.style.display = 'none';
-    card.style.display = '';
-}
-
-function dgStep(id, delta) {
-    const el  = document.getElementById(id);
-    const val = parseInt(el.value) || 0;
-    el.value  = Math.max(0, Math.min(9999, val + delta));
-}
-
-function dgGuardarAmbos() {
     if (!dgRolSel) return;
-    const btn      = document.getElementById('dg-btn-guardar');
-    const contDias = parseInt(document.getElementById('dg-cont-dias').value);
-    const credDias = parseInt(document.getElementById('dg-cred-dias').value);
-    const contDesc = document.getElementById('dg-cont-desc').value.trim();
-    const credDesc = document.getElementById('dg-cred-desc').value.trim();
+
+    document.getElementById('dgm-rol-badge').textContent = dgRolSel.rol_nombre;
+    document.getElementById('dgm-cont-dias').value = dgRolSel.contado_dias      !== null ? dgRolSel.contado_dias      : 0;
+    document.getElementById('dgm-cont-ret').value  = dgRolSel.contado_retencion !== null ? dgRolSel.contado_retencion : 0;
+    document.getElementById('dgm-cont-desc').value = dgRolSel.contado_descripcion || '';
+    document.getElementById('dgm-cred-dias').value = dgRolSel.credito_dias       !== null ? dgRolSel.credito_dias      : 0;
+    document.getElementById('dgm-cred-ret').value  = dgRolSel.credito_retencion  !== null ? dgRolSel.credito_retencion : 0;
+    document.getElementById('dgm-cred-desc').value = dgRolSel.credito_descripcion || '';
+
+    $('#modalDiasGracia').modal('show');
+}
+
+function dgmStep(id, delta) {
+    const el = document.getElementById(id);
+    el.value = Math.max(0, Math.min(9999, (parseInt(el.value) || 0) + delta));
+}
+
+function dgmGuardar() {
+    if (!dgRolSel) return;
+    const btn      = document.getElementById('dgm-btn-guardar');
+    const contDias = parseInt(document.getElementById('dgm-cont-dias').value);
+    const contRet  = parseFloat(document.getElementById('dgm-cont-ret').value);
+    const contDesc = document.getElementById('dgm-cont-desc').value.trim();
+    const credDias = parseInt(document.getElementById('dgm-cred-dias').value);
+    const credRet  = parseFloat(document.getElementById('dgm-cred-ret').value);
+    const credDesc = document.getElementById('dgm-cred-desc').value.trim();
 
     if (isNaN(contDias) || contDias < 0 || isNaN(credDias) || credDias < 0) {
-        Swal.fire({ icon: 'warning', title: 'Valores inválidos', text: 'Ingrese valores numéricos válidos (≥ 0).', timer: 2500, showConfirmButton: false });
+        Swal.fire({ icon: 'warning', title: 'Valores inválidos', text: 'Los días deben ser números ≥ 0.', timer: 2200, showConfirmButton: false });
+        return;
+    }
+    if ([contRet, credRet].some(v => isNaN(v) || v < 0 || v > 100)) {
+        Swal.fire({ icon: 'warning', title: 'Porcentaje inválido', text: 'La retención debe estar entre 0 y 100.', timer: 2200, showConfirmButton: false });
         return;
     }
 
@@ -1755,11 +1680,13 @@ function dgGuardarAmbos() {
     btn.innerHTML = '<span class="conc-spinner conc-spinner-sm"></span> Guardando...';
 
     Promise.all([
-        axios.post('/comisiones/dias-gracia/guardar', { rol_id: dgRolSel.rol_id, tipo: 'contado', dias: contDias, descripcion: contDesc }),
-        axios.post('/comisiones/dias-gracia/guardar', { rol_id: dgRolSel.rol_id, tipo: 'credito', dias: credDias,  descripcion: credDesc  })
+        axios.post('/comisiones/dias-gracia/guardar', { rol_id: dgRolSel.rol_id, tipo: 'contado', dias: contDias, porcentaje_retencion: contRet, descripcion: contDesc }),
+        axios.post('/comisiones/dias-gracia/guardar', { rol_id: dgRolSel.rol_id, tipo: 'credito', dias: credDias, porcentaje_retencion: credRet, descripcion: credDesc  })
     ])
     .then(() => {
-        Swal.fire({ icon: 'success', title: '¡Guardado!', text: `Días de gracia actualizados para "${dgRolSel.rol_nombre}".`, timer: 2200, showConfirmButton: false });
+        $('#modalDiasGracia').modal('hide');
+        Swal.fire({ icon: 'success', title: '¡Guardado!', text: `Configuración actualizada para "${dgRolSel.rol_nombre}".`, timer: 2000, showConfirmButton: false });
+        dgRolSel = null;
         dgCargar();
     })
     .catch(err => {
@@ -1772,76 +1699,94 @@ function dgGuardarAmbos() {
     });
 }
 
-function dgEditarRol(rolId) {
-    dgSeleccionarRol(rolId);
-    document.querySelector('.dg-selector-card').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-}
-
-const DG_PAGE_SIZE = 8;
+const DG_PAGE_SIZE = 10;
 let dgPage = 0;
 
 function dgRenderResumen() {
-    const body  = document.getElementById('dg-summary-body');
-    const badge = document.getElementById('dg-summary-badge');
-    const cfg   = dgData.filter(r => r.contado_dias !== null || r.credito_dias !== null);
-    badge.textContent = cfg.length + ' configurados';
-
+    const body = document.getElementById('dg-summary-body');
     if (!dgData.length) {
-        body.innerHTML = '<div class="conc-empty" style="padding:16px;"><i class="fa fa-inbox"></i><p>Sin datos</p></div>';
+        body.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 20px;gap:10px;color:#94a3b8;">
+            <i class="fa fa-inbox" style="font-size:32px;opacity:.4;"></i>
+            <p style="margin:0;font-size:13px;font-weight:500;">Sin datos disponibles</p>
+        </div>`;
         return;
     }
 
     dgPage = Math.min(dgPage, Math.max(0, Math.ceil(dgData.length / DG_PAGE_SIZE) - 1));
-    const start  = dgPage * DG_PAGE_SIZE;
-    const slice  = dgData.slice(start, start + DG_PAGE_SIZE);
-    const total  = dgData.length;
-    const pages  = Math.ceil(total / DG_PAGE_SIZE);
+    const start = dgPage * DG_PAGE_SIZE;
+    const slice = dgData.slice(start, start + DG_PAGE_SIZE);
+    const total = dgData.length;
+    const pages = Math.ceil(total / DG_PAGE_SIZE);
 
     let rows = '';
     slice.forEach(r => {
-        const contHtml = r.contado_dias !== null
-            ? `<span class="dg-sum-chip dg-sum-chip-contado">${r.contado_dias}d</span>`
-            : `<span class="dg-sum-chip dg-sum-chip-none">—</span>`;
-        const credHtml = r.credito_dias !== null
-            ? `<span class="dg-sum-chip dg-sum-chip-credito">${r.credito_dias}d</span>`
-            : `<span class="dg-sum-chip dg-sum-chip-none">—</span>`;
+        const hasContado = r.contado_dias !== null;
+        const hasCred    = r.credito_dias !== null;
+
+        const contCell = hasContado
+            ? `<div class="dg-cell">
+                <span class="dg-dias-badge dg-dias-contado"><i class="fa fa-clock-o"></i> ${r.contado_dias}d</span>
+                ${r.contado_retencion > 0 ? `<span class="dg-ret-badge"><i class="fa fa-percent" style="font-size:9px;"></i> ${parseFloat(r.contado_retencion)}%</span>` : ''}
+               </div>`
+            : `<span class="dg-none-badge">Sin configurar</span>`;
+
+        const credCell = hasCred
+            ? `<div class="dg-cell">
+                <span class="dg-dias-badge dg-dias-credito"><i class="fa fa-clock-o"></i> ${r.credito_dias}d</span>
+                ${r.credito_retencion > 0 ? `<span class="dg-ret-badge"><i class="fa fa-percent" style="font-size:9px;"></i> ${parseFloat(r.credito_retencion)}%</span>` : ''}
+               </div>`
+            : `<span class="dg-none-badge">Sin configurar</span>`;
+
         rows += `<tr>
-            <td style="font-weight:600;color:#0f172a;">${r.rol_nombre}</td>
-            <td>${contHtml}</td>
-            <td>${credHtml}</td>
-            <td style="text-align:center;">
-                <button class="dg-sum-edit-btn" onclick="dgEditarRol(${r.rol_id})">
-                    <i class="fa fa-pencil"></i>
+            <td class="dg-tbl-role">${r.rol_nombre}</td>
+            <td>${contCell}</td>
+            <td>${credCell}</td>
+            <td style="text-align:right;">
+                <button class="dg-edit-btn" onclick="dgAbrirModal(${r.rol_id})">
+                    <i class="fa fa-pencil-square-o"></i> Editar
                 </button>
             </td>
         </tr>`;
     });
 
-    // Botones de página
-    let pageBtns = `<button class="dg-pager-btn" onclick="dgPageGo(${dgPage-1})" ${dgPage===0?'disabled':''}>
-        <i class="fa fa-chevron-left"></i></button>`;
-    const maxBtns = 5;
-    let pFrom = Math.max(0, dgPage - 2);
-    let pTo   = Math.min(pages - 1, pFrom + maxBtns - 1);
-    if (pTo - pFrom < maxBtns - 1) pFrom = Math.max(0, pTo - maxBtns + 1);
-    for (let p = pFrom; p <= pTo; p++) {
+    let pageBtns = `<button class="dg-pager-btn" onclick="dgPageGo(${dgPage-1})" ${dgPage===0?'disabled':''}><i class="fa fa-chevron-left"></i></button>`;
+    const maxBtns = 5, pFrom = Math.max(0, Math.min(dgPage-2, pages-maxBtns));
+    for (let p = pFrom; p < Math.min(pages, pFrom+maxBtns); p++) {
         pageBtns += `<button class="dg-pager-btn${p===dgPage?' active':''}" onclick="dgPageGo(${p})">${p+1}</button>`;
     }
-    pageBtns += `<button class="dg-pager-btn" onclick="dgPageGo(${dgPage+1})" ${dgPage>=pages-1?'disabled':''}>
-        <i class="fa fa-chevron-right"></i></button>`;
+    pageBtns += `<button class="dg-pager-btn" onclick="dgPageGo(${dgPage+1})" ${dgPage>=pages-1?'disabled':''}><i class="fa fa-chevron-right"></i></button>`;
 
     body.innerHTML = `
-    <table class="dg-sum-tbl">
+    <table class="dg-tbl">
         <thead><tr>
             <th>Rol</th>
-            <th style="width:90px;"><i class="fa fa-check-circle" style="color:#16a34a;"></i> Contado</th>
-            <th style="width:90px;"><i class="fa fa-credit-card" style="color:#ea580c;"></i> Crédito</th>
-            <th style="width:46px;"></th>
+            <th style="width:200px;">
+                <span style="display:inline-flex;align-items:center;gap:6px;">
+                    <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;background:#f0fdf4;border-radius:4px;border:1px solid #86efac;">
+                        <i class="fa fa-check" style="color:#16a34a;font-size:9px;"></i>
+                    </span>
+                    Contado
+                    <span style="font-weight:500;color:#cbd5e1;font-size:9px;letter-spacing:.4px;">DÍAS / RET.</span>
+                </span>
+            </th>
+            <th style="width:200px;">
+                <span style="display:inline-flex;align-items:center;gap:6px;">
+                    <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;background:#fff7ed;border-radius:4px;border:1px solid #fdba74;">
+                        <i class="fa fa-credit-card" style="color:#ea580c;font-size:9px;"></i>
+                    </span>
+                    Crédito
+                    <span style="font-weight:500;color:#cbd5e1;font-size:9px;letter-spacing:.4px;">DÍAS / RET.</span>
+                </span>
+            </th>
+            <th style="width:100px;"></th>
         </tr></thead>
         <tbody>${rows}</tbody>
     </table>
     <div class="dg-pager">
-        <span>${start+1}–${Math.min(start+DG_PAGE_SIZE,total)} de ${total}</span>
+        <span style="display:flex;align-items:center;gap:6px;">
+            <i class="fa fa-users" style="opacity:.5;"></i>
+            Mostrando <strong style="color:#475569;">${start+1}–${Math.min(start+DG_PAGE_SIZE,total)}</strong> de <strong style="color:#475569;">${total}</strong> roles
+        </span>
         <div class="dg-pager-btns">${pageBtns}</div>
     </div>`;
 }
