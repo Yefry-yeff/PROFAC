@@ -1,379 +1,365 @@
 @push('styles')
 <style>
 /* ═══════════════════════════════════════════════════════════════
-   Conciliación de Comisiones — Estilos
+   Conciliación de Comisiones — Estilos Corporativos
 ═══════════════════════════════════════════════════════════════ */
-@keyframes conc-fadeDown { from{opacity:0;transform:translateY(-14px)} to{opacity:1;transform:translateY(0)} }
-@keyframes conc-fadeUp   { from{opacity:0;transform:translateY(12px)}  to{opacity:1;transform:translateY(0)} }
+@keyframes conc-fadeDown { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
+@keyframes conc-fadeUp   { from{opacity:0;transform:translateY(6px)}  to{opacity:1;transform:translateY(0)} }
 @keyframes conc-fadeIn   { from{opacity:0} to{opacity:1} }
 @keyframes conc-spin     { to{transform:rotate(360deg)} }
-@keyframes conc-pulse    { 0%,100%{opacity:1} 50%{opacity:.5} }
+@keyframes conc-pulse    { 0%,100%{opacity:1} 50%{opacity:.35} }
 
-/* ── TOP BAR COMPACTA ── */
+/* ── TOP BAR ── */
 .conc-topbar{
-    background:linear-gradient(135deg,#1e3a8a 0%,#2563eb 100%);
-    border-radius:12px; padding:13px 20px;
+    background:#1e293b;
+    border-radius:8px; padding:13px 20px;
     display:flex; align-items:center; gap:16px;
-    box-shadow:0 4px 18px rgba(30,58,138,.25);
-    animation:conc-fadeDown .4s ease both;
+    box-shadow:0 2px 8px rgba(0,0,0,.15);
+    animation:conc-fadeDown .3s ease both;
     flex-wrap:wrap;
-    position:relative; overflow:hidden;
 }
-.conc-topbar::before{
-    content:''; position:absolute; top:-30px; right:-30px;
-    width:110px; height:110px; background:rgba(255,255,255,.06);
-    border-radius:50%; pointer-events:none;
-}
+.conc-topbar::before{ display:none; }
 .conc-topbar-icon{
-    width:36px; height:36px; background:rgba(255,255,255,.18);
-    border-radius:9px; display:flex; align-items:center;
-    justify-content:center; font-size:17px; color:#fff; flex-shrink:0;
+    width:34px; height:34px; background:rgba(255,255,255,.09);
+    border-radius:6px; display:flex; align-items:center;
+    justify-content:center; font-size:15px; color:rgba(255,255,255,.75); flex-shrink:0;
 }
 .conc-topbar-title{
-    color:#fff; font-weight:800; font-size:14px; line-height:1.2; flex-shrink:0;
+    color:#f1f5f9; font-weight:700; font-size:14px; line-height:1.25; flex-shrink:0;
 }
 .conc-topbar-title small{
-    display:block; color:rgba(255,255,255,.65);
-    font-size:10.5px; font-weight:600; margin-top:1px;
+    display:block; color:rgba(255,255,255,.42);
+    font-size:10px; font-weight:500; margin-top:1px; letter-spacing:.1px;
 }
-/* KPI en línea dentro de la topbar */
+
+/* KPI en línea — separadores verticales, sin fondo */
 .conc-kpi-inline{
-    display:flex; gap:6px; flex-wrap:wrap; flex:1; justify-content:flex-end;
+    display:flex; gap:0; flex-wrap:wrap; flex:1; justify-content:flex-end;
+    align-items:center;
 }
 .conc-kpi-chip{
-    background:rgba(255,255,255,.13); border:1px solid rgba(255,255,255,.22);
-    border-radius:8px; padding:5px 13px;
+    background:transparent; border:none;
+    border-left:1px solid rgba(255,255,255,.1);
+    padding:4px 16px;
     display:flex; align-items:center; gap:8px; flex-shrink:0;
 }
-.conc-kpi-chip .ck-val{ font-size:15px; font-weight:800; color:#fff; line-height:1; }
-.conc-kpi-chip .ck-lbl{ font-size:10px; font-weight:700; color:rgba(255,255,255,.68); text-transform:uppercase; letter-spacing:.3px; }
-.conc-kpi-chip .ck-ico{ font-size:13px; color:rgba(255,255,255,.75); }
-.conc-kpi-chip.ck-green{ border-color:rgba(110,231,183,.35); background:rgba(16,185,129,.18); }
-.conc-kpi-chip.ck-amber{ border-color:rgba(252,211,77,.35); background:rgba(245,158,11,.18); }
-.conc-kpi-chip.ck-purple{ border-color:rgba(196,181,253,.35); background:rgba(109,40,217,.18); }
+.conc-kpi-chip:first-child{ border-left:none; }
+.conc-kpi-chip .ck-val{ font-size:14px; font-weight:700; color:#f1f5f9; line-height:1; }
+.conc-kpi-chip .ck-lbl{ font-size:9.5px; font-weight:500; color:rgba(255,255,255,.38); text-transform:uppercase; letter-spacing:.5px; }
+.conc-kpi-chip .ck-ico{ font-size:11px; color:rgba(255,255,255,.35); }
+.conc-kpi-chip.ck-green .ck-val{ color:#4ade80; }
+.conc-kpi-chip.ck-amber .ck-val{ color:#fbbf24; }
+.conc-kpi-chip.ck-purple .ck-val{ color:#c084fc; }
 .conc-btn-refresh{
-    background:rgba(255,255,255,.18) !important; color:#fff !important;
-    border:1.5px solid rgba(255,255,255,.42) !important; border-radius:8px;
-    padding:7px 15px; font-size:12px; font-weight:700;
+    background:rgba(255,255,255,.07) !important; color:rgba(255,255,255,.65) !important;
+    border:1px solid rgba(255,255,255,.15) !important; border-radius:6px;
+    padding:6px 13px; font-size:11.5px; font-weight:600;
     display:inline-flex; align-items:center; gap:6px; cursor:pointer;
-    transition:background .2s; flex-shrink:0; white-space:nowrap;
+    transition:background .15s; flex-shrink:0; white-space:nowrap;
 }
-.conc-btn-refresh:hover{ background:rgba(255,255,255,.28) !important; }
+.conc-btn-refresh:hover{ background:rgba(255,255,255,.12) !important; }
 
 /* ── PANEL ── */
 .conc-panel{
-    background:#fff; border-radius:12px;
-    border:1.5px solid #e2e8f0;
-    box-shadow:0 4px 18px rgba(0,0,0,.06);
-    animation:conc-fadeUp .4s ease both; overflow:hidden;
+    background:#fff; border-radius:8px;
+    border:1px solid #e2e8f0;
+    box-shadow:0 1px 3px rgba(0,0,0,.06);
+    animation:conc-fadeUp .3s ease both; overflow:hidden;
 }
 .conc-panel-head{
-    background:linear-gradient(135deg,#1e3a8a,#2563eb);
-    padding:13px 20px; display:flex; align-items:center; gap:10px;
-    color:#fff; font-size:13px; font-weight:800;
+    background:#1e293b;
+    padding:12px 18px; display:flex; align-items:center; gap:9px;
+    color:#f1f5f9; font-size:12.5px; font-weight:700;
 }
 .conc-panel-head-ico{
-    width:28px; height:28px; background:rgba(255,255,255,.20);
-    border-radius:7px; display:flex; align-items:center;
-    justify-content:center; font-size:13px; flex-shrink:0;
+    width:26px; height:26px; background:rgba(255,255,255,.1);
+    border-radius:5px; display:flex; align-items:center;
+    justify-content:center; font-size:12px; flex-shrink:0;
 }
 .conc-panel-body{ padding:20px 22px; }
 
 /* ── FILTROS AÑO/MES ── */
 .conc-filter-bar{
-    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
-    padding:12px 18px; border-bottom:1px solid #e2e8f0; background:#f8fafc;
+    display:flex; align-items:center; gap:7px; flex-wrap:wrap;
+    padding:10px 16px; border-bottom:1px solid #eaecf0; background:#fff;
 }
 .conc-year-select{
-    background:#fff; border:1.5px solid #e2e8f0; border-radius:8px;
-    padding:5px 32px 5px 12px; font-size:12.5px; font-weight:700; color:#1e293b;
-    cursor:pointer; outline:none; transition:border-color .15s;
-    height:34px;
+    background:#fff; border:1px solid #d1d5db; border-radius:5px;
+    padding:4px 28px 4px 10px; font-size:12px; font-weight:600; color:#1e293b;
+    cursor:pointer; outline:none; transition:border-color .12s;
+    height:30px;
     appearance:none; -webkit-appearance:none;
-    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2364748b' stroke-width='1.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-    background-repeat:no-repeat; background-position:right 10px center;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%2394a3b8' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 8px center;
 }
-.conc-year-select:focus{ border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,.12); }
+.conc-year-select:focus{ border-color:#475569; box-shadow:none; }
 .conc-mes-btn{
-    background:#fff; border:1.5px solid #e2e8f0; border-radius:7px;
-    padding:4px 11px; font-size:11.5px; font-weight:700; color:#64748b;
-    cursor:pointer; transition:background .12s,border-color .12s,color .12s;
-    white-space:nowrap;
+    background:transparent; border:1px solid #e2e8f0; border-radius:4px;
+    padding:3px 8px; font-size:11px; font-weight:600; color:#6b7280;
+    cursor:pointer; transition:all .1s; white-space:nowrap;
 }
-.conc-mes-btn:hover{ background:#eff6ff; border-color:#93c5fd; color:#1e40af; }
-.conc-mes-btn.active{ background:#1e3a8a; border-color:#1e3a8a; color:#fff; }
-.conc-mes-btn.all{ border-style:dashed; }
+.conc-mes-btn:hover{ background:#f3f4f6; border-color:#9ca3af; color:#374151; }
+.conc-mes-btn.active{ background:#1e293b; border-color:#1e293b; color:#fff; }
+.conc-mes-btn.all{ border-style:dashed; border-color:#d1d5db; }
 
 /* ── PERÍODOS TABLE ── */
+/* ── TABLA DE PERÍODOS ── */
 .conc-tbl { width:100%; border-collapse:collapse; }
-.conc-tbl thead tr { background:linear-gradient(135deg,#f8fafc,#f1f5f9); }
+.conc-tbl thead tr { background:#fff; }
 .conc-tbl thead th {
-    padding:11px 14px; font-size:10.5px; font-weight:800;
-    text-transform:uppercase; letter-spacing:.5px; color:#475569;
-    border-bottom:2px solid #e2e8f0; white-space:nowrap;
+    padding:9px 16px; font-size:11px; font-weight:600;
+    text-transform:uppercase; letter-spacing:.5px; color:#9ca3af;
+    border-top:1px solid #e5e7eb; border-bottom:1px solid #e5e7eb; white-space:nowrap;
 }
-.conc-tbl tbody tr { border-bottom:1px solid #f1f5f9; transition:background .12s; }
-.conc-tbl tbody tr:hover { background:#f0f7ff !important; }
-.conc-tbl tbody tr.row-conciliado { background:#f0fdf4; }
-.conc-tbl tbody tr.row-sin-abrir  { background:#fafafa; opacity:.72; }
-.conc-tbl tbody tr.row-mes-actual { background:#fffbeb !important; }
-.conc-tbl tbody td { padding:13px 14px; font-size:12.5px; color:#334155; vertical-align:middle; }
+.conc-tbl tbody tr { border-bottom:1px solid #f3f4f6; }
+.conc-tbl tbody tr:hover td { background:#f8fafc; }
+.conc-tbl tbody tr.row-sin-abrir td { color:#b0b8c4; }
+.conc-tbl tbody tr.row-mes-actual td { background:#fafaf7; font-weight:600; }
+.conc-tbl tbody td { padding:12px 16px; font-size:13px; color:#374151; vertical-align:middle; }
+.conc-tbl tbody td.td-num { text-align:right; font-variant-numeric:tabular-nums; }
+.conc-tbl tbody td.td-actions { text-align:right; white-space:nowrap; }
 
-/* ── BADGES DE ESTADO ── */
+/* ── ESTADO — texto simple con punto ── */
 .conc-estado {
     display:inline-flex; align-items:center; gap:5px;
-    padding:4px 11px; border-radius:20px;
-    font-size:10.5px; font-weight:800; white-space:nowrap;
+    font-size:12px; font-weight:500; color:#6b7280; white-space:nowrap;
 }
-.estado-abierto    { background:#fef3c7; color:#92400e; border:1px solid #fcd34d; }
-.estado-conciliado { background:#d1fae5; color:#065f46; border:1px solid #6ee7b7; }
-.estado-sin-abrir  { background:#f1f5f9; color:#94a3b8; border:1px solid #e2e8f0; }
-.estado-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
-.dot-abierto   { background:#f59e0b; animation:conc-pulse 2s ease infinite; }
-.dot-conciliado{ background:#10b981; }
-.dot-sin-abrir { background:#cbd5e1; }
+.estado-abierto    { color:#92400e; }
+.estado-conciliado { color:#166534; }
+.estado-sin-abrir  { color:#9ca3af; }
+.estado-dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; display:inline-block; }
+.dot-abierto   { background:#d97706; }
+.dot-conciliado{ background:#16a34a; }
+.dot-sin-abrir { background:#d1d5db; }
 
-/* ── BUTTONS INLINE ── */
+/* ── ACCIONES — botones de texto ── */
 .conc-btn {
-    display:inline-flex; align-items:center; gap:5px;
-    padding:5px 12px; border-radius:8px; border:none;
-    font-size:11.5px; font-weight:700; cursor:pointer;
-    transition:opacity .15s,transform .12s; white-space:nowrap;
+    display:inline-flex; align-items:center; gap:4px;
+    padding:4px 10px; border-radius:4px; border:1px solid #e2e8f0;
+    font-size:12px; font-weight:500; cursor:pointer; background:#fff;
+    color:#374151; transition:border-color .1s,background .1s; white-space:nowrap;
 }
-.conc-btn:hover{ opacity:.85; transform:translateY(-1px); }
-.conc-btn:active{ transform:translateY(0); }
-.btn-conciliar  { background:#1e3a8a; color:#fff; }
-.btn-detalle    { background:#f1f5f9; color:#475569; border:1.5px solid #e2e8f0 !important; }
-.btn-reabrir    { background:#fef2f2; color:#b91c1c; border:1.5px solid #fecaca !important; }
-.btn-disabled   { background:#f1f5f9 !important; color:#cbd5e1 !important; cursor:not-allowed !important; }
+.conc-btn:hover { border-color:#9ca3af; background:#f9fafb; }
+.conc-btn:active { background:#f3f4f6; }
+.btn-conciliar  { background:#1e293b; color:#fff; border-color:#1e293b; }
+.btn-conciliar:hover { background:#334155; border-color:#334155; }
+.btn-detalle    { color:#475569; }
+.btn-reabrir    { color:#b91c1c; border-color:#fca5a5; }
+.btn-disabled   { color:#d1d5db !important; border-color:#f3f4f6 !important; cursor:not-allowed !important; background:#f9fafb !important; }
 
 /* ── LOADER ── */
 .conc-loader{
     display:flex; align-items:center; justify-content:center;
-    gap:10px; padding:48px; color:#64748b; font-size:13px; font-weight:600;
+    gap:10px; padding:48px; color:#6b7280; font-size:13px; font-weight:500;
 }
 .conc-spinner{
-    width:22px; height:22px; border:3px solid #dbeafe;
-    border-top-color:#2563eb; border-radius:50%;
-    animation:conc-spin .7s linear infinite; flex-shrink:0;
+    width:20px; height:20px; border:2px solid #e5e7eb;
+    border-top-color:#475569; border-radius:50%;
+    animation:conc-spin .75s linear infinite; flex-shrink:0;
 }
 .conc-spinner-sm{
-    width:14px; height:14px; border-width:2px;
+    width:13px; height:13px; border-width:2px;
     display:inline-block; vertical-align:middle;
 }
 
 /* ── EMPTY ── */
-.conc-empty{ text-align:center; padding:50px 20px; color:#94a3b8; }
-.conc-empty i{ font-size:38px; margin-bottom:12px; display:block; opacity:.38; }
-.conc-empty p{ font-size:14px; font-weight:700; color:#64748b; margin:0 0 5px; }
+.conc-empty{ text-align:center; padding:50px 20px; color:#9ca3af; }
+.conc-empty i{ font-size:32px; margin-bottom:12px; display:block; opacity:.25; }
+.conc-empty p{ font-size:13px; font-weight:600; color:#6b7280; margin:0 0 5px; }
 
-/* ── MODAL PERSONALIZADO ── */
+/* ── MODAL ── */
 .conc-modal .modal-content{
-    border:none; border-radius:14px;
-    box-shadow:0 20px 60px rgba(0,0,0,.18); overflow:hidden;
+    border:1px solid #e2e8f0; border-radius:8px;
+    box-shadow:0 16px 48px rgba(0,0,0,.14); overflow:hidden;
 }
 .conc-modal .modal-header{
-    padding:16px 22px; border-bottom:none;
-    border-radius:14px 14px 0 0;
+    padding:14px 20px; border-bottom:none;
+    border-radius:8px 8px 0 0;
 }
-.conc-modal .modal-header.blue { background:linear-gradient(135deg,#1e3a8a,#2563eb); }
-.conc-modal .modal-header.red  { background:linear-gradient(135deg,#991b1b,#dc2626); }
-.conc-modal .modal-title{ color:#fff; font-size:15px; font-weight:800; display:flex; align-items:center; gap:9px; }
-.conc-modal .close{ color:rgba(255,255,255,.85)!important; opacity:1!important; font-size:22px; }
-.conc-modal .modal-body{ padding:22px 24px; background:#fafbfc; }
-.conc-modal .modal-footer{ background:#f4f6f9; border-top:1px solid #e2e8f0; padding:13px 22px; border-radius:0 0 14px 14px; }
+.conc-modal .modal-header.blue { background:#1e293b; }
+.conc-modal .modal-header.red  { background:#7f1d1d; }
+.conc-modal .modal-title{ color:#f1f5f9; font-size:13.5px; font-weight:700; display:flex; align-items:center; gap:8px; }
+.conc-modal .close{ color:rgba(255,255,255,.6)!important; opacity:1!important; font-size:20px; }
+.conc-modal .modal-body{ padding:20px 22px; background:#fff; }
+.conc-modal .modal-footer{ background:#f9fafb; border-top:1px solid #e5e7eb; padding:11px 20px; border-radius:0 0 8px 8px; }
 
 /* ── DETALLE TABS ── */
-.det-tabs{ display:flex; gap:3px; border-bottom:2px solid #e2e8f0; margin-bottom:16px; }
+.det-tabs{ display:flex; gap:0; border-bottom:1px solid #e5e7eb; margin-bottom:16px; }
 .det-tab{
-    background:transparent; border:none; padding:8px 16px;
-    font-size:12.5px; font-weight:700; color:#64748b; cursor:pointer;
-    border-bottom:3px solid transparent; margin-bottom:-2px;
-    border-radius:6px 6px 0 0; transition:color .15s;
+    background:transparent; border:none; padding:8px 14px;
+    font-size:12px; font-weight:600; color:#6b7280; cursor:pointer;
+    border-bottom:2px solid transparent; margin-bottom:-1px;
+    transition:color .12s;
 }
-.det-tab:hover { color:#2563eb; }
-.det-tab.active{ color:#2563eb; border-bottom-color:#2563eb; background:#eff6ff; }
+.det-tab:hover { color:#334155; }
+.det-tab.active{ color:#1e293b; border-bottom-color:#1e293b; }
 
 /* ── LOG TABLE ── */
-.log-row-conciliacion{ background:#f0f9ff; }
-.log-row-reapertura  { background:#fff5f5; }
-.log-badge-conciliacion{ background:#dbeafe; color:#1e40af; border:1px solid #93c5fd; }
-.log-badge-reapertura  { background:#fee2e2; color:#991b1b; border:1px solid #fca5a5; }
+.log-row-conciliacion{ background:#f9fafb; }
+.log-row-reapertura  { background:#f9fafb; }
+.log-badge-conciliacion{ background:#f0fdf4; color:#166534; border:1px solid #bbf7d0; border-radius:3px; font-size:10px; font-weight:700; padding:1px 7px; }
+.log-badge-reapertura  { background:#fef2f2; color:#991b1b; border:1px solid #fca5a5; border-radius:3px; font-size:10px; font-weight:700; padding:1px 7px; }
 
 /* ── RESUMEN CONCILIACIÓN ── */
 .conc-resumen-grid{
-    display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:16px;
+    display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:14px;
 }
 .conc-resumen-card{
-    background:#fff; border:1.5px solid #e2e8f0; border-radius:10px;
+    background:#fff; border:1px solid #e5e7eb; border-radius:7px;
     padding:14px 16px; text-align:center;
-    box-shadow:0 2px 8px rgba(0,0,0,.04);
 }
 .conc-resumen-card .cr-val{
-    font-size:22px; font-weight:800; color:#1e3a8a; line-height:1.1; margin-bottom:3px;
+    font-size:20px; font-weight:800; color:#1e293b; line-height:1.15; margin-bottom:3px;
 }
 .conc-resumen-card .cr-lbl{
-    font-size:10.5px; font-weight:700; color:#94a3b8;
-    text-transform:uppercase; letter-spacing:.4px;
+    font-size:10px; font-weight:600; color:#9ca3af;
+    text-transform:uppercase; letter-spacing:.5px;
 }
-.conc-resumen-card.cr-total{ border-color:#bfdbfe; background:linear-gradient(135deg,#eff6ff,#dbeafe); }
-.conc-resumen-card.cr-total .cr-val{ color:#1d4ed8; font-size:24px; }
+.conc-resumen-card.cr-total{ border-color:#c7d2fe; background:#f5f3ff; }
+.conc-resumen-card.cr-total .cr-val{ color:#4338ca; font-size:22px; }
 .conc-advertencia{
-    background:linear-gradient(135deg,#fef2f2,#fee2e2);
-    border:1.5px solid #fca5a5; border-radius:10px;
-    padding:13px 16px; display:flex; align-items:flex-start; gap:10px;
-    font-size:12.5px; color:#991b1b; margin-bottom:16px;
-    font-weight:600;
+    background:#fffbeb; border:1px solid #fde68a; border-radius:7px;
+    padding:11px 15px; display:flex; align-items:flex-start; gap:9px;
+    font-size:12px; color:#78350f; margin-bottom:14px; font-weight:500;
 }
-.conc-advertencia i{ font-size:16px; flex-shrink:0; margin-top:1px; }
+.conc-advertencia i{ font-size:13px; flex-shrink:0; margin-top:1px; }
 
 /* ── TABS DEL PANEL ── */
 .conc-panel-tab-nav{
-    background:linear-gradient(135deg,#1e3a8a,#2563eb);
+    background:#1e293b;
     display:flex; align-items:stretch; gap:0;
     border-bottom:none; overflow:hidden;
 }
 .conc-tab-btn{
-    background:transparent; border:none; border-bottom:3px solid transparent;
-    color:rgba(255,255,255,.65); font-size:12.5px; font-weight:700;
-    padding:13px 20px; cursor:pointer; display:flex; align-items:center; gap:8px;
-    transition:background .15s, color .15s, border-color .15s;
-    white-space:nowrap; position:relative;
+    background:transparent; border:none; border-bottom:2px solid transparent;
+    color:rgba(255,255,255,.45); font-size:12px; font-weight:600;
+    padding:12px 18px; cursor:pointer; display:flex; align-items:center; gap:7px;
+    transition:background .12s, color .12s, border-color .12s;
+    white-space:nowrap;
 }
-.conc-tab-btn:hover{ background:rgba(255,255,255,.12); color:#fff; }
+.conc-tab-btn:hover{ background:rgba(255,255,255,.06); color:rgba(255,255,255,.75); }
 .conc-tab-btn.active{
-    color:#fff; border-bottom-color:#facc15;
-    background:rgba(255,255,255,.15);
+    color:#fff; border-bottom-color:#f59e0b;
+    background:rgba(255,255,255,.09);
 }
 .conc-tab-btn .conc-tab-badge{
-    background:rgba(255,255,255,.22); border-radius:10px;
-    padding:1px 8px; font-size:10px; font-weight:800; margin-left:2px;
+    background:rgba(255,255,255,.12); border-radius:10px;
+    padding:1px 7px; font-size:10px; font-weight:700; margin-left:1px; color:rgba(255,255,255,.7);
 }
-.conc-tab-btn.active .conc-tab-badge{ background:rgba(255,215,0,.35); }
+.conc-tab-btn.active .conc-tab-badge{ background:rgba(245,158,11,.25); color:#fde68a; }
 .conc-tab-pane{ display:none; }
 .conc-tab-pane.active{ display:block; }
 
-/* ── DÍAS DE GRACIA (REDISEÑO MODAL) ── */
+/* ── DÍAS DE GRACIA ── */
 .dg-infobar{
-    background:#f0f9ff; border-bottom:1px solid #bae6fd;
-    padding:9px 20px; font-size:11.5px; color:#0369a1;
+    background:#f8fafc; border-bottom:1px solid #e2e8f0;
+    padding:9px 20px; font-size:11.5px; color:#475569;
     display:flex; align-items:center; gap:8px;
 }
-.dg-infobar i{ flex-shrink:0; }
+.dg-infobar i{ flex-shrink:0; color:#94a3b8; }
 /* Tabla de roles */
 .dg-tbl-wrap{ padding:0; }
 .dg-tbl{ width:100%; border-collapse:collapse; font-size:13px; }
-.dg-tbl thead tr{
-    background:linear-gradient(135deg,#f8fafc 0%,#f1f5f9 100%);
-    border-bottom:2px solid #e2e8f0;
-}
+.dg-tbl thead tr{ background:#f9fafb; border-bottom:1px solid #e5e7eb; }
 .dg-tbl th{
-    padding:12px 18px; font-size:10px; font-weight:800; color:#64748b;
+    padding:10px 18px; font-size:10px; font-weight:700; color:#6b7280;
     text-align:left; text-transform:uppercase; letter-spacing:.6px;
 }
-.dg-tbl th:first-child{ padding-left:24px; }
-.dg-tbl th:last-child{ padding-right:24px; text-align:right; }
+.dg-tbl th:first-child{ padding-left:22px; }
+.dg-tbl th:last-child{ padding-right:22px; text-align:right; }
 .dg-tbl td{
-    padding:13px 18px; border-bottom:1px solid #f1f5f9;
-    color:#334155; vertical-align:middle;
+    padding:12px 18px; border-bottom:1px solid #f3f4f6;
+    color:#374151; vertical-align:middle;
 }
-.dg-tbl td:first-child{ padding-left:24px; }
-.dg-tbl td:last-child{ padding-right:24px; }
+.dg-tbl td:first-child{ padding-left:22px; }
+.dg-tbl td:last-child{ padding-right:22px; }
 .dg-tbl tbody tr:last-child td{ border-bottom:none; }
-.dg-tbl tbody tr{ transition:background .1s; }
-.dg-tbl tbody tr:hover td{ background:#f8fafc; }
-.dg-tbl tbody tr:hover td:first-child{ border-left:3px solid #2563eb; padding-left:21px; }
-.dg-tbl-role{ font-weight:700; color:#0f172a; font-size:13.5px; }
-/* Cell de días+retención */
-.dg-cell{ display:flex; align-items:center; gap:8px; }
+.dg-tbl tbody tr:hover td{ background:#f9fafb; }
+.dg-tbl tbody tr:hover td:first-child{ border-left:2px solid #334155; padding-left:20px; }
+.dg-tbl-role{ font-weight:700; color:#1e293b; font-size:13px; }
+/* Badges días+retención */
+.dg-cell{ display:flex; align-items:center; gap:7px; }
 .dg-dias-badge{
     display:inline-flex; align-items:center; gap:4px;
-    padding:4px 11px; border-radius:8px; font-size:12px; font-weight:700;
-    letter-spacing:.2px;
+    padding:3px 10px; border-radius:5px; font-size:12px; font-weight:700;
 }
-.dg-dias-contado{ background:#f0fdf4; color:#15803d; border:1.5px solid #86efac; }
-.dg-dias-credito{ background:#fff7ed; color:#c2410c; border:1.5px solid #fdba74; }
+.dg-dias-contado{ background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; }
+.dg-dias-credito{ background:#fff7ed; color:#c2410c; border:1px solid #fed7aa; }
 .dg-ret-badge{
     display:inline-flex; align-items:center; gap:3px;
-    padding:3px 9px; border-radius:20px; font-size:11px; font-weight:700;
-    background:#f0f9ff; color:#0369a1; border:1px solid #bae6fd;
+    padding:2px 8px; border-radius:20px; font-size:11px; font-weight:600;
+    background:#f1f5f9; color:#475569; border:1px solid #e2e8f0;
 }
 .dg-none-badge{
     display:inline-flex; align-items:center;
-    padding:4px 12px; border-radius:8px; font-size:11px; font-weight:600;
-    background:#f8fafc; color:#cbd5e1; border:1px dashed #e2e8f0;
-    letter-spacing:.2px;
+    padding:3px 10px; border-radius:5px; font-size:11px; font-weight:500;
+    background:#f9fafb; color:#d1d5db; border:1px dashed #e5e7eb;
 }
 .dg-edit-btn{
-    background:#fff; border:1.5px solid #e2e8f0; color:#475569;
-    border-radius:8px; padding:5px 14px; font-size:11.5px; font-weight:600;
-    cursor:pointer; transition:all .15s; white-space:nowrap;
+    background:#fff; border:1px solid #d1d5db; color:#475569;
+    border-radius:5px; padding:4px 12px; font-size:11.5px; font-weight:600;
+    cursor:pointer; transition:all .12s; white-space:nowrap;
     display:inline-flex; align-items:center; gap:5px;
 }
-.dg-edit-btn:hover{ border-color:#2563eb; color:#2563eb; background:#eff6ff; box-shadow:0 2px 8px rgba(37,99,235,.1); }
+.dg-edit-btn:hover{ border-color:#475569; color:#1e293b; background:#f9fafb; }
 /* Paginación */
 .dg-pager{
     display:flex; align-items:center; justify-content:space-between;
-    padding:10px 24px; border-top:1px solid #f1f5f9;
-    font-size:11.5px; color:#94a3b8; background:#fafbfc;
-    border-radius:0 0 12px 12px;
+    padding:9px 22px; border-top:1px solid #f3f4f6;
+    font-size:11.5px; color:#9ca3af; background:#f9fafb;
 }
-.dg-pager-btns{ display:flex; gap:4px; }
+.dg-pager-btns{ display:flex; gap:3px; }
 .dg-pager-btn{
-    width:30px; height:30px; border:1px solid #e2e8f0; background:#fff;
-    border-radius:7px; cursor:pointer; font-size:11.5px; font-weight:700;
+    width:28px; height:28px; border:1px solid #e5e7eb; background:#fff;
+    border-radius:5px; cursor:pointer; font-size:11.5px; font-weight:600;
     color:#475569; display:flex; align-items:center; justify-content:center;
-    transition:all .12s;
+    transition:all .1s;
 }
-.dg-pager-btn:hover:not(:disabled){ background:#eff6ff; border-color:#2563eb; color:#2563eb; }
+.dg-pager-btn:hover:not(:disabled){ background:#f3f4f6; border-color:#9ca3af; color:#1e293b; }
 .dg-pager-btn:disabled{ opacity:.3; cursor:not-allowed; }
-.dg-pager-btn.active{ background:#1e3a8a; border-color:#1e3a8a; color:#fff; box-shadow:0 2px 6px rgba(30,58,138,.3); }
+.dg-pager-btn.active{ background:#1e293b; border-color:#1e293b; color:#fff; }
+
 /* Modal días de gracia */
 #modalDiasGracia{ z-index:1055; }
 #modalDiasGracia .modal-backdrop{ z-index:1054; }
 #modalDiasGracia .modal-content{
-    border:none; border-radius:14px; overflow:hidden;
-    box-shadow:0 24px 64px rgba(0,0,0,.22);
+    border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;
+    box-shadow:0 20px 56px rgba(0,0,0,.18);
 }
 #modalDiasGracia .dgm-header{
-    background:linear-gradient(135deg,#1e3a8a,#2563eb);
-    padding:16px 22px; display:flex; align-items:center; gap:12px;
+    background:#1e293b;
+    padding:14px 20px; display:flex; align-items:center; gap:12px;
 }
 #modalDiasGracia .dgm-header-title{
-    font-size:15px; font-weight:800; color:#fff;
-    display:flex; align-items:center; gap:10px; flex:1;
+    font-size:14px; font-weight:700; color:#f1f5f9;
+    display:flex; align-items:center; gap:9px; flex:1;
 }
 #modalDiasGracia .dgm-header-role{
-    font-size:11px; font-weight:700;
-    background:rgba(255,255,255,.18); color:#fff;
-    padding:3px 11px; border-radius:20px; border:1px solid rgba(255,255,255,.25);
+    font-size:10.5px; font-weight:600;
+    background:rgba(255,255,255,.12); color:rgba(255,255,255,.75);
+    padding:3px 10px; border-radius:20px; border:1px solid rgba(255,255,255,.15);
     white-space:nowrap;
 }
 #modalDiasGracia .dgm-close{
-    background:none; border:none; color:rgba(255,255,255,.7);
-    font-size:22px; line-height:1; cursor:pointer; padding:0 2px;
+    background:none; border:none; color:rgba(255,255,255,.55);
+    font-size:20px; line-height:1; cursor:pointer; padding:0 2px;
     transition:color .12s;
 }
 #modalDiasGracia .dgm-close:hover{ color:#fff; }
 /* Grid 2 columnas */
-.dgm-grid{
-    display:grid; grid-template-columns:1fr 1fr; gap:0;
-    background:#fff;
-}
-.dgm-col{
-    padding:20px 22px; border-top:none;
-}
-.dgm-col-contado{ border-right:1px solid #f1f5f9; }
+.dgm-grid{ display:grid; grid-template-columns:1fr 1fr; gap:0; background:#fff; }
+.dgm-col{ padding:18px 20px; }
+.dgm-col-contado{ border-right:1px solid #f3f4f6; }
 .dgm-col-title{
-    display:flex; align-items:center; gap:8px;
-    font-size:13px; font-weight:800; margin-bottom:16px;
-    padding-bottom:10px;
+    display:flex; align-items:center; gap:7px;
+    font-size:12.5px; font-weight:700; margin-bottom:14px;
+    padding-bottom:9px;
 }
-.dgm-col-title-contado{ color:#15803d; border-bottom:2px solid #bbf7d0; }
-.dgm-col-title-credito { color:#c2410c; border-bottom:2px solid #fed7aa; }
+.dgm-col-title-contado{ color:#15803d; border-bottom:1px solid #d1fae5; }
+.dgm-col-title-credito { color:#c2410c; border-bottom:1px solid #fed7aa; }
 .dgm-col-title-ico{
-    width:28px; height:28px; border-radius:8px;
-    display:flex; align-items:center; justify-content:center; font-size:13px;
+    width:26px; height:26px; border-radius:6px;
+    display:flex; align-items:center; justify-content:center; font-size:12px;
     flex-shrink:0;
 }
 .dgm-col-title-ico-contado{ background:#f0fdf4; color:#16a34a; }
@@ -382,164 +368,99 @@
 .dgm-field{ margin-bottom:12px; }
 .dgm-field:last-child{ margin-bottom:0; }
 .dgm-lbl{
-    font-size:10.5px; font-weight:700; color:#94a3b8;
-    text-transform:uppercase; letter-spacing:.4px;
+    font-size:10px; font-weight:700; color:#9ca3af;
+    text-transform:uppercase; letter-spacing:.5px;
     margin-bottom:5px;
 }
 .dgm-stepper{ display:flex; align-items:center; }
 .dgm-step{
-    width:34px; height:38px; border:1.5px solid #e2e8f0; background:#f8fafc;
-    color:#475569; font-size:18px; font-weight:700; cursor:pointer;
+    width:32px; height:36px; border:1px solid #d1d5db; background:#f9fafb;
+    color:#475569; font-size:17px; font-weight:700; cursor:pointer;
     display:flex; align-items:center; justify-content:center;
-    transition:all .12s; user-select:none; line-height:1;
+    transition:all .1s; user-select:none; line-height:1;
 }
-.dgm-step:first-child{ border-radius:8px 0 0 8px; border-right:none; }
-.dgm-step:last-child { border-radius:0 8px 8px 0; border-left:none; }
+.dgm-step:first-child{ border-radius:5px 0 0 5px; border-right:none; }
+.dgm-step:last-child { border-radius:0 5px 5px 0; border-left:none; }
 .dgm-step-contado:hover{ background:#f0fdf4; color:#16a34a; border-color:#86efac; }
 .dgm-step-credito:hover { background:#fff7ed; color:#ea580c; border-color:#fdba74; }
 .dgm-dias-inp{
-    flex:1; height:38px; border:1.5px solid #e2e8f0; border-radius:0;
-    padding:0 6px; font-size:18px; font-weight:800; color:#1e293b;
-    text-align:center; outline:none; transition:border-color .15s; background:#fff;
+    flex:1; height:36px; border:1px solid #d1d5db; border-radius:0;
+    padding:0 6px; font-size:17px; font-weight:700; color:#1e293b;
+    text-align:center; outline:none; transition:border-color .12s; background:#fff;
     min-width:0; -moz-appearance:textfield;
 }
 .dgm-dias-inp::-webkit-inner-spin-button,
 .dgm-dias-inp::-webkit-outer-spin-button{ -webkit-appearance:none; margin:0; }
-.dgm-dias-inp:focus{ border-color:#2563eb; z-index:1; position:relative; }
+.dgm-dias-inp:focus{ border-color:#475569; z-index:1; position:relative; }
 .dgm-dias-unit{
-    height:38px; padding:0 10px; border:1.5px solid #e2e8f0; border-left:none;
-    border-radius:0 8px 8px 0; background:#f8fafc;
-    font-size:11.5px; font-weight:700; color:#94a3b8;
+    height:36px; padding:0 10px; border:1px solid #d1d5db; border-left:none;
+    border-radius:0 5px 5px 0; background:#f9fafb;
+    font-size:11px; font-weight:600; color:#9ca3af;
     display:flex; align-items:center;
 }
 .dgm-pct-row{ display:flex; align-items:center; gap:8px; }
 .dgm-pct-inp{
-    width:100%; height:38px; border:1.5px solid #e2e8f0; border-radius:8px;
-    padding:0 10px; font-size:16px; font-weight:800; color:#1e293b;
-    text-align:center; outline:none; transition:border-color .15s; background:#fff;
+    width:100%; height:36px; border:1px solid #d1d5db; border-radius:5px;
+    padding:0 10px; font-size:15px; font-weight:700; color:#1e293b;
+    text-align:center; outline:none; transition:border-color .12s; background:#fff;
     -moz-appearance:textfield; box-sizing:border-box;
 }
 .dgm-pct-inp::-webkit-inner-spin-button,
 .dgm-pct-inp::-webkit-outer-spin-button{ -webkit-appearance:none; margin:0; }
 .dgm-col-contado .dgm-pct-inp:focus{ border-color:#16a34a; }
 .dgm-col-credito  .dgm-pct-inp:focus{ border-color:#ea580c; }
-.dgm-pct-sym{
-    font-size:14px; font-weight:800; color:#94a3b8; flex-shrink:0;
-}
+.dgm-pct-sym{ font-size:13px; font-weight:700; color:#9ca3af; flex-shrink:0; }
 .dgm-nota-inp{
-    width:100%; height:36px; border:1.5px solid #e2e8f0; border-radius:8px;
-    padding:0 10px; font-size:12.5px; color:#475569; outline:none;
-    transition:border-color .15s; background:#fff; box-sizing:border-box;
+    width:100%; height:34px; border:1px solid #d1d5db; border-radius:5px;
+    padding:0 10px; font-size:12px; color:#475569; outline:none;
+    transition:border-color .12s; background:#fff; box-sizing:border-box;
 }
-.dgm-nota-inp:focus{ border-color:#2563eb; }
+.dgm-nota-inp:focus{ border-color:#475569; }
 .dgm-footer{
-    padding:14px 22px; background:#f8fafc; border-top:1px solid #e2e8f0;
-    display:flex; justify-content:flex-end; align-items:center; gap:10px;
+    padding:12px 20px; background:#f9fafb; border-top:1px solid #e5e7eb;
+    display:flex; justify-content:flex-end; align-items:center; gap:8px;
 }
 
 /* ── AUDITORÍA TAB ── */
 .aud-tipo-btn{
-    padding:4px 12px; font-size:11.5px; font-weight:600; border-radius:6px;
-    border:1.5px solid #cbd5e1; background:#fff; color:#475569; cursor:pointer;
-    transition:all .15s;
+    padding:3px 10px; font-size:11px; font-weight:600; border-radius:4px;
+    border:1px solid #e2e8f0; background:#fff; color:#6b7280; cursor:pointer;
+    transition:all .1s;
 }
-.aud-tipo-btn.active{ background:#1e3a8a; border-color:#1e3a8a; color:#fff; }
-.aud-tipo-btn:hover:not(.active){ background:#f1f5f9; }
+.aud-tipo-btn.active{ background:#1e293b; border-color:#1e293b; color:#fff; }
+.aud-tipo-btn:hover:not(.active){ background:#f3f4f6; border-color:#9ca3af; }
 .aud-card{
-    background:#fff; border:1px solid #e2e8f0; border-radius:10px;
-    padding:16px 20px; margin-bottom:10px;
+    background:#fff; border:1px solid #e5e7eb; border-radius:7px;
+    padding:13px 17px; margin-bottom:7px;
     display:grid; grid-template-columns:1fr auto;
-    gap:12px; align-items:center; cursor:default;
-    transition:box-shadow .15s;
+    gap:12px; align-items:center;
+    transition:border-color .12s;
 }
-.aud-card:hover{ box-shadow:0 2px 12px rgba(30,58,138,.10); border-color:#bfdbfe; }
-.aud-card-left{ display:flex; flex-direction:column; gap:5px; }
-.aud-card-periodo{ font-size:15px; font-weight:800; color:#1e3a8a; }
-.aud-card-fecha{ font-size:11.5px; color:#94a3b8; }
-.aud-card-usuario{ font-size:12px; color:#475569; }
-.aud-card-obs{ font-size:11.5px; color:#78350f; background:#fffbeb; border-radius:5px; padding:3px 8px; margin-top:2px; max-width:420px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.aud-badge-conciliacion{ background:#16a34a; color:#fff; padding:2px 10px; border-radius:10px; font-size:10.5px; font-weight:700; }
-.aud-badge-reapertura{ background:#dc2626; color:#fff; padding:2px 10px; border-radius:10px; font-size:10.5px; font-weight:700; }
-.aud-card-kpis{ display:flex; gap:16px; flex-wrap:wrap; align-items:center; }
-.aud-kpi{ text-align:center; min-width:64px; }
-.aud-kpi-val{ font-size:16px; font-weight:800; color:#1e3a8a; }
-.aud-kpi-lbl{ font-size:10px; color:#94a3b8; font-weight:600; text-transform:uppercase; letter-spacing:.4px; }
-.aud-card-right{ display:flex; flex-direction:column; align-items:flex-end; gap:8px; }
-.aud-btn-detalle{ background:#1e3a8a; color:#fff; border:none; border-radius:7px; padding:6px 14px; font-size:12px; font-weight:700; cursor:pointer; white-space:nowrap; }
-.aud-btn-detalle:hover{ background:#1e40af; }
-.aud-empty{ text-align:center; padding:40px 20px; color:#94a3b8; font-size:13px; }
+.aud-card:hover{ border-color:#94a3b8; }
+.aud-card-left{ display:flex; flex-direction:column; gap:4px; }
+.aud-card-periodo{ font-size:14px; font-weight:700; color:#1e293b; }
+.aud-card-fecha{ font-size:11px; color:#9ca3af; }
+.aud-card-usuario{ font-size:11.5px; color:#475569; }
+.aud-card-obs{ font-size:11px; color:#78350f; background:#fffbeb; border-radius:4px; padding:2px 7px; margin-top:2px; max-width:420px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:inline-block; }
+.aud-badge-conciliacion{ background:#1e293b; color:#fff; padding:2px 8px; border-radius:4px; font-size:10px; font-weight:700; }
+.aud-badge-reapertura{ background:#7f1d1d; color:#fff; padding:2px 8px; border-radius:4px; font-size:10px; font-weight:700; }
+.aud-card-kpis{ display:flex; gap:20px; flex-wrap:wrap; align-items:center; }
+.aud-kpi{ text-align:center; min-width:54px; }
+.aud-kpi-val{ font-size:15px; font-weight:700; color:#1e293b; }
+.aud-kpi-lbl{ font-size:9.5px; color:#9ca3af; font-weight:600; text-transform:uppercase; letter-spacing:.4px; }
+.aud-card-right{ display:flex; flex-direction:column; align-items:flex-end; gap:7px; }
+.aud-btn-detalle{ background:#1e293b; color:#fff; border:none; border-radius:5px; padding:5px 13px; font-size:11.5px; font-weight:600; cursor:pointer; white-space:nowrap; }
+.aud-btn-detalle:hover{ background:#334155; }
+.aud-empty{ text-align:center; padding:40px 20px; color:#9ca3af; font-size:13px; }
 
-    .conc-header{ padding:16px 16px; flex-direction:column; align-items:flex-start; }
-    .conc-kpi-strip{ grid-template-columns:1fr 1fr; }
+@media(max-width:768px){
+    .conc-topbar{ padding:12px 14px; }
+    .conc-kpi-chip{ padding:4px 10px; }
     .conc-panel-body{ padding:14px 14px; }
 }
-
-/* ── DETALLE TOOLBAR ── */
-.det-toolbar{
-    display:flex; align-items:center; justify-content:space-between;
-    flex-wrap:wrap; gap:8px;
-    padding:10px 16px; margin-bottom:0;
-    background:#f8fafc; border-bottom:1px solid #e2e8f0;
-}
-.det-toolbar-info{
-    font-size:12px; color:#64748b; font-weight:600;
-    display:flex; align-items:center; gap:6px;
-}
-.det-toolbar-info i{ color:#94a3b8; font-size:11px; }
-.det-export-btn{
-    display:inline-flex; align-items:center; gap:6px;
-    background:#fff; color:#15803d; border:1.5px solid #86efac;
-    border-radius:8px; padding:6px 14px; font-size:11.5px; font-weight:700;
-    cursor:pointer; transition:background .15s, box-shadow .15s;
-    box-shadow:0 1px 4px rgba(21,128,61,.10);
-}
-.det-export-btn:hover{ background:#f0fdf4; box-shadow:0 3px 10px rgba(21,128,61,.18); }
-
-/* ── DET TABS (rediseño) ── */
-.det-tabs{
-    display:flex; gap:0; border-bottom:2px solid #e2e8f0;
-    background:#fff; padding:0 20px;
-}
-.det-tab{
-    background:transparent; border:none; padding:13px 20px;
-    font-size:13px; font-weight:700; color:#94a3b8; cursor:pointer;
-    border-bottom:3px solid transparent; margin-bottom:-2px;
-    transition:color .15s, border-color .15s;
-    display:flex; align-items:center; gap:7px;
-}
-.det-tab:hover{ color:#2563eb; }
-.det-tab.active{ color:#1e3a8a; border-bottom-color:#1e3a8a; background:transparent; }
-.det-tab .det-badge{
-    background:#e2e8f0; color:#64748b; border-radius:10px;
-    padding:1px 7px; font-size:10px; font-weight:800; transition:background .15s,color .15s;
-}
-.det-tab.active .det-badge{ background:#1e3a8a; color:#fff; }
-
-/* ── TABLE DENTRO DEL MODAL ── */
-.det-tbl-wrap{ padding:0 20px 0; }
-.det-tfoot-row td{
-    background: linear-gradient(135deg,#eff6ff,#dbeafe);
-    font-weight:800; border-top:2px solid #bfdbfe !important;
 }
 
-/* ── PAGINATION ── */
-.det-pag{
-    display:flex; align-items:center; justify-content:center;
-    gap:4px; padding:12px 20px; border-top:1px solid #f1f5f9;
-    background:#fafbfc; flex-wrap:wrap;
-}
-.det-pag-btn{
-    min-width:32px; height:32px; border:1.5px solid #e2e8f0;
-    background:#fff; color:#475569; border-radius:8px;
-    font-size:12px; font-weight:700; cursor:pointer;
-    display:inline-flex; align-items:center; justify-content:center;
-    transition:background .12s,color .12s,border-color .12s,box-shadow .12s; padding:0 9px;
-}
-.det-pag-btn:hover{ background:#eff6ff; border-color:#93c5fd; color:#1e40af; box-shadow:0 2px 6px rgba(37,99,235,.12); }
-.det-pag-btn.active{ background:#1e3a8a; color:#fff; border-color:#1e3a8a; box-shadow:0 3px 8px rgba(30,58,138,.25); }
-.det-pag-btn:disabled{ opacity:.35; cursor:not-allowed; box-shadow:none; }
-.det-pag-info{ font-size:11px; color:#94a3b8; font-weight:700; padding:0 8px; }
-</style>
+/</style>
 @endpush
 
 <div>
@@ -579,9 +500,6 @@
         </div>
     </div>
 
-    <button class="conc-btn-refresh" id="btn-reload-periodos">
-        <i class="fa fa-refresh"></i> Actualizar
-    </button>
 </div>
 
 {{-- ══════════════════════════════════════════════════════════════════
@@ -637,8 +555,164 @@
         <div class="dg-infobar">
             <i class="fa fa-info-circle"></i>
             <span>Define los días de gracia y el porcentaje de retención por tipo de factura.
-                <strong>Contado:</strong> desde fecha de pago.
+                <strong>Contado:</strong> desde fecha de emisión.
                 <strong>Crédito:</strong> desde vencimiento de factura.</span>
+        </div>
+
+        {{-- Panel explicativo de la regla de retención --}}
+        <div style="padding:16px 20px 4px;">
+            <div style="
+                background:#fff;
+                border:1.5px solid #e2e8f0;
+                border-left:4px solid #f59e0b;
+                border-radius:10px;
+                overflow:hidden;
+                box-shadow:0 1px 4px rgba(0,0,0,.05);
+            ">
+                {{-- Header colapsable --}}
+                <div id="ret-rule-header" onclick="document.getElementById('ret-rule-body').classList.toggle('d-none'); this.querySelector('.ret-chevron').classList.toggle('fa-chevron-down'); this.querySelector('.ret-chevron').classList.toggle('fa-chevron-up');"
+                    style="display:flex;align-items:center;gap:10px;padding:11px 16px;cursor:pointer;background:#fffbeb;border-bottom:1px solid #fde68a;user-select:none;">
+                    <span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;background:#f59e0b;border-radius:7px;flex-shrink:0;">
+                        <i class="fa fa-exclamation" style="color:#fff;font-size:13px;"></i>
+                    </span>
+                    <div style="flex:1;">
+                        <div style="font-size:12.5px;font-weight:800;color:#92400e;letter-spacing:.2px;">Regla de retención por mora — activa en Aplicación de Pagos</div>
+                        <div style="font-size:11px;color:#b45309;margin-top:1px;">Se ejecuta automáticamente cuando un pago cierra una factura. Clic para ver el detalle completo.</div>
+                    </div>
+                    <i class="fa fa-chevron-down ret-chevron" style="color:#b45309;font-size:11px;flex-shrink:0;"></i>
+                </div>
+
+                {{-- Cuerpo (colapsado por defecto) --}}
+                <div id="ret-rule-body" class="d-none" style="padding:16px 20px;">
+
+                    {{-- Dos tipos de factura --}}
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
+
+                        {{-- CONTADO --}}
+                        <div style="background:#fef2f2;border:1.5px solid #fecaca;border-radius:8px;padding:13px 15px;">
+                            <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px;">
+                                <span style="background:#dc2626;border-radius:5px;padding:3px 9px;font-size:10px;font-weight:800;color:#fff;letter-spacing:.4px;">CONTADO</span>
+                                <span style="font-size:11px;color:#b91c1c;font-weight:700;">Penalización total</span>
+                            </div>
+                            <div style="font-size:11.5px;color:#7f1d1d;line-height:1.75;">
+                                <div><i class="fa fa-calendar-o" style="width:15px;"></i> <strong>Referencia:</strong> Fecha de emisión</div>
+                                <div style="margin-top:5px;background:#fee2e2;border-radius:5px;padding:6px 10px;font-family:monospace;font-size:11px;">
+                                    DiasTranscurridos = FechaCierre − FechaEmisión
+                                </div>
+                                <div style="margin-top:8px;padding:7px 10px;background:#dc2626;border-radius:6px;color:#fff;font-weight:700;font-size:11.5px;">
+                                    <i class="fa fa-ban" style="margin-right:5px;"></i>
+                                    Si excede DiasGracia → Comisión = L 0
+                                </div>
+                                <div style="margin-top:7px;font-size:11px;color:#991b1b;">
+                                    <i class="fa fa-info-circle" style="margin-right:3px;"></i>
+                                    La penalización es siempre el <strong>100% de la comisión generada</strong>. No usa el % configurado.
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- CRÉDITO --}}
+                        <div style="background:#fff7ed;border:1.5px solid #fed7aa;border-radius:8px;padding:13px 15px;">
+                            <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px;">
+                                <span style="background:#ea580c;border-radius:5px;padding:3px 9px;font-size:10px;font-weight:800;color:#fff;letter-spacing:.4px;">CRÉDITO</span>
+                                <span style="font-size:11px;color:#c2410c;font-weight:700;">Retención acumulativa por período</span>
+                            </div>
+                            <div style="font-size:11.5px;color:#7c2d12;line-height:1.75;">
+                                <div><i class="fa fa-calendar-o" style="width:15px;"></i> <strong>Referencia:</strong> Fecha de vencimiento</div>
+                                <div style="margin-top:5px;background:#ffedd5;border-radius:5px;padding:6px 10px;font-family:monospace;font-size:11px;line-height:1.6;">
+                                    DiasTranscurridos = FechaCierre − FechaVencimiento<br>
+                                    PeriodosVencidos  = floor( DiasTranscurridos / DiasGracia )<br>
+                                    RetenciónTotal    = PeriodosVencidos × (Subtotal × % / 100)<br>
+                                    ComisiónFinal     = max(0, Comisión − RetenciónTotal)
+                                </div>
+                                <div style="margin-top:7px;font-size:11px;color:#9a3412;">
+                                    <i class="fa fa-info-circle" style="margin-right:3px;"></i>
+                                    Cada período genera un registro de auditoría independiente.
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    {{-- Ejemplo numérico crédito --}}
+                    <div style="background:#f0f9ff;border:1.5px solid #bae6fd;border-radius:8px;padding:13px 15px;margin-bottom:14px;">
+                        <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px;">
+                            <i class="fa fa-table" style="color:#0369a1;font-size:13px;"></i>
+                            <span style="font-size:12px;font-weight:800;color:#0369a1;">Ejemplo — Crédito con 30 días de gracia y 1% de retención</span>
+                        </div>
+                        <table style="width:100%;border-collapse:collapse;font-size:11.5px;">
+                            <thead>
+                                <tr style="background:#e0f2fe;">
+                                    <th style="padding:5px 10px;text-align:left;color:#0369a1;font-weight:700;border-radius:4px 0 0 4px;">Días vencidos</th>
+                                    <th style="padding:5px 10px;text-align:center;color:#0369a1;font-weight:700;">Períodos</th>
+                                    <th style="padding:5px 10px;text-align:center;color:#0369a1;font-weight:700;">Retención acum.</th>
+                                    <th style="padding:5px 10px;text-align:left;color:#0369a1;font-weight:700;border-radius:0 4px 4px 0;">Registros auditoría</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr style="border-bottom:1px solid #e0f2fe;">
+                                    <td style="padding:5px 10px;color:#0c4a6e;">35 días</td>
+                                    <td style="padding:5px 10px;text-align:center;"><span style="background:#0369a1;color:#fff;border-radius:12px;padding:2px 9px;font-weight:700;">1</span></td>
+                                    <td style="padding:5px 10px;text-align:center;color:#0c4a6e;font-weight:600;">1%</td>
+                                    <td style="padding:5px 10px;color:#64748b;">Período #1</td>
+                                </tr>
+                                <tr style="border-bottom:1px solid #e0f2fe;">
+                                    <td style="padding:5px 10px;color:#0c4a6e;">65 días</td>
+                                    <td style="padding:5px 10px;text-align:center;"><span style="background:#0369a1;color:#fff;border-radius:12px;padding:2px 9px;font-weight:700;">2</span></td>
+                                    <td style="padding:5px 10px;text-align:center;color:#0c4a6e;font-weight:600;">2%</td>
+                                    <td style="padding:5px 10px;color:#64748b;">Período #1 + #2</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding:5px 10px;color:#0c4a6e;">95 días</td>
+                                    <td style="padding:5px 10px;text-align:center;"><span style="background:#0369a1;color:#fff;border-radius:12px;padding:2px 9px;font-weight:700;">3</span></td>
+                                    <td style="padding:5px 10px;text-align:center;color:#0c4a6e;font-weight:600;">3%</td>
+                                    <td style="padding:5px 10px;color:#64748b;">Período #1 + #2 + #3</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {{-- Condiciones y exclusiones --}}
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+                        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:11px 13px;">
+                            <div style="font-size:10.5px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px;">
+                                <i class="fa fa-check-circle" style="color:#16a34a;margin-right:4px;"></i>Cuándo se aplica
+                            </div>
+                            <div style="display:flex;flex-direction:column;gap:5px;font-size:11.5px;color:#334155;">
+                                <div><i class="fa fa-circle" style="font-size:6px;color:#16a34a;margin-right:6px;vertical-align:2px;"></i>El pago <strong>cierra completamente</strong> la factura</div>
+                                <div><i class="fa fa-circle" style="font-size:6px;color:#16a34a;margin-right:6px;vertical-align:2px;"></i>El rol tiene <strong>días de gracia &gt; 0</strong> configurados</div>
+                                <div><i class="fa fa-circle" style="font-size:6px;color:#16a34a;margin-right:6px;vertical-align:2px;"></i>Los días transcurridos <strong>superan</strong> el período de gracia</div>
+                                <div><i class="fa fa-circle" style="font-size:6px;color:#16a34a;margin-right:6px;vertical-align:2px;"></i>Para crédito: el rol tiene <strong>% de retención &gt; 0</strong></div>
+                            </div>
+                        </div>
+                        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:11px 13px;">
+                            <div style="font-size:10.5px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px;">
+                                <i class="fa fa-ban" style="color:#dc2626;margin-right:4px;"></i>Cuándo NO se aplica
+                            </div>
+                            <div style="display:flex;flex-direction:column;gap:5px;font-size:11.5px;color:#334155;">
+                                <div><i class="fa fa-circle" style="font-size:6px;color:#dc2626;margin-right:6px;vertical-align:2px;"></i>El rol no tiene configuración de retención</div>
+                                <div><i class="fa fa-circle" style="font-size:6px;color:#dc2626;margin-right:6px;vertical-align:2px;"></i>El pago es anticipado o dentro del período de gracia</div>
+                                <div><i class="fa fa-circle" style="font-size:6px;color:#dc2626;margin-right:6px;vertical-align:2px;"></i>La factura queda con saldo pendiente (no cerró)</div>
+                                <div><i class="fa fa-circle" style="font-size:6px;color:#dc2626;margin-right:6px;vertical-align:2px;"></i>Ya existe un registro de retención previo (sin duplicados)</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Auditoría --}}
+                    <div style="background:#faf5ff;border:1.5px solid #e9d5ff;border-radius:8px;padding:11px 14px;">
+                        <div style="font-size:10.5px;font-weight:800;color:#7c3aed;text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px;">
+                            <i class="fa fa-database" style="margin-right:4px;"></i>Auditoría e histórico — tabla <code style="background:#ede9fe;padding:1px 5px;border-radius:3px;">retencion_mora_log</code>
+                        </div>
+                        <div style="font-size:11.5px;color:#4c1d95;line-height:1.7;">
+                            Cada evento de retención queda registrado de forma <strong>inmutable</strong> con:
+                            factura, rol, usuario afectado, tipo de factura, fecha de aplicación, días transcurridos,
+                            días de gracia configurados, porcentaje aplicado, número de período (crédito),
+                            comisión original, monto retenido, subtotal de factura y usuario que ejecutó el pago.
+                            Los registros <strong>no se sobrescriben</strong> — permiten reconstruir el historial completo.
+                        </div>
+                    </div>
+
+                </div>
+            </div>
         </div>
 
         {{-- Tabla de roles --}}
@@ -784,7 +858,7 @@
                     Cancelar
                 </button>
                 <button type="button" id="dgm-btn-guardar" class="btn btn-sm px-4" onclick="dgmGuardar()"
-                    style="background:linear-gradient(135deg,#1e3a8a,#2563eb);color:#fff;font-weight:700;border:none;min-width:150px;box-shadow:0 2px 8px rgba(30,58,138,.30);">
+                    style="background:#1e293b;color:#fff;font-weight:600;border:none;min-width:150px;">
                     <i class="fa fa-check mr-1"></i> Guardar cambios
                 </button>
             </div>
@@ -1234,29 +1308,30 @@ function renderPeriodos(data) {
     }
 
     let html = '<div class="table-responsive"><table class="conc-tbl">'
-        + '<thead><tr><th>Período</th><th>Estado</th>'
-        + '<th class="text-right">Total Comisiones</th>'
-        + '<th class="text-center">Empleados</th>'
-        + '<th class="text-center">Facturas</th>'
-        + '<th>Conciliado por</th><th>Fecha Conciliación</th>'
-        + '<th class="text-center">Acciones</th></tr></thead><tbody>';
+        + '<thead><tr>'
+        + '<th>Período</th>'
+        + '<th>Estado</th>'
+        + '<th style="text-align:right;">Total Comisiones</th>'
+        + '<th style="text-align:right;">Facturas</th>'
+        + '<th>Conciliado por</th>'
+        + '<th>Fecha Conciliación</th>'
+        + '<th style="text-align:right;">Acciones</th>'
+        + '</tr></thead><tbody>';
 
     periodos.forEach(p => {
-        const rowClass = p.estado === 'conciliado' ? 'row-conciliado'
-                       : p.estado === 'sin_abrir'  ? 'row-sin-abrir'
+        const rowClass = p.estado === 'sin_abrir'  ? 'row-sin-abrir'
                        : p.es_mes_actual           ? 'row-mes-actual' : '';
         const mesActBadge = p.es_mes_actual
-            ? '<span style="background:#f59e0b;color:#fff;border-radius:8px;padding:1px 6px;font-size:10px;font-weight:800;margin-left:6px;">MES ACTUAL</span>'
+            ? ' <span style="background:#f59e0b;color:#fff;border-radius:3px;padding:1px 6px;font-size:9.5px;font-weight:700;vertical-align:middle;">MES</span>'
             : '';
         html += `<tr class="${rowClass}">
-            <td style="font-weight:700;color:#1e293b;">${p.periodo_label}${mesActBadge}</td>
+            <td style="font-weight:600;">${p.periodo_label}${mesActBadge}</td>
             <td>${badgeEstado(p.estado)}</td>
-            <td class="text-right" style="font-weight:700;color:#1e3a8a;">${p.total_comision > 0 ? 'L ' + numFmt(p.total_comision) : '<span style="color:#cbd5e1;">—</span>'}</td>
-            <td class="text-center">${p.cantidad_empleados > 0 ? p.cantidad_empleados : '<span style="color:#cbd5e1;">—</span>'}</td>
-            <td class="text-center">${p.cantidad_facturas > 0 ? p.cantidad_facturas : '<span style="color:#cbd5e1;">—</span>'}</td>
-            <td style="font-size:12px;color:#64748b;">${p.usuario_concilio ?? '<span style="color:#cbd5e1;">—</span>'}</td>
-            <td style="font-size:12px;color:#64748b;">${p.fecha_conciliacion ? fmtFecha(p.fecha_conciliacion) : '<span style="color:#cbd5e1;">—</span>'}</td>
-            <td class="text-center">${renderAcciones(p)}</td>
+            <td class="td-num" style="font-weight:700;color:#1e293b;">${p.total_comision > 0 ? 'L ' + numFmt(p.total_comision) : '<span style="color:#d1d5db;">—</span>'}</td>
+            <td class="td-num">${p.cantidad_facturas > 0 ? p.cantidad_facturas : '<span style="color:#d1d5db;">—</span>'}</td>
+            <td style="font-size:12.5px;color:#6b7280;">${p.usuario_concilio ?? '<span style="color:#d1d5db;">—</span>'}</td>
+            <td style="font-size:12.5px;color:#6b7280;">${p.fecha_conciliacion ? fmtFecha(p.fecha_conciliacion) : '<span style="color:#d1d5db;">—</span>'}</td>
+            <td class="td-actions">${renderAcciones(p)}</td>
         </tr>`;
     });
     html += '</tbody></table></div>';
@@ -1264,9 +1339,9 @@ function renderPeriodos(data) {
 }
 
 function renderAcciones(p) {
-    if (p.estado === 'sin_abrir') return '<span style="font-size:11px;color:#cbd5e1;"><i class="fa fa-clock-o mr-1"></i>Futuro</span>';
+    if (p.estado === 'sin_abrir') return '<span style="font-size:11.5px;color:#d1d5db;">Futuro</span>';
     if (p.estado === 'conciliado') {
-        return `<div style="display:flex;gap:5px;justify-content:center;flex-wrap:wrap;">
+        return `<div style="display:flex;gap:6px;justify-content:flex-end;">
             <button class="conc-btn btn-detalle" onclick="abrirDetalle('${p.periodo}')"><i class="fa fa-search"></i> Ver detalle</button>
             <button class="conc-btn btn-reabrir" onclick="abrirReabrir('${p.periodo}','${p.periodo_label}')"><i class="fa fa-unlock"></i> Reabrir</button>
         </div>`;
@@ -1274,7 +1349,7 @@ function renderAcciones(p) {
     const btnConciliar = (p.total_comision > 0 || p.es_mes_actual)
         ? `<button class="conc-btn btn-conciliar" onclick="abrirConciliar('${p.periodo}','${p.periodo_label}')"><i class="fa fa-lock"></i> Conciliar</button>`
         : `<button class="conc-btn btn-conciliar btn-disabled" disabled><i class="fa fa-lock"></i> Conciliar</button>`;
-    return `<div style="display:flex;gap:5px;justify-content:center;flex-wrap:wrap;">
+    return `<div style="display:flex;gap:6px;justify-content:flex-end;">
         ${btnConciliar}
         <button class="conc-btn btn-detalle" onclick="abrirDetalle('${p.periodo}')"><i class="fa fa-search"></i> Ver detalle</button>
     </div>`;
@@ -1587,7 +1662,6 @@ function fmtFechaPlain(s) {
 }
 
 /* ── Bootstrap ───────────────────────────────────────────────── */
-document.getElementById('btn-reload-periodos').addEventListener('click', cargarPeriodos);
 document.addEventListener('DOMContentLoaded', function() {
     cargarPeriodos();
 });

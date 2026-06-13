@@ -247,6 +247,7 @@ class Conciliacion extends Component
         // Totales live desde comision_empleado (solo para periodos abiertos o sin registro)
         $totalesLive = DB::table('comision_empleado')
             ->where('estado_id', 1)
+            ->where('comision_acumulada', '>', 0)
             ->selectRaw('DATE_FORMAT(mes_comision, "%Y-%m-01") as periodo,
                          SUM(comision_acumulada) as total,
                          COUNT(DISTINCT users_comision) as empleados')
@@ -517,6 +518,7 @@ class Conciliacion extends Component
                 AND DATE_FORMAT(fc.fecha_cierre_factura,'%Y-%m-01') = ?
             WHERE ce.mes_comision = ?
               AND ce.estado_id    = 1
+              AND ce.comision_acumulada > 0
             GROUP BY ce.id, u.id, u.name, r.nombre, ce.comision_acumulada, ce.fecha_ult_modificacion
             ORDER BY ce.comision_acumulada DESC
         ", [$periodo, $periodo]);
@@ -603,6 +605,7 @@ class Conciliacion extends Component
                 AND DATE_FORMAT(fc.fecha_cierre_factura,'%Y-%m-01') = ?
             WHERE ce.mes_comision = ?
               AND ce.estado_id    = 1
+              AND ce.comision_acumulada > 0
             GROUP BY ce.id, u.id, u.name, r.nombre, r.id, ce.mes_comision, ce.comision_acumulada
             ORDER BY ce.comision_acumulada DESC
         ", [$periodo, $periodo]);
@@ -620,7 +623,12 @@ class Conciliacion extends Component
         ", [$periodo]);
 
         $totalComision  = array_sum(array_column($empleados, 'comision_acumulada'));
-        $cantEmpleados  = count(array_unique(array_column($empleados, 'user_id')));
+        $cantEmpleados  = count(array_filter(array_unique(array_column($empleados, 'user_id')), function($uid) use ($empleados) {
+            foreach ($empleados as $e) {
+                if ($e->user_id == $uid && $e->comision_acumulada > 0) return true;
+            }
+            return false;
+        }));
         $cantFacturas   = count(array_unique(array_column($facturas, 'factura_id')));
 
         return [

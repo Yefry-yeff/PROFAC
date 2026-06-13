@@ -28,6 +28,7 @@ use App\Models\Comisiones\Escalado\modelcomision_empleado;
 use App\Models\Comisiones\Escalado\modelcomision_escala;
 use App\Services\Comisiones\ProcesadorComisiones;
 use App\Services\Comisiones\GeneradorFacturasComision;
+use App\Services\Comisiones\AplicadorRetencionesMora;
 
 
 
@@ -658,6 +659,8 @@ class Pagos extends Component
                                 );
 
                                 if (!empty($arrayfacturas_comision)) {
+                                    $arrayfacturas_comision = app(AplicadorRetencionesMora::class)
+                                        ->aplicar($arrayfacturas_comision, (int) $request->idFacturaom);
                                     $procesador = app(ProcesadorComisiones::class);
                                     foreach ($arrayfacturas_comision as $factura) {
                                         $procesador->procesar($factura);
@@ -975,6 +978,8 @@ class Pagos extends Component
                                 );
 
                                 if (!empty($arrayfacturas_comision)) {
+                                    $arrayfacturas_comision = app(AplicadorRetencionesMora::class)
+                                        ->aplicar($arrayfacturas_comision, (int) $request->idFacturaAbono, $fechaPagoComision);
                                     $procesador = app(ProcesadorComisiones::class);
                                     foreach ($arrayfacturas_comision as $factura) {
                                         $procesador->procesar($factura);
@@ -1184,6 +1189,8 @@ class Pagos extends Component
                 );
 
                 if (!empty($arrayfacturas_comision)) {
+                    $arrayfacturas_comision = app(AplicadorRetencionesMora::class)
+                        ->aplicar($arrayfacturas_comision, (int) $apCierre->factura_id);
                     $procesador = app(ProcesadorComisiones::class);
                     foreach ($arrayfacturas_comision as $factura) {
                         $procesador->procesar($factura);
